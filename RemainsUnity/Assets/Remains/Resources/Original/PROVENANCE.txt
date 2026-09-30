@@ -1,0 +1,16 @@
+Remains 1.04 Graphic Update, установленная локальная версия.
+Источник: Q:/Steam/steamapps/common/Remains/DLC/.
+
+Pony: DefineShape PNG из pfeUI.swf; pose/affine/layer данные DefineSprite
+3837 и вложенных visual timelines. Экспорт JPEXS 26.3.0, zoom 2.
+Pony/pony.json содержит только графические данные. ActionScript не включён.
+Пять клипов: stay, run, jump, laz, die; косметические timelines пока на кадре 1.
+Крылья скрыты для начальной пони-единорога. Динамическая окраска и варианты
+экипировки оригинала пока воспроизведены лишь частично.
+
+Room/wall.jpg: texture.swf, bitmap 19 tConcreteBack.
+Room/floor.jpg: texture.swf, bitmap 12 tMetalRust.
+Hud: pfeUI.swf, sprites 4547 hpBar, 4620 manaBar, 4529 odBar, кадр 1.
+
+Код оригинала не переносился. Прямая runtime-проверка оригинала отсутствует:
+Ruffle 0.6.0 в изолированном браузере падает с Maximum call stack size exceeded.

@@ -1,0 +1,34 @@
+using System;
+
+namespace Remains.Runtime
+{
+    public sealed class LaunchOptions
+    {
+        public string Role { get; private set; }
+        public string Character { get; private set; } = "pony-one";
+        public string Address { get; private set; } = "127.0.0.1";
+        public string SaveDirectory { get; private set; }
+        public string Smoke { get; private set; }
+        public string Report { get; private set; }
+        public ushort Port { get; private set; } = 7777;
+        public static LaunchOptions Parse()
+        {
+            var options = new LaunchOptions();
+            var args = Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                switch (args[i])
+                {
+                    case "--role": options.Role = args[++i]; break;
+                    case "--character": options.Character = args[++i]; break;
+                    case "--address": options.Address = args[++i]; break;
+                    case "--save-dir": options.SaveDirectory = args[++i]; break;
+                    case "--port": options.Port = ushort.Parse(args[++i]); break;
+                    case "--smoke": options.Smoke = args[++i]; break;
+                    case "--report": options.Report = args[++i]; break;
+                }
+            }
+            return options;
+        }
+    }
+}
