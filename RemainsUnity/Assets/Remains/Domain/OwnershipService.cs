@@ -21,6 +21,14 @@ namespace Remains.Domain
                 actor.generation++;
                 actor.revision++;
             }
+            foreach(var prop in world.props)
+            {
+                if(active.Any(a=>a.owner==prop.owner && a.level==prop.level)) continue;
+                var candidate=active.Where(a=>a.level==prop.level).OrderBy(a=>Vector2.Distance(a.Position,prop.Position)).FirstOrDefault();
+                string next=candidate?.owner??"host";
+                if(prop.owner==next) continue;
+                prop.owner=next;prop.held=false;prop.generation++;
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -15,8 +16,16 @@ namespace Remains.Presentation
         private GameObject lobby;
         private GameObject inventory;
         private InputField address;
+        private InputField character;
+        public Func<string,bool> SelectCharacter { get; set; }
         private readonly Button[] slots = new Button[9];
         private Font font;
+        private Image healthBar;
+        private Image manaBar;
+        private Text personalItems;
+        private Button friendlyFire;
+        private Button leave;
+        private Button factory;
         public event Action HostRequested;
         public event Action<string> JoinRequested;
 
@@ -31,11 +40,18 @@ namespace Remains.Presentation
             gameObject.AddComponent<GraphicRaycaster>();
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             status = Label(transform, "Подключение не установлено", new Vector2(20,-20), new Vector2(1050,60));
+            healthBar=OriginalBar("health",new Vector2(20,-95),new Vector2(300,34));
+            manaBar=OriginalBar("mana",new Vector2(20,-135),new Vector2(300,20));
             message = Label(transform, "A/D — движение · Пробел — прыжок · W/S — лестница · ЛКМ — атака · E — поднять союзника · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
-            lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,230));
-            Button(lobby.transform,"Создать игру",new Vector2(20,-20),new Vector2(400,45),()=>HostRequested?.Invoke());
-            address = Input(lobby.transform, new Vector2(20,-80));
-            Button(lobby.transform,"Подключиться",new Vector2(20,-140),new Vector2(400,45),()=>JoinRequested?.Invoke(address.text));
+            lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,300));
+            var saved=session.Saves.LoadWorld();
+            if(saved!=null) Label(transform,$"Локальная копия: мир {saved.worldId.Substring(0,8)} · ревизия {saved.revision}",new Vector2(420,-180),new Vector2(620,55));
+            character=Input(lobby.transform,new Vector2(20,-20));character.text=session.CharacterId??"pony-one";
+            Button(lobby.transform,"Создать игру",new Vector2(20,-80),new Vector2(400,45),()=>
+            {if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();});
+            address = Input(lobby.transform, new Vector2(20,-140));
+            Button(lobby.transform,"Подключиться",new Vector2(20,-200),new Vector2(400,45),()=>
+            {if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);});
             inventory = Panel(transform,"Общий контейнер",new Vector2(920,-130),new Vector2(330,390));
             Label(inventory.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
             for (int i = 0; i < slots.Length; i++)
@@ -48,17 +64,43 @@ namespace Remains.Presentation
                 });
             }
             inventory.SetActive(false);
+            var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(-380,0),new Vector2(360,390));
+            ApplyOriginalImage(personalPanel.GetComponent<Image>(),"inventory-panel",false);
+            personalItems=Label(personalPanel.transform,"",new Vector2(20,-20),new Vector2(320,340));
+            friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-550),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
+            leave=Button(transform,"Сохранить и выйти из сессии",new Vector2(20,-600),new Vector2(290,45),()=>
+            {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
+            friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
+            factory=Button(transform,"Вернуться на завод 0",new Vector2(20,-500),new Vector2(290,45),()=>session.ReturnToFactory());
+            factory.gameObject.SetActive(false);
             session.Changed += Refresh;
             session.Notice += text => message.text = text;
+            session.ModMismatch+=hostMods=>
+            {
+                var warning=Panel(transform,"Моды не совпадают",new Vector2(240,-160),new Vector2(800,430));
+                Label(warning.transform,$"Моды или их порядок не совпадают. Продолжить на свой риск?\n\nУ вас:\n{WeaponCatalog.ModDescription}\n\nУ хоста:\n{hostMods}",new Vector2(20,-20),new Vector2(750,320));
+                Button(warning.transform,"Войти",new Vector2(20,-350),new Vector2(360,50),()=>{session.SendJoin(true);Destroy(warning);});
+                Button(warning.transform,"Отмена",new Vector2(410,-350),new Vector2(360,50),()=>{session.StopClient();Destroy(warning);});
+            };
+            Refresh();
         }
 
         public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf); Refresh(); }
+        public void ShowMessage(string text)=>message.text=text;
         private void Refresh()
         {
             var actor = session.LocalActor;
-            if (actor == null) return;
+            if (actor == null)
+            {lobby.SetActive(true);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             lobby.SetActive(false);
-            status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count}\n1 — копьё · 2 — лом · 3 — пистолет · 4 — энергомагическое оружие";
+            leave.gameObject.SetActive(true);friendlyFire.gameObject.SetActive(Mirror.NetworkServer.active);
+            factory.gameObject.SetActive(actor.level=="hub");
+            friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
+            status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count} · {(actor.level=="hub"?"Хаб": "Завод 0")}\n1 — копьё · 2 — лом · 3 — пистолет · 4 — энергомагическое оружие";
+            healthBar.fillAmount=Mathf.Clamp01(actor.health/100);
+            manaBar.fillAmount=Mathf.Clamp01(actor.mana/100);
+            personalItems.text="Личный инвентарь\n";
+            foreach(var item in actor.inventory) personalItems.text+=$"\n{ItemName(item.definition)} × {item.count}";
             for (int i = 0; i < slots.Length; i++)
             {
                 var item = i < session.World.container.Count ? session.World.container[i] : null;
@@ -66,7 +108,32 @@ namespace Remains.Presentation
                 slots[i].interactable = item != null && !actor.down;
             }
         }
-        private static string ItemName(string id) => id switch { "caps"=>"Крышки", "heal"=>"Хилка", "grenade"=>"Граната", _=>id };
+        private static string ItemName(string id)
+        {
+            switch(id)
+            {
+                case "caps":return "Крышки";
+                case "heal":return "Хилка";
+                case "grenade":return "Граната";
+                default:Debug.LogWarning($"Нет русской подписи предмета в инвентаре: {id}.");return "["+id+"]";
+            }
+        }
+
+        private Image OriginalBar(string key,Vector2 position,Vector2 size)
+        {
+            var obj=Panel(transform,"Шкала "+key,position,size);
+            var image=obj.GetComponent<Image>();ApplyOriginalImage(image,key,true);
+            return image;
+        }
+        private static void ApplyOriginalImage(Image image,string key,bool filled)
+        {
+            var texture=Resources.Load<Texture2D>("Original/Hud/"+key);
+            if(texture==null) throw new InvalidOperationException($"Не найдена графика интерфейса: {key}.");
+            image.color=Color.white;
+            image.sprite=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(0.5f,0.5f));
+            image.type=filled?Image.Type.Filled:Image.Type.Simple;
+            image.fillMethod=Image.FillMethod.Horizontal;image.fillOrigin=0;
+        }
 
         private GameObject Panel(Transform parent, string title, Vector2 position, Vector2 size)
         {

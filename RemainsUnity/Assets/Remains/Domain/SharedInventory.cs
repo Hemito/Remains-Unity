@@ -26,7 +26,6 @@ namespace Remains.Domain
             if(!world.completedTransactions.Contains(grant.transaction))
             {
                 recipient.inventory.Add(grant.item);
-                recipient.revision++;
                 world.completedTransactions.Add(grant.transaction);
             }
             world.pendingGrants.Remove(grant);

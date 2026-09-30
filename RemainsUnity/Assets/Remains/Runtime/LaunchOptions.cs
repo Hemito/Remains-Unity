@@ -11,6 +11,7 @@ namespace Remains.Runtime
         public string Smoke { get; private set; }
         public string Report { get; private set; }
         public ushort Port { get; private set; } = 7777;
+        public int Capacity { get; private set; } = 16;
         public static LaunchOptions Parse()
         {
             var options = new LaunchOptions();
@@ -24,6 +25,7 @@ namespace Remains.Runtime
                     case "--address": options.Address = args[++i]; break;
                     case "--save-dir": options.SaveDirectory = args[++i]; break;
                     case "--port": options.Port = ushort.Parse(args[++i]); break;
+                    case "--capacity": options.Capacity=int.Parse(args[++i]);if(options.Capacity<1 || options.Capacity>64) throw new ArgumentOutOfRangeException("capacity","Вместимость должна быть от 1 до 64.");break;
                     case "--smoke": options.Smoke = args[++i]; break;
                     case "--report": options.Report = args[++i]; break;
                 }

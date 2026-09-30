@@ -1,18 +1,22 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Domain
 {
-    [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; }
+    [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; public string[] shapes; }
     [Serializable] public sealed class AnatomyDefinition { public string id; public HitRegionDefinition[] regions; }
     [Serializable] public sealed class AnatomyCatalog { public AnatomyDefinition[] anatomies; }
     public static class Anatomy
     {
         private static readonly Dictionary<string,AnatomyDefinition> definitions=new();
+        private static readonly Dictionary<string,Vector2?[]> poseCenters=new();
         public static void Load()
         {
             definitions.Clear();
+            poseCenters.Clear();
+            PonyAnimationData.Load();
             var asset=Resources.Load<TextAsset>("Content/anatomy");
             if(asset==null) throw new InvalidOperationException("Не найдены определения анатомии Content/anatomy.");
             var catalog=JsonUtility.FromJson<AnatomyCatalog>(asset.text);
@@ -23,6 +27,18 @@ namespace Remains.Domain
                     if(string.IsNullOrEmpty(region.id) || !ids.Add(region.id) || region.radius<=0)
                         throw new InvalidOperationException($"Некорректная область {region.id} анатомии {definition.id}.");
                 definitions.Add(definition.id,definition);
+                foreach(var region in definition.regions)
+                {
+                    if(region.shapes==null || region.shapes.Length==0) continue;
+                    foreach(var clip in PonyAnimationData.Library.clips)
+                    {
+                        var centers=new Vector2?[clip.frames.Length];
+                        for(int frame=0;frame<centers.Length;frame++)
+                            if(PonyAnimationData.TryCenter(clip.id,frame,region.shapes,out var center)) centers[frame]=center;
+                            else Debug.LogWarning($"Нет графической привязки области {region.id}: anatomy={definition.id}, pose={clip.id}, frame={frame}.");
+                        poseCenters.Add(definition.id+":"+region.id+":"+clip.id,centers);
+                    }
+                }
             }
         }
 
@@ -35,9 +51,18 @@ namespace Remains.Domain
             }
             foreach(var region in definition.regions)
             {
-                var center=actor.Position+(actor.down?new Vector2(region.y-0.6f,0.2f):new Vector2(region.x*actor.facing,region.y));
+                var offset=new Vector2(region.x,region.y);
+                string pose=ActorPose.Clip(actor);
+                if(region.shapes!=null && region.shapes.Length>0)
+                {
+                    int frame=PonyAnimationData.FrameIndex(pose,actor.poseTime,actor.down);
+                    if(!poseCenters.TryGetValue(actor.anatomy+":"+region.id+":"+pose,out var centers) || !centers[frame].HasValue)
+                    {Debug.LogWarning($"Нет графической привязки области {region.id}: actor={actor.id}, pose={actor.pose}, frame={frame}.");continue;}
+                    offset=centers[frame].Value;
+                }
+                var center=actor.Position+new Vector2(offset.x*actor.facing,offset.y);
                 float distance=attack.weapon=="grenade"?Vector2.Distance(center,attack.End):HitGeometry.SegmentDistance(center,attack.Origin,attack.End);
-                if(distance<(attack.weapon=="grenade"?3:region.radius)) return region.id;
+                if(distance<(attack.weapon=="grenade"?3:region.radius+attack.radius)) return region.id;
             }
             return null;
         }

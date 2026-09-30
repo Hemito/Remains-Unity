@@ -32,8 +32,8 @@ namespace Remains.Gameplay
                     if(actor.x>=platform.x && actor.x<=platform.x+platform.width && previous.y>=top-0.02f && actor.y<=top)
                     { actor.y=top; actor.vy=0; }
                 }
-            if (actor.y < 0) { actor.y = 0; actor.vy = 0; }
-            actor.pose = ladder ? "climb" : actor.y > 0.05f ? "jump" : Mathf.Abs(actor.vx) > 0.1f ? "run" : "idle";
+            bool supported=System.Array.Exists(room.platforms,p=>actor.x>=p.x && actor.x<=p.x+p.width && Mathf.Abs(actor.y-p.y-p.height)<0.03f);
+            ActorPose.Select(actor,ladder ? "climb" : !supported ? "jump" : Mathf.Abs(actor.vx) > 0.1f ? "run" : "idle");
         }
     }
 }

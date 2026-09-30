@@ -14,7 +14,7 @@ namespace Remains.Gameplay
         public void Step(bool held,float dt)
         {
             var healer=session.LocalActor;
-            var target=session.World?.actors.Find(a=>a.player && a.id!=healer?.id && a.down && a.level==healer.level && Vector2.Distance(a.Position,healer.Position)<2);
+            var target=session.World?.actors.Find(a=>a.player && a.connected && a.id!=healer?.id && a.down && a.level==healer.level && Vector2.Distance(a.Position,healer.Position)<2);
             if(!held || healer==null || healer.down || target==null || (targetId!=null && healer.health<startingHealth))
             { targetId=null; elapsed=0; return; }
             if(targetId!=target.id) { targetId=target.id; elapsed=0; startingHealth=healer.health; }

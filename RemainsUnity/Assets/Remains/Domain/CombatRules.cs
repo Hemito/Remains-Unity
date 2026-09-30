@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Domain
 {
@@ -10,16 +11,11 @@ namespace Remains.Domain
 
     public sealed class PrototypeDamageRule : IDamageRule
     {
-        public float Calculate(string weapon, float contactSpeed) => weapon switch
+        public float Calculate(string weapon, float contactSpeed)
         {
-            "spear" => 6 + Mathf.Clamp(contactSpeed * 4, 0, 70),
-            "crowbar" => 24,
-            "pistol" => 35,
-            "energy" => 42,
-            "grenade" => 70,
-            "npc-shot" => 12,
-            _ => throw new System.ArgumentException($"Неизвестное оружие: {weapon}")
-        };
+            var definition=WeaponCatalog.Get(weapon);
+            return definition.damage+Mathf.Clamp(contactSpeed*definition.speedDamage,0,definition.maxSpeedDamage);
+        }
     }
 
     public sealed class DamageReceiver
@@ -34,7 +30,7 @@ namespace Remains.Domain
             actor.health = Mathf.Max(0, actor.health - rules.Calculate(attack.weapon, attack.speed));
             actor.down |= actor.health <= 0;
             actor.revision++;
-            if (actor.down) actor.pose = "down";
+            if (actor.down) ActorPose.Select(actor,"down");
             return true;
         }
     }

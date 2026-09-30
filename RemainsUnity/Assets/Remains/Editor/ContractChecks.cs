@@ -5,6 +5,8 @@ using Remains.Domain;
 using Remains.Persistence;
 using UnityEditor;
 using UnityEngine;
+using Remains.Content;
+using Remains.Gameplay;
 
 namespace Remains.Editor
 {
@@ -13,6 +15,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();
+            WeaponCatalog.Load();
             var actor=new ActorState { id="victim",owner="client-b",player=true,connected=true };
             var damage=new DamageReceiver(new PrototypeDamageRule());
             var attack=new AttackEvent { id="shot-1",weapon="pistol",attacker="client-a",originX=-2,originY=0.7f,endX=2,endY=0.7f };
@@ -49,6 +52,24 @@ namespace Remains.Editor
                 "Сохранение восстанавливает идентичность мира и состояние тела");
             Require(restored.completedTransactions.Contains("claim-1") && File.Exists(Path.Combine(directory,"world.json.previous")),
                 "Сохранение сохраняет транзакцию и предыдущую версию");
+            var room=RoomLayout.Load();var controller=new MovementController(room);
+            var mover=new ActorState {x=0,y=0};controller.Step(mover,Vector2.zero,true,0.05f);
+            Require(mover.y>0 && mover.vy>0,"Прыжок от поверхности комнаты");
+            mover.x=3;mover.y=4;mover.vy=-10;controller.Step(mover,Vector2.zero,false,0.1f);
+            Require(Mathf.Abs(mover.y-3.25f)<0.01f && mover.pose=="idle","Приземление на платформу с позой стояния");
+            mover.x=4;mover.y=0;controller.Step(mover,Vector2.up,false,0.1f);
+            Require(mover.y>0 && mover.pose=="climb","Лестница использует геометрию комнаты");
+            actor.connected=true;actor.down=true;second.connected=false;second.down=false;
+            actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});
+            actor.injuries.Add(new InjuryState{id="fracture",periodicDamage=false});
+            Require(PartyRules.ResolveDefeat(world) && actor.level=="hub" && actor.health==1 &&
+                actor.injuries.Count==1 && actor.injuries[0].id=="fracture", "Отключённый игрок не мешает поражению; хаб сохраняет непериодические ранения");
+            var stale=actor.Copy();stale.lifecycleSequence--;stale.revision=actor.revision+100;
+            Require(!ActorVersion.CanPublishOwnerState(stale,actor) && ActorVersion.IsOlder(stale,actor),
+                "Поздний пакет прежнего состояния не отменяет поднятие/поражение группы");
+            var spear=new PrototypeDamageRule();
+            Require(spear.Calculate("spear",10)>spear.Calculate("spear",1) && spear.Calculate("spear",1000)==76,
+                "Урон копья зависит от скорости и имеет определённый данными предел");
             Debug.Log("Проверки контрактов: PASS — урон пострадавшего, дедупликация, тело, передача владельца, резерв/выдача, сохранение.");
         }
         private static void Require(bool condition,string detail)

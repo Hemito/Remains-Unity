@@ -11,6 +11,11 @@ Pony/pony.json содержит только графические данные
 Room/wall.jpg: texture.swf, bitmap 19 tConcreteBack.
 Room/floor.jpg: texture.swf, bitmap 12 tMetalRust.
 Hud: pfeUI.swf, sprites 4547 hpBar, 4620 manaBar, 4529 odBar, кадр 1.
+Hud/inventory-panel.png: shape 996, рамка visPipInv (без текстовых заглушек).
+Props: sprites 3080 visbox0, 4142 visgrenade, кадр 1.
+Weapons: sprites 1366 visspear, 1399 vismont, 1674 visp10mm,
+1838 vislasp, кадр 1. Полёт, владение и оружейные позы реализованы заново.
+Палитра первой пони: статические значения cFur/cHair/cEye/cMagic из Appear.
 
 Код оригинала не переносился. Прямая runtime-проверка оригинала отсутствует:
 Ruffle 0.6.0 в изолированном браузере падает с Maximum call stack size exceeded.

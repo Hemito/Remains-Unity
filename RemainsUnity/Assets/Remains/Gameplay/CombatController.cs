@@ -3,6 +3,7 @@ using System.Linq;
 using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Gameplay
 {
@@ -11,7 +12,13 @@ namespace Remains.Gameplay
         private readonly CoopSession session;
         private readonly DamageReceiver damage = new(new PrototypeDamageRule());
         private float nextShot;
+        private ActorState swingActor;
+        private Vector2 swingDirection,previousTip;
+        private float swingElapsed;
+        private string swingId,swingWeapon;
         public string Weapon { get; set; } = "pistol";
+        public bool IsMeleeActive=>swingActor!=null;
+        public Func<string,Vector2?> LocalExplosionPosition { get; set; }
         public CombatController(CoopSession session)
         {
             this.session = session;
@@ -22,29 +29,68 @@ namespace Remains.Gameplay
         public bool Fire(ActorState attacker, Vector2 aim)
         {
             if (attacker == null || attacker.down || Time.time < nextShot) return false;
-            nextShot = Time.time + (Weapon == "energy" ? 0.45f : 0.3f);
+            var definition=WeaponCatalog.Get(Weapon);
+            if(definition.manaCost>0)
+            {
+                if(attacker.mana<definition.manaCost) return false;
+                attacker.mana-=definition.manaCost;attacker.revision++;session.PublishActor(attacker);
+            }
+            nextShot = Time.time + definition.cooldown;
             Vector2 origin = attacker.Position + new Vector2(0,0.55f);
             Vector2 direction = (aim-origin).normalized;
             if (direction == Vector2.zero) direction = new Vector2(attacker.facing,0);
-            float range = Weapon is "spear" or "crowbar" ? 1.5f : 20;
+            attacker.weapon=Weapon;
+            attacker.weaponAngle=Mathf.Atan2(direction.y,direction.x)*Mathf.Rad2Deg;
+            if(Weapon is "spear" or "crowbar")
+            {
+                swingActor=attacker;swingWeapon=Weapon;swingDirection=direction;swingElapsed=0;
+                swingId=Guid.NewGuid().ToString("N");previousTip=WeaponPose.Tip(Weapon,origin,direction,0);
+                return true;
+            }
+            float range = definition.range;
             session.Fire(new AttackEvent { id = Guid.NewGuid().ToString("N"), attacker = attacker.id, weapon = Weapon,
                 originX = origin.x, originY = origin.y, endX = origin.x + direction.x * range,
                 endY = origin.y + direction.y * range, speed = attacker.Velocity.magnitude + range / 0.15f });
             return true;
         }
 
-        public void Explode(ActorState attacker, Vector2 location)
+        public void Step(float dt)
         {
-            session.Fire(new AttackEvent { id = Guid.NewGuid().ToString("N"), attacker = attacker.id, weapon = "grenade",
+            if(swingActor==null) return;
+            var actor=session.World?.Find(swingActor.id);
+            if(actor==null || actor.down || actor.owner!=session.LocalOwner) { swingActor=null;return; }
+            swingElapsed=Mathf.Min(0.3f,swingElapsed+dt);
+            var origin=actor.Position+new Vector2(0,0.8f);
+            var tip=WeaponPose.Tip(swingWeapon,origin,swingDirection,swingElapsed/0.3f);
+            var delta=tip-previousTip;
+            actor.weaponTipX=tip.x;actor.weaponTipY=tip.y;
+            actor.weaponReach=Vector2.Distance(tip,origin);
+            actor.weaponAngle=Mathf.Atan2(tip.y-origin.y,tip.x-origin.x)*Mathf.Rad2Deg;
+            session.Fire(new AttackEvent { id=swingId,attacker=actor.id,weapon=swingWeapon,
+                originX=previousTip.x,originY=previousTip.y,endX=tip.x,endY=tip.y,
+                speed=delta.magnitude/Mathf.Max(0.001f,dt),radius=0.08f });
+            previousTip=tip;
+            if(swingElapsed>=0.3f) swingActor=null;
+        }
+
+        public void Explode(ActorState attacker, Vector2 location,string id)
+        {
+            session.Fire(new AttackEvent { id = id, attacker = attacker.id, weapon = "grenade",
                 originX = attacker.x, originY = attacker.y, endX = location.x, endY = location.y });
         }
 
         private void ReceiveAttack(AttackEvent attack)
         {
             if (session.World == null) return;
+            if(attack.weapon=="grenade")
+            {
+                var position=LocalExplosionPosition?.Invoke(attack.id);
+                if(position.HasValue) { attack.endX=position.Value.x;attack.endY=position.Value.y; }
+            }
             foreach (var actor in session.World.actors.ToArray())
             {
                 if (actor.id == attack.attacker) continue;
+                if(actor.level!=session.World.Find(attack.attacker)?.level) continue;
                 bool contact = HitGeometry.Contacts(actor, attack);
                 if (actor.player)
                 {

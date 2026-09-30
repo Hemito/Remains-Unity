@@ -6,7 +6,7 @@ namespace Remains.Presentation
 {
     public static class RoomVisual
     {
-        public static void Build(RoomLayout room)
+        public static GameObject Build(RoomLayout room)
         {
             var parent=new GameObject("Комната: "+room.id).transform;
             Quad(parent,"Задняя стена",room.left,0,room.right-room.left,7,"wall",-10);
@@ -18,6 +18,7 @@ namespace Remains.Presentation
                 Quad(parent,"Правая стойка",ladder.x+0.2f,ladder.bottom,0.06f,ladder.top-ladder.bottom,"floor",1);
                 for(float y=ladder.bottom;y<ladder.top;y+=0.3f) Quad(parent,"Перекладина",ladder.x-0.25f,y,0.5f,0.06f,"floor",1);
             }
+            return parent.gameObject;
         }
         private static void Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order)
         {

@@ -5,6 +5,7 @@ using Mirror;
 using Remains.Domain;
 using Remains.Persistence;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Networking
 {
@@ -22,6 +23,9 @@ namespace Remains.Networking
         public event Action<AttackEvent> AttackReceived;
         public event Action<string> Notice;
         public event Action<NpcHitMessage> NpcHitReceived;
+        public event Action ServerReady;
+        public event Action ClientReady;
+        public event Action<string> ModMismatch;
         private readonly Dictionary<int, string> owners = new();
         private readonly Dictionary<string, string> playerIds = new();
         private readonly Dictionary<string, uint> poseSequences = new();
@@ -47,6 +51,7 @@ namespace Remains.Networking
                 else { backupRevisions[connection.connectionId]=ack.revision; CompleteBackedUpGrants(); }
             });
             InvokeRepeating(nameof(CheckpointWorld), 3, 3);
+            ServerReady?.Invoke();
         }
 
         public override void OnStartClient()
@@ -62,12 +67,22 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<AttackMessage>(message => AttackReceived?.Invoke(JsonUtility.FromJson<AttackEvent>(message.json)));
             NetworkClient.RegisterHandler<NpcHitMessage>(message => NpcHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
+            NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(message.description));
+            ClientReady?.Invoke();
         }
 
         public override void OnClientConnect()
         {
             base.OnClientConnect();
-            NetworkClient.Send(new JoinMessage { character = CharacterId, displayName = CharacterId });
+            SendJoin(false);
+        }
+
+        public void SendJoin(bool acceptMismatch)
+        {
+            var character=Saves.LoadCharacter();
+            NetworkClient.Send(new JoinMessage { character = CharacterId, displayName = CharacterId,
+                characterJson=character==null?null:JsonUtility.ToJson(character),
+                modFingerprint=WeaponCatalog.ModFingerprint,acceptMismatch=acceptMismatch });
         }
 
         private static WorldState CreateWorld()
@@ -77,6 +92,7 @@ namespace Remains.Networking
             world.container.Add(SharedInventory.Create("caps", 20));
             world.container.Add(SharedInventory.Create("heal", 3));
             world.container.Add(SharedInventory.Create("grenade", 3));
+            world.props.Add(new PropState { id="prop:crate-1",owner="host",x=-3,y=0.5f });
             return world;
         }
 
@@ -85,6 +101,11 @@ namespace Remains.Networking
             if (string.IsNullOrWhiteSpace(message.character) || owners.ContainsKey(connection.connectionId))
             {
                 connection.Disconnect();
+                return;
+            }
+            if(message.modFingerprint!=WeaponCatalog.ModFingerprint && !message.acceptMismatch)
+            {
+                connection.Send(new ModMismatchMessage {description=WeaponCatalog.ModDescription});
                 return;
             }
             var actor = ServerWorld.actors.Find(a => a.character == message.character);
@@ -98,15 +119,24 @@ namespace Remains.Networking
             owners[connection.connectionId] = owner;
             if (actor == null)
             {
-                actor = new ActorState { id = "player:" + message.character, character = message.character,
-                    player = true, x = ServerWorld.actors.Count(a => a.player) * 2, hair = ServerWorld.actors.Count(a => a.player) };
-                actor.inventory.Add(SharedInventory.Create("heal", 5));
-                actor.inventory.Add(SharedInventory.Create("grenade", 5));
+                actor=string.IsNullOrEmpty(message.characterJson)?null:JsonUtility.FromJson<ActorState>(message.characterJson);
+                if(actor!=null && actor.character!=message.character)
+                    throw new InvalidOperationException($"Персонаж в пакете не соответствует ID: {actor.character}, ожидается {message.character}.");
+                if(actor==null)
+                {
+                    actor=new ActorState();
+                    actor.inventory.Add(SharedInventory.Create("heal", 5));
+                    actor.inventory.Add(SharedInventory.Create("grenade", 5));
+                }
+                actor.id="player:"+message.character;actor.character=message.character;actor.player=true;
+                actor.x=ServerWorld.actors.Count(a=>a.player)*2;actor.y=0;actor.level="factory:0";
+                actor.hair=ServerWorld.actors.Count(a=>a.player);
                 ServerWorld.actors.Add(actor);
             }
             actor.owner = owner;
             actor.connected = true;
             actor.generation++;
+            actor.lifecycleSequence++;
             actor.revision++;
             playerIds[owner] = actor.id;
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
@@ -126,6 +156,7 @@ namespace Remains.Networking
                 {
                     actor.connected = false;
                     actor.down = true;
+                    actor.lifecycleSequence++;
                     actor.pose = "down";
                     actor.revision++;
                 }
@@ -157,13 +188,16 @@ namespace Remains.Networking
                 foreach (var actor in incoming.actors)
                 {
                     var local = World.Find(actor.id);
-                    if (local == null || local.owner != LocalOwner || local.generation != actor.generation) continue;
+                    if (local == null || local.owner != LocalOwner || local.generation != actor.generation ||
+                        local.lifecycleSequence!=actor.lifecycleSequence || local.level!=actor.level) continue;
                     actor.Position = local.Position;
                     actor.Velocity = local.Velocity;
                     actor.pose = local.pose;
+                    actor.poseTime=local.poseTime;
                     if (local.revision > actor.revision)
                     {
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;
+                        actor.mana=local.mana;
                     }
                 }
             }
@@ -183,8 +217,7 @@ namespace Remains.Networking
         {
             if (World == null) return;
             var current = World.Find(actor.id);
-            if (current != null && (actor.generation < current.generation ||
-                actor.generation == current.generation && actor.revision < current.revision)) return;
+            if (current != null && ActorVersion.IsOlder(actor,current)) return;
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
             Changed?.Invoke();
@@ -195,11 +228,12 @@ namespace Remains.Networking
             var incoming = JsonUtility.FromJson<ActorState>(message.json);
             var actor = ServerWorld.Find(incoming.id);
             if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner ||
-                actor.generation != incoming.generation || incoming.revision <= actor.revision) return;
+                !ActorVersion.CanPublishOwnerState(incoming,actor)) return;
             // Shared inventory is host-coordinated; movement/combat/stat decisions remain client-owned.
             incoming.inventory = actor.inventory;
             incoming.owner = actor.owner;
             incoming.connected = actor.connected;
+            if(incoming.level!=actor.level) incoming.lifecycleSequence++;
             ServerWorld.actors[ServerWorld.actors.IndexOf(actor)] = incoming;
             ServerWorld.revision++;
             NetworkServer.SendToAll(new ActorMessage { json = JsonUtility.ToJson(incoming) });
@@ -207,6 +241,7 @@ namespace Remains.Networking
 
         public void PublishActor(ActorState actor)
         {
+            Changed?.Invoke();
             if (NetworkClient.isConnected) NetworkClient.Send(new ActorMessage { json = JsonUtility.ToJson(actor) });
         }
 
@@ -214,7 +249,7 @@ namespace Remains.Networking
         {
             var actor = ServerWorld.Find(message.actor);
             if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner ||
-                actor.generation != message.generation || !AcceptSequence(message)) return;
+                actor.generation != message.generation || actor.lifecycleSequence!=message.lifecycleSequence || !AcceptSequence(message)) return;
             ApplyPose(actor, message);
             NetworkServer.SendToAll(message, Channels.Unreliable);
         }
@@ -230,7 +265,7 @@ namespace Remains.Networking
         private void ReceivePose(PoseMessage message)
         {
             var actor = World?.Find(message.actor);
-            if (actor == null || actor.owner == LocalOwner || actor.generation != message.generation) return;
+            if (actor == null || actor.owner == LocalOwner || actor.generation != message.generation || actor.lifecycleSequence!=message.lifecycleSequence) return;
             // Separate client sequence map: in host mode server already accepted this message.
             ApplyPose(actor, message);
         }
@@ -239,12 +274,17 @@ namespace Remains.Networking
         {
             actor.x = message.x; actor.y = message.y; actor.vx = message.vx; actor.vy = message.vy;
             actor.facing = message.facing; actor.pose = message.pose;
+            actor.poseTime=message.poseTime;
+            actor.weapon=message.weapon;actor.weaponAngle=message.weaponAngle;
+            actor.weaponTipX=message.weaponTipX;actor.weaponTipY=message.weaponTipY;
+            actor.weaponReach=message.weaponReach;
         }
 
         public void PublishPose(ActorState actor, uint sequence) => NetworkClient.Send(new PoseMessage
         {
-            actor = actor.id, generation = actor.generation, sequence = sequence,
-            x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose
+            actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = sequence,
+            x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,
+            weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach
         }, Channels.Unreliable);
 
         public void Fire(AttackEvent attack) => NetworkClient.Send(new AttackMessage { json = JsonUtility.ToJson(attack) });
@@ -268,23 +308,25 @@ namespace Remains.Networking
 
         public void RequestClaim(string item) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"), item = item });
         public void RequestRevive(string target) => NetworkClient.Send(new ReviveMessage { target = target, transaction = Guid.NewGuid().ToString("N") });
+        public void RequestSelfHeal()=>NetworkClient.Send(new ReviveMessage {target=LocalActorId,transaction=Guid.NewGuid().ToString("N"),selfHeal=true});
+        public void ReturnToFactory()
+        {
+            if(LocalActor==null || LocalActor.down || LocalActor.level!="hub") return;
+            LocalActor.level="factory:0";LocalActor.Position=Vector2.zero;LocalActor.Velocity=Vector2.zero;LocalActor.revision++;
+            PublishActor(LocalActor);
+        }
 
         private void Revive(NetworkConnectionToClient connection, ReviveMessage message)
         {
             if (!owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.completedTransactions.Contains(message.transaction)) return;
             var healer = ServerWorld.Find(playerIds[owner]);
             var target = ServerWorld.Find(message.target);
-            if (healer.down || target == null || !target.down || healer.level != target.level ||
-                Vector2.Distance(healer.Position, target.Position) > 2 || !SharedInventory.Consume(healer, "heal")) return;
-            target.down = false;
-            target.health = 35;
-            target.pose = "idle";
-            healer.revision++; target.revision++;
+            if(!HealingRules.Apply(healer,target,message.selfHeal)) return;
             ServerWorld.completedTransactions.Add(message.transaction);
             ServerWorld.revision++;
             BroadcastWorld();
             NetworkServer.SendToAll(new ActorMessage { json = JsonUtility.ToJson(target) });
-            connection.Send(new NoticeMessage { text = "Союзник поднят. Лечебный предмет использован." });
+            connection.Send(new NoticeMessage { text = message.selfHeal?"Лечебный предмет использован.":"Союзник поднят. Лечебный предмет использован." });
             Saves.SaveWorld(ServerWorld);
         }
         private void Claim(NetworkConnectionToClient connection, ClaimMessage message)
@@ -310,11 +352,21 @@ namespace Remains.Networking
         }
 
         private void BroadcastWorld() => NetworkServer.SendToAll(new WorldMessage { json = JsonUtility.ToJson(ServerWorld) });
+        public ActorState ConnectedActor(NetworkConnectionToClient connection) =>
+            owners.TryGetValue(connection.connectionId,out var owner) && playerIds.TryGetValue(owner,out var id)?ServerWorld.Find(id):null;
+        public void CommitWorld()
+        {
+            ServerWorld.revision++;
+            Saves.SaveWorld(ServerWorld);
+            BroadcastWorld();
+        }
 
         private void CheckpointWorld()
         {
             if (!NetworkServer.active || ServerWorld == null) return;
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
+            if(PartyRules.ResolveDefeat(ServerWorld))
+                NetworkServer.SendToAll(new NoticeMessage {text="Вся группа без сознания. Возвращение в хаб с 1 HP."});
             ServerWorld.revision++;
             Saves.SaveWorld(ServerWorld);
             BroadcastWorld();
@@ -324,6 +376,17 @@ namespace Remains.Networking
         {
             CancelInvoke(nameof(CheckpointWorld));
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
+        }
+        public override void OnStopClient()
+        {
+            if(World!=null) {Saves.SaveWorld(World);if(LocalActor!=null) Saves.SaveCharacter(LocalActor);}
+            World=null;LocalActorId=null;LocalOwner=null;
+            Changed?.Invoke();
+        }
+        public void SetFriendlyFire(bool enabled)
+        {
+            if(!NetworkServer.active) return;
+            ServerWorld.friendlyFire=enabled;CommitWorld();
         }
     }
 }

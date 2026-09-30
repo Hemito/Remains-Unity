@@ -11,10 +11,11 @@ namespace Remains.Domain
         public float left,right;
         public RoomSurface[] platforms;
         public RoomLadder[] ladders;
-        public static RoomLayout Load()
+        public static RoomLayout Load(string level="factory:0")
         {
-            var asset=Resources.Load<TextAsset>("Content/prototype-room");
-            if(asset==null) throw new InvalidOperationException("Не найдено описание комнаты Content/prototype-room.");
+            string key=level switch {"factory:0"=>"prototype-room","hub"=>"prototype-hub",_=>throw new InvalidOperationException($"Неизвестная локация прототипа: {level}.")};
+            var asset=Resources.Load<TextAsset>("Content/"+key);
+            if(asset==null) throw new InvalidOperationException($"Не найдено описание комнаты Content/{key}.");
             var result=JsonUtility.FromJson<RoomLayout>(asset.text);
             if(result.platforms==null || result.ladders==null || result.left>=result.right)
                 throw new InvalidOperationException($"Некорректная геометрия комнаты: {result.id}.");
