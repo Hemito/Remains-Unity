@@ -26,7 +26,7 @@ namespace Remains.Editor
             Require(ContentComparison.Compare(legacy,original).Count>=4,"Старый манифест принят без сравнения ресурсов");
             Require(legacy.scope=="weapon-catalog" && legacy.gameplayAssets.Count==0,"Исходный манифест изменён");
             Require(ContentComparison.Compare(original,StateJson.Copy(original)).Count==0,"Копирование потеряло ресурсный манифест");
-            Require(WeaponCatalog.ManifestCopy().gameplayAssets.Count==6,"Рабочий каталог не включает шесть наборов данных, включая движение и позу оружия");
+            Require(WeaponCatalog.ManifestCopy().gameplayAssets.Count==7,"Рабочий каталог не включает семь наборов данных, включая телекинез");
         }
         private static void Require(bool valid,string detail)
         {if(!valid) throw new InvalidOperationException(detail);}

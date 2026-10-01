@@ -19,6 +19,7 @@ namespace Remains.Editor
             WeaponCatalog.Load();
             WeaponPoseChecks.Run();
             MovableContainerChecks.Run();
+            TelekinesisRuleChecks.Run();
             AttackContactChecks.Run();
             WeaponModChecks.Run();
             GameplayContentChecks.Run();

@@ -20,11 +20,12 @@ namespace Remains.Networking
         public ActorState LocalActor => World?.Find(LocalActorId);
         public SaveStore Saves { get; set; }
         public CharacterContentGate CharacterContent {get;}=new();
-        public GameplayRuleSet Rules {get;private set;}=GameplayRuleSet.CreateDefault();
+        private GameplayRuleSet rules;
+        public GameplayRuleSet Rules=>rules??throw new InvalidOperationException("Правила сессии ещё не настроены.");
         public void ConfigureRules(GameplayRuleSet rules)
         {
             if(NetworkServer.active || NetworkClient.active) throw new InvalidOperationException("Нельзя менять правила во время подключения или игры.");
-            Rules=rules??throw new ArgumentNullException(nameof(rules));
+            this.rules=rules??throw new ArgumentNullException(nameof(rules));
         }
         public string CharacterId { get; set; }
         public event Action Changed;

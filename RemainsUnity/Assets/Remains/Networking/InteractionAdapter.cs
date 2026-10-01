@@ -42,7 +42,7 @@ namespace Remains.Networking
         {
             var actor=session.ConnectedActor(connection);
             var prop=WorldProps.Find(session.ServerWorld,message.prop);
-            if(actor==null || prop==null || actor.down || actor.level!=prop.level) return;
+            if(actor==null || prop==null || actor.level!=prop.level) return;
             if(session.Pause.IsServerPaused(actor.level))
             {connection.Send(new NoticeMessage {text="Захват/отпускание отменено: уровень остановлен."});return;}
             if(message.release)
@@ -52,8 +52,9 @@ namespace Remains.Networking
             }
             else
             {
+                if(actor.down) return;
                 if(!prop.movable) {connection.Send(new NoticeMessage {text="Этот объект закреплён."});return;}
-                if(prop.held && prop.owner!=actor.owner) return;
+                if(prop.held && prop.owner!=actor.owner) {connection.Send(new NoticeMessage {text="Объект уже удерживает другой игрок."});return;}
                 prop.owner=actor.owner;prop.generation++;prop.held=true;
             }
             session.CommitWorld();

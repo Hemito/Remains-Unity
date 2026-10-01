@@ -58,13 +58,17 @@ namespace Remains.Domain
         public ILootRule Loot {get;}
         public ILevelPauseRule Pause {get;}
         public IDepositRule Deposit {get;}
+        public ITelekinesisRule Telekinesis {get;}
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot=null,ILevelPauseRule pause=null,IDepositRule deposit=null)
+            :this(damage,knockdown,partyDefeat,loot,pause,deposit,new MassLimitedTelekinesisRule(Remains.Content.TelekinesisSettings.Load())) {}
+        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis)
         {
             Damage=damage??throw new ArgumentNullException(nameof(damage));
             Knockdown=knockdown??throw new ArgumentNullException(nameof(knockdown));
             PartyDefeat=partyDefeat??throw new ArgumentNullException(nameof(partyDefeat));
             Loot=loot??new NearbyLootRule();
             Pause=pause??new CooperativePauseRule();Deposit=deposit??new NearbyDepositRule();
+            Telekinesis=telekinesis??throw new ArgumentNullException(nameof(telekinesis));
         }
         public static GameplayRuleSet CreateDefault()=>new(new PrototypeDamageRule(),new ZeroHealthKnockdownRule(),new HubPartyDefeatRule());
     }
