@@ -10,6 +10,9 @@ namespace Remains.Presentation
     // Local presentation only. Audio does not author attacks, inventories or reloads.
     public sealed class GameplayAudio : MonoBehaviour
     {
+        [Serializable] private sealed class SoundEntry
+        {public string weapon,clip,kind;[NonSerialized] public AudioClip audio;}
+        [Serializable] private sealed class SoundCatalog {public SoundEntry[] entries;}
         private sealed class Voice
         {
             public AudioSource source;
@@ -21,7 +24,7 @@ namespace Remains.Presentation
         }
         private CoopSession session;
         private WeaponReloadController reload;
-        private readonly Dictionary<string,AudioClip> shots=new();
+        private readonly Dictionary<string,SoundEntry> sounds=new();
         private readonly List<Voice> voices=new();
         private readonly HashSet<string> seen=new(),missing=new();
         private readonly Queue<string> recent=new();
@@ -30,12 +33,23 @@ namespace Remains.Presentation
         public int LocalShots {get;private set;}
         public int RemoteShots {get;private set;}
         public int ReloadStarts {get;private set;}
+        public int MeleeSounds {get;private set;}
+        public int ExplosionSounds {get;private set;}
         public float Volume {get;set;}=.65f;
         public void Initialize(CoopSession session,WeaponReloadController reload,Camera camera)
         {
             this.session=session;this.reload=reload;
-            var pistol=Load("pistol-shot");shots.Add("pistol",pistol);shots.Add("npc-shot",pistol);
-            shots.Add("energy",Load("laser-shot"));reloadClip=Load("pistol-reload");
+            var asset=Resources.Load<TextAsset>("Presentation/combat-audio");
+            if(asset==null) throw new InvalidOperationException("Отсутствует Presentation/combat-audio.");
+            var catalog=JsonUtility.FromJson<SoundCatalog>(asset.text);
+            if(catalog?.entries==null) throw new InvalidOperationException("Не заданы записи звуков боя.");
+            foreach(var entry in catalog.entries)
+            {
+                if(string.IsNullOrEmpty(entry.weapon) || string.IsNullOrEmpty(entry.clip) || entry.kind is not ("shot" or "melee" or "explosion"))
+                    throw new InvalidOperationException($"Некорректная звуковая привязка: weapon={entry.weapon}, clip={entry.clip}, kind={entry.kind}.");
+                entry.audio=Load(entry.clip);sounds.Add(entry.weapon,entry);
+            }
+            reloadClip=Load("pistol-reload");
             if(camera.GetComponent<AudioListener>()==null) camera.gameObject.AddComponent<AudioListener>();
             session.AttackReceived+=Attack;reload.Started+=ReloadStarted;reload.Finished+=ReloadFinished;
         }
@@ -67,13 +81,15 @@ namespace Remains.Presentation
         }
         private void Attack(AttackEvent attack)
         {
-            if(session.LocalActor?.level!=attack.level || attack.weapon is "spear" or "crowbar" or "grenade") return;
-            if(!shots.TryGetValue(attack.weapon,out var clip))
-            {if(missing.Add(attack.weapon)) Debug.LogWarning($"Нет звука выстрела: weapon={attack.weapon}, attack={attack.id}.",this);return;}
+            if(session.LocalActor?.level!=attack.level) return;
+            if(!sounds.TryGetValue(attack.weapon,out var entry))
+            {if(missing.Add(attack.weapon)) Debug.LogWarning($"Нет звука атаки: weapon={attack.weapon}, attack={attack.id}.",this);return;}
             if(!seen.Add(attack.id)) return;
             recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
-            if(Play(clip,attack.level,attack.Origin)==null) return;
-            if(attack.attacker==session.LocalActorId) LocalShots++;else RemoteShots++;
+            if(Play(entry.audio,attack.level,attack.Origin)==null) return;
+            if(entry.kind=="melee") MeleeSounds++;
+            else if(entry.kind=="explosion") ExplosionSounds++;
+            else if(attack.attacker==session.LocalActorId) LocalShots++;else RemoteShots++;
         }
         private void ReloadStarted(ActorState actor,string weapon)
         {

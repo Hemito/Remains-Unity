@@ -85,6 +85,9 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
+            int expectedSounds=!Resume && Source?0:1;
+            if(runtime.Audio.ExplosionSounds!=expectedSounds) success=false;
+            detail+=$" Звуков взрыва: {runtime.Audio.ExplosionSounds}, ожидалось {expectedSounds}; старое событие при возвращении не озвучивается.";
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
