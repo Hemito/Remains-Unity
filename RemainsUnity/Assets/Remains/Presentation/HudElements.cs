@@ -22,6 +22,12 @@ namespace Remains.Presentation
             label.color = new Color(0.65f,1,0.75f); label.raycastTarget=false;
             return label;
         }
+        public Text BackedLabel(Transform parent,string content,Vector2 position,Vector2 size)
+        {
+            var panel=Panel(parent,"Подложка текста",position+new Vector2(-6,6),size+new Vector2(12,12));
+            panel.GetComponent<Image>().raycastTarget=false;
+            return Label(panel.transform,content,new Vector2(6,-6),size);
+        }
         public Button Button(Transform parent, string content, Vector2 position, Vector2 size, Action action)
         {
             var obj=Panel(parent,content,position,size);

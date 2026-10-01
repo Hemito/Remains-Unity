@@ -76,12 +76,12 @@ namespace Remains.Presentation
             scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
-            status = Label(transform, "Подключение не установлено", new Vector2(20,-20), new Vector2(1050,60));
+            status = elements.BackedLabel(transform, "Подключение не установлено", new Vector2(20,-20), new Vector2(1050,60));
             healthBar=OriginalBar("health",new Vector2(20,-95),new Vector2(300,34));
             manaBar=OriginalBar("mana",new Vector2(20,-135),new Vector2(300,20));
-            ammunition=Label(transform,"",new Vector2(20,-165),new Vector2(380,45));
-            message = Label(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · Удерживать E — поднять · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
-            revival=Label(transform,"",new Vector2(420,-605),new Vector2(800,40));
+            ammunition=elements.BackedLabel(transform,"",new Vector2(20,-165),new Vector2(380,32));
+            message = elements.BackedLabel(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · Удерживать E — поднять · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
+            revival=elements.BackedLabel(transform,"",new Vector2(420,-605),new Vector2(800,32));
             lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,300));
             selectedWorld=Label(lobby.transform,"",new Vector2(0,95),new Vector2(720,90));
             worldPickerButton=Button(lobby.transform,"Выбрать сохранённое продолжение",new Vector2(20,-250),new Vector2(400,40),()=>
@@ -231,6 +231,8 @@ namespace Remains.Presentation
             float progress=RevivalProgress?.Invoke() ?? 0;
             revival.text=RevivalPending?.Invoke()==true?"Ожидаем подтверждения поднятия…":
                 progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
+            revival.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(revival.text));
+            ammunition.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(ammunition.text));
         }
         private void RefreshAmmunition()
         {
