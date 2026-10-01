@@ -62,6 +62,7 @@ namespace Remains.Runtime
             networkObject.SetActive(false);
             var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
             Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;
+            Session.ConfigureRules(WeaponCatalog.Rules);
             Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby") || Options.Smoke.StartsWith("protocol") || Options.Smoke.StartsWith("grenade-resume-"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
             Session.CharacterId=Options.Character;
             Session.networkAddress=Options.Address;

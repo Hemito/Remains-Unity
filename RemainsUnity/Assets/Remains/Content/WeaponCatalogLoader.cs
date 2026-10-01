@@ -11,6 +11,7 @@ namespace Remains.Content
     {
         public readonly Dictionary<string,WeaponDefinition> definitions=new();
         public string fingerprint,description;
+        public readonly List<LoadedCodeMod> codeMods=new();
         public readonly ContentManifest manifest=new();
     }
     public static class WeaponCatalogLoader
@@ -48,9 +49,23 @@ namespace Remains.Content
                         string path=Path.Combine(directory,"weapons.json");
                         string data=File.Exists(path)?File.ReadAllText(path):"{\"weapons\":[]}";
                         Apply(result,sources,data,source,manifest.weaponOverrides??Array.Empty<WeaponOverride>());
+                        string codeHash="";
+                        if(manifest.code!=null)
+                        {
+                            var code=manifest.code;
+                            if(code.apiVersion!=GameplayCodeMods.ApiVersion || string.IsNullOrWhiteSpace(code.entryType) ||
+                                string.IsNullOrWhiteSpace(code.replacesRulesFrom) || string.IsNullOrWhiteSpace(code.assembly) ||
+                                Path.GetFileName(code.assembly)!=code.assembly || !code.assembly.EndsWith(".dll",StringComparison.OrdinalIgnoreCase))
+                                throw new InvalidDataException("Некорректное объявление code: API, DLL, entryType или replacesRulesFrom.");
+                            byte[] bytes=File.ReadAllBytes(Path.Combine(directory,code.assembly));
+                            using var codeDigest=SHA256.Create();
+                            codeHash=BitConverter.ToString(codeDigest.ComputeHash(bytes)).Replace("-","");
+                            result.codeMods.Add(new LoadedCodeMod {id=source,position=index+1,entry=code,assembly=bytes});
+                        }
                         loaded.Add(source);signature.Append('\n').Append(manifestJson).Append('\n').Append(data);
+                        if(manifest.code!=null) signature.Append("\ncode-sha256:").Append(codeHash);
                         result.manifest.packs.Add(new ContentPackRecord {id=source,version=manifest.version,
-                            fingerprint=Hash(manifestJson+"\n"+data),dependencies=manifest.dependencies??Array.Empty<string>()});
+                            fingerprint=Hash(manifestJson+"\n"+data+(manifest.code==null?"":"\ncode-sha256:"+codeHash)),dependencies=manifest.dependencies??Array.Empty<string>()});
                         description.Append('\n').Append(index+1).Append(". ").Append(source).Append(" · ").Append(manifest.version);
                         foreach(var replacement in manifest.weaponOverrides??Array.Empty<WeaponOverride>())
                             description.Append("; замена ").Append(replacement.id).Append(" из ").Append(replacement.source);

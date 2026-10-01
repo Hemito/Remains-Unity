@@ -17,13 +17,14 @@ namespace Remains.Content
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }
-    [Serializable] public sealed class ModManifest { public string id,version; public string[] dependencies; public WeaponOverride[] weaponOverrides; }
+    [Serializable] public sealed class ModManifest { public string id,version; public string[] dependencies; public WeaponOverride[] weaponOverrides; public CodeModEntry code; }
     [Serializable] public sealed class WeaponOverride { public string id,source; }
 
     public static class WeaponCatalog
     {
         private static Dictionary<string,WeaponDefinition> definitions=new();
         private static ContentManifest manifest;
+        public static Remains.Domain.GameplayRuleSet Rules {get;private set;}
         public static ContentManifest ManifestCopy()=>manifest?.Copy() ?? throw new InvalidOperationException("Каталог контента ещё не загружен.");
         public static IEnumerable<WeaponDefinition> All => definitions.Values;
         public static string ModFingerprint { get; private set; }="";
@@ -44,8 +45,9 @@ namespace Remains.Content
                 inputs.Add(path,data.text);
             }
             var complete=GameplayContentManifest.Compose(loaded.manifest,inputs);
+            var rules=GameplayCodeMods.Compose(loaded.codeMods);
             definitions=loaded.definitions;
-            manifest=complete;
+            manifest=complete;Rules=rules;
             ModFingerprint=complete.fingerprint;ModDescription=loaded.description+"\nГеометрия, анатомия и позы: "+inputs.Count+" набора данных";
         }
     }

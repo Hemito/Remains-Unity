@@ -28,7 +28,8 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+40;
-            value.Session.ConfigureRules(new GameplayRuleSet(new OneDamage(),new EarlyDown(),new HighHealthRecovery()));
+            if(!value.Options.Smoke.Contains("-external-"))
+                value.Session.ConfigureRules(new GameplayRuleSet(new OneDamage(),new EarlyDown(),new HighHealthRecovery()));
             value.CommandSource=Command;
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<RulesProbeFinish>(_=>Finish(Valid()));
         }
