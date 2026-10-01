@@ -37,7 +37,7 @@ namespace Remains.Persistence
                 Changed?.Invoke();return false;
             }
             var content=saved.weaponContent;
-            if(content!=null && (content.schema!=1 || content.scope!="weapon-catalog"))
+            if(content!=null && !content.IsSupported)
                 throw new InvalidDataException($"Формат контента персонажа не поддерживается: schema={content.schema}, scope={content.scope}. Исходный файл сохранён.");
             actor=saves.PrepareCharacter(source,mismatch && acceptedSource!=source);
             preparedCharacter=actor.Copy();

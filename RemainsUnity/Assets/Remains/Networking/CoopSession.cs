@@ -96,7 +96,7 @@ namespace Remains.Networking
                 var content=source.CreateLiveWorld().weaponContent;
                 if(!acceptContentMismatch && ContentComparison.Compare(content,WeaponCatalog.ManifestCopy()).Count>0)
                     throw new InvalidOperationException("Состав контента сохранения отличается или неизвестен. Выберите мир в лобби и подтвердите сравнение перед загрузкой.");
-                if(content!=null && (content.schema!=1 || content.scope!="weapon-catalog"))
+                if(content!=null && !content.IsSupported)
                     throw new InvalidOperationException($"Формат манифеста не поддерживается: schema={content.schema}, scope={content.scope}. Исходный мир сохранён.");
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);

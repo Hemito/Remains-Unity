@@ -36,9 +36,17 @@ namespace Remains.Content
             var asset=Resources.Load<TextAsset>("Content/weapons");
             if(asset==null) throw new InvalidOperationException("Не найдены определения оружия Content/weapons.");
             var loaded=WeaponCatalogLoader.Load(asset.text,Path.Combine(Application.streamingAssetsPath,"Mods"));
+            var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
+            foreach(string path in new[]{"Content/prototype-room","Content/prototype-hub","Content/anatomy","Original/Pony/pony"})
+            {
+                var data=Resources.Load<TextAsset>(path);
+                if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");
+                inputs.Add(path,data.text);
+            }
+            var complete=GameplayContentManifest.Compose(loaded.manifest,inputs);
             definitions=loaded.definitions;
-            manifest=loaded.manifest;
-            ModFingerprint=loaded.fingerprint;ModDescription=loaded.description;
+            manifest=complete;
+            ModFingerprint=complete.fingerprint;ModDescription=loaded.description+"\nГеометрия, анатомия и позы: "+inputs.Count+" набора данных";
         }
     }
 }

@@ -18,6 +18,13 @@ namespace Remains.Content
             else if(saved.schema!=current.schema || saved.scope!=current.scope)
                 rows.Add(new ContentDifference {id="Формат",saved=saved.scope+" · "+saved.schema,current=current.scope+" · "+current.schema});
             var old=saved==null?new List<ContentPackRecord>():saved.packs;
+            var oldAssets=saved?.gameplayAssets??new List<ContentAssetRecord>();
+            foreach(string id in oldAssets.Select(a=>a.id).Concat(current.gameplayAssets.Select(a=>a.id)).Distinct())
+            {
+                var a=oldAssets.Find(asset=>asset.id==id);var b=current.gameplayAssets.Find(asset=>asset.id==id);
+                if(!includeUnchanged && a!=null && b!=null && a.fingerprint==b.fingerprint) continue;
+                rows.Add(new ContentDifference {id="Ресурс: "+id,saved=a?.fingerprint??"Не записан",current=b?.fingerprint??"Отсутствует"});
+            }
             foreach(string id in old.Select(p=>p.id).Concat(current.packs.Select(p=>p.id)).Distinct())
             {
                 int a=old.FindIndex(p=>p.id==id),b=current.packs.FindIndex(p=>p.id==id);
@@ -33,6 +40,12 @@ namespace Remains.Content
             if(manifest?.packs==null)
                 throw new InvalidDataException($"Некорректный {source} манифест: отсутствует список пакетов.");
             var ids=new HashSet<string>(System.StringComparer.Ordinal);
+            if(manifest.gameplayAssets==null || manifest.scope=="prototype-gameplay" && manifest.gameplayAssets.Count==0)
+                throw new InvalidDataException($"Некорректный {source} манифест: отсутствуют игровые ресурсы.");
+            foreach(var asset in manifest.gameplayAssets)
+                if(asset==null || string.IsNullOrWhiteSpace(asset.id) || string.IsNullOrWhiteSpace(asset.fingerprint) || !ids.Add(asset.id))
+                    throw new InvalidDataException($"Некорректный {source} манифест: повторный или пустой ресурс {asset?.id}.");
+            ids.Clear();
             for(int i=0;i<manifest.packs.Count;i++)
             {
                 var pack=manifest.packs[i];

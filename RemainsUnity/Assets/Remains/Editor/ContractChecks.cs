@@ -17,6 +17,7 @@ namespace Remains.Editor
             Anatomy.Load();
             WeaponCatalog.Load();
             WeaponModChecks.Run();
+            GameplayContentChecks.Run();
             CharacterContentChecks.Run();
             GameplayRuleChecks.Run();
             LevelPauseChecks.Run();

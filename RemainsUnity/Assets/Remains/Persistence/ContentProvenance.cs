@@ -9,7 +9,7 @@ namespace Remains.Persistence
         public static void Record(ref ContentManifest saved,ref List<ContentManifest> history)
         {
             var current=WeaponCatalog.ManifestCopy();
-            if(saved!=null && (saved.schema!=1 || saved.scope!=current.scope))
+            if(saved!=null && !saved.IsSupported)
                 throw new InvalidDataException($"Неподдерживаемый манифест контента: schema={saved.schema}, scope={saved.scope}.");
             if(saved!=null && ContentComparison.Compare(saved,current).Count==0) return;
             history??=new();
