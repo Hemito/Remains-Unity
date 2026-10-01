@@ -17,6 +17,7 @@ namespace Remains.Presentation
         private Text status;
         private Text message;
         private GameObject lobby;
+        private MainMenuPanel mainMenu;
         private GameObject inventory;
         private GameObject worldPicker;
         private Text selectedWorld;
@@ -82,17 +83,13 @@ namespace Remains.Presentation
             ammunition=elements.BackedLabel(transform,"",new Vector2(20,-165),new Vector2(380,32));
             message = elements.BackedLabel(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · Удерживать E — поднять · I — инвентарь", new Vector2(420,-95), new Vector2(830,85));
             revival=elements.BackedLabel(transform,"",new Vector2(420,-190),new Vector2(800,32));
-            lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,300));
-            selectedWorld=Label(lobby.transform,"",new Vector2(0,95),new Vector2(720,90));
-            worldPickerButton=Button(lobby.transform,"Выбрать сохранённое продолжение",new Vector2(20,-250),new Vector2(400,40),()=>
-            {if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);});
-            character=Input(lobby.transform,new Vector2(20,-20));character.text=session.CharacterId??"pony-one";
+            mainMenu=new MainMenuPanel(transform,elements,
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();},
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);},
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);});
+            lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
+            character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
-            hostButton=Button(lobby.transform,"Создать игру",new Vector2(20,-80),new Vector2(400,45),()=>
-            {if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();});
-            address = Input(lobby.transform, new Vector2(20,-140));
-            Button(lobby.transform,"Подключиться",new Vector2(20,-200),new Vector2(400,45),()=>
-            {if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);});
             inventory = Panel(transform,"Общий контейнер",new Vector2(920,-130),new Vector2(330,435));
             containerTitle=Label(inventory.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
             for (int i = 0; i < slots.Length; i++)
@@ -123,7 +120,7 @@ namespace Remains.Presentation
             {if(session.LocalActor?.level=="factory:0") session.Travel.RequestHub();else session.ReturnToFactory();});
             factory.gameObject.SetActive(false);
             session.Changed += Refresh;
-            session.Notice += text => message.text = text;
+            session.Notice += ShowMessage;
             SessionMods=new SessionModPanel(transform,elements,session);
             NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
@@ -137,10 +134,13 @@ namespace Remains.Presentation
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
         public bool FriendlyDecisionInteractable=>friendlyDecision.interactable;
         public RectTransform ContainerSlotRect(int index)=>slots[index].GetComponent<RectTransform>();
-        public void ShowMessage(string text)=>message.text=text;
+        public void ShowMessage(string text) {message.text=text;if(mainMenu!=null) mainMenu.Notice.text=text;}
         private void Refresh()
         {
             var actor = session.LocalActor;
+            mainMenu.Root.SetActive(actor==null);
+            status.transform.parent.gameObject.SetActive(actor!=null);
+            healthBar.gameObject.SetActive(actor!=null);manaBar.gameObject.SetActive(actor!=null);
             string version=actor==null?null:$"{actor.id}:{actor.generation}:{actor.lifecycleSequence}";
             if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);}
             friendlyDecision.gameObject.SetActive(actor!=null && Mirror.NetworkServer.active);
