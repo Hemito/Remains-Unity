@@ -12,6 +12,9 @@ namespace Remains.Presentation
         private readonly Func<string,string> itemName;
         private readonly Func<int> quantity;
         private readonly Button[] rows=new Button[8];
+        private readonly Image[] icons=new Image[8];
+        private readonly Image detailIcon;
+        private readonly InventoryArtwork artwork;
         private readonly string[] ids=new string[8];
         private readonly Button previous,next,deposit,use;
         private readonly Text title,detail;
@@ -21,27 +24,33 @@ namespace Remains.Presentation
         public RectTransform RowRect(int row)=>rows[row].GetComponent<RectTransform>();
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
-        public PersonalInventoryPanel(Transform parent,HudElements ui,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip)
+        public PersonalInventoryPanel(Transform parent,HudElements ui,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork)
         {
-            this.session=session;this.itemName=itemName;this.quantity=quantity;
+            this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
             title=ui.Label(parent,"Личный инвентарь",new Vector2(20,-16),new Vector2(760,32));
             string[] weapons={"spear","crowbar","pistol","energy"};
             string[] names={"1 · Копьё","2 · Лом","3 · Пистолет","4 · Лазер"};
             for(int i=0;i<4;i++)
             {
                 string weapon=weapons[i];
-                ui.Button(parent,names[i],new Vector2(20+i*195,-56),new Vector2(185,38),()=>equip(weapon));
+                var button=ui.Button(parent,names[i],new Vector2(20+i*195,-56),new Vector2(185,38),()=>equip(weapon));
+                artwork.Create(button.transform,new Vector2(8,-7),new Vector2(47,24),weapon);
+                var weaponLabel=button.GetComponentInChildren<Text>();weaponLabel.fontSize=16;
+                HudElements.Rect(weaponLabel.rectTransform,new Vector2(60,-3),new Vector2(120,32));
             }
             for(int i=0;i<rows.Length;i++)
             {
                 int index=i;
                 rows[i]=ui.Button(parent,"",new Vector2(20,-112-i*40),new Vector2(420,36),()=>{selected=ids[index];Refresh(container);});
                 var label=rows[i].GetComponentInChildren<Text>();label.fontSize=16;label.alignment=TextAnchor.MiddleLeft;
+                HudElements.Rect(label.rectTransform,new Vector2(48,-3),new Vector2(368,30));
+                icons[i]=artwork.Create(rows[i].transform,new Vector2(7,-3),new Vector2(32,30));
             }
             previous=ui.Button(parent,"←",new Vector2(20,-449),new Vector2(65,34),()=>{page--;Refresh(container);});
             next=ui.Button(parent,"→",new Vector2(375,-449),new Vector2(65,34),()=>{page++;Refresh(container);});
             var hint=ui.Label(parent,"Выберите предмет, затем действие справа",new Vector2(20,-494),new Vector2(420,30));hint.fontSize=15;
-            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(325,220));detail.fontSize=16;
+            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(245,220));detail.fontSize=16;
+            detailIcon=artwork.Create(parent,new Vector2(730,-112),new Vector2(54,54));
             use=ui.Button(parent,"Использовать аптечку",new Vector2(465,-338),new Vector2(325,42),()=>{session.RequestSelfHeal();Refresh(container);});
             deposit=ui.Button(parent,"Положить в контейнер →",new Vector2(465,-390),new Vector2(325,42),()=>
             {if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
@@ -63,10 +72,12 @@ namespace Remains.Presentation
             {
                 int index=page*rows.Length+i;var item=index<count?actor.inventory[index]:null;ids[i]=item?.id;
                 int available=item==null?0:InventoryAvailability.Count(actor,item);
+                artwork.Set(icons[i],item?.definition);
                 rows[i].GetComponentInChildren<Text>().text=item==null?"—":$"{(item.id==selected?"› ":"")}{itemName(item.definition)} × {item.count}"+(available<item.count?$" (доступно {available})":"");
                 rows[i].interactable=item!=null;
             }
             int availableChosen=chosen==null?0:InventoryAvailability.Count(actor,chosen);
+            artwork.Set(detailIcon,chosen?.definition);
             int amount=quantity()==0?availableChosen:quantity();
             string rejection=container==null?"Рядом нет доступного контейнера.":
                 session.Rules.Deposit.AccessRejection(new LootAccessContext(actor,container));

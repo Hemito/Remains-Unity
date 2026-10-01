@@ -30,6 +30,8 @@ namespace Remains.Presentation
         private InputField character;
         public Func<string,bool> SelectCharacter { get; set; }
         private readonly Button[] slots = new Button[9];
+        private readonly Image[] slotIcons=new Image[9];
+        private InventoryArtwork inventoryArtwork;
         private Text containerTitle;
         private Button claimQuantity;
         private bool claimOne;
@@ -74,6 +76,7 @@ namespace Remains.Presentation
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (font == null) throw new InvalidOperationException("Не найден системный шрифт Unity LegacyRuntime.ttf.");
             elements=new HudElements(font);
+            inventoryArtwork=new InventoryArtwork();
             var canvas = gameObject.AddComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = gameObject.AddComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1280,720);
@@ -105,6 +108,9 @@ namespace Remains.Presentation
                     if (shownContainer!=null && containerPage*9+index < shownContainer.items.Count)
                         session.RequestClaim(shownContainer.id,shownContainer.items[containerPage*9+index].id,claimOne?1:0);
                 });
+                slotIcons[i]=inventoryArtwork.Create(slots[i].transform,new Vector2(33,-5),new Vector2(32,30));
+                var slotLabel=slots[i].GetComponentInChildren<Text>();slotLabel.fontSize=16;
+                HudElements.Rect(slotLabel.rectTransform,new Vector2(5,-38),new Vector2(88,43));
             }
             claimQuantity=Button(containerPanel.transform,"Количество: вся стопка",new Vector2(12,-350),new Vector2(305,32),()=>
             {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Количество: 1 предмет":"Количество: вся стопка";Refresh();});
@@ -114,7 +120,7 @@ namespace Remains.Presentation
             inventory.SetActive(false);
             var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(20,-20),new Vector2(820,530));
             ApplyOriginalImage(personalPanel.GetComponent<Image>(),"inventory-panel",false);
-            personalItems=new PersonalInventoryPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon));
+            personalItems=new PersonalInventoryPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
@@ -183,6 +189,7 @@ namespace Remains.Presentation
             {
                 var item = shownContainer!=null && containerPage*9+i < shownContainer.items.Count ? shownContainer.items[containerPage*9+i] : null;
                 slots[i].GetComponentInChildren<Text>().text = item == null ? "Пусто" : $"{ItemName(item.definition)}\n{item.count}";
+                inventoryArtwork.Set(slotIcons[i],item?.definition);
                 slots[i].interactable = item != null && ContainerAccess.ClaimRejection(actor,shownContainer,item,session.Rules.Loot,claimOne?1:0)==null;
             }
         }
