@@ -18,10 +18,19 @@ namespace Remains.Runtime
         private float deadline;
         private int stage,shots,results;
         private bool sent,finished,configured;
+        private bool rejected50,rejected120,observedLift;
+        private float manaBeforeLift;
+        private bool Host=>runtime.Options.Role=="host";
+        private ContainerState Crate(int index)=>runtime.Session.World.containers.Single(c=>c.id=="training:crate:"+index);
         private readonly HashSet<int> done=new();
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+75;value.CommandSource=Command;
+            value.Session.Notice+=notice=>
+            {
+                if(notice.StartsWith("Слишком тяжело: 50 кг",StringComparison.Ordinal)) rejected50=true;
+                if(notice.StartsWith("Слишком тяжело: 120 кг",StringComparison.Ordinal)) rejected120=true;
+            };
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<TrainingDoneMessage>((connection,message)=>
             {done.Add(connection.connectionId);if(done.Count==value.Options.ProbePeers) NetworkServer.SendToAll(new TrainingFinishMessage());});
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<TrainingFinishMessage>(_=>StartCoroutine(FinishAfterDelivery()));
@@ -36,7 +45,7 @@ namespace Remains.Runtime
         private IEnumerator FinishAfterDelivery()
         {
             yield return new WaitForSecondsRealtime(1);
-            Finish(true,"Три мишени, обычный маршрут к ним, по три выстрела каждого игрока, фактический урон и восстановление без дубликатов.");
+            Finish(true,"Три мишени, обычный маршрут, по три выстрела каждого игрока. Хост проверил отказ 50/120 кг и поднял/отпустил 25 кг; оба клиента наблюдали подъём.");
         }
         private PlayerCommand Command()
         {
@@ -58,8 +67,26 @@ namespace Remains.Runtime
                 if(Mathf.Abs(delta)>.08f) return new PlayerCommand {movement=new Vector2(Mathf.Sign(delta),0)};
                 stage=3;
             }
+            if(Host && stage==3 && shots==3 && results==3*runtime.Options.ProbePeers)
+            {stage=4;manaBeforeLift=self.mana;}
+            if(stage>=4) return CrateCommand();
             bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-26)<.15f && a.y<1);
             return new PlayerCommand {weapon="pistol",hasAim=true,aim=new Vector2(29,1.6f),fire=ready && shots<3};
+        }
+        private PlayerCommand CrateCommand()
+        {
+            switch(stage)
+            {
+                case 4: stage=5;return new PlayerCommand {telekinesis=true,hasAim=true,aim=Crate(2).Position};
+                case 5: if(rejected50) stage=6;return default;
+                case 6: stage=7;return new PlayerCommand {telekinesis=true,hasAim=true,aim=Crate(3).Position};
+                case 7: if(rejected120) stage=8;return default;
+                case 8: stage=9;return new PlayerCommand {telekinesis=true,hasAim=true,aim=Crate(1).Position};
+                case 9:
+                    if(observedLift) stage=10;
+                    return new PlayerCommand {telekinesis=true,hasAim=true,aim=new Vector2(18,1.5f)};
+                default:return default;
+            }
         }
         private void Update()
         {
@@ -69,10 +96,17 @@ namespace Remains.Runtime
             if(NetworkServer.active && !configured) {configured=true;runtime.Session.SetFriendlyFire(false);}
             if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers || runtime.Session.World.friendlyFire) return;
             var targets=runtime.Session.World.actors.Where(a=>a.actorType=="training-dummy").ToArray();
+            var light=Crate(1);
+            if(light.held && light.y>1.15f) observedLift=true;
+            if(Crate(2).held || Crate(3).held || Vector2.Distance(Crate(2).Position,new Vector2(20,.8f))>.03f ||
+                Vector2.Distance(Crate(3).Position,new Vector2(23,.8f))>.03f)
+            {Finish(false,"Тяжёлый ящик сдвинут или захвачен при пределе 30 кг.");return;}
             if(targets.Length!=3 || targets.Any(a=>a.down || a.health!=500 || a.target!=null || a.attackBusy))
             {Finish(false,"Мишени дублируются, погибают или ведут бой.");return;}
             if(results<3*runtime.Options.ProbePeers || sent) return;
             if(results!=3*runtime.Options.ProbePeers || shots!=3 || targets.Single(a=>a.id=="training:hub:1").resolvedAttacks.Count!=results) return;
+            if(!observedLift || light.held || Host && (stage<10 || !rejected50 || !rejected120)) return;
+            if(Host && self.mana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
             var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
             if(views.Length!=3 || views.Select(v=>v.ActorId).Distinct().Count()!=3) {Finish(false,"Неверное количество моделей мишеней.");return;}
             foreach(var view in views)
@@ -84,9 +118,10 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,shots=shots,results=results},true);
+            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,shots=shots,results=results,
+                rejected50=rejected50,rejected120=rejected120,observedLift=observedLift},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success;public string detail;public int shots,results;}
+        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift;public string detail;public int shots,results;}
     }
 }
