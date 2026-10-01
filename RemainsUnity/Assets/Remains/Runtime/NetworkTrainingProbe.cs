@@ -52,7 +52,7 @@ namespace Remains.Runtime
         private IEnumerator FinishAfterDelivery()
         {
             yield return new WaitForSecondsRealtime(1);
-            Finish(true,"Короткий/длинный прыжок, балка и двойное S; состояния прыжка видны другим клиентам. Три мишени, по три выстрела; отказ 50/120 кг и подъём 25 кг.");
+            Finish(true,(runtime.Options.ProbePeers==1?"Одиночная игра. ":"Кооператив; стойки и прыжки видны другим клиентам. ")+"Приседание, короткий/длинный прыжок, балка и двойное S. Три мишени, по три выстрела на игрока; отказ 50/120 кг и подъём/падение 25 кг.");
         }
         private PlayerCommand Command()
         {
@@ -139,9 +139,9 @@ namespace Remains.Runtime
             if(runtime.PropAudio.Landings<1) return;
             if(runtime.PropAudio.Landings!=1) {Finish(false,"Звук единственного падения ящика повторён.");return;}
             if(!jumping.Complete || observedJumpSupport.Count!=runtime.Options.ProbePeers-1) return;
-            if(!crouching.Complete || observedCrouch.Count!=runtime.Options.ProbePeers-1 || !independentStance) return;
+            if(!crouching.Complete || observedCrouch.Count!=runtime.Options.ProbePeers-1 || runtime.Options.ProbePeers>1 && !independentStance) return;
             if(observedLower.Count!=runtime.Options.ProbePeers-1 || observedRise.Count!=runtime.Options.ProbePeers-1) return;
-            if(runtime.MovementAudio.LocalContacts<5 || runtime.MovementAudio.RemoteContacts<5 || runtime.MovementAudio.Landings<2)
+            if(runtime.MovementAudio.LocalContacts<5 || runtime.Options.ProbePeers>1 && runtime.MovementAudio.RemoteContacts<5 || runtime.MovementAudio.Landings<2)
             {Finish(false,"Не воспроизведены локальные/удалённые шаги и приземления.");return;}
             if(Host && self.mana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
             var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
@@ -149,18 +149,18 @@ namespace Remains.Runtime
             foreach(var view in views)
                 if(view.GetComponentsInParent<ActorVisualGroup>().Length!=1) {Finish(false,"Мишень не включена в целую группу отрисовки.");return;}
             if(runtime.Options.Smoke.Contains("-frames-"))
-                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".training.png");
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".training.png",runtime.Hud.GetComponent<Canvas>());
             sent=true;NetworkClient.Send(new TrainingDoneMessage());
         }
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,shots=shots,results=results,
+            string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,ladderContacts=runtime.MovementAudio.LadderContacts,
                 remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,propLandings=runtime.PropAudio.Landings,independentStance=independentStance},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,propLandings;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,propLandings;public float shortJump,longJump;}
     }
 }
