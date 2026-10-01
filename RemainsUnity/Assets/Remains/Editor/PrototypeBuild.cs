@@ -18,7 +18,7 @@ namespace Remains.Editor
                 importer.alphaIsTransparency=true;
                 importer.textureCompression=TextureImporterCompression.Uncompressed;
                 importer.mipmapEnabled=false;
-                if(importer.assetPath.Contains("/Original/Raider/")) importer.maxTextureSize=4096;
+                if(importer.assetPath.Contains("/Original/Raider/") || importer.assetPath.Contains("/Original/Shots/")) importer.maxTextureSize=4096;
                 importer.SaveAndReimport();
             }
             ContractChecks.Run();

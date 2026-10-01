@@ -27,6 +27,7 @@ namespace Remains.Runtime
         public GameplayAudio Audio {get;private set;}
         public AreaMusic Music {get;private set;}
         public MovementAudio MovementAudio {get;private set;}
+        public ExplosionEffects Explosions {get;private set;}
         public AudioPreferences AudioPreferences {get;private set;}
         private float musicMixVolume;
         public DamageFeedback DamageFeedback {get;private set;}
@@ -101,6 +102,7 @@ namespace Remains.Runtime
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
             MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
+            Explosions=new GameObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session);
             Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             if(Application.isBatchMode && Options.Smoke!=null && string.IsNullOrEmpty(Options.SaveDirectory))
                 throw new System.InvalidOperationException("Фоновая проверка требует отдельного каталога --save-dir для настроек.");

@@ -151,6 +151,8 @@ namespace Remains.Runtime
             {
                 if(grenadeReceipts<runtime.Options.ProbePeers-1) return;
                 int displayed=Host?0:runtime.Options.ProbePeers-1;
+                if(runtime.Explosions.Shown!=(Host?0:1))
+                {Finish(false,"Эффект взрыва показан не в своей локации или пропущен.");return;}
                 if(grenadeReceipts!=runtime.Options.ProbePeers-1 || grenadeNumbers!=displayed)
                 {Finish(false,$"Числа урона взрыва: receipts={grenadeReceipts}, displayed={grenadeNumbers}/{displayed}.");return;}
             }
@@ -167,6 +169,8 @@ namespace Remains.Runtime
             var expected=session.World.actors.Where(a=>a.level==self.level).Select(a=>a.id).OrderBy(id=>id).ToArray();
             var visible=FindObjectsByType<ActorVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(v=>v.ActorId).OrderBy(id=>id).ToArray();
             if(!expected.SequenceEqual(visible)) {Finish(false,$"Неверная видимость: expected={string.Join(",",expected)}, actual={string.Join(",",visible)}");return;}
+            // Transient effects must expire before counting retained room resources.
+            if(FindObjectsByType<ExplosionVisual>(FindObjectsSortMode.None).Length>0) return;
             int expectedSprites=session.World.actors.Where(a=>expected.Contains(a.id)).Sum(a=>(Remains.Content.ActorTypes.Get(a.actorType).hasWeapon?1:0)+(Remains.Content.ActorTypes.Get(a.actorType).presentation=="pony"?0:1))+session.World.props.Count(p=>p.level==self.level)+session.World.containers.Count(c=>c.level==self.level)+runtime.Grenades.Flights.Count(f=>f.state.level==self.level);
             int spriteCount=FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).Length;
             var rooms=FindObjectsByType<RoomMeshLifetime>(FindObjectsInactive.Include,FindObjectsSortMode.None);

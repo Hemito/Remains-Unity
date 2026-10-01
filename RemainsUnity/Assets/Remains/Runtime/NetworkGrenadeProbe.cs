@@ -17,13 +17,22 @@ namespace Remains.Runtime
         private float deadline,returnAt,settledAt;
         private bool threw,disconnected,returned,finished,handoff,startRequested;
         private string grenadeId;
+        private readonly System.Collections.Generic.HashSet<string> explosionIds=new();
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
         private bool Host=>runtime.Options.Role=="host";
         private bool Source=>runtime.Options.Character=="session-client-1";
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
-            value.Session.AttackReceived+=attack=>{if(attack.weapon=="grenade") explosions++;};
+            value.Session.AttackReceived+=attack=>
+            {
+                if(attack.weapon!="grenade" || !explosionIds.Add(attack.id)) return;
+                explosions++;
+                // Replay only the notification. The persisted detonation is not repeated.
+                if(Host) NetworkServer.SendToAll(new Remains.Networking.AttackMessage {json=JsonUtility.ToJson(attack)});
+            };
+            value.Explosions.Created+=effect=>
+            {if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureExplosion(effect));};
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<GrenadeProbePhase>(message=>phase=message.phase);
@@ -87,10 +96,18 @@ namespace Remains.Runtime
             if(finished) return;finished=true;
             int expectedSounds=!Resume && Source?0:1;
             if(runtime.Audio.ExplosionSounds!=expectedSounds) success=false;
+            if(runtime.Explosions.Shown!=expectedSounds) success=false;
+            detail+=$" Эффектов взрыва: {runtime.Explosions.Shown}, ожидалось {expectedSounds}, уведомление повторено для проверки дедупликации.";
             detail+=$" Звуков взрыва: {runtime.Audio.ExplosionSounds}, ожидалось {expectedSounds}; старое событие при возвращении не озвучивается.";
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
+        private IEnumerator CaptureExplosion(Remains.Presentation.ExplosionVisual effect)
+        {
+            yield return new WaitForSeconds(.12f);
+            if(effect==null) {Finish(false,"Эффект взрыва исчез до снимка.");yield break;}
+            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".explosion.png",runtime.Hud.GetComponent<Canvas>());
+        }
         [Serializable] private sealed class Report {public bool success;public string detail;}
     }
 }
