@@ -2,7 +2,7 @@ namespace Remains.Domain
 {
     public static class TravelRules
     {
-        public static string Rejection(ActorState actor, string source, string destination, int generation, int lifecycle)
+        public static string Rejection(ActorState actor, string source, string destination, int generation, int lifecycle, bool destinationPaused=false)
         {
             if (actor == null || !actor.connected) return "Персонаж не подключён к сессии.";
             if (actor.generation != generation || actor.lifecycleSequence != lifecycle || actor.level != source)
@@ -10,6 +10,7 @@ namespace Remains.Domain
             if (actor.down) return "Персонаж без сознания и не может перейти самостоятельно.";
             if (!(source == "hub" && destination == "factory:0") &&
                 !(source == "factory:0" && destination == "hub")) return "Этот маршрут недоступен.";
+            if(destinationPaused) return "Уровень остановлен. Дождитесь возобновления перед входом.";
             return null;
         }
 
