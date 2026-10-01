@@ -16,6 +16,7 @@ namespace Remains.Runtime
     {
         private PrototypeRuntime runtime;
         private int phase;
+        private int route;
         private float deadline,phaseAt;
         private bool fired,finished;
         private bool configuring,uiPrepared;
@@ -45,13 +46,23 @@ namespace Remains.Runtime
             var self=runtime.Session.LocalActor;if(self==null) return default;
             if(phase==0)
             {
-                float target=Host?5:runtime.Options.Character=="session-client-1"?6:12;
-                float delta=target-self.x;
-                return new PlayerCommand {movement=new Vector2(Mathf.Abs(delta)>.03f?Mathf.Sign(delta):0,0)};
+                if(route==0)
+                {
+                    if(Mathf.Abs(self.x-14.98f)>.08f || Mathf.Abs(self.vx)>.1f) return Approach(self,14.98f);
+                    route=1;
+                }
+                if(route==1) {if(self.y>1) return new PlayerCommand {movement=Vector2.down};route=2;}
+                return Approach(self,Host?25:runtime.Options.Character=="session-client-1"?26:19);
             }
             if(!Host || phase>2 || fired) return default;
             fired=true;
             return new PlayerCommand {weapon=phase<=1?"crowbar":"spear",fire=true,hasAim=true,aim=self.Position+new Vector2(5,.8f)};
+        }
+        private static PlayerCommand Approach(ActorState actor,float target)
+        {
+            float delta=target-actor.x;
+            bool coast=Mathf.Abs(actor.vx)>.1f && (actor.vx*delta<0 || Mathf.Abs(delta)<Mathf.Abs(actor.vx)*.1f+.025f);
+            return new PlayerCommand {movement=new Vector2(!coast && Mathf.Abs(delta)>.03f?Mathf.Sign(delta):0,0)};
         }
         private void Update()
         {
@@ -66,7 +77,7 @@ namespace Remains.Runtime
             {pausedPhase=phase;configuring=true;StartCoroutine(PauseSwing());return;}
             if(phase==0)
             {
-                if(players.Any(a=>Mathf.Abs(a.x-(a.character=="session-host"?5:a.character=="session-client-1"?6:12))>.08f || Mathf.Abs(a.vx)>.1f)) return;
+                if(players.Any(a=>Mathf.Abs(a.x-(a.character=="session-host"?25:a.character=="session-client-1"?26:19))>.08f || Mathf.Abs(a.vx)>.1f || a.y>1)) return;
                 if(UiScenario && !uiPrepared) {uiPrepared=true;configuring=true;StartCoroutine(PrepareUi());return;}
                 NetworkServer.SendToAll(new MeleeProbePhase {phase=1});return;
             }
@@ -111,6 +122,8 @@ namespace Remains.Runtime
         private IEnumerator PrepareUi()
         {
             var session=runtime.Session;var hud=runtime.Hud;
+            hud.PauseMenu.Toggle();yield return null;
+            if(runtime.Options.Smoke.Contains("-frames-")) NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".menu.png",hud.GetComponent<Canvas>());
             yield return UiPointerProbe.Click(hud.FriendlyFireButtonRect);
             while(session.World.friendlyFire && !finished) yield return null;
             if(finished) yield break;
@@ -118,11 +131,13 @@ namespace Remains.Runtime
             yield return UiPointerProbe.Click(hud.FriendlyDecisionButtonRect);
             yield return new WaitForSecondsRealtime(.5f);
             if(session.World.friendlyFireDecision!=FriendlyFireDecision.Victim) {Complete(false,"Неактивная кнопка изменила настройку.");yield break;}
+            hud.PauseMenu.Toggle();yield return null;
             phase=-1;fired=false;
             yield return new WaitForSecondsRealtime(1.5f);
             var victim=session.ServerWorld.Find("player:session-client-1");
             if(victim.health!=100 || victim.damageSequence!=0 || sweeps.Count!=1)
             {Complete(false,"Удар при выключенном FF изменил союзника или не был выполнен.");yield break;}
+            hud.PauseMenu.Toggle();yield return null;
             yield return UiPointerProbe.Click(hud.FriendlyFireButtonRect);
             while(!session.World.friendlyFire && !finished) yield return null;
             if(finished) yield break;
@@ -130,12 +145,15 @@ namespace Remains.Runtime
             yield return UiPointerProbe.Click(hud.FriendlyDecisionButtonRect);
             while(session.World.friendlyFireDecision!=FriendlyFireDecision.Attacker && !finished) yield return null;
             if(finished) yield break;
+            hud.PauseMenu.Toggle();yield return null;
             sweeps.Clear();NetworkServer.SendToAll(new MeleeProbePhase {phase=1});
         }
         private IEnumerator SwitchToVictim()
         {
+            runtime.Hud.PauseMenu.Toggle();yield return null;
             yield return UiPointerProbe.Click(runtime.Hud.FriendlyDecisionButtonRect);
             while(runtime.Session.World.friendlyFireDecision!=FriendlyFireDecision.Victim && !finished) yield return null;
+            runtime.Hud.PauseMenu.Toggle();yield return null;
             if(!finished) NetworkServer.SendToAll(new MeleeProbePhase {phase=2});
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:2);}

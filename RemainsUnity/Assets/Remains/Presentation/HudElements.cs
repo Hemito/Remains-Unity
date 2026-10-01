@@ -32,6 +32,7 @@ namespace Remains.Presentation
         {
             var obj=Panel(parent,content,position,size);
             var button=obj.AddComponent<Button>(); button.onClick.AddListener(()=>action());
+            OriginalButtonStyle.Apply(button);
             var label=Label(obj.transform,content,new Vector2(5,-5),size-new Vector2(10,10));
             label.alignment=TextAnchor.MiddleCenter;
             return button;

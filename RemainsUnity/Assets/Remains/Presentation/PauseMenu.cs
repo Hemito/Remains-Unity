@@ -15,6 +15,7 @@ namespace Remains.Presentation
         private readonly Button menuSetting,inventorySetting,exit;
         private string actorVersion;
         public bool IsOpen=>root.activeSelf;
+        public Transform SessionControls {get;}
         public RectTransform ManualPauseRect {get;}
         public RectTransform ResumeRect {get;}
         public RectTransform MenuSettingRect=>menuSetting.GetComponent<RectTransform>();
@@ -25,6 +26,9 @@ namespace Remains.Presentation
             this.session=session;this.inventory=inventory;
             status=ui.Label(parent,"",new Vector2(790,-650),new Vector2(470,55));
             root=ui.Panel(parent,"Меню сессии",new Vector2(400,-145),new Vector2(680,420));
+            SessionControls=ui.Panel(root.transform,"Параметры сессии",new Vector2(-330,0),new Vector2(310,420)).transform;
+            ui.Label(SessionControls,"Сессия",new Vector2(12,-12),new Vector2(286,28));
+            var help=ui.Label(SessionControls,"A/D — движение · Shift — бег\nПробел — прыжок (удержание выше)\nW/S — лестница · двойное S — вниз\nЛКМ — атака · Q — телекинез\nE — поднять союзника · H — аптечка\nG — граната · I — инвентарь",new Vector2(12,-260),new Vector2(286,150));help.fontSize=15;
             ui.Label(root.transform,"Меню · Escape закрывает меню",new Vector2(20,-15),new Vector2(640,40));
             ManualPauseRect=ui.Button(root.transform,"Остановить этот уровень",new Vector2(20,-65),new Vector2(310,45),()=>session.Pause.SetManual(true)).GetComponent<RectTransform>();
             ResumeRect=ui.Button(root.transform,"Снять ручную паузу",new Vector2(350,-65),new Vector2(310,45),()=>session.Pause.SetManual(false)).GetComponent<RectTransform>();

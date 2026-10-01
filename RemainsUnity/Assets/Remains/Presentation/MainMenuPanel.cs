@@ -14,7 +14,6 @@ namespace Remains.Presentation
         public Button Worlds {get;}
         public Text World {get;}
         public Text Notice {get;}
-        private readonly Sprite glow;
         private readonly HudElements ui;
         public MainMenuPanel(Transform parent,HudElements ui,Action host,Action join,Action worlds)
         {
@@ -25,7 +24,6 @@ namespace Remains.Presentation
             Artwork("sky");Artwork("city");
             var title=ui.Label(Root.transform,"REMAINS",new Vector2(65,-60),new Vector2(630,90));title.fontSize=64;title.color=new Color(.78f,.93f,.82f);
             var subtitle=ui.Label(Root.transform,"Совместная игра",new Vector2(70,-151),new Vector2(500,45));subtitle.fontSize=26;
-            glow=LoadSprite("button-glow",new Vector4(25,5,25,5));
             Controls=ui.Panel(Root.transform,"Игра и подключение",new Vector2(775,-55),new Vector2(440,580));
             Controls.GetComponent<Image>().color=new Color(.015f,.025f,.02f,.90f);
             ui.Label(Controls.transform,"Персонаж",new Vector2(20,-15),new Vector2(400,28));
@@ -43,12 +41,9 @@ namespace Remains.Presentation
         }
         private Button Button(Transform parent,string label,Vector2 position,Vector2 size,Action action)
         {
-            var result=ui.Button(parent,label,position,size,action);var image=result.GetComponent<Image>();image.sprite=glow;image.type=Image.Type.Sliced;image.color=Color.white;
-            result.targetGraphic=image;
-            var colors=result.colors;colors.normalColor=new Color(.20f,.25f,.23f,.65f);colors.highlightedColor=new Color(.55f,.85f,.70f,.85f);
-            colors.selectedColor=colors.highlightedColor;colors.pressedColor=Color.white;colors.disabledColor=new Color(.12f,.12f,.12f,.3f);colors.fadeDuration=.12f;result.colors=colors;
-            return result;
+            return ui.Button(parent,label,position,size,action);
         }
+
         private void Artwork(string key)
         {
             var obj=new GameObject("Оригинал меню "+key,typeof(RectTransform));obj.transform.SetParent(Root.transform,false);

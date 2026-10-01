@@ -51,19 +51,18 @@ namespace Remains.Presentation
         public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen;
         public bool InventoryOpen=>inventory.activeSelf;
         private string inventoryActorVersion;
-        private Image healthBar;
-        private Image manaBar;
+        private CombatHud combatHud;
+        private GameObject quickActions;
+        private float noticeUntil;
         private PersonalInventoryPanel personalItems;
         public RectTransform DepositRowRect(int index)=>personalItems.RowRect(index);
         public RectTransform DepositActionRect=>personalItems.DepositRect;
         public RectTransform UseItemRect=>personalItems.UseRect;
         public RectTransform InventoryWeaponRect(int index)=>personalItems.WeaponRect(index);
         public Action<string> EquipWeapon {get;set;}
-        private Text ammunition;
         private Text revival;
         public Func<float> RevivalProgress {get;set;}
         public Func<bool> RevivalPending {get;set;}
-        private readonly HashSet<string> missingMagazines=new();
         private Button friendlyFire;
         private Button friendlyDecision;
         private Button leave;
@@ -84,12 +83,11 @@ namespace Remains.Presentation
             scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
-            status = elements.BackedLabel(transform, "Подключение не установлено", new Vector2(20,-20), new Vector2(1050,60));
-            healthBar=OriginalBar("health",new Vector2(20,-95),new Vector2(300,34));
-            manaBar=OriginalBar("mana",new Vector2(20,-135),new Vector2(300,20));
-            ammunition=elements.BackedLabel(transform,"",new Vector2(20,-165),new Vector2(380,32));
-            message = elements.BackedLabel(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · Удерживать E — поднять · I — инвентарь", new Vector2(420,-95), new Vector2(830,85));
-            revival=elements.BackedLabel(transform,"",new Vector2(420,-190),new Vector2(800,32));
+            status=elements.BackedLabel(transform,"",new Vector2(720,-20),new Vector2(285,44));
+            combatHud=new CombatHud(transform,elements,inventoryArtwork,weapon=>EquipWeapon?.Invoke(weapon));
+            quickActions=Panel(transform,"Действия",new Vector2(1020,-14),new Vector2(244,96));
+            message=elements.BackedLabel(transform,"",new Vector2(350,-140),new Vector2(880,55));
+            revival=elements.BackedLabel(transform,"",new Vector2(480,-625),new Vector2(750,35));
             mainMenu=new MainMenuPanel(transform,elements,
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();},
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);},
@@ -129,7 +127,7 @@ namespace Remains.Presentation
             leave=Button(transform,"Сохранить и выйти из сессии",new Vector2(20,-390),new Vector2(290,45),()=>
             {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
-            factory=Button(transform,"На завод 0",new Vector2(20,-220),new Vector2(290,45),()=>
+            factory=Button(quickActions.transform,"На завод 0",new Vector2(8,-8),new Vector2(228,36),()=>
             {if(session.LocalActor?.level=="factory:0") session.Travel.RequestHub();else session.ReturnToFactory();});
             factory.gameObject.SetActive(false);
             session.Changed += Refresh;
@@ -138,6 +136,11 @@ namespace Remains.Presentation
             NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
             PauseMenu=new PauseMenu(transform,elements,session,()=>inventory.activeSelf);
+            friendlyFire.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(friendlyFire.GetComponent<RectTransform>(),new Vector2(12,-50),new Vector2(286,40));
+            friendlyDecision.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(friendlyDecision.GetComponent<RectTransform>(),new Vector2(12,-100),new Vector2(286,60));
+            leave.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(leave.GetComponent<RectTransform>(),new Vector2(12,-185),new Vector2(286,60));
+            Button(quickActions.transform,"Инвентарь · I",new Vector2(8,-52),new Vector2(112,36),ToggleInventory).GetComponentInChildren<Text>().fontSize=14;
+            Button(quickActions.transform,"Меню · Esc",new Vector2(126,-52),new Vector2(110,36),()=>PauseMenu.Toggle()).GetComponentInChildren<Text>().fontSize=14;
             Refresh();
         }
 
@@ -147,7 +150,7 @@ namespace Remains.Presentation
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
         public bool FriendlyDecisionInteractable=>friendlyDecision.interactable;
         public RectTransform ContainerSlotRect(int index)=>slots[index].GetComponent<RectTransform>();
-        public void ShowMessage(string text) {message.text=text;if(mainMenu!=null) mainMenu.Notice.text=text;}
+        public void ShowMessage(string text) {noticeUntil=Time.unscaledTime+8;message.text=text;if(mainMenu!=null) mainMenu.Notice.text=text;}
         private void Refresh()
         {
             var actor = session.LocalActor;
@@ -156,9 +159,9 @@ namespace Remains.Presentation
             if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);}
             bool gameplayVisible=actor!=null && !inventory.activeSelf;
             status.transform.parent.gameObject.SetActive(gameplayVisible);
-            healthBar.gameObject.SetActive(gameplayVisible);manaBar.gameObject.SetActive(gameplayVisible);
-            Vector2 noticePosition=inventory.activeSelf?new Vector2(20,-20):new Vector2(420,-95);
-            Vector2 noticeSize=inventory.activeSelf?new Vector2(1240,70):new Vector2(830,85);
+            combatHud.Refresh(actor,gameplayVisible && !PauseMenu.IsOpen);quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
+            Vector2 noticePosition=inventory.activeSelf?new Vector2(20,-20):new Vector2(350,-140);
+            Vector2 noticeSize=inventory.activeSelf?new Vector2(1240,70):new Vector2(880,55);
             HudElements.Rect(message.transform.parent.GetComponent<RectTransform>(),noticePosition+new Vector2(-6,6),noticeSize+new Vector2(12,12));
             HudElements.Rect(message.rectTransform,new Vector2(6,-6),noticeSize);
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
@@ -171,10 +174,7 @@ namespace Remains.Presentation
             friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
             friendlyDecision.interactable=session.World.friendlyFire;
             friendlyDecision.GetComponentInChildren<Text>().text="Прямое попадание:\nрешает "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");
-            status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count} · {(actor.level=="hub"?"Хаб": "Завод 0")}\n1 — копьё · 2 — лом · 3 — 10-мм пистолет · 4 — лазерный пистолет · R — перезарядка";
-            RefreshAmmunition();
-            healthBar.fillAmount=Mathf.Clamp01(actor.health/100);
-            manaBar.fillAmount=Mathf.Clamp01(actor.mana/100);
+            status.text=$"{(actor.level=="hub"?"Хаб":"Завод 0")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count}";
 
             var nearest=ContainerAccess.Nearest(session.World,actor,session.Rules.Loot,session.Rules.Deposit);
             if(nearest?.id!=shownContainer?.id) containerPage=0;
@@ -245,34 +245,15 @@ namespace Remains.Presentation
         {
             factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
             if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
-            RefreshAmmunition();
+            bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen;
+            combatHud.Refresh(session.LocalActor,show);quickActions.SetActive(show);
+            status.transform.parent.gameObject.SetActive(show);
+            message.transform.parent.gameObject.SetActive(session.LocalActor!=null && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));
             if(revival==null) return;
             float progress=RevivalProgress?.Invoke() ?? 0;
             revival.text=RevivalPending?.Invoke()==true?"Ожидаем подтверждения поднятия…":
                 progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
             revival.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(revival.text));
-            ammunition.transform.parent.gameObject.SetActive(!inventory.activeSelf && !string.IsNullOrEmpty(ammunition.text));
-        }
-        private void RefreshAmmunition()
-        {
-            var actor=session?.LocalActor;
-            if(actor==null) {if(ammunition!=null) ammunition.text="";return;}
-            var definition=WeaponCatalog.Get(actor.weapon);
-            if(string.IsNullOrEmpty(definition.ammo)) {ammunition.text="";return;}
-            var magazine=WeaponAmmunition.Magazine(actor,actor.weapon);
-            if(magazine==null)
-            {
-                if(missingMagazines.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Нет магазина: actor={actor.id}, weapon={actor.weapon}, loadoutVersion={actor.loadoutVersion}.",this);
-                ammunition.text="Ошибка данных магазина — см. журнал.";return;
-            }
-            ammunition.text=$"Заряжено: {magazine.rounds}/{definition.magazineSize} · запас: {InventoryJournal.Count(actor,definition.ammo)}";
-        }
-
-        private Image OriginalBar(string key,Vector2 position,Vector2 size)
-        {
-            var obj=Panel(transform,"Шкала "+key,position,size);
-            var image=obj.GetComponent<Image>();ApplyOriginalImage(image,key,true);
-            return image;
         }
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {
