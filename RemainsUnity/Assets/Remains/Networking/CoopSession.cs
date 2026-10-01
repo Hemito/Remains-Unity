@@ -30,11 +30,15 @@ namespace Remains.Networking
         private readonly Dictionary<string, string> playerIds = new();
         private readonly PoseSequenceGate serverPoses = new();
         private readonly PoseSequenceGate clientPoses = new();
+        public bool UseLobby {get;set;}
+        private SessionLobby lobby;
+        public SessionLobby Lobby=>lobby ??= new SessionLobby(this);
         private SessionTravel travel;
         public SessionTravel Travel => travel ??= new SessionTravel(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
         private readonly Dictionary<int,long> backupRevisions = new();
         private readonly RecoveryReceiptGate recoveryReceipts = new();
+        private readonly WorldReplication worldReplication=new();
         private readonly OwnershipService ownership = new();
         private SharedInventory inventory;
         private readonly HashSet<string> recoveredActors=new();
@@ -44,7 +48,31 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
-            ServerWorld = Saves.LoadWorld() ?? CreateWorld();
+            ServerWorld=null;
+            Lobby.RegisterServer(UseLobby);
+            if(!UseLobby) StartSelectedWorld(null,false);
+            NetworkServer.RegisterHandler<JoinMessage>(Join);
+            NetworkServer.RegisterHandler<ActorMessage>(UpdateActor);
+            NetworkServer.RegisterHandler<PoseMessage>(UpdatePose);
+            NetworkServer.RegisterHandler<AttackMessage>(RelayAttack);
+            NetworkServer.RegisterHandler<NpcHitMessage>(RelayNpcHit);
+            NetworkServer.RegisterHandler<ClaimMessage>(Claim);
+            NetworkServer.RegisterHandler<ReviveMessage>(Revive);
+            NetworkServer.RegisterHandler<BackupAckMessage>((connection, ack) =>
+            {
+                if(ServerWorld==null) return;
+                if (ack.world != ServerWorld.worldId) Debug.LogWarning($"Подтверждение чужого мира: клиент={connection.connectionId}, мир={ack.world}, ожидается={ServerWorld.worldId}.");
+                else if(!recoveryReceipts.Matches(ack.snapshot,ack.revision))
+                    Debug.LogWarning($"Неизвестное подтверждение снимка: клиент={connection.connectionId}, снимок={ack.snapshot}, ревизия={ack.revision}.");
+                else { backupRevisions[connection.connectionId]=Math.Max(backupRevisions.GetValueOrDefault(connection.connectionId),ack.revision); CompleteBackedUpGrants(); }
+            });
+            ServerReady?.Invoke();
+        }
+
+        internal void StartSelectedWorld(RecoverySnapshot snapshot,bool createNew)
+        {
+            if(snapshot!=null) Saves.SelectContinuation(snapshot);
+            ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
             WorldHistory.BeginContinuation(ServerWorld);
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
@@ -57,30 +85,29 @@ namespace Remains.Networking
             }
             foreach (var actor in ServerWorld.actors.Where(a => a.player)) actor.connected = false;
             inventory = new SharedInventory(ServerWorld);
-            NetworkServer.RegisterHandler<JoinMessage>(Join);
-            NetworkServer.RegisterHandler<ActorMessage>(UpdateActor);
-            NetworkServer.RegisterHandler<PoseMessage>(UpdatePose);
-            NetworkServer.RegisterHandler<AttackMessage>(RelayAttack);
-            NetworkServer.RegisterHandler<NpcHitMessage>(RelayNpcHit);
-            NetworkServer.RegisterHandler<ClaimMessage>(Claim);
-            NetworkServer.RegisterHandler<ReviveMessage>(Revive);
-            NetworkServer.RegisterHandler<BackupAckMessage>((connection, ack) =>
-            {
-                if (ack.world != ServerWorld.worldId) Debug.LogWarning($"Подтверждение чужого мира: клиент={connection.connectionId}, мир={ack.world}, ожидается={ServerWorld.worldId}.");
-                else if(!recoveryReceipts.Matches(ack.snapshot,ack.revision))
-                    Debug.LogWarning($"Неизвестное подтверждение снимка: клиент={connection.connectionId}, снимок={ack.snapshot}, ревизия={ack.revision}.");
-                else { backupRevisions[connection.connectionId]=Math.Max(backupRevisions.GetValueOrDefault(connection.connectionId),ack.revision); CompleteBackedUpGrants(); }
-            });
-            InvokeRepeating(nameof(CheckpointWorld), 3, 3);
-            ServerReady?.Invoke();
+            InvokeRepeating(nameof(CheckpointWorld),3,3);
         }
+
+        internal void DiscardUnstartedWorld()
+        {
+            CancelInvoke(nameof(CheckpointWorld));ServerWorld=null;inventory=null;recoveredActors.Clear();
+        }
+
+        internal void AdmitLobbyPlayer(NetworkConnectionToClient connection,JoinMessage message)=>Join(connection,message);
 
         public override void OnStartClient()
         {
             clientPoses.Clear();
+            Lobby.RegisterClient();
             Travel.RegisterClient();
-            NetworkClient.RegisterHandler<WelcomeMessage>(Welcome);
-            NetworkClient.RegisterHandler<WorldMessage>(ReceiveWorld);
+            worldReplication.Reset();
+            NetworkClient.RegisterHandler<WorldPartMessage>(message=>
+            {
+                var received=worldReplication.Receive(message);
+                if(received==null) return;
+                if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor,worldJson=received.snapshot.Json});
+                else ReceiveWorld(new WorldMessage {json=received.snapshot.Json});
+            });
             NetworkClient.RegisterHandler<ActorMessage>(message =>
             {
                 var actor = JsonUtility.FromJson<ActorState>(message.json);
@@ -102,10 +129,20 @@ namespace Remains.Networking
 
         public void SendJoin(bool acceptMismatch)
         {
-            var character=Saves.LoadCharacter();
-            NetworkClient.Send(new JoinMessage { character = CharacterId, displayName = CharacterId,
-                characterJson=character==null?null:JsonUtility.ToJson(character),
-                modFingerprint=WeaponCatalog.ModFingerprint,acceptMismatch=acceptMismatch });
+            try
+            {
+                Lobby.PublishOffers();
+                var character=Saves.LoadCharacter();
+                NetworkClient.Send(new JoinMessage { character = CharacterId, displayName = CharacterId,
+                    characterJson=character==null?null:JsonUtility.ToJson(character),
+                    modFingerprint=WeaponCatalog.ModFingerprint,acceptMismatch=acceptMismatch });
+            }
+            catch(Exception failure)
+            {
+                Debug.LogError("Не удалось подготовить профиль для подключения: "+failure);
+                Notice?.Invoke("Не удалось подготовить профиль: "+failure.Message);
+                if(NetworkServer.active) StopHost();else StopClient();
+            }
         }
 
         private static WorldState CreateWorld()
@@ -131,6 +168,7 @@ namespace Remains.Networking
                 connection.Send(new ModMismatchMessage {description=WeaponCatalog.ModDescription});
                 return;
             }
+            if(Lobby.HoldJoin(connection,message)) return;
             var actor = ServerWorld.actors.Find(a => a.character == message.character);
             if (actor?.connected == true)
             {
@@ -165,13 +203,14 @@ namespace Remains.Networking
             playerIds[owner] = actor.id;
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
             ServerWorld.revision++;
-            connection.Send(new WelcomeMessage { owner = owner, actor = actor.id, worldJson = PrepareRecovery() });
+            WorldReplication.Send(connection,PrepareRecovery(),owner,actor.id);
             if(recoveredActors.Contains(actor.id)) connection.Send(new NoticeMessage {text="Позиция из старого сохранения была вне комнаты и восстановлена. Здоровье и предметы сохранены; исходный сейв скопирован в Recovery."});
             BroadcastWorld();
         }
 
         public override void OnServerDisconnect(NetworkConnectionToClient connection)
         {
+            Lobby.Disconnected(connection.connectionId);
             if (owners.Remove(connection.connectionId, out string owner))
             {
                 backupRevisions.Remove(connection.connectionId);
@@ -249,11 +288,11 @@ namespace Remains.Networking
             if(LocalActor!=null) Saves.SaveCharacter(LocalActor);
         }
 
-        private string PrepareRecovery()
+        private RecoverySnapshot PrepareRecovery()
         {
             var snapshot=Saves.SaveWorld(ServerWorld);
             recoveryReceipts.Register(snapshot);
-            return snapshot.Json;
+            return snapshot;
         }
 
         private void MergeActor(ActorState actor)
@@ -399,7 +438,12 @@ namespace Remains.Networking
             if(changed) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); }
         }
 
-        private void BroadcastWorld() => NetworkServer.SendToAll(new WorldMessage { json = PrepareRecovery() });
+        private void BroadcastWorld()
+        {
+            var snapshot=PrepareRecovery();
+            foreach(int id in owners.Keys)
+                if(NetworkServer.connections.TryGetValue(id,out var connection)) WorldReplication.Send(connection,snapshot);
+        }
         public ActorState ConnectedActor(NetworkConnectionToClient connection) =>
             owners.TryGetValue(connection.connectionId,out var owner) && playerIds.TryGetValue(owner,out var id)?ServerWorld.Find(id):null;
         public void CommitWorld()
@@ -427,7 +471,7 @@ namespace Remains.Networking
         }
         public override void OnStopClient()
         {
-            Travel.ResetClient();
+            Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
             Changed?.Invoke();

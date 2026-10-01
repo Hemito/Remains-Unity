@@ -33,6 +33,21 @@ namespace Remains.Editor
                 var other=new RecoverySnapshot(JsonUtility.ToJson(new WorldState()));store.SaveRecovery(other);
                 Require(File.Exists(Path.Combine(directory,"Worlds",world.worldId,"Snapshots",predicted.Id+".json")),"Другой мир сохраняет архив первого");
                 gate.Clear();Require(!gate.Matches(snapshot.Id,17),"Новая сессия не принимает старые квитанции");
+                var payload=System.Text.Encoding.UTF8.GetBytes(wire);
+                var receiver=new SnapshotTransfer(snapshot.Id);
+                var half=new byte[payload.Length/2];Array.Copy(payload,half,half.Length);
+                Require(receiver.Append(payload.Length,0,half)==null,"Часть передачи не публикуется как сохранение");
+                Require(receiver.Append(payload.Length,0,half)==null,"Повтор части не меняет позицию сборки");
+                var rest=new byte[payload.Length-half.Length];Array.Copy(payload,half.Length,rest,0,rest.Length);
+                Require(receiver.Append(payload.Length,half.Length,rest).Id==snapshot.Id,"Полная передача восстанавливает исходный хеш");
+                bool rejected=false;
+                try {new SnapshotTransfer(new string('0',64)).Append(payload.Length,0,payload);}
+                catch(InvalidDataException) {rejected=true;}
+                Require(rejected,"Подмена хеша не публикуется");
+                rejected=false;
+                try {new SnapshotTransfer(snapshot.Id).Append(SnapshotTransfer.MaximumBytes+1,0,half);}
+                catch(InvalidDataException) {rejected=true;}
+                Require(rejected,"Невозможный размер отклонён до выделения памяти");
                 var root=new WorldState();WorldHistory.BeginContinuation(root);
                 var first=store.SaveWorld(root);var old=root.Copy();
                 root.revision++;var later=store.SaveWorld(root);

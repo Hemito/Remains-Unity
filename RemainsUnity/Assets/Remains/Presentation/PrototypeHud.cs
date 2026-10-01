@@ -30,6 +30,8 @@ namespace Remains.Presentation
         public Func<string,bool> SelectCharacter { get; set; }
         private readonly Button[] slots = new Button[9];
         private Font font;
+        private HudElements elements;
+        public WorldLobbyPanel NetworkLobby {get;private set;}
         private Image healthBar;
         private Image manaBar;
         private Text personalItems;
@@ -46,6 +48,7 @@ namespace Remains.Presentation
             session = value;
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (font == null) throw new InvalidOperationException("Не найден системный шрифт Unity LegacyRuntime.ttf.");
+            elements=new HudElements(font);
             var canvas = gameObject.AddComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = gameObject.AddComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1280,720);
@@ -98,6 +101,7 @@ namespace Remains.Presentation
                 Button(warning.transform,"Войти",new Vector2(20,-350),new Vector2(360,50),()=>{session.SendJoin(true);Destroy(warning);});
                 Button(warning.transform,"Отмена",new Vector2(410,-350),new Vector2(360,50),()=>{session.StopClient();Destroy(warning);});
             };
+            NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
             Refresh();
         }
 
@@ -108,7 +112,7 @@ namespace Remains.Presentation
         {
             var actor = session.LocalActor;
             if (actor == null)
-            {lobby.SetActive(true);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
+            {lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             lobby.SetActive(false);
             leave.gameObject.SetActive(true);friendlyFire.gameObject.SetActive(Mirror.NetworkServer.active);
             factory.gameObject.SetActive(actor.level=="hub");
@@ -205,39 +209,9 @@ namespace Remains.Presentation
             image.fillMethod=Image.FillMethod.Horizontal;image.fillOrigin=0;
         }
 
-        private GameObject Panel(Transform parent, string title, Vector2 position, Vector2 size)
-        {
-            var obj = new GameObject(title, typeof(RectTransform)); obj.transform.SetParent(parent,false);
-            Rect(obj.GetComponent<RectTransform>(),position,size);
-            obj.AddComponent<Image>().color = new Color(0.04f,0.08f,0.07f,0.95f);
-            return obj;
-        }
-        private Text Label(Transform parent, string content, Vector2 position, Vector2 size)
-        {
-            var obj = new GameObject("Текст",typeof(RectTransform)); obj.transform.SetParent(parent,false);
-            Rect(obj.GetComponent<RectTransform>(),position,size);
-            var label = obj.AddComponent<Text>(); label.font=font; label.fontSize=18; label.text=content;
-            label.color = new Color(0.65f,1,0.75f); label.raycastTarget=false;
-            return label;
-        }
-        private Button Button(Transform parent, string content, Vector2 position, Vector2 size, Action action)
-        {
-            var obj=Panel(parent,content,position,size);
-            var button=obj.AddComponent<Button>(); button.onClick.AddListener(()=>action());
-            var label=Label(obj.transform,content,new Vector2(5,-5),size-new Vector2(10,10));
-            label.alignment=TextAnchor.MiddleCenter;
-            return button;
-        }
-        private InputField Input(Transform parent,Vector2 position)
-        {
-            var obj=Panel(parent,"Адрес сервера",position,new Vector2(400,45));
-            var label=Label(obj.transform,"127.0.0.1",new Vector2(10,-5),new Vector2(380,35));
-            var input=obj.AddComponent<InputField>(); input.textComponent=label; input.text="127.0.0.1";
-            return input;
-        }
-        private static void Rect(RectTransform rect,Vector2 position,Vector2 size)
-        {
-            rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(0,1); rect.anchoredPosition=position; rect.sizeDelta=size;
-        }
+        private GameObject Panel(Transform parent,string title,Vector2 position,Vector2 size)=>elements.Panel(parent,title,position,size);
+        private Text Label(Transform parent,string content,Vector2 position,Vector2 size)=>elements.Label(parent,content,position,size);
+        private Button Button(Transform parent,string content,Vector2 position,Vector2 size,Action action)=>elements.Button(parent,content,position,size,action);
+        private InputField Input(Transform parent,Vector2 position)=>elements.Input(parent,position);
     }
 }

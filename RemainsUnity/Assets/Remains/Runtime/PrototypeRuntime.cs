@@ -57,7 +57,8 @@ namespace Remains.Runtime
             var networkObject=new GameObject("Сетевая сессия");
             networkObject.SetActive(false);
             var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
-            Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport; Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
+            Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;
+            Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
             Session.CharacterId=Options.Character;
             Session.networkAddress=Options.Address;
             Session.Saves=new SaveStore(Options.SaveDirectory ?? Path.Combine(Application.persistentDataPath,"Profiles",Options.Character));
@@ -81,7 +82,7 @@ namespace Remains.Runtime
             cameraFollower=new CameraFollower(cameraView,room);
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
-            if (!Application.isBatchMode || Options.Smoke?.StartsWith("session")==true || Options.Smoke=="history")
+            if (!Application.isBatchMode || Options.Smoke?.StartsWith("session")==true || Options.Smoke=="history" || Options.Smoke?.StartsWith("lobby")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session);
                 hud.SelectCharacter=name=>
@@ -97,7 +98,8 @@ namespace Remains.Runtime
             }
             if (Options.Smoke != null)
             {
-                if(Options.Smoke=="history") gameObject.AddComponent<WorldSelectionProbe>().Initialize(this);
+                if(Options.Smoke.StartsWith("lobby")) gameObject.AddComponent<NetworkLobbyProbe>().Initialize(this);
+                else if(Options.Smoke=="history") gameObject.AddComponent<WorldSelectionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("session")) gameObject.AddComponent<NetworkSessionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("ammo")) gameObject.AddComponent<NetworkAmmunitionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("movement")) gameObject.AddComponent<NetworkMovementProbe>().Initialize(this);
@@ -139,7 +141,7 @@ namespace Remains.Runtime
 
         private void Update()
         {
-            Session.Travel.Step();
+            Session.Travel.Step();Session.Lobby.Step();
             var actor=Session.LocalActor;
             if (actor==null || !NetworkClient.isConnected) return;
             cameraFollower.Step(actor,Time.deltaTime);
