@@ -17,6 +17,7 @@ namespace Remains.Editor
             Anatomy.Load();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
+            AttackContactChecks.Run();
             WeaponModChecks.Run();
             GameplayContentChecks.Run();
             LongSavePathChecks.Run();

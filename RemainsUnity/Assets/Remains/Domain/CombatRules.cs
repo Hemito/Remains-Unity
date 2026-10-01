@@ -47,6 +47,19 @@ namespace Remains.Domain
 
     public static class HitGeometry
     {
+        public static float? CircleEntry(Vector2 center,float radius,Vector2 start,Vector2 end)
+        {
+            var delta=end-start;var offset=start-center;
+            float c=offset.sqrMagnitude-radius*radius;
+            if(c<=0) return 0;
+            float a=delta.sqrMagnitude;
+            if(a<=0) return null;
+            float b=Vector2.Dot(offset,delta),discriminant=b*b-a*c;
+            if(discriminant<0) return null;
+            float entry=(-b-Mathf.Sqrt(discriminant))/a;
+            return entry>=0 && entry<=1?entry:null;
+        }
+
         // One geometric contract for hitscan, swept melee and regional extensions.
         public static float SegmentDistance(Vector2 point, Vector2 start, Vector2 end)
         {

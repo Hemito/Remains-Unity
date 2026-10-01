@@ -134,11 +134,9 @@ namespace Remains.Gameplay
         {
             if (session.World == null) return;
             if(attack.weapon=="grenade") return; // Persisted explosion decisions are processed from World.
-            foreach (var actor in session.World.actors.ToArray())
+            foreach(var target in AttackContacts.Capture(session.World.actors,attack,session.World.friendlyFire,
+                WeaponCatalog.Get(attack.weapon).stopAtFirstActor))
             {
-                if(!AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) continue;
-                var target=new AttackTargetSnapshot(actor,HitGeometry.Contacts(actor,attack));
-                if(!target.contact) continue;
                 if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>ApplyAttackTarget(attack,target));
                 else ApplyAttackTarget(attack,target);
             }

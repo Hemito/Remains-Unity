@@ -22,6 +22,7 @@ namespace Remains.Runtime
         private float deadline,since,reconnectAt,nextHeal;
         private bool action,disconnected,reconnected,sawBody,finished,ready;
         private string worldId;
+        private JourneyWeaponStage weapons;
         private readonly HashSet<int> readyPeers=new();
         private readonly List<int> completed=new();
         private bool Host=>runtime.Options.Role=="host";
@@ -33,6 +34,7 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+100;runtime.CommandSource=Command;
+            weapons=new JourneyWeaponStage(value);
             if(Resume)
                 worldId=value.Session.Saves.LoadWorld(false)?.worldId??throw new InvalidOperationException("Нет мира для продолжения journey.");
             value.Session.ClientReady+=()=>
@@ -47,11 +49,12 @@ namespace Remains.Runtime
         {
             var self=runtime.Session.LocalActor;
             if(self==null || Resume) return default;
-            if(phase>=3 && !self.down && self.health<70 && Time.unscaledTime>=nextHeal && InventoryJournal.Count(self,"heal")>0)
+            if(phase>=12 && phase<=14) return weapons.Command(phase);
+            if(phase>=3 && phase<=9 && !self.down && self.health<70 && Time.unscaledTime>=nextHeal && InventoryJournal.Count(self,"heal")>0)
             {nextHeal=Time.unscaledTime+1;return new PlayerCommand {heal=true};}
             if(phase==0)
             {
-                float target=Host?3:Source?1.8f:7+int.Parse(self.character.Split('-').Last());
+                float target=Host?5:Source?6:7+int.Parse(self.character.Split('-').Last());
                 return new PlayerCommand {movement=Vector2.right*(Mathf.Abs(self.x-target)>.05f?Mathf.Sign(target-self.x):0)};
             }
             if(phase==1 && Host) return new PlayerCommand {weapon="pistol",fire=!Victim.down,hasAim=true,aim=Victim.Position+Vector2.up*.55f};
@@ -100,11 +103,18 @@ namespace Remains.Runtime
                 return;
             }
             if(!Host || Time.unscaledTime-since<.5f) return;
+            if(phase>=12 && phase<=14)
+            {
+                if(Time.unscaledTime-since<2) return;
+                try {weapons.Verify(phase);}
+                catch(Exception error) {NetworkServer.SendToAll(new JourneyFinish {success=false,detail=error.Message});return;}
+                Advance(phase==14?1:phase+1);return;
+            }
             switch(phase)
             {
                 case 0:
-                    if(players.Length==runtime.Options.ProbePeers && Mathf.Abs(Healer.x-3)<.1f && Mathf.Abs(Victim.x-1.8f)<.1f &&
-                        players.Where(a=>a.id!=Healer.id && a.id!=Victim.id).All(a=>a.x>7)) Advance(1);break;
+                    if(players.Length==runtime.Options.ProbePeers && Mathf.Abs(Healer.x-5)<.1f && Mathf.Abs(Victim.x-6)<.1f &&
+                        players.All(a=>Mathf.Abs(a.vx)<.1f) && players.Where(a=>a.id!=Healer.id && a.id!=Victim.id).All(a=>a.x>7)) Advance(12);break;
                 case 1: if(Victim.down) Advance(2);break;
                 case 2:
                     if(!Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4) Advance(3);break;
@@ -144,10 +154,10 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,worldId=worldId,
-                phase=phase,completed=completed.ToArray(),sawDisconnectedBody=sawBody},true));
+                phase=phase,completed=completed.ToArray(),sawDisconnectedBody=sawBody,weaponsVerified=weapons.Verified,spearDamage=weapons.SpearDamage},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        [Serializable] private sealed class Report {public bool success,sawDisconnectedBody;public string detail,worldId;public int phase;public int[] completed;}
+        [Serializable] private sealed class Report {public bool success,sawDisconnectedBody;public string detail,worldId;public int phase,weaponsVerified;public float spearDamage;public int[] completed;}
     }
 }

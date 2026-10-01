@@ -42,8 +42,12 @@ namespace Remains.Domain
             }
         }
 
-        public static string Contact(ActorState actor,AttackEvent attack)
+        public static string Contact(ActorState actor,AttackEvent attack)=>Contact(actor,attack,out _);
+
+        public static string Contact(ActorState actor,AttackEvent attack,out float fraction)
         {
+            fraction=float.PositiveInfinity;
+            string nearest=null;
             if(!definitions.TryGetValue(actor.anatomy,out var definition))
             {
                 Debug.LogWarning($"Отсутствует анатомия {actor.anatomy} у {actor.id}; попадание пропущено.");
@@ -61,10 +65,12 @@ namespace Remains.Domain
                     offset=centers[frame].Value;
                 }
                 var center=actor.Position+new Vector2(offset.x*actor.facing,offset.y);
-                float distance=attack.weapon=="grenade"?Vector2.Distance(center,attack.End):HitGeometry.SegmentDistance(center,attack.Origin,attack.End);
-                if(distance<(attack.weapon=="grenade"?3:region.radius+attack.radius)) return region.id;
+                float? entry=attack.weapon=="grenade"?
+                    (Vector2.Distance(center,attack.End)<3?0f:(float?)null):
+                    HitGeometry.CircleEntry(center,region.radius+attack.radius,attack.Origin,attack.End);
+                if(entry.HasValue && entry.Value<fraction) {fraction=entry.Value;nearest=region.id;}
             }
-            return null;
+            return nearest;
         }
     }
 }
