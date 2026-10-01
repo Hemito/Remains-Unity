@@ -25,6 +25,9 @@ namespace Remains.Runtime
         private ContainerState Crate(int index)=>runtime.Session.World.containers.Single(c=>c.id=="training:crate:"+index);
         private readonly HashSet<int> done=new();
         private readonly TrainingJumpExercise jumping=new();
+        private readonly TrainingCrouchExercise crouching=new();
+        private readonly HashSet<string> observedCrouch=new();
+        private bool independentStance,crouchCaptured;
         private readonly HashSet<string> observedJumpSupport=new();
         public void Initialize(PrototypeRuntime value)
         {
@@ -73,6 +76,7 @@ namespace Remains.Runtime
             }
             if(stage==11)
             {
+                if(!crouching.Complete) return crouching.Step(self,Host);
                 var jumpCommand=jumping.Step(self);
                 if(!jumping.Complete) return jumpCommand;
                 if(Mathf.Abs(jumping.ShortHeight-1.44f)>.15f || Mathf.Abs(jumping.LongHeight-3.36f)>.15f)
@@ -108,7 +112,13 @@ namespace Remains.Runtime
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут мишеней: stage={stage}, shots={shots}, results={results}, position={runtime.Session.LocalActor?.Position}.");return;}
             var self=runtime.Session.LocalActor;if(self==null) return;
             foreach(var other in runtime.Session.World.actors)
-                if(other.player && other.id!=self.id && other.jumpSupportRemaining>0) observedJumpSupport.Add(other.id);
+                if(other.player && other.id!=self.id)
+                {
+                    if(other.jumpSupportRemaining>0) observedJumpSupport.Add(other.id);
+                    if(other.crouched) {observedCrouch.Add(other.id);if(!self.crouched) independentStance=true;}
+                }
+            if(Host && !crouchCaptured && self.pose=="crawl" && Mathf.Abs(self.vx+2.1f)<.05f && runtime.Options.Smoke.Contains("-frames-"))
+            {NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".crouch.png",runtime.Hud.GetComponent<Canvas>());crouchCaptured=true;}
             if(NetworkServer.active && !configured) {configured=true;runtime.Session.SetFriendlyFire(false);}
             if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers || runtime.Session.World.friendlyFire) return;
             var targets=runtime.Session.World.actors.Where(a=>a.actorType=="training-dummy").ToArray();
@@ -124,6 +134,7 @@ namespace Remains.Runtime
             if(results!=3*runtime.Options.ProbePeers || shots!=3 || targets.Single(a=>a.id=="training:hub:1").resolvedAttacks.Count!=results) return;
             if(!observedLift || light.held || Host && (stage<10 || !rejected50 || !rejected120)) return;
             if(!jumping.Complete || observedJumpSupport.Count!=runtime.Options.ProbePeers-1) return;
+            if(!crouching.Complete || observedCrouch.Count!=runtime.Options.ProbePeers-1 || !independentStance) return;
             if(runtime.MovementAudio.LocalContacts<5 || runtime.MovementAudio.RemoteContacts<5 || runtime.MovementAudio.Landings<2)
             {Finish(false,"Не воспроизведены локальные/удалённые шаги и приземления.");return;}
             if(Host && self.mana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
@@ -140,9 +151,10 @@ namespace Remains.Runtime
             if(finished) return;finished=true;
             string json=JsonUtility.ToJson(new Report {success=success,detail=detail,shots=shots,results=results,
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
-                localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,ladderContacts=runtime.MovementAudio.LadderContacts},true);
+                localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,ladderContacts=runtime.MovementAudio.LadderContacts,
+                remoteCrouches=observedCrouch.Count,independentStance=independentStance},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift;public string detail;public int shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches;public float shortJump,longJump;}
     }
 }

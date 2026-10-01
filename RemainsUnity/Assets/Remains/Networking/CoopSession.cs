@@ -441,6 +441,7 @@ namespace Remains.Networking
             actor.poseTime=message.poseTime;
             actor.climbing=message.climbing;
             actor.jumpSupportRemaining=message.jumpSupportRemaining;
+            actor.crouched=message.crouched;
             actor.weapon=message.weapon;actor.weaponAngle=message.weaponAngle;
             actor.weaponTipX=message.weaponTipX;actor.weaponTipY=message.weaponTipY;
             actor.weaponReach=message.weaponReach;
@@ -454,7 +455,7 @@ namespace Remains.Networking
         public void PublishPose(ActorState actor, uint sequence) => NetworkClient.Send(new PoseMessage
         {
             actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = sequence,
-            x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,climbing=actor.climbing,jumpSupportRemaining=actor.jumpSupportRemaining,
+            x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,climbing=actor.climbing,crouched=actor.crouched,jumpSupportRemaining=actor.jumpSupportRemaining,
             weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponFlipY=actor.weaponFlipY,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown
         }, Channels.Unreliable);

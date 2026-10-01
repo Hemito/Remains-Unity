@@ -7,7 +7,7 @@ namespace Remains.Domain
 {
     [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; public string[] shapes; }
     [Serializable] public sealed class MovementHull { public float width,height; }
-    [Serializable] public sealed class AnatomyDefinition { public string id; public MovementHull movement; public HitRegionDefinition[] regions; }
+    [Serializable] public sealed class AnatomyDefinition { public string id; public MovementHull movement,crouchingMovement; public HitRegionDefinition[] regions; }
     [Serializable] public sealed class AnatomyCatalog { public AnatomyDefinition[] anatomies; }
     public static class Anatomy
     {
@@ -27,6 +27,9 @@ namespace Remains.Domain
                     definition.movement.width<=0 || definition.movement.height<=0)
                     throw new InvalidOperationException($"Некорректный габарит движения анатомии {definition.id}.");
                 var ids=new HashSet<string>();
+                if(definition.crouchingMovement!=null && (!float.IsFinite(definition.crouchingMovement.width) || !float.IsFinite(definition.crouchingMovement.height) ||
+                    definition.crouchingMovement.width<=0 || definition.crouchingMovement.height<=0 || definition.crouchingMovement.height>definition.movement.height))
+                    throw new InvalidOperationException($"Некорректные габариты приседания: anatomy={definition.id}.");
                 foreach(var region in definition.regions)
                     if(string.IsNullOrEmpty(region.id) || !ids.Add(region.id) || region.radius<=0)
                         throw new InvalidOperationException($"Некорректная область {region.id} анатомии {definition.id}.");
@@ -48,6 +51,10 @@ namespace Remains.Domain
 
         public static MovementHull Movement(string id)=>definitions.TryGetValue(id,out var definition)?definition.movement:
             throw new InvalidOperationException($"Нет определения движения анатомии {id}.");
+        public static MovementHull Movement(ActorState actor)=>actor.crouched?Crouching(actor.anatomy):Movement(actor.anatomy);
+        public static MovementHull Crouching(string id)=>definitions.TryGetValue(id,out var definition) && definition.crouchingMovement!=null?definition.crouchingMovement:
+            throw new InvalidOperationException($"Не заданы габариты приседания: anatomy={id}.");
+        public static float StanceHeightRatio(ActorState actor)=>Movement(actor).height/Movement(actor.anatomy).height;
 
         public static string Contact(ActorState actor,AttackEvent attack)=>Contact(actor,attack,out _);
 

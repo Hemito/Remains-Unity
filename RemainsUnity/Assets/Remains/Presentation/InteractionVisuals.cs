@@ -103,7 +103,7 @@ namespace Remains.Presentation
                 if(view.sprite!=sprite) { SpriteArtworkMaterial.Apply(view,sprite);view.transform.localScale=Vector3.one*(width/sprite.bounds.size.x); }
                 var direction=WeaponPose.Direction(actor);
                 view.transform.position=actor.weapon is "spear" or "crowbar"?
-                    WeaponPose.Origin(actor.Position)+direction*(actor.weaponReach-sprite.bounds.max.x):WeaponPose.Mount(actor);
+                    WeaponPose.Origin(actor)+direction*(actor.weaponReach-sprite.bounds.max.x):WeaponPose.Mount(actor);
                 view.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
                 view.flipY=WeaponPose.Flip(actor);
             }

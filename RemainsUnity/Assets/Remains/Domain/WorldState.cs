@@ -41,6 +41,8 @@ namespace Remains.Domain
         public bool connected;
         public bool down;
         public bool climbing;
+        public bool crouched;
+        [NonSerialized] public float crouchPressSeconds;
         public float jumpSupportRemaining;
         public int damageSequence;
         public List<string> resolvedExplosions = new();

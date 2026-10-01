@@ -17,6 +17,7 @@ namespace Remains.Editor
             Anatomy.Load();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
+            CrouchChecks.Run();
             ActorTypeChecks.Run();
             RaiderChecks.Run();
             LightingChecks.Run();

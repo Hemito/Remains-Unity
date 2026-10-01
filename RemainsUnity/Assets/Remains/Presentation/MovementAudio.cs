@@ -73,7 +73,7 @@ namespace Remains.Presentation
             foreach(var actor in session.World.actors)
             {
                 if(actor.level!=listener.level || !tracks.TryGetValue(actor.id,out var track)) continue;
-                bool grounded=ActorTerrainMotion.Supported(room,Anatomy.Movement(actor.anatomy),actor.Position);
+                bool grounded=ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
                 var contact=track.contacts.Sample(actor.Position,actor.level,actor.generation,grounded,actor.climbing,
                     paused || actor.down,settings.stepDistance,settings.ladderDistance,settings.teleportDistance);
                 if(contact==MotionContact.None) continue;

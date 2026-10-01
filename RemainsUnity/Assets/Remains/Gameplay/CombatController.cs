@@ -67,7 +67,7 @@ namespace Remains.Gameplay
             attacker.weapon=Weapon;
             WeaponPose.Aim(attacker,aim);
             bool melee=Weapon is "spear" or "crowbar";
-            Vector2 origin=melee?WeaponPose.Origin(attacker.Position):WeaponPose.Muzzle(attacker);
+            Vector2 origin=melee?WeaponPose.Origin(attacker):WeaponPose.Muzzle(attacker);
             Vector2 direction=WeaponPose.Direction(attacker);
             if(!melee && ShotObstacles.Limit(geometry.Get(attacker.level),WeaponPose.RangedAnchor(attacker),origin)<1)
             {
@@ -88,7 +88,7 @@ namespace Remains.Gameplay
             {
                 swingActor=attacker;swingWeapon=Weapon;
                 swingLevel=attacker.level;swingGeneration=attacker.generation;swingLifecycle=attacker.lifecycleSequence;
-                swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker.Position),direction);
+                swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker),direction);
                 return true;
             }
             float range = definition.range;
@@ -109,7 +109,7 @@ namespace Remains.Gameplay
             if(actor==null || actor.down || actor.owner!=session.LocalOwner || actor.level!=swingLevel ||
                 actor.generation!=swingGeneration || actor.lifecycleSequence!=swingLifecycle) { swingActor=null;return; }
             if(session.Pause.IsPaused(actor.level)) return;
-            var origin=WeaponPose.Origin(actor.Position);
+            var origin=WeaponPose.Origin(actor);
             swingSweep.Advance(origin,dt,segment=>session.Fire(new AttackEvent { id=swingId,attacker=actor.id,weapon=swingWeapon,level=swingLevel,
                 originX=segment.start.x,originY=segment.start.y,endX=segment.end.x,endY=segment.end.y,
                 speed=segment.speed,radius=0.08f }));

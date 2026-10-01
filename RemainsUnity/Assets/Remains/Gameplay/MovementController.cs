@@ -22,16 +22,19 @@ namespace Remains.Gameplay
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
             if (actor.down) { actor.climbing=false;actor.jumpSupportRemaining=0;actor.vx = 0; actor.vy = 0; return; }
             var previous=actor.Position;
-            var hull=Anatomy.Movement(actor.anatomy);
+            var hull=Anatomy.Movement(actor);
             var selected=System.Array.Find(room.ladders,l=>Mathf.Abs(actor.x-l.x-l.movementOffset)<0.65f && actor.y>=l.bottom-0.1f && actor.y<l.top+0.2f);
             bool wasClimbing=actor.climbing && selected!=null;
             bool detach=jump && input.y<=.1f;
             bool ladder = selected!=null && !detach && (wasClimbing || Mathf.Abs(input.y) > 0.1f);
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
+            CrouchMotion.Step(actor,room,settings,input,jump,grounded,ladder,drop,dt);
+            hull=Anatomy.Movement(actor);
+            if(actor.crouched) {ladder=false;jump=false;}
             if(grounded || drop || ladder) actor.jumpSupportRemaining=0;
             if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
-            actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings);
+            actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings,actor.crouched);
             if (input.x != 0) actor.facing = input.x > 0 ? 1 : -1;
             float verticalDistance;
             if (ladder)
@@ -59,7 +62,7 @@ namespace Remains.Gameplay
             if(ladder && supported && Mathf.Abs(input.y)<.1f &&
                 (actor.y<=selected.bottom+.001f || actor.y>=selected.top-.001f)) ladder=false;
             actor.climbing=ladder;
-            ActorPose.Select(actor,ladder ? "climb" : !supported ? "jump" : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle");
+            ActorPose.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? "climb" : !supported ? "jump" : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle");
         }
     }
 }

@@ -10,7 +10,7 @@ namespace Remains.Domain
         public static bool Repair(ActorState actor,RoomLayout room,string context)
         {
             bool repaired=ActorPositionRecovery.Repair(actor,room,context);
-            var hull=Anatomy.Movement(actor.anatomy);
+            var hull=Anatomy.Movement(actor);
             if(ActorTerrainMotion.IsClear(room,hull,actor.Position)) return repaired;
             var origin=actor.Position;
             float half=hull.width*.5f;
@@ -36,7 +36,7 @@ namespace Remains.Domain
             if(double.IsPositiveInfinity(distance))
                 throw new InvalidOperationException($"Нет свободной опоры для восстановления: actor={actor.id}, anatomy={actor.anatomy}, room={room.id}, position={origin}, hull={hull.width}x{hull.height}, context={context}. Загрузка остановлена без записи исправленного сейва.");
             actor.Position=best;actor.vx=actor.vy=0;actor.revision++;
-            ActorPose.Select(actor,actor.down?"down":"idle");
+            ActorPose.Select(actor,actor.down?"down":actor.crouched?"crouch":"idle");
             Debug.LogWarning($"Позиция из сейва пересекает твёрдую геометрию или границы: actor={actor.id}, anatomy={actor.anatomy}, level={actor.level}, room={room.id}, position={origin}, restored={best}, hull={hull.width}x{hull.height}, context={context}. Здоровье, сознание, ранения и предметы сохранены.");
             return true;
         }

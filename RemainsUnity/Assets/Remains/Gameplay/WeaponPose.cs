@@ -7,7 +7,7 @@ namespace Remains.Gameplay
     public static class WeaponPose
     {
         public static float AimRadius=>WeaponRigs.AimRadius;
-        public static Vector2 RangedAnchor(ActorState actor)=>actor.Position+new Vector2(0,WeaponRigs.AnchorHeight);
+        public static Vector2 RangedAnchor(ActorState actor)=>actor.Position+new Vector2(0,WeaponRigs.AnchorHeight*Anatomy.StanceHeightRatio(actor));
         public static Vector2 Direction(ActorState actor)=>new(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
         public static bool Flip(ActorState actor)=>actor.weaponFlipY;
         public static Vector2 Mount(ActorState actor)=>RangedAnchor(actor)+Direction(actor)*Mathf.Clamp(actor.weaponReach,0,AimRadius);
@@ -19,7 +19,7 @@ namespace Remains.Gameplay
         public static void Aim(ActorState actor,Vector2 target)
         {
             var rig=WeaponRigs.Get(actor.weapon);
-            var delta=target-(rig.HasMuzzle?RangedAnchor(actor):Origin(actor.Position));
+            var delta=target-(rig.HasMuzzle?RangedAnchor(actor):Origin(actor));
             if(delta.sqrMagnitude<.000001f) return;
             actor.weaponFlipY=delta.x<0;
             float angle=Mathf.Atan2(delta.y,delta.x);
@@ -36,6 +36,7 @@ namespace Remains.Gameplay
             actor.weaponAngle=angle*Mathf.Rad2Deg;
         }
         public static Vector2 Origin(Vector2 actorPosition)=>actorPosition+new Vector2(0,.8f);
+        public static Vector2 Origin(ActorState actor)=>actor.Position+new Vector2(0,.8f*Anatomy.StanceHeightRatio(actor));
         public static Vector2 Tip(string weapon,Vector2 origin,Vector2 direction,float progress)
         {
             float range=WeaponCatalog.Get(weapon).range;
