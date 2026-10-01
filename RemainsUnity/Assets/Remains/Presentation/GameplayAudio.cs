@@ -17,6 +17,7 @@ namespace Remains.Presentation
             public Vector2 position;
             public float remaining;
             public bool paused;
+            public float gain=1;
         }
         private CoopSession session;
         private WeaponReloadController reload;
@@ -45,15 +46,21 @@ namespace Remains.Presentation
             return clip;
         }
         public static float Attenuation(float distance)=>Mathf.Clamp01(1-Mathf.Max(0,distance-2)/23);
-        private Voice Play(AudioClip clip,string level,Vector2 position)
+        public bool PlayContact(AudioClip clip,string level,Vector2 position,float gain)
+        {
+            if(session.LocalActor?.level!=level || session.Pause.IsPaused(level) ||
+                Attenuation(Vector2.Distance(position,session.LocalActor.Position))<=0) return false;
+            return Play(clip,level,position,gain)!=null;
+        }
+        private Voice Play(AudioClip clip,string level,Vector2 position,float gain=1)
         {
             if(voices.Count>=64) {Debug.LogWarning($"Превышен лимит 64 звуков: clip={clip.name}, level={level}.",this);return null;}
             var source=new GameObject("Звук "+clip.name).AddComponent<AudioSource>();source.transform.SetParent(transform,false);
             source.playOnAwake=false;source.spatialBlend=0;source.clip=clip;
             // Background verification must not make sound on the user's desktop.
             source.mute=Application.isBatchMode;
-            source.volume=Mathf.Clamp01(Volume)*Attenuation(Vector2.Distance(position,session.LocalActor.Position));
-            var voice=new Voice {source=source,level=level,position=position,remaining=clip.length};voices.Add(voice);
+            source.volume=Mathf.Clamp01(Volume)*gain*Attenuation(Vector2.Distance(position,session.LocalActor.Position));
+            var voice=new Voice {source=source,level=level,position=position,remaining=clip.length,gain=gain};voices.Add(voice);
             source.Play();
             if(session.Pause.IsPaused(level)) {source.Pause();voice.paused=true;}
             return voice;
@@ -91,7 +98,7 @@ namespace Remains.Presentation
                 bool pause=session.Pause.IsPaused(voice.level);
                 if(pause!=voice.paused) {if(pause) voice.source.Pause();else voice.source.UnPause();voice.paused=pause;}
                 if(!pause) voice.remaining-=Time.deltaTime;
-                voice.source.volume=Mathf.Clamp01(Volume)*Attenuation(Vector2.Distance(voice.position,listener.Position));
+                voice.source.volume=Mathf.Clamp01(Volume)*voice.gain*Attenuation(Vector2.Distance(voice.position,listener.Position));
             }
         }
         private void OnDestroy()

@@ -26,6 +26,7 @@ namespace Remains.Runtime
         public SimulationGeometry Geometry { get; private set; }
         public GameplayAudio Audio {get;private set;}
         public AreaMusic Music {get;private set;}
+        public MovementAudio MovementAudio {get;private set;}
         public DamageFeedback DamageFeedback {get;private set;}
         public DamageNumbers DamageNumbers {get;private set;}
         public System.Func<PlayerCommand> CommandSource { get; set; }
@@ -97,6 +98,7 @@ namespace Remains.Runtime
             cameraView.transform.position=new Vector3(0,3,-10); cameraView.backgroundColor=new Color(0.08f,0.09f,0.1f);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
+            MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;

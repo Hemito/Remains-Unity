@@ -8,7 +8,7 @@ namespace Remains.Domain
     [Serializable] public sealed class RoomArtwork { public float x,y,width,height,shade=1; public string texture; public int order; public bool repeat; }
     [Serializable] public sealed class RoomLayout
     {
-        public string id,lightingProfile;
+        public string id,lightingProfile,movementSound;
         public float left,right;
         public float bottom,top=7,spawnX,spawnY;
         public RoomSurface[] platforms;

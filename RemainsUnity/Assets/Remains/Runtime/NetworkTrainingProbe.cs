@@ -20,6 +20,7 @@ namespace Remains.Runtime
         private bool sent,finished,configured;
         private bool rejected50,rejected120,observedLift;
         private float manaBeforeLift;
+        private float liftObservedAt=-1;
         private bool Host=>runtime.Options.Role=="host";
         private ContainerState Crate(int index)=>runtime.Session.World.containers.Single(c=>c.id=="training:crate:"+index);
         private readonly HashSet<int> done=new();
@@ -95,7 +96,8 @@ namespace Remains.Runtime
                 case 7: if(rejected120) stage=8;return default;
                 case 8: stage=9;return new PlayerCommand {telekinesis=true,hasAim=true,aim=Crate(1).Position};
                 case 9:
-                    if(observedLift) stage=10;
+                    // Keep the normal held input long enough for remote snapshots to observe it.
+                    if(observedLift && Time.unscaledTime-liftObservedAt>.75f) stage=10;
                     return new PlayerCommand {telekinesis=true,hasAim=true,aim=new Vector2(18,1.5f)};
                 default:return default;
             }
@@ -111,7 +113,8 @@ namespace Remains.Runtime
             if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers || runtime.Session.World.friendlyFire) return;
             var targets=runtime.Session.World.actors.Where(a=>a.actorType=="training-dummy").ToArray();
             var light=Crate(1);
-            if(light.held && light.y>1.15f) observedLift=true;
+            if(light.held && light.y>1.15f)
+            {if(!observedLift) liftObservedAt=Time.unscaledTime;observedLift=true;}
             if(Crate(2).held || Crate(3).held || Vector2.Distance(Crate(2).Position,new Vector2(20,.8f))>.03f ||
                 Vector2.Distance(Crate(3).Position,new Vector2(23,.8f))>.03f)
             {Finish(false,"Тяжёлый ящик сдвинут или захвачен при пределе 30 кг.");return;}
@@ -121,6 +124,8 @@ namespace Remains.Runtime
             if(results!=3*runtime.Options.ProbePeers || shots!=3 || targets.Single(a=>a.id=="training:hub:1").resolvedAttacks.Count!=results) return;
             if(!observedLift || light.held || Host && (stage<10 || !rejected50 || !rejected120)) return;
             if(!jumping.Complete || observedJumpSupport.Count!=runtime.Options.ProbePeers-1) return;
+            if(runtime.MovementAudio.LocalContacts<5 || runtime.MovementAudio.RemoteContacts<5 || runtime.MovementAudio.Landings<2)
+            {Finish(false,"Не воспроизведены локальные/удалённые шаги и приземления.");return;}
             if(Host && self.mana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
             var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
             if(views.Length!=3 || views.Select(v=>v.ActorId).Distinct().Count()!=3) {Finish(false,"Неверное количество моделей мишеней.");return;}
@@ -134,9 +139,10 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             string json=JsonUtility.ToJson(new Report {success=success,detail=detail,shots=shots,results=results,
-                rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count},true);
+                rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
+                localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,ladderContacts=runtime.MovementAudio.LadderContacts},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift;public string detail;public int shots,results,remoteJumps;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift;public string detail;public int shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts;public float shortJump,longJump;}
     }
 }
