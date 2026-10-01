@@ -26,6 +26,7 @@ namespace Remains.Networking
         public event Action ServerReady;
         public event Action ClientReady;
         public event Action<string> ModMismatch;
+        public event Action<string,bool> HealingFinished;
         private readonly Dictionary<int, string> owners = new();
         private readonly Dictionary<string, string> playerIds = new();
         private readonly PoseSequenceGate serverPoses = new();
@@ -118,6 +119,7 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<NpcHitMessage>(message => NpcHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
             NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(message.description));
+            NetworkClient.RegisterHandler<HealingReplyMessage>(message=>{HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);});
             ClientReady?.Invoke();
         }
 
@@ -259,7 +261,7 @@ namespace Remains.Networking
                     if (local.revision > actor.revision)
                     {
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;
-                        actor.mana=local.mana;
+                        actor.mana=local.mana;actor.damageSequence=local.damageSequence;
                         actor.magazines=local.magazines;
                         if(!InventoryJournal.Merge(actor,local,out var inventoryCopy,out var uses))
                             throw new InvalidOperationException($"Не удалось согласовать расход инвентаря: actor={actor.id}, revision={actor.revision}.");
@@ -399,23 +401,38 @@ namespace Remains.Networking
         }
 
         public void RequestClaim(string item) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"), item = item });
-        public void RequestRevive(string target) => NetworkClient.Send(new ReviveMessage { target = target, transaction = Guid.NewGuid().ToString("N") });
-        public void RequestSelfHeal()=>NetworkClient.Send(new ReviveMessage {target=LocalActorId,transaction=Guid.NewGuid().ToString("N"),selfHeal=true});
+        public string RequestRevive(string target)=>RequestHealing(target,false);
+        public void RequestSelfHeal()=>RequestHealing(LocalActorId,true);
+        private string RequestHealing(string targetId,bool selfHeal)
+        {
+            var healer=LocalActor;var target=World?.Find(targetId);
+            if(healer==null || target==null) return null;
+            string transaction=Guid.NewGuid().ToString("N");
+            NetworkClient.Send(new ReviveMessage {target=targetId,transaction=transaction,selfHeal=selfHeal,
+                healerGeneration=healer.generation,healerLifecycle=healer.lifecycleSequence,damageSequence=healer.damageSequence,
+                targetGeneration=target.generation,targetLifecycle=target.lifecycleSequence});
+            return transaction;
+        }
         public void ReturnToFactory() => Travel.RequestFactory();
 
         private void Revive(NetworkConnectionToClient connection, ReviveMessage message)
         {
-            if (!owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.completedTransactions.Contains(message.transaction)) return;
+            if (!owners.TryGetValue(connection.connectionId, out string owner)) return;
+            if(ServerWorld.completedTransactions.Contains(message.transaction))
+            {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=true,reason="Лечение уже подтверждено."});return;}
             var healer = ServerWorld.Find(playerIds[owner]);
             var target = ServerWorld.Find(message.target);
-            if(!HealingRules.Apply(healer,target,message.selfHeal)) return;
+            bool current=target!=null && healer.generation==message.healerGeneration && healer.lifecycleSequence==message.healerLifecycle &&
+                healer.damageSequence==message.damageSequence && target.generation==message.targetGeneration && target.lifecycleSequence==message.targetLifecycle;
+            if(!current || !HealingRules.Apply(healer,target,message.selfHeal))
+            {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=false,reason="Лечение отменено: изменилось состояние, расстояние или нет лечебного предмета."});return;}
             ServerWorld.completedTransactions.Add(message.transaction);
             ServerWorld.revision++;
             BroadcastWorld();
-            NetworkServer.SendToAll(new ActorMessage { json = JsonUtility.ToJson(target) });
-            connection.Send(new NoticeMessage { text = message.selfHeal?"Лечебный предмет использован.":"Союзник поднят. Лечебный предмет использован." });
-            Saves.SaveWorld(ServerWorld);
+            connection.Send(new HealingReplyMessage {transaction=message.transaction,success=true,
+                reason=message.selfHeal?"Лечебный предмет использован.":"Союзник поднят. Лечебный предмет использован."});
         }
+
         private void Claim(NetworkConnectionToClient connection, ClaimMessage message)
         {
             if (!owners.TryGetValue(connection.connectionId, out string owner)) return;

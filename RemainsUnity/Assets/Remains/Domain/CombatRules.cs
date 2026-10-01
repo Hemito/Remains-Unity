@@ -27,7 +27,9 @@ namespace Remains.Domain
         public bool Apply(ActorState actor, AttackEvent attack, bool contact)
         {
             if (!AttackScope.Includes(attack,actor) || !contact || actor.health <= 0 || !applied.Add(attack.id + ":" + actor.id)) return false;
+            float previousHealth=actor.health;
             actor.health = Mathf.Max(0, actor.health - rules.Calculate(attack.weapon, attack.speed));
+            if(actor.health<previousHealth) actor.damageSequence++;
             actor.down |= actor.health <= 0;
             actor.revision++;
             if (actor.down) ActorPose.Select(actor,"down");

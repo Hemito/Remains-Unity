@@ -112,12 +112,10 @@ namespace Remains.Gameplay
             }
             foreach (var actor in session.World.actors.ToArray())
             {
-                if (actor.id == attack.attacker) continue;
-                if(!AttackScope.Includes(attack,actor)) continue;
+                if(!AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) continue;
                 bool contact = HitGeometry.Contacts(actor, attack);
                 if (actor.player)
                 {
-                    if (!session.World.friendlyFire && attack.sourcePlayer) continue;
                     if (actor.owner == session.LocalOwner && damage.Apply(actor, attack, contact))
                     {
                         session.PublishActor(actor);

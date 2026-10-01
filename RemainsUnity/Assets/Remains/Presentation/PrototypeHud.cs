@@ -36,6 +36,9 @@ namespace Remains.Presentation
         private Image manaBar;
         private Text personalItems;
         private Text ammunition;
+        private Text revival;
+        public Func<float> RevivalProgress {get;set;}
+        public Func<bool> RevivalPending {get;set;}
         private readonly HashSet<string> missingMagazines=new();
         private Button friendlyFire;
         private Button leave;
@@ -59,7 +62,8 @@ namespace Remains.Presentation
             healthBar=OriginalBar("health",new Vector2(20,-95),new Vector2(300,34));
             manaBar=OriginalBar("mana",new Vector2(20,-135),new Vector2(300,20));
             ammunition=Label(transform,"",new Vector2(20,-165),new Vector2(380,45));
-            message = Label(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · E — поднять · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
+            message = Label(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · Удерживать E — поднять · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
+            revival=Label(transform,"",new Vector2(420,-605),new Vector2(800,40));
             lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,300));
             selectedWorld=Label(lobby.transform,"",new Vector2(0,95),new Vector2(720,90));
             worldPickerButton=Button(lobby.transform,"Выбрать сохранённое продолжение",new Vector2(20,-250),new Vector2(400,40),()=>
@@ -177,7 +181,14 @@ namespace Remains.Presentation
             }
         }
 
-        private void Update() => RefreshAmmunition();
+        private void Update()
+        {
+            RefreshAmmunition();
+            if(revival==null) return;
+            float progress=RevivalProgress?.Invoke() ?? 0;
+            revival.text=RevivalPending?.Invoke()==true?"Ожидаем подтверждения поднятия…":
+                progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
+        }
         private void RefreshAmmunition()
         {
             var actor=session?.LocalActor;

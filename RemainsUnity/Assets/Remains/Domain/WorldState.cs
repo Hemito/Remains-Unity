@@ -27,6 +27,7 @@ namespace Remains.Domain
         public bool player;
         public bool connected;
         public bool down;
+        public int damageSequence;
         public float health = 100;
         public float mana = 100;
         public float x;

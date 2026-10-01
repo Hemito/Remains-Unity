@@ -1,3 +1,4 @@
+using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
 
@@ -6,20 +7,28 @@ namespace Remains.Gameplay
     public sealed class RevivalController
     {
         private readonly CoopSession session;
-        private string targetId;
-        private float elapsed;
-        private float startingHealth;
-        public float Progress => elapsed/1.5f;
-        public RevivalController(CoopSession session) => this.session=session;
+        private readonly RevivalProgress progress=new();
+        private string pending;
+        private float deadline;
+        public float Progress=>progress.Progress;
+        public bool Pending=>pending!=null;
+        public RevivalController(CoopSession session)
+        {
+            this.session=session;
+            session.HealingFinished+=(transaction,success)=>{if(pending==transaction) {pending=null;progress.Reset();}};
+            session.Changed+=()=>{if(session.LocalActor==null) {pending=null;progress.Reset();}};
+        }
         public void Step(bool held,float dt)
         {
+            if(pending!=null)
+            {
+                if(Time.unscaledTime>deadline) {pending=null;progress.Reset();session.ShowNotice("Нет подтверждения лечения. Проверьте соединение.");}
+                return;
+            }
             var healer=session.LocalActor;
-            var target=session.World?.actors.Find(a=>a.player && a.connected && a.id!=healer?.id && a.down && a.level==healer.level && Vector2.Distance(a.Position,healer.Position)<2);
-            if(!held || healer==null || healer.down || target==null || (targetId!=null && healer.health<startingHealth))
-            { targetId=null; elapsed=0; return; }
-            if(targetId!=target.id) { targetId=target.id; elapsed=0; startingHealth=healer.health; }
-            elapsed+=dt;
-            if(elapsed>=1.5f) { session.RequestRevive(target.id); elapsed=0; }
+            var target=session.World?.actors.Find(a=>HealingRules.CanApply(healer,a,false));
+            if(progress.Step(healer,target,held,dt))
+            {pending=session.RequestRevive(target.id);deadline=Time.unscaledTime+10;}
         }
     }
 }

@@ -71,7 +71,7 @@ namespace Remains.Editor
                 "Сохранение сохраняет транзакцию и предыдущую версию");
             MovementChecks.Run();
             SessionChecks.Run();
-            AmmunitionChecks.Run(); RecoveryChecks.Run();
+            AmmunitionChecks.Run(); RecoveryChecks.Run(); RevivalChecks.Run();
             actor.connected=true;actor.down=true;second.connected=false;second.down=false;
             actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});
             actor.injuries.Add(new InjuryState{id="fracture",periodicDamage=false});
