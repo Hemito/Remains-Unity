@@ -27,6 +27,14 @@ namespace Remains.Domain
             return true;
         }
 
+        public static bool Debit(ActorState actor,string transaction,string item,int count)
+        {
+            if(string.IsNullOrEmpty(transaction) || actor.inventoryUses.Exists(use=>use.id==transaction)) return false;
+            var use=new InventoryUse {id=transaction,debits=new List<ItemDebit> {new() {item=item,count=count}}};
+            if(!Apply(actor.inventory,use)) return false;
+            actor.inventoryUses.Add(use);return true;
+        }
+
         // Rebase owner debits on the authoritative inventory, preserving concurrent grants.
         public static bool Merge(ActorState authoritative,ActorState owner,out List<ItemStack> inventory,out List<InventoryUse> uses)
         {

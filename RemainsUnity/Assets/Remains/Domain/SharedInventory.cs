@@ -15,7 +15,7 @@ namespace Remains.Domain
         {
             var container=world.containers.Find(c=>c.id==containerId);
             reason="Операция подбора уже обработана или не имеет ID.";
-            if(string.IsNullOrEmpty(transaction) || world.completedTransactions.Contains(transaction) || world.pendingGrants.Exists(p=>p.transaction==transaction)) return false;
+            if(InventoryTransactions.Contains(world,transaction)) return false;
             var item = container?.items.Find(candidate => candidate.id == itemId);
             reason=ContainerAccess.ClaimRejection(recipient,container,item,rule,quantity);
             if(reason!=null) return false;
@@ -23,7 +23,7 @@ namespace Remains.Domain
             if(amount==item.count) container.items.Remove(item);
             else
             {
-                var reserved=item.Copy();reserved.id=Guid.NewGuid().ToString("N");reserved.count=amount;
+                var reserved=item.ReservedCopy(amount);
                 item.count-=amount;item=reserved;
             }
             world.revision++;

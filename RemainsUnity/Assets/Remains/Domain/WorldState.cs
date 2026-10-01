@@ -13,6 +13,13 @@ namespace Remains.Domain
         public string definition;
         public int count;
         public ItemStack Copy()=>StateJson.Copy(this);
+        public ItemStack ReservedCopy(int quantity)
+        {
+            if(quantity<=0 || quantity>count) throw new ArgumentOutOfRangeException(nameof(quantity));
+            var result=Copy();result.count=quantity;
+            if(quantity<count) result.id=Guid.NewGuid().ToString("N");
+            return result;
+        }
     }
 
     [Serializable]
@@ -84,6 +91,7 @@ namespace Remains.Domain
         public List<ItemStack> container; // Legacy schema: read only by explicit migration.
         public List<string> completedTransactions = new();
         public List<PendingGrant> pendingGrants = new();
+        public List<PendingDeposit> pendingDeposits = new();
         public List<PropState> props = new();
         public List<GrenadeState> grenades = new();
         public List<ExplosionState> explosions = new();
