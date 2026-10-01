@@ -29,6 +29,7 @@ namespace Remains.Runtime
         private MovementController movement;
         private NpcController npcs;
         private readonly Dictionary<string,PonyVisual> visuals = new();
+        private ActorVisualLayers visualLayers;
         private PrototypeHud hud;
         private Camera cameraView;
         private float nextPose;
@@ -78,7 +79,8 @@ namespace Remains.Runtime
             Interactions=new InteractionAdapter(Session);
             Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);
             Telekinesis=new TelekinesisController(Session,Interactions);
-            new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades,Geometry);
+            visualLayers=new ActorVisualLayers(transform);
+            new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades,Geometry,visualLayers);
             var room=RoomLayout.Load(shownLevel);
             movement=new MovementController(room);
             npcs=new NpcController(Session,Geometry);
@@ -147,7 +149,7 @@ namespace Remains.Runtime
             if (Session.World==null || Session.LocalActor==null)
             {
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
-                visuals.Clear();return;
+                visuals.Clear();visualLayers.Synchronize(System.Array.Empty<string>());return;
             }
             if(Session.LocalActor!=null && shownLevel!=Session.LocalActor.level)
             {
@@ -165,6 +167,7 @@ namespace Remains.Runtime
                 if (!visuals.TryGetValue(actor.id,out var visual))
                 {
                     visual=new GameObject(actor.id).AddComponent<PonyVisual>(); visuals.Add(actor.id,visual);
+                    visualLayers.Attach(actor.id,visual.transform);
                 }
                 visual.Bind(actor);
                 visual.SetVisible(actor.level==Session.LocalActor?.level);
@@ -177,6 +180,7 @@ namespace Remains.Runtime
                 {pair.Value.SetVisible(false);Destroy(pair.Value.gameObject);removed.Add(pair.Key);}
             }
             foreach (var id in removed) visuals.Remove(id);
+            visualLayers.Synchronize(visuals.Keys);
         }
 
         private void Update()

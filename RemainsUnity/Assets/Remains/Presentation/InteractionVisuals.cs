@@ -12,15 +12,16 @@ namespace Remains.Presentation
     {
         private CoopSession session;
         private GrenadeController grenades;
+        private ActorVisualLayers layers;
         private readonly Dictionary<string,Sprite> sprites=new();
         private readonly Dictionary<string,SpriteRenderer> props=new();
         private readonly Dictionary<string,SpriteRenderer> containers=new();
         private readonly Dictionary<string,SpriteRenderer> weapons=new();
         private readonly Dictionary<string,SpriteRenderer> flights=new();
         private readonly HashSet<string> missingGraphics=new();
-        public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry)
+        public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers)
         {
-            this.session=session;this.grenades=grenades;
+            this.session=session;this.grenades=grenades;this.layers=layers;
             foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
             session.Changed+=Refresh;
@@ -41,7 +42,7 @@ namespace Remains.Presentation
         }
         private static SpriteRenderer Create(string name,Sprite sprite,float width)
         {
-            var renderer=new GameObject(name).AddComponent<SpriteRenderer>();SpriteArtworkMaterial.Prepare(sprite);SpriteArtworkMaterial.Apply(renderer,sprite);renderer.sortingOrder=100;
+            var renderer=new GameObject(name).AddComponent<SpriteRenderer>();SpriteArtworkMaterial.Prepare(sprite);SpriteArtworkMaterial.Apply(renderer,sprite);renderer.sortingOrder=ActorVisualLayers.WorldObjectOrder;
             renderer.transform.localScale=Vector3.one*(width/sprite.bounds.size.x);
             return renderer;
         }
@@ -63,7 +64,12 @@ namespace Remains.Presentation
                 view.transform.position=container.Position+Vector2.up*.4f;view.enabled=container.level==session.LocalActor?.level;
             }
             foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,sprites["crate"],0.8f));
-            foreach(var actor in session.World.actors) if(ActorPresence.IsPresent(actor) && actor.level==level && !weapons.ContainsKey(actor.id)) weapons.Add(actor.id,Create("Оружие "+actor.id,sprites["pistol"],sprites["pistol"].bounds.size.x));
+            foreach(var actor in session.World.actors)
+                if(ActorPresence.IsPresent(actor) && actor.level==level && !weapons.ContainsKey(actor.id))
+                {
+                    var weapon=Create("Оружие "+actor.id,sprites["pistol"],sprites["pistol"].bounds.size.x);
+                    weapon.sortingOrder=100;layers.Attach(actor.id,weapon.transform);weapons.Add(actor.id,weapon);
+                }
             foreach(var flight in grenades.Flights.Where(f=>f.state.level==level))
                 if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"],.35f));
         }
@@ -107,7 +113,7 @@ namespace Remains.Presentation
             line.startWidth=line.endWidth=0.025f;
             line.material=new Material(Shader.Find("Sprites/Default"));
             line.startColor=line.endColor=attack.weapon=="energy"?Color.green:new Color(1,0.8f,0.3f);
-            line.sortingOrder=120;expires=Time.time+0.08f;
+            line.sortingOrder=ActorVisualLayers.EffectOrder;expires=Time.time+0.08f;
         }
         private void Update() { if(Time.time>=expires) Destroy(gameObject); }
         private void OnDestroy() { var line=GetComponent<LineRenderer>();if(line!=null) Destroy(line.material); }

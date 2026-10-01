@@ -9,12 +9,12 @@ using UnityEngine;
 namespace Remains.Runtime
 {
     [Serializable] public sealed class NetworkPonyRecord
-    {public ActorState actor;public Vector3 position,scale;public string clip;public int frame;public float time;public bool active;}
+    {public ActorState actor;public Vector3 position,scale;public string clip,groupId;public int frame,groupOrder;public float time;public bool active;}
     [Serializable] public sealed class NetworkSpriteRecord
-    {public string name,resource;public Vector3 position,scale,euler;public float rectX,rectY,rectWidth,rectHeight;public Vector2 pivot;public float pixelsPerUnit;public int order;public Color color;public bool flipX,flipY,enabled;}
+    {public string name,resource,groupId;public Vector3 position,scale,euler;public float rectX,rectY,rectWidth,rectHeight;public Vector2 pivot;public float pixelsPerUnit;public int order,groupOrder;public Color color;public bool flipX,flipY,enabled;}
     [Serializable] public sealed class NetworkSceneRecord
     {
-        public int schema=1,phase,width,height;
+        public int schema=2,phase,width,height;
         public string observer,level;
         public Vector3 cameraPosition;
         public Vector3 localVisualMinimum,localVisualMaximum;
@@ -35,7 +35,8 @@ namespace Remains.Runtime
             record.localVisualMinimum=localBounds.min;record.localVisualMaximum=localBounds.max;
             record.ponies=UnityEngine.Object.FindObjectsByType<PonyVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(view=>
                 new NetworkPonyRecord {actor=world.Find(view.ActorId).Copy(),position=view.transform.position,scale=view.transform.localScale,
-                    clip=view.DrawnClip,frame=view.DrawnFrame,time=view.DrawnTime,active=view.gameObject.activeInHierarchy}).ToArray();
+                    clip=view.DrawnClip,frame=view.DrawnFrame,time=view.DrawnTime,active=view.gameObject.activeInHierarchy,
+                    groupId=view.GetComponentInParent<ActorVisualGroup>()?.ActorId,groupOrder=view.GetComponentInParent<ActorVisualGroup>()?.Order??0}).ToArray();
             record.sprites=UnityEngine.Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(view=>
             {
                 if(view.sprite==null) throw new InvalidOperationException($"Нет спрайта при записи: {view.name}.");
@@ -44,6 +45,7 @@ namespace Remains.Runtime
                     position=view.transform.position,scale=view.transform.localScale,euler=view.transform.eulerAngles,
                     rectX=sprite.rect.x,rectY=sprite.rect.y,rectWidth=sprite.rect.width,rectHeight=sprite.rect.height,
                     pivot=new Vector2(sprite.pivot.x/sprite.rect.width,sprite.pivot.y/sprite.rect.height),pixelsPerUnit=sprite.pixelsPerUnit,order=view.sortingOrder,
+                    groupId=view.GetComponentInParent<ActorVisualGroup>()?.ActorId,groupOrder=view.GetComponentInParent<ActorVisualGroup>()?.Order??0,
                     color=view.color,flipX=view.flipX,flipY=view.flipY,enabled=view.enabled && view.gameObject.activeInHierarchy};
             }).ToArray();
             File.WriteAllText(runtime.Options.Report+$".phase-{phase}.scene.json",StateJson.ToJson(record,true));

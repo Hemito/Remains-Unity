@@ -29,6 +29,7 @@ namespace Remains.Runtime
                     canvas.sortingOrder=short.MaxValue;
                     Canvas.ForceUpdateCanvases();
                 }
+                SortingGroup.UpdateAllSortingGroups();
                 camera.Render();RenderTexture.active=target;
                 image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
                 File.WriteAllBytes(path,image.EncodeToPNG());
