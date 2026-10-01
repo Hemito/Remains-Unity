@@ -43,6 +43,7 @@ namespace Remains.Presentation
         private HudElements elements;
         public WorldLobbyPanel NetworkLobby {get;private set;}
         public CharacterContentPanel CharacterContent {get;private set;}
+        public SessionModPanel SessionMods {get;private set;}
         public PauseMenu PauseMenu {get;private set;}
         public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen;
         public bool InventoryOpen=>inventory.activeSelf;
@@ -123,13 +124,7 @@ namespace Remains.Presentation
             factory.gameObject.SetActive(false);
             session.Changed += Refresh;
             session.Notice += text => message.text = text;
-            session.ModMismatch+=hostMods=>
-            {
-                var warning=Panel(transform,"Моды не совпадают",new Vector2(240,-160),new Vector2(800,430));
-                Label(warning.transform,$"Моды или их порядок не совпадают. Продолжить на свой риск?\n\nУ вас:\n{WeaponCatalog.ModDescription}\n\nУ хоста:\n{hostMods}",new Vector2(20,-20),new Vector2(750,320));
-                Button(warning.transform,"Войти",new Vector2(20,-350),new Vector2(360,50),()=>{session.SendJoin(true);Destroy(warning);});
-                Button(warning.transform,"Отмена",new Vector2(410,-350),new Vector2(360,50),()=>{session.StopClient();Destroy(warning);});
-            };
+            SessionMods=new SessionModPanel(transform,elements,session);
             NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
             PauseMenu=new PauseMenu(transform,elements,session,()=>inventory.activeSelf);

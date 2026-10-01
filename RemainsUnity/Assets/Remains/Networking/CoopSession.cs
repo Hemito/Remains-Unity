@@ -34,7 +34,7 @@ namespace Remains.Networking
         public event Action<FriendlyHitMessage> FriendlyHitReceived;
         public event Action ServerReady;
         public event Action ClientReady;
-        public event Action<string> ModMismatch;
+        public event Action<ContentManifest> ModMismatch;
         public event Action<string,bool> HealingFinished;
         private readonly Dictionary<int, string> owners = new();
         private readonly Dictionary<string, string> playerIds = new();
@@ -151,7 +151,7 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<NpcHitMessage>(message => NpcHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<FriendlyHitMessage>(message=>FriendlyHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
-            NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(message.description));
+            NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(JsonUtility.FromJson<ContentManifest>(System.Text.Encoding.UTF8.GetString(message.manifest))));
             NetworkClient.RegisterHandler<HealingReplyMessage>(message=>{HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);});
             ClientReady?.Invoke();
         }
@@ -210,7 +210,7 @@ namespace Remains.Networking
             }
             if(message.modFingerprint!=WeaponCatalog.ModFingerprint && !message.acceptMismatch)
             {
-                connection.Send(new ModMismatchMessage {description=WeaponCatalog.ModDescription});
+                connection.Send(new ModMismatchMessage {manifest=System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(WeaponCatalog.ManifestCopy()))});
                 return;
             }
             if(Lobby.HoldJoin(connection,message)) return;
@@ -563,7 +563,7 @@ namespace Remains.Networking
         }
         public override void OnStopClient()
         {
-            CharacterContent.Reset();
+            CharacterContent.Reset();ModMismatch?.Invoke(null);
             Admission.EndClient();
             Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
             SaveLocalCharacter();

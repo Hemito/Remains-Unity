@@ -4,7 +4,7 @@ namespace Remains.Networking
 {
     public struct JoinMessage : NetworkMessage
     { public string character; public string displayName; public string characterJson; public string modFingerprint; public bool acceptMismatch; }
-    public struct ModMismatchMessage : NetworkMessage { public string description; }
+    public struct ModMismatchMessage : NetworkMessage { public byte[] manifest; }
     public struct WelcomeMessage : NetworkMessage { public string owner; public string actor; public string worldJson; }
     public struct WorldMessage : NetworkMessage { public string json; }
     public struct ActorMessage : NetworkMessage { public string json; }
