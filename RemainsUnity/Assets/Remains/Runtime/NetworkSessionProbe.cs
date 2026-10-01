@@ -17,7 +17,7 @@ namespace Remains.Runtime
     {
         private PrototypeRuntime runtime;
         private int phase=-1;
-        private float phaseTime,deadline;
+        private float phaseTime,deadline,nextSelfHeal;
         private bool acked,travelRequested,finished;
         private bool grenadeRequested,blastAfterTravel;
         private string completedActor;
@@ -58,6 +58,8 @@ namespace Remains.Runtime
                 grenadeRequested=true;
                 return new PlayerCommand {grenade=true,hasAim=true,aim=self.Position+Vector2.down*3};
             }
+            if(phase==5 && self.level=="hub" && self.health<70 && Time.unscaledTime>=nextSelfHeal)
+            {nextSelfHeal=Time.unscaledTime+1;return new PlayerCommand {heal=true};}
             if((phase!=3 && phase!=6) || self.level!="factory:0" || runtime.Session.Travel.Pending) return default;
             float destination=Destination(self.character);
             float delta=destination-self.x;
@@ -95,7 +97,7 @@ namespace Remains.Runtime
                 2=>players.All(a=>a.level=="factory:0") && !session.Travel.Pending,
                 3=>players.All(a=>a.level=="factory:0" && Mathf.Abs(a.x-Destination(a.character))<.15f && a.facing==Facing(a.character)),
                 4=>self.level==(Host?"hub":"factory:0") && players.Count(a=>a.level=="hub")==1 && !session.Travel.Pending,
-                5=>players.All(a=>a.level=="hub") && !session.Travel.Pending,
+                5=>players.All(a=>a.level=="hub" && a.health>=70) && !session.Travel.Pending,
                 6=>players.All(a=>a.level=="factory:0" && Mathf.Abs(a.x-Destination(a.character))<.15f && a.facing==Facing(a.character)) && !session.Travel.Pending,
                 _=>false
             };

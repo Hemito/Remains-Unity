@@ -266,7 +266,6 @@ namespace Remains.Networking
                 playerIds.Remove(owner);
                 ownership.Reassign(ServerWorld, owners.Values.ToArray());
                 ServerWorld.revision++;
-                Saves.SaveWorld(ServerWorld);
                 BroadcastWorld();
                 CompleteBackedUpGrants();
             }
@@ -508,7 +507,7 @@ namespace Remains.Networking
             var actor = ServerWorld.Find(playerIds[owner]);
             bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor,out string reason,message.quantity);
             connection.Send(new NoticeMessage { text = success ? "Подбор подтверждается копиями мира…" : reason });
-            if (success) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); CompleteBackedUpGrants(); }
+            if (success) { BroadcastWorld(); CompleteBackedUpGrants(); }
         }
 
         internal bool HasInventoryBackups(long revision)=>!owners.Keys.Any(id=>!backupRevisions.TryGetValue(id,out long rev) || rev<revision);
@@ -524,7 +523,7 @@ namespace Remains.Networking
                 changed=true;
             }
             changed|=Deposits.CompleteBackedUp();
-            if(changed) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); }
+            if(changed) { BroadcastWorld(); }
         }
 
         private void BroadcastWorld()
@@ -540,7 +539,6 @@ namespace Remains.Networking
         {
             ownership.Reassign(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
-            Saves.SaveWorld(ServerWorld);
             BroadcastWorld();
         }
 
@@ -551,7 +549,6 @@ namespace Remains.Networking
             if(PartyRules.ResolveDefeat(ServerWorld,Rules.PartyDefeat))
                 NetworkServer.SendToAll(new NoticeMessage {text=Rules.PartyDefeat.Notice});
             ServerWorld.revision++;
-            Saves.SaveWorld(ServerWorld);
             BroadcastWorld();
         }
 
