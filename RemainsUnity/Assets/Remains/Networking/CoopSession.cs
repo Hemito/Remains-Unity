@@ -36,6 +36,9 @@ namespace Remains.Networking
         public event Action ClientReady;
         public event Action<ContentManifest> ModMismatch;
         public event Action<string,bool> HealingFinished;
+        public event Action<string,long> RecoveryPrepared;
+        public event Action<int,string,long> RecoveryAcknowledged;
+        public event Action<int> RecoveryPeerLeft;
         private readonly Dictionary<int, string> owners = new();
         private readonly Dictionary<string, string> playerIds = new();
         private readonly PoseSequenceGate serverPoses = new();
@@ -83,7 +86,12 @@ namespace Remains.Networking
                 if (ack.world != ServerWorld.worldId) Debug.LogWarning($"Подтверждение чужого мира: клиент={connection.connectionId}, мир={ack.world}, ожидается={ServerWorld.worldId}.");
                 else if(!recoveryReceipts.Matches(ack.snapshot,ack.revision))
                     Debug.LogWarning($"Неизвестное подтверждение снимка: клиент={connection.connectionId}, снимок={ack.snapshot}, ревизия={ack.revision}.");
-                else { backupRevisions[connection.connectionId]=Math.Max(backupRevisions.GetValueOrDefault(connection.connectionId),ack.revision); CompleteBackedUpGrants(); }
+                else
+                {
+                    backupRevisions[connection.connectionId]=Math.Max(backupRevisions.GetValueOrDefault(connection.connectionId),ack.revision);
+                    RecoveryAcknowledged?.Invoke(connection.connectionId,ack.snapshot,ack.revision);
+                    CompleteBackedUpGrants();
+                }
             });
             ServerReady?.Invoke();
         }
@@ -260,6 +268,7 @@ namespace Remains.Networking
             if (owners.Remove(connection.connectionId, out string owner))
             {
                 backupRevisions.Remove(connection.connectionId);
+                RecoveryPeerLeft?.Invoke(connection.connectionId);
                 var actor = ServerWorld.Find(playerIds[owner]);
                 ActorSessionRules.Disconnect(actor);
                 if(actor.level=="hub") GrenadeRules.ForgetHubActor(ServerWorld,actor.id);
@@ -335,6 +344,7 @@ namespace Remains.Networking
         {
             var snapshot=Saves.SaveWorld(ServerWorld);
             recoveryReceipts.Register(snapshot);
+            RecoveryPrepared?.Invoke(snapshot.Id,snapshot.Revision);
             return snapshot;
         }
 

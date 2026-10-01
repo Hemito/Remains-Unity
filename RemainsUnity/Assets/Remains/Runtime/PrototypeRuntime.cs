@@ -67,6 +67,8 @@ namespace Remains.Runtime
             Session.CharacterId=Options.Character;
             Session.networkAddress=Options.Address;
             Session.Saves=new SaveStore(Options.SaveDirectory ?? Path.Combine(Application.persistentDataPath,"Profiles",Options.Character));
+            if(Options.Smoke!=null && Options.Role=="host" && !string.IsNullOrEmpty(Options.Report))
+                gameObject.AddComponent<RecoveryTimingProbe>().Initialize(Session,Options.Report);
             // NetworkManager.Awake must see the final transport, including a test wrapper.
             networkObject.SetActive(true);
             DontDestroyOnLoad(gameObject);
