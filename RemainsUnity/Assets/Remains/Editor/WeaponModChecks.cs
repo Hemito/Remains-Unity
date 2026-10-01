@@ -1,0 +1,51 @@
+using System;
+using System.IO;
+using Remains.Content;
+using UnityEngine;
+
+namespace Remains.Editor
+{
+    public static class WeaponModChecks
+    {
+        public static void Run()
+        {
+            string root=Path.Combine(Path.GetTempPath(),"remains-mod-checks-"+Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(root,"first"));Directory.CreateDirectory(Path.Combine(root,"second"));
+            string original="{\"weapons\":[{\"id\":\"pistol\",\"damage\":11,\"range\":20,\"cooldown\":0.3}]}";
+            string replacement=original.Replace("11","25");
+            var before=WeaponCatalog.Get("pistol");
+            File.WriteAllText(Path.Combine(root,"load-order.json"),"{\"mods\":[\"first\"]}");
+            File.WriteAllText(Path.Combine(root,"first/weapons.json"),replacement);
+            File.WriteAllText(Path.Combine(root,"first/manifest.json"),Manifest("first",null));
+            Reject(()=>WeaponCatalogLoader.Load(original,root),"Конфликт оружия pistol");
+            Require(ReferenceEquals(before,WeaponCatalog.Get("pistol")),"Ошибка не изменяет рабочий каталог");
+            File.WriteAllText(Path.Combine(root,"first/manifest.json"),Manifest("first","base"));
+            var accepted=WeaponCatalogLoader.Load(original,root);
+            Require(accepted.definitions["pistol"].damage==25 && accepted.description.Contains("замена pistol из base"),"Явная замена применяется и видима");
+            File.WriteAllText(Path.Combine(root,"load-order.json"),"{\"mods\":[\"first\",\"second\"]}");
+            File.WriteAllText(Path.Combine(root,"second/weapons.json"),original);
+            File.WriteAllText(Path.Combine(root,"second/manifest.json"),Manifest("second","base"));
+            Reject(()=>WeaponCatalogLoader.Load(original,root),"текущий источник=first");
+            File.WriteAllText(Path.Combine(root,"second/manifest.json"),Manifest("second","first"));
+            var chained=WeaponCatalogLoader.Load(original,root);
+            Require(chained.definitions["pistol"].damage==11 && chained.fingerprint!=accepted.fingerprint,"Цепочка явных замен и отпечаток");
+            File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[]}");
+            Reject(()=>WeaponCatalogLoader.Load(original,root),"не содержит определения");
+            File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[{\"id\":\"pistol\",\"range\":20,\"cooldown\":1},{\"id\":\"pistol\",\"range\":20,\"cooldown\":1}]}");
+            Reject(()=>WeaponCatalogLoader.Load(original,root),"в одном пакете");
+            File.WriteAllText(Path.Combine(root,"second/manifest.json"),"{\"id\":\"second\",\"version\":\"1\",\"dependencies\":[\"missing\"]}");
+            Reject(()=>WeaponCatalogLoader.Load(original,root),"зависимости missing");
+            Require(ReferenceEquals(before,WeaponCatalog.Get("pistol")),"Частичные пакеты не опубликованы");
+            Debug.Log("WeaponModChecks PASS: явные замены, конфликты источников, дубликаты, зависимости, целостность каталога. Фикстуры: "+root);
+        }
+        private static string Manifest(string id,string source)=>"{\"id\":\""+id+"\",\"version\":\"1\",\"weaponOverrides\":"+
+            (source==null?"[]":"[{\"id\":\"pistol\",\"source\":\""+source+"\"}]")+"}";
+        private static void Reject(Action action,string reason)
+        {
+            try {action();} catch(InvalidDataException failure)
+            {Require(failure.Message.Contains(reason),"Диагностика: "+failure.Message);return;}
+            throw new InvalidOperationException("Принят некорректный мод: "+reason);
+        }
+        private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException("WeaponModChecks: "+reason);}
+    }
+}

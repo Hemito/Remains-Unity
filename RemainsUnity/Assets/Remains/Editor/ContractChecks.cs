@@ -16,6 +16,7 @@ namespace Remains.Editor
         {
             Anatomy.Load();
             WeaponCatalog.Load();
+            WeaponModChecks.Run();
             PonyAnimationData.Load();
             var idle=Array.Find(PonyAnimationData.Library.clips,clip=>clip.id=="idle");
             Require(idle!=null && idle.frames.Length==1,"Покой содержит только позу стояния, без сидения и переходов прыжка");
