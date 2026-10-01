@@ -16,10 +16,18 @@ namespace Remains.Runtime
         private int phase;
         private float deadline;
         private bool traveled,finished;
+        private bool pauseStarted,pauseRunning;
+        private NetworkPauseWindow pauseWindow;
+        private bool PauseScenario=>runtime.Options.Smoke.Contains("-pause-");
         private bool Host=>runtime.Options.Role=="host";
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+40;value.CommandSource=Command;
+            if(PauseScenario) pauseWindow=new NetworkPauseWindow(this,value.Session,value.Options.ProbePeers,PauseSnapshot,
+                ()=>value.Session.World?.props.SingleOrDefault() is {held:true} prop &&
+                    prop.owner==value.Session.World.Find("player:session-host")?.owner &&
+                    (!Host || Mathf.Abs(prop.vx)+Mathf.Abs(prop.vy)>.01f),
+                ()=>finished,reason=>Finish(false,reason));
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<TelekinesisProbePhase>(m=>phase=m.phase);
@@ -48,6 +56,9 @@ namespace Remains.Runtime
                 return;
             }
             var prop=session.ServerWorld.props.Single();
+            if(pauseRunning) return;
+            if(PauseScenario && phase==2 && !pauseStarted && prop.held && prop.y>1)
+            {pauseStarted=true;pauseRunning=true;StartCoroutine(PauseHeldProp());return;}
             if(phase==0 && !traveled) {traveled=true;session.Travel.RequestFactory();}
             if(phase==0 && self.level=="factory:0" && !session.Travel.Pending) SetPhase(1);
             else if(phase==1 && prop.held && prop.owner==session.LocalOwner) SetPhase(2);
@@ -66,8 +77,19 @@ namespace Remains.Runtime
                     "Обычные команды: захват, подъём, расход маны владельца, отпускание, повторный захват, уход в хаб и передача физики предмета другому игроку.":"Неверный расход маны или локация предмета/наблюдателей."});
             }
         }
+        private float[] PauseSnapshot()
+        {
+            var prop=runtime.Session.World.props.Single();var holder=runtime.Session.World.Find("player:session-host");
+            return new[]{prop.x,prop.y,prop.vx,prop.vy,(float)prop.generation,holder.mana};
+        }
+        private IEnumerator PauseHeldProp()
+        {yield return pauseWindow.Run("удерживаемый предмет телекинеза");pauseRunning=false;}
         private void Finish(bool success,string detail)
-        {if(finished)return;finished=true;File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));}
+        {
+            if(finished)return;finished=true;
+            if(PauseScenario) {success &= pauseWindow.Verified==1;detail+=$" Проверенные паузы телекинеза: {pauseWindow.Verified}.";}
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
+        }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:2);}
         [Serializable] private sealed class Report {public bool success;public string detail;}
     }

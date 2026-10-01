@@ -19,12 +19,19 @@ namespace Remains.Runtime
         private float since,deadline;
         private bool grenade,finished,advancing,damageCancelled,healingBeforeDamage,releaseProgress,movementProgress;
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
+        private bool PauseScenario=>runtime.Options.Smoke.Contains("-pause-");
+        private NetworkPauseWindow pauseWindow;
+        private bool pauseStarted,pauseRunning;
         private bool Host=>runtime.Options.Role=="host";
         private ActorState Victim=>runtime.Session.World?.Find("player:session-client-1");
         private ActorState Healer=>runtime.Session.World?.Find("player:session-host");
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+60;runtime.CommandSource=Command;
+            if(PauseScenario) pauseWindow=new NetworkPauseWindow(this,value.Session,value.Options.ProbePeers,PauseSnapshot,
+                ()=>Victim!=null && Victim.down && InventoryJournal.Count(Healer,"heal")==5 &&
+                    (!Host || runtime.Revival.Progress>0 && runtime.Revival.Progress<1 && !runtime.Revival.Pending),
+                ()=>finished,reason=>Finish(false,reason));
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<RevivalProbePhase>(message=>
@@ -63,6 +70,9 @@ namespace Remains.Runtime
             if(finished) return;
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут поднятия: phase={phase}, hp={Victim?.health}, healer={Healer?.health}, x={Healer?.x}/{Victim?.x}, progress={runtime.Revival.Progress}.");return;}
             if(!Host || advancing || runtime.Session.World?.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return;
+            if(pauseRunning) return;
+            if(PauseScenario && phase==6 && !pauseStarted && runtime.Revival.Progress>=.3f)
+            {pauseStarted=true;pauseRunning=true;StartCoroutine(PauseRevival());return;}
             if(Resume && phase==0)
             {
                 if(Victim.health!=35 || Healer.health!=30 || InventoryJournal.Count(Healer,"heal")!=4 || Healer.damageSequence<1 || Victim.damageSequence<1)
@@ -96,9 +106,15 @@ namespace Remains.Runtime
             return Victim!=null && !Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4 &&
                 saved!=null && saved.id==self.id && saved.health==self.health && InventoryJournal.Count(saved,"heal")==InventoryJournal.Count(self,"heal");
         }
+        private float[] PauseSnapshot()=>new[]{Victim.health,Healer.health,(float)InventoryJournal.Count(Healer,"heal"),
+            Victim.x,Victim.y,Healer.x,Healer.y,runtime.Session.LocalActor.poseTime,
+            Host?runtime.Revival.Progress:0,Host && runtime.Revival.Pending?1:0};
+        private IEnumerator PauseRevival()
+        {yield return pauseWindow.Run("поднятие союзника");pauseRunning=false;}
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
+            if(PauseScenario) {success &= pauseWindow.Verified==1;detail+=$" Проверенные паузы поднятия: {pauseWindow.Verified}.";}
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase},true));
             StartCoroutine(Exit(success));
         }

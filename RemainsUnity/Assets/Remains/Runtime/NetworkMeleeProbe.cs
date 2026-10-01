@@ -12,7 +12,6 @@ namespace Remains.Runtime
 {
     public struct MeleeProbePhase : NetworkMessage {public int phase;}
     public struct MeleeProbeFinish : NetworkMessage {public bool success;public string detail;}
-    public struct MeleePauseAck : NetworkMessage {public int phase;public bool success;public string detail;}
     public sealed class NetworkMeleeProbe : MonoBehaviour
     {
         private PrototypeRuntime runtime;
@@ -22,28 +21,21 @@ namespace Remains.Runtime
         private bool configuring,uiPrepared;
         private bool UiScenario=>runtime.Options.Smoke.Contains("-ffui-");
         private bool PauseScenario=>runtime.Options.Smoke.Contains("-pause-");
-        private readonly HashSet<int> pauseAcks=new();
-        private int pausedPhase,verifiedPauses;
+        private NetworkPauseWindow pauseWindow;
+        private int pausedPhase;
+        private string pausedSwingId;
         private readonly Dictionary<string,int> sweeps=new();
         private bool Host=>runtime.Options.Role=="host";
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+40;value.CommandSource=Command;
+            if(PauseScenario) pauseWindow=new NetworkPauseWindow(this,value.Session,value.Options.ProbePeers,SwingSnapshot,
+                ()=>!Host || runtime.Combat.IsMeleeActive && runtime.Combat.ActiveMeleeId==pausedSwingId && runtime.Combat.MeleeRemaining>0,
+                ()=>finished,reason=>Finish(false,reason));
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<MeleeProbePhase>(m=>{phase=m.phase;phaseAt=Time.unscaledTime;fired=false;configuring=false;});
                 NetworkClient.RegisterHandler<MeleeProbeFinish>(m=>Finish(m.success,m.detail));
-            };
-            value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<MeleePauseAck>((connection,message)=>
-            {
-                if(message.phase!=phase) return;
-                if(!message.success) {Complete(false,message.detail);return;}
-                pauseAcks.Add(connection.connectionId);
-            });
-            value.Session.Pause.Changed+=()=>
-            {
-                if(PauseScenario && phase is 1 or 2 && value.Session.LocalActor!=null && value.Session.Pause.IsPaused(value.Session.LocalActor.level))
-                    StartCoroutine(CheckFrozenSwing(phase));
             };
             value.Session.AttackReceived+=attack=>
             {if(attack.attacker=="player:session-host" && (attack.weapon=="crowbar" || attack.weapon=="spear")) sweeps[attack.id]=sweeps.GetValueOrDefault(attack.id)+1;};
@@ -95,25 +87,17 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished)return;finished=true;
-            if(PauseScenario && verifiedPauses!=2) success=false;
+            if(PauseScenario && pauseWindow.Verified!=2) success=false;
             bool attacker=runtime.Options.Smoke.Contains("-attacker-");
             int expected=runtime.Options.Character=="session-client-1"?2:0;
             if(runtime.Combat.AttackerDecidedHits!=(UiScenario?expected/2:attacker?expected:0) || runtime.Combat.VictimDecidedHits!=(UiScenario?expected/2:attacker?0:expected)) success=false;
-            detail+=$" Решения: attacker={runtime.Combat.AttackerDecidedHits}, victim={runtime.Combat.VictimDecidedHits}, проверенные паузы={verifiedPauses}.";
+            detail+=$" Решения: attacker={runtime.Combat.AttackerDecidedHits}, victim={runtime.Combat.VictimDecidedHits}, проверенные паузы={pauseWindow?.Verified ?? 0}.";
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
         }
         private IEnumerator PauseSwing()
         {
-            var session=runtime.Session;pauseAcks.Clear();
-            string id=runtime.Combat.ActiveMeleeId;
-            session.Pause.SetManual(true);
-            while(!session.Pause.IsPaused(session.LocalActor.level) && !finished) yield return null;
-            if(!runtime.Combat.IsMeleeActive || runtime.Combat.ActiveMeleeId!=id || runtime.Combat.MeleeRemaining<=0)
-            {Complete(false,"Пауза не застала незавершённый взмах");yield break;}
-            while(pauseAcks.Count!=runtime.Options.ProbePeers && !finished) yield return null;
-            if(finished) yield break;
-            session.Pause.SetManual(false);
-            while(session.Pause.IsPaused(session.LocalActor.level) && !finished) yield return null;
+            pausedSwingId=runtime.Combat.ActiveMeleeId;
+            yield return pauseWindow.Run("взмах "+runtime.Combat.Weapon);
             phaseAt=Time.unscaledTime;configuring=false;
         }
         private float[] SwingSnapshot()
@@ -123,16 +107,6 @@ namespace Remains.Runtime
             return new[]{attacker.weaponTipX,attacker.weaponTipY,attacker.weaponAngle,attacker.weaponReach,
                 session.LocalActor.poseTime,victim.health,(float)victim.damageSequence,
                 Host?runtime.Combat.MeleeRemaining:0,Host?runtime.Combat.ShotCooldownRemaining:0};
-        }
-        private IEnumerator CheckFrozenSwing(int step)
-        {
-            yield return new WaitForSecondsRealtime(.6f);
-            var before=SwingSnapshot();string id=runtime.Combat.ActiveMeleeId;
-            yield return new WaitForSecondsRealtime(.6f);
-            bool valid=runtime.Session.Pause.IsPaused(runtime.Session.LocalActor.level) && before.SequenceEqual(SwingSnapshot()) &&
-                (!Host || runtime.Combat.IsMeleeActive && runtime.Combat.ActiveMeleeId==id && runtime.Combat.MeleeRemaining>0);
-            if(valid) verifiedPauses++;
-            NetworkClient.Send(new MeleePauseAck {phase=step,success=valid,detail=$"Взмах изменился во время паузы: phase={step}, actor={runtime.Session.LocalActorId}."});
         }
         private IEnumerator PrepareUi()
         {
