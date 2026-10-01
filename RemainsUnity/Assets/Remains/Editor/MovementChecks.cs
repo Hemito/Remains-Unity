@@ -11,6 +11,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            PlatformDropChecks.Run();
             CheckSolidGeometry();
             SavedPlacementChecks.Run();
             var factory=RoomLayout.Load();var movement=new MovementController(factory);

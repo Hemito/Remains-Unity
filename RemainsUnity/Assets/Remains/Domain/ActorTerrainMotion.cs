@@ -17,7 +17,7 @@ namespace Remains.Domain
                     position.y+hull.height>surface.y+Epsilon && position.y<surface.y+surface.height-Epsilon) return false;
             return true;
         }
-        public static Vector2 Move(RoomLayout room,MovementHull hull,Vector2 start,Vector2 delta,bool climbing)
+        public static Vector2 Move(RoomLayout room,MovementHull hull,Vector2 start,Vector2 delta,bool climbing,float? droppedSurface=null)
         {
             float half=hull.width*.5f;
             float x=Mathf.Clamp(start.x+delta.x,room.left+half,room.right-half);
@@ -33,6 +33,7 @@ namespace Remains.Domain
             {
                 if(x+half<=surface.x+Epsilon || x-half>=surface.x+surface.width-Epsilon) continue;
                 float floor=surface.y+surface.height,ceiling=surface.y-hull.height;
+                if(surface.oneWay && droppedSurface.HasValue && Mathf.Abs(floor-droppedSurface.Value)<=RoomSupport.ContactTolerance) continue;
                 if(delta.y<=0 && !(climbing && surface.oneWay) && start.y>=floor-Epsilon && y<floor) y=floor;
                 if(delta.y>0 && !surface.oneWay && start.y<=ceiling+Epsilon && y>ceiling) y=ceiling;
             }
@@ -44,6 +45,19 @@ namespace Remains.Domain
                 if(position.x+hull.width*.5f>surface.x+Epsilon && position.x-hull.width*.5f<surface.x+surface.width-Epsilon &&
                     Mathf.Abs(position.y-surface.y-surface.height)<=RoomSupport.ContactTolerance) return true;
             return false;
+        }
+
+        public static bool CanDrop(RoomLayout room,MovementHull hull,Vector2 position)
+        {
+            bool supported=false;
+            foreach(var surface in room.platforms)
+            {
+                if(position.x+hull.width*.5f<=surface.x+Epsilon || position.x-hull.width*.5f>=surface.x+surface.width-Epsilon ||
+                    Mathf.Abs(position.y-surface.y-surface.height)>RoomSupport.ContactTolerance) continue;
+                if(!surface.oneWay) return false;
+                supported=true;
+            }
+            return supported;
         }
     }
 }
