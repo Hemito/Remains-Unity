@@ -9,6 +9,14 @@ namespace Remains.Editor
         private sealed class NeverPause : ILevelPauseRule {public bool IsPaused(LevelPauseContext context)=>false;}
         public static void Run()
         {
+            var events=new DeferredLevelActions();int factoryEffects=0,hubEffects=0;
+            events.Add("factory:0",()=>factoryEffects++);events.Add("hub",()=>hubEffects++);
+            events.Drain(level=>level=="factory:0");events.Drain(level=>level=="factory:0");
+            Require(factoryEffects==0 && hubEffects==1 && events.Count==1,"Пауза одного уровня не мешает событиям другого и не повторяет их");
+            events.Drain(_=>false);events.Drain(_=>false);
+            Require(factoryEffects==1 && hubEffects==1 && events.Count==0,"Отложенное событие применяется ровно один раз при возобновлении");
+            events.Add("hub",()=>hubEffects++);events.Clear();events.Drain(_=>false);
+            Require(hubEffects==1,"События прошлой сессии не переживают сброс");
             var world=new WorldState();
             var first=new ActorState {id="first",player=true,connected=true,level="factory:0"};
             var second=new ActorState {id="second",player=true,connected=true,level="factory:0"};

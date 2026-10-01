@@ -43,6 +43,8 @@ namespace Remains.Networking
             var actor=session.ConnectedActor(connection);
             var prop=session.ServerWorld.props.Find(p=>p.id==message.prop);
             if(actor==null || prop==null || actor.down || actor.level!=prop.level) return;
+            if(session.Pause.IsServerPaused(actor.level))
+            {connection.Send(new NoticeMessage {text="Захват/отпускание отменено: уровень остановлен."});return;}
             if(message.release)
             {
                 if(prop.owner!=actor.owner) return;
@@ -67,6 +69,8 @@ namespace Remains.Networking
         private void Throw(NetworkConnectionToClient connection,ThrowRequest message)
         {
             var actor=session.ConnectedActor(connection);
+            if(actor!=null && session.Pause.IsServerPaused(actor.level))
+            {connection.Send(new NoticeMessage {text="Бросок отменён: уровень остановлен. Граната не потрачена."});return;}
             if(actor==null || actor.down || session.ServerWorld.completedTransactions.Contains(message.transaction) ||
                 !SharedInventory.Consume(actor,"grenade")) return;
             session.ServerWorld.completedTransactions.Add(message.transaction);
@@ -85,6 +89,7 @@ namespace Remains.Networking
             var grenade=session.ServerWorld?.grenades.Find(g=>g.id==message.id);
             if(actor==null || grenade==null || grenade.owner!=actor.owner || grenade.generation!=message.generation ||
                 unchecked((int)(message.sequence-grenade.sequence))<=0) return;
+            if(message.detonate && session.Pause.Defer(grenade.level,()=>GrenadePose(connection,message))) return;
             if(!float.IsFinite(message.x) || !float.IsFinite(message.y) || !float.IsFinite(message.vx) || !float.IsFinite(message.vy) ||
                 !float.IsFinite(message.remaining) || message.remaining<0 || message.remaining>grenade.remaining+.001f)
             {Debug.LogWarning($"Некорректное состояние гранаты: id={message.id}, generation={message.generation}, remaining={message.remaining}.");return;}
@@ -110,6 +115,10 @@ namespace Remains.Networking
             prop.sequence++;
             NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy },Channels.Unreliable);
         }
-        public void ThrowGrenade(Vector2 aim)=>NetworkClient.Send(new ThrowRequest { transaction=Guid.NewGuid().ToString("N"),aimX=aim.x,aimY=aim.y });
+        public void ThrowGrenade(Vector2 aim)
+        {
+            if(session.LocalActor==null || session.Pause.IsPaused(session.LocalActor.level)) return;
+            NetworkClient.Send(new ThrowRequest { transaction=Guid.NewGuid().ToString("N"),aimX=aim.x,aimY=aim.y });
+        }
     }
 }

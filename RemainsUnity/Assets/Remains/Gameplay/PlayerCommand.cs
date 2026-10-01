@@ -6,7 +6,7 @@ namespace Remains.Gameplay
     public struct PlayerCommand
     {
         public Vector2 movement, aim;
-        public bool hasAim, jump, sprint, fire, revive, telekinesis, grenade, heal, inventory, reload;
+        public bool hasAim, jump, sprint, fire, revive, telekinesis, grenade, heal, inventory, reload, menu;
         public string weapon;
     }
 }

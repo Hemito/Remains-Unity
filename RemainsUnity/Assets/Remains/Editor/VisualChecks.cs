@@ -52,6 +52,9 @@ namespace Remains.Editor
             var canvas=hud.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=1;canvas.sortingOrder=32767;
             Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
             image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"hud.png"),image.EncodeToPNG());
+            hud.ToggleInventory();hud.PauseMenu.Toggle();
+            Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
+            image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"pause-menu.png"),image.EncodeToPNG());
             hud.gameObject.SetActive(false);
             var dialog=new GameObject("Проверка сравнения контента");var dialogCanvas=dialog.AddComponent<Canvas>();
             dialogCanvas.renderMode=RenderMode.ScreenSpaceCamera;dialogCanvas.worldCamera=camera;dialogCanvas.planeDistance=1;dialogCanvas.sortingOrder=32767;

@@ -18,6 +18,7 @@ namespace Remains.Gameplay
         {
             var actor=session.LocalActor;
             if(actor==null) return;
+            if(session.Pause.IsPaused(actor.level)) return;
             held &= !actor.down && actor.mana>0;
             if(held && !wasHeld)
             {

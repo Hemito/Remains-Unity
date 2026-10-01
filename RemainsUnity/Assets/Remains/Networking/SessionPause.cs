@@ -19,6 +19,13 @@ namespace Remains.Networking
         private readonly CoopSession session;
         private LevelPauseCoordinator coordinator;
         private PauseStateMessage published;
+        private readonly DeferredLevelActions pending=new();
+        public bool Defer(string level,Action apply)
+        {
+            if(!IsServerPaused(level)) return false;
+            pending.Add(level,apply);return true;
+        }
+        public void Step()=>pending.Drain(IsServerPaused);
         private readonly HashSet<string> pausedLevels=new(StringComparer.Ordinal);
         public long Revision {get;private set;}=-1;
         public bool PauseOnMenu {get;private set;}
@@ -44,7 +51,7 @@ namespace Remains.Networking
         public void ResetClient()
         {Revision=-1;pausedLevels.Clear();PauseOnMenu=PauseOnInventory=false;Changed?.Invoke();}
         public void ResetServer()
-        {coordinator=null;published=default;}
+        {coordinator=null;published=default;pending.Clear();}
         public void SetSettings(bool menu,bool inventory)
         {
             if(!NetworkServer.active || coordinator==null) return;

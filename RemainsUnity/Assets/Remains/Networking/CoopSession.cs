@@ -486,6 +486,8 @@ namespace Remains.Networking
             if(ServerWorld.completedTransactions.Contains(message.transaction))
             {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=true,reason="Лечение уже подтверждено."});return;}
             var healer = ServerWorld.Find(playerIds[owner]);
+            if(Pause.IsServerPaused(healer.level))
+            {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=false,reason="Лечение отменено: уровень остановлен. Предмет не потрачен."});return;}
             var target = ServerWorld.Find(message.target);
             bool current=target!=null && healer.generation==message.healerGeneration && healer.lifecycleSequence==message.healerLifecycle &&
                 healer.damageSequence==message.damageSequence && target.generation==message.targetGeneration && target.lifecycleSequence==message.targetLifecycle;
@@ -558,10 +560,10 @@ namespace Remains.Networking
         {
             CharacterContent.Reset();
             Admission.EndClient();
-            Pause.ResetClient();
             Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
+            Pause.ResetClient();
             Changed?.Invoke();
         }
         public void SetFriendlyFire(bool enabled)

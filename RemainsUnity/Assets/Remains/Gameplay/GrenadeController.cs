@@ -63,6 +63,7 @@ namespace Remains.Gameplay
             {
                 var state=flight.state;
                 if(state.owner==null || !LevelActivity.HasConnectedPlayer(session.World,state.level)) continue;
+                if(session.Pause.IsPaused(state.level)) continue;
                 if(state.remaining>0) GrenadeRules.Step(state,geometry.Get(state.level),dt);
                 if(state.remaining<=0)
                 {

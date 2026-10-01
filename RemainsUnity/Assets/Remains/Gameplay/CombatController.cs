@@ -28,6 +28,7 @@ namespace Remains.Gameplay
         private string selectedActor;
         private int selectedGeneration;
         private bool resolvingExplosions;
+        private readonly DeferredLevelActions pending=new();
         public Func<string,int,Vector2?> LocalExplosionPosition { get; set; }
         public CombatController(CoopSession session)
         {
@@ -39,6 +40,8 @@ namespace Remains.Gameplay
             session.FriendlyHitReceived+=ReceiveFriendlyHit;
             session.Changed+=RestoreSelection;
             session.Changed+=ResolveExplosions;
+            session.Pause.Changed+=ResolveExplosions;
+            session.Changed+=()=>{if(session.World==null) pending.Clear();};
         }
 
         private void RestoreSelection()
@@ -52,7 +55,7 @@ namespace Remains.Gameplay
 
         public bool Fire(ActorState attacker, Vector2 aim)
         {
-            if (attacker == null || attacker.down || Reload.Active || !shotCooldown.Ready) return false;
+            if (attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready) return false;
             var definition=WeaponCatalog.Get(Weapon);
             if(!WeaponAmmunition.SpendShot(attacker,definition,out string reason))
             {
@@ -84,12 +87,15 @@ namespace Remains.Gameplay
 
         public void Step(float dt)
         {
+            pending.Drain(session.Pause.IsPaused);
+            if(session.LocalActor!=null && session.Pause.IsPaused(session.LocalActor.level)) dt=0;
             shotCooldown.Advance(dt);
             Reload.Step(Weapon,dt);
             if(swingActor==null) return;
             var actor=session.World?.Find(swingActor.id);
             if(actor==null || actor.down || actor.owner!=session.LocalOwner || actor.level!=swingLevel ||
                 actor.generation!=swingGeneration || actor.lifecycleSequence!=swingLifecycle) { swingActor=null;return; }
+            if(session.Pause.IsPaused(actor.level)) return;
             var origin=WeaponPose.Origin(actor.Position);
             swingSweep.Advance(origin,dt,segment=>session.Fire(new AttackEvent { id=swingId,attacker=actor.id,weapon=swingWeapon,level=swingLevel,
                 originX=segment.start.x,originY=segment.start.y,endX=segment.end.x,endY=segment.end.y,
@@ -110,7 +116,7 @@ namespace Remains.Gameplay
                 foreach(var explosion in session.World.explosions.ToArray())
                 foreach(var actor in session.World.actors.Where(a=>ActorPresence.IsPresent(a) && a.owner==session.LocalOwner).ToArray())
                 {
-                    if(actor.resolvedExplosions.Contains(explosion.attack.id) ||
+                    if(session.Pause.IsPaused(actor.level) || actor.resolvedExplosions.Contains(explosion.attack.id) ||
                         !(actor.player?explosion.players:explosion.enemies).Contains(actor.id)) continue;
                     var local=LocalExplosionPosition?.Invoke(explosion.attack.id,explosion.generation);
                     if(actor.player && !local.HasValue)
@@ -125,6 +131,7 @@ namespace Remains.Gameplay
         {
             if (session.World == null) return;
             if(attack.weapon=="grenade") return; // Persisted explosion decisions are processed from World.
+            if(session.Pause.IsPaused(attack.level)) {pending.Add(attack.level,()=>ReceiveAttack(attack));return;}
             foreach (var actor in session.World.actors.ToArray())
             {
                 if(!AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) continue;
@@ -156,6 +163,7 @@ namespace Remains.Gameplay
         {
             var actor = session.World?.Find(message.target);
             if (actor == null || actor.player || actor.owner != session.LocalOwner || actor.generation != message.generation) return;
+            if(session.Pause.IsPaused(actor.level)) {pending.Add(actor.level,()=>ReceiveNpcHit(message));return;}
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             if (damage.Apply(actor, attack, true)) session.PublishActor(actor);
         }
@@ -163,6 +171,7 @@ namespace Remains.Gameplay
         {
             var actor=session.World?.Find(message.target);
             if(actor==null || actor.owner!=session.LocalOwner || actor.generation!=message.generation || actor.lifecycleSequence!=message.lifecycle) return;
+            if(session.Pause.IsPaused(actor.level)) {pending.Add(actor.level,()=>ReceiveFriendlyHit(message));return;}
             var attack=JsonUtility.FromJson<AttackEvent>(message.attackJson);
             if(!FriendlyFireDecision.UsesAttacker(attack,actor) || !AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) return;
             if(damage.Apply(actor,attack,true)) {AttackerDecidedHits++;session.PublishActor(actor);}

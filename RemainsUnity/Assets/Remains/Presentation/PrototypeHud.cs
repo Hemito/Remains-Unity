@@ -35,6 +35,9 @@ namespace Remains.Presentation
         private HudElements elements;
         public WorldLobbyPanel NetworkLobby {get;private set;}
         public CharacterContentPanel CharacterContent {get;private set;}
+        public PauseMenu PauseMenu {get;private set;}
+        public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen;
+        private string inventoryActorVersion;
         private Image healthBar;
         private Image manaBar;
         private Text personalItems;
@@ -115,10 +118,11 @@ namespace Remains.Presentation
             };
             NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
+            PauseMenu=new PauseMenu(transform,elements,session,()=>inventory.activeSelf);
             Refresh();
         }
 
-        public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf); Refresh(); }
+        public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf); Refresh();PauseMenu.PublishIntent(); }
         public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
         public RectTransform FriendlyFireButtonRect=>friendlyFire.GetComponent<RectTransform>();
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
@@ -128,6 +132,8 @@ namespace Remains.Presentation
         private void Refresh()
         {
             var actor = session.LocalActor;
+            string version=actor==null?null:$"{actor.id}:{actor.generation}:{actor.lifecycleSequence}";
+            if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);}
             friendlyDecision.gameObject.SetActive(actor!=null && Mirror.NetworkServer.active);
             if (actor == null)
             {lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}

@@ -37,7 +37,8 @@ namespace Remains.Runtime
             if(RuleScenario) value.Session.ConfigureRules(new GameplayRuleSet(new PrototypeDamageRule(),new ZeroHealthKnockdownRule(),new HubPartyDefeatRule(),new NoHealingLoot()));
             value.CommandSource=()=>
             {
-                if(phase>=1 && !opened) {opened=true;return new PlayerCommand {inventory=true};}
+                if(phase>=1 && !opened && value.Session.LocalActor?.level=="factory:0" && !value.Session.Travel.Pending)
+                {opened=true;return new PlayerCommand {inventory=true};}
                 return default;
             };
             value.Session.Notice+=text=>{if(text=="Контейнер находится в другой локации.") rejected=true;};

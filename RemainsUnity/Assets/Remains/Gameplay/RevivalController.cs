@@ -26,6 +26,7 @@ namespace Remains.Gameplay
                 return;
             }
             var healer=session.LocalActor;
+            if(healer!=null && session.Pause.IsPaused(healer.level)) return;
             var target=session.World?.actors.Find(a=>HealingRules.CanApply(healer,a,false));
             if(progress.Step(healer,target,held,dt))
             {pending=session.RequestRevive(target.id);deadline=Time.unscaledTime+10;}

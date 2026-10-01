@@ -16,7 +16,7 @@ namespace Remains.Gameplay
 
         public bool Start(ActorState actor,string selected)
         {
-            if(Active || actor==null || actor.down) return false;
+            if(Active || actor==null || actor.down || session.Pause.IsPaused(actor.level)) return false;
             var definition=WeaponCatalog.Get(selected);
             if(WeaponAmmunition.ReloadAmount(actor,definition)==0)
             { session.ShowNotice("Перезарядка не нужна или нет подходящих патронов в запасе.");return false; }
@@ -33,6 +33,7 @@ namespace Remains.Gameplay
             if(actor==null || actor.down || actor.owner!=session.LocalOwner || selected!=weapon ||
                 actor.generation!=generation || actor.lifecycleSequence!=lifecycle)
             {actorId=null;remaining=0;session.ShowNotice("Перезарядка прервана.");return;}
+            if(session.Pause.IsPaused(actor.level)) return;
             remaining-=dt;
             if(remaining>0) return;
             actorId=null;remaining=0;

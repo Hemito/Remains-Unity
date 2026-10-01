@@ -29,6 +29,7 @@ namespace Remains.Gameplay
             {
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
                 if(!LevelActivity.HasConnectedPlayer(session.World,actor.level)) continue;
+                if(session.Pause.IsPaused(actor.level)) continue;
                 if(!movement.TryGetValue(actor.level,out var controller))
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
