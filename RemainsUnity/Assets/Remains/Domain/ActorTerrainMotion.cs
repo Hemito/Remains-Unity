@@ -6,6 +6,17 @@ namespace Remains.Domain
     public static class ActorTerrainMotion
     {
         private const float Epsilon=.0001f;
+        public static bool IsClear(RoomLayout room,MovementHull hull,Vector2 position)
+        {
+            float half=hull.width*.5f;
+            if(!float.IsFinite(position.x) || !float.IsFinite(position.y) ||
+                position.x-half<room.left-Epsilon || position.x+half>room.right+Epsilon ||
+                position.y<room.bottom-Epsilon || position.y+hull.height>room.top+Epsilon) return false;
+            foreach(var surface in room.platforms)
+                if(!surface.oneWay && position.x+half>surface.x+Epsilon && position.x-half<surface.x+surface.width-Epsilon &&
+                    position.y+hull.height>surface.y+Epsilon && position.y<surface.y+surface.height-Epsilon) return false;
+            return true;
+        }
         public static Vector2 Move(RoomLayout room,MovementHull hull,Vector2 start,Vector2 delta,bool climbing)
         {
             float half=hull.width*.5f;

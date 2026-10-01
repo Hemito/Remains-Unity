@@ -12,6 +12,7 @@ namespace Remains.Editor
         public static void Run()
         {
             CheckSolidGeometry();
+            SavedPlacementChecks.Run();
             var factory=RoomLayout.Load();var movement=new MovementController(factory);
             var actor=new ActorState {x=0,y=0};movement.Step(actor,Vector2.zero,true,.05f);
             Require(actor.y>0 && actor.vy>0,"Прыжок от пола");

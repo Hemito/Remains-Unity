@@ -114,7 +114,7 @@ namespace Remains.Networking
             GrenadeRules.BeginSession(ServerWorld);
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
-                if(ActorPositionRecovery.Repair(actor,RoomLayout.Load(actor.level),"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
+                if(SavedActorPlacement.Repair(actor,RoomLayout.Load(actor.level),"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
             if(recoveredActors.Count>0)
             {
                 string backup=Saves.PreserveRecoverySource();
@@ -257,7 +257,7 @@ namespace Remains.Networking
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
             ServerWorld.revision++;
             WorldReplication.Send(connection,PrepareRecovery(),owner,actor.id);
-            if(recoveredActors.Contains(actor.id)) connection.Send(new NoticeMessage {text="Позиция из старого сохранения была вне комнаты и восстановлена. Здоровье и предметы сохранены; исходный сейв скопирован в Recovery."});
+            if(recoveredActors.Contains(actor.id)) connection.Send(new NoticeMessage {text="Недопустимая позиция из старого сохранения восстановлена на свободной опоре. Здоровье и предметы сохранены; исходный сейв скопирован в Recovery."});
             BroadcastWorld();
         }
 
