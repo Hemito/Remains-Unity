@@ -19,6 +19,8 @@ namespace Remains.Runtime
         private bool Interrupt=>runtime.Options.Smoke.Contains("interrupt");
         private bool Host=>runtime.Options.Role=="host";
         private bool ContentScenario=>runtime.Options.Smoke.Contains("content");
+        private bool GeometryScenario=>runtime.Options.Smoke.Contains("geometry");
+        private bool LegacyScenario=>runtime.Options.Smoke.Contains("legacy");
         private bool CharacterScenario=>runtime.Options.Smoke.Contains("character");
         private bool MalformedScenario=>runtime.Options.Smoke.Contains("malformed");
         private string characterSource;
@@ -36,7 +38,10 @@ namespace Remains.Runtime
             if((ContentScenario || MalformedScenario) && index==1)
             {
                 world.weaponContent=Remains.Content.WeaponCatalog.ManifestCopy();
-                world.weaponContent.fingerprint=new string('F',64);world.weaponContent.packs[0].version="fixture-old";
+                world.weaponContent.fingerprint=new string('F',64);
+                if(GeometryScenario) world.weaponContent.gameplayAssets.Single(a=>a.id=="Content/prototype-room").fingerprint="fixture-geometry";
+                else if(LegacyScenario) {world.weaponContent.scope="weapon-catalog";world.weaponContent.gameplayAssets.Clear();}
+                else world.weaponContent.packs[0].version="fixture-old";
                 if(MalformedScenario) world.weaponContent.packs.Add(null);
                 original=new RecoverySnapshot(Remains.Serialization.StateJson.ToJson(world));value.Session.Saves.SaveRecovery(original);
             }
@@ -108,7 +113,9 @@ namespace Remains.Runtime
                 while(runtime.Hud.NetworkLobby.ContentConfirmRect==null && !finished) yield return null;
                 if(finished) yield break;
                 if(runtime.Session.ServerWorld!=null || runtime.Session.Saves.SelectedSnapshot().Id!=original.Id ||
-                    !lobby.ContentDifferences.Any(row=>row.id=="base" && row.saved.Contains("fixture-old")))
+                    !(GeometryScenario?lobby.ContentDifferences.Any(row=>row.id=="Ресурс: Content/prototype-room" && row.saved=="fixture-geometry"):
+                        LegacyScenario?lobby.ContentDifferences.Count(row=>row.id.StartsWith("Ресурс: ") && row.saved=="Не записан")==4:
+                        lobby.ContentDifferences.Any(row=>row.id=="base" && row.saved.Contains("fixture-old"))))
                 {Finish(false,"Мир изменён до подтверждения или не показана сохранённая версия контента.");yield break;}
                 yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.ContentCancelRect);
                 while((lobby.ClientBusy || runtime.Hud.NetworkLobby.ContentCancelRect!=null) && !finished) yield return null;
@@ -150,6 +157,13 @@ namespace Remains.Runtime
                 string backups=Path.Combine(runtime.Session.Saves.DirectoryPath,"Recovery");
                 if(actor==null || actor.health!=73 || actor.mana!=64 || actor.loadoutVersion!=1 ||
                     !Directory.Exists(backups) || !Directory.GetFiles(backups,"character-*.json").Any(p=>File.ReadAllText(p)==characterSource)) return false;
+            }
+            if(GeometryScenario || LegacyScenario)
+            {
+                if(world?.weaponContent?.scope!="prototype-gameplay" || world.weaponContent.gameplayAssets.Count!=4 ||
+                    world.weaponContentHistory==null || !world.weaponContentHistory.Any(m=>GeometryScenario?
+                        m.gameplayAssets.Any(a=>a.id=="Content/prototype-room" && a.fingerprint=="fixture-geometry"):
+                        m.scope=="weapon-catalog" && m.gameplayAssets.Count==0)) return false;
             }
             return world!=null && world.seed==(Interrupt || MalformedScenario?100:101) && world.worldId=="11111111111111111111111111111111" &&
                 world.ancestors.Any(a=>a.branchId=="22222222222222222222222222222222" && a.sequence==(Interrupt || MalformedScenario?5:ContentScenario?9:10)) &&
