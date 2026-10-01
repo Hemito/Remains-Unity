@@ -22,12 +22,14 @@ namespace Remains.Runtime
         private bool grenadeRequested,blastAfterTravel;
         private string completedActor;
         private string retainedContents,retainedActors;
+        private int visualChangedFrame;
         private readonly HashSet<int> acknowledgements=new();
         private bool Host=>runtime.Options.Role=="host";
 
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+60;
+            value.Session.Changed+=()=>visualChangedFrame=Time.frameCount;
             runtime.CommandSource=Command;
             value.Session.AttackReceived+=attack=>
             {
@@ -91,6 +93,8 @@ namespace Remains.Runtime
                 _=>false
             };
             if(!ready) return;
+            // Unity destroys objects and their owned materials at frame boundaries.
+            if(Time.frameCount<=visualChangedFrame+2) return;
             string contents=string.Join("|",session.World.containers.OrderBy(c=>c.id).Select(c=>c.id+":"+string.Join(",",c.items.OrderBy(i=>i.id).Select(i=>i.id+":"+i.count))));
             string actors=string.Join("|",session.World.actors.Where(a=>!a.player).OrderBy(a=>a.id).Select(a=>a.id+":"+a.health));
             if(phase==3) {retainedContents=contents;retainedActors=actors;}
@@ -98,8 +102,14 @@ namespace Remains.Runtime
             {Finish(false,"Выход/возвращение изменили NPC или содержимое контейнеров.");return;}
             if(players.Select(a=>a.id).Distinct().Count()!=players.Length) {Finish(false,"Повтор ID персонажа");return;}
             var expected=session.World.actors.Where(a=>a.level==self.level).Select(a=>a.id).OrderBy(id=>id).ToArray();
-            var visible=FindObjectsByType<PonyVisual>(FindObjectsSortMode.None).Select(v=>v.ActorId).OrderBy(id=>id).ToArray();
+            var visible=FindObjectsByType<PonyVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(v=>v.ActorId).OrderBy(id=>id).ToArray();
             if(!expected.SequenceEqual(visible)) {Finish(false,$"Неверная видимость: expected={string.Join(",",expected)}, actual={string.Join(",",visible)}");return;}
+            int expectedSprites=expected.Length+session.World.props.Count(p=>p.level==self.level)+session.World.containers.Count(c=>c.level==self.level)+runtime.Grenades.Flights.Count(f=>f.state.level==self.level);
+            int spriteCount=FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).Length;
+            var rooms=FindObjectsByType<RoomMeshLifetime>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            int roomMaterials=Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("RoomMaterial:"));
+            if(spriteCount!=expectedSprites || rooms.Length!=1 || roomMaterials!=rooms[0].Materials.Count)
+            {Finish(false,$"Ресурсы локации не освобождены: sprites={spriteCount}/{expectedSprites}, rooms={rooms.Length}, materials={roomMaterials}.");return;}
             if(!acked) {acked=true;NetworkClient.Send(new SessionProbeAck {phase=phase});}
             if(Host && acknowledgements.Count==runtime.Options.ProbePeers) Advance(phase+1);
         }

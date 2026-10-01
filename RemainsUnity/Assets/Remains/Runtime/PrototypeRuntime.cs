@@ -127,7 +127,11 @@ namespace Remains.Runtime
 
         private void RefreshVisuals()
         {
-            if (Session.World==null) { foreach(var visual in visuals.Values) visual.SetVisible(false);return; }
+            if (Session.World==null || Session.LocalActor==null)
+            {
+                foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
+                visuals.Clear();return;
+            }
             if(Session.LocalActor!=null && shownLevel!=Session.LocalActor.level)
             {
                 shownLevel=Session.LocalActor.level;
@@ -138,7 +142,7 @@ namespace Remains.Runtime
             }
             foreach (var actor in Session.World.actors)
             {
-                if (!ActorPresence.IsPresent(actor)) continue;
+                if (!ActorPresence.IsPresent(actor) || actor.level!=Session.LocalActor.level) continue;
                 if (!visuals.TryGetValue(actor.id,out var visual))
                 {
                     visual=new GameObject(actor.id).AddComponent<PonyVisual>(); visuals.Add(actor.id,visual);
@@ -147,7 +151,12 @@ namespace Remains.Runtime
                 visual.SetVisible(actor.level==Session.LocalActor?.level);
             }
             var removed=new List<string>();
-            foreach (var pair in visuals) if (!ActorPresence.IsPresent(Session.World.Find(pair.Key))) { Destroy(pair.Value.gameObject); removed.Add(pair.Key); }
+            foreach (var pair in visuals)
+            {
+                var actor=Session.World.Find(pair.Key);
+                if (!ActorPresence.IsPresent(actor) || actor.level!=Session.LocalActor.level)
+                {pair.Value.SetVisible(false);Destroy(pair.Value.gameObject);removed.Add(pair.Key);}
+            }
             foreach (var id in removed) visuals.Remove(id);
         }
 

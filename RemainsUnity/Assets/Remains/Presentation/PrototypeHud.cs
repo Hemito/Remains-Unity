@@ -125,7 +125,6 @@ namespace Remains.Presentation
             leave.gameObject.SetActive(true);friendlyFire.gameObject.SetActive(Mirror.NetworkServer.active);
             factory.gameObject.SetActive(actor.level=="hub" || actor.level=="factory:0");
             factory.GetComponentInChildren<Text>().text=actor.level=="hub"?"На завод 0":"Вернуться в хаб";
-            factory.interactable=!actor.down && !session.Travel.Pending;
             friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
             status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count} · {(actor.level=="hub"?"Хаб": "Завод 0")}\n1 — копьё · 2 — лом · 3 — 10-мм пистолет · 4 — лазерный пистолет · R — перезарядка";
             RefreshAmmunition();
@@ -193,6 +192,7 @@ namespace Remains.Presentation
 
         private void Update()
         {
+            factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
             if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor)?.id!=shownContainer?.id) Refresh();
             RefreshAmmunition();
             if(revival==null) return;

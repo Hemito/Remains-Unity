@@ -7,7 +7,6 @@ namespace Remains.Presentation
 {
     public static class RoomVisual
     {
-        private static readonly Dictionary<string,Material> materials=new();
         public static GameObject Build(RoomLayout room)
         {
             var parent=new GameObject("Комната: "+room.id).transform;
@@ -43,7 +42,9 @@ namespace Remains.Presentation
                 colors=new[]{new Color(shade,shade,shade),new Color(shade,shade,shade),new Color(shade,shade,shade),new Color(shade,shade,shade)} };
             parent.GetComponent<RoomMeshLifetime>().Meshes.Add(mesh);
             obj.AddComponent<MeshFilter>().sharedMesh=mesh;
-            if(!materials.TryGetValue(key,out var material)) {material=new Material(Shader.Find("Sprites/Default")){mainTexture=texture};materials.Add(key,material);}
+            var materials=parent.GetComponent<RoomMeshLifetime>().Materials;
+            if(!materials.TryGetValue(key,out var material))
+            {material=new Material(Shader.Find("Sprites/Default")){name="RoomMaterial:"+parent.name+":"+key,mainTexture=texture};materials.Add(key,material);}
             var renderer=obj.AddComponent<MeshRenderer>(); renderer.sharedMaterial=material;
             renderer.sortingOrder=order;
         }

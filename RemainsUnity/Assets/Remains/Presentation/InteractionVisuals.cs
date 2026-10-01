@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
@@ -23,7 +24,7 @@ namespace Remains.Presentation
             foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
             foreach(var key in new[]{"spear","crowbar","pistol","energy"}) sprites.Add(key,Load("Original/Weapons/"+key));
             session.Changed+=Refresh;
-            grenades.Created+=flight=> {if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"],0.35f));};
+            grenades.Created+=flight=>Refresh();
             session.AttackReceived+=attack=>
             {
                 if(attack.weapon is "spear" or "crowbar" or "grenade" || attack.level!=session.LocalActor?.level) return;
@@ -44,23 +45,30 @@ namespace Remains.Presentation
         }
         private void Refresh()
         {
-            if(session.World==null)
+            string level=session.LocalActor?.level;
+            if(session.World==null || level==null)
             {
-                foreach(var renderer in props.Values) renderer.enabled=false;
-                foreach(var renderer in containers.Values) renderer.enabled=false;
-                foreach(var renderer in weapons.Values) renderer.enabled=false;
-                foreach(var renderer in flights.Values) renderer.enabled=false;
+                Prune(props,new());Prune(containers,new());Prune(weapons,new());Prune(flights,new());
                 return;
             }
-            foreach(var pair in weapons) if(!ActorPresence.IsPresent(session.World.Find(pair.Key))) pair.Value.enabled=false;
-            foreach(var renderer in containers.Values) renderer.enabled=false;
-            foreach(var container in session.World.containers)
+            Prune(props,new(session.World.props.Where(p=>p.level==level).Select(p=>p.id)));
+            Prune(containers,new(session.World.containers.Where(c=>c.level==level).Select(c=>c.id)));
+            Prune(weapons,new(session.World.actors.Where(a=>ActorPresence.IsPresent(a) && a.level==level).Select(a=>a.id)));
+            Prune(flights,new(grenades.Flights.Where(f=>f.state.level==level).Select(f=>f.state.id)));
+            foreach(var container in session.World.containers.Where(c=>c.level==level))
             {
                 if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=Create("Контейнер "+container.id,sprites["crate"],.8f));
                 view.transform.position=container.Position+Vector2.up*.4f;view.enabled=container.level==session.LocalActor?.level;
             }
-            foreach(var prop in session.World.props) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,sprites["crate"],0.8f));
-            foreach(var actor in session.World.actors) if(ActorPresence.IsPresent(actor) && !weapons.ContainsKey(actor.id)) weapons.Add(actor.id,Create("Оружие "+actor.id,sprites["pistol"],0.8f));
+            foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,sprites["crate"],0.8f));
+            foreach(var actor in session.World.actors) if(ActorPresence.IsPresent(actor) && actor.level==level && !weapons.ContainsKey(actor.id)) weapons.Add(actor.id,Create("Оружие "+actor.id,sprites["pistol"],0.8f));
+            foreach(var flight in grenades.Flights.Where(f=>f.state.level==level))
+                if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"],.35f));
+        }
+        private static void Prune(Dictionary<string,SpriteRenderer> views,HashSet<string> retained)
+        {
+            foreach(var id in views.Keys.Where(id=>!retained.Contains(id)).ToArray())
+            {views[id].enabled=false;Destroy(views[id].gameObject);views.Remove(id);}
         }
         private void Update()
         {
