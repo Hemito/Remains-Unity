@@ -12,6 +12,7 @@ namespace Remains.Presentation
         private readonly Func<string,string> itemName;
         private readonly Func<int> quantity;
         private readonly Button[] rows=new Button[8];
+        private readonly Button[] weaponButtons=new Button[4];
         private readonly Image[] icons=new Image[8];
         private readonly Image detailIcon;
         private readonly InventoryArtwork artwork;
@@ -24,6 +25,7 @@ namespace Remains.Presentation
         public RectTransform RowRect(int row)=>rows[row].GetComponent<RectTransform>();
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
+        public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();
         public PersonalInventoryPanel(Transform parent,HudElements ui,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork)
         {
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
@@ -34,6 +36,7 @@ namespace Remains.Presentation
             {
                 string weapon=weapons[i];
                 var button=ui.Button(parent,names[i],new Vector2(20+i*195,-56),new Vector2(185,38),()=>equip(weapon));
+                weaponButtons[i]=button;
                 artwork.Create(button.transform,new Vector2(8,-7),new Vector2(47,24),weapon);
                 var weaponLabel=button.GetComponentInChildren<Text>();weaponLabel.fontSize=16;
                 HudElements.Rect(weaponLabel.rectTransform,new Vector2(60,-3),new Vector2(120,32));

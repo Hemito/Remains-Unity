@@ -57,6 +57,7 @@ namespace Remains.Presentation
         public RectTransform DepositRowRect(int index)=>personalItems.RowRect(index);
         public RectTransform DepositActionRect=>personalItems.DepositRect;
         public RectTransform UseItemRect=>personalItems.UseRect;
+        public RectTransform InventoryWeaponRect(int index)=>personalItems.WeaponRect(index);
         public Action<string> EquipWeapon {get;set;}
         private Text ammunition;
         private Text revival;

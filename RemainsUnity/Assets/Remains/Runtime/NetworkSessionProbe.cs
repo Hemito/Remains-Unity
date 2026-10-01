@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -21,6 +22,8 @@ namespace Remains.Runtime
         private float phaseTime,deadline,nextSelfHeal;
         private bool acked,travelRequested,finished;
         private bool grenadeRequested,blastAfterTravel;
+        private bool inventoryActionPending;
+        private int inventoryHeals,inventoryWeaponChanges;
         private string completedActor;
         private string retainedContents,retainedActors;
         private int visualChangedFrame;
@@ -60,8 +63,11 @@ namespace Remains.Runtime
                 grenadeRequested=true;
                 return new PlayerCommand {grenade=true,hasAim=true,aim=self.Position+Vector2.down*3};
             }
-            if(phase==5 && self.level=="hub" && self.health<70 && Time.unscaledTime>=nextSelfHeal)
-            {nextSelfHeal=Time.unscaledTime+1;return new PlayerCommand {heal=true};}
+            if(phase==5 && self.level=="hub" && self.health<70 && !inventoryActionPending && Time.unscaledTime>=nextSelfHeal)
+            {
+                if(!runtime.Hud.InventoryOpen) return new PlayerCommand {inventory=true};
+                inventoryActionPending=true;StartCoroutine(UseInventory());
+            }
             if((phase!=3 && phase!=6) || self.level!="factory:0" || runtime.Session.Travel.Pending) return default;
             float destination=Destination(self.character);
             float delta=destination-self.x;
@@ -73,6 +79,34 @@ namespace Remains.Runtime
         {
             acknowledgements.Clear();
             NetworkServer.SendToAll(new SessionProbePhase {phase=next});
+        }
+        private IEnumerator UseInventory()
+        {
+            var actor=runtime.Session.LocalActor;
+            foreach(int index in new[]{3,2})
+            {
+                yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(index));
+                string expected=index==3?"energy":"pistol";
+                if(runtime.Session.LocalActor.weapon!=expected)
+                {Finish(false,$"Кнопка оружия не применилась: expected={expected}, actual={runtime.Session.LocalActor.weapon}.");yield break;}
+                inventoryWeaponChanges++;
+            }
+            int row=actor.inventory.FindIndex(item=>item.definition=="heal");
+            if(row<0 || row>=8) {Finish(false,"Аптечка не найдена на первой странице проверочного инвентаря.");yield break;}
+            float beforeHealth=actor.health;
+            int beforeCount=actor.inventory.Where(item=>item.definition=="heal").Sum(item=>item.count);
+            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(row));
+            if(runtime.Session.LocalActor.health!=beforeHealth || runtime.Session.LocalActor.inventory.Where(item=>item.definition=="heal").Sum(item=>item.count)!=beforeCount)
+            {Finish(false,"Выбор аптечки сам изменил здоровье или количество.");yield break;}
+            yield return UiPointerProbe.Click(runtime.Hud.UseItemRect);
+            float until=Time.unscaledTime+5;
+            while(runtime.Session.LocalActor.health==beforeHealth && Time.unscaledTime<until) yield return null;
+            actor=runtime.Session.LocalActor;
+            if(actor.health!=Mathf.Min(100,beforeHealth+35) || actor.inventory.Where(item=>item.definition=="heal").Sum(item=>item.count)!=beforeCount-1)
+            {Finish(false,$"Лечение через инвентарь: hp={actor.health}, before={beforeHealth}, healBefore={beforeCount}.");yield break;}
+            inventoryHeals++;
+            if(runtime.Hud.InventoryOpen) runtime.Hud.ToggleInventory();
+            nextSelfHeal=Time.unscaledTime+1;inventoryActionPending=false;
         }
         private void Update()
         {
@@ -99,7 +133,7 @@ namespace Remains.Runtime
                 2=>players.All(a=>a.level=="factory:0") && !session.Travel.Pending,
                 3=>players.All(a=>a.level=="factory:0" && Mathf.Abs(a.x-Destination(a.character))<.15f && a.facing==Facing(a.character)),
                 4=>self.level==(Host?"hub":"factory:0") && players.Count(a=>a.level=="hub")==1 && !session.Travel.Pending,
-                5=>players.All(a=>a.level=="hub" && a.health>=70) && !session.Travel.Pending,
+                5=>players.All(a=>a.level=="hub" && a.health>=70) && !session.Travel.Pending && !inventoryActionPending && (Host || inventoryHeals==2 && inventoryWeaponChanges==4),
                 6=>players.All(a=>a.level=="factory:0" && Mathf.Abs(a.x-Destination(a.character))<.15f && a.facing==Facing(a.character)) && !session.Travel.Pending,
                 _=>false
             };
@@ -141,10 +175,10 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             finished=true;
-            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,peers=runtime.Options.ProbePeers,actor=completedActor??runtime.Session.LocalActorId,stress=runtime.Options.NetworkStress},true);
+            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,peers=runtime.Options.ProbePeers,actor=completedActor??runtime.Session.LocalActorId,stress=runtime.Options.NetworkStress,inventoryHeals=inventoryHeals,inventoryWeaponChanges=inventoryWeaponChanges},true);
             if(runtime.Options.Report!=null) File.WriteAllText(runtime.Options.Report,json);
             Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success,stress;public string detail,actor;public int phase,peers;}
+        [Serializable] private sealed class Report {public bool success,stress;public string detail,actor;public int phase,peers,inventoryHeals,inventoryWeaponChanges;}
     }
 }
