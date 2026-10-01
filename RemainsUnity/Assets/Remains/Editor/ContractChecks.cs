@@ -18,6 +18,7 @@ namespace Remains.Editor
             WeaponCatalog.Load();
             WeaponModChecks.Run();
             GameplayContentChecks.Run();
+            LongSavePathChecks.Run();
             CharacterContentChecks.Run();
             GameplayRuleChecks.Run();
             LevelPauseChecks.Run();

@@ -9,6 +9,7 @@ namespace Remains.Persistence
     {
         public static void Write(string destination,string content)
         {
+            destination=SavePath.Absolute(destination);
             Directory.CreateDirectory(Path.GetDirectoryName(destination));
             string temporary=destination+".tmp";
             File.WriteAllText(temporary,content);

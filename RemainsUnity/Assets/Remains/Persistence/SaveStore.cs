@@ -13,8 +13,8 @@ namespace Remains.Persistence
         public string DirectoryPath { get; }
         public SaveStore(string directory)
         {
-            DirectoryPath = directory;
-            Directory.CreateDirectory(directory);
+            DirectoryPath = SavePath.Absolute(directory);
+            Directory.CreateDirectory(DirectoryPath);
         }
 
         public WorldState LoadWorld(bool prepareForPlay=true)
