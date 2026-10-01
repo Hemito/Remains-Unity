@@ -32,10 +32,20 @@ namespace Remains.Networking
         private readonly Dictionary<int,long> backupRevisions = new();
         private readonly OwnershipService ownership = new();
         private SharedInventory inventory;
+        private readonly HashSet<string> recoveredActors=new();
 
         public override void OnStartServer()
         {
             ServerWorld = Saves.LoadWorld() ?? CreateWorld();
+            recoveredActors.Clear();
+            foreach(var actor in ServerWorld.actors)
+                if(ActorPositionRecovery.Repair(actor,RoomLayout.Load(actor.level),"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
+            if(recoveredActors.Count>0)
+            {
+                string backup=Saves.PreserveRecoverySource();
+                Debug.LogWarning($"Исходный сейв сохранён перед восстановлением позиций: world={ServerWorld.worldId}, actors={recoveredActors.Count}, backup={backup}.");
+                ServerWorld.revision++;Saves.SaveWorld(ServerWorld);
+            }
             foreach (var actor in ServerWorld.actors.Where(a => a.player)) actor.connected = false;
             inventory = new SharedInventory(ServerWorld);
             NetworkServer.RegisterHandler<JoinMessage>(Join);
@@ -142,6 +152,7 @@ namespace Remains.Networking
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
             ServerWorld.revision++;
             connection.Send(new WelcomeMessage { owner = owner, actor = actor.id, worldJson = JsonUtility.ToJson(ServerWorld) });
+            if(recoveredActors.Contains(actor.id)) connection.Send(new NoticeMessage {text="Позиция из старого сохранения была вне комнаты и восстановлена. Здоровье и предметы сохранены; исходный сейв скопирован в Recovery."});
             BroadcastWorld();
         }
 

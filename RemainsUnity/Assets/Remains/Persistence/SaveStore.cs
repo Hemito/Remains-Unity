@@ -37,6 +37,16 @@ namespace Remains.Persistence
             return File.Exists(path)?JsonUtility.FromJson<ActorState>(File.ReadAllText(path)):null;
         }
 
+        public string PreserveRecoverySource()
+        {
+            string source=Path.Combine(DirectoryPath,"world.json");
+            if(!File.Exists(source)) return null;
+            string directory=Path.Combine(DirectoryPath,"Recovery");Directory.CreateDirectory(directory);
+            string destination=Path.Combine(directory,"world-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff")+"-"+Guid.NewGuid().ToString("N")+".json");
+            File.Copy(source,destination);
+            return destination;
+        }
+
         private void AtomicWrite(string filename, string content)
         {
             string destination = Path.Combine(DirectoryPath, filename);

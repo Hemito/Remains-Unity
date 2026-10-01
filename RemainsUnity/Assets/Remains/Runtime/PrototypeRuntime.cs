@@ -90,7 +90,8 @@ namespace Remains.Runtime
             }
             if (Options.Smoke != null)
             {
-                if(Options.Smoke.StartsWith("contracts")) gameObject.AddComponent<NetworkContracts>().Initialize(this);
+                if(Options.Smoke.StartsWith("movement")) gameObject.AddComponent<NetworkMovementProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("contracts")) gameObject.AddComponent<NetworkContracts>().Initialize(this);
                 else gameObject.AddComponent<NetworkSmoke>().Initialize(this);
             }
         }

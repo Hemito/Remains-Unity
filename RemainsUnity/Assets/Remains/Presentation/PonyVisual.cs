@@ -17,6 +17,7 @@ namespace Remains.Presentation
         private string pose;
         private int frame = -1;
         private MaterialPropertyBlock properties;
+        public string ActorId=>state?.id;
 
         public static void Prepare()
         {

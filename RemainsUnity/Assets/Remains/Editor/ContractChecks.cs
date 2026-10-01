@@ -69,21 +69,7 @@ namespace Remains.Editor
                 "Сохранение восстанавливает идентичность мира и состояние тела");
             Require(restored.completedTransactions.Contains("claim-1") && File.Exists(Path.Combine(directory,"world.json.previous")),
                 "Сохранение сохраняет транзакцию и предыдущую версию");
-            var room=RoomLayout.Load();var controller=new MovementController(room);
-            var mover=new ActorState {x=0,y=0};controller.Step(mover,Vector2.zero,true,0.05f);
-            Require(mover.y>0 && mover.vy>0,"Прыжок от поверхности комнаты");
-            mover=new ActorState();controller.Step(mover,Vector2.right,false,0.02f);
-            Require(mover.pose=="walk" && mover.vx==2.5f,"Обычное движение использует ходьбу");
-            controller.Step(mover,Vector2.right,false,0.02f,true);
-            Require(mover.pose=="run" && mover.vx==4,"Бег включается отдельно");
-            var hub=RoomLayout.Load("hub");CharacterPlacement.SpawnInHub(mover);
-            Require(mover.level=="hub" && Math.Abs(mover.x-hub.spawnX)<0.001f && Math.Abs(mover.y-hub.spawnY)<0.001f,"Начальная позиция из данных хаба");
-            controller.Step(mover,Vector2.zero,false,0.02f);
-            Require(hub.artwork.Length>0 && hub.ladders.Length==3,"Геометрия и фон первой комнаты хаба импортированы");
-            mover.x=3;mover.y=4;mover.vy=-10;controller.Step(mover,Vector2.zero,false,0.1f);
-            Require(Mathf.Abs(mover.y-3.25f)<0.01f && mover.pose=="idle","Приземление на платформу с позой стояния");
-            mover.x=4;mover.y=0;controller.Step(mover,Vector2.up,false,0.1f);
-            Require(mover.y>0 && mover.pose=="climb","Лестница использует геометрию комнаты");
+            MovementChecks.Run();
             actor.connected=true;actor.down=true;second.connected=false;second.down=false;
             actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});
             actor.injuries.Add(new InjuryState{id="fracture",periodicDamage=false});
