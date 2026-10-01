@@ -6,6 +6,23 @@ namespace Remains.Domain
 {
     public sealed class OwnershipService
     {
+        public void BeginSession(WorldState world)
+        {
+            foreach(var actor in world.actors)
+            {
+                // Transport connection IDs have no identity across session boundaries.
+                actor.owner=null;
+                if(actor.player) actor.connected=false;
+                else
+                {
+                    actor.target=null;
+                    if(actor.attackBusy) NpcAttackRules.Cancel(actor);
+                }
+                actor.generation++;actor.revision++;
+            }
+            foreach(var prop in world.props)
+            {prop.owner=null;prop.held=false;prop.generation++;}
+        }
         public void Reassign(WorldState world, IReadOnlyCollection<string> activeOwners)
         {
             GrenadeRules.Reassign(world,activeOwners);

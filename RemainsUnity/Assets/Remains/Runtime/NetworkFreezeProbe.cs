@@ -17,11 +17,30 @@ namespace Remains.Runtime
         private float deadline,frozenAt,remaining,poseTime;
         private string attackId;
         private bool finished;
+        private bool Resume=>runtime.Options.Smoke.Contains("resume");
+        private string oldAttack;
+        private float enteredAt;
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=()=>default;
+            if(Resume && value.Options.Role=="host")
+            {
+                var saved=value.Session.Saves.LoadWorld(prepareForPlay:false)?.Find("npc:training-guard");
+                if(saved==null || !saved.attackBusy) throw new InvalidOperationException("Для проверки восстановления нужна сохранённая незавершённая атака.");
+                oldAttack=saved.attackId;
+            }
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<FreezeProbeFinish>(m=>Finish(m.success,m.detail));
-            value.Session.AttackReceived+=attack=>{if(attack.id==attackId) shots++;};
+            value.Session.AttackReceived+=attack=>
+            {
+                if(value.Options.Role!="host") return;
+                if(Resume && attack.weapon=="npc-shot")
+                {
+                    if(attack.id==oldAttack || enteredAt==0 || Time.unscaledTime-enteredAt<1.5f)
+                    {Complete(false,"После перезапуска пришла старая атака или потеряна пауза восстановления.");return;}
+                    shots++;
+                }
+                else if(attack.id==attackId) shots++;
+            };
         }
         private void Update()
         {
@@ -31,6 +50,18 @@ namespace Remains.Runtime
             var session=runtime.Session;var self=session.LocalActor;
             if(self==null || session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return;
             var npc=session.World.Find("npc:training-guard");
+            if(Resume)
+            {
+                if(phase==0)
+                {
+                    if(npc.attackBusy || npc.attackId==oldAttack || npc.attackCooldown<NpcAttackRules.CooldownSeconds || self.level!="hub")
+                    {Complete(false,"Загрузка не отменила старую атаку с паузой в пустом уровне.");return;}
+                    session.Travel.RequestFactory();phase=1;
+                }
+                if(phase==1 && self.level=="factory:0") {enteredAt=Time.unscaledTime;phase=2;}
+                if(phase==2 && shots==1) Complete(true,"Перезапуск сохранил мир, отменил атаку прежней сессии и выдержал паузу перед новым выстрелом.");
+                return;
+            }
             if(phase==0) {session.Travel.RequestFactory();phase=1;return;}
             if(phase==1 && self.level=="factory:0" && npc.attackBusy)
             {attackId=npc.attackId;session.Travel.RequestHub();phase=2;return;}
@@ -49,6 +80,7 @@ namespace Remains.Runtime
                 var saved=session.Saves.LoadWorld(prepareForPlay:false)?.Find(npc.id);
                 if(saved==null || !saved.attackBusy || saved.attackId!=attackId || saved.attackRemaining<=0)
                 {Complete(false,"Сохранение не содержит незавершённую атаку пустого уровня.");return;}
+                File.Copy(Path.Combine(session.Saves.DirectoryPath,"world.json"),runtime.Options.Report+".active-world.json",true);
                 session.Travel.RequestFactory();phase=4;
             }
             if(phase==4 && self.level=="factory:0" && shots>0)

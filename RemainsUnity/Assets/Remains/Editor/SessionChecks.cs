@@ -49,6 +49,14 @@ namespace Remains.Editor
             world.actors.Add(npc); world.actors.Add(player);
             new OwnershipService().Reassign(world, new[]{"present"});
             Require(npc.owner=="present" && !npc.attackBusy && npc.attackRemaining==0, "Потеря владельца отменяет атаку до передачи");
+            npc.attackBusy=true;npc.attackId="old-session";npc.attackRemaining=.4f;
+            var heldProp=new PropState {id="held",owner="present",held=true,x=4};world.props.Add(heldProp);
+            new OwnershipService().BeginSession(world);
+            Require(heldProp.owner==null && !heldProp.held && heldProp.x==4,"Перезапуск освобождает предмет без потери положения");
+            player.connected=true;player.owner="present";
+            new OwnershipService().Reassign(world,new[]{"present"});
+            Require(npc.owner=="present" && !npc.attackBusy && npc.attackId==null && npc.attackCooldown==NpcAttackRules.CooldownSeconds,
+                "Повтор номера соединения после перезапуска не продолжает старую атаку");
             Debug.Log("Проверки сессии: PASS — порядок пакетов, независимые переходы, отмена атаки при отключении.");
         }
         private static void Require(bool condition, string detail)

@@ -89,7 +89,7 @@ namespace Remains.Networking
                 Debug.LogWarning($"Исходный сейв сохранён перед восстановлением позиций: world={ServerWorld.worldId}, actors={recoveredActors.Count}, backup={backup}.");
                 ServerWorld.revision++;Saves.SaveWorld(ServerWorld);
             }
-            foreach (var actor in ServerWorld.actors.Where(a => a.player)) actor.connected = false;
+            ownership.BeginSession(ServerWorld);
             inventory = new SharedInventory(ServerWorld);
             InvokeRepeating(nameof(CheckpointWorld),3,3);
         }
