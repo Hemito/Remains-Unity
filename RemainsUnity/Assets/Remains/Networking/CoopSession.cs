@@ -219,15 +219,8 @@ namespace Remains.Networking
             {
                 backupRevisions.Remove(connection.connectionId);
                 var actor = ServerWorld.Find(playerIds[owner]);
-                if (actor.level == "hub") {GrenadeRules.ForgetHubActor(ServerWorld,actor.id);ServerWorld.actors.Remove(actor);}
-                else
-                {
-                    actor.connected = false;
-                    actor.down = true;
-                    actor.lifecycleSequence++;
-                    actor.pose = "down";
-                    actor.revision++;
-                }
+                ActorSessionRules.Disconnect(actor);
+                if(actor.level=="hub") GrenadeRules.ForgetHubActor(ServerWorld,actor.id);
                 playerIds.Remove(owner);
                 ownership.Reassign(ServerWorld, owners.Values.ToArray());
                 ServerWorld.revision++;

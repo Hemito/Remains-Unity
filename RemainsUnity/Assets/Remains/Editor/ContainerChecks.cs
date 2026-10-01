@@ -26,6 +26,16 @@ namespace Remains.Editor
             Require(container.items.Count==1 && container.items[0].id==item.id && other.inventory.Count==0,"Исчезнувший получатель возвращает один предмет в источник");
             Require(inventory.PrepareClaim("three",container.id,item.id,other),"Возвращённый предмет доступен другому игроку");
             inventory.CommitGrant(world.pendingGrants[0]);Require(other.inventory.Count==1 && container.items.Count==0,"Выдача после возврата не дублирует предмет");
+            var hub=new ActorState {id="hub-player",player=true,connected=true,owner="gone",level="hub"};world.actors.Add(hub);
+            var hubContainer=new ContainerState {id="hub-container",level="hub",x=0};world.containers.Add(hubContainer);
+            var reserved=SharedInventory.Create("heal",3);hubContainer.items.Add(reserved);
+            Require(inventory.PrepareClaim("hub-grant",hubContainer.id,reserved.id,hub),"Резерв персонажа хаба");
+            ActorSessionRules.Disconnect(hub);new OwnershipService().Reassign(world,Array.Empty<string>());
+            Require(!ActorPresence.IsPresent(hub) && !hub.down && hub.owner==null,"Отключённый хаб сохраняет запись без тела и чужого владельца");
+            inventory.CommitGrant(world.pendingGrants[0]);
+            var recovered=hub.Copy();recovered.connected=true;
+            Require(ActorPresence.IsPresent(recovered) && recovered.inventory.Count==1 && recovered.inventory[0].id==reserved.id,"Завершённая выдача сохраняется в отсутствующей записи и возвращается с персонажем");
+            ActorSessionRules.Disconnect(other);Require(other.down && ActorPresence.IsPresent(other),"Отключение вне хаба сохраняет тело без сознания");
             string path=Path.Combine(Path.GetTempPath(),"Remains-containers-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(path);
             try
             {

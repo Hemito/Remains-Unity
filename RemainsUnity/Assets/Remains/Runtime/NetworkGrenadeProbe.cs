@@ -56,7 +56,7 @@ namespace Remains.Runtime
             if(active!=null)
             {
                 grenadeId=active.id;
-                if(active.generation>1 && session.ServerWorld.Find("player:session-client-1")==null)
+                if(active.generation>1 && !Remains.Domain.ActorPresence.IsPresent(session.ServerWorld.Find("player:session-client-1")))
                 {
                     handoff=true;
                     // Exact canonical checkpoint, captured while the fuse is still live.
