@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Mirror;
+using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
 using UnityEngine;
@@ -25,6 +26,10 @@ namespace Remains.Runtime
         private int frozenSamples,activeSamples;
         private string failure;
         private bool menuCommand,uiBusy;
+        private bool DeferredScenario=>runtime.Options.Smoke.Contains("-deferred-");
+        private float healthBeforeLate;
+        private int damageBeforeLate;
+        private bool observedDeferred;
         private bool First=>runtime.Session.CharacterId=="session-client-1";
         private bool Host=>runtime.Options.Role=="host";
         public void Initialize(PrototypeRuntime value)
@@ -32,7 +37,10 @@ namespace Remains.Runtime
             runtime=value;deadline=Time.unscaledTime+55;
             value.CommandSource=Command;
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<PauseProbeAck>((connection,message)=>
-                {if(message.phase==hostPhase) acknowledgements.Add(connection.connectionId);});
+                {
+                    if(message.phase==hostPhase) acknowledgements.Add(connection.connectionId);
+                    Debug.Log($"Проверка паузы: ack connection={connection.connectionId}, phase={message.phase}, expected={hostPhase}, count={acknowledgements.Count}.");
+                });
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<PauseProbePhase>(Receive);
@@ -47,9 +55,9 @@ namespace Remains.Runtime
             var result=new PlayerCommand {movement=Vector2.right*.15f,hasAim=true,aim=actor.Position+Vector2.right*20};
             if(First && phase==1 && actor.level=="factory:0" && !runtime.Session.Travel.Pending)
             {
-                if(!fired) {result.fire=true;result.grenade=true;fired=true;}
-                else if(!reloaded) {result.reload=true;reloaded=true;}
+                if(!fired) {result.fire=true;fired=true;}
             }
+            if(First && phase==2 && !reloaded) {result.reload=true;result.grenade=true;reloaded=true;}
             return result;
         }
         private IEnumerator Start()
@@ -59,18 +67,30 @@ namespace Remains.Runtime
             for(int step=0;step<=11 && !finished;step++)
             {
                 hostPhase=step;acknowledgements.Clear();
+                Debug.Log($"Проверка паузы: начало phase={step}, peers={runtime.Options.ProbePeers}.");
                 if(step==6) yield return ConfigureSettings(true,false);
                 if(step==8) yield return ConfigureSettings(false,true);
                 if(step==11) yield return ConfigureSettings(false,false);
                 NetworkServer.SendToAll(new PauseProbePhase {phase=step});
                 while(acknowledgements.Count!=runtime.Options.ProbePeers && !finished) yield return null;
+                if(step==2 && DeferredScenario) InjectLateAttack();
             }
             if(!finished) NetworkServer.SendToAll(new PauseProbeFinish());
+        }
+        private void InjectLateAttack()
+        {
+            // Fault fixture: deliver the same already-created shot twice while the level is paused.
+            // Uses the real relay and receiver, but intentionally bypasses new-shot input/ammo spending.
+            var session=runtime.Session;var target=session.ServerWorld.Find("player:session-client-1");
+            var attack=new AttackEvent {id="pause-late-shot",attacker=session.LocalActorId,weapon="pistol",level="factory:0",
+                originX=target.x-1,originY=target.y+.7f,endX=target.x+1,endY=target.y+.7f};
+            session.Fire(attack);session.Fire(attack);
         }
         private void Receive(PauseProbePhase message)
         {
             phase=message.phase;
             var session=runtime.Session;
+            if(phase==2 && First) {healthBeforeLate=session.LocalActor.health;damageBeforeLate=session.LocalActor.damageSequence;}
             if(phase==1 && (Host || First)) session.Travel.RequestFactory();
             if(phase==2 && First) StartCoroutine(ManualPause(true));
             if(phase==3 && Host) session.Travel.RequestHub();
@@ -102,7 +122,9 @@ namespace Remains.Runtime
         }
         private IEnumerator ManualPause(bool paused)
         {
-            uiBusy=true;yield return OpenMenu();
+            uiBusy=true;
+            if(paused) {while(!reloaded && !finished) yield return null;yield return null;}
+            yield return OpenMenu();
             yield return UiPointerProbe.Click(paused?runtime.Hud.PauseMenu.ManualPauseRect:runtime.Hud.PauseMenu.ResumeRect);
             while(runtime.Session.Pause.IsPaused("factory:0")!=paused && !finished) yield return null;
             yield return CloseMenu();uiBusy=false;
@@ -141,7 +163,20 @@ namespace Remains.Runtime
             string expectedLevel=First && phase>=1 && phase!=9 || Host && phase is 1 or 2?"factory:0":"hub";
             if(session.LocalActor.level!=expectedLevel || session.Pause.IsPaused("factory:0")!=expectedPause || session.Pause.IsPaused("hub") ||
                 session.Pause.PauseOnMenu!=expectedMenu || session.Pause.PauseOnInventory!=expectedInventory) return;
-            if(phase==1 && First && (!runtime.Combat.Reload.Active || !runtime.Grenades.Flights.Any())) return;
+            if(DeferredScenario && First && phase is 3 or 4)
+            {
+                if(runtime.Combat.PendingHitCount<2) return;
+                if(session.LocalActor.health!=healthBeforeLate || session.LocalActor.damageSequence!=damageBeforeLate)
+                {failure="Отложенное попадание изменило здоровье во время паузы";Finish(false);return;}
+                observedDeferred=true;
+            }
+            if(DeferredScenario && First && phase==5)
+            {
+                if(session.LocalActor.damageSequence==damageBeforeLate) return;
+                if(!observedDeferred || session.LocalActor.damageSequence!=damageBeforeLate+1 || session.LocalActor.health!=healthBeforeLate-11 || runtime.Combat.PendingHitCount!=0)
+                {failure="Возобновление не применило ровно один отложенный урон";Finish(false);return;}
+            }
+            if(phase==1 && First && !fired) return;
             if(phase is 2 or 3)
             {if(!sampling) {sampling=true;StartCoroutine(SampleSimulation());}return;}
             Acknowledge();
@@ -174,12 +209,15 @@ namespace Remains.Runtime
             Acknowledge();sampling=false;
         }
         private void Acknowledge()
-        {acknowledged=phase;NetworkClient.Send(new PauseProbeAck {phase=phase});}
+        {
+            if(phase==2 && First) {healthBeforeLate=runtime.Session.LocalActor.health;damageBeforeLate=runtime.Session.LocalActor.damageSequence;}
+            acknowledged=phase;NetworkClient.Send(new PauseProbeAck {phase=phase});
+        }
         private void Finish(bool success)
         {
             if(finished) return;finished=true;exitCode=success?0:1;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,
-                detail=$"Пауза: phase={phase}, ack={acknowledged}, frozenSamples={frozenSamples}, activeSamples={activeSamples}, revision={runtime.Session.Pause.Revision}, level={runtime.Session.LocalActor?.level}, failure={failure}."},true));
+                detail=$"Пауза: phase={phase}, hostPhase={hostPhase}, ack={acknowledged}, ackCount={acknowledgements.Count}, frozenSamples={frozenSamples}, activeSamples={activeSamples}, deferred={observedDeferred}, attackerHits={runtime.Combat.AttackerDecidedHits}, victimHits={runtime.Combat.VictimDecidedHits}, revision={runtime.Session.Pause.Revision}, level={runtime.Session.LocalActor?.level}, failure={failure}."},true));
             Invoke(nameof(Exit),1);
         }
         private int exitCode;

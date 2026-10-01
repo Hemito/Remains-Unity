@@ -22,6 +22,13 @@ namespace Remains.Editor
             var second=new ActorState {id="second",player=true,connected=true,level="factory:0"};
             var hub=new ActorState {id="hub-player",player=true,connected=true,level="hub"};
             world.actors.Add(first);world.actors.Add(second);world.actors.Add(hub);
+            var hit=new AttackTargetSnapshot(first,true);
+            Require(hit.Matches(first) && hit.contact,"Контакт относится к исходному состоянию цели");
+            first.x+=20;Require(hit.Matches(first) && hit.contact,"Решение о контакте не пересчитывается по позиции после возобновления");
+            first.lifecycleSequence++;Require(!hit.Matches(first),"Поздняя атака не относится к новому жизненному циклу");
+            first.lifecycleSequence--;first.generation++;Require(!hit.Matches(first),"Поздняя атака не относится к новому поколению");
+            first.generation--;first.level="hub";Require(!hit.Matches(first),"Поздняя атака не переносится в другой уровень");
+            first.level="factory:0";
             var pause=new LevelPauseCoordinator(new CooperativePauseRule());
             Require(pause.SetIntent(first,0,0,true,true)==null && !pause.IsPaused(world,first.level),"Меню/инвентарь по умолчанию не останавливают уровень");
             pause.PauseOnInventory=true;

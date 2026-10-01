@@ -29,6 +29,7 @@ namespace Remains.Gameplay
         private int selectedGeneration;
         private bool resolvingExplosions;
         private readonly DeferredLevelActions pending=new();
+        public int PendingHitCount=>pending.Count;
         public Func<string,int,Vector2?> LocalExplosionPosition { get; set; }
         public CombatController(CoopSession session)
         {
@@ -131,18 +132,27 @@ namespace Remains.Gameplay
         {
             if (session.World == null) return;
             if(attack.weapon=="grenade") return; // Persisted explosion decisions are processed from World.
-            if(session.Pause.IsPaused(attack.level)) {pending.Add(attack.level,()=>ReceiveAttack(attack));return;}
             foreach (var actor in session.World.actors.ToArray())
             {
                 if(!AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) continue;
-                bool contact = HitGeometry.Contacts(actor, attack);
+                var target=new AttackTargetSnapshot(actor,HitGeometry.Contacts(actor,attack));
+                if(!target.contact) continue;
+                if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>ApplyAttackTarget(attack,target));
+                else ApplyAttackTarget(attack,target);
+            }
+        }
+        private void ApplyAttackTarget(AttackEvent attack,AttackTargetSnapshot target)
+        {
+                var actor=session.World?.Find(target.id);
+                if(!target.Matches(actor) || !AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) return;
+                bool contact=target.contact;
                 if (actor.player)
                 {
                     if(FriendlyFireDecision.UsesAttacker(attack,actor))
                     {
                         if(attack.sourceOwner==session.LocalOwner && contact)
                             session.ReportFriendlyHit(new FriendlyHitMessage {target=actor.id,generation=actor.generation,lifecycle=actor.lifecycleSequence,attackJson=JsonUtility.ToJson(attack)});
-                        continue;
+                        return;
                     }
                     if (actor.owner == session.LocalOwner && damage.Apply(actor, attack, contact))
                     {
@@ -156,7 +166,6 @@ namespace Remains.Gameplay
                     session.ReportNpcHit(new NpcHitMessage { target = actor.id, generation = actor.generation,
                         attackJson = JsonUtility.ToJson(attack) });
                 }
-            }
         }
 
         private void ReceiveNpcHit(NpcHitMessage message)

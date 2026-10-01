@@ -12,6 +12,7 @@ namespace Remains.Domain
         public void Clear()=>pending.Clear();
         public void Drain(Func<string,bool> paused)
         {
+            if(pending.Count==0) return;
             var ready=pending.FindAll(entry=>!paused(entry.level));
             foreach(var entry in ready) {pending.Remove(entry);entry.apply();}
         }
