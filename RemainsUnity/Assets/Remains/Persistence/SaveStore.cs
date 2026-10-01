@@ -163,11 +163,7 @@ namespace Remains.Persistence
         private void AtomicWrite(string filename, string content)
         {
             string destination = Path.Combine(DirectoryPath, filename);
-            Directory.CreateDirectory(Path.GetDirectoryName(destination));
-            string temporary = destination + ".tmp";
-            File.WriteAllText(temporary, content);
-            if (File.Exists(destination)) File.Replace(temporary, destination, destination + ".previous");
-            else File.Move(temporary, destination);
+            AtomicSaveFile.Write(destination,content);
         }
     }
 }
