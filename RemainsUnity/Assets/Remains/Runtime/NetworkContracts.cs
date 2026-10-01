@@ -44,7 +44,7 @@ namespace Remains.Runtime
         }
         private void Advance(int next)
         {
-            if(next==0) sharedItem=runtime.Session.World.container.Find(i=>i.definition=="caps")?.id;
+            if(next==0) sharedItem=runtime.Session.World.containers[0].items.Find(i=>i.definition=="caps")?.id;
             SetPhase(next);NetworkServer.SendToAll(new ContractPhaseMessage{phase=next,item=sharedItem});
         }
 
@@ -91,7 +91,7 @@ namespace Remains.Runtime
             if(phase==0 && !acted)
             {
                 acted=true;
-                session.RequestClaim(sharedItem);
+                session.RequestClaim(ContainerState.PrototypeId,sharedItem);
             }
             if(phase==1) session.LocalActor.x=-5;
             if(phase==6) session.LocalActor.x=9;
@@ -113,7 +113,7 @@ namespace Remains.Runtime
                     if(!acted)
                     {
                         acted=true;
-                        session.RequestClaim(sharedItem);
+                        session.RequestClaim(ContainerState.PrototypeId,sharedItem);
                     }
                     int total=session.World.actors.Sum(a=>a.inventory.Where(i=>i.definition=="caps").Sum(i=>i.count));
                     if(total==20 && session.World.pendingGrants.Count==0)

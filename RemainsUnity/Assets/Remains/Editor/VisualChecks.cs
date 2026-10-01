@@ -35,7 +35,8 @@ namespace Remains.Editor
             var network=new GameObject("Проверка интерфейса");network.AddComponent<KcpTransport>();
             var session=network.AddComponent<CoopSession>();session.Saves=new SaveStore(Path.Combine(directory,"hud-save"));
             var world=new WorldState();world.actors.Add(new ActorState{id="ui-player",character="Проверка",health=65,mana=70});
-            world.container.Add(SharedInventory.Create("caps",20));world.container.Add(SharedInventory.Create("heal",3));
+            var container=new ContainerState();world.containers.Add(container);
+            container.items.Add(SharedInventory.Create("caps",20));container.items.Add(SharedInventory.Create("heal",3));
             world.Find("ui-player").inventory.Add(SharedInventory.Create("heal",5));
             typeof(CoopSession).GetProperty(nameof(CoopSession.World)).SetValue(session,world);
             typeof(CoopSession).GetProperty(nameof(CoopSession.LocalActorId)).SetValue(session,"ui-player");

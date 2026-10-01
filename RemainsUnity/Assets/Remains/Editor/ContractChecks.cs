@@ -54,14 +54,16 @@ namespace Remains.Editor
             npc.attackBusy=false;ownership.Reassign(world,new[]{"client-b","client-c"});
             Require(npc.owner=="client-c" && npc.generation==1,"После атаки ближайший активный клиент получает NPC");
 
-            var item=SharedInventory.Create("caps",20);world.container.Add(item);
+            var item=SharedInventory.Create("caps",20);world.containers.Add(new ContainerState {x=0,items=new List<ItemStack>{item}});actor.down=false;
             var inventory=new SharedInventory(world);
-            Require(inventory.PrepareClaim("claim-1",item.id,actor),"Первый запрос резервирует предмет");
+            Require(inventory.PrepareClaim("claim-1",ContainerState.PrototypeId,item.id,actor),"Первый запрос резервирует предмет");
             Require(actor.inventory.Count==0 && world.pendingGrants.Count==1,"Резерв не выдаёт предмет до записи копий");
-            Require(!inventory.PrepareClaim("claim-2",item.id,second),"Другой клиент не получает резерв");
+            second.x=1;
+            Require(!inventory.PrepareClaim("claim-2",ContainerState.PrototypeId,item.id,second),"Другой клиент не получает резерв");
             inventory.CommitGrant(world.pendingGrants[0]);
             Require(actor.inventory.Count==1 && second.inventory.Count==0,"Общий предмет получает один игрок");
 
+            actor.down=true;
             var directory=Path.Combine(Path.GetTempPath(),"Remains-contracts-"+Guid.NewGuid().ToString("N"));
             var saves=new SaveStore(directory);saves.SaveWorld(world);saves.SaveWorld(world);
             var restored=saves.LoadWorld();
@@ -71,7 +73,7 @@ namespace Remains.Editor
                 "Сохранение сохраняет транзакцию и предыдущую версию");
             MovementChecks.Run();
             SessionChecks.Run();
-            AmmunitionChecks.Run(); RecoveryChecks.Run(); RevivalChecks.Run(); GrenadeChecks.Run(); NpcAttackChecks.Run();
+            AmmunitionChecks.Run(); RecoveryChecks.Run(); RevivalChecks.Run(); GrenadeChecks.Run(); NpcAttackChecks.Run(); ContainerChecks.Run();
             actor.connected=true;actor.down=true;second.connected=false;second.down=false;
             actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});
             actor.injuries.Add(new InjuryState{id="fracture",periodicDamage=false});

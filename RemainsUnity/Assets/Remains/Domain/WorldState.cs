@@ -72,7 +72,8 @@ namespace Remains.Domain
         public int seed = 104;
         public bool friendlyFire = true;
         public List<ActorState> actors = new();
-        public List<ItemStack> container = new();
+        public List<ContainerState> containers = new();
+        public List<ItemStack> container; // Legacy schema: read only by explicit migration.
         public List<string> completedTransactions = new();
         public List<PendingGrant> pendingGrants = new();
         public List<PropState> props = new();
@@ -100,6 +101,7 @@ namespace Remains.Domain
     {
         public string transaction;
         public string recipient;
+        public string containerId;
         public ItemStack item;
         public long preparedRevision;
     }

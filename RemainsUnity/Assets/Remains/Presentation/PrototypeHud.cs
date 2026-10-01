@@ -29,6 +29,8 @@ namespace Remains.Presentation
         private InputField character;
         public Func<string,bool> SelectCharacter { get; set; }
         private readonly Button[] slots = new Button[9];
+        private Text containerTitle;
+        private ContainerState shownContainer;
         private Font font;
         private HudElements elements;
         public WorldLobbyPanel NetworkLobby {get;private set;}
@@ -76,14 +78,14 @@ namespace Remains.Presentation
             Button(lobby.transform,"Подключиться",new Vector2(20,-200),new Vector2(400,45),()=>
             {if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);});
             inventory = Panel(transform,"Общий контейнер",new Vector2(920,-130),new Vector2(330,390));
-            Label(inventory.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
+            containerTitle=Label(inventory.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
             for (int i = 0; i < slots.Length; i++)
             {
                 int index = i;
                 slots[i] = Button(inventory.transform,"Пусто",new Vector2(12+i%3*105,-60-i/3*95),new Vector2(98,86),()=>
                 {
-                    if (session.World != null && index < session.World.container.Count)
-                        session.RequestClaim(session.World.container[index].id);
+                    if (shownContainer!=null && index < shownContainer.items.Count)
+                        session.RequestClaim(shownContainer.id,shownContainer.items[index].id);
                 });
             }
             inventory.SetActive(false);
@@ -111,6 +113,7 @@ namespace Remains.Presentation
 
         public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf); Refresh(); }
         public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
+        public RectTransform ContainerSlotRect(int index)=>slots[index].GetComponent<RectTransform>();
         public void ShowMessage(string text)=>message.text=text;
         private void Refresh()
         {
@@ -127,9 +130,13 @@ namespace Remains.Presentation
             manaBar.fillAmount=Mathf.Clamp01(actor.mana/100);
             personalItems.text="Личный инвентарь\n";
             foreach(var item in actor.inventory) personalItems.text+=$"\n{ItemName(item.definition)} × {item.count}";
+            shownContainer=ContainerAccess.Nearest(session.World,actor);
+            containerTitle.text=shownContainer==null?"Рядом нет контейнера":"Общий контейнер · 3 × 3";
+            if(shownContainer!=null && session.World.pendingGrants.Exists(g=>g.containerId==shownContainer.id && g.recipient==actor.id))
+                containerTitle.text="Подбор подтверждается…";
             for (int i = 0; i < slots.Length; i++)
             {
-                var item = i < session.World.container.Count ? session.World.container[i] : null;
+                var item = shownContainer!=null && i < shownContainer.items.Count ? shownContainer.items[i] : null;
                 slots[i].GetComponentInChildren<Text>().text = item == null ? "Пусто" : $"{ItemName(item.definition)}\n{item.count}";
                 slots[i].interactable = item != null && !actor.down;
             }
@@ -183,6 +190,7 @@ namespace Remains.Presentation
 
         private void Update()
         {
+            if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor)?.id!=shownContainer?.id) Refresh();
             RefreshAmmunition();
             if(revival==null) return;
             float progress=RevivalProgress?.Invoke() ?? 0;

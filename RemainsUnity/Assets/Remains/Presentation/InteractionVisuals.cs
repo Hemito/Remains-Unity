@@ -13,6 +13,7 @@ namespace Remains.Presentation
         private GrenadeController grenades;
         private readonly Dictionary<string,Sprite> sprites=new();
         private readonly Dictionary<string,SpriteRenderer> props=new();
+        private readonly Dictionary<string,SpriteRenderer> containers=new();
         private readonly Dictionary<string,SpriteRenderer> weapons=new();
         private readonly Dictionary<string,SpriteRenderer> flights=new();
         private readonly HashSet<string> missingGraphics=new();
@@ -46,11 +47,18 @@ namespace Remains.Presentation
             if(session.World==null)
             {
                 foreach(var renderer in props.Values) renderer.enabled=false;
+                foreach(var renderer in containers.Values) renderer.enabled=false;
                 foreach(var renderer in weapons.Values) renderer.enabled=false;
                 foreach(var renderer in flights.Values) renderer.enabled=false;
                 return;
             }
             foreach(var pair in weapons) if(!ActorPresence.IsPresent(session.World.Find(pair.Key))) pair.Value.enabled=false;
+            foreach(var renderer in containers.Values) renderer.enabled=false;
+            foreach(var container in session.World.containers)
+            {
+                if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=Create("Контейнер "+container.id,sprites["crate"],.8f));
+                view.transform.position=container.Position+Vector2.up*.4f;view.enabled=container.level==session.LocalActor?.level;
+            }
             foreach(var prop in session.World.props) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,sprites["crate"],0.8f));
             foreach(var actor in session.World.actors) if(ActorPresence.IsPresent(actor) && !weapons.ContainsKey(actor.id)) weapons.Add(actor.id,Create("Оружие "+actor.id,sprites["pistol"],0.8f));
         }

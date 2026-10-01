@@ -27,7 +27,8 @@ namespace Remains.Runtime
                 checkpointSequence=index==1?9:4,revision=index==1?10:5,seed=100+index};
             if(index==2) WorldHistory.BeginContinuation(world);
             if(index==3) world.worldId="33333333333333333333333333333333";
-            for(int i=0;i<(Interrupt || value.Options.Smoke.Contains("large")?5000:1000);i++) world.container.Add(new ItemStack {id="fixture-"+i,definition="caps",count=1});
+            world.containers.Add(new ContainerState());
+            for(int i=0;i<(Interrupt || value.Options.Smoke.Contains("large")?5000:1000);i++) world.containers[0].items.Add(new ItemStack {id="fixture-"+i,definition="caps",count=1});
             original=value.Session.Saves.SaveWorld(world);
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<LobbyProbeFinish>(_=>Finish(ValidateLive(),Interrupt?"После обрыва неполная копия не загружена; через UI успешно выбрано другое продолжение.":"Переданная копия запущена; исходное продолжение сохранено в архиве."));
         }

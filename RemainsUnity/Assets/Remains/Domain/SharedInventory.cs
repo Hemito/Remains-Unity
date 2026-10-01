@@ -8,24 +8,32 @@ namespace Remains.Domain
         public SharedInventory(WorldState world) => this.world = world;
 
         // Host receipt order decides the winner. The client never grants speculatively.
-        public bool PrepareClaim(string transaction, string itemId, ActorState recipient)
+        public bool PrepareClaim(string transaction, string containerId,string itemId, ActorState recipient)
         {
+            var container=world.containers.Find(c=>c.id==containerId);
+            if(string.IsNullOrEmpty(transaction) || ContainerAccess.Rejection(recipient,container)!=null) return false;
             if (world.completedTransactions.Contains(transaction) || world.pendingGrants.Exists(p=>p.transaction==transaction)) return false;
-            var item = world.container.Find(candidate => candidate.id == itemId);
+            var item = container.items.Find(candidate => candidate.id == itemId);
             if (item == null) return false;
-            world.container.Remove(item);
+            container.items.Remove(item);
             world.revision++;
-            world.pendingGrants.Add(new PendingGrant { transaction=transaction,recipient=recipient.id,item=item,preparedRevision=world.revision });
+            world.pendingGrants.Add(new PendingGrant { transaction=transaction,recipient=recipient.id,containerId=containerId,item=item,preparedRevision=world.revision });
             return true;
         }
 
         public void CommitGrant(PendingGrant grant)
         {
             var recipient=world.Find(grant.recipient);
-            if(recipient==null) throw new InvalidOperationException($"Нет получателя транзакции {grant.transaction}: {grant.recipient}.");
             if(!world.completedTransactions.Contains(grant.transaction))
             {
-                recipient.inventory.Add(grant.item);
+                if(recipient!=null) {recipient.inventory.Add(grant.item);recipient.revision++;}
+                else
+                {
+                    var container=world.containers.Find(c=>c.id==grant.containerId);
+                    if(container==null) throw new InvalidOperationException($"Нет источника резерва: transaction={grant.transaction}, container={grant.containerId}.");
+                    container.items.Add(grant.item);
+                    UnityEngine.Debug.LogWarning($"Резерв возвращён в контейнер: transaction={grant.transaction}, recipient={grant.recipient}, container={container.id}.");
+                }
                 world.completedTransactions.Add(grant.transaction);
             }
             world.pendingGrants.Remove(grant);

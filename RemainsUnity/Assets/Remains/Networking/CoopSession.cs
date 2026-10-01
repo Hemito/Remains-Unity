@@ -152,9 +152,10 @@ namespace Remains.Networking
         {
             var world = new WorldState();
             world.actors.Add(new ActorState { id = "npc:training-guard", owner = "host", x = 8, health = 140 });
-            world.container.Add(SharedInventory.Create("caps", 20));
-            world.container.Add(SharedInventory.Create("heal", 3));
-            world.container.Add(SharedInventory.Create("grenade", 3));
+            var container=new ContainerState();world.containers.Add(container);
+            container.items.Add(SharedInventory.Create("caps", 20));
+            container.items.Add(SharedInventory.Create("heal", 3));
+            container.items.Add(SharedInventory.Create("grenade", 3));
             world.props.Add(new PropState { id="prop:crate-1",owner="host",x=-3,y=0.5f });
             return world;
         }
@@ -414,7 +415,7 @@ namespace Remains.Networking
             if (NetworkServer.connections.TryGetValue(recipient.Key, out var destination)) destination.Send(message);
         }
 
-        public void RequestClaim(string item) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"), item = item });
+        public void RequestClaim(string container,string item) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"),container=container, item = item });
         public string RequestRevive(string target)=>RequestHealing(target,false);
         public void RequestSelfHeal()=>RequestHealing(LocalActorId,true);
         private string RequestHealing(string targetId,bool selfHeal)
@@ -451,7 +452,9 @@ namespace Remains.Networking
         {
             if (!owners.TryGetValue(connection.connectionId, out string owner)) return;
             var actor = ServerWorld.Find(playerIds[owner]);
-            bool success = inventory.PrepareClaim(message.transaction, message.item, actor);
+            string reason=ContainerAccess.Rejection(actor,ServerWorld.containers.Find(c=>c.id==message.container));
+            if(reason!=null) {connection.Send(new NoticeMessage {text=reason});return;}
+            bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor);
             connection.Send(new NoticeMessage { text = success ? "Подбор подтверждается копиями мира…" : "Этот предмет уже забрали." });
             if (success) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); CompleteBackedUpGrants(); }
         }

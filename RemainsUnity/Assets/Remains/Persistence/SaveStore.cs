@@ -23,6 +23,16 @@ namespace Remains.Persistence
             var world = JsonUtility.FromJson<WorldState>(File.ReadAllText(path));
             if (world == null || world.schema != 1) throw new InvalidDataException($"Неподдерживаемый сейв: {path}");
             if(!prepareForPlay) return world;
+            world.containers ??= new List<ContainerState>();
+            if(world.container?.Count>0 || world.pendingGrants.Any(g=>string.IsNullOrEmpty(g.containerId)))
+            {
+                if(world.containers.Count>0) throw new InvalidDataException($"Одновременно заданы старые и новые контейнеры: {path}.");
+                string backup=PreserveSource("world.json");
+                world.containers.Add(new ContainerState {items=world.container??new List<ItemStack>()});world.container=null;
+                foreach(var grant in world.pendingGrants) grant.containerId=ContainerState.PrototypeId;
+                world.revision++;
+                Debug.LogWarning($"Глобальный контейнер перенесён на завод: container={ContainerState.PrototypeId}, backup={backup}.");
+            }
             if(world.actors.Any(a=>a.player && a.loadoutVersion==0))
             {
                 string backup=PreserveSource("world.json");

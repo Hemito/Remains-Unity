@@ -82,7 +82,7 @@ namespace Remains.Runtime
             cameraFollower=new CameraFollower(cameraView,room);
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
-            if (!Application.isBatchMode || Options.Smoke?.StartsWith("session")==true || Options.Smoke=="history" || Options.Smoke?.StartsWith("lobby")==true)
+            if (!Application.isBatchMode || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke?.StartsWith("lobby")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session);
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
@@ -100,6 +100,7 @@ namespace Remains.Runtime
             if (Options.Smoke != null)
             {
                 if(Options.Smoke.StartsWith("lobby")) gameObject.AddComponent<NetworkLobbyProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("container")) gameObject.AddComponent<NetworkContainerProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("npc")) gameObject.AddComponent<NetworkNpcProbe>().Initialize(this);
                 else if(Options.Smoke=="history") gameObject.AddComponent<WorldSelectionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("session")) gameObject.AddComponent<NetworkSessionProbe>().Initialize(this);
@@ -152,7 +153,7 @@ namespace Remains.Runtime
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors) animated.poseTime+=Time.deltaTime;
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container"))
             {
                 npcs.Step(Time.deltaTime);
                 ApplyCommand(CommandSource?.Invoke() ?? ReadCommand(),Time.deltaTime);
