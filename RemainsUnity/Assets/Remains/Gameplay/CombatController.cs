@@ -14,7 +14,8 @@ namespace Remains.Gameplay
         private DamageReceiver damage;
         public int AttackerDecidedHits {get;private set;}
         public int VictimDecidedHits {get;private set;}
-        private float nextShot;
+        private readonly SimulationTimer shotCooldown=new();
+        public float ShotCooldownRemaining=>shotCooldown.Remaining;
         private ActorState swingActor;
         private MeleeSweep swingSweep;
         private string swingId,swingWeapon;
@@ -46,12 +47,12 @@ namespace Remains.Gameplay
             if(actor==null) {selectedActor=null;return;}
             if(selectedActor==actor.id && selectedGeneration==actor.generation) return;
             selectedActor=actor.id;selectedGeneration=actor.generation;
-            Weapon=actor.weapon;nextShot=0;swingActor=null;
+            Weapon=actor.weapon;shotCooldown.Restart(0);swingActor=null;
         }
 
         public bool Fire(ActorState attacker, Vector2 aim)
         {
-            if (attacker == null || attacker.down || Reload.Active || Time.time < nextShot) return false;
+            if (attacker == null || attacker.down || Reload.Active || !shotCooldown.Ready) return false;
             var definition=WeaponCatalog.Get(Weapon);
             if(!WeaponAmmunition.SpendShot(attacker,definition,out string reason))
             {
@@ -61,7 +62,7 @@ namespace Remains.Gameplay
             }
             if(definition.manaCost>0 || !string.IsNullOrEmpty(definition.ammo))
             {attacker.revision++;session.PublishActor(attacker);}
-            nextShot = Time.time + definition.cooldown;
+            shotCooldown.Restart(definition.cooldown);
             Vector2 origin = attacker.Position + new Vector2(0,0.55f);
             Vector2 direction = (aim-origin).normalized;
             if (direction == Vector2.zero) direction = new Vector2(attacker.facing,0);
@@ -83,6 +84,7 @@ namespace Remains.Gameplay
 
         public void Step(float dt)
         {
+            shotCooldown.Advance(dt);
             Reload.Step(Weapon,dt);
             if(swingActor==null) return;
             var actor=session.World?.Find(swingActor.id);

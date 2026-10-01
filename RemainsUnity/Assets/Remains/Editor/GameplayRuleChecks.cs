@@ -19,6 +19,14 @@ namespace Remains.Editor
         }
         public static void Run()
         {
+            var timer=new SimulationTimer();timer.Restart(.5f);timer.Advance(.2f);
+            float remaining=timer.Remaining;
+            for(int i=0;i<1000;i++) timer.Advance(0);
+            Require(!timer.Ready && timer.Remaining==remaining,"Нулевой шаг не расходует задержку оружия");
+            timer.Advance(.31f);Require(timer.Ready && timer.Remaining==0,"Возобновление расходует только игровое время без отрицательного остатка");
+            timer.Restart(.5f);
+            try {timer.Advance(float.NaN);throw new Exception("Таймер принял NaN");} catch(ArgumentOutOfRangeException) {}
+            Require(timer.Remaining==.5f,"Ошибка времени не меняет таймер");
             var target=new ActorState {id="friend",player=true};
             var direct=new AttackEvent {attacker="other",weapon="pistol",sourcePlayer=true,friendlyFireDecision=FriendlyFireDecision.Attacker};
             Require(FriendlyFireDecision.UsesAttacker(direct,target),"Прямое попадание игрока по союзнику может решать атакующий");
