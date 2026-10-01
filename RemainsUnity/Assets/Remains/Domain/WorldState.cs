@@ -39,6 +39,7 @@ namespace Remains.Domain
         public bool player;
         public bool connected;
         public bool down;
+        public bool climbing;
         public int damageSequence;
         public List<string> resolvedExplosions = new();
         public List<string> resolvedAttacks = new();

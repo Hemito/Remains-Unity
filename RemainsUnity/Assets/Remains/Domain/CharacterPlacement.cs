@@ -12,7 +12,7 @@ namespace Remains.Domain
             actor.level="hub";
             actor.Position=HubPosition(slot);
             actor.vx=actor.vy=0;
-            ActorPose.Select(actor,"idle");
+            actor.climbing=false;ActorPose.Select(actor,"idle");
         }
     }
 }

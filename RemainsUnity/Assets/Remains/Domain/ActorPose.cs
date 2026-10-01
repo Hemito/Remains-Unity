@@ -6,11 +6,17 @@ namespace Remains.Domain
         {
             destination.Position=source.Position;destination.Velocity=source.Velocity;
             destination.facing=source.facing;destination.pose=source.pose;destination.poseTime=source.poseTime;
+            destination.climbing=source.climbing;
             destination.weapon=source.weapon;destination.weaponAngle=source.weaponAngle;
             destination.weaponTipX=source.weaponTipX;destination.weaponTipY=source.weaponTipY;
             destination.weaponReach=source.weaponReach;
         }
         public static string Clip(ActorState actor)=>actor.down?"down":actor.pose;
+        public static void Advance(ActorState actor,float dt)
+        {
+            if(actor.climbing && !actor.down && System.Math.Abs(actor.vy)<.001f) return;
+            actor.poseTime+=dt;
+        }
         public static void Select(ActorState actor,string pose)
         {
             if(actor.pose!=pose) {actor.pose=pose;actor.poseTime=0;}

@@ -18,6 +18,7 @@ namespace Remains.Networking
         public int facing;
         public string pose;
         public float poseTime;
+        public bool climbing;
         public string weapon;
         public float weaponAngle,weaponTipX,weaponTipY;
         public float weaponReach;
