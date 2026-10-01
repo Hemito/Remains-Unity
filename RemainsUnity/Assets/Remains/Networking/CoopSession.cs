@@ -106,7 +106,7 @@ namespace Remains.Networking
                 ServerWorld.revision++;Saves.SaveWorld(ServerWorld);
             }
             ownership.BeginSession(ServerWorld);
-            inventory = new SharedInventory(ServerWorld);
+            inventory = new SharedInventory(ServerWorld,Rules.Loot);
             InvokeRepeating(nameof(CheckpointWorld),3,3);
         }
 
@@ -480,10 +480,8 @@ namespace Remains.Networking
         {
             if (!owners.TryGetValue(connection.connectionId, out string owner)) return;
             var actor = ServerWorld.Find(playerIds[owner]);
-            string reason=ContainerAccess.Rejection(actor,ServerWorld.containers.Find(c=>c.id==message.container));
-            if(reason!=null) {connection.Send(new NoticeMessage {text=reason});return;}
-            bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor);
-            connection.Send(new NoticeMessage { text = success ? "Подбор подтверждается копиями мира…" : "Этот предмет уже забрали." });
+            bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor,out string reason);
+            connection.Send(new NoticeMessage { text = success ? "Подбор подтверждается копиями мира…" : reason });
             if (success) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); CompleteBackedUpGrants(); }
         }
 

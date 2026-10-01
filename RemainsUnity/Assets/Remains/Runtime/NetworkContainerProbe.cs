@@ -15,6 +15,14 @@ namespace Remains.Runtime
     public struct ContainerProbeFinish : NetworkMessage { }
     public sealed class NetworkContainerProbe : MonoBehaviour
     {
+        private sealed class NoHealingLoot : ILootRule
+        {
+            private readonly NearbyLootRule normal=new();
+            public string AccessRejection(LootAccessContext context)=>normal.AccessRejection(context);
+            public string ClaimRejection(LootClaimContext context)=>context.definition=="heal"?"Тестовое правило: хилки остаются в контейнере.":null;
+        }
+        private bool ruleRequested,ruleRejected;
+        private bool RuleScenario=>runtime.Options.Smoke.Contains("-rule-");
         private PrototypeRuntime runtime;
         private int phase;
         private float deadline,started;
@@ -26,12 +34,14 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;started=Time.unscaledTime;
+            if(RuleScenario) value.Session.ConfigureRules(new GameplayRuleSet(new PrototypeDamageRule(),new ZeroHealthKnockdownRule(),new HubPartyDefeatRule(),new NoHealingLoot()));
             value.CommandSource=()=>
             {
                 if(phase>=1 && !opened) {opened=true;return new PlayerCommand {inventory=true};}
                 return default;
             };
             value.Session.Notice+=text=>{if(text=="Контейнер находится в другой локации.") rejected=true;};
+            value.Session.Notice+=text=>{if(text=="Тестовое правило: хилки остаются в контейнере.") ruleRejected=true;};
             value.Session.Changed+=()=>
             {
                 var actor=value.Session.LocalActor;
@@ -65,7 +75,18 @@ namespace Remains.Runtime
                     Advance(1);
                 }
                 if(phase==1 && !traveled) {traveled=true;session.Travel.RequestFactory();}
-                if(Host && phase==1 && session.World.actors.Count(a=>a.player && a.connected && a.level=="factory:0")==runtime.Options.ProbePeers) Advance(2);
+                if(Host && phase==1 && session.World.actors.Count(a=>a.player && a.connected && a.level=="factory:0")==runtime.Options.ProbePeers)
+                {
+                    if(RuleScenario)
+                    {
+                        var source=session.World.containers[0];
+                        if(!ruleRequested) {ruleRequested=true;session.RequestClaim(source.id,source.items.First(i=>i.definition=="heal").id);}
+                        if(!ruleRejected) return;
+                        if(source.items.Single(i=>i.definition=="heal").count!=3 || session.World.pendingGrants.Count!=0 || actor.inventory.Where(i=>i.definition=="heal").Sum(i=>i.count)!=5)
+                        {Finish(false,"Отказ правила изменил хилки или создал резерв.");return;}
+                    }
+                    Advance(2);
+                }
                 if(phase==2 && !clicked) {clicked=true;if(!Host || !runtime.Options.Smoke.Contains("-remote-")) StartCoroutine(Click());}
             }
             if(phase<2) return;

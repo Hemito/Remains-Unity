@@ -55,11 +55,13 @@ namespace Remains.Domain
         public IDamageRule Damage {get;}
         public IKnockdownRule Knockdown {get;}
         public IPartyDefeatRule PartyDefeat {get;}
-        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat)
+        public ILootRule Loot {get;}
+        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot=null)
         {
             Damage=damage??throw new ArgumentNullException(nameof(damage));
             Knockdown=knockdown??throw new ArgumentNullException(nameof(knockdown));
             PartyDefeat=partyDefeat??throw new ArgumentNullException(nameof(partyDefeat));
+            Loot=loot??new NearbyLootRule();
         }
         public static GameplayRuleSet CreateDefault()=>new(new PrototypeDamageRule(),new ZeroHealthKnockdownRule(),new HubPartyDefeatRule());
     }

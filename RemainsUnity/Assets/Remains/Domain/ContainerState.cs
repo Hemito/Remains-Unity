@@ -15,21 +15,27 @@ namespace Remains.Domain
     }
     public static class ContainerAccess
     {
-        public static string Rejection(ActorState actor,ContainerState container)
+        private static readonly ILootRule defaults=new NearbyLootRule();
+        public static string Rejection(ActorState actor,ContainerState container,ILootRule rule=null)
         {
-            if(actor==null || !actor.connected || actor.down) return "Подбор недоступен: персонаж не может действовать.";
+            if(actor==null) return "Подбор недоступен: персонаж отсутствует.";
             if(container==null) return "Контейнер больше недоступен.";
-            if(actor.level!=container.level) return "Контейнер находится в другой локации.";
-            if(Vector2.Distance(actor.Position,container.Position)>2) return "Подойдите ближе к контейнеру.";
-            return null;
+            return (rule??defaults).AccessRejection(new LootAccessContext(actor,container));
         }
-        public static ContainerState Nearest(WorldState world,ActorState actor)
+        public static string ClaimRejection(ActorState actor,ContainerState container,ItemStack item,ILootRule rule=null)
+        {
+            string reason=Rejection(actor,container,rule);
+            if(reason!=null) return reason;
+            if(item==null || item.count<=0) return "Этот предмет уже забрали.";
+            return (rule??defaults).ClaimRejection(new LootClaimContext(new LootAccessContext(actor,container),item));
+        }
+        public static ContainerState Nearest(WorldState world,ActorState actor,ILootRule rule=null)
         {
             if(world==null || actor==null) return null;
-            ContainerState nearest=null;float distance=2;
+            ContainerState nearest=null;float distance=float.PositiveInfinity;
             foreach(var container in world.containers)
             {
-                if(container.level!=actor.level) continue;
+                if(Rejection(actor,container,rule)!=null) continue;
                 float next=Vector2.Distance(actor.Position,container.Position);
                 if(next>distance) continue;
                 distance=next;nearest=container;

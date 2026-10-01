@@ -8,6 +8,11 @@ namespace Remains.Editor
 {
     public static class ContainerChecks
     {
+        private sealed class TestLootRule : ILootRule
+        {
+            public string AccessRejection(LootAccessContext context)=>context.distance<=8?null:"Тест: далеко";
+            public string ClaimRejection(LootClaimContext context)=>context.definition=="heal"?"Тест: хилки запрещены":null;
+        }
         public static void Run()
         {
             var world=new WorldState();var container=new ContainerState {x=0};world.containers.Add(container);
@@ -19,6 +24,18 @@ namespace Remains.Editor
             actor.x=0;actor.down=true;
             Require(!inventory.PrepareClaim("down",container.id,item.id,actor),"Нет подбора без сознания");
             actor.down=false;
+            var custom=new SharedInventory(world,new TestLootRule());
+            actor.x=5;
+            var denied=SharedInventory.Create("heal",3);container.items.Add(denied);
+            long beforeRevision=world.revision;
+            Require(!custom.PrepareClaim("rule-denied",container.id,denied.id,actor,out var reason) && reason=="Тест: хилки запрещены" &&
+                world.revision==beforeRevision && world.pendingGrants.Count==0 && container.items.Contains(denied),"Отказ правила не меняет транзакцию или предмет");
+            Require(ContainerAccess.Nearest(world,actor,new TestLootRule())==container && ContainerAccess.Nearest(world,actor)==null,"Представление использует ту же заменяемую дальность");
+            Require(custom.PrepareClaim("rule-allowed",container.id,item.id,actor),"Правило разрешает резерв за пределами базовой дальности");
+            Require(!custom.PrepareClaim("rule-allowed",container.id,item.id,actor),"Мод не обходит дедупликацию");
+            custom.CommitGrant(world.pendingGrants[0]);
+            Require(actor.inventory.Count==1 && actor.inventory[0].id==item.id,"Выдача проходит обычный commit");
+            actor.inventory.Clear();container.items.Clear();container.items.Add(item);actor.x=0;
             Require(inventory.PrepareClaim("one",container.id,item.id,actor) && actor.inventory.Count==0,"Резерв не выдаёт предмет до подтверждения");
             var other=new ActorState {id="other",connected=true,player=true};world.actors.Add(other);
             Require(!inventory.PrepareClaim("two",container.id,item.id,other),"Второй клиент не получает тот же резерв");

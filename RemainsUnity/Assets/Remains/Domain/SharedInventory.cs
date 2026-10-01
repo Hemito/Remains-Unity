@@ -5,16 +5,20 @@ namespace Remains.Domain
     public sealed class SharedInventory
     {
         private readonly WorldState world;
-        public SharedInventory(WorldState world) => this.world = world;
+        private readonly ILootRule rule;
+        public SharedInventory(WorldState world,ILootRule rule=null) {this.world=world;this.rule=rule??new NearbyLootRule();}
 
         // Host receipt order decides the winner. The client never grants speculatively.
         public bool PrepareClaim(string transaction, string containerId,string itemId, ActorState recipient)
+            =>PrepareClaim(transaction,containerId,itemId,recipient,out _);
+        public bool PrepareClaim(string transaction, string containerId,string itemId,ActorState recipient,out string reason)
         {
             var container=world.containers.Find(c=>c.id==containerId);
-            if(string.IsNullOrEmpty(transaction) || ContainerAccess.Rejection(recipient,container)!=null) return false;
-            if (world.completedTransactions.Contains(transaction) || world.pendingGrants.Exists(p=>p.transaction==transaction)) return false;
-            var item = container.items.Find(candidate => candidate.id == itemId);
-            if (item == null) return false;
+            reason="Операция подбора уже обработана или не имеет ID.";
+            if(string.IsNullOrEmpty(transaction) || world.completedTransactions.Contains(transaction) || world.pendingGrants.Exists(p=>p.transaction==transaction)) return false;
+            var item = container?.items.Find(candidate => candidate.id == itemId);
+            reason=ContainerAccess.ClaimRejection(recipient,container,item,rule);
+            if(reason!=null) return false;
             container.items.Remove(item);
             world.revision++;
             world.pendingGrants.Add(new PendingGrant { transaction=transaction,recipient=recipient.id,containerId=containerId,item=item,preparedRevision=world.revision });

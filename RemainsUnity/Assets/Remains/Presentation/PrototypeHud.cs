@@ -134,7 +134,7 @@ namespace Remains.Presentation
             manaBar.fillAmount=Mathf.Clamp01(actor.mana/100);
             personalItems.text="Личный инвентарь\n";
             foreach(var item in actor.inventory) personalItems.text+=$"\n{ItemName(item.definition)} × {item.count}";
-            shownContainer=ContainerAccess.Nearest(session.World,actor);
+            shownContainer=ContainerAccess.Nearest(session.World,actor,session.Rules.Loot);
             containerTitle.text=shownContainer==null?"Рядом нет контейнера":"Общий контейнер · 3 × 3";
             if(shownContainer!=null && session.World.pendingGrants.Exists(g=>g.containerId==shownContainer.id && g.recipient==actor.id))
                 containerTitle.text="Подбор подтверждается…";
@@ -142,7 +142,7 @@ namespace Remains.Presentation
             {
                 var item = shownContainer!=null && i < shownContainer.items.Count ? shownContainer.items[i] : null;
                 slots[i].GetComponentInChildren<Text>().text = item == null ? "Пусто" : $"{ItemName(item.definition)}\n{item.count}";
-                slots[i].interactable = item != null && !actor.down;
+                slots[i].interactable = item != null && ContainerAccess.ClaimRejection(actor,shownContainer,item,session.Rules.Loot)==null;
             }
         }
         private void RefreshSelectedWorld()
@@ -195,7 +195,7 @@ namespace Remains.Presentation
         private void Update()
         {
             factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
-            if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor)?.id!=shownContainer?.id) Refresh();
+            if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot)?.id!=shownContainer?.id) Refresh();
             RefreshAmmunition();
             if(revival==null) return;
             float progress=RevivalProgress?.Invoke() ?? 0;
