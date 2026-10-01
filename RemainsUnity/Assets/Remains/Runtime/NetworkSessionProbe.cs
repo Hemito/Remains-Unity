@@ -13,6 +13,7 @@ namespace Remains.Runtime
     public struct SessionProbeAck : NetworkMessage { public int phase; }
 
     // No ActorState writes: commands enter the production loop, NPCs keep running.
+    [DefaultExecutionOrder(10000)]
     public sealed class NetworkSessionProbe : MonoBehaviour
     {
         private PrototypeRuntime runtime;
@@ -23,6 +24,7 @@ namespace Remains.Runtime
         private string completedActor;
         private string retainedContents,retainedActors;
         private int visualChangedFrame;
+        private int capturePhase=-1;
         private readonly HashSet<int> acknowledgements=new();
         private bool Host=>runtime.Options.Role=="host";
         private static float Destination(string character)=>character switch
@@ -121,8 +123,20 @@ namespace Remains.Runtime
             int roomMaterials=Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("RoomMaterial:"));
             if(spriteCount!=expectedSprites || rooms.Length!=1 || roomMaterials!=rooms[0].Materials.Count)
             {Finish(false,$"Ресурсы локации не освобождены: sprites={spriteCount}/{expectedSprites}, rooms={rooms.Length}, materials={roomMaterials}.");return;}
-            if(!acked) {if(runtime.Options.Smoke.Contains("-visual-") && (phase==1 || phase==3 || phase==4 || phase==6)) NetworkSceneRecord.Save(runtime,phase);acked=true;NetworkClient.Send(new SessionProbeAck {phase=phase});}
+            if(!acked)
+            {
+                acked=true;
+                if(runtime.Options.Smoke.Contains("-visual-") && (phase==1 || phase==3 || phase==4 || phase==6)) capturePhase=phase;
+                else NetworkClient.Send(new SessionProbeAck {phase=phase});
+            }
             if(Host && acknowledgements.Count==runtime.Options.ProbePeers) Advance(phase+1);
+        }
+        private void LateUpdate()
+        {
+            if(capturePhase<0) return;
+            int captured=capturePhase;capturePhase=-1;
+            NetworkSceneRecord.Save(runtime,captured);
+            NetworkClient.Send(new SessionProbeAck {phase=captured});
         }
         private void Finish(bool success,string detail)
         {

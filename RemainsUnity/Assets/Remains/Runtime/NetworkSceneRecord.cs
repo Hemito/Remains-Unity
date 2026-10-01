@@ -43,6 +43,8 @@ namespace Remains.Runtime
                     color=view.color,flipX=view.flipX,flipY=view.flipY,enabled=view.enabled && view.gameObject.activeInHierarchy};
             }).ToArray();
             File.WriteAllText(runtime.Options.Report+$".phase-{phase}.scene.json",StateJson.ToJson(record,true));
+            if(runtime.Options.Smoke.Contains("-frames-"))
+                NetworkFrameCapture.Save(camera,runtime.Options.Report+$".phase-{phase}.live.png");
         }
     }
 }
