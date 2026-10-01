@@ -32,6 +32,8 @@ namespace Remains.Networking
         private readonly PoseSequenceGate serverPoses = new();
         private readonly PoseSequenceGate clientPoses = new();
         public bool UseLobby {get;set;}
+        private ProtocolAdmission admission;
+        public ProtocolAdmission Admission=>admission ??= new ProtocolAdmission(this);
         private SessionLobby lobby;
         public SessionLobby Lobby=>lobby ??= new SessionLobby(this);
         private SessionTravel travel;
@@ -49,6 +51,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
+            Admission.RegisterServer();
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
             if(!UseLobby) StartSelectedWorld(null,false);
@@ -100,6 +103,7 @@ namespace Remains.Networking
         public override void OnStartClient()
         {
             clientPoses.Clear();
+            Admission.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
             worldReplication.Reset();
@@ -125,6 +129,12 @@ namespace Remains.Networking
         }
 
         public override void OnClientConnect()
+        {Admission.Begin();}
+
+        public override void OnServerConnect(NetworkConnectionToClient connection)
+        {base.OnServerConnect(connection);Admission.Connected(connection);}
+
+        internal void ProtocolAccepted()
         {
             base.OnClientConnect();
             SendJoin(false);
@@ -132,6 +142,7 @@ namespace Remains.Networking
 
         public void SendJoin(bool acceptMismatch)
         {
+            if(!Admission.ClientApproved) {ShowNotice("Сначала необходимо согласовать сетевой протокол.");return;}
             try
             {
                 Lobby.PublishOffers();
@@ -162,6 +173,8 @@ namespace Remains.Networking
 
         private void Join(NetworkConnectionToClient connection, JoinMessage message)
         {
+            if(!Admission.IsApproved(connection.connectionId))
+            {Admission.Reject(connection,"Клиент не выполнил согласование сетевого протокола. Обновите сборку.");return;}
             if (string.IsNullOrWhiteSpace(message.character) || owners.ContainsKey(connection.connectionId))
             {
                 connection.Disconnect();
@@ -214,6 +227,7 @@ namespace Remains.Networking
 
         public override void OnServerDisconnect(NetworkConnectionToClient connection)
         {
+            Admission.Disconnected(connection.connectionId);
             Lobby.Disconnected(connection.connectionId);
             if (owners.Remove(connection.connectionId, out string owner))
             {
@@ -499,6 +513,7 @@ namespace Remains.Networking
         }
         public override void OnStopClient()
         {
+            Admission.EndClient();
             Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;

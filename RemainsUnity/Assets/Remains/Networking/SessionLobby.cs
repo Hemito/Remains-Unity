@@ -85,7 +85,7 @@ namespace Remains.Networking
         }
         private void ReceiveOffer(NetworkConnectionToClient connection,SaveOfferMessage message)
         {
-            if(!Waiting) return;
+            if(!Waiting || !session.Admission.IsApproved(connection.connectionId)) return;
             var summary=JsonUtility.FromJson<WorldSummary>(message.json);
             if(summary==null || !Guid.TryParseExact(summary.worldId,"N",out _) ||
                 summary.snapshot==null || summary.snapshot.Length!=64 || summary.snapshot.Any(c=>!Uri.IsHexDigit(c)))
