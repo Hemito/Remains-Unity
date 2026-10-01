@@ -8,7 +8,7 @@ namespace Remains.Presentation
     public static class ActorVisualFactory
     {
         private static readonly Dictionary<string,Func<GameObject,ActorVisual>> builders=new()
-        {{"pony",obj=>obj.AddComponent<PonyVisual>()},{"static",obj=>obj.AddComponent<StaticActorVisual>()}};
+        {{"pony",obj=>obj.AddComponent<PonyVisual>()},{"static",obj=>obj.AddComponent<StaticActorVisual>()},{"atlas",obj=>obj.AddComponent<AtlasActorVisual>()}};
         public static void Register(string id,Func<GameObject,ActorVisual> builder,bool replace=false)
         {
             if(string.IsNullOrEmpty(id) || builder==null || !replace && builders.ContainsKey(id)) throw new InvalidOperationException("Некорректная регистрация представления актёра: "+id);

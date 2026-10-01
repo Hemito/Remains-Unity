@@ -18,6 +18,7 @@ namespace Remains.Editor
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
             ActorTypeChecks.Run();
+            RaiderChecks.Run();
             DamageFeedbackChecks.Run();
             WeaponPoseChecks.Run();
             MovableContainerChecks.Run();

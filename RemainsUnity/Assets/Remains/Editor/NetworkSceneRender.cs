@@ -26,7 +26,7 @@ namespace Remains.Editor
                 var record=StateJson.FromJson<NetworkSceneRecord>(File.ReadAllText(file));
                 if(record.schema is not (1 or 2) || record.width<=0 || record.height<=0) throw new InvalidDataException($"Некорректная запись: {file}.");
                 var expected=record.world.actors.Where(a=>ActorPresence.IsPresent(a) && a.level==record.level && ActorTypes.Get(a.actorType).presentation=="pony").Select(a=>a.id).OrderBy(id=>id);
-                var staticIds=record.world.actors.Where(a=>ActorPresence.IsPresent(a) && a.level==record.level && ActorTypes.Get(a.actorType).presentation=="static").Select(a=>a.id).OrderBy(id=>id);
+                var staticIds=record.world.actors.Where(a=>ActorPresence.IsPresent(a) && a.level==record.level && ActorTypes.Get(a.actorType).presentation is "static" or "atlas").Select(a=>a.id).OrderBy(id=>id);
                 if(!staticIds.SequenceEqual(record.sprites.Where(s=>staticIds.Contains(s.name)).Select(s=>s.groupId).OrderBy(id=>id)))
                     throw new InvalidOperationException($"Состав статических актёров не совпадает с миром: {file}.");
                 if(!expected.SequenceEqual(record.ponies.Select(p=>p.actor.id).OrderBy(id=>id)) || record.ponies.Any(p=>!p.active || p.scale.x!=p.actor.facing))

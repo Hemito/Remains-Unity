@@ -17,7 +17,9 @@ namespace Remains.Domain
             AttackEvent result=null;
             if(target!=null && target.id==actor.attackTarget && ActorPresence.IsPresent(target) && target.level==actor.level)
             {
-                var origin=actor.Position+new Vector2(0,.55f);var end=target.Position+new Vector2(0,.55f);
+                var end=target.Position+new Vector2(0,.55f);
+                Remains.Gameplay.WeaponPose.Aim(actor,end);
+                var origin=Remains.Gameplay.WeaponPose.Muzzle(actor);
                 result=new AttackEvent {id=actor.attackId,attacker=actor.id,weapon="npc-shot",level=actor.level,
                     originX=origin.x,originY=origin.y,endX=end.x,endY=end.y};
             }

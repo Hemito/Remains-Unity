@@ -34,6 +34,7 @@ namespace Remains.Gameplay
                 if(!movement.TryGetValue(actor.level,out var controller))
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
+                if(target!=null && target.level==actor.level) WeaponPose.Aim(actor,target.Position+Vector2.up*.55f);
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {

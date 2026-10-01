@@ -110,10 +110,10 @@ namespace Remains.Networking
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
-            if(HubTrainingContent.NeedsInstall(ServerWorld))
+            if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld))
             {
-                if(source!=null) Debug.Log("Сохранена копия мира перед добавлением мишеней: "+Saves.PreserveRecoverySource());
-                HubTrainingContent.Install(ServerWorld);
+                if(source!=null) Debug.Log("Сохранена копия мира перед обновлением базового контента: "+Saves.PreserveRecoverySource());
+                HubTrainingContent.Install(ServerWorld);FactoryRaiderContent.Install(ServerWorld);
             }
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             WorldHistory.BeginContinuation(ServerWorld);
@@ -204,7 +204,7 @@ namespace Remains.Networking
         private static WorldState CreateWorld()
         {
             var world = new WorldState();
-            world.actors.Add(new ActorState { id = "npc:training-guard", owner = "host", x = 8, health = 140 });
+            world.actors.Add(new ActorState { id = "npc:training-guard", actorType="raider", owner = "host", x = 8, health = 140 });
             var container=new ContainerState();world.containers.Add(container);
             container.items.Add(SharedInventory.Create("caps", 20));
             container.items.Add(SharedInventory.Create("heal", 3));

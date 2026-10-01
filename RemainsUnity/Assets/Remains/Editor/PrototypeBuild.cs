@@ -11,16 +11,17 @@ namespace Remains.Editor
     {
         public static void Build()
         {
-            ContractChecks.Run();
-            foreach(string guid in AssetDatabase.FindAssets("t:Texture2D",new[]{"Assets/Remains/Resources/Original/Pony","Assets/Remains/Resources/Original/Room/Hub","Assets/Remains/Resources/Original/Shots","Assets/Remains/Resources/Original/Menu","Assets/Remains/Resources/Original/Inventory","Assets/Remains/Resources/Original/Training","Assets/Remains/Resources/Original/Props"}))
+            foreach(string guid in AssetDatabase.FindAssets("t:Texture2D",new[]{"Assets/Remains/Resources/Original/Pony","Assets/Remains/Resources/Original/Room/Hub","Assets/Remains/Resources/Original/Shots","Assets/Remains/Resources/Original/Menu","Assets/Remains/Resources/Original/Inventory","Assets/Remains/Resources/Original/Training","Assets/Remains/Resources/Original/Props","Assets/Remains/Resources/Original/Raider"}))
             {
                 var importer=(TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid));
                 importer.textureType=TextureImporterType.Default;
                 importer.alphaIsTransparency=true;
                 importer.textureCompression=TextureImporterCompression.Uncompressed;
                 importer.mipmapEnabled=false;
+                if(importer.assetPath.Contains("/Original/Raider/")) importer.maxTextureSize=4096;
                 importer.SaveAndReimport();
             }
+            ContractChecks.Run();
             string path="Assets/Remains/Scenes/Prototype.unity";
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
