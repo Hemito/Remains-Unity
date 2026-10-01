@@ -23,6 +23,7 @@ namespace Remains.Gameplay
         private int sample=1;
         public Vector2 Tip {get;private set;}
         public bool Finished=>sample>Samples;
+        public float Elapsed=>elapsed;
         public MeleeSweep(string weapon,Vector2 origin,Vector2 direction)
         {
             this.weapon=weapon;this.direction=direction;previousOrigin=origin;

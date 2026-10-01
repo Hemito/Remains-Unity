@@ -23,6 +23,8 @@ namespace Remains.Gameplay
         private int swingGeneration,swingLifecycle;
         public string Weapon { get; set; } = "pistol";
         public bool IsMeleeActive=>swingActor!=null;
+        public string ActiveMeleeId=>IsMeleeActive?swingId:null;
+        public float MeleeRemaining=>IsMeleeActive?MeleeSweep.Duration-swingSweep.Elapsed:0;
         public WeaponReloadController Reload { get; }
         private float nextResourceNotice;
         private string selectedActor;
