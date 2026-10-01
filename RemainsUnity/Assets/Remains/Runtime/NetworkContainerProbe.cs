@@ -30,6 +30,7 @@ namespace Remains.Runtime
         private readonly HashSet<int> acknowledgements=new();
         private long clickAt;
         private bool Host=>runtime.Options.Role=="host";
+        private bool Partial=>runtime.Options.Smoke.Contains("-partial-");
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
         public void Initialize(PrototypeRuntime value)
         {
@@ -51,7 +52,7 @@ namespace Remains.Runtime
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<ContainerProbePhase>(m=>{phase=m.phase;clickAt=m.clickAt;});
-                NetworkClient.RegisterHandler<ContainerProbeFinish>(_=>Finish(true,Resume?"Перезапуск: общая выдача сохранена ровно у одного персонажа.":"UI-подбор: чужая локация отклонена, одновременные клики дали один предмет после резерва без предварительной выдачи."));
+                NetworkClient.RegisterHandler<ContainerProbeFinish>(_=>Finish(true,Partial?"Подбор частей стопки: по одной единице у каждого, остаток в контейнере, уникальные ID и отсутствие незавершённых резервов подтверждены.":Resume?"Перезапуск: общая выдача сохранена ровно у одного персонажа.":"UI-подбор: чужая локация отклонена, одновременные клики дали один предмет после резерва без предварительной выдачи."));
             };
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<ContainerProbeAck>((connection,m)=>{acknowledgements.Add(connection.connectionId);anyPending|=m.pending;});
         }
@@ -92,7 +93,15 @@ namespace Remains.Runtime
             }
             if(phase<2) return;
             var copies=session.World.actors.SelectMany(a=>a.inventory).Where(i=>i.definition=="caps").ToArray();
-            if(copies.Length!=1 || copies[0].count!=20 || session.World.pendingGrants.Count!=0 || session.World.containers.Any(c=>c.items.Any(i=>i.definition=="caps"))) return;
+            if(session.World.pendingGrants.Count!=0) return;
+            if(Partial)
+            {
+                var rest=session.World.containers.SelectMany(c=>c.items).Where(i=>i.definition=="caps").ToArray();
+                if(copies.Length!=runtime.Options.ProbePeers || copies.Any(i=>i.count!=1) || rest.Length!=1 || rest[0].count!=20-runtime.Options.ProbePeers ||
+                    copies.Select(i=>i.id).Append(rest[0].id).Distinct().Count()!=runtime.Options.ProbePeers+1 ||
+                    session.World.actors.Where(a=>a.player && a.connected).Any(a=>a.inventory.Count(i=>i.definition=="caps")!=1)) return;
+            }
+            else if(copies.Length!=1 || copies[0].count!=20 || session.World.containers.Any(c=>c.items.Any(i=>i.definition=="caps"))) return;
             if(!acked) {acked=true;NetworkClient.Send(new ContainerProbeAck {pending=sawPending});}
             if(Host && acknowledgements.Count==runtime.Options.ProbePeers)
             {
@@ -104,6 +113,7 @@ namespace Remains.Runtime
         private IEnumerator Click()
         {
             while(DateTime.UtcNow.Ticks<clickAt) yield return null;
+            if(Partial) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
         }
         private void Finish(bool success,string detail)

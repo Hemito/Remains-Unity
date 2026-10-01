@@ -465,7 +465,7 @@ namespace Remains.Networking
             if (NetworkServer.connections.TryGetValue(recipient.Key, out var destination)) destination.Send(message);
         }
 
-        public void RequestClaim(string container,string item) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"),container=container, item = item });
+        public void RequestClaim(string container,string item,int quantity=0) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"),container=container, item = item,quantity=quantity });
         public string RequestRevive(string target)=>RequestHealing(target,false);
         public void RequestSelfHeal()=>RequestHealing(LocalActorId,true);
         private string RequestHealing(string targetId,bool selfHeal)
@@ -504,7 +504,7 @@ namespace Remains.Networking
         {
             if (!owners.TryGetValue(connection.connectionId, out string owner)) return;
             var actor = ServerWorld.Find(playerIds[owner]);
-            bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor,out string reason);
+            bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor,out string reason,message.quantity);
             connection.Send(new NoticeMessage { text = success ? "Подбор подтверждается копиями мира…" : reason });
             if (success) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); CompleteBackedUpGrants(); }
         }

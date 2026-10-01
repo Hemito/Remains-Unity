@@ -15,9 +15,9 @@ namespace Remains.Domain
     {
         public readonly LootAccessContext access;
         public readonly string itemId,definition;
-        public readonly int count;
-        public LootClaimContext(LootAccessContext access,ItemStack item)
-        {this.access=access;itemId=item.id;definition=item.definition;count=item.count;}
+        public readonly int count,availableCount;
+        public LootClaimContext(LootAccessContext access,ItemStack item,int quantity=0)
+        {this.access=access;itemId=item.id;definition=item.definition;availableCount=item.count;count=quantity==0?item.count:quantity;}
     }
     // Pure decisions. Reservation, ordering, durable confirmation and delivery stay in SharedInventory.
     public interface ILootRule

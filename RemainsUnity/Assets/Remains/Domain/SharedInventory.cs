@@ -11,15 +11,21 @@ namespace Remains.Domain
         // Host receipt order decides the winner. The client never grants speculatively.
         public bool PrepareClaim(string transaction, string containerId,string itemId, ActorState recipient)
             =>PrepareClaim(transaction,containerId,itemId,recipient,out _);
-        public bool PrepareClaim(string transaction, string containerId,string itemId,ActorState recipient,out string reason)
+        public bool PrepareClaim(string transaction, string containerId,string itemId,ActorState recipient,out string reason,int quantity=0)
         {
             var container=world.containers.Find(c=>c.id==containerId);
             reason="Операция подбора уже обработана или не имеет ID.";
             if(string.IsNullOrEmpty(transaction) || world.completedTransactions.Contains(transaction) || world.pendingGrants.Exists(p=>p.transaction==transaction)) return false;
             var item = container?.items.Find(candidate => candidate.id == itemId);
-            reason=ContainerAccess.ClaimRejection(recipient,container,item,rule);
+            reason=ContainerAccess.ClaimRejection(recipient,container,item,rule,quantity);
             if(reason!=null) return false;
-            container.items.Remove(item);
+            int amount=quantity==0?item.count:quantity;
+            if(amount==item.count) container.items.Remove(item);
+            else
+            {
+                var reserved=item.Copy();reserved.id=Guid.NewGuid().ToString("N");reserved.count=amount;
+                item.count-=amount;item=reserved;
+            }
             world.revision++;
             world.pendingGrants.Add(new PendingGrant { transaction=transaction,recipient=recipient.id,containerId=containerId,item=item,preparedRevision=world.revision });
             return true;

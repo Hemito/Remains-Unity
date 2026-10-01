@@ -53,6 +53,26 @@ namespace Remains.Editor
             var recovered=hub.Copy();recovered.connected=true;
             Require(ActorPresence.IsPresent(recovered) && recovered.inventory.Count==1 && recovered.inventory[0].id==reserved.id,"Завершённая выдача сохраняется в отсутствующей записи и возвращается с персонажем");
             ActorSessionRules.Disconnect(other);Require(other.down && ActorPresence.IsPresent(other),"Отключение вне хаба сохраняет тело без сознания");
+            var partialWorld=new WorldState();
+            var partialContainer=new ContainerState {x=0};partialWorld.containers.Add(partialContainer);
+            var left=new ActorState {id="left",connected=true,player=true};
+            var right=new ActorState {id="right",connected=true,player=true};
+            partialWorld.actors.Add(left);partialWorld.actors.Add(right);
+            var stack=SharedInventory.Create("caps",5);
+            stack.extensions=new System.Collections.Generic.Dictionary<string,Newtonsoft.Json.Linq.JToken> {{"mod-data",Newtonsoft.Json.Linq.JToken.Parse("{\"quality\":3}")}};
+            partialContainer.items.Add(stack);var partialInventory=new SharedInventory(partialWorld);
+            Require(!partialInventory.PrepareClaim("negative",partialContainer.id,stack.id,left,out _, -1) &&
+                !partialInventory.PrepareClaim("oversized",partialContainer.id,stack.id,left,out _,6) && stack.count==5,"Неверное количество не меняет источник");
+            Require(partialInventory.PrepareClaim("split-left",partialContainer.id,stack.id,left,out _,2) &&
+                partialInventory.PrepareClaim("split-right",partialContainer.id,stack.id,right,out _,1),"Два резерва разных количеств одной стопки");
+            Require(stack.count==2 && left.inventory.Count==0 && right.inventory.Count==0 &&
+                !partialInventory.PrepareClaim("split-left",partialContainer.id,stack.id,left,out _,2),"Резервы не выданы заранее, повтор не списывает остаток");
+            var copy=Remains.Serialization.StateJson.Copy(partialWorld);var restoredInventory=new SharedInventory(copy);
+            foreach(var grant in copy.pendingGrants.ToArray()) {restoredInventory.CommitGrant(grant);restoredInventory.CommitGrant(grant);}
+            var received=copy.Find("left").inventory[0];
+            Require(received.count==2 && copy.Find("right").inventory[0].count==1 && copy.containers[0].items[0].count==2 &&
+                received.id!=stack.id && received.id!=copy.Find("right").inventory[0].id &&
+                (int)received.extensions["mod-data"]["quality"]==3,"Перезапуск резерва сохраняет сумму, новые ID и данные мода");
             string path=Path.Combine(Path.GetTempPath(),"Remains-containers-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(path);
             try
             {

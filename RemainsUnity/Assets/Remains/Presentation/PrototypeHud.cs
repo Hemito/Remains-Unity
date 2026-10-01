@@ -30,6 +30,9 @@ namespace Remains.Presentation
         public Func<string,bool> SelectCharacter { get; set; }
         private readonly Button[] slots = new Button[9];
         private Text containerTitle;
+        private Button claimQuantity;
+        private bool claimOne;
+        public RectTransform ClaimQuantityRect=>claimQuantity.GetComponent<RectTransform>();
         private ContainerState shownContainer;
         private Font font;
         private HudElements elements;
@@ -91,9 +94,11 @@ namespace Remains.Presentation
                 slots[i] = Button(inventory.transform,"Пусто",new Vector2(12+i%3*105,-60-i/3*95),new Vector2(98,86),()=>
                 {
                     if (shownContainer!=null && index < shownContainer.items.Count)
-                        session.RequestClaim(shownContainer.id,shownContainer.items[index].id);
+                        session.RequestClaim(shownContainer.id,shownContainer.items[index].id,claimOne?1:0);
                 });
             }
+            claimQuantity=Button(inventory.transform,"Брать: всю стопку",new Vector2(12,-350),new Vector2(305,32),()=>
+            {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Брать: по одной единице":"Брать: всю стопку";Refresh();});
             inventory.SetActive(false);
             var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(-380,0),new Vector2(360,390));
             ApplyOriginalImage(personalPanel.GetComponent<Image>(),"inventory-panel",false);
@@ -159,7 +164,7 @@ namespace Remains.Presentation
             {
                 var item = shownContainer!=null && i < shownContainer.items.Count ? shownContainer.items[i] : null;
                 slots[i].GetComponentInChildren<Text>().text = item == null ? "Пусто" : $"{ItemName(item.definition)}\n{item.count}";
-                slots[i].interactable = item != null && ContainerAccess.ClaimRejection(actor,shownContainer,item,session.Rules.Loot)==null;
+                slots[i].interactable = item != null && ContainerAccess.ClaimRejection(actor,shownContainer,item,session.Rules.Loot,claimOne?1:0)==null;
             }
         }
         private void RefreshSelectedWorld()

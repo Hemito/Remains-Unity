@@ -22,12 +22,13 @@ namespace Remains.Domain
             if(container==null) return "Контейнер больше недоступен.";
             return (rule??defaults).AccessRejection(new LootAccessContext(actor,container));
         }
-        public static string ClaimRejection(ActorState actor,ContainerState container,ItemStack item,ILootRule rule=null)
+        public static string ClaimRejection(ActorState actor,ContainerState container,ItemStack item,ILootRule rule=null,int quantity=0)
         {
             string reason=Rejection(actor,container,rule);
             if(reason!=null) return reason;
             if(item==null || item.count<=0) return "Этот предмет уже забрали.";
-            return (rule??defaults).ClaimRejection(new LootClaimContext(new LootAccessContext(actor,container),item));
+            if(quantity<0 || quantity>item.count) return "Указанное количество недоступно. Обновите выбор.";
+            return (rule??defaults).ClaimRejection(new LootClaimContext(new LootAccessContext(actor,container),item,quantity));
         }
         public static ContainerState Nearest(WorldState world,ActorState actor,ILootRule rule=null)
         {
