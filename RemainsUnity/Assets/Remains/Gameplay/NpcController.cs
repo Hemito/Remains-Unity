@@ -10,7 +10,6 @@ namespace Remains.Gameplay
     {
         private readonly CoopSession session;
         private readonly Dictionary<string, MovementController> movement = new();
-        private readonly Dictionary<string, float> nextAttack = new();
         public NpcController(CoopSession session,RoomLayout hub,RoomLayout factory)
         {
             this.session=session;
@@ -25,21 +24,16 @@ namespace Remains.Gameplay
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
                 if(!movement.TryGetValue(actor.level,out var controller))
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
-                var target=session.World.Find(actor.target);
+                var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
+                actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
-                        if(target!=null && target.level==actor.level)
-                        {
-                            var origin=actor.Position+new Vector2(0,0.55f);
-                            var end=target.Position+new Vector2(0,0.55f);
-                            session.Fire(new AttackEvent { id=Guid.NewGuid().ToString("N"),attacker=actor.id,weapon="npc-shot",level=actor.level,
-                                originX=origin.x,originY=origin.y,endX=end.x,endY=end.y });
-                        }
-                        actor.attackBusy=false; actor.revision++; session.PublishActor(actor);
-                        nextAttack[actor.id]=Time.time+2;
+                        var attack=NpcAttackRules.Complete(actor,target);
+                        if(attack!=null) session.Fire(attack);
+                        session.PublishActor(actor);
                     }
                     continue;
                 }
@@ -47,10 +41,9 @@ namespace Remains.Gameplay
                 float distance=target.x-actor.x;
                 controller.Step(actor,new Vector2(Mathf.Abs(distance)>5?Mathf.Sign(distance)*0.5f:0,0),false,dt);
                 actor.facing=distance>=0?1:-1;
-                if(Mathf.Abs(distance)<7 && (!nextAttack.TryGetValue(actor.id,out float readyAt) || Time.time>readyAt))
+                if(Mathf.Abs(distance)<7 && actor.attackCooldown<=0)
                 {
-                    actor.attackBusy=true; actor.attackRemaining=0.8f;
-                    actor.revision++; session.PublishActor(actor);
+                    NpcAttackRules.Begin(actor,target);session.PublishActor(actor);
                 }
             }
         }

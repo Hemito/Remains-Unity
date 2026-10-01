@@ -25,9 +25,7 @@ namespace Remains.Domain
                 if (actor.attackBusy)
                 {
                     // Owner loss cancels an unfinished attack before recovery transfer.
-                    actor.attackBusy = false;
-                    actor.attackRemaining = 0;
-                    actor.revision++;
+                    NpcAttackRules.Cancel(actor);
                 }
                 var candidate = active.Where(a => a.level == actor.level)
                     .OrderBy(a => Vector2.Distance(a.Position, actor.Position)).ThenBy(a => a.id).FirstOrDefault();

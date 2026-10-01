@@ -21,6 +21,9 @@ namespace Remains.Networking
         public string weapon;
         public float weaponAngle,weaponTipX,weaponTipY;
         public float weaponReach;
+        public string attackId;
+        public bool attackBusy;
+        public float attackRemaining,attackCooldown;
     }
     public struct AttackMessage : NetworkMessage { public string json; }
     public struct NpcHitMessage : NetworkMessage { public string target; public int generation; public string attackJson; }

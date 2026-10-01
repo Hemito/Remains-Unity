@@ -258,9 +258,11 @@ namespace Remains.Networking
                     if (local == null || local.owner != LocalOwner || local.generation != actor.generation ||
                         local.lifecycleSequence!=actor.lifecycleSequence || local.level!=actor.level) continue;
                     ActorPose.CopyMotion(local,actor);
-                    actor.attackRemaining=local.attackRemaining;
+                    NpcAttackRules.CopyProgress(local,actor);
                     if (local.revision > actor.revision)
                     {
+                        actor.attackId=local.attackId;actor.attackTarget=local.attackTarget;actor.attackBusy=local.attackBusy;
+                        actor.attackRemaining=local.attackRemaining;actor.attackCooldown=local.attackCooldown;
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;
                         actor.mana=local.mana;actor.damageSequence=local.damageSequence;actor.resolvedExplosions=local.resolvedExplosions;
                         actor.magazines=local.magazines;
@@ -305,7 +307,10 @@ namespace Remains.Networking
             if (current != null && ActorVersion.IsOlder(actor,current)) return;
             if(current!=null && current.owner==LocalOwner && current.generation==actor.generation &&
                 current.lifecycleSequence==actor.lifecycleSequence && current.level==actor.level)
+            {
                 ActorPose.CopyMotion(current,actor);
+                NpcAttackRules.CopyProgress(current,actor);
+            }
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
             Changed?.Invoke();
@@ -334,6 +339,8 @@ namespace Remains.Networking
                 return;
             }
             ServerWorld.actors[ServerWorld.actors.IndexOf(actor)] = incoming;
+            if(!actor.player && actor.attackBusy && !incoming.attackBusy)
+            {CommitWorld();return;}
             ServerWorld.revision++;
             NetworkServer.SendToAll(new ActorMessage { json = JsonUtility.ToJson(incoming) });
         }
@@ -370,13 +377,18 @@ namespace Remains.Networking
             actor.weapon=message.weapon;actor.weaponAngle=message.weaponAngle;
             actor.weaponTipX=message.weaponTipX;actor.weaponTipY=message.weaponTipY;
             actor.weaponReach=message.weaponReach;
+            if(actor.attackId==message.attackId && actor.attackBusy==message.attackBusy)
+            {
+                actor.attackRemaining=message.attackRemaining;actor.attackCooldown=message.attackCooldown;
+            }
         }
 
         public void PublishPose(ActorState actor, uint sequence) => NetworkClient.Send(new PoseMessage
         {
             actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = sequence,
             x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,
-            weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach
+            weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,
+            attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown
         }, Channels.Unreliable);
 
         public void Fire(AttackEvent attack) => NetworkClient.Send(new AttackMessage { json = JsonUtility.ToJson(attack) });

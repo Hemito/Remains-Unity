@@ -45,6 +45,8 @@ namespace Remains.Domain
         public float weaponReach=1.4f;
         public bool attackBusy;
         public float attackRemaining;
+        public string attackId,attackTarget;
+        public float attackCooldown;
         public List<ItemStack> inventory = new();
         public int loadoutVersion;
         public List<WeaponMagazine> magazines = new();

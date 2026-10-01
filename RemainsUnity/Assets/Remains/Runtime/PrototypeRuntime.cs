@@ -100,6 +100,7 @@ namespace Remains.Runtime
             if (Options.Smoke != null)
             {
                 if(Options.Smoke.StartsWith("lobby")) gameObject.AddComponent<NetworkLobbyProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("npc")) gameObject.AddComponent<NetworkNpcProbe>().Initialize(this);
                 else if(Options.Smoke=="history") gameObject.AddComponent<WorldSelectionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("session")) gameObject.AddComponent<NetworkSessionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("grenade")) gameObject.AddComponent<NetworkGrenadeProbe>().Initialize(this);
@@ -151,7 +152,7 @@ namespace Remains.Runtime
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors) animated.poseTime+=Time.deltaTime;
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc"))
             {
                 npcs.Step(Time.deltaTime);
                 ApplyCommand(CommandSource?.Invoke() ?? ReadCommand(),Time.deltaTime);
