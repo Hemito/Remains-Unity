@@ -12,6 +12,7 @@ namespace Remains.Runtime
     public struct RevivalProbePhase : NetworkMessage {public int phase;}
     public struct RevivalProbeFinish : NetworkMessage { }
     // Actor state is read-only here. Movement, attacks and healing use ordinary commands.
+    [DefaultExecutionOrder(10000)]
     public sealed class NetworkRevivalProbe : MonoBehaviour
     {
         private PrototypeRuntime runtime;
@@ -23,6 +24,8 @@ namespace Remains.Runtime
         private NetworkPauseWindow pauseWindow;
         private bool pauseStarted,pauseRunning;
         private bool Host=>runtime.Options.Role=="host";
+        private bool CaptureFrames=>runtime.Options.Smoke.Contains("-frames-");
+        private bool capturedDown,capturedRevived;
         private ActorState Victim=>runtime.Session.World?.Find("player:session-client-1");
         private ActorState Healer=>runtime.Session.World?.Find("player:session-host");
         public void Initialize(PrototypeRuntime value)
@@ -103,8 +106,16 @@ namespace Remains.Runtime
         private bool Validate()
         {
             var saved=runtime.Session.Saves.LoadCharacter();var self=runtime.Session.LocalActor;
-            return Victim!=null && !Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4 &&
+            return (!CaptureFrames || capturedDown && capturedRevived) && Victim!=null && !Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4 &&
                 saved!=null && saved.id==self.id && saved.health==self.health && InventoryJournal.Count(saved,"heal")==InventoryJournal.Count(self,"heal");
+        }
+        private void LateUpdate()
+        {
+            if(!CaptureFrames || finished || runtime.Session.LocalActor==null || Time.unscaledTime-since<.25f) return;
+            if(phase==2 && !capturedDown && Victim.down)
+            {NetworkSceneRecord.Save(runtime,2);capturedDown=true;}
+            if(phase==7 && !capturedRevived && !Victim.down && Victim.health==35)
+            {NetworkSceneRecord.Save(runtime,7);capturedRevived=true;}
         }
         private float[] PauseSnapshot()=>new[]{Victim.health,Healer.health,(float)InventoryJournal.Count(Healer,"heal"),
             Victim.x,Victim.y,Healer.x,Healer.y,runtime.Session.LocalActor.poseTime,
