@@ -35,7 +35,7 @@ namespace Remains.Editor
                 }
             var actor=new ActorState { id="victim",owner="client-b",player=true,connected=true };
             var damage=new DamageReceiver(new PrototypeDamageRule());
-            var attack=new AttackEvent { id="shot-1",weapon="pistol",attacker="client-a",originX=-2,originY=0.7f,endX=2,endY=0.7f };
+            var attack=new AttackEvent { id="shot-1",weapon="pistol",attacker="client-a",level="factory:0",originX=-2,originY=0.7f,endX=2,endY=0.7f };
             Require(HitGeometry.Contacts(actor,attack),"Сегмент должен пересекать корпус");
             Require(!damage.Apply(actor,attack,false) && actor.health==100,"Пострадавший может отклонить попадание");
             Require(damage.Apply(actor,attack,true) && actor.health==65,"Одно принятое попадание");

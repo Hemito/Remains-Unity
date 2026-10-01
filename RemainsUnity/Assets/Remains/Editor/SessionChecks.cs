@@ -26,6 +26,12 @@ namespace Remains.Editor
             Require(!ActorVersion.CanPublishOwnerState(stale,traveler), "Старое состояние не отменяет переход");
             Require(TravelRules.Rejection(traveler, "hub", "factory:0", 3, 4)!=null, "Повтор старого перехода не применяется");
             bystander.down=true;
+            var explosion = new AttackEvent {id="blast",attacker=traveler.id,level="hub",weapon="grenade"};
+            Require(AttackScope.Includes(explosion,bystander) && !AttackScope.Includes(explosion,traveler),
+                "Взрыв остаётся в хабе после перехода бросившего на завод");
+            var receiver = new DamageReceiver(new PrototypeDamageRule());
+            Require(!receiver.Apply(traveler,explosion,true) && traveler.health==58,
+                "Чужой уровень не получает урон даже при заявленном контакте");
             Require(TravelRules.Rejection(bystander, "hub", "factory:0", 0, 0)!=null, "Нокдаун блокирует самостоятельный переход с причиной");
 
             var world = new WorldState();

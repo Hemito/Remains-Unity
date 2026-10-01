@@ -10,6 +10,7 @@ namespace Remains.Gameplay
         public GrenadeMessage message;
         public Vector2 position,velocity;
         public float remaining;
+        public RoomLayout room;
     }
     public sealed class GrenadeController
     {
@@ -29,21 +30,24 @@ namespace Remains.Gameplay
                 return active==null?(Vector2?)null:active.position;
             };
             adapter.GrenadeReceived+=message=>flights.Add(new GrenadeFlight { message=message,
-                position=new Vector2(message.x,message.y),velocity=new Vector2(message.vx,message.vy),remaining=message.fuse });
+                position=new Vector2(message.x,message.y),velocity=new Vector2(message.vx,message.vy),remaining=message.fuse,
+                room=RoomLayout.Load(message.level) });
         }
         public void Step(float dt)
         {
             for(int i=flights.Count-1;i>=0;i--)
             {
                 var flight=flights[i];
+                var previous=flight.position;
                 flight.velocity+=Vector2.down*MovementController.Gravity*dt;
                 flight.position+=flight.velocity*dt;
-                if(flight.position.y<0.1f) { flight.position.y=0.1f;flight.velocity.y=Mathf.Abs(flight.velocity.y)*0.45f;flight.velocity.x*=0.75f; }
+                if(RoomSupport.TryLanding(flight.room,previous-Vector2.up*.1f,flight.position-Vector2.up*.1f,false,out float landing))
+                { flight.position.y=landing+.1f;flight.velocity.y=Mathf.Abs(flight.velocity.y)*0.45f;flight.velocity.x*=0.75f; }
                 flight.remaining-=dt;
                 if(flight.remaining>0) continue;
                 observedExplosions[flight.message.id]=flight.position;
                 var attacker=session.World?.Find(flight.message.attacker);
-                if(attacker?.owner==session.LocalOwner) combat.Explode(attacker,flight.position,flight.message.id);
+                if(attacker?.owner==session.LocalOwner) combat.Explode(flight.message,flight.position);
                 flights.RemoveAt(i);
             }
         }

@@ -26,7 +26,7 @@ namespace Remains.Domain
 
         public bool Apply(ActorState actor, AttackEvent attack, bool contact)
         {
-            if (!contact || actor.health <= 0 || !applied.Add(attack.id + ":" + actor.id)) return false;
+            if (!AttackScope.Includes(attack,actor) || !contact || actor.health <= 0 || !applied.Add(attack.id + ":" + actor.id)) return false;
             actor.health = Mathf.Max(0, actor.health - rules.Calculate(attack.weapon, attack.speed));
             actor.down |= actor.health <= 0;
             actor.revision++;

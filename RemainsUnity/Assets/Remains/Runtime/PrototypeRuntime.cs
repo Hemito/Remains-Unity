@@ -54,11 +54,16 @@ namespace Remains.Runtime
             WeaponCatalog.Load();
             Application.runInBackground=true;
             Application.targetFrameRate=60;
-            var transport=gameObject.AddComponent<KcpTransport>(); transport.port=Options.Port; transport.statisticsGUI=false;
-            Session=gameObject.AddComponent<CoopSession>(); Session.transport=transport; Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
+            var networkObject=new GameObject("Сетевая сессия");
+            networkObject.SetActive(false);
+            var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
+            Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport; Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
             Session.CharacterId=Options.Character;
             Session.networkAddress=Options.Address;
             Session.Saves=new SaveStore(Options.SaveDirectory ?? Path.Combine(Application.persistentDataPath,"Profiles",Options.Character));
+            // NetworkManager.Awake must see the final transport, including a test wrapper.
+            networkObject.SetActive(true);
+            DontDestroyOnLoad(gameObject);
             Combat=new CombatController(Session);
             Revival=new RevivalController(Session);
             Interactions=new InteractionAdapter(Session);

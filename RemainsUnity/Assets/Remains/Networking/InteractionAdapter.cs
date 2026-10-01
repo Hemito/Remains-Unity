@@ -35,7 +35,7 @@ namespace Remains.Networking
         {
             var actor=session.ConnectedActor(connection);
             var prop=session.ServerWorld.props.Find(p=>p.id==message.prop);
-            if(actor==null || prop==null || actor.down) return;
+            if(actor==null || prop==null || actor.down || actor.level!=prop.level) return;
             if(message.release)
             {
                 if(prop.owner!=actor.owner) return;
@@ -68,7 +68,7 @@ namespace Remains.Networking
             Vector2 origin=actor.Position+new Vector2(0,0.8f);
             var velocity=(new Vector2(message.aimX,message.aimY)-origin).normalized*7+Vector2.up*3;
             session.CommitWorld();
-            NetworkServer.SendToAll(new GrenadeMessage { id=message.transaction,attacker=actor.id,
+            NetworkServer.SendToAll(new GrenadeMessage { id=message.transaction,attacker=actor.id,level=actor.level,
                 x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,fuse=2 });
         }
         public void GrabProp(string prop,bool release) => NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });

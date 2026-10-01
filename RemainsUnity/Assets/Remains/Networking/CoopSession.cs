@@ -310,7 +310,10 @@ namespace Remains.Networking
         {
             var attack = JsonUtility.FromJson<AttackEvent>(message.json);
             if (!owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.Find(attack.attacker)?.owner != owner) return;
-            NetworkServer.SendToAll(message);
+            if(string.IsNullOrEmpty(attack.level) || (attack.weapon!="grenade" && attack.level!=ServerWorld.Find(attack.attacker).level))
+            { Debug.LogWarning($"Атака без корректной локации отклонена: id={attack.id}, actor={attack.attacker}, level={attack.level}.");return; }
+            attack.sourceOwner=owner;attack.sourcePlayer=ServerWorld.Find(attack.attacker).player;
+            NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }
 
         public void ReportNpcHit(NpcHitMessage message) => NetworkClient.Send(message);

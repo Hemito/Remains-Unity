@@ -97,6 +97,9 @@ namespace Remains.Domain
     {
         public string id;
         public string attacker;
+        public string level;
+        public string sourceOwner;
+        public bool sourcePlayer;
         public string weapon;
         public float originX;
         public float originY;

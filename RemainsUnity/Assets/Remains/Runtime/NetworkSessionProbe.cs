@@ -19,6 +19,8 @@ namespace Remains.Runtime
         private int phase=-1;
         private float phaseTime,deadline;
         private bool acked,travelRequested,finished;
+        private bool grenadeRequested,blastAfterTravel;
+        private string completedActor;
         private readonly HashSet<int> acknowledgements=new();
         private bool Host=>runtime.Options.Role=="host";
 
@@ -26,8 +28,13 @@ namespace Remains.Runtime
         {
             runtime=value;deadline=Time.unscaledTime+50;
             runtime.CommandSource=Command;
+            value.Session.AttackReceived+=attack=>
+            {
+                if(attack.weapon=="grenade" && attack.attacker=="player:session-host")
+                    blastAfterTravel=attack.level=="hub" && value.Session.World.Find(attack.attacker)?.level=="factory:0";
+            };
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<SessionProbePhase>(message=>
-            {phase=message.phase;phaseTime=Time.unscaledTime;acked=false;travelRequested=false;});
+            {phase=message.phase;phaseTime=Time.unscaledTime;acked=false;travelRequested=false;if(phase==4) completedActor=value.Session.LocalActorId;});
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<SessionProbeAck>((connection,message)=>
             {
                 if(message.phase==phase && value.Session.ConnectedActor(connection)!=null) acknowledgements.Add(connection.connectionId);
@@ -36,7 +43,13 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             var self=runtime.Session.LocalActor;
-            if(self==null || phase!=3) return default;
+            if(self==null) return default;
+            if(phase==1 && Host && !grenadeRequested)
+            {
+                grenadeRequested=true;
+                return new PlayerCommand {grenade=true,hasAim=true,aim=self.Position+Vector2.down*3};
+            }
+            if(phase!=3) return default;
             float destination=Host?-2:2;
             float delta=destination-self.x;
             return new PlayerCommand { movement=new Vector2(Mathf.Abs(delta)>.05f?Mathf.Sign(delta):0,0),
@@ -50,20 +63,25 @@ namespace Remains.Runtime
         private void Update()
         {
             if(finished) return;
+            // Completion was acknowledged by every peer before phase 4. A host exit
+            // must not make a slower client's report depend on the live player count.
+            if(phase==4) {if(Time.unscaledTime-phaseTime>1) Finish(true,"Обычная симуляция: виртуальный UI-клик, разделение группы, граната в исходной локации после перехода, независимое движение и видимость; NPC включён.");return;}
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут: phase={phase}, level={runtime.Session.LocalActor?.level}, pending={runtime.Session.Travel.Pending}");return;}
             var session=runtime.Session;var self=session.LocalActor;
             if(self==null) return;
+            if(runtime.Options.NetworkStress && Transport.active is not LatencySimulation)
+            {Finish(false,"Тестовый транспорт задержек не активирован.");return;}
             var players=session.World.actors.Where(a=>a.player && a.connected).ToArray();
             if(players.Length!=runtime.Options.ProbePeers) return;
             if(phase<0) {if(Host) Advance(0);return;}
-            if(phase==4) {if(Time.unscaledTime-phaseTime>1) Finish(true,"Обычная симуляция: разделение группы, переход через кнопку, независимое движение и видимость; NPC включён.");return;}
-            if((phase==1 && Host || phase==2 && !Host) && !travelRequested)
-            {travelRequested=true;runtime.Hud.ActivateFactoryButton();}
+            if((phase==1 && Host && runtime.Grenades.Flights.Count>0 || phase==2 && !Host) && !travelRequested)
+            {travelRequested=true;StartCoroutine(UiPointerProbe.Click(runtime.Hud.FactoryButtonRect));}
             if(Time.unscaledTime-phaseTime<1) return;
             bool ready=phase switch
             {
                 0=>players.All(a=>a.level=="hub"),
-                1=>self.level==(Host?"factory:0":"hub") && players.Count(a=>a.level=="factory:0")==1,
+                1=>blastAfterTravel && self.level==(Host?"factory:0":"hub") && players.Count(a=>a.level=="factory:0")==1 &&
+                    players.Where(a=>a.character!="session-host").All(a=>a.health==30),
                 2=>players.All(a=>a.level=="factory:0") && !session.Travel.Pending,
                 3=>players.All(a=>a.level=="factory:0" && (a.character=="session-host"?a.x<-1.8f && a.facing==-1:a.x>1.8f && a.facing==1)),
                 _=>false
@@ -79,10 +97,10 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             finished=true;
-            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,peers=runtime.Options.ProbePeers,actor=runtime.Session.LocalActorId},true);
+            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,peers=runtime.Options.ProbePeers,actor=completedActor??runtime.Session.LocalActorId,stress=runtime.Options.NetworkStress},true);
             if(runtime.Options.Report!=null) File.WriteAllText(runtime.Options.Report,json);
             Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success;public string detail,actor;public int phase,peers;}
+        [Serializable] private sealed class Report {public bool success,stress;public string detail,actor;public int phase,peers;}
     }
 }

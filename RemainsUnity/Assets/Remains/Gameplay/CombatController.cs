@@ -16,6 +16,8 @@ namespace Remains.Gameplay
         private Vector2 swingDirection,previousTip;
         private float swingElapsed;
         private string swingId,swingWeapon;
+        private string swingLevel;
+        private int swingGeneration,swingLifecycle;
         public string Weapon { get; set; } = "pistol";
         public bool IsMeleeActive=>swingActor!=null;
         public Func<string,Vector2?> LocalExplosionPosition { get; set; }
@@ -44,11 +46,12 @@ namespace Remains.Gameplay
             if(Weapon is "spear" or "crowbar")
             {
                 swingActor=attacker;swingWeapon=Weapon;swingDirection=direction;swingElapsed=0;
+                swingLevel=attacker.level;swingGeneration=attacker.generation;swingLifecycle=attacker.lifecycleSequence;
                 swingId=Guid.NewGuid().ToString("N");previousTip=WeaponPose.Tip(Weapon,origin,direction,0);
                 return true;
             }
             float range = definition.range;
-            session.Fire(new AttackEvent { id = Guid.NewGuid().ToString("N"), attacker = attacker.id, weapon = Weapon,
+            session.Fire(new AttackEvent { id = Guid.NewGuid().ToString("N"), attacker = attacker.id, weapon = Weapon,level=attacker.level,
                 originX = origin.x, originY = origin.y, endX = origin.x + direction.x * range,
                 endY = origin.y + direction.y * range, speed = attacker.Velocity.magnitude + range / 0.15f });
             return true;
@@ -58,7 +61,8 @@ namespace Remains.Gameplay
         {
             if(swingActor==null) return;
             var actor=session.World?.Find(swingActor.id);
-            if(actor==null || actor.down || actor.owner!=session.LocalOwner) { swingActor=null;return; }
+            if(actor==null || actor.down || actor.owner!=session.LocalOwner || actor.level!=swingLevel ||
+                actor.generation!=swingGeneration || actor.lifecycleSequence!=swingLifecycle) { swingActor=null;return; }
             swingElapsed=Mathf.Min(0.3f,swingElapsed+dt);
             var origin=actor.Position+new Vector2(0,0.8f);
             var tip=WeaponPose.Tip(swingWeapon,origin,swingDirection,swingElapsed/0.3f);
@@ -66,17 +70,17 @@ namespace Remains.Gameplay
             actor.weaponTipX=tip.x;actor.weaponTipY=tip.y;
             actor.weaponReach=Vector2.Distance(tip,origin);
             actor.weaponAngle=Mathf.Atan2(tip.y-origin.y,tip.x-origin.x)*Mathf.Rad2Deg;
-            session.Fire(new AttackEvent { id=swingId,attacker=actor.id,weapon=swingWeapon,
+            session.Fire(new AttackEvent { id=swingId,attacker=actor.id,weapon=swingWeapon,level=swingLevel,
                 originX=previousTip.x,originY=previousTip.y,endX=tip.x,endY=tip.y,
                 speed=delta.magnitude/Mathf.Max(0.001f,dt),radius=0.08f });
             previousTip=tip;
             if(swingElapsed>=0.3f) swingActor=null;
         }
 
-        public void Explode(ActorState attacker, Vector2 location,string id)
+        public void Explode(GrenadeMessage grenade, Vector2 location)
         {
-            session.Fire(new AttackEvent { id = id, attacker = attacker.id, weapon = "grenade",
-                originX = attacker.x, originY = attacker.y, endX = location.x, endY = location.y });
+            session.Fire(new AttackEvent { id = grenade.id, attacker = grenade.attacker, weapon = "grenade",level=grenade.level,
+                originX = grenade.x, originY = grenade.y, endX = location.x, endY = location.y });
         }
 
         private void ReceiveAttack(AttackEvent attack)
@@ -90,18 +94,18 @@ namespace Remains.Gameplay
             foreach (var actor in session.World.actors.ToArray())
             {
                 if (actor.id == attack.attacker) continue;
-                if(actor.level!=session.World.Find(attack.attacker)?.level) continue;
+                if(!AttackScope.Includes(attack,actor)) continue;
                 bool contact = HitGeometry.Contacts(actor, attack);
                 if (actor.player)
                 {
-                    if (!session.World.friendlyFire && session.World.Find(attack.attacker)?.player == true) continue;
+                    if (!session.World.friendlyFire && attack.sourcePlayer) continue;
                     if (actor.owner == session.LocalOwner && damage.Apply(actor, attack, contact))
                     {
                         session.PublishActor(actor);
                         Debug.Log($"Урон принят пострадавшим: {actor.id}, событие={attack.id}, здоровье={actor.health}, нокдаун={actor.down}.");
                     }
                 }
-                else if (session.World.Find(attack.attacker)?.owner == session.LocalOwner && contact)
+                else if (attack.sourceOwner == session.LocalOwner && contact)
                 {
                     session.ReportNpcHit(new NpcHitMessage { target = actor.id, generation = actor.generation,
                         attackJson = JsonUtility.ToJson(attack) });

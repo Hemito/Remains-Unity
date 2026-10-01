@@ -35,7 +35,7 @@ namespace Remains.Gameplay
                         {
                             var origin=actor.Position+new Vector2(0,0.55f);
                             var end=target.Position+new Vector2(0,0.55f);
-                            session.Fire(new AttackEvent { id=Guid.NewGuid().ToString("N"),attacker=actor.id,weapon="npc-shot",
+                            session.Fire(new AttackEvent { id=Guid.NewGuid().ToString("N"),attacker=actor.id,weapon="npc-shot",level=actor.level,
                                 originX=origin.x,originY=origin.y,endX=end.x,endY=end.y });
                         }
                         actor.attackBusy=false; actor.revision++; session.PublishActor(actor);

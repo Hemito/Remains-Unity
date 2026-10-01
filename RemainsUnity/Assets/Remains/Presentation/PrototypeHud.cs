@@ -37,6 +37,7 @@ namespace Remains.Presentation
             var canvas = gameObject.AddComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = gameObject.AddComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1280,720);
+            scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             status = Label(transform, "Подключение не установлено", new Vector2(20,-20), new Vector2(1050,60));
@@ -86,7 +87,7 @@ namespace Remains.Presentation
         }
 
         public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf); Refresh(); }
-        public void ActivateFactoryButton() => factory.onClick.Invoke();
+        public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
         public void ShowMessage(string text)=>message.text=text;
         private void Refresh()
         {

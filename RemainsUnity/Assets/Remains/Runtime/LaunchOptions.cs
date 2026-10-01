@@ -13,6 +13,7 @@ namespace Remains.Runtime
         public ushort Port { get; private set; } = 7777;
         public int Capacity { get; private set; } = 16;
         public int ProbePeers { get; private set; } = 2;
+        public bool NetworkStress { get; private set; }
         public static LaunchOptions Parse()
         {
             var options = new LaunchOptions();
@@ -30,6 +31,7 @@ namespace Remains.Runtime
                     case "--smoke": options.Smoke = args[++i]; break;
                     case "--report": options.Report = args[++i]; break;
                     case "--probe-peers": options.ProbePeers=int.Parse(args[++i]); break;
+                    case "--network-stress": options.NetworkStress=bool.Parse(args[++i]); break;
                 }
             }
             return options;

@@ -25,7 +25,7 @@ namespace Remains.Presentation
             adapter.GrenadeReceived+=message=>flights.Add(message.id,Create("Граната "+message.id,sprites["grenade"],0.35f));
             session.AttackReceived+=attack=>
             {
-                if(attack.weapon is "spear" or "crowbar" or "grenade") return;
+                if(attack.weapon is "spear" or "crowbar" or "grenade" || attack.level!=session.LocalActor?.level) return;
                 var shot=new GameObject("Выстрел "+attack.id).AddComponent<ShotVisual>();shot.Initialize(attack);
             };
         }
@@ -73,7 +73,7 @@ namespace Remains.Presentation
             }
             foreach(var pair in flights) pair.Value.enabled=false;
             foreach(var flight in grenades.Flights) if(flights.TryGetValue(flight.message.id,out var view))
-            { view.enabled=true;view.transform.position=flight.position; }
+            { view.enabled=flight.message.level==session.LocalActor?.level;view.transform.position=flight.position; }
         }
     }
 
