@@ -47,6 +47,8 @@ namespace Remains.Networking
         public SessionLobby Lobby=>lobby ??= new SessionLobby(this);
         private SessionTravel travel;
         public SessionTravel Travel => travel ??= new SessionTravel(this);
+        private SessionDeposits deposits;
+        public SessionDeposits Deposits=>deposits ??= new SessionDeposits(this);
         private SessionPause pause;
         public SessionPause Pause=>pause ??= new SessionPause(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
@@ -62,7 +64,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
-            Pause.RegisterServer();
+            Pause.RegisterServer();Deposits.RegisterServer();
             Admission.RegisterServer();
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
@@ -130,7 +132,7 @@ namespace Remains.Networking
             Admission.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
-            Pause.RegisterClient();
+            Pause.RegisterClient();Deposits.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
@@ -509,16 +511,19 @@ namespace Remains.Networking
             if (success) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); CompleteBackedUpGrants(); }
         }
 
+        internal bool HasInventoryBackups(long revision)=>!owners.Keys.Any(id=>!backupRevisions.TryGetValue(id,out long rev) || rev<revision);
+        internal void CompleteInventoryTransactions()=>CompleteBackedUpGrants();
         private void CompleteBackedUpGrants()
         {
             bool changed=false;
             foreach(var grant in ServerWorld.pendingGrants.ToArray())
             {
                 // Every currently connected peer must durably write the reservation first.
-                if(owners.Keys.Any(id=>!backupRevisions.TryGetValue(id,out long rev) || rev<grant.preparedRevision)) continue;
+                if(!HasInventoryBackups(grant.preparedRevision)) continue;
                 inventory.CommitGrant(grant);
                 changed=true;
             }
+            changed|=Deposits.CompleteBackedUp();
             if(changed) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); }
         }
 

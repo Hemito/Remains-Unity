@@ -30,7 +30,9 @@ namespace Remains.Runtime
         private readonly HashSet<int> acknowledgements=new();
         private long clickAt;
         private bool Host=>runtime.Options.Role=="host";
-        private bool Partial=>runtime.Options.Smoke.Contains("-partial-");
+        private bool Deposits=>runtime.Options.Smoke.Contains("-deposit-");
+        private bool depositClicked,sawDepositPending,pageChecked,pageClickStarted;
+        private bool Partial=>runtime.Options.Smoke.Contains("-partial-") || Deposits;
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
         public void Initialize(PrototypeRuntime value)
         {
@@ -47,12 +49,13 @@ namespace Remains.Runtime
             value.Session.Changed+=()=>
             {
                 var actor=value.Session.LocalActor;
+                if(actor!=null && value.Session.World.pendingDeposits.Any(d=>d.source==actor.id)) sawDepositPending=true;
                 if(actor!=null && value.Session.World.pendingGrants.Any(g=>g.recipient==actor.id) && !actor.inventory.Any(i=>i.definition=="caps")) sawPending=true;
             };
             value.Session.ClientReady+=()=>
             {
-                NetworkClient.RegisterHandler<ContainerProbePhase>(m=>{phase=m.phase;clickAt=m.clickAt;});
-                NetworkClient.RegisterHandler<ContainerProbeFinish>(_=>Finish(true,Partial?"Подбор частей стопки: по одной единице у каждого, остаток в контейнере, уникальные ID и отсутствие незавершённых резервов подтверждены.":Resume?"Перезапуск: общая выдача сохранена ровно у одного персонажа.":"UI-подбор: чужая локация отклонена, одновременные клики дали один предмет после резерва без предварительной выдачи."));
+                NetworkClient.RegisterHandler<ContainerProbePhase>(m=>{phase=m.phase;clickAt=m.clickAt;if(phase==5) acked=false;});
+                NetworkClient.RegisterHandler<ContainerProbeFinish>(_=>Finish(true,Deposits?"Частичный подбор и обратное внесение через UI: сумма и уникальные ID сохранены, pending закрыты.":Partial?"Подбор частей стопки: по одной единице у каждого, остаток в контейнере, уникальные ID и отсутствие незавершённых резервов подтверждены.":Resume?"Перезапуск: общая выдача сохранена ровно у одного персонажа.":"UI-подбор: чужая локация отклонена, одновременные клики дали один предмет после резерва без предварительной выдачи."));
             };
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<ContainerProbeAck>((connection,m)=>{acknowledgements.Add(connection.connectionId);anyPending|=m.pending;});
         }
@@ -92,6 +95,24 @@ namespace Remains.Runtime
                 if(phase==2 && !clicked) {clicked=true;if(!Host || !runtime.Options.Smoke.Contains("-remote-")) StartCoroutine(Click());}
             }
             if(phase<2) return;
+            if(Deposits && (phase==5 || Resume))
+            {
+                if(!Resume && !depositClicked) {depositClicked=true;StartCoroutine(Deposit());}
+                var stored=session.World.containers.SelectMany(c=>c.items).Where(i=>i.definition=="caps").ToArray();
+                if(stored.Sum(i=>i.count)!=20 || stored.Select(i=>i.id).Distinct().Count()!=stored.Length || session.World.pendingDeposits.Count!=0 ||
+                    session.World.actors.Any(a=>a.inventory.Any(i=>i.definition=="caps")) ||
+                    session.World.containers.SelectMany(c=>c.items).Where(i=>i.definition=="grenade").Sum(i=>i.count)!=3+runtime.Options.ProbePeers ||
+                    session.World.actors.Where(a=>a.player).Any(a=>a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count)!=4)) return;
+                if(!Resume && runtime.Options.ProbePeers==4 && !pageChecked)
+                {if(!pageClickStarted) {pageClickStarted=true;StartCoroutine(CheckPage());}return;}
+                if(!acked) {acked=true;NetworkClient.Send(new ContainerProbeAck {pending=sawDepositPending});}
+                if(Host && acknowledgements.Count==runtime.Options.ProbePeers)
+                {
+                    if(!Resume && !anyPending) {Finish(false,"Не наблюдался резерв внесения.");return;}
+                    phase=6;NetworkServer.SendToAll(new ContainerProbeFinish());acknowledgements.Clear();
+                }
+                return;
+            }
             var copies=session.World.actors.SelectMany(a=>a.inventory).Where(i=>i.definition=="caps").ToArray();
             if(session.World.pendingGrants.Count!=0) return;
             if(Partial)
@@ -107,8 +128,23 @@ namespace Remains.Runtime
             {
                 if(runtime.Options.Smoke.Contains("-remote-") && actor.inventory.Any(i=>i.definition=="caps")) {Finish(false,"Удалённая выдача неожиданно досталась хосту.");return;}
                 if(!Resume && !anyPending) {Finish(false,"Не наблюдался резерв до выдачи.");return;}
-                phase=4;NetworkServer.SendToAll(new ContainerProbeFinish());acknowledgements.Clear();
+                if(Deposits) {acknowledgements.Clear();anyPending=false;Advance(5);}
+                else {phase=4;NetworkServer.SendToAll(new ContainerProbeFinish());acknowledgements.Clear();}
             }
+        }
+        private IEnumerator CheckPage()
+        {
+            yield return UiPointerProbe.Click(runtime.Hud.ContainerNextRect);
+            if(runtime.Hud.ContainerPage!=1) {Finish(false,"Вторая страница контейнера недоступна.");yield break;}
+            pageChecked=true;
+        }
+        private IEnumerator Deposit()
+        {
+            while(DateTime.UtcNow.Ticks<clickAt) yield return null;
+            int index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="caps");
+            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index));
+            index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="grenade");
+            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index));
         }
         private IEnumerator Click()
         {

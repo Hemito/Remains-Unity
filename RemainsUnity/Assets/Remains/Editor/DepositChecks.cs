@@ -10,13 +10,20 @@ namespace Remains.Editor
     public static class DepositChecks
     {
         private sealed class Deny : IDepositRule
-        {public string Rejection(DepositContext context)=>"Тест: контейнер не принимает предмет.";}
+        {public string AccessRejection(LootAccessContext context)=>new NearbyLootRule().AccessRejection(context);
+         public string Rejection(DepositContext context)=>"Тест: контейнер не принимает предмет.";}
         public static void Run()
         {
             var world=new WorldState();var source=new ActorState {id="donor",player=true,connected=true};
             world.actors.Add(source);var container=new ContainerState {x=0};world.containers.Add(container);
             var item=SharedInventory.Create("heal",5);source.inventory.Add(item);
             item.extensions=new System.Collections.Generic.Dictionary<string,Newtonsoft.Json.Linq.JToken> {{"quality",3}};
+            var locked=source.Copy();locked.inventoryReservations[item.id]=4;
+            Require(InventoryJournal.Count(locked,"heal")==1 && InventoryJournal.Consume(locked,"heal",1) &&
+                !InventoryJournal.Consume(locked,"heal",1) && !SharedInventory.Consume(locked,"heal") &&
+                !InventoryJournal.Debit(locked,"blocked",item.id,1),"Зарезервированное количество не тратится ни одним путём расхода");
+            Require(locked.Copy().inventoryReservations.Count==0 && !StateJson.ToJson(locked).Contains("inventoryReservations"),"Временная клиентская блокировка не попадает в сейв/сеть");
+            locked.inventoryReservations.Clear();Require(InventoryJournal.Count(locked,"heal")==4,"Снятие блокировки освобождает только остаток");
             var deposits=new SharedDeposits(world);
             string before=StateJson.ToJson(world);
             Require(!deposits.Prepare("negative",source,container.id,item.id,-1,out _) &&

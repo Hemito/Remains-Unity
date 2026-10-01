@@ -17,11 +17,12 @@ namespace Remains.Domain
         public DepositContext(ActorState source,ContainerState destination,ItemStack item,int amount)
         {access=new LootAccessContext(source,destination);itemId=item.id;definition=item.definition;count=amount;availableCount=item.count;}
     }
-    public interface IDepositRule {string Rejection(DepositContext context);}
+    public interface IDepositRule {string AccessRejection(LootAccessContext context);string Rejection(DepositContext context);}
     public sealed class NearbyDepositRule : IDepositRule
     {
         private readonly NearbyLootRule access=new();
-        public string Rejection(DepositContext context)=>access.AccessRejection(context.access);
+        public string AccessRejection(LootAccessContext context)=>access.AccessRejection(context);
+        public string Rejection(DepositContext context)=>null;
     }
 
     // Domain transaction only. The coordinator must persist/replicate Prepare before allowing Commit.
@@ -42,7 +43,7 @@ namespace Remains.Domain
             reason="Указанное количество недоступно. Обновите выбор.";
             if(item==null || item.count<=0 || quantity<0 || quantity>item.count) return false;
             int amount=quantity==0?item.count:quantity;
-            reason=rule.Rejection(new DepositContext(source,destination,item,amount));
+            reason=rule.AccessRejection(new LootAccessContext(source,destination))??rule.Rejection(new DepositContext(source,destination,item,amount));
             if(reason!=null) return false;
             var reserved=item.ReservedCopy(amount);
             if(!InventoryJournal.Debit(source,transaction,item.id,amount))

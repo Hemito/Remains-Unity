@@ -174,7 +174,7 @@ namespace Remains.Runtime
 
         private void Update()
         {
-            Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();
+            Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();
             var actor=Session.LocalActor;
             if (actor==null || !NetworkClient.isConnected) return;
             cameraFollower.Step(actor,Time.deltaTime);

@@ -117,7 +117,7 @@ namespace Remains.Networking
         }
         public void ThrowGrenade(Vector2 aim)
         {
-            if(session.LocalActor==null || session.Pause.IsPaused(session.LocalActor.level)) return;
+            if(session.LocalActor==null || session.Pause.IsPaused(session.LocalActor.level) || InventoryJournal.Count(session.LocalActor,"grenade")<=0) return;
             NetworkClient.Send(new ThrowRequest { transaction=Guid.NewGuid().ToString("N"),aimX=aim.x,aimY=aim.y });
         }
     }

@@ -52,7 +52,7 @@ namespace Remains.Domain
 
         public static bool Consume(ActorState actor, string definition)
         {
-            var item = actor.inventory.Find(candidate => candidate.definition == definition && candidate.count > 0);
+            var item = actor.inventory.Find(candidate => candidate.definition == definition && InventoryAvailability.Count(actor,candidate)>0);
             if (item == null) return false;
             if (--item.count == 0) actor.inventory.Remove(item);
             return true;

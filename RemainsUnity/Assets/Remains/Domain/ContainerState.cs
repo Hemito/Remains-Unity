@@ -30,13 +30,13 @@ namespace Remains.Domain
             if(quantity<0 || quantity>item.count) return "Указанное количество недоступно. Обновите выбор.";
             return (rule??defaults).ClaimRejection(new LootClaimContext(new LootAccessContext(actor,container),item,quantity));
         }
-        public static ContainerState Nearest(WorldState world,ActorState actor,ILootRule rule=null)
+        public static ContainerState Nearest(WorldState world,ActorState actor,ILootRule rule=null,IDepositRule depositRule=null)
         {
             if(world==null || actor==null) return null;
             ContainerState nearest=null;float distance=float.PositiveInfinity;
             foreach(var container in world.containers)
             {
-                if(Rejection(actor,container,rule)!=null) continue;
+                if(Rejection(actor,container,rule)!=null && (depositRule==null || depositRule.AccessRejection(new LootAccessContext(actor,container))!=null)) continue;
                 float next=Vector2.Distance(actor.Position,container.Position);
                 if(next>distance) continue;
                 distance=next;nearest=container;

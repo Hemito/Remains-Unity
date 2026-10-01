@@ -9,7 +9,7 @@ namespace Remains.Domain
 
     public static class InventoryJournal
     {
-        public static int Count(ActorState actor,string definition) => actor.inventory.Where(i=>i.definition==definition).Sum(i=>i.count);
+        public static int Count(ActorState actor,string definition) => actor.inventory.Where(i=>i.definition==definition).Sum(i=>InventoryAvailability.Count(actor,i));
 
         public static bool Consume(ActorState actor,string definition,int count)
         {
@@ -18,7 +18,8 @@ namespace Remains.Domain
             int remaining=count;
             foreach(var item in actor.inventory.Where(i=>i.definition==definition && i.count>0))
             {
-                int take=Math.Min(remaining,item.count);
+                int take=Math.Min(remaining,InventoryAvailability.Count(actor,item));
+                if(take==0) continue;
                 use.debits.Add(new ItemDebit {item=item.id,count=take});remaining-=take;
                 if(remaining==0) break;
             }
@@ -30,6 +31,8 @@ namespace Remains.Domain
         public static bool Debit(ActorState actor,string transaction,string item,int count)
         {
             if(string.IsNullOrEmpty(transaction) || actor.inventoryUses.Exists(use=>use.id==transaction)) return false;
+            var source=actor.inventory.Find(i=>i.id==item);
+            if(source==null || InventoryAvailability.Count(actor,source)<count) return false;
             var use=new InventoryUse {id=transaction,debits=new List<ItemDebit> {new() {item=item,count=count}}};
             if(!Apply(actor.inventory,use)) return false;
             actor.inventoryUses.Add(use);return true;

@@ -63,6 +63,7 @@ namespace Remains.Domain
         public int loadoutVersion;
         public List<WeaponMagazine> magazines = new();
         public List<InventoryUse> inventoryUses = new();
+        [NonSerialized] public Dictionary<string,int> inventoryReservations = new();
         public List<InjuryState> injuries = new();
         public Vector2 Position { get => new(x, y); set { x = value.x; y = value.y; } }
         public Vector2 Velocity { get => new(vx, vy); set { vx = value.x; vy = value.y; } }

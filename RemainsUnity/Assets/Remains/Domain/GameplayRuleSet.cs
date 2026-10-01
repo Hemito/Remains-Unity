@@ -57,13 +57,14 @@ namespace Remains.Domain
         public IPartyDefeatRule PartyDefeat {get;}
         public ILootRule Loot {get;}
         public ILevelPauseRule Pause {get;}
-        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot=null,ILevelPauseRule pause=null)
+        public IDepositRule Deposit {get;}
+        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot=null,ILevelPauseRule pause=null,IDepositRule deposit=null)
         {
             Damage=damage??throw new ArgumentNullException(nameof(damage));
             Knockdown=knockdown??throw new ArgumentNullException(nameof(knockdown));
             PartyDefeat=partyDefeat??throw new ArgumentNullException(nameof(partyDefeat));
             Loot=loot??new NearbyLootRule();
-            Pause=pause??new CooperativePauseRule();
+            Pause=pause??new CooperativePauseRule();Deposit=deposit??new NearbyDepositRule();
         }
         public static GameplayRuleSet CreateDefault()=>new(new PrototypeDamageRule(),new ZeroHealthKnockdownRule(),new HubPartyDefeatRule());
     }

@@ -34,6 +34,10 @@ namespace Remains.Presentation
         private bool claimOne;
         public RectTransform ClaimQuantityRect=>claimQuantity.GetComponent<RectTransform>();
         private ContainerState shownContainer;
+        private int containerPage;
+        private Button previousContainer,nextContainer;
+        public int ContainerPage=>containerPage;
+        public RectTransform ContainerNextRect=>nextContainer.GetComponent<RectTransform>();
         private Font font;
         private HudElements elements;
         public WorldLobbyPanel NetworkLobby {get;private set;}
@@ -44,7 +48,8 @@ namespace Remains.Presentation
         private string inventoryActorVersion;
         private Image healthBar;
         private Image manaBar;
-        private Text personalItems;
+        private DepositPanel personalItems;
+        public RectTransform DepositRowRect(int index)=>personalItems.RowRect(index);
         private Text ammunition;
         private Text revival;
         public Func<float> RevivalProgress {get;set;}
@@ -86,23 +91,25 @@ namespace Remains.Presentation
             address = Input(lobby.transform, new Vector2(20,-140));
             Button(lobby.transform,"Подключиться",new Vector2(20,-200),new Vector2(400,45),()=>
             {if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);});
-            inventory = Panel(transform,"Общий контейнер",new Vector2(920,-130),new Vector2(330,390));
+            inventory = Panel(transform,"Общий контейнер",new Vector2(920,-130),new Vector2(330,435));
             containerTitle=Label(inventory.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
             for (int i = 0; i < slots.Length; i++)
             {
                 int index = i;
                 slots[i] = Button(inventory.transform,"Пусто",new Vector2(12+i%3*105,-60-i/3*95),new Vector2(98,86),()=>
                 {
-                    if (shownContainer!=null && index < shownContainer.items.Count)
-                        session.RequestClaim(shownContainer.id,shownContainer.items[index].id,claimOne?1:0);
+                    if (shownContainer!=null && containerPage*9+index < shownContainer.items.Count)
+                        session.RequestClaim(shownContainer.id,shownContainer.items[containerPage*9+index].id,claimOne?1:0);
                 });
             }
             claimQuantity=Button(inventory.transform,"Брать: всю стопку",new Vector2(12,-350),new Vector2(305,32),()=>
             {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Брать: по одной единице":"Брать: всю стопку";Refresh();});
+            previousContainer=Button(inventory.transform,"←",new Vector2(12,-390),new Vector2(65,32),()=>{containerPage--;Refresh();});
+            nextContainer=Button(inventory.transform,"→",new Vector2(252,-390),new Vector2(65,32),()=>{containerPage++;Refresh();});
             inventory.SetActive(false);
             var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(-380,0),new Vector2(360,390));
             ApplyOriginalImage(personalPanel.GetComponent<Image>(),"inventory-panel",false);
-            personalItems=Label(personalPanel.transform,"",new Vector2(20,-20),new Vector2(320,340));
+            personalItems=new DepositPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0);
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-550),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=Button(transform,"Решение о попадании",new Vector2(320,-550),new Vector2(450,45),()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
@@ -154,15 +161,20 @@ namespace Remains.Presentation
             RefreshAmmunition();
             healthBar.fillAmount=Mathf.Clamp01(actor.health/100);
             manaBar.fillAmount=Mathf.Clamp01(actor.mana/100);
-            personalItems.text="Личный инвентарь\n";
-            foreach(var item in actor.inventory) personalItems.text+=$"\n{ItemName(item.definition)} × {item.count}";
-            shownContainer=ContainerAccess.Nearest(session.World,actor,session.Rules.Loot);
-            containerTitle.text=shownContainer==null?"Рядом нет контейнера":"Общий контейнер · 3 × 3";
+
+            var nearest=ContainerAccess.Nearest(session.World,actor,session.Rules.Loot,session.Rules.Deposit);
+            if(nearest?.id!=shownContainer?.id) containerPage=0;
+            shownContainer=nearest;
+            int pages=Math.Max(1,((shownContainer?.items.Count??0)+8)/9);
+            containerPage=Mathf.Clamp(containerPage,0,pages-1);
+            previousContainer.interactable=containerPage>0;nextContainer.interactable=containerPage<pages-1;
+            personalItems.Refresh(shownContainer);
+            containerTitle.text=shownContainer==null?"Рядом нет контейнера": $"Контейнер · {containerPage+1}/{pages} · 3 × 3";
             if(shownContainer!=null && session.World.pendingGrants.Exists(g=>g.containerId==shownContainer.id && g.recipient==actor.id))
                 containerTitle.text="Подбор подтверждается…";
             for (int i = 0; i < slots.Length; i++)
             {
-                var item = shownContainer!=null && i < shownContainer.items.Count ? shownContainer.items[i] : null;
+                var item = shownContainer!=null && containerPage*9+i < shownContainer.items.Count ? shownContainer.items[containerPage*9+i] : null;
                 slots[i].GetComponentInChildren<Text>().text = item == null ? "Пусто" : $"{ItemName(item.definition)}\n{item.count}";
                 slots[i].interactable = item != null && ContainerAccess.ClaimRejection(actor,shownContainer,item,session.Rules.Loot,claimOne?1:0)==null;
             }
@@ -217,7 +229,7 @@ namespace Remains.Presentation
         private void Update()
         {
             factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
-            if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot)?.id!=shownContainer?.id) Refresh();
+            if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
             RefreshAmmunition();
             if(revival==null) return;
             float progress=RevivalProgress?.Invoke() ?? 0;
