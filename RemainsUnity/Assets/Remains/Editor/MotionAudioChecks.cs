@@ -28,6 +28,13 @@ namespace Remains.Editor
             var ladder=new MotionContacts();Sample(ladder,Vector2.zero,climbing:true);
             Require(Sample(ladder,new Vector2(0,.6f),climbing:true)==MotionContact.Ladder,"Нет контакта лестницы.");
             Require(Sample(ladder,new Vector2(0,.6f),climbing:true)==MotionContact.None,"Неподвижная лестница создаёт шаги.");
+            var crate=new MotionContacts();
+            Require(Sample(crate,Vector2.zero)==MotionContact.None,"Загрузка ящика создаёт удар.");
+            Require(Sample(crate,Vector2.up,false,suppressed:true)==MotionContact.None,"Удержание ящика создаёт удар.");
+            Require(Sample(crate,new Vector2(0,.9f),false,generation:1)==MotionContact.None,"Освобождение ящика создаёт удар до пола.");
+            Require(Sample(crate,new Vector2(0,.5f),false,generation:1)==MotionContact.None,"Ящик звучит в воздухе.");
+            Require(Sample(crate,Vector2.zero,generation:1)==MotionContact.Landing,"Падение освобождённого ящика не замечено.");
+            for(int i=0;i<10;i++) Require(Sample(crate,Vector2.zero,generation:1)==MotionContact.None,"Повторный снимок ящика создаёт удар.");
             Debug.Log("Звуки движения: PASS — частота кадров, покой, полёт, приземление, лестница, пауза, перенос.");
         }
         private static MotionContact Sample(MotionContacts track,Vector2 position,bool grounded=true,bool climbing=false,

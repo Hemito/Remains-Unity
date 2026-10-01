@@ -136,6 +136,8 @@ namespace Remains.Runtime
             if(results<3*runtime.Options.ProbePeers || sent) return;
             if(results!=3*runtime.Options.ProbePeers || shots!=3 || targets.Single(a=>a.id=="training:hub:1").resolvedAttacks.Count!=results) return;
             if(!observedLift || light.held || Host && (stage<10 || !rejected50 || !rejected120)) return;
+            if(runtime.PropAudio.Landings<1) return;
+            if(runtime.PropAudio.Landings!=1) {Finish(false,"Звук единственного падения ящика повторён.");return;}
             if(!jumping.Complete || observedJumpSupport.Count!=runtime.Options.ProbePeers-1) return;
             if(!crouching.Complete || observedCrouch.Count!=runtime.Options.ProbePeers-1 || !independentStance) return;
             if(observedLower.Count!=runtime.Options.ProbePeers-1 || observedRise.Count!=runtime.Options.ProbePeers-1) return;
@@ -156,9 +158,9 @@ namespace Remains.Runtime
             string json=JsonUtility.ToJson(new Report {success=success,detail=detail,shots=shots,results=results,
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,ladderContacts=runtime.MovementAudio.LadderContacts,
-                remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,independentStance=independentStance},true);
+                remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,propLandings=runtime.PropAudio.Landings,independentStance=independentStance},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,propLandings;public float shortJump,longJump;}
     }
 }
