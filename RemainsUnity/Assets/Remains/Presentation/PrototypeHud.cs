@@ -37,6 +37,7 @@ namespace Remains.Presentation
         public CharacterContentPanel CharacterContent {get;private set;}
         public PauseMenu PauseMenu {get;private set;}
         public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen;
+        public bool InventoryOpen=>inventory.activeSelf;
         private string inventoryActorVersion;
         private Image healthBar;
         private Image manaBar;

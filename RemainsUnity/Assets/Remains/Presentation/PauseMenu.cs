@@ -19,6 +19,7 @@ namespace Remains.Presentation
         public RectTransform ResumeRect {get;}
         public RectTransform MenuSettingRect=>menuSetting.GetComponent<RectTransform>();
         public RectTransform InventorySettingRect=>inventorySetting.GetComponent<RectTransform>();
+        public RectTransform ExitToHubRect=>exit.GetComponent<RectTransform>();
         public PauseMenu(Transform parent,HudElements ui,CoopSession session,Func<bool> inventory)
         {
             this.session=session;this.inventory=inventory;

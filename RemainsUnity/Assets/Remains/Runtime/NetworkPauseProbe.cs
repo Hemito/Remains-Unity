@@ -25,8 +25,10 @@ namespace Remains.Runtime
         private bool fired,reloaded,sampling;
         private int frozenSamples,activeSamples;
         private string failure;
-        private bool menuCommand,uiBusy;
+        private bool menuCommand,inventoryCommand,uiBusy;
         private bool DeferredScenario=>runtime.Options.Smoke.Contains("-deferred-");
+        private bool ReconnectScenario=>runtime.Options.Smoke.Contains("-reconnect-");
+        private bool observedDisconnected,reconnected;
         private float healthBeforeLate;
         private int damageBeforeLate;
         private bool observedDeferred;
@@ -52,6 +54,7 @@ namespace Remains.Runtime
             var actor=runtime.Session.LocalActor;
             if(actor==null) return default;
             if(menuCommand) {menuCommand=false;return new PlayerCommand {menu=true};}
+            if(inventoryCommand) {inventoryCommand=false;return new PlayerCommand {inventory=true};}
             var result=new PlayerCommand {movement=Vector2.right*.15f,hasAim=true,aim=actor.Position+Vector2.right*20};
             if(First && phase==1 && actor.level=="factory:0" && !runtime.Session.Travel.Pending)
             {
@@ -64,13 +67,15 @@ namespace Remains.Runtime
         {
             if(!Host) yield break;
             while(runtime.Session.World==null || runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) yield return null;
-            for(int step=0;step<=11 && !finished;step++)
+            for(int step=0;step<=(ReconnectScenario?14:11) && !finished;step++)
             {
                 hostPhase=step;acknowledgements.Clear();
                 Debug.Log($"Проверка паузы: начало phase={step}, peers={runtime.Options.ProbePeers}.");
                 if(step==6) yield return ConfigureSettings(true,false);
                 if(step==8) yield return ConfigureSettings(false,true);
                 if(step==11) yield return ConfigureSettings(false,false);
+                if(step==12) yield return ConfigureSettings(true,false);
+                if(step==14) yield return ConfigureSettings(false,false);
                 NetworkServer.SendToAll(new PauseProbePhase {phase=step});
                 while(acknowledgements.Count!=runtime.Options.ProbePeers && !finished) yield return null;
                 if(step==2 && DeferredScenario) InjectLateAttack();
@@ -103,10 +108,46 @@ namespace Remains.Runtime
                 StartCoroutine(AcknowledgeBlockedEntry());
             }
             if(phase==5 && First) StartCoroutine(ManualPause(false));
-            if(phase==6 && First) session.Pause.SetIntent(true,false);
-            if(phase==7 && First) session.Pause.SetIntent(false,true);
-            if(phase==9 && First) session.Travel.RequestHub();
+            if(phase==6 && First) StartCoroutine(OpenAutomaticMenu());
+            if(phase==7 && First) StartCoroutine(SwitchToInventory());
+            if(phase==9 && First) StartCoroutine(ExitPausedLevel());
             if(phase==10 && First) session.Travel.RequestFactory();
+            if(phase==12 && First) StartCoroutine(OpenAutomaticMenu());
+            if(phase==13 && First) StartCoroutine(DisconnectAndReturn());
+        }
+        private IEnumerator DisconnectAndReturn()
+        {
+            uiBusy=true;
+            var session=runtime.Session;var original=session.LocalActor.Copy();
+            session.StopClient();
+            yield return new WaitForSecondsRealtime(1.5f);
+            session.StartClient();
+            while(session.LocalActor==null && !finished) yield return null;
+            if(finished) yield break;
+            var resumed=session.LocalActor;
+            if(resumed.id!=original.id || resumed.level!=original.level || resumed.generation<=original.generation ||
+                !resumed.down || resumed.Position!=original.Position || resumed.health>original.health ||
+                session.World.actors.Count(actor=>actor.character==original.character)!=1 ||
+                runtime.Hud.InventoryOpen || runtime.Hud.PauseMenu.IsOpen)
+            {failure="Возвращение после автопаузы изменило тело/позицию либо сохранило старый интерфейс";Finish(false);yield break;}
+            reconnected=true;uiBusy=false;
+        }
+        private IEnumerator OpenAutomaticMenu()
+        {uiBusy=true;yield return OpenMenu();uiBusy=false;}
+        private IEnumerator SwitchToInventory()
+        {
+            uiBusy=true;yield return CloseMenu();inventoryCommand=true;
+            while(!runtime.Hud.InventoryOpen && !finished) yield return null;
+            uiBusy=false;
+        }
+        private IEnumerator ExitPausedLevel()
+        {
+            uiBusy=true;yield return OpenMenu();
+            yield return UiPointerProbe.Click(runtime.Hud.PauseMenu.ExitToHubRect);
+            while((runtime.Session.LocalActor?.level!="hub" || runtime.Session.Travel.Pending) && !finished) yield return null;
+            if(runtime.Hud.InventoryOpen || runtime.Hud.PauseMenu.IsOpen)
+            {failure="Переход сохранил старый открытый интерфейс";Finish(false);}
+            uiBusy=false;
         }
         private IEnumerator OpenMenu()
         {
@@ -155,10 +196,12 @@ namespace Remains.Runtime
             if(finished) return;
             if(Time.unscaledTime>deadline) {Finish(false);return;}
             var session=runtime.Session;
+            if(Host && phase==13 && session.ServerWorld?.Find("player:session-client-1") is {connected:false,down:true,level:"factory:0"} && !session.Pause.IsServerPaused("factory:0"))
+                observedDisconnected=true;
             if(uiBusy || phase<0 || acknowledged==phase || session.LocalActor==null || session.Travel.Pending || session.Pause.Revision<0) return;
             if(phase==4 && Host) return;
-            bool expectedPause=phase is 2 or 3 or 4 or 6 or 8;
-            bool expectedMenu=phase is 6 or 7;
+            bool expectedPause=phase is 2 or 3 or 4 or 6 or 8 or 12;
+            bool expectedMenu=phase is 6 or 7 or 12 or 13;
             bool expectedInventory=phase is 8 or 9 or 10;
             string expectedLevel=First && phase>=1 && phase!=9 || Host && phase is 1 or 2?"factory:0":"hub";
             if(session.LocalActor.level!=expectedLevel || session.Pause.IsPaused("factory:0")!=expectedPause || session.Pause.IsPaused("hub") ||
@@ -177,7 +220,11 @@ namespace Remains.Runtime
                 {failure="Возобновление не применило ровно один отложенный урон";Finish(false);return;}
             }
             if(phase==1 && First && !fired) return;
-            if(phase is 2 or 3)
+            if(First && phase==6 && !runtime.Hud.PauseMenu.IsOpen) return;
+            if(First && phase==12 && !runtime.Hud.PauseMenu.IsOpen) return;
+            if(phase==13 && (First && !reconnected || Host && !observedDisconnected)) return;
+            if(First && phase is 7 or 8 && (!runtime.Hud.InventoryOpen || runtime.Hud.PauseMenu.IsOpen)) return;
+            if(phase is 2 or 3 or 6 or 7 or 8 or 12)
             {if(!sampling) {sampling=true;StartCoroutine(SampleSimulation());}return;}
             Acknowledge();
         }
@@ -199,12 +246,14 @@ namespace Remains.Runtime
             yield return new WaitForSecondsRealtime(.8f); // Allow already sent pose packets to settle.
             bool paused=runtime.Session.Pause.IsPaused(runtime.Session.LocalActor.level);
             var before=Snapshot();
-            if(First && (!runtime.Combat.Reload.Active || !runtime.Grenades.Flights.Any(f=>f.state.remaining>0)))
+            if(First && phase is 2 or 3 && (!runtime.Combat.Reload.Active || !runtime.Grenades.Flights.Any(f=>f.state.remaining>0)))
             {failure="Не создана незавершённая перезарядка/граната перед паузой";Finish(false);yield break;}
             yield return new WaitForSecondsRealtime(.8f);
             var after=Snapshot();
             if(paused && !before.SequenceEqual(after)) {failure="Симуляция изменилась во время паузы";Finish(false);yield break;}
-            if(!paused && after[0]<=before[0]+.1f) {failure="Активный хаб не продолжает движение";Finish(false);yield break;}
+            if(!paused && First && phase==7 && after[4]<=before[4]+.1f)
+            {failure="Инвентарь остановил время при выключенной настройке";Finish(false);yield break;}
+            if(!paused && !(First && phase==7) && after[0]<=before[0]+.1f) {failure="Активный хаб не продолжает движение";Finish(false);yield break;}
             if(paused) frozenSamples++;else activeSamples++;
             Acknowledge();sampling=false;
         }
@@ -217,7 +266,7 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;exitCode=success?0:1;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,
-                detail=$"Пауза: phase={phase}, hostPhase={hostPhase}, ack={acknowledged}, ackCount={acknowledgements.Count}, frozenSamples={frozenSamples}, activeSamples={activeSamples}, deferred={observedDeferred}, attackerHits={runtime.Combat.AttackerDecidedHits}, victimHits={runtime.Combat.VictimDecidedHits}, revision={runtime.Session.Pause.Revision}, level={runtime.Session.LocalActor?.level}, failure={failure}."},true));
+                detail=$"Пауза: phase={phase}, hostPhase={hostPhase}, ack={acknowledged}, ackCount={acknowledgements.Count}, frozenSamples={frozenSamples}, activeSamples={activeSamples}, deferred={observedDeferred}, disconnected={observedDisconnected}, reconnected={reconnected}, attackerHits={runtime.Combat.AttackerDecidedHits}, victimHits={runtime.Combat.VictimDecidedHits}, revision={runtime.Session.Pause.Revision}, level={runtime.Session.LocalActor?.level}, failure={failure}."},true));
             Invoke(nameof(Exit),1);
         }
         private int exitCode;
