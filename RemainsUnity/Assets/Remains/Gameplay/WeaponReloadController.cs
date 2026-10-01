@@ -12,6 +12,8 @@ namespace Remains.Gameplay
         private float remaining;
         public bool Active => actorId!=null;
         public float Remaining => remaining;
+        public event System.Action<ActorState,string> Started;
+        public event System.Action Finished;
         public WeaponReloadController(CoopSession session) => this.session=session;
 
         public bool Start(ActorState actor,string selected)
@@ -23,6 +25,7 @@ namespace Remains.Gameplay
             actorId=actor.id;weapon=selected;generation=actor.generation;lifecycle=actor.lifecycleSequence;
             remaining=definition.reloadSeconds;
             session.ShowNotice("Перезарядка…");
+            Started?.Invoke(actor,selected);
             return true;
         }
 
@@ -32,11 +35,12 @@ namespace Remains.Gameplay
             var actor=session.World?.Find(actorId);
             if(actor==null || actor.down || actor.owner!=session.LocalOwner || selected!=weapon ||
                 actor.generation!=generation || actor.lifecycleSequence!=lifecycle)
-            {actorId=null;remaining=0;session.ShowNotice("Перезарядка прервана.");return;}
+            {actorId=null;remaining=0;Finished?.Invoke();session.ShowNotice("Перезарядка прервана.");return;}
             if(session.Pause.IsPaused(actor.level)) return;
             remaining-=dt;
             if(remaining>0) return;
             actorId=null;remaining=0;
+            Finished?.Invoke();
             if(WeaponAmmunition.CompleteReload(actor,WeaponCatalog.Get(weapon)))
             {session.PublishActor(actor);session.ShowNotice("Оружие перезаряжено.");}
             else session.ShowNotice("Перезарядка не выполнена: запас патронов изменился.");

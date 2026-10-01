@@ -115,10 +115,16 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             finished=true;
-            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,actor=actorId,stress=runtime.Options.NetworkStress},true);
+            if(success && !runtime.Options.Smoke.Contains("resume"))
+            {
+                bool audio=runtime.Audio.LocalShots==18 && runtime.Audio.RemoteShots==18*(runtime.Options.ProbePeers-1) && runtime.Audio.ReloadStarts==3;
+                success &= audio;detail+=audio?" Звуковые события: 18 своих выстрелов, выстрелы других игроков и 3 начала перезарядки подтверждены (беззвучный режим).":" Неверное количество звуковых событий.";
+            }
+            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,actor=actorId,stress=runtime.Options.NetworkStress,
+                localShotAudio=runtime.Audio.LocalShots,remoteShotAudio=runtime.Audio.RemoteShots,reloadAudio=runtime.Audio.ReloadStarts},true);
             if(runtime.Options.Report!=null) File.WriteAllText(runtime.Options.Report,json);
             Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report { public bool success,stress;public string detail,actor;public int phase; }
+        [Serializable] private sealed class Report { public bool success,stress;public string detail,actor;public int phase,localShotAudio,remoteShotAudio,reloadAudio; }
     }
 }
