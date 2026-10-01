@@ -29,6 +29,7 @@ namespace Remains.Runtime
         private bool sawDepositPending,captured,loadedPending;
         private string recoveryTransaction;
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
+        private bool Crash=>runtime.Options.Smoke.Contains("-crash-");
         private bool Loot=>runtime.Options.Smoke.Contains("-loot-");
         private string Item=>Loot?"caps":"grenade";
         private int Before=>Loot?0:5;
@@ -91,7 +92,7 @@ namespace Remains.Runtime
                 {Finish(false,"Восстановление резерва внесения изменило общее количество.");return;}
                 phase=2;NetworkServer.SendToAll(new ReceiptLossFinish());return;
             }
-            if(Source && threw && !disconnected && Time.unscaledTime>=disconnectAt)
+            if(!Crash && Source && threw && !disconnected && Time.unscaledTime>=disconnectAt)
             {
                 disconnected=true;session.StopClient();returnAt=Time.unscaledTime+3;
                 var saved=JsonUtility.FromJson<ActorState>(File.ReadAllText(Path.Combine(session.Saves.DirectoryPath,"character.json")));
@@ -128,6 +129,8 @@ namespace Remains.Runtime
                 }
                 if(InventoryJournal.Count(source,"grenade")!=4 || session.ServerWorld.containers.SelectMany(c=>c.items).Where(i=>i.definition=="grenade").Sum(i=>i.count)!=3)
                 {Finish(false,"Неподтверждённый резерв внесения появился в контейнере либо не списан у отправителя.");return;}
+                if(Crash && !File.Exists(runtime.Options.Report+".crash-ready"))
+                    File.WriteAllText(runtime.Options.Report+".crash-ready",session.ServerWorld.pendingDeposits[0].transaction);
             }
             if(source!=null && !source.connected)
             {
