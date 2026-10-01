@@ -120,6 +120,9 @@ namespace Remains.Presentation
 
         public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf); Refresh(); }
         public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
+        public RectTransform FriendlyFireButtonRect=>friendlyFire.GetComponent<RectTransform>();
+        public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
+        public bool FriendlyDecisionInteractable=>friendlyDecision.interactable;
         public RectTransform ContainerSlotRect(int index)=>slots[index].GetComponent<RectTransform>();
         public void ShowMessage(string text)=>message.text=text;
         private void Refresh()

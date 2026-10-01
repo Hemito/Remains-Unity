@@ -6,6 +6,7 @@ using System.Linq;
 using Mirror;
 using Remains.Gameplay;
 using UnityEngine;
+using Remains.Domain;
 
 namespace Remains.Runtime
 {
@@ -17,6 +18,8 @@ namespace Remains.Runtime
         private int phase;
         private float deadline,phaseAt;
         private bool fired,finished;
+        private bool configuring,uiPrepared;
+        private bool UiScenario=>runtime.Options.Smoke.Contains("-ffui-");
         private readonly Dictionary<string,int> sweeps=new();
         private bool Host=>runtime.Options.Role=="host";
         public void Initialize(PrototypeRuntime value)
@@ -24,7 +27,7 @@ namespace Remains.Runtime
             runtime=value;deadline=Time.unscaledTime+40;value.CommandSource=Command;
             value.Session.ClientReady+=()=>
             {
-                NetworkClient.RegisterHandler<MeleeProbePhase>(m=>{phase=m.phase;phaseAt=Time.unscaledTime;fired=false;});
+                NetworkClient.RegisterHandler<MeleeProbePhase>(m=>{phase=m.phase;phaseAt=Time.unscaledTime;fired=false;configuring=false;});
                 NetworkClient.RegisterHandler<MeleeProbeFinish>(m=>Finish(m.success,m.detail));
             };
             value.Session.AttackReceived+=attack=>
@@ -41,12 +44,13 @@ namespace Remains.Runtime
             }
             if(!Host || phase>2 || fired) return default;
             fired=true;
-            return new PlayerCommand {weapon=phase==1?"crowbar":"spear",fire=true,hasAim=true,aim=self.Position+new Vector2(5,.8f)};
+            return new PlayerCommand {weapon=phase<=1?"crowbar":"spear",fire=true,hasAim=true,aim=self.Position+new Vector2(5,.8f)};
         }
         private void Update()
         {
             if(finished) return;
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут ближнего боя: phase={phase}, attacks={sweeps.Count}");return;}
+            if(configuring) return;
             var session=runtime.Session;
             if(!Host || session.LocalActor==null || session.ServerWorld.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return;
             var players=session.ServerWorld.actors.Where(a=>a.player && a.connected).ToArray();
@@ -54,6 +58,7 @@ namespace Remains.Runtime
             if(phase==0)
             {
                 if(players.Any(a=>Mathf.Abs(a.x-(a.character=="session-host"?5:a.character=="session-client-1"?6:12))>.08f || Mathf.Abs(a.vx)>.1f)) return;
+                if(UiScenario && !uiPrepared) {uiPrepared=true;configuring=true;StartCoroutine(PrepareUi());return;}
                 NetworkServer.SendToAll(new MeleeProbePhase {phase=1});return;
             }
             if(phase>2 || Time.unscaledTime-phaseAt<1.5f) return;
@@ -61,7 +66,11 @@ namespace Remains.Runtime
             {Complete(false,$"Ожидался один урон за взмах: phase={phase}, damageSequence={victim.damageSequence}, hp={victim.health}, attacks={sweeps.Count}.");return;}
             if(players.Where(a=>a.id!=victim.id).Any(a=>a.health!=100) || players.Any(a=>a.mana!=100))
             {Complete(false,"Ближний бой повредил наблюдателя или изменил ману.");return;}
-            if(phase==1) NetworkServer.SendToAll(new MeleeProbePhase {phase=2});
+            if(phase==1)
+            {
+                if(UiScenario) {configuring=true;StartCoroutine(SwitchToVictim());}
+                else NetworkServer.SendToAll(new MeleeProbePhase {phase=2});
+            }
             else Complete(true,"Лом и копьё: обычные команды, несколько сегментов одного взмаха, ровно один урон пострадавшему за взмах, наблюдатели и мана не затронуты.");
         }
         private void Complete(bool success,string detail)
@@ -71,9 +80,39 @@ namespace Remains.Runtime
             if(finished)return;finished=true;
             bool attacker=runtime.Options.Smoke.Contains("-attacker-");
             int expected=runtime.Options.Character=="session-client-1"?2:0;
-            if(runtime.Combat.AttackerDecidedHits!=(attacker?expected:0) || runtime.Combat.VictimDecidedHits!=(attacker?0:expected)) success=false;
+            if(runtime.Combat.AttackerDecidedHits!=(UiScenario?expected/2:attacker?expected:0) || runtime.Combat.VictimDecidedHits!=(UiScenario?expected/2:attacker?0:expected)) success=false;
             detail+=$" Решения: attacker={runtime.Combat.AttackerDecidedHits}, victim={runtime.Combat.VictimDecidedHits}.";
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
+        }
+        private IEnumerator PrepareUi()
+        {
+            var session=runtime.Session;var hud=runtime.Hud;
+            yield return UiPointerProbe.Click(hud.FriendlyFireButtonRect);
+            while(session.World.friendlyFire && !finished) yield return null;
+            if(finished) yield break;
+            if(hud.FriendlyDecisionInteractable) {Complete(false,"Выбор стороны активен при выключенном FF.");yield break;}
+            yield return UiPointerProbe.Click(hud.FriendlyDecisionButtonRect);
+            yield return new WaitForSecondsRealtime(.5f);
+            if(session.World.friendlyFireDecision!=FriendlyFireDecision.Victim) {Complete(false,"Неактивная кнопка изменила настройку.");yield break;}
+            phase=-1;fired=false;
+            yield return new WaitForSecondsRealtime(1.5f);
+            var victim=session.ServerWorld.Find("player:session-client-1");
+            if(victim.health!=100 || victim.damageSequence!=0 || sweeps.Count!=1)
+            {Complete(false,"Удар при выключенном FF изменил союзника или не был выполнен.");yield break;}
+            yield return UiPointerProbe.Click(hud.FriendlyFireButtonRect);
+            while(!session.World.friendlyFire && !finished) yield return null;
+            if(finished) yield break;
+            if(!hud.FriendlyDecisionInteractable) {Complete(false,"Выбор стороны остался заблокирован после включения FF.");yield break;}
+            yield return UiPointerProbe.Click(hud.FriendlyDecisionButtonRect);
+            while(session.World.friendlyFireDecision!=FriendlyFireDecision.Attacker && !finished) yield return null;
+            if(finished) yield break;
+            sweeps.Clear();NetworkServer.SendToAll(new MeleeProbePhase {phase=1});
+        }
+        private IEnumerator SwitchToVictim()
+        {
+            yield return UiPointerProbe.Click(runtime.Hud.FriendlyDecisionButtonRect);
+            while(runtime.Session.World.friendlyFireDecision!=FriendlyFireDecision.Victim && !finished) yield return null;
+            if(!finished) NetworkServer.SendToAll(new MeleeProbePhase {phase=2});
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:2);}
         [Serializable] private sealed class Report {public bool success;public string detail;}
