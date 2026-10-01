@@ -80,8 +80,8 @@ namespace Remains.Presentation
             healthBar=OriginalBar("health",new Vector2(20,-95),new Vector2(300,34));
             manaBar=OriginalBar("mana",new Vector2(20,-135),new Vector2(300,20));
             ammunition=elements.BackedLabel(transform,"",new Vector2(20,-165),new Vector2(380,32));
-            message = elements.BackedLabel(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · Удерживать E — поднять · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
-            revival=elements.BackedLabel(transform,"",new Vector2(420,-605),new Vector2(800,32));
+            message = elements.BackedLabel(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · Удерживать E — поднять · I — инвентарь", new Vector2(420,-95), new Vector2(830,85));
+            revival=elements.BackedLabel(transform,"",new Vector2(420,-190),new Vector2(800,32));
             lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,300));
             selectedWorld=Label(lobby.transform,"",new Vector2(0,95),new Vector2(720,90));
             worldPickerButton=Button(lobby.transform,"Выбрать сохранённое продолжение",new Vector2(20,-250),new Vector2(400,40),()=>
@@ -112,14 +112,14 @@ namespace Remains.Presentation
             var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(-380,0),new Vector2(360,390));
             ApplyOriginalImage(personalPanel.GetComponent<Image>(),"inventory-panel",false);
             personalItems=new DepositPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0);
-            friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-550),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
-            friendlyDecision=Button(transform,"Решение о попадании",new Vector2(320,-550),new Vector2(450,45),()=>
+            friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
+            friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
             friendlyDecision.gameObject.SetActive(false);
-            leave=Button(transform,"Сохранить и выйти из сессии",new Vector2(20,-600),new Vector2(290,45),()=>
+            leave=Button(transform,"Сохранить и выйти из сессии",new Vector2(20,-390),new Vector2(290,45),()=>
             {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
-            factory=Button(transform,"На завод 0",new Vector2(20,-500),new Vector2(290,45),()=>
+            factory=Button(transform,"На завод 0",new Vector2(20,-220),new Vector2(290,45),()=>
             {if(session.LocalActor?.level=="factory:0") session.Travel.RequestHub();else session.ReturnToFactory();});
             factory.gameObject.SetActive(false);
             session.Changed += Refresh;
@@ -152,7 +152,7 @@ namespace Remains.Presentation
             factory.GetComponentInChildren<Text>().text=actor.level=="hub"?"На завод 0":"Вернуться в хаб";
             friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
             friendlyDecision.interactable=session.World.friendlyFire;
-            friendlyDecision.GetComponentInChildren<Text>().text="Прямое попадание решает: "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");
+            friendlyDecision.GetComponentInChildren<Text>().text="Прямое попадание:\nрешает "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");
             status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count} · {(actor.level=="hub"?"Хаб": "Завод 0")}\n1 — копьё · 2 — лом · 3 — 10-мм пистолет · 4 — лазерный пистолет · R — перезарядка";
             RefreshAmmunition();
             healthBar.fillAmount=Mathf.Clamp01(actor.health/100);

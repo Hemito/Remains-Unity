@@ -12,9 +12,11 @@ namespace Remains.Runtime
 {
     public struct JourneyPhase : NetworkMessage {public int value;}
     public struct JourneyReady : NetworkMessage { }
+    public struct JourneyFrameReady : NetworkMessage {public int phase;}
     public struct JourneyFinish : NetworkMessage {public bool success;public string detail;}
 
     // One world and character set, ordinary commands only; no gameplay state injection.
+    [DefaultExecutionOrder(10000)]
     public sealed class NetworkJourneyProbe : MonoBehaviour
     {
         private PrototypeRuntime runtime;
@@ -26,6 +28,12 @@ namespace Remains.Runtime
         private JourneyInteractionStage interactions;
         private readonly HashSet<int> readyPeers=new();
         private readonly List<int> completed=new();
+        private readonly HashSet<int> captured=new();
+        private readonly HashSet<string> frameAcks=new();
+        private bool Frames=>runtime.Options.Smoke.Contains("-frames-");
+        private static bool FramePhase(int value)=>value==2 || value==3 || value==17 || value==9;
+        private bool FramesReady(int value)=>!Frames || !FramePhase(value) ||
+            frameAcks.Count(key=>key.StartsWith(value+":"))==runtime.Options.ProbePeers;
         private bool Host=>runtime.Options.Role=="host";
         private bool Source=>runtime.Options.Character=="session-client-1";
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
@@ -46,11 +54,14 @@ namespace Remains.Runtime
             };
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<JourneyReady>((connection,_)=>
             {if(value.Session.ConnectedActor(connection)!=null) readyPeers.Add(connection.connectionId);});
+            value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<JourneyFrameReady>((connection,message)=>
+            {if(value.Session.ConnectedActor(connection)!=null) frameAcks.Add(message.phase+":"+connection.connectionId);});
         }
         private PlayerCommand Command()
         {
             var self=runtime.Session.LocalActor;
             if(self==null || Resume) return default;
+            if(phase==2 && Host && !FramesReady(2)) return default;
             if(phase>=12 && phase<=14) return weapons.Command(phase);
             if(phase>=15 && phase<=21) return interactions.Command(phase);
             if(phase>=3 && phase<=9 && !self.down && self.health<70 && Time.unscaledTime>=nextHeal && InventoryJournal.Count(self,"heal")>0)
@@ -72,6 +83,7 @@ namespace Remains.Runtime
         }
         private void Advance(int next)
         {
+            if(!FramesReady(phase)) return;
             completed.Add(phase);phase=next;since=Time.unscaledTime;action=false;
             NetworkServer.SendToAll(new JourneyPhase {value=next});
         }
@@ -99,7 +111,7 @@ namespace Remains.Runtime
                 if(Time.unscaledTime-since<4 || players.Length!=runtime.Options.ProbePeers) return;
                 if(!ValidateFinal()) {Finish(false,"Journey потерял предметы, тело, прогресс или сохранение персонажа.");return;}
                 if(!ready) {ready=true;NetworkClient.Send(new JourneyReady());}
-                if(Host && readyPeers.Count==runtime.Options.ProbePeers)
+                if(Host && readyPeers.Count==runtime.Options.ProbePeers && FramesReady(phase))
                     NetworkServer.SendToAll(new JourneyFinish {success=true,detail=Resume?
                         "Перезапуск того же мира сохранил персонажей, лут и расход лечения.":
                         "Один мир: бой/поднятие, разделение уровней, общий подбор, отключённое тело/возвращение/поднятие, хаб и сохранение."});
@@ -147,6 +159,17 @@ namespace Remains.Runtime
         {
             yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
+        }
+        private void LateUpdate()
+        {
+            if(!Frames || finished || !FramePhase(phase) || captured.Contains(phase) ||
+                runtime.Session.LocalActor==null || Time.unscaledTime-since<.25f) return;
+            var world=runtime.Session.World;
+            if(phase==2 && !Victim.down) return;
+            if(phase==3 && (Healer.level!="factory:0" || world.actors.Any(a=>a.player && a.id!=Healer.id && a.level!="hub"))) return;
+            if(phase==17 && world.props.Any(p=>p.held || p.y>=.4f)) return;
+            NetworkSceneRecord.Save(runtime,phase);captured.Add(phase);
+            NetworkClient.Send(new JourneyFrameReady {phase=phase});
         }
         private bool ValidateFinal()
         {
