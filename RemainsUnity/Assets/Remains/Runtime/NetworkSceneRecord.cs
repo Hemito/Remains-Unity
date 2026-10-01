@@ -41,7 +41,7 @@ namespace Remains.Runtime
             {
                 if(view.sprite==null) throw new InvalidOperationException($"Нет спрайта при записи: {view.name}.");
                 var sprite=view.sprite;
-                return new NetworkSpriteRecord {name=view.name,resource="Original/"+(view.name.StartsWith("Оружие ",StringComparison.Ordinal)?"Weapons/":"Props/")+sprite.texture.name,
+                return new NetworkSpriteRecord {name=view.name,resource=view.GetComponent<StaticActorVisual>()?.Resource ?? "Original/"+(view.name.StartsWith("Оружие ",StringComparison.Ordinal)?"Weapons/":"Props/")+sprite.texture.name,
                     position=view.transform.position,scale=view.transform.localScale,euler=view.transform.eulerAngles,
                     rectX=sprite.rect.x,rectY=sprite.rect.y,rectWidth=sprite.rect.width,rectHeight=sprite.rect.height,
                     pivot=new Vector2(sprite.pivot.x/sprite.rect.width,sprite.pivot.y/sprite.rect.height),pixelsPerUnit=sprite.pixelsPerUnit,order=view.sortingOrder,

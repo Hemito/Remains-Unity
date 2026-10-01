@@ -9,7 +9,7 @@ namespace Remains.Presentation
 {
     // A compiled cache is shared by every pony. No asset lookup or mesh rebuild in Update.
     [RequireComponent(typeof(SortingGroup))]
-    public sealed class PonyVisual : MonoBehaviour
+    public sealed class PonyVisual : ActorVisual
     {
         private sealed class RenderPart { public Mesh mesh; public Material material; public string slot; public bool visible; }
         private static readonly Dictionary<string, RenderPart[][]> cache = new();
@@ -20,7 +20,7 @@ namespace Remains.Presentation
         private string pose;
         private int frame = -1;
         private MaterialPropertyBlock properties;
-        public string ActorId=>state?.id;
+        public override string ActorId=>state?.id;
         public string DrawnClip=>pose;
         public int DrawnFrame=>frame;
         public float DrawnTime {get;private set;}
@@ -96,7 +96,7 @@ namespace Remains.Presentation
             return bounds;
         }
 
-        public void Bind(ActorState actor)
+        public override void Bind(ActorState actor)
         {
             state = actor;
             int capacity = 0;
@@ -108,7 +108,7 @@ namespace Remains.Presentation
                 renderers.Add(child.AddComponent<MeshRenderer>());
             }
         }
-        public void SetVisible(bool visible) => gameObject.SetActive(visible);
+        public override void SetVisible(bool visible) => gameObject.SetActive(visible);
         private void Awake()
         {
             properties = new MaterialPropertyBlock();

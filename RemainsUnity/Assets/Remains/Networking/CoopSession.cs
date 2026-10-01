@@ -110,6 +110,11 @@ namespace Remains.Networking
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
+            if(HubTrainingContent.NeedsInstall(ServerWorld))
+            {
+                if(source!=null) Debug.Log("Сохранена копия мира перед добавлением мишеней: "+Saves.PreserveRecoverySource());
+                HubTrainingContent.Install(ServerWorld);
+            }
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             WorldHistory.BeginContinuation(ServerWorld);
             GrenadeRules.BeginSession(ServerWorld);

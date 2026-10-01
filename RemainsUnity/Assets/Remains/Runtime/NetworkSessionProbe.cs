@@ -165,7 +165,7 @@ namespace Remains.Runtime
             {Finish(false,"Выход/возвращение изменили NPC или содержимое контейнеров.");return;}
             if(players.Select(a=>a.id).Distinct().Count()!=players.Length) {Finish(false,"Повтор ID персонажа");return;}
             var expected=session.World.actors.Where(a=>a.level==self.level).Select(a=>a.id).OrderBy(id=>id).ToArray();
-            var visible=FindObjectsByType<PonyVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(v=>v.ActorId).OrderBy(id=>id).ToArray();
+            var visible=FindObjectsByType<ActorVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(v=>v.ActorId).OrderBy(id=>id).ToArray();
             if(!expected.SequenceEqual(visible)) {Finish(false,$"Неверная видимость: expected={string.Join(",",expected)}, actual={string.Join(",",visible)}");return;}
             int expectedSprites=expected.Length+session.World.props.Count(p=>p.level==self.level)+session.World.containers.Count(c=>c.level==self.level)+runtime.Grenades.Flights.Count(f=>f.state.level==self.level);
             int spriteCount=FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).Length;

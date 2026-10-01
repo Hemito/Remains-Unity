@@ -27,6 +27,19 @@ namespace Remains.Editor
             Require(!definition.combatAi && !definition.hasWeapon && definition.presentation=="static","Неверные возможности мишени");
             bool rejected=false;try {ActorTypes.Get("missing-check");} catch(InvalidOperationException) {rejected=true;}
             Require(rejected,"Неизвестный тип молча подменён другим");
+            HubTrainingContent.Install(world);int installed=world.actors.Count;long revision=world.revision;
+            HubTrainingContent.Install(world);
+            Require(world.actors.Count==installed && world.revision==revision && world.Find("player")==player,"Повтор установки мишеней изменил существующий мир");
+            var persisted=world.Copy();HubTrainingContent.Install(persisted);
+            Require(persisted.actors.Count==installed && persisted.contentPatches.Contains(HubTrainingContent.Patch),"Копия мира потеряла отметку установки мишеней");
+            var visual=Remains.Presentation.ActorVisualFactory.Create(dummy);
+            try
+            {
+                visual.Bind(dummy);
+                Require(visual is Remains.Presentation.StaticActorVisual && visual.GetComponent<UnityEngine.SpriteRenderer>().sprite!=null,
+                    "Не создана самостоятельная модель мишени");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
             UnityEngine.Debug.Log("Типы актёров: PASS — учебная цель, владелец, восстановление, повтор, сохранение, отсутствие лута.");
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException(reason);}
