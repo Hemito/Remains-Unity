@@ -1,0 +1,83 @@
+using System;
+using System.Collections.Generic;
+using Remains.Networking;
+using UnityEngine;
+
+namespace Remains.Presentation
+{
+    [Serializable] public sealed class AreaMusicTrack {public string id,levelPrefix,resource;}
+    [Serializable] public sealed class AreaMusicCatalog {public float fadeSeconds,volume;public AreaMusicTrack[] tracks;}
+
+    public sealed class AreaMusic : MonoBehaviour
+    {
+        private CoopSession session;
+        private AreaMusicCatalog catalog;
+        private readonly Dictionary<string,AudioClip> clips=new();
+        private readonly HashSet<string> missing=new();
+        private readonly AudioSource[] sources=new AudioSource[2];
+        private readonly float[] weights=new float[2];
+        private int active;
+        private bool initialized;
+        public string CurrentTrack {get;private set;}
+        public int Changes {get;private set;}
+        public float Volume {get;set;}
+        public void Initialize(CoopSession session)
+        {
+            this.session=session;
+            var asset=Resources.Load<TextAsset>("Content/area-music");
+            if(asset==null) throw new InvalidOperationException("Нет Content/area-music.");
+            catalog=JsonUtility.FromJson<AreaMusicCatalog>(asset.text);
+            if(catalog?.tracks==null || !float.IsFinite(catalog.fadeSeconds) || catalog.fadeSeconds<=0 ||
+                !float.IsFinite(catalog.volume) || catalog.volume<0 || catalog.volume>1)
+                throw new InvalidOperationException("Некорректный каталог музыки.");
+            Volume=catalog.volume;
+            var prefixes=new HashSet<string>(StringComparer.Ordinal);
+            foreach(var track in catalog.tracks)
+            {
+                if(string.IsNullOrEmpty(track.id) || string.IsNullOrEmpty(track.resource)) throw new InvalidOperationException("Музыкальная запись без ID или ресурса.");
+                if(!prefixes.Add(track.levelPrefix??"")) throw new InvalidOperationException("Повтор музыкальной привязки локации: "+track.levelPrefix);
+                var clip=Resources.Load<AudioClip>(track.resource);
+                if(clip==null || clip.samples<=0) throw new InvalidOperationException("Отсутствует музыка: "+track.resource);
+                clips.Add(track.id,clip);
+            }
+            for(int i=0;i<2;i++)
+            {
+                var source=new GameObject("Музыка "+i).AddComponent<AudioSource>();source.transform.SetParent(transform,false);
+                source.playOnAwake=false;source.loop=true;source.spatialBlend=0;source.volume=0;source.mute=Application.isBatchMode;sources[i]=source;
+            }
+            initialized=true;session.Changed+=Refresh;Refresh();
+        }
+        private void Refresh()
+        {
+            string level=session.LocalActor?.level;
+            string trackId=null;int specificity=-1;
+            foreach(var track in catalog.tracks)
+            {
+                bool menu=string.IsNullOrEmpty(track.levelPrefix);
+                if(level==null?menu:!menu && level.StartsWith(track.levelPrefix,StringComparison.Ordinal))
+                {
+                    int length=track.levelPrefix?.Length??0;
+                    if(length>specificity) {specificity=length;trackId=track.id;}
+                }
+            }
+            if(trackId==null && missing.Add(level??"<меню>")) Debug.LogWarning($"Нет музыкальной привязки для локации {level??"<меню>"}; музыка выключена.",this);
+            if(trackId==CurrentTrack) return;
+            CurrentTrack=trackId;Changes++;
+            active=1-active;sources[active].Stop();weights[active]=0;sources[active].volume=0;
+            sources[active].clip=trackId==null?null:clips[trackId];
+            if(trackId!=null) sources[active].Play();
+        }
+        private void Update()
+        {
+            if(!initialized) return;
+            for(int i=0;i<2;i++)
+            {
+                float target=i==active && CurrentTrack!=null?1:0;
+                weights[i]=Mathf.MoveTowards(weights[i],target,Time.unscaledDeltaTime/catalog.fadeSeconds);
+                sources[i].volume=weights[i]*Mathf.Clamp01(Volume);
+                if(target==0 && weights[i]==0 && sources[i].isPlaying) sources[i].Stop();
+            }
+        }
+        private void OnDestroy() {if(session!=null) session.Changed-=Refresh;}
+    }
+}

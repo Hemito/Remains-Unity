@@ -25,6 +25,7 @@ namespace Remains.Runtime
         public TelekinesisController Telekinesis { get; private set; }
         public SimulationGeometry Geometry { get; private set; }
         public GameplayAudio Audio {get;private set;}
+        public AreaMusic Music {get;private set;}
         public System.Func<PlayerCommand> CommandSource { get; set; }
         public PrototypeHud Hud => hud;
         private MovementController movement;
@@ -92,6 +93,7 @@ namespace Remains.Runtime
             cameraView.transform.position=new Vector3(0,3,-10); cameraView.backgroundColor=new Color(0.08f,0.09f,0.1f);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
+            Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
             if (!Application.isBatchMode || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke?.StartsWith("lobby")==true)

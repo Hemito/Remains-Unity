@@ -96,6 +96,8 @@ namespace Remains.Runtime
             if(Source && disconnected && !reconnected && Time.unscaledTime>=reconnectAt)
             {reconnected=true;session.StartClient();return;}
             var self=session.LocalActor;if(self==null) return;
+            string expectedMusic=self.level=="hub"?"hub":"factory";
+            if(runtime.Music.CurrentTrack!=expectedMusic) {Finish(false,$"Музыка не соответствует локации: {self.level}, track={runtime.Music.CurrentTrack}.");return;}
             worldId??=session.World.worldId;
             if(session.World.worldId!=worldId) {Finish(false,"Journey сменил WorldId.");return;}
             var players=session.World.actors.Where(a=>a.player && a.connected).ToArray();
