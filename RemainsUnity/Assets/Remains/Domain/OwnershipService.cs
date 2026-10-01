@@ -12,6 +12,13 @@ namespace Remains.Domain
             foreach (var actor in world.actors.Where(a => !a.player || !a.connected))
             {
                 if (actor.attackBusy && activeOwners.Contains(actor.owner)) continue;
+                if (actor.attackBusy)
+                {
+                    // Owner loss cancels an unfinished attack before recovery transfer.
+                    actor.attackBusy = false;
+                    actor.attackRemaining = 0;
+                    actor.revision++;
+                }
                 var candidate = active.Where(a => a.level == actor.level)
                     .OrderBy(a => Vector2.Distance(a.Position, actor.Position)).ThenBy(a => a.id).FirstOrDefault();
                 string next = candidate?.owner ?? "host";

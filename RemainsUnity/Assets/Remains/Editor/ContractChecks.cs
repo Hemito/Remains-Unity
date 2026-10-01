@@ -70,6 +70,7 @@ namespace Remains.Editor
             Require(restored.completedTransactions.Contains("claim-1") && File.Exists(Path.Combine(directory,"world.json.previous")),
                 "Сохранение сохраняет транзакцию и предыдущую версию");
             MovementChecks.Run();
+            SessionChecks.Run();
             actor.connected=true;actor.down=true;second.connected=false;second.down=false;
             actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});
             actor.injuries.Add(new InjuryState{id="fracture",periodicDamage=false});

@@ -86,6 +86,7 @@ namespace Remains.Presentation
         }
 
         public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf); Refresh(); }
+        public void ActivateFactoryButton() => factory.onClick.Invoke();
         public void ShowMessage(string text)=>message.text=text;
         private void Refresh()
         {

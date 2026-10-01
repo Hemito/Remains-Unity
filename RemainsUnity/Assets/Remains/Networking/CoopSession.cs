@@ -28,7 +28,11 @@ namespace Remains.Networking
         public event Action<string> ModMismatch;
         private readonly Dictionary<int, string> owners = new();
         private readonly Dictionary<string, string> playerIds = new();
-        private readonly Dictionary<string, uint> poseSequences = new();
+        private readonly PoseSequenceGate serverPoses = new();
+        private readonly PoseSequenceGate clientPoses = new();
+        private SessionTravel travel;
+        public SessionTravel Travel => travel ??= new SessionTravel(this);
+        public void ShowNotice(string text) => Notice?.Invoke(text);
         private readonly Dictionary<int,long> backupRevisions = new();
         private readonly OwnershipService ownership = new();
         private SharedInventory inventory;
@@ -36,6 +40,8 @@ namespace Remains.Networking
 
         public override void OnStartServer()
         {
+            serverPoses.Clear();
+            Travel.RegisterServer();
             ServerWorld = Saves.LoadWorld() ?? CreateWorld();
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
@@ -66,6 +72,8 @@ namespace Remains.Networking
 
         public override void OnStartClient()
         {
+            clientPoses.Clear();
+            Travel.RegisterClient();
             NetworkClient.RegisterHandler<WelcomeMessage>(Welcome);
             NetworkClient.RegisterHandler<WorldMessage>(ReceiveWorld);
             NetworkClient.RegisterHandler<ActorMessage>(message =>
@@ -201,10 +209,8 @@ namespace Remains.Networking
                     var local = World.Find(actor.id);
                     if (local == null || local.owner != LocalOwner || local.generation != actor.generation ||
                         local.lifecycleSequence!=actor.lifecycleSequence || local.level!=actor.level) continue;
-                    actor.Position = local.Position;
-                    actor.Velocity = local.Velocity;
-                    actor.pose = local.pose;
-                    actor.poseTime=local.poseTime;
+                    ActorPose.CopyMotion(local,actor);
+                    actor.attackRemaining=local.attackRemaining;
                     if (local.revision > actor.revision)
                     {
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;
@@ -229,6 +235,9 @@ namespace Remains.Networking
             if (World == null) return;
             var current = World.Find(actor.id);
             if (current != null && ActorVersion.IsOlder(actor,current)) return;
+            if(current!=null && current.owner==LocalOwner && current.generation==actor.generation &&
+                current.lifecycleSequence==actor.lifecycleSequence && current.level==actor.level)
+                ActorPose.CopyMotion(current,actor);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
             Changed?.Invoke();
@@ -244,7 +253,12 @@ namespace Remains.Networking
             incoming.inventory = actor.inventory;
             incoming.owner = actor.owner;
             incoming.connected = actor.connected;
-            if(incoming.level!=actor.level) incoming.lifecycleSequence++;
+            if(incoming.level!=actor.level)
+            {
+                Debug.LogWarning($"Отклонена смена локации через состояние: actor={actor.id}, source={actor.level}, destination={incoming.level}. Требуется запрос перехода.");
+                connection.Send(new NoticeMessage { text="Смена локации требует подтверждённого перехода." });
+                return;
+            }
             ServerWorld.actors[ServerWorld.actors.IndexOf(actor)] = incoming;
             ServerWorld.revision++;
             NetworkServer.SendToAll(new ActorMessage { json = JsonUtility.ToJson(incoming) });
@@ -260,24 +274,17 @@ namespace Remains.Networking
         {
             var actor = ServerWorld.Find(message.actor);
             if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner ||
-                actor.generation != message.generation || actor.lifecycleSequence!=message.lifecycleSequence || !AcceptSequence(message)) return;
+                actor.generation != message.generation || actor.lifecycleSequence!=message.lifecycleSequence ||
+                !serverPoses.Accept(message.actor,message.generation,message.lifecycleSequence,message.sequence)) return;
             ApplyPose(actor, message);
             NetworkServer.SendToAll(message, Channels.Unreliable);
-        }
-
-        private bool AcceptSequence(PoseMessage message)
-        {
-            string key = message.actor + ":" + message.generation;
-            if (poseSequences.TryGetValue(key, out uint last) && message.sequence <= last) return false;
-            poseSequences[key] = message.sequence;
-            return true;
         }
 
         private void ReceivePose(PoseMessage message)
         {
             var actor = World?.Find(message.actor);
             if (actor == null || actor.owner == LocalOwner || actor.generation != message.generation || actor.lifecycleSequence!=message.lifecycleSequence) return;
-            // Separate client sequence map: in host mode server already accepted this message.
+            if (!clientPoses.Accept(message.actor,message.generation,message.lifecycleSequence,message.sequence)) return;
             ApplyPose(actor, message);
         }
 
@@ -320,12 +327,7 @@ namespace Remains.Networking
         public void RequestClaim(string item) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"), item = item });
         public void RequestRevive(string target) => NetworkClient.Send(new ReviveMessage { target = target, transaction = Guid.NewGuid().ToString("N") });
         public void RequestSelfHeal()=>NetworkClient.Send(new ReviveMessage {target=LocalActorId,transaction=Guid.NewGuid().ToString("N"),selfHeal=true});
-        public void ReturnToFactory()
-        {
-            if(LocalActor==null || LocalActor.down || LocalActor.level!="hub") return;
-            LocalActor.level="factory:0";LocalActor.Position=Vector2.zero;LocalActor.Velocity=Vector2.zero;LocalActor.revision++;
-            PublishActor(LocalActor);
-        }
+        public void ReturnToFactory() => Travel.RequestFactory();
 
         private void Revive(NetworkConnectionToClient connection, ReviveMessage message)
         {
@@ -390,6 +392,7 @@ namespace Remains.Networking
         }
         public override void OnStopClient()
         {
+            Travel.ResetClient();
             if(World!=null) {Saves.SaveWorld(World);if(LocalActor!=null) Saves.SaveCharacter(LocalActor);}
             World=null;LocalActorId=null;LocalOwner=null;
             Changed?.Invoke();

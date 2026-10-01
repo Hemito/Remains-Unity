@@ -22,6 +22,8 @@ namespace Remains.Runtime
         public InteractionAdapter Interactions { get; private set; }
         public GrenadeController Grenades { get; private set; }
         public TelekinesisController Telekinesis { get; private set; }
+        public System.Func<PlayerCommand> CommandSource { get; set; }
+        public PrototypeHud Hud => hud;
         private MovementController movement;
         private NpcController npcs;
         private readonly Dictionary<string,PonyVisual> visuals = new();
@@ -65,7 +67,7 @@ namespace Remains.Runtime
             new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades);
             var room=RoomLayout.Load(shownLevel);
             movement=new MovementController(room);
-            npcs=new NpcController(Session,room);
+            npcs=new NpcController(Session,room,RoomLayout.Load("factory:0"));
             roomObject=RoomVisual.Build(room);
             cameraView=Camera.main;
             if (cameraView == null) cameraView=new GameObject("Камера").AddComponent<Camera>();
@@ -74,7 +76,7 @@ namespace Remains.Runtime
             cameraFollower=new CameraFollower(cameraView,room);
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
-            if (!Application.isBatchMode)
+            if (!Application.isBatchMode || Options.Smoke?.StartsWith("session")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session);
                 hud.SelectCharacter=name=>
@@ -90,7 +92,8 @@ namespace Remains.Runtime
             }
             if (Options.Smoke != null)
             {
-                if(Options.Smoke.StartsWith("movement")) gameObject.AddComponent<NetworkMovementProbe>().Initialize(this);
+                if(Options.Smoke.StartsWith("session")) gameObject.AddComponent<NetworkSessionProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("movement")) gameObject.AddComponent<NetworkMovementProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("contracts")) gameObject.AddComponent<NetworkContracts>().Initialize(this);
                 else gameObject.AddComponent<NetworkSmoke>().Initialize(this);
             }
@@ -110,7 +113,7 @@ namespace Remains.Runtime
                 shownLevel=Session.LocalActor.level;
                 var room=RoomLayout.Load(shownLevel);
                 Destroy(roomObject);roomObject=RoomVisual.Build(room);
-                movement=new MovementController(room);npcs=new NpcController(Session,room);
+                movement=new MovementController(room);
                 cameraFollower.Room=room;
             }
             foreach (var actor in Session.World.actors)
@@ -129,42 +132,16 @@ namespace Remains.Runtime
 
         private void Update()
         {
+            Session.Travel.Step();
             var actor=Session.LocalActor;
             if (actor==null || !NetworkClient.isConnected) return;
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors) animated.poseTime+=Time.deltaTime;
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null)
+            if (Options.Smoke==null || Options.Smoke.StartsWith("session"))
             {
                 npcs.Step(Time.deltaTime);
-                var keyboard=Keyboard.current; var mouse=Mouse.current;
-                var aim=mouse==null?actor.Position: (Vector2)cameraView.ScreenToWorldPoint(mouse.position.ReadValue());
-                if(!Combat.IsMeleeActive)
-                {
-                    var direction=aim-(actor.Position+new Vector2(0,0.8f));
-                    actor.weaponAngle=Mathf.Atan2(direction.y,direction.x)*Mathf.Rad2Deg;
-                }
-                if (keyboard!=null)
-                {
-                    var input=new Vector2((keyboard.dKey.isPressed?1:0)-(keyboard.aKey.isPressed?1:0),
-                        (keyboard.wKey.isPressed?1:0)-(keyboard.sKey.isPressed?1:0));
-                    movement.Step(actor,input,keyboard.spaceKey.wasPressedThisFrame,Time.deltaTime,keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
-                    if(keyboard.digit1Key.wasPressedThisFrame) Combat.Weapon="spear";
-                    if(keyboard.digit2Key.wasPressedThisFrame) Combat.Weapon="crowbar";
-                    if(keyboard.digit3Key.wasPressedThisFrame) Combat.Weapon="pistol";
-                    if(keyboard.digit4Key.wasPressedThisFrame) Combat.Weapon="energy";
-                    actor.weapon=Combat.Weapon;
-                    if(keyboard.iKey.wasPressedThisFrame) hud?.ToggleInventory();
-                    Revival.Step(keyboard.eKey.isPressed,Time.deltaTime);
-                    Telekinesis.Step(keyboard.qKey.isPressed,aim,Time.deltaTime);
-                    if(keyboard.gKey.wasPressedThisFrame && !actor.down) Interactions.ThrowGrenade(aim);
-                    if(keyboard.hKey.wasPressedThisFrame && !actor.down) Session.RequestSelfHeal();
-                }
-                if(mouse!=null && mouse.leftButton.isPressed &&
-                    (UnityEngine.EventSystems.EventSystem.current==null || !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()))
-                {
-                    var point=cameraView.ScreenToWorldPoint(mouse.position.ReadValue()); Combat.Fire(actor,point);
-                }
+                ApplyCommand(CommandSource?.Invoke() ?? ReadCommand(),Time.deltaTime);
             }
             Combat.Step(Time.deltaTime);
             if (Time.unscaledTime >= nextPose)
@@ -172,6 +149,53 @@ namespace Remains.Runtime
                 nextPose=Time.unscaledTime+0.05f;
                 foreach (var owned in Session.World.actors) if (owned.owner==Session.LocalOwner) Session.PublishPose(owned,++poseSequence);
             }
+        }
+
+        private PlayerCommand ReadCommand()
+        {
+            var command=new PlayerCommand();
+            // Background simulation continues, but desktop devices drive only the focused instance.
+            if(!Application.isFocused) return command;
+            var keyboard=Keyboard.current; var mouse=Mouse.current;
+            if(keyboard!=null)
+            {
+                command.movement=new Vector2((keyboard.dKey.isPressed?1:0)-(keyboard.aKey.isPressed?1:0),
+                    (keyboard.wKey.isPressed?1:0)-(keyboard.sKey.isPressed?1:0));
+                command.jump=keyboard.spaceKey.wasPressedThisFrame;
+                command.sprint=keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+                command.weapon=keyboard.digit1Key.wasPressedThisFrame?"spear":keyboard.digit2Key.wasPressedThisFrame?"crowbar":
+                    keyboard.digit3Key.wasPressedThisFrame?"pistol":keyboard.digit4Key.wasPressedThisFrame?"energy":null;
+                command.inventory=keyboard.iKey.wasPressedThisFrame;
+                command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;
+                command.grenade=keyboard.gKey.wasPressedThisFrame;command.heal=keyboard.hKey.wasPressedThisFrame;
+            }
+            if(mouse!=null)
+            {
+                command.hasAim=true;command.aim=cameraView.ScreenToWorldPoint(mouse.position.ReadValue());
+                command.fire=mouse.leftButton.isPressed &&
+                    (UnityEngine.EventSystems.EventSystem.current==null || !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject());
+            }
+            return command;
+        }
+
+        private void ApplyCommand(PlayerCommand command,float dt)
+        {
+            var actor=Session.LocalActor;
+            if(Session.Travel.Pending) command=default;
+            if(command.hasAim && !Combat.IsMeleeActive)
+            {
+                var direction=command.aim-(actor.Position+new Vector2(0,.8f));
+                actor.weaponAngle=Mathf.Atan2(direction.y,direction.x)*Mathf.Rad2Deg;
+            }
+            movement.Step(actor,command.movement,command.jump,dt,command.sprint);
+            if(command.weapon!=null) Combat.Weapon=command.weapon;
+            actor.weapon=Combat.Weapon;
+            if(command.inventory) hud?.ToggleInventory();
+            Revival.Step(command.revive,dt);
+            Telekinesis.Step(command.telekinesis,command.aim,dt);
+            if(command.grenade && !actor.down) Interactions.ThrowGrenade(command.aim);
+            if(command.heal && !actor.down) Session.RequestSelfHeal();
+            if(command.fire && command.hasAim) Combat.Fire(actor,command.aim);
         }
 
         private void OnApplicationQuit()

@@ -12,6 +12,7 @@ namespace Remains.Runtime
         public string Report { get; private set; }
         public ushort Port { get; private set; } = 7777;
         public int Capacity { get; private set; } = 16;
+        public int ProbePeers { get; private set; } = 2;
         public static LaunchOptions Parse()
         {
             var options = new LaunchOptions();
@@ -28,6 +29,7 @@ namespace Remains.Runtime
                     case "--capacity": options.Capacity=int.Parse(args[++i]);if(options.Capacity<1 || options.Capacity>64) throw new ArgumentOutOfRangeException("capacity","Вместимость должна быть от 1 до 64.");break;
                     case "--smoke": options.Smoke = args[++i]; break;
                     case "--report": options.Report = args[++i]; break;
+                    case "--probe-peers": options.ProbePeers=int.Parse(args[++i]); break;
                 }
             }
             return options;
