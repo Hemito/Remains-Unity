@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections;
 using System.IO;
 using kcp2k;
 using Mirror;
@@ -22,6 +23,7 @@ namespace Remains.Runtime
         public InteractionAdapter Interactions { get; private set; }
         public GrenadeController Grenades { get; private set; }
         public TelekinesisController Telekinesis { get; private set; }
+        public SimulationGeometry Geometry { get; private set; }
         public System.Func<PlayerCommand> CommandSource { get; set; }
         public PrototypeHud Hud => hud;
         private MovementController movement;
@@ -34,6 +36,8 @@ namespace Remains.Runtime
         private GameObject roomObject;
         private string shownLevel="hub";
         private CameraFollower cameraFollower;
+        private bool releaseRequested;
+        public bool ReleasingUnusedAssets {get;private set;}
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
@@ -65,15 +69,16 @@ namespace Remains.Runtime
             // NetworkManager.Awake must see the final transport, including a test wrapper.
             networkObject.SetActive(true);
             DontDestroyOnLoad(gameObject);
+            Geometry=new SimulationGeometry(Session);
             Combat=new CombatController(Session);
             Revival=new RevivalController(Session);
             Interactions=new InteractionAdapter(Session);
-            Grenades=new GrenadeController(Session,Interactions,Combat);
+            Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);
             Telekinesis=new TelekinesisController(Session,Interactions);
             new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades);
             var room=RoomLayout.Load(shownLevel);
             movement=new MovementController(room);
-            npcs=new NpcController(Session,room,RoomLayout.Load("factory:0"));
+            npcs=new NpcController(Session,Geometry);
             roomObject=RoomVisual.Build(room);
             cameraView=Camera.main;
             if (cameraView == null) cameraView=new GameObject("Камера").AddComponent<Camera>();
@@ -135,10 +140,12 @@ namespace Remains.Runtime
             if(Session.LocalActor!=null && shownLevel!=Session.LocalActor.level)
             {
                 shownLevel=Session.LocalActor.level;
-                var room=RoomLayout.Load(shownLevel);
+                var room=Geometry.Get(shownLevel);
                 Destroy(roomObject);roomObject=RoomVisual.Build(room);
                 movement=new MovementController(room);
                 cameraFollower.Room=room;
+                releaseRequested=true;
+                if(!ReleasingUnusedAssets) StartCoroutine(ReleaseUnusedAssets());
             }
             foreach (var actor in Session.World.actors)
             {
@@ -180,6 +187,19 @@ namespace Remains.Runtime
                 nextPose=Time.unscaledTime+0.05f;
                 foreach (var owned in Session.World.actors) if (owned.owner==Session.LocalOwner) Session.PublishPose(owned,++poseSequence);
             }
+        }
+
+        private IEnumerator ReleaseUnusedAssets()
+        {
+            ReleasingUnusedAssets=true;
+            do
+            {
+                releaseRequested=false;
+                // Room objects destroy their owned meshes/materials at frame boundaries.
+                yield return null;yield return null;
+                yield return Resources.UnloadUnusedAssets();
+            } while(releaseRequested);
+            ReleasingUnusedAssets=false;
         }
 
         private PlayerCommand ReadCommand()

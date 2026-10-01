@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
@@ -10,11 +11,16 @@ namespace Remains.Gameplay
     {
         private readonly CoopSession session;
         private readonly Dictionary<string, MovementController> movement = new();
-        public NpcController(CoopSession session,RoomLayout hub,RoomLayout factory)
+        public NpcController(CoopSession session,SimulationGeometry geometry)
         {
             this.session=session;
-            movement.Add("hub",new MovementController(hub));
-            movement.Add("factory:0",new MovementController(factory));
+            session.Changed+=()=>
+            {
+                var needed=session.World==null?new HashSet<string>():new HashSet<string>(session.World.actors
+                    .Where(a=>!a.player && a.owner==session.LocalOwner && !a.down && LevelActivity.HasConnectedPlayer(session.World,a.level)).Select(a=>a.level));
+                foreach(string level in movement.Keys.Where(level=>!needed.Contains(level)).ToArray()) movement.Remove(level);
+                foreach(string level in needed) if(!movement.ContainsKey(level)) movement.Add(level,new MovementController(geometry.Get(level)));
+            };
         }
         public void Step(float dt)
         {

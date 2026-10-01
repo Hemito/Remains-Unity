@@ -21,7 +21,6 @@ namespace Remains.Networking
     {
         private readonly CoopSession session;
         private readonly Dictionary<string, TravelReply> replies = new();
-        private RoomLayout factory, hub;
         private float deadline;
         private string pending;
         public bool Pending => pending != null;
@@ -30,8 +29,6 @@ namespace Remains.Networking
         public void RegisterServer()
         {
             replies.Clear();
-            factory = RoomLayout.Load("factory:0");
-            hub = RoomLayout.Load("hub");
             NetworkServer.RegisterHandler<TravelRequest>(ReceiveRequest);
         }
         public void RegisterClient()
@@ -78,7 +75,7 @@ namespace Remains.Networking
             var reply = new TravelReply { id = request.id, accepted = reason == null, reason = reason };
             if (reply.accepted)
             {
-                TravelRules.Apply(actor, request.destination, request.destination == "hub" ? hub : factory);
+                TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination));
                 session.CommitWorld();
                 Debug.Log($"Переход подтверждён: actor={actor.id}, request={request.id}, level={actor.level}, lifecycle={actor.lifecycleSequence}.");
             }

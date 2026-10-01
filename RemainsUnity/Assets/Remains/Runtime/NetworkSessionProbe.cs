@@ -94,7 +94,9 @@ namespace Remains.Runtime
             };
             if(!ready) return;
             // Unity destroys objects and their owned materials at frame boundaries.
-            if(Time.frameCount<=visualChangedFrame+2) return;
+            if(Time.frameCount<=visualChangedFrame+2 || runtime.ReleasingUnusedAssets) return;
+            if(!runtime.Geometry.LoadedLevels.OrderBy(l=>l).SequenceEqual(players.Select(a=>a.level).Distinct().OrderBy(l=>l)))
+            {Finish(false,"Геометрия симуляции не соответствует занятым локациям.");return;}
             string contents=string.Join("|",session.World.containers.OrderBy(c=>c.id).Select(c=>c.id+":"+string.Join(",",c.items.OrderBy(i=>i.id).Select(i=>i.id+":"+i.count))));
             string actors=string.Join("|",session.World.actors.Where(a=>!a.player).OrderBy(a=>a.id).Select(a=>a.id+":"+a.health));
             if(phase==3) {retainedContents=contents;retainedActors=actors;}

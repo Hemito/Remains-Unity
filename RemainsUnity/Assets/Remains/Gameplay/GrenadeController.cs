@@ -11,7 +11,6 @@ namespace Remains.Gameplay
     {
         public GrenadeState state;
         public GrenadeMessage message;
-        public RoomLayout room;
         public bool requested;
         public float nextPublish;
         public Vector2 position=>state.Position;
@@ -23,9 +22,11 @@ namespace Remains.Gameplay
         private readonly List<GrenadeFlight> flights=new();
         private readonly CoopSession session;
         private readonly InteractionAdapter adapter;
+        private readonly SimulationGeometry geometry;
         private readonly Dictionary<string,Vector2> observedExplosions=new();
-        public GrenadeController(CoopSession session,InteractionAdapter adapter,CombatController combat)
+        public GrenadeController(CoopSession session,InteractionAdapter adapter,CombatController combat,SimulationGeometry geometry)
         {
+            this.geometry=geometry;
             this.session=session;this.adapter=adapter;
             session.Changed+=Reconcile;
             adapter.GrenadeUpdated+=Accept;
@@ -47,7 +48,7 @@ namespace Remains.Gameplay
             var flight=flights.Find(f=>f.state.id==state.id);
             if(flight==null)
             {
-                flight=new GrenadeFlight {state=state.Copy(),room=RoomLayout.Load(state.level),
+                flight=new GrenadeFlight {state=state.Copy(),
                     message=new GrenadeMessage {id=state.id,attacker=state.attacker,level=state.level}};
                 flights.Add(flight);Created?.Invoke(flight);return;
             }
@@ -62,7 +63,7 @@ namespace Remains.Gameplay
             {
                 var state=flight.state;
                 if(state.owner==null || !LevelActivity.HasConnectedPlayer(session.World,state.level)) continue;
-                if(state.remaining>0) GrenadeRules.Step(state,flight.room,dt);
+                if(state.remaining>0) GrenadeRules.Step(state,geometry.Get(state.level),dt);
                 if(state.remaining<=0)
                 {
                     observedExplosions[state.id+":"+state.generation]=state.Position;
