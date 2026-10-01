@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Mirror;
 using Remains.Persistence;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Networking
@@ -28,11 +29,13 @@ namespace Remains.Networking
         private SnapshotTransfer transfer;
         private float deadline;
         private bool published;
+        private RecoverySnapshot contentPending;
+        public List<ContentDifference> ContentDifferences {get;private set;}=new();
         private byte[] outgoing;
         private string outgoingRequest;
         public int SentBytes {get;private set;}
         public bool Waiting {get;private set;}
-        public bool Busy=>transfer!=null;
+        public bool Busy=>transfer!=null || contentPending!=null;
         public int ReceivedBytes=>transfer?.ReceivedBytes ?? 0;
         public bool ClientWaiting {get;private set;}
         public bool ClientBusy {get;private set;}
@@ -46,6 +49,7 @@ namespace Remains.Networking
         public void RegisterServer(bool wait)
         {
             pending.Clear();offers.Clear();selected="";error="";transfer=null;Waiting=wait;
+            contentPending=null;ContentDifferences.Clear();
             initialHash=session.Saves.SelectedSnapshot()?.Id;
             NetworkServer.RegisterHandler<SaveOfferMessage>(ReceiveOffer);
             NetworkServer.RegisterHandler<SaveChunkMessage>(ReceiveChunk);
@@ -138,7 +142,7 @@ namespace Remains.Networking
         }
         private void ReceiveChunk(NetworkConnectionToClient connection,SaveChunkMessage message)
         {
-            if(!Waiting || !Busy || message.request!=request || connection.connectionId!=source) return;
+            if(!Waiting || transfer==null || message.request!=request || connection.connectionId!=source) return;
             try
             {
                 var snapshot=transfer.Append(message.total,message.offset,message.data);
@@ -152,11 +156,20 @@ namespace Remains.Networking
             catch(Exception exception) when(exception is IOException || exception is ArgumentException)
             {Fail("Передача сохранения отменена: "+exception.Message);}
         }
-        private void Start(RecoverySnapshot snapshot)
+        private void Start(RecoverySnapshot snapshot,bool acceptContent=false)
         {
+            if(snapshot!=null && !acceptContent)
+            {
+                ContentDifferences=ContentComparison.Compare(snapshot.CreateLiveWorld().weaponContent,WeaponCatalog.ManifestCopy());
+                if(ContentDifferences.Count>0)
+                {
+                    ContentDifferences=ContentComparison.Compare(snapshot.CreateLiveWorld().weaponContent,WeaponCatalog.ManifestCopy(),true);
+                    contentPending=snapshot;transfer=null;error="Хост сравнивает контент сохранения с текущим набором.";Broadcast();return;
+                }
+            }
             // World loading happens only after a complete hash-verified transfer.
             var previous=session.Saves.SelectedSnapshot();
-            try {session.StartSelectedWorld(snapshot,selected=="");}
+            try {session.StartSelectedWorld(snapshot,selected=="",acceptContent);}
             catch(Exception exception)
             {
                 session.DiscardUnstartedWorld();
@@ -169,11 +182,17 @@ namespace Remains.Networking
             foreach(var peer in joins)
                 if(NetworkServer.connections.TryGetValue(peer.Key,out var connection)) session.AdmitLobbyPlayer(connection,peer.Value);
         }
+        public void ConfirmContent(bool accept)
+        {
+            if(!NetworkServer.active || !Waiting || contentPending==null) return;
+            var snapshot=contentPending;contentPending=null;ContentDifferences.Clear();error="";
+            if(accept) Start(snapshot,true);else Broadcast();
+        }
         public void Disconnected(int connection)
         {
             pending.Remove(connection);offers.Remove(connection);
             if(!Waiting) return;
-            if(Busy && source==connection) {Fail("Передача прервана: владелец сохранения отключился. Исходный мир не заменён.");return;}
+            if(transfer!=null && source==connection) {Fail("Передача прервана: владелец сохранения отключился. Исходный мир не заменён.");return;}
             if(selected.StartsWith(connection+":",StringComparison.Ordinal)) error="Владелец выбранной копии отключился. Выберите другое продолжение.";
             Broadcast();
         }
@@ -187,7 +206,7 @@ namespace Remains.Networking
                 SentBytes+=data.Length;
                 if(SentBytes==outgoing.Length) outgoing=null;
             }
-            if(NetworkServer.active && Busy && Time.unscaledTime>deadline) Fail("Истекло время передачи сохранения. Выбор можно повторить.");
+            if(NetworkServer.active && transfer!=null && Time.unscaledTime>deadline) Fail("Истекло время передачи сохранения. Выбор можно повторить.");
         }
         private void Fail(string reason)
         {transfer=null;error=reason;Debug.LogWarning("Лобби сохранений: "+reason);Broadcast();}

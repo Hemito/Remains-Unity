@@ -74,8 +74,17 @@ namespace Remains.Networking
             ServerReady?.Invoke();
         }
 
-        internal void StartSelectedWorld(RecoverySnapshot snapshot,bool createNew)
+        internal void StartSelectedWorld(RecoverySnapshot snapshot,bool createNew,bool acceptContentMismatch=false)
         {
+            var source=createNew?null:snapshot??Saves.SelectedSnapshot();
+            if(source!=null)
+            {
+                var content=source.CreateLiveWorld().weaponContent;
+                if(!acceptContentMismatch && ContentComparison.Compare(content,WeaponCatalog.ManifestCopy()).Count>0)
+                    throw new InvalidOperationException("Состав контента сохранения отличается или неизвестен. Выберите мир в лобби и подтвердите сравнение перед загрузкой.");
+                if(content!=null && (content.schema!=1 || content.scope!="weapon-catalog"))
+                    throw new InvalidOperationException($"Формат манифеста не поддерживается: schema={content.schema}, scope={content.scope}. Исходный мир сохранён.");
+            }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
             WorldHistory.BeginContinuation(ServerWorld);

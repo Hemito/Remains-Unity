@@ -40,6 +40,10 @@ namespace Remains.Editor
                 "Прежний манифест с неизвестными полями сохраняется в истории");
             Remains.Persistence.ContentProvenance.Record(ref previous,ref history);
             Require(history.Count==1,"Повторное сохранение не раздувает историю контента");
+            Require(ContentComparison.Compare(previous,previous.Copy()).Count==0,"Совпадающий манифест не требует подтверждения");
+            Require(ContentComparison.Compare(null,previous).Count>0,"Неизвестный старый набор требует сравнения");
+            var reordered=chained.manifest.Copy();reordered.packs.Reverse();
+            Require(ContentComparison.Compare(chained.manifest,reordered).Count>0,"Изменение порядка видно даже при одинаковом общем hash");
             File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[]}");
             Reject(()=>WeaponCatalogLoader.Load(original,root),"не содержит определения");
             File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[{\"id\":\"pistol\",\"range\":20,\"cooldown\":1},{\"id\":\"pistol\",\"range\":20,\"cooldown\":1}]}");

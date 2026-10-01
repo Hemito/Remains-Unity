@@ -18,6 +18,7 @@ namespace Remains.Runtime
         private bool finished,wasWaiting;
         private bool Interrupt=>runtime.Options.Smoke.Contains("interrupt");
         private bool Host=>runtime.Options.Role=="host";
+        private bool ContentScenario=>runtime.Options.Smoke.Contains("content");
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;
@@ -29,7 +30,13 @@ namespace Remains.Runtime
             if(index==3) world.worldId="33333333333333333333333333333333";
             world.containers.Add(new ContainerState());
             for(int i=0;i<(Interrupt || value.Options.Smoke.Contains("large")?5000:1000);i++) world.containers[0].items.Add(new ItemStack {id="fixture-"+i,definition="caps",count=1});
-            original=value.Session.Saves.SaveWorld(world);
+            if(ContentScenario && index==1)
+            {
+                world.weaponContent=Remains.Content.WeaponCatalog.ManifestCopy();
+                world.weaponContent.fingerprint=new string('F',64);world.weaponContent.packs[0].version="fixture-old";
+                original=new RecoverySnapshot(Remains.Serialization.StateJson.ToJson(world));value.Session.Saves.SaveRecovery(original);
+            }
+            else original=value.Session.Saves.SaveWorld(world);
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<LobbyProbeFinish>(_=>Finish(ValidateLive(),Interrupt?"После обрыва неполная копия не загружена; через UI успешно выбрано другое продолжение.":"Переданная копия запущена; исходное продолжение сохранено в архиве."));
         }
         private IEnumerator Start()
@@ -54,6 +61,23 @@ namespace Remains.Runtime
                 {Finish(false,"Лобби не различило независимую ветвь и другой мир.");yield break;}
             }
             yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.StartButtonRect);
+            if(ContentScenario)
+            {
+                while(runtime.Hud.NetworkLobby.ContentConfirmRect==null && !finished) yield return null;
+                if(finished) yield break;
+                if(runtime.Session.ServerWorld!=null || runtime.Session.Saves.SelectedSnapshot().Id!=original.Id ||
+                    !lobby.ContentDifferences.Any(row=>row.id=="base" && row.saved.Contains("fixture-old")))
+                {Finish(false,"Мир изменён до подтверждения или не показана сохранённая версия контента.");yield break;}
+                yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.ContentCancelRect);
+                while((lobby.ClientBusy || runtime.Hud.NetworkLobby.ContentCancelRect!=null) && !finished) yield return null;
+                if(finished) yield break;
+                if(runtime.Session.ServerWorld!=null || runtime.Session.Saves.SelectedSnapshot().Id!=original.Id)
+                {Finish(false,"Отмена сравнения изменила выбранный мир.");yield break;}
+                yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.StartButtonRect);
+                while(runtime.Hud.NetworkLobby.ContentConfirmRect==null && !finished) yield return null;
+                if(finished) yield break;
+                yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.ContentConfirmRect);
+            }
             if(Interrupt)
             {
                 while(lobby.ReceivedBytes==0 && runtime.Session.ServerWorld==null && !finished) yield return null;
@@ -79,7 +103,7 @@ namespace Remains.Runtime
             var world=runtime.Session.World;
             var archive=Path.Combine(runtime.Session.Saves.DirectoryPath,"Worlds",original.WorldId,"Snapshots",original.Id+".json");
             return world!=null && world.seed==(Interrupt?100:101) && world.worldId=="11111111111111111111111111111111" &&
-                world.ancestors.Any(a=>a.branchId=="22222222222222222222222222222222" && a.sequence==(Interrupt?5:10)) &&
+                world.ancestors.Any(a=>a.branchId=="22222222222222222222222222222222" && a.sequence==(Interrupt?5:ContentScenario?9:10)) &&
                 File.Exists(archive) && File.ReadAllText(archive)==original.Json;
         }
         private void Update()
