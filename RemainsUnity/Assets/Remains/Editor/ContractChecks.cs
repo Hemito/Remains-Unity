@@ -63,6 +63,10 @@ namespace Remains.Editor
             Require(npc.owner=="client-b","Начатая атака сохраняет владельца");
             npc.attackBusy=false;ownership.Reassign(world,new[]{"client-b","client-c"});
             Require(npc.owner=="client-c" && npc.generation==1,"После атаки ближайший активный клиент получает NPC");
+            npc.attackCooldown=.01f;npc.attackId="last-known-finished";
+            ownership.Reassign(world,new[]{"client-b"});
+            Require(!npc.attackBusy && npc.attackId==null && npc.attackCooldown==NpcAttackRules.CooldownSeconds,
+                "Потеря владельца сбрасывает атаку и паузу даже при устаревшем idle-снимке");
 
             var item=SharedInventory.Create("caps",20);world.containers.Add(new ContainerState {x=0,items=new List<ItemStack>{item}});actor.down=false;
             var inventory=new SharedInventory(world);

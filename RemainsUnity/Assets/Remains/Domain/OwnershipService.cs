@@ -39,9 +39,10 @@ namespace Remains.Domain
                     continue;
                 }
                 if (actor.attackBusy && activeOwners.Contains(actor.owner)) continue;
-                if (actor.attackBusy)
+                if (actor.attackBusy || !actor.player && actor.owner!=null && actor.owner!="host" && !activeOwners.Contains(actor.owner))
                 {
-                    // Owner loss cancels an unfinished attack before recovery transfer.
+                    // The latest attack may not have arrived before owner loss.
+                    // Reset recovery cooldown even when the last snapshot looked idle.
                     NpcAttackRules.Cancel(actor);
                 }
                 var candidate = active.Where(a => a.level == actor.level)

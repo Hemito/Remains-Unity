@@ -49,7 +49,10 @@ namespace Remains.Runtime
             {traveled=true;session.Travel.RequestFactory();}
             var npc=session.World.Find("npc:training-guard");
             if(Source && !disconnected && npc.owner==session.LocalOwner && npc.attackBusy && npc.attackRemaining<.6f && npc.attackRemaining>.1f)
-            {disconnected=true;returnAt=Time.unscaledTime+3.5f;session.StopClient();return;}
+            {
+                File.WriteAllText(runtime.Options.Report+".interrupted-attack.txt",npc.attackId);
+                disconnected=true;returnAt=Time.unscaledTime+3.5f;session.StopClient();return;
+            }
             if(!Host) return;
             npc=session.ServerWorld.Find(npc.id);
             var source=session.ServerWorld.Find("player:session-client-1");
@@ -69,6 +72,10 @@ namespace Remains.Runtime
             }
             if(transferred && source?.connected==false && !canceled)
             {
+                // Test evidence from the departing process, including an attack whose
+                // ordinary replication was still in flight. Does not change gameplay state.
+                string evidence=Path.Combine(Path.GetDirectoryName(runtime.Options.Report),"session-client-1-report.json.interrupted-attack.txt");
+                canceledAttack=File.Exists(evidence)?File.ReadAllText(evidence):null;
                 if(npc.owner!=session.LocalOwner || npc.attackBusy || npc.attackCooldown<=0 || string.IsNullOrEmpty(canceledAttack))
                 {Finish(false,"Незавершённая атака не отменена при отключении владельца.");return;}
                 canceled=true;canceledAt=Time.unscaledTime;
