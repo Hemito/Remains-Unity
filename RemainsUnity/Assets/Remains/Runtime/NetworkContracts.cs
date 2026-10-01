@@ -166,7 +166,7 @@ namespace Remains.Runtime
                     if(body!=null && !body.connected && body.owner==session.LocalOwner)
                     {
                         disconnected=true;
-                        if(body.health>65 && !acted)
+                        if(body.health>65)
                         { runtime.Combat.Weapon="pistol";acted=runtime.Combat.Fire(self,body.Position+new Vector2(0,0.2f)); }
                         if(body.down && body.health<=65 && !passed.Contains("Отключённое тело получило урон у нового владельца"))
                             passed.Add("Отключённое тело получило урон у нового владельца");

@@ -20,23 +20,41 @@ namespace Remains.Gameplay
         private int swingGeneration,swingLifecycle;
         public string Weapon { get; set; } = "pistol";
         public bool IsMeleeActive=>swingActor!=null;
+        public WeaponReloadController Reload { get; }
+        private float nextResourceNotice;
+        private string selectedActor;
+        private int selectedGeneration;
         public Func<string,Vector2?> LocalExplosionPosition { get; set; }
         public CombatController(CoopSession session)
         {
             this.session = session;
+            Reload=new WeaponReloadController(session);
             session.AttackReceived += ReceiveAttack;
             session.NpcHitReceived += ReceiveNpcHit;
+            session.Changed+=RestoreSelection;
+        }
+
+        private void RestoreSelection()
+        {
+            var actor=session.LocalActor;
+            if(actor==null) {selectedActor=null;return;}
+            if(selectedActor==actor.id && selectedGeneration==actor.generation) return;
+            selectedActor=actor.id;selectedGeneration=actor.generation;
+            Weapon=actor.weapon;nextShot=0;swingActor=null;
         }
 
         public bool Fire(ActorState attacker, Vector2 aim)
         {
-            if (attacker == null || attacker.down || Time.time < nextShot) return false;
+            if (attacker == null || attacker.down || Reload.Active || Time.time < nextShot) return false;
             var definition=WeaponCatalog.Get(Weapon);
-            if(definition.manaCost>0)
+            if(!WeaponAmmunition.SpendShot(attacker,definition,out string reason))
             {
-                if(attacker.mana<definition.manaCost) return false;
-                attacker.mana-=definition.manaCost;attacker.revision++;session.PublishActor(attacker);
+                if(Time.unscaledTime>=nextResourceNotice)
+                {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice(reason);}
+                return false;
             }
+            if(definition.manaCost>0 || !string.IsNullOrEmpty(definition.ammo))
+            {attacker.revision++;session.PublishActor(attacker);}
             nextShot = Time.time + definition.cooldown;
             Vector2 origin = attacker.Position + new Vector2(0,0.55f);
             Vector2 direction = (aim-origin).normalized;
@@ -59,6 +77,7 @@ namespace Remains.Gameplay
 
         public void Step(float dt)
         {
+            Reload.Step(Weapon,dt);
             if(swingActor==null) return;
             var actor=session.World?.Find(swingActor.id);
             if(actor==null || actor.down || actor.owner!=session.LocalOwner || actor.level!=swingLevel ||

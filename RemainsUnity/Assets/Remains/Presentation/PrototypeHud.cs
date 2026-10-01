@@ -5,6 +5,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using Remains.Content;
+using Remains.Domain;
+using System.Collections.Generic;
 
 namespace Remains.Presentation
 {
@@ -23,6 +25,8 @@ namespace Remains.Presentation
         private Image healthBar;
         private Image manaBar;
         private Text personalItems;
+        private Text ammunition;
+        private readonly HashSet<string> missingMagazines=new();
         private Button friendlyFire;
         private Button leave;
         private Button factory;
@@ -43,9 +47,10 @@ namespace Remains.Presentation
             status = Label(transform, "Подключение не установлено", new Vector2(20,-20), new Vector2(1050,60));
             healthBar=OriginalBar("health",new Vector2(20,-95),new Vector2(300,34));
             manaBar=OriginalBar("mana",new Vector2(20,-135),new Vector2(300,20));
+            ammunition=Label(transform,"",new Vector2(20,-165),new Vector2(380,45));
             message = Label(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · E — поднять · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
             lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,300));
-            var saved=session.Saves.LoadWorld();
+            var saved=session.Saves.LoadWorld(prepareForPlay:false);
             if(saved!=null) Label(transform,$"Локальная копия: мир {saved.worldId.Substring(0,8)} · ревизия {saved.revision}",new Vector2(420,-180),new Vector2(620,55));
             character=Input(lobby.transform,new Vector2(20,-20));character.text=session.CharacterId??"pony-one";
             Button(lobby.transform,"Создать игру",new Vector2(20,-80),new Vector2(400,45),()=>
@@ -98,7 +103,8 @@ namespace Remains.Presentation
             leave.gameObject.SetActive(true);friendlyFire.gameObject.SetActive(Mirror.NetworkServer.active);
             factory.gameObject.SetActive(actor.level=="hub");
             friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
-            status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count} · {(actor.level=="hub"?"Хаб": "Завод 0")}\n1 — копьё · 2 — лом · 3 — пистолет · 4 — энергомагическое оружие";
+            status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count} · {(actor.level=="hub"?"Хаб": "Завод 0")}\n1 — копьё · 2 — лом · 3 — 10-мм пистолет · 4 — лазерный пистолет · R — перезарядка";
+            RefreshAmmunition();
             healthBar.fillAmount=Mathf.Clamp01(actor.health/100);
             manaBar.fillAmount=Mathf.Clamp01(actor.mana/100);
             personalItems.text="Личный инвентарь\n";
@@ -117,8 +123,26 @@ namespace Remains.Presentation
                 case "caps":return "Крышки";
                 case "heal":return "Хилка";
                 case "grenade":return "Граната";
+                case "p10":return "10-мм патроны";
+                case "batt":return "Энергобатареи";
                 default:Debug.LogWarning($"Нет русской подписи предмета в инвентаре: {id}.");return "["+id+"]";
             }
+        }
+
+        private void Update() => RefreshAmmunition();
+        private void RefreshAmmunition()
+        {
+            var actor=session?.LocalActor;
+            if(actor==null) {if(ammunition!=null) ammunition.text="";return;}
+            var definition=WeaponCatalog.Get(actor.weapon);
+            if(string.IsNullOrEmpty(definition.ammo)) {ammunition.text="";return;}
+            var magazine=WeaponAmmunition.Magazine(actor,actor.weapon);
+            if(magazine==null)
+            {
+                if(missingMagazines.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Нет магазина: actor={actor.id}, weapon={actor.weapon}, loadoutVersion={actor.loadoutVersion}.",this);
+                ammunition.text="Ошибка данных магазина — см. журнал.";return;
+            }
+            ammunition.text=$"Заряжено: {magazine.rounds}/{definition.magazineSize} · запас: {InventoryJournal.Count(actor,definition.ammo)}";
         }
 
         private Image OriginalBar(string key,Vector2 position,Vector2 size)

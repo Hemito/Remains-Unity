@@ -98,6 +98,7 @@ namespace Remains.Runtime
             if (Options.Smoke != null)
             {
                 if(Options.Smoke.StartsWith("session")) gameObject.AddComponent<NetworkSessionProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("ammo")) gameObject.AddComponent<NetworkAmmunitionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("movement")) gameObject.AddComponent<NetworkMovementProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("contracts")) gameObject.AddComponent<NetworkContracts>().Initialize(this);
                 else gameObject.AddComponent<NetworkSmoke>().Initialize(this);
@@ -143,7 +144,7 @@ namespace Remains.Runtime
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors) animated.poseTime+=Time.deltaTime;
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("session"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo"))
             {
                 npcs.Step(Time.deltaTime);
                 ApplyCommand(CommandSource?.Invoke() ?? ReadCommand(),Time.deltaTime);
@@ -171,6 +172,7 @@ namespace Remains.Runtime
                 command.weapon=keyboard.digit1Key.wasPressedThisFrame?"spear":keyboard.digit2Key.wasPressedThisFrame?"crowbar":
                     keyboard.digit3Key.wasPressedThisFrame?"pistol":keyboard.digit4Key.wasPressedThisFrame?"energy":null;
                 command.inventory=keyboard.iKey.wasPressedThisFrame;
+                command.reload=keyboard.rKey.wasPressedThisFrame;
                 command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;
                 command.grenade=keyboard.gKey.wasPressedThisFrame;command.heal=keyboard.hKey.wasPressedThisFrame;
             }
@@ -196,6 +198,7 @@ namespace Remains.Runtime
             if(command.weapon!=null) Combat.Weapon=command.weapon;
             actor.weapon=Combat.Weapon;
             if(command.inventory) hud?.ToggleInventory();
+            if(command.reload && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
             Revival.Step(command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);
             if(command.grenade && !actor.down) Interactions.ThrowGrenade(command.aim);

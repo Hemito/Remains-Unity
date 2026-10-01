@@ -38,8 +38,8 @@ namespace Remains.Editor
             var attack=new AttackEvent { id="shot-1",weapon="pistol",attacker="client-a",level="factory:0",originX=-2,originY=0.7f,endX=2,endY=0.7f };
             Require(HitGeometry.Contacts(actor,attack),"Сегмент должен пересекать корпус");
             Require(!damage.Apply(actor,attack,false) && actor.health==100,"Пострадавший может отклонить попадание");
-            Require(damage.Apply(actor,attack,true) && actor.health==65,"Одно принятое попадание");
-            Require(!damage.Apply(actor,attack,true) && actor.health==65,"Повтор события не наносит урон");
+            Require(damage.Apply(actor,attack,true) && actor.health==89,"Одно принятое попадание");
+            Require(!damage.Apply(actor,attack,true) && actor.health==89,"Повтор события не наносит урон");
             actor.down=true;
             attack.id="shot-2";
             damage.Apply(actor,attack,true);
@@ -65,12 +65,13 @@ namespace Remains.Editor
             var directory=Path.Combine(Path.GetTempPath(),"Remains-contracts-"+Guid.NewGuid().ToString("N"));
             var saves=new SaveStore(directory);saves.SaveWorld(world);saves.SaveWorld(world);
             var restored=saves.LoadWorld();
-            Require(restored.worldId==world.worldId && restored.Find(actor.id).down && restored.Find(actor.id).health==30,
+            Require(restored.worldId==world.worldId && restored.Find(actor.id).down && restored.Find(actor.id).health==78,
                 "Сохранение восстанавливает идентичность мира и состояние тела");
             Require(restored.completedTransactions.Contains("claim-1") && File.Exists(Path.Combine(directory,"world.json.previous")),
                 "Сохранение сохраняет транзакцию и предыдущую версию");
             MovementChecks.Run();
             SessionChecks.Run();
+            AmmunitionChecks.Run();
             actor.connected=true;actor.down=true;second.connected=false;second.down=false;
             actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});
             actor.injuries.Add(new InjuryState{id="fracture",periodicDamage=false});

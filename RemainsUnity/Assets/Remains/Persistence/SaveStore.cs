@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 using Remains.Domain;
 using UnityEngine;
 
@@ -14,12 +16,20 @@ namespace Remains.Persistence
             Directory.CreateDirectory(directory);
         }
 
-        public WorldState LoadWorld()
+        public WorldState LoadWorld(bool prepareForPlay=true)
         {
             string path = Path.Combine(DirectoryPath, "world.json");
             if (!File.Exists(path)) return null;
             var world = JsonUtility.FromJson<WorldState>(File.ReadAllText(path));
             if (world == null || world.schema != 1) throw new InvalidDataException($"Неподдерживаемый сейв: {path}");
+            if(!prepareForPlay) return world;
+            if(world.actors.Any(a=>a.player && a.loadoutVersion==0))
+            {
+                string backup=PreserveSource("world.json");
+                foreach(var actor in world.actors.Where(a=>a.player && a.loadoutVersion==0)) UpgradeLoadout(actor,backup);
+                world.revision++;
+            }
+            foreach(var actor in world.actors) actor.inventoryUses ??= new List<InventoryUse>();
             return world;
         }
 
@@ -34,15 +44,28 @@ namespace Remains.Persistence
         public ActorState LoadCharacter()
         {
             string path=Path.Combine(DirectoryPath,"character.json");
-            return File.Exists(path)?JsonUtility.FromJson<ActorState>(File.ReadAllText(path)):null;
+            if(!File.Exists(path)) return null;
+            var actor=JsonUtility.FromJson<ActorState>(File.ReadAllText(path));
+            if(actor.loadoutVersion==0) UpgradeLoadout(actor,PreserveSource("character.json"));
+            return actor;
         }
 
         public string PreserveRecoverySource()
+            => PreserveSource("world.json");
+
+        private static void UpgradeLoadout(ActorState actor,string backup)
         {
-            string source=Path.Combine(DirectoryPath,"world.json");
+            WeaponAmmunition.Initialize(actor,true);
+            actor.revision++;
+            Debug.LogWarning($"Миграция боезапаса v0→v1: actor={actor.id}, добавлено стартовое оснащение прототипа (магазины и резерв); здоровье и существующие предметы сохранены. Исходник: {backup}.");
+        }
+
+        private string PreserveSource(string filename)
+        {
+            string source=Path.Combine(DirectoryPath,filename);
             if(!File.Exists(source)) return null;
             string directory=Path.Combine(DirectoryPath,"Recovery");Directory.CreateDirectory(directory);
-            string destination=Path.Combine(directory,"world-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff")+"-"+Guid.NewGuid().ToString("N")+".json");
+            string destination=Path.Combine(directory,Path.GetFileNameWithoutExtension(filename)+"-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff")+"-"+Guid.NewGuid().ToString("N")+".json");
             File.Copy(source,destination);
             return destination;
         }

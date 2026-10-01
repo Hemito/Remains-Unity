@@ -11,6 +11,9 @@ namespace Remains.Content
     {
         public string id;
         public float damage,speedDamage,maxSpeedDamage,range,cooldown,manaCost;
+        public string ammo;
+        public int magazineSize,ammoPerShot;
+        public float reloadSeconds;
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }
@@ -19,6 +22,7 @@ namespace Remains.Content
     public static class WeaponCatalog
     {
         private static readonly Dictionary<string,WeaponDefinition> definitions=new();
+        public static IEnumerable<WeaponDefinition> All => definitions.Values;
         public static string ModFingerprint { get; private set; }="";
         public static string ModDescription { get; private set; }="";
         public static WeaponDefinition Get(string id)=>definitions.TryGetValue(id,out var value)?value:
@@ -68,6 +72,9 @@ namespace Remains.Content
             {
                 if(string.IsNullOrEmpty(weapon.id) || weapon.damage<0 || weapon.speedDamage<0 || weapon.maxSpeedDamage<0 || weapon.range<=0 || weapon.cooldown<=0)
                     throw new InvalidDataException($"Некорректное оружие {weapon.id}, источник {source}.");
+                if(weapon.manaCost<0 || (!string.IsNullOrEmpty(weapon.ammo) &&
+                    (weapon.magazineSize<=0 || weapon.ammoPerShot<=0 || weapon.ammoPerShot>weapon.magazineSize || weapon.reloadSeconds<=0)))
+                    throw new InvalidDataException($"Некорректный расход/магазин оружия {weapon.id}, источник {source}.");
                 if(!replace && definitions.ContainsKey(weapon.id)) throw new InvalidDataException($"Повторное определение {weapon.id}, источник {source}.");
                 definitions[weapon.id]=weapon;
             }

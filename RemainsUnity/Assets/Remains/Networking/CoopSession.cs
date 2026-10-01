@@ -145,6 +145,7 @@ namespace Remains.Networking
                     actor=new ActorState();
                     actor.inventory.Add(SharedInventory.Create("heal", 5));
                     actor.inventory.Add(SharedInventory.Create("grenade", 5));
+                    WeaponAmmunition.Initialize(actor,true);
                 }
                 actor.id="player:"+message.character;actor.character=message.character;actor.player=true;
                 CharacterPlacement.SpawnInHub(actor,ServerWorld.actors.Count(a=>a.player));
@@ -215,6 +216,10 @@ namespace Remains.Networking
                     {
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;
                         actor.mana=local.mana;
+                        actor.magazines=local.magazines;
+                        if(!InventoryJournal.Merge(actor,local,out var inventoryCopy,out var uses))
+                            throw new InvalidOperationException($"Не удалось согласовать расход инвентаря: actor={actor.id}, revision={actor.revision}.");
+                        actor.inventory=inventoryCopy;actor.inventoryUses=uses;
                     }
                 }
             }
@@ -250,7 +255,13 @@ namespace Remains.Networking
             if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner ||
                 !ActorVersion.CanPublishOwnerState(incoming,actor)) return;
             // Shared inventory is host-coordinated; movement/combat/stat decisions remain client-owned.
-            incoming.inventory = actor.inventory;
+            if(!InventoryJournal.Merge(actor,incoming,out var inventoryCopy,out var uses))
+            {
+                Debug.LogWarning($"Отклонён несогласованный расход инвентаря: actor={actor.id}, revision={incoming.revision}.");
+                connection.Send(new NoticeMessage {text="Расход предметов не подтверждён: состояние инвентаря не совпало. Переподключитесь к сессии."});
+                return;
+            }
+            incoming.inventory=inventoryCopy;incoming.inventoryUses=uses;
             incoming.owner = actor.owner;
             incoming.connected = actor.connected;
             if(incoming.level!=actor.level)
