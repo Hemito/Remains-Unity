@@ -24,6 +24,7 @@ namespace Remains.Presentation
             this.session=session;this.grenades=grenades;this.layers=layers;
             foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
+            ShotArtwork.Prepare();
             session.Changed+=Refresh;
             grenades.Created+=flight=>Refresh();
             session.AttackReceived+=attack=>
@@ -31,7 +32,11 @@ namespace Remains.Presentation
                 if(attack.weapon is "spear" or "crowbar" or "grenade" || attack.level!=session.LocalActor?.level) return;
                 float limit=Remains.Content.WeaponCatalog.Get(attack.weapon).stopAtTerrain?
                     ShotObstacles.Limit(geometry.Get(attack.level),attack.Origin,attack.End):1;
-                var shot=new GameObject("Выстрел "+attack.id).AddComponent<ShotVisual>();shot.Initialize(attack,limit);
+                if(Remains.Content.WeaponCatalog.Get(attack.weapon).stopAtFirstActor)
+                    limit=AttackContacts.VisualLimit(session.World.actors,attack,session.World.friendlyFire,limit);
+                if(!ShotArtwork.TryGet(attack.weapon,out var artwork)) return;
+                var shot=new GameObject("Выстрел "+attack.id).AddComponent<ShotVisual>();
+                shot.Initialize(attack,limit,artwork,session);
             };
         }
         private static Sprite Load(string path)
@@ -106,19 +111,4 @@ namespace Remains.Presentation
         }
     }
 
-    public sealed class ShotVisual : MonoBehaviour
-    {
-        private float expires;
-        public void Initialize(AttackEvent attack,float limit)
-        {
-            var line=gameObject.AddComponent<LineRenderer>();line.positionCount=2;
-            line.SetPosition(0,attack.Origin);line.SetPosition(1,Vector2.Lerp(attack.Origin,attack.End,limit));
-            line.startWidth=line.endWidth=0.025f;
-            line.material=new Material(Shader.Find("Sprites/Default"));
-            line.startColor=line.endColor=attack.weapon=="energy"?Color.green:new Color(1,0.8f,0.3f);
-            line.sortingOrder=ActorVisualLayers.EffectOrder;expires=Time.time+0.08f;
-        }
-        private void Update() { if(Time.time>=expires) Destroy(gameObject); }
-        private void OnDestroy() { var line=GetComponent<LineRenderer>();if(line!=null) Destroy(line.material); }
-    }
 }
