@@ -116,12 +116,27 @@ namespace Remains.Persistence
             AtomicWrite("character.json",JsonUtility.ToJson(saved,true));
         }
         public ActorState LoadCharacter()
+            =>PrepareCharacter(ReadCharacterSource(),false);
+
+        public string ReadCharacterSource()
         {
             string path=Path.Combine(DirectoryPath,"character.json");
-            if(!File.Exists(path)) return null;
-            var actor=JsonUtility.FromJson<ActorState>(File.ReadAllText(path));
+            return File.Exists(path)?File.ReadAllText(path):null;
+        }
+
+        public ActorState PrepareCharacter(string source,bool preserve)
+        {
+            if(source==null) return null;
+            var actor=JsonUtility.FromJson<ActorState>(source);
+            string backup=null;
+            if(preserve || actor.loadoutVersion==0)
+            {
+                backup=Path.Combine("Recovery","character-"+Guid.NewGuid().ToString("N")+".json");
+                AtomicWrite(backup,source);
+                backup=Path.Combine(DirectoryPath,backup);
+            }
             actor.resolvedExplosions ??= new List<string>();
-            if(actor.loadoutVersion==0) UpgradeLoadout(actor,PreserveSource("character.json"));
+            if(actor.loadoutVersion==0) UpgradeLoadout(actor,backup);
             return actor;
         }
 

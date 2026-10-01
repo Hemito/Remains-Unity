@@ -19,6 +19,8 @@ namespace Remains.Runtime
         private bool Interrupt=>runtime.Options.Smoke.Contains("interrupt");
         private bool Host=>runtime.Options.Role=="host";
         private bool ContentScenario=>runtime.Options.Smoke.Contains("content");
+        private bool CharacterScenario=>runtime.Options.Smoke.Contains("character");
+        private string characterSource;
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;
@@ -37,10 +39,37 @@ namespace Remains.Runtime
                 original=new RecoverySnapshot(Remains.Serialization.StateJson.ToJson(world));value.Session.Saves.SaveRecovery(original);
             }
             else original=value.Session.Saves.SaveWorld(world);
+            if(CharacterScenario)
+            {
+                var actor=new ActorState {character=value.Options.Character,health=73,mana=64,weaponContent=Remains.Content.WeaponCatalog.ManifestCopy()};
+                actor.weaponContent.packs[0].version="character-old";actor.weaponContent.fingerprint=new string('A',64);
+                characterSource=Remains.Serialization.StateJson.ToJson(actor);
+                File.WriteAllText(Path.Combine(value.Session.Saves.DirectoryPath,"character.json"),characterSource);
+            }
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<LobbyProbeFinish>(_=>Finish(ValidateLive(),Interrupt?"После обрыва неполная копия не загружена; через UI успешно выбрано другое продолжение.":"Переданная копия запущена; исходное продолжение сохранено в архиве."));
         }
         private IEnumerator Start()
         {
+            if(CharacterScenario)
+            {
+                while(runtime.Hud.CharacterContent.ConfirmRect==null && !finished) yield return null;
+                if(finished) yield break;
+                string sourcePath=Path.Combine(runtime.Session.Saves.DirectoryPath,"character.json");
+                if(runtime.Session.LocalActor!=null || File.ReadAllText(sourcePath)!=characterSource ||
+                    Directory.Exists(Path.Combine(runtime.Session.Saves.DirectoryPath,"Recovery")))
+                {Finish(false,"Персонаж подготовлен или исходник изменён до решения.");yield break;}
+                if(!Host && runtime.Options.Character.EndsWith("-1"))
+                {
+                    yield return UiPointerProbe.Click(runtime.Hud.CharacterContent.CancelRect);
+                    while(NetworkClient.active && !finished) yield return null;
+                    if(File.ReadAllText(sourcePath)!=characterSource || runtime.Session.LocalActor!=null)
+                    {Finish(false,"Отмена сравнения изменила персонажа.");yield break;}
+                    runtime.Session.StartClient();
+                    while(runtime.Hud.CharacterContent.ConfirmRect==null && !finished) yield return null;
+                }
+                if(finished) yield break;
+                yield return UiPointerProbe.Click(runtime.Hud.CharacterContent.ConfirmRect);
+            }
             if(!Host) yield break;
             var lobby=runtime.Session.Lobby;
             while(lobby.ClientPlayers!=runtime.Options.ProbePeers && !finished) yield return null;
@@ -102,6 +131,13 @@ namespace Remains.Runtime
         {
             var world=runtime.Session.World;
             var archive=Path.Combine(runtime.Session.Saves.DirectoryPath,"Worlds",original.WorldId,"Snapshots",original.Id+".json");
+            if(CharacterScenario)
+            {
+                var actor=runtime.Session.LocalActor;
+                string backups=Path.Combine(runtime.Session.Saves.DirectoryPath,"Recovery");
+                if(actor==null || actor.health!=73 || actor.mana!=64 || actor.loadoutVersion!=1 ||
+                    !Directory.Exists(backups) || !Directory.GetFiles(backups,"character-*.json").Any(p=>File.ReadAllText(p)==characterSource)) return false;
+            }
             return world!=null && world.seed==(Interrupt?100:101) && world.worldId=="11111111111111111111111111111111" &&
                 world.ancestors.Any(a=>a.branchId=="22222222222222222222222222222222" && a.sequence==(Interrupt?5:ContentScenario?9:10)) &&
                 File.Exists(archive) && File.ReadAllText(archive)==original.Json;

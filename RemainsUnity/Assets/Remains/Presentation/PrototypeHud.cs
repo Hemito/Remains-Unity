@@ -34,6 +34,7 @@ namespace Remains.Presentation
         private Font font;
         private HudElements elements;
         public WorldLobbyPanel NetworkLobby {get;private set;}
+        public CharacterContentPanel CharacterContent {get;private set;}
         private Image healthBar;
         private Image manaBar;
         private Text personalItems;
@@ -109,6 +110,7 @@ namespace Remains.Presentation
                 Button(warning.transform,"Отмена",new Vector2(410,-350),new Vector2(360,50),()=>{session.StopClient();Destroy(warning);});
             };
             NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
+            CharacterContent=new CharacterContentPanel(transform,elements,session);
             Refresh();
         }
 

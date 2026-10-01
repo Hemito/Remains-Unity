@@ -61,24 +61,9 @@ namespace Remains.Presentation
         }
         private void RenderContent()
         {
-            var rows=session.Lobby.ContentDifferences;
-            int pages=Math.Max(1,(rows.Count+3)/4);contentPage=Math.Clamp(contentPage,0,pages-1);
-            ui.Label(root.transform,"Контент сохранения отличается. Продолжение может изменить игровой результат.\nИсходная копия сохранится; моды не устанавливаются и не переставляются автоматически.",new Vector2(20,-10),new Vector2(1060,60));
-            ui.Label(root.transform,"Пакет",new Vector2(20,-75),new Vector2(200,30));
-            ui.Label(root.transform,"В сохранении",new Vector2(230,-75),new Vector2(410,30));
-            ui.Label(root.transform,"Сейчас",new Vector2(650,-75),new Vector2(420,30));
-            for(int i=0;i<4 && contentPage*4+i<rows.Count;i++)
-            {
-                var row=rows[contentPage*4+i];float y=-115-i*75;
-                ui.Label(root.transform,row.id,new Vector2(20,y),new Vector2(200,70));
-                var saved=ui.Label(root.transform,row.saved,new Vector2(230,y),new Vector2(410,70));saved.fontSize=14;
-                var current=ui.Label(root.transform,row.current,new Vector2(650,y),new Vector2(420,70));current.fontSize=14;
-            }
-            ui.Button(root.transform,"Назад",new Vector2(20,-430),new Vector2(180,40),()=>{contentPage--;Render();}).interactable=contentPage>0;
-            ui.Label(root.transform,$"{contentPage+1}/{pages}",new Vector2(230,-430),new Vector2(150,35));
-            ui.Button(root.transform,"Далее",new Vector2(400,-430),new Vector2(180,40),()=>{contentPage++;Render();}).interactable=contentPage+1<pages;
-            ContentConfirmRect=ui.Button(root.transform,"Попробовать загрузить с этим набором",new Vector2(20,-510),new Vector2(690,45),()=>session.Lobby.ConfirmContent(true)).GetComponent<RectTransform>();
-            ContentCancelRect=ui.Button(root.transform,"Отмена",new Vector2(760,-510),new Vector2(320,45),()=>session.Lobby.ConfirmContent(false)).GetComponent<RectTransform>();
+            (ContentConfirmRect,ContentCancelRect)=ContentComparisonView.Draw(root.transform,ui,session.Lobby.ContentDifferences,
+                "Контент сохранения отличается. Продолжение может изменить игровой результат.",contentPage,
+                next=>{contentPage=next;Render();},accept=>session.Lobby.ConfirmContent(accept));
         }
     }
 }

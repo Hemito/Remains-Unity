@@ -19,6 +19,7 @@ namespace Remains.Networking
         public string LocalActorId { get; private set; }
         public ActorState LocalActor => World?.Find(LocalActorId);
         public SaveStore Saves { get; set; }
+        public CharacterContentGate CharacterContent {get;}=new();
         public string CharacterId { get; set; }
         public event Action Changed;
         public event Action<AttackEvent> AttackReceived;
@@ -112,6 +113,7 @@ namespace Remains.Networking
 
         public override void OnStartClient()
         {
+            CharacterContent.Reset();
             clientPoses.Clear();
             Admission.RegisterClient();
             Lobby.RegisterClient();
@@ -150,13 +152,13 @@ namespace Remains.Networking
             SendJoin(false);
         }
 
-        public void SendJoin(bool acceptMismatch)
+        public void SendJoin(bool acceptMismatch,bool acceptCharacter=false)
         {
             if(!Admission.ClientApproved) {ShowNotice("Сначала необходимо согласовать сетевой протокол.");return;}
             try
             {
+                if(!CharacterContent.TryPrepare(Saves,CharacterId,acceptCharacter,out var character)) return;
                 Lobby.PublishOffers();
-                var character=Saves.LoadCharacter();
                 NetworkClient.Send(new JoinMessage { character = CharacterId, displayName = CharacterId,
                     characterJson=character==null?null:JsonUtility.ToJson(character),
                     modFingerprint=WeaponCatalog.ModFingerprint,acceptMismatch=acceptMismatch });
@@ -526,6 +528,7 @@ namespace Remains.Networking
         }
         public override void OnStopClient()
         {
+            CharacterContent.Reset();
             Admission.EndClient();
             Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
             SaveLocalCharacter();
