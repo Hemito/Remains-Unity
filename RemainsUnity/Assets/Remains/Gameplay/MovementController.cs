@@ -31,11 +31,11 @@ namespace Remains.Gameplay
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
             if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
-            actor.vx = input.x * (sprint ? settings.runSpeed : settings.walkSpeed);
+            actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings);
             if (input.x != 0) actor.facing = input.x > 0 ? 1 : -1;
             if (ladder)
             {
-                actor.vy = input.y * settings.climbSpeed;
+                actor.vy = input.y * settings.climbSpeed * (input.y<0?settings.climbDownMultiplier:1);
                 if(Mathf.Abs(input.x)<.1f && dt>0) actor.vx=Mathf.Clamp((selected.x+selected.movementOffset-actor.x)/dt,-settings.walkSpeed,settings.walkSpeed);
             }
             else

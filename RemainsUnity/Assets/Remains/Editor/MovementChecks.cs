@@ -13,16 +13,19 @@ namespace Remains.Editor
         {
             PlatformDropChecks.Run();
             LadderHoldChecks.Run();
+            HorizontalMotionChecks.Run();
             CheckSolidGeometry();
             SavedPlacementChecks.Run();
             var factory=RoomLayout.Load();var movement=new MovementController(factory);
             var actor=new ActorState {x=0,y=0};movement.Step(actor,Vector2.zero,true,.05f);
             Require(actor.y>0 && actor.vy>0,"Прыжок от пола");
             actor=new ActorState();movement.Step(actor,Vector2.right,false,.02f);
+            Require(actor.vx>0 && actor.vx<4.2f,"Ходьба должна начинаться с разгона");
+            for(int i=0;i<10;i++) movement.Step(actor,Vector2.right,false,.02f);
             Require(actor.pose=="walk" && Mathf.Abs(actor.vx-4.2f)<.001f,"Базовая ходьба по данным оригинала");
-            movement.Step(actor,Vector2.right,false,.02f,true);
+            for(int i=0;i<10;i++) movement.Step(actor,Vector2.right,false,.02f,true);
             Require(actor.pose=="run" && Mathf.Abs(actor.vx-8.4f)<.001f,"Базовый бег вдвое быстрее ходьбы");
-            actor.x=3;actor.y=4;actor.vy=-10;movement.Step(actor,Vector2.zero,false,.1f);
+            actor.x=3;actor.y=4;actor.vx=0;actor.vy=-10;movement.Step(actor,Vector2.zero,false,.1f);
             Require(Mathf.Abs(actor.y-3.25f)<.001f && actor.pose=="idle","Приземление на верхнюю платформу");
 
             foreach(float dt in new[]{1f/60,.1f,.33f,.9f})

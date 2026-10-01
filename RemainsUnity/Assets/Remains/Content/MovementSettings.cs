@@ -7,9 +7,11 @@ namespace Remains.Content
     public sealed class MovementSettings
     {
         public float walkSpeed,runSpeed,climbSpeed,jumpSpeed,dropSpeed,doubleTapSeconds;
+        public float groundAcceleration,groundBraking,airAcceleration,airBraking,climbDownMultiplier;
         public void Validate()
         {
-            foreach(float value in new[]{walkSpeed,runSpeed,climbSpeed,jumpSpeed,dropSpeed,doubleTapSeconds})
+            foreach(float value in new[]{walkSpeed,runSpeed,climbSpeed,jumpSpeed,dropSpeed,doubleTapSeconds,
+                groundAcceleration,groundBraking,airAcceleration,airBraking,climbDownMultiplier})
                 if(!float.IsFinite(value) || value<=0) throw new InvalidOperationException("Параметры движения должны быть конечными положительными числами.");
             if(runSpeed<walkSpeed) throw new InvalidOperationException("Скорость бега ниже скорости ходьбы.");
         }
