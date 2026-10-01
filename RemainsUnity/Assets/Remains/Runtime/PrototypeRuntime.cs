@@ -27,6 +27,8 @@ namespace Remains.Runtime
         public GameplayAudio Audio {get;private set;}
         public AreaMusic Music {get;private set;}
         public MovementAudio MovementAudio {get;private set;}
+        public AudioPreferences AudioPreferences {get;private set;}
+        private float musicMixVolume;
         public DamageFeedback DamageFeedback {get;private set;}
         public DamageNumbers DamageNumbers {get;private set;}
         public System.Func<PlayerCommand> CommandSource { get; set; }
@@ -100,11 +102,15 @@ namespace Remains.Runtime
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
             MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
+            if(Application.isBatchMode && Options.Smoke!=null && string.IsNullOrEmpty(Options.SaveDirectory))
+                throw new System.InvalidOperationException("Фоновая проверка требует отдельного каталога --save-dir для настроек.");
+            AudioPreferences=new AudioPreferences(Path.Combine(Options.SaveDirectory??Application.persistentDataPath,"Settings","audio.json"));
+            musicMixVolume=Music.Volume;AudioPreferences.Changed+=ApplyAudioPreferences;ApplyAudioPreferences();
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
             if (!Application.isBatchMode || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke?.StartsWith("lobby")==true)
             {
-                hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session);
+                hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences);
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
                 hud.EquipWeapon=weapon=>{if(Session.LocalActor is {down:false}) Combat.Weapon=weapon;};
                 hud.SelectCharacter=name=>
@@ -121,7 +127,8 @@ namespace Remains.Runtime
             if(Options.Smoke?.Contains("-attacker-")==true) Session.ServerReady+=()=>Session.SetFriendlyFireDecision(FriendlyFireDecision.Attacker);
             if (Options.Smoke != null)
             {
-                if(Options.Smoke.StartsWith("training")) gameObject.AddComponent<NetworkTrainingProbe>().Initialize(this);
+                if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("training")) gameObject.AddComponent<NetworkTrainingProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("obstacle")) gameObject.AddComponent<NetworkObstacleProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("journey")) gameObject.AddComponent<NetworkJourneyProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("lobby")) gameObject.AddComponent<NetworkLobbyProbe>().Initialize(this);
@@ -195,6 +202,12 @@ namespace Remains.Runtime
             visualLayers.Synchronize(visuals.Keys);
         }
 
+        private void ApplyAudioPreferences()
+        {
+            var value=AudioPreferences.Current;
+            Audio.Volume=.65f*value.master*value.effects;
+            Music.Volume=musicMixVolume*value.master*value.music;
+        }
         private void Update()
         {
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();
@@ -264,7 +277,7 @@ namespace Remains.Runtime
         {
             var actor=Session.LocalActor;
             if(command.inventory) hud?.ToggleInventory();
-            if(command.menu) hud?.PauseMenu.Toggle();
+            if(command.menu) hud?.ToggleMenu();
             if(hud?.BlocksGameplayInput==true) command=default;
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
             if(Session.Travel.Pending) command=default;

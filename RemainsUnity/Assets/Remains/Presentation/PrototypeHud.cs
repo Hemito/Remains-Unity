@@ -48,7 +48,9 @@ namespace Remains.Presentation
         public CharacterContentPanel CharacterContent {get;private set;}
         public SessionModPanel SessionMods {get;private set;}
         public PauseMenu PauseMenu {get;private set;}
-        public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen;
+        public AudioSettingsPanel AudioSettings {get;private set;}
+        public RectTransform MainMenuSoundRect=>mainMenu.SoundRect;
+        public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen || AudioSettings.IsOpen;
         public bool InventoryOpen=>inventory.activeSelf;
         private string inventoryActorVersion;
         private CombatHud combatHud;
@@ -70,7 +72,7 @@ namespace Remains.Presentation
         public event Action HostRequested;
         public event Action<string> JoinRequested;
 
-        public void Initialize(CoopSession value)
+        public void Initialize(CoopSession value,AudioPreferences audioPreferences=null)
         {
             session = value;
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -82,6 +84,7 @@ namespace Remains.Presentation
             scaler.referenceResolution = new Vector2(1280,720);
             scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
+            AudioSettings=new AudioSettingsPanel(transform,elements,audioPreferences??new AudioPreferences(null));
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             status=elements.BackedLabel(transform,"",new Vector2(720,-20),new Vector2(285,44));
             combatHud=new CombatHud(transform,elements,inventoryArtwork,weapon=>EquipWeapon?.Invoke(weapon));
@@ -91,7 +94,7 @@ namespace Remains.Presentation
             mainMenu=new MainMenuPanel(transform,elements,
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();},
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);},
-                ()=>{if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);});
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);},()=>AudioSettings.Open());
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
@@ -135,7 +138,7 @@ namespace Remains.Presentation
             SessionMods=new SessionModPanel(transform,elements,session);
             NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
-            PauseMenu=new PauseMenu(transform,elements,session,()=>inventory.activeSelf);
+            PauseMenu=new PauseMenu(transform,elements,session,()=>inventory.activeSelf,()=>AudioSettings.Open());
             friendlyFire.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(friendlyFire.GetComponent<RectTransform>(),new Vector2(12,-50),new Vector2(286,40));
             friendlyDecision.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(friendlyDecision.GetComponent<RectTransform>(),new Vector2(12,-100),new Vector2(286,60));
             leave.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(leave.GetComponent<RectTransform>(),new Vector2(12,-185),new Vector2(286,60));
@@ -144,7 +147,8 @@ namespace Remains.Presentation
             Refresh();
         }
 
-        public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
+        public void ToggleMenu() {if(AudioSettings.IsOpen) AudioSettings.Cancel();else PauseMenu.Toggle();}
+        public void ToggleInventory() {if(AudioSettings.IsOpen) return; inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
         public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
         public RectTransform FriendlyFireButtonRect=>friendlyFire.GetComponent<RectTransform>();
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
@@ -243,6 +247,7 @@ namespace Remains.Presentation
 
         private void Update()
         {
+            if(session.LocalActor==null && AudioSettings.IsOpen && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true) AudioSettings.Cancel();
             factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
             if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
             bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen;

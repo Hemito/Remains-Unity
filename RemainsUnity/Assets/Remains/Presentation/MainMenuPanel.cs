@@ -14,8 +14,9 @@ namespace Remains.Presentation
         public Button Worlds {get;}
         public Text World {get;}
         public Text Notice {get;}
+        public RectTransform SoundRect {get;}
         private readonly HudElements ui;
-        public MainMenuPanel(Transform parent,HudElements ui,Action host,Action join,Action worlds)
+        public MainMenuPanel(Transform parent,HudElements ui,Action host,Action join,Action worlds,Action settings)
         {
             this.ui=ui;
             Root=ui.Panel(parent,"Главное меню",Vector2.zero,new Vector2(1280,720));
@@ -37,6 +38,7 @@ namespace Remains.Presentation
             Button(Controls.transform,"Подключиться",new Vector2(20,-449),new Vector2(400,50),join);
             var hint=ui.Label(Controls.transform,"Один ПК: 127.0.0.1 · локальная сеть: IP хозяина",new Vector2(20,-520),new Vector2(400,45));hint.fontSize=15;
             Button(Root.transform,"Выйти из игры",new Vector2(65,-632),new Vector2(300,44),()=>Application.Quit());
+            SoundRect=Button(Root.transform,"Настройки звука",new Vector2(65,-574),new Vector2(300,44),settings).GetComponent<RectTransform>();
             Notice=ui.Label(Root.transform,"",new Vector2(390,-652),new Vector2(825,55));Notice.fontSize=16;
         }
         private Button Button(Transform parent,string label,Vector2 position,Vector2 size,Action action)
