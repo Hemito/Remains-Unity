@@ -100,6 +100,7 @@ namespace Remains.Runtime
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session);
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
+                hud.EquipWeapon=weapon=>{if(Session.LocalActor is {down:false}) Combat.Weapon=weapon;};
                 hud.SelectCharacter=name=>
                 {
                     if(!System.Text.RegularExpressions.Regex.IsMatch(name??"",@"^[\p{L}\p{N}_ -]{1,32}$"))

@@ -161,9 +161,13 @@ namespace Remains.Runtime
         {
             while(DateTime.UtcNow.Ticks<clickAt) yield return null;
             int index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="caps");
+            int beforeSelection=runtime.Session.LocalActor.inventory.Sum(item=>item.count);
             yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index));
+            if(runtime.Session.LocalActor.inventory.Sum(item=>item.count)!=beforeSelection) {Finish(false,"Выбор строки сам изменил инвентарь.");yield break;}
+            yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
             index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="grenade");
             yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index));
+            yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
         }
         private IEnumerator Click()
         {

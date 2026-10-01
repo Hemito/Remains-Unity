@@ -16,6 +16,7 @@ namespace Remains.Networking
         private readonly Dictionary<string,DepositReply> replies=new();
         private float nextRetry;
         public bool Pending=>requests.Count>0;
+        public event Action Reconciled;
         public SessionDeposits(CoopSession session) {this.session=session;session.Changed+=Reconcile;}
         public void RegisterServer() {replies.Clear();NetworkServer.RegisterHandler<DepositRequest>(Receive);}
         public void RegisterClient()
@@ -52,7 +53,7 @@ namespace Remains.Networking
         private void Reconcile()
         {
             var actor=session.LocalActor;
-            if(actor==null) {requests.Clear();return;}
+            if(actor==null) {requests.Clear();Reconciled?.Invoke();return;}
             actor.inventoryReservations.Clear();
             foreach(var pair in requests.ToArray())
             {
@@ -63,6 +64,7 @@ namespace Remains.Networking
                 actor.inventoryReservations.TryGetValue(pair.Value.item,out int existing);
                 actor.inventoryReservations[pair.Value.item]=existing+pair.Value.quantity;
             }
+            Reconciled?.Invoke();
         }
         private void Receive(NetworkConnectionToClient connection,DepositRequest request)
         {

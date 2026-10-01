@@ -51,8 +51,11 @@ namespace Remains.Presentation
         private string inventoryActorVersion;
         private Image healthBar;
         private Image manaBar;
-        private DepositPanel personalItems;
+        private PersonalInventoryPanel personalItems;
         public RectTransform DepositRowRect(int index)=>personalItems.RowRect(index);
+        public RectTransform DepositActionRect=>personalItems.DepositRect;
+        public RectTransform UseItemRect=>personalItems.UseRect;
+        public Action<string> EquipWeapon {get;set;}
         private Text ammunition;
         private Text revival;
         public Func<float> RevivalProgress {get;set;}
@@ -90,25 +93,28 @@ namespace Remains.Presentation
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
-            inventory = Panel(transform,"Общий контейнер",new Vector2(920,-130),new Vector2(330,435));
-            containerTitle=Label(inventory.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
+            inventory = Panel(transform,"Инвентарь",new Vector2(20,-110),new Vector2(1240,580));
+            inventory.GetComponent<Image>().color=new Color(.015f,.025f,.02f,1);
+            var containerPanel=Panel(inventory.transform,"Общий контейнер",new Vector2(870,-72),new Vector2(330,435));
+            containerTitle=Label(containerPanel.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
             for (int i = 0; i < slots.Length; i++)
             {
                 int index = i;
-                slots[i] = Button(inventory.transform,"Пусто",new Vector2(12+i%3*105,-60-i/3*95),new Vector2(98,86),()=>
+                slots[i] = Button(containerPanel.transform,"Пусто",new Vector2(12+i%3*105,-60-i/3*95),new Vector2(98,86),()=>
                 {
                     if (shownContainer!=null && containerPage*9+index < shownContainer.items.Count)
                         session.RequestClaim(shownContainer.id,shownContainer.items[containerPage*9+index].id,claimOne?1:0);
                 });
             }
-            claimQuantity=Button(inventory.transform,"Брать: всю стопку",new Vector2(12,-350),new Vector2(305,32),()=>
-            {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Брать: по одной единице":"Брать: всю стопку";Refresh();});
-            previousContainer=Button(inventory.transform,"←",new Vector2(12,-390),new Vector2(65,32),()=>{containerPage--;Refresh();});
-            nextContainer=Button(inventory.transform,"→",new Vector2(252,-390),new Vector2(65,32),()=>{containerPage++;Refresh();});
+            claimQuantity=Button(containerPanel.transform,"Количество: вся стопка",new Vector2(12,-350),new Vector2(305,32),()=>
+            {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Количество: 1 предмет":"Количество: вся стопка";Refresh();});
+            previousContainer=Button(containerPanel.transform,"←",new Vector2(12,-390),new Vector2(65,32),()=>{containerPage--;Refresh();});
+            nextContainer=Button(containerPanel.transform,"→",new Vector2(252,-390),new Vector2(65,32),()=>{containerPage++;Refresh();});
+            Button(inventory.transform,"Закрыть · I",new Vector2(1010,-522),new Vector2(190,40),ToggleInventory);
             inventory.SetActive(false);
-            var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(-380,0),new Vector2(360,390));
+            var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(20,-20),new Vector2(820,530));
             ApplyOriginalImage(personalPanel.GetComponent<Image>(),"inventory-panel",false);
-            personalItems=new DepositPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0);
+            personalItems=new PersonalInventoryPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon));
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
@@ -128,7 +134,7 @@ namespace Remains.Presentation
             Refresh();
         }
 
-        public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf); Refresh();PauseMenu.PublishIntent(); }
+        public void ToggleInventory() { inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
         public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
         public RectTransform FriendlyFireButtonRect=>friendlyFire.GetComponent<RectTransform>();
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
@@ -139,16 +145,21 @@ namespace Remains.Presentation
         {
             var actor = session.LocalActor;
             mainMenu.Root.SetActive(actor==null);
-            status.transform.parent.gameObject.SetActive(actor!=null);
-            healthBar.gameObject.SetActive(actor!=null);manaBar.gameObject.SetActive(actor!=null);
             string version=actor==null?null:$"{actor.id}:{actor.generation}:{actor.lifecycleSequence}";
             if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);}
-            friendlyDecision.gameObject.SetActive(actor!=null && Mirror.NetworkServer.active);
+            bool gameplayVisible=actor!=null && !inventory.activeSelf;
+            status.transform.parent.gameObject.SetActive(gameplayVisible);
+            healthBar.gameObject.SetActive(gameplayVisible);manaBar.gameObject.SetActive(gameplayVisible);
+            Vector2 noticePosition=inventory.activeSelf?new Vector2(20,-20):new Vector2(420,-95);
+            Vector2 noticeSize=inventory.activeSelf?new Vector2(1240,70):new Vector2(830,85);
+            HudElements.Rect(message.transform.parent.GetComponent<RectTransform>(),noticePosition+new Vector2(-6,6),noticeSize+new Vector2(12,12));
+            HudElements.Rect(message.rectTransform,new Vector2(6,-6),noticeSize);
+            friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
             {lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             lobby.SetActive(false);
-            leave.gameObject.SetActive(true);friendlyFire.gameObject.SetActive(Mirror.NetworkServer.active);
-            factory.gameObject.SetActive(actor.level=="hub" || actor.level=="factory:0");
+            leave.gameObject.SetActive(gameplayVisible);friendlyFire.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
+            factory.gameObject.SetActive(gameplayVisible && (actor.level=="hub" || actor.level=="factory:0"));
             factory.GetComponentInChildren<Text>().text=actor.level=="hub"?"На завод 0":"Вернуться в хаб";
             friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
             friendlyDecision.interactable=session.World.friendlyFire;
@@ -214,7 +225,7 @@ namespace Remains.Presentation
             switch(id)
             {
                 case "caps":return "Крышки";
-                case "heal":return "Хилка";
+                case "heal":return "Аптечка";
                 case "grenade":return "Граната";
                 case "p10":return "10-мм патроны";
                 case "batt":return "Энергобатареи";
@@ -232,7 +243,7 @@ namespace Remains.Presentation
             revival.text=RevivalPending?.Invoke()==true?"Ожидаем подтверждения поднятия…":
                 progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
             revival.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(revival.text));
-            ammunition.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(ammunition.text));
+            ammunition.transform.parent.gameObject.SetActive(!inventory.activeSelf && !string.IsNullOrEmpty(ammunition.text));
         }
         private void RefreshAmmunition()
         {

@@ -110,7 +110,7 @@ namespace Remains.Runtime
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(1));
             NetworkClient.Send(new BodyInventoryTried {item=intended});
         }
-        private IEnumerator Give() {if(Race) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(0));}
+        private IEnumerator Give() {if(Race) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(0));yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);}
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;

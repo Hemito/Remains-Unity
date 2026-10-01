@@ -38,7 +38,7 @@ namespace Remains.Presentation
         public void Toggle()
         {
             if(session.LocalActor==null) return;
-            root.SetActive(!root.activeSelf);PublishIntent();Refresh();
+            root.SetActive(!root.activeSelf);if(root.activeSelf) root.transform.SetAsLastSibling();PublishIntent();Refresh();
         }
         public void PublishIntent()=>session.Pause.SetIntent(IsOpen,inventory());
         private void Refresh()
