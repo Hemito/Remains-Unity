@@ -34,6 +34,7 @@ namespace Remains.Networking
         public SessionTravel Travel => travel ??= new SessionTravel(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
         private readonly Dictionary<int,long> backupRevisions = new();
+        private readonly RecoveryReceiptGate recoveryReceipts = new();
         private readonly OwnershipService ownership = new();
         private SharedInventory inventory;
         private readonly HashSet<string> recoveredActors=new();
@@ -41,6 +42,7 @@ namespace Remains.Networking
         public override void OnStartServer()
         {
             serverPoses.Clear();
+            backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
             ServerWorld = Saves.LoadWorld() ?? CreateWorld();
             recoveredActors.Clear();
@@ -64,7 +66,9 @@ namespace Remains.Networking
             NetworkServer.RegisterHandler<BackupAckMessage>((connection, ack) =>
             {
                 if (ack.world != ServerWorld.worldId) Debug.LogWarning($"Подтверждение чужого мира: клиент={connection.connectionId}, мир={ack.world}, ожидается={ServerWorld.worldId}.");
-                else { backupRevisions[connection.connectionId]=ack.revision; CompleteBackedUpGrants(); }
+                else if(!recoveryReceipts.Matches(ack.snapshot,ack.revision))
+                    Debug.LogWarning($"Неизвестное подтверждение снимка: клиент={connection.connectionId}, снимок={ack.snapshot}, ревизия={ack.revision}.");
+                else { backupRevisions[connection.connectionId]=Math.Max(backupRevisions.GetValueOrDefault(connection.connectionId),ack.revision); CompleteBackedUpGrants(); }
             });
             InvokeRepeating(nameof(CheckpointWorld), 3, 3);
             ServerReady?.Invoke();
@@ -160,7 +164,7 @@ namespace Remains.Networking
             playerIds[owner] = actor.id;
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
             ServerWorld.revision++;
-            connection.Send(new WelcomeMessage { owner = owner, actor = actor.id, worldJson = JsonUtility.ToJson(ServerWorld) });
+            connection.Send(new WelcomeMessage { owner = owner, actor = actor.id, worldJson = PrepareRecovery() });
             if(recoveredActors.Contains(actor.id)) connection.Send(new NoticeMessage {text="Позиция из старого сохранения была вне комнаты и восстановлена. Здоровье и предметы сохранены; исходный сейв скопирован в Recovery."});
             BroadcastWorld();
         }
@@ -194,14 +198,14 @@ namespace Remains.Networking
         {
             LocalOwner = message.owner;
             LocalActorId = message.actor;
-            World = JsonUtility.FromJson<WorldState>(message.worldJson);
-            PersistCopy();
+            World = PersistCopy(message.worldJson);
+            SaveLocalCharacter();
             Changed?.Invoke();
         }
 
         private void ReceiveWorld(WorldMessage message)
         {
-            var incoming = JsonUtility.FromJson<WorldState>(message.json);
+            var incoming = PersistCopy(message.json);
             if (World != null && World.worldId == incoming.worldId)
             {
                 // A full backup must not rewind locally-owned pose or an unacknowledged health change.
@@ -224,15 +228,32 @@ namespace Remains.Networking
                 }
             }
             World = incoming;
-            PersistCopy();
+            SaveLocalCharacter();
             Changed?.Invoke();
         }
 
-        private void PersistCopy()
+        private WorldState PersistCopy(string json)
         {
-            Saves.SaveWorld(World);
-            if (LocalActor != null) Saves.SaveCharacter(LocalActor);
-            if (NetworkClient.isConnected) NetworkClient.Send(new BackupAckMessage { world = World.worldId, revision = World.revision });
+            var snapshot=new RecoverySnapshot(json);
+            // The host already persisted this payload before sending it. Its local client
+            // must not overwrite newer canonical state while processing queued messages.
+            if(!NetworkServer.active) Saves.SaveRecovery(snapshot);
+            if(NetworkClient.isConnected) NetworkClient.Send(new BackupAckMessage {
+                world=snapshot.WorldId,revision=snapshot.Revision,snapshot=snapshot.Id });
+            return snapshot.CreateLiveWorld();
+        }
+
+        public void SaveLocalCharacter()
+        {
+            if(LocalActor!=null) Saves.SaveCharacter(LocalActor);
+        }
+
+        private string PrepareRecovery()
+        {
+            var snapshot=new RecoverySnapshot(JsonUtility.ToJson(ServerWorld));
+            Saves.SaveRecovery(snapshot);
+            recoveryReceipts.Register(snapshot);
+            return snapshot.Json;
         }
 
         private void MergeActor(ActorState actor)
@@ -378,7 +399,7 @@ namespace Remains.Networking
             if(changed) { Saves.SaveWorld(ServerWorld); BroadcastWorld(); }
         }
 
-        private void BroadcastWorld() => NetworkServer.SendToAll(new WorldMessage { json = JsonUtility.ToJson(ServerWorld) });
+        private void BroadcastWorld() => NetworkServer.SendToAll(new WorldMessage { json = PrepareRecovery() });
         public ActorState ConnectedActor(NetworkConnectionToClient connection) =>
             owners.TryGetValue(connection.connectionId,out var owner) && playerIds.TryGetValue(owner,out var id)?ServerWorld.Find(id):null;
         public void CommitWorld()
@@ -407,7 +428,7 @@ namespace Remains.Networking
         public override void OnStopClient()
         {
             Travel.ResetClient();
-            if(World!=null) {Saves.SaveWorld(World);if(LocalActor!=null) Saves.SaveCharacter(LocalActor);}
+            SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
             Changed?.Invoke();
         }

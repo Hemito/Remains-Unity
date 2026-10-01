@@ -27,5 +27,5 @@ namespace Remains.Networking
     public struct ClaimMessage : NetworkMessage { public string transaction; public string item; }
     public struct ReviveMessage : NetworkMessage { public string target; public string transaction; public bool selfHeal; }
     public struct NoticeMessage : NetworkMessage { public string text; }
-    public struct BackupAckMessage : NetworkMessage { public string world; public long revision; }
+    public struct BackupAckMessage : NetworkMessage { public string world; public long revision; public string snapshot; }
 }

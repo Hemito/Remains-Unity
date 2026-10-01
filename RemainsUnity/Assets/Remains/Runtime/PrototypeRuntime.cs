@@ -208,8 +208,7 @@ namespace Remains.Runtime
 
         private void OnApplicationQuit()
         {
-            if(Session?.World!=null) Session.Saves.SaveWorld(Session.World);
-            if(Session?.LocalActor!=null) Session.Saves.SaveCharacter(Session.LocalActor);
+            Session?.SaveLocalCharacter();
         }
     }
 }

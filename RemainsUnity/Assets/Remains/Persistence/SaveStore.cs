@@ -35,10 +35,33 @@ namespace Remains.Persistence
 
         public void SaveWorld(WorldState world)
         {
-            if(!Guid.TryParseExact(world.worldId,"N",out _)) throw new InvalidDataException($"Некорректный ID мира: {world.worldId}.");
-            string json=JsonUtility.ToJson(world,true);
-            AtomicWrite(Path.Combine("Worlds",world.worldId+".json"),json);
-            AtomicWrite("world.json",json);
+            SaveRecovery(new RecoverySnapshot(JsonUtility.ToJson(world,true)));
+        }
+
+        public void SaveRecovery(RecoverySnapshot snapshot)
+        {
+            // Keep every distinct payload, including branches with identical revision numbers.
+            string archive=Path.Combine("Worlds",snapshot.WorldId,"Snapshots",snapshot.Id+".json");
+            string path=Path.Combine(DirectoryPath,archive);
+            if(File.Exists(path))
+            {
+                if(File.ReadAllText(path)!=snapshot.Json)
+                    throw new InvalidDataException($"Повреждён архив снимка: {path}.");
+            }
+            else AtomicWrite(archive,snapshot.Json);
+            PreserveExistingWorld("world.json");
+            PreserveExistingWorld(Path.Combine("Worlds",snapshot.WorldId+".json"));
+            AtomicWrite(Path.Combine("Worlds",snapshot.WorldId+".json"),snapshot.Json);
+            AtomicWrite("world.json",snapshot.Json);
+        }
+
+        private void PreserveExistingWorld(string filename)
+        {
+            string path=Path.Combine(DirectoryPath,filename);
+            if(!File.Exists(path)) return;
+            var previous=new RecoverySnapshot(File.ReadAllText(path));
+            string archive=Path.Combine("Worlds",previous.WorldId,"Snapshots",previous.Id+".json");
+            if(!File.Exists(Path.Combine(DirectoryPath,archive))) AtomicWrite(archive,previous.Json);
         }
         public void SaveCharacter(ActorState actor) => AtomicWrite("character.json", JsonUtility.ToJson(actor, true));
         public ActorState LoadCharacter()
