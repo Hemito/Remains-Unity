@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using Remains.Domain;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Remains.Content;
 
 namespace Remains.Presentation
 {
     // A compiled cache is shared by every pony. No asset lookup or mesh rebuild in Update.
+    [RequireComponent(typeof(SortingGroup))]
     public sealed class PonyVisual : MonoBehaviour
     {
         private sealed class RenderPart { public Mesh mesh; public Material material; public string slot; public bool visible; }
@@ -22,6 +24,11 @@ namespace Remains.Presentation
         public string DrawnClip=>pose;
         public int DrawnFrame=>frame;
         public float DrawnTime {get;private set;}
+        public int DrawOrder
+        {
+            get => GetComponent<SortingGroup>().sortingOrder;
+            set => GetComponent<SortingGroup>().sortingOrder=value;
+        }
 
         public static void Prepare()
         {
@@ -102,7 +109,11 @@ namespace Remains.Presentation
             }
         }
         public void SetVisible(bool visible) => gameObject.SetActive(visible);
-        private void Awake() => properties = new MaterialPropertyBlock();
+        private void Awake()
+        {
+            properties = new MaterialPropertyBlock();
+            DrawOrder=20;
+        }
 
         private void Update()
         {
