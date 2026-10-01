@@ -1,4 +1,5 @@
 using System;
+using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using UnityEngine;
@@ -9,6 +10,18 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            var transition=new ActorState {crouched=true};
+            StanceAnimation.Select(transition,"crouch",false);
+            Require(transition.pose=="crouchLower","Нет перехода приседания.");
+            ActorPose.Advance(transition,.1f);StanceAnimation.Select(transition,"crouch",true);
+            Require(transition.pose=="crouchLower","Переход обрывается до завершения.");
+            ActorPose.Advance(transition,.25f);StanceAnimation.Select(transition,"crouch",true);
+            Require(transition.pose=="crouch","Переход приседания не завершается.");
+            transition.crouched=false;StanceAnimation.Select(transition,"idle",true);
+            Require(transition.pose=="crouchRise","Нет перехода подъёма.");
+            StanceAnimation.Select(transition,"walk",false);
+            Require(transition.pose=="walk","Подъём блокирует движение.");
+            Require(PonyAnimationData.FrameIndex("crouchLower",2,false)==8 && PonyAnimationData.FrameIndex("crouchRise",2,false)==8,"Переход зациклился при задержке сети.");
             foreach(int rate in new[]{30,60,144})
             {
                 float dt=1f/rate;
@@ -16,7 +29,7 @@ namespace Remains.Editor
                     platforms=new[]{new RoomSurface {x=-20,y=-1,width=40,height=1},new RoomSurface {x=1,y=.9f,width=3,height=.3f}},ladders=Array.Empty<RoomLadder>()};
                 var actor=new ActorState {id="crouch-check"};var motion=new MovementController(room);
                 for(int i=0;i<rate/4;i++) motion.Step(actor,Vector2.down,false,dt);
-                Require(actor.crouched && actor.pose=="crouch" && actor.y==0,"S не включает приседание на месте.");
+                Require(actor.crouched && actor.pose=="crouchLower" && actor.y==0,"S не включает приседание на месте.");
                 motion.Step(actor,Vector2.zero,false,dt);Require(actor.crouched,"Отпускание S отменило приседание.");
                 for(int i=0;i<rate;i++) motion.Step(actor,Vector2.right,false,dt,true);
                 Require(actor.crouched && actor.pose=="crawl" && Mathf.Abs(actor.vx-2.1f)<.001f && actor.x>1.9f,"Ползание не проходит под потолком или ускоряется от Shift.");

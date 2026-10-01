@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Remains.Content
 {
     [Serializable] public sealed class PonyLibrary { public PonyClip[] clips; }
-    [Serializable] public sealed class PonyClip { public string id; public float fps; public PonyFrame[] frames; }
+    [Serializable] public sealed class PonyClip { public string id; public float fps; public bool nonLooping; public PonyFrame[] frames; }
     [Serializable] public sealed class PonyFrame { public PonyPart[] parts; }
     [Serializable] public sealed class PonyPart
     {
@@ -28,8 +28,10 @@ namespace Remains.Content
         public static int FrameIndex(string pose,float elapsed,bool down)
         {
             var clip=clips[pose];
-            return down?clip.frames.Length-1:(int)(Mathf.Max(0,elapsed)*clip.fps)%clip.frames.Length;
+            int frame=(int)(Mathf.Max(0,elapsed)*clip.fps);
+            return down?clip.frames.Length-1:clip.nonLooping?Mathf.Min(frame,clip.frames.Length-1):frame%clip.frames.Length;
         }
+        public static float Duration(string pose)=>clips[pose].frames.Length/clips[pose].fps;
         public static bool TryCenter(string pose,int frame,string[] shapes,out Vector2 center)
         {
             center=Vector2.zero;

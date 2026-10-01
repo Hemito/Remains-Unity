@@ -29,6 +29,7 @@ namespace Remains.Gameplay
             bool ladder = selected!=null && !detach && (wasClimbing || Mathf.Abs(input.y) > 0.1f);
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
+            bool wasCrouched=actor.crouched;
             CrouchMotion.Step(actor,room,settings,input,jump,grounded,ladder,drop,dt);
             hull=Anatomy.Movement(actor);
             if(actor.crouched) {ladder=false;jump=false;}
@@ -62,7 +63,7 @@ namespace Remains.Gameplay
             if(ladder && supported && Mathf.Abs(input.y)<.1f &&
                 (actor.y<=selected.bottom+.001f || actor.y>=selected.top-.001f)) ladder=false;
             actor.climbing=ladder;
-            ActorPose.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? "climb" : !supported ? "jump" : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle");
+            StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? "climb" : !supported ? "jump" : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched);
         }
     }
 }

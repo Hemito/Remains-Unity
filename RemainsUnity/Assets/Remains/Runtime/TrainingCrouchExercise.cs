@@ -16,7 +16,7 @@ namespace Remains.Runtime
             switch(stage)
             {
                 case 0:
-                    if(elapsed>=(host?1.5f:0)) Next();
+                    if(elapsed>=(host?1.5f:0) && Mathf.Abs(actor.vx)<.01f) Next();
                     return default;
                 case 1:
                     if(actor.crouched && elapsed>=.4f) Next();
@@ -28,7 +28,7 @@ namespace Remains.Runtime
                     if(elapsed>=.3f && actor.crouched && Mathf.Abs(actor.vx)<.01f) Next();
                     return default;
                 case 4:
-                    if(!actor.crouched) Next();
+                    if(!actor.crouched && actor.pose=="idle") Next();
                     return new PlayerCommand {movement=Vector2.up};
                 default:return default;
             }
