@@ -20,6 +20,7 @@ namespace Remains.Runtime
         private bool Host=>runtime.Options.Role=="host";
         private bool ContentScenario=>runtime.Options.Smoke.Contains("content");
         private bool CharacterScenario=>runtime.Options.Smoke.Contains("character");
+        private bool MalformedScenario=>runtime.Options.Smoke.Contains("malformed");
         private string characterSource;
         public void Initialize(PrototypeRuntime value)
         {
@@ -32,10 +33,11 @@ namespace Remains.Runtime
             if(index==3) world.worldId="33333333333333333333333333333333";
             world.containers.Add(new ContainerState());
             for(int i=0;i<(Interrupt || value.Options.Smoke.Contains("large")?5000:1000);i++) world.containers[0].items.Add(new ItemStack {id="fixture-"+i,definition="caps",count=1});
-            if(ContentScenario && index==1)
+            if((ContentScenario || MalformedScenario) && index==1)
             {
                 world.weaponContent=Remains.Content.WeaponCatalog.ManifestCopy();
                 world.weaponContent.fingerprint=new string('F',64);world.weaponContent.packs[0].version="fixture-old";
+                if(MalformedScenario) world.weaponContent.packs.Add(null);
                 original=new RecoverySnapshot(Remains.Serialization.StateJson.ToJson(world));value.Session.Saves.SaveRecovery(original);
             }
             else original=value.Session.Saves.SaveWorld(world);
@@ -90,6 +92,17 @@ namespace Remains.Runtime
                 {Finish(false,"Лобби не различило независимую ветвь и другой мир.");yield break;}
             }
             yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.StartButtonRect);
+            if(MalformedScenario)
+            {
+                while((lobby.ClientBusy || string.IsNullOrEmpty(lobby.ClientError)) && !finished) yield return null;
+                if(finished) yield break;
+                if(runtime.Session.ServerWorld!=null || runtime.Session.Saves.SelectedSnapshot().Id!=original.Id ||
+                    !lobby.ClientError.Contains("позиция=2"))
+                {Finish(false,"Повреждённый манифест изменил мир или не дал точной ошибки.");yield break;}
+                yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.ChoiceRect(local.key));
+                while(lobby.ClientSelected!=local.key && !finished) yield return null;
+                yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.StartButtonRect);
+            }
             if(ContentScenario)
             {
                 while(runtime.Hud.NetworkLobby.ContentConfirmRect==null && !finished) yield return null;
@@ -138,8 +151,8 @@ namespace Remains.Runtime
                 if(actor==null || actor.health!=73 || actor.mana!=64 || actor.loadoutVersion!=1 ||
                     !Directory.Exists(backups) || !Directory.GetFiles(backups,"character-*.json").Any(p=>File.ReadAllText(p)==characterSource)) return false;
             }
-            return world!=null && world.seed==(Interrupt?100:101) && world.worldId=="11111111111111111111111111111111" &&
-                world.ancestors.Any(a=>a.branchId=="22222222222222222222222222222222" && a.sequence==(Interrupt?5:ContentScenario?9:10)) &&
+            return world!=null && world.seed==(Interrupt || MalformedScenario?100:101) && world.worldId=="11111111111111111111111111111111" &&
+                world.ancestors.Any(a=>a.branchId=="22222222222222222222222222222222" && a.sequence==(Interrupt || MalformedScenario?5:ContentScenario?9:10)) &&
                 File.Exists(archive) && File.ReadAllText(archive)==original.Json;
         }
         private void Update()

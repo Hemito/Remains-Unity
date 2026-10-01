@@ -11,7 +11,7 @@ namespace Remains.Persistence
             var current=WeaponCatalog.ManifestCopy();
             if(saved!=null && (saved.schema!=1 || saved.scope!=current.scope))
                 throw new InvalidDataException($"Неподдерживаемый манифест контента: schema={saved.schema}, scope={saved.scope}.");
-            if(saved?.fingerprint==current.fingerprint) return;
+            if(saved!=null && ContentComparison.Compare(saved,current).Count==0) return;
             history??=new();
             if(saved!=null) history.Add(saved.Copy());
             saved=current;

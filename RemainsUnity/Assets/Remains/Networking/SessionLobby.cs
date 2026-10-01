@@ -153,7 +153,7 @@ namespace Remains.Networking
                     throw new InvalidDataException("Описание выбранной копии не совпадает с переданным сохранением.");
                 Start(snapshot);
             }
-            catch(Exception exception) when(exception is IOException || exception is ArgumentException)
+            catch(Exception exception) when(exception is InvalidDataException || exception is IOException || exception is ArgumentException)
             {Fail("Передача сохранения отменена: "+exception.Message);}
         }
         private void Start(RecoverySnapshot snapshot,bool acceptContent=false)

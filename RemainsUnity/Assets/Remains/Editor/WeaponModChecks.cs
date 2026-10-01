@@ -44,6 +44,19 @@ namespace Remains.Editor
             Require(ContentComparison.Compare(null,previous).Count>0,"Неизвестный старый набор требует сравнения");
             var reordered=chained.manifest.Copy();reordered.packs.Reverse();
             Require(ContentComparison.Compare(chained.manifest,reordered).Count>0,"Изменение порядка видно даже при одинаковом общем hash");
+            var malformed=previous.Copy();malformed.packs=null;
+            Reject(()=>ContentComparison.Compare(malformed,previous),"список пакетов");
+            malformed=previous.Copy();malformed.packs.Add(null);
+            Reject(()=>ContentComparison.Compare(malformed,previous),"позиция=2");
+            malformed=previous.Copy();malformed.packs.Add(malformed.packs[0]);
+            Reject(()=>ContentComparison.Compare(malformed,previous),"повторный ID=base");
+            malformed=previous.Copy();malformed.packs[0].id=" ";
+            Reject(()=>ContentComparison.Compare(malformed,previous),"его ID");
+            var stale=previous.Copy();stale.packs[0].version="old-metadata";
+            var staleHistory=new System.Collections.Generic.List<ContentManifest>();
+            Remains.Persistence.ContentProvenance.Record(ref stale,ref staleHistory);
+            Require(staleHistory.Count==1 && staleHistory[0].packs[0].version=="old-metadata" && stale.packs[0].version==previous.packs[0].version,
+                "Одинаковый общий hash не скрывает изменение версии пакета при записи");
             File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[]}");
             Reject(()=>WeaponCatalogLoader.Load(original,root),"не содержит определения");
             File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[{\"id\":\"pistol\",\"range\":20,\"cooldown\":1},{\"id\":\"pistol\",\"range\":20,\"cooldown\":1}]}");
