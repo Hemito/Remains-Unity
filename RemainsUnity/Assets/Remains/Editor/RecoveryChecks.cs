@@ -33,6 +33,24 @@ namespace Remains.Editor
                 var other=new RecoverySnapshot(JsonUtility.ToJson(new WorldState()));store.SaveRecovery(other);
                 Require(File.Exists(Path.Combine(directory,"Worlds",world.worldId,"Snapshots",predicted.Id+".json")),"Другой мир сохраняет архив первого");
                 gate.Clear();Require(!gate.Matches(snapshot.Id,17),"Новая сессия не принимает старые квитанции");
+                var root=new WorldState();WorldHistory.BeginContinuation(root);
+                var first=store.SaveWorld(root);var old=root.Copy();
+                root.revision++;var later=store.SaveWorld(root);
+                Require(WorldHistory.Compare(root,later.Id,old,first.Id)==WorldRelation.Newer,"Порядок внутри ветви определяется снимками");
+                var left=root.Copy();WorldHistory.BeginContinuation(left);left.revision=1000;
+                var leftSnapshot=store.SaveWorld(left);
+                var right=root.Copy();WorldHistory.BeginContinuation(right);right.revision=2;
+                var rightSnapshot=store.SaveWorld(right);
+                Require(WorldHistory.Compare(left,leftSnapshot.Id,right,rightSnapshot.Id)==WorldRelation.Divergent,"Большая ревизия не делает независимую ветвь новее");
+                Require(WorldHistory.Compare(left,leftSnapshot.Id,root,later.Id)==WorldRelation.Newer,"Точка ответвления доказывает продолжение");
+                var fromOld=old.Copy();WorldHistory.BeginContinuation(fromOld);var fork=store.SaveWorld(fromOld);
+                Require(WorldHistory.Compare(fromOld,fork.Id,root,later.Id)==WorldRelation.Divergent,"Ответвление от старого снимка не включает последующий прогресс исходной ветви");
+                var options=store.Continuations();
+                Require(options.Exists(x=>x.Id==leftSnapshot.Id) && options.Exists(x=>x.Id==rightSnapshot.Id) && options.Exists(x=>x.Id==fork.Id),"Все независимые продолжения доступны для выбора");
+                Require(!options.Exists(x=>x.Id==first.Id) && !options.Exists(x=>x.Id==later.Id),"Доказанные предки скрыты из списка продолжений");
+                store.SelectContinuation(rightSnapshot);
+                Require(store.SelectedSnapshot().Id==rightSnapshot.Id && store.LoadWorld(false).branchId==right.branchId,"Выбор загружает целую указанную ветвь");
+                Require(store.Continuations().Exists(x=>x.Id==leftSnapshot.Id),"Выбор не удаляет альтернативную ветвь");
                 Debug.Log("RecoveryChecks PASS: точные пакеты, изоляция предсказания, архив и подтверждения.");
             }
             finally { if(Directory.Exists(directory)) Directory.Delete(directory,true); }

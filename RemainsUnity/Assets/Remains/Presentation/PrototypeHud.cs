@@ -1,5 +1,6 @@
 using System;
 using Remains.Networking;
+using Remains.Persistence;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -17,6 +18,13 @@ namespace Remains.Presentation
         private Text message;
         private GameObject lobby;
         private GameObject inventory;
+        private GameObject worldPicker;
+        private Text selectedWorld;
+        private Button worldPickerButton,hostButton;
+        private readonly Dictionary<string,RectTransform> worldChoices=new();
+        public RectTransform WorldPickerButtonRect=>worldPickerButton.GetComponent<RectTransform>();
+        public RectTransform HostButtonRect=>hostButton.GetComponent<RectTransform>();
+        public RectTransform WorldChoiceRect(string id)=>worldChoices[id];
         private InputField address;
         private InputField character;
         public Func<string,bool> SelectCharacter { get; set; }
@@ -50,10 +58,12 @@ namespace Remains.Presentation
             ammunition=Label(transform,"",new Vector2(20,-165),new Vector2(380,45));
             message = Label(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · E — поднять · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
             lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,300));
-            var saved=session.Saves.LoadWorld(prepareForPlay:false);
-            if(saved!=null) Label(transform,$"Локальная копия: мир {saved.worldId.Substring(0,8)} · ревизия {saved.revision}",new Vector2(420,-180),new Vector2(620,55));
+            selectedWorld=Label(lobby.transform,"",new Vector2(0,95),new Vector2(720,90));
+            worldPickerButton=Button(lobby.transform,"Выбрать сохранённое продолжение",new Vector2(20,-250),new Vector2(400,40),()=>
+            {if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);});
             character=Input(lobby.transform,new Vector2(20,-20));character.text=session.CharacterId??"pony-one";
-            Button(lobby.transform,"Создать игру",new Vector2(20,-80),new Vector2(400,45),()=>
+            character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
+            hostButton=Button(lobby.transform,"Создать игру",new Vector2(20,-80),new Vector2(400,45),()=>
             {if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();});
             address = Input(lobby.transform, new Vector2(20,-140));
             Button(lobby.transform,"Подключиться",new Vector2(20,-200),new Vector2(400,45),()=>
@@ -98,7 +108,7 @@ namespace Remains.Presentation
         {
             var actor = session.LocalActor;
             if (actor == null)
-            {lobby.SetActive(true);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
+            {lobby.SetActive(true);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             lobby.SetActive(false);
             leave.gameObject.SetActive(true);friendlyFire.gameObject.SetActive(Mirror.NetworkServer.active);
             factory.gameObject.SetActive(actor.level=="hub");
@@ -116,6 +126,40 @@ namespace Remains.Presentation
                 slots[i].interactable = item != null && !actor.down;
             }
         }
+        private void RefreshSelectedWorld()
+        {
+            var saved=session.Saves.LoadWorld(prepareForPlay:false);
+            selectedWorld.text=saved==null?"Будет создан новый мир":
+                $"Выбран мир {saved.worldId.Substring(0,8)} · ревизия {saved.revision}\nВетвь {saved.branchId.Substring(0,8)} · "+
+                (saved.historyVersion==1?$"снимок {saved.checkpointSequence}":"история не подтверждена");
+        }
+
+        private void ShowWorldPicker(int page)
+        {
+            if(worldPicker!=null) Destroy(worldPicker);
+            worldChoices.Clear();
+            var copies=session.Saves.Continuations();
+            var selected=session.Saves.SelectedSnapshot();
+            worldPicker=Panel(transform,"Продолжения миров",new Vector2(170,-90),new Vector2(940,510));
+            Label(worldPicker.transform,"Выберите целую копию мира. Другие ветви сохранятся; объединения нет.",new Vector2(20,-15),new Vector2(900,50));
+            int pages=Math.Max(1,(copies.Count+4)/5);page=Math.Clamp(page,0,pages-1);
+            for(int row=0;row<5 && page*5+row<copies.Count;row++)
+            {
+                var copy=copies[page*5+row];var state=copy.CreateLiveWorld();
+                string relation=selected==null?"Сохранённая копия":WorldHistory.Description(
+                    WorldHistory.Compare(state,copy.Id,selected.CreateLiveWorld(),selected.Id));
+                var choice=Button(worldPicker.transform,$"Мир {state.worldId.Substring(0,8)} · ветвь {state.branchId.Substring(0,8)} · ревизия {state.revision}\n{relation}",
+                    new Vector2(20,-75-row*70),new Vector2(900,62),()=>
+                    {session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();});
+                worldChoices[copy.Id]=choice.GetComponent<RectTransform>();
+            }
+            if(copies.Count==0) Label(worldPicker.transform,"Сохранённых миров пока нет.",new Vector2(20,-90),new Vector2(850,50));
+            Button(worldPicker.transform,"Назад",new Vector2(20,-440),new Vector2(180,45),()=>ShowWorldPicker(page-1)).interactable=page>0;
+            Label(worldPicker.transform,$"{page+1} / {pages}",new Vector2(220,-440),new Vector2(160,45));
+            Button(worldPicker.transform,"Далее",new Vector2(410,-440),new Vector2(180,45),()=>ShowWorldPicker(page+1)).interactable=page+1<pages;
+            Button(worldPicker.transform,"Закрыть",new Vector2(730,-440),new Vector2(190,45),()=>Destroy(worldPicker));
+        }
+
         private static string ItemName(string id)
         {
             switch(id)

@@ -61,6 +61,9 @@ namespace Remains.Domain
         public int schema = 1;
         public string worldId = Guid.NewGuid().ToString("N");
         public string branchId = Guid.NewGuid().ToString("N");
+        public int historyVersion;
+        public long checkpointSequence;
+        public List<WorldAncestor> ancestors = new();
         public long revision;
         public int seed = 104;
         public bool friendlyFire = true;

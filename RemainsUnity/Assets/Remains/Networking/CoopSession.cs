@@ -45,6 +45,7 @@ namespace Remains.Networking
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
             ServerWorld = Saves.LoadWorld() ?? CreateWorld();
+            WorldHistory.BeginContinuation(ServerWorld);
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
                 if(ActorPositionRecovery.Repair(actor,RoomLayout.Load(actor.level),"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
@@ -250,8 +251,7 @@ namespace Remains.Networking
 
         private string PrepareRecovery()
         {
-            var snapshot=new RecoverySnapshot(JsonUtility.ToJson(ServerWorld));
-            Saves.SaveRecovery(snapshot);
+            var snapshot=Saves.SaveWorld(ServerWorld);
             recoveryReceipts.Register(snapshot);
             return snapshot.Json;
         }
