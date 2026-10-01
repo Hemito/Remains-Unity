@@ -30,7 +30,7 @@ namespace Remains.Runtime
         private float nextPose;
         private uint poseSequence;
         private GameObject roomObject;
-        private string shownLevel="factory:0";
+        private string shownLevel="hub";
         private CameraFollower cameraFollower;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -63,7 +63,7 @@ namespace Remains.Runtime
             Grenades=new GrenadeController(Session,Interactions,Combat);
             Telekinesis=new TelekinesisController(Session,Interactions);
             new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades);
-            var room=RoomLayout.Load();
+            var room=RoomLayout.Load(shownLevel);
             movement=new MovementController(room);
             npcs=new NpcController(Session,room);
             roomObject=RoomVisual.Build(room);
@@ -147,7 +147,7 @@ namespace Remains.Runtime
                 {
                     var input=new Vector2((keyboard.dKey.isPressed?1:0)-(keyboard.aKey.isPressed?1:0),
                         (keyboard.wKey.isPressed?1:0)-(keyboard.sKey.isPressed?1:0));
-                    movement.Step(actor,input,keyboard.spaceKey.wasPressedThisFrame,Time.deltaTime);
+                    movement.Step(actor,input,keyboard.spaceKey.wasPressedThisFrame,Time.deltaTime,keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
                     if(keyboard.digit1Key.wasPressedThisFrame) Combat.Weapon="spear";
                     if(keyboard.digit2Key.wasPressedThisFrame) Combat.Weapon="crowbar";
                     if(keyboard.digit3Key.wasPressedThisFrame) Combat.Weapon="pistol";

@@ -73,9 +73,11 @@ namespace Remains.Runtime
             }
             var session=runtime.Session;var self=session.LocalActor;
             if(self==null || !NetworkClient.isConnected || session.World==null) return;
+            if(self.level=="hub") {session.ReturnToFactory();return;}
             if(phase<0)
             {
                 if(!host || session.World.actors.Count(a=>a.player && a.connected)<2) return;
+                if(session.World.actors.Exists(a=>a.player && a.connected && a.level!="factory:0")) return;
                 clientId=session.World.actors.First(a=>a.player && a.id!=self.id).id;
                 originalGeneration=session.World.Find("npc:training-guard").generation;
                 Advance(0);
@@ -92,6 +94,7 @@ namespace Remains.Runtime
                 session.RequestClaim(sharedItem);
             }
             if(phase==1) session.LocalActor.x=-5;
+            if(phase==6) session.LocalActor.x=9;
             if(phase==5 && !disconnected)
             {
                 clientId=session.LocalActor.id;
@@ -114,7 +117,14 @@ namespace Remains.Runtime
                     }
                     int total=session.World.actors.Sum(a=>a.inventory.Where(i=>i.definition=="caps").Sum(i=>i.count));
                     if(total==20 && session.World.pendingGrants.Count==0)
-                    { passed.Add("Общий подбор: два запроса, одна выдача после backup ACK");Advance(1); }
+                    { passed.Add("Общий подбор: два запроса, одна выдача после backup ACK");Advance(6); }
+                    break;
+                case 6:
+                    // Establish the initial owner explicitly; spawn positions must
+                    // not determine whether the handoff test exercises a transfer.
+                    self.x=-5;
+                    if(npc.owner==session.World.Find(clientId)?.owner)
+                    {originalGeneration=npc.generation;Advance(1);}
                     break;
                 case 1:
                     self.x=6;

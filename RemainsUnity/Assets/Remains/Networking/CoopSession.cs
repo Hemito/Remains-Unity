@@ -129,7 +129,7 @@ namespace Remains.Networking
                     actor.inventory.Add(SharedInventory.Create("grenade", 5));
                 }
                 actor.id="player:"+message.character;actor.character=message.character;actor.player=true;
-                actor.x=ServerWorld.actors.Count(a=>a.player)*2;actor.y=0;actor.level="factory:0";
+                CharacterPlacement.SpawnInHub(actor,ServerWorld.actors.Count(a=>a.player));
                 actor.hair=ServerWorld.actors.Count(a=>a.player);
                 ServerWorld.actors.Add(actor);
             }

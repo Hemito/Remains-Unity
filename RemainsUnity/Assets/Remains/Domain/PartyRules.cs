@@ -10,8 +10,8 @@ namespace Remains.Domain
             if(players.Length==0 || players.Any(a=>!a.down)) return false;
             foreach(var actor in players)
             {
-                actor.level="hub";actor.health=1;actor.down=false;actor.pose="idle";
-                actor.x=System.Array.IndexOf(players,actor)*2;actor.y=0;actor.vx=actor.vy=0;
+                actor.health=1;actor.down=false;
+                CharacterPlacement.SpawnInHub(actor,System.Array.IndexOf(players,actor));
                 actor.injuries.RemoveAll(injury=>injury.periodicDamage);
                 actor.lifecycleSequence++;
             }

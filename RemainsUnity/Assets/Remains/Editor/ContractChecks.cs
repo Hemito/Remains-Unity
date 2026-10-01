@@ -20,6 +20,19 @@ namespace Remains.Editor
             var idle=Array.Find(PonyAnimationData.Library.clips,clip=>clip.id=="idle");
             Require(idle!=null && idle.frames.Length==1,"Покой содержит только позу стояния, без сидения и переходов прыжка");
             Require(PonyAnimationData.FrameIndex("idle",0,false)==PonyAnimationData.FrameIndex("idle",120,false),"Поза покоя не меняется со временем");
+            foreach(var clip in PonyAnimationData.Library.clips)
+                foreach(var frame in clip.frames)
+                {
+                    int devices=0;
+                    foreach(var part in frame.parts)
+                    {
+                        if(part.path.StartsWith("pip") && PonyAppearance.IsVisible(part)) devices++;
+                        if(part.path.Contains("/eye/eye/") && (part.shape=="201" || part.shape=="202"))
+                            Require(part.texture.Contains("-masked-"),$"Глаз должен учитывать маску: {clip.id}, {part.path}");
+                        Require(!(part.shape=="200" && part.path.Contains("/eye/")),"Маска глаза не должна отображаться отдельной фигурой");
+                    }
+                    Require(devices==1,$"Один пипбак в кадре {clip.id}");
+                }
             var actor=new ActorState { id="victim",owner="client-b",player=true,connected=true };
             var damage=new DamageReceiver(new PrototypeDamageRule());
             var attack=new AttackEvent { id="shot-1",weapon="pistol",attacker="client-a",originX=-2,originY=0.7f,endX=2,endY=0.7f };
@@ -59,6 +72,14 @@ namespace Remains.Editor
             var room=RoomLayout.Load();var controller=new MovementController(room);
             var mover=new ActorState {x=0,y=0};controller.Step(mover,Vector2.zero,true,0.05f);
             Require(mover.y>0 && mover.vy>0,"Прыжок от поверхности комнаты");
+            mover=new ActorState();controller.Step(mover,Vector2.right,false,0.02f);
+            Require(mover.pose=="walk" && mover.vx==2.5f,"Обычное движение использует ходьбу");
+            controller.Step(mover,Vector2.right,false,0.02f,true);
+            Require(mover.pose=="run" && mover.vx==4,"Бег включается отдельно");
+            var hub=RoomLayout.Load("hub");CharacterPlacement.SpawnInHub(mover);
+            Require(mover.level=="hub" && Math.Abs(mover.x-hub.spawnX)<0.001f && Math.Abs(mover.y-hub.spawnY)<0.001f,"Начальная позиция из данных хаба");
+            controller.Step(mover,Vector2.zero,false,0.02f);
+            Require(hub.artwork.Length>0 && hub.ladders.Length==3,"Геометрия и фон первой комнаты хаба импортированы");
             mover.x=3;mover.y=4;mover.vy=-10;controller.Step(mover,Vector2.zero,false,0.1f);
             Require(Mathf.Abs(mover.y-3.25f)<0.01f && mover.pose=="idle","Приземление на платформу с позой стояния");
             mover.x=4;mover.y=0;controller.Step(mover,Vector2.up,false,0.1f);

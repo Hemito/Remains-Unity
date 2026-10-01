@@ -9,7 +9,7 @@ namespace Remains.Presentation
     // A compiled cache is shared by every pony. No asset lookup or mesh rebuild in Update.
     public sealed class PonyVisual : MonoBehaviour
     {
-        private sealed class RenderPart { public Mesh mesh; public Material material; public string slot; }
+        private sealed class RenderPart { public Mesh mesh; public Material material; public string slot; public bool visible; }
         private static readonly Dictionary<string, RenderPart[][]> cache = new();
         private readonly List<MeshFilter> filters = new();
         private readonly List<MeshRenderer> renderers = new();
@@ -36,12 +36,13 @@ namespace Remains.Presentation
                         var part = source[p];
                         if(part.slot is not ("none" or "fur" or "hair" or "hairSecondary" or "eye" or "magic"))
                             throw new InvalidOperationException($"Неизвестная цветовая область {part.slot}: shape={part.shape}, path={part.path}.");
-                        if (!materials.TryGetValue(part.shape, out var material))
+                        if (string.IsNullOrEmpty(part.texture)) throw new InvalidOperationException($"Не задана текстура части пони: shape={part.shape}, path={part.path}.");
+                        if (!materials.TryGetValue(part.texture, out var material))
                         {
-                            var texture = Resources.Load<Texture2D>("Original/Pony/" + part.shape);
+                            var texture = Resources.Load<Texture2D>("Original/Pony/" + part.texture);
                             if (texture == null) throw new InvalidOperationException($"Отсутствует часть пони: shape={part.shape}, path={part.path}.");
                             material = new Material(Shader.Find("Sprites/Default")) { mainTexture = texture };
-                            materials.Add(part.shape, material);
+                            materials.Add(part.texture, material);
                         }
                         var corners = new[] { new Vector2(part.bounds[0],part.bounds[3]), new Vector2(part.bounds[2],part.bounds[3]),
                             new Vector2(part.bounds[0],part.bounds[1]), new Vector2(part.bounds[2],part.bounds[1]) };
@@ -56,7 +57,7 @@ namespace Remains.Presentation
                             triangles = new[] { 0,2,1,2,3,1 }, colors = new[] {tint,tint,tint,tint} };
                         mesh.RecalculateBounds();
                         frames[f][p] = new RenderPart { mesh = mesh, material = material,
-                            slot = part.slot };
+                            slot = part.slot, visible = PonyAppearance.IsVisible(part) };
                     }
                 }
                 cache.Add(clip.id, frames);
@@ -104,7 +105,7 @@ namespace Remains.Presentation
             var parts = frames[frame];
             for (int i = 0; i < renderers.Count; i++)
             {
-                renderers[i].enabled = i < parts.Length && parts[i].slot!="hairSecondary";
+                renderers[i].enabled = i < parts.Length && parts[i].visible;
                 if (i >= parts.Length) continue;
                 filters[i].sharedMesh = parts[i].mesh;
                 renderers[i].sharedMaterial = parts[i].material;

@@ -42,7 +42,7 @@ namespace Remains.Presentation
             status = Label(transform, "Подключение не установлено", new Vector2(20,-20), new Vector2(1050,60));
             healthBar=OriginalBar("health",new Vector2(20,-95),new Vector2(300,34));
             manaBar=OriginalBar("mana",new Vector2(20,-135),new Vector2(300,20));
-            message = Label(transform, "A/D — движение · Пробел — прыжок · W/S — лестница · ЛКМ — атака · E — поднять союзника · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
+            message = Label(transform, "A/D — ходьба · Shift — бег · Пробел — прыжок · W/S — лестница · ЛКМ — атака · E — поднять · I — инвентарь", new Vector2(20,-650), new Vector2(1230,55));
             lobby = Panel(transform, "Подключение", new Vector2(420,-240), new Vector2(440,300));
             var saved=session.Saves.LoadWorld();
             if(saved!=null) Label(transform,$"Локальная копия: мир {saved.worldId.Substring(0,8)} · ревизия {saved.revision}",new Vector2(420,-180),new Vector2(620,55));

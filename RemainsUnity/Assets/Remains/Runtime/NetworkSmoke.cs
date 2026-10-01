@@ -22,7 +22,9 @@ namespace Remains.Runtime
             var session=runtime.Session;
             var self=session.LocalActor;
             if(self==null || session.World.actors.Count(a=>a.player && a.connected)<2) return;
+            if(self.level=="hub") {session.ReturnToFactory();return;}
             var other=session.World.actors.First(a=>a.player && a.connected && a.id!=self.id);
+            if(other.level!="factory:0") return;
             if(runtime.Options.Smoke=="victim")
             {
                 if(self.down) sawDown=true;

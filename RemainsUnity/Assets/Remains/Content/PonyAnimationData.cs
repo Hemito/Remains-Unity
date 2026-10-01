@@ -9,7 +9,7 @@ namespace Remains.Content
     [Serializable] public sealed class PonyFrame { public PonyPart[] parts; }
     [Serializable] public sealed class PonyPart
     {
-        public string shape,path,slot;
+        public string shape,texture,path,slot;
         public float[] matrix,color,bounds;
     }
 
