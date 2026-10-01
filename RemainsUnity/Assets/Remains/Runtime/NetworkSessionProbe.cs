@@ -25,6 +25,12 @@ namespace Remains.Runtime
         private int visualChangedFrame;
         private readonly HashSet<int> acknowledgements=new();
         private bool Host=>runtime.Options.Role=="host";
+        private static float Destination(string character)=>character switch
+        {
+            "session-host"=>-5,"session-client-1"=>-2,"session-client-2"=>1,"session-client-3"=>4,
+            _=>throw new InvalidOperationException($"Неизвестный участник проверки: {character}.")
+        };
+        private static int Facing(string character)=>character is "session-host" or "session-client-2"?-1:1;
 
         public void Initialize(PrototypeRuntime value)
         {
@@ -52,11 +58,12 @@ namespace Remains.Runtime
                 grenadeRequested=true;
                 return new PlayerCommand {grenade=true,hasAim=true,aim=self.Position+Vector2.down*3};
             }
-            if(phase!=3) return default;
-            float destination=Host?-2:2;
+            if((phase!=3 && phase!=6) || self.level!="factory:0" || runtime.Session.Travel.Pending) return default;
+            float destination=Destination(self.character);
             float delta=destination-self.x;
-            return new PlayerCommand { movement=new Vector2(Mathf.Abs(delta)>.05f?Mathf.Sign(delta):0,0),
-                hasAim=true,aim=self.Position+new Vector2(Host?-5:5,.8f),weapon="pistol" };
+            float movement=Mathf.Abs(delta)>.05f?Mathf.Sign(delta):self.facing!=Facing(self.character)?Facing(self.character)*.1f:0;
+            return new PlayerCommand { movement=new Vector2(movement,0),
+                hasAim=true,aim=self.Position+new Vector2(Facing(self.character)*5,.8f),weapon="pistol" };
         }
         private void Advance(int next)
         {
@@ -86,10 +93,10 @@ namespace Remains.Runtime
                 1=>blastAfterTravel && self.level==(Host?"factory:0":"hub") && players.Count(a=>a.level=="factory:0")==1 &&
                     players.Where(a=>a.character!="session-host").All(a=>a.health==30),
                 2=>players.All(a=>a.level=="factory:0") && !session.Travel.Pending,
-                3=>players.All(a=>a.level=="factory:0" && (a.character=="session-host"?a.x<-1.8f && a.facing==-1:a.x>1.8f && a.facing==1)),
+                3=>players.All(a=>a.level=="factory:0" && Mathf.Abs(a.x-Destination(a.character))<.15f && a.facing==Facing(a.character)),
                 4=>self.level==(Host?"hub":"factory:0") && players.Count(a=>a.level=="hub")==1 && !session.Travel.Pending,
                 5=>players.All(a=>a.level=="hub") && !session.Travel.Pending,
-                6=>players.All(a=>a.level=="factory:0") && !session.Travel.Pending,
+                6=>players.All(a=>a.level=="factory:0" && Mathf.Abs(a.x-Destination(a.character))<.15f && a.facing==Facing(a.character)) && !session.Travel.Pending,
                 _=>false
             };
             if(!ready) return;
@@ -112,7 +119,7 @@ namespace Remains.Runtime
             int roomMaterials=Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("RoomMaterial:"));
             if(spriteCount!=expectedSprites || rooms.Length!=1 || roomMaterials!=rooms[0].Materials.Count)
             {Finish(false,$"Ресурсы локации не освобождены: sprites={spriteCount}/{expectedSprites}, rooms={rooms.Length}, materials={roomMaterials}.");return;}
-            if(!acked) {if(runtime.Options.Smoke.Contains("-visual-") && (phase==1 || phase==3 || phase==4)) NetworkSceneRecord.Save(runtime,phase);acked=true;NetworkClient.Send(new SessionProbeAck {phase=phase});}
+            if(!acked) {if(runtime.Options.Smoke.Contains("-visual-") && (phase==1 || phase==3 || phase==4 || phase==6)) NetworkSceneRecord.Save(runtime,phase);acked=true;NetworkClient.Send(new SessionProbeAck {phase=phase});}
             if(Host && acknowledgements.Count==runtime.Options.ProbePeers) Advance(phase+1);
         }
         private void Finish(bool success,string detail)
