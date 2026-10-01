@@ -41,6 +41,8 @@ namespace Remains.Persistence
                 world.revision++;
             }
             world.grenades ??= new List<GrenadeState>();world.explosions ??= new List<ExplosionState>();
+            world.projectiles ??= new List<ProjectileState>();
+            foreach(var flight in world.projectiles) flight.Path();
             foreach(var actor in world.actors) {actor.inventoryUses ??= new List<InventoryUse>();actor.resolvedExplosions ??= new List<string>();actor.resolvedAttacks ??= new List<string>();}
             return world;
         }

@@ -103,6 +103,7 @@ namespace Remains.Domain
         public List<PendingDeposit> pendingDeposits = new();
         public List<PropState> props = new();
         public List<GrenadeState> grenades = new();
+        public List<ProjectileState> projectiles = new();
         public List<ExplosionState> explosions = new();
         public ActorState Find(string id) => actors.Find(actor => actor.id == id);
         public WorldState Copy() => JsonUtility.FromJson<WorldState>(JsonUtility.ToJson(this));

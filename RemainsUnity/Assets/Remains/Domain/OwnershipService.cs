@@ -8,6 +8,7 @@ namespace Remains.Domain
     {
         public void BeginSession(WorldState world)
         {
+            ProjectileLifecycle.BeginSession(world);
             foreach(var actor in world.actors)
             {
                 // Transport connection IDs have no identity across session boundaries.
@@ -26,6 +27,7 @@ namespace Remains.Domain
         public void Reassign(WorldState world, IReadOnlyCollection<string> activeOwners)
         {
             GrenadeRules.Reassign(world,activeOwners);
+            ProjectileLifecycle.Reassign(world,activeOwners);
             var active = world.actors.Where(a => a.player && a.connected && !a.down && activeOwners.Contains(a.owner)).ToArray();
             foreach (var actor in world.actors.Where(a => !a.player || !a.connected))
             {

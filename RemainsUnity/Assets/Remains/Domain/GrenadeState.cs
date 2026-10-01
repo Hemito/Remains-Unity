@@ -50,8 +50,7 @@ namespace Remains.Domain
             foreach(var grenade in world.grenades)
             {
                 if(players.Any(a=>a.owner==grenade.owner && a.level==grenade.level)) continue;
-                var next=players.Where(a=>a.level==grenade.level).OrderBy(a=>Vector2.Distance(a.Position,grenade.Position)).ThenBy(a=>a.id).FirstOrDefault();
-                string owner=next?.owner;
+                string owner=NearbySimulationClient.Select(players,grenade.level,grenade.Position);
                 if(grenade.owner==owner) continue;
                 grenade.owner=owner;grenade.generation++;grenade.sequence=0;
             }

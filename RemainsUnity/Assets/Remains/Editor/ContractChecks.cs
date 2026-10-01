@@ -19,6 +19,7 @@ namespace Remains.Editor
             WeaponCatalog.Load();
             CrouchChecks.Run();
             ProjectilePathChecks.Run();
+            ProjectilePersistenceChecks.Run();
             ActorTypeChecks.Run();
             RaiderChecks.Run();
             LightingChecks.Run();
