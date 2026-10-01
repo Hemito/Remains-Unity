@@ -8,6 +8,7 @@ namespace Remains.Domain
             destination.facing=source.facing;destination.pose=source.pose;destination.poseTime=source.poseTime;
             destination.climbing=source.climbing;
             destination.weapon=source.weapon;destination.weaponAngle=source.weaponAngle;
+            destination.weaponFlipY=source.weaponFlipY;
             destination.weaponTipX=source.weaponTipX;destination.weaponTipY=source.weaponTipY;
             destination.weaponReach=source.weaponReach;
         }

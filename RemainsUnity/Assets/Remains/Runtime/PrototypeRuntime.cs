@@ -251,14 +251,10 @@ namespace Remains.Runtime
             if(hud?.BlocksGameplayInput==true) command=default;
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
             if(Session.Travel.Pending) command=default;
-            if(command.hasAim && !Combat.IsMeleeActive)
-            {
-                var direction=command.aim-(actor.Position+new Vector2(0,.8f));
-                actor.weaponAngle=Mathf.Atan2(direction.y,direction.x)*Mathf.Rad2Deg;
-            }
             movement.Step(actor,command.movement,command.jump,dt,command.sprint);
             if(command.weapon!=null) Combat.Weapon=command.weapon;
             actor.weapon=Combat.Weapon;
+            if(command.hasAim && !Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim);
             if(command.reload && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
             Revival.Step(command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);

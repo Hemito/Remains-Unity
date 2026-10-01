@@ -1,10 +1,40 @@
 using UnityEngine;
 using Remains.Content;
+using Remains.Domain;
 
 namespace Remains.Gameplay
 {
     public static class WeaponPose
     {
+        public static float AimRadius=>WeaponRigs.AimRadius;
+        public static Vector2 RangedAnchor(ActorState actor)=>actor.Position+new Vector2(0,WeaponRigs.AnchorHeight);
+        public static Vector2 Direction(ActorState actor)=>new(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
+        public static bool Flip(ActorState actor)=>actor.weaponFlipY;
+        public static Vector2 Mount(ActorState actor)=>RangedAnchor(actor)+Direction(actor)*Mathf.Clamp(actor.weaponReach,0,AimRadius);
+        public static Vector2 Muzzle(ActorState actor)
+        {
+            var rig=WeaponRigs.Get(actor.weapon);var direction=Direction(actor);
+            return Mount(actor)+direction*rig.muzzleX+new Vector2(-direction.y,direction.x)*(Flip(actor)?-rig.muzzleY:rig.muzzleY);
+        }
+        public static void Aim(ActorState actor,Vector2 target)
+        {
+            var rig=WeaponRigs.Get(actor.weapon);
+            var delta=target-(rig.HasMuzzle?RangedAnchor(actor):Origin(actor.Position));
+            if(delta.sqrMagnitude<.000001f) return;
+            actor.weaponFlipY=delta.x<0;
+            float angle=Mathf.Atan2(delta.y,delta.x);
+            if(rig.HasMuzzle)
+            {
+                float side=delta.x<0?-1:1;
+                float lateral=side*rig.muzzleY;
+                // Solve the barrel ray through the cursor, including its authored vertical offset.
+                angle-=Mathf.Asin(Mathf.Clamp(lateral/delta.magnitude,-1,1));
+                float along=Mathf.Sqrt(Mathf.Max(0,delta.sqrMagnitude-lateral*lateral));
+                actor.weaponReach=Mathf.Clamp(along-rig.muzzleX-.1f,0,AimRadius);
+            }
+            else actor.weaponReach=WeaponCatalog.Get(actor.weapon).range;
+            actor.weaponAngle=angle*Mathf.Rad2Deg;
+        }
         public static Vector2 Origin(Vector2 actorPosition)=>actorPosition+new Vector2(0,.8f);
         public static Vector2 Tip(string weapon,Vector2 origin,Vector2 direction,float progress)
         {

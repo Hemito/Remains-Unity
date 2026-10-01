@@ -85,9 +85,11 @@ namespace Remains.Presentation
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.enabled=false;continue; }
                 float width=sprite.bounds.size.x;
                 if(view.sprite!=sprite) { SpriteArtworkMaterial.Apply(view,sprite);view.transform.localScale=Vector3.one*(width/sprite.bounds.size.x); }
-                var direction=new Vector2(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
-                view.transform.position=actor.Position+new Vector2(0,0.8f)+direction*(actor.weapon is "spear" or "crowbar"?actor.weaponReach-width/2:0.6f);
+                var direction=WeaponPose.Direction(actor);
+                view.transform.position=actor.weapon is "spear" or "crowbar"?
+                    WeaponPose.Origin(actor.Position)+direction*(actor.weaponReach-sprite.bounds.max.x):WeaponPose.Mount(actor);
                 view.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
+                view.flipY=WeaponPose.Flip(actor);
             }
             foreach(var pair in flights) pair.Value.enabled=false;
             foreach(var flight in grenades.Flights) if(flights.TryGetValue(flight.message.id,out var view))

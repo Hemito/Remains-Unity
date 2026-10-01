@@ -55,6 +55,7 @@ namespace Remains.Domain
         public int hair;
         public string weapon="pistol";
         public float weaponAngle;
+        public bool weaponFlipY;
         public float weaponTipX,weaponTipY;
         public float weaponReach=1.4f;
         public bool attackBusy;

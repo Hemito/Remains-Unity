@@ -63,6 +63,17 @@ namespace Remains.Gameplay
         {
             if (attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready) return false;
             var definition=WeaponCatalog.Get(Weapon);
+            attacker.weapon=Weapon;
+            WeaponPose.Aim(attacker,aim);
+            bool melee=Weapon is "spear" or "crowbar";
+            Vector2 origin=melee?WeaponPose.Origin(attacker.Position):WeaponPose.Muzzle(attacker);
+            Vector2 direction=WeaponPose.Direction(attacker);
+            if(!melee && ShotObstacles.Limit(geometry.Get(attacker.level),WeaponPose.RangedAnchor(attacker),origin)<1)
+            {
+                if(Time.unscaledTime>=nextResourceNotice)
+                {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice("Ствол перекрыт препятствием.");}
+                return false;
+            }
             if(!WeaponAmmunition.SpendShot(attacker,definition,out string reason))
             {
                 if(Time.unscaledTime>=nextResourceNotice)
@@ -72,12 +83,7 @@ namespace Remains.Gameplay
             if(definition.manaCost>0 || !string.IsNullOrEmpty(definition.ammo))
             {attacker.revision++;session.PublishActor(attacker);}
             shotCooldown.Restart(definition.cooldown);
-            Vector2 origin = attacker.Position + new Vector2(0,0.55f);
-            Vector2 direction = (aim-origin).normalized;
-            if (direction == Vector2.zero) direction = new Vector2(attacker.facing,0);
-            attacker.weapon=Weapon;
-            attacker.weaponAngle=Mathf.Atan2(direction.y,direction.x)*Mathf.Rad2Deg;
-            if(Weapon is "spear" or "crowbar")
+            if(melee)
             {
                 swingActor=attacker;swingWeapon=Weapon;
                 swingLevel=attacker.level;swingGeneration=attacker.generation;swingLifecycle=attacker.lifecycleSequence;

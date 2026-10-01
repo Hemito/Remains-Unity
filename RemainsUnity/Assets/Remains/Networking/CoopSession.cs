@@ -427,6 +427,7 @@ namespace Remains.Networking
             actor.weapon=message.weapon;actor.weaponAngle=message.weaponAngle;
             actor.weaponTipX=message.weaponTipX;actor.weaponTipY=message.weaponTipY;
             actor.weaponReach=message.weaponReach;
+            actor.weaponFlipY=message.weaponFlipY;
             if(actor.attackId==message.attackId && actor.attackBusy==message.attackBusy)
             {
                 actor.attackRemaining=message.attackRemaining;actor.attackCooldown=message.attackCooldown;
@@ -437,7 +438,7 @@ namespace Remains.Networking
         {
             actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = sequence,
             x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,climbing=actor.climbing,
-            weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,
+            weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponFlipY=actor.weaponFlipY,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown
         }, Channels.Unreliable);
 

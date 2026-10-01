@@ -22,6 +22,7 @@ namespace Remains.Networking
         public string weapon;
         public float weaponAngle,weaponTipX,weaponTipY;
         public float weaponReach;
+        public bool weaponFlipY;
         public string attackId;
         public bool attackBusy;
         public float attackRemaining,attackCooldown;

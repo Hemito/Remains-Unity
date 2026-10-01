@@ -1,0 +1,74 @@
+using System;
+using System.IO;
+using Remains.Content;
+using Remains.Domain;
+using Remains.Gameplay;
+using Remains.Presentation;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+
+namespace Remains.Editor
+{
+    public static class WeaponPoseChecks
+    {
+        public static void Run()
+        {
+            foreach(string weapon in new[]{"pistol","energy"})
+            foreach(float angle in new[]{0,45,90,135,180,225,270,315})
+            foreach(float distance in new[]{1f,3f,20f})
+            {
+                var actor=new ActorState {weapon=weapon};
+                var target=WeaponPose.RangedAnchor(actor)+new Vector2(Mathf.Cos(angle*Mathf.Deg2Rad),Mathf.Sin(angle*Mathf.Deg2Rad))*distance;
+                WeaponPose.Aim(actor,target);
+                var mount=WeaponPose.Mount(actor);var muzzle=WeaponPose.Muzzle(actor);var direction=WeaponPose.Direction(actor);
+                float error=Mathf.Abs(Vector3.Cross(target-muzzle,direction).z);
+                Require(error<.0001f && Vector2.Dot(target-muzzle,direction)>0,$"Луч ствола не проходит через курсор: weapon={weapon}, angle={angle}, distance={distance}, error={error}");
+                Require(Vector2.Distance(mount,WeaponPose.RangedAnchor(actor))<=WeaponPose.AimRadius+.0001f,"Оружие вышло за радиус");
+                var copy=actor.Copy();
+                Require(WeaponPose.Muzzle(copy)==muzzle,"Копия сетевого состояния меняет положение дула");
+            }
+            Debug.Log("Поза оружия: PASS — курсор, радиус, направление, копирование, 48 сочетаний.");
+        }
+
+        public static void Render()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+            WeaponCatalog.Load();Run();PonyVisual.Prepare();
+            var artwork=WeaponArtwork.Load();int index=0;
+            foreach(string weapon in new[]{"pistol","energy"})
+            foreach(float angle in new[]{0f,45,135,180})
+            {
+                var actor=new ActorState {id=weapon+angle,weapon=weapon,x=(index%4)*4,y=-(index/4)*3,pose="idle"};
+                var aim=WeaponPose.RangedAnchor(actor)+new Vector2(Mathf.Cos(angle*Mathf.Deg2Rad),Mathf.Sin(angle*Mathf.Deg2Rad))*4;
+                WeaponPose.Aim(actor,aim);
+                var pony=new GameObject(actor.id).AddComponent<PonyVisual>();pony.Bind(actor);pony.DrawPose(0);
+                var sprite=new GameObject("Оружие "+actor.id).AddComponent<SpriteRenderer>();
+                SpriteArtworkMaterial.Apply(sprite,artwork[weapon]);sprite.sortingOrder=100;
+                sprite.transform.position=WeaponPose.Mount(actor);sprite.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);sprite.flipY=WeaponPose.Flip(actor);
+                var rig=WeaponRigs.Get(weapon);
+                var visualMuzzle=(Vector2)sprite.transform.TransformPoint(new Vector3(rig.muzzleX,sprite.flipY?-rig.muzzleY:rig.muzzleY,0));
+                Require(Vector2.Distance(visualMuzzle,WeaponPose.Muzzle(actor))<.0001f,"Метка дула картинки отличается от игровой позы");
+                var line=new GameObject("Направление из дула").AddComponent<LineRenderer>();
+                line.material=new Material(Shader.Find("Sprites/Default"));line.positionCount=2;
+                line.SetPosition(0,visualMuzzle);line.SetPosition(1,visualMuzzle+WeaponPose.Direction(actor)*.7f);
+                line.startWidth=line.endWidth=.018f;line.startColor=line.endColor=Color.yellow;line.sortingOrder=120;
+                index++;
+            }
+            UnityEngine.Rendering.SortingGroup.UpdateAllSortingGroups();
+            var camera=new GameObject("Камера поз оружия").AddComponent<Camera>();camera.orthographic=true;
+            camera.orthographicSize=4;camera.transform.position=new Vector3(6,-.3f,-10);camera.backgroundColor=new Color(.15f,.16f,.17f);
+            var target=new RenderTexture(1600,800,24);target.Create();camera.targetTexture=target;
+            var image=new Texture2D(1600,800,TextureFormat.RGBA32,false);
+            try
+            {
+                camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,1600,800),0,0);image.Apply();
+                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/weapon-poses.png"));
+                Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
+                Debug.Log("Кадр поз оружия: "+path);
+            }
+            finally {RenderTexture.active=null;camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);}
+        }
+        private static void Require(bool valid,string message)
+        {if(!valid) throw new InvalidOperationException("Поза оружия: "+message);}
+    }
+}
