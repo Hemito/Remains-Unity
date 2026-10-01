@@ -47,6 +47,8 @@ namespace Remains.Networking
         public SessionLobby Lobby=>lobby ??= new SessionLobby(this);
         private SessionTravel travel;
         public SessionTravel Travel => travel ??= new SessionTravel(this);
+        private SessionPause pause;
+        public SessionPause Pause=>pause ??= new SessionPause(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
         private readonly Dictionary<int,long> backupRevisions = new();
         private readonly RecoveryReceiptGate recoveryReceipts = new();
@@ -60,6 +62,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
+            Pause.RegisterServer();
             Admission.RegisterServer();
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
@@ -127,6 +130,7 @@ namespace Remains.Networking
             Admission.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
+            Pause.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
@@ -518,6 +522,7 @@ namespace Remains.Networking
 
         private void BroadcastWorld()
         {
+            Pause.Publish();
             var snapshot=PrepareRecovery();
             foreach(int id in owners.Keys)
                 if(NetworkServer.connections.TryGetValue(id,out var connection)) WorldReplication.Send(connection,snapshot);
@@ -545,6 +550,7 @@ namespace Remains.Networking
 
         public override void OnStopServer()
         {
+            Pause.ResetServer();
             CancelInvoke(nameof(CheckpointWorld));
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
         }
@@ -552,6 +558,7 @@ namespace Remains.Networking
         {
             CharacterContent.Reset();
             Admission.EndClient();
+            Pause.ResetClient();
             Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;

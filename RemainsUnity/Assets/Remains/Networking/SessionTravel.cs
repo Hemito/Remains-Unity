@@ -46,7 +46,7 @@ namespace Remains.Networking
             var actor = session.LocalActor;
             if (actor == null || !NetworkClient.isConnected)
             { session.ShowNotice("Переход невозможен: нет подключения к игре."); return; }
-            string reason = TravelRules.Rejection(actor, actor.level, destination, actor.generation, actor.lifecycleSequence);
+            string reason = TravelRules.Rejection(actor, actor.level, destination, actor.generation, actor.lifecycleSequence,session.Pause.IsPaused(destination));
             if (reason != null) { session.ShowNotice(reason); return; }
             pending = Guid.NewGuid().ToString("N");
             deadline = Time.unscaledTime + 10;
@@ -70,7 +70,7 @@ namespace Remains.Networking
             var actor = session.ConnectedActor(connection);
             string key = connection.connectionId + ":" + request.id;
             if (replies.TryGetValue(key, out var previous)) { connection.Send(previous); return; }
-            string reason = TravelRules.Rejection(actor, request.source, request.destination, request.generation, request.lifecycle);
+            string reason = TravelRules.Rejection(actor, request.source, request.destination, request.generation, request.lifecycle,session.Pause.IsServerPaused(request.destination));
             if (string.IsNullOrEmpty(request.id)) reason = "Не задан идентификатор перехода.";
             var reply = new TravelReply { id = request.id, accepted = reason == null, reason = reason };
             if (reply.accepted)

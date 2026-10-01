@@ -106,6 +106,7 @@ namespace Remains.Runtime
             if (Options.Smoke != null)
             {
                 if(Options.Smoke.StartsWith("lobby")) gameObject.AddComponent<NetworkLobbyProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("pause")) gameObject.AddComponent<NetworkPauseProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("rules")) gameObject.AddComponent<NetworkRulesProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("extensions")) gameObject.AddComponent<NetworkExtensionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("protocol")) gameObject.AddComponent<NetworkProtocolProbe>().Initialize(this);
