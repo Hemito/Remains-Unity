@@ -33,6 +33,15 @@ namespace Remains.Editor
             Require(!receiver.Apply(traveler,explosion,true) && traveler.health==58,
                 "Чужой уровень не получает урон даже при заявленном контакте");
             Require(TravelRules.Rejection(bystander, "hub", "factory:0", 0, 0)!=null, "Нокдаун блокирует самостоятельный переход с причиной");
+            Require(TravelRules.Rejection(traveler,"factory:0","hub",3,5)==null,"Обратный маршрут доступен живому персонажу");
+            var beforeReturn=traveler.Copy();
+            var hub=RoomLayout.Load("hub");
+            TravelRules.Apply(traveler,"hub",hub);
+            Require(traveler.level=="hub" && traveler.x==hub.spawnX && traveler.y==hub.spawnY && traveler.health==58 && traveler.lifecycleSequence==6,
+                "Возвращение использует точку появления хаба и сохраняет здоровье");
+            Require(!ActorVersion.CanPublishOwnerState(beforeReturn,traveler),"Старый пакет завода не отменяет возвращение");
+            Require(TravelRules.Rejection(traveler,"hub","hub",3,6)!=null && TravelRules.Rejection(traveler,"hub","factory:1",3,6)!=null,
+                "Переход в текущую или неподдерживаемую локацию отклоняется");
 
             var world = new WorldState();
             var npc = new ActorState { id="npc", owner="gone", attackBusy=true, attackRemaining=.4f };

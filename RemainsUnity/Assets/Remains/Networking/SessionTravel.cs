@@ -21,7 +21,7 @@ namespace Remains.Networking
     {
         private readonly CoopSession session;
         private readonly Dictionary<string, TravelReply> replies = new();
-        private RoomLayout factory;
+        private RoomLayout factory, hub;
         private float deadline;
         private string pending;
         public bool Pending => pending != null;
@@ -31,6 +31,7 @@ namespace Remains.Networking
         {
             replies.Clear();
             factory = RoomLayout.Load("factory:0");
+            hub = RoomLayout.Load("hub");
             NetworkServer.RegisterHandler<TravelRequest>(ReceiveRequest);
         }
         public void RegisterClient()
@@ -40,21 +41,23 @@ namespace Remains.Networking
         }
         public void ResetClient() => pending = null;
 
-        public void RequestFactory()
+        public void RequestFactory() => Request("factory:0");
+        public void RequestHub() => Request("hub");
+        private void Request(string destination)
         {
             if (Pending) return;
             var actor = session.LocalActor;
             if (actor == null || !NetworkClient.isConnected)
             { session.ShowNotice("Переход невозможен: нет подключения к игре."); return; }
-            string reason = TravelRules.Rejection(actor, actor.level, "factory:0", actor.generation, actor.lifecycleSequence);
+            string reason = TravelRules.Rejection(actor, actor.level, destination, actor.generation, actor.lifecycleSequence);
             if (reason != null) { session.ShowNotice(reason); return; }
             pending = Guid.NewGuid().ToString("N");
             deadline = Time.unscaledTime + 10;
             // Reliable ordering publishes pending health changes before the request.
             session.PublishActor(actor);
-            NetworkClient.Send(new TravelRequest { id = pending, source = actor.level, destination = "factory:0",
+            NetworkClient.Send(new TravelRequest { id = pending, source = actor.level, destination = destination,
                 generation = actor.generation, lifecycle = actor.lifecycleSequence });
-            session.ShowNotice("Ожидание подтверждения перехода на завод…");
+            session.ShowNotice("Ожидание подтверждения перехода…");
         }
 
         public void Step()
@@ -75,7 +78,7 @@ namespace Remains.Networking
             var reply = new TravelReply { id = request.id, accepted = reason == null, reason = reason };
             if (reply.accepted)
             {
-                TravelRules.Apply(actor, request.destination, factory);
+                TravelRules.Apply(actor, request.destination, request.destination == "hub" ? hub : factory);
                 session.CommitWorld();
                 Debug.Log($"Переход подтверждён: actor={actor.id}, request={request.id}, level={actor.level}, lifecycle={actor.lifecycleSequence}.");
             }
@@ -88,7 +91,7 @@ namespace Remains.Networking
         {
             if (pending != reply.id) return;
             pending = null;
-            session.ShowNotice(reply.accepted ? "Переход на завод завершён." : reply.reason);
+            session.ShowNotice(reply.accepted ? "Переход завершён." : reply.reason);
         }
     }
 }

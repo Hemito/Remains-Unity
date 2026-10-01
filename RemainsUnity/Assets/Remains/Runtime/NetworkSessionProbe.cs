@@ -21,12 +21,13 @@ namespace Remains.Runtime
         private bool acked,travelRequested,finished;
         private bool grenadeRequested,blastAfterTravel;
         private string completedActor;
+        private string retainedContents,retainedActors;
         private readonly HashSet<int> acknowledgements=new();
         private bool Host=>runtime.Options.Role=="host";
 
         public void Initialize(PrototypeRuntime value)
         {
-            runtime=value;deadline=Time.unscaledTime+50;
+            runtime=value;deadline=Time.unscaledTime+60;
             runtime.CommandSource=Command;
             value.Session.AttackReceived+=attack=>
             {
@@ -34,7 +35,7 @@ namespace Remains.Runtime
                     blastAfterTravel=attack.level=="hub" && value.Session.World.Find(attack.attacker)?.level=="factory:0";
             };
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<SessionProbePhase>(message=>
-            {phase=message.phase;phaseTime=Time.unscaledTime;acked=false;travelRequested=false;if(phase==4) completedActor=value.Session.LocalActorId;});
+            {phase=message.phase;phaseTime=Time.unscaledTime;acked=false;travelRequested=false;if(phase==7) completedActor=value.Session.LocalActorId;});
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<SessionProbeAck>((connection,message)=>
             {
                 if(message.phase==phase && value.Session.ConnectedActor(connection)!=null) acknowledgements.Add(connection.connectionId);
@@ -63,9 +64,9 @@ namespace Remains.Runtime
         private void Update()
         {
             if(finished) return;
-            // Completion was acknowledged by every peer before phase 4. A host exit
+            // Completion was acknowledged by every peer before phase 7. A host exit
             // must not make a slower client's report depend on the live player count.
-            if(phase==4) {if(Time.unscaledTime-phaseTime>1) Finish(true,"Обычная симуляция: виртуальный UI-клик, разделение группы, граната в исходной локации после перехода, независимое движение и видимость; NPC включён.");return;}
+            if(phase==7) {if(Time.unscaledTime-phaseTime>1) Finish(true,"Обычная симуляция: UI-переходы в обе стороны, разделение группы, граната в исходной локации, независимое движение и видимость; выход всей группы и повторный вход без пересоздания NPC/контейнеров.");return;}
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут: phase={phase}, level={runtime.Session.LocalActor?.level}, pending={runtime.Session.Travel.Pending}");return;}
             var session=runtime.Session;var self=session.LocalActor;
             if(self==null) return;
@@ -74,7 +75,7 @@ namespace Remains.Runtime
             var players=session.World.actors.Where(a=>a.player && a.connected).ToArray();
             if(players.Length!=runtime.Options.ProbePeers) return;
             if(phase<0) {if(Host) Advance(0);return;}
-            if((phase==1 && Host && runtime.Grenades.Flights.Count>0 || phase==2 && !Host) && !travelRequested)
+            if((phase==1 && Host && runtime.Grenades.Flights.Count>0 || phase==2 && !Host || phase==4 && Host || phase==5 && !Host || phase==6) && !travelRequested)
             {travelRequested=true;StartCoroutine(UiPointerProbe.Click(runtime.Hud.FactoryButtonRect));}
             if(Time.unscaledTime-phaseTime<1) return;
             bool ready=phase switch
@@ -84,9 +85,17 @@ namespace Remains.Runtime
                     players.Where(a=>a.character!="session-host").All(a=>a.health==30),
                 2=>players.All(a=>a.level=="factory:0") && !session.Travel.Pending,
                 3=>players.All(a=>a.level=="factory:0" && (a.character=="session-host"?a.x<-1.8f && a.facing==-1:a.x>1.8f && a.facing==1)),
+                4=>self.level==(Host?"hub":"factory:0") && players.Count(a=>a.level=="hub")==1 && !session.Travel.Pending,
+                5=>players.All(a=>a.level=="hub") && !session.Travel.Pending,
+                6=>players.All(a=>a.level=="factory:0") && !session.Travel.Pending,
                 _=>false
             };
             if(!ready) return;
+            string contents=string.Join("|",session.World.containers.OrderBy(c=>c.id).Select(c=>c.id+":"+string.Join(",",c.items.OrderBy(i=>i.id).Select(i=>i.id+":"+i.count))));
+            string actors=string.Join("|",session.World.actors.Where(a=>!a.player).OrderBy(a=>a.id).Select(a=>a.id+":"+a.health));
+            if(phase==3) {retainedContents=contents;retainedActors=actors;}
+            if(phase>=4 && (contents!=retainedContents || actors!=retainedActors))
+            {Finish(false,"Выход/возвращение изменили NPC или содержимое контейнеров.");return;}
             if(players.Select(a=>a.id).Distinct().Count()!=players.Length) {Finish(false,"Повтор ID персонажа");return;}
             var expected=session.World.actors.Where(a=>a.level==self.level).Select(a=>a.id).OrderBy(id=>id).ToArray();
             var visible=FindObjectsByType<PonyVisual>(FindObjectsSortMode.None).Select(v=>v.ActorId).OrderBy(id=>id).ToArray();

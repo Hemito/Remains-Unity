@@ -8,7 +8,8 @@ namespace Remains.Domain
             if (actor.generation != generation || actor.lifecycleSequence != lifecycle || actor.level != source)
                 return "Состояние персонажа изменилось. Повторите переход.";
             if (actor.down) return "Персонаж без сознания и не может перейти самостоятельно.";
-            if (source != "hub" || destination != "factory:0") return "Этот маршрут недоступен.";
+            if (!(source == "hub" && destination == "factory:0") &&
+                !(source == "factory:0" && destination == "hub")) return "Этот маршрут недоступен.";
             return null;
         }
 

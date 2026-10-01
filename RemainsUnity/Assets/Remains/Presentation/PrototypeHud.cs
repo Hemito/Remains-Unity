@@ -96,7 +96,8 @@ namespace Remains.Presentation
             leave=Button(transform,"Сохранить и выйти из сессии",new Vector2(20,-600),new Vector2(290,45),()=>
             {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
-            factory=Button(transform,"Вернуться на завод 0",new Vector2(20,-500),new Vector2(290,45),()=>session.ReturnToFactory());
+            factory=Button(transform,"На завод 0",new Vector2(20,-500),new Vector2(290,45),()=>
+            {if(session.LocalActor?.level=="factory:0") session.Travel.RequestHub();else session.ReturnToFactory();});
             factory.gameObject.SetActive(false);
             session.Changed += Refresh;
             session.Notice += text => message.text = text;
@@ -122,7 +123,9 @@ namespace Remains.Presentation
             {lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             lobby.SetActive(false);
             leave.gameObject.SetActive(true);friendlyFire.gameObject.SetActive(Mirror.NetworkServer.active);
-            factory.gameObject.SetActive(actor.level=="hub");
+            factory.gameObject.SetActive(actor.level=="hub" || actor.level=="factory:0");
+            factory.GetComponentInChildren<Text>().text=actor.level=="hub"?"На завод 0":"Вернуться в хаб";
+            factory.interactable=!actor.down && !session.Travel.Pending;
             friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
             status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count} · {(actor.level=="hub"?"Хаб": "Завод 0")}\n1 — копьё · 2 — лом · 3 — 10-мм пистолет · 4 — лазерный пистолет · R — перезарядка";
             RefreshAmmunition();
