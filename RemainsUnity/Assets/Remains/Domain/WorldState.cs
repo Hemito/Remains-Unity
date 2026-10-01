@@ -41,6 +41,7 @@ namespace Remains.Domain
         public bool down;
         public int damageSequence;
         public List<string> resolvedExplosions = new();
+        public List<string> resolvedAttacks = new();
         public float health = 100;
         public float mana = 100;
         public float x;

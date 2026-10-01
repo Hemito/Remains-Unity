@@ -41,7 +41,7 @@ namespace Remains.Persistence
                 world.revision++;
             }
             world.grenades ??= new List<GrenadeState>();world.explosions ??= new List<ExplosionState>();
-            foreach(var actor in world.actors) {actor.inventoryUses ??= new List<InventoryUse>();actor.resolvedExplosions ??= new List<string>();}
+            foreach(var actor in world.actors) {actor.inventoryUses ??= new List<InventoryUse>();actor.resolvedExplosions ??= new List<string>();actor.resolvedAttacks ??= new List<string>();}
             return world;
         }
 
@@ -135,7 +135,7 @@ namespace Remains.Persistence
                 AtomicWrite(backup,source);
                 backup=Path.Combine(DirectoryPath,backup);
             }
-            actor.resolvedExplosions ??= new List<string>();
+            actor.resolvedExplosions ??= new List<string>();actor.resolvedAttacks ??= new List<string>();
             if(actor.loadoutVersion==0) UpgradeLoadout(actor,backup);
             return actor;
         }

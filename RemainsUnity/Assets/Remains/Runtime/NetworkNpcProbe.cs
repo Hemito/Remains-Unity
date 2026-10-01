@@ -5,12 +5,14 @@ using System.IO;
 using System.Linq;
 using Mirror;
 using Remains.Gameplay;
+using Remains.Domain;
 using UnityEngine;
 
 namespace Remains.Runtime
 {
     public struct NpcProbePhase : NetworkMessage {public int phase;}
     public struct NpcProbeFinish : NetworkMessage {public bool success;public string detail;}
+    public struct NpcReplayProof : NetworkMessage {public string attack;}
     // Commands and connection lifecycle only; never writes actor state.
     public sealed class NetworkNpcProbe : MonoBehaviour
     {
@@ -19,12 +21,20 @@ namespace Remains.Runtime
         private float deadline,returnAt,canceledAt;
         private bool traveled,disconnected,returned,finished,deferred,transferred,canceled;
         private string firstAttack,canceledAttack;
+        private bool fired,replayed;
+        private AttackEvent acceptedShot;
+        private int replayProofs;
         private readonly Dictionary<string,float> shots=new();
         private bool Host=>runtime.Options.Role=="host";
         private bool Source=>runtime.Options.Character=="session-client-1";
         public void Initialize(PrototypeRuntime value)
         {
-            runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=()=>default(PlayerCommand);
+            runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
+            value.Combat.NpcReplayRejected+=id=>{if(Source) NetworkClient.Send(new NpcReplayProof {attack=id});};
+            value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<NpcReplayProof>((connection,message)=>
+            {
+                if(value.Session.ConnectedActor(connection)?.character=="session-client-1" && message.attack==acceptedShot?.id) replayProofs++;
+            });
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<NpcProbePhase>(m=>phase=m.phase);
@@ -32,10 +42,18 @@ namespace Remains.Runtime
             };
             value.Session.AttackReceived+=attack=>
             {
+                if(Host && attack.weapon=="energy" && attack.attacker=="player:session-host") acceptedShot=attack;
                 if(attack.weapon!="npc-shot") return;
                 if(shots.ContainsKey(attack.id)) {Finish(false,"NPC повторил ID выстрела.");return;}
                 shots.Add(attack.id,Time.unscaledTime);
             };
+        }
+        private PlayerCommand Command()
+        {
+            if(!Host || fired || runtime.Session.LocalActor?.level!="factory:0") return default;
+            fired=true;
+            return new PlayerCommand {weapon="energy",fire=true,hasAim=true,
+                aim=runtime.Session.World.Find("npc:training-guard").Position+Vector2.up*.55f};
         }
         private void Update()
         {
@@ -67,6 +85,12 @@ namespace Remains.Runtime
                     if(npc.attackBusy || npc.attackCooldown<=0)
                     {Finish(false,"NPC передан до завершения атаки или без паузы.");return;}
                     transferred=true;
+                    if(acceptedShot==null || npc.health!=132 || !npc.resolvedAttacks.Contains(acceptedShot.id))
+                    {Finish(false,"Первое попадание по NPC не зафиксировано до передачи.");return;}
+                    // Fault injection: replay one already accepted event to the new owner.
+                    var repeat=new Remains.Networking.NpcHitMessage {target=npc.id,generation=npc.generation,
+                        attackJson=Remains.Serialization.StateJson.ToJson(acceptedShot)};
+                    session.ReportNpcHit(repeat);session.ReportNpcHit(repeat);replayed=true;
                 }
                 if(npc.attackBusy) canceledAttack=npc.attackId;
             }
@@ -83,12 +107,12 @@ namespace Remains.Runtime
             if(canceled && shots.ContainsKey(canceledAttack)) {Finish(false,"Выстрел отменённой атаки дошёл после обрыва.");return;}
             if(canceled && shots.Any(s=>s.Value>canceledAt && s.Value-canceledAt<1.5f)) {Finish(false,"После передачи потеряна пауза между атаками.");return;}
             if(!canceled || source?.connected!=true || !shots.Any(s=>s.Value>canceledAt)) return;
-            bool valid=deferred && shots.ContainsKey(firstAttack) && source.down && source.level=="factory:0" && session.ServerWorld.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers &&
+            bool valid=deferred && replayed && replayProofs>=2 && npc.health==132 && npc.resolvedAttacks.Count(id=>id==acceptedShot.id)==1 && shots.ContainsKey(firstAttack) && source.down && source.level=="factory:0" && session.ServerWorld.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers &&
                 session.ServerWorld.actors.Where(a=>a.player && a.character!="session-host" && a.character!="session-client-1").All(a=>a.level=="hub" && a.health==100);
             phase=2;
             NetworkServer.SendToAll(new NpcProbeFinish {success=valid,detail=valid?
-                "Обычный NPC: атака завершена прежним владельцем, пауза передана; обрыв отменил следующую атаку, игрок вернулся в своё тело, хаб изолирован.":
-                "Не подтверждены задержанная передача, возвращение в тело или изоляция хаба."});
+                "NPC: атака завершена прежним владельцем, повтор принятого попадания после передачи не нанёс урон; обрыв отменил следующую атаку, игрок вернулся в своё тело, хаб изолирован.":
+                $"Не подтверждён NPC: deferred={deferred}, replayProofs={replayProofs}, hp={npc.health}, down={source.down}, shots={shots.Count}."});
         }
         private void Finish(bool success,string detail)
         {

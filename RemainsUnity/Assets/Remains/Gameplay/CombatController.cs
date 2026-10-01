@@ -15,6 +15,7 @@ namespace Remains.Gameplay
         private DamageReceiver damage;
         public int AttackerDecidedHits {get;private set;}
         public int VictimDecidedHits {get;private set;}
+        public event Action<string> NpcReplayRejected;
         private readonly SimulationTimer shotCooldown=new();
         public float ShotCooldownRemaining=>shotCooldown.Remaining;
         private ActorState swingActor;
@@ -179,6 +180,7 @@ namespace Remains.Gameplay
             if (actor == null || actor.player || actor.owner != session.LocalOwner || actor.generation != message.generation) return;
             if(session.Pause.IsPaused(actor.level)) {pending.Add(actor.level,()=>ReceiveNpcHit(message));return;}
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
+            if(actor.resolvedAttacks.Contains(attack.id)) {NpcReplayRejected?.Invoke(attack.id);return;}
             if (damage.Apply(actor, attack, true)) session.PublishActor(actor);
         }
         private void ReceiveFriendlyHit(FriendlyHitMessage message)

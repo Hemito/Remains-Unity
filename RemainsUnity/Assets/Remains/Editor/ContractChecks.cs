@@ -51,6 +51,9 @@ namespace Remains.Editor
             Require(!damage.Apply(actor,attack,false) && actor.health==100,"Пострадавший может отклонить попадание");
             Require(damage.Apply(actor,attack,true) && actor.health==89,"Одно принятое попадание");
             Require(!damage.Apply(actor,attack,true) && actor.health==89,"Повтор события не наносит урон");
+            var transferred=actor.Copy();transferred.owner="new-owner";transferred.generation++;
+            Require(!new DamageReceiver(new PrototypeDamageRule()).Apply(transferred,attack,true) && transferred.health==89,
+                "Передача копии другому владельцу сохраняет журнал урона");
             actor.down=true;
             attack.id="shot-2";
             damage.Apply(actor,attack,true);

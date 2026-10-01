@@ -312,6 +312,7 @@ namespace Remains.Networking
                         actor.attackRemaining=local.attackRemaining;actor.attackCooldown=local.attackCooldown;
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;
                         actor.mana=local.mana;actor.damageSequence=local.damageSequence;actor.resolvedExplosions=local.resolvedExplosions;
+                        actor.resolvedAttacks=local.resolvedAttacks;
                         actor.magazines=local.magazines;
                         if(!InventoryJournal.Merge(actor,local,out var inventoryCopy,out var uses))
                             throw new InvalidOperationException($"Не удалось согласовать расход инвентаря: actor={actor.id}, revision={actor.revision}.");
