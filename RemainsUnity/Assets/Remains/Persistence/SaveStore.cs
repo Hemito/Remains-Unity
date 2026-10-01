@@ -47,6 +47,7 @@ namespace Remains.Persistence
 
         public RecoverySnapshot SaveWorld(WorldState world)
         {
+            ContentProvenance.Record(ref world.weaponContent,ref world.weaponContentHistory);
             if(world.historyVersion==1) world.checkpointSequence++;
             var snapshot=new RecoverySnapshot(JsonUtility.ToJson(world));
             SaveRecovery(snapshot);
@@ -108,7 +109,12 @@ namespace Remains.Persistence
             string archive=Path.Combine("Worlds",previous.WorldId,"Snapshots",previous.Id+".json");
             if(!File.Exists(Path.Combine(DirectoryPath,archive))) AtomicWrite(archive,previous.Json);
         }
-        public void SaveCharacter(ActorState actor) => AtomicWrite("character.json", JsonUtility.ToJson(actor, true));
+        public void SaveCharacter(ActorState actor)
+        {
+            var saved=actor.Copy();
+            ContentProvenance.Record(ref saved.weaponContent,ref saved.weaponContentHistory);
+            AtomicWrite("character.json",JsonUtility.ToJson(saved,true));
+        }
         public ActorState LoadCharacter()
         {
             string path=Path.Combine(DirectoryPath,"character.json");

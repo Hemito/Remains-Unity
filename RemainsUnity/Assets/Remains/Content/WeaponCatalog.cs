@@ -23,6 +23,8 @@ namespace Remains.Content
     public static class WeaponCatalog
     {
         private static Dictionary<string,WeaponDefinition> definitions=new();
+        private static ContentManifest manifest;
+        public static ContentManifest ManifestCopy()=>manifest?.Copy() ?? throw new InvalidOperationException("Каталог контента ещё не загружен.");
         public static IEnumerable<WeaponDefinition> All => definitions.Values;
         public static string ModFingerprint { get; private set; }="";
         public static string ModDescription { get; private set; }="";
@@ -35,6 +37,7 @@ namespace Remains.Content
             if(asset==null) throw new InvalidOperationException("Не найдены определения оружия Content/weapons.");
             var loaded=WeaponCatalogLoader.Load(asset.text,Path.Combine(Application.streamingAssetsPath,"Mods"));
             definitions=loaded.definitions;
+            manifest=loaded.manifest;
             ModFingerprint=loaded.fingerprint;ModDescription=loaded.description;
         }
     }

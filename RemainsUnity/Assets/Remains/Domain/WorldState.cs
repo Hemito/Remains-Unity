@@ -18,6 +18,8 @@ namespace Remains.Domain
     [Serializable]
     public sealed class ActorState : ExtensibleState
     {
+        public Remains.Content.ContentManifest weaponContent;
+        public List<Remains.Content.ContentManifest> weaponContentHistory=new();
         public string id;
         public string character;
         public string owner;
@@ -65,6 +67,8 @@ namespace Remains.Domain
     [Serializable]
     public sealed class WorldState : ExtensibleState
     {
+        public Remains.Content.ContentManifest weaponContent;
+        public List<Remains.Content.ContentManifest> weaponContentHistory=new();
         [Newtonsoft.Json.JsonProperty(Required=Newtonsoft.Json.Required.Always)] public int schema = 1;
         [Newtonsoft.Json.JsonProperty(Required=Newtonsoft.Json.Required.Always)] public string worldId = Guid.NewGuid().ToString("N");
         public string branchId = Guid.NewGuid().ToString("N");

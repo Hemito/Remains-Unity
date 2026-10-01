@@ -11,6 +11,7 @@ namespace Remains.Content
     {
         public readonly Dictionary<string,WeaponDefinition> definitions=new();
         public string fingerprint,description;
+        public readonly ContentManifest manifest=new();
     }
     public static class WeaponCatalogLoader
     {
@@ -18,6 +19,7 @@ namespace Remains.Content
         {
             var result=new LoadedWeaponCatalog();var sources=new Dictionary<string,string>();
             Apply(result,sources,baseJson,"base",Array.Empty<WeaponOverride>());
+            result.manifest.packs.Add(new ContentPackRecord {id="base",version="prototype-content-v2",fingerprint=Hash(baseJson),dependencies=Array.Empty<string>()});
             string root=Path.GetFullPath(modRoot),orderPath=Path.Combine(root,"load-order.json");
             var signature=new StringBuilder("prototype-content-v2").Append(baseJson);
             var description=new StringBuilder("Базовый контент v2");var loaded=new HashSet<string>();
@@ -47,6 +49,8 @@ namespace Remains.Content
                         string data=File.Exists(path)?File.ReadAllText(path):"{\"weapons\":[]}";
                         Apply(result,sources,data,source,manifest.weaponOverrides??Array.Empty<WeaponOverride>());
                         loaded.Add(source);signature.Append('\n').Append(manifestJson).Append('\n').Append(data);
+                        result.manifest.packs.Add(new ContentPackRecord {id=source,version=manifest.version,
+                            fingerprint=Hash(manifestJson+"\n"+data),dependencies=manifest.dependencies??Array.Empty<string>()});
                         description.Append('\n').Append(index+1).Append(". ").Append(source).Append(" · ").Append(manifest.version);
                         foreach(var replacement in manifest.weaponOverrides??Array.Empty<WeaponOverride>())
                             description.Append("; замена ").Append(replacement.id).Append(" из ").Append(replacement.source);
@@ -57,8 +61,11 @@ namespace Remains.Content
             }
             using var hash=SHA256.Create();
             result.fingerprint=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(signature.ToString()))).Replace("-","");
+            result.manifest.fingerprint=result.fingerprint;
             result.description=description.ToString();return result;
         }
+        private static string Hash(string text)
+        {using var hash=SHA256.Create();return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-","");}
         private static void Apply(LoadedWeaponCatalog result,Dictionary<string,string> sources,string json,string source,WeaponOverride[] declarations)
         {
             var overrides=new Dictionary<string,string>();

@@ -29,6 +29,17 @@ namespace Remains.Editor
             File.WriteAllText(Path.Combine(root,"second/manifest.json"),Manifest("second","first"));
             var chained=WeaponCatalogLoader.Load(original,root);
             Require(chained.definitions["pistol"].damage==11 && chained.fingerprint!=accepted.fingerprint,"Цепочка явных замен и отпечаток");
+            Require(chained.manifest.packs.Count==3 && chained.manifest.packs[0].id=="base" && chained.manifest.packs[1].id=="first" &&
+                chained.manifest.packs[2].id=="second" && chained.manifest.packs[2].version=="1" && chained.manifest.fingerprint==chained.fingerprint,
+                "Структурированный манифест сохраняет порядок, версии и отпечаток");
+            var previous=accepted.manifest.Copy();
+            previous.extensions=new System.Collections.Generic.Dictionary<string,Newtonsoft.Json.Linq.JToken> {{"mod:unknown","kept"}};
+            var history=new System.Collections.Generic.List<ContentManifest>();
+            Remains.Persistence.ContentProvenance.Record(ref previous,ref history);
+            Require(history.Count==1 && (string)history[0].extensions["mod:unknown"]=="kept" && previous.fingerprint==WeaponCatalog.ModFingerprint,
+                "Прежний манифест с неизвестными полями сохраняется в истории");
+            Remains.Persistence.ContentProvenance.Record(ref previous,ref history);
+            Require(history.Count==1,"Повторное сохранение не раздувает историю контента");
             File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[]}");
             Reject(()=>WeaponCatalogLoader.Load(original,root),"не содержит определения");
             File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[{\"id\":\"pistol\",\"range\":20,\"cooldown\":1},{\"id\":\"pistol\",\"range\":20,\"cooldown\":1}]}");
