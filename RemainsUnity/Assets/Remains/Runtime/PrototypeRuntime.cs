@@ -26,6 +26,8 @@ namespace Remains.Runtime
         public SimulationGeometry Geometry { get; private set; }
         public GameplayAudio Audio {get;private set;}
         public AreaMusic Music {get;private set;}
+        public DamageFeedback DamageFeedback {get;private set;}
+        public DamageNumbers DamageNumbers {get;private set;}
         public System.Func<PlayerCommand> CommandSource { get; set; }
         public PrototypeHud Hud => hud;
         private MovementController movement;
@@ -77,6 +79,8 @@ namespace Remains.Runtime
             DontDestroyOnLoad(gameObject);
             Geometry=new SimulationGeometry(Session);
             Combat=new CombatController(Session,Geometry);
+            DamageFeedback=new DamageFeedback(Session);Combat.DamageApplied+=DamageFeedback.Publish;
+            DamageNumbers=new GameObject("Числа урона").AddComponent<DamageNumbers>();DamageNumbers.Initialize(Session,DamageFeedback);
             Revival=new RevivalController(Session);
             Interactions=new InteractionAdapter(Session);
             Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);

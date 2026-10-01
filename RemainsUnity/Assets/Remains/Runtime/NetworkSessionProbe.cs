@@ -24,6 +24,8 @@ namespace Remains.Runtime
         private bool grenadeRequested,blastAfterTravel;
         private bool inventoryActionPending;
         private int inventoryHeals,inventoryWeaponChanges;
+        private string grenadeAttack;
+        private int grenadeReceipts,grenadeNumbers;
         private string completedActor;
         private string retainedContents,retainedActors;
         private int visualChangedFrame;
@@ -40,12 +42,19 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+60;
+            // Duplicate only the cosmetic receipt; gameplay is never replayed here.
+            value.Combat.DamageApplied+=result=>value.DamageFeedback.Publish(result);
+            value.DamageFeedback.Received+=result=>{if(result.attack==grenadeAttack) grenadeReceipts++;};
+            value.DamageNumbers.Shown+=result=>{if(result.attack==grenadeAttack) grenadeNumbers++;};
             value.Session.Changed+=()=>visualChangedFrame=Time.frameCount;
             runtime.CommandSource=Command;
             value.Session.AttackReceived+=attack=>
             {
                 if(attack.weapon=="grenade" && attack.attacker=="player:session-host")
+                {
+                    grenadeAttack=attack.id;
                     blastAfterTravel=attack.level=="hub" && value.Session.World.Find(attack.attacker)?.level=="factory:0";
+                }
             };
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<SessionProbePhase>(message=>
             {phase=message.phase;phaseTime=Time.unscaledTime;acked=false;travelRequested=false;if(phase==7) completedActor=value.Session.LocalActorId;});
@@ -138,6 +147,13 @@ namespace Remains.Runtime
                 _=>false
             };
             if(!ready) return;
+            if(phase==1)
+            {
+                if(grenadeReceipts<runtime.Options.ProbePeers-1) return;
+                int displayed=Host?0:runtime.Options.ProbePeers-1;
+                if(grenadeReceipts!=runtime.Options.ProbePeers-1 || grenadeNumbers!=displayed)
+                {Finish(false,$"Числа урона взрыва: receipts={grenadeReceipts}, displayed={grenadeNumbers}/{displayed}.");return;}
+            }
             // Unity destroys objects and their owned materials at frame boundaries.
             if(Time.frameCount<=visualChangedFrame+2 || runtime.ReleasingUnusedAssets) return;
             if(!runtime.Geometry.LoadedLevels.OrderBy(l=>l).SequenceEqual(players.Select(a=>a.level).Distinct().OrderBy(l=>l)))

@@ -20,6 +20,7 @@ namespace Remains.Domain
 
     public sealed class DamageReceiver
     {
+        public event System.Action<DamageResult> Applied;
         private readonly IDamageRule rules;
         private readonly IKnockdownRule knockdown;
         public DamageReceiver(IDamageRule rules,IKnockdownRule knockdown=null)
@@ -39,6 +40,8 @@ namespace Remains.Domain
             actor.down |= enter;
             actor.revision++;
             if (actor.down) ActorPose.Select(actor,"down");
+            if(actor.health<previousHealth) Applied?.Invoke(new DamageResult {attack=attack.id,actor=actor.id,level=actor.level,
+                generation=actor.generation,amount=previousHealth-actor.health,x=actor.x,y=actor.y});
             return true;
         }
     }

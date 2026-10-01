@@ -16,6 +16,7 @@ namespace Remains.Gameplay
         public int AttackerDecidedHits {get;private set;}
         public int VictimDecidedHits {get;private set;}
         public event Action<string> NpcReplayRejected;
+        public event Action<DamageResult> DamageApplied;
         private readonly SimulationTimer shotCooldown=new();
         public float ShotCooldownRemaining=>shotCooldown.Remaining;
         private ActorState swingActor;
@@ -39,7 +40,7 @@ namespace Remains.Gameplay
         {
             this.session = session;
             this.geometry=geometry;
-            session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);AttackerDecidedHits=VictimDecidedHits=0;};
+            session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);damage.Applied+=result=>DamageApplied?.Invoke(result);AttackerDecidedHits=VictimDecidedHits=0;};
             Reload=new WeaponReloadController(session);
             session.AttackReceived += ReceiveAttack;
             session.NpcHitReceived += ReceiveNpcHit;
