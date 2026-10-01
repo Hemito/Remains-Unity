@@ -18,9 +18,9 @@ namespace Remains.Editor
             var actor=new ActorState {x=0,y=0};movement.Step(actor,Vector2.zero,true,.05f);
             Require(actor.y>0 && actor.vy>0,"Прыжок от пола");
             actor=new ActorState();movement.Step(actor,Vector2.right,false,.02f);
-            Require(actor.pose=="walk" && actor.vx==2.5f,"По умолчанию ходьба");
+            Require(actor.pose=="walk" && Mathf.Abs(actor.vx-4.2f)<.001f,"Базовая ходьба по данным оригинала");
             movement.Step(actor,Vector2.right,false,.02f,true);
-            Require(actor.pose=="run" && actor.vx==4,"Бег включается отдельно");
+            Require(actor.pose=="run" && Mathf.Abs(actor.vx-8.4f)<.001f,"Базовый бег вдвое быстрее ходьбы");
             actor.x=3;actor.y=4;actor.vy=-10;movement.Step(actor,Vector2.zero,false,.1f);
             Require(Mathf.Abs(actor.y-3.25f)<.001f && actor.pose=="idle","Приземление на верхнюю платформу");
 

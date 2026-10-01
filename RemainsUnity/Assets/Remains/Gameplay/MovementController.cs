@@ -1,4 +1,5 @@
 using Remains.Domain;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Gameplay
@@ -7,9 +8,14 @@ namespace Remains.Gameplay
     {
         public const float Gravity = WorldPhysics.Gravity;
         private readonly RoomLayout room;
-        private readonly ReleasedTapGesture downTap=new(5f/30);
+        private readonly ReleasedTapGesture downTap;
+        private readonly MovementSettings settings;
         private float? droppedSurface;
-        public MovementController(RoomLayout room) => this.room=room;
+        public MovementController(RoomLayout room,MovementSettings settings=null)
+        {
+            this.room=room;this.settings=settings??MovementSettings.Load();this.settings.Validate();
+            downTap=new ReleasedTapGesture(this.settings.doubleTapSeconds);
+        }
         public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false)
         {
             ActorPositionRecovery.Repair(actor,room,"движение");
@@ -22,17 +28,17 @@ namespace Remains.Gameplay
             bool ladder = selected!=null && Mathf.Abs(input.y) > 0.1f;
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
-            if(drop) { droppedSurface=actor.y;actor.vy=-6;ladder=false; }
-            actor.vx = input.x * (sprint ? 4 : 2.5f);
+            if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
+            actor.vx = input.x * (sprint ? settings.runSpeed : settings.walkSpeed);
             if (input.x != 0) actor.facing = input.x > 0 ? 1 : -1;
             if (ladder)
             {
-                actor.vy = input.y * 3;
-                if(Mathf.Abs(input.x)<.1f && dt>0) actor.vx=Mathf.Clamp((selected.x+selected.movementOffset-actor.x)/dt,-2.5f,2.5f);
+                actor.vy = input.y * settings.climbSpeed;
+                if(Mathf.Abs(input.x)<.1f && dt>0) actor.vx=Mathf.Clamp((selected.x+selected.movementOffset-actor.x)/dt,-settings.walkSpeed,settings.walkSpeed);
             }
             else
             {
-                if (jump && grounded && !drop) actor.vy = 8;
+                if (jump && grounded && !drop) actor.vy = settings.jumpSpeed;
                 actor.vy -= Gravity * dt;
             }
             var desired=actor.Velocity*dt;
