@@ -18,5 +18,10 @@ namespace Remains.Presentation
                 throw new InvalidOperationException($"Материал спрайта не подготовлен: {sprite.texture.name}, объект={renderer.name}.");
             renderer.sharedMaterial=material;renderer.sprite=sprite;
         }
+        public static void SetSelfIlluminated(SpriteRenderer renderer)
+        {
+            var properties=new MaterialPropertyBlock();renderer.GetPropertyBlock(properties);
+            properties.SetFloat("_Emission",1);renderer.SetPropertyBlock(properties);
+        }
     }
 }

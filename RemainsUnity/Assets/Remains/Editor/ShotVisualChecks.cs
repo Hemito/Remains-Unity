@@ -36,13 +36,33 @@ namespace Remains.Editor
             camera.orthographicSize=3;camera.transform.position=new Vector3(3,.5f,-10);camera.backgroundColor=new Color(.10f,.11f,.12f);
             var target=new RenderTexture(1200,900,24);target.Create();camera.targetTexture=target;
             var image=new Texture2D(1200,900,TextureFormat.RGBA32,false);
+            var control=new GameObject("Контроль освещения").AddComponent<SpriteRenderer>();
+            var controlSprite=Sprite.Create(Texture2D.whiteTexture,new Rect(0,0,Texture2D.whiteTexture.width,Texture2D.whiteTexture.height),new Vector2(.5f,.5f),Texture2D.whiteTexture.width);
+            SpriteArtworkMaterial.Prepare(controlSprite);SpriteArtworkMaterial.Apply(control,controlSprite);
+            control.transform.position=new Vector3(6,2,0);control.transform.localScale=Vector3.one*.4f;
             try
             {
+                Shader.SetGlobalFloat("_WorldLightEnabled",0);
                 camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,1200,900),0,0);image.Apply();
                 string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/shot-visuals.png"));
-                File.WriteAllBytes(path,image.EncodeToPNG());Debug.Log("Эффекты выстрелов: PASS — границы и кадр "+path);
+                File.WriteAllBytes(path,image.EncodeToPNG());var bright=image.GetPixels32();
+                Shader.SetGlobalTexture("_WorldLightMap",Texture2D.blackTexture);
+                Shader.SetGlobalVector("_WorldLightBounds",new Vector4(-10,-10,.05f,.05f));Shader.SetGlobalFloat("_WorldLightEnabled",1);
+                camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,1200,900),0,0);image.Apply();
+                var dark=image.GetPixels32();
+                int changed=0;
+                for(int y=0;y<900;y++) for(int x=0;x<950;x++)
+                {
+                    var a=bright[y*1200+x];var b=dark[y*1200+x];
+                    if(Math.Abs(a.r-b.r)>1 || Math.Abs(a.g-b.g)>1 || Math.Abs(a.b-b.b)>1) changed++;
+                }
+                Require(changed==0,$"Освещение затемняет эффекты: изменено пикселей {changed}.");
+                var point=camera.WorldToViewportPoint(control.transform.position);int index=(int)(point.y*900)*1200+(int)(point.x*1200);
+                Require(bright[index].r-dark[index].r>100,"Контрольный предмет не реагирует на освещение; сравнение недостоверно.");
+                File.WriteAllBytes(Path.ChangeExtension(path,"dark.png"),image.EncodeToPNG());
+                Debug.Log("Эффекты выстрелов: PASS — границы, кадры, неизменная яркость в темноте, обычный предмет затемняется: "+path);
             }
-            finally {RenderTexture.active=null;camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);}
+            finally {Shader.SetGlobalFloat("_WorldLightEnabled",0);RenderTexture.active=null;camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);}
         }
         private static void Require(bool valid,string message)
         {if(!valid) throw new InvalidOperationException(message);}

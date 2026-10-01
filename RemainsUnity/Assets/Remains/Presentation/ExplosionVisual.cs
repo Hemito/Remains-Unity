@@ -14,7 +14,7 @@ namespace Remains.Presentation
         {
             this.artwork=artwork;this.session=session;this.level=level;transform.position=position;
             view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=ActorVisualLayers.EffectOrder;
-            var properties=new MaterialPropertyBlock();properties.SetFloat("_Emission",1);view.SetPropertyBlock(properties);
+            SpriteArtworkMaterial.SetSelfIlluminated(view);
             Draw(0);
         }
         public bool Draw(float elapsed)

@@ -20,6 +20,7 @@ namespace Remains.Presentation
             origin=attack.Origin;var delta=Vector2.Lerp(attack.Origin,attack.End,Mathf.Clamp01(limit))-origin;
             distance=delta.magnitude;direction=delta.normalized;contact=limit<1;
             view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=ActorVisualLayers.EffectOrder;
+            SpriteArtworkMaterial.SetSelfIlluminated(view);
             transform.rotation=Quaternion.Euler(0,0,Mathf.Atan2(direction.y,direction.x)*Mathf.Rad2Deg);
             Draw(0);
         }
