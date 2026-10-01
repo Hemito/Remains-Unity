@@ -43,9 +43,7 @@ namespace Remains.Serialization
         {
             try
             {
-                JsonNumberPrecision.Validate(json);
-                using var reader=new JsonTextReader(new System.IO.StringReader(json))
-                {DateParseHandling=DateParseHandling.None,FloatParseHandling=FloatParseHandling.Decimal,MaxDepth=128};
+                using var reader=new JsonNumberPrecision.Reader(json);
                 var token=JToken.Load(reader,new JsonLoadSettings {DuplicatePropertyNameHandling=DuplicatePropertyNameHandling.Error});
                 if(reader.Read()) throw new JsonReaderException("После состояния обнаружены дополнительные данные.");
                 CheckFieldNames(typeof(T),token);
@@ -55,6 +53,12 @@ namespace Remains.Serialization
         }
         private static void CheckFieldNames(Type type,JToken token)
         {
+            if(token is JValue number && number.Value is double binary)
+            {
+                if(type!=typeof(float) && type!=typeof(double) || type==typeof(float) &&
+                    (float.IsInfinity((float)binary) || binary!=0 && (float)binary==0))
+                    throw new System.IO.InvalidDataException($"Число JSON вне точного диапазона поля {type.Name}: {token.Path}. Неизвестные числовые данные вне Decimal храните строкой.");
+            }
             var contract=settings.ContractResolver.ResolveContract(type);
             if(contract is JsonArrayContract array && token is JArray items)
                 foreach(var item in items) CheckFieldNames(array.CollectionItemType,item);
@@ -62,11 +66,17 @@ namespace Remains.Serialization
             foreach(var property in source.Properties())
             {
                 var field=shape.Properties.GetClosestMatchProperty(property.Name);
-                if(field==null || field.Ignored) continue;
+                if(field==null || field.Ignored) {CheckUnknownNumbers(property.Value);continue;}
                 if(field.PropertyName!=property.Name)
                     throw new System.IO.InvalidDataException($"Неоднозначное имя поля {property.Name}: поле {type.Name}.{field.PropertyName} отличается регистром.");
                 CheckFieldNames(field.PropertyType,property.Value);
             }
+        }
+        private static void CheckUnknownNumbers(JToken token)
+        {
+            if(token is JValue value && value.Value is double)
+                throw new System.IO.InvalidDataException($"Неизвестное число нельзя сохранить без потери точности: {token.Path}. Используйте строку для значений вне Decimal.");
+            foreach(var child in token.Children()) CheckUnknownNumbers(child);
         }
         public static T Copy<T>(T value)=>FromJson<T>(ToJson(value));
     }

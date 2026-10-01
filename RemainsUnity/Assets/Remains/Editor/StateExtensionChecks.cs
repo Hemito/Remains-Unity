@@ -13,6 +13,14 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            foreach(float speed in new[]{1e-29f,-1e-38f,float.Epsilon,float.MaxValue})
+            {
+                var moving=new ActorState {id="tiny-speed",vx=speed};
+                Require(StateJson.Copy(moving).vx==speed,"Полный конечный диапазон float сохраняется без потери значения");
+            }
+            bool tinyRejected=false;
+            try {StateJson.FromJson<ActorState>("{\"mod:tiny\":1e-40}");} catch(InvalidDataException) {tinyRejected=true;}
+            Require(tinyRejected,"Неизвестный малый decimal не обнуляется молча");
             var world=new WorldState();
             var actor=new ActorState {id="a",character="a",player=true,connected=true,loadoutVersion=1};
             actor.inventory.Add(SharedInventory.Create("p10",8));world.actors.Add(actor);
