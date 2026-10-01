@@ -61,7 +61,7 @@ namespace Remains.Gameplay
             foreach(var flight in flights)
             {
                 var state=flight.state;
-                if(state.owner==null || !session.World.actors.Any(a=>a.player && a.connected && a.level==state.level)) continue;
+                if(state.owner==null || !LevelActivity.HasConnectedPlayer(session.World,state.level)) continue;
                 if(state.remaining>0) GrenadeRules.Step(state,flight.room,dt);
                 if(state.remaining<=0)
                 {
