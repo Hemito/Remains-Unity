@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using JsonUtility=Remains.Serialization.StateJson;
 
 namespace Remains.Domain
 {
     [Serializable]
-    public sealed class GrenadeState
+    public sealed class GrenadeState : Remains.Serialization.ExtensibleState
     {
         public string id,attacker,level,owner;
         public bool sourcePlayer;
@@ -20,7 +21,7 @@ namespace Remains.Domain
             weapon="grenade",originX=x,originY=y,endX=x,endY=y};
     }
     [Serializable]
-    public sealed class ExplosionState
+    public sealed class ExplosionState : Remains.Serialization.ExtensibleState
     {
         public AttackEvent attack;
         public bool friendlyFire;

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Remains.Domain
 {
     [Serializable]
-    public sealed class ContainerState
+    public sealed class ContainerState : Remains.Serialization.ExtensibleState
     {
         public const string PrototypeId="container:prototype";
         public string id=PrototypeId,level="factory:0";

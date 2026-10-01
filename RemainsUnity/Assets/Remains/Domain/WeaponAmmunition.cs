@@ -4,7 +4,7 @@ using Remains.Content;
 
 namespace Remains.Domain
 {
-    [Serializable] public sealed class WeaponMagazine { public string weapon; public int rounds; }
+    [Serializable] public sealed class WeaponMagazine : Remains.Serialization.ExtensibleState { public string weapon; public int rounds; }
 
     public static class WeaponAmmunition
     {

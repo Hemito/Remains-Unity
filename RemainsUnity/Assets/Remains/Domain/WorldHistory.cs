@@ -5,7 +5,7 @@ using System.Linq;
 namespace Remains.Domain
 {
     [Serializable]
-    public sealed class WorldAncestor
+    public sealed class WorldAncestor : Remains.Serialization.ExtensibleState
     {
         public string branchId;
         public long sequence;
@@ -20,6 +20,8 @@ namespace Remains.Domain
         public static void BeginContinuation(WorldState world)
         {
             world.ancestors ??= new List<WorldAncestor>();
+            if(world.historyVersion!=0 && world.historyVersion!=1 || world.historyVersion==0 && world.ancestors.Count>0)
+                throw new System.IO.InvalidDataException($"Неподдерживаемая история мира: world={world.worldId}, version={world.historyVersion}, ancestors={world.ancestors.Count}. Исходные данные не сброшены.");
             if(world.historyVersion==1)
                 world.ancestors.Add(new WorldAncestor {branchId=world.branchId,sequence=world.checkpointSequence});
             else world.ancestors.Clear();

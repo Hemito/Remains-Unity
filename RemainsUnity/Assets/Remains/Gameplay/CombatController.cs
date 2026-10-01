@@ -1,3 +1,4 @@
+using JsonUtility=Remains.Serialization.StateJson;
 using System;
 using System.Linq;
 using Remains.Domain;

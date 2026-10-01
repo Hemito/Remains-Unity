@@ -1,3 +1,4 @@
+using JsonUtility=Remains.Serialization.StateJson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -269,6 +270,7 @@ namespace Remains.Networking
                     NpcAttackRules.CopyProgress(local,actor);
                     if (local.revision > actor.revision)
                     {
+                        actor.extensions=local.extensions;
                         actor.attackId=local.attackId;actor.attackTarget=local.attackTarget;actor.attackBusy=local.attackBusy;
                         actor.attackRemaining=local.attackRemaining;actor.attackCooldown=local.attackCooldown;
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;

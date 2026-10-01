@@ -1,19 +1,22 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Remains.Serialization;
+using JsonUtility=Remains.Serialization.StateJson;
 
 namespace Remains.Domain
 {
     [Serializable]
-    public sealed class ItemStack
+    public sealed class ItemStack : ExtensibleState
     {
         public string id;
         public string definition;
         public int count;
+        public ItemStack Copy()=>StateJson.Copy(this);
     }
 
     [Serializable]
-    public sealed class ActorState
+    public sealed class ActorState : ExtensibleState
     {
         public string id;
         public string character;
@@ -57,13 +60,13 @@ namespace Remains.Domain
         public ActorState Copy() => JsonUtility.FromJson<ActorState>(JsonUtility.ToJson(this));
     }
 
-    [Serializable] public sealed class InjuryState { public string id; public bool periodicDamage; }
+    [Serializable] public sealed class InjuryState : ExtensibleState { public string id; public bool periodicDamage; }
 
     [Serializable]
-    public sealed class WorldState
+    public sealed class WorldState : ExtensibleState
     {
-        public int schema = 1;
-        public string worldId = Guid.NewGuid().ToString("N");
+        [Newtonsoft.Json.JsonProperty(Required=Newtonsoft.Json.Required.Always)] public int schema = 1;
+        [Newtonsoft.Json.JsonProperty(Required=Newtonsoft.Json.Required.Always)] public string worldId = Guid.NewGuid().ToString("N");
         public string branchId = Guid.NewGuid().ToString("N");
         public int historyVersion;
         public long checkpointSequence;
@@ -84,7 +87,7 @@ namespace Remains.Domain
     }
 
     [Serializable]
-    public sealed class PropState
+    public sealed class PropState : ExtensibleState
     {
         public string id;
         public string owner;
@@ -97,7 +100,7 @@ namespace Remains.Domain
     }
 
     [Serializable]
-    public sealed class PendingGrant
+    public sealed class PendingGrant : ExtensibleState
     {
         public string transaction;
         public string recipient;
@@ -107,7 +110,7 @@ namespace Remains.Domain
     }
 
     [Serializable]
-    public sealed class AttackEvent
+    public sealed class AttackEvent : ExtensibleState
     {
         public string id;
         public string attacker;

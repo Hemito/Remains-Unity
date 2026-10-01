@@ -4,8 +4,8 @@ using System.Linq;
 
 namespace Remains.Domain
 {
-    [Serializable] public sealed class ItemDebit { public string item; public int count; }
-    [Serializable] public sealed class InventoryUse { public string id; public List<ItemDebit> debits=new(); }
+    [Serializable] public sealed class ItemDebit : Remains.Serialization.ExtensibleState { public string item; public int count; }
+    [Serializable] public sealed class InventoryUse : Remains.Serialization.ExtensibleState { public string id; public List<ItemDebit> debits=new(); }
 
     public static class InventoryJournal
     {
@@ -30,7 +30,7 @@ namespace Remains.Domain
         // Rebase owner debits on the authoritative inventory, preserving concurrent grants.
         public static bool Merge(ActorState authoritative,ActorState owner,out List<ItemStack> inventory,out List<InventoryUse> uses)
         {
-            inventory=authoritative.inventory.Select(i=>new ItemStack {id=i.id,definition=i.definition,count=i.count}).ToList();
+            inventory=authoritative.inventory.Select(i=>i.Copy()).ToList();
             uses=new List<InventoryUse>(authoritative.inventoryUses);
             var accepted=new HashSet<string>(uses.Select(u=>u.id));
             foreach(var use in owner.inventoryUses)
