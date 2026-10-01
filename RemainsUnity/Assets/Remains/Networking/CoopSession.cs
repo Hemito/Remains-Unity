@@ -20,6 +20,12 @@ namespace Remains.Networking
         public ActorState LocalActor => World?.Find(LocalActorId);
         public SaveStore Saves { get; set; }
         public CharacterContentGate CharacterContent {get;}=new();
+        public GameplayRuleSet Rules {get;private set;}=GameplayRuleSet.CreateDefault();
+        public void ConfigureRules(GameplayRuleSet rules)
+        {
+            if(NetworkServer.active || NetworkClient.active) throw new InvalidOperationException("Нельзя менять правила во время подключения или игры.");
+            Rules=rules??throw new ArgumentNullException(nameof(rules));
+        }
         public string CharacterId { get; set; }
         public event Action Changed;
         public event Action<AttackEvent> AttackReceived;
@@ -514,8 +520,8 @@ namespace Remains.Networking
         {
             if (!NetworkServer.active || ServerWorld == null) return;
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
-            if(PartyRules.ResolveDefeat(ServerWorld))
-                NetworkServer.SendToAll(new NoticeMessage {text="Вся группа без сознания. Возвращение в хаб с 1 HP."});
+            if(PartyRules.ResolveDefeat(ServerWorld,Rules.PartyDefeat))
+                NetworkServer.SendToAll(new NoticeMessage {text=Rules.PartyDefeat.Notice});
             ServerWorld.revision++;
             Saves.SaveWorld(ServerWorld);
             BroadcastWorld();

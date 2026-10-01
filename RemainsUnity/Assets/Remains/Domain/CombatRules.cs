@@ -22,15 +22,23 @@ namespace Remains.Domain
     {
         private readonly HashSet<string> applied = new();
         private readonly IDamageRule rules;
-        public DamageReceiver(IDamageRule rules) => this.rules = rules;
+        private readonly IKnockdownRule knockdown;
+        public DamageReceiver(IDamageRule rules,IKnockdownRule knockdown=null)
+        {this.rules=rules;this.knockdown=knockdown??new ZeroHealthKnockdownRule();}
 
         public bool Apply(ActorState actor, AttackEvent attack, bool contact)
         {
-            if (!AttackScope.Includes(attack,actor) || !contact || actor.health <= 0 || !applied.Add(attack.id + ":" + actor.id)) return false;
+            string key=attack.id+":"+actor.id;
+            if (!AttackScope.Includes(attack,actor) || !contact || actor.health <= 0 || applied.Contains(key)) return false;
             float previousHealth=actor.health;
-            actor.health = Mathf.Max(0, actor.health - rules.Calculate(attack.weapon, attack.speed));
+            float amount=rules.Calculate(attack.weapon,attack.speed);
+            if(float.IsNaN(amount) || float.IsInfinity(amount) || amount<0)
+                throw new System.InvalidOperationException($"Правило урона вернуло некорректное значение: actor={actor.id}, attack={attack.id}, damage={amount}.");
+            float remaining=Mathf.Max(0,previousHealth-amount);
+            bool enter=knockdown.ShouldEnter(new KnockdownContext(previousHealth,remaining,actor.player));
+            applied.Add(key);actor.health=remaining;
             if(actor.health<previousHealth) actor.damageSequence++;
-            actor.down |= actor.health <= 0;
+            actor.down |= enter;
             actor.revision++;
             if (actor.down) ActorPose.Select(actor,"down");
             return true;

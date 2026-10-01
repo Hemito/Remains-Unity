@@ -11,7 +11,7 @@ namespace Remains.Gameplay
     public sealed class CombatController
     {
         private readonly CoopSession session;
-        private readonly DamageReceiver damage = new(new PrototypeDamageRule());
+        private DamageReceiver damage;
         private float nextShot;
         private ActorState swingActor;
         private MeleeSweep swingSweep;
@@ -29,6 +29,7 @@ namespace Remains.Gameplay
         public CombatController(CoopSession session)
         {
             this.session = session;
+            session.ClientReady+=()=>damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);
             Reload=new WeaponReloadController(session);
             session.AttackReceived += ReceiveAttack;
             session.NpcHitReceived += ReceiveNpcHit;
