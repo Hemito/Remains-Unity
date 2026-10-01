@@ -19,6 +19,13 @@ namespace Remains.Editor
         }
         public static void Run()
         {
+            var target=new ActorState {id="friend",player=true};
+            var direct=new AttackEvent {attacker="other",weapon="pistol",sourcePlayer=true,friendlyFireDecision=FriendlyFireDecision.Attacker};
+            Require(FriendlyFireDecision.UsesAttacker(direct,target),"Прямое попадание игрока по союзнику может решать атакующий");
+            direct.weapon="grenade";Require(!FriendlyFireDecision.UsesAttacker(direct,target),"Граната всегда остаётся решением пострадавшего");
+            direct.weapon="pistol";direct.sourcePlayer=false;Require(!FriendlyFireDecision.UsesAttacker(direct,target),"NPC не получает право решать попадание по игроку");
+            Require(StateJson.FromJson<WorldState>(StateJson.ToJson(new WorldState {friendlyFireDecision=FriendlyFireDecision.Attacker})).friendlyFireDecision==FriendlyFireDecision.Attacker,
+                "Политика сохраняется в мире");
             var amount=new FixedDamage();var receiver=new DamageReceiver(amount,new EarlyDown());
             var actor=new ActorState {id="victim",player=true};
             var attack=new AttackEvent {id="hit",weapon="pistol",level=actor.level};

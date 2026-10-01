@@ -44,6 +44,7 @@ namespace Remains.Presentation
         public Func<bool> RevivalPending {get;set;}
         private readonly HashSet<string> missingMagazines=new();
         private Button friendlyFire;
+        private Button friendlyDecision;
         private Button leave;
         private Button factory;
         public event Action HostRequested;
@@ -94,6 +95,9 @@ namespace Remains.Presentation
             ApplyOriginalImage(personalPanel.GetComponent<Image>(),"inventory-panel",false);
             personalItems=Label(personalPanel.transform,"",new Vector2(20,-20),new Vector2(320,340));
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-550),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
+            friendlyDecision=Button(transform,"Решение о попадании",new Vector2(320,-550),new Vector2(450,45),()=>
+                session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
+            friendlyDecision.gameObject.SetActive(false);
             leave=Button(transform,"Сохранить и выйти из сессии",new Vector2(20,-600),new Vector2(290,45),()=>
             {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
@@ -121,6 +125,7 @@ namespace Remains.Presentation
         private void Refresh()
         {
             var actor = session.LocalActor;
+            friendlyDecision.gameObject.SetActive(actor!=null && Mirror.NetworkServer.active);
             if (actor == null)
             {lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             lobby.SetActive(false);
@@ -128,6 +133,8 @@ namespace Remains.Presentation
             factory.gameObject.SetActive(actor.level=="hub" || actor.level=="factory:0");
             factory.GetComponentInChildren<Text>().text=actor.level=="hub"?"На завод 0":"Вернуться в хаб";
             friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
+            friendlyDecision.interactable=session.World.friendlyFire;
+            friendlyDecision.GetComponentInChildren<Text>().text="Прямое попадание решает: "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");
             status.text = $"{actor.character} · здоровье {actor.health:0}/100 · {(actor.down ? "Без сознания" : "В сознании")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count} · {(actor.level=="hub"?"Хаб": "Завод 0")}\n1 — копьё · 2 — лом · 3 — 10-мм пистолет · 4 — лазерный пистолет · R — перезарядка";
             RefreshAmmunition();
             healthBar.fillAmount=Mathf.Clamp01(actor.health/100);

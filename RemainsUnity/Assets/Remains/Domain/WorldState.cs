@@ -78,6 +78,7 @@ namespace Remains.Domain
         public long revision;
         public int seed = 104;
         public bool friendlyFire = true;
+        public string friendlyFireDecision=FriendlyFireDecision.Victim;
         public List<ActorState> actors = new();
         public List<ContainerState> containers = new();
         public List<ItemStack> container; // Legacy schema: read only by explicit migration.
@@ -117,6 +118,7 @@ namespace Remains.Domain
     [Serializable]
     public sealed class AttackEvent : ExtensibleState
     {
+        public string friendlyFireDecision=FriendlyFireDecision.Victim;
         public string id;
         public string attacker;
         public string level;

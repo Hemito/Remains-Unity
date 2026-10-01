@@ -31,6 +31,7 @@ namespace Remains.Networking
         public event Action<AttackEvent> AttackReceived;
         public event Action<string> Notice;
         public event Action<NpcHitMessage> NpcHitReceived;
+        public event Action<FriendlyHitMessage> FriendlyHitReceived;
         public event Action ServerReady;
         public event Action ClientReady;
         public event Action<string> ModMismatch;
@@ -68,6 +69,7 @@ namespace Remains.Networking
             NetworkServer.RegisterHandler<PoseMessage>(UpdatePose);
             NetworkServer.RegisterHandler<AttackMessage>(RelayAttack);
             NetworkServer.RegisterHandler<NpcHitMessage>(RelayNpcHit);
+            NetworkServer.RegisterHandler<FriendlyHitMessage>(RelayFriendlyHit);
             NetworkServer.RegisterHandler<ClaimMessage>(Claim);
             NetworkServer.RegisterHandler<ReviveMessage>(Revive);
             NetworkServer.RegisterHandler<BackupAckMessage>((connection, ack) =>
@@ -94,6 +96,7 @@ namespace Remains.Networking
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
+            FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             WorldHistory.BeginContinuation(ServerWorld);
             GrenadeRules.BeginSession(ServerWorld);
             recoveredActors.Clear();
@@ -140,6 +143,7 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<PoseMessage>(ReceivePose);
             NetworkClient.RegisterHandler<AttackMessage>(message => AttackReceived?.Invoke(JsonUtility.FromJson<AttackEvent>(message.json)));
             NetworkClient.RegisterHandler<NpcHitMessage>(message => NpcHitReceived?.Invoke(message));
+            NetworkClient.RegisterHandler<FriendlyHitMessage>(message=>FriendlyHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
             NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(message.description));
             NetworkClient.RegisterHandler<HealingReplyMessage>(message=>{HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);});
@@ -429,15 +433,29 @@ namespace Remains.Networking
             if(string.IsNullOrEmpty(attack.level) || (attack.weapon!="grenade" && attack.level!=ServerWorld.Find(attack.attacker).level))
             { Debug.LogWarning($"Атака без корректной локации отклонена: id={attack.id}, actor={attack.attacker}, level={attack.level}.");return; }
             attack.sourceOwner=owner;attack.sourcePlayer=ServerWorld.Find(attack.attacker).player;
+            attack.friendlyFireDecision=ServerWorld.friendlyFireDecision;
             NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }
 
         public void ReportNpcHit(NpcHitMessage message) => NetworkClient.Send(message);
+        public void ReportFriendlyHit(FriendlyHitMessage message)=>NetworkClient.Send(message);
+        private void RelayFriendlyHit(NetworkConnectionToClient connection,FriendlyHitMessage message)
+        {
+            var attack=JsonUtility.FromJson<AttackEvent>(message.attackJson);
+            var target=ServerWorld.Find(message.target);
+            var source=ServerWorld.Find(attack.attacker);
+            if(target==null || target.generation!=message.generation || target.lifecycleSequence!=message.lifecycle ||
+                source==null || !source.player || !owners.TryGetValue(connection.connectionId,out var owner) || source.owner!=owner || attack.sourceOwner!=owner ||
+                !FriendlyFireDecision.UsesAttacker(attack,target) || !AttackScope.CanAffect(attack,target,ServerWorld.friendlyFire)) return;
+            foreach(var pair in owners)
+                if(pair.Value==target.owner && NetworkServer.connections.TryGetValue(pair.Key,out var destination))
+                {destination.Send(message);return;}
+        }
         private void RelayNpcHit(NetworkConnectionToClient connection, NpcHitMessage message)
         {
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             var target = ServerWorld.Find(message.target);
-            if (target == null || target.generation != message.generation ||
+            if (target == null || target.player || target.generation != message.generation ||
                 !owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.Find(attack.attacker)?.owner != owner) return;
             var recipient = owners.FirstOrDefault(pair => pair.Value == target.owner);
             if (NetworkServer.connections.TryGetValue(recipient.Key, out var destination)) destination.Send(message);
@@ -543,6 +561,11 @@ namespace Remains.Networking
         {
             if(!NetworkServer.active) return;
             ServerWorld.friendlyFire=enabled;CommitWorld();
+        }
+        public void SetFriendlyFireDecision(string policy)
+        {
+            if(!NetworkServer.active || ServerWorld==null) return;
+            FriendlyFireDecision.Validate(policy);ServerWorld.friendlyFireDecision=policy;CommitWorld();
         }
     }
 }

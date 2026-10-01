@@ -12,6 +12,8 @@ namespace Remains.Gameplay
     {
         private readonly CoopSession session;
         private DamageReceiver damage;
+        public int AttackerDecidedHits {get;private set;}
+        public int VictimDecidedHits {get;private set;}
         private float nextShot;
         private ActorState swingActor;
         private MeleeSweep swingSweep;
@@ -29,10 +31,11 @@ namespace Remains.Gameplay
         public CombatController(CoopSession session)
         {
             this.session = session;
-            session.ClientReady+=()=>damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);
+            session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);AttackerDecidedHits=VictimDecidedHits=0;};
             Reload=new WeaponReloadController(session);
             session.AttackReceived += ReceiveAttack;
             session.NpcHitReceived += ReceiveNpcHit;
+            session.FriendlyHitReceived+=ReceiveFriendlyHit;
             session.Changed+=RestoreSelection;
             session.Changed+=ResolveExplosions;
         }
@@ -126,8 +129,15 @@ namespace Remains.Gameplay
                 bool contact = HitGeometry.Contacts(actor, attack);
                 if (actor.player)
                 {
+                    if(FriendlyFireDecision.UsesAttacker(attack,actor))
+                    {
+                        if(attack.sourceOwner==session.LocalOwner && contact)
+                            session.ReportFriendlyHit(new FriendlyHitMessage {target=actor.id,generation=actor.generation,lifecycle=actor.lifecycleSequence,attackJson=JsonUtility.ToJson(attack)});
+                        continue;
+                    }
                     if (actor.owner == session.LocalOwner && damage.Apply(actor, attack, contact))
                     {
+                        VictimDecidedHits++;
                         session.PublishActor(actor);
                         Debug.Log($"Урон принят пострадавшим: {actor.id}, событие={attack.id}, здоровье={actor.health}, нокдаун={actor.down}.");
                     }
@@ -143,9 +153,17 @@ namespace Remains.Gameplay
         private void ReceiveNpcHit(NpcHitMessage message)
         {
             var actor = session.World?.Find(message.target);
-            if (actor == null || actor.owner != session.LocalOwner || actor.generation != message.generation) return;
+            if (actor == null || actor.player || actor.owner != session.LocalOwner || actor.generation != message.generation) return;
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             if (damage.Apply(actor, attack, true)) session.PublishActor(actor);
+        }
+        private void ReceiveFriendlyHit(FriendlyHitMessage message)
+        {
+            var actor=session.World?.Find(message.target);
+            if(actor==null || actor.owner!=session.LocalOwner || actor.generation!=message.generation || actor.lifecycleSequence!=message.lifecycle) return;
+            var attack=JsonUtility.FromJson<AttackEvent>(message.attackJson);
+            if(!FriendlyFireDecision.UsesAttacker(attack,actor) || !AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) return;
+            if(damage.Apply(actor,attack,true)) {AttackerDecidedHits++;session.PublishActor(actor);}
         }
     }
 }

@@ -102,6 +102,7 @@ namespace Remains.Runtime
                 hud.HostRequested+=()=>Session.StartHost();
                 hud.JoinRequested+=address=> { Session.networkAddress=address; Session.StartClient(); };
             }
+            if(Options.Smoke?.Contains("-attacker-")==true) Session.ServerReady+=()=>Session.SetFriendlyFireDecision(FriendlyFireDecision.Attacker);
             if (Options.Smoke != null)
             {
                 if(Options.Smoke.StartsWith("lobby")) gameObject.AddComponent<NetworkLobbyProbe>().Initialize(this);

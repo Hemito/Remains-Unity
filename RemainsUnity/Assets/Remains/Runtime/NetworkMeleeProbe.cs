@@ -67,7 +67,14 @@ namespace Remains.Runtime
         private void Complete(bool success,string detail)
         {phase=3;NetworkServer.SendToAll(new MeleeProbeFinish {success=success,detail=detail});}
         private void Finish(bool success,string detail)
-        {if(finished)return;finished=true;File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));}
+        {
+            if(finished)return;finished=true;
+            bool attacker=runtime.Options.Smoke.Contains("-attacker-");
+            int expected=runtime.Options.Character=="session-client-1"?2:0;
+            if(runtime.Combat.AttackerDecidedHits!=(attacker?expected:0) || runtime.Combat.VictimDecidedHits!=(attacker?0:expected)) success=false;
+            detail+=$" Решения: attacker={runtime.Combat.AttackerDecidedHits}, victim={runtime.Combat.VictimDecidedHits}.";
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
+        }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:2);}
         [Serializable] private sealed class Report {public bool success;public string detail;}
     }
