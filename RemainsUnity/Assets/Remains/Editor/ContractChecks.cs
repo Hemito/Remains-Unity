@@ -16,6 +16,10 @@ namespace Remains.Editor
         {
             Anatomy.Load();
             WeaponCatalog.Load();
+            PonyAnimationData.Load();
+            var idle=Array.Find(PonyAnimationData.Library.clips,clip=>clip.id=="idle");
+            Require(idle!=null && idle.frames.Length==1,"Покой содержит только позу стояния, без сидения и переходов прыжка");
+            Require(PonyAnimationData.FrameIndex("idle",0,false)==PonyAnimationData.FrameIndex("idle",120,false),"Поза покоя не меняется со временем");
             var actor=new ActorState { id="victim",owner="client-b",player=true,connected=true };
             var damage=new DamageReceiver(new PrototypeDamageRule());
             var attack=new AttackEvent { id="shot-1",weapon="pistol",attacker="client-a",originX=-2,originY=0.7f,endX=2,endY=0.7f };
