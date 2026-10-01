@@ -34,14 +34,16 @@ namespace Remains.Domain
             if(float.IsNaN(amount) || float.IsInfinity(amount) || amount<0)
                 throw new System.InvalidOperationException($"Правило урона вернуло некорректное значение: actor={actor.id}, attack={attack.id}, damage={amount}.");
             float remaining=Mathf.Max(0,previousHealth-amount);
-            bool enter=knockdown.ShouldEnter(new KnockdownContext(previousHealth,remaining,actor.player));
-            actor.resolvedAttacks.Add(attack.id);actor.health=remaining;
-            if(actor.health<previousHealth) actor.damageSequence++;
+            float lost=previousHealth-remaining;
+            float restore=ActorTypes.Get(actor.actorType).restoreHealthAfterHit;
+            bool enter=restore<=0 && knockdown.ShouldEnter(new KnockdownContext(previousHealth,remaining,actor.player));
+            actor.resolvedAttacks.Add(attack.id);actor.health=restore>0?restore:remaining;
+            if(lost>0) actor.damageSequence++;
             actor.down |= enter;
             actor.revision++;
             if (actor.down) ActorPose.Select(actor,"down");
-            if(actor.health<previousHealth) Applied?.Invoke(new DamageResult {attack=attack.id,actor=actor.id,level=actor.level,
-                generation=actor.generation,amount=previousHealth-actor.health,x=actor.x,y=actor.y});
+            if(lost>0) Applied?.Invoke(new DamageResult {attack=attack.id,actor=actor.id,level=actor.level,
+                generation=actor.generation,amount=lost,x=actor.x,y=actor.y});
             return true;
         }
     }

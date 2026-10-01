@@ -33,6 +33,7 @@ namespace Remains.Domain
         public string target;
         public string level = "factory:0";
         public string anatomy = "pony";
+        public string actorType = "pony";
         public int generation;
         public int lifecycleSequence;
         public long revision;

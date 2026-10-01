@@ -17,7 +17,7 @@ namespace Remains.Gameplay
             session.Changed+=()=>
             {
                 var needed=session.World==null?new HashSet<string>():new HashSet<string>(session.World.actors
-                    .Where(a=>!a.player && a.owner==session.LocalOwner && !a.down && LevelActivity.HasConnectedPlayer(session.World,a.level)).Select(a=>a.level));
+                    .Where(a=>!a.player && Remains.Content.ActorTypes.Get(a.actorType).combatAi && a.owner==session.LocalOwner && !a.down && LevelActivity.HasConnectedPlayer(session.World,a.level)).Select(a=>a.level));
                 foreach(string level in movement.Keys.Where(level=>!needed.Contains(level)).ToArray()) movement.Remove(level);
                 foreach(string level in needed) if(!movement.ContainsKey(level)) movement.Add(level,new MovementController(geometry.Get(level)));
             };
@@ -28,6 +28,7 @@ namespace Remains.Gameplay
             foreach(var actor in session.World.actors)
             {
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
+                if(!Remains.Content.ActorTypes.Get(actor.actorType).combatAi) continue;
                 if(!LevelActivity.HasConnectedPlayer(session.World,actor.level)) continue;
                 if(session.Pause.IsPaused(actor.level)) continue;
                 if(!movement.TryGetValue(actor.level,out var controller))

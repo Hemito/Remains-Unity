@@ -48,7 +48,7 @@ namespace Remains.Domain
                 var candidate = active.Where(a => a.level == actor.level)
                     .OrderBy(a => Vector2.Distance(a.Position, actor.Position)).ThenBy(a => a.id).FirstOrDefault();
                 string next = candidate?.owner ?? "host";
-                actor.target = candidate?.id;
+                actor.target = !actor.player && !Remains.Content.ActorTypes.Get(actor.actorType).combatAi?null:candidate?.id;
                 if (actor.owner == next) continue;
                 actor.owner = next;
                 actor.generation++;

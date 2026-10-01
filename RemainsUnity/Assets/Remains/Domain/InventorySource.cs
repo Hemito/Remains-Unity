@@ -25,14 +25,14 @@ namespace Remains.Domain
             if(id.StartsWith(BodyPrefix,StringComparison.Ordinal))
             {
                 if(container!=null) throw new InvalidOperationException($"ID контейнера использует префикс инвентарей тел: {id}.");
-                var body=world.Find(id.Substring(BodyPrefix.Length));return body==null?null:new InventorySource(body);
+                var body=world.Find(id.Substring(BodyPrefix.Length));return body==null || !Remains.Content.ActorTypes.Get(body.actorType).bodyInventory?null:new InventorySource(body);
             }
             return container;
         }
         public static IEnumerable<InventorySource> All(WorldState world)
         {
             foreach(var container in world.containers) yield return Resolve(world,container.id);
-            foreach(var actor in world.actors) yield return new InventorySource(actor);
+            foreach(var actor in world.actors) if(Remains.Content.ActorTypes.Get(actor.actorType).bodyInventory) yield return new InventorySource(actor);
         }
         public bool Reserve(string transaction,ItemStack item,int count,out ItemStack reserved)
         {

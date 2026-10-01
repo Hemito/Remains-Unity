@@ -61,7 +61,7 @@ namespace Remains.Presentation
             }
             Prune(props,new(session.World.props.Where(p=>p.level==level).Select(p=>p.id)));
             Prune(containers,new(session.World.containers.Where(c=>c.level==level).Select(c=>c.id)));
-            Prune(weapons,new(session.World.actors.Where(a=>ActorPresence.IsPresent(a) && a.level==level).Select(a=>a.id)));
+            Prune(weapons,new(session.World.actors.Where(a=>ActorPresence.IsPresent(a) && Remains.Content.ActorTypes.Get(a.actorType).hasWeapon && a.level==level).Select(a=>a.id)));
             Prune(flights,new(grenades.Flights.Where(f=>f.state.level==level).Select(f=>f.state.id)));
             foreach(var container in session.World.containers.Where(c=>c.level==level))
             {
@@ -70,7 +70,7 @@ namespace Remains.Presentation
             }
             foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,sprites["crate"],0.8f));
             foreach(var actor in session.World.actors)
-                if(ActorPresence.IsPresent(actor) && actor.level==level && !weapons.ContainsKey(actor.id))
+                if(ActorPresence.IsPresent(actor) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
                 {
                     var weapon=Create("Оружие "+actor.id,sprites["pistol"],sprites["pistol"].bounds.size.x);
                     weapon.sortingOrder=100;layers.Attach(actor.id,weapon.transform);weapons.Add(actor.id,weapon);

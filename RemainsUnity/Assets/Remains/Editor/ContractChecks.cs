@@ -17,6 +17,7 @@ namespace Remains.Editor
             Anatomy.Load();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
+            ActorTypeChecks.Run();
             DamageFeedbackChecks.Run();
             WeaponPoseChecks.Run();
             MovableContainerChecks.Run();
