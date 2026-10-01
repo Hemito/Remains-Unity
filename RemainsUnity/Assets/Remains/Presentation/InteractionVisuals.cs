@@ -13,6 +13,7 @@ namespace Remains.Presentation
         private CoopSession session;
         private GrenadeController grenades;
         private ActorVisualLayers layers;
+        private PropArtwork propArtwork;
         private readonly Dictionary<string,Sprite> sprites=new();
         private readonly Dictionary<string,SpriteRenderer> props=new();
         private readonly Dictionary<string,SpriteRenderer> containers=new();
@@ -22,6 +23,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers)
         {
             this.session=session;this.grenades=grenades;this.layers=layers;
+            propArtwork=new PropArtwork();
             foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
             ShotArtwork.Prepare();
@@ -65,10 +67,10 @@ namespace Remains.Presentation
             Prune(flights,new(grenades.Flights.Where(f=>f.state.level==level).Select(f=>f.state.id)));
             foreach(var container in session.World.containers.Where(c=>c.level==level))
             {
-                if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=Create("Контейнер "+container.id,sprites["crate"],.8f));
+                if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=Create("Контейнер "+container.id,propArtwork.Get(container.definition),container.width));
                 view.transform.position=container.Position+Vector2.up*(container.height*.5f-container.anchorHeight);view.enabled=container.level==session.LocalActor?.level;
             }
-            foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,sprites["crate"],0.8f));
+            foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,propArtwork.Get(prop.definition),prop.width));
             foreach(var actor in session.World.actors)
                 if(ActorPresence.IsPresent(actor) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
                 {

@@ -32,6 +32,13 @@ namespace Remains.Editor
             Require(world.actors.Count==installed && world.revision==revision && world.Find("player")==player,"Повтор установки мишеней изменил существующий мир");
             var persisted=world.Copy();HubTrainingContent.Install(persisted);
             Require(persisted.actors.Count==installed && persisted.contentPatches.Contains(HubTrainingContent.Patch),"Копия мира потеряла отметку установки мишеней");
+            Require(world.containers.Count==3 && persisted.containers.Count==3 && world.containers.Select(c=>c.mass).SequenceEqual(new[]{25f,50f,120f}),"Неверные массы или повторное добавление тренировочных ящиков");
+            var telekinesis=new MassLimitedTelekinesisRule(TelekinesisSettings.Load());
+            foreach(var box in world.containers)
+            {
+                player.Position=box.Position;
+                Require((telekinesis.Rejection(player,box,false)==null)==(box.mass<=30),"Доступность ящика не соответствует весу: "+box.mass);
+            }
             var visual=Remains.Presentation.ActorVisualFactory.Create(dummy);
             try
             {

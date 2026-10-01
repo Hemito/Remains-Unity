@@ -108,6 +108,7 @@ namespace Remains.Domain
     [Serializable]
     public class PropState : ExtensibleState
     {
+        public string definition="prototype-crate";
         public uint sequence;
         public string id;
         public string owner;

@@ -55,7 +55,7 @@ namespace Remains.Runtime
             (Race?world.actors.Count(a=>InventoryJournal.Count(a,"grenade")==10)==1:InventoryJournal.Count(world.Find("player:session-host"),"grenade")==6) && InventoryJournal.Count(world.Find("player:session-host"),"heal")==4 &&
             world.actors.Sum(a=>InventoryJournal.Count(a,"grenade"))==runtime.Options.ProbePeers*5 &&
             world.actors.Sum(a=>InventoryJournal.Count(a,"heal"))==runtime.Options.ProbePeers*5 &&
-            world.containers.Count==1 && world.actors.Count(a=>a.id==BodyId)==1 &&
+            world.containers.Count(c=>c.level=="factory:0")==1 && world.actors.Count(a=>a.id==BodyId)==1 &&
             (!RemoteRace || InventoryJournal.Count(world.Find("player:session-host"),"grenade")==5) &&
             world.actors.Where(a=>a.player).All(a=>InventoryJournal.Count(a,"p10")==36 && InventoryJournal.Count(a,"batt")==45) &&
             world.actors.SelectMany(a=>a.inventory).Concat(world.containers.SelectMany(c=>c.items)).GroupBy(i=>i.id).All(group=>group.Count()==1);

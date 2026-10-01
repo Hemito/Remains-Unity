@@ -14,6 +14,7 @@ namespace Remains.Domain
         private InventorySource(ActorState body) {Body=body;}
         public string id=>Body==null?container.id:BodyId(Body.id);
         public string level=>Body==null?container.level:Body.level;
+        public float? Mass=>Body==null?container.mass:null;
         public Vector2 Position=>Body==null?container.Position:Body.Position;
         public List<ItemStack> items=>Body==null?container.items:Body.inventory;
         public static string BodyId(string actor)=>BodyPrefix+actor;

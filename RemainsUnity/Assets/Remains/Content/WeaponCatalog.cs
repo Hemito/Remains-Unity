@@ -36,12 +36,12 @@ namespace Remains.Content
         public static void Load()
         {
             WeaponRigs.Load();
-            ActorTypes.Load();
+            ActorTypes.Load();PropCatalog.Load();
             var asset=Resources.Load<TextAsset>("Content/weapons");
             if(asset==null) throw new InvalidOperationException("Не найдены определения оружия Content/weapons.");
             var loaded=WeaponCatalogLoader.Load(asset.text,Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
-            foreach(string path in new[]{"Content/prototype-room","Content/prototype-hub","Content/anatomy","Content/movement","Content/telekinesis","Content/actors","Content/hub-training","Original/Training/artwork","Original/Pony/pony","Original/Weapons/artwork"})
+            foreach(string path in new[]{"Content/prototype-room","Content/prototype-hub","Content/anatomy","Content/movement","Content/telekinesis","Content/actors","Content/props","Content/hub-training","Original/Training/artwork","Original/Pony/pony","Original/Weapons/artwork"})
             {
                 var data=Resources.Load<TextAsset>(path);
                 if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");

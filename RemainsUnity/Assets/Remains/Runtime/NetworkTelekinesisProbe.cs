@@ -23,7 +23,7 @@ namespace Remains.Runtime
         private bool Host=>runtime.Options.Role=="host";
         private bool ContainerScenario=>runtime.Options.Smoke.Contains("-container-");
         private string initialItems;
-        private PropState Target(WorldState world)=>world==null?null:ContainerScenario?world.containers.Single():world.props.Single();
+        private PropState Target(WorldState world)=>world==null?null:ContainerScenario?world.containers.Single(c=>c.id==ContainerState.PrototypeId):world.props.Single();
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+40;value.CommandSource=Command;
@@ -80,7 +80,7 @@ namespace Remains.Runtime
                 if(ContainerScenario)
                 {
                     session.CommitWorld();
-                    var saved=session.Saves.LoadWorld().containers.Single();
+                    var saved=session.Saves.LoadWorld().containers.Single(c=>c.id==ContainerState.PrototypeId);
                     valid &= Remains.Serialization.StateJson.ToJson(((ContainerState)prop).items)==initialItems &&
                         Remains.Serialization.StateJson.ToJson(saved.items)==initialItems && saved.Position==prop.Position;
                 }

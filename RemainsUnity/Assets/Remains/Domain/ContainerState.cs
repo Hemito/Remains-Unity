@@ -8,7 +8,7 @@ namespace Remains.Domain
     public sealed class ContainerState : PropState
     {
         public const string PrototypeId="container:prototype";
-        public ContainerState() {id=PrototypeId;x=-1.5f;mass=25;height=.8f;anchorHeight=0;}
+        public ContainerState() {id=PrototypeId;definition="mcrate1";x=-1.5f;mass=25;width=height=1.2f;anchorHeight=0;}
         public List<ItemStack> items=new();
     }
     public static class ContainerAccess
