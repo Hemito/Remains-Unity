@@ -22,7 +22,7 @@ namespace Remains.Presentation
         {
             this.session=session;this.grenades=grenades;
             foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
-            foreach(var key in new[]{"spear","crowbar","pistol","energy"}) sprites.Add(key,Load("Original/Weapons/"+key));
+            foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
             session.Changed+=Refresh;
             grenades.Created+=flight=>Refresh();
             session.AttackReceived+=attack=>
@@ -41,7 +41,7 @@ namespace Remains.Presentation
         }
         private static SpriteRenderer Create(string name,Sprite sprite,float width)
         {
-            var renderer=new GameObject(name).AddComponent<SpriteRenderer>();renderer.sprite=sprite;renderer.sortingOrder=100;
+            var renderer=new GameObject(name).AddComponent<SpriteRenderer>();SpriteArtworkMaterial.Prepare(sprite);SpriteArtworkMaterial.Apply(renderer,sprite);renderer.sortingOrder=100;
             renderer.transform.localScale=Vector3.one*(width/sprite.bounds.size.x);
             return renderer;
         }
@@ -63,7 +63,7 @@ namespace Remains.Presentation
                 view.transform.position=container.Position+Vector2.up*.4f;view.enabled=container.level==session.LocalActor?.level;
             }
             foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,sprites["crate"],0.8f));
-            foreach(var actor in session.World.actors) if(ActorPresence.IsPresent(actor) && actor.level==level && !weapons.ContainsKey(actor.id)) weapons.Add(actor.id,Create("Оружие "+actor.id,sprites["pistol"],0.8f));
+            foreach(var actor in session.World.actors) if(ActorPresence.IsPresent(actor) && actor.level==level && !weapons.ContainsKey(actor.id)) weapons.Add(actor.id,Create("Оружие "+actor.id,sprites["pistol"],sprites["pistol"].bounds.size.x));
             foreach(var flight in grenades.Flights.Where(f=>f.state.level==level))
                 if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"],.35f));
         }
@@ -83,8 +83,8 @@ namespace Remains.Presentation
                 view.enabled=ActorPresence.IsPresent(actor) && !actor.down && actor.level==session.LocalActor?.level;
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.enabled=false;continue; }
-                float width=actor.weapon=="spear"?1.6f:actor.weapon=="crowbar"?1.2f:0.8f;
-                if(view.sprite!=sprite) { view.sprite=sprite;view.transform.localScale=Vector3.one*(width/sprite.bounds.size.x); }
+                float width=sprite.bounds.size.x;
+                if(view.sprite!=sprite) { SpriteArtworkMaterial.Apply(view,sprite);view.transform.localScale=Vector3.one*(width/sprite.bounds.size.x); }
                 var direction=new Vector2(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
                 view.transform.position=actor.Position+new Vector2(0,0.8f)+direction*(actor.weapon is "spear" or "crowbar"?actor.weaponReach-width/2:0.6f);
                 view.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
