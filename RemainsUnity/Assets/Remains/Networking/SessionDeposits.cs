@@ -31,7 +31,7 @@ namespace Remains.Networking
         public bool Request(string containerId,string itemId,int quantity=0)
         {
             var actor=session.LocalActor;var item=actor?.inventory.Find(i=>i.id==itemId);
-            var container=session.World?.containers.Find(c=>c.id==containerId);
+            var container=InventorySource.Resolve(session.World,containerId);
             if(actor==null || item==null || container==null || !NetworkClient.isConnected) return false;
             int amount=quantity==0?InventoryAvailability.Count(actor,item):quantity;
             string reason=amount<=0 || amount>InventoryAvailability.Count(actor,item)?"Это количество уже зарезервировано или недоступно.":

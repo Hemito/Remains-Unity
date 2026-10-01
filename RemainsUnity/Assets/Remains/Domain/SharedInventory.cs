@@ -13,19 +13,16 @@ namespace Remains.Domain
             =>PrepareClaim(transaction,containerId,itemId,recipient,out _);
         public bool PrepareClaim(string transaction, string containerId,string itemId,ActorState recipient,out string reason,int quantity=0)
         {
-            var container=world.containers.Find(c=>c.id==containerId);
+            var container=InventorySource.Resolve(world,containerId);
             reason="Операция подбора уже обработана или не имеет ID.";
             if(InventoryTransactions.Contains(world,transaction)) return false;
             var item = container?.items.Find(candidate => candidate.id == itemId);
             reason=ContainerAccess.ClaimRejection(recipient,container,item,rule,quantity);
             if(reason!=null) return false;
             int amount=quantity==0?item.count:quantity;
-            if(amount==item.count) container.items.Remove(item);
-            else
-            {
-                var reserved=item.ReservedCopy(amount);
-                item.count-=amount;item=reserved;
-            }
+            if(!container.Reserve(transaction,item,amount,out var reserved))
+            {reason="Предмет зарезервирован или состояние источника изменилось.";return false;}
+            item=reserved;
             world.revision++;
             world.pendingGrants.Add(new PendingGrant { transaction=transaction,recipient=recipient.id,containerId=containerId,item=item,preparedRevision=world.revision });
             return true;
@@ -39,9 +36,9 @@ namespace Remains.Domain
                 if(recipient!=null) {recipient.inventory.Add(grant.item);recipient.revision++;}
                 else
                 {
-                    var container=world.containers.Find(c=>c.id==grant.containerId);
+                    var container=InventorySource.Resolve(world,grant.containerId);
                     if(container==null) throw new InvalidOperationException($"Нет источника резерва: transaction={grant.transaction}, container={grant.containerId}.");
-                    container.items.Add(grant.item);
+                    container.Add(grant.item);
                     UnityEngine.Debug.LogWarning($"Резерв возвращён в контейнер: transaction={grant.transaction}, recipient={grant.recipient}, container={container.id}.");
                 }
                 world.completedTransactions.Add(grant.transaction);

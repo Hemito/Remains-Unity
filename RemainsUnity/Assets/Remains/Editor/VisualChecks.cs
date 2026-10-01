@@ -52,6 +52,13 @@ namespace Remains.Editor
             var canvas=hud.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=1;canvas.sortingOrder=32767;
             Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
             image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"hud.png"),image.EncodeToPNG());
+            var bodyInventory=new ActorState {id="ui-body",character="Союзник",player=true,connected=false,down=true,x=uiActor.x,y=uiActor.y};
+            bodyInventory.inventory.Add(SharedInventory.Create("heal",6));bodyInventory.inventory.Add(SharedInventory.Create("grenade",4));
+            world.actors.Add(bodyInventory);hud.ToggleInventory();hud.ToggleInventory();
+            if(hud.ShownInventorySourceId!=InventorySource.BodyId(bodyInventory.id)) throw new InvalidOperationException("UI не выбрал тело для снимка инвентаря.");
+            Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
+            image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"body-inventory.png"),image.EncodeToPNG());
+            world.actors.Remove(bodyInventory);
             hud.ToggleInventory();hud.PauseMenu.Toggle();
             Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
             image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"pause-menu.png"),image.EncodeToPNG());

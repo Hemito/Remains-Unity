@@ -10,7 +10,7 @@ namespace Remains.Editor
     {
         private sealed class TestLootRule : ILootRule
         {
-            public string AccessRejection(LootAccessContext context)=>context.distance<=8?null:"Тест: далеко";
+            public string AccessRejection(LootAccessContext context)=>context.body?"Тест: только контейнеры":context.distance<=8?null:"Тест: далеко";
             public string ClaimRejection(LootClaimContext context)=>context.definition=="heal"?"Тест: хилки запрещены":null;
         }
         public static void Run()
@@ -30,7 +30,7 @@ namespace Remains.Editor
             long beforeRevision=world.revision;
             Require(!custom.PrepareClaim("rule-denied",container.id,denied.id,actor,out var reason) && reason=="Тест: хилки запрещены" &&
                 world.revision==beforeRevision && world.pendingGrants.Count==0 && container.items.Contains(denied),"Отказ правила не меняет транзакцию или предмет");
-            Require(ContainerAccess.Nearest(world,actor,new TestLootRule())==container && ContainerAccess.Nearest(world,actor)==null,"Представление использует ту же заменяемую дальность");
+            Require(ContainerAccess.Nearest(world,actor,new TestLootRule())?.id==container.id && ContainerAccess.Nearest(world,actor)==null,"Представление использует ту же заменяемую дальность");
             Require(custom.PrepareClaim("rule-allowed",container.id,item.id,actor),"Правило разрешает резерв за пределами базовой дальности");
             Require(!custom.PrepareClaim("rule-allowed",container.id,item.id,actor),"Мод не обходит дедупликацию");
             custom.CommitGrant(world.pendingGrants[0]);

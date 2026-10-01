@@ -14,7 +14,7 @@ namespace Remains.Domain
         public readonly LootAccessContext access;
         public readonly string itemId,definition;
         public readonly int count,availableCount;
-        public DepositContext(ActorState source,ContainerState destination,ItemStack item,int amount)
+        public DepositContext(ActorState source,InventorySource destination,ItemStack item,int amount)
         {access=new LootAccessContext(source,destination);itemId=item.id;definition=item.definition;count=amount;availableCount=item.count;}
     }
     public interface IDepositRule {string AccessRejection(LootAccessContext context);string Rejection(DepositContext context);}
@@ -37,7 +37,7 @@ namespace Remains.Domain
             reason="Операция внесения уже обработана или не имеет ID.";
             if(InventoryTransactions.Contains(world,transaction)) return false;
             reason="Отправитель или контейнер больше недоступен.";
-            var destination=world.containers.Find(c=>c.id==containerId);
+            var destination=InventorySource.Resolve(world,containerId);
             if(source==null || world.Find(source.id)!=source || destination==null) return false;
             var item=source.inventory.Find(i=>i.id==itemId);
             reason="Указанное количество недоступно. Обновите выбор.";
@@ -66,8 +66,8 @@ namespace Remains.Domain
             }
             else
             {
-                var destination=world.containers.Find(c=>c.id==pending.containerId)??throw new InvalidOperationException($"Нет контейнера резерва: transaction={transaction}, container={pending.containerId}.");
-                destination.items.Add(pending.item);
+                var destination=InventorySource.Resolve(world,pending.containerId)??throw new InvalidOperationException($"Нет контейнера резерва: transaction={transaction}, container={pending.containerId}.");
+                destination.Add(pending.item);
             }
             world.pendingDeposits.Remove(pending);world.completedTransactions.Add(transaction);world.revision++;
             return true;

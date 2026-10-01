@@ -16,13 +16,13 @@ namespace Remains.Domain
     public static class ContainerAccess
     {
         private static readonly ILootRule defaults=new NearbyLootRule();
-        public static string Rejection(ActorState actor,ContainerState container,ILootRule rule=null)
+        public static string Rejection(ActorState actor,InventorySource container,ILootRule rule=null)
         {
             if(actor==null) return "Подбор недоступен: персонаж отсутствует.";
             if(container==null) return "Контейнер больше недоступен.";
             return (rule??defaults).AccessRejection(new LootAccessContext(actor,container));
         }
-        public static string ClaimRejection(ActorState actor,ContainerState container,ItemStack item,ILootRule rule=null,int quantity=0)
+        public static string ClaimRejection(ActorState actor,InventorySource container,ItemStack item,ILootRule rule=null,int quantity=0)
         {
             string reason=Rejection(actor,container,rule);
             if(reason!=null) return reason;
@@ -30,11 +30,11 @@ namespace Remains.Domain
             if(quantity<0 || quantity>item.count) return "Указанное количество недоступно. Обновите выбор.";
             return (rule??defaults).ClaimRejection(new LootClaimContext(new LootAccessContext(actor,container),item,quantity));
         }
-        public static ContainerState Nearest(WorldState world,ActorState actor,ILootRule rule=null,IDepositRule depositRule=null)
+        public static InventorySource Nearest(WorldState world,ActorState actor,ILootRule rule=null,IDepositRule depositRule=null)
         {
             if(world==null || actor==null) return null;
-            ContainerState nearest=null;float distance=float.PositiveInfinity;
-            foreach(var container in world.containers)
+            InventorySource nearest=null;float distance=float.PositiveInfinity;
+            foreach(var container in InventorySource.All(world))
             {
                 if(Rejection(actor,container,rule)!=null && (depositRule==null || depositRule.AccessRejection(new LootAccessContext(actor,container))!=null)) continue;
                 float next=Vector2.Distance(actor.Position,container.Position);

@@ -33,7 +33,8 @@ namespace Remains.Presentation
         private Button claimQuantity;
         private bool claimOne;
         public RectTransform ClaimQuantityRect=>claimQuantity.GetComponent<RectTransform>();
-        private ContainerState shownContainer;
+        private InventorySource shownContainer;
+        public string ShownInventorySourceId=>shownContainer?.id;
         private int containerPage;
         private Button previousContainer,nextContainer;
         public int ContainerPage=>containerPage;
@@ -169,7 +170,7 @@ namespace Remains.Presentation
             containerPage=Mathf.Clamp(containerPage,0,pages-1);
             previousContainer.interactable=containerPage>0;nextContainer.interactable=containerPage<pages-1;
             personalItems.Refresh(shownContainer);
-            containerTitle.text=shownContainer==null?"Рядом нет контейнера": $"Контейнер · {containerPage+1}/{pages} · 3 × 3";
+            containerTitle.text=shownContainer==null?"Рядом нет контейнера": $"{(shownContainer.Body==null?"Контейнер":"Тело")} · {containerPage+1}/{pages} · 3 × 3";
             if(shownContainer!=null && session.World.pendingGrants.Exists(g=>g.containerId==shownContainer.id && g.recipient==actor.id))
                 containerTitle.text="Подбор подтверждается…";
             for (int i = 0; i < slots.Length; i++)

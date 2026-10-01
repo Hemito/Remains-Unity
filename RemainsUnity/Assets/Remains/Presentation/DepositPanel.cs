@@ -15,7 +15,7 @@ namespace Remains.Presentation
         private readonly string[] ids=new string[8];
         private readonly Button previous,next;
         private readonly Text title;
-        private ContainerState container;
+        private InventorySource container;
         private int page;
         public RectTransform RowRect(int row)=>rows[row].GetComponent<RectTransform>();
         public DepositPanel(Transform parent,HudElements elements,CoopSession session,Func<string,string> itemName,Func<int> quantity)
@@ -32,7 +32,7 @@ namespace Remains.Presentation
             previous=elements.Button(parent,"←",new Vector2(12,-350),new Vector2(65,32),()=>{page--;Refresh(container);});
             next=elements.Button(parent,"→",new Vector2(282,-350),new Vector2(65,32),()=>{page++;Refresh(container);});
         }
-        public void Refresh(ContainerState destination)
+        public void Refresh(InventorySource destination)
         {
             container=destination;var actor=session.LocalActor;int count=actor?.inventory.Count??0;
             page=Mathf.Clamp(page,0,Math.Max(0,(count-1)/rows.Length));
