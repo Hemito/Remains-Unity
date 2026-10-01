@@ -18,6 +18,9 @@ namespace Remains.Presentation
         private int frame = -1;
         private MaterialPropertyBlock properties;
         public string ActorId=>state?.id;
+        public string DrawnClip=>pose;
+        public int DrawnFrame=>frame;
+        public float DrawnTime {get;private set;}
 
         public static void Prepare()
         {
@@ -88,6 +91,7 @@ namespace Remains.Presentation
         public void DrawPose(float sampleTime)
         {
             if (state == null) return;
+            DrawnTime=sampleTime;
             properties ??=new MaterialPropertyBlock();
             transform.position = new Vector3(state.x, state.y, 0);
             transform.localScale = new Vector3(state.facing, 1, 1);

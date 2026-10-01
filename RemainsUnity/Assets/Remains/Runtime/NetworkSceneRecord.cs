@@ -1,0 +1,48 @@
+using System;
+using System.IO;
+using System.Linq;
+using Remains.Domain;
+using Remains.Presentation;
+using Remains.Serialization;
+using UnityEngine;
+
+namespace Remains.Runtime
+{
+    [Serializable] public sealed class NetworkPonyRecord
+    {public ActorState actor;public Vector3 position,scale;public string clip;public int frame;public float time;public bool active;}
+    [Serializable] public sealed class NetworkSpriteRecord
+    {public string name,resource;public Vector3 position,scale,euler;public float rectX,rectY,rectWidth,rectHeight;public Vector2 pivot;public float pixelsPerUnit;public int order;public Color color;public bool flipX,flipY,enabled;}
+    [Serializable] public sealed class NetworkSceneRecord
+    {
+        public int schema=1,phase,width,height;
+        public string observer,level;
+        public Vector3 cameraPosition;
+        public float cameraSize;
+        public Color background;
+        public WorldState world;
+        public NetworkPonyRecord[] ponies;
+        public NetworkSpriteRecord[] sprites;
+        public static void Save(PrototypeRuntime runtime,int phase)
+        {
+            var camera=Camera.main??UnityEngine.Object.FindFirstObjectByType<Camera>();
+            if(camera==null) throw new InvalidOperationException("Нет камеры для записи сетевого кадра.");
+            var world=runtime.Session.World;
+            var record=new NetworkSceneRecord {phase=phase,width=Screen.width,height=Screen.height,observer=runtime.Session.LocalActorId,
+                level=runtime.Session.LocalActor.level,cameraPosition=camera.transform.position,cameraSize=camera.orthographicSize,background=camera.backgroundColor,world=world.Copy()};
+            record.ponies=UnityEngine.Object.FindObjectsByType<PonyVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(view=>
+                new NetworkPonyRecord {actor=world.Find(view.ActorId).Copy(),position=view.transform.position,scale=view.transform.localScale,
+                    clip=view.DrawnClip,frame=view.DrawnFrame,time=view.DrawnTime,active=view.gameObject.activeInHierarchy}).ToArray();
+            record.sprites=UnityEngine.Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(view=>
+            {
+                if(view.sprite==null) throw new InvalidOperationException($"Нет спрайта при записи: {view.name}.");
+                var sprite=view.sprite;
+                return new NetworkSpriteRecord {name=view.name,resource="Original/"+(view.name.StartsWith("Оружие ",StringComparison.Ordinal)?"Weapons/":"Props/")+sprite.texture.name,
+                    position=view.transform.position,scale=view.transform.localScale,euler=view.transform.eulerAngles,
+                    rectX=sprite.rect.x,rectY=sprite.rect.y,rectWidth=sprite.rect.width,rectHeight=sprite.rect.height,
+                    pivot=new Vector2(sprite.pivot.x/sprite.rect.width,sprite.pivot.y/sprite.rect.height),pixelsPerUnit=sprite.pixelsPerUnit,order=view.sortingOrder,
+                    color=view.color,flipX=view.flipX,flipY=view.flipY,enabled=view.enabled && view.gameObject.activeInHierarchy};
+            }).ToArray();
+            File.WriteAllText(runtime.Options.Report+$".phase-{phase}.scene.json",StateJson.ToJson(record,true));
+        }
+    }
+}
