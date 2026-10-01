@@ -78,7 +78,7 @@ namespace Remains.Runtime
             Revival=new RevivalController(Session);
             Interactions=new InteractionAdapter(Session);
             Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);
-            Telekinesis=new TelekinesisController(Session,Interactions);
+            Telekinesis=new TelekinesisController(Session,Interactions,Geometry);
             visualLayers=new ActorVisualLayers(transform);
             new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades,Geometry,visualLayers);
             var room=RoomLayout.Load(shownLevel);

@@ -295,8 +295,8 @@ namespace Remains.Networking
             var incoming = PersistCopy(message.json);
             if (World != null && World.worldId == incoming.worldId)
             {
-                foreach(var prop in incoming.props)
-                    PropReplication.PreserveNewerPose(World.props.Find(p=>p.id==prop.id),prop,LocalOwner);
+                foreach(var prop in WorldProps.All(incoming))
+                    PropReplication.PreserveNewerPose(WorldProps.Find(World,prop.id),prop,LocalOwner);
                 // A full backup must not rewind locally-owned pose or an unacknowledged health change.
                 foreach (var actor in incoming.actors)
                 {

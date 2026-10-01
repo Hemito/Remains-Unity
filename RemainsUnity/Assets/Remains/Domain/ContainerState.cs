@@ -5,13 +5,11 @@ using UnityEngine;
 namespace Remains.Domain
 {
     [Serializable]
-    public sealed class ContainerState : Remains.Serialization.ExtensibleState
+    public sealed class ContainerState : PropState
     {
         public const string PrototypeId="container:prototype";
-        public string id=PrototypeId,level="factory:0";
-        public float x=-1.5f,y;
+        public ContainerState() {id=PrototypeId;x=-1.5f;mass=25;height=.8f;anchorHeight=0;}
         public List<ItemStack> items=new();
-        public Vector2 Position=>new(x,y);
     }
     public static class ContainerAccess
     {

@@ -9,11 +9,12 @@ namespace Remains.Gameplay
     {
         private readonly CoopSession session;
         private readonly InteractionAdapter adapter;
+        private readonly SimulationGeometry geometry;
         private bool wasHeld;
         private string selected;
         private float nextPose;
         private float nextStats;
-        public TelekinesisController(CoopSession session,InteractionAdapter adapter) { this.session=session;this.adapter=adapter; }
+        public TelekinesisController(CoopSession session,InteractionAdapter adapter,SimulationGeometry geometry) { this.session=session;this.adapter=adapter;this.geometry=geometry; }
         public void Step(bool held,Vector2 aim,float dt)
         {
             var actor=session.LocalActor;
@@ -22,7 +23,7 @@ namespace Remains.Gameplay
             held &= !actor.down && actor.mana>0;
             if(held && !wasHeld)
             {
-                var nearest=session.World.props.Where(p=>p.level==actor.level && Vector2.Distance(p.Position,aim)<1 && Vector2.Distance(p.Position,actor.Position)<5).OrderBy(p=>Vector2.Distance(p.Position,aim)).FirstOrDefault();
+                var nearest=WorldProps.All(session.World).Where(p=>p.movable && p.level==actor.level && Vector2.Distance(p.Position,aim)<1 && Vector2.Distance(p.Position,actor.Position)<5).OrderBy(p=>Vector2.Distance(p.Position,aim)).FirstOrDefault();
                 selected=nearest?.id;
                 if(selected!=null) adapter.GrabProp(selected,false);
             }
@@ -32,28 +33,24 @@ namespace Remains.Gameplay
                 actor.revision++;session.PublishActor(actor);
             }
             wasHeld=held;
-            foreach(var prop in session.World.props)
+            foreach(var prop in WorldProps.All(session.World))
             {
                 if(prop.owner!=session.LocalOwner || prop.level!=actor.level) continue;
                 if(prop.held && prop.id==selected && held)
                 {
                     Vector2 target=actor.Position+Vector2.ClampMagnitude(aim-actor.Position,5);
-                    Vector2 delta=target-prop.Position;
-                    prop.vx=delta.x*8;prop.vy=delta.y*8;
-                    prop.Position+=new Vector2(prop.vx,prop.vy)*dt;
+                    PropMotion.Step(prop,geometry.Get(prop.level),dt,target);
                     actor.mana=Mathf.Max(0,actor.mana-prop.mass*0.3f*dt);
                     actor.revision++;
                 }
                 else
                 {
-                    prop.vy-=MovementController.Gravity*dt;
-                    prop.Position+=new Vector2(prop.vx,prop.vy)*dt;
-                    if(prop.y<0.3f) { prop.y=0.3f;prop.vy=0;prop.vx*=0.8f; }
+                    PropMotion.Step(prop,geometry.Get(prop.level),dt,null);
                 }
             }
             if(Time.unscaledTime<nextPose) return;
             nextPose=Time.unscaledTime+0.05f;
-            foreach(var prop in session.World.props) if(prop.owner==session.LocalOwner) adapter.SendProp(prop);
+            foreach(var prop in WorldProps.All(session.World)) if(prop.owner==session.LocalOwner && prop.level==actor.level) adapter.SendProp(prop);
             if(held && selected!=null && Time.unscaledTime>=nextStats)
             { nextStats=Time.unscaledTime+0.5f;session.PublishActor(actor); }
         }

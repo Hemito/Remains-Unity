@@ -18,6 +18,7 @@ namespace Remains.Editor
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
             WeaponPoseChecks.Run();
+            MovableContainerChecks.Run();
             AttackContactChecks.Run();
             WeaponModChecks.Run();
             GameplayContentChecks.Run();

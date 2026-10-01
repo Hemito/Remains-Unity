@@ -20,7 +20,7 @@ namespace Remains.Domain
                 }
                 actor.generation++;actor.revision++;
             }
-            foreach(var prop in world.props)
+            foreach(var prop in WorldProps.All(world))
             {prop.owner=null;prop.held=false;prop.generation++;}
         }
         public void Reassign(WorldState world, IReadOnlyCollection<string> activeOwners)
@@ -54,7 +54,7 @@ namespace Remains.Domain
                 actor.generation++;
                 actor.revision++;
             }
-            foreach(var prop in world.props)
+            foreach(var prop in WorldProps.All(world))
             {
                 if(active.Any(a=>a.owner==prop.owner && a.level==prop.level)) continue;
                 var candidate=active.Where(a=>a.level==prop.level).OrderBy(a=>Vector2.Distance(a.Position,prop.Position)).FirstOrDefault();

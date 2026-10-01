@@ -104,7 +104,7 @@ namespace Remains.Domain
     }
 
     [Serializable]
-    public sealed class PropState : ExtensibleState
+    public class PropState : ExtensibleState
     {
         public uint sequence;
         public string id;
@@ -112,6 +112,8 @@ namespace Remains.Domain
         public int generation;
         public float x,y,vx,vy;
         public float mass = 8;
+        public bool movable=true;
+        public float width=.8f,height=.6f,anchorHeight=.3f;
         public string level="factory:0";
         public bool held;
         public Vector2 Position { get=>new(x,y); set { x=value.x;y=value.y; } }

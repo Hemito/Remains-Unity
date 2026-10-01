@@ -5,6 +5,7 @@ using System.Linq;
 using Mirror;
 using Remains.Gameplay;
 using UnityEngine;
+using Remains.Domain;
 
 namespace Remains.Runtime
 {
@@ -20,11 +21,14 @@ namespace Remains.Runtime
         private NetworkPauseWindow pauseWindow;
         private bool PauseScenario=>runtime.Options.Smoke.Contains("-pause-");
         private bool Host=>runtime.Options.Role=="host";
+        private bool ContainerScenario=>runtime.Options.Smoke.Contains("-container-");
+        private string initialItems;
+        private PropState Target(WorldState world)=>world==null?null:ContainerScenario?world.containers.Single():world.props.Single();
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+40;value.CommandSource=Command;
             if(PauseScenario) pauseWindow=new NetworkPauseWindow(this,value.Session,value.Options.ProbePeers,PauseSnapshot,
-                ()=>value.Session.World?.props.SingleOrDefault() is {held:true} prop &&
+                ()=>Target(value.Session.World) is {held:true} prop &&
                     prop.owner==value.Session.World.Find("player:session-host")?.owner &&
                     (!Host || Mathf.Abs(prop.vx)+Mathf.Abs(prop.vy)>.01f),
                 ()=>finished,reason=>Finish(false,reason));
@@ -36,7 +40,7 @@ namespace Remains.Runtime
         }
         private PlayerCommand Command()
         {
-            var prop=runtime.Session.World?.props.FirstOrDefault();
+            var prop=Target(runtime.Session.World);
             if(!Host || prop==null) return default;
             if(phase==1 || phase==4) return new PlayerCommand {telekinesis=true,hasAim=true,aim=prop.Position};
             if(phase==2) return new PlayerCommand {telekinesis=true,hasAim=true,aim=new Vector2(-1,2)};
@@ -55,7 +59,8 @@ namespace Remains.Runtime
                 {traveled=true;session.Travel.RequestFactory();}
                 return;
             }
-            var prop=session.ServerWorld.props.Single();
+            var prop=Target(session.ServerWorld);
+            if(ContainerScenario && initialItems==null) initialItems=Remains.Serialization.StateJson.ToJson(((ContainerState)prop).items);
             if(pauseRunning) return;
             if(PauseScenario && phase==2 && !pauseStarted && prop.held && prop.y>1)
             {pauseStarted=true;pauseRunning=true;StartCoroutine(PauseHeldProp());return;}
@@ -72,14 +77,21 @@ namespace Remains.Runtime
                 if(self.level!="hub" || successor.level!="factory:0" || prop.owner!=successor.owner || prop.held || prop.y>.4f) return;
                 bool valid=self.mana<100 && successor.mana==100 && prop.level=="factory:0" &&
                     session.World.actors.Where(a=>a.player && a.id!=self.id && a.id!=successor.id).All(a=>a.level=="hub" && a.mana==100);
+                if(ContainerScenario)
+                {
+                    session.CommitWorld();
+                    var saved=session.Saves.LoadWorld().containers.Single();
+                    valid &= Remains.Serialization.StateJson.ToJson(((ContainerState)prop).items)==initialItems &&
+                        Remains.Serialization.StateJson.ToJson(saved.items)==initialItems && saved.Position==prop.Position;
+                }
                 SetPhase(6);
                 NetworkServer.SendToAll(new TelekinesisProbeFinish {success=valid,detail=valid?
-                    "Обычные команды: захват, подъём, расход маны владельца, отпускание, повторный захват, уход в хаб и передача физики предмета другому игроку.":"Неверный расход маны или локация предмета/наблюдателей."});
+                    "Обычные команды: захват, подъём, расход маны владельца, отпускание, повторный захват, уход в хаб и передача физики предмета другому игроку."+(ContainerScenario?" Содержимое и ID вещей контейнера сохранены без изменений, положение записано в сейв.":""):"Неверный расход маны, положение или сохранность содержимого."});
             }
         }
         private float[] PauseSnapshot()
         {
-            var prop=runtime.Session.World.props.Single();var holder=runtime.Session.World.Find("player:session-host");
+            var prop=Target(runtime.Session.World);var holder=runtime.Session.World.Find("player:session-host");
             return new[]{prop.x,prop.y,prop.vx,prop.vy,(float)prop.generation,holder.mana};
         }
         private IEnumerator PauseHeldProp()

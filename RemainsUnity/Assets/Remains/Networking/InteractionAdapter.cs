@@ -25,7 +25,7 @@ namespace Remains.Networking
             {
                 NetworkClient.RegisterHandler<PropPoseMessage>(message=>
                 {
-                    var prop=session.World?.props.Find(p=>p.id==message.prop);
+                    var prop=WorldProps.Find(session.World,message.prop);
                     if(prop==null || prop.owner==session.LocalOwner || prop.generation!=message.generation) return;
                     PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy);
                 });
@@ -41,7 +41,7 @@ namespace Remains.Networking
         private void Grab(NetworkConnectionToClient connection,PropGrabMessage message)
         {
             var actor=session.ConnectedActor(connection);
-            var prop=session.ServerWorld.props.Find(p=>p.id==message.prop);
+            var prop=WorldProps.Find(session.ServerWorld,message.prop);
             if(actor==null || prop==null || actor.down || actor.level!=prop.level) return;
             if(session.Pause.IsServerPaused(actor.level))
             {connection.Send(new NoticeMessage {text="Захват/отпускание отменено: уровень остановлен."});return;}
@@ -52,6 +52,7 @@ namespace Remains.Networking
             }
             else
             {
+                if(!prop.movable) {connection.Send(new NoticeMessage {text="Этот объект закреплён."});return;}
                 if(prop.held && prop.owner!=actor.owner) return;
                 prop.owner=actor.owner;prop.generation++;prop.held=true;
             }
@@ -60,7 +61,7 @@ namespace Remains.Networking
         private void Pose(NetworkConnectionToClient connection,PropPoseMessage message)
         {
             var actor=session.ConnectedActor(connection);
-            var prop=session.ServerWorld.props.Find(p=>p.id==message.prop);
+            var prop=WorldProps.Find(session.ServerWorld,message.prop);
             if(actor==null || prop==null || prop.owner!=actor.owner || actor.level!=prop.level ||
                 !PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy)) return;
             NetworkServer.SendToAll(message,Channels.Unreliable);
