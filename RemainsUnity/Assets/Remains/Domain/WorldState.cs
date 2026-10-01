@@ -28,6 +28,7 @@ namespace Remains.Domain
         public bool connected;
         public bool down;
         public int damageSequence;
+        public List<string> resolvedExplosions = new();
         public float health = 100;
         public float mana = 100;
         public float x;
@@ -73,6 +74,8 @@ namespace Remains.Domain
         public List<string> completedTransactions = new();
         public List<PendingGrant> pendingGrants = new();
         public List<PropState> props = new();
+        public List<GrenadeState> grenades = new();
+        public List<ExplosionState> explosions = new();
         public ActorState Find(string id) => actors.Find(actor => actor.id == id);
         public WorldState Copy() => JsonUtility.FromJson<WorldState>(JsonUtility.ToJson(this));
     }

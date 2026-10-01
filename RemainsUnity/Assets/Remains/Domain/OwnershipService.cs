@@ -8,9 +8,19 @@ namespace Remains.Domain
     {
         public void Reassign(WorldState world, IReadOnlyCollection<string> activeOwners)
         {
+            GrenadeRules.Reassign(world,activeOwners);
             var active = world.actors.Where(a => a.player && a.connected && !a.down && activeOwners.Contains(a.owner)).ToArray();
             foreach (var actor in world.actors.Where(a => !a.player || !a.connected))
             {
+                if (!ActorPresence.IsPresent(actor))
+                {
+                    if (actor.owner != null || actor.target != null || actor.attackBusy)
+                    {
+                        actor.owner=null;actor.target=null;actor.attackBusy=false;actor.attackRemaining=0;
+                        actor.generation++;actor.revision++;
+                    }
+                    continue;
+                }
                 if (actor.attackBusy && activeOwners.Contains(actor.owner)) continue;
                 if (actor.attackBusy)
                 {

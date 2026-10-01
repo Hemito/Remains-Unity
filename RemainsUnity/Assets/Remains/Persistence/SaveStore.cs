@@ -29,7 +29,8 @@ namespace Remains.Persistence
                 foreach(var actor in world.actors.Where(a=>a.player && a.loadoutVersion==0)) UpgradeLoadout(actor,backup);
                 world.revision++;
             }
-            foreach(var actor in world.actors) actor.inventoryUses ??= new List<InventoryUse>();
+            world.grenades ??= new List<GrenadeState>();world.explosions ??= new List<ExplosionState>();
+            foreach(var actor in world.actors) {actor.inventoryUses ??= new List<InventoryUse>();actor.resolvedExplosions ??= new List<string>();}
             return world;
         }
 
@@ -102,6 +103,7 @@ namespace Remains.Persistence
             string path=Path.Combine(DirectoryPath,"character.json");
             if(!File.Exists(path)) return null;
             var actor=JsonUtility.FromJson<ActorState>(File.ReadAllText(path));
+            actor.resolvedExplosions ??= new List<string>();
             if(actor.loadoutVersion==0) UpgradeLoadout(actor,PreserveSource("character.json"));
             return actor;
         }

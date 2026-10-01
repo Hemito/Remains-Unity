@@ -24,7 +24,8 @@ namespace Remains.Gameplay
         private float nextResourceNotice;
         private string selectedActor;
         private int selectedGeneration;
-        public Func<string,Vector2?> LocalExplosionPosition { get; set; }
+        private bool resolvingExplosions;
+        public Func<string,int,Vector2?> LocalExplosionPosition { get; set; }
         public CombatController(CoopSession session)
         {
             this.session = session;
@@ -32,6 +33,7 @@ namespace Remains.Gameplay
             session.AttackReceived += ReceiveAttack;
             session.NpcHitReceived += ReceiveNpcHit;
             session.Changed+=RestoreSelection;
+            session.Changed+=ResolveExplosions;
         }
 
         private void RestoreSelection()
@@ -96,20 +98,30 @@ namespace Remains.Gameplay
             if(swingElapsed>=0.3f) swingActor=null;
         }
 
-        public void Explode(GrenadeMessage grenade, Vector2 location)
+        private void ResolveExplosions()
         {
-            session.Fire(new AttackEvent { id = grenade.id, attacker = grenade.attacker, weapon = "grenade",level=grenade.level,
-                originX = grenade.x, originY = grenade.y, endX = location.x, endY = location.y });
+            if(resolvingExplosions || session.World==null || session.LocalOwner==null) return;
+            resolvingExplosions=true;
+            try
+            {
+                foreach(var explosion in session.World.explosions.ToArray())
+                foreach(var actor in session.World.actors.Where(a=>ActorPresence.IsPresent(a) && a.owner==session.LocalOwner).ToArray())
+                {
+                    if(actor.resolvedExplosions.Contains(explosion.attack.id) ||
+                        !(actor.player?explosion.players:explosion.enemies).Contains(actor.id)) continue;
+                    var local=LocalExplosionPosition?.Invoke(explosion.attack.id,explosion.generation);
+                    if(actor.player && !local.HasValue)
+                        Debug.LogWarning($"Восстановленное решение о взрыве без локального полёта: grenade={explosion.attack.id}, actor={actor.id}, generation={explosion.generation}.");
+                    if(GrenadeRules.Resolve(actor,explosion,damage,local ?? explosion.attack.End)) session.PublishActor(actor);
+                }
+            }
+            finally {resolvingExplosions=false;}
         }
 
         private void ReceiveAttack(AttackEvent attack)
         {
             if (session.World == null) return;
-            if(attack.weapon=="grenade")
-            {
-                var position=LocalExplosionPosition?.Invoke(attack.id);
-                if(position.HasValue) { attack.endX=position.Value.x;attack.endY=position.Value.y; }
-            }
+            if(attack.weapon=="grenade") return; // Persisted explosion decisions are processed from World.
             foreach (var actor in session.World.actors.ToArray())
             {
                 if(!AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) continue;

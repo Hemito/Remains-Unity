@@ -5,7 +5,7 @@ namespace Remains.Gameplay
 {
     public sealed class MovementController
     {
-        public const float Gravity = 20;
+        public const float Gravity = WorldPhysics.Gravity;
         private readonly RoomLayout room;
         public MovementController(RoomLayout room) => this.room=room;
         public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false)

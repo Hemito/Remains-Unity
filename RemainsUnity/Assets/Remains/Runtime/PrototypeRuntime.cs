@@ -58,7 +58,7 @@ namespace Remains.Runtime
             networkObject.SetActive(false);
             var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
             Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;
-            Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
+            Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby") || Options.Smoke.StartsWith("grenade-resume-"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
             Session.CharacterId=Options.Character;
             Session.networkAddress=Options.Address;
             Session.Saves=new SaveStore(Options.SaveDirectory ?? Path.Combine(Application.persistentDataPath,"Profiles",Options.Character));
@@ -102,6 +102,7 @@ namespace Remains.Runtime
                 if(Options.Smoke.StartsWith("lobby")) gameObject.AddComponent<NetworkLobbyProbe>().Initialize(this);
                 else if(Options.Smoke=="history") gameObject.AddComponent<WorldSelectionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("session")) gameObject.AddComponent<NetworkSessionProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("grenade")) gameObject.AddComponent<NetworkGrenadeProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("revival")) gameObject.AddComponent<NetworkRevivalProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("ammo")) gameObject.AddComponent<NetworkAmmunitionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("movement")) gameObject.AddComponent<NetworkMovementProbe>().Initialize(this);
@@ -129,6 +130,7 @@ namespace Remains.Runtime
             }
             foreach (var actor in Session.World.actors)
             {
+                if (!ActorPresence.IsPresent(actor)) continue;
                 if (!visuals.TryGetValue(actor.id,out var visual))
                 {
                     visual=new GameObject(actor.id).AddComponent<PonyVisual>(); visuals.Add(actor.id,visual);
@@ -137,7 +139,7 @@ namespace Remains.Runtime
                 visual.SetVisible(actor.level==Session.LocalActor?.level);
             }
             var removed=new List<string>();
-            foreach (var pair in visuals) if (Session.World.Find(pair.Key)==null) { Destroy(pair.Value.gameObject); removed.Add(pair.Key); }
+            foreach (var pair in visuals) if (!ActorPresence.IsPresent(Session.World.Find(pair.Key))) { Destroy(pair.Value.gameObject); removed.Add(pair.Key); }
             foreach (var id in removed) visuals.Remove(id);
         }
 
@@ -149,7 +151,7 @@ namespace Remains.Runtime
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors) animated.poseTime+=Time.deltaTime;
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade"))
             {
                 npcs.Step(Time.deltaTime);
                 ApplyCommand(CommandSource?.Invoke() ?? ReadCommand(),Time.deltaTime);

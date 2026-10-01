@@ -22,7 +22,7 @@ namespace Remains.Presentation
             foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
             foreach(var key in new[]{"spear","crowbar","pistol","energy"}) sprites.Add(key,Load("Original/Weapons/"+key));
             session.Changed+=Refresh;
-            adapter.GrenadeReceived+=message=>flights.Add(message.id,Create("Граната "+message.id,sprites["grenade"],0.35f));
+            grenades.Created+=flight=> {if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"],0.35f));};
             session.AttackReceived+=attack=>
             {
                 if(attack.weapon is "spear" or "crowbar" or "grenade" || attack.level!=session.LocalActor?.level) return;
@@ -50,9 +50,9 @@ namespace Remains.Presentation
                 foreach(var renderer in flights.Values) renderer.enabled=false;
                 return;
             }
-            foreach(var pair in weapons) if(session.World.Find(pair.Key)==null) pair.Value.enabled=false;
+            foreach(var pair in weapons) if(!ActorPresence.IsPresent(session.World.Find(pair.Key))) pair.Value.enabled=false;
             foreach(var prop in session.World.props) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,sprites["crate"],0.8f));
-            foreach(var actor in session.World.actors) if(!weapons.ContainsKey(actor.id)) weapons.Add(actor.id,Create("Оружие "+actor.id,sprites["pistol"],0.8f));
+            foreach(var actor in session.World.actors) if(ActorPresence.IsPresent(actor) && !weapons.ContainsKey(actor.id)) weapons.Add(actor.id,Create("Оружие "+actor.id,sprites["pistol"],0.8f));
         }
         private void Update()
         {
@@ -62,7 +62,7 @@ namespace Remains.Presentation
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;
-                view.enabled=!actor.down && actor.level==session.LocalActor?.level;
+                view.enabled=ActorPresence.IsPresent(actor) && !actor.down && actor.level==session.LocalActor?.level;
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.enabled=false;continue; }
                 float width=actor.weapon=="spear"?1.6f:actor.weapon=="crowbar"?1.2f:0.8f;

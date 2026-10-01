@@ -1,0 +1,65 @@
+using System;
+using System.IO;
+using Remains.Domain;
+using Remains.Persistence;
+using UnityEngine;
+
+namespace Remains.Editor
+{
+    public static class GrenadeChecks
+    {
+        public static void Run()
+        {
+            CheckRecoveredPresence();
+            var world=new WorldState();
+            var source=new ActorState {id="source",owner="a",player=true,connected=true};
+            var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
+            world.actors.Add(source);world.actors.Add(survivor);
+            var grenade=new GrenadeState {id="g",attacker=source.id,sourcePlayer=true,level=source.level,owner="a",generation=1,x=1,remaining=1.4f};
+            world.grenades.Add(grenade);source.connected=false;
+            GrenadeRules.Reassign(world,new[]{"b"});
+            Require(grenade.owner=="b" && grenade.generation==2 && grenade.remaining==1.4f,"Передача сохраняет остаток запала и меняет поколение");
+            survivor.level="hub";GrenadeRules.Reassign(world,new[]{"b"});Require(grenade.owner==null,"Пустой уровень не получает фиктивного владельца host");
+            survivor.level=source.level;GrenadeRules.Reassign(world,new[]{"b"});
+            string path=Path.Combine(Path.GetTempPath(),"Remains-grenade-"+Guid.NewGuid().ToString("N"));
+            try
+            {
+                var store=new SaveStore(path);store.SaveWorld(world);var loaded=store.LoadWorld();
+                Require(loaded.grenades.Count==1 && loaded.grenades[0].remaining==1.4f && loaded.grenades[0].attacker==source.id,"Активная граната переживает сохранение без повторной выдачи предмета");
+                grenade.remaining=0;var explosion=GrenadeRules.Detonate(world,grenade,Array.Empty<string>());
+                Require(explosion!=null && GrenadeRules.Detonate(world,grenade,Array.Empty<string>())==null,"Один ID даёт один взрыв");
+                var damage=new DamageReceiver(new PrototypeDamageRule());
+                Require(GrenadeRules.Resolve(survivor,explosion,damage,grenade.Position) && survivor.health==30,"Пострадавший применяет собственное решение");
+                var restored=survivor.Copy();
+                Require(!GrenadeRules.Resolve(restored,explosion,new DamageReceiver(new PrototypeDamageRule()),grenade.Position) && restored.health==30,"Сохранённое решение не повторяет урон после смены симулятора");
+                source.x=100;GrenadeRules.Resolve(source,explosion,damage,grenade.Position);source.x=1;
+                Require(!GrenadeRules.Resolve(source,explosion,damage,grenade.Position) && source.health==100,"Промах не превращается в попадание после возвращения");
+                GrenadeRules.ForgetHubActor(world,source.id);var returning=new ActorState {id=source.id,player=true,connected=true,x=1};
+                Require(!GrenadeRules.Resolve(returning,explosion,damage,grenade.Position),"Исчезнувший в хабе персонаж не получает старый взрыв при новом входе");
+                store.SaveWorld(world);loaded=store.LoadWorld();
+                Require(loaded.grenades.Count==0 && loaded.explosions.Count==1 && loaded.Find(survivor.id).resolvedExplosions.Count==1,"Сохраняются результат взрыва и решения пострадавших");
+                Debug.Log("GrenadeChecks PASS: передача, пустой уровень, сохранение полёта, однократный взрыв и решения.");
+            }
+            finally {if(Directory.Exists(path)) Directory.Delete(path,true);}
+        }
+        private static void CheckRecoveredPresence()
+        {
+            var world=new WorldState();
+            var active=new ActorState {id="active",player=true,connected=true,level="hub",owner="live"};
+            var waiting=new ActorState {id="waiting",player=true,level="hub",owner="stale",attackBusy=true};
+            var body=new ActorState {id="body",player=true,level="factory:0",owner="stale",down=true};
+            world.actors.Add(active);world.actors.Add(waiting);world.actors.Add(body);
+            new OwnershipService().Reassign(world,new[]{"live"});
+            Require(!ActorPresence.IsPresent(waiting) && waiting.owner==null && !waiting.attackBusy,"Сохранённый персонаж хаба не становится телом с чужим владельцем");
+            Require(ActorPresence.IsPresent(body),"Отключённое тело вне хаба остаётся в мире");
+            var grenade=new GrenadeState {id="presence",level="hub",attacker=active.id,sourcePlayer=true};world.grenades.Add(grenade);
+            var explosion=GrenadeRules.Detonate(world,grenade,Array.Empty<string>());
+            Require(explosion.players.Count==1 && explosion.players[0]==active.id && !AttackScope.Includes(explosion.attack,waiting),"Взрыв не адресуется отсутствующему персонажу хаба");
+            waiting.connected=true;
+            Require(ActorPresence.IsPresent(waiting) && !GrenadeRules.Resolve(waiting,explosion,new DamageReceiver(new PrototypeDamageRule()),Vector2.zero),"Вход в хаб не превращает прошлый взрыв в новое попадание");
+            explosion.attack.level=body.level;
+            Require(AttackScope.Includes(explosion.attack,body),"Отключённое тело вне хаба остаётся доступно урону");
+        }
+        private static void Require(bool condition,string reason) {if(!condition) throw new InvalidOperationException("GrenadeChecks: "+reason);}
+    }
+}

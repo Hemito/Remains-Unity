@@ -75,6 +75,7 @@ namespace Remains.Networking
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
             WorldHistory.BeginContinuation(ServerWorld);
+            GrenadeRules.BeginSession(ServerWorld);
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
                 if(ActorPositionRecovery.Repair(actor,RoomLayout.Load(actor.level),"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
@@ -217,7 +218,7 @@ namespace Remains.Networking
             {
                 backupRevisions.Remove(connection.connectionId);
                 var actor = ServerWorld.Find(playerIds[owner]);
-                if (actor.level == "hub") ServerWorld.actors.Remove(actor);
+                if (actor.level == "hub") {GrenadeRules.ForgetHubActor(ServerWorld,actor.id);ServerWorld.actors.Remove(actor);}
                 else
                 {
                     actor.connected = false;
@@ -261,7 +262,7 @@ namespace Remains.Networking
                     if (local.revision > actor.revision)
                     {
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;
-                        actor.mana=local.mana;actor.damageSequence=local.damageSequence;
+                        actor.mana=local.mana;actor.damageSequence=local.damageSequence;actor.resolvedExplosions=local.resolvedExplosions;
                         actor.magazines=local.magazines;
                         if(!InventoryJournal.Merge(actor,local,out var inventoryCopy,out var uses))
                             throw new InvalidOperationException($"Не удалось согласовать расход инвентаря: actor={actor.id}, revision={actor.revision}.");
@@ -382,6 +383,7 @@ namespace Remains.Networking
         private void RelayAttack(NetworkConnectionToClient connection, AttackMessage message)
         {
             var attack = JsonUtility.FromJson<AttackEvent>(message.json);
+            if(attack.weapon=="grenade") {Debug.LogWarning($"Взрыв без сохраняемой сущности отклонён: {attack.id}.");return;}
             if (!owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.Find(attack.attacker)?.owner != owner) return;
             if(string.IsNullOrEmpty(attack.level) || (attack.weapon!="grenade" && attack.level!=ServerWorld.Find(attack.attacker).level))
             { Debug.LogWarning($"Атака без корректной локации отклонена: id={attack.id}, actor={attack.attacker}, level={attack.level}.");return; }
@@ -465,6 +467,7 @@ namespace Remains.Networking
             owners.TryGetValue(connection.connectionId,out var owner) && playerIds.TryGetValue(owner,out var id)?ServerWorld.Find(id):null;
         public void CommitWorld()
         {
+            ownership.Reassign(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
             Saves.SaveWorld(ServerWorld);
             BroadcastWorld();
