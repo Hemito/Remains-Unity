@@ -14,6 +14,7 @@ namespace Remains.Editor
             PlatformDropChecks.Run();
             LadderHoldChecks.Run();
             HorizontalMotionChecks.Run();
+            VariableJumpChecks.Run();
             CheckSolidGeometry();
             SavedPlacementChecks.Run();
             var factory=RoomLayout.Load();var movement=new MovementController(factory);

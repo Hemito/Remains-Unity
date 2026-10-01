@@ -8,10 +8,11 @@ namespace Remains.Content
     {
         public float walkSpeed,runSpeed,climbSpeed,jumpSpeed,dropSpeed,doubleTapSeconds;
         public float groundAcceleration,groundBraking,airAcceleration,airBraking,climbDownMultiplier;
+        public float actorGravity,jumpSupportSeconds;
         public void Validate()
         {
             foreach(float value in new[]{walkSpeed,runSpeed,climbSpeed,jumpSpeed,dropSpeed,doubleTapSeconds,
-                groundAcceleration,groundBraking,airAcceleration,airBraking,climbDownMultiplier})
+                groundAcceleration,groundBraking,airAcceleration,airBraking,climbDownMultiplier,actorGravity,jumpSupportSeconds})
                 if(!float.IsFinite(value) || value<=0) throw new InvalidOperationException("Параметры движения должны быть конечными положительными числами.");
             if(runSpeed<walkSpeed) throw new InvalidOperationException("Скорость бега ниже скорости ходьбы.");
         }

@@ -6,7 +6,6 @@ namespace Remains.Gameplay
 {
     public sealed class MovementController
     {
-        public const float Gravity = WorldPhysics.Gravity;
         private readonly RoomLayout room;
         private readonly ReleasedTapGesture downTap;
         private readonly MovementSettings settings;
@@ -16,12 +15,12 @@ namespace Remains.Gameplay
             this.room=room;this.settings=settings??MovementSettings.Load();this.settings.Validate();
             downTap=new ReleasedTapGesture(this.settings.doubleTapSeconds);
         }
-        public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false)
+        public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false,bool jumpHeld=false)
         {
             ActorPositionRecovery.Repair(actor,room,"движение");
             bool dropPressed=downTap.Step(input.y<-.1f,dt);
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
-            if (actor.down) { actor.climbing=false;actor.vx = 0; actor.vy = 0; return; }
+            if (actor.down) { actor.climbing=false;actor.jumpSupportRemaining=0;actor.vx = 0; actor.vy = 0; return; }
             var previous=actor.Position;
             var hull=Anatomy.Movement(actor.anatomy);
             var selected=System.Array.Find(room.ladders,l=>Mathf.Abs(actor.x-l.x-l.movementOffset)<0.65f && actor.y>=l.bottom-0.1f && actor.y<l.top+0.2f);
@@ -30,23 +29,25 @@ namespace Remains.Gameplay
             bool ladder = selected!=null && !detach && (wasClimbing || Mathf.Abs(input.y) > 0.1f);
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
+            if(grounded || drop || ladder) actor.jumpSupportRemaining=0;
             if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
             actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings);
             if (input.x != 0) actor.facing = input.x > 0 ? 1 : -1;
+            float verticalDistance;
             if (ladder)
             {
                 actor.vy = input.y * settings.climbSpeed * (input.y<0?settings.climbDownMultiplier:1);
                 if(Mathf.Abs(input.x)<.1f && dt>0) actor.vx=Mathf.Clamp((selected.x+selected.movementOffset-actor.x)/dt,-settings.walkSpeed,settings.walkSpeed);
+                verticalDistance=actor.vy*dt;
             }
             else
             {
-                if (jump && (grounded || wasClimbing) && !drop) actor.vy = settings.jumpSpeed;
-                actor.vy -= Gravity * dt;
+                verticalDistance=VerticalMotion.Step(actor,jump && (grounded || wasClimbing) && !drop,jumpHeld,dt,settings);
             }
-            var desired=actor.Velocity*dt;
+            var desired=new Vector2(actor.vx*dt,verticalDistance);
             actor.Position=ActorTerrainMotion.Move(room,hull,previous,desired,ladder,droppedSurface);
             if(Mathf.Abs(actor.x-previous.x-desired.x)>.0001f) actor.vx=0;
-            if(Mathf.Abs(actor.y-previous.y-desired.y)>.0001f) actor.vy=0;
+            if(Mathf.Abs(actor.y-previous.y-desired.y)>.0001f) {actor.vy=0;actor.jumpSupportRemaining=0;}
             if(ladder)
             {
                 float y=Mathf.Clamp(actor.y,selected.bottom,selected.top);

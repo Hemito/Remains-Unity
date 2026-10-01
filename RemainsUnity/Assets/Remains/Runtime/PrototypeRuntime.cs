@@ -239,6 +239,7 @@ namespace Remains.Runtime
                 command.movement=new Vector2((keyboard.dKey.isPressed?1:0)-(keyboard.aKey.isPressed?1:0),
                     (keyboard.wKey.isPressed?1:0)-(keyboard.sKey.isPressed?1:0));
                 command.jump=keyboard.spaceKey.wasPressedThisFrame;
+                command.jumpHeld=keyboard.spaceKey.isPressed;
                 command.sprint=keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
                 command.weapon=keyboard.digit1Key.wasPressedThisFrame?"spear":keyboard.digit2Key.wasPressedThisFrame?"crowbar":
                     keyboard.digit3Key.wasPressedThisFrame?"pistol":keyboard.digit4Key.wasPressedThisFrame?"energy":null;
@@ -265,7 +266,7 @@ namespace Remains.Runtime
             if(hud?.BlocksGameplayInput==true) command=default;
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
             if(Session.Travel.Pending) command=default;
-            movement.Step(actor,command.movement,command.jump,dt,command.sprint);
+            movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
             if(command.weapon!=null) Combat.Weapon=command.weapon;
             actor.weapon=Combat.Weapon;
             if(command.hasAim && !Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim);

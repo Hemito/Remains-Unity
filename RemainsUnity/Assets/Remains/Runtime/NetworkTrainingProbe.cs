@@ -23,6 +23,8 @@ namespace Remains.Runtime
         private bool Host=>runtime.Options.Role=="host";
         private ContainerState Crate(int index)=>runtime.Session.World.containers.Single(c=>c.id=="training:crate:"+index);
         private readonly HashSet<int> done=new();
+        private readonly TrainingJumpExercise jumping=new();
+        private readonly HashSet<string> observedJumpSupport=new();
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+75;value.CommandSource=Command;
@@ -45,11 +47,12 @@ namespace Remains.Runtime
         private IEnumerator FinishAfterDelivery()
         {
             yield return new WaitForSecondsRealtime(1);
-            Finish(true,"Три мишени, обычный маршрут, по три выстрела каждого игрока. Хост проверил отказ 50/120 кг и поднял/отпустил 25 кг; оба клиента наблюдали подъём.");
+            Finish(true,"Короткий/длинный прыжок, балка и двойное S; состояния прыжка видны другим клиентам. Три мишени, по три выстрела; отказ 50/120 кг и подъём 25 кг.");
         }
         private PlayerCommand Command()
         {
             var self=runtime.Session.LocalActor;if(self==null || finished) return default;
+            if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return default;
             if(stage==0)
             {
                 float delta=14.98f-self.x;
@@ -65,12 +68,21 @@ namespace Remains.Runtime
             {
                 float delta=26-self.x;
                 if(Mathf.Abs(delta)>.08f) return new PlayerCommand {movement=new Vector2(Mathf.Sign(delta),0)};
+                stage=11;
+            }
+            if(stage==11)
+            {
+                var jumpCommand=jumping.Step(self);
+                if(!jumping.Complete) return jumpCommand;
+                if(Mathf.Abs(jumping.ShortHeight-1.44f)>.15f || Mathf.Abs(jumping.LongHeight-3.36f)>.15f)
+                {Finish(false,$"Неверная высота прыжка от обычного ввода: short={jumping.ShortHeight}, long={jumping.LongHeight}.");return default;}
                 stage=3;
             }
             if(Host && stage==3 && shots==3 && results==3*runtime.Options.ProbePeers)
             {stage=4;manaBeforeLift=self.mana;}
             if(stage>=4) return CrateCommand();
-            bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-26)<.15f && a.y<1);
+            // The jump intentionally preserves momentum; readiness is the firing area, not one exact point.
+            bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-26)<1 && a.y<1);
             return new PlayerCommand {weapon="pistol",hasAim=true,aim=new Vector2(29,1.6f),fire=ready && shots<3};
         }
         private PlayerCommand CrateCommand()
@@ -93,6 +105,8 @@ namespace Remains.Runtime
             if(finished) return;
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут мишеней: stage={stage}, shots={shots}, results={results}, position={runtime.Session.LocalActor?.Position}.");return;}
             var self=runtime.Session.LocalActor;if(self==null) return;
+            foreach(var other in runtime.Session.World.actors)
+                if(other.player && other.id!=self.id && other.jumpSupportRemaining>0) observedJumpSupport.Add(other.id);
             if(NetworkServer.active && !configured) {configured=true;runtime.Session.SetFriendlyFire(false);}
             if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers || runtime.Session.World.friendlyFire) return;
             var targets=runtime.Session.World.actors.Where(a=>a.actorType=="training-dummy").ToArray();
@@ -106,6 +120,7 @@ namespace Remains.Runtime
             if(results<3*runtime.Options.ProbePeers || sent) return;
             if(results!=3*runtime.Options.ProbePeers || shots!=3 || targets.Single(a=>a.id=="training:hub:1").resolvedAttacks.Count!=results) return;
             if(!observedLift || light.held || Host && (stage<10 || !rejected50 || !rejected120)) return;
+            if(!jumping.Complete || observedJumpSupport.Count!=runtime.Options.ProbePeers-1) return;
             if(Host && self.mana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
             var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
             if(views.Length!=3 || views.Select(v=>v.ActorId).Distinct().Count()!=3) {Finish(false,"Неверное количество моделей мишеней.");return;}
@@ -119,9 +134,9 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             string json=JsonUtility.ToJson(new Report {success=success,detail=detail,shots=shots,results=results,
-                rejected50=rejected50,rejected120=rejected120,observedLift=observedLift},true);
+                rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift;public string detail;public int shots,results;}
+        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift;public string detail;public int shots,results,remoteJumps;public float shortJump,longJump;}
     }
 }

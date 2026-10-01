@@ -19,6 +19,7 @@ namespace Remains.Networking
         public string pose;
         public float poseTime;
         public bool climbing;
+        public float jumpSupportRemaining;
         public string weapon;
         public float weaponAngle,weaponTipX,weaponTipY;
         public float weaponReach;
