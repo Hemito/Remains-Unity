@@ -9,6 +9,14 @@ namespace Remains.Editor
         public static void Run()
         {
             var gate = new PoseSequenceGate();
+            var replicatedProp=new PropState {generation=2,sequence=7,held=true};
+            Require(PropReplication.Accept(replicatedProp,2,9,1,2,3,4),"Новый пакет предмета принимается");
+            Require(!PropReplication.Accept(replicatedProp,2,8,99,2,3,4) && replicatedProp.x==1,"Перестановка не откатывает предмет");
+            Require(!PropReplication.Accept(replicatedProp,2,9,99,2,3,4),"Повтор пакета предмета отклоняется");
+            replicatedProp.generation++;replicatedProp.held=false;
+            Require(!PropReplication.Accept(replicatedProp,2,10,99,2,3,4) && !replicatedProp.held,"Старое поколение после отпускания отклоняется");
+            Require(!PropReplication.Accept(replicatedProp,3,10,float.NaN,2,3,4),"Неконечная координата предмета отклоняется");
+            Require(PropReplication.IsNewer(0,uint.MaxValue),"Счётчик предмета допускает переполнение");
             Require(gate.Accept("a", 1, 1, 12), "Первый пакет принимается");
             Require(!gate.Accept("a", 1, 1, 11), "Переставленный пакет отклоняется");
             Require(!gate.Accept("a", 1, 1, 12), "Повторный пакет отклоняется");

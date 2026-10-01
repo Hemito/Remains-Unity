@@ -89,6 +89,7 @@ namespace Remains.Domain
     [Serializable]
     public sealed class PropState : ExtensibleState
     {
+        public uint sequence;
         public string id;
         public string owner;
         public int generation;

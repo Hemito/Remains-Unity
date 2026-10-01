@@ -27,7 +27,7 @@ namespace Remains.Networking
                 {
                     var prop=session.World?.props.Find(p=>p.id==message.prop);
                     if(prop==null || prop.owner==session.LocalOwner || prop.generation!=message.generation) return;
-                    Apply(prop,message);
+                    PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy);
                 });
                 NetworkClient.RegisterHandler<GrenadePoseMessage>(message=>
                 {
@@ -46,7 +46,7 @@ namespace Remains.Networking
             if(message.release)
             {
                 if(prop.owner!=actor.owner) return;
-                prop.held=false;
+                prop.held=false;prop.generation++;
             }
             else
             {
@@ -59,12 +59,10 @@ namespace Remains.Networking
         {
             var actor=session.ConnectedActor(connection);
             var prop=session.ServerWorld.props.Find(p=>p.id==message.prop);
-            if(actor==null || prop==null || prop.owner!=actor.owner || prop.generation!=message.generation) return;
-            Apply(prop,message);
+            if(actor==null || prop==null || prop.owner!=actor.owner || actor.level!=prop.level ||
+                !PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy)) return;
             NetworkServer.SendToAll(message,Channels.Unreliable);
         }
-        private static void Apply(PropState prop,PropPoseMessage message)
-        { prop.x=message.x;prop.y=message.y;prop.vx=message.vx;prop.vy=message.vy;prop.held=message.held; }
 
         private void Throw(NetworkConnectionToClient connection,ThrowRequest message)
         {
@@ -107,7 +105,11 @@ namespace Remains.Networking
                 x=state.x,y=state.y,vx=state.vx,vy=state.vy,remaining=state.remaining,detonate=detonate,enemyHits=enemyHits});
         }
         public void GrabProp(string prop,bool release) => NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });
-        public void SendProp(PropState prop) => NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy,held=prop.held },Channels.Unreliable);
+        public void SendProp(PropState prop)
+        {
+            prop.sequence++;
+            NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy },Channels.Unreliable);
+        }
         public void ThrowGrenade(Vector2 aim)=>NetworkClient.Send(new ThrowRequest { transaction=Guid.NewGuid().ToString("N"),aimX=aim.x,aimY=aim.y });
     }
 }
