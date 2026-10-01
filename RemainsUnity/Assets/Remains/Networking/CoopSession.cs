@@ -44,6 +44,7 @@ namespace Remains.Networking
         private readonly Dictionary<string, string> playerIds = new();
         private readonly PoseSequenceGate serverPoses = new();
         private readonly PoseSequenceGate clientPoses = new();
+        private NpcHitDelivery npcHits;
         public bool UseLobby {get;set;}
         private ProtocolAdmission admission;
         public ProtocolAdmission Admission=>admission ??= new ProtocolAdmission(this);
@@ -65,6 +66,14 @@ namespace Remains.Networking
 
         public override void OnStartServer()
         {
+            npcHits=gameObject.AddComponent<NpcHitDelivery>();
+            npcHits.Initialize(this,owner=>
+            {
+                if(string.IsNullOrEmpty(owner)) return null;
+                var recipient=owners.FirstOrDefault(pair=>pair.Value==owner);
+                if(recipient.Value!=owner) return null;
+                return NetworkServer.connections.TryGetValue(recipient.Key,out var connection)?connection:null;
+            });
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
@@ -110,6 +119,7 @@ namespace Remains.Networking
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
+            npcHits?.Reset();
             if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld))
             {
                 if(source!=null) Debug.Log("Сохранена копия мира перед обновлением базового контента: "+Saves.PreserveRecoverySource());
@@ -480,10 +490,9 @@ namespace Remains.Networking
         {
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             var target = ServerWorld.Find(message.target);
-            if (target == null || target.player || target.generation != message.generation ||
+            if (target == null || target.player || string.IsNullOrEmpty(attack?.id) || !AttackScope.Includes(attack,target) ||
                 !owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.Find(attack.attacker)?.owner != owner) return;
-            var recipient = owners.FirstOrDefault(pair => pair.Value == target.owner);
-            if (NetworkServer.connections.TryGetValue(recipient.Key, out var destination)) destination.Send(message);
+            npcHits.Accept(message,attack);
         }
 
         public void RequestClaim(string container,string item,int quantity=0) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"),container=container, item = item,quantity=quantity });
@@ -582,6 +591,7 @@ namespace Remains.Networking
 
         public override void OnStopServer()
         {
+            if(npcHits!=null) {Destroy(npcHits);npcHits=null;}
             Pause.ResetServer();
             CancelInvoke(nameof(CheckpointWorld));
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);

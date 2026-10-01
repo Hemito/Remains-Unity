@@ -19,6 +19,7 @@ namespace Remains.Editor
             WeaponCatalog.Load();
             ActorTypeChecks.Run();
             RaiderChecks.Run();
+            LightingChecks.Run();
             DamageFeedbackChecks.Run();
             WeaponPoseChecks.Run();
             MovableContainerChecks.Run();

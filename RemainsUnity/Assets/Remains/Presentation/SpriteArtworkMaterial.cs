@@ -10,7 +10,7 @@ namespace Remains.Presentation
         public static void Prepare(Sprite sprite)
         {
             if(!materials.ContainsKey(sprite.texture))
-                materials.Add(sprite.texture,new Material(Shader.Find("Sprites/Default")) {mainTexture=sprite.texture});
+                materials.Add(sprite.texture,WorldArtworkMaterial.Create(sprite.texture));
         }
         public static void Apply(SpriteRenderer renderer,Sprite sprite)
         {

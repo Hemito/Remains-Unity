@@ -11,6 +11,9 @@ namespace Remains.Presentation
         {
             var parent=new GameObject("Комната: "+room.id).transform;
             parent.gameObject.AddComponent<RoomMeshLifetime>();
+            var lighting=parent.gameObject.AddComponent<RoomLighting>();lighting.Initialize(room);
+            foreach(var light in lighting.Profile.lights)
+                if(!string.IsNullOrEmpty(light.fixture)) Quad(parent,"Светильник: "+light.id,light.x-light.width/2,light.y,light.width,light.height,light.fixture,2,false,1,true);
             if(room.artwork!=null)
                 foreach(var layer in room.artwork)
                     Quad(parent,"Фон: "+layer.texture,layer.x,layer.y,layer.width,layer.height,layer.texture,layer.order,layer.repeat,layer.shade,true);
@@ -44,7 +47,7 @@ namespace Remains.Presentation
             obj.AddComponent<MeshFilter>().sharedMesh=mesh;
             var materials=parent.GetComponent<RoomMeshLifetime>().Materials;
             if(!materials.TryGetValue(key,out var material))
-            {material=new Material(Shader.Find("Sprites/Default")){name="RoomMaterial:"+parent.name+":"+key,mainTexture=texture};materials.Add(key,material);}
+            {material=WorldArtworkMaterial.Create(texture);material.name="RoomMaterial:"+parent.name+":"+key;materials.Add(key,material);}
             var renderer=obj.AddComponent<MeshRenderer>(); renderer.sharedMaterial=material;
             renderer.sortingOrder=order;
         }

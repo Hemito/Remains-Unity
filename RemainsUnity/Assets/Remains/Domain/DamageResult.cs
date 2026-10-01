@@ -6,6 +6,6 @@ namespace Remains.Domain
         public string attack,actor,level;
         public int generation;
         public float amount,x,y;
-        public string Key=>$"{actor}:{generation}:{attack}";
+        public string Key=>$"{actor}:{attack}";
     }
 }

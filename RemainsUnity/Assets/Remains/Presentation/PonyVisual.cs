@@ -55,7 +55,7 @@ namespace Remains.Presentation
                         {
                             var texture = Resources.Load<Texture2D>("Original/Pony/" + part.texture);
                             if (texture == null) throw new InvalidOperationException($"Отсутствует часть пони: shape={part.shape}, path={part.path}.");
-                            material = new Material(Shader.Find("Sprites/Default")) { mainTexture = texture };
+                            material = WorldArtworkMaterial.Create(texture);
                             materials.Add(part.texture, material);
                         }
                         var corners = new[] { new Vector2(part.bounds[0],part.bounds[3]), new Vector2(part.bounds[2],part.bounds[3]),
@@ -154,6 +154,7 @@ namespace Remains.Presentation
                     "eye"=>new Color(22/255f,243/255f,67/255f), "magic"=>Color.green, _=>Color.white
                 };
                 properties.SetColor("_Color", tint);
+                properties.SetFloat("_Emission",parts[i].slot=="magic"?1:0);
                 renderers[i].SetPropertyBlock(properties);
             }
         }
