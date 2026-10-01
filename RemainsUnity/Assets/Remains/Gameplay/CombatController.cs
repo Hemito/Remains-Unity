@@ -68,7 +68,7 @@ namespace Remains.Gameplay
             {
                 swingActor=attacker;swingWeapon=Weapon;swingDirection=direction;swingElapsed=0;
                 swingLevel=attacker.level;swingGeneration=attacker.generation;swingLifecycle=attacker.lifecycleSequence;
-                swingId=Guid.NewGuid().ToString("N");previousTip=WeaponPose.Tip(Weapon,origin,direction,0);
+                swingId=Guid.NewGuid().ToString("N");previousTip=WeaponPose.Tip(Weapon,WeaponPose.Origin(attacker.Position),direction,0);
                 return true;
             }
             float range = definition.range;
@@ -86,7 +86,7 @@ namespace Remains.Gameplay
             if(actor==null || actor.down || actor.owner!=session.LocalOwner || actor.level!=swingLevel ||
                 actor.generation!=swingGeneration || actor.lifecycleSequence!=swingLifecycle) { swingActor=null;return; }
             swingElapsed=Mathf.Min(0.3f,swingElapsed+dt);
-            var origin=actor.Position+new Vector2(0,0.8f);
+            var origin=WeaponPose.Origin(actor.Position);
             var tip=WeaponPose.Tip(swingWeapon,origin,swingDirection,swingElapsed/0.3f);
             var delta=tip-previousTip;
             actor.weaponTipX=tip.x;actor.weaponTipY=tip.y;

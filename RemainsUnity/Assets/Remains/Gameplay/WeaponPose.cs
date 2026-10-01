@@ -5,6 +5,7 @@ namespace Remains.Gameplay
 {
     public static class WeaponPose
     {
+        public static Vector2 Origin(Vector2 actorPosition)=>actorPosition+new Vector2(0,.8f);
         public static Vector2 Tip(string weapon,Vector2 origin,Vector2 direction,float progress)
         {
             float range=WeaponCatalog.Get(weapon).range;
