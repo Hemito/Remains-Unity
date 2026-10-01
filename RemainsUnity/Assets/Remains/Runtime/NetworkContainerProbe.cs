@@ -13,6 +13,7 @@ namespace Remains.Runtime
     public struct ContainerProbePhase : NetworkMessage {public int phase;public long clickAt;}
     public struct ContainerProbeAck : NetworkMessage {public bool pending;}
     public struct ContainerProbeFinish : NetworkMessage { }
+    [DefaultExecutionOrder(10000)]
     public sealed class NetworkContainerProbe : MonoBehaviour
     {
         private sealed class NoHealingLoot : ILootRule
@@ -28,6 +29,9 @@ namespace Remains.Runtime
         private float deadline,started;
         private bool rejected,requested,traveled,opened,clicked,acked,finished,sawPending,anyPending;
         private readonly HashSet<int> acknowledgements=new();
+        private readonly HashSet<int> captured=new();
+        private int capturePhase=-1;
+        private bool claimCompletedNotice;
         private long clickAt;
         private bool Host=>runtime.Options.Role=="host";
         private bool Deposits=>runtime.Options.Smoke.Contains("-deposit-");
@@ -45,6 +49,7 @@ namespace Remains.Runtime
                 return default;
             };
             value.Session.Notice+=text=>{if(text=="Контейнер находится в другой локации.") rejected=true;};
+            value.Session.Notice+=text=>{if(text=="Подбор завершён: предметы в личном инвентаре.") claimCompletedNotice=true;};
             value.Session.Notice+=text=>{if(text=="Тестовое правило: хилки остаются в контейнере.") ruleRejected=true;};
             value.Session.Changed+=()=>
             {
@@ -105,6 +110,7 @@ namespace Remains.Runtime
                     session.World.actors.Where(a=>a.player).Any(a=>a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count)!=4)) return;
                 if(!Resume && runtime.Options.ProbePeers==4 && !pageChecked)
                 {if(!pageClickStarted) {pageClickStarted=true;StartCoroutine(CheckPage());}return;}
+                if(!CaptureReady(5)) return;
                 if(!acked) {acked=true;NetworkClient.Send(new ContainerProbeAck {pending=sawDepositPending});}
                 if(Host && acknowledgements.Count==runtime.Options.ProbePeers)
                 {
@@ -123,6 +129,7 @@ namespace Remains.Runtime
                     session.World.actors.Where(a=>a.player && a.connected).Any(a=>a.inventory.Count(i=>i.definition=="caps")!=1)) return;
             }
             else if(copies.Length!=1 || copies[0].count!=20 || session.World.containers.Any(c=>c.items.Any(i=>i.definition=="caps"))) return;
+            if(!CaptureReady(2)) return;
             if(!acked) {acked=true;NetworkClient.Send(new ContainerProbeAck {pending=sawPending});}
             if(Host && acknowledgements.Count==runtime.Options.ProbePeers)
             {
@@ -131,6 +138,18 @@ namespace Remains.Runtime
                 if(Deposits) {acknowledgements.Clear();anyPending=false;Advance(5);}
                 else {phase=4;NetworkServer.SendToAll(new ContainerProbeFinish());acknowledgements.Clear();}
             }
+        }
+        private bool CaptureReady(int value)
+        {
+            if(!runtime.Options.Smoke.Contains("-frames-") || captured.Contains(value)) return true;
+            if(value==2 && Partial && !claimCompletedNotice) return false;
+            capturePhase=value;return false;
+        }
+        private void LateUpdate()
+        {
+            if(capturePhase<0 || finished) return;
+            int value=capturePhase;capturePhase=-1;
+            NetworkSceneRecord.Save(runtime,value);captured.Add(value);
         }
         private IEnumerator CheckPage()
         {

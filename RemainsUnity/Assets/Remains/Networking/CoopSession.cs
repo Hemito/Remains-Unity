@@ -525,15 +525,23 @@ namespace Remains.Networking
         private void CompleteBackedUpGrants()
         {
             bool changed=false;
+            var recipients=new HashSet<string>();
             foreach(var grant in ServerWorld.pendingGrants.ToArray())
             {
                 // Every currently connected peer must durably write the reservation first.
                 if(!HasInventoryBackups(grant.preparedRevision)) continue;
                 inventory.CommitGrant(grant);
+                recipients.Add(grant.recipient);
                 changed=true;
             }
             changed|=Deposits.CompleteBackedUp();
             if(changed) { BroadcastWorld(); }
+            foreach(var connection in NetworkServer.connections.Values)
+            {
+                var actor=ConnectedActor(connection);
+                if(actor!=null && recipients.Contains(actor.id) && !ServerWorld.pendingGrants.Any(grant=>grant.recipient==actor.id))
+                    connection.Send(new NoticeMessage {text="Подбор завершён: предметы в личном инвентаре."});
+            }
         }
 
         private void BroadcastWorld()
