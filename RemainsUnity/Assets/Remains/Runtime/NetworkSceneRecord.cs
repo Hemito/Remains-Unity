@@ -17,6 +17,7 @@ namespace Remains.Runtime
         public int schema=1,phase,width,height;
         public string observer,level;
         public Vector3 cameraPosition;
+        public Vector3 localVisualMinimum,localVisualMaximum;
         public float cameraSize;
         public Color background;
         public WorldState world;
@@ -29,6 +30,8 @@ namespace Remains.Runtime
             var world=runtime.Session.World;
             var record=new NetworkSceneRecord {phase=phase,width=Screen.width,height=Screen.height,observer=runtime.Session.LocalActorId,
                 level=runtime.Session.LocalActor.level,cameraPosition=camera.transform.position,cameraSize=camera.orthographicSize,background=camera.backgroundColor,world=world.Copy()};
+            var localBounds=PonyVisual.WorldBounds(runtime.Session.LocalActor);
+            record.localVisualMinimum=localBounds.min;record.localVisualMaximum=localBounds.max;
             record.ponies=UnityEngine.Object.FindObjectsByType<PonyVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(view=>
                 new NetworkPonyRecord {actor=world.Find(view.ActorId).Copy(),position=view.transform.position,scale=view.transform.localScale,
                     clip=view.DrawnClip,frame=view.DrawnFrame,time=view.DrawnTime,active=view.gameObject.activeInHierarchy}).ToArray();

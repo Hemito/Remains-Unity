@@ -11,6 +11,7 @@ namespace Remains.Presentation
     {
         private sealed class RenderPart { public Mesh mesh; public Material material; public string slot; public bool visible; }
         private static readonly Dictionary<string, RenderPart[][]> cache = new();
+        private static readonly Dictionary<string, Bounds[]> poseBounds = new();
         private readonly List<MeshFilter> filters = new();
         private readonly List<MeshRenderer> renderers = new();
         private ActorState state;
@@ -31,10 +32,12 @@ namespace Remains.Presentation
             foreach (var clip in library.clips)
             {
                 var frames = new RenderPart[clip.frames.Length][];
+                var bounds = new Bounds[frames.Length];
                 for (int f = 0; f < frames.Length; f++)
                 {
                     var source = clip.frames[f].parts;
                     frames[f] = new RenderPart[source.Length];
+                    bool hasBounds=false;
                     for (int p = 0; p < source.Length; p++)
                     {
                         var part = source[p];
@@ -62,10 +65,28 @@ namespace Remains.Presentation
                         mesh.RecalculateBounds();
                         frames[f][p] = new RenderPart { mesh = mesh, material = material,
                             slot = part.slot, visible = PonyAppearance.IsVisible(part) };
+                        if(frames[f][p].visible)
+                        {
+                            if(!hasBounds) {bounds[f]=mesh.bounds;hasBounds=true;}
+                            else bounds[f].Encapsulate(mesh.bounds);
+                        }
                     }
+                    if(!hasBounds) throw new InvalidOperationException($"Нет видимых частей позы: clip={clip.id}, frame={f}.");
                 }
                 cache.Add(clip.id, frames);
+                poseBounds.Add(clip.id,bounds);
             }
+        }
+
+        public static Bounds WorldBounds(ActorState actor)
+        {
+            string clip=ActorPose.Clip(actor);
+            int sample=PonyAnimationData.FrameIndex(clip,actor.poseTime,actor.down);
+            if(!poseBounds.TryGetValue(clip,out var frames))
+                throw new InvalidOperationException($"Нет границ позы: actor={actor.id}, clip={clip}.");
+            var bounds=frames[sample];
+            bounds.center=new Vector3(actor.x+bounds.center.x*actor.facing,actor.y+bounds.center.y,bounds.center.z);
+            return bounds;
         }
 
         public void Bind(ActorState actor)
