@@ -26,6 +26,7 @@ namespace Remains.Runtime
         private string worldId;
         private JourneyWeaponStage weapons;
         private JourneyInteractionStage interactions;
+        private readonly JourneyHubRoute initialRoute=new();
         private readonly HashSet<int> readyPeers=new();
         private readonly List<int> completed=new();
         private readonly HashSet<int> captured=new();
@@ -69,7 +70,7 @@ namespace Remains.Runtime
             if(phase==0)
             {
                 float target=Host?5:Source?6:7+int.Parse(self.character.Split('-').Last());
-                return new PlayerCommand {movement=Vector2.right*(Mathf.Abs(self.x-target)>.05f?Mathf.Sign(target-self.x):0)};
+                return initialRoute.Command(self,target);
             }
             if(phase==1 && Host) return new PlayerCommand {weapon="pistol",fire=!Victim.down,hasAim=true,aim=Victim.Position+Vector2.up*.55f};
             if((phase==2 || phase==7) && Host && Victim.down)

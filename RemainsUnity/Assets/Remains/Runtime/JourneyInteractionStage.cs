@@ -11,6 +11,7 @@ namespace Remains.Runtime
     {
         private readonly PrototypeRuntime runtime;
         private bool threw;
+        private readonly JourneyHubRoute returnRoute=new();
         private readonly Dictionary<string,float> health=new();
         private int damageSequence;
         public bool TelekinesisVerified {get;private set;}
@@ -27,7 +28,7 @@ namespace Remains.Runtime
             {
                 if(Host && self.health<=70 && InventoryJournal.Count(self,"heal")>0) return new PlayerCommand {heal=true};
                 float target=Host?5:11+int.Parse(self.character.Split('-').Last());
-                return new PlayerCommand {movement=Vector2.right*(Mathf.Abs(self.x-target)>.05f?Mathf.Sign(target-self.x):0)};
+                return returnRoute.Command(self,target);
             }
             if(phase==21 && Host && !threw)
             {threw=true;return new PlayerCommand {grenade=true,hasAim=true,aim=self.Position+Vector2.down*3};}

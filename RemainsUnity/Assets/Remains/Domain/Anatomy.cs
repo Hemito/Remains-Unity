@@ -6,7 +6,8 @@ using Remains.Content;
 namespace Remains.Domain
 {
     [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; public string[] shapes; }
-    [Serializable] public sealed class AnatomyDefinition { public string id; public HitRegionDefinition[] regions; }
+    [Serializable] public sealed class MovementHull { public float width,height; }
+    [Serializable] public sealed class AnatomyDefinition { public string id; public MovementHull movement; public HitRegionDefinition[] regions; }
     [Serializable] public sealed class AnatomyCatalog { public AnatomyDefinition[] anatomies; }
     public static class Anatomy
     {
@@ -22,6 +23,9 @@ namespace Remains.Domain
             var catalog=JsonUtility.FromJson<AnatomyCatalog>(asset.text);
             foreach(var definition in catalog.anatomies)
             {
+                if(definition.movement==null || !float.IsFinite(definition.movement.width) || !float.IsFinite(definition.movement.height) ||
+                    definition.movement.width<=0 || definition.movement.height<=0)
+                    throw new InvalidOperationException($"Некорректный габарит движения анатомии {definition.id}.");
                 var ids=new HashSet<string>();
                 foreach(var region in definition.regions)
                     if(string.IsNullOrEmpty(region.id) || !ids.Add(region.id) || region.radius<=0)
@@ -41,6 +45,9 @@ namespace Remains.Domain
                 }
             }
         }
+
+        public static MovementHull Movement(string id)=>definitions.TryGetValue(id,out var definition)?definition.movement:
+            throw new InvalidOperationException($"Нет определения движения анатомии {id}.");
 
         public static string Contact(ActorState actor,AttackEvent attack)=>Contact(actor,attack,out _);
 

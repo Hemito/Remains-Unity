@@ -11,6 +11,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            CheckSolidGeometry();
             var factory=RoomLayout.Load();var movement=new MovementController(factory);
             var actor=new ActorState {x=0,y=0};movement.Step(actor,Vector2.zero,true,.05f);
             Require(actor.y>0 && actor.vy>0,"Прыжок от пола");
@@ -36,6 +37,12 @@ namespace Remains.Editor
 
             var hub=RoomLayout.Load("hub");var hubMovement=new MovementController(hub);
             Require(hub.artwork.Length>0 && hub.ladders.Length==3,"Геометрия хаба");
+            actor=new ActorState {id="hub-ladder",level="hub",x=14.48f,y=4};
+            for(int i=0;i<300;i++) hubMovement.Step(actor,Vector2.up,false,1f/60);
+            Require(Mathf.Abs(actor.x-14.98f)<.001f && Mathf.Abs(actor.y-13.6f)<.001f,
+                "Линия подъёма проходит рядом с бетоном без проникновения в потолок");
+            for(int i=0;i<300;i++) hubMovement.Step(actor,Vector2.down,false,1f/60);
+            Require(Mathf.Abs(actor.y-.8f)<.001f,"Спуск по линии хаба завершается на нижнем полу");
             for(int slot=0;slot<4;slot++)
             {
                 actor=new ActorState {id="hub-spawn-"+slot};CharacterPlacement.SpawnInHub(actor,slot);
@@ -62,6 +69,34 @@ namespace Remains.Editor
             var preserved=JsonUtility.FromJson<WorldState>(File.ReadAllText(source));
             Require(preserved.actors[0].y< -5000 && saves.LoadWorld().actors[0].y==0,"Исходный сейв остаётся в Recovery после исправления");
             Debug.Log("Проверки движения: PASS — появление в хабе, опоры, лестницы, восстановление старых позиций без потери состояния.");
+        }
+
+        private static void CheckSolidGeometry()
+        {
+            var hull=Anatomy.Movement("pony");
+            var room=new RoomLayout {left=-20,right=20,platforms=new[]{
+                new RoomSurface{x=-20,y=-1,width=40,height=1},
+                new RoomSurface{x=2,y=0,width=.1f,height=5},
+                new RoomSurface{x=-5,y=3,width=6,height=.1f}},ladders=Array.Empty<RoomLadder>()};
+            var stop=ActorTerrainMotion.Move(room,hull,new Vector2(0,0),new Vector2(15,0),false);
+            Require(Mathf.Abs(stop.x-1.5f)<.001f,"Быстрое движение не проходит сквозь тонкую стену");
+            stop=ActorTerrainMotion.Move(room,hull,new Vector2(5,0),new Vector2(-15,0),false);
+            Require(Mathf.Abs(stop.x-2.6f)<.001f,"Стена блокирует с обратной стороны");
+            stop=ActorTerrainMotion.Move(room,hull,Vector2.zero,new Vector2(0,10),false);
+            Require(Mathf.Abs(stop.y-1.6f)<.001f,"Потолок учитывает высоту тела");
+            stop=ActorTerrainMotion.Move(room,hull,new Vector2(1.5f,1),new Vector2(10,-10),false);
+            Require(Mathf.Abs(stop.x-1.5f)<.001f && stop.y==0,"Скольжение вдоль стены до пола");
+            room.platforms[2].oneWay=true;
+            stop=ActorTerrainMotion.Move(room,hull,Vector2.zero,new Vector2(0,5),false);
+            Require(stop.y==5,"Односторонняя полка пропускает вверх");
+            stop=ActorTerrainMotion.Move(room,hull,new Vector2(0,5),new Vector2(0,-10),false);
+            Require(Mathf.Abs(stop.y-3.1f)<.001f,"Односторонняя полка удерживает сверху");
+            stop=ActorTerrainMotion.Move(room,hull,new Vector2(0,5),new Vector2(0,-10),true);
+            Require(stop.y==0,"Лестница пропускает полку, но не нижний твёрдый пол");
+            Require(ActorTerrainMotion.Supported(room,hull,new Vector2(1.2f,3.1f)),"Край тела опирается на полку");
+            var movement=new MovementController(room);
+            var actor=new ActorState{x=1.5f,y=0};movement.Step(actor,Vector2.right,false,.1f);
+            Require(actor.vx==0 && actor.pose=="idle","Стена останавливает скорость и анимацию ходьбы");
         }
 
         private static void Require(bool condition,string message)
