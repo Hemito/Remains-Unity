@@ -23,6 +23,7 @@ namespace Remains.Runtime
         public WorldState world;
         public NetworkPonyRecord[] ponies;
         public NetworkSpriteRecord[] sprites;
+        public string[] hudText;
         public static void Save(PrototypeRuntime runtime,int phase)
         {
             var camera=Camera.main??UnityEngine.Object.FindFirstObjectByType<Camera>();
@@ -47,7 +48,13 @@ namespace Remains.Runtime
             }).ToArray();
             File.WriteAllText(runtime.Options.Report+$".phase-{phase}.scene.json",StateJson.ToJson(record,true));
             if(runtime.Options.Smoke.Contains("-frames-"))
+            {
                 NetworkFrameCapture.Save(camera,runtime.Options.Report+$".phase-{phase}.live.png");
+                if(runtime.Hud==null) throw new InvalidOperationException("Нет HUD для записи сетевого интерфейса.");
+                record.hudText=runtime.Hud.GetComponentsInChildren<UnityEngine.UI.Text>().Select(text=>text.text).ToArray();
+                NetworkFrameCapture.Save(camera,runtime.Options.Report+$".phase-{phase}.hud.png",runtime.Hud.GetComponent<Canvas>());
+                File.WriteAllText(runtime.Options.Report+$".phase-{phase}.scene.json",StateJson.ToJson(record,true));
+            }
         }
     }
 }
