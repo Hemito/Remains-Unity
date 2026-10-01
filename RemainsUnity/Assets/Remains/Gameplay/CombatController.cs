@@ -11,6 +11,7 @@ namespace Remains.Gameplay
     public sealed class CombatController
     {
         private readonly CoopSession session;
+        private readonly SimulationGeometry geometry;
         private DamageReceiver damage;
         public int AttackerDecidedHits {get;private set;}
         public int VictimDecidedHits {get;private set;}
@@ -33,9 +34,10 @@ namespace Remains.Gameplay
         private readonly DeferredLevelActions pending=new();
         public int PendingHitCount=>pending.Count;
         public Func<string,int,Vector2?> LocalExplosionPosition { get; set; }
-        public CombatController(CoopSession session)
+        public CombatController(CoopSession session,SimulationGeometry geometry)
         {
             this.session = session;
+            this.geometry=geometry;
             session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);AttackerDecidedHits=VictimDecidedHits=0;};
             Reload=new WeaponReloadController(session);
             session.AttackReceived += ReceiveAttack;
@@ -134,8 +136,11 @@ namespace Remains.Gameplay
         {
             if (session.World == null) return;
             if(attack.weapon=="grenade") return; // Persisted explosion decisions are processed from World.
+            if(!LevelActivity.HasConnectedPlayer(session.World,attack.level)) return;
+            var definition=WeaponCatalog.Get(attack.weapon);
+            float limit=definition.stopAtTerrain?ShotObstacles.Limit(geometry.Get(attack.level),attack.Origin,attack.End):1;
             foreach(var target in AttackContacts.Capture(session.World.actors,attack,session.World.friendlyFire,
-                WeaponCatalog.Get(attack.weapon).stopAtFirstActor))
+                definition.stopAtFirstActor,limit))
             {
                 if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>ApplyAttackTarget(attack,target));
                 else ApplyAttackTarget(attack,target);

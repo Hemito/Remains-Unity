@@ -15,6 +15,16 @@ namespace Remains.Editor
             var far=new ActorState {id="far",player=true,connected=true,x=5,level="hub"};
             var other=new ActorState {id="other",player=true,connected=true,x=1,level="factory:0"};
             var shot=new AttackEvent {attacker="source",sourcePlayer=true,weapon="energy",level="hub",originX=0,originY=.7f,endX=10,endY=.7f};
+            var wall=new RoomSurface {x=3,y=0,width=.5f,height=2};
+            var room=new RoomLayout {platforms=new[]{wall}};
+            Require(Mathf.Abs(ShotObstacles.Limit(room,shot.Origin,shot.End)-.3f)<.00001f,"Пересечение стены");
+            Require(ShotObstacles.Limit(room,new Vector2(0,3),new Vector2(10,3))==1,"Луч над стеной");
+            Require(ShotObstacles.Limit(room,new Vector2(3.2f,1),new Vector2(10,1))==0,"Источник внутри стены");
+            Require(ShotObstacles.Limit(room,new Vector2(4,1),new Vector2(4,2))==1,"Параллельный луч вне стены");
+            Require(AttackContacts.Capture(new[]{far},shot,true,true,ShotObstacles.Limit(room,shot.Origin,shot.End)).Count==0,"Стена закрывает дальнюю цель");
+            Require(AttackContacts.Capture(new[]{far,near},shot,true,true,ShotObstacles.Limit(room,shot.Origin,shot.End))[0].id=="near","Цель перед стеной доступна");
+            wall.shotsPassThrough=true;
+            Require(ShotObstacles.Limit(room,shot.Origin,shot.End)==1,"Проницаемость задаётся данными");
             foreach(var actors in new[]{new[]{far,other,near},new[]{near,far,other}})
             {
                 var hits=AttackContacts.Capture(actors,shot,true,true);

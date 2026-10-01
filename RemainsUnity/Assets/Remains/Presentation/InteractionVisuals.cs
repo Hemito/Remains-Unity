@@ -18,7 +18,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,SpriteRenderer> weapons=new();
         private readonly Dictionary<string,SpriteRenderer> flights=new();
         private readonly HashSet<string> missingGraphics=new();
-        public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades)
+        public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry)
         {
             this.session=session;this.grenades=grenades;
             foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
@@ -28,7 +28,9 @@ namespace Remains.Presentation
             session.AttackReceived+=attack=>
             {
                 if(attack.weapon is "spear" or "crowbar" or "grenade" || attack.level!=session.LocalActor?.level) return;
-                var shot=new GameObject("Выстрел "+attack.id).AddComponent<ShotVisual>();shot.Initialize(attack);
+                float limit=Remains.Content.WeaponCatalog.Get(attack.weapon).stopAtTerrain?
+                    ShotObstacles.Limit(geometry.Get(attack.level),attack.Origin,attack.End):1;
+                var shot=new GameObject("Выстрел "+attack.id).AddComponent<ShotVisual>();shot.Initialize(attack,limit);
             };
         }
         private static Sprite Load(string path)
@@ -96,10 +98,10 @@ namespace Remains.Presentation
     public sealed class ShotVisual : MonoBehaviour
     {
         private float expires;
-        public void Initialize(AttackEvent attack)
+        public void Initialize(AttackEvent attack,float limit)
         {
             var line=gameObject.AddComponent<LineRenderer>();line.positionCount=2;
-            line.SetPosition(0,attack.Origin);line.SetPosition(1,attack.End);
+            line.SetPosition(0,attack.Origin);line.SetPosition(1,Vector2.Lerp(attack.Origin,attack.End,limit));
             line.startWidth=line.endWidth=0.025f;
             line.material=new Material(Shader.Find("Sprites/Default"));
             line.startColor=line.endColor=attack.weapon=="energy"?Color.green:new Color(1,0.8f,0.3f);

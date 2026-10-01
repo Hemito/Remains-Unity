@@ -14,7 +14,7 @@ namespace Remains.Content
         public string ammo;
         public int magazineSize,ammoPerShot;
         public float reloadSeconds;
-        public bool stopAtFirstActor;
+        public bool stopAtFirstActor,stopAtTerrain;
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }
