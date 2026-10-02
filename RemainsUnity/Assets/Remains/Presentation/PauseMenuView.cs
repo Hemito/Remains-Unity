@@ -1,0 +1,37 @@
+using System;
+using UnityEngine;
+using UnityEngine.UI;
+namespace Remains.Presentation
+{
+    public sealed class PauseMenuView : MonoBehaviour
+    {
+        [InspectorName("Панель меню")] public GameObject Panel;
+        [InspectorName("Состояние паузы")] public Text Status;
+        [InspectorName("Остановить уровень")] public Button ManualPause;
+        [InspectorName("Возобновить уровень")] public Button Resume;
+        [InspectorName("Пауза при меню")] public Button MenuSetting;
+        [InspectorName("Пауза при инвентаре")] public Button InventorySetting;
+        [InspectorName("Вернуться в хаб")] public Button ExitToHub;
+        [InspectorName("Закрыть меню")] public Button Close;
+        [InspectorName("Настройки звука")] public Button Sound;
+        [InspectorName("Дружественный огонь")] public Button FriendlyFire;
+        [InspectorName("Решение о попадании")] public Button FriendlyDecision;
+        [InspectorName("Выход из сессии")] public Button Leave;
+        public void Validate()
+        {
+            if(Panel==null || Status==null || !Panel.transform.IsChildOf(transform) || !Status.transform.IsChildOf(transform))
+                throw new InvalidOperationException($"Меню паузы {name}: не назначены панель или индикатор.");
+            var buttons=new[]{ManualPause,Resume,MenuSetting,InventorySetting,ExitToHub,Close,Sound,FriendlyFire,FriendlyDecision,Leave};
+            var unique=new System.Collections.Generic.HashSet<Button>();
+            foreach(var button in buttons)
+                if(button==null || !unique.Add(button) || !button.transform.IsChildOf(Panel.transform) || button.GetComponentInChildren<Text>(true)==null)
+                    throw new InvalidOperationException($"Меню паузы {name}: неверные или повторные ссылки кнопок.");
+        }
+        public static PauseMenuView Create(Transform parent)
+        {
+            var prefab=Resources.Load<PauseMenuView>("Presentation/PauseMenu");
+            if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/PauseMenu.");
+            prefab.Validate();return Instantiate(prefab,parent,false);
+        }
+    }
+}

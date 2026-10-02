@@ -134,11 +134,12 @@ namespace Remains.Presentation
             inventory.SetActive(false);
             personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
             inventoryWindow=new InventoryWindow(inventoryView,ToggleInventory,inventoryAudio.Page);
-            friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
-            friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>
+            var pauseView=PauseMenuView.Create(transform);
+            friendlyFire=pauseView.FriendlyFire;friendlyFire.onClick.AddListener(()=>session.SetFriendlyFire(!session.World.friendlyFire));
+            friendlyDecision=pauseView.FriendlyDecision;friendlyDecision.onClick.AddListener(()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
             friendlyDecision.gameObject.SetActive(false);
-            leave=Button(transform,"Сохранить и выйти из сессии",new Vector2(20,-390),new Vector2(290,45),()=>
+            leave=pauseView.Leave;leave.onClick.AddListener(()=>
             {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
             factory=Button(quickActions.transform,"На завод 0",new Vector2(8,-8),new Vector2(228,36),()=>
@@ -149,10 +150,7 @@ namespace Remains.Presentation
             SessionMods=new SessionModPanel(transform,elements,session);
             NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
-            PauseMenu=new PauseMenu(transform,elements,session,()=>inventory.activeSelf,()=>AudioSettings.Open());
-            friendlyFire.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(friendlyFire.GetComponent<RectTransform>(),new Vector2(12,-50),new Vector2(286,40));
-            friendlyDecision.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(friendlyDecision.GetComponent<RectTransform>(),new Vector2(12,-100),new Vector2(286,60));
-            leave.transform.SetParent(PauseMenu.SessionControls,false);HudElements.Rect(leave.GetComponent<RectTransform>(),new Vector2(12,-185),new Vector2(286,60));
+            PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf,()=>AudioSettings.Open());
             Button(quickActions.transform,"Инвентарь · I",new Vector2(8,-52),new Vector2(112,36),ToggleInventory).GetComponentInChildren<Text>().fontSize=14;
             Button(quickActions.transform,"Меню · Esc",new Vector2(126,-52),new Vector2(110,36),()=>PauseMenu.Toggle()).GetComponentInChildren<Text>().fontSize=14;
             Refresh();

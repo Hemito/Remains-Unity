@@ -39,6 +39,9 @@ namespace Remains.Editor
             MainMenuPrefabChecks.Run();
             CombatHudPrefabChecks.Run();
             InventoryWindowChecks.Run();
+            var pauseMenu=Resources.Load<Remains.Presentation.PauseMenuView>("Presentation/PauseMenu");
+            if(pauseMenu==null) throw new InvalidOperationException("Нет префаба меню паузы.");
+            pauseMenu.Validate();
             PersonalInventoryPrefabChecks.Run();
             _=new Remains.Presentation.InventoryArtwork();
             var sharedInventory=Resources.Load<Remains.Presentation.SharedInventoryView>("Presentation/SharedInventory");
