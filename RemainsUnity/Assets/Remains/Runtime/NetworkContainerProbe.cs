@@ -162,10 +162,12 @@ namespace Remains.Runtime
             while(DateTime.UtcNow.Ticks<clickAt) yield return null;
             int index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="caps");
             int beforeSelection=runtime.Session.LocalActor.inventory.Sum(item=>item.count);
+            yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index));
             if(runtime.Session.LocalActor.inventory.Sum(item=>item.count)!=beforeSelection) {Finish(false,"Выбор строки сам изменил инвентарь.");yield break;}
             yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
             index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="grenade");
+            yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index));
             yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
         }
@@ -173,6 +175,7 @@ namespace Remains.Runtime
         {
             while(DateTime.UtcNow.Ticks<clickAt) yield return null;
             if(Partial) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
+            yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
         }
         private void Finish(bool success,string detail)

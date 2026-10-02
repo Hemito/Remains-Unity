@@ -94,6 +94,7 @@ namespace Remains.Runtime
             var actor=runtime.Session.LocalActor;
             foreach(int index in new[]{3,2})
             {
+                yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);
                 yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(index));
                 string expected=index==3?"energy":"pistol";
                 if(runtime.Session.LocalActor.weapon!=expected)
@@ -104,6 +105,7 @@ namespace Remains.Runtime
             if(row<0 || row>=8) {Finish(false,"Аптечка не найдена на первой странице проверочного инвентаря.");yield break;}
             float beforeHealth=actor.health;
             int beforeCount=actor.inventory.Where(item=>item.definition=="heal").Sum(item=>item.count);
+            yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(row));
             if(runtime.Session.LocalActor.health!=beforeHealth || runtime.Session.LocalActor.inventory.Where(item=>item.definition=="heal").Sum(item=>item.count)!=beforeCount)
             {Finish(false,"Выбор аптечки сам изменил здоровье или количество.");yield break;}

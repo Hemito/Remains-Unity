@@ -39,21 +39,21 @@ namespace Remains.Presentation
                 var button=ui.Button(parent,names[i],new Vector2(20+i*195,-56),new Vector2(185,38),()=>equip(weapon));
                 weaponButtons[i]=button;
                 artwork.Create(button.transform,new Vector2(8,-7),new Vector2(47,24),weapon);
-                var weaponLabel=button.GetComponentInChildren<Text>();weaponLabel.fontSize=16;
+                var weaponLabel=button.GetComponentInChildren<Text>();weaponLabel.fontSize=20;
                 HudElements.Rect(weaponLabel.rectTransform,new Vector2(60,-3),new Vector2(120,32));
             }
             for(int i=0;i<rows.Length;i++)
             {
                 int index=i;
                 rows[i]=ui.Button(parent,"",new Vector2(20,-112-i*40),new Vector2(420,36),()=>{selected=ids[index];Refresh(container);});
-                var label=rows[i].GetComponentInChildren<Text>();label.fontSize=16;label.alignment=TextAnchor.MiddleLeft;
+                var label=rows[i].GetComponentInChildren<Text>();label.fontSize=20;label.alignment=TextAnchor.MiddleLeft;label.resizeTextForBestFit=true;label.resizeTextMinSize=16;label.resizeTextMaxSize=20;
                 HudElements.Rect(label.rectTransform,new Vector2(48,-3),new Vector2(368,30));
                 icons[i]=artwork.Create(rows[i].transform,new Vector2(7,-3),new Vector2(32,30));
             }
             previous=ui.Button(parent,"←",new Vector2(20,-449),new Vector2(65,34),()=>{page--;Refresh(container);});
             next=ui.Button(parent,"→",new Vector2(375,-449),new Vector2(65,34),()=>{page++;Refresh(container);});
-            var hint=ui.Label(parent,"Выберите предмет, затем действие справа",new Vector2(20,-494),new Vector2(420,30));hint.fontSize=15;
-            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(228,220));detail.fontSize=16;
+            var hint=ui.Label(parent,"Выберите предмет, затем действие справа",new Vector2(20,-494),new Vector2(420,30));hint.fontSize=18;
+            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(228,220));detail.fontSize=20;
             detailIcon=artwork.Create(parent,new Vector2(730,-112),new Vector2(54,54));
             portrait=new InventoryPortrait(parent,new Vector2(702,-178),new Vector2(88,148));
             use=ui.Button(parent,"Использовать аптечку",new Vector2(465,-338),new Vector2(325,42),()=>{session.RequestSelfHeal();Refresh(container);});
@@ -61,7 +61,7 @@ namespace Remains.Presentation
             {if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
             var armor=ui.Panel(parent,"Место экипировки",new Vector2(465,-448),new Vector2(325,70));
             var labelArmor=ui.Label(armor.transform,"Экипировка\nБроня — пока недоступна",new Vector2(12,-8),new Vector2(300,56));
-            labelArmor.color=new Color(.38f,.55f,.45f);labelArmor.fontSize=16;
+            labelArmor.color=new Color(.38f,.55f,.45f);labelArmor.fontSize=20;
             session.Deposits.Reconciled+=()=>Refresh(container);
         }
         public void Refresh(InventorySource destination)

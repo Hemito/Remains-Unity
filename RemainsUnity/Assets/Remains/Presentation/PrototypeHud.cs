@@ -58,6 +58,9 @@ namespace Remains.Presentation
         private GameObject quickActions;
         private float noticeUntil;
         private PersonalInventoryPanel personalItems;
+        private InventoryWindow inventoryWindow;
+        public RectTransform PersonalTabRect=>inventoryWindow.PersonalTab;
+        public RectTransform ContainerTabRect=>inventoryWindow.SharedTab;
         public RectTransform DepositRowRect(int index)=>personalItems.RowRect(index);
         public RectTransform DepositActionRect=>personalItems.DepositRect;
         public RectTransform UseItemRect=>personalItems.UseRect;
@@ -117,15 +120,14 @@ namespace Remains.Presentation
                 var slotLabel=slots[i].GetComponentInChildren<Text>();slotLabel.fontSize=16;
                 HudElements.Rect(slotLabel.rectTransform,new Vector2(5,-38),new Vector2(88,43));
             }
-            claimQuantity=Button(containerPanel.transform,"Количество: вся стопка",new Vector2(12,-350),new Vector2(305,32),()=>
+            claimQuantity=Button(inventory.transform,"Количество: вся стопка",new Vector2(955,-330),new Vector2(245,44),()=>
             {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Количество: 1 предмет":"Количество: вся стопка";Refresh();});
             previousContainer=Button(containerPanel.transform,"←",new Vector2(12,-390),new Vector2(65,32),()=>{containerPage--;Refresh();});
             nextContainer=Button(containerPanel.transform,"→",new Vector2(252,-390),new Vector2(65,32),()=>{containerPage++;Refresh();});
-            Button(inventory.transform,"Закрыть · I",new Vector2(1010,-522),new Vector2(190,40),ToggleInventory);
             inventory.SetActive(false);
             var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(20,-20),new Vector2(820,530));
-            ApplyOriginalImage(personalPanel.GetComponent<Image>(),"inventory-panel",false);
             personalItems=new PersonalInventoryPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
+            inventoryWindow=new InventoryWindow(inventory,personalPanel,containerPanel,elements,ToggleInventory);
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
