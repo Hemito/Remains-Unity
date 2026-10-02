@@ -46,12 +46,14 @@ namespace Remains.Content
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
             var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
-            foreach(string path in new[]{"Content/prototype-room","Content/prototype-hub","Content/anatomy","Content/movement","Content/telekinesis","Content/actors","Content/props","Content/hub-training","Original/Training/artwork","Original/Raider/artwork","Original/Pony/pony","Original/Pony/motion-frames","Original/Weapons/artwork"})
+            foreach(string path in new[]{"Content/prototype-room","Content/prototype-hub","Content/anatomy","Content/movement","Content/telekinesis","Content/hub-training","Original/Training/artwork","Original/Raider/artwork","Original/Pony/pony","Original/Pony/motion-frames","Original/Weapons/artwork"})
             {
                 var data=Resources.Load<TextAsset>(path);
                 if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");
                 inputs.Add(path,data.text);
             }
+            var entities=EntityAssetCatalog.Load();
+            inputs.Add("Content/actors",entities.ActorsJson());inputs.Add("Content/props",entities.PropsJson());
             var complete=GameplayContentManifest.Compose(loaded.manifest,inputs);
             var rules=GameplayCodeMods.Compose(loaded.codeMods);
             definitions=loaded.definitions;

@@ -18,19 +18,20 @@ namespace Remains.Content
             throw new InvalidOperationException($"Не найден тип актёра: {id ?? "<null>"}.");
         public static void Load()
         {
-            var asset=Resources.Load<TextAsset>("Content/actors");
-            if(asset==null) throw new InvalidOperationException("Нет определений актёров Content/actors.");
-            var list=JsonUtility.FromJson<ActorTypeList>(asset.text);
-            if(list?.actors==null) throw new InvalidOperationException("Нет списка типов актёров.");
-            definitions.Clear();foreach(var definition in list.actors) Register(definition);
+            var entries=EntityAssetCatalog.Load().CreateActors();
+            definitions.Clear();foreach(var definition in entries) Register(definition);
         }
         public static void Register(ActorTypeDefinition definition,bool replace=false)
+        {
+            Validate(definition);
+            if(!replace && definitions.ContainsKey(definition.id)) throw new InvalidOperationException($"Повтор типа актёра: {definition.id}.");
+            definitions[definition.id]=definition;
+        }
+        internal static void Validate(ActorTypeDefinition definition)
         {
             if(definition==null || string.IsNullOrWhiteSpace(definition.id) || string.IsNullOrWhiteSpace(definition.presentation) ||
                 !float.IsFinite(definition.restoreHealthAfterHit) || definition.restoreHealthAfterHit<0)
                 throw new InvalidOperationException($"Некорректное определение актёра: {definition?.id}.");
-            if(!replace && definitions.ContainsKey(definition.id)) throw new InvalidOperationException($"Повтор типа актёра: {definition.id}.");
-            definitions[definition.id]=definition;
         }
     }
 }

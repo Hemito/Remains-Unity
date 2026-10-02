@@ -23,19 +23,21 @@ namespace Remains.Content
         }
         public static void Load()
         {
-            var asset=Resources.Load<TextAsset>("Content/props");
-            if(asset==null) throw new InvalidOperationException("Нет каталога Content/props.");
-            var list=JsonUtility.FromJson<PropDefinitionList>(asset.text);
-            if(list?.props==null) throw new InvalidOperationException("Нет определений физических объектов.");
-            definitions.Clear();foreach(var definition in list.props) Register(definition);
+            var entries=EntityAssetCatalog.Load().CreateProps();
+            definitions.Clear();foreach(var definition in entries) Register(definition);
         }
         public static void Register(PropDefinition definition,bool replace=false)
         {
+            Validate(definition);
+            if(!replace && definitions.ContainsKey(definition.id)) throw new InvalidOperationException("Повтор типа физического объекта: "+definition.id);
+            definitions[definition.id]=definition;
+        }
+        internal static void Validate(PropDefinition definition)
+        {
             if(definition==null || string.IsNullOrEmpty(definition.id) || string.IsNullOrEmpty(definition.resource) ||
                 !float.IsFinite(definition.mass) || definition.mass<=0 || !float.IsFinite(definition.width) || definition.width<=0 ||
-                !float.IsFinite(definition.height) || definition.height<=0 || !replace && definitions.ContainsKey(definition.id))
+                !float.IsFinite(definition.height) || definition.height<=0)
                 throw new InvalidOperationException("Некорректное определение физического объекта: "+definition?.id);
-            definitions[definition.id]=definition;
         }
     }
 }
