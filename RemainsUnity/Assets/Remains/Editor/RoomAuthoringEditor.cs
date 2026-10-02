@@ -11,7 +11,9 @@ namespace Remains.Editor
         {
             serializedObject.Update();var settings=serializedObject.FindProperty("settings");
             void Field(string key,string label)=>EditorGUILayout.PropertyField(settings.FindPropertyRelative(key),new GUIContent(label),true);
-            Field("id","ID комнаты");Field("lightingProfile","Профиль света");Field("movementSound","Покрытие для звуков движения");
+            Field("id","ID комнаты");
+            if(((RoomAuthoring)target).GetComponent<RoomLightingAuthoring>()==null) Field("lightingProfile","Профиль света");
+            Field("movementSound","Покрытие для звуков движения");
             EditorGUILayout.LabelField("Границы и появление",EditorStyles.boldLabel);
             Field("left","Левая граница");Field("right","Правая граница");Field("bottom","Нижняя граница");Field("top","Верхняя граница");
             Field("spawnX","Появление X");Field("spawnY","Появление Y");

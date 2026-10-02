@@ -3759,6 +3759,63 @@ MonoBehaviour:
   textureKey: Hub/decor-barrow-1
   repeat: 0
   stretchY: 0
+--- !u!1 &495331349794726104
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3933975228747689349}
+  - component: {fileID: 6359059078092666549}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-0"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3933975228747689349
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 495331349794726104}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 29.6, y: 6.22, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 5468913784660255918}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6359059078092666549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 495331349794726104}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-0
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
+  maskOffset: {x: -2.5820007, y: -3.7299998}
+  maskSize: {x: 5.13, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &496936267733430356
 GameObject:
   m_ObjectHideFlags: 0
@@ -5053,6 +5110,63 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &696909100095520374
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7320344539403158747}
+  - component: {fileID: 3944186876147467326}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-5"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7320344539403158747
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 696909100095520374}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 36.4, y: 15.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2608428048685988110}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3944186876147467326
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 696909100095520374}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-5
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: cba8d49ca1bbbc047bfbee94d92e74ef, type: 3}
+  maskOffset: {x: -1.4610023, y: -1.4490004}
+  maskSize: {x: 2.93, y: 2.93}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light5-2
+  width: 0
+  height: 0
 --- !u!1 &701248679437385952
 GameObject:
   m_ObjectHideFlags: 0
@@ -10454,12 +10568,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1553089405591864379}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 18.4, y: 18.84, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.80000114, y: -0.1800003, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 8230190029739163543}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &474144451102960424
 MeshFilter:
@@ -20731,12 +20845,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3043213381263808907}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4, y: 11, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.5, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 5158477199273822036}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &8455098692287871446
 MeshFilter:
@@ -20908,6 +21022,63 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &3054711495716269403
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8230190029739163543}
+  - component: {fileID: 785279130660600199}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-8"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8230190029739163543
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3054711495716269403}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 19.2, y: 19.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 6061942879789879196}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &785279130660600199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3054711495716269403}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-8
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
+  maskOffset: {x: -2.5820007, y: -3.7300005}
+  maskSize: {x: 5.13, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &3066353804407427719
 GameObject:
   m_ObjectHideFlags: 0
@@ -25176,6 +25347,49 @@ MonoBehaviour:
   texture: Hub/concrete
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &3648700666737103820
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1011303492701553963}
+  m_Layer: 0
+  m_Name: "\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438 \u0441\u0432\u0435\u0442\u0430"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1011303492701553963
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3648700666737103820}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3933975228747689349}
+  - {fileID: 6194177093257854250}
+  - {fileID: 741195450611092055}
+  - {fileID: 5158477199273822036}
+  - {fileID: 17138825602182974}
+  - {fileID: 7320344539403158747}
+  - {fileID: 4252919935867239820}
+  - {fileID: 8108437313835213976}
+  - {fileID: 8230190029739163543}
+  - {fileID: 2105101948065464433}
+  - {fileID: 137457548823269337}
+  - {fileID: 6247949754814544533}
+  m_Father: {fileID: 8705550183626275462}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3673164549994904426
 GameObject:
   m_ObjectHideFlags: 0
@@ -28396,12 +28610,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4311989112588093150}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 36, y: 15.2, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.40000153, y: -0.40000057, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 7320344539403158747}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &133813929403407708
 MeshFilter:
@@ -29157,12 +29371,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4458277441805537859}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 32, y: 6.04, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.79999924, y: -0.17999983, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 741195450611092055}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &1899158261295715746
 MeshFilter:
@@ -29687,6 +29901,62 @@ MonoBehaviour:
   texture: Hub/concrete
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &4532032992579596146
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2105101948065464433}
+  - component: {fileID: 1189189657405522412}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: hall-0"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2105101948065464433
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4532032992579596146}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 16, y: 3, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1189189657405522412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4532032992579596146}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: hall-0
+  intensity: 0.65
+  useMask: 0
+  mask: {fileID: 0}
+  maskOffset: {x: -16, y: -3}
+  maskSize: {x: 0, y: 0}
+  radius: 6
+  color: {r: 0.8, g: 0.85, b: 0.92, a: 1}
+  fixture: 
+  maskId: 
+  width: 0
+  height: 0
 --- !u!1 &4548325218206754507
 GameObject:
   m_ObjectHideFlags: 0
@@ -29918,12 +30188,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4562903955840745096}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.4, y: 11, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.5, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 17138825602182974}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &8233945666904244683
 MeshFilter:
@@ -30503,6 +30773,63 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &4631894428168676746
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 17138825602182974}
+  - component: {fileID: 3819309155264326895}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-4"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &17138825602182974
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4631894428168676746}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 6.9, y: 11.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2279305945378682730}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3819309155264326895
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4631894428168676746}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-4
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: dc5f1973628521a41958b11818462378, type: 3}
+  maskOffset: {x: -2.6210003, y: -2.6090002}
+  maskSize: {x: 5.25, y: 5.25}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light1-1
+  width: 0
+  height: 0
 --- !u!1 &4659011501809944693
 GameObject:
   m_ObjectHideFlags: 0
@@ -30968,6 +31295,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8705550183626275462}
   - component: {fileID: 8824742275746732130}
+  - component: {fileID: 5057139467735775672}
   m_Layer: 0
   m_Name: hub
   m_TagString: Untagged
@@ -31080,6 +31408,7 @@ Transform:
   - {fileID: 8103558706886081911}
   - {fileID: 2348907913466034411}
   - {fileID: 818094607325504343}
+  - {fileID: 1011303492701553963}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8824742275746732130
@@ -31108,6 +31437,19 @@ MonoBehaviour:
     ladders: []
     artwork: []
   authoredArtwork: 1
+--- !u!114 &5057139467735775672
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4716606513644715987}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91db2b4057695c2468f2b97d7797f3fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ambient: {r: 0.38, g: 0.4, b: 0.43, a: 1}
 --- !u!1 &4727757677627462862
 GameObject:
   m_ObjectHideFlags: 0
@@ -35266,6 +35608,62 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &5438724575983519198
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6247949754814544533}
+  - component: {fileID: 8362136946718899669}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: hall-2"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6247949754814544533
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5438724575983519198}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 21, y: 13, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8362136946718899669
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5438724575983519198}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: hall-2
+  intensity: 0.65
+  useMask: 0
+  mask: {fileID: 0}
+  maskOffset: {x: -21, y: -13}
+  maskSize: {x: 0, y: 0}
+  radius: 6
+  color: {r: 0.8, g: 0.85, b: 0.92, a: 1}
+  fixture: 
+  maskId: 
+  width: 0
+  height: 0
 --- !u!1 &5451059635332019039
 GameObject:
   m_ObjectHideFlags: 0
@@ -35395,12 +35793,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5460863895204832915}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 28.8, y: 6.04, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.80000114, y: -0.17999983, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 3933975228747689349}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &2106403208029674372
 MeshFilter:
@@ -36231,6 +36629,63 @@ MonoBehaviour:
   textureKey: Hub/C
   repeat: 1
   stretchY: 0
+--- !u!1 &5582672686529861650
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4252919935867239820}
+  - component: {fileID: 1435290061615383827}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-6"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4252919935867239820
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5582672686529861650}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 36.5, y: 11.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8545870958832034629}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1435290061615383827
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5582672686529861650}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-6
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: f147707503c8f354d9d469fea865de8e, type: 3}
+  maskOffset: {x: -2.6209984, y: -2.6090002}
+  maskSize: {x: 5.25, y: 5.25}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-stlight1-1
+  width: 0
+  height: 0
 --- !u!1 &5642050692468732845
 GameObject:
   m_ObjectHideFlags: 0
@@ -37026,11 +37481,8 @@ Transform:
   - {fileID: 4340436805570126136}
   - {fileID: 1505148574425626502}
   - {fileID: 8550000163948760614}
-  - {fileID: 5468913784660255918}
   - {fileID: 221056870160509085}
   - {fileID: 5275438444630512517}
-  - {fileID: 1827257758404375375}
-  - {fileID: 717777386129750175}
   - {fileID: 2891419140386298113}
   - {fileID: 7198034200334937107}
   - {fileID: 6908676174552311766}
@@ -37041,8 +37493,6 @@ Transform:
   - {fileID: 5004945703919580626}
   - {fileID: 4296740872768656413}
   - {fileID: 6411406970791844216}
-  - {fileID: 5224430220694116727}
-  - {fileID: 2279305945378682730}
   - {fileID: 2745085993513984396}
   - {fileID: 3889616486025739314}
   - {fileID: 5970732236916920784}
@@ -37067,10 +37517,6 @@ Transform:
   - {fileID: 4621593700400885718}
   - {fileID: 3675658398175918301}
   - {fileID: 8348340162227517309}
-  - {fileID: 2608428048685988110}
-  - {fileID: 8545870958832034629}
-  - {fileID: 7749145454160922257}
-  - {fileID: 6061942879789879196}
   - {fileID: 2278659273029290012}
   - {fileID: 2215638501679701982}
   - {fileID: 449802434127860612}
@@ -41839,6 +42285,63 @@ MonoBehaviour:
   texture: Hub/shelf
   oneWay: 1
   shotsPassThrough: 1
+--- !u!1 &6579248546962926680
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6194177093257854250}
+  - component: {fileID: 3307746398607935515}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-1"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6194177093257854250
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6579248546962926680}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 36, y: 6.22, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1827257758404375375}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3307746398607935515
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6579248546962926680}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-1
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
+  maskOffset: {x: -2.5820007, y: -3.7299998}
+  maskSize: {x: 5.13, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &6583767530894915243
 GameObject:
   m_ObjectHideFlags: 0
@@ -42423,12 +42926,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6670645317182304739}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 35.2, y: 6.04, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.79999924, y: -0.17999983, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 6194177093257854250}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5312332147448137740
 MeshFilter:
@@ -43612,6 +44115,63 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &6906885383366859767
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5158477199273822036}
+  - component: {fileID: 1874294658345931099}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-3"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5158477199273822036
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6906885383366859767}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 4.5, y: 11.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 5224430220694116727}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1874294658345931099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6906885383366859767}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-3
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: dc5f1973628521a41958b11818462378, type: 3}
+  maskOffset: {x: -2.621, y: -2.6090002}
+  maskSize: {x: 5.25, y: 5.25}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light1-1
+  width: 0
+  height: 0
 --- !u!1 &6920323257657113614
 GameObject:
   m_ObjectHideFlags: 0
@@ -44149,12 +44709,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6972937148566190372}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.4, y: 15.38, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.7999997, y: -0.30999947, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 8108437313835213976}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &1896485551499477368
 MeshFilter:
@@ -44863,12 +45423,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7136364143441205484}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 36, y: 11, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.5, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 818094607325504343}
+  m_Father: {fileID: 4252919935867239820}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5010370999298407173
 MeshFilter:
@@ -48531,6 +49091,63 @@ MonoBehaviour:
   texture: Hub/concrete
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &7823242918226201321
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 741195450611092055}
+  - component: {fileID: 3985812318605383406}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-2"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &741195450611092055
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7823242918226201321}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 32.8, y: 6.22, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 717777386129750175}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3985812318605383406
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7823242918226201321}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-2
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
+  maskOffset: {x: -2.5819988, y: -3.7299998}
+  maskSize: {x: 5.13, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &7825774343025121737
 GameObject:
   m_ObjectHideFlags: 0
@@ -50061,6 +50678,63 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &8101911316844962230
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8108437313835213976}
+  - component: {fileID: 4639108606913116761}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: lamp-7"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8108437313835213976
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8101911316844962230}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 7.2, y: 15.69, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7749145454160922257}
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4639108606913116761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8101911316844962230}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: lamp-7
+  intensity: 1.1
+  useMask: 1
+  mask: {fileID: 2800000, guid: c13d2e693f2049947959e7f75b0c5d48, type: 3}
+  maskOffset: {x: -3.1009998, y: -1.8689995}
+  maskSize: {x: 6.17, y: 3.77}
+  radius: 7
+  color: {r: 1, g: 0.95, b: 0.72, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light3-1
+  width: 0
+  height: 0
 --- !u!1 &8105356548312660982
 GameObject:
   m_ObjectHideFlags: 0
@@ -54046,6 +54720,62 @@ MonoBehaviour:
   textureKey: Hub/shelf
   repeat: 1
   stretchY: 0
+--- !u!1 &8627910768382400239
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 137457548823269337}
+  - component: {fileID: 405235619121726932}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442: hall-1"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &137457548823269337
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8627910768382400239}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 20, y: 8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1011303492701553963}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &405235619121726932
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8627910768382400239}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: hall-1
+  intensity: 0.65
+  useMask: 0
+  mask: {fileID: 0}
+  maskOffset: {x: -20, y: -8}
+  maskSize: {x: 0, y: 0}
+  radius: 6
+  color: {r: 0.8, g: 0.85, b: 0.92, a: 1}
+  fixture: 
+  maskId: 
+  width: 0
+  height: 0
 --- !u!1 &8649590763206787499
 GameObject:
   m_ObjectHideFlags: 0

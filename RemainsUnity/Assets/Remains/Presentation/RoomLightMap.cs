@@ -31,8 +31,8 @@ namespace Remains.Presentation
             var masks=new Dictionary<string,RoomLightMask>(StringComparer.Ordinal);
             foreach(var light in profile.lights)
             {
-                if(string.IsNullOrEmpty(light.mask)) continue;
-                var texture=Resources.Load<Texture2D>(light.mask);
+                if(string.IsNullOrEmpty(light.mask) && light.maskTexture==null) continue;
+                var texture=light.maskTexture!=null?light.maskTexture:Resources.Load<Texture2D>(light.mask);
                 if(texture==null) throw new InvalidOperationException($"Нет маски света: light={light.id}, resource={light.mask}.");
                 masks.Add(light.id,new RoomLightMask(texture,new Rect(light.maskX,light.maskY,light.maskWidth,light.maskHeight)));
             }

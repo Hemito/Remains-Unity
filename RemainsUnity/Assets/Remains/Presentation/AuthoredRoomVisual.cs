@@ -12,7 +12,12 @@ namespace Remains.Presentation
             var source=RoomAuthoring.Load(level);
             if(!source.HasAuthoredArtwork) throw new InvalidOperationException("Не перенесено оформление уровня: "+level);
             var instance=UnityEngine.Object.Instantiate(source);instance.name="Комната: "+room.id;
-            try {instance.gameObject.AddComponent<RoomLighting>().Initialize(room);return instance.gameObject;}
+            try
+            {
+                var lighting=instance.GetComponent<RoomLightingAuthoring>();
+                if(lighting==null) throw new InvalidOperationException("Нет авторинга света: "+level);
+                instance.gameObject.AddComponent<RoomLighting>().Initialize(room,lighting.CreateProfile(instance));return instance.gameObject;
+            }
             catch {UnityEngine.Object.Destroy(instance.gameObject);throw;}
         }
     }

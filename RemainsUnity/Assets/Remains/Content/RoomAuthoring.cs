@@ -27,7 +27,7 @@ namespace Remains.Content
             if(result.platforms.Length==0 || result.left>=result.right) throw new InvalidOperationException($"Комната {name}: некорректные границы или нет поверхностей.");
             return result;
         }
-        private bool Included(Behaviour component)
+        public bool Included(Behaviour component)
         {
             if(!component.enabled) return false;
             for(var parent=component.transform;parent!=transform;parent=parent.parent)
