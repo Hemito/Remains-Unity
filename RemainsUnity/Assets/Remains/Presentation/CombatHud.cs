@@ -11,6 +11,7 @@ namespace Remains.Presentation
         private readonly GameObject vitals,loadout;
         private readonly Text name,healthText,manaText,ammunition;
         private readonly Image health,mana;
+        private readonly HealthBarWarning healthWarning;
         private readonly Button[] weapons=new Button[4];
         private readonly string[] ids={"spear","crowbar","pistol","energy"};
         private readonly HashSet<string> missing=new();
@@ -20,6 +21,7 @@ namespace Remains.Presentation
             vitals.GetComponent<Image>().raycastTarget=false;
             name=ui.Label(vitals.transform,"",new Vector2(12,-8),new Vector2(286,25));
             health=Bar(ui,vitals.transform,"health",new Vector2(12,-40),new Vector2(286,25));
+            healthWarning=new HealthBarWarning(health.sprite);
             mana=Bar(ui,vitals.transform,"mana",new Vector2(12,-78),new Vector2(286,20));
             healthText=ui.Label(vitals.transform,"",new Vector2(16,-42),new Vector2(275,24));
             manaText=ui.Label(vitals.transform,"",new Vector2(16,-78),new Vector2(275,24));
@@ -45,7 +47,9 @@ namespace Remains.Presentation
         }
         public void Refresh(ActorState actor,bool visible)
         {
-            vitals.SetActive(visible);loadout.SetActive(visible);if(actor==null) return;
+            vitals.SetActive(visible);loadout.SetActive(visible);
+            healthWarning.Refresh(health,actor==null?0:Mathf.Clamp01(actor.health/100),visible,Time.unscaledTime);
+            if(actor==null) return;
             name.text=actor.down?"Без сознания · нужна помощь":actor.character;
             health.fillAmount=Mathf.Clamp01(actor.health/100);mana.fillAmount=Mathf.Clamp01(actor.mana/100);
             healthText.text=$"Здоровье  {actor.health:0} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";
