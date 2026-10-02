@@ -18,11 +18,19 @@ namespace Remains.Editor
                 importer.alphaIsTransparency=true;
                 importer.textureCompression=TextureImporterCompression.Uncompressed;
                 importer.mipmapEnabled=false;
+                if(importer.assetPath.EndsWith("/Original/Inventory/shell.png"))
+                {
+                    importer.maxTextureSize=4096;
+                    importer.npotScale=TextureImporterNPOTScale.None;
+                }
                 if(importer.assetPath.Contains("/Hub/light-mask-")) importer.isReadable=true;
                 if(importer.assetPath.Contains("/Original/Raider/") || importer.assetPath.Contains("/Original/Shots/")) importer.maxTextureSize=4096;
                 importer.SaveAndReimport();
             }
             ContractChecks.Run();
+            var inventoryShell=Resources.Load<Texture2D>("Original/Inventory/shell");
+            if(inventoryShell==null || inventoryShell.width!=2097 || inventoryShell.height!=1080)
+                throw new InvalidOperationException("Корпус инвентаря должен сохранять исходный размер 2097×1080 после импорта.");
             string path="Assets/Remains/Scenes/Prototype.unity";
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
