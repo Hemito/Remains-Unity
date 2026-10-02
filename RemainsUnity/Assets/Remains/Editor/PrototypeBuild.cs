@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
@@ -34,6 +35,10 @@ namespace Remains.Editor
             string path="Assets/Remains/Scenes/Prototype.unity";
             if(AssetDatabase.LoadAssetAtPath<SceneAsset>(path)==null)
                 throw new InvalidOperationException($"Нет стартовой сцены {path}. Сборка не создаёт и не заменяет сцены.");
+            var startupScene=EditorSceneManager.OpenScene(path,OpenSceneMode.Single);
+            var starters=startupScene.GetRootGameObjects().SelectMany(root=>root.GetComponentsInChildren<Remains.Runtime.PrototypeRuntime>(true)).ToArray();
+            if(starters.Length!=1 || !starters[0].enabled || !starters[0].gameObject.activeInHierarchy)
+                throw new InvalidOperationException("Стартовая сцена должна содержать ровно один активный компонент PrototypeRuntime.");
             AssetDatabase.SaveAssets();
             var options=new BuildPlayerOptions { scenes=new[]{path}, locationPathName="Builds/Windows/RemainsPrototype.exe",
                 target=BuildTarget.StandaloneWindows64, options=BuildOptions.Development };

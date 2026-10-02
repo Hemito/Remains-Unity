@@ -50,12 +50,6 @@ namespace Remains.Runtime
         private bool releaseRequested;
         public bool ReleasingUnusedAssets {get;private set;}
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void Boot()
-        {
-            if (FindAnyObjectByType<PrototypeRuntime>() == null) new GameObject("Remains Runtime").AddComponent<PrototypeRuntime>();
-        }
-
         private void Awake()
         {
             try { Initialize(); }
