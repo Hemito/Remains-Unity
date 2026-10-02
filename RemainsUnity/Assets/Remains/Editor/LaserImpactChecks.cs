@@ -29,6 +29,8 @@ namespace Remains.Editor
             ((Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry)).Add("hub",
                 new RoomLayout {platforms=new[]{new RoomSurface {x=2,y=0,width=.2f,height=2,texture="Hub/concrete"}}});
             var controller=new ProjectileController(session,geometry,(_,_,_)=>{});
+            ProjectileContact? lastContact=null;int contacts=0;
+            controller.ContactObserved+=contact=>{lastContact=contact;contacts++;};
             var effects=root.AddComponent<LaserImpactEffects>();effects.Initialize(session,controller);
             world.projectiles.Add(new ProjectileState {launch=new AttackEvent {id="laser-check",weapon="energy",level="hub",
                 attacker="source",sourceOwner="remote",sourcePlayer=true,originY=1,endX=6,endY=1},owner="remote",generation=1,flightSpeed=1200});
@@ -36,6 +38,7 @@ namespace Remains.Editor
             controller.Step(.01f);controller.Step(.01f);
             var sprites=root.GetComponentsInChildren<SpriteRenderer>();
             Require(sprites.Length==1 && sprites[0].transform.position.x>1 && sprites[0].transform.position.x<3,"Контакт должен создать одну вспышку на мишени");
+            Require(contacts==1 && lastContact.Value.target=="target","Вместо мишени зарегистрирована стена за ней");
             var paused=(HashSet<string>)typeof(SessionPause).GetField("pausedLevels",Private).GetValue(session.Pause);
             paused.Add("hub");effects.Step(1);Require(root.GetComponentsInChildren<SpriteRenderer>().Length==1,"Пауза погасила вспышку");paused.Clear();
             var camera=new GameObject("Камера").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=1;
@@ -48,7 +51,19 @@ namespace Remains.Editor
                 File.WriteAllBytes(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/laser-impact.png")),image.EncodeToPNG());
                 effects.Step(.04f);Require(sprites[0].sprite.texture.name=="laser-impact-2","Неверный второй кадр");
                 effects.Step(.07f);Require(root.GetComponentsInChildren<SpriteRenderer>().Length==0,"Завершённая вспышка осталась в сцене");
-                Debug.Log("Попадание лазера: PASS — контакт, отсутствие повтора, пауза и окончание анимации.");
+                world.actors.RemoveAll(value=>value.id=="target");
+                var wallShot=world.projectiles[0].Copy();wallShot.launch.id="wall-check";
+                world.projectiles.Add(wallShot);
+                typeof(ProjectileController).GetMethod("Reconcile",Private).Invoke(controller,null);
+                controller.Step(.01f);controller.Step(.01f);
+                sprites=root.GetComponentsInChildren<SpriteRenderer>();
+                Require(contacts==2 && lastContact.Value.target==null && lastContact.Value.surfaceTexture=="Hub/concrete" &&
+                    Mathf.Abs(lastContact.Value.position.x-2)<.001f && sprites.Length==1,"Лазер не создаёт единственный контакт и вспышку на стене");
+                foreach(var flight in controller.Flights) if(flight.state.launch.id=="wall-check")
+                    Require(flight.path.Finished && Mathf.Abs(flight.path.Position.x-2)<.001f,"Лазер продолжил полёт за стеной");
+                actor.level="factory:0";effects.Step(0);
+                Require(root.GetComponentsInChildren<SpriteRenderer>().Length==0,"Вспышка осталась после ухода в другую локацию");
+                Debug.Log("Попадание лазера: PASS — мишень и стена, остановка, отсутствие повторов, пауза, окончание и смена уровня.");
             }
             finally {RenderTexture.active=null;camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);}
         }
