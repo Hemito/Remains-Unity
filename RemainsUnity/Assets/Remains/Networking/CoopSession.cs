@@ -474,7 +474,7 @@ namespace Remains.Networking
             attack.sourceOwner=owner;attack.sourcePlayer=ServerWorld.Find(attack.attacker).player;
             attack.friendlyFireDecision=ServerWorld.friendlyFireDecision;
             float projectileSpeed=WeaponCatalog.Get(attack.weapon).projectileSpeed;
-            if(projectileSpeed>0 && !Projectiles.Launch(attack,projectileSpeed)) return;
+            if(projectileSpeed>0 && !Projectiles.Launch(attack)) return;
             NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }
 

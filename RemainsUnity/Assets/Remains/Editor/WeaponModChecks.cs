@@ -12,6 +12,13 @@ namespace Remains.Editor
             string root=Path.Combine(Path.GetTempPath(),"remains-mod-checks-"+Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(root,"first"));Directory.CreateDirectory(Path.Combine(root,"second"));
             string original="{\"weapons\":[{\"id\":\"pistol\",\"damage\":11,\"range\":20,\"cooldown\":0.3}]}";
+            string flight="{\"weapons\":[{\"id\":\"flight\",\"range\":20,\"cooldown\":1,\"projectileSpeed\":90,\"projectileSpeedVariation\":0.2}]}";
+            string noMods=Path.Combine(root,"none");
+            var flightDefinition=WeaponCatalogLoader.Load(flight,noMods).definitions["flight"];
+            Require(flightDefinition.ProjectileSpeedRange==new Vector2(72,108),"Диапазон скорости не следует данным оружия");
+            Reject(()=>WeaponCatalogLoader.Load(flight.Replace("0.2","1"),noMods),"диапазон скорости");
+            Reject(()=>WeaponCatalogLoader.Load(flight.Replace("90","0"),noMods),"диапазон скорости");
+            Reject(()=>WeaponCatalogLoader.Load(flight.Replace("90","3.4e38"),noMods),"диапазон скорости");
             string replacement=original.Replace("11","25");
             var before=WeaponCatalog.Get("pistol");
             File.WriteAllText(Path.Combine(root,"load-order.json"),"{\"mods\":[\"first\"]}");

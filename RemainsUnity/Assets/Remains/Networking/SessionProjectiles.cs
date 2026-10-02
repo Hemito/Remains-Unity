@@ -30,11 +30,13 @@ namespace Remains.Networking
             if(flight!=null) ProjectileLifecycle.AcceptProgress(flight,flight.owner,message.generation,message.sequence,message.traveled,message.finished);
         });
         }
-        public bool Launch(AttackEvent attack,float speed)
+        public bool Launch(AttackEvent attack)
         {
             var world=session.ServerWorld;
             string key="projectile:"+attack.id;
             if(world.completedTransactions.Contains(key) || world.projectiles.Any(p=>p.launch.id==attack.id)) return false;
+            var speeds=Remains.Content.WeaponCatalog.Get(attack.weapon).ProjectileSpeedRange;
+            float speed=UnityEngine.Random.Range(speeds.x,speeds.y);
             var state=new ProjectileState {launch=Remains.Serialization.StateJson.Copy(attack),owner=attack.sourceOwner,generation=1,flightSpeed=speed};
             try {state.Path();} catch(Exception error) when(error is ArgumentException || error is InvalidOperationException) {Debug.LogWarning($"Некорректный запуск снаряда {attack.id}: {error.Message}");return false;}
             world.projectiles.Add(state);world.completedTransactions.Add(key);

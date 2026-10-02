@@ -108,8 +108,12 @@ namespace Remains.Content
         }
         private static void Validate(WeaponDefinition weapon,string source)
         {
-            foreach(float value in new[]{weapon.damage,weapon.speedDamage,weapon.maxSpeedDamage,weapon.range,weapon.cooldown,weapon.manaCost,weapon.reloadSeconds,weapon.projectileSpeed})
+            foreach(float value in new[]{weapon.damage,weapon.speedDamage,weapon.maxSpeedDamage,weapon.range,weapon.cooldown,weapon.manaCost,weapon.reloadSeconds,weapon.projectileSpeed,weapon.projectileSpeedVariation})
                 if(!float.IsFinite(value) || value<0) throw new InvalidDataException($"Некорректное число оружия: источник={source}, id={weapon.id}.");
+            var speeds=weapon.ProjectileSpeedRange;
+            if(weapon.projectileSpeedVariation>=1 || (weapon.projectileSpeedVariation>0 && weapon.projectileSpeed<=0) ||
+                !float.IsFinite(speeds.y) || (weapon.projectileSpeed>0 && speeds.x<=0))
+                throw new InvalidDataException($"Некорректный диапазон скорости снаряда: источник={source}, id={weapon.id}.");
             if(weapon.range<=0 || weapon.cooldown<=0 || (!string.IsNullOrEmpty(weapon.ammo) &&
                 (weapon.magazineSize<=0 || weapon.ammoPerShot<=0 || weapon.ammoPerShot>weapon.magazineSize || weapon.reloadSeconds<=0)))
                 throw new InvalidDataException($"Некорректная дальность, задержка или боезапас: источник={source}, id={weapon.id}.");
