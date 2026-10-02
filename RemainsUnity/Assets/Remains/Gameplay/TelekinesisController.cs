@@ -23,10 +23,12 @@ namespace Remains.Gameplay
             var rules=session.Rules.Telekinesis;
             if(held && !wasHeld)
             {
-                var nearest=WorldProps.All(session.World).Where(p=>p.level==actor.level && Vector2.Distance(p.Position,aim)<1).OrderBy(p=>Vector2.Distance(p.Position,aim)).FirstOrDefault();
+                var nearest=WorldProps.All(session.World).Where(p=>p.level==actor.level && Vector2.Distance(p.Center,aim)<1).OrderBy(p=>Vector2.Distance(p.Center,aim)).FirstOrDefault();
                 if(nearest!=null)
                 {
                     string rejection=rules.Rejection(actor,nearest,false);
+                    if(rejection==null && rules is ITelekinesisSightRule sight)
+                        rejection=sight.SightRejection(actor,nearest,geometry.Get(actor.level));
                     if(rejection!=null) session.ShowNotice(rejection);
                     else if(nearest.held && nearest.owner!=actor.owner) session.ShowNotice("Объект уже удерживает другой игрок.");
                     else {selected=nearest.id;adapter.GrabProp(selected,false);}

@@ -69,7 +69,7 @@ namespace Remains.Presentation
             foreach(var container in session.World.containers.Where(c=>c.level==level))
             {
                 if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=Create("Контейнер "+container.id,propArtwork.Get(container.definition),container.width));
-                view.transform.position=container.Position+Vector2.up*(container.height*.5f-container.anchorHeight);view.enabled=container.level==session.LocalActor?.level;
+                view.transform.position=container.Center;view.enabled=container.level==session.LocalActor?.level;
             }
             foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,propArtwork.Get(prop.definition),prop.width));
             foreach(var actor in session.World.actors)
@@ -90,10 +90,10 @@ namespace Remains.Presentation
         {
             if(session?.World==null) return;
             foreach(var prop in session.World.props)
-                if(props.TryGetValue(prop.id,out var view)) {view.transform.position=prop.Position;view.enabled=prop.level==session.LocalActor?.level;}
+                if(props.TryGetValue(prop.id,out var view)) {view.transform.position=prop.Center;view.enabled=prop.level==session.LocalActor?.level;}
             foreach(var container in session.World.containers)
                 if(containers.TryGetValue(container.id,out var view))
-                {view.transform.position=container.Position+Vector2.up*(container.height*.5f-container.anchorHeight);view.enabled=container.level==session.LocalActor?.level;}
+                {view.transform.position=container.Center;view.enabled=container.level==session.LocalActor?.level;}
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;

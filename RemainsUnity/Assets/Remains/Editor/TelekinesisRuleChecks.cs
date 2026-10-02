@@ -28,6 +28,15 @@ namespace Remains.Editor
                 Require(Mathf.Abs(mana-57.5736f)<.002f,"Расход маны не должен зависеть от частоты кадров");
             }
             Require(Mathf.Abs(Vector2.Distance(rule.Target(actor,new Vector2(30,40)),actor.Position)-12)<.0001f,"Цель ограничена радиусом");
+            var room=new RoomLayout {platforms=new[]{new RoomSurface {x=1,y=0,width=.25f,height=3}}};
+            actor.Position=Vector2.zero;prop.Position=new Vector2(2,.6f);prop.mass=25;
+            Require(rule.SightRejection(actor,prop,room)!=null,"Захват сквозь стену разрешён");
+            room.platforms[0].shotsPassThrough=true;
+            Require(rule.SightRejection(actor,prop,room)==null,"Проходимый для линии участок закрывает видимость");
+            room.platforms=Array.Empty<RoomSurface>();
+            var container=new ContainerState {x=2,y=0};
+            Require(container.Center==prop.Center,"Разная точка привязки меняет центр одинакового ящика");
+            Require(rule.SightRejection(actor,container,room)==null,"Свободный доступ к контейнеру отклонён");
             bool rejected=false;settings.freeMass=31;
             try {settings.Validate();} catch(InvalidOperationException) {rejected=true;}
             Require(rejected,"Некорректный профиль не должен загружаться");

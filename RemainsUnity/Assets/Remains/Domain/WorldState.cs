@@ -124,6 +124,7 @@ namespace Remains.Domain
         public string level="factory:0";
         public bool held;
         public Vector2 Position { get=>new(x,y); set { x=value.x;y=value.y; } }
+        public Vector2 Center=>Position+Vector2.up*(height*.5f-anchorHeight);
     }
 
     [Serializable]
