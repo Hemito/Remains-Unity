@@ -25,6 +25,7 @@ namespace Remains.Runtime
         public TelekinesisController Telekinesis { get; private set; }
         public SimulationGeometry Geometry { get; private set; }
         public GameplayAudio Audio {get;private set;}
+        public ProjectileAudio ImpactAudio {get;private set;}
         public AreaMusic Music {get;private set;}
         public MovementAudio MovementAudio {get;private set;}
         public PropContactAudio PropAudio {get;private set;}
@@ -104,6 +105,7 @@ namespace Remains.Runtime
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
             MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=new GameObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
+            ImpactAudio=new GameObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
             new GameObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles);
             Explosions=new GameObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session);
             Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);

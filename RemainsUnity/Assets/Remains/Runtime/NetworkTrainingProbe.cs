@@ -158,9 +158,9 @@ namespace Remains.Runtime
             string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,ladderContacts=runtime.MovementAudio.LadderContacts,
-                remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,propLandings=runtime.PropAudio.Landings,independentStance=independentStance},true);
+                remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,propLandings;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }
