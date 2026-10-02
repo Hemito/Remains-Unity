@@ -20,12 +20,12 @@ namespace Remains.Editor
             prop.movable=true;actor.mana=0;Require(rule.Rejection(actor,prop,true)!=null,"Исчерпание маны прекращает удержание");
             actor.mana=100;actor.down=true;Require(rule.Rejection(actor,prop,true)!=null,"Потеря сознания прекращает удержание");actor.down=false;
             prop.mass=5;Require(rule.ManaPerSecond(actor,prop)==0,"До 5 кг включительно удержание бесплатно");
-            prop.mass=25;Require(Mathf.Abs(rule.ManaPerSecond(actor,prop)-21.213203f)<.0001f,"Расход 25 кг должен быть 21,2132 маны в секунду");
+            prop.mass=25;Require(Mathf.Abs(rule.ManaPerSecond(actor,prop)-2.1213203f)<.0001f,"Расход 25 кг должен быть 2,12132 единицы шкалы 0–100 в секунду");
             foreach(int fps in new[]{30,60,144})
             {
                 float mana=100;
                 for(int i=0;i<fps*2;i++) mana=Mathf.Max(0,mana-rule.ManaPerSecond(actor,prop)/fps);
-                Require(Mathf.Abs(mana-57.5736f)<.002f,"Расход маны не должен зависеть от частоты кадров");
+                Require(Mathf.Abs(mana-95.75736f)<.002f,"Расход маны не должен зависеть от частоты кадров");
             }
             Require(Mathf.Abs(Vector2.Distance(rule.Target(actor,new Vector2(30,40)),actor.Position)-12)<.0001f,"Цель ограничена радиусом");
             var room=new RoomLayout {platforms=new[]{new RoomSurface {x=1,y=0,width=.25f,height=3}}};
