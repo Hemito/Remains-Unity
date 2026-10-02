@@ -1,0 +1,68 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using Remains.Content;
+using Remains.Domain;
+using Remains.Gameplay;
+using Remains.Networking;
+using Remains.Presentation;
+using UnityEngine;
+
+namespace Remains.Editor
+{
+    public static class ProjectileAudioChecks
+    {
+        private const BindingFlags Private=BindingFlags.Instance|BindingFlags.NonPublic;
+        public static void Run()
+        {
+            Check("Hub/concrete","hit-concrete",false);
+            Check("floor","hit-metal",false);
+            Check("Hub/concrete","hit-bullet",true);
+            Debug.Log("Звуки попаданий: PASS — бетон, металл, актёр перед стеной, отсутствие повторов.");
+        }
+        private static void Check(string texture,string expected,bool actorBlocks)
+        {
+            var root=new GameObject("Проверка звуков контакта");
+            try
+            {
+                var session=root.AddComponent<CoopSession>();
+                var world=new WorldState();
+                var observer=new ActorState {id="observer",owner="listener",player=true,connected=true,level="hub",x=-2};
+                world.actors.Add(observer);
+                if(actorBlocks) world.actors.Add(new ActorState {id="target",actorType="training-dummy",level="hub",x=2});
+                typeof(CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,observer.id);
+                var geometry=new SimulationGeometry(session);
+                var rooms=(Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry);
+                // The near surface passes shots; the farther one must supply the sound key.
+                rooms.Add("hub",new RoomLayout {platforms=new[]{
+                    new RoomSurface {x=1,y=0,width=.1f,height=2,texture="ignored",shotsPassThrough=true},
+                    new RoomSurface {x=4,y=0,width=.2f,height=2,texture=texture}}});
+                int hits=0,contacts=0;
+                var controller=new ProjectileController(session,geometry,(_,_,_)=>hits++);
+                controller.ContactObserved+=contact=>
+                {
+                    contacts++;
+                    Require(actorBlocks?contact.target=="target":contact.surfaceTexture==texture && Mathf.Abs(contact.position.x-4)<.0001f,
+                        "Событие не соответствует ближайшему непрозрачному препятствию");
+                };
+                var camera=root.AddComponent<Camera>();
+                var playback=root.AddComponent<GameplayAudio>();playback.Initialize(session,new WeaponReloadController(session),camera);
+                var audio=root.AddComponent<ProjectileAudio>();audio.Initialize(controller,playback);
+                world.projectiles.Add(new ProjectileState {launch=new AttackEvent {id="sound-shot",attacker="source",sourceOwner="remote",
+                    sourcePlayer=true,weapon="pistol",level="hub",originY=.7f,endX=8,endY=.7f},owner="remote",generation=1,flightSpeed=90});
+                typeof(ProjectileController).GetMethod("Reconcile",Private).Invoke(controller,null);
+                controller.Step(.1f);controller.Step(.1f);
+                var sources=root.GetComponentsInChildren<AudioSource>();
+                Require(contacts==1 && hits==(actorBlocks?1:0) && audio.Played==1 && sources.Length==1,
+                    "Пропущен или повторён контакт/звук; стена за актёром не должна звучать");
+                Require(sources[0].clip==Resources.Load<AudioClip>("Original/Audio/"+expected),"Выбран неверный WAV");
+                Require(!Application.isBatchMode || sources[0].mute,"Фоновая проверка не заглушена");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
+        }
+        private static void Require(bool valid,string reason)
+        {if(!valid) throw new InvalidOperationException("Проверка звука попадания: "+reason);}
+    }
+}

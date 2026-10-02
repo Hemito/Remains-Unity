@@ -22,6 +22,7 @@ namespace Remains.Editor
             ProjectilePersistenceChecks.Run();
             ProjectileControllerChecks.Run();
             ActorTypeChecks.Run();
+            ProjectileAudioChecks.Run();
             RaiderChecks.Run();
             LightingChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();
