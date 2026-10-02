@@ -99,6 +99,7 @@ namespace Remains.Presentation
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
             inventory = Panel(transform,"Инвентарь",new Vector2(20,-110),new Vector2(1240,580));
+            var inventoryRect=inventory.GetComponent<RectTransform>();inventoryRect.anchorMin=inventoryRect.anchorMax=inventoryRect.pivot=new Vector2(.5f,.5f);inventoryRect.anchoredPosition=new Vector2(0,-40);
             inventory.GetComponent<Image>().color=new Color(.015f,.025f,.02f,1);
             var containerPanel=Panel(inventory.transform,"Общий контейнер",new Vector2(870,-72),new Vector2(330,435));
             containerTitle=Label(containerPanel.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));

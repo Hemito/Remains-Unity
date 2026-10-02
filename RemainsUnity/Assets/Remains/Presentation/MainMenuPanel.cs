@@ -26,6 +26,7 @@ namespace Remains.Presentation
             var title=ui.Label(Root.transform,"REMAINS",new Vector2(65,-60),new Vector2(630,90));title.fontSize=64;title.color=new Color(.78f,.93f,.82f);
             var subtitle=ui.Label(Root.transform,"Совместная игра",new Vector2(70,-151),new Vector2(500,45));subtitle.fontSize=26;
             Controls=ui.Panel(Root.transform,"Игра и подключение",new Vector2(775,-55),new Vector2(440,580));
+            var controlsRect=Controls.GetComponent<RectTransform>();controlsRect.anchorMin=controlsRect.anchorMax=controlsRect.pivot=new Vector2(1,1);controlsRect.anchoredPosition=new Vector2(-65,-55);
             Controls.GetComponent<Image>().color=new Color(.015f,.025f,.02f,.90f);
             ui.Label(Controls.transform,"Персонаж",new Vector2(20,-15),new Vector2(400,28));
             Character=ui.Input(Controls.transform,new Vector2(20,-46));Character.characterLimit=32;
@@ -37,9 +38,13 @@ namespace Remains.Presentation
             Address=ui.Input(Controls.transform,new Vector2(20,-391));
             Button(Controls.transform,"Подключиться",new Vector2(20,-449),new Vector2(400,50),join);
             var hint=ui.Label(Controls.transform,"Один ПК: 127.0.0.1 · локальная сеть: IP хозяина",new Vector2(20,-520),new Vector2(400,45));hint.fontSize=15;
-            Button(Root.transform,"Выйти из игры",new Vector2(65,-632),new Vector2(300,44),()=>Application.Quit());
+            var exit=Button(Root.transform,"Выйти из игры",new Vector2(65,-632),new Vector2(300,44),()=>Application.Quit());
             SoundRect=Button(Root.transform,"Настройки звука",new Vector2(65,-574),new Vector2(300,44),settings).GetComponent<RectTransform>();
+            var exitRect=exit.GetComponent<RectTransform>();exitRect.anchorMin=exitRect.anchorMax=exitRect.pivot=Vector2.zero;exitRect.anchoredPosition=new Vector2(65,44);
+            SoundRect.anchorMin=SoundRect.anchorMax=SoundRect.pivot=Vector2.zero;SoundRect.anchoredPosition=new Vector2(65,102);
             Notice=ui.Label(Root.transform,"",new Vector2(390,-652),new Vector2(825,55));Notice.fontSize=16;
+            var noticeRect=Notice.rectTransform;noticeRect.anchorMin=Vector2.zero;noticeRect.anchorMax=new Vector2(1,0);noticeRect.pivot=Vector2.zero;
+            noticeRect.offsetMin=new Vector2(390,13);noticeRect.offsetMax=new Vector2(-65,68);
         }
         private Button Button(Transform parent,string label,Vector2 position,Vector2 size,Action action)
         {
