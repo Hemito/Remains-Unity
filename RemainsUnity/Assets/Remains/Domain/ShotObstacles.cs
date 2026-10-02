@@ -7,7 +7,10 @@ namespace Remains.Domain
         public static float Limit(RoomLayout room,Vector2 start,Vector2 end)
             =>FirstContact(room,start,end)??1;
         public static float? FirstContact(RoomLayout room,Vector2 start,Vector2 end)
+            =>FirstContact(room,start,end,out _);
+        public static float? FirstContact(RoomLayout room,Vector2 start,Vector2 end,out RoomSurface contacted)
         {
+            contacted=null;
             float? nearest=null;
             foreach(var surface in room.platforms)
             {
@@ -15,7 +18,7 @@ namespace Remains.Domain
                 float enter=0,exit=1;var delta=end-start;
                 if(Clip(start.x,delta.x,surface.x,surface.x+surface.width,ref enter,ref exit) &&
                     Clip(start.y,delta.y,surface.y,surface.y+surface.height,ref enter,ref exit))
-                    nearest=nearest.HasValue?Mathf.Min(nearest.Value,enter):enter;
+                    if(!nearest.HasValue || enter<nearest.Value) {nearest=enter;contacted=surface;}
             }
             return nearest;
         }

@@ -101,10 +101,11 @@ namespace Remains.Editor
                 var geometry=new SimulationGeometry(session);
                 var rooms=(Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry);
                 rooms.Add("hub",new RoomLayout {platforms=Array.Empty<RoomSurface>()});
-                var damage=new DamageReceiver(new PrototypeDamageRule());int applied=0,contacts=0;
+                var damage=new DamageReceiver(new PrototypeDamageRule());int applied=0,contacts=0,observed=0;
                 // The observer sees the contact before becoming the decision owner.
                 var controller=new ProjectileController(session,geometry,(attack,contact,owner)=>
                 {contacts++;if(owner=="b" && damage.Apply(target,attack,contact.contact)) applied++;});
+                controller.ContactObserved+=contact=>{observed++;Require(contact.target=="npc" && contact.targetType=="pony" && contact.position.x>7 && contact.position.x<9,"Неверные данные контакта для представления");};
                 var state=new ProjectileState {launch=new AttackEvent {id="handoff-contact",attacker="source",sourceOwner="a",
                     sourcePlayer=true,weapon="pistol",level="hub",originY=.7f,endX=20,endY=.7f},owner="a",generation=1,flightSpeed=90};
                 world.projectiles.Add(state);
@@ -114,6 +115,7 @@ namespace Remains.Editor
                 state.owner="b";state.generation=2;state.traveled=2;Reconcile();controller.Step(.1f);
                 Require(applied==1 && target.health==89,"Раннее визуальное попадание подавило удар нового владельца");
                 state.generation=3;Reconcile();controller.Step(.1f);
+                Require(observed==1,"Передача владельца повторила событие представления контакта");
                 Require(applied==1 && target.health==89 && target.resolvedAttacks.Count==1,
                     "Повтор передачи применил урон второй раз");
             }

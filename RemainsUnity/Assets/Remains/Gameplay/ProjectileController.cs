@@ -15,6 +15,7 @@ namespace Remains.Gameplay
         public bool contact;
         public float finishedAge,nextPublish;
         public readonly HashSet<string> hit=new();
+        internal readonly HashSet<string> observedContacts=new();
     }
     public sealed class ProjectileController
     {
@@ -25,6 +26,7 @@ namespace Remains.Gameplay
         private readonly List<string> expired=new();
         public IEnumerable<ProjectileFlight> Flights=>flights.Values;
         public event Action<ProjectileFlight> Created;
+        public event Action<ProjectileContact> ContactObserved;
         public int Contacts {get;private set;}
         public ProjectileController(CoopSession session,SimulationGeometry geometry,Action<AttackEvent,AttackTargetSnapshot,string> apply)
         {this.session=session;this.geometry=geometry;this.apply=apply;session.Changed+=Reconcile;session.Projectiles.Launched+=Reconcile;}
@@ -81,17 +83,29 @@ namespace Remains.Gameplay
             attack.speed=flight.path.Speed;
             attack.originX=start.x;attack.originY=start.y;attack.endX=end.x;attack.endY=end.y;
             var definition=WeaponCatalog.Get(attack.weapon);
-            float? terrain=definition.stopAtTerrain?ShotObstacles.FirstContact(geometry.Get(attack.level),start,end):null;
+            RoomSurface surface=null;
+            float? terrain=definition.stopAtTerrain?ShotObstacles.FirstContact(geometry.Get(attack.level),start,end,out surface):null;
             var contacts=AttackContacts.Capture(session.World.actors,attack,session.World.friendlyFire,definition.stopAtFirstActor,terrain??float.PositiveInfinity);
             float? stop=terrain;
+            bool stoppedAtActor=false;
             foreach(var target in contacts)
             {
                 var actor=session.World.Find(target.id);
                 Anatomy.Contact(actor,attack,out float entry);
-                if(definition.stopAtFirstActor) stop=entry;
+                if(definition.stopAtFirstActor) {stop=entry;stoppedAtActor=true;}
                 if(flight.hit.Add(target.id)) {apply(attack,target,flight.state.owner);Contacts++;}
+                Observe(flight,"actor:"+target.id,Vector2.Lerp(start,end,entry),target.id,actor.actorType,null);
             }
+            if(terrain.HasValue && !stoppedAtActor)
+                Observe(flight,"terrain",Vector2.Lerp(start,end,terrain.Value),null,null,surface.texture);
             return stop;
+        }
+        private void Observe(ProjectileFlight flight,string key,Vector2 position,string target,string targetType,string texture)
+        {
+            // Keep observation receipts across ownership recovery; damage receipts remain separate.
+            if(!flight.observedContacts.Add(key)) return;
+            var launch=flight.state.launch;
+            ContactObserved?.Invoke(new ProjectileContact(launch.id,launch.weapon,launch.level,position,target,targetType,texture));
         }
     }
 }
