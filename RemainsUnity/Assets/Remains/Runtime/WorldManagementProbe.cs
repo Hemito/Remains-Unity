@@ -33,6 +33,7 @@ namespace Remains.Runtime
             yield return UiPointerProbe.Click(Button("Имя / удалить"));
             yield return UiPointerProbe.Click(Button("Удалить мир"));
             if(store.SelectedSnapshot()==null) {Finish(false,"Мир удалён без подтверждения.");yield break;}
+            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".confirm.png",runtime.Hud.GetComponent<Canvas>());
             yield return UiPointerProbe.Click(Button("Да, удалить мир"));
             if(store.SelectedSnapshot()!=null || store.Continuations().Count!=0)
             {Finish(false,"Удаление через меню оставило мир выбранным или в списке.");yield break;}

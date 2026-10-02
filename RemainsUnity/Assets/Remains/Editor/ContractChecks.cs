@@ -45,6 +45,9 @@ namespace Remains.Editor
             var audioSettings=Resources.Load<Remains.Presentation.AudioSettingsView>("Presentation/AudioSettings");
             if(audioSettings==null) throw new InvalidOperationException("Нет префаба настроек звука.");
             audioSettings.Validate();
+            var worldManagement=Resources.Load<Remains.Presentation.WorldManagementView>("Presentation/WorldManagement");
+            if(worldManagement==null) throw new InvalidOperationException("Нет префаба управления миром.");
+            worldManagement.Validate();
             PersonalInventoryPrefabChecks.Run();
             _=new Remains.Presentation.InventoryArtwork();
             var sharedInventory=Resources.Load<Remains.Presentation.SharedInventoryView>("Presentation/SharedInventory");

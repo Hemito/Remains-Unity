@@ -33,7 +33,7 @@ namespace Remains.Editor
                 {
                     var store=new Remains.Persistence.SaveStore(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/world-management-render")));
                     var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
-                    WorldManagementPanel.Open(canvas.transform,ui,store,"menu-preview",()=>{});
+                    WorldManagementPanel.Open(canvas.transform,store,"menu-preview",()=>{});
                     Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
                     image.ReadPixels(new Rect(0,0,width,height),0,0);image.Apply();
                     File.WriteAllBytes(Path.ChangeExtension(path,"world-management.png"),image.EncodeToPNG());
@@ -43,4 +43,5 @@ namespace Remains.Editor
         }
     }
 }
+
 

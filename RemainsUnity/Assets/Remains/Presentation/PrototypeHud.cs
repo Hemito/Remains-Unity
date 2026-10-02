@@ -250,7 +250,7 @@ namespace Remains.Presentation
                     {session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();});
                 worldChoices[copy.Id]=choice.GetComponent<RectTransform>();
                 Button(worldPicker.transform,"Имя / удалить",new Vector2(710,-75-row*70),new Vector2(210,62),()=>
-                    WorldManagementPanel.Open(transform,elements,session.Saves,state.worldId,()=>{ShowWorldPicker(page);RefreshSelectedWorld();}));
+                    WorldManagementPanel.Open(transform,session.Saves,state.worldId,()=>{ShowWorldPicker(page);RefreshSelectedWorld();}));
             }
             if(copies.Count==0) Label(worldPicker.transform,"Сохранённых миров пока нет.",new Vector2(20,-90),new Vector2(850,50));
             Button(worldPicker.transform,"Назад",new Vector2(20,-440),new Vector2(180,45),()=>ShowWorldPicker(page-1)).interactable=page>0;
