@@ -40,6 +40,7 @@ namespace Remains.Editor
             CombatHudPrefabChecks.Run();
             InventoryWindowChecks.Run();
             PersonalInventoryPrefabChecks.Run();
+            _=new Remains.Presentation.InventoryArtwork();
             var sharedInventory=Resources.Load<Remains.Presentation.SharedInventoryView>("Presentation/SharedInventory");
             if(sharedInventory==null) throw new InvalidOperationException("Нет префаба общего контейнера.");
             sharedInventory.Validate();

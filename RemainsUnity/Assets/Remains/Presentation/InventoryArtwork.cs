@@ -2,11 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
-    [Serializable] public sealed class InventoryIcon {public string id,resource;public int x,y,width,height;}
-    [Serializable] public sealed class InventoryIconCatalog {public InventoryIcon[] icons;}
     public sealed class InventoryArtwork
     {
         private readonly Dictionary<string,Sprite> sprites;
@@ -14,24 +13,13 @@ namespace Remains.Presentation
         public InventoryArtwork()
         {
             sprites=WeaponArtwork.Load();
-            var data=Resources.Load<TextAsset>("Original/Inventory/icons");
-            if(data==null) throw new InvalidOperationException("Нет каталога Original/Inventory/icons.");
-            var catalog=JsonUtility.FromJson<InventoryIconCatalog>(data.text);
-            if(catalog?.icons==null) throw new InvalidOperationException("Пустой каталог иконок инвентаря.");
-            foreach(var entry in catalog.icons)
+            var catalog=Resources.Load<InventoryIconAsset>("Original/Inventory/icons");
+            if(catalog==null) throw new InvalidOperationException("Нет каталога иконок Original/Inventory/icons.");
+            foreach(var entry in catalog.CreateLookup())
             {
-                var texture=Resources.Load<Texture2D>(entry.resource);
-                if(texture==null || entry.x<0 || entry.y<0 || entry.width<=0 || entry.height<=0 ||
-                    entry.x+entry.width>texture.width || entry.y+entry.height>texture.height)
-                    throw new InvalidOperationException($"Некорректная иконка: id={entry.id}, resource={entry.resource}.");
-                sprites.Add(entry.id,Sprite.Create(texture,new Rect(entry.x,entry.y,entry.width,entry.height),new Vector2(.5f,.5f),50));
+                if(!sprites.TryAdd(entry.Key,entry.Value))
+                    throw new InvalidOperationException($"Иконка предмета {entry.Key} конфликтует с иконкой оружия.");
             }
-        }
-        public Image Create(Transform parent,Vector2 position,Vector2 size,string id=null)
-        {
-            var obj=new GameObject("Иконка предмета",typeof(RectTransform));obj.transform.SetParent(parent,false);
-            HudElements.Rect(obj.GetComponent<RectTransform>(),position,size);
-            var image=obj.AddComponent<Image>();image.raycastTarget=false;image.preserveAspect=true;Set(image,id);return image;
         }
         public void Set(Image image,string id)
         {
