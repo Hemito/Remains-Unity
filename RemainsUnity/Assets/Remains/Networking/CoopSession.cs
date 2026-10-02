@@ -54,6 +54,8 @@ namespace Remains.Networking
         public SessionTravel Travel => travel ??= new SessionTravel(this);
         private SessionDeposits deposits;
         public SessionDeposits Deposits=>deposits ??= new SessionDeposits(this);
+        private SessionProjectiles projectiles;
+        public SessionProjectiles Projectiles=>projectiles ??= new SessionProjectiles(this);
         private SessionPause pause;
         public SessionPause Pause=>pause ??= new SessionPause(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
@@ -77,7 +79,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
-            Pause.RegisterServer();Deposits.RegisterServer();
+            Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();
             Admission.RegisterServer();
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
@@ -170,6 +172,7 @@ namespace Remains.Networking
                 var actor = JsonUtility.FromJson<ActorState>(message.json);
                 MergeActor(actor);
             });
+            Projectiles.RegisterClient();
             NetworkClient.RegisterHandler<PoseMessage>(ReceivePose);
             NetworkClient.RegisterHandler<AttackMessage>(message => AttackReceived?.Invoke(JsonUtility.FromJson<AttackEvent>(message.json)));
             NetworkClient.RegisterHandler<NpcHitMessage>(message => NpcHitReceived?.Invoke(message));
@@ -470,6 +473,8 @@ namespace Remains.Networking
             { Debug.LogWarning($"Атака без корректной локации отклонена: id={attack.id}, actor={attack.attacker}, level={attack.level}.");return; }
             attack.sourceOwner=owner;attack.sourcePlayer=ServerWorld.Find(attack.attacker).player;
             attack.friendlyFireDecision=ServerWorld.friendlyFireDecision;
+            float projectileSpeed=WeaponCatalog.Get(attack.weapon).projectileSpeed;
+            if(projectileSpeed>0 && !Projectiles.Launch(attack,projectileSpeed)) return;
             NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }
 
@@ -481,7 +486,8 @@ namespace Remains.Networking
             var target=ServerWorld.Find(message.target);
             var source=ServerWorld.Find(attack.attacker);
             if(target==null || target.generation!=message.generation || target.lifecycleSequence!=message.lifecycle ||
-                source==null || !source.player || !owners.TryGetValue(connection.connectionId,out var owner) || source.owner!=owner || attack.sourceOwner!=owner ||
+                !owners.TryGetValue(connection.connectionId,out var owner) ||
+                !(WeaponCatalog.Get(attack.weapon).projectileSpeed>0?Projectiles.IsDecisionOwner(owner,attack):source!=null && source.player && source.owner==owner && attack.sourceOwner==owner) ||
                 !FriendlyFireDecision.UsesAttacker(attack,target) || !AttackScope.CanAffect(attack,target,ServerWorld.friendlyFire)) return;
             foreach(var pair in owners)
                 if(pair.Value==target.owner && NetworkServer.connections.TryGetValue(pair.Key,out var destination))
@@ -492,7 +498,7 @@ namespace Remains.Networking
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             var target = ServerWorld.Find(message.target);
             if (target == null || target.player || string.IsNullOrEmpty(attack?.id) || !AttackScope.Includes(attack,target) ||
-                !owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.Find(attack.attacker)?.owner != owner) return;
+                !owners.TryGetValue(connection.connectionId, out string owner) || !(WeaponCatalog.Get(attack.weapon).projectileSpeed>0?Projectiles.IsDecisionOwner(owner,attack):ServerWorld.Find(attack.attacker)?.owner==owner)) return;
             npcHits.Accept(message,attack);
         }
 

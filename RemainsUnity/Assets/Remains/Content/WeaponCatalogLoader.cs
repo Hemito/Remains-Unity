@@ -108,7 +108,7 @@ namespace Remains.Content
         }
         private static void Validate(WeaponDefinition weapon,string source)
         {
-            foreach(float value in new[]{weapon.damage,weapon.speedDamage,weapon.maxSpeedDamage,weapon.range,weapon.cooldown,weapon.manaCost,weapon.reloadSeconds})
+            foreach(float value in new[]{weapon.damage,weapon.speedDamage,weapon.maxSpeedDamage,weapon.range,weapon.cooldown,weapon.manaCost,weapon.reloadSeconds,weapon.projectileSpeed})
                 if(!float.IsFinite(value) || value<0) throw new InvalidDataException($"Некорректное число оружия: источник={source}, id={weapon.id}.");
             if(weapon.range<=0 || weapon.cooldown<=0 || (!string.IsNullOrEmpty(weapon.ammo) &&
                 (weapon.magazineSize<=0 || weapon.ammoPerShot<=0 || weapon.ammoPerShot>weapon.magazineSize || weapon.reloadSeconds<=0)))

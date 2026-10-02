@@ -20,6 +20,7 @@ namespace Remains.Editor
             CrouchChecks.Run();
             ProjectilePathChecks.Run();
             ProjectilePersistenceChecks.Run();
+            ProjectileControllerChecks.Run();
             ActorTypeChecks.Run();
             RaiderChecks.Run();
             LightingChecks.Run();

@@ -208,7 +208,12 @@ namespace Remains.Runtime
                 session.Pause.PauseOnMenu!=expectedMenu || session.Pause.PauseOnInventory!=expectedInventory) return;
             if(DeferredScenario && First && phase is 3 or 4)
             {
-                if(runtime.Combat.PendingHitCount<2) return;
+                var flights=session.World.projectiles.Where(p=>p.launch.id=="pause-late-shot").ToArray();
+                if(flights.Length==0) return;
+                if(flights.Length!=1 || flights[0].finished || flights[0].traveled!=0)
+                {failure="Повтор запуска создал второй полёт либо пауза продвинула снаряд";Finish(false);return;}
+                // Host left this level at phase 3: the remaining client must continue the flight.
+                if(flights[0].owner!=session.LocalOwner) return;
                 if(session.LocalActor.health!=healthBeforeLate || session.LocalActor.damageSequence!=damageBeforeLate)
                 {failure="Отложенное попадание изменило здоровье во время паузы";Finish(false);return;}
                 observedDeferred=true;
@@ -237,6 +242,8 @@ namespace Remains.Runtime
                 values.AddRange(new[]{npc.x,npc.y,npc.vx,npc.vy,npc.poseTime,npc.attackRemaining,npc.attackCooldown});
             foreach(var flight in runtime.Grenades.Flights.Where(f=>f.state.level==actor.level).OrderBy(f=>f.state.id))
                 values.AddRange(new[]{flight.state.x,flight.state.y,flight.state.vx,flight.state.vy,flight.state.remaining});
+            foreach(var flight in runtime.Combat.Projectiles.Flights.Where(f=>f.state.launch.level==actor.level).OrderBy(f=>f.state.launch.id))
+                values.AddRange(new[]{flight.path.Traveled,flight.finishedAge});
             foreach(var prop in session.World.props.Where(p=>p.level==actor.level && p.owner==session.LocalOwner).OrderBy(p=>p.id))
                 values.AddRange(new[]{prop.x,prop.y,prop.vx,prop.vy});
             return values.ToArray();

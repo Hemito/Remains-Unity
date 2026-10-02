@@ -32,6 +32,7 @@ namespace Remains.Presentation
             session.AttackReceived+=attack=>
             {
                 if(attack.weapon is "spear" or "crowbar" or "grenade" || attack.level!=session.LocalActor?.level) return;
+                if(Remains.Content.WeaponCatalog.Get(attack.weapon).projectileSpeed>0) return;
                 float limit=Remains.Content.WeaponCatalog.Get(attack.weapon).stopAtTerrain?
                     ShotObstacles.Limit(geometry.Get(attack.level),attack.Origin,attack.End):1;
                 if(Remains.Content.WeaponCatalog.Get(attack.weapon).stopAtFirstActor)

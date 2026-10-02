@@ -13,7 +13,7 @@ namespace Remains.Content
         public float damage,speedDamage,maxSpeedDamage,range,cooldown,manaCost;
         public string ammo;
         public int magazineSize,ammoPerShot;
-        public float reloadSeconds;
+        public float reloadSeconds,projectileSpeed;
         public bool stopAtFirstActor,stopAtTerrain;
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }

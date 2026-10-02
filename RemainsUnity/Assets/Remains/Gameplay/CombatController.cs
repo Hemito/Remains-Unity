@@ -29,6 +29,7 @@ namespace Remains.Gameplay
         public string ActiveMeleeId=>IsMeleeActive?swingId:null;
         public float MeleeRemaining=>IsMeleeActive?MeleeSweep.Duration-swingSweep.Elapsed:0;
         public WeaponReloadController Reload { get; }
+        public ProjectileController Projectiles {get;}
         private float nextResourceNotice;
         private string selectedActor;
         private int selectedGeneration;
@@ -42,6 +43,7 @@ namespace Remains.Gameplay
             this.geometry=geometry;
             session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);damage.Applied+=result=>DamageApplied?.Invoke(result);AttackerDecidedHits=VictimDecidedHits=0;};
             Reload=new WeaponReloadController(session);
+            Projectiles=new ProjectileController(session,geometry,ApplyAttackTarget);
             session.AttackReceived += ReceiveAttack;
             session.NpcHitReceived += ReceiveNpcHit;
             session.FriendlyHitReceived+=ReceiveFriendlyHit;
@@ -101,6 +103,7 @@ namespace Remains.Gameplay
         public void Step(float dt)
         {
             pending.Drain(session.Pause.IsPaused);
+            Projectiles.Step(dt);
             if(session.LocalActor!=null && session.Pause.IsPaused(session.LocalActor.level)) dt=0;
             shotCooldown.Advance(dt);
             Reload.Step(Weapon,dt);
@@ -146,6 +149,7 @@ namespace Remains.Gameplay
             if(attack.weapon=="grenade") return; // Persisted explosion decisions are processed from World.
             if(!LevelActivity.HasConnectedPlayer(session.World,attack.level)) return;
             var definition=WeaponCatalog.Get(attack.weapon);
+            if(definition.projectileSpeed>0) return;
             float limit=definition.stopAtTerrain?ShotObstacles.Limit(geometry.Get(attack.level),attack.Origin,attack.End):1;
             foreach(var target in AttackContacts.Capture(session.World.actors,attack,session.World.friendlyFire,
                 definition.stopAtFirstActor,limit))
@@ -154,7 +158,7 @@ namespace Remains.Gameplay
                 else ApplyAttackTarget(attack,target);
             }
         }
-        private void ApplyAttackTarget(AttackEvent attack,AttackTargetSnapshot target)
+        private void ApplyAttackTarget(AttackEvent attack,AttackTargetSnapshot target,string decisionOwner=null)
         {
                 var actor=session.World?.Find(target.id);
                 if(!target.Matches(actor) || !AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) return;
@@ -163,7 +167,7 @@ namespace Remains.Gameplay
                 {
                     if(FriendlyFireDecision.UsesAttacker(attack,actor))
                     {
-                        if(attack.sourceOwner==session.LocalOwner && contact)
+                        if((decisionOwner??attack.sourceOwner)==session.LocalOwner && contact)
                             session.ReportFriendlyHit(new FriendlyHitMessage {target=actor.id,generation=actor.generation,lifecycle=actor.lifecycleSequence,attackJson=JsonUtility.ToJson(attack)});
                         return;
                     }
@@ -174,7 +178,7 @@ namespace Remains.Gameplay
                         Debug.Log($"Урон принят пострадавшим: {actor.id}, событие={attack.id}, здоровье={actor.health}, нокдаун={actor.down}.");
                     }
                 }
-                else if (attack.sourceOwner == session.LocalOwner && contact)
+                else if ((decisionOwner??attack.sourceOwner) == session.LocalOwner && contact)
                 {
                     session.ReportNpcHit(new NpcHitMessage { target = actor.id, generation = actor.generation,
                         attackJson = JsonUtility.ToJson(attack) });
