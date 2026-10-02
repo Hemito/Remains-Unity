@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using Remains.Domain;
 using Remains.Networking;
 using Remains.Presentation;
@@ -23,20 +25,35 @@ namespace Remains.Editor
             receiver.Apply(actor,attack,true);
             if(count!=1) throw new Exception("Повтор урона породил второе число.");
             result.amount=float.NaN;if(DamageFeedback.Valid(result)) throw new Exception("Принят NaN урона.");
+            var burst=CreateBurst();foreach(var number in burst) UnityEngine.Object.DestroyImmediate(number.gameObject);
             Debug.Log("Числа урона: PASS — фактическая потеря HP, промах, повтор, неверное значение.");
+        }
+        private static List<FloatingDamageNumber> CreateBurst()
+        {
+            var font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var result=new List<FloatingDamageNumber>();
+            foreach(float amount in new[]{11f,11f,1f,70f,.5f,1000f})
+            {
+                var number=new GameObject("Проверка серии урона",typeof(RectTransform)).AddComponent<FloatingDamageNumber>();
+                number.Initialize(new DamageResult {amount=amount,x=0,y=0},font);
+                number.PlaceAbove(result.Select(x=>x.Bounds).ToArray());
+                foreach(var previous in result)
+                    if(number.Bounds.Overlaps(previous.Bounds)) throw new Exception("Числа последовательных попаданий перекрываются.");
+                result.Add(number);
+            }
+            foreach(var number in result) number.Draw(.3f);
+            for(int i=0;i<result.Count;i++)
+                for(int j=i+1;j<result.Count;j++)
+                    if(result[i].Bounds.Overlaps(result[j].Bounds)) throw new Exception("Движение чисел нарушило раздельное размещение.");
+            return result;
         }
         public static void Render()
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-            var font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            for(int i=0;i<3;i++)
-            {
-                var number=new GameObject("Пример урона",typeof(RectTransform)).AddComponent<FloatingDamageNumber>();
-                number.Initialize(new DamageResult {amount=new[]{7f,11f,70f}[i],x=i*2-2,y=0},font,1);number.Draw(i*.45f);
-            }
+            CreateBurst();
             Canvas.ForceUpdateCanvases();
-            var camera=new GameObject("Камера чисел").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=2;
-            camera.transform.position=new Vector3(0,2,-10);camera.backgroundColor=new Color(.12f,.13f,.14f);
+            var camera=new GameObject("Камера чисел").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=3;
+            camera.transform.position=new Vector3(0,3,-10);camera.backgroundColor=new Color(.12f,.13f,.14f);
             var target=new RenderTexture(1200,600,24);target.Create();camera.targetTexture=target;
             var image=new Texture2D(1200,600,TextureFormat.RGBA32,false);
             try

@@ -24,7 +24,11 @@ namespace Remains.Presentation
             if(session.LocalActor?.level!=result.level) return;
             if(active.Count>=64) {Debug.LogWarning($"Лимит чисел урона: actor={result.actor}, attack={result.attack}, level={result.level}.",this);return;}
             var number=new GameObject("Урон "+result.actor,typeof(RectTransform)).AddComponent<FloatingDamageNumber>();number.transform.SetParent(transform,false);
-            number.Initialize(result,font,Displayed++);active.Add(new Entry {number=number,level=result.level});
+            number.Initialize(result,font);
+            var occupied=new List<Rect>(active.Count);
+            foreach(var entry in active)
+                if(entry.level==result.level && entry.elapsed<FloatingDamageNumber.Duration) occupied.Add(entry.number.Bounds);
+            number.PlaceAbove(occupied);Displayed++;active.Add(new Entry {number=number,level=result.level});
             Shown?.Invoke(result);
         }
         private void Update()
