@@ -5,7 +5,11 @@ namespace Remains.Content
 {
     [Serializable] public sealed class AtlasActorClip
     {
-        public string pose;public int row,count;public float framesPerSecond;public bool loop;
+        [InspectorName("ID позы")] public string pose;
+        [InspectorName("Строка атласа")] public int row;
+        [InspectorName("Количество кадров")] public int count;
+        [InspectorName("Кадров в секунду")] public float framesPerSecond;
+        [InspectorName("Зациклить")] public bool loop;
         public int FrameIndex(float time,bool stationary=false)
         {
             return AnimationFrames.Sample(time,framesPerSecond,count,loop,stationary:stationary);
@@ -13,9 +17,16 @@ namespace Remains.Content
     }
     [Serializable] public sealed class AtlasActorArtwork
     {
-        public string resource;public int width,height,cellWidth,cellHeight;
-        public float pixelsPerUnit,pivotX,pivotY;public bool facesLeft;
-        public AtlasActorClip[] clips;
+        [InspectorName("Стабильный ключ текстуры")] public string resource;
+        [InspectorName("Ширина атласа, пикс.")] public int width;
+        [InspectorName("Высота атласа, пикс.")] public int height;
+        [InspectorName("Ширина ячейки, пикс.")] public int cellWidth;
+        [InspectorName("Высота ячейки, пикс.")] public int cellHeight;
+        [InspectorName("Пикселей на метр")] public float pixelsPerUnit;
+        [InspectorName("Точка привязки X (0–1)")] public float pivotX;
+        [InspectorName("Точка привязки Y (0–1)")] public float pivotY;
+        [InspectorName("Исходная графика смотрит влево")] public bool facesLeft;
+        [InspectorName("Позы")] public AtlasActorClip[] clips;
         public AtlasActorClip Clip(string pose)
         {
             foreach(var clip in clips) if(clip.pose==pose) return clip;
@@ -28,9 +39,10 @@ namespace Remains.Content
         public static AtlasActorArtwork Get(string key)
         {
             if(cache.TryGetValue(key,out var cached)) return cached;
-            var asset=Resources.Load<TextAsset>(key);
-            if(asset==null) throw new InvalidOperationException("Нет описания атласа: "+key);
-            var data=JsonUtility.FromJson<AtlasActorArtwork>(asset.text);
+            var saved=Resources.Load<AtlasSpriteAsset>(key);
+            var asset=saved==null?Resources.Load<TextAsset>(key):null;
+            if(saved==null && asset==null) throw new InvalidOperationException("Нет описания атласа: "+key);
+            var data=saved!=null?saved.CreateDefinition():JsonUtility.FromJson<AtlasActorArtwork>(asset.text);
             if(data?.clips==null || data.clips.Length==0) throw new InvalidOperationException("Нет клипов атласа: "+key);
             var poses=new HashSet<string>();
             foreach(var clip in data.clips)

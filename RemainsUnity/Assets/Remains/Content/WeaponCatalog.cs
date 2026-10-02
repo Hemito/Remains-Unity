@@ -46,7 +46,7 @@ namespace Remains.Content
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
             var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
-            foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/hub-training","Original/Training/artwork","Original/Raider/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
+            foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/hub-training","Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
             {
                 var data=Resources.Load<TextAsset>(path);
                 if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");
@@ -57,6 +57,7 @@ namespace Remains.Content
             var entities=EntityAssetCatalog.Load();
             inputs.Add("Content/actors",entities.ActorsJson());inputs.Add("Content/props",entities.PropsJson());
             inputs.Add("Original/Weapons/artwork",WeaponRigs.ManifestJson());
+            inputs.Add("Original/Raider/artwork",JsonUtility.ToJson(AtlasAnimationData.Get("Original/Raider/artwork")));
             var complete=GameplayContentManifest.Compose(loaded.manifest,inputs);
             var rules=GameplayCodeMods.Compose(loaded.codeMods);
             definitions=loaded.definitions;
@@ -65,3 +66,4 @@ namespace Remains.Content
         }
     }
 }
+

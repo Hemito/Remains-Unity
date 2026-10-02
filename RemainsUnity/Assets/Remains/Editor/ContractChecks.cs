@@ -33,6 +33,7 @@ namespace Remains.Editor
             ActorTypeChecks.Run();
             ProjectileAudioChecks.Run();
             RaiderChecks.Run();
+            AtlasAssetChecks.Run();
             LightingChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();
             DamageFeedbackChecks.Run();
