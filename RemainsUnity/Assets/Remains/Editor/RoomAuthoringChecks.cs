@@ -1,0 +1,33 @@
+using System;
+using Remains.Content;
+using Remains.Domain;
+using UnityEngine;
+
+namespace Remains.Editor
+{
+    public static class RoomAuthoringChecks
+    {
+        public static void Run()
+        {
+            var source=RoomAuthoring.Load("factory:0");var instance=UnityEngine.Object.Instantiate(source);
+            try
+            {
+                var original=source.CreateLayout();var floor=instance.GetComponentsInChildren<RoomSurfaceAuthoring>()[0];
+                floor.transform.localPosition+=Vector3.up;
+                var changed=instance.CreateLayout();
+                if(!RoomSupport.IsSupported(changed,new Vector2(0,1)) || RoomSupport.IsSupported(changed,Vector2.zero))
+                    throw new InvalidOperationException("Перемещение поверхности в редакторе не изменило опору симуляции.");
+                if(!RoomSupport.IsSupported(source.CreateLayout(),Vector2.zero)) throw new InvalidOperationException("Правка экземпляра затронула префаб уровня.");
+                var ladder=instance.GetComponentInChildren<RoomLadderAuthoring>();ladder.transform.localScale=new Vector3(1,5,1);
+                if(instance.CreateLayout().ladders[0].top!=5) throw new InvalidOperationException("Масштаб лестницы не задаёт высоту движения.");
+                ladder.gameObject.SetActive(false);
+                if(instance.CreateLayout().ladders.Length!=0) throw new InvalidOperationException("Отключённая лестница осталась в симуляции.");
+                floor.transform.localRotation=Quaternion.Euler(0,0,15);bool rejected=false;
+                try {instance.CreateLayout();} catch(InvalidOperationException) {rejected=true;}
+                if(!rejected) throw new InvalidOperationException("Неподдерживаемый наклон поверхности молча принят.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(instance.gameObject);}
+            Debug.Log("Авторинг комнаты: PASS — Transform влияет на опору и лестницу, отключение и защита префаба, явный отказ наклона.");
+        }
+    }
+}

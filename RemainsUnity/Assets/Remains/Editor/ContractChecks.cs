@@ -21,6 +21,7 @@ namespace Remains.Editor
             WeaponAssetChecks.Run();
             EntityAssetChecks.Run();
             PropPrefabChecks.Run();
+            RoomAuthoringChecks.Run();
             WeaponShotChecks.Run();
             WorldLibraryChecks.Run();
             CrouchChecks.Run();

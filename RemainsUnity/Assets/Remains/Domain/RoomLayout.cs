@@ -16,10 +16,7 @@ namespace Remains.Domain
         public RoomArtwork[] artwork;
         public static RoomLayout Load(string level="factory:0")
         {
-            string key=level switch {"factory:0"=>"prototype-room","hub"=>"prototype-hub",_=>throw new InvalidOperationException($"Неизвестная локация прототипа: {level}.")};
-            var asset=Resources.Load<TextAsset>("Content/"+key);
-            if(asset==null) throw new InvalidOperationException($"Не найдено описание комнаты Content/{key}.");
-            var result=JsonUtility.FromJson<RoomLayout>(asset.text);
+            var result=Remains.Content.RoomAuthoring.Load(level).CreateLayout();
             if(result.platforms==null || result.ladders==null || result.left>=result.right)
                 throw new InvalidOperationException($"Некорректная геометрия комнаты: {result.id}.");
             return result;

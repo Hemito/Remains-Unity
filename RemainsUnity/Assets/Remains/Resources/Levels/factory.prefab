@@ -1,0 +1,245 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2171005214827424333
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5399120515136403271}
+  - component: {fileID: 3291622667639159770}
+  m_Layer: 0
+  m_Name: "\u041F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C 1"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5399120515136403271
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2171005214827424333}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 2, y: 3, z: 0}
+  m_LocalScale: {x: 7, y: 0.25, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4551961172406396290}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3291622667639159770
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2171005214827424333}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  texture: floor
+  oneWay: 1
+  shotsPassThrough: 1
+--- !u!1 &6489867003974725742
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4551961172406396290}
+  - component: {fileID: 8608039881644268138}
+  m_Layer: 0
+  m_Name: factory
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4551961172406396290
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6489867003974725742}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1658363232140310034}
+  - {fileID: 5399120515136403271}
+  - {fileID: 4948947537494351220}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8608039881644268138
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6489867003974725742}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a82f614ea2aae642aeb2839aa557a1d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  settings:
+    id: prototype-factory
+    lightingProfile: Presentation/Lighting/factory
+    movementSound: metal
+    left: -10
+    right: 12
+    bottom: 0
+    top: 7
+    spawnX: 0
+    spawnY: 0
+    platforms: []
+    ladders: []
+    artwork:
+    - x: -10
+      y: 0
+      width: 22
+      height: 7
+      shade: 1
+      texture: wall
+      order: -10
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: -10
+      y: -0.4
+      width: 22
+      height: 0.4
+      shade: 1
+      texture: Factory/metal
+      order: 0
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: -10
+      y: -0.14
+      width: 22
+      height: 0.14
+      shade: 1
+      texture: Factory/floor-metal
+      order: 1
+      repeat: 1
+      stretchY: 1
+      selfIlluminated: 0
+    - x: 2
+      y: 3
+      width: 7
+      height: 0.25
+      shade: 1
+      texture: Factory/shelf
+      order: 0
+      repeat: 1
+      stretchY: 1
+      selfIlluminated: 0
+--- !u!1 &6666358903419916157
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1658363232140310034}
+  - component: {fileID: 96835619336831114}
+  m_Layer: 0
+  m_Name: "\u041F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C 0"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1658363232140310034
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6666358903419916157}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -10, y: -0.4, z: 0}
+  m_LocalScale: {x: 22, y: 0.4, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4551961172406396290}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &96835619336831114
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6666358903419916157}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  texture: floor
+  oneWay: 0
+  shotsPassThrough: 0
+--- !u!1 &8770239333834106571
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4948947537494351220}
+  - component: {fileID: 6352897663140762227}
+  m_Layer: 0
+  m_Name: "\u041B\u0435\u0441\u0442\u043D\u0438\u0446\u0430 0"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4948947537494351220
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8770239333834106571}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 4, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 3.25, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4551961172406396290}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6352897663140762227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8770239333834106571}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 508e16cd39a87e74c8f1c8d90a197736, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  movementOffset: 0
+  artworkOffset: 0
+  texture: Factory/metal
+  artwork: 
+  nativeScale: 1
