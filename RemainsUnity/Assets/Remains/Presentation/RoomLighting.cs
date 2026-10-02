@@ -31,7 +31,7 @@ namespace Remains.Presentation
         private void OnDestroy()
         {
             if(active==this) {active=null;Shader.SetGlobalFloat("_WorldLightEnabled",0);}
-            if(map!=null) Destroy(map);
+            if(map!=null) {if(Application.isPlaying) Destroy(map);else DestroyImmediate(map);}
         }
     }
 }

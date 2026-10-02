@@ -9,6 +9,9 @@ namespace Remains.Content
     public sealed class RoomAuthoring : MonoBehaviour
     {
         [SerializeField,InspectorName("Границы, оформление и настройки комнаты")] private RoomLayout settings;
+        [SerializeField,HideInInspector] private bool authoredArtwork;
+        public bool HasAuthoredArtwork=>authoredArtwork;
+        public void UseAuthoredArtwork() {authoredArtwork=true;settings.artwork=null;}
         public void Configure(RoomLayout source)
         {
             settings=StateJson.FromJson<RoomLayout>(StateJson.ToJson(source));
@@ -18,6 +21,7 @@ namespace Remains.Content
         {
             if(settings==null) throw new InvalidOperationException($"Комната {name}: отсутствуют настройки.");
             var result=StateJson.FromJson<RoomLayout>(StateJson.ToJson(settings));
+            if(authoredArtwork) result.artwork=GetComponentsInChildren<RoomArtworkAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             result.platforms=GetComponentsInChildren<RoomSurfaceAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             result.ladders=GetComponentsInChildren<RoomLadderAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             if(result.platforms.Length==0 || result.left>=result.right) throw new InvalidOperationException($"Комната {name}: некорректные границы или нет поверхностей.");

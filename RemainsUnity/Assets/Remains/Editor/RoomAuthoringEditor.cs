@@ -14,7 +14,9 @@ namespace Remains.Editor
             Field("id","ID комнаты");Field("lightingProfile","Профиль света");Field("movementSound","Покрытие для звуков движения");
             EditorGUILayout.LabelField("Границы и появление",EditorStyles.boldLabel);
             Field("left","Левая граница");Field("right","Правая граница");Field("bottom","Нижняя граница");Field("top","Верхняя граница");
-            Field("spawnX","Появление X");Field("spawnY","Появление Y");Field("artwork","Слои оформления");
+            Field("spawnX","Появление X");Field("spawnY","Появление Y");
+            if(!((RoomAuthoring)target).HasAuthoredArtwork) Field("artwork","Слои оформления");
+            else EditorGUILayout.HelpBox("Видимые слои находятся в дочерней группе «Оформление». Материалы и геометрия сохранены как ассеты.",MessageType.Info);
             EditorGUILayout.HelpBox("Геометрия берётся из дочерних поверхностей и лестниц. Их положение и размеры задаются Transform. Поворот и отрицательный масштаб не поддерживаются.",MessageType.Info);
             serializedObject.ApplyModifiedProperties();
         }

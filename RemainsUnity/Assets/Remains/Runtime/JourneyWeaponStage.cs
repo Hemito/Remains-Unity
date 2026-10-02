@@ -11,7 +11,7 @@ namespace Remains.Runtime
         private readonly PrototypeRuntime runtime;
         private int firedPhase=-1;
         private float spearHealth;
-        public float SpearDamage=>Verified>=2?76-spearHealth:0;
+        public float SpearDamage=>Verified>=2?86-spearHealth:0;
         public int Verified {get;private set;}
         public JourneyWeaponStage(PrototypeRuntime runtime) {this.runtime=runtime;}
         public PlayerCommand Command(int phase)
@@ -26,9 +26,9 @@ namespace Remains.Runtime
         {
             var victim=runtime.Session.World.Find("player:session-client-1");
             var host=runtime.Session.World.Find("player:session-host");
-            float expected=phase==12?76:phase==13?victim.health:spearHealth-8;
+            float expected=phase==12?86:phase==13?victim.health:spearHealth-8;
             if(Mathf.Abs(victim.health-expected)>.001f || victim.damageSequence!=phase-11 ||
-                phase==13 && (victim.health<=8 || victim.health>=70))
+                phase==13 && (victim.health<10 || victim.health>80))
                 throw new InvalidOperationException($"Journey: неверный результат оружия phase={phase}, hp={victim.health}/{expected}, damageSequence={victim.damageSequence}.");
             if(phase==13) spearHealth=victim.health;
             foreach(var actor in runtime.Session.World.actors)

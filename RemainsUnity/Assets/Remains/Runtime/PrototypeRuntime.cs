@@ -90,7 +90,7 @@ namespace Remains.Runtime
             var room=RoomLayout.Load(shownLevel);
             movement=new MovementController(room);
             npcs=new NpcController(Session,Geometry);
-            roomObject=RoomVisual.Build(room);
+            roomObject=AuthoredRoomVisual.Create(shownLevel,room);
             cameraView=Camera.main;
             if (cameraView == null) cameraView=new GameObject("Камера").AddComponent<Camera>();
             cameraView.orthographic=true; cameraView.orthographicSize=5;
@@ -179,7 +179,7 @@ namespace Remains.Runtime
             {
                 shownLevel=Session.LocalActor.level;
                 var room=Geometry.Get(shownLevel);
-                Destroy(roomObject);roomObject=RoomVisual.Build(room);
+                Destroy(roomObject);roomObject=AuthoredRoomVisual.Create(shownLevel,room);
                 movement=new MovementController(room);
                 cameraFollower.Room=room;
                 releaseRequested=true;

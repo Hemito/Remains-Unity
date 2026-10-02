@@ -1,0 +1,19 @@
+using System;
+using Remains.Content;
+using Remains.Domain;
+using UnityEngine;
+
+namespace Remains.Presentation
+{
+    public static class AuthoredRoomVisual
+    {
+        public static GameObject Create(string level,RoomLayout room)
+        {
+            var source=RoomAuthoring.Load(level);
+            if(!source.HasAuthoredArtwork) throw new InvalidOperationException("Не перенесено оформление уровня: "+level);
+            var instance=UnityEngine.Object.Instantiate(source);instance.name="Комната: "+room.id;
+            try {instance.gameObject.AddComponent<RoomLighting>().Initialize(room);return instance.gameObject;}
+            catch {UnityEngine.Object.Destroy(instance.gameObject);throw;}
+        }
+    }
+}

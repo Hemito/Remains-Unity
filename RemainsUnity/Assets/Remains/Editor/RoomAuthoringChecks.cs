@@ -20,6 +20,12 @@ namespace Remains.Editor
                 if(!RoomSupport.IsSupported(source.CreateLayout(),Vector2.zero)) throw new InvalidOperationException("Правка экземпляра затронула префаб уровня.");
                 var ladder=instance.GetComponentInChildren<RoomLadderAuthoring>();ladder.transform.localScale=new Vector3(1,5,1);
                 if(instance.CreateLayout().ladders[0].top!=5) throw new InvalidOperationException("Масштаб лестницы не задаёт высоту движения.");
+                var ladderImage=ladder.GetComponentInChildren<MeshRenderer>();
+                if(ladderImage==null) throw new InvalidOperationException("Графика лестницы не находится внутри её объекта.");
+                float beforeImageX=ladderImage.transform.position.x;float beforeAxisX=instance.CreateLayout().ladders[0].x;
+                ladder.transform.localPosition+=Vector3.right;
+                if(Mathf.Abs(ladderImage.transform.position.x-beforeImageX-1)>.00001f || Mathf.Abs(instance.CreateLayout().ladders[0].x-beforeAxisX-1)>.00001f)
+                    throw new InvalidOperationException("Изображение лестницы и ось движения расходятся после переноса.");
                 ladder.gameObject.SetActive(false);
                 if(instance.CreateLayout().ladders.Length!=0) throw new InvalidOperationException("Отключённая лестница осталась в симуляции.");
                 floor.transform.localRotation=Quaternion.Euler(0,0,15);bool rejected=false;

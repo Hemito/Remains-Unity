@@ -9,8 +9,8 @@ namespace Remains.Presentation
         public readonly Dictionary<string,Material> Materials=new();
         private void OnDestroy()
         {
-            foreach(var mesh in Meshes) if(mesh!=null) Destroy(mesh);
-            foreach(var material in Materials.Values) if(material!=null) Destroy(material);
+            foreach(var mesh in Meshes) if(mesh!=null) {if(Application.isPlaying) Destroy(mesh);else DestroyImmediate(mesh);}
+            foreach(var material in Materials.Values) if(material!=null) {if(Application.isPlaying) Destroy(material);else DestroyImmediate(material);}
         }
     }
 }
