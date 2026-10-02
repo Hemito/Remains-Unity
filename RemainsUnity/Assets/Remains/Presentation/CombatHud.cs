@@ -51,7 +51,7 @@ namespace Remains.Presentation
             healthText.text=$"Здоровье  {actor.health:0} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";
             for(int i=0;i<weapons.Length;i++)
             {
-                var colors=weapons[i].colors;colors.normalColor=ids[i]==actor.weapon?new Color(.45f,.8f,.55f,1):new Color(.20f,.25f,.23f,.85f);weapons[i].colors=colors;
+                OriginalButtonStyle.SetSelected(weapons[i],ids[i]==actor.weapon);
                 weapons[i].interactable=!actor.down;
             }
             var definition=WeaponCatalog.Get(actor.weapon);

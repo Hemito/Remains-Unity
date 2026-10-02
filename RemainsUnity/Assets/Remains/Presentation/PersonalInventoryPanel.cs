@@ -12,10 +12,12 @@ namespace Remains.Presentation
         private readonly Func<string,string> itemName;
         private readonly Func<int> quantity;
         private readonly Button[] rows=new Button[8];
+        private readonly string[] weapons={"spear","crowbar","pistol","energy"};
         private readonly Button[] weaponButtons=new Button[4];
         private readonly Image[] icons=new Image[8];
         private readonly Image detailIcon;
         private readonly InventoryArtwork artwork;
+        private readonly InventoryPortrait portrait;
         private readonly string[] ids=new string[8];
         private readonly Button previous,next,deposit,use;
         private readonly Text title,detail;
@@ -30,7 +32,6 @@ namespace Remains.Presentation
         {
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
             title=ui.Label(parent,"Личный инвентарь",new Vector2(20,-16),new Vector2(760,32));
-            string[] weapons={"spear","crowbar","pistol","energy"};
             string[] names={"1 · Копьё","2 · Лом","3 · Пистолет","4 · Лазер"};
             for(int i=0;i<4;i++)
             {
@@ -52,8 +53,9 @@ namespace Remains.Presentation
             previous=ui.Button(parent,"←",new Vector2(20,-449),new Vector2(65,34),()=>{page--;Refresh(container);});
             next=ui.Button(parent,"→",new Vector2(375,-449),new Vector2(65,34),()=>{page++;Refresh(container);});
             var hint=ui.Label(parent,"Выберите предмет, затем действие справа",new Vector2(20,-494),new Vector2(420,30));hint.fontSize=15;
-            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(245,220));detail.fontSize=16;
+            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(228,220));detail.fontSize=16;
             detailIcon=artwork.Create(parent,new Vector2(730,-112),new Vector2(54,54));
+            portrait=new InventoryPortrait(parent,new Vector2(702,-178),new Vector2(88,148));
             use=ui.Button(parent,"Использовать аптечку",new Vector2(465,-338),new Vector2(325,42),()=>{session.RequestSelfHeal();Refresh(container);});
             deposit=ui.Button(parent,"Положить в контейнер →",new Vector2(465,-390),new Vector2(325,42),()=>
             {if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
@@ -64,8 +66,13 @@ namespace Remains.Presentation
         }
         public void Refresh(InventorySource destination)
         {
-            container=destination;var actor=session.LocalActor;int count=actor?.inventory.Count??0;
+            container=destination;var actor=session.LocalActor;portrait.Refresh(actor);int count=actor?.inventory.Count??0;
             if(actor==null) container=null;
+            for(int i=0;i<weaponButtons.Length;i++)
+            {
+                OriginalButtonStyle.SetSelected(weaponButtons[i],actor?.weapon==weapons[i]);
+                weaponButtons[i].interactable=actor is {down:false};
+            }
             page=Mathf.Clamp(page,0,Math.Max(0,(count-1)/rows.Length));
             previous.interactable=page>0;next.interactable=(page+1)*rows.Length<count;
             title.text=$"Личный инвентарь · {page+1}/{Math.Max(1,(count+7)/8)}";

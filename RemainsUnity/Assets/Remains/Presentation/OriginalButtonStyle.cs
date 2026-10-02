@@ -6,6 +6,12 @@ namespace Remains.Presentation
     public static class OriginalButtonStyle
     {
         private static Sprite sprite;
+        public static void SetSelected(Button button,bool selected)
+        {
+            var colors=button.colors;
+            colors.normalColor=selected?new Color(.45f,.8f,.55f,1):new Color(.20f,.25f,.23f,.85f);
+            if(button.colors.normalColor!=colors.normalColor) button.colors=colors;
+        }
         public static void Apply(Button button)
         {
             if(sprite==null)

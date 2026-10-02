@@ -58,13 +58,7 @@ namespace Remains.Presentation
                             material = WorldArtworkMaterial.Create(texture);
                             materials.Add(part.texture, material);
                         }
-                        var corners = new[] { new Vector2(part.bounds[0],part.bounds[3]), new Vector2(part.bounds[2],part.bounds[3]),
-                            new Vector2(part.bounds[0],part.bounds[1]), new Vector2(part.bounds[2],part.bounds[1]) };
-                        var vertices = new Vector3[4];
-                        for (int v = 0; v < 4; v++)
-                        {
-                            vertices[v] = PonyAnimationData.TransformPoint(part,corners[v]);
-                        }
+                        var vertices = PonyAnimationData.Quad(part);
                         var tint = new Color(part.color[0],part.color[1],part.color[2],part.color[3]);
                         var mesh = new Mesh { name = $"{clip.id}:{f}:{part.path}", vertices = vertices,
                             uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one },
@@ -147,13 +141,7 @@ namespace Remains.Presentation
                 filters[i].sharedMesh = parts[i].mesh;
                 renderers[i].sharedMaterial = parts[i].material;
                 renderers[i].sortingOrder = i + 20;
-                Color hair = state.hair % 2 == 0 ? new Color(133/255f,70/255f,9/255f) : new Color(0.15f,0.5f,0.85f);
-                Color tint = parts[i].slot switch
-                {
-                    "hair"=>hair, "fur"=>new Color(163/255f,163/255f,163/255f),
-                    "eye"=>new Color(22/255f,243/255f,67/255f), "magic"=>Color.green, _=>Color.white
-                };
-                properties.SetColor("_Color", tint);
+                properties.SetColor("_Color", PonyAppearance.Tint(parts[i].slot,state.hair));
                 properties.SetFloat("_Emission",parts[i].slot=="magic"?1:0);
                 renderers[i].SetPropertyBlock(properties);
             }

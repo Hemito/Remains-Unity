@@ -53,6 +53,12 @@ namespace Remains.Content
             center=(minimum+maximum)/2;
             return found;
         }
+        public static Vector3[] Quad(PonyPart part)
+        {
+            var b=part.bounds;
+            return new Vector3[] {TransformPoint(part,new Vector2(b[0],b[3])),TransformPoint(part,new Vector2(b[2],b[3])),
+                TransformPoint(part,new Vector2(b[0],b[1])),TransformPoint(part,new Vector2(b[2],b[1]))};
+        }
         public static Vector2 TransformPoint(PonyPart part,Vector2 point)
         {
             var m=part.matrix;
