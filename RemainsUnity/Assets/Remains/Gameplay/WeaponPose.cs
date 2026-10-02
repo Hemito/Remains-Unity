@@ -20,7 +20,11 @@ namespace Remains.Gameplay
         {
             var rig=WeaponRigs.Get(actor.weapon);
             var delta=target-(rig.HasMuzzle?RangedAnchor(actor):Origin(actor));
-            if(delta.sqrMagnitude<.000001f) return;
+            if(delta.sqrMagnitude<.000001f)
+            {
+                actor.weaponReach=0;
+                return;
+            }
             actor.weaponFlipY=delta.x<0;
             float angle=Mathf.Atan2(delta.y,delta.x);
             if(rig.HasMuzzle)
@@ -32,7 +36,7 @@ namespace Remains.Gameplay
                 float along=Mathf.Sqrt(Mathf.Max(0,delta.sqrMagnitude-lateral*lateral));
                 actor.weaponReach=Mathf.Clamp(along-rig.muzzleX-.1f,0,AimRadius);
             }
-            else actor.weaponReach=WeaponCatalog.Get(actor.weapon).range;
+            else actor.weaponReach=Mathf.Min(delta.magnitude,WeaponCatalog.Get(actor.weapon).range);
             actor.weaponAngle=angle*Mathf.Rad2Deg;
         }
         public static Vector2 Origin(Vector2 actorPosition)=>actorPosition+new Vector2(0,.8f);

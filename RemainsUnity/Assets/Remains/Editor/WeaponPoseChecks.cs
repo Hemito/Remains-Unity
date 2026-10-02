@@ -27,7 +27,22 @@ namespace Remains.Editor
                 var copy=actor.Copy();
                 Require(WeaponPose.Muzzle(copy)==muzzle,"Копия сетевого состояния меняет положение дула");
             }
-            Debug.Log("Поза оружия: PASS — курсор, радиус, направление, копирование, 48 сочетаний.");
+            foreach(string weapon in new[]{"spear","crowbar"})
+            foreach(float angle in new[]{0f,90,180,270})
+            foreach(float distance in new[]{0f,.2f,.7f,10f})
+            {
+                var actor=new ActorState {weapon=weapon,weaponReach=1};
+                var direction=new Vector2(Mathf.Cos(angle*Mathf.Deg2Rad),Mathf.Sin(angle*Mathf.Deg2Rad));
+                var origin=WeaponPose.Origin(actor);
+                WeaponPose.Aim(actor,origin+direction*distance);
+                var tip=origin+WeaponPose.Direction(actor)*actor.weaponReach;
+                var expected=origin+direction*Mathf.Min(distance,WeaponCatalog.Get(weapon).range);
+                Require(Vector2.Distance(tip,expected)<.0001f,$"Ближнее оружие не следует близкому курсору: {weapon}, {distance}, {angle}");
+                var copy=actor.Copy();
+                Require(Vector2.Distance(WeaponPose.Origin(copy)+WeaponPose.Direction(copy)*copy.weaponReach,tip)<.0001f,
+                    "Копия состояния меняет положение ближнего оружия");
+            }
+            Debug.Log("Поза оружия: PASS — дуло, радиус, близкий курсор ближнего оружия и копирование состояния.");
         }
 
         public static void Render()
