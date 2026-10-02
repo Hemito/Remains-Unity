@@ -157,7 +157,23 @@ namespace Remains.Presentation
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
         public bool FriendlyDecisionInteractable=>friendlyDecision.interactable;
         public RectTransform ContainerSlotRect(int index)=>slots[index].GetComponent<RectTransform>();
-        public void ShowMessage(string text) {noticeUntil=Time.unscaledTime+8;message.text=text;if(mainMenu!=null) mainMenu.Notice.text=text;}
+        public void ShowMessage(string text)
+        {
+            noticeUntil=Time.unscaledTime+8;message.text=text;LayoutNotice();
+            if(mainMenu!=null) mainMenu.Notice.text=text;
+        }
+        private void LayoutNotice()
+        {
+            // Text measurement runs on changes, never in the per-frame HUD refresh.
+            float width=Mathf.Clamp(message.preferredWidth,220,880);
+            message.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,width);
+            float height=Mathf.Max(26,message.preferredHeight);
+            var panel=(RectTransform)message.transform.parent;
+            panel.anchorMin=panel.anchorMax=panel.pivot=new Vector2(.5f,1);
+            panel.anchoredPosition=new Vector2(0,inventory.activeSelf?-16:-140);
+            panel.sizeDelta=new Vector2(width+24,height+16);
+            HudElements.Rect(message.rectTransform,new Vector2(12,-8),new Vector2(width,height));
+        }
         private void Refresh()
         {
             var actor = session.LocalActor;
@@ -167,10 +183,7 @@ namespace Remains.Presentation
             bool gameplayVisible=actor!=null && !inventory.activeSelf;
             status.transform.parent.gameObject.SetActive(gameplayVisible);
             combatHud.Refresh(actor,gameplayVisible && !PauseMenu.IsOpen);quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
-            Vector2 noticePosition=inventory.activeSelf?new Vector2(20,-20):new Vector2(350,-140);
-            Vector2 noticeSize=inventory.activeSelf?new Vector2(1240,70):new Vector2(880,55);
-            HudElements.Rect(message.transform.parent.GetComponent<RectTransform>(),noticePosition+new Vector2(-6,6),noticeSize+new Vector2(12,12));
-            HudElements.Rect(message.rectTransform,new Vector2(6,-6),noticeSize);
+            LayoutNotice();
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
             {containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
