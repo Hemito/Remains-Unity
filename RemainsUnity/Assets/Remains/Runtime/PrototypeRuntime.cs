@@ -107,6 +107,7 @@ namespace Remains.Runtime
             PropAudio=new GameObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
             ImpactAudio=new GameObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
             new GameObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles);
+            new GameObject("Попадания лазера").AddComponent<LaserImpactEffects>().Initialize(Session,Combat.Projectiles);
             Explosions=new GameObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session);
             Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             if(Application.isBatchMode && Options.Smoke!=null && string.IsNullOrEmpty(Options.SaveDirectory))
