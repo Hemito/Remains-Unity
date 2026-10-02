@@ -17,6 +17,7 @@ namespace Remains.Editor
         private const BindingFlags Private=BindingFlags.Instance|BindingFlags.NonPublic;
         public static void Run()
         {
+            CheckSpeculativeContactHandoff();
             var root=new GameObject("Проверка полёта");
             var visual=new GameObject("Проверка следа");
             try
@@ -84,6 +85,39 @@ namespace Remains.Editor
                 Debug.Log("Контроллер снаряда: PASS — отложенный контакт, уход/вход цели, пауза, восстановление владельца, один контакт, след и вспышка на физическом пути.");
             }
             finally {UnityEngine.Object.DestroyImmediate(visual);UnityEngine.Object.DestroyImmediate(root);}
+        }
+        private static void CheckSpeculativeContactHandoff()
+        {
+            var root=new GameObject("Проверка опережающего контакта");
+            try
+            {
+                ActorTypes.Load();
+                var session=root.AddComponent<CoopSession>();
+                var world=new WorldState();
+                var observer=new ActorState {id="observer",owner="b",player=true,connected=true,level="hub",x=-5};
+                var target=new ActorState {id="npc",owner="b",level="hub",x=8,health=100};
+                world.actors.Add(observer);world.actors.Add(target);
+                typeof(CoopSession).GetProperty("World").SetValue(session,world);
+                var geometry=new SimulationGeometry(session);
+                var rooms=(Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry);
+                rooms.Add("hub",new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                var damage=new DamageReceiver(new PrototypeDamageRule());int applied=0,contacts=0;
+                // The observer sees the contact before becoming the decision owner.
+                var controller=new ProjectileController(session,geometry,(attack,contact,owner)=>
+                {contacts++;if(owner=="b" && damage.Apply(target,attack,contact.contact)) applied++;});
+                var state=new ProjectileState {launch=new AttackEvent {id="handoff-contact",attacker="source",sourceOwner="a",
+                    sourcePlayer=true,weapon="pistol",level="hub",originY=.7f,endX=20,endY=.7f},owner="a",generation=1,flightSpeed=90};
+                world.projectiles.Add(state);
+                void Reconcile()=>typeof(ProjectileController).GetMethod("Reconcile",Private).Invoke(controller,null);
+                Reconcile();controller.Step(.1f);
+                Require(contacts==1 && applied==0 && target.health==100,"Наблюдатель присвоил себе решение о попадании");
+                state.owner="b";state.generation=2;state.traveled=2;Reconcile();controller.Step(.1f);
+                Require(applied==1 && target.health==89,"Раннее визуальное попадание подавило удар нового владельца");
+                state.generation=3;Reconcile();controller.Step(.1f);
+                Require(applied==1 && target.health==89 && target.resolvedAttacks.Count==1,
+                    "Повтор передачи применил урон второй раз");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
         }
         private static void Require(bool value,string reason) {if(!value) throw new InvalidOperationException(reason);}
     }

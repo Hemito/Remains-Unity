@@ -36,7 +36,13 @@ namespace Remains.Gameplay
                 if(flights.TryGetValue(state.launch.id,out var existing))
                 {
                     if(state.generation>existing.state.generation)
-                    {existing.state=state.Copy();existing.path=state.Path();existing.contact=false;existing.finishedAge=0;}
+                    {
+                        existing.state=state.Copy();existing.path=state.Path();existing.contact=false;existing.finishedAge=0;
+                        // A previous observer may already have predicted this contact without
+                        // owning its decision. Re-evaluate from canonical progress; the target's
+                        // durable attack receipts, not this visual cache, prevent double damage.
+                        existing.hit.Clear();
+                    }
                     continue;
                 }
                 if(state.finished) continue;
