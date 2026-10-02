@@ -22,7 +22,10 @@ namespace Remains.Editor
     {
         public override void OnInspectorGUI()
         {
-            serializedObject.Update();Field("id","Стабильный ID");Field("name","Название");Field("resource","Путь графического ресурса");Field("mass","Масса, кг");Field("width","Ширина, м");Field("height","Высота, м");serializedObject.ApplyModifiedProperties();
+            serializedObject.Update();Field("id","Стабильный ID");Field("name","Название");
+            Field("resource","Стабильный ключ графики (для модов)");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("texture"),new GUIContent("Текстура объекта"));
+            Field("mass","Масса, кг");Field("width","Ширина, м");Field("height","Высота, м");serializedObject.ApplyModifiedProperties();
         }
     }
 }

@@ -25,6 +25,18 @@ namespace Remains.Content
         }
         public string ActorsJson()=>StateJson.ToJson(new ActorTypeList {actors=CreateActors()});
         public string PropsJson()=>StateJson.ToJson(new PropDefinitionList {props=CreateProps()});
+        public bool TryGetPropTexture(string id,string resource,out Texture2D texture)
+        {
+            foreach(var asset in props)
+            {
+                if(asset==null) throw new InvalidOperationException($"Каталог {name}: отсутствует ссылка на физический объект.");
+                if(!asset.MatchesArtwork(id,resource)) continue;
+                texture=asset.Texture;
+                if(texture==null) throw new InvalidOperationException($"Ассет {asset.name}: отсутствует текстура объекта {id}.");
+                return true;
+            }
+            texture=null;return false;
+        }
         public static EntityAssetCatalog Load()=>Resources.Load<EntityAssetCatalog>("Content/EntityCatalog")??
             throw new InvalidOperationException("Нет каталога Content/EntityCatalog.");
     }

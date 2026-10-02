@@ -16,6 +16,22 @@ namespace Remains.Editor
             ActorTypes.Load();PropCatalog.Load();
             foreach(var definition in catalog.CreateActors()) if(ActorTypes.Get(definition.id).presentation!=definition.presentation) throw new InvalidOperationException("Тип персонажа не загружен из SO.");
             foreach(var definition in catalog.CreateProps()) if(PropCatalog.Get(definition.id).mass!=definition.mass) throw new InvalidOperationException("Масса объекта не загружена из SO.");
+            foreach(var definition in catalog.CreateProps())
+                if(!catalog.TryGetPropTexture(definition.id,definition.resource,out var texture) || texture==null)
+                    throw new InvalidOperationException("Нет явной ссылки текстуры: "+definition.id);
+            var propAsset=Resources.Load<PropAsset>("Content/props/mcrate1");var originalTexture=propAsset.Texture;
+            var replacement=new Texture2D(2,2);
+            try
+            {
+                propAsset.SetTexture(replacement);
+                var artwork=new Remains.Presentation.PropArtwork();
+                if(artwork.Get("mcrate1").texture!=replacement) throw new InvalidOperationException("Отрисовка игнорирует явную ссылку текстуры SO.");
+                propAsset.SetTexture(null);bool rejected=false;
+                try {catalog.TryGetPropTexture("mcrate1",propAsset.CreateDefinition().resource,out _);}
+                catch(InvalidOperationException) {rejected=true;}
+                if(!rejected) throw new InvalidOperationException("Отсутствие ссылки текстуры скрыто загрузкой старого ресурса.");
+            }
+            finally {propAsset.SetTexture(originalTexture);UnityEngine.Object.DestroyImmediate(replacement);}
             Debug.Log("SO сущностей: PASS — независимые копии и загрузка персонажей/физических объектов.");
         }
     }
