@@ -59,6 +59,7 @@ namespace Remains.Presentation
         private float noticeUntil;
         private PersonalInventoryPanel personalItems;
         private InventoryWindow inventoryWindow;
+        private InventoryAudio inventoryAudio;
         public RectTransform PersonalTabRect=>inventoryWindow.PersonalTab;
         public RectTransform ContainerTabRect=>inventoryWindow.SharedTab;
         public RectTransform DepositRowRect(int index)=>personalItems.RowRect(index);
@@ -89,7 +90,9 @@ namespace Remains.Presentation
             scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
             containerHint=new ContainerHint(transform,elements);
-            AudioSettings=new AudioSettingsPanel(transform,elements,audioPreferences??new AudioPreferences(null));
+            audioPreferences??=new AudioPreferences(null);
+            inventoryAudio=gameObject.AddComponent<InventoryAudio>();inventoryAudio.Initialize(audioPreferences);
+            AudioSettings=new AudioSettingsPanel(transform,elements,audioPreferences);
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             status=elements.BackedLabel(transform,"",new Vector2(720,-20),new Vector2(285,44));
             combatHud=new CombatHud(transform,elements,inventoryArtwork,weapon=>EquipWeapon?.Invoke(weapon));
@@ -127,7 +130,7 @@ namespace Remains.Presentation
             inventory.SetActive(false);
             var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(20,-20),new Vector2(820,530));
             personalItems=new PersonalInventoryPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
-            inventoryWindow=new InventoryWindow(inventory,personalPanel,containerPanel,elements,ToggleInventory);
+            inventoryWindow=new InventoryWindow(inventory,personalPanel,containerPanel,elements,ToggleInventory,inventoryAudio.Page);
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
@@ -153,7 +156,7 @@ namespace Remains.Presentation
         }
 
         public void ToggleMenu() {if(AudioSettings.IsOpen) AudioSettings.Cancel();else PauseMenu.Toggle();}
-        public void ToggleInventory() {if(AudioSettings.IsOpen) return; inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
+        public void ToggleInventory() {if(AudioSettings.IsOpen) return; inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
         public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
         public RectTransform FriendlyFireButtonRect=>friendlyFire.GetComponent<RectTransform>();
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
