@@ -4,8 +4,8 @@ using UnityEngine;
 namespace Remains.Domain
 {
     [Serializable] public sealed class RoomSurface { public float x,y,width,height; public string texture; public bool oneWay,shotsPassThrough; }
-    [Serializable] public sealed class RoomLadder { public float x,bottom,top,movementOffset; }
-    [Serializable] public sealed class RoomArtwork { public float x,y,width,height,shade=1; public string texture; public int order; public bool repeat; }
+    [Serializable] public sealed class RoomLadder { public float x,bottom,top,movementOffset; public string texture="floor"; public bool nativeScale; }
+    [Serializable] public sealed class RoomArtwork { public float x,y,width,height,shade=1; public string texture; public int order; public bool repeat,stretchY; }
     [Serializable] public sealed class RoomLayout
     {
         public string id,lightingProfile,movementSound;
