@@ -1,5 +1,6 @@
 using System.IO;
 using Remains.Domain;
+using Remains.Content;
 using Remains.Presentation;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -11,6 +12,7 @@ namespace Remains.Editor
         public static void Render()
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+            Anatomy.Load();PonyAnimationData.Load();
             var hub=RoomLayout.Load("hub");RoomVisual.Build(hub);
             var camera=new GameObject("Камера проверки хаба").AddComponent<Camera>();
             camera.orthographic=true;camera.orthographicSize=hub.top/2;

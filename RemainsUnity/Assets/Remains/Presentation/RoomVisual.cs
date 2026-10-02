@@ -16,7 +16,7 @@ namespace Remains.Presentation
                 if(!string.IsNullOrEmpty(light.fixture)) Quad(parent,"Светильник: "+light.id,light.x-light.width/2,light.y,light.width,light.height,light.fixture,2,false,1,true);
             if(room.artwork!=null)
                 foreach(var layer in room.artwork)
-                    Quad(parent,"Фон: "+layer.texture,layer.x,layer.y,layer.width,layer.height,layer.texture,layer.order,layer.repeat,layer.shade,true,layer.stretchY);
+                    Quad(parent,"Фон: "+layer.texture,layer.x,layer.y,layer.width,layer.height,layer.texture,layer.order,layer.repeat,layer.shade,true,layer.stretchY,layer.selfIlluminated);
             else
             {
                 Quad(parent,"Задняя стена",room.left,0,room.right-room.left,7,"wall",-10);
@@ -31,7 +31,7 @@ namespace Remains.Presentation
             }
             return parent.gameObject;
         }
-        private static void Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false)
+        private static void Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false,bool selfIlluminated=false)
         {
             var texture=Resources.Load<Texture2D>("Original/Room/"+key);
             if(texture==null) throw new InvalidOperationException($"Отсутствует текстура комнаты: {key}, объект={name}.");
@@ -50,6 +50,10 @@ namespace Remains.Presentation
             {material=WorldArtworkMaterial.Create(texture);material.name="RoomMaterial:"+parent.name+":"+key;materials.Add(key,material);}
             var renderer=obj.AddComponent<MeshRenderer>(); renderer.sharedMaterial=material;
             renderer.sortingOrder=order;
+            if(selfIlluminated)
+            {
+                var properties=new MaterialPropertyBlock();properties.SetFloat("_Emission",1);renderer.SetPropertyBlock(properties);
+            }
         }
     }
 }
