@@ -96,7 +96,7 @@ namespace Remains.Presentation
             AudioSettings=new AudioSettingsPanel(transform,elements,audioPreferences);
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             status=elements.BackedLabel(transform,"",new Vector2(720,-20),new Vector2(285,44));
-            combatHud=new CombatHud(transform,elements,inventoryArtwork,weapon=>EquipWeapon?.Invoke(weapon));
+            combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon));
             quickActions=Panel(transform,"Действия",new Vector2(1020,-14),new Vector2(244,96));
             message=elements.BackedLabel(transform,"",new Vector2(350,-140),new Vector2(880,55));
             revival=elements.BackedLabel(transform,"",new Vector2(480,-625),new Vector2(750,35));
@@ -310,4 +310,5 @@ namespace Remains.Presentation
         private InputField Input(Transform parent,Vector2 position)=>elements.Input(parent,position);
     }
 }
+
 

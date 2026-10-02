@@ -22,7 +22,7 @@ namespace Remains.Editor
             for(int i=0;i<3;i++)
             {
                 var panel=ui.Panel(canvas.transform,"Состояние",new Vector2(i*480,0),new Vector2(480,320));
-                var hud=new CombatHud(panel.transform,ui,artwork,_=>{});
+                var hud=new CombatHud(panel.transform,_=>{});
                 var actor=new ActorState {id="hud-render",character=i==0?"Перезарядка":i==1?"Пустой магазин":"Нет запаса",weapon="pistol",health=100,mana=100};
                 WeaponAmmunition.Initialize(actor,true);
                 WeaponAmmunition.Magazine(actor,"pistol").rounds=0;
@@ -40,3 +40,4 @@ namespace Remains.Editor
         }
     }
 }
+

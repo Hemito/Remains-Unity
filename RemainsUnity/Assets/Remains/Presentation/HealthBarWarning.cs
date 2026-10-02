@@ -7,19 +7,14 @@ namespace Remains.Presentation
     public sealed class HealthBarWarning
     {
         private readonly Sprite normal;
-        private readonly Sprite[] frames=new Sprite[17];
+        private readonly Sprite[] frames;
         private bool active;
         private float started;
-        public HealthBarWarning(Sprite normal)
+        public HealthBarWarning(Sprite normal,Sprite[] frames)
         {
-            this.normal=normal;
-            for(int i=0;i<frames.Length;i++)
-            {
-                string path="Original/Hud/HealthWarning/"+(i+2);
-                var texture=Resources.Load<Texture2D>(path);
-                if(texture==null) throw new InvalidOperationException("Нет кадра предупреждения здоровья: "+path);
-                frames[i]=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,.5f));
-            }
+            if(normal==null || frames==null || frames.Length==0 || Array.Exists(frames,frame=>frame==null))
+                throw new InvalidOperationException("Нет сохранённых кадров предупреждения здоровья.");
+            this.normal=normal;this.frames=(Sprite[])frames.Clone();
         }
         public void Refresh(Image image,float fraction,bool visible,float time)
         {
@@ -30,3 +25,4 @@ namespace Remains.Presentation
         }
     }
 }
+
