@@ -9,22 +9,29 @@ namespace Remains.Presentation
     public sealed class FloatingDamageNumber : MonoBehaviour
     {
         public const float Duration=1.2f;
-        private Text label;
+        [SerializeField,InspectorName("Надпись урона")] private Text label;
         private Vector3 origin;
         private Vector2 size;
+        private Color tint;
         public Rect Bounds=>new Rect((Vector2)transform.position-size*.5f,size);
-        public void Initialize(DamageResult result,Font font)
+        public void Validate()
         {
-            origin=new Vector3(result.x,result.y+1.7f,0);
-            var canvas=gameObject.AddComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.sortingOrder=31000;
-            var rect=GetComponent<RectTransform>();rect.sizeDelta=new Vector2(180,60);rect.localScale=Vector3.one*.01f;
-            var child=new GameObject("Число",typeof(RectTransform));child.transform.SetParent(transform,false);
-            var textRect=child.GetComponent<RectTransform>();textRect.anchorMin=Vector2.zero;textRect.anchorMax=Vector2.one;textRect.offsetMin=textRect.offsetMax=Vector2.zero;
-            label=child.AddComponent<Text>();label.font=font;label.fontSize=28;label.alignment=TextAnchor.MiddleCenter;label.raycastTarget=false;
+            var canvas=GetComponent<Canvas>();
+            if(label==null || label.font==null || !label.transform.IsChildOf(transform) || canvas==null || canvas.renderMode!=RenderMode.WorldSpace)
+                throw new System.InvalidOperationException($"Число урона {name}: нужны шрифт, надпись и мировой Canvas.");
+            if(label.horizontalOverflow!=HorizontalWrapMode.Overflow)
+                throw new System.InvalidOperationException($"Число урона {name}: отключите перенос строки для корректного измерения числа.");
+            var scale=transform.lossyScale;
+            if(!float.IsFinite(scale.x) || !float.IsFinite(scale.y) || scale.x<=0 || scale.y<=0)
+                throw new System.InvalidOperationException($"Число урона {name}: масштаб должен быть положительным и конечным.");
+        }
+        public void Initialize(DamageResult result)
+        {
+            Validate();origin=new Vector3(result.x,result.y+1.7f,0);tint=label.color;
             label.text=result.amount.ToString("0.##",CultureInfo.InvariantCulture);
+            var rect=GetComponent<RectTransform>();
             rect.sizeDelta=new Vector2(label.preferredWidth+12,label.preferredHeight+8);
-            size=rect.sizeDelta*.01f;
-            var outline=child.AddComponent<Outline>();outline.effectColor=new Color(0,0,0,.85f);outline.effectDistance=new Vector2(1,-1);
+            size=Vector2.Scale(rect.sizeDelta,new Vector2(transform.lossyScale.x,transform.lossyScale.y));
             Draw(0);
         }
         public void PlaceAbove(IReadOnlyList<Rect> occupied)
@@ -47,7 +54,7 @@ namespace Remains.Presentation
         public void Draw(float elapsed)
         {
             transform.position=origin+Vector3.up*(elapsed*.55f);
-            label.color=new Color(1,.65f,.05f,Mathf.Clamp01((Duration-elapsed)/.4f));
+            var color=tint;color.a*=Mathf.Clamp01((Duration-elapsed)/.4f);label.color=color;
         }
     }
 }

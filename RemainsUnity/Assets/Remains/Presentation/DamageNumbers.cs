@@ -11,20 +11,23 @@ namespace Remains.Presentation
         private readonly List<Entry> active=new();
         private CoopSession session;
         private DamageFeedback feedback;
-        private Font font;
+        private FloatingDamageNumber prefab;
         public int Displayed {get;private set;}
         public event System.Action<DamageResult> Shown;
         public void Initialize(CoopSession session,DamageFeedback feedback)
         {
-            this.session=session;this.feedback=feedback;font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            this.session=session;this.feedback=feedback;
+            prefab=Resources.Load<FloatingDamageNumber>("Presentation/DamageNumber");
+            if(prefab==null) throw new System.InvalidOperationException("Нет префаба Presentation/DamageNumber.");
+            prefab.Validate();
             feedback.Received+=Show;
         }
         private void Show(DamageResult result)
         {
             if(session.LocalActor?.level!=result.level) return;
             if(active.Count>=64) {Debug.LogWarning($"Лимит чисел урона: actor={result.actor}, attack={result.attack}, level={result.level}.",this);return;}
-            var number=new GameObject("Урон "+result.actor,typeof(RectTransform)).AddComponent<FloatingDamageNumber>();number.transform.SetParent(transform,false);
-            number.Initialize(result,font);
+            var number=Instantiate(prefab,transform,false);number.name="Урон "+result.actor;
+            number.Initialize(result);
             var occupied=new List<Rect>(active.Count);
             foreach(var entry in active)
                 if(entry.level==result.level && entry.elapsed<FloatingDamageNumber.Duration) occupied.Add(entry.number.Bounds);

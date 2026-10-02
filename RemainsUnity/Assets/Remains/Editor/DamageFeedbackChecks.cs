@@ -30,12 +30,13 @@ namespace Remains.Editor
         }
         private static List<FloatingDamageNumber> CreateBurst()
         {
-            var font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var prefab=Resources.Load<FloatingDamageNumber>("Presentation/DamageNumber");
+            if(prefab==null) throw new Exception("Нет префаба числа урона.");prefab.Validate();
             var result=new List<FloatingDamageNumber>();
             foreach(float amount in new[]{11f,11f,1f,70f,.5f,1000f})
             {
-                var number=new GameObject("Проверка серии урона",typeof(RectTransform)).AddComponent<FloatingDamageNumber>();
-                number.Initialize(new DamageResult {amount=amount,x=0,y=0},font);
+                var number=UnityEngine.Object.Instantiate(prefab);
+                number.Initialize(new DamageResult {amount=amount,x=0,y=0});
                 number.PlaceAbove(result.Select(x=>x.Bounds).ToArray());
                 foreach(var previous in result)
                     if(number.Bounds.Overlaps(previous.Bounds)) throw new Exception("Числа последовательных попаданий перекрываются.");
