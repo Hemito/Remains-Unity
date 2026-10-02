@@ -17,19 +17,19 @@ namespace Remains.Runtime
             yield return null;
             if(runtime.Options.Smoke.Contains("-resume"))
             {
-                Require(Near(runtime.Audio.Volume,.325f) && Near(runtime.Music.Volume,.05f),"После перезапуска громкость не восстановилась.");
+                Require(Near(runtime.Audio.Volume,runtime.Audio.BaseVolume*.5f) && Near(runtime.Music.Volume,.05f),"После перезапуска громкость не восстановилась.");
                 finished=true;File.WriteAllText(runtime.Options.Report,"{\"success\":true,\"restart\":true}");Application.Quit(0);yield break;
             }
             var hud=runtime.Hud;var panel=hud.AudioSettings;
             yield return UiPointerProbe.Click(hud.MainMenuSoundRect);
             yield return UiPointerProbe.Click(panel.MasterRect);
-            Require(panel.IsOpen && Near(runtime.Audio.Volume,.325f) && Near(runtime.Music.Volume,.1f),"Общая громкость не применяется из главного меню.");
+            Require(panel.IsOpen && Near(runtime.Audio.Volume,runtime.Audio.BaseVolume*.5f) && Near(runtime.Music.Volume,.1f),"Общая громкость не применяется из главного меню.");
             yield return UiPointerProbe.Click(panel.CancelRect);
-            Require(!panel.IsOpen && Near(runtime.Audio.Volume,.65f) && Near(runtime.Music.Volume,.2f),"Отмена не восстановила громкость.");
+            Require(!panel.IsOpen && Near(runtime.Audio.Volume,runtime.Audio.BaseVolume) && Near(runtime.Music.Volume,.2f),"Отмена не восстановила громкость.");
             yield return UiPointerProbe.Click(hud.MainMenuSoundRect);
             yield return UiPointerProbe.Click(panel.MasterRect);
             yield return UiPointerProbe.Click(panel.MusicRect);
-            Require(Near(runtime.Music.Volume,.05f) && Near(runtime.Audio.Volume,.325f),"Регулятор музыки меняет игровые звуки.");
+            Require(Near(runtime.Music.Volume,.05f) && Near(runtime.Audio.Volume,runtime.Audio.BaseVolume*.5f),"Регулятор музыки меняет игровые звуки.");
             NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".menu.png",hud.GetComponent<Canvas>());
             yield return UiPointerProbe.Click(panel.SaveRect);
             var saved=new AudioPreferences(Path.Combine(runtime.Options.SaveDirectory,"Settings","audio.json")).Current;

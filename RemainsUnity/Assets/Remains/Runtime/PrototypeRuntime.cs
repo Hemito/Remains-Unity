@@ -216,7 +216,7 @@ namespace Remains.Runtime
         private void ApplyAudioPreferences()
         {
             var value=AudioPreferences.Current;
-            Audio.Volume=.65f*value.master*value.effects;
+            Audio.Volume=Audio.BaseVolume*value.master*value.effects;
             Music.Volume=musicMixVolume*value.master*value.music;
         }
         private void Update()

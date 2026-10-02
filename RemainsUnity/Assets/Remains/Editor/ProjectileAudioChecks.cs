@@ -16,6 +16,9 @@ namespace Remains.Editor
         private const BindingFlags Private=BindingFlags.Instance|BindingFlags.NonPublic;
         public static void Run()
         {
+            var mix=AudioMixSettings.Load();
+            Require(mix.Pan(10,10)==0 && mix.Pan(-100,0)==-1 && mix.Pan(100,0)==1,"Панорама не центрируется или выходит за границы.");
+            Require(Mathf.Abs(mix.Pan(-10,0)+mix.Pan(10,0))<.00001f,"Панорама несимметрична.");
             Check("Hub/concrete","hit-concrete",false);
             Check("floor","hit-metal",false);
             Check("Hub/concrete","hit-bullet",true);
@@ -59,6 +62,10 @@ namespace Remains.Editor
                     "Пропущен или повторён контакт/звук; стена за актёром не должна звучать");
                 Require(sources[0].clip==Resources.Load<AudioClip>("Original/Audio/"+expected),"Выбран неверный WAV");
                 Require(!Application.isBatchMode || sources[0].mute,"Фоновая проверка не заглушена");
+                Require(sources[0].panStereo>0,"Правый источник не слышен справа.");
+                camera.transform.position=new Vector3(20,0,-10);
+                typeof(GameplayAudio).GetMethod("Update",Private).Invoke(playback,null);
+                Require(sources[0].panStereo<0,"Активный звук не следует за изменением положения камеры.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
         }

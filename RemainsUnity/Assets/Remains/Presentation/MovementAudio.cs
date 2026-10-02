@@ -12,7 +12,7 @@ namespace Remains.Presentation
         [Serializable] public sealed class SoundBank {public string id;public string[] clips;}
         [Serializable] public sealed class Settings
         {
-            public float stepDistance,ladderDistance,teleportDistance,volume,landingGain;
+            public float stepDistance,ladderDistance,teleportDistance,volume,landingGain,ladderGain;
             public string[] actorTypes;
             public SoundBank[] banks;
         }
@@ -37,7 +37,7 @@ namespace Remains.Presentation
             if(asset==null) throw new InvalidOperationException("Нет настроек Presentation/movement-audio.");
             settings=JsonUtility.FromJson<Settings>(asset.text);
             if(settings.stepDistance<=0 || settings.ladderDistance<=0 || settings.teleportDistance<=0 ||
-                settings.volume<=0 || settings.volume>1 || settings.landingGain<=0 || settings.banks==null || settings.actorTypes==null)
+                settings.volume<=0 || settings.volume>1 || settings.landingGain<=0 || settings.ladderGain<=0 || settings.banks==null || settings.actorTypes==null)
                 throw new InvalidOperationException("Некорректные настройки звуков движения.");
             foreach(string type in settings.actorTypes) types.Add(type);
             foreach(var bank in settings.banks)
@@ -83,7 +83,7 @@ namespace Remains.Presentation
                     if(missing.Add(room.id+":"+bank)) Debug.LogWarning($"Нет звуков поверхности: room={room.id}, bank={bank}, actor={actor.id}.",this);
                     continue;
                 }
-                float gain=settings.volume*(contact==MotionContact.Landing?settings.landingGain:1);
+                float gain=settings.volume*(contact==MotionContact.Landing?settings.landingGain:contact==MotionContact.Ladder?settings.ladderGain:1);
                 if(!audio.PlayContact(clips[track.sample++%clips.Length],actor.level,actor.Position,gain)) continue;
                 if(actor.id==listener.id) LocalContacts++;else RemoteContacts++;
                 if(contact==MotionContact.Landing) Landings++;

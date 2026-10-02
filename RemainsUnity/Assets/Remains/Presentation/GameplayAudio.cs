@@ -38,10 +38,14 @@ namespace Remains.Presentation
         public int ReloadStarts {get;private set;}
         public int MeleeSounds {get;private set;}
         public int ExplosionSounds {get;private set;}
-        public float Volume {get;set;}=.65f;
+        private AudioMixSettings mix;
+        private Camera view;
+        public float BaseVolume=>mix.effectsVolume;
+        public float Volume {get;set;}
         public void Initialize(CoopSession session,WeaponReloadController reload,Camera camera)
         {
             this.session=session;this.reload=reload;
+            mix=AudioMixSettings.Load();view=camera;Volume=BaseVolume;
             var asset=Resources.Load<TextAsset>("Presentation/combat-audio");
             if(asset==null) throw new InvalidOperationException("Отсутствует Presentation/combat-audio.");
             var catalog=JsonUtility.FromJson<SoundCatalog>(asset.text);
@@ -78,6 +82,7 @@ namespace Remains.Presentation
             // Background verification must not make sound on the user's desktop.
             source.mute=Application.isBatchMode;
             source.volume=Mathf.Clamp01(Volume)*gain*Attenuation(Vector2.Distance(position,session.LocalActor.Position));
+            source.panStereo=mix.Pan(position.x,view.transform.position.x);
             var voice=new Voice {source=source,level=level,position=position,remaining=clip.length,gain=gain};voices.Add(voice);
             source.Play();
             if(session.Pause.IsPaused(level)) {source.Pause();voice.paused=true;}
@@ -154,6 +159,7 @@ namespace Remains.Presentation
                 if(pause!=voice.paused) {if(pause) voice.source.Pause();else voice.source.UnPause();voice.paused=pause;}
                 if(!pause) voice.remaining-=Time.deltaTime;
                 voice.source.volume=Mathf.Clamp01(Volume)*voice.gain*Attenuation(Vector2.Distance(voice.position,listener.Position));
+                voice.source.panStereo=mix.Pan(voice.position.x,view.transform.position.x);
             }
         }
         private void OnDestroy()
