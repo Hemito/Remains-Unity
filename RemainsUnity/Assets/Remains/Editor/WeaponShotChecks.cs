@@ -24,8 +24,8 @@ namespace Remains.Editor
                 int count=weapon=="pistol"?1:4;
                 for(int i=0;i<=count;i++)
                 {
-                    var view=new GameObject(weapon+"-"+i).AddComponent<SpriteRenderer>();
-                    SpriteArtworkMaterial.Apply(view,i==0?rest:animation.Select(actor,rest));
+                    var view=UnityEngine.Object.Instantiate(Remains.Content.WeaponRigs.Prefab(weapon));
+                    view.SetFrame(i==0?rest:animation.Select(actor,rest));
                     view.transform.position=new Vector3(i*2,-row*1.3f,0);
                     if(i>0) animation.Step(1f/30);
                 }

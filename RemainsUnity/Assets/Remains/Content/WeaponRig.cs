@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Remains.Content
@@ -15,6 +16,9 @@ namespace Remains.Content
     {
         [Serializable] private sealed class Library {public float pixelsPerUnit,aimRadius,anchorHeight;public WeaponRig[] weapons;}
         private static readonly Dictionary<string,WeaponRig> rigs=new(StringComparer.Ordinal);
+        private static readonly Dictionary<string,Remains.Presentation.WeaponView> prefabs=new(StringComparer.Ordinal);
+        public static Remains.Presentation.WeaponView Prefab(string id)=>prefabs.TryGetValue(id,out var value)?value:throw new InvalidOperationException("Нет префаба оружия: "+id);
+        public static string ManifestJson()=>JsonUtility.ToJson(new Library {pixelsPerUnit=PixelsPerUnit,aimRadius=AimRadius,anchorHeight=AnchorHeight,weapons=rigs.Values.ToArray()});
         public static float PixelsPerUnit {get;private set;}
         public static float AimRadius {get;private set;}
         public static float AnchorHeight {get;private set;}
@@ -23,10 +27,14 @@ namespace Remains.Content
             throw new InvalidOperationException($"Нет графической позы оружия: {id}.");
         public static void Load()
         {
-            if(rigs.Count>0) return;
-            var data=Resources.Load<TextAsset>("Original/Weapons/artwork");
-            if(data==null) throw new InvalidOperationException("Нет Original/Weapons/artwork.");
-            var library=JsonUtility.FromJson<Library>(data.text);
+            var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            if(catalog==null) throw new InvalidOperationException("Нет Content/WeaponCatalog.");
+            var presentations=catalog.Presentations().ToArray();
+            if(presentations.Length==0) throw new InvalidOperationException("В каталоге нет префабов оружия.");
+            var definitions=presentations.Select(view=>view.ReadRig()).ToArray();
+            float pixelsPerUnit=presentations[0].Artwork.sprite.pixelsPerUnit;
+            if(presentations.Any(view=>view.Artwork.sprite.pixelsPerUnit!=pixelsPerUnit)) throw new InvalidOperationException("Префабы оружия используют разные масштабы спрайтов.");
+            var library=new Library {pixelsPerUnit=pixelsPerUnit,aimRadius=catalog.AimRadius,anchorHeight=catalog.AnchorHeight,weapons=definitions};
             if(library?.weapons==null || !float.IsFinite(library.pixelsPerUnit) || library.pixelsPerUnit<=0 ||
                 !float.IsFinite(library.aimRadius) || library.aimRadius<=0 || !float.IsFinite(library.anchorHeight))
                 throw new InvalidOperationException("Некорректный масштаб графики оружия.");
@@ -40,7 +48,9 @@ namespace Remains.Content
             }
             PixelsPerUnit=library.pixelsPerUnit;
             AimRadius=library.aimRadius;AnchorHeight=library.anchorHeight;
+            rigs.Clear();prefabs.Clear();
             foreach(var pair in validated) rigs.Add(pair.Key,pair.Value);
+            foreach(var view in presentations) prefabs.Add(view.Id,view);
         }
     }
 }

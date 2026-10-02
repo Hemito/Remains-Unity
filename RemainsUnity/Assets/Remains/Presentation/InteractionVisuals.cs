@@ -18,7 +18,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,Sprite> sprites=new();
         private readonly Dictionary<string,PropView> props=new();
         private readonly Dictionary<string,PropView> containers=new();
-        private readonly Dictionary<string,SpriteRenderer> weapons=new();
+        private readonly Dictionary<string,WeaponView> weapons=new();
         private readonly Dictionary<string,SpriteRenderer> flights=new();
         private readonly HashSet<string> missingGraphics=new();
         public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers)
@@ -77,8 +77,7 @@ namespace Remains.Presentation
             foreach(var actor in session.World.actors)
                 if(ActorPresence.IsPresent(actor) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
                 {
-                    var weapon=Create("Оружие "+actor.id,sprites["pistol"],sprites["pistol"].bounds.size.x);
-                    weapon.sortingOrder=100;layers.Attach(actor.id,weapon.transform);weapons.Add(actor.id,weapon);
+                    weapons.Add(actor.id,CreateWeapon(actor));
                 }
             foreach(var flight in grenades.Flights.Where(f=>f.state.level==level))
                 if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"],.35f));
@@ -87,6 +86,11 @@ namespace Remains.Presentation
         {
             foreach(var id in views.Keys.Where(id=>!retained.Contains(id)).ToArray())
             {views[id].gameObject.SetActive(false);Destroy(views[id].gameObject);views.Remove(id);}
+        }
+        private WeaponView CreateWeapon(ActorState actor)
+        {
+            var view=Instantiate(Remains.Content.WeaponRigs.Prefab(actor.weapon));view.name="Оружие "+actor.id;
+            layers.Attach(actor.id,view.transform);return view;
         }
         private void Update()
         {
@@ -99,17 +103,18 @@ namespace Remains.Presentation
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;
-                view.enabled=ActorPresence.IsPresent(actor) && !actor.down && actor.level==session.LocalActor?.level;
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
-                { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.enabled=false;continue; }
+                { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.Artwork.enabled=false;continue; }
+                if(view.Id!=actor.weapon)
+                {view.gameObject.SetActive(false);Destroy(view.gameObject);view=CreateWeapon(actor);weapons[actor.id]=view;}
+                view.Artwork.enabled=ActorPresence.IsPresent(actor) && !actor.down && actor.level==session.LocalActor?.level;
                 sprite=shotAnimation.Select(actor,sprite);
-                float width=sprite.bounds.size.x;
-                if(view.sprite!=sprite) { SpriteArtworkMaterial.Apply(view,sprite);view.transform.localScale=Vector3.one*(width/sprite.bounds.size.x); }
+                view.SetFrame(sprite);
                 var direction=WeaponPose.Direction(actor);
                 view.transform.position=actor.weapon is "spear" or "crowbar"?
                     WeaponPose.Origin(actor)+direction*(actor.weaponReach-sprite.bounds.max.x):WeaponPose.Mount(actor);
                 view.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
-                view.flipY=WeaponPose.Flip(actor);
+                view.SetMirrored(WeaponPose.Flip(actor));
             }
             foreach(var pair in flights) pair.Value.enabled=false;
             foreach(var flight in grenades.Flights) if(flights.TryGetValue(flight.message.id,out var view))

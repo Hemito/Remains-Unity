@@ -14,12 +14,7 @@ namespace Remains.Presentation
             var result=new Dictionary<string,Sprite>(StringComparer.Ordinal);
             foreach(var entry in WeaponRigs.All)
             {
-                var texture=Resources.Load<Texture2D>("Original/Weapons/"+entry.id);
-                if(texture==null || entry.x<0 || entry.y<0 || entry.width<=0 || entry.height<=0 ||
-                    entry.x+entry.width>texture.width || entry.y+entry.height>texture.height)
-                    throw new InvalidOperationException($"Некорректная область спрайта оружия: {entry.id}.");
-                result.Add(entry.id,Sprite.Create(texture,new Rect(entry.x,entry.y,entry.width,entry.height),
-                    new Vector2(entry.pivotX,entry.pivotY),WeaponRigs.PixelsPerUnit));
+                result.Add(entry.id,WeaponRigs.Prefab(entry.id).Artwork.sprite);
                 SpriteArtworkMaterial.Prepare(result[entry.id]);
             }
             return result;

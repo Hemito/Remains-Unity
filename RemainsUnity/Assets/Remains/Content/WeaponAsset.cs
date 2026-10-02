@@ -8,6 +8,9 @@ namespace Remains.Content
     {
         [SerializeField,InspectorName("Определение оружия")]
         private WeaponDefinition definition=new();
+        [SerializeField,InspectorName("Префаб оружия")] private Remains.Presentation.WeaponView presentation;
+        public Remains.Presentation.WeaponView Presentation=>presentation;
+        public void SetPresentation(Remains.Presentation.WeaponView value)=>presentation=value;
         public WeaponDefinition CreateDefinition()
         {
             var result=StateJson.FromJson<WeaponDefinition>(StateJson.ToJson(definition));

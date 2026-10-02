@@ -24,6 +24,7 @@ namespace Remains.Editor
             RoomAuthoringChecks.Run();
             RoomLightAuthoringChecks.Run();
             WeaponShotChecks.Run();
+            WeaponPrefabChecks.Run();
             WorldLibraryChecks.Run();
             CrouchChecks.Run();
             ProjectilePathChecks.Run();
