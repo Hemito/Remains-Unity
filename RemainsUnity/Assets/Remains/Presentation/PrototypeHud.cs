@@ -112,10 +112,8 @@ namespace Remains.Presentation
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
-            inventory = Panel(transform,"Инвентарь",new Vector2(20,-110),new Vector2(1240,580));
-            var inventoryRect=inventory.GetComponent<RectTransform>();inventoryRect.anchorMin=inventoryRect.anchorMax=inventoryRect.pivot=new Vector2(.5f,.5f);inventoryRect.anchoredPosition=new Vector2(0,-40);
-            inventory.GetComponent<Image>().color=new Color(.015f,.025f,.02f,1);
-            var containerPanel=Panel(inventory.transform,"Общий контейнер",new Vector2(870,-72),new Vector2(330,435));
+            var inventoryView=InventoryWindowView.Create(transform);inventory=inventoryView.gameObject;
+            var containerPanel=inventoryView.Shared;
             containerTitle=Label(containerPanel.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
             for (int i = 0; i < slots.Length; i++)
             {
@@ -129,14 +127,15 @@ namespace Remains.Presentation
                 var slotLabel=slots[i].GetComponentInChildren<Text>();slotLabel.fontSize=16;
                 HudElements.Rect(slotLabel.rectTransform,new Vector2(5,-38),new Vector2(88,43));
             }
-            claimQuantity=Button(inventory.transform,"Количество: вся стопка",new Vector2(955,-330),new Vector2(245,44),()=>
+            claimQuantity=inventoryView.Quantity;
+            claimQuantity.onClick.AddListener(()=>
             {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Количество: 1 предмет":"Количество: вся стопка";Refresh();});
             previousContainer=Button(containerPanel.transform,"←",new Vector2(12,-390),new Vector2(65,32),()=>{containerPage--;Refresh();});
             nextContainer=Button(containerPanel.transform,"→",new Vector2(252,-390),new Vector2(65,32),()=>{containerPage++;Refresh();});
             inventory.SetActive(false);
-            var personalPanel=Panel(inventory.transform,"Личный инвентарь",new Vector2(20,-20),new Vector2(820,530));
+            var personalPanel=inventoryView.Personal;
             personalItems=new PersonalInventoryPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
-            inventoryWindow=new InventoryWindow(inventory,personalPanel,containerPanel,elements,ToggleInventory,inventoryAudio.Page);
+            inventoryWindow=new InventoryWindow(inventoryView,ToggleInventory,inventoryAudio.Page);
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
@@ -310,5 +309,6 @@ namespace Remains.Presentation
         private InputField Input(Transform parent,Vector2 position)=>elements.Input(parent,position);
     }
 }
+
 
 

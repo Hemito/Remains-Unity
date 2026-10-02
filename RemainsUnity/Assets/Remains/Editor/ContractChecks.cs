@@ -38,6 +38,7 @@ namespace Remains.Editor
             PonyRenderChecks.Run();
             MainMenuPrefabChecks.Run();
             CombatHudPrefabChecks.Run();
+            InventoryWindowChecks.Run();
             LightingChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();
             DamageFeedbackChecks.Run();
