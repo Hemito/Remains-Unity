@@ -33,6 +33,7 @@ namespace Remains.Presentation
         private readonly Image[] slotIcons=new Image[9];
         private InventoryArtwork inventoryArtwork;
         private Text containerTitle;
+        private ContainerHint containerHint;
         private Button claimQuantity;
         private bool claimOne;
         public RectTransform ClaimQuantityRect=>claimQuantity.GetComponent<RectTransform>();
@@ -84,6 +85,7 @@ namespace Remains.Presentation
             scaler.referenceResolution = new Vector2(1280,720);
             scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
+            containerHint=new ContainerHint(transform,elements);
             AudioSettings=new AudioSettingsPanel(transform,elements,audioPreferences??new AudioPreferences(null));
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             status=elements.BackedLabel(transform,"",new Vector2(720,-20),new Vector2(285,44));
@@ -171,7 +173,7 @@ namespace Remains.Presentation
             HudElements.Rect(message.rectTransform,new Vector2(6,-6),noticeSize);
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
-            {lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
+            {containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             lobby.SetActive(false);
             leave.gameObject.SetActive(gameplayVisible);friendlyFire.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             factory.gameObject.SetActive(gameplayVisible && (actor.level=="hub" || actor.level=="factory:0"));
@@ -184,6 +186,8 @@ namespace Remains.Presentation
             var nearest=ContainerAccess.Nearest(session.World,actor,session.Rules.Loot,session.Rules.Deposit);
             if(nearest?.id!=shownContainer?.id) containerPage=0;
             shownContainer=nearest;
+            containerHint.Refresh(shownContainer==null?null:session.World.containers.Find(c=>c.id==shownContainer.id),
+                gameplayVisible && !PauseMenu.IsOpen && !AudioSettings.IsOpen);
             int pages=Math.Max(1,((shownContainer?.items.Count??0)+8)/9);
             containerPage=Mathf.Clamp(containerPage,0,pages-1);
             previousContainer.interactable=containerPage>0;nextContainer.interactable=containerPage<pages-1;
@@ -250,8 +254,9 @@ namespace Remains.Presentation
         {
             if(session.LocalActor==null && AudioSettings.IsOpen && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true) AudioSettings.Cancel();
             factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
-            if(inventory.activeSelf && ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
+            if(ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
             bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen;
+            containerHint.Refresh(shownContainer==null?null:session.World?.containers.Find(c=>c.id==shownContainer.id),show && !AudioSettings.IsOpen);
             combatHud.Refresh(session.LocalActor,show);quickActions.SetActive(show);
             status.transform.parent.gameObject.SetActive(show);
             message.transform.parent.gameObject.SetActive(session.LocalActor!=null && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));
@@ -261,6 +266,7 @@ namespace Remains.Presentation
                 progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
             revival.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(revival.text));
         }
+        private void OnDestroy()=>containerHint?.Dispose();
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {
             var texture=Resources.Load<Texture2D>("Original/Hud/"+key);
