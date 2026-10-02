@@ -70,6 +70,9 @@ namespace Remains.Gameplay
         {
             // This per-flight scratch segment is consumed synchronously; launch stays immutable.
             var attack=flight.segment;
+            // Saved launch.speed in older worlds was a hitscan estimate. The actual
+            // restored trajectory is the source of contact speed for damage rules.
+            attack.speed=flight.path.Speed;
             attack.originX=start.x;attack.originY=start.y;attack.endX=end.x;attack.endY=end.y;
             var definition=WeaponCatalog.Get(attack.weapon);
             float? terrain=definition.stopAtTerrain?ShotObstacles.FirstContact(geometry.Get(attack.level),start,end):null;

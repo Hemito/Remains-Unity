@@ -31,12 +31,12 @@ namespace Remains.Editor
                 var geometry=new SimulationGeometry(session);
                 var rooms=(Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry);
                 rooms.Add("hub",new RoomLayout {platforms=Array.Empty<RoomSurface>()});
-                int hits=0;string decidingOwner=null;
-                var controller=new ProjectileController(session,geometry,(attack,contact,owner)=>{hits++;decidingOwner=owner;});
+                int hits=0;string decidingOwner=null;float contactSpeed=0;
+                var controller=new ProjectileController(session,geometry,(attack,contact,owner)=>{hits++;decidingOwner=owner;contactSpeed=attack.speed;});
                 ProjectileFlight flight=null;int created=0;
                 controller.Created+=value=>{flight=value;created++;};
                 var state=new ProjectileState {launch=new AttackEvent {id="timed",attacker="source",sourceOwner="a",sourcePlayer=true,
-                    weapon="pistol",level="hub",originY=.7f,endX=20,endY=.7f},owner="a",generation=1,flightSpeed=90};
+                    weapon="pistol",level="hub",speed=133.333f,originY=.7f,endX=20,endY=.7f},owner="a",generation=1,flightSpeed=90};
                 world.projectiles.Add(state);
                 void Reconcile()=>typeof(ProjectileController).GetMethod("Reconcile",Private).Invoke(controller,null);
                 Reconcile();Reconcile();Require(created==1,"Повтор запуска создаёт второе представление.");
@@ -59,6 +59,7 @@ namespace Remains.Editor
                 Require(flight.path.Traveled==9 && flight.state.launch.sourceOwner=="a","Передача потеряла прогресс или изменила автора.");
                 target.x=12;target.y=0;controller.Step(.05f);
                 Require(hits==1 && decidingOwner=="b" && flight.contact && flight.path.Finished,"Новый владелец не завершил полёт по вошедшей цели.");
+                Require(contactSpeed==flight.path.Speed && contactSpeed==90 && state.launch.speed==133.333f,"Скорость контакта взята из старой оценки, либо переписан исходный запуск.");
                 Draw();Require(renderer.sprite==artwork.impact[0] && (Vector2)visual.transform.position==flight.path.Position,"Вспышка не находится в точке фактического контакта.");
                 controller.Step(.1f);Require(hits==1,"Завершённый полёт повторил урон.");
                 Require(state.launch.originX==0 && state.launch.endX==20,"Покадровый отрезок изменил исходный запуск.");
