@@ -26,15 +26,15 @@ namespace Remains.Presentation
             healthText=ui.Label(vitals.transform,"",new Vector2(16,-42),new Vector2(275,24));
             manaText=ui.Label(vitals.transform,"",new Vector2(16,-78),new Vector2(275,24));
             healthText.color=manaText.color=Color.white;healthText.fontSize=manaText.fontSize=16;
-            loadout=ui.Panel(parent,"Быстрое оружие",new Vector2(18,-600),new Vector2(450,104));
-            var anchor=loadout.GetComponent<RectTransform>();anchor.anchorMin=anchor.anchorMax=new Vector2(0,0);anchor.anchoredPosition=new Vector2(18,120);
+            loadout=ui.Panel(parent,"Быстрое оружие",new Vector2(18,-600),new Vector2(450,126));
+            var anchor=loadout.GetComponent<RectTransform>();anchor.anchorMin=anchor.anchorMax=new Vector2(0,0);anchor.anchoredPosition=new Vector2(18,142);
             for(int i=0;i<4;i++)
             {
                 string id=ids[i];weapons[i]=ui.Button(loadout.transform,(i+1).ToString(),new Vector2(8+i*110,-8),new Vector2(104,58),()=>equip(id));
                 var label=weapons[i].GetComponentInChildren<Text>();label.alignment=TextAnchor.UpperLeft;label.fontSize=14;
                 artwork.Create(weapons[i].transform,new Vector2(22,-10),new Vector2(75,37),id);
             }
-            ammunition=ui.Label(loadout.transform,"",new Vector2(12,-73),new Vector2(426,24));ammunition.fontSize=16;
+            ammunition=ui.Label(loadout.transform,"",new Vector2(12,-73),new Vector2(426,46));ammunition.fontSize=16;
         }
         private static Image Bar(HudElements ui,Transform parent,string id,Vector2 position,Vector2 size)
         {
@@ -45,7 +45,7 @@ namespace Remains.Presentation
             image.sprite=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,.5f));image.color=Color.white;
             image.type=Image.Type.Filled;image.fillMethod=Image.FillMethod.Horizontal;return image;
         }
-        public void Refresh(ActorState actor,bool visible)
+        public void Refresh(ActorState actor,bool visible,float? reloadRemaining=null)
         {
             vitals.SetActive(visible);loadout.SetActive(visible);
             healthWarning.Refresh(health,actor==null?0:Mathf.Clamp01(actor.health/100),visible,Time.unscaledTime);
@@ -66,7 +66,11 @@ namespace Remains.Presentation
                 if(missing.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Нет магазина: actor={actor.id}, weapon={actor.weapon}.");
                 ammunition.text="Ошибка данных магазина — см. журнал.";return;
             }
-            ammunition.text=$"{magazine.rounds} / {definition.magazineSize}    Запас: {InventoryJournal.Count(actor,definition.ammo)}    R — перезарядить";
+            int reserve=InventoryJournal.Count(actor,definition.ammo);
+            string action=reloadRemaining.HasValue?$"Перезарядка · {Mathf.Max(0,reloadRemaining.Value):0.0} с":
+                magazine.rounds<definition.ammoPerShot?(reserve>0?"Магазин пуст · R":"Нет боеприпасов"):
+                magazine.rounds<definition.magazineSize && reserve>0?"R — перезарядить":"";
+            ammunition.text=$"{magazine.rounds} / {definition.magazineSize}    Запас: {reserve}"+(action.Length>0?$"\n{action}":"");
         }
     }
 }

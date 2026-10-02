@@ -70,6 +70,7 @@ namespace Remains.Presentation
         private Text revival;
         public Func<float> RevivalProgress {get;set;}
         public Func<bool> RevivalPending {get;set;}
+        public Func<float?> ReloadRemaining {get;set;}
         private Button friendlyFire;
         private Button friendlyDecision;
         private Button leave;
@@ -187,7 +188,7 @@ namespace Remains.Presentation
             if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);}
             bool gameplayVisible=actor!=null && !inventory.activeSelf;
             status.transform.parent.gameObject.SetActive(gameplayVisible);
-            combatHud.Refresh(actor,gameplayVisible && !PauseMenu.IsOpen);quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
+            combatHud.Refresh(actor,gameplayVisible && !PauseMenu.IsOpen,ReloadRemaining?.Invoke());quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
             LayoutNotice();
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
@@ -275,7 +276,7 @@ namespace Remains.Presentation
             if(ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
             bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen;
             containerHint.Refresh(shownContainer==null?null:session.World?.containers.Find(c=>c.id==shownContainer.id),show && !AudioSettings.IsOpen);
-            combatHud.Refresh(session.LocalActor,show);quickActions.SetActive(show);
+            combatHud.Refresh(session.LocalActor,show,ReloadRemaining?.Invoke());quickActions.SetActive(show);
             status.transform.parent.gameObject.SetActive(show);
             message.transform.parent.gameObject.SetActive(session.LocalActor!=null && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));
             if(revival==null) return;
