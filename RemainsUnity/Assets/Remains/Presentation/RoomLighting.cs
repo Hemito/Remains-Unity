@@ -25,6 +25,7 @@ namespace Remains.Presentation
         }
         public void Initialize(RoomLayout room,RoomLightProfile profile)
         {
+            Release();
             Profile=profile??throw new InvalidOperationException("Нет профиля света: "+room.id);
             float bottom=room.artwork==null?0:room.bottom,top=room.artwork==null?7:room.top;
             var bounds=new Rect(room.left,bottom,room.right-room.left,top-bottom);
@@ -33,10 +34,12 @@ namespace Remains.Presentation
             Shader.SetGlobalVector("_WorldLightBounds",new Vector4(bounds.x,bounds.y,1/bounds.width,1/bounds.height));
             Shader.SetGlobalFloat("_WorldLightEnabled",1);
         }
-        private void OnDestroy()
+        private void OnDestroy()=>Release();
+        public void Release()
         {
             if(active==this) {active=null;Shader.SetGlobalFloat("_WorldLightEnabled",0);}
             if(map!=null) {if(Application.isPlaying) Destroy(map);else DestroyImmediate(map);}
+            map=null;
         }
     }
 }

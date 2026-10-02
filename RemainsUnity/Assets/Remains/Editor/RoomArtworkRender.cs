@@ -43,7 +43,7 @@ namespace Remains.Editor
             finally
             {
                 RenderTexture.active=previous;camera.targetTexture=null;target.Release();
-                UnityEngine.Object.DestroyImmediate(room);UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);
+                room.GetComponent<RoomLighting>()?.Release();UnityEngine.Object.DestroyImmediate(room);UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);
             }
         }
     }

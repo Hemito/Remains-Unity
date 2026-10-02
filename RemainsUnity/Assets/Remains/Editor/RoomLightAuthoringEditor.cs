@@ -17,6 +17,8 @@ namespace Remains.Editor
             using(new EditorGUI.DisabledScope(masked)) {Field("radius","Радиус, м");Field("color","Цвет");}
             EditorGUILayout.HelpBox("Положение задаётся Transform. Радиус/размер изменяйте здесь; масштаб и поворот Transform источника должны оставаться исходными.",MessageType.Info);
             serializedObject.ApplyModifiedProperties();
+            using(new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+                if(GUILayout.Button("Обновить предпросмотр освещения")) RoomLightingPreview.Refresh(((RoomLightAuthoring)target).GetComponentInParent<RoomAuthoring>());
         }
     }
 }

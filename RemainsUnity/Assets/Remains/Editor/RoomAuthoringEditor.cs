@@ -20,7 +20,11 @@ namespace Remains.Editor
             if(!((RoomAuthoring)target).HasAuthoredArtwork) Field("artwork","Слои оформления");
             else EditorGUILayout.HelpBox("Видимые слои находятся в дочерней группе «Оформление». Материалы и геометрия сохранены как ассеты.",MessageType.Info);
             EditorGUILayout.HelpBox("Геометрия берётся из дочерних поверхностей и лестниц. Их положение и размеры задаются Transform. Поворот и отрицательный масштаб не поддерживаются.",MessageType.Info);
+            if(PrefabUtility.IsPartOfPrefabInstance(target))
+                EditorGUILayout.HelpBox("Игра загружает исходный префаб. После редактирования экземпляра примените нужные Overrides к префабу. Для игрового запуска откройте Prototype.unity.",MessageType.Info);
             serializedObject.ApplyModifiedProperties();
+            using(new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+                if(GUILayout.Button("Обновить предпросмотр освещения")) RoomLightingPreview.Refresh((RoomAuthoring)target);
         }
     }
 }

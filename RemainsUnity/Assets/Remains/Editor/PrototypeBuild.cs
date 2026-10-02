@@ -33,6 +33,7 @@ namespace Remains.Editor
             if(inventoryShell==null || inventoryShell.width!=2097 || inventoryShell.height!=1080)
                 throw new InvalidOperationException("Корпус инвентаря должен сохранять исходный размер 2097×1080 после импорта.");
             string path="Assets/Remains/Scenes/Prototype.unity";
+            RoomAuthoringScenes.ValidateSavedOverrides();
             if(AssetDatabase.LoadAssetAtPath<SceneAsset>(path)==null)
                 throw new InvalidOperationException($"Нет стартовой сцены {path}. Сборка не создаёт и не заменяет сцены.");
             var startupScene=EditorSceneManager.OpenScene(path,OpenSceneMode.Single);
