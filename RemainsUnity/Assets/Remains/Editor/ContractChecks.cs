@@ -24,7 +24,7 @@ namespace Remains.Editor
             ActorTypeChecks.Run();
             RaiderChecks.Run();
             LightingChecks.Run();
-            MotionAudioChecks.Run();
+            MotionAudioChecks.Run();ReloadAudioChecks.Run();
             DamageFeedbackChecks.Run();
             WeaponPoseChecks.Run();
             MovableContainerChecks.Run();

@@ -56,6 +56,8 @@ namespace Remains.Networking
         public SessionDeposits Deposits=>deposits ??= new SessionDeposits(this);
         private SessionProjectiles projectiles;
         public SessionProjectiles Projectiles=>projectiles ??= new SessionProjectiles(this);
+        private SessionReloadAudio reloadAudio;
+        public SessionReloadAudio ReloadAudio=>reloadAudio ??= new SessionReloadAudio(this);
         private SessionPause pause;
         public SessionPause Pause=>pause ??= new SessionPause(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
@@ -79,7 +81,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
-            Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();
+            Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
             Admission.RegisterServer();
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
@@ -158,7 +160,7 @@ namespace Remains.Networking
             Admission.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
-            Pause.RegisterClient();Deposits.RegisterClient();
+            Pause.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
