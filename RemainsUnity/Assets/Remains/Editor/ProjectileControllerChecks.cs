@@ -43,6 +43,22 @@ namespace Remains.Editor
                 controller.Step(.02f);
                 Require(hits==0 && Mathf.Abs(flight.path.Traveled-1.8f)<.0001f,"Будущая цель поражена до прихода снаряда.");
                 ShotArtwork.Prepare();ShotArtwork.TryGet("pistol",out var artwork);
+                player.level="factory:0";
+                var manager=new GameObject("Представления полётов").AddComponent<ProjectileVisuals>();manager.transform.SetParent(root.transform);
+                manager.Initialize(session,controller);
+                void SyncViews()=>typeof(ProjectileVisuals).GetMethod("Reconcile",Private).Invoke(manager,null);
+                ProjectileVisual[] ActiveViews()=>manager.GetComponentsInChildren<ProjectileVisual>();
+                Require(ActiveViews().Length==0,"Снаряд другого уровня отображается");
+                player.level="hub";SyncViews();SyncViews();
+                Require(ActiveViews().Length==1 && created==1,"Вход в уровень не восстановил единственное представление существующего полёта");
+                player.level="factory:0";SyncViews();Require(ActiveViews().Length==0,"После ухода остался видимый снаряд");
+                player.level="hub";SyncViews();Require(ActiveViews().Length==1 && hits==0 && created==1,"Повторный вход перезапустил полёт или контакт");
+                var restoredView=ActiveViews()[0];
+                var pausedView=(HashSet<string>)typeof(SessionPause).GetField("pausedLevels",Private).GetValue(session.Pause);
+                pausedView.Add("hub");typeof(ProjectileVisual).GetMethod("LateUpdate",Private).Invoke(restoredView,null);
+                Require(restoredView.GetComponent<SpriteRenderer>().enabled &&
+                    Mathf.Abs(restoredView.GetComponent<SpriteRenderer>().bounds.max.x-flight.path.Position.x)<.0001f,"Восстановленный след не рисуется на паузе из текущей позиции");
+                pausedView.Clear();
                 var view=visual.AddComponent<ProjectileVisual>();view.Initialize(flight,artwork,session);
                 void Draw()=>typeof(ProjectileVisual).GetMethod("LateUpdate",Private).Invoke(view,null);
                 Draw();var renderer=visual.GetComponent<SpriteRenderer>();
@@ -63,6 +79,8 @@ namespace Remains.Editor
                 Draw();Require(renderer.sprite==artwork.impact[0] && (Vector2)visual.transform.position==flight.path.Position,"Вспышка не находится в точке фактического контакта.");
                 controller.Step(.1f);Require(hits==1,"Завершённый полёт повторил урон.");
                 Require(state.launch.originX==0 && state.launch.endX==20,"Покадровый отрезок изменил исходный запуск.");
+                player.level="factory:0";SyncViews();player.level="hub";SyncViews();
+                Require(ActiveViews().Length==0,"Вход в уровень воспроизвёл законченный выстрел");
                 Debug.Log("Контроллер снаряда: PASS — отложенный контакт, уход/вход цели, пауза, восстановление владельца, один контакт, след и вспышка на физическом пути.");
             }
             finally {UnityEngine.Object.DestroyImmediate(visual);UnityEngine.Object.DestroyImmediate(root);}

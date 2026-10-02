@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
@@ -9,15 +12,44 @@ namespace Remains.Presentation
     {
         private CoopSession session;
         private ProjectileController controller;
+        private readonly Dictionary<string,ProjectileVisual> views=new();
         public void Initialize(CoopSession session,ProjectileController controller)
-        {this.session=session;this.controller=controller;controller.Created+=Created;}
+        {
+            this.session=session;this.controller=controller;controller.Created+=Created;
+            session.Changed+=Reconcile;Reconcile();
+        }
+        private void Reconcile()
+        {
+            string level=session.LocalActor?.level;
+            foreach(var pair in views.ToArray())
+                if(pair.Value==null || pair.Value.Level!=level || session.World==null)
+                {
+                    views.Remove(pair.Key);
+                    if(pair.Value!=null)
+                    {
+                        pair.Value.gameObject.SetActive(false);
+                        if(Application.isPlaying) Destroy(pair.Value.gameObject);else DestroyImmediate(pair.Value.gameObject);
+                    }
+                }
+            if(session.World==null) return;
+            // A representation can be needed after a level change or ownership recovery,
+            // even though the simulation flight already exists. Never replay old impacts.
+            foreach(var flight in controller.Flights) if(!flight.path.Finished) Created(flight);
+        }
         private void Created(ProjectileFlight flight)
         {
+            string id=flight.state.launch.id;
+            if(views.TryGetValue(id,out var existing) && existing!=null) return;
             if(flight.state.launch.level!=session.LocalActor?.level || !ShotArtwork.TryGet(flight.state.launch.weapon,out var artwork)) return;
             var view=new GameObject("Полёт "+flight.state.launch.id).AddComponent<ProjectileVisual>();
-            view.Initialize(flight,artwork,session);
+            view.transform.SetParent(transform,false);view.Initialize(flight,artwork,session);views[id]=view;
+            view.Ended+=ended=>{if(views.TryGetValue(id,out var current) && current==ended) views.Remove(id);};
         }
-        private void OnDestroy() {if(controller!=null) controller.Created-=Created;}
+        private void OnDestroy()
+        {
+            if(controller!=null) controller.Created-=Created;
+            if(session!=null) session.Changed-=Reconcile;
+        }
     }
     public sealed class ProjectileVisual : MonoBehaviour
     {
@@ -25,6 +57,9 @@ namespace Remains.Presentation
         private ShotArtwork artwork;
         private SpriteRenderer view;
         private CoopSession session;
+        public string Level=>flight?.state.launch.level;
+        public event Action<ProjectileVisual> Ended;
+        private void OnDestroy()=>Ended?.Invoke(this);
         public void Initialize(ProjectileFlight flight,ShotArtwork artwork,CoopSession session)
         {
             this.flight=flight;this.artwork=artwork;this.session=session;
@@ -36,7 +71,7 @@ namespace Remains.Presentation
         private void LateUpdate()
         {
             if(session.LocalActor?.level!=flight.state.launch.level) {Destroy(gameObject);return;}
-            if(session.Pause.IsPaused(flight.state.launch.level)) return;
+            // Presentation samples the frozen path as well, including a newly restored view.
             var path=flight.path;
             if(path.Finished && !artwork.beam)
             {
