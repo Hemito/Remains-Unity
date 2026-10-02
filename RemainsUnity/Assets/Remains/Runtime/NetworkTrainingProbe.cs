@@ -20,6 +20,7 @@ namespace Remains.Runtime
         private bool sent,finished,configured;
         private bool rejected50,rejected120,observedLift;
         private float manaBeforeLift,minimumLiftMana=100;
+        private readonly TrainingMagicRecoveryExercise magicRecovery=new();
         private float liftObservedAt=-1;
         private bool Host=>runtime.Options.Role=="host";
         private ContainerState Crate(int index)=>runtime.Session.World.containers.Single(c=>c.id=="training:crate:"+index);
@@ -145,6 +146,12 @@ namespace Remains.Runtime
             if(runtime.MovementAudio.LocalContacts<5 || runtime.Options.ProbePeers>1 && runtime.MovementAudio.RemoteContacts<5 || runtime.MovementAudio.Landings<2)
             {Finish(false,"Не воспроизведены локальные/удалённые шаги и приземления.");return;}
             if(Host && minimumLiftMana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
+            if(Host)
+            {
+                if(done.Count<runtime.Options.ProbePeers-1) return;
+                try {if(!magicRecovery.Step(runtime.Session,self)) return;}
+                catch(Exception error) {Finish(false,error.Message);return;}
+            }
             var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
             if(views.Length!=3 || views.Select(v=>v.ActorId).Distinct().Count()!=3) {Finish(false,"Неверное количество моделей мишеней.");return;}
             foreach(var view in views)
@@ -158,10 +165,11 @@ namespace Remains.Runtime
             if(finished) return;finished=true;
             string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
+                recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,ladderContacts=runtime.MovementAudio.LadderContacts,
                 remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }
