@@ -19,7 +19,7 @@ namespace Remains.Runtime
         private int stage,shots,results;
         private bool sent,finished,configured;
         private bool rejected50,rejected120,observedLift;
-        private float manaBeforeLift;
+        private float manaBeforeLift,minimumLiftMana=100;
         private float liftObservedAt=-1;
         private bool Host=>runtime.Options.Role=="host";
         private ContainerState Crate(int index)=>runtime.Session.World.containers.Single(c=>c.id=="training:crate:"+index);
@@ -112,6 +112,7 @@ namespace Remains.Runtime
             if(finished) return;
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут мишеней: stage={stage}, shots={shots}, results={results}, position={runtime.Session.LocalActor?.Position}.");return;}
             var self=runtime.Session.LocalActor;if(self==null) return;
+            if(Host && stage>=4) minimumLiftMana=Mathf.Min(minimumLiftMana,self.mana);
             foreach(var other in runtime.Session.World.actors)
                 if(other.player && other.id!=self.id)
                 {
@@ -143,7 +144,7 @@ namespace Remains.Runtime
             if(observedLower.Count!=runtime.Options.ProbePeers-1 || observedRise.Count!=runtime.Options.ProbePeers-1) return;
             if(runtime.MovementAudio.LocalContacts<5 || runtime.Options.ProbePeers>1 && runtime.MovementAudio.RemoteContacts<5 || runtime.MovementAudio.Landings<2)
             {Finish(false,"Не воспроизведены локальные/удалённые шаги и приземления.");return;}
-            if(Host && self.mana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
+            if(Host && minimumLiftMana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
             var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
             if(views.Length!=3 || views.Select(v=>v.ActorId).Distinct().Count()!=3) {Finish(false,"Неверное количество моделей мишеней.");return;}
             foreach(var view in views)

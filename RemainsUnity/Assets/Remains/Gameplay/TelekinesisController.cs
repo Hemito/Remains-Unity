@@ -14,6 +14,8 @@ namespace Remains.Gameplay
         private string selected;
         private float nextPose;
         private float nextStats;
+        private readonly MagicRecovery recovery=new();
+        private bool statsDirty;
         public TelekinesisController(CoopSession session,InteractionAdapter adapter,SimulationGeometry geometry) { this.session=session;this.adapter=adapter;this.geometry=geometry; }
         public void Step(bool held,Vector2 aim,float dt)
         {
@@ -50,26 +52,32 @@ namespace Remains.Gameplay
                 actor.revision++;session.PublishActor(actor);
             }
             wasHeld=held;
+            bool holding=false;
             foreach(var prop in WorldProps.All(session.World))
             {
                 if(prop.owner!=session.LocalOwner || prop.level!=actor.level) continue;
                 if(prop.held && prop.id==selected && held)
                 {
+                    holding=true;
                     Vector2 target=rules.Target(actor,aim);
                     PropMotion.Step(prop,geometry.Get(prop.level),dt,target);
                     actor.mana=Mathf.Max(0,actor.mana-rules.ManaPerSecond(actor,prop)*dt);
                     actor.revision++;
+                    statsDirty=true;
                 }
                 else
                 {
                     PropMotion.Step(prop,geometry.Get(prop.level),dt,null);
                 }
             }
+            if(rules is ITelekinesisRecoveryRule recoveryRule &&
+                recovery.Step(actor,holding,recoveryRule.RecoveryAcceleration(actor),dt))
+            {actor.revision++;statsDirty=true;}
             if(Time.unscaledTime<nextPose) return;
             nextPose=Time.unscaledTime+0.05f;
             foreach(var prop in WorldProps.All(session.World)) if(prop.owner==session.LocalOwner && prop.level==actor.level) adapter.SendProp(prop);
-            if(held && selected!=null && Time.unscaledTime>=nextStats)
-            { nextStats=Time.unscaledTime+0.5f;session.PublishActor(actor); }
+            if(statsDirty && Time.unscaledTime>=nextStats)
+            { nextStats=Time.unscaledTime+0.5f;session.PublishActor(actor);statsDirty=false; }
         }
     }
 }

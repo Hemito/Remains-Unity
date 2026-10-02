@@ -30,6 +30,7 @@ namespace Remains.Editor
             WeaponPoseChecks.Run();
             MovableContainerChecks.Run();
             TelekinesisRuleChecks.Run();
+            MagicRecoveryChecks.Run();
             AttackContactChecks.Run();
             WeaponModChecks.Run();
             GameplayContentChecks.Run();

@@ -15,8 +15,13 @@ namespace Remains.Domain
     {
         string SightRejection(ActorState actor,PropState prop,RoomLayout room);
     }
+    // Optional: code mods retaining their own resource economy need not opt in.
+    public interface ITelekinesisRecoveryRule
+    {
+        float RecoveryAcceleration(ActorState actor);
+    }
     // Mass is in kilograms, distance in Unity metres, time in seconds.
-    public sealed class MassLimitedTelekinesisRule : ITelekinesisRule,ITelekinesisSightRule
+    public sealed class MassLimitedTelekinesisRule : ITelekinesisRule,ITelekinesisSightRule,ITelekinesisRecoveryRule
     {
         private readonly TelekinesisSettings settings;
         public MassLimitedTelekinesisRule(TelekinesisSettings settings)
@@ -43,5 +48,6 @@ namespace Remains.Domain
             =>actor.Position+Vector2.ClampMagnitude(cursor-actor.Position,settings.range);
         public float ManaPerSecond(ActorState actor,PropState prop)
             =>prop.mass<=settings.freeMass?0:settings.manaPerSecondPerRootKg*Mathf.Sqrt(prop.mass);
+        public float RecoveryAcceleration(ActorState actor)=>settings.recoveryAcceleration;
     }
 }
