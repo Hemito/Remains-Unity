@@ -222,7 +222,7 @@ namespace Remains.Networking
             container.items.Add(SharedInventory.Create("caps", 20));
             container.items.Add(SharedInventory.Create("heal", 3));
             container.items.Add(SharedInventory.Create("grenade", 3));
-            world.props.Add(new PropState { id="prop:crate-1",owner="host",x=-3,y=0.5f });
+            world.props.Add(PropCatalog.Create("prop:crate-1","mcrate1","factory:0",new Vector2(-3,.8f)));
             return world;
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Remains.Domain;
 namespace Remains.Content
 {
     [Serializable] public sealed class PropDefinition
@@ -12,6 +13,14 @@ namespace Remains.Content
         public static IEnumerable<PropDefinition> All=>definitions.Values;
         public static PropDefinition Get(string id)=>id!=null && definitions.TryGetValue(id,out var value)?value:
             throw new InvalidOperationException("Не найден тип физического объекта: "+id);
+        public static PropState Create(string id,string definition,string level,Vector2 position)
+        {
+            if(string.IsNullOrEmpty(id) || string.IsNullOrEmpty(level) || !float.IsFinite(position.x) || !float.IsFinite(position.y))
+                throw new InvalidOperationException($"Некорректное размещение объекта: id={id}, type={definition}, level={level}.");
+            var source=Get(definition);
+            return new PropState {id=id,definition=definition,level=level,x=position.x,y=position.y,
+                mass=source.mass,width=source.width,height=source.height,anchorHeight=source.height/2};
+        }
         public static void Load()
         {
             var asset=Resources.Load<TextAsset>("Content/props");

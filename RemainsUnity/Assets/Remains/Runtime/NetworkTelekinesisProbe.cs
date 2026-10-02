@@ -68,13 +68,13 @@ namespace Remains.Runtime
             if(phase==0 && self.level=="factory:0" && !session.Travel.Pending) SetPhase(1);
             else if(phase==1 && prop.held && prop.owner==session.LocalOwner) SetPhase(2);
             else if(phase==2 && Vector2.Distance(prop.Position,new Vector2(-1,2))<.15f) SetPhase(3);
-            else if(phase==3 && !prop.held && prop.y<.4f) SetPhase(4);
+            else if(phase==3 && !prop.held && prop.y-prop.anchorHeight<.1f) SetPhase(4);
             else if(phase==4 && prop.held)
             {session.Travel.RequestHub();SetPhase(5);}
             else if(phase==5)
             {
                 var successor=session.ServerWorld.Find("player:session-client-1");
-                if(self.level!="hub" || successor.level!="factory:0" || prop.owner!=successor.owner || prop.held || prop.y>.4f) return;
+                if(self.level!="hub" || successor.level!="factory:0" || prop.owner!=successor.owner || prop.held || prop.y-prop.anchorHeight>.1f) return;
                 bool valid=self.mana<100 && successor.mana==100 && prop.level=="factory:0" &&
                     session.World.actors.Where(a=>a.player && a.id!=self.id && a.id!=successor.id).All(a=>a.level=="hub" && a.mana==100);
                 if(ContainerScenario)

@@ -170,7 +170,7 @@ namespace Remains.Runtime
             var world=runtime.Session.World;
             if(phase==2 && !Victim.down) return;
             if(phase==3 && (Healer.level!="factory:0" || world.actors.Any(a=>a.player && a.id!=Healer.id && a.level!="hub"))) return;
-            if(phase==17 && world.props.Any(p=>p.held || p.y>=.4f)) return;
+            if(phase==17 && world.props.Any(p=>p.held || p.y-p.anchorHeight>=.1f)) return;
             NetworkSceneRecord.Save(runtime,phase);captured.Add(phase);
             NetworkClient.Send(new JourneyFrameReady {phase=phase});
         }

@@ -40,7 +40,7 @@ namespace Remains.Runtime
             var host=world.Find("player:session-host");
             if(phase==15 && prop.held && prop.owner==host.owner) return 16;
             if(phase==16 && Vector2.Distance(prop.Position,new Vector2(-1,2))<.15f) return 17;
-            if(phase==17 && !prop.held && prop.y<.4f)
+            if(phase==17 && !prop.held && prop.y-prop.anchorHeight<.1f)
             {
                 if(host.mana>=100 || world.actors.Any(a=>a.player && a.id!=host.id && a.mana!=100))
                     throw new InvalidOperationException("Journey: неверный расход маны телекинеза.");
