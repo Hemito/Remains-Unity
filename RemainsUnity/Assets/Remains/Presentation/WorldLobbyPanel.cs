@@ -61,7 +61,7 @@ namespace Remains.Presentation
         }
         private void RenderContent()
         {
-            (ContentConfirmRect,ContentCancelRect)=ContentComparisonView.Draw(root.transform,ui,session.Lobby.ContentDifferences,
+            (ContentConfirmRect,ContentCancelRect)=ContentComparisonView.Draw(root.transform,session.Lobby.ContentDifferences,
                 "Контент сохранения отличается. Продолжение может изменить игровой результат.",contentPage,
                 next=>{contentPage=next;Render();},accept=>session.Lobby.ConfirmContent(accept));
         }

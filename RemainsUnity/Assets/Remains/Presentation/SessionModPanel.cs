@@ -30,7 +30,7 @@ namespace Remains.Presentation
             ConfirmRect=CancelRect=null;
             if(Differences.Count==0) return;
             root=ui.Panel(parent,"Моды сессии",new Vector2(90,-70),new Vector2(1100,570));
-            (ConfirmRect,CancelRect)=ContentComparisonView.Draw(root.transform,ui,Differences,
+            (ConfirmRect,CancelRect)=ContentComparisonView.Draw(root.transform,Differences,
                 "Моды или игровые данные отличаются. Продолжение может изменить игровой результат.",page,
                 next=>{page=next;Render();},accept=>
                 {

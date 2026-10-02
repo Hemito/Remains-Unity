@@ -85,7 +85,7 @@ namespace Remains.Editor
             var rows=new List<ContentDifference>();
             for(int i=0;i<4;i++) rows.Add(new ContentDifference {id=i==0?"base":"example.balance."+i,
                 saved="#"+(i+1)+" · версия 1.0.0\n"+new string('A',64),current="#"+(4-i)+" · версия 2.1.0\n"+new string('F',64)});
-            ContentComparisonView.Draw(panel.transform,ui,rows,"Контент персонажа отличается. Продолжение может изменить игровой результат.",0,_=>{},_=>{});
+            ContentComparisonView.Draw(panel.transform,rows,"Контент персонажа отличается. Продолжение может изменить игровой результат.",0,_=>{},_=>{});
             Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
             image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"content-comparison.png"),image.EncodeToPNG());
             RenderTexture.active=null;camera.targetTexture=null;target.Release();
