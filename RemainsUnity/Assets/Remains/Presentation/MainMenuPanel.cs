@@ -16,7 +16,7 @@ namespace Remains.Presentation
         public Text Notice {get;}
         public RectTransform SoundRect {get;}
         private readonly HudElements ui;
-        public MainMenuPanel(Transform parent,HudElements ui,Action host,Action join,Action worlds,Action settings)
+        public MainMenuPanel(Transform parent,HudElements ui,Action host,Action join,Action worlds,Action settings,Action newGame)
         {
             this.ui=ui;
             Root=ui.Panel(parent,"Главное меню",Vector2.zero,new Vector2(1280,720));
@@ -44,6 +44,8 @@ namespace Remains.Presentation
             SoundRect=Button(Root.transform,"Настройки звука",new Vector2(65,-574),new Vector2(300,44),settings).GetComponent<RectTransform>();
             var exitRect=exit.GetComponent<RectTransform>();exitRect.anchorMin=exitRect.anchorMax=exitRect.pivot=Vector2.zero;exitRect.anchoredPosition=new Vector2(65,44);
             SoundRect.anchorMin=SoundRect.anchorMax=SoundRect.pivot=Vector2.zero;SoundRect.anchoredPosition=new Vector2(65,102);
+            var fresh=Button(Root.transform,"Новая игра",new Vector2(65,-516),new Vector2(300,44),newGame).GetComponent<RectTransform>();
+            fresh.anchorMin=fresh.anchorMax=fresh.pivot=Vector2.zero;fresh.anchoredPosition=new Vector2(65,160);
             Notice=ui.Label(Root.transform,"",new Vector2(390,-652),new Vector2(825,55));Notice.fontSize=16;
             var noticeRect=Notice.rectTransform;noticeRect.anchorMin=Vector2.zero;noticeRect.anchorMax=new Vector2(1,0);noticeRect.pivot=Vector2.zero;
             noticeRect.offsetMin=new Vector2(390,13);noticeRect.offsetMax=new Vector2(-65,68);

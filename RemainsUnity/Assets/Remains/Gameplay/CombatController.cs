@@ -27,7 +27,7 @@ namespace Remains.Gameplay
         public string Weapon { get; set; } = "pistol";
         public bool IsMeleeActive=>swingActor!=null;
         public string ActiveMeleeId=>IsMeleeActive?swingId:null;
-        public float MeleeRemaining=>IsMeleeActive?MeleeSweep.Duration-swingSweep.Elapsed:0;
+        public float MeleeRemaining=>IsMeleeActive?swingSweep.Duration-swingSweep.Elapsed:0;
         public WeaponReloadController Reload { get; }
         public ProjectileController Projectiles {get;}
         private float nextResourceNotice;

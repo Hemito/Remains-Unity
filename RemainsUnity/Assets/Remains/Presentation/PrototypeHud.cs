@@ -103,7 +103,12 @@ namespace Remains.Presentation
             mainMenu=new MainMenuPanel(transform,elements,
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();},
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);},
-                ()=>{if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);},()=>AudioSettings.Open());
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);},()=>AudioSettings.Open(),()=>
+                {
+                    if(SelectCharacter?.Invoke(character.text)!=true) return;
+                    try {new WorldLibrary(session.Saves).PrepareNewGame();RefreshSelectedWorld();HostRequested?.Invoke();}
+                    catch(Exception error) {ShowMessage("Не удалось создать новую игру: "+error.Message);Debug.LogError(error);}
+                });
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
@@ -225,8 +230,9 @@ namespace Remains.Presentation
         private void RefreshSelectedWorld()
         {
             var saved=session.Saves.LoadWorld(prepareForPlay:false);
+            hostButton.GetComponentInChildren<Text>().text=saved==null?"Начать игру / создать сессию":"Продолжить / создать сессию";
             selectedWorld.text=saved==null?"Будет создан новый мир":
-                $"Выбран мир {saved.worldId.Substring(0,8)} · ревизия {saved.revision}\nВетвь {saved.branchId.Substring(0,8)} · "+
+                $"{new WorldLibrary(session.Saves).Name(saved.worldId)} · ревизия {saved.revision}\nВетвь {saved.branchId.Substring(0,8)} · "+
                 (saved.historyVersion==1?$"снимок {saved.checkpointSequence}":"история не подтверждена");
         }
 
@@ -244,10 +250,12 @@ namespace Remains.Presentation
                 var copy=copies[page*5+row];var state=copy.CreateLiveWorld();
                 string relation=selected==null?"Сохранённая копия":WorldHistory.Description(
                     WorldHistory.Compare(state,copy.Id,selected.CreateLiveWorld(),selected.Id));
-                var choice=Button(worldPicker.transform,$"Мир {state.worldId.Substring(0,8)} · ветвь {state.branchId.Substring(0,8)} · ревизия {state.revision}\n{relation}",
-                    new Vector2(20,-75-row*70),new Vector2(900,62),()=>
+                var choice=Button(worldPicker.transform,$"{new WorldLibrary(session.Saves).Name(state.worldId)} · ветвь {state.branchId.Substring(0,8)} · ревизия {state.revision}\n{relation}",
+                    new Vector2(20,-75-row*70),new Vector2(680,62),()=>
                     {session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();});
                 worldChoices[copy.Id]=choice.GetComponent<RectTransform>();
+                Button(worldPicker.transform,"Имя / удалить",new Vector2(710,-75-row*70),new Vector2(210,62),()=>
+                    WorldManagementPanel.Open(transform,elements,session.Saves,state.worldId,()=>{ShowWorldPicker(page);RefreshSelectedWorld();}));
             }
             if(copies.Count==0) Label(worldPicker.transform,"Сохранённых миров пока нет.",new Vector2(20,-90),new Vector2(850,50));
             Button(worldPicker.transform,"Назад",new Vector2(20,-440),new Vector2(180,45),()=>ShowWorldPicker(page-1)).interactable=page>0;

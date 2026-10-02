@@ -17,6 +17,7 @@ namespace Remains.Editor
                 {
                     var origin=WeaponPose.Origin(Vector2.zero);var samples=new List<MeleeSegment>();
                     var sweep=new MeleeSweep(weapon,origin,Vector2.right);
+                    Require(Mathf.Abs(sweep.Duration-(weapon=="spear"?1f/3:.5f))<.00001f,"Неверная базовая длительность "+weapon);
                     for(int frame=0;frame<200 && !sweep.Finished;frame++) sweep.Advance(origin,dt,samples.Add);
                     Require(sweep.Finished && samples.Count==36,"Полная траектория при dt="+dt);
                     var target=WeaponPose.Tip(weapon,origin,Vector2.right,.5f);
@@ -28,6 +29,9 @@ namespace Remains.Editor
                 }
             }
             var stationary=new List<MeleeSegment>();var moving=new List<MeleeSegment>();
+            var timing=new MeleeSweep("crowbar",Vector2.zero,Vector2.right);
+            timing.Advance(Vector2.zero,.3f,_=>{});Require(!timing.Finished,"Монтировка закончила удар через старые 0,3 с");
+            timing.Advance(Vector2.zero,.2f,_=>{});Require(timing.Finished,"Монтировка не завершила цикл за 0,5 с");
             var start=WeaponPose.Origin(Vector2.zero);
             new MeleeSweep("spear",start,Vector2.right).Advance(start,.3f,stationary.Add);
             new MeleeSweep("spear",start,Vector2.right).Advance(start+Vector2.right*.9f,.3f,moving.Add);
