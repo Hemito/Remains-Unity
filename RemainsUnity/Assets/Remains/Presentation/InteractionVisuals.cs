@@ -14,6 +14,7 @@ namespace Remains.Presentation
         private GrenadeController grenades;
         private ActorVisualLayers layers;
         private PropArtwork propArtwork;
+        private WeaponShotAnimation shotAnimation;
         private readonly Dictionary<string,Sprite> sprites=new();
         private readonly Dictionary<string,SpriteRenderer> props=new();
         private readonly Dictionary<string,SpriteRenderer> containers=new();
@@ -26,6 +27,7 @@ namespace Remains.Presentation
             propArtwork=new PropArtwork();
             foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
+            shotAnimation=gameObject.AddComponent<WeaponShotAnimation>();shotAnimation.Initialize(session);
             ShotArtwork.Prepare();
             session.Changed+=Refresh;
             grenades.Created+=flight=>Refresh();
@@ -100,6 +102,7 @@ namespace Remains.Presentation
                 view.enabled=ActorPresence.IsPresent(actor) && !actor.down && actor.level==session.LocalActor?.level;
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.enabled=false;continue; }
+                sprite=shotAnimation.Select(actor,sprite);
                 float width=sprite.bounds.size.x;
                 if(view.sprite!=sprite) { SpriteArtworkMaterial.Apply(view,sprite);view.transform.localScale=Vector3.one*(width/sprite.bounds.size.x); }
                 var direction=WeaponPose.Direction(actor);
@@ -111,6 +114,7 @@ namespace Remains.Presentation
             foreach(var pair in flights) pair.Value.enabled=false;
             foreach(var flight in grenades.Flights) if(flights.TryGetValue(flight.message.id,out var view))
             { view.enabled=flight.message.level==session.LocalActor?.level;view.transform.position=flight.position; }
+            shotAnimation.Step(Time.deltaTime);
         }
     }
 
