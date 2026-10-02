@@ -49,15 +49,15 @@ namespace Remains.Runtime
             if(Resume) return command;
             if(phase==0)
             {
-                float destination=Host?3:self.id=="player:session-client-1"?1.8f:6+int.Parse(self.character.Split('-').Last());
+                float destination=Host?25:self.id=="player:session-client-1"?23.8f:28+int.Parse(self.character.Split('-').Last());
                 command.movement=Vector2.right*(Mathf.Abs(destination-self.x)>.05f?Mathf.Sign(destination-self.x):0);return command;
             }
             if(!Host) return command;
             float age=Time.unscaledTime-since;
             if(phase==1) {command.weapon="pistol";command.hasAim=true;command.aim=Victim.Position+Vector2.up*.55f;command.fire=!Victim.down;}
             if(phase==2) command.revive=age<.55f;
-            if(phase==3) {command.movement=self.x<5.4f?Vector2.right:Vector2.zero;command.revive=true;}
-            if(phase==4) command.movement=Mathf.Abs(self.x-3)>.05f?Vector2.right*Mathf.Sign(3-self.x):Vector2.zero;
+            if(phase==3) {command.movement=self.x<27.4f?Vector2.right:Vector2.zero;command.revive=true;}
+            if(phase==4) command.movement=Mathf.Abs(self.x-25)>.05f?Vector2.right*Mathf.Sign(25-self.x):Vector2.zero;
             if(phase==5)
             {
                 command.grenade=!grenade;grenade=true;command.hasAim=true;command.aim=self.Position+Vector2.down*3;
@@ -92,12 +92,12 @@ namespace Remains.Runtime
             switch(phase)
             {
                 case 0:
-                    if(Mathf.Abs(Healer.x-3)<.1f && Mathf.Abs(Victim.x-1.8f)<.1f &&
-                        runtime.Session.World.actors.Where(a=>a.player && a.id!=Healer.id && a.id!=Victim.id).All(a=>a.x>7)) Next();break;
+                    if(Mathf.Abs(Healer.x-25)<.1f && Mathf.Abs(Victim.x-23.8f)<.1f &&
+                        runtime.Session.World.actors.Where(a=>a.player && a.id!=Healer.id && a.id!=Victim.id).All(a=>a.x>29)) Next();break;
                 case 1: if(Victim.down) Next();break;
                 case 2: if(age>2 && releaseProgress && runtime.Revival.Progress==0) Next();break;
                 case 3: if(age>2 && movementProgress && Vector2.Distance(Healer.Position,Victim.Position)>2 && runtime.Revival.Progress==0) Next();break;
-                case 4: if(Mathf.Abs(Healer.x-3)<.1f) Next();break;
+                case 4: if(Mathf.Abs(Healer.x-25)<.1f) Next();break;
                 case 5: if(age>2.4f && damageCancelled && healingBeforeDamage && Healer.damageSequence>startDamage && !Healer.down && runtime.Revival.Progress==0) Next();break;
                 case 6: if(!Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4) Next();break;
                 case 7: if(age>4) {advancing=true;NetworkServer.SendToAll(new RevivalProbeFinish());}break;
@@ -113,9 +113,24 @@ namespace Remains.Runtime
         {
             if(!CaptureFrames || finished || runtime.Session.LocalActor==null || Time.unscaledTime-since<.25f) return;
             if(phase==2 && !capturedDown && Victim.down)
-            {NetworkSceneRecord.Save(runtime,2);capturedDown=true;}
+            {if(!CheckWeaponVisible(false)) return;NetworkSceneRecord.Save(runtime,2);capturedDown=true;}
             if(phase==7 && !capturedRevived && !Victim.down && Victim.health==35)
-            {NetworkSceneRecord.Save(runtime,7);capturedRevived=true;}
+            {if(!CheckWeaponVisible(true)) return;NetworkSceneRecord.Save(runtime,7);capturedRevived=true;}
+        }
+        private bool CheckWeaponVisible(bool visible)
+        {
+            var views=FindObjectsByType<Remains.Presentation.WeaponView>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            int matches=0;
+            foreach(var view in views)
+            {
+                var group=view.GetComponentInParent<Remains.Presentation.ActorVisualGroup>(true);
+                if(group==null || group.ActorId!=Victim.id) continue;
+                matches++;
+                if(view.gameObject.activeInHierarchy!=visible)
+                {Finish(false,$"Неверная видимость целого оружия: actor={Victim.id}, down={Victim.down}, expected={visible}.");return false;}
+            }
+            if(matches!=1) {Finish(false,$"Ожидалось одно оружие пострадавшего: actor={Victim.id}, count={matches}.");return false;}
+            return true;
         }
         private float[] PauseSnapshot()=>new[]{Victim.health,Healer.health,(float)InventoryJournal.Count(Healer,"heal"),
             Victim.x,Victim.y,Healer.x,Healer.y,runtime.Session.LocalActor.poseTime,

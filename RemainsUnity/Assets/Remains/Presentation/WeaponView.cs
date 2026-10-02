@@ -13,6 +13,10 @@ namespace Remains.Presentation
         public string Id=>id;
         public SpriteRenderer Artwork=>artwork;
         public Transform Muzzle=>muzzle;
+        public void SetVisible(bool visible)
+        {
+            if(gameObject.activeSelf!=visible) gameObject.SetActive(visible);
+        }
         public void SetMirrored(bool mirrored)
         {
             transform.localScale=new Vector3(1,mirrored?-1:1,1);

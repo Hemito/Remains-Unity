@@ -29,6 +29,15 @@ namespace Remains.Editor
                     }
                     if(source.transform.localScale!=Vector3.one || source.Artwork.flipY)
                         throw new InvalidOperationException("Экземпляр изменил исходный префаб: "+rig.id);
+                    var attachment=new GameObject("Дополнительная часть оружия").AddComponent<SpriteRenderer>();
+                    attachment.transform.SetParent(view.transform,false);attachment.sprite=view.Artwork.sprite;
+                    var disabledPart=new GameObject("Скрытая часть оружия");disabledPart.transform.SetParent(view.transform,false);disabledPart.SetActive(false);
+                    view.SetVisible(false);
+                    if(view.Artwork.gameObject.activeInHierarchy || attachment.gameObject.activeInHierarchy)
+                        throw new InvalidOperationException("Скрытое оружие оставило видимой дочернюю часть: "+rig.id);
+                    view.SetVisible(true);
+                    if(!attachment.gameObject.activeInHierarchy || disabledPart.activeSelf || !source.gameObject.activeSelf)
+                        throw new InvalidOperationException("Возврат оружия изменил авторскую видимость частей или исходный префаб: "+rig.id);
                 }
                 finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
             }
