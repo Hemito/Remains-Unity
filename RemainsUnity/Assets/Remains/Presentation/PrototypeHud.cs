@@ -100,7 +100,7 @@ namespace Remains.Presentation
             quickActions=Panel(transform,"Действия",new Vector2(1020,-14),new Vector2(244,96));
             message=elements.BackedLabel(transform,"",new Vector2(350,-140),new Vector2(880,55));
             revival=elements.BackedLabel(transform,"",new Vector2(480,-625),new Vector2(750,35));
-            mainMenu=new MainMenuPanel(transform,elements,
+            mainMenu=new MainMenuPanel(transform,
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();},
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);},
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);},()=>AudioSettings.Open(),()=>
@@ -310,3 +310,4 @@ namespace Remains.Presentation
         private InputField Input(Transform parent,Vector2 position)=>elements.Input(parent,position);
     }
 }
+

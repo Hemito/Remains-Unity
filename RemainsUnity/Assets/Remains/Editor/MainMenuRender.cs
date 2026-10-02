@@ -19,7 +19,7 @@ namespace Remains.Editor
             var target=new RenderTexture(width,height,24);target.Create();camera.targetTexture=target;
             var canvas=new GameObject("Меню").AddComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=1;
             var scaler=canvas.gameObject.AddComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1280,720);scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
-            var menu=new MainMenuPanel(canvas.transform,new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")),()=>{},()=>{},()=>{},()=>{},()=>{});
+            var menu=new MainMenuPanel(canvas.transform,()=>{},()=>{},()=>{},()=>{},()=>{});
             menu.Character.text="Литлпип";
             menu.World.text="Мир 7f65d82c · ревизия 930\nВетвь 1122aabb · снимок 48";
             Canvas.ForceUpdateCanvases();
@@ -43,3 +43,4 @@ namespace Remains.Editor
         }
     }
 }
+

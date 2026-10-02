@@ -6,67 +6,25 @@ namespace Remains.Presentation
 {
     public sealed class MainMenuPanel
     {
-        public GameObject Root {get;}
-        public GameObject Controls {get;}
-        public InputField Character {get;}
-        public InputField Address {get;}
-        public Button Host {get;}
-        public Button Worlds {get;}
-        public Text World {get;}
-        public Text Notice {get;}
-        public RectTransform SoundRect {get;}
-        private readonly HudElements ui;
-        public MainMenuPanel(Transform parent,HudElements ui,Action host,Action join,Action worlds,Action settings,Action newGame)
+        private readonly MainMenuView view;
+        public GameObject Root=>view.gameObject;
+        public GameObject Controls=>view.Controls;
+        public InputField Character=>view.Character;
+        public InputField Address=>view.Address;
+        public Button Host=>view.Host;
+        public Button Worlds=>view.Worlds;
+        public Text World=>view.World;
+        public Text Notice=>view.Notice;
+        public RectTransform SoundRect=>view.Settings.GetComponent<RectTransform>();
+        public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame)
         {
-            this.ui=ui;
-            Root=ui.Panel(parent,"Главное меню",Vector2.zero,new Vector2(1280,720));
-            var full=Root.GetComponent<RectTransform>();full.anchorMin=Vector2.zero;full.anchorMax=Vector2.one;full.offsetMin=full.offsetMax=Vector2.zero;
-            Root.GetComponent<Image>().color=Color.black;
-            Artwork("sky");Artwork("city");
-            var title=new GameObject("Оригинальный заголовок Remains",typeof(RectTransform));title.transform.SetParent(Root.transform,false);
-            var titleImage=title.AddComponent<Image>();titleImage.sprite=LoadSprite("title",Vector4.zero);titleImage.preserveAspect=true;titleImage.raycastTarget=false;
-            HudElements.Rect(title.GetComponent<RectTransform>(),new Vector2(65,-30),new Vector2(630,245));
-            var subtitle=ui.Label(Root.transform,"Совместная игра",new Vector2(70,-275),new Vector2(500,45));subtitle.fontSize=26;
-            Controls=ui.Panel(Root.transform,"Игра и подключение",new Vector2(775,-55),new Vector2(440,580));
-            var controlsRect=Controls.GetComponent<RectTransform>();controlsRect.anchorMin=controlsRect.anchorMax=controlsRect.pivot=new Vector2(1,1);controlsRect.anchoredPosition=new Vector2(-65,-55);
-            Controls.GetComponent<Image>().color=new Color(.015f,.025f,.02f,.90f);
-            ui.Label(Controls.transform,"Персонаж",new Vector2(20,-15),new Vector2(400,28));
-            Character=ui.Input(Controls.transform,new Vector2(20,-46));Character.characterLimit=32;
-            ui.Label(Controls.transform,"Мир для своей игры",new Vector2(20,-111),new Vector2(400,28));
-            World=ui.Label(Controls.transform,"Будет создан новый мир",new Vector2(20,-145),new Vector2(400,70));World.fontSize=16;
-            Worlds=Button(Controls.transform,"Выбрать сохранённый мир",new Vector2(20,-220),new Vector2(400,44),worlds);
-            Host=Button(Controls.transform,"Начать игру / создать сессию",new Vector2(20,-276),new Vector2(400,50),host);
-            ui.Label(Controls.transform,"Подключение к другу · адрес сервера",new Vector2(20,-355),new Vector2(400,30));
-            Address=ui.Input(Controls.transform,new Vector2(20,-391));
-            Button(Controls.transform,"Подключиться",new Vector2(20,-449),new Vector2(400,50),join);
-            var hint=ui.Label(Controls.transform,"Один ПК: 127.0.0.1 · локальная сеть: IP хозяина",new Vector2(20,-520),new Vector2(400,45));hint.fontSize=15;
-            var exit=Button(Root.transform,"Выйти из игры",new Vector2(65,-632),new Vector2(300,44),()=>Application.Quit());
-            SoundRect=Button(Root.transform,"Настройки звука",new Vector2(65,-574),new Vector2(300,44),settings).GetComponent<RectTransform>();
-            var exitRect=exit.GetComponent<RectTransform>();exitRect.anchorMin=exitRect.anchorMax=exitRect.pivot=Vector2.zero;exitRect.anchoredPosition=new Vector2(65,44);
-            SoundRect.anchorMin=SoundRect.anchorMax=SoundRect.pivot=Vector2.zero;SoundRect.anchoredPosition=new Vector2(65,102);
-            var fresh=Button(Root.transform,"Новая игра",new Vector2(65,-516),new Vector2(300,44),newGame).GetComponent<RectTransform>();
-            fresh.anchorMin=fresh.anchorMax=fresh.pivot=Vector2.zero;fresh.anchoredPosition=new Vector2(65,160);
-            Notice=ui.Label(Root.transform,"",new Vector2(390,-652),new Vector2(825,55));Notice.fontSize=16;
-            var noticeRect=Notice.rectTransform;noticeRect.anchorMin=Vector2.zero;noticeRect.anchorMax=new Vector2(1,0);noticeRect.pivot=Vector2.zero;
-            noticeRect.offsetMin=new Vector2(390,13);noticeRect.offsetMax=new Vector2(-65,68);
-        }
-        private Button Button(Transform parent,string label,Vector2 position,Vector2 size,Action action)
-        {
-            return ui.Button(parent,label,position,size,action);
-        }
-
-        private void Artwork(string key)
-        {
-            var obj=new GameObject("Оригинал меню "+key,typeof(RectTransform));obj.transform.SetParent(Root.transform,false);
-            var image=obj.AddComponent<Image>();image.sprite=LoadSprite(key,Vector4.zero);image.raycastTarget=false;
-            var rect=obj.GetComponent<RectTransform>();rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=rect.offsetMax=Vector2.zero;
-            var fit=obj.AddComponent<AspectRatioFitter>();fit.aspectMode=AspectRatioFitter.AspectMode.EnvelopeParent;fit.aspectRatio=image.sprite.rect.width/image.sprite.rect.height;
-        }
-        private static Sprite LoadSprite(string key,Vector4 border)
-        {
-            var texture=Resources.Load<Texture2D>("Original/Menu/"+key);
-            if(texture==null) throw new InvalidOperationException("Нет оригинальной графики меню: "+key);
-            return Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect,border);
+            var prefab=Resources.Load<MainMenuView>("Presentation/MainMenu");
+            if(prefab==null) throw new InvalidOperationException("Нет префаба главного меню Presentation/MainMenu.");
+            prefab.Validate();view=UnityEngine.Object.Instantiate(prefab,parent,false);
+            view.Host.onClick.AddListener(()=>host());view.Join.onClick.AddListener(()=>join());
+            view.Worlds.onClick.AddListener(()=>worlds());view.Settings.onClick.AddListener(()=>settings());
+            view.NewGame.onClick.AddListener(()=>newGame());view.Exit.onClick.AddListener(()=>Application.Quit());
         }
     }
 }
+
