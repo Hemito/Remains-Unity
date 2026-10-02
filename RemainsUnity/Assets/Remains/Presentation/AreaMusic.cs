@@ -1,17 +1,17 @@
 using System;
 using System.Collections.Generic;
 using Remains.Networking;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Presentation
 {
-    [Serializable] public sealed class AreaMusicTrack {public string id,levelPrefix,resource;}
-    [Serializable] public sealed class AreaMusicCatalog {public float fadeSeconds,volume;public AreaMusicTrack[] tracks;}
 
     public sealed class AreaMusic : MonoBehaviour
     {
         private CoopSession session;
-        private AreaMusicCatalog catalog;
+        private MusicTrackDefinition[] tracks;
+        private float fadeSeconds;
         private readonly Dictionary<string,AudioClip> clips=new();
         private readonly HashSet<string> missing=new();
         private readonly AudioSource[] sources=new AudioSource[2];
@@ -24,22 +24,10 @@ namespace Remains.Presentation
         public void Initialize(CoopSession session)
         {
             this.session=session;
-            var asset=Resources.Load<TextAsset>("Content/area-music");
-            if(asset==null) throw new InvalidOperationException("Нет Content/area-music.");
-            catalog=JsonUtility.FromJson<AreaMusicCatalog>(asset.text);
-            if(catalog?.tracks==null || !float.IsFinite(catalog.fadeSeconds) || catalog.fadeSeconds<=0 ||
-                !float.IsFinite(catalog.volume) || catalog.volume<0 || catalog.volume>1)
-                throw new InvalidOperationException("Некорректный каталог музыки.");
-            Volume=catalog.volume;
-            var prefixes=new HashSet<string>(StringComparer.Ordinal);
-            foreach(var track in catalog.tracks)
-            {
-                if(string.IsNullOrEmpty(track.id) || string.IsNullOrEmpty(track.resource)) throw new InvalidOperationException("Музыкальная запись без ID или ресурса.");
-                if(!prefixes.Add(track.levelPrefix??"")) throw new InvalidOperationException("Повтор музыкальной привязки локации: "+track.levelPrefix);
-                var clip=Resources.Load<AudioClip>(track.resource);
-                if(clip==null || clip.samples<=0) throw new InvalidOperationException("Отсутствует музыка: "+track.resource);
-                clips.Add(track.id,clip);
-            }
+            var asset=Resources.Load<MusicCatalogAsset>("Content/area-music");
+            if(asset==null) throw new InvalidOperationException("Нет каталога Content/area-music.");
+            tracks=asset.CreateTracks();fadeSeconds=asset.FadeSeconds;Volume=asset.Volume;
+            foreach(var track in tracks) clips.Add(track.id,track.clip);
             for(int i=0;i<2;i++)
             {
                 var source=new GameObject("Музыка "+i).AddComponent<AudioSource>();source.transform.SetParent(transform,false);
@@ -51,7 +39,7 @@ namespace Remains.Presentation
         {
             string level=session.LocalActor?.level;
             string trackId=null;int specificity=-1;
-            foreach(var track in catalog.tracks)
+            foreach(var track in tracks)
             {
                 bool menu=string.IsNullOrEmpty(track.levelPrefix);
                 if(level==null?menu:!menu && level.StartsWith(track.levelPrefix,StringComparison.Ordinal))
@@ -73,7 +61,7 @@ namespace Remains.Presentation
             for(int i=0;i<2;i++)
             {
                 float target=i==active && CurrentTrack!=null?1:0;
-                weights[i]=Mathf.MoveTowards(weights[i],target,Time.unscaledDeltaTime/catalog.fadeSeconds);
+                weights[i]=Mathf.MoveTowards(weights[i],target,Time.unscaledDeltaTime/fadeSeconds);
                 sources[i].volume=weights[i]*Mathf.Clamp01(Volume);
                 if(target==0 && weights[i]==0 && sources[i].isPlaying) sources[i].Stop();
             }

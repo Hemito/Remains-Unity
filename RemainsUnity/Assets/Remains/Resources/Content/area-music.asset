@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3a6d8078da06fd4c91e980603414b1d, type: 3}
+  m_Name: area-music
+  m_EditorClassIdentifier: 
+  fadeSeconds: 1.5
+  volume: 0.2
+  tracks:
+  - id: menu
+    levelPrefix: 
+    clip: {fileID: 8300000, guid: 7fb5c60abb5e44d43b4d85ec667e652c, type: 3}
+  - id: hub
+    levelPrefix: hub
+    clip: {fileID: 8300000, guid: a578d65b2be1b4a4ab49967db873fa7c, type: 3}
+  - id: factory
+    levelPrefix: 'factory:'
+    clip: {fileID: 8300000, guid: cf22460b7832a844b942de3aa3a02c96, type: 3}
