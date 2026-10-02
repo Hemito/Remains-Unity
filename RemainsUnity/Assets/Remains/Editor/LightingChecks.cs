@@ -19,6 +19,15 @@ namespace Remains.Editor
             var material=WorldArtworkMaterial.Create(Texture2D.whiteTexture);
             Require(material.shader.name=="Remains/WorldLit","Отсутствует общий материал мира");
             UnityEngine.Object.DestroyImmediate(material);
+            var texture=new Texture2D(2,2,TextureFormat.RGBA32,false,true);
+            texture.SetPixels(new[]{new Color(1,0,0,0),new Color(0,1,0,1),new Color(0,0,1,.5f),Color.white});texture.Apply();
+            var mask=new RoomLightMask(texture,new Rect(-2,3,4,2));
+            Require(mask.Sample(new Vector2(-1,3.5f)).r==0,"Невидимый цвет попал в маску света");
+            Require(mask.Sample(new Vector2(1,3.5f)).g>.99f,"Нарушена горизонтальная привязка маски");
+            Require(Mathf.Abs(mask.Sample(new Vector2(-1,4.5f)).b-.5f)<.01f,"Нарушена прозрачность или вертикальная привязка маски");
+            Require(mask.Sample(new Vector2(3,4)).maxColorComponent<=1 && mask.Sample(new Vector2(3,4)).r==0,"Маска повторяется за границей");
+            Require(Mathf.Abs(mask.Sample(new Vector2(0,4)).r-.25f)<.01f,"Интерполяция маски смешала скрытый RGB");
+            UnityEngine.Object.DestroyImmediate(texture);
             Debug.Log("Освещение: PASS — затухание, стена, открытая балка, общий шейдер.");
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException(reason);}

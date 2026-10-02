@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Remains.Presentation
 {
     [Serializable] public sealed class RoomLight
-    {public string id,fixture;public float x,y,radius,intensity,width,height;public Color color=Color.white;}
+    {public string id,fixture,mask;public float maskX,maskY,maskWidth,maskHeight;public float x,y,radius,intensity,width,height;public Color color=Color.white;}
     [Serializable] public sealed class RoomLightProfile
     {public Color ambient;public RoomLight[] lights;}
     public sealed class RoomLighting : MonoBehaviour

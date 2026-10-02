@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Remains.Domain;
 using UnityEngine;
 
@@ -17,20 +18,40 @@ namespace Remains.Presentation
                     throw new InvalidOperationException($"Некорректный источник света: room={room.id}, light={light?.id}.");
             int width=Mathf.CeilToInt(bounds.width*8),height=Mathf.CeilToInt(bounds.height*8);
             var colors=new Color[width*height];
+            var masks=LoadMasks(profile);
             for(int y=0;y<height;y++) for(int x=0;x<width;x++)
-                colors[y*width+x]=Sample(room,profile,new Vector2(bounds.x+(x+.5f)*bounds.width/width,bounds.y+(y+.5f)*bounds.height/height));
+                colors[y*width+x]=Sample(room,profile,new Vector2(bounds.x+(x+.5f)*bounds.width/width,bounds.y+(y+.5f)*bounds.height/height),masks);
             var result=new Texture2D(width,height,TextureFormat.RGBA32,false,true) {name="Свет: "+room.id,wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear};
             result.SetPixels(colors);result.Apply(false,true);return result;
         }
         public static Color Sample(RoomLayout room,RoomLightProfile profile,Vector2 position)
+            =>Sample(room,profile,position,LoadMasks(profile));
+        private static Dictionary<string,RoomLightMask> LoadMasks(RoomLightProfile profile)
+        {
+            var masks=new Dictionary<string,RoomLightMask>(StringComparer.Ordinal);
+            foreach(var light in profile.lights)
+            {
+                if(string.IsNullOrEmpty(light.mask)) continue;
+                var texture=Resources.Load<Texture2D>(light.mask);
+                if(texture==null) throw new InvalidOperationException($"Нет маски света: light={light.id}, resource={light.mask}.");
+                masks.Add(light.id,new RoomLightMask(texture,new Rect(light.maskX,light.maskY,light.maskWidth,light.maskHeight)));
+            }
+            return masks;
+        }
+        private static Color Sample(RoomLayout room,RoomLightProfile profile,Vector2 position,Dictionary<string,RoomLightMask> masks)
         {
             Color result=profile.ambient;
             foreach(var light in profile.lights)
             {
                 var origin=new Vector2(light.x,light.y);float distance=Vector2.Distance(position,origin);
-                if(distance>=light.radius || Blocked(room,origin,position)) continue;
-                float falloff=1-distance/light.radius;
-                result+=light.color*(light.intensity*falloff*falloff);
+                if(Blocked(room,origin,position)) continue;
+                if(masks.TryGetValue(light.id,out var mask)) result+=mask.Sample(position)*light.intensity;
+                else
+                {
+                    if(distance>=light.radius) continue;
+                    float falloff=1-distance/light.radius;
+                    result+=light.color*(light.intensity*falloff*falloff);
+                }
             }
             result.r=Mathf.Clamp01(result.r);result.g=Mathf.Clamp01(result.g);result.b=Mathf.Clamp01(result.b);result.a=1;return result;
         }
