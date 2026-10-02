@@ -8,20 +8,27 @@ namespace Remains.Presentation
         private ExplosionArtwork artwork;
         private CoopSession session;
         private string level;
-        private SpriteRenderer view;
+        [SerializeField,InspectorName("Отрисовка")] private SpriteRenderer view;
+        [SerializeField,InspectorName("Анимация")] private Remains.Content.ExplosionAnimationAsset animation;
         private float age;
-        public void Initialize(ExplosionArtwork artwork,CoopSession session,string level,Vector2 position)
+        public void Initialize(CoopSession session,string level,Vector2 position)
         {
-            this.artwork=artwork;this.session=session;this.level=level;transform.position=position;
-            view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=ActorVisualLayers.EffectOrder;
-            SpriteArtworkMaterial.SetSelfIlluminated(view);
+            Validate();artwork=animation.CreateArtwork();this.session=session;this.level=level;transform.position=position;age=0;
+
+
             Draw(0);
+        }
+        public void Validate()
+        {
+            if(view==null || !view.transform.IsChildOf(transform) || view.sharedMaterial==null || animation==null)
+                throw new System.InvalidOperationException($"Взрыв {name}: отсутствует дочерний renderer, материал или анимация.");
+            animation.Validate();
         }
         public bool Draw(float elapsed)
         {
             int frame=Mathf.FloorToInt(elapsed*artwork.framesPerSecond);
             view.enabled=frame>=0 && frame<artwork.frames.Length;
-            if(view.enabled) SpriteArtworkMaterial.Apply(view,artwork.frames[frame]);
+            if(view.enabled) view.sprite=artwork.frames[frame];
             return view.enabled;
         }
         private void Update()

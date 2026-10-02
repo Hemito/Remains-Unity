@@ -17,7 +17,7 @@ namespace Remains.Editor
             var music=Resources.Load<MusicCatalogAsset>("Content/area-music");
             if(music==null) throw new InvalidOperationException("Нет каталога музыки локаций.");
             music.Validate();
-            _=Remains.Presentation.ExplosionArtwork.Load();
+            ExplosionPrefabChecks.Run();
             Anatomy.Load();
             JumpPoseChecks.Run();
             CameraFramingChecks.Run();
