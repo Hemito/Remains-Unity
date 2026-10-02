@@ -93,7 +93,7 @@ namespace Remains.Presentation
             containerHint=new ContainerHint(transform,elements);
             audioPreferences??=new AudioPreferences(null);
             inventoryAudio=gameObject.AddComponent<InventoryAudio>();inventoryAudio.Initialize(audioPreferences);
-            AudioSettings=new AudioSettingsPanel(transform,elements,audioPreferences);
+            AudioSettings=new AudioSettingsPanel(transform,audioPreferences);
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             status=elements.BackedLabel(transform,"",new Vector2(720,-20),new Vector2(285,44));
             combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon));

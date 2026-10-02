@@ -42,6 +42,9 @@ namespace Remains.Editor
             var pauseMenu=Resources.Load<Remains.Presentation.PauseMenuView>("Presentation/PauseMenu");
             if(pauseMenu==null) throw new InvalidOperationException("Нет префаба меню паузы.");
             pauseMenu.Validate();
+            var audioSettings=Resources.Load<Remains.Presentation.AudioSettingsView>("Presentation/AudioSettings");
+            if(audioSettings==null) throw new InvalidOperationException("Нет префаба настроек звука.");
+            audioSettings.Validate();
             PersonalInventoryPrefabChecks.Run();
             _=new Remains.Presentation.InventoryArtwork();
             var sharedInventory=Resources.Load<Remains.Presentation.SharedInventoryView>("Presentation/SharedInventory");
