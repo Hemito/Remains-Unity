@@ -15,10 +15,11 @@ namespace Remains.Domain
             destination.weaponReach=source.weaponReach;
         }
         public static string Clip(ActorState actor)=>actor.down?"down":actor.pose;
+        public static bool StationaryClimb(ActorState actor)=>actor.climbing && !actor.down && System.Math.Abs(actor.vy)<.001f;
         public static void Advance(ActorState actor,float dt)
         {
-            if(actor.climbing && !actor.down && System.Math.Abs(actor.vy)<.001f) return;
-            actor.poseTime+=dt;
+            if(StationaryClimb(actor)) {actor.poseTime=0;return;}
+            actor.poseTime+=actor.climbing && !actor.down && actor.vy<0?-dt:dt;
         }
         public static void Select(ActorState actor,string pose)
         {

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Remains.Content
 {
     [Serializable] public sealed class PonyLibrary { public PonyClip[] clips; }
-    [Serializable] public sealed class PonyClip { public string id; public float fps; public bool nonLooping; public PonyFrame[] frames; }
+    [Serializable] public sealed class PonyClip { public string id; public float fps; public bool nonLooping; public int loopStartFrame; public PonyFrame[] frames; }
     [Serializable] public sealed class PonyFrame { public PonyPart[] parts; }
     [Serializable] public sealed class PonyPart
     {
@@ -23,13 +23,18 @@ namespace Remains.Content
             var json=Resources.Load<TextAsset>("Original/Pony/pony");
             if(json==null) throw new InvalidOperationException("Нет данных анимации Original/Pony/pony.");
             Library=JsonUtility.FromJson<PonyLibrary>(json.text);
-            foreach(var clip in Library.clips) clips.Add(clip.id,clip);
+            foreach(var clip in Library.clips)
+            {
+                if(clip.frames==null || clip.frames.Length==0 || !float.IsFinite(clip.fps) || clip.fps<=0 ||
+                    clip.loopStartFrame<0 || clip.loopStartFrame>=clip.frames.Length)
+                    throw new InvalidOperationException("Некорректные кадры анимации: "+clip.id);
+                clips.Add(clip.id,clip);
+            }
         }
-        public static int FrameIndex(string pose,float elapsed,bool down)
+        public static int FrameIndex(string pose,float elapsed,bool down,bool stationary=false)
         {
             var clip=clips[pose];
-            int frame=(int)(Mathf.Max(0,elapsed)*clip.fps);
-            return down?clip.frames.Length-1:clip.nonLooping?Mathf.Min(frame,clip.frames.Length-1):frame%clip.frames.Length;
+            return down?clip.frames.Length-1:AnimationFrames.Sample(elapsed,clip.fps,clip.frames.Length,!clip.nonLooping,clip.loopStartFrame,stationary);
         }
         public static float Duration(string pose)=>clips[pose].frames.Length/clips[pose].fps;
         public static bool TryCenter(string pose,int frame,string[] shapes,out Vector2 center)

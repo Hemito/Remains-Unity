@@ -6,10 +6,9 @@ namespace Remains.Content
     [Serializable] public sealed class AtlasActorClip
     {
         public string pose;public int row,count;public float framesPerSecond;public bool loop;
-        public int FrameIndex(float time)
+        public int FrameIndex(float time,bool stationary=false)
         {
-            int frame=Mathf.FloorToInt(Mathf.Max(0,time)*framesPerSecond);
-            return loop?frame%count:Mathf.Min(frame,count-1);
+            return AnimationFrames.Sample(time,framesPerSecond,count,loop,stationary:stationary);
         }
     }
     [Serializable] public sealed class AtlasActorArtwork
