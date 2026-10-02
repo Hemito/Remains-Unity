@@ -2,6 +2,7 @@ using System;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Presentation;
+using Remains.Gameplay;
 using UnityEngine;
 
 namespace Remains.Editor
@@ -30,6 +31,22 @@ namespace Remains.Editor
                 actor.vy=100;Require(PonyMotionFrames.Sample(actor,0)==0,"Подъём выходит за библиотеку.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
+            actor.pose="jump";actor.poseTime=3;actor.vy=0;
+            StanceAnimation.Select(actor,"idle",false);
+            Require(actor.pose=="landing" && actor.poseTime==0,"Нет перехода приземления.");
+            ActorPose.Advance(actor,.1f);StanceAnimation.Select(actor,"idle",false);
+            Require(actor.pose=="landing","Приземление оборвалось раньше завершения.");
+            ActorPose.Advance(actor,.2f);StanceAnimation.Select(actor,"idle",false);
+            Require(actor.pose=="idle","Приземление зациклилось.");
+            foreach(string target in new[]{"jump","walk","run","climb","crouch"})
+            {
+                actor.pose="landing";actor.poseTime=0;
+                StanceAnimation.Select(actor,target,false);
+                Require(actor.pose==target,"Приземление блокирует действие: "+target);
+            }
+            var raider=new ActorState {anatomy="raider",pose="jump"};
+            StanceAnimation.Select(raider,"idle",false);
+            Require(raider.pose=="idle","Рейдер получил отсутствующую позу пони.");
             Debug.Log("Позы прыжка: PASS — движение, сетевая копия, изображение и область попадания.");
         }
         private static void Require(bool valid,string message)

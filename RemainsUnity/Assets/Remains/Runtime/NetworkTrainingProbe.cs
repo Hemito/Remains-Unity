@@ -29,6 +29,7 @@ namespace Remains.Runtime
         private readonly TrainingCrouchExercise crouching=new();
         private readonly HashSet<string> observedCrouch=new();
         private readonly HashSet<string> observedLower=new(),observedRise=new();
+        private readonly HashSet<string> observedLanding=new();
         private bool independentStance,crouchCaptured;
         private readonly HashSet<string> observedJumpSupport=new();
         public void Initialize(PrototypeRuntime value)
@@ -121,6 +122,7 @@ namespace Remains.Runtime
                     if(other.crouched) {observedCrouch.Add(other.id);if(!self.crouched) independentStance=true;}
                     if(other.pose=="crouchLower") observedLower.Add(other.id);
                     if(other.pose=="crouchRise") observedRise.Add(other.id);
+                    if(other.pose=="landing") observedLanding.Add(other.id);
                 }
             if(Host && !crouchCaptured && self.pose=="crawl" && Mathf.Abs(self.vx+2.1f)<.05f && runtime.Options.Smoke.Contains("-frames-"))
             {NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".crouch.png",runtime.Hud.GetComponent<Canvas>());crouchCaptured=true;}
@@ -143,6 +145,7 @@ namespace Remains.Runtime
             if(!jumping.Complete || observedJumpSupport.Count!=runtime.Options.ProbePeers-1) return;
             if(!crouching.Complete || observedCrouch.Count!=runtime.Options.ProbePeers-1 || runtime.Options.ProbePeers>1 && !independentStance) return;
             if(observedLower.Count!=runtime.Options.ProbePeers-1 || observedRise.Count!=runtime.Options.ProbePeers-1) return;
+            if(observedLanding.Count!=runtime.Options.ProbePeers-1) return;
             if(runtime.MovementAudio.LocalContacts<5 || runtime.Options.ProbePeers>1 && runtime.MovementAudio.RemoteContacts<5 || runtime.MovementAudio.Landings<2)
             {Finish(false,"Не воспроизведены локальные/удалённые шаги и приземления.");return;}
             if(Host && minimumLiftMana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
@@ -167,9 +170,9 @@ namespace Remains.Runtime
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,ladderContacts=runtime.MovementAudio.LadderContacts,
-                remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
+                remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,remoteLandingPoses=observedLanding.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }

@@ -9,19 +9,20 @@ namespace Remains.Editor
 {
     public static class JumpPoseRender
     {
-        public static void Render()=>Render(false);
-        public static void RenderMotion()=>Render(true);
-        private static void Render(bool motion)
+        public static void Render()=>Render(false,"jump");
+        public static void RenderMotion()=>Render(true,"jump");
+        public static void RenderLanding()=>Render(false,"landing");
+        private static void Render(bool motion,string pose)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             PonyVisual.Prepare();
-            var clip=System.Array.Find(PonyAnimationData.Library.clips,c=>c.id=="jump");
+            var clip=System.Array.Find(PonyAnimationData.Library.clips,c=>c.id==pose);
             float[] velocities={7.2f,4.8f,2.4f,0,-2.4f,-4.8f,-7.2f,-12};
             int count=motion?velocities.Length:clip.frames.Length;
             int columns=8,rows=Mathf.CeilToInt(count/(float)columns);
             for(int i=0;i<count;i++)
             {
-                var actor=new ActorState {id="jump-frame-"+i,pose="jump",x=(i%columns)*3,y=-(i/columns)*3};
+                var actor=new ActorState {id=pose+"-frame-"+i,pose=pose,x=(i%columns)*3,y=-(i/columns)*3};
                 var visual=new GameObject(actor.id).AddComponent<PonyVisual>();
                 if(motion) actor.vy=velocities[i];
                 visual.Bind(actor);visual.DrawPose((i+.01f)/clip.fps,!motion);
@@ -41,7 +42,7 @@ namespace Remains.Editor
             {
                 camera.Render();RenderTexture.active=target;
                 image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
-                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..",motion?".reference/tests/jump-motion-poses.png":".reference/tests/jump-pose-library.png"));
+                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..",motion?".reference/tests/jump-motion-poses.png":$".reference/tests/{pose}-pose-library.png"));
                 Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
                 Debug.Log($"Библиотека прыжка: {clip.frames.Length} кадров, {path}");
             }

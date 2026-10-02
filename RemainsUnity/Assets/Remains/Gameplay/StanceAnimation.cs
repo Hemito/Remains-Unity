@@ -8,6 +8,12 @@ namespace Remains.Gameplay
     {
         public static void Select(ActorState actor,string target,bool wasCrouched)
         {
+            string landing=Anatomy.LandingPose(actor);
+            if(!string.IsNullOrEmpty(landing) && target=="idle")
+            {
+                if(actor.pose=="jump") {ActorPose.Select(actor,landing);return;}
+                if(actor.pose==landing && actor.poseTime<Anatomy.PoseDuration(actor,landing)) return;
+            }
             if(actor.crouched!=wasCrouched && target==(actor.crouched?"crouch":"idle"))
             {
                 ActorPose.Select(actor,actor.crouched?"crouchLower":"crouchRise");

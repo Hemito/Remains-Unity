@@ -8,7 +8,7 @@ namespace Remains.Domain
     [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; public string[] shapes; public HitRegionPose[] poses; }
     [Serializable] public sealed class HitRegionPose {public string pose;public Vector2[] centers;}
     [Serializable] public sealed class MovementHull { public float width,height; }
-    [Serializable] public sealed class AnatomyDefinition { public string id,atlasArtwork; public MovementHull movement,crouchingMovement; public HitRegionDefinition[] regions; }
+    [Serializable] public sealed class AnatomyDefinition { public string id,atlasArtwork,landingPose; public MovementHull movement,crouchingMovement; public HitRegionDefinition[] regions; }
     [Serializable] public sealed class AnatomyCatalog { public AnatomyDefinition[] anatomies; }
     public static class Anatomy
     {
@@ -35,6 +35,12 @@ namespace Remains.Domain
                     if(region==null || string.IsNullOrEmpty(region.id) || !ids.Add(region.id) || !float.IsFinite(region.radius) || region.radius<=0 || !float.IsFinite(region.x) || !float.IsFinite(region.y))
                         throw new InvalidOperationException($"Некорректная область {region?.id} анатомии {definition.id}.");
                 definitions.Add(definition.id,definition);
+                if(!string.IsNullOrEmpty(definition.landingPose))
+                {
+                    if(!string.IsNullOrEmpty(definition.atlasArtwork))
+                        AtlasAnimationData.Get(definition.atlasArtwork).Clip(definition.landingPose);
+                    else PonyAnimationData.Duration(definition.landingPose);
+                }
                 foreach(var region in definition.regions)
                 {
                     if(!string.IsNullOrEmpty(definition.atlasArtwork))
@@ -74,6 +80,14 @@ namespace Remains.Domain
             }
         }
 
+        public static string LandingPose(ActorState actor)=>definitions[actor.anatomy].landingPose;
+        public static float PoseDuration(ActorState actor,string pose)
+        {
+            var definition=definitions[actor.anatomy];
+            if(string.IsNullOrEmpty(definition.atlasArtwork)) return PonyAnimationData.Duration(pose);
+            var clip=AtlasAnimationData.Get(definition.atlasArtwork).Clip(pose);
+            return clip.count/clip.framesPerSecond;
+        }
         public static MovementHull Movement(string id)=>definitions.TryGetValue(id,out var definition)?definition.movement:
             throw new InvalidOperationException($"Нет определения движения анатомии {id}.");
         public static MovementHull Movement(ActorState actor)=>actor.crouched?Crouching(actor.anatomy):Movement(actor.anatomy);
