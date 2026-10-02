@@ -28,12 +28,11 @@ namespace Remains.Presentation
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
         public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();
-        public PersonalInventoryPanel(Transform parent,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork)
+        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork)
         {
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
-            var prefab=Resources.Load<PersonalInventoryView>("Presentation/PersonalInventory");
-            if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/PersonalInventory.");
-            prefab.Validate();var view=UnityEngine.Object.Instantiate(prefab,parent,false);
+            if(view==null) throw new InvalidOperationException("Не назначено содержимое личной страницы инвентаря.");
+            view.Validate();
             rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
             detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
             title=view.Title;detail=view.Detail;actionStatus=view.ActionStatus;

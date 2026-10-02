@@ -113,7 +113,7 @@ namespace Remains.Presentation
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
             var inventoryView=InventoryWindowView.Create(transform);inventory=inventoryView.gameObject;
-            var containerView=SharedInventoryView.Create(inventoryView.Shared.transform);
+            var containerView=inventoryView.SharedContents;
             containerTitle=containerView.Title;
             for (int i = 0; i < slots.Length; i++)
             {
@@ -132,8 +132,7 @@ namespace Remains.Presentation
             previousContainer.onClick.AddListener(()=>{containerPage--;Refresh();});
             nextContainer.onClick.AddListener(()=>{containerPage++;Refresh();});
             inventory.SetActive(false);
-            var personalPanel=inventoryView.Personal;
-            personalItems=new PersonalInventoryPanel(personalPanel.transform,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
+            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
             inventoryWindow=new InventoryWindow(inventoryView,ToggleInventory,inventoryAudio.Page);
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>

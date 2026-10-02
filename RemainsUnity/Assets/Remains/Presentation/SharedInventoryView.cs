@@ -24,11 +24,5 @@ namespace Remains.Presentation
                 !Next.transform.IsChildOf(transform) || !Title.transform.IsChildOf(transform))
                 throw new InvalidOperationException($"Общий контейнер: неверные ссылки навигации в {name}.");
         }
-        public static SharedInventoryView Create(Transform parent)
-        {
-            var prefab=Resources.Load<SharedInventoryView>("Presentation/SharedInventory");
-            if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/SharedInventory.");
-            prefab.Validate();return UnityEngine.Object.Instantiate(prefab,parent,false);
-        }
     }
 }
