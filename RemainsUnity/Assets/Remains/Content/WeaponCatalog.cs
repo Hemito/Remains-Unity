@@ -42,9 +42,9 @@ namespace Remains.Content
         {
             WeaponRigs.Load();
             ActorTypes.Load();PropCatalog.Load();
-            var asset=Resources.Load<TextAsset>("Content/weapons");
-            if(asset==null) throw new InvalidOperationException("Не найдены определения оружия Content/weapons.");
-            var loaded=WeaponCatalogLoader.Load(asset.text,Path.Combine(Application.streamingAssetsPath,"Mods"));
+            var asset=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
+            var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
             foreach(string path in new[]{"Content/prototype-room","Content/prototype-hub","Content/anatomy","Content/movement","Content/telekinesis","Content/actors","Content/props","Content/hub-training","Original/Training/artwork","Original/Raider/artwork","Original/Pony/pony","Original/Pony/motion-frames","Original/Weapons/artwork"})
             {

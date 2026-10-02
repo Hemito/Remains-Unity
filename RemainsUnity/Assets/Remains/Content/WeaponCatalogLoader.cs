@@ -106,7 +106,7 @@ namespace Remains.Content
             }
             foreach(var id in overrides.Keys) throw new InvalidDataException($"Объявленная замена не содержит определения: мод={source}, id={id}.");
         }
-        private static void Validate(WeaponDefinition weapon,string source)
+        internal static void Validate(WeaponDefinition weapon,string source)
         {
             if(weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar")
             {

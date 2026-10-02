@@ -32,10 +32,8 @@ namespace Remains.Editor
             if(inventoryShell==null || inventoryShell.width!=2097 || inventoryShell.height!=1080)
                 throw new InvalidOperationException("Корпус инвентаря должен сохранять исходный размер 2097×1080 после импорта.");
             string path="Assets/Remains/Scenes/Prototype.unity";
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-            var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-            var camera=new GameObject("Камера").AddComponent<Camera>(); camera.tag="MainCamera";
-            EditorSceneManager.SaveScene(scene,path);
+            if(AssetDatabase.LoadAssetAtPath<SceneAsset>(path)==null)
+                throw new InvalidOperationException($"Нет стартовой сцены {path}. Сборка не создаёт и не заменяет сцены.");
             AssetDatabase.SaveAssets();
             var options=new BuildPlayerOptions { scenes=new[]{path}, locationPathName="Builds/Windows/RemainsPrototype.exe",
                 target=BuildTarget.StandaloneWindows64, options=BuildOptions.Development };

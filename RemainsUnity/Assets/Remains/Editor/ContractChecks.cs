@@ -18,6 +18,7 @@ namespace Remains.Editor
             JumpPoseChecks.Run();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
+            WeaponAssetChecks.Run();
             WeaponShotChecks.Run();
             WorldLibraryChecks.Run();
             CrouchChecks.Run();
