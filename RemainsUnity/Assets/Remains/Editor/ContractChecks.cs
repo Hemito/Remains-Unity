@@ -34,6 +34,7 @@ namespace Remains.Editor
             ProjectileAudioChecks.Run();
             RaiderChecks.Run();
             AtlasAssetChecks.Run();
+            PonyPrefabChecks.Run();
             LightingChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();
             DamageFeedbackChecks.Run();

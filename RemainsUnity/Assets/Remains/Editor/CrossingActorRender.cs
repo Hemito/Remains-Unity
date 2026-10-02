@@ -28,7 +28,7 @@ namespace Remains.Editor
             for(int i=0;i<actors.Length;i++)
             {
                 var actor=actors[i];
-                var visual=new GameObject("Пони "+actor.id).AddComponent<PonyVisual>();
+                var visual=(PonyVisual)ActorVisualFactory.Create(actor);
                 visual.Bind(actor);visual.DrawPose(.12f);
                 groups[i]=layers.Attach(actor.id,visual.transform);
                 WeaponPose.Aim(actor,actor.Position+new Vector2(i==1?-2:2,1.1f));

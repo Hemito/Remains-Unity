@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Remains.Domain;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -14,8 +15,10 @@ namespace Remains.Presentation
         private sealed class RenderPart { public Mesh mesh; public Material material; public string slot; public bool visible; }
         private static readonly Dictionary<string, RenderPart[][]> cache = new();
         private static readonly Dictionary<string, Bounds[]> poseBounds = new();
-        private readonly List<MeshFilter> filters = new();
-        private readonly List<MeshRenderer> renderers = new();
+        [SerializeField,HideInInspector] private List<MeshFilter> filters = new();
+        [SerializeField,HideInInspector] private List<MeshRenderer> renderers = new();
+        [SerializeField,HideInInspector] private bool authoredStructure;
+        public void UseAuthoredStructure()=>authoredStructure=true;
         private ActorState state;
         private string pose;
         private int frame = -1;
@@ -32,7 +35,12 @@ namespace Remains.Presentation
 
         public static void Prepare()
         {
-            if (cache.Count > 0) return;
+            if(cache.Count>0)
+            {
+                if(cache.Values.All(clip=>clip.All(sample=>sample.All(part=>part.mesh!=null && part.material!=null)))) return;
+                Debug.LogWarning("Кэш графики пони содержит освобождённые Unity-ресурсы; выполняется повторная подготовка после смены сцены.");
+                cache.Clear();poseBounds.Clear();
+            }
             PonyAnimationData.Load();
             var library = PonyAnimationData.Library;
             var materials = new Dictionary<string, Material>();
@@ -95,6 +103,15 @@ namespace Remains.Presentation
             state = actor;
             int capacity = 0;
             foreach (var clip in cache.Values) foreach (var sample in clip) capacity = Mathf.Max(capacity,sample.Length);
+            if(authoredStructure)
+            {
+                if(filters.Count<capacity || filters.Count!=renderers.Count)
+                    throw new InvalidOperationException($"Префаб пони {name}: нужно частей {capacity}, сохранено {filters.Count}. Пересоберите структуру.");
+                for(int i=0;i<filters.Count;i++)
+                    if(filters[i]==null || renderers[i]==null || filters[i].transform!=renderers[i].transform || !filters[i].transform.IsChildOf(transform))
+                        throw new InvalidOperationException($"Префаб пони {name}: повреждена ссылка на часть {i}.");
+                return;
+            }
             while (filters.Count < capacity)
             {
                 var child = new GameObject("Часть пони"); child.transform.SetParent(transform, false);
