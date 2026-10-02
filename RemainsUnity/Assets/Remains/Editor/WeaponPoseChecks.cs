@@ -45,24 +45,29 @@ namespace Remains.Editor
             Debug.Log("Поза оружия: PASS — дуло, радиус, близкий курсор ближнего оружия и копирование состояния.");
         }
 
-        public static void Render()
+        public static void Render()=>Render(false);
+        public static void RenderMelee()=>Render(true);
+        private static void Render(bool melee)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-            WeaponCatalog.Load();Run();PonyVisual.Prepare();
+            Anatomy.Load();WeaponCatalog.Load();Run();PonyAnimationData.Load();PonyVisual.Prepare();
             var artwork=WeaponArtwork.Load();int index=0;
-            foreach(string weapon in new[]{"pistol","energy"})
+            foreach(string weapon in melee?new[]{"spear","crowbar"}:new[]{"pistol","energy"})
             foreach(float angle in new[]{0f,45,135,180})
             {
                 var actor=new ActorState {id=weapon+angle,weapon=weapon,x=(index%4)*4,y=-(index/4)*3,pose="idle"};
-                var aim=WeaponPose.RangedAnchor(actor)+new Vector2(Mathf.Cos(angle*Mathf.Deg2Rad),Mathf.Sin(angle*Mathf.Deg2Rad))*4;
+                float distance=melee && index%4<2 ? (index%4==0?.2f:.7f):4;
+                var anchor=melee?WeaponPose.Origin(actor):WeaponPose.RangedAnchor(actor);
+                var aim=anchor+new Vector2(Mathf.Cos(angle*Mathf.Deg2Rad),Mathf.Sin(angle*Mathf.Deg2Rad))*distance;
                 WeaponPose.Aim(actor,aim);
                 var pony=new GameObject(actor.id).AddComponent<PonyVisual>();pony.Bind(actor);pony.DrawPose(0);
                 var sprite=new GameObject("Оружие "+actor.id).AddComponent<SpriteRenderer>();
                 SpriteArtworkMaterial.Apply(sprite,artwork[weapon]);sprite.sortingOrder=100;
-                sprite.transform.position=WeaponPose.Mount(actor);sprite.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);sprite.flipY=WeaponPose.Flip(actor);
+                sprite.transform.position=melee?WeaponPose.Origin(actor)+WeaponPose.Direction(actor)*(actor.weaponReach-artwork[weapon].bounds.max.x):WeaponPose.Mount(actor);sprite.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);sprite.flipY=WeaponPose.Flip(actor);
                 var rig=WeaponRigs.Get(weapon);
-                var visualMuzzle=(Vector2)sprite.transform.TransformPoint(new Vector3(rig.muzzleX,sprite.flipY?-rig.muzzleY:rig.muzzleY,0));
-                Require(Vector2.Distance(visualMuzzle,WeaponPose.Muzzle(actor))<.0001f,"Метка дула картинки отличается от игровой позы");
+                var visualMuzzle=(Vector2)sprite.transform.TransformPoint(melee?new Vector3(artwork[weapon].bounds.max.x,0,0):new Vector3(rig.muzzleX,sprite.flipY?-rig.muzzleY:rig.muzzleY,0));
+                var expected=melee?WeaponPose.Origin(actor)+WeaponPose.Direction(actor)*actor.weaponReach:WeaponPose.Muzzle(actor);
+                Require(Vector2.Distance(visualMuzzle,expected)<.0001f,"Конец картинки оружия отличается от игровой позы");
                 var line=new GameObject("Направление из дула").AddComponent<LineRenderer>();
                 line.material=new Material(Shader.Find("Sprites/Default"));line.positionCount=2;
                 line.SetPosition(0,visualMuzzle);line.SetPosition(1,visualMuzzle+WeaponPose.Direction(actor)*.7f);
@@ -77,7 +82,7 @@ namespace Remains.Editor
             try
             {
                 camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,1600,800),0,0);image.Apply();
-                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/weapon-poses.png"));
+                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", melee?".reference/tests/melee-idle-poses.png":".reference/tests/weapon-poses.png"));
                 Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
                 Debug.Log("Кадр поз оружия: "+path);
             }
