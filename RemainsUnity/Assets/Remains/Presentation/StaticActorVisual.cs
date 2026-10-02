@@ -11,13 +11,22 @@ namespace Remains.Presentation
     {
         private static readonly Dictionary<string,(Sprite sprite,string resource)> cache=new();
         private ActorState state;
-        private SpriteRenderer view;
+        [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer view;
+        [SerializeField,InspectorName("ID графики")] private string authoredArtwork;
+        [SerializeField,InspectorName("ID ресурса")] private string authoredResource;
+        public void Configure(SpriteRenderer renderer,string key,string resource) {view=renderer;authoredArtwork=key;authoredResource=resource;}
         private string artwork;
         public string Resource {get;private set;}
         public override string ActorId=>state?.id;
         public override void Bind(ActorState actor)
         {
             state=actor;string key=ActorTypes.Get(actor.actorType).artwork;
+            if(!string.IsNullOrEmpty(authoredArtwork))
+            {
+                if(authoredArtwork!=key || view==null || view.sprite==null)
+                    throw new InvalidOperationException($"Префаб {name}: отсутствует спрайт или не совпадает графика {key}.");
+                Resource=authoredResource;Draw();return;
+            }
             if(view==null) {view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=20;}
             if(artwork!=key)
             {

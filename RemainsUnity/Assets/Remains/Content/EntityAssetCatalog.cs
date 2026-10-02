@@ -24,6 +24,15 @@ namespace Remains.Content
             return result;
         }
         public string ActorsJson()=>StateJson.ToJson(new ActorTypeList {actors=CreateActors()});
+        public bool TryGetActorPrefab(ActorTypeDefinition definition,out Remains.Presentation.ActorVisual prefab)
+        {
+            foreach(var asset in actors)
+            {
+                if(asset==null) throw new InvalidOperationException($"Каталог {name}: отсутствует ссылка на тип персонажа.");
+                if(asset.TryGetPrefab(definition,out prefab)) return true;
+            }
+            prefab=null;return false;
+        }
         public string PropsJson()=>StateJson.ToJson(new PropDefinitionList {props=CreateProps()});
         public bool TryGetPropTexture(string id,string resource,out Texture2D texture)
         {

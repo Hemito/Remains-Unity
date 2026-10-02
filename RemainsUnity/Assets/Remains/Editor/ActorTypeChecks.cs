@@ -43,6 +43,10 @@ namespace Remains.Editor
             try
             {
                 visual.Bind(dummy);
+                Require(EntityAssetCatalog.Load().TryGetActorPrefab(definition,out var prefab),"Мишень не использует сохранённый префаб");
+                Require(visual.GetComponent<UnityEngine.SpriteRenderer>().sprite==prefab.GetComponent<UnityEngine.SpriteRenderer>().sprite &&
+                    visual.GetComponent<UnityEngine.SpriteRenderer>().sharedMaterial==prefab.GetComponent<UnityEngine.SpriteRenderer>().sharedMaterial,
+                    "Runtime заменил сохранённую графику мишени");
                 Require(visual is Remains.Presentation.StaticActorVisual && visual.GetComponent<UnityEngine.SpriteRenderer>().sprite!=null,
                     "Не создана самостоятельная модель мишени");
             }

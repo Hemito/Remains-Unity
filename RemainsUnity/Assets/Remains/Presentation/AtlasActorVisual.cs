@@ -20,7 +20,9 @@ namespace Remains.Presentation
         {public string resource;public bool facesLeft;public readonly Dictionary<string,Clip> clips=new(StringComparer.Ordinal);}
         private static readonly Dictionary<string,Artwork> cache=new(StringComparer.Ordinal);
         private ActorState state;
-        private SpriteRenderer view;
+        [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer view;
+        public void SetRenderer(SpriteRenderer renderer)=>view=renderer;
+        private bool generatedView;
         private Artwork artwork;
         private string artworkKey,missingPose;
         public string Resource=>artwork?.resource;
@@ -29,7 +31,7 @@ namespace Remains.Presentation
         public override void Bind(ActorState actor)
         {
             state=actor;string key=ActorTypes.Get(actor.actorType).artwork;
-            if(view==null) {view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=20;}
+            if(view==null) {view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=20;generatedView=true;}
             if(artworkKey!=key)
             {
                 if(string.IsNullOrEmpty(key)) throw new InvalidOperationException($"Нет атласа актёра: {actor.id}, type={actor.actorType}.");
@@ -80,7 +82,8 @@ namespace Remains.Presentation
                 missingPose=pose;view.enabled=false;return;
             }
             missingPose=null;view.enabled=true;var sprite=clip.Sample(state.poseTime,ActorPose.StationaryClimb(state));
-            if(view.sprite!=sprite) SpriteArtworkMaterial.Apply(view,sprite);
+            if(view.sprite!=sprite)
+            {if(generatedView) SpriteArtworkMaterial.Apply(view,sprite);else view.sprite=sprite;}
         }
     }
 }

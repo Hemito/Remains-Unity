@@ -14,6 +14,10 @@ namespace Remains.Editor
         public override void OnInspectorGUI()
         {
             serializedObject.Update();Field("id","Стабильный ID");Field("presentation","ID способа отображения");Field("artwork","Путь описания графики");
+            var source=serializedObject.FindProperty("presentationSource");
+            source.enumValueIndex=EditorGUILayout.Popup("Источник представления",source.enumValueIndex,new[]{"Зарегистрированный сборщик","Префаб"});
+            using(new EditorGUI.DisabledScope(source.enumValueIndex!=(int)ActorPresentationSource.Prefab))
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("presentationPrefab"),new GUIContent("Префаб персонажа"));
             Field("combatAi","Боевое поведение");Field("hasWeapon","Отображать оружие");Field("bodyInventory","Инвентарь тела");Field("restoreHealthAfterHit","Восстановление здоровья мишени после удара");serializedObject.ApplyModifiedProperties();
         }
     }

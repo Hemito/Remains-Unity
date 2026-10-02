@@ -26,6 +26,8 @@ namespace Remains.Editor
             try
             {
                 actor.down=false;visual.Bind(actor);var renderer=visual.GetComponent<SpriteRenderer>();
+                Require(EntityAssetCatalog.Load().TryGetActorPrefab(ActorTypes.Get("raider"),out var source),"Нет исходного префаба рейдера");
+                var sourceRenderer=source.GetComponent<SpriteRenderer>();var sourceSprite=sourceRenderer.sprite;
                 foreach(string pose in new[]{"idle","walk","run","jump","climb","down"})
                 {
                     actor.pose=pose;actor.poseTime=0;visual.Draw();var first=renderer.sprite;
@@ -52,6 +54,8 @@ namespace Remains.Editor
                 actor.poseTime=11;visual.Draw();Require(renderer.sprite==final,"Падение зациклено");
                 actor.facing=-1;visual.Draw();Require(renderer.flipX,"Не отражается рейдер влево");
                 actor.facing=1;visual.Draw();Require(!renderer.flipX,"Не отражается рейдер вправо");
+                Require(renderer.sharedMaterial==sourceRenderer.sharedMaterial && sourceRenderer.sprite==sourceSprite && source.transform.position==Vector3.zero,
+                    "Рабочая анимация заменила материал префаба или изменила исходный asset");
             }
             finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
             var target=new ActorState {id="target",player=true,connected=true,x=-3,y=4};
