@@ -12,8 +12,8 @@ namespace Remains.Presentation
     [RequireComponent(typeof(SortingGroup))]
     public sealed class PonyVisual : ActorVisual
     {
-        private sealed class RenderPart { public Mesh mesh; public Material material; public string slot; public bool visible; }
-        private static readonly Dictionary<string, RenderPart[][]> cache = new();
+
+        private static readonly Dictionary<string, PonyRenderPart[][]> cache = new();
         private static readonly Dictionary<string, Bounds[]> poseBounds = new();
         [SerializeField,HideInInspector] private List<MeshFilter> filters = new();
         [SerializeField,HideInInspector] private List<MeshRenderer> renderers = new();
@@ -35,58 +35,16 @@ namespace Remains.Presentation
 
         public static void Prepare()
         {
-            if(cache.Count>0)
+            if(cache.Count>0 && cache.Values.All(clip=>clip.All(sample=>sample.All(part=>part.mesh!=null && part.material!=null)))) return;
+            var asset=Resources.Load<PonyRenderAsset>("Original/Pony/render");
+            if(asset==null) throw new InvalidOperationException("Нет сохранённой графики пони Original/Pony/render. Пересоберите её в Unity.");
+            asset.Validate();PonyAnimationData.Load();cache.Clear();poseBounds.Clear();
+            foreach(var clip in asset.Clips)
             {
-                if(cache.Values.All(clip=>clip.All(sample=>sample.All(part=>part.mesh!=null && part.material!=null)))) return;
-                Debug.LogWarning("Кэш графики пони содержит освобождённые Unity-ресурсы; выполняется повторная подготовка после смены сцены.");
-                cache.Clear();poseBounds.Clear();
-            }
-            PonyAnimationData.Load();
-            var library = PonyAnimationData.Library;
-            var materials = new Dictionary<string, Material>();
-            foreach (var clip in library.clips)
-            {
-                var frames = new RenderPart[clip.frames.Length][];
-                var bounds = new Bounds[frames.Length];
-                for (int f = 0; f < frames.Length; f++)
-                {
-                    var source = clip.frames[f].parts;
-                    frames[f] = new RenderPart[source.Length];
-                    bool hasBounds=false;
-                    for (int p = 0; p < source.Length; p++)
-                    {
-                        var part = source[p];
-                        if(part.slot is not ("none" or "fur" or "hair" or "hairSecondary" or "eye" or "magic"))
-                            throw new InvalidOperationException($"Неизвестная цветовая область {part.slot}: shape={part.shape}, path={part.path}.");
-                        if (string.IsNullOrEmpty(part.texture)) throw new InvalidOperationException($"Не задана текстура части пони: shape={part.shape}, path={part.path}.");
-                        if (!materials.TryGetValue(part.texture, out var material))
-                        {
-                            var texture = Resources.Load<Texture2D>("Original/Pony/" + part.texture);
-                            if (texture == null) throw new InvalidOperationException($"Отсутствует часть пони: shape={part.shape}, path={part.path}.");
-                            material = WorldArtworkMaterial.Create(texture);
-                            materials.Add(part.texture, material);
-                        }
-                        var vertices = PonyAnimationData.Quad(part);
-                        var tint = new Color(part.color[0],part.color[1],part.color[2],part.color[3]);
-                        var mesh = new Mesh { name = $"{clip.id}:{f}:{part.path}", vertices = vertices,
-                            uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one },
-                            triangles = new[] { 0,2,1,2,3,1 }, colors = new[] {tint,tint,tint,tint} };
-                        mesh.RecalculateBounds();
-                        frames[f][p] = new RenderPart { mesh = mesh, material = material,
-                            slot = part.slot, visible = PonyAppearance.IsVisible(part) };
-                        if(frames[f][p].visible)
-                        {
-                            if(!hasBounds) {bounds[f]=mesh.bounds;hasBounds=true;}
-                            else bounds[f].Encapsulate(mesh.bounds);
-                        }
-                    }
-                    if(!hasBounds) throw new InvalidOperationException($"Нет видимых частей позы: clip={clip.id}, frame={f}.");
-                }
-                cache.Add(clip.id, frames);
-                poseBounds.Add(clip.id,bounds);
+                cache.Add(clip.id,clip.frames.Select(frame=>frame.parts).ToArray());
+                poseBounds.Add(clip.id,clip.frames.Select(frame=>frame.bounds).ToArray());
             }
         }
-
         public static Bounds WorldBounds(ActorState actor)
         {
             string clip=ActorPose.Clip(actor);
@@ -165,3 +123,4 @@ namespace Remains.Presentation
         }
     }
 }
+
