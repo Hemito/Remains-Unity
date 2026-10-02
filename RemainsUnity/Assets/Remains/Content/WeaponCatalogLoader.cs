@@ -108,6 +108,9 @@ namespace Remains.Content
         }
         private static void Validate(WeaponDefinition weapon,string source)
         {
+            if(!float.IsFinite(weapon.meleeContactStart) || !float.IsFinite(weapon.meleeContactEnd) ||
+                weapon.meleeContactStart<0 || weapon.meleeContactEnd>1 || weapon.meleeContactStart>=weapon.meleeContactEnd)
+                throw new InvalidDataException($"Некорректное окно контакта ближнего оружия: источник={source}, id={weapon.id}.");
             foreach(float value in new[]{weapon.damage,weapon.speedDamage,weapon.maxSpeedDamage,weapon.range,weapon.cooldown,weapon.manaCost,weapon.reloadSeconds,weapon.projectileSpeed,weapon.projectileSpeedVariation,weapon.projectileLifetime})
                 if(!float.IsFinite(value) || value<0) throw new InvalidDataException($"Некорректное число оружия: источник={source}, id={weapon.id}.");
             var speeds=weapon.ProjectileSpeedRange;

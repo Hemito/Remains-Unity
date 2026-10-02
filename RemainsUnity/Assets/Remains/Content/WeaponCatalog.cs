@@ -14,6 +14,7 @@ namespace Remains.Content
         public string ammo;
         public int magazineSize,ammoPerShot;
         public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
+        public float meleeContactStart,meleeContactEnd=1;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
         public float FlightRange(float speed)=>projectileLifetime>0?speed*projectileLifetime:range;
         public bool stopAtFirstActor,stopAtTerrain;

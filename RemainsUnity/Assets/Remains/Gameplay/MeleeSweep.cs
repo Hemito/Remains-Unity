@@ -16,6 +16,7 @@ namespace Remains.Gameplay
         public float Duration {get;}
         private const int Samples=36;
         private readonly float interval;
+        private readonly float contactStart,contactEnd;
         private readonly string weapon;
         private readonly Vector2 direction;
         private Vector2 previousOrigin,previousTip;
@@ -27,6 +28,8 @@ namespace Remains.Gameplay
         public MeleeSweep(string weapon,Vector2 origin,Vector2 direction)
         {
             Duration=Remains.Content.WeaponCatalog.Get(weapon).cooldown;interval=Duration/Samples;
+            var definition=Remains.Content.WeaponCatalog.Get(weapon);
+            contactStart=definition.meleeContactStart*Duration;contactEnd=definition.meleeContactEnd*Duration;
             this.weapon=weapon;this.direction=direction;previousOrigin=origin;
             Tip=previousTip=WeaponPose.Tip(weapon,origin,direction,0);
         }
@@ -39,7 +42,14 @@ namespace Remains.Gameplay
                 float time=sample*interval;
                 var sampledOrigin=Vector2.Lerp(previousOrigin,origin,Mathf.Clamp01((time-elapsed)/dt));
                 var tip=WeaponPose.Tip(weapon,sampledOrigin,direction,time/Duration);
-                emit(new MeleeSegment(previousTip,tip,interval));previousTip=tip;sample++;
+                float activeStart=Mathf.Max(time-interval,contactStart),activeEnd=Mathf.Min(time,contactEnd);
+                if(activeEnd-activeStart>0.000001f)
+                {
+                    var from=Vector2.Lerp(previousTip,tip,(activeStart-(time-interval))/interval);
+                    var to=Vector2.Lerp(previousTip,tip,(activeEnd-(time-interval))/interval);
+                    emit(new MeleeSegment(from,to,activeEnd-activeStart));
+                }
+                previousTip=tip;sample++;
             }
             Tip=WeaponPose.Tip(weapon,Vector2.Lerp(previousOrigin,origin,(end-elapsed)/dt),direction,end/Duration);
             elapsed=end;previousOrigin=origin;

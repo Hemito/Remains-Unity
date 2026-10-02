@@ -82,7 +82,7 @@ namespace Remains.Runtime
                 NetworkServer.SendToAll(new MeleeProbePhase {phase=1});return;
             }
             if(phase>2 || Time.unscaledTime-phaseAt<1.5f) return;
-            if(victim.damageSequence!=phase || victim.health>=100 || sweeps.Count!=phase || sweeps.Values.Any(count=>PauseScenario?count!=36:count<2))
+            if(victim.damageSequence!=phase || victim.health>=100 || sweeps.Count!=phase || sweeps.Values.Any(count=>PauseScenario?count!=12:count<2))
             {Complete(false,$"Ожидался один урон за взмах: phase={phase}, damageSequence={victim.damageSequence}, hp={victim.health}, attacks={sweeps.Count}.");return;}
             if(players.Where(a=>a.id!=victim.id).Any(a=>a.health!=100) || players.Any(a=>a.mana!=100))
             {Complete(false,"Ближний бой повредил наблюдателя или изменил ману.");return;}

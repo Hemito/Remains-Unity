@@ -19,7 +19,7 @@ namespace Remains.Editor
                     var sweep=new MeleeSweep(weapon,origin,Vector2.right);
                     Require(Mathf.Abs(sweep.Duration-(weapon=="spear"?1f/3:.5f))<.00001f,"Неверная базовая длительность "+weapon);
                     for(int frame=0;frame<200 && !sweep.Finished;frame++) sweep.Advance(origin,dt,samples.Add);
-                    Require(sweep.Finished && samples.Count==36,"Полная траектория при dt="+dt);
+                    Require(sweep.Finished && samples.Count==12,"Активная часть траектории при dt="+dt);
                     var target=WeaponPose.Tip(weapon,origin,Vector2.right,.5f);
                     Require(samples.Exists(s=>HitGeometry.SegmentDistance(target,s.start,s.end)<.01f),"Цель на середине дуги не пропущена: "+weapon);
                     if(reference!=null)
@@ -29,6 +29,16 @@ namespace Remains.Editor
                 }
             }
             var stationary=new List<MeleeSegment>();var moving=new List<MeleeSegment>();
+            foreach(string weapon in new[]{"spear","crowbar"})
+            {
+                var window=new MeleeSweep(weapon,Vector2.zero,Vector2.right);int contacts=0;
+                window.Advance(Vector2.zero,window.Duration/6,_=>contacts++);
+                Require(contacts==0,"Подготовка оружия наносит урон");
+                window.Advance(Vector2.zero,window.Duration/3,_=>contacts++);
+                Require(contacts==12,"Активный удар пропускает контакты");
+                window.Advance(Vector2.zero,window.Duration/2,_=>contacts++);
+                Require(window.Finished && contacts==12,"Возврат оружия наносит дополнительный урон");
+            }
             var timing=new MeleeSweep("crowbar",Vector2.zero,Vector2.right);
             timing.Advance(Vector2.zero,.3f,_=>{});Require(!timing.Finished,"Монтировка закончила удар через старые 0,3 с");
             timing.Advance(Vector2.zero,.2f,_=>{});Require(timing.Finished,"Монтировка не завершила цикл за 0,5 с");
