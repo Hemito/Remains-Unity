@@ -25,21 +25,27 @@ namespace Remains.Presentation
             }
             foreach(var ladder in room.ladders)
             {
+                if(!string.IsNullOrEmpty(ladder.artwork))
+                {
+                    Quad(parent,"Пристенная лестница",ladder.x+ladder.artworkOffset,ladder.bottom,1f,ladder.top-ladder.bottom,
+                        ladder.artwork,1,true,1,true,false,false,100,true);
+                    continue;
+                }
                 Quad(parent,"Левая стойка",ladder.x-0.25f,ladder.bottom,0.06f,ladder.top-ladder.bottom,ladder.texture,1,true,1,ladder.nativeScale);
                 Quad(parent,"Правая стойка",ladder.x+0.2f,ladder.bottom,0.06f,ladder.top-ladder.bottom,ladder.texture,1,true,1,ladder.nativeScale);
                 for(float y=ladder.bottom;y<ladder.top;y+=0.3f) Quad(parent,"Перекладина",ladder.x-0.25f,y,0.5f,0.06f,ladder.texture,1,true,1,ladder.nativeScale);
             }
             return parent.gameObject;
         }
-        private static void Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false,bool selfIlluminated=false)
+        private static void Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false,bool selfIlluminated=false,float pixelsPerUnit=50,bool localUv=false)
         {
             var texture=Resources.Load<Texture2D>("Original/Room/"+key);
             if(texture==null) throw new InvalidOperationException($"Отсутствует текстура комнаты: {key}, объект={name}.");
             texture.wrapMode=TextureWrapMode.Repeat;
             var obj=new GameObject(name); obj.transform.SetParent(parent,false); obj.transform.position=new Vector3(x,y,0);
-            float u=repeat?(nativeScale?width*50/texture.width:width):1;
-            float v=repeat && !stretchY?(nativeScale?height*50/texture.height:height):1;
-            var offset=repeat && nativeScale?new Vector2(x*50/texture.width,stretchY?0:y*50/texture.height):Vector2.zero;
+            float u=repeat?(nativeScale?width*pixelsPerUnit/texture.width:width):1;
+            float v=repeat && !stretchY?(nativeScale?height*pixelsPerUnit/texture.height:height):1;
+            var offset=repeat && nativeScale && !localUv?new Vector2(x*pixelsPerUnit/texture.width,stretchY?0:y*pixelsPerUnit/texture.height):Vector2.zero;
             var mesh=new Mesh { vertices=new[]{Vector3.zero,new Vector3(width,0,0),new Vector3(0,height,0),new Vector3(width,height,0)},
                 uv=new[]{offset,offset+new Vector2(u,0),offset+new Vector2(0,v),offset+new Vector2(u,v)},triangles=new[]{0,2,1,2,3,1},
                 colors=new[]{new Color(shade,shade,shade),new Color(shade,shade,shade),new Color(shade,shade,shade),new Color(shade,shade,shade)} };
