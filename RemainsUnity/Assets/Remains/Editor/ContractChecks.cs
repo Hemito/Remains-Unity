@@ -48,6 +48,9 @@ namespace Remains.Editor
             var worldManagement=Resources.Load<Remains.Presentation.WorldManagementView>("Presentation/WorldManagement");
             if(worldManagement==null) throw new InvalidOperationException("Нет префаба управления миром.");
             worldManagement.Validate();
+            var worldPicker=Resources.Load<Remains.Presentation.WorldPickerView>("Presentation/WorldPicker");
+            if(worldPicker==null) throw new InvalidOperationException("Нет префаба списка миров.");
+            worldPicker.Validate();
             PersonalInventoryPrefabChecks.Run();
             _=new Remains.Presentation.InventoryArtwork();
             var sharedInventory=Resources.Load<Remains.Presentation.SharedInventoryView>("Presentation/SharedInventory");

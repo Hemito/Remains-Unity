@@ -237,26 +237,29 @@ namespace Remains.Presentation
             worldChoices.Clear();
             var copies=session.Saves.Continuations();
             var selected=session.Saves.SelectedSnapshot();
-            worldPicker=Panel(transform,"Продолжения миров",new Vector2(170,-90),new Vector2(940,510));
-            Label(worldPicker.transform,"Выберите целую копию мира. Другие ветви сохранятся; объединения нет.",new Vector2(20,-15),new Vector2(900,50));
-            int pages=Math.Max(1,(copies.Count+4)/5);page=Math.Clamp(page,0,pages-1);
-            for(int row=0;row<5 && page*5+row<copies.Count;row++)
+            var view=WorldPickerView.Create(transform);worldPicker=view.gameObject;
+            int capacity=view.Choices.Length;
+            int pages=Math.Max(1,(copies.Count+capacity-1)/capacity);page=Math.Clamp(page,0,pages-1);
+            for(int row=0;row<capacity;row++)
             {
-                var copy=copies[page*5+row];var state=copy.CreateLiveWorld();
+                int index=page*capacity+row;bool visible=index<copies.Count;
+                view.Choices[row].gameObject.SetActive(visible);view.Manage[row].gameObject.SetActive(visible);
+                if(!visible) continue;
+                var copy=copies[index];var state=copy.CreateLiveWorld();
                 string relation=selected==null?"Сохранённая копия":WorldHistory.Description(
                     WorldHistory.Compare(state,copy.Id,selected.CreateLiveWorld(),selected.Id));
-                var choice=Button(worldPicker.transform,$"{new WorldLibrary(session.Saves).Name(state.worldId)} · ветвь {state.branchId.Substring(0,8)} · ревизия {state.revision}\n{relation}",
-                    new Vector2(20,-75-row*70),new Vector2(680,62),()=>
-                    {session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();});
+                var choice=view.Choices[row];
+                choice.GetComponentInChildren<Text>().text=$"{new WorldLibrary(session.Saves).Name(state.worldId)} · ветвь {state.branchId.Substring(0,8)} · ревизия {state.revision}\n{relation}";
+                choice.onClick.AddListener(()=>{session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();});
                 worldChoices[copy.Id]=choice.GetComponent<RectTransform>();
-                Button(worldPicker.transform,"Имя / удалить",new Vector2(710,-75-row*70),new Vector2(210,62),()=>
+                view.Manage[row].onClick.AddListener(()=>
                     WorldManagementPanel.Open(transform,session.Saves,state.worldId,()=>{ShowWorldPicker(page);RefreshSelectedWorld();}));
             }
-            if(copies.Count==0) Label(worldPicker.transform,"Сохранённых миров пока нет.",new Vector2(20,-90),new Vector2(850,50));
-            Button(worldPicker.transform,"Назад",new Vector2(20,-440),new Vector2(180,45),()=>ShowWorldPicker(page-1)).interactable=page>0;
-            Label(worldPicker.transform,$"{page+1} / {pages}",new Vector2(220,-440),new Vector2(160,45));
-            Button(worldPicker.transform,"Далее",new Vector2(410,-440),new Vector2(180,45),()=>ShowWorldPicker(page+1)).interactable=page+1<pages;
-            Button(worldPicker.transform,"Закрыть",new Vector2(730,-440),new Vector2(190,45),()=>Destroy(worldPicker));
+            view.Empty.gameObject.SetActive(copies.Count==0);
+            view.Previous.onClick.AddListener(()=>ShowWorldPicker(page-1));view.Previous.interactable=page>0;
+            view.Page.text=$"{page+1} / {pages}";
+            view.Next.onClick.AddListener(()=>ShowWorldPicker(page+1));view.Next.interactable=page+1<pages;
+            view.Close.onClick.AddListener(()=>Destroy(worldPicker));
         }
 
         private static string ItemName(string id)
