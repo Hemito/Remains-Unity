@@ -173,12 +173,19 @@ namespace Remains.Runtime
             if(!expected.SequenceEqual(visible)) {Finish(false,$"Неверная видимость: expected={string.Join(",",expected)}, actual={string.Join(",",visible)}");return;}
             // Transient effects must expire before counting retained room resources.
             if(FindObjectsByType<ExplosionVisual>(FindObjectsSortMode.None).Length>0) return;
+            var projectiles=FindObjectsByType<ProjectileVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            if(projectiles.Any(projectile=>projectile.Level!=self.level))
+            {Finish(false,"Снаряд остался в представлении другой локации.");return;}
+            if(projectiles.Length>0) return;
             int expectedSprites=session.World.actors.Where(a=>expected.Contains(a.id)).Sum(a=>(Remains.Content.ActorTypes.Get(a.actorType).hasWeapon?1:0)+(Remains.Content.ActorTypes.Get(a.actorType).presentation=="pony"?0:1))+session.World.props.Count(p=>p.level==self.level)+session.World.containers.Count(c=>c.level==self.level)+runtime.Grenades.Flights.Count(f=>f.state.level==self.level);
-            int spriteCount=FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).Length;
-            var rooms=FindObjectsByType<RoomMeshLifetime>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            var spriteViews=FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            int spriteCount=spriteViews.Length;
+            var rooms=FindObjectsByType<Remains.Content.RoomAuthoring>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            var lighting=FindObjectsByType<RoomLighting>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            int lightMaps=Resources.FindObjectsOfTypeAll<Texture2D>().Count(texture=>texture.name.StartsWith("Свет: "));
             int roomMaterials=Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("RoomMaterial:"));
-            if(spriteCount!=expectedSprites || rooms.Length!=1 || roomMaterials!=rooms[0].Materials.Count)
-            {Finish(false,$"Ресурсы локации не освобождены: sprites={spriteCount}/{expectedSprites}, rooms={rooms.Length}, materials={roomMaterials}.");return;}
+            if(spriteCount!=expectedSprites || rooms.Length!=1 || lighting.Length!=1 || lighting[0].gameObject!=rooms[0].gameObject || lightMaps!=1 || roomMaterials!=0)
+            {Finish(false,$"Ресурсы локации не освобождены: sprites={spriteCount}/{expectedSprites}, rooms={rooms.Length}, lights={lighting.Length}, lightMaps={lightMaps}, legacyMaterials={roomMaterials}; objects={string.Join(",",spriteViews.Select(view=>view.name))}.");return;}
             if(!acked)
             {
                 acked=true;

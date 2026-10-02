@@ -134,7 +134,7 @@ namespace Remains.Presentation
             nextContainer=Button(containerPanel.transform,"→",new Vector2(252,-390),new Vector2(65,32),()=>{containerPage++;Refresh();});
             inventory.SetActive(false);
             var personalPanel=inventoryView.Personal;
-            personalItems=new PersonalInventoryPanel(personalPanel.transform,elements,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
+            personalItems=new PersonalInventoryPanel(personalPanel.transform,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
             inventoryWindow=new InventoryWindow(inventoryView,ToggleInventory,inventoryAudio.Page);
             friendlyFire=Button(transform,"Дружественный огонь",new Vector2(20,-270),new Vector2(290,45),()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=Button(transform,"Решение о попадании",new Vector2(20,-320),new Vector2(290,60),()=>
@@ -309,6 +309,7 @@ namespace Remains.Presentation
         private InputField Input(Transform parent,Vector2 position)=>elements.Input(parent,position);
     }
 }
+
 
 
 

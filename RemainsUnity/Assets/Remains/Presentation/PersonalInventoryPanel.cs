@@ -11,14 +11,14 @@ namespace Remains.Presentation
         private readonly CoopSession session;
         private readonly Func<string,string> itemName;
         private readonly Func<int> quantity;
-        private readonly Button[] rows=new Button[8];
-        private readonly string[] weapons={"spear","crowbar","pistol","energy"};
-        private readonly Button[] weaponButtons=new Button[4];
-        private readonly Image[] icons=new Image[8];
+        private readonly Button[] rows;
+        private readonly string[] weapons;
+        private readonly Button[] weaponButtons;
+        private readonly Image[] icons;
         private readonly Image detailIcon;
         private readonly InventoryArtwork artwork;
         private readonly InventoryPortrait portrait;
-        private readonly string[] ids=new string[8];
+        private readonly string[] ids;
         private readonly Button previous,next,deposit,use;
         private readonly Text title,detail,actionStatus;
         private InventorySource container;
@@ -28,41 +28,21 @@ namespace Remains.Presentation
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
         public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();
-        public PersonalInventoryPanel(Transform parent,HudElements ui,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork)
+        public PersonalInventoryPanel(Transform parent,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork)
         {
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
-            title=ui.Label(parent,"Личный инвентарь",new Vector2(20,-16),new Vector2(760,32));
-            string[] names={"1 · Копьё","2 · Лом","3 · Пистолет","4 · Лазер"};
-            for(int i=0;i<4;i++)
-            {
-                string weapon=weapons[i];
-                var button=ui.Button(parent,names[i],new Vector2(20+i*195,-56),new Vector2(185,38),()=>equip(weapon));
-                weaponButtons[i]=button;
-                artwork.Create(button.transform,new Vector2(8,-7),new Vector2(47,24),weapon);
-                var weaponLabel=button.GetComponentInChildren<Text>();weaponLabel.fontSize=20;
-                HudElements.Rect(weaponLabel.rectTransform,new Vector2(60,-3),new Vector2(120,32));
-            }
-            for(int i=0;i<rows.Length;i++)
-            {
-                int index=i;
-                rows[i]=ui.Button(parent,"",new Vector2(20,-112-i*40),new Vector2(420,36),()=>{selected=ids[index];Refresh(container);});
-                var label=rows[i].GetComponentInChildren<Text>();label.fontSize=20;label.alignment=TextAnchor.MiddleLeft;label.resizeTextForBestFit=true;label.resizeTextMinSize=16;label.resizeTextMaxSize=20;
-                HudElements.Rect(label.rectTransform,new Vector2(48,-3),new Vector2(368,30));
-                icons[i]=artwork.Create(rows[i].transform,new Vector2(7,-3),new Vector2(32,30));
-            }
-            previous=ui.Button(parent,"←",new Vector2(20,-449),new Vector2(65,34),()=>{page--;Refresh(container);});
-            next=ui.Button(parent,"→",new Vector2(375,-449),new Vector2(65,34),()=>{page++;Refresh(container);});
-            var hint=ui.Label(parent,"Выберите предмет, затем действие справа",new Vector2(20,-494),new Vector2(420,30));hint.fontSize=18;
-            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(228,180));detail.fontSize=18;
-            actionStatus=ui.Label(parent,"",new Vector2(465,-296),new Vector2(325,36));actionStatus.fontSize=16;
-            detailIcon=artwork.Create(parent,new Vector2(730,-112),new Vector2(54,54));
-            portrait=new InventoryPortrait(parent,new Vector2(702,-178),new Vector2(88,112));
-            use=ui.Button(parent,"Использовать аптечку",new Vector2(465,-338),new Vector2(325,42),()=>{session.RequestSelfHeal();Refresh(container);});
-            deposit=ui.Button(parent,"Положить в контейнер →",new Vector2(465,-390),new Vector2(325,42),()=>
-            {if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
-            var armor=ui.Panel(parent,"Место экипировки",new Vector2(465,-448),new Vector2(325,70));
-            var labelArmor=ui.Label(armor.transform,"Экипировка\nБроня — пока недоступна",new Vector2(12,-8),new Vector2(300,56));
-            labelArmor.color=new Color(.38f,.55f,.45f);labelArmor.fontSize=20;
+            var prefab=Resources.Load<PersonalInventoryView>("Presentation/PersonalInventory");
+            if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/PersonalInventory.");
+            prefab.Validate();var view=UnityEngine.Object.Instantiate(prefab,parent,false);
+            rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
+            detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
+            title=view.Title;detail=view.Detail;actionStatus=view.ActionStatus;
+            portrait=new InventoryPortrait(view.Portrait,view.PortraitParts);
+            for(int i=0;i<weaponButtons.Length;i++) {string weapon=weapons[i];weaponButtons[i].onClick.AddListener(()=>equip(weapon));}
+            for(int i=0;i<rows.Length;i++) {int index=i;rows[i].onClick.AddListener(()=>{selected=ids[index];Refresh(container);});}
+            previous.onClick.AddListener(()=>{page--;Refresh(container);});next.onClick.AddListener(()=>{page++;Refresh(container);});
+            use.onClick.AddListener(()=>{session.RequestSelfHeal();Refresh(container);});
+            deposit.onClick.AddListener(()=>{if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
             session.Deposits.Reconciled+=()=>Refresh(container);
         }
         public void Refresh(InventorySource destination)
@@ -76,7 +56,7 @@ namespace Remains.Presentation
             }
             page=Mathf.Clamp(page,0,Math.Max(0,(count-1)/rows.Length));
             previous.interactable=page>0;next.interactable=(page+1)*rows.Length<count;
-            title.text=$"Личный инвентарь · {page+1}/{Math.Max(1,(count+7)/8)}";
+            title.text=$"Личный инвентарь · {page+1}/{Math.Max(1,(count+rows.Length-1)/rows.Length)}";
             var chosen=actor?.inventory.Find(item=>item.id==selected);
             if(chosen==null) selected=null;
             for(int i=0;i<rows.Length;i++)
@@ -113,3 +93,4 @@ namespace Remains.Presentation
         };
     }
 }
+

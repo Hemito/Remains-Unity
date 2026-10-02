@@ -39,6 +39,7 @@ namespace Remains.Editor
             MainMenuPrefabChecks.Run();
             CombatHudPrefabChecks.Run();
             InventoryWindowChecks.Run();
+            PersonalInventoryPrefabChecks.Run();
             LightingChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();
             DamageFeedbackChecks.Run();
