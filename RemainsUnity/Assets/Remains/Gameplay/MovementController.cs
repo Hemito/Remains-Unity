@@ -39,6 +39,7 @@ namespace Remains.Gameplay
             if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
             actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings,actor.crouched,actor.crouched?dt:accelerationTime);
             if (input.x != 0) actor.facing = input.x > 0 ? 1 : -1;
+            bool launched=jump && (grounded || wasClimbing) && !drop && !ladder;
             float verticalDistance;
             if (ladder)
             {
@@ -48,7 +49,7 @@ namespace Remains.Gameplay
             }
             else
             {
-                verticalDistance=VerticalMotion.Step(actor,jump && (grounded || wasClimbing) && !drop,jumpHeld,dt,settings);
+                verticalDistance=VerticalMotion.Step(actor,launched,jumpHeld,dt,settings);
             }
             var desired=new Vector2(actor.vx*dt,verticalDistance);
             actor.Position=ActorTerrainMotion.Move(room,hull,previous,desired,ladder,droppedSurface);
@@ -65,7 +66,7 @@ namespace Remains.Gameplay
             if(ladder && supported && Mathf.Abs(input.y)<.1f &&
                 (actor.y<=selected.bottom+.001f || actor.y>=selected.top-.001f)) ladder=false;
             actor.climbing=ladder;
-            StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? "climb" : !supported ? "jump" : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched);
+            StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? "climb" : !supported ? AirbornePose.Select(actor,launched,grounded || wasClimbing || drop) : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched);
         }
     }
 }

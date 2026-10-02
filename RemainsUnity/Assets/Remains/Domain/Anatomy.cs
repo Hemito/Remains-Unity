@@ -8,7 +8,7 @@ namespace Remains.Domain
     [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; public string[] shapes; public HitRegionPose[] poses; }
     [Serializable] public sealed class HitRegionPose {public string pose;public Vector2[] centers;}
     [Serializable] public sealed class MovementHull { public float width,height; }
-    [Serializable] public sealed class AnatomyDefinition { public string id,atlasArtwork,landingPose; public MovementHull movement,crouchingMovement; public HitRegionDefinition[] regions; }
+    [Serializable] public sealed class AnatomyDefinition { public string id,atlasArtwork,landingPose,fallPose; public MovementHull movement,crouchingMovement; public HitRegionDefinition[] regions; }
     [Serializable] public sealed class AnatomyCatalog { public AnatomyDefinition[] anatomies; }
     public static class Anatomy
     {
@@ -35,11 +35,12 @@ namespace Remains.Domain
                     if(region==null || string.IsNullOrEmpty(region.id) || !ids.Add(region.id) || !float.IsFinite(region.radius) || region.radius<=0 || !float.IsFinite(region.x) || !float.IsFinite(region.y))
                         throw new InvalidOperationException($"Некорректная область {region?.id} анатомии {definition.id}.");
                 definitions.Add(definition.id,definition);
-                if(!string.IsNullOrEmpty(definition.landingPose))
+                foreach(var optionalPose in new[]{definition.landingPose,definition.fallPose})
+                if(!string.IsNullOrEmpty(optionalPose))
                 {
                     if(!string.IsNullOrEmpty(definition.atlasArtwork))
-                        AtlasAnimationData.Get(definition.atlasArtwork).Clip(definition.landingPose);
-                    else PonyAnimationData.Duration(definition.landingPose);
+                        AtlasAnimationData.Get(definition.atlasArtwork).Clip(optionalPose);
+                    else PonyAnimationData.Duration(optionalPose);
                 }
                 foreach(var region in definition.regions)
                 {
@@ -80,6 +81,7 @@ namespace Remains.Domain
             }
         }
 
+        public static string FallPose(ActorState actor)=>definitions[actor.anatomy].fallPose;
         public static string LandingPose(ActorState actor)=>definitions[actor.anatomy].landingPose;
         public static float PoseDuration(ActorState actor,string pose)
         {

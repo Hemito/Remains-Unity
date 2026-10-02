@@ -11,7 +11,7 @@ namespace Remains.Gameplay
             string landing=Anatomy.LandingPose(actor);
             if(!string.IsNullOrEmpty(landing) && target=="idle")
             {
-                if(actor.pose=="jump") {ActorPose.Select(actor,landing);return;}
+                if(actor.pose=="jump" || actor.pose==Anatomy.FallPose(actor)) {ActorPose.Select(actor,landing);return;}
                 if(actor.pose==landing && actor.poseTime<Anatomy.PoseDuration(actor,landing)) return;
             }
             if(actor.crouched!=wasCrouched && target==(actor.crouched?"crouch":"idle"))

@@ -32,6 +32,8 @@ namespace Remains.Runtime
         private readonly HashSet<string> observedLanding=new();
         private bool independentStance,crouchCaptured;
         private readonly HashSet<string> observedJumpSupport=new();
+        private readonly HashSet<string> observedFall=new();
+        private bool fallCaptured;
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+75;value.CommandSource=Command;
@@ -123,9 +125,12 @@ namespace Remains.Runtime
                     if(other.pose=="crouchLower") observedLower.Add(other.id);
                     if(other.pose=="crouchRise") observedRise.Add(other.id);
                     if(other.pose=="landing") observedLanding.Add(other.id);
+                    if(other.pose=="fall") observedFall.Add(other.id);
                 }
             if(Host && !crouchCaptured && self.pose=="crawl" && Mathf.Abs(self.vx+2.1f)<.05f && runtime.Options.Smoke.Contains("-frames-"))
             {NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".crouch.png",runtime.Hud.GetComponent<Canvas>());crouchCaptured=true;}
+            if(Host && !fallCaptured && self.pose=="fall" && self.vy<-1.2f && runtime.Options.Smoke.Contains("-frames-"))
+            {NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".fall.png",runtime.Hud.GetComponent<Canvas>());fallCaptured=true;}
             if(NetworkServer.active && !configured) {configured=true;runtime.Session.SetFriendlyFire(false);}
             if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers || runtime.Session.World.friendlyFire) return;
             var targets=runtime.Session.World.actors.Where(a=>a.actorType=="training-dummy").ToArray();
@@ -145,7 +150,7 @@ namespace Remains.Runtime
             if(!jumping.Complete || observedJumpSupport.Count!=runtime.Options.ProbePeers-1) return;
             if(!crouching.Complete || observedCrouch.Count!=runtime.Options.ProbePeers-1 || runtime.Options.ProbePeers>1 && !independentStance) return;
             if(observedLower.Count!=runtime.Options.ProbePeers-1 || observedRise.Count!=runtime.Options.ProbePeers-1) return;
-            if(observedLanding.Count!=runtime.Options.ProbePeers-1) return;
+            if(observedLanding.Count!=runtime.Options.ProbePeers-1 || observedFall.Count!=runtime.Options.ProbePeers-1) return;
             if(runtime.MovementAudio.LocalContacts<5 || runtime.Options.ProbePeers>1 && runtime.MovementAudio.RemoteContacts<5 || runtime.MovementAudio.Landings<2)
             {Finish(false,"Не воспроизведены локальные/удалённые шаги и приземления.");return;}
             if(runtime.MovementAudio.LandingVoices!=runtime.MovementAudio.Landings*2)
@@ -172,9 +177,9 @@ namespace Remains.Runtime
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,landingVoices=runtime.MovementAudio.LandingVoices,ladderContacts=runtime.MovementAudio.LadderContacts,
-                remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,remoteLandingPoses=observedLanding.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
+                remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,remoteLandingPoses=observedLanding.Count,remoteFallPoses=observedFall.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }

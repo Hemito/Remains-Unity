@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Remains.Content
 {
     [Serializable] public sealed class MotionFramePoint { public float velocity; public int frame; }
-    [Serializable] public sealed class MotionFrameCurve { public string clip; public MotionFramePoint[] points; }
+    [Serializable] public sealed class MotionFrameCurve { public string clip,axis; public bool limited; public float maxVerticalVelocity,maxHorizontalSpeed; public MotionFramePoint[] points; }
     [Serializable] public sealed class MotionFrameLibrary { public MotionFrameCurve[] curves; }
 
     // Authored pose curves consume replicated motion, never a local animation clock.
@@ -23,8 +23,12 @@ namespace Remains.Content
             foreach(var curve in parsed.curves)
             {
                 var clip=Array.Find(animation.clips,c=>c.id==curve.clip);
-                if(clip==null || !ids.Add(curve.clip) || curve.points==null || curve.points.Length<2)
+                if(clip==null || !ids.Add(curve.clip+":"+curve.axis) || curve.points==null || curve.points.Length<2)
                     throw new InvalidOperationException("Некорректная кривая позы: "+curve.clip);
+                if(curve.axis!=null && curve.axis!="" && curve.axis!="vertical" && curve.axis!="forward")
+                    throw new InvalidOperationException("Неизвестная ось кривой позы: "+curve.clip+"/"+curve.axis);
+                if(curve.limited && (!float.IsFinite(curve.maxVerticalVelocity) || !float.IsFinite(curve.maxHorizontalSpeed) || curve.maxHorizontalSpeed<0))
+                    throw new InvalidOperationException("Неверные ограничения кривой позы: "+curve.clip);
                 float previous=float.NegativeInfinity;
                 foreach(var point in curve.points)
                 {
@@ -41,12 +45,14 @@ namespace Remains.Content
             foreach(var curve in library.curves)
             {
                 if(curve.clip!=clip || actor.down) continue;
+                if(curve.limited && (actor.vy>curve.maxVerticalVelocity || Mathf.Abs(actor.vx)>curve.maxHorizontalSpeed)) continue;
+                float velocity=curve.axis=="forward"?actor.vx*actor.facing:actor.vy;
                 var points=curve.points;
-                if(actor.vy<=points[0].velocity) return points[0].frame;
+                if(velocity<=points[0].velocity) return points[0].frame;
                 for(int i=1;i<points.Length;i++)
-                    if(actor.vy<=points[i].velocity)
+                    if(velocity<=points[i].velocity)
                     {
-                        float fraction=Mathf.InverseLerp(points[i-1].velocity,points[i].velocity,actor.vy);
+                        float fraction=Mathf.InverseLerp(points[i-1].velocity,points[i].velocity,velocity);
                         return Mathf.RoundToInt(Mathf.Lerp(points[i-1].frame,points[i].frame,fraction));
                     }
                 return points[^1].frame;
