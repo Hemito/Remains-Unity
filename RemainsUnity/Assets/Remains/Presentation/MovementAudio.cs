@@ -13,6 +13,7 @@ namespace Remains.Presentation
         [Serializable] public sealed class Settings
         {
             public float stepDistance,ladderDistance,teleportDistance,volume,landingGain,ladderGain;
+            public int landingLayers;
             public string[] actorTypes;
             public SoundBank[] banks;
         }
@@ -28,6 +29,7 @@ namespace Remains.Presentation
         public int LocalContacts {get;private set;}
         public int RemoteContacts {get;private set;}
         public int Landings {get;private set;}
+        public int LandingVoices {get;private set;}
         public int LadderContacts {get;private set;}
 
         public void Initialize(CoopSession session,SimulationGeometry geometry,GameplayAudio audio)
@@ -37,7 +39,7 @@ namespace Remains.Presentation
             if(asset==null) throw new InvalidOperationException("Нет настроек Presentation/movement-audio.");
             settings=JsonUtility.FromJson<Settings>(asset.text);
             if(settings.stepDistance<=0 || settings.ladderDistance<=0 || settings.teleportDistance<=0 ||
-                settings.volume<=0 || settings.volume>1 || settings.landingGain<=0 || settings.ladderGain<=0 || settings.banks==null || settings.actorTypes==null)
+                settings.volume<=0 || settings.volume>1 || settings.landingGain<=0 || settings.ladderGain<=0 || settings.landingLayers<1 || settings.landingLayers>8 || settings.banks==null || settings.actorTypes==null)
                 throw new InvalidOperationException("Некорректные настройки звуков движения.");
             foreach(string type in settings.actorTypes) types.Add(type);
             foreach(var bank in settings.banks)
@@ -84,9 +86,13 @@ namespace Remains.Presentation
                     continue;
                 }
                 float gain=settings.volume*(contact==MotionContact.Landing?settings.landingGain:contact==MotionContact.Ladder?settings.ladderGain:1);
-                if(!audio.PlayContact(clips[track.sample++%clips.Length],actor.level,actor.Position,gain)) continue;
+                int layers=contact==MotionContact.Landing?settings.landingLayers:1;
+                int played=0;
+                for(int layer=0;layer<layers;layer++)
+                    if(audio.PlayContact(clips[track.sample++%clips.Length],actor.level,actor.Position,gain)) played++;
+                if(played==0) continue;
                 if(actor.id==listener.id) LocalContacts++;else RemoteContacts++;
-                if(contact==MotionContact.Landing) Landings++;
+                if(contact==MotionContact.Landing) {Landings++;LandingVoices+=played;}
                 if(contact==MotionContact.Ladder) LadderContacts++;
             }
         }
