@@ -10,12 +10,15 @@ namespace Remains.Content
         public float groundAcceleration,groundBraking,airAcceleration,airBraking,climbDownMultiplier;
         public float actorGravity,jumpSupportSeconds;
         public float crouchSpeed,crouchSolidSeconds,crouchPlatformSeconds;
+        public float sprintPreparationSeconds;
         public void Validate()
         {
             foreach(float value in new[]{walkSpeed,runSpeed,climbSpeed,jumpSpeed,dropSpeed,doubleTapSeconds,
                 groundAcceleration,groundBraking,airAcceleration,airBraking,climbDownMultiplier,actorGravity,jumpSupportSeconds,crouchSpeed,crouchSolidSeconds,crouchPlatformSeconds})
                 if(!float.IsFinite(value) || value<=0) throw new InvalidOperationException("Параметры движения должны быть конечными положительными числами.");
             if(runSpeed<walkSpeed) throw new InvalidOperationException("Скорость бега ниже скорости ходьбы.");
+            if(!float.IsFinite(sprintPreparationSeconds) || sprintPreparationSeconds<0)
+                throw new InvalidOperationException("Время подготовки бега должно быть конечным неотрицательным числом.");
         }
         public static MovementSettings Load()
         {

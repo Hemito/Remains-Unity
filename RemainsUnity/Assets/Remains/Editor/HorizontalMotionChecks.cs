@@ -11,6 +11,7 @@ namespace Remains.Editor
         public static void Run()
         {
             var settings=MovementSettings.Load();
+            CheckSprintPreparation(settings);
             foreach(int rate in new[]{30,60,144})
             {
                 float dt=1f/rate,velocity=0;
@@ -40,5 +41,30 @@ namespace Remains.Editor
             Debug.Log("Инерция: PASS — разгон, остановка, воздух при 30/60/144 Гц и продолжение после копирования.");
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException(reason);}
+        private static void CheckSprintPreparation(Remains.Content.MovementSettings settings)
+        {
+            foreach(int rate in new[]{30,60,144})
+            {
+                var preparation=new SprintPreparation();var actor=new ActorState {id="sprint-timing"};
+                float available=0;
+                for(int i=0;i<rate;i++) available+=preparation.AccelerationTime(actor,1,true,1f/rate,settings.sprintPreparationSeconds);
+                Require(Mathf.Abs(available-(1-settings.sprintPreparationSeconds))<.00001f,"Подготовка бега зависит от частоты симуляции");
+                preparation.AccelerationTime(actor,0,false,.01f,settings.sprintPreparationSeconds);
+                Require(preparation.AccelerationTime(actor,1,true,.05f,settings.sprintPreparationSeconds)==0,"Отпускание направления не сбросило подготовку");
+                preparation.AccelerationTime(actor,1,false,.2f,settings.sprintPreparationSeconds);
+                Require(Mathf.Abs(preparation.AccelerationTime(actor,-1,true,.05f,settings.sprintPreparationSeconds)-.05f)<.00001f,
+                    "После ходьбы или смены направления появилась повторная задержка");
+                actor.generation++;
+                Require(preparation.AccelerationTime(actor,1,true,.05f,settings.sprintPreparationSeconds)==0,"Новый владелец унаследовал историю чужого ввода");
+            }
+            var controller=new MovementController(RoomLayout.Load());var runner=new ActorState {id="sprint-start"};
+            controller.Step(runner,Vector2.right,false,.1f,true);
+            Require(runner.vx==0 && runner.x==0,"Бег с места ускоряется до окончания подготовки");
+            controller.Step(runner,Vector2.right,false,.1f,true);
+            Require(runner.vx>0 && runner.x>0,"Бег не начинается после подготовки");
+            float before=runner.vx;
+            controller.Step(runner,Vector2.zero,false,.01f,true);
+            Require(runner.vx<before,"Подготовка бега подавляет торможение");
+        }
     }
 }

@@ -9,6 +9,7 @@ namespace Remains.Gameplay
         private readonly RoomLayout room;
         private readonly ReleasedTapGesture downTap;
         private readonly MovementSettings settings;
+        private readonly SprintPreparation sprintPreparation=new();
         private float? droppedSurface;
         public MovementController(RoomLayout room,MovementSettings settings=null)
         {
@@ -19,6 +20,7 @@ namespace Remains.Gameplay
         {
             ActorPositionRecovery.Repair(actor,room,"движение");
             bool dropPressed=downTap.Step(input.y<-.1f,dt);
+            float accelerationTime=sprintPreparation.AccelerationTime(actor,input.x,sprint,dt,settings.sprintPreparationSeconds);
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
             if (actor.down) { actor.climbing=false;actor.jumpSupportRemaining=0;actor.vx = 0; actor.vy = 0; return; }
             var previous=actor.Position;
@@ -35,7 +37,7 @@ namespace Remains.Gameplay
             if(actor.crouched) {ladder=false;jump=false;}
             if(grounded || drop || ladder) actor.jumpSupportRemaining=0;
             if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
-            actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings,actor.crouched);
+            actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings,actor.crouched,actor.crouched?dt:accelerationTime);
             if (input.x != 0) actor.facing = input.x > 0 ? 1 : -1;
             float verticalDistance;
             if (ladder)
