@@ -16,8 +16,8 @@ namespace Remains.Presentation
         private PropArtwork propArtwork;
         private WeaponShotAnimation shotAnimation;
         private readonly Dictionary<string,Sprite> sprites=new();
-        private readonly Dictionary<string,SpriteRenderer> props=new();
-        private readonly Dictionary<string,SpriteRenderer> containers=new();
+        private readonly Dictionary<string,PropView> props=new();
+        private readonly Dictionary<string,PropView> containers=new();
         private readonly Dictionary<string,SpriteRenderer> weapons=new();
         private readonly Dictionary<string,SpriteRenderer> flights=new();
         private readonly HashSet<string> missingGraphics=new();
@@ -70,10 +70,10 @@ namespace Remains.Presentation
             Prune(flights,new(grenades.Flights.Where(f=>f.state.level==level).Select(f=>f.state.id)));
             foreach(var container in session.World.containers.Where(c=>c.level==level))
             {
-                if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=Create("Контейнер "+container.id,propArtwork.Get(container.definition),container.width));
-                view.transform.position=container.Center;view.enabled=container.level==session.LocalActor?.level;
+                if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=propArtwork.CreateView(container.definition,"Контейнер "+container.id,container.width));
+                view.transform.position=container.Center;view.SetVisible(container.level==session.LocalActor?.level);
             }
-            foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,Create(prop.id,propArtwork.Get(prop.definition),prop.width));
+            foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,propArtwork.CreateView(prop.definition,prop.id,prop.width));
             foreach(var actor in session.World.actors)
                 if(ActorPresence.IsPresent(actor) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
                 {
@@ -83,19 +83,19 @@ namespace Remains.Presentation
             foreach(var flight in grenades.Flights.Where(f=>f.state.level==level))
                 if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"],.35f));
         }
-        private static void Prune(Dictionary<string,SpriteRenderer> views,HashSet<string> retained)
+        private static void Prune<T>(Dictionary<string,T> views,HashSet<string> retained) where T:Component
         {
             foreach(var id in views.Keys.Where(id=>!retained.Contains(id)).ToArray())
-            {views[id].enabled=false;Destroy(views[id].gameObject);views.Remove(id);}
+            {views[id].gameObject.SetActive(false);Destroy(views[id].gameObject);views.Remove(id);}
         }
         private void Update()
         {
             if(session?.World==null) return;
             foreach(var prop in session.World.props)
-                if(props.TryGetValue(prop.id,out var view)) {view.transform.position=prop.Center;view.enabled=prop.level==session.LocalActor?.level;}
+                if(props.TryGetValue(prop.id,out var view)) {view.transform.position=prop.Center;view.SetVisible(prop.level==session.LocalActor?.level);}
             foreach(var container in session.World.containers)
                 if(containers.TryGetValue(container.id,out var view))
-                {view.transform.position=container.Center;view.enabled=container.level==session.LocalActor?.level;}
+                {view.transform.position=container.Center;view.SetVisible(container.level==session.LocalActor?.level);}
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;

@@ -24,7 +24,7 @@ namespace Remains.Editor
         {
             serializedObject.Update();Field("id","Стабильный ID");Field("name","Название");
             Field("resource","Стабильный ключ графики (для модов)");
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("texture"),new GUIContent("Текстура объекта"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("prefab"),new GUIContent("Префаб объекта"));
             Field("mass","Масса, кг");Field("width","Ширина, м");Field("height","Высота, м");serializedObject.ApplyModifiedProperties();
         }
     }
