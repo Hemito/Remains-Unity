@@ -38,6 +38,7 @@ namespace Remains.Gameplay
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {
+                    controller.Step(actor,Vector2.zero,false,dt);
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
