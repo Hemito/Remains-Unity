@@ -41,6 +41,7 @@ namespace Remains.Editor
             image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"scene-turned.png"),image.EncodeToPNG());
             var network=new GameObject("Проверка интерфейса");network.AddComponent<KcpTransport>();
             var session=network.AddComponent<CoopSession>();session.Saves=new SaveStore(Path.Combine(directory,"hud-save"));
+            session.ConfigureRules(WeaponCatalog.Rules);
             var world=new WorldState();var uiActor=new ActorState{id="ui-player",character="Проверка",player=true,connected=true,x=-1.5f,health=65,mana=70};
             WeaponAmmunition.Initialize(uiActor,true);world.actors.Add(uiActor);
             var container=new ContainerState();world.containers.Add(container);
@@ -49,9 +50,21 @@ namespace Remains.Editor
             typeof(CoopSession).GetProperty(nameof(CoopSession.World)).SetValue(session,world);
             typeof(CoopSession).GetProperty(nameof(CoopSession.LocalActorId)).SetValue(session,"ui-player");
             var hud=new GameObject("Интерфейс проверки").AddComponent<PrototypeHud>();hud.Initialize(session);hud.ToggleInventory();
+            hud.DepositRowRect(2).GetComponent<Button>().onClick.Invoke();
             var canvas=hud.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=1;canvas.sortingOrder=32767;
             Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
             image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"hud.png"),image.EncodeToPNG());
+            var containerPosition=container.Position;container.Position=new Vector2(100,0);
+            hud.ToggleInventory();hud.ToggleInventory();Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
+            image.ReadPixels(new Rect(0,0,1280,720),0,0);image.Apply();File.WriteAllBytes(Path.Combine(directory,"inventory-no-container.png"),image.EncodeToPNG());
+            foreach(var text in hud.GetComponentsInChildren<Text>())
+                if(text.text.StartsWith("Аптечка\n",StringComparison.Ordinal) || text.text=="Рядом нет доступного контейнера.")
+                {
+                    Debug.Log($"Описание выбранной аптечки: требуется={text.preferredHeight}, доступно={text.rectTransform.rect.height}.");
+                    if(text.preferredHeight>text.rectTransform.rect.height+.1f)
+                        throw new InvalidOperationException("Описание или причина недоступной передачи обрезается.");
+                }
+            container.Position=containerPosition;
             var bodyInventory=new ActorState {id="ui-body",character="Союзник",player=true,connected=false,down=true,x=uiActor.x,y=uiActor.y};
             bodyInventory.inventory.Add(SharedInventory.Create("heal",6));bodyInventory.inventory.Add(SharedInventory.Create("grenade",4));
             world.actors.Add(bodyInventory);hud.ToggleInventory();hud.ToggleInventory();

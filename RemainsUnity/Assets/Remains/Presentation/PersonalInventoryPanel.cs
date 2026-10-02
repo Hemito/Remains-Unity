@@ -20,7 +20,7 @@ namespace Remains.Presentation
         private readonly InventoryPortrait portrait;
         private readonly string[] ids=new string[8];
         private readonly Button previous,next,deposit,use;
-        private readonly Text title,detail;
+        private readonly Text title,detail,actionStatus;
         private InventorySource container;
         private string selected;
         private int page;
@@ -53,9 +53,10 @@ namespace Remains.Presentation
             previous=ui.Button(parent,"←",new Vector2(20,-449),new Vector2(65,34),()=>{page--;Refresh(container);});
             next=ui.Button(parent,"→",new Vector2(375,-449),new Vector2(65,34),()=>{page++;Refresh(container);});
             var hint=ui.Label(parent,"Выберите предмет, затем действие справа",new Vector2(20,-494),new Vector2(420,30));hint.fontSize=18;
-            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(228,220));detail.fontSize=20;
+            detail=ui.Label(parent,"",new Vector2(465,-112),new Vector2(228,180));detail.fontSize=18;
+            actionStatus=ui.Label(parent,"",new Vector2(465,-296),new Vector2(325,36));actionStatus.fontSize=16;
             detailIcon=artwork.Create(parent,new Vector2(730,-112),new Vector2(54,54));
-            portrait=new InventoryPortrait(parent,new Vector2(702,-178),new Vector2(88,148));
+            portrait=new InventoryPortrait(parent,new Vector2(702,-178),new Vector2(88,112));
             use=ui.Button(parent,"Использовать аптечку",new Vector2(465,-338),new Vector2(325,42),()=>{session.RequestSelfHeal();Refresh(container);});
             deposit=ui.Button(parent,"Положить в контейнер →",new Vector2(465,-390),new Vector2(325,42),()=>
             {if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
@@ -98,8 +99,7 @@ namespace Remains.Presentation
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
             detail.text=chosen==null?"Выберите предмет в списке.":$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+Description(chosen.definition);
-            if(session.Deposits.Pending) detail.text+="\nОжидаем подтверждения передачи…";
-            else if(chosen!=null && rejection!=null) detail.text+="\n"+rejection;
+            actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen!=null?rejection??"":"";
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
         }
         private static string Description(string id)=>id switch
