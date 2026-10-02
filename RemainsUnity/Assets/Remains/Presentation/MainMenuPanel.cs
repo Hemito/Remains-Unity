@@ -23,8 +23,10 @@ namespace Remains.Presentation
             var full=Root.GetComponent<RectTransform>();full.anchorMin=Vector2.zero;full.anchorMax=Vector2.one;full.offsetMin=full.offsetMax=Vector2.zero;
             Root.GetComponent<Image>().color=Color.black;
             Artwork("sky");Artwork("city");
-            var title=ui.Label(Root.transform,"REMAINS",new Vector2(65,-60),new Vector2(630,90));title.fontSize=64;title.color=new Color(.78f,.93f,.82f);
-            var subtitle=ui.Label(Root.transform,"Совместная игра",new Vector2(70,-151),new Vector2(500,45));subtitle.fontSize=26;
+            var title=new GameObject("Оригинальный заголовок Remains",typeof(RectTransform));title.transform.SetParent(Root.transform,false);
+            var titleImage=title.AddComponent<Image>();titleImage.sprite=LoadSprite("title",Vector4.zero);titleImage.preserveAspect=true;titleImage.raycastTarget=false;
+            HudElements.Rect(title.GetComponent<RectTransform>(),new Vector2(65,-30),new Vector2(630,245));
+            var subtitle=ui.Label(Root.transform,"Совместная игра",new Vector2(70,-275),new Vector2(500,45));subtitle.fontSize=26;
             Controls=ui.Panel(Root.transform,"Игра и подключение",new Vector2(775,-55),new Vector2(440,580));
             var controlsRect=Controls.GetComponent<RectTransform>();controlsRect.anchorMin=controlsRect.anchorMax=controlsRect.pivot=new Vector2(1,1);controlsRect.anchoredPosition=new Vector2(-65,-55);
             Controls.GetComponent<Image>().color=new Color(.015f,.025f,.02f,.90f);
