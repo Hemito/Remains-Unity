@@ -82,7 +82,7 @@ namespace Remains.Presentation
         public static Bounds WorldBounds(ActorState actor)
         {
             string clip=ActorPose.Clip(actor);
-            int sample=PonyAnimationData.FrameIndex(clip,actor.poseTime,actor.down,ActorPose.StationaryClimb(actor));
+            int sample=PonyMotionFrames.Sample(actor,actor.poseTime);
             if(!poseBounds.TryGetValue(clip,out var frames))
                 throw new InvalidOperationException($"Нет границ позы: actor={actor.id}, clip={clip}.");
             var bounds=frames[sample];
@@ -114,7 +114,7 @@ namespace Remains.Presentation
             DrawPose(state?.poseTime??0);
         }
 
-        public void DrawPose(float sampleTime)
+        public void DrawPose(float sampleTime,bool rawClip=false)
         {
             if (state == null) return;
             DrawnTime=sampleTime;
@@ -130,7 +130,7 @@ namespace Remains.Presentation
             }
             if (pose != next) { pose = next; frame = -1; }
             var frames = cache[pose];
-            int nextFrame = PonyAnimationData.FrameIndex(pose,sampleTime,state.down,ActorPose.StationaryClimb(state));
+            int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,state.down,ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
             if (nextFrame == frame) return;
             frame = nextFrame;
             var parts = frames[frame];

@@ -30,6 +30,7 @@ namespace Remains.Content
                     throw new InvalidOperationException("Некорректные кадры анимации: "+clip.id);
                 clips.Add(clip.id,clip);
             }
+            PonyMotionFrames.Load(Library);
         }
         public static int FrameIndex(string pose,float elapsed,bool down,bool stationary=false)
         {

@@ -15,6 +15,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();
+            JumpPoseChecks.Run();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
             WorldLibraryChecks.Run();
