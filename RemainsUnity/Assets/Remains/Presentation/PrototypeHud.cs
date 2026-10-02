@@ -113,25 +113,24 @@ namespace Remains.Presentation
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
             var inventoryView=InventoryWindowView.Create(transform);inventory=inventoryView.gameObject;
-            var containerPanel=inventoryView.Shared;
-            containerTitle=Label(containerPanel.transform,"Общий контейнер · 3 × 3",new Vector2(12,-12),new Vector2(305,40));
+            var containerView=SharedInventoryView.Create(inventoryView.Shared.transform);
+            containerTitle=containerView.Title;
             for (int i = 0; i < slots.Length; i++)
             {
                 int index = i;
-                slots[i] = Button(containerPanel.transform,"Пусто",new Vector2(12+i%3*105,-60-i/3*95),new Vector2(98,86),()=>
+                slots[i]=containerView.Slots[i];slotIcons[i]=containerView.Icons[i];
+                slots[i].onClick.AddListener(()=>
                 {
                     if (shownContainer!=null && containerPage*9+index < shownContainer.items.Count)
                         session.RequestClaim(shownContainer.id,shownContainer.items[containerPage*9+index].id,claimOne?1:0);
                 });
-                slotIcons[i]=inventoryArtwork.Create(slots[i].transform,new Vector2(33,-5),new Vector2(32,30));
-                var slotLabel=slots[i].GetComponentInChildren<Text>();slotLabel.fontSize=16;
-                HudElements.Rect(slotLabel.rectTransform,new Vector2(5,-38),new Vector2(88,43));
             }
             claimQuantity=inventoryView.Quantity;
             claimQuantity.onClick.AddListener(()=>
             {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Количество: 1 предмет":"Количество: вся стопка";Refresh();});
-            previousContainer=Button(containerPanel.transform,"←",new Vector2(12,-390),new Vector2(65,32),()=>{containerPage--;Refresh();});
-            nextContainer=Button(containerPanel.transform,"→",new Vector2(252,-390),new Vector2(65,32),()=>{containerPage++;Refresh();});
+            previousContainer=containerView.Previous;nextContainer=containerView.Next;
+            previousContainer.onClick.AddListener(()=>{containerPage--;Refresh();});
+            nextContainer.onClick.AddListener(()=>{containerPage++;Refresh();});
             inventory.SetActive(false);
             var personalPanel=inventoryView.Personal;
             personalItems=new PersonalInventoryPanel(personalPanel.transform,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);

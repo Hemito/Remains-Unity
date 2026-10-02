@@ -153,6 +153,7 @@ namespace Remains.Runtime
         }
         private IEnumerator CheckPage()
         {
+            yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerNextRect);
             if(runtime.Hud.ContainerPage!=1) {Finish(false,"Вторая страница контейнера недоступна.");yield break;}
             pageChecked=true;
