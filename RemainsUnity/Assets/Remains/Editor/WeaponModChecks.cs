@@ -19,6 +19,23 @@ namespace Remains.Editor
             Reject(()=>WeaponCatalogLoader.Load(flight.Replace("0.2","1"),noMods),"диапазон скорости");
             Reject(()=>WeaponCatalogLoader.Load(flight.Replace("90","0"),noMods),"диапазон скорости");
             Reject(()=>WeaponCatalogLoader.Load(flight.Replace("90","3.4e38"),noMods),"диапазон скорости");
+            string timed=flight.Replace("\"projectileSpeed\":90","\"projectileLifetime\":3.3333333,\"projectileSpeed\":90");
+            var timedDefinition=WeaponCatalogLoader.Load(timed,noMods).definitions["flight"];
+            Require(flightDefinition.FlightRange(90)==20,"Старое определение потеряло явную дальность");
+            foreach(float speed in new[]{72f,108f})
+            {
+                var path=new Remains.Domain.LinearProjectilePath(Vector2.zero,Vector2.right,speed,timedDefinition.FlightRange(speed));
+                path.Advance(1,(_,_)=>null);
+                Require(!path.Finished && path.Traveled>20,"Снаряд всё ещё ограничен дальностью прототипа");
+                var saved=new Remains.Domain.LinearProjectilePath(path.Origin,path.Direction,path.Speed,path.Range,path.Traveled,path.Finished);
+                saved.Advance(0,(_,_)=>throw new Exception("Пауза расходует время полёта"));
+                saved.Advance(2,(_,_)=>null);
+                Require(!saved.Finished,"Восстановленный полёт завершился раньше срока");
+                saved.Advance(.34f,(_,_)=>null);
+                Require(saved.Finished && Mathf.Abs(saved.Traveled/speed-100f/30)<.0001f,"Длительность зависит от выбранной скорости");
+            }
+            Reject(()=>WeaponCatalogLoader.Load(timed.Replace("3.3333333","3.4e38"),noMods),"время или длина полёта");
+            Reject(()=>WeaponCatalogLoader.Load(timed.Replace("90","0").Replace("0.2","0"),noMods),"время или длина полёта");
             string replacement=original.Replace("11","25");
             var before=WeaponCatalog.Get("pistol");
             File.WriteAllText(Path.Combine(root,"load-order.json"),"{\"mods\":[\"first\"]}");

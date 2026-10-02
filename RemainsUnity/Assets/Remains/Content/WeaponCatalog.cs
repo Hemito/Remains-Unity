@@ -13,8 +13,9 @@ namespace Remains.Content
         public float damage,speedDamage,maxSpeedDamage,range,cooldown,manaCost;
         public string ammo;
         public int magazineSize,ammoPerShot;
-        public float reloadSeconds,projectileSpeed,projectileSpeedVariation;
+        public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
+        public float FlightRange(float speed)=>projectileLifetime>0?speed*projectileLifetime:range;
         public bool stopAtFirstActor,stopAtTerrain;
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }

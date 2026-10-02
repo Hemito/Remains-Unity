@@ -35,9 +35,12 @@ namespace Remains.Networking
             var world=session.ServerWorld;
             string key="projectile:"+attack.id;
             if(world.completedTransactions.Contains(key) || world.projectiles.Any(p=>p.launch.id==attack.id)) return false;
-            var speeds=Remains.Content.WeaponCatalog.Get(attack.weapon).ProjectileSpeedRange;
+            var definition=Remains.Content.WeaponCatalog.Get(attack.weapon);
+            var speeds=definition.ProjectileSpeedRange;
             float speed=UnityEngine.Random.Range(speeds.x,speeds.y);
             attack.speed=speed;
+            var end=attack.Origin+(attack.End-attack.Origin).normalized*definition.FlightRange(speed);
+            attack.endX=end.x;attack.endY=end.y;
             var state=new ProjectileState {launch=Remains.Serialization.StateJson.Copy(attack),owner=attack.sourceOwner,generation=1,flightSpeed=speed};
             try {state.Path();} catch(Exception error) when(error is ArgumentException || error is InvalidOperationException) {Debug.LogWarning($"Некорректный запуск снаряда {attack.id}: {error.Message}");return false;}
             world.projectiles.Add(state);world.completedTransactions.Add(key);
