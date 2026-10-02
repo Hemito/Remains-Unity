@@ -90,7 +90,7 @@ namespace Remains.Gameplay
             {
                 swingActor=attacker;swingWeapon=Weapon;
                 swingLevel=attacker.level;swingGeneration=attacker.generation;swingLifecycle=attacker.lifecycleSequence;
-                swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker),direction);
+                swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker),direction,attacker.weaponReach);
                 return true;
             }
             float range = definition.range;

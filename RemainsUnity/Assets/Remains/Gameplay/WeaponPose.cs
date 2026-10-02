@@ -41,13 +41,20 @@ namespace Remains.Gameplay
         }
         public static Vector2 Origin(Vector2 actorPosition)=>actorPosition+new Vector2(0,.8f);
         public static Vector2 Origin(ActorState actor)=>actor.Position+new Vector2(0,.8f*Anatomy.StanceHeightRatio(actor));
-        public static Vector2 Tip(string weapon,Vector2 origin,Vector2 direction,float progress)
+        public static Vector2 Tip(string weapon,Vector2 origin,Vector2 direction,float progress,float? restReach=null)
         {
-            float range=WeaponCatalog.Get(weapon).range;
-            if(weapon=="spear") return origin+direction*Mathf.Lerp(0.35f,range,Mathf.Sin(progress*Mathf.PI));
-            float angle=Mathf.Lerp(-70,70,progress)*Mathf.Deg2Rad;
+            var definition=WeaponCatalog.Get(weapon);
+            var keys=definition.meleeMotion??throw new System.InvalidOperationException("Нет траектории оружия: "+weapon);
+            float rest=Mathf.Clamp(restReach??definition.range,0,definition.range);
+            progress=Mathf.Clamp01(progress);
+            int index=1;
+            while(index<keys.Length-1 && keys[index].time<progress) index++;
+            var from=keys[index-1];var to=keys[index];
+            float blend=Mathf.InverseLerp(from.time,to.time,progress);
+            float reach=Mathf.Lerp(from.rest?rest:from.reach*definition.range,to.rest?rest:to.reach*definition.range,blend);
+            float angle=Mathf.Lerp(from.angle,to.angle,blend)*(direction.x<0?-1:1)*Mathf.Deg2Rad;
             return origin+new Vector2(direction.x*Mathf.Cos(angle)-direction.y*Mathf.Sin(angle),
-                direction.x*Mathf.Sin(angle)+direction.y*Mathf.Cos(angle))*range;
+                direction.x*Mathf.Sin(angle)+direction.y*Mathf.Cos(angle))*reach;
         }
     }
 }

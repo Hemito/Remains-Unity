@@ -47,7 +47,8 @@ namespace Remains.Editor
 
         public static void Render()=>Render(false);
         public static void RenderMelee()=>Render(true);
-        private static void Render(bool melee)
+        public static void RenderSwing()=>Render(true,true);
+        private static void Render(bool melee,bool motion=false)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             Anatomy.Load();WeaponCatalog.Load();Run();PonyAnimationData.Load();PonyVisual.Prepare();
@@ -56,10 +57,22 @@ namespace Remains.Editor
             foreach(float angle in new[]{0f,45,135,180})
             {
                 var actor=new ActorState {id=weapon+angle,weapon=weapon,x=(index%4)*4,y=-(index/4)*3,pose="idle"};
-                float distance=melee && index%4<2 ? (index%4==0?.2f:.7f):4;
+                float distance=!motion && melee && index%4<2 ? (index%4==0?.2f:.7f):4;
                 var anchor=melee?WeaponPose.Origin(actor):WeaponPose.RangedAnchor(actor);
-                var aim=anchor+new Vector2(Mathf.Cos(angle*Mathf.Deg2Rad),Mathf.Sin(angle*Mathf.Deg2Rad))*distance;
+                float aimAngle=motion?0:angle;
+                var aim=anchor+new Vector2(Mathf.Cos(aimAngle*Mathf.Deg2Rad),Mathf.Sin(aimAngle*Mathf.Deg2Rad))*distance;
                 WeaponPose.Aim(actor,aim);
+                if(motion)
+                {
+                    float progress=new[]{0f,1f/6,.5f,1f}[index%4];
+                    var sweep=new MeleeSweep(weapon,anchor,WeaponPose.Direction(actor),actor.weaponReach);
+                    sweep.Advance(anchor,sweep.Duration*progress,_=>{});
+                    var delta=sweep.Tip-anchor;
+                    actor.weaponReach=delta.magnitude;actor.weaponAngle=Mathf.Atan2(delta.y,delta.x)*Mathf.Rad2Deg;
+                    var label=new GameObject("Фаза удара").AddComponent<TextMesh>();
+                    label.text=$"{progress:P0}";label.fontSize=48;label.characterSize=.08f;
+                    label.transform.position=new Vector3(actor.x-1,actor.y-.2f,-1);
+                }
                 var pony=new GameObject(actor.id).AddComponent<PonyVisual>();pony.Bind(actor);pony.DrawPose(0);
                 var sprite=new GameObject("Оружие "+actor.id).AddComponent<SpriteRenderer>();
                 SpriteArtworkMaterial.Apply(sprite,artwork[weapon]);sprite.sortingOrder=100;
@@ -82,7 +95,7 @@ namespace Remains.Editor
             try
             {
                 camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,1600,800),0,0);image.Apply();
-                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", melee?".reference/tests/melee-idle-poses.png":".reference/tests/weapon-poses.png"));
+                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", motion?".reference/tests/melee-swing-poses.png":melee?".reference/tests/melee-idle-poses.png":".reference/tests/weapon-poses.png"));
                 Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
                 Debug.Log("Кадр поз оружия: "+path);
             }

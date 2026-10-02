@@ -12,6 +12,16 @@ namespace Remains.Editor
         {
             foreach(string weapon in new[]{"spear","crowbar"})
             {
+                foreach(float reach in new[]{0f,.2f,Remains.Content.WeaponCatalog.Get(weapon).range})
+                {
+                    var rest=new Vector2(reach,0);
+                    Require(Vector2.Distance(WeaponPose.Tip(weapon,Vector2.zero,Vector2.right,0,reach),rest)<.00001f &&
+                        Vector2.Distance(WeaponPose.Tip(weapon,Vector2.zero,Vector2.right,1,reach),rest)<.00001f,
+                        "Скачок между позой покоя и ударом: "+weapon);
+                    var left=WeaponPose.Tip(weapon,Vector2.zero,Vector2.left,.25f,reach);
+                    var right=WeaponPose.Tip(weapon,Vector2.zero,Vector2.right,.25f,reach);
+                    Require(Vector2.Distance(left,new Vector2(-right.x,right.y))<.00001f,"Замах влево перевёрнут по вертикали");
+                }
                 List<MeleeSegment> reference=null;
                 foreach(float dt in new[]{1f/120,1f/60,1f/30,.3f,1f})
                 {

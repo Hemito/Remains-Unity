@@ -108,6 +108,21 @@ namespace Remains.Content
         }
         private static void Validate(WeaponDefinition weapon,string source)
         {
+            if(weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar")
+            {
+                var keys=weapon.meleeMotion;
+                if(keys==null || keys.Length<2 || keys[0]==null || keys[^1]==null || keys[0].time!=0 || keys[^1].time!=1 ||
+                    !keys[0].rest || !keys[^1].rest || keys[0].angle!=0 || keys[^1].angle!=0)
+                    throw new InvalidDataException($"Траектория должна начинаться и заканчиваться в покое: источник={source}, id={weapon.id}.");
+                float previous=-1;
+                foreach(var key in keys)
+                {
+                    if(key==null || !float.IsFinite(key.time) || key.time<=previous || key.time>1 ||
+                        !float.IsFinite(key.angle) || !float.IsFinite(key.reach) || key.reach<0 || key.reach>1)
+                        throw new InvalidDataException($"Некорректный ключ траектории: источник={source}, id={weapon.id}.");
+                    previous=key.time;
+                }
+            }
             if(!float.IsFinite(weapon.meleeContactStart) || !float.IsFinite(weapon.meleeContactEnd) ||
                 weapon.meleeContactStart<0 || weapon.meleeContactEnd>1 || weapon.meleeContactStart>=weapon.meleeContactEnd)
                 throw new InvalidDataException($"Некорректное окно контакта ближнего оружия: источник={source}, id={weapon.id}.");

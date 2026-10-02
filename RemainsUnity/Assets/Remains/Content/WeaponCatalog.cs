@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace Remains.Content
 {
+    [Serializable] public sealed class MeleePoseKey { public float time,angle,reach; public bool rest; }
     [Serializable] public sealed class WeaponDefinition
     {
         public string id;
@@ -15,6 +16,7 @@ namespace Remains.Content
         public int magazineSize,ammoPerShot;
         public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
         public float meleeContactStart,meleeContactEnd=1;
+        public MeleePoseKey[] meleeMotion;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
         public float FlightRange(float speed)=>projectileLifetime>0?speed*projectileLifetime:range;
         public bool stopAtFirstActor,stopAtTerrain;
@@ -44,7 +46,7 @@ namespace Remains.Content
             if(asset==null) throw new InvalidOperationException("Не найдены определения оружия Content/weapons.");
             var loaded=WeaponCatalogLoader.Load(asset.text,Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
-            foreach(string path in new[]{"Content/prototype-room","Content/prototype-hub","Content/anatomy","Content/movement","Content/telekinesis","Content/actors","Content/props","Content/hub-training","Original/Training/artwork","Original/Raider/artwork","Original/Pony/pony","Original/Weapons/artwork"})
+            foreach(string path in new[]{"Content/prototype-room","Content/prototype-hub","Content/anatomy","Content/movement","Content/telekinesis","Content/actors","Content/props","Content/hub-training","Original/Training/artwork","Original/Raider/artwork","Original/Pony/pony","Original/Pony/motion-frames","Original/Weapons/artwork"})
             {
                 var data=Resources.Load<TextAsset>(path);
                 if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");

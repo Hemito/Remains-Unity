@@ -8,7 +8,29 @@
       "speedDamage": 4,
       "maxSpeedDamage": 70,
       "range": 1.65,
-      "cooldown": 0.3333333333
+      "cooldown": 0.3333333333,
+      "meleeMotion": [
+        {
+          "time": 0,
+          "rest": true,
+          "angle": 0
+        },
+        {
+          "time": 0.16666666666666666,
+          "angle": 0,
+          "reach": 0.2121212121
+        },
+        {
+          "time": 0.5,
+          "angle": 0,
+          "reach": 1
+        },
+        {
+          "time": 1,
+          "rest": true,
+          "angle": 0
+        }
+      ]
     },
     {
       "id": "crowbar",
@@ -16,7 +38,29 @@
       "meleeContactEnd": 0.5,
       "damage": 14,
       "range": 1.2,
-      "cooldown": 0.5
+      "cooldown": 0.5,
+      "meleeMotion": [
+        {
+          "time": 0,
+          "rest": true,
+          "angle": 0
+        },
+        {
+          "time": 0.16666666666666666,
+          "angle": 70,
+          "reach": 1
+        },
+        {
+          "time": 0.5,
+          "angle": -70,
+          "reach": 1
+        },
+        {
+          "time": 1,
+          "rest": true,
+          "angle": 0
+        }
+      ]
     },
     {
       "id": "pistol",

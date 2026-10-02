@@ -27,6 +27,7 @@ namespace Remains.Editor
             Require(legacy.scope=="weapon-catalog" && legacy.gameplayAssets.Count==0,"Исходный манифест изменён");
             Require(ContentComparison.Compare(original,StateJson.Copy(original)).Count==0,"Копирование потеряло ресурсный манифест");
             Require(WeaponCatalog.ManifestCopy().gameplayAssets.Any(a=>a.id=="Content/actors"),"Рабочий каталог не включает определения актёров");
+            Require(WeaponCatalog.ManifestCopy().gameplayAssets.Any(a=>a.id=="Original/Pony/motion-frames"),"Рабочий каталог не включает кривые поз, влияющие на области попадания");
         }
         private static void Require(bool valid,string detail)
         {if(!valid) throw new InvalidOperationException(detail);}
