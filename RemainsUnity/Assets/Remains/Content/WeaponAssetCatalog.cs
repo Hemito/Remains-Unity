@@ -13,6 +13,17 @@ namespace Remains.Content
         [SerializeField,InspectorName("Высота точки удержания")] private float anchorHeight=.98f;
         public float AimRadius=>aimRadius;
         public float AnchorHeight=>anchorHeight;
+        public System.Collections.Generic.IEnumerable<WeaponAsset> AnimatedWeapons()
+        {
+            foreach(var asset in weapons)
+            {
+                if(asset==null) throw new InvalidOperationException("Нет ссылки на оружие в "+name);
+                if(asset.ShotAnimation==null) continue;
+                if(asset.Presentation==null) throw new InvalidOperationException("Нет префаба анимированного оружия: "+asset.Id);
+                asset.ShotAnimation.ValidateAgainst(asset.Presentation.Artwork.sprite);
+                yield return asset;
+            }
+        }
         public System.Collections.Generic.IEnumerable<Remains.Presentation.WeaponView> Presentations()
         {
             var ids=new System.Collections.Generic.Dictionary<string,Remains.Presentation.WeaponView>(StringComparer.Ordinal);

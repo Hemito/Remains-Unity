@@ -11,6 +11,7 @@ namespace Remains.Editor
         {
             serializedObject.Update();var definition=serializedObject.FindProperty("definition");
             EditorGUILayout.PropertyField(serializedObject.FindProperty("presentation"),new GUIContent("Префаб оружия"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("shotAnimation"),new GUIContent("Анимация выстрела (необязательно)"));
             void Field(string id,string label)=>EditorGUILayout.PropertyField(definition.FindPropertyRelative(id),new GUIContent(label),true);
             Field("id","Стабильный ID");Field("damage","Базовый урон");Field("range","Дальность, м");Field("cooldown","Интервал атак, с");Field("manaCost","Расход маны");
             EditorGUILayout.LabelField("Боеприпасы",EditorStyles.boldLabel);Field("ammo","ID боеприпаса");

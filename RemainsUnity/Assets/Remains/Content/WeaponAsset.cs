@@ -10,6 +10,10 @@ namespace Remains.Content
         private WeaponDefinition definition=new();
         [SerializeField,InspectorName("Префаб оружия")] private Remains.Presentation.WeaponView presentation;
         public Remains.Presentation.WeaponView Presentation=>presentation;
+        [SerializeField,InspectorName("Анимация выстрела (необязательно)")] private WeaponShotClip shotAnimation;
+        public WeaponShotClip ShotAnimation=>shotAnimation;
+        public string Id=>definition.id;
+        public void SetShotAnimation(WeaponShotClip value)=>shotAnimation=value;
         public void SetPresentation(Remains.Presentation.WeaponView value)=>presentation=value;
         public WeaponDefinition CreateDefinition()
         {

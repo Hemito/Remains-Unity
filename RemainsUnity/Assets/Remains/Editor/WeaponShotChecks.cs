@@ -1,4 +1,5 @@
 using System;
+using Remains.Content;
 using Remains.Domain;
 using Remains.Networking;
 using Remains.Presentation;
@@ -45,6 +46,7 @@ namespace Remains.Editor
         }
         public static void Run()
         {
+            CheckAssets();
             foreach(string weapon in new[]{"pistol","energy"})
             {
                 var root=new GameObject("Проверка кадров выстрела");
@@ -74,6 +76,27 @@ namespace Remains.Editor
                 finally {UnityEngine.Object.DestroyImmediate(root);}
             }
             Debug.Log("Кадры выстрела: PASS — привязка, длительность, дубли, уровень и поколение.");
+        }
+        private static void CheckAssets()
+        {
+            var pistol=Resources.Load<WeaponAsset>("Content/weapons/pistol");
+            var npc=Resources.Load<WeaponAsset>("Content/weapons/npc-shot");
+            Require(pistol.ShotAnimation!=null && npc.ShotAnimation==pistol.ShotAnimation,"NPC и пистолет потеряли общую анимацию");
+            foreach(var weapon in Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog").AnimatedWeapons())
+            {
+                var clip=weapon.ShotAnimation;var frames=clip.CopyFrames();var first=frames[0];
+                frames[0]=null;Require(clip.CopyFrames()[0]==first,"Рабочий массив изменил SO анимации");
+            }
+            var test=ScriptableObject.CreateInstance<WeaponShotClip>();
+            var rest=pistol.Presentation.Artwork.sprite;
+            var wrong=Sprite.Create(rest.texture,rest.rect,Vector2.zero,rest.pixelsPerUnit*2);
+            try
+            {
+                test.Configure(30,new[]{wrong});bool rejected=false;
+                try {test.ValidateAgainst(rest);} catch(InvalidOperationException) {rejected=true;}
+                Require(rejected,"Несогласованные масштаб и привязка кадра приняты");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(test);UnityEngine.Object.DestroyImmediate(wrong);}
         }
         private static void Require(bool value,string reason)
         {if(!value) throw new InvalidOperationException("Кадры выстрела: "+reason);}
