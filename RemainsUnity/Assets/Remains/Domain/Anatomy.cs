@@ -5,9 +5,10 @@ using Remains.Content;
 
 namespace Remains.Domain
 {
-    [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; public string[] shapes; }
+    [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; public string[] shapes; public HitRegionPose[] poses; }
+    [Serializable] public sealed class HitRegionPose {public string pose;public Vector2[] centers;}
     [Serializable] public sealed class MovementHull { public float width,height; }
-    [Serializable] public sealed class AnatomyDefinition { public string id; public MovementHull movement,crouchingMovement; public HitRegionDefinition[] regions; }
+    [Serializable] public sealed class AnatomyDefinition { public string id,atlasArtwork; public MovementHull movement,crouchingMovement; public HitRegionDefinition[] regions; }
     [Serializable] public sealed class AnatomyCatalog { public AnatomyDefinition[] anatomies; }
     public static class Anatomy
     {
@@ -31,11 +32,35 @@ namespace Remains.Domain
                     definition.crouchingMovement.width<=0 || definition.crouchingMovement.height<=0 || definition.crouchingMovement.height>definition.movement.height))
                     throw new InvalidOperationException($"Некорректные габариты приседания: anatomy={definition.id}.");
                 foreach(var region in definition.regions)
-                    if(string.IsNullOrEmpty(region.id) || !ids.Add(region.id) || region.radius<=0)
-                        throw new InvalidOperationException($"Некорректная область {region.id} анатомии {definition.id}.");
+                    if(region==null || string.IsNullOrEmpty(region.id) || !ids.Add(region.id) || !float.IsFinite(region.radius) || region.radius<=0 || !float.IsFinite(region.x) || !float.IsFinite(region.y))
+                        throw new InvalidOperationException($"Некорректная область {region?.id} анатомии {definition.id}.");
                 definitions.Add(definition.id,definition);
                 foreach(var region in definition.regions)
                 {
+                    if(!string.IsNullOrEmpty(definition.atlasArtwork))
+                    {
+                        var atlas=AtlasAnimationData.Get(definition.atlasArtwork);
+                        if(region.shapes?.Length>0 || region.poses==null || region.poses.Length!=atlas.clips.Length)
+                            throw new InvalidOperationException($"Нет полного набора поз области: anatomy={definition.id}, region={region.id}.");
+                        var trackPoses=new HashSet<string>();
+                        foreach(var track in region.poses)
+                        {
+                            if(track==null || string.IsNullOrEmpty(track.pose) || !trackPoses.Add(track.pose))
+                                throw new InvalidOperationException($"Повторная или отсутствующая поза области: anatomy={definition.id}, region={region.id}.");
+                            var clip=atlas.Clip(track.pose);
+                            if(track.centers==null || track.centers.Length!=clip.count)
+                                throw new InvalidOperationException($"Число кадров области не совпадает с атласом: anatomy={definition.id}, region={region.id}, pose={track.pose}.");
+                            var centers=new Vector2?[clip.count];
+                            for(int frame=0;frame<centers.Length;frame++)
+                            {
+                                var center=track.centers[frame];
+                                if(!float.IsFinite(center.x) || !float.IsFinite(center.y)) throw new InvalidOperationException("Некорректный центр области: "+region.id);
+                                centers[frame]=center;
+                            }
+                            poseCenters.Add(definition.id+":"+region.id+":"+track.pose,centers);
+                        }
+                        continue;
+                    }
                     if(region.shapes==null || region.shapes.Length==0) continue;
                     foreach(var clip in PonyAnimationData.Library.clips)
                     {
@@ -56,6 +81,31 @@ namespace Remains.Domain
             throw new InvalidOperationException($"Не заданы габариты приседания: anatomy={id}.");
         public static float StanceHeightRatio(ActorState actor)=>Movement(actor).height/Movement(actor.anatomy).height;
 
+        public static bool TryRegion(ActorState actor,string id,out Vector2 center,out float radius)
+        {
+            center=default;radius=0;
+            if(!definitions.TryGetValue(actor.anatomy,out var definition)) return false;
+            foreach(var region in definition.regions)
+                if(region.id==id) return TryRegion(actor,definition,region,out center,out radius);
+            return false;
+        }
+        private static bool TryRegion(ActorState actor,AnatomyDefinition definition,HitRegionDefinition region,out Vector2 center,out float radius)
+        {
+            center=default;radius=region.radius;
+            var offset=new Vector2(region.x,region.y);
+            string pose=ActorPose.Clip(actor);
+            if(!string.IsNullOrEmpty(definition.atlasArtwork) || region.shapes!=null && region.shapes.Length>0)
+            {
+                int frame=!string.IsNullOrEmpty(definition.atlasArtwork)?AtlasAnimationData.Get(definition.atlasArtwork).Clip(pose).FrameIndex(actor.poseTime):
+                    PonyAnimationData.FrameIndex(pose,actor.poseTime,actor.down);
+                if(!poseCenters.TryGetValue(actor.anatomy+":"+region.id+":"+pose,out var centers) || !centers[frame].HasValue)
+                {Debug.LogWarning($"Нет графической привязки области {region.id}: actor={actor.id}, pose={actor.pose}, frame={frame}.");return false;}
+                offset=centers[frame].Value;
+            }
+            center=actor.Position+new Vector2(offset.x*actor.facing,offset.y);
+            return true;
+        }
+
         public static string Contact(ActorState actor,AttackEvent attack)=>Contact(actor,attack,out _);
 
         public static string Contact(ActorState actor,AttackEvent attack,out float fraction)
@@ -69,19 +119,10 @@ namespace Remains.Domain
             }
             foreach(var region in definition.regions)
             {
-                var offset=new Vector2(region.x,region.y);
-                string pose=ActorPose.Clip(actor);
-                if(region.shapes!=null && region.shapes.Length>0)
-                {
-                    int frame=PonyAnimationData.FrameIndex(pose,actor.poseTime,actor.down);
-                    if(!poseCenters.TryGetValue(actor.anatomy+":"+region.id+":"+pose,out var centers) || !centers[frame].HasValue)
-                    {Debug.LogWarning($"Нет графической привязки области {region.id}: actor={actor.id}, pose={actor.pose}, frame={frame}.");continue;}
-                    offset=centers[frame].Value;
-                }
-                var center=actor.Position+new Vector2(offset.x*actor.facing,offset.y);
+                if(!TryRegion(actor,definition,region,out var center,out float radius)) continue;
                 float? entry=attack.weapon=="grenade"?
                     (Vector2.Distance(center,attack.End)<3?0f:(float?)null):
-                    HitGeometry.CircleEntry(center,region.radius+attack.radius,attack.Origin,attack.End);
+                    HitGeometry.CircleEntry(center,radius+attack.radius,attack.Origin,attack.End);
                 if(entry.HasValue && entry.Value<fraction) {fraction=entry.Value;nearest=region.id;}
             }
             return nearest;

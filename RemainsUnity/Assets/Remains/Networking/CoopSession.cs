@@ -217,7 +217,7 @@ namespace Remains.Networking
         private static WorldState CreateWorld()
         {
             var world = new WorldState();
-            world.actors.Add(new ActorState { id = "npc:training-guard", actorType="raider", owner = "host", x = 8, health = 140 });
+            world.actors.Add(new ActorState { id = "npc:training-guard", actorType="raider", anatomy="raider", owner = "host", x = 8, health = 140 });
             var container=new ContainerState();world.containers.Add(container);
             container.items.Add(SharedInventory.Create("caps", 20));
             container.items.Add(SharedInventory.Create("heal", 3));

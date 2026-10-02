@@ -6,23 +6,14 @@ using UnityEngine;
 
 namespace Remains.Presentation
 {
-    [Serializable] public sealed class AtlasActorClip
-    {public string pose;public int row,count;public float framesPerSecond;public bool loop;}
-    [Serializable] public sealed class AtlasActorArtwork
-    {
-        public string resource;public int width,height,cellWidth,cellHeight;
-        public float pixelsPerUnit,pivotX,pivotY;public bool facesLeft;
-        public AtlasActorClip[] clips;
-    }
     public sealed class AtlasActorVisual : ActorVisual
     {
         private sealed class Clip
         {
-            public Sprite[] frames;public float rate;public bool loop;
+            public Sprite[] frames;public AtlasActorClip definition;
             public Sprite Sample(float time)
             {
-                int index=Mathf.FloorToInt(Mathf.Max(0,time)*rate);
-                return frames[loop?index%frames.Length:Mathf.Min(index,frames.Length-1)];
+                return frames[definition.FrameIndex(time)];
             }
         }
         private sealed class Artwork
@@ -51,7 +42,7 @@ namespace Remains.Presentation
         {
             var asset=Resources.Load<TextAsset>(key);
             if(asset==null) throw new InvalidOperationException("Нет описания атласа: "+key);
-            var data=JsonUtility.FromJson<AtlasActorArtwork>(asset.text);
+            var data=AtlasAnimationData.Get(key);
             if(data==null || string.IsNullOrEmpty(data.resource) || data.clips==null || data.clips.Length==0 ||
                 data.cellWidth<=0 || data.cellHeight<=0 || !float.IsFinite(data.pixelsPerUnit) || data.pixelsPerUnit<=0 ||
                 !float.IsFinite(data.pivotX) || !float.IsFinite(data.pivotY) || data.pivotX<0 || data.pivotX>1 || data.pivotY<0 || data.pivotY>1)
@@ -67,7 +58,7 @@ namespace Remains.Presentation
                     entry.row>=data.height/data.cellHeight || entry.count<1 || entry.count>data.width/data.cellWidth ||
                     !float.IsFinite(entry.framesPerSecond) || entry.framesPerSecond<=0)
                     throw new InvalidOperationException($"Некорректный клип атласа: {key}, pose={entry?.pose}.");
-                var clip=new Clip {frames=new Sprite[entry.count],rate=entry.framesPerSecond,loop=entry.loop};
+                var clip=new Clip {frames=new Sprite[entry.count],definition=entry};
                 for(int frame=0;frame<entry.count;frame++)
                 {
                     var sprite=Sprite.Create(texture,new Rect(frame*data.cellWidth,data.height-(entry.row+1)*data.cellHeight,data.cellWidth,data.cellHeight),
