@@ -21,6 +21,7 @@ namespace Remains.Editor
             NpcPerceptionChecks.Run();
             ExplosionPrefabChecks.Run();
             Anatomy.Load();
+            PassiveActorMotionChecks.Run();
             JumpPoseChecks.Run();
             WalkCycleChecks.Run();
             FallPoseChecks.Run();

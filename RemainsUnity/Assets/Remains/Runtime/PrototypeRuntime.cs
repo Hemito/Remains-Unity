@@ -38,6 +38,7 @@ namespace Remains.Runtime
         public System.Func<PlayerCommand> CommandSource { get; set; }
         public PrototypeHud Hud => hud;
         private MovementController movement;
+        private MovementSettings passiveMovementSettings;
         private NpcController npcs;
         private readonly Dictionary<string,ActorVisual> visuals = new();
         private readonly RemoteActorMotion remoteMotion=new();
@@ -63,6 +64,7 @@ namespace Remains.Runtime
         {
             Options=LaunchOptions.Parse();
             Anatomy.Load();
+            passiveMovementSettings=MovementSettings.Load();
             WeaponCatalog.Load();
             Application.runInBackground=true;
             Application.targetFrameRate=60;
@@ -82,8 +84,11 @@ namespace Remains.Runtime
             DontDestroyOnLoad(gameObject);
             Geometry=new SimulationGeometry(Session);
             Combat=new CombatController(Session,Geometry);
-            DamageFeedback=new DamageFeedback(Session);Combat.DamageApplied+=DamageFeedback.Publish;
+            DamageFeedback=new DamageFeedback(Session);
             DamageNumbers=new GameObject("Числа урона").AddComponent<DamageNumbers>();DamageNumbers.Initialize(Session,DamageFeedback);
+            if(Options.Diagnostics || Options.Smoke!=null)
+                gameObject.AddComponent<SessionTimingDiagnostics>().Initialize(this);
+            Combat.DamageApplied+=DamageFeedback.Publish;
             Revival=new RevivalController(Session);
             Interactions=new InteractionAdapter(Session);
             Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);
@@ -222,6 +227,10 @@ namespace Remains.Runtime
             var actor=Session.LocalActor;
             if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();return;}
             remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused);
+            foreach(var body in Session.World.actors)
+                if(body!=actor && body.down && body.owner==Session.LocalOwner &&
+                    LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
+                    PassiveActorMotion.Step(body,Geometry.Get(body.level),Time.deltaTime,passiveMovementSettings);
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors)
             {

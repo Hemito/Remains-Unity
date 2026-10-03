@@ -14,6 +14,7 @@ namespace Remains.Runtime
         public int Capacity { get; private set; } = 16;
         public int ProbePeers { get; private set; } = 2;
         public bool NetworkStress { get; private set; }
+        public bool Diagnostics { get; private set; }
         public static LaunchOptions Parse()
         {
             var options = new LaunchOptions();
@@ -32,6 +33,7 @@ namespace Remains.Runtime
                     case "--report": options.Report = args[++i]; break;
                     case "--probe-peers": options.ProbePeers=int.Parse(args[++i]); break;
                     case "--network-stress": options.NetworkStress=bool.Parse(args[++i]); break;
+                    case "--diagnostics": options.Diagnostics=bool.Parse(args[++i]); break;
                 }
             }
             return options;

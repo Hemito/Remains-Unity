@@ -36,6 +36,7 @@ namespace Remains.Networking
                 RemotePoseCorrection?.Invoke(source,current.id,current.poseTime,nextTime);
         }
         public event Action<AttackEvent> AttackReceived;
+        public event Action<ActorState> PoseReceived;
         public event Action<string> Notice;
         public event Action<NpcHitMessage> NpcHitReceived;
         public event Action<FriendlyHitMessage> FriendlyHitReceived;
@@ -472,6 +473,7 @@ namespace Remains.Networking
             if(!ActorMotionReplication.IsNewer(message.sequence,actor.motionSequence)) return;
             ObservePoseCorrection("pose",actor,message.pose,message.poseTime);
             ApplyPose(actor, message,true);
+            PoseReceived?.Invoke(actor);
         }
 
         private static void ApplyPose(ActorState actor, PoseMessage message,bool remote=false)

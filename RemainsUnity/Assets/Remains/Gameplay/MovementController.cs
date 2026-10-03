@@ -22,7 +22,7 @@ namespace Remains.Gameplay
             bool dropPressed=downTap.Step(input.y<-.1f,dt);
             float accelerationTime=sprintPreparation.AccelerationTime(actor,input.x,sprint,dt,settings.sprintPreparationSeconds);
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
-            if (actor.down) { actor.climbing=false;actor.jumpSupportRemaining=0;actor.vx = 0; actor.vy = 0; return; }
+            if (actor.down) { PassiveActorMotion.Step(actor,room,dt,settings);return; }
             var previous=actor.Position;
             var hull=Anatomy.Movement(actor);
             var selected=System.Array.Find(room.ladders,l=>Mathf.Abs(actor.x-l.x-l.movementOffset)<0.65f && actor.y>=l.bottom-0.1f && actor.y<l.top+0.2f);
