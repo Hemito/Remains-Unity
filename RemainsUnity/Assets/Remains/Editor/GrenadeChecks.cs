@@ -13,6 +13,7 @@ namespace Remains.Editor
             CheckRecoveredPresence();
             CheckTerrain();
             CheckSettings();
+            CheckLaunch();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
@@ -95,6 +96,25 @@ namespace Remains.Editor
                 Require(Mathf.Approximately(grenade.remaining,1.09f),"Настройки не должны перезапускать уже горящий запал");
             }
             finally {definition.grenadeRestitution=saved;}
+        }
+        private static void CheckLaunch()
+        {
+            var actor=new ActorState {id="thrower",x=5,y=2,level="hub",generation=7,lifecycleSequence=3};
+            var standing=Remains.Networking.GrenadeLaunchRequest.Capture(actor,new Vector2(8,3));
+            actor.crouched=true;
+            var crouching=Remains.Networking.GrenadeLaunchRequest.Capture(actor,new Vector2(8,3));
+            Require(crouching.originY<standing.originY,"Приседание должно снижать точку броска");
+            actor.x=-10;actor.y=0;
+            Require(Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching) && crouching.originX==5,
+                "Старая позиция координатора не должна подменять локальную точку броска");
+            actor.level="factory:0";
+            Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Старый бросок не переносится в другой уровень");
+            actor.level="hub";actor.generation++;
+            Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Переподключение отменяет старый запрос");
+            actor.generation--;actor.lifecycleSequence++;
+            Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Новое воплощение отменяет старый запрос");
+            actor.lifecycleSequence--;crouching.aimX=float.NaN;
+            Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Неконечный прицел должен отклоняться до расхода");
         }
         private static void CheckRecoveredPresence()
         {

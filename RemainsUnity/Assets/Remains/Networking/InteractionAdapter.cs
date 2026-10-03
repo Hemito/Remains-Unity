@@ -73,10 +73,10 @@ namespace Remains.Networking
             var actor=session.ConnectedActor(connection);
             if(actor!=null && session.Pause.IsServerPaused(actor.level))
             {connection.Send(new NoticeMessage {text="Бросок отменён: уровень остановлен. Граната не потрачена."});return;}
-            if(actor==null || actor.down || session.ServerWorld.completedTransactions.Contains(message.transaction) ||
+            if(!GrenadeLaunchRequest.Matches(actor,message) || session.ServerWorld.completedTransactions.Contains(message.transaction) ||
                 !SharedInventory.Consume(actor,"grenade")) return;
             session.ServerWorld.completedTransactions.Add(message.transaction);
-            Vector2 origin=actor.Position+new Vector2(0,0.8f);
+            Vector2 origin=new(message.originX,message.originY);
             var velocity=(new Vector2(message.aimX,message.aimY)-origin).normalized*7+Vector2.up*3;
             actor.revision++;
             session.ServerWorld.grenades.Add(new GrenadeState {id=message.transaction,attacker=actor.id,level=actor.level,owner=actor.owner,
@@ -120,8 +120,12 @@ namespace Remains.Networking
         }
         public void ThrowGrenade(Vector2 aim)
         {
-            if(session.LocalActor==null || session.Pause.IsPaused(session.LocalActor.level) || InventoryJournal.Count(session.LocalActor,"grenade")<=0) return;
-            NetworkClient.Send(new ThrowRequest { transaction=Guid.NewGuid().ToString("N"),aimX=aim.x,aimY=aim.y });
+            var actor=session.LocalActor;
+            if(actor==null || actor.down || session.Pause.IsPaused(actor.level) || InventoryJournal.Count(actor,"grenade")<=0) return;
+            var request=GrenadeLaunchRequest.Capture(actor,aim);
+            if(!GrenadeLaunchRequest.Matches(actor,request))
+            {Debug.LogWarning($"Некорректная точка броска гранаты: actor={actor.id}, level={actor.level}, origin=({request.originX};{request.originY}), aim={aim}.");return;}
+            NetworkClient.Send(request);
         }
     }
 }
