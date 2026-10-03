@@ -35,6 +35,27 @@ namespace Remains.Runtime
         private readonly HashSet<string> observedJumpSupport=new();
         private readonly HashSet<string> observedFall=new();
         private bool fallCaptured;
+        private readonly Dictionary<string,(int generation,int lifecycle,string pose,float time)> remotePhases=new();
+        private int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;
+        private float maximumRemoteRunRewind;
+        private string previousLocalPose;
+        private void ObserveRemoteRun(ActorState actor)
+        {
+            if(remotePhases.TryGetValue(actor.id,out var previous) && previous.generation==actor.generation &&
+                previous.lifecycle==actor.lifecycleSequence && previous.pose=="run" && actor.pose=="run")
+            {
+                remoteRunSamples++;
+                float rewind=previous.time-actor.poseTime;
+                if(rewind>.0001f)
+                {
+                    remoteRunRewinds++;
+                    Debug.Log($"Фаза удалённого бега: actor={actor.id}, before={previous.time}, after={actor.poseTime}, rewind={rewind}, x={actor.x}, facing={actor.facing}, time={Time.unscaledTime}.");
+                    maximumRemoteRunRewind=Mathf.Max(maximumRemoteRunRewind,rewind);
+                    if(rewind>=1f/30) remoteRunFrameRewinds++;
+                }
+            }
+            remotePhases[actor.id]=(actor.generation,actor.lifecycleSequence,actor.pose,actor.poseTime);
+        }
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+75;value.CommandSource=Command;
@@ -122,10 +143,17 @@ namespace Remains.Runtime
             if(finished) return;
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут мишеней: stage={stage}, shots={shots}, results={results}, position={runtime.Session.LocalActor?.Position}.");return;}
             var self=runtime.Session.LocalActor;if(self==null) return;
+            if(previousLocalPose!=self.pose)
+            {
+                if(previousLocalPose=="run" || self.pose=="run")
+                    Debug.Log($"Переход локального бега: actor={self.id}, from={previousLocalPose}, to={self.pose}, phase={self.poseTime}, x={self.x}, facing={self.facing}, time={Time.unscaledTime}.");
+                previousLocalPose=self.pose;
+            }
             if(Host && stage>=4) minimumLiftMana=Mathf.Min(minimumLiftMana,self.mana);
             foreach(var other in runtime.Session.World.actors)
                 if(other.player && other.id!=self.id)
                 {
+                    ObserveRemoteRun(other);
                     if(other.jumpSupportRemaining>0) observedJumpSupport.Add(other.id);
                     if(other.crouched) {observedCrouch.Add(other.id);if(!self.crouched) independentStance=true;}
                     if(other.pose=="crouchLower") observedLower.Add(other.id);
@@ -181,12 +209,13 @@ namespace Remains.Runtime
             if(finished) return;finished=true;
             string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
+                remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
                 sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,landingVoices=runtime.MovementAudio.LandingVoices,ladderContacts=runtime.MovementAudio.LadderContacts,
                 remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,remoteLandingPoses=observedLanding.Count,remoteFallPoses=observedFall.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }
