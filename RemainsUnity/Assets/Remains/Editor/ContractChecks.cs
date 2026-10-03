@@ -76,7 +76,7 @@ namespace Remains.Editor
             if(sharedInventory==null) throw new InvalidOperationException("Нет префаба общего контейнера.");
             sharedInventory.Validate();
             LightingChecks.Run();
-            MotionAudioChecks.Run();ReloadAudioChecks.Run();
+            MotionAudioChecks.Run();ReloadAudioChecks.Run();InventoryAudioChecks.Run();
             DamageFeedbackChecks.Run();
             WeaponPoseChecks.Run();WeaponElevationChecks.Run();
             MovableContainerChecks.Run();

@@ -7,11 +7,13 @@ namespace Remains.Presentation
     public sealed class InventoryAudio : MonoBehaviour
     {
         private AudioPreferences preferences;
+        private AudioMixSettings mix;
         private AudioSource source;
         private AudioClip toggle,page;
         public void Initialize(AudioPreferences preferences)
         {
             this.preferences=preferences;
+            mix=AudioMixSettings.Load();
             toggle=Load("pip3");page=Load("pip2");
             source=gameObject.AddComponent<AudioSource>();
             source.playOnAwake=false;source.spatialBlend=0;
@@ -28,7 +30,7 @@ namespace Remains.Presentation
         private void ApplyVolume()
         {
             var levels=preferences.Current;
-            source.volume=.25f*levels.master*levels.effects;
+            source.volume=.25f*mix.effectsVolume*levels.master*levels.effects;
         }
         public void Toggle()=>source.PlayOneShot(toggle);
         public void Page()=>source.PlayOneShot(page);
