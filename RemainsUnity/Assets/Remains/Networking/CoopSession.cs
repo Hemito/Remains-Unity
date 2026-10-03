@@ -634,7 +634,7 @@ namespace Remains.Networking
         {
             if (!owners.TryGetValue(connection.connectionId, out string owner)) return;
             var actor = ServerWorld.Find(playerIds[owner]);
-            bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor,out string reason,message.quantity);
+            bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor,out string reason,message.quantity,Pause.IsServerPaused(actor.level));
             connection.Send(new NoticeMessage { text = success ? "Подбор подтверждается копиями мира…" : reason });
             if (success) { BroadcastWorld(); CompleteBackedUpGrants(); }
         }

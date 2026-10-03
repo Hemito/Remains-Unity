@@ -34,6 +34,7 @@ namespace Remains.Networking
             var actor=session.LocalActor;var item=actor?.inventory.Find(i=>i.id==itemId);
             var container=InventorySource.Resolve(session.World,containerId);
             if(actor==null || item==null || container==null || !NetworkClient.isConnected) return false;
+            if(session.Pause.IsPaused(actor.level)) {session.ShowNotice(InventoryTransactions.PausedReason);return false;}
             int amount=quantity==0?InventoryAvailability.Count(actor,item):quantity;
             string reason=amount<=0 || amount>InventoryAvailability.Count(actor,item)?"Это количество уже зарезервировано или недоступно.":
                 session.Rules.Deposit.AccessRejection(new LootAccessContext(actor,container))??session.Rules.Deposit.Rejection(new DepositContext(actor,container,item,amount));
@@ -78,7 +79,7 @@ namespace Remains.Networking
             else if(session.ServerWorld.completedTransactions.Contains(request.transaction))
                 reason="Операция уже завершена; проверьте содержимое контейнера.";
             else if(actor.generation==request.generation && actor.lifecycleSequence==request.lifecycle)
-                accepted=new SharedDeposits(session.ServerWorld,session.Rules.Deposit).Prepare(request.transaction,actor,request.container,request.item,request.quantity,out reason);
+                accepted=new SharedDeposits(session.ServerWorld,session.Rules.Deposit).Prepare(request.transaction,actor,request.container,request.item,request.quantity,out reason,session.Pause.IsServerPaused(actor.level));
             var reply=new DepositReply {transaction=request.transaction,accepted=accepted,reason=accepted?"Внесение подтверждается копиями мира…":reason};
             replies[key]=reply;
             if(accepted) {session.CommitWorld();session.CompleteInventoryTransactions();}

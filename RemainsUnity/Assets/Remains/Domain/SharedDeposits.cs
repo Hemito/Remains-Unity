@@ -32,10 +32,11 @@ namespace Remains.Domain
         private readonly IDepositRule rule;
         public SharedDeposits(WorldState world,IDepositRule rule=null)
         {this.world=world;this.rule=rule??new NearbyDepositRule();}
-        public bool Prepare(string transaction,ActorState source,string containerId,string itemId,int quantity,out string reason)
+        public bool Prepare(string transaction,ActorState source,string containerId,string itemId,int quantity,out string reason,bool levelPaused=false)
         {
             reason="Операция внесения уже обработана или не имеет ID.";
             if(InventoryTransactions.Contains(world,transaction)) return false;
+            if(levelPaused) {reason=InventoryTransactions.PausedReason;return false;}
             reason="Отправитель или контейнер больше недоступен.";
             var destination=InventorySource.Resolve(world,containerId);
             if(source==null || world.Find(source.id)!=source || destination==null) return false;
@@ -75,6 +76,7 @@ namespace Remains.Domain
     }
     public static class InventoryTransactions
     {
+        public const string PausedReason="Область на паузе. Передача предметов временно недоступна.";
         public static bool Contains(WorldState world,string id)=>string.IsNullOrEmpty(id) || world.completedTransactions.Contains(id) ||
             world.pendingGrants.Exists(p=>p.transaction==id) || world.pendingDeposits.Exists(p=>p.transaction==id);
     }

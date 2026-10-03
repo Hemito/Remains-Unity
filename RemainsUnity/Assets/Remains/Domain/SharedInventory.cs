@@ -11,11 +11,12 @@ namespace Remains.Domain
         // Host receipt order decides the winner. The client never grants speculatively.
         public bool PrepareClaim(string transaction, string containerId,string itemId, ActorState recipient)
             =>PrepareClaim(transaction,containerId,itemId,recipient,out _);
-        public bool PrepareClaim(string transaction, string containerId,string itemId,ActorState recipient,out string reason,int quantity=0)
+        public bool PrepareClaim(string transaction, string containerId,string itemId,ActorState recipient,out string reason,int quantity=0,bool levelPaused=false)
         {
             var container=InventorySource.Resolve(world,containerId);
             reason="Операция подбора уже обработана или не имеет ID.";
             if(InventoryTransactions.Contains(world,transaction)) return false;
+            if(levelPaused) {reason=InventoryTransactions.PausedReason;return false;}
             var item = container?.items.Find(candidate => candidate.id == itemId);
             reason=ContainerAccess.ClaimRejection(recipient,container,item,rule,quantity);
             if(reason!=null) return false;

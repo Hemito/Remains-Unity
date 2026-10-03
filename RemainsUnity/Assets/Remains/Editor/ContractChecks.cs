@@ -36,6 +36,7 @@ namespace Remains.Editor
             WeaponInventoryChecks.Run();
             WeaponInventoryMigrationChecks.Run();
             WeaponInventoryUiChecks.Run();
+            InventoryPauseChecks.Run();
             WeaponAssetChecks.Run();
             EntityAssetChecks.Run();
             PropPrefabChecks.Run();
