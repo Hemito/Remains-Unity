@@ -70,7 +70,7 @@ namespace Remains.Editor
                     var camera=new GameObject("Камера окна").AddComponent<Camera>();camera.transform.SetParent(root.transform);camera.transform.position=new Vector3(0,0,-10);camera.backgroundColor=new Color(.06f,.07f,.08f);
                     target=new RenderTexture(1920,1080,24);target.Create();camera.targetTexture=target;canvas.worldCamera=camera;canvas.planeDistance=1;
                     image=new Texture2D(1920,1080,TextureFormat.RGBA32,false);
-                    foreach(int row in new[]{1,3,4,5})
+                    foreach(int row in new[]{1,2,3,4,5})
                     {
                         view.Rows[row].onClick.Invoke();Canvas.ForceUpdateCanvases();
                         Require(view.WeaponDetail.preferredHeight<=view.WeaponDetail.rectTransform.rect.height+.1f,"Описание оружия обрезается");
