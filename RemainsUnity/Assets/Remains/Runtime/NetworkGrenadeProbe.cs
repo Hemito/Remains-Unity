@@ -28,6 +28,7 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
+            File.WriteAllText(value.Options.Report+".hub-layout.json",Remains.Serialization.StateJson.ToJson(Remains.Domain.RoomLayout.Load("hub")));
             value.GrenadeAudio.Observed+=message=>
             {if(Host) NetworkServer.SendToAll(message);}; // Repeat the cosmetic event to verify deduplication.
             value.Session.AttackReceived+=attack=>
@@ -43,7 +44,8 @@ namespace Remains.Runtime
             {
                 if(Held && Source && !heldLaunchVerified)
                 {
-                    heldLaunchVerified=Vector2.Distance(flight.position,plannedOrigin)<.0001f;
+                    heldLaunchVerified=Vector2.Distance(flight.position,plannedOrigin)<.0001f &&
+                        flight.state.rotationVersion==1 && Mathf.Abs(flight.state.angularVelocity)>1;
                     if(!heldLaunchVerified) Finish(false,"Граната выпущена не из удерживаемой позиции.");
                 }
                 if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureFlight());
@@ -57,7 +59,7 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             if(Resume || phase!=1 || !Source || threw || runtime.Session.LocalActor==null) return default;
-            var actor=runtime.Session.LocalActor;var aim=actor.Position+Vector2.down*3;
+            var actor=runtime.Session.LocalActor;var aim=actor.Position+(Held?Vector2.up:Vector2.down)*3;
             if(Held)
             {
                 if(actor.weapon!="grenade") return new PlayerCommand {weaponItem=actor.inventory.First(item=>item.definition=="grenade").id,hasAim=true,aim=aim};
@@ -71,7 +73,7 @@ namespace Remains.Runtime
         private void Update()
         {
             if(finished) return;
-            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут гранаты: phase={phase}, handoff={handoff}, explosions={explosions}, active={runtime.Session.World?.grenades.Count}.");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут гранаты: phase={phase}, handoff={handoff}, explosions={explosions}, active={runtime.Session.World?.grenades.Count}, lobbyWaiting={runtime.Session.Lobby.ClientWaiting}, lobbyPlayers={runtime.Session.Lobby.ClientPlayers}, lobbyBusy={runtime.Session.Lobby.ClientBusy}, lobbyError={runtime.Session.Lobby.ClientError}, contentDifferences={runtime.Session.Lobby.ContentDifferences?.Count}.");return;}
             var session=runtime.Session;
             if(Host && Resume && session.Lobby.ClientWaiting && !startRequested && session.Lobby.ClientPlayers==runtime.Options.ProbePeers)
             {startRequested=true;session.Lobby.StartSelected();}

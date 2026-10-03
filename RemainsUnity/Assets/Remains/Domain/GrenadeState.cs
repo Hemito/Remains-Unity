@@ -15,6 +15,9 @@ namespace Remains.Domain
         public uint sequence;
         public float x,y,vx,vy,remaining;
         public double simulationRemainder;
+        public int rotationVersion;
+        public float angle,angularVelocity;
+        public bool mirrored;
         public Vector2 Position {get=>new(x,y);set {x=value.x;y=value.y;}}
         public Vector2 Velocity {get=>new(vx,vy);set {vx=value.x;vy=value.y;}}
         public GrenadeState Copy()=>JsonUtility.FromJson<GrenadeState>(JsonUtility.ToJson(this));
@@ -36,11 +39,12 @@ namespace Remains.Domain
         private static readonly MovementHull Hull=new() {width=.2f,height=.2f};
         public static void BeginSession(WorldState world)
         {
-            foreach(var grenade in world.grenades) {grenade.owner=null;grenade.generation++;grenade.sequence=0;}
+            foreach(var grenade in world.grenades) {GrenadeRotation.Prepare(grenade);grenade.owner=null;grenade.generation++;grenade.sequence=0;}
         }
         public static float Step(GrenadeState state,RoomLayout room,float dt)
         {
             if(dt<=0 || state.remaining<=0) return 0;
+            GrenadeRotation.Prepare(state);
             if(!float.IsFinite(dt) || !double.IsFinite(state.simulationRemainder) || state.simulationRemainder<0 || state.simulationRemainder>=SimulationStep)
                 throw new InvalidOperationException($"Некорректные часы гранаты {state.id}: dt={dt}, остаток={state.simulationRemainder}.");
             state.simulationRemainder=Math.Min(state.remaining,state.simulationRemainder+dt);
@@ -65,14 +69,18 @@ namespace Remains.Domain
             state.Velocity+=acceleration*dt;
             var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false)+Vector2.up*.1f;
             state.Position=moved;
+            GrenadeRotation.Advance(state,dt);
+            bool collided=false;
             if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f)
-            {impact=Mathf.Abs(state.vx);state.vx=-state.vx*definition.grenadeRestitution;}
+            {impact=Mathf.Abs(state.vx);state.vx=-state.vx*definition.grenadeRestitution;collided=true;}
             if(Mathf.Abs(moved.y-previous.y-delta.y)>.00001f)
             {
                 impact=Mathf.Max(impact,Mathf.Abs(state.vy));
                 if(state.vy<0) state.vx*=definition.grenadeGroundRetention;
                 state.vy=-state.vy*definition.grenadeRestitution;
+                collided=true;
             }
+            if(collided) state.angularVelocity*=definition.grenadeAngularRetention;
             return impact;
         }
         public static void Reassign(WorldState world,IReadOnlyCollection<string> owners)

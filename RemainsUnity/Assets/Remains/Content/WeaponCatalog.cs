@@ -17,6 +17,7 @@ namespace Remains.Content
         public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
         public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention,grenadeGravity;
         public float grenadeMaxLaunchSpeed,grenadeFullEffortDistance,grenadeAimLift;
+        public float grenadeSpinRate,grenadeAngularRetention;
         public float meleeContactStart,meleeContactEnd=1;
         public MeleePoseKey[] meleeMotion;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
@@ -54,8 +55,8 @@ namespace Remains.Content
                 if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");
                 inputs.Add(path,data.text);
             }
-            inputs.Add("Content/prototype-room",Remains.Serialization.StateJson.ToJson(Remains.Domain.RoomLayout.Load()));
-            inputs.Add("Content/prototype-hub",Remains.Serialization.StateJson.ToJson(Remains.Domain.RoomLayout.Load("hub")));
+            inputs.Add("Content/prototype-room",Remains.Serialization.StateJson.ToJson(RoomAuthoring.Load("factory:0").CreateLayout(includeArtwork:false)));
+            inputs.Add("Content/prototype-hub",Remains.Serialization.StateJson.ToJson(RoomAuthoring.Load("hub").CreateLayout(includeArtwork:false)));
             var entities=EntityAssetCatalog.Load();
             inputs.Add("Content/actors",entities.ActorsJson());inputs.Add("Content/props",entities.PropsJson());
             inputs.Add("Original/Weapons/artwork",WeaponRigs.ManifestJson());

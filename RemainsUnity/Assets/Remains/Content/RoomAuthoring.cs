@@ -17,11 +17,13 @@ namespace Remains.Content
             settings=StateJson.FromJson<RoomLayout>(StateJson.ToJson(source));
             settings.platforms=null;settings.ladders=null;
         }
-        public RoomLayout CreateLayout()
+        public RoomLayout CreateLayout(bool includeArtwork=true)
         {
             if(settings==null) throw new InvalidOperationException($"Комната {name}: отсутствуют настройки.");
             var result=StateJson.FromJson<RoomLayout>(StateJson.ToJson(settings));
-            if(authoredArtwork) result.artwork=GetComponentsInChildren<RoomArtworkAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
+            // Rendering properties (including GPU-dependent material values) do not define simulation compatibility.
+            if(!includeArtwork) result.artwork=null;
+            else if(authoredArtwork) result.artwork=GetComponentsInChildren<RoomArtworkAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             result.platforms=GetComponentsInChildren<RoomSurfaceAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             result.ladders=GetComponentsInChildren<RoomLadderAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             if(result.platforms.Length==0 || result.left>=result.right) throw new InvalidOperationException($"Комната {name}: некорректные границы или нет поверхностей.");

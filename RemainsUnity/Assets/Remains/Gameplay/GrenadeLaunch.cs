@@ -8,6 +8,11 @@ namespace Remains.Gameplay
     // No frame clock and no original-game implementation are used here.
     public static class GrenadeLaunch
     {
+        public static float AngularVelocity(Vector2 velocity,float facing,WeaponDefinition definition)
+        {
+            float direction=velocity.x==0?facing:Mathf.Sign(velocity.x);
+            return -direction*definition.grenadeSpinRate*Mathf.Clamp01(velocity.magnitude/definition.grenadeMaxLaunchSpeed);
+        }
         public static Vector2 Velocity(Vector2 origin,Vector2 aim,float feetY,WeaponDefinition definition)
         {
             var offset=aim-origin;

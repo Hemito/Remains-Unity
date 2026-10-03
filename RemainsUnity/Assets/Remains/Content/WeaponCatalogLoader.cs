@@ -129,6 +129,9 @@ namespace Remains.Content
             foreach(float value in new[]{weapon.damage,weapon.speedDamage,weapon.maxSpeedDamage,weapon.range,weapon.cooldown,weapon.manaCost,weapon.reloadSeconds,weapon.projectileSpeed,weapon.projectileSpeedVariation,weapon.projectileLifetime})
                 if(!float.IsFinite(value) || value<0) throw new InvalidDataException($"Некорректное число оружия: источник={source}, id={weapon.id}.");
             var speeds=weapon.ProjectileSpeedRange;
+            if(!float.IsFinite(weapon.grenadeSpinRate) || weapon.grenadeSpinRate<0 ||
+                !float.IsFinite(weapon.grenadeAngularRetention) || weapon.grenadeAngularRetention<0 || weapon.grenadeAngularRetention>1)
+                throw new InvalidDataException($"Некорректные параметры вращения гранаты: источник={source}, id={weapon.id}.");
             if(!float.IsFinite(weapon.grenadeMaxLaunchSpeed) || weapon.grenadeMaxLaunchSpeed<0 ||
                 !float.IsFinite(weapon.grenadeFullEffortDistance) || weapon.grenadeFullEffortDistance<0 ||
                 !float.IsFinite(weapon.grenadeAimLift) || weapon.grenadeAimLift<0 || weapon.grenadeAimLift>1 ||

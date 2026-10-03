@@ -33,6 +33,9 @@ namespace Remains.Editor
                 Field("grenadeMaxLaunchSpeed","Предельная скорость броска, м/с");
                 Field("grenadeFullEffortDistance","Расстояние полного усилия, м");
                 Field("grenadeAimLift","Подъём направления на метр выноса");
+                Field("grenadeSpinRate","Вращение сильного броска, °/с");
+                using(new EditorGUI.DisabledScope(definition.FindPropertyRelative("grenadeSpinRate").floatValue==0))
+                    Field("grenadeAngularRetention","Сохранение вращения при ударе, доля");
             }
             EditorGUILayout.LabelField("Ближний бой",EditorStyles.boldLabel);
             Field("meleeMotion","Ключи движения");

@@ -82,11 +82,13 @@ namespace Remains.Networking
             actor.revision++;
             session.ServerWorld.grenades.Add(new GrenadeState {id=message.transaction,attacker=actor.id,level=actor.level,owner=actor.owner,
                 sourcePlayer=actor.player,generation=1,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,
+                rotationVersion=1,angle=message.angle,angularVelocity=message.angularVelocity,mirrored=message.mirrored,
                 remaining=Remains.Content.WeaponCatalog.Get("grenade").grenadeFuseSeconds});
             session.CommitWorld();
         }
         private static void Apply(GrenadeState state,GrenadePoseMessage message)
-        {state.x=message.x;state.y=message.y;state.vx=message.vx;state.vy=message.vy;state.remaining=message.remaining;state.simulationRemainder=message.simulationRemainder;state.sequence=message.sequence;}
+        {state.x=message.x;state.y=message.y;state.vx=message.vx;state.vy=message.vy;state.remaining=message.remaining;state.simulationRemainder=message.simulationRemainder;state.sequence=message.sequence;
+            state.rotationVersion=1;state.angle=message.angle;state.angularVelocity=message.angularVelocity;state.mirrored=message.mirrored;}
         private void GrenadePose(NetworkConnectionToClient connection,GrenadePoseMessage message)
         {
             var actor=session.ConnectedActor(connection);
@@ -95,6 +97,7 @@ namespace Remains.Networking
                 unchecked((int)(message.sequence-grenade.sequence))<=0) return;
             if(message.detonate && session.Pause.Defer(grenade.level,()=>GrenadePose(connection,message))) return;
             if(!float.IsFinite(message.x) || !float.IsFinite(message.y) || !float.IsFinite(message.vx) || !float.IsFinite(message.vy) ||
+                !float.IsFinite(message.angle) || !float.IsFinite(message.angularVelocity) ||
                 !double.IsFinite(message.simulationRemainder) || message.simulationRemainder<0 || message.simulationRemainder>=GrenadeRules.SimulationStep ||
                 !float.IsFinite(message.remaining) || message.remaining<0 || message.remaining>grenade.remaining+.001f)
             {Debug.LogWarning($"Некорректное состояние гранаты: id={message.id}, generation={message.generation}, remaining={message.remaining}.");return;}
@@ -112,7 +115,8 @@ namespace Remains.Networking
         {
             state.sequence++;
             NetworkClient.Send(new GrenadePoseMessage {id=state.id,generation=state.generation,sequence=state.sequence,
-                x=state.x,y=state.y,vx=state.vx,vy=state.vy,remaining=state.remaining,simulationRemainder=state.simulationRemainder,detonate=detonate,enemyHits=enemyHits});
+                x=state.x,y=state.y,vx=state.vx,vy=state.vy,remaining=state.remaining,simulationRemainder=state.simulationRemainder,
+                angle=state.angle,angularVelocity=state.angularVelocity,mirrored=state.mirrored,detonate=detonate,enemyHits=enemyHits});
         }
         public void GrabProp(string prop,bool release) => NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });
         public void SendProp(PropState prop)

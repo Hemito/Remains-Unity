@@ -30,6 +30,7 @@ namespace Remains.Editor
             CheckFlightTime();
             CheckFreeFlight();
             CheckBounceFrameRates();
+            CheckRotation();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
@@ -60,6 +61,36 @@ namespace Remains.Editor
                 Debug.Log("GrenadeChecks PASS: передача, пустой уровень, сохранение полёта, однократный взрыв и решения.");
             }
             finally {if(Directory.Exists(path)) Directory.Delete(path,true);}
+        }
+        private static void CheckRotation()
+        {
+            var room=new RoomLayout {left=-100,right=100,platforms=Array.Empty<RoomSurface>()};
+            foreach(int rate in new[]{30,60,144})
+            {
+                var state=new GrenadeState {id="spin",rotationVersion=1,angle=15,angularVelocity=120,mirrored=true,y=20,vx=3,vy=6,remaining=2};
+                for(int i=0;i<rate;i++) GrenadeRules.Step(state,room,1f/rate);
+                Require(Mathf.Abs(state.angle-135)<.001f && state.angularVelocity==120 && state.mirrored,
+                    $"Вращение свободного полёта зависит от FPS: {rate}, угол={state.angle}");
+                Require(Mathf.Abs(state.x-3)<.0001f && Mathf.Abs(state.y-17)<.0001f,"Вращение изменило поступательный полёт");
+            }
+            var original=new GrenadeState {id="resume-spin",rotationVersion=1,angle=15,angularVelocity=120,mirrored=true,y=20,remaining=2};
+            GrenadeRules.Step(original,room,.371f);var restored=original.Copy();
+            Require(restored.angle==original.angle && restored.angularVelocity==120 && restored.mirrored && restored.rotationVersion==1,
+                "Сохранение потеряло угол, скорость или отражение гранаты");
+            var paused=restored.Copy();GrenadeRules.Step(restored,room,0);
+            Require(restored.angle==paused.angle && restored.angularVelocity==paused.angularVelocity,"Пауза изменила вращение");
+            GrenadeRules.Step(restored,room,.629f);Require(Mathf.Abs(restored.angle-135)<.001f,"Возобновление сбросило фазу вращения");
+            room.platforms=new[]{new RoomSurface {x=-100,y=-1,width=200,height=1}};
+            var bounce=new GrenadeState {id="spin-impact",rotationVersion=1,y=.3f,vy=-5,angle=30,angularVelocity=180,remaining=2};
+            GrenadeRules.Step(bounce,room,.1f);
+            Require(bounce.angularVelocity<180 && bounce.angularVelocity>=0 && bounce.angle>30,"Удар не погасил вращение или сбросил угол");
+            var legacy=new GrenadeState {id="legacy-spin",x=3,y=4,remaining=1};
+            GrenadeRotation.Prepare(legacy);
+            Require(legacy.rotationVersion==1 && legacy.angle==0 && legacy.angularVelocity==0 && legacy.x==3 && legacy.y==4 && legacy.remaining==1,
+                "Миграция старой гранаты изменила её полёт");
+            legacy.rotationVersion=2;bool rejected=false;
+            try {GrenadeRotation.Prepare(legacy);} catch(InvalidOperationException) {rejected=true;}
+            Require(rejected,"Неизвестная версия вращения молча принята");
         }
         private static void CheckArtwork()
         {

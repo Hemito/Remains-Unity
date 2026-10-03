@@ -114,7 +114,10 @@ namespace Remains.Presentation
             }
             foreach(var pair in flights) pair.Value.enabled=false;
             foreach(var flight in grenades.Flights) if(flights.TryGetValue(flight.message.id,out var view))
-            { view.enabled=flight.message.level==session.LocalActor?.level;view.transform.position=flight.position; }
+            {
+                view.enabled=flight.message.level==session.LocalActor?.level;view.transform.position=flight.position;
+                view.transform.rotation=Quaternion.Euler(0,0,flight.state.angle);view.flipY=flight.state.mirrored;
+            }
             shotAnimation.Step(Time.deltaTime);
         }
     }

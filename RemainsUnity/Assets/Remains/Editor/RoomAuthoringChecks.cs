@@ -12,8 +12,17 @@ namespace Remains.Editor
             var source=RoomAuthoring.Load("factory:0");var instance=UnityEngine.Object.Instantiate(source);
             try
             {
+                string gameplayBefore=Remains.Serialization.StateJson.ToJson(instance.CreateLayout(includeArtwork:false));
+                var decoration=instance.GetComponentInChildren<RoomArtworkAuthoring>();
+                if(decoration==null) throw new InvalidOperationException("Проверка комнаты требует авторского декоративного слоя.");
+                decoration.enabled=false;
+                if(gameplayBefore!=Remains.Serialization.StateJson.ToJson(instance.CreateLayout(includeArtwork:false)))
+                    throw new InvalidOperationException("Декоративный слой изменил игровой манифест комнаты.");
+                decoration.enabled=true;
                 var original=source.CreateLayout();var floor=instance.GetComponentsInChildren<RoomSurfaceAuthoring>()[0];
                 floor.transform.localPosition+=Vector3.up;
+                if(gameplayBefore==Remains.Serialization.StateJson.ToJson(instance.CreateLayout(includeArtwork:false)))
+                    throw new InvalidOperationException("Изменение опоры не отражено в игровом манифесте комнаты.");
                 var changed=instance.CreateLayout();
                 if(!RoomSupport.IsSupported(changed,new Vector2(0,1)) || RoomSupport.IsSupported(changed,Vector2.zero))
                     throw new InvalidOperationException("Перемещение поверхности в редакторе не изменило опору симуляции.");

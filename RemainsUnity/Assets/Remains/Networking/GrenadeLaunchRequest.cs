@@ -16,7 +16,9 @@ namespace Remains.Networking
             var velocity=GrenadeLaunch.Velocity(origin,aim,actor.y,Remains.Content.WeaponCatalog.Get("grenade"));
             return new ThrowRequest {transaction=Guid.NewGuid().ToString("N"),level=actor.level,item=stack?.id,
                 generation=actor.generation,lifecycle=actor.lifecycleSequence,
-                originX=origin.x,originY=origin.y,aimX=aim.x,aimY=aim.y,vx=velocity.x,vy=velocity.y};
+                originX=origin.x,originY=origin.y,aimX=aim.x,aimY=aim.y,vx=velocity.x,vy=velocity.y,
+                angle=held?actor.weaponAngle:0,mirrored=held && WeaponPose.Flip(actor),
+                angularVelocity=GrenadeLaunch.AngularVelocity(velocity,actor.facing,Remains.Content.WeaponCatalog.Get("grenade"))};
         }
         public static bool Matches(ActorState actor,ThrowRequest request)=>actor!=null && !actor.down &&
             !string.IsNullOrWhiteSpace(request.transaction) && !string.IsNullOrWhiteSpace(request.item) && actor.level==request.level &&
@@ -24,6 +26,7 @@ namespace Remains.Networking
             float.IsFinite(request.originX) && float.IsFinite(request.originY) &&
             float.IsFinite(request.aimX) && float.IsFinite(request.aimY) &&
             float.IsFinite(request.vx) && float.IsFinite(request.vy) &&
+            float.IsFinite(request.angle) && float.IsFinite(request.angularVelocity) &&
             float.IsFinite(new Vector2(request.vx,request.vy).sqrMagnitude) &&
             float.IsFinite((new Vector2(request.aimX,request.aimY)-new Vector2(request.originX,request.originY)).sqrMagnitude);
     }
