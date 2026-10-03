@@ -4,6 +4,14 @@ using UnityEngine;
 namespace Remains.Content
 {
     [Serializable]
+    public sealed class CombatMusicDefinition
+    {
+        [InspectorName("ID записи")] public string id;
+        [InspectorName("Тип противника")] public string actorType;
+        [InspectorName("Музыкальная запись")] public AudioClip clip;
+        [Min(.01f),InspectorName("Продолжение после боевого события, с")] public float holdSeconds=7;
+    }
+    [Serializable]
     public sealed class MusicTrackDefinition
     {
         [InspectorName("ID записи")] public string id;
@@ -16,8 +24,17 @@ namespace Remains.Content
         [SerializeField,Min(.01f),InspectorName("Переход между записями, с")] private float fadeSeconds=1.5f;
         [SerializeField,Range(0,1),InspectorName("Базовая громкость")] private float volume=.2f;
         [SerializeField,InspectorName("Привязки")] private MusicTrackDefinition[] tracks=Array.Empty<MusicTrackDefinition>();
+        [SerializeField,InspectorName("Боевая музыка")] private CombatMusicDefinition[] combatTracks=Array.Empty<CombatMusicDefinition>();
         public float FadeSeconds=>fadeSeconds;
         public float Volume=>volume;
+        public CombatMusicDefinition[] CreateCombatTracks()
+        {
+            Validate();
+            var result=new CombatMusicDefinition[combatTracks.Length];
+            for(int i=0;i<result.Length;i++) result[i]=new CombatMusicDefinition {id=combatTracks[i].id,
+                actorType=combatTracks[i].actorType,clip=combatTracks[i].clip,holdSeconds=combatTracks[i].holdSeconds};
+            return result;
+        }
         public MusicTrackDefinition[] CreateTracks()
         {
             Validate();
@@ -38,6 +55,13 @@ namespace Remains.Content
                 if(!ids.Add(track.id) || !prefixes.Add(track.levelPrefix??""))
                     throw new InvalidOperationException($"Музыка {name}: повтор ID/префикса, запись {track.id}, локация {track.levelPrefix}.");
             }
+            if(combatTracks==null) throw new InvalidOperationException($"Музыка {name}: отсутствует список боевых привязок.");
+            var actorTypes=new HashSet<string>(StringComparer.Ordinal);
+            foreach(var track in combatTracks)
+                if(track==null || string.IsNullOrWhiteSpace(track.id) || string.IsNullOrWhiteSpace(track.actorType) ||
+                    track.clip==null || track.clip.samples<=0 || !float.IsFinite(track.holdSeconds) || track.holdSeconds<=0 ||
+                    !ids.Add(track.id) || !actorTypes.Add(track.actorType))
+                    throw new InvalidOperationException($"Музыка {name}: неверная или повторная боевая привязка {track?.id}, тип {track?.actorType}.");
         }
         private void OnValidate()
         {

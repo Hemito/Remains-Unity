@@ -22,6 +22,7 @@ namespace Remains.Runtime
         private bool traveled,disconnected,returned,finished,deferred,transferred,canceled;
         private string firstAttack,canceledAttack;
         private bool fired,replayed;
+        private bool combatMusicObserved;
         private AttackEvent acceptedShot;
         private int replayProofs;
         private readonly Dictionary<string,float> shots=new();
@@ -63,6 +64,9 @@ namespace Remains.Runtime
             if(Source && disconnected && !returned && Time.unscaledTime>=returnAt)
             {returned=true;session.StartClient();return;}
             var self=session.LocalActor;if(self==null) return;
+            if(self.level=="factory:0" && runtime.Music.CurrentTrack=="raider-combat") combatMusicObserved=true;
+            if(self.level=="hub" && runtime.Music.CurrentTrack=="raider-combat")
+                {Finish(false,"Музыка боя на заводе попала в хаб.");return;}
             if(!traveled && (Host && session.World.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers || Source && phase>=1))
             {traveled=true;session.Travel.RequestFactory();}
             var npc=session.World.Find("npc:training-guard");
@@ -117,6 +121,8 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
+            if(success && (Host || Source) && shots.Count>0 && !combatMusicObserved) {success=false;detail+=" Не включилась музыка боя.";}
+            detail+=$" combatMusicObserved={combatMusicObserved}.";
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
