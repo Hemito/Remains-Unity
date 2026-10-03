@@ -31,17 +31,25 @@ namespace Remains.Domain
     }
     public static class GrenadeRules
     {
+        private static readonly MovementHull Hull=new() {width=.2f,height=.2f};
         public static void BeginSession(WorldState world)
         {
             foreach(var grenade in world.grenades) {grenade.owner=null;grenade.generation++;grenade.sequence=0;}
         }
         public static void Step(GrenadeState state,RoomLayout room,float dt)
         {
+            if(dt<=0) return;
             var previous=state.Position;
             state.Velocity+=Vector2.down*WorldPhysics.Gravity*dt;
-            state.Position+=state.Velocity*dt;
-            if(RoomSupport.TryLanding(room,previous-Vector2.up*.1f,state.Position-Vector2.up*.1f,false,out float landing))
-            {state.y=landing+.1f;state.vy=Mathf.Abs(state.vy)*.45f;state.vx*=.75f;}
+            var delta=state.Velocity*dt;
+            var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false)+Vector2.up*.1f;
+            state.Position=moved;
+            if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f) state.vx=-state.vx*.45f;
+            if(Mathf.Abs(moved.y-previous.y-delta.y)>.00001f)
+            {
+                if(state.vy<0) state.vx*=.75f;
+                state.vy=-state.vy*.45f;
+            }
             state.remaining=Mathf.Max(0,state.remaining-dt);
         }
         public static void Reassign(WorldState world,IReadOnlyCollection<string> owners)

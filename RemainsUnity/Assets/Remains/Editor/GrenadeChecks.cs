@@ -11,6 +11,7 @@ namespace Remains.Editor
         public static void Run()
         {
             CheckRecoveredPresence();
+            CheckTerrain();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
@@ -41,6 +42,31 @@ namespace Remains.Editor
                 Debug.Log("GrenadeChecks PASS: передача, пустой уровень, сохранение полёта, однократный взрыв и решения.");
             }
             finally {if(Directory.Exists(path)) Directory.Delete(path,true);}
+        }
+        private static void CheckTerrain()
+        {
+            foreach(float dt in new[]{1f/30,1f/60,1f/144})
+            {
+                var room=new RoomLayout {left=-20,right=20,platforms=new[]{new RoomSurface {x=1,y=0,width=.05f,height=4}}};
+                var right=new GrenadeState {x=.7f,y=2,vx=100,remaining=2};
+                GrenadeRules.Step(right,room,dt);
+                Require(Mathf.Abs(right.x-.9f)<.0001f && right.vx<0,"Граната должна отскочить от тонкой стены справа");
+                var left=new GrenadeState {x=1.35f,y=2,vx=-100,remaining=2};
+                GrenadeRules.Step(left,room,dt);
+                Require(Mathf.Abs(left.x-1.15f)<.0001f && left.vx>0,"Граната должна отскочить от стены слева");
+                room.platforms=new[]{new RoomSurface {x=-10,y=2,width=20,height=.05f}};
+                var up=new GrenadeState {x=0,y=1.7f,vy=100,remaining=2};
+                GrenadeRules.Step(up,room,dt);
+                Require(Mathf.Abs(up.y-1.9f)<.0001f && up.vy<0,"Потолок должен отражать гранату вниз");
+                var down=new GrenadeState {x=0,y=2.35f,vy=-100,vx=2,remaining=2};
+                GrenadeRules.Step(down,room,dt);
+                Require(Mathf.Abs(down.y-2.15f)<.0001f && down.vy>0 && Mathf.Approximately(down.vx,1.5f),"Пол должен отражать и тормозить гранату");
+                room.platforms[0].oneWay=true;
+                up=new GrenadeState {x=0,y=1.7f,vy=100,remaining=2};
+                GrenadeRules.Step(up,room,dt);
+                Require(up.y>2 && up.vy>0,"Односторонняя платформа не является потолком");
+                Require(Mathf.Approximately(up.remaining,2-dt),"Столкновения не должны менять темп запала");
+            }
         }
         private static void CheckRecoveredPresence()
         {
