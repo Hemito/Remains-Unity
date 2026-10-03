@@ -73,7 +73,7 @@ namespace Remains.Runtime
             var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
             Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;
             Session.ConfigureRules(WeaponCatalog.Rules);
-            Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby") || Options.Smoke.StartsWith("protocol") || Options.Smoke.StartsWith("grenade-resume-"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
+            Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby") || Options.Smoke.StartsWith("duplicate-lobby") || Options.Smoke.StartsWith("protocol") || Options.Smoke.StartsWith("grenade-resume-"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
             Session.CharacterId=Options.Character;
             Session.networkAddress=Options.Address;
             Session.Saves=new SaveStore(Options.SaveDirectory ?? Path.Combine(Application.persistentDataPath,"Profiles",Options.Character));
@@ -116,7 +116,7 @@ namespace Remains.Runtime
             musicMixVolume=Music.Volume;AudioPreferences.Changed+=ApplyAudioPreferences;ApplyAudioPreferences();
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
-            if (!Application.isBatchMode || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke?.StartsWith("lobby")==true)
+            if (!Application.isBatchMode || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences);
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
@@ -148,6 +148,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("pause")) gameObject.AddComponent<NetworkPauseProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause")) gameObject.AddComponent<NetworkRulesProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("extensions")) gameObject.AddComponent<NetworkExtensionProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("duplicate")) gameObject.AddComponent<NetworkDuplicateNameProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("protocol")) gameObject.AddComponent<NetworkProtocolProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("bodyrevival")) gameObject.AddComponent<NetworkBodyRevivalProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("body")) gameObject.AddComponent<NetworkBodyInventoryProbe>().Initialize(this);

@@ -46,7 +46,8 @@ namespace Remains.Networking
             ResetClient();
             NetworkClient.RegisterHandler<ProtocolReply>(message=>
             {
-                if(!pending) return;
+                // Admission may still fail after the protocol handshake (for example, a taken character name).
+                if(!pending && (!ClientApproved || message.accepted)) return;
                 pending=false;
                 if(!message.accepted || message.version!=SessionProtocol.Version)
                 {LastError=string.IsNullOrEmpty(message.reason)?$"Хост использует несовместимый сетевой протокол {message.version}.":message.reason;session.ShowNotice(LastError);session.StopClient();return;}
@@ -75,6 +76,8 @@ namespace Remains.Networking
             closing[connection.connectionId]=Time.unscaledTime+1;
             Debug.LogWarning($"Подключение отклонено: connection={connection.connectionId}, причина={reason}");
         }
+        public void RejectDuplicateCharacter(NetworkConnectionToClient connection,string character)=>
+            Reject(connection,$"Персонаж с именем «{character}» уже находится в сессии. Выберите другое имя в главном меню и подключитесь снова.");
         public void Step()
         {
             if(pending && Time.unscaledTime>deadline)

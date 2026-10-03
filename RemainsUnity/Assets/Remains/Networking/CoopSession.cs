@@ -257,8 +257,7 @@ namespace Remains.Networking
             var actor = ServerWorld.actors.Find(a => a.character == message.character);
             if (actor?.connected == true)
             {
-                connection.Send(new NoticeMessage { text = "Этот персонаж уже подключён." });
-                connection.Disconnect();
+                Admission.RejectDuplicateCharacter(connection,message.character);
                 return;
             }
             string owner = "connection:" + connection.connectionId;

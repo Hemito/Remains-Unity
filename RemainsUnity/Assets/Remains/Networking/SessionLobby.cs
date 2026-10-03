@@ -101,6 +101,8 @@ namespace Remains.Networking
         public bool HoldJoin(NetworkConnectionToClient connection,JoinMessage join)
         {
             if(!Waiting) return false;
+            if(pending.Any(peer=>peer.Key!=connection.connectionId && peer.Value.character==join.character))
+            {session.Admission.RejectDuplicateCharacter(connection,join.character);return true;}
             pending[connection.connectionId]=join;
             if(connection==NetworkServer.localConnection && initialHash!=null)
                 selected=connection.connectionId+":"+initialHash;
