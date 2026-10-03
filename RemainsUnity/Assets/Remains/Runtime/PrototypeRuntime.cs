@@ -25,6 +25,7 @@ namespace Remains.Runtime
         public TelekinesisController Telekinesis { get; private set; }
         public SimulationGeometry Geometry { get; private set; }
         public GameplayAudio Audio {get;private set;}
+        public GrenadeImpactAudio GrenadeAudio {get;private set;}
         public ProjectileAudio ImpactAudio {get;private set;}
         public AreaMusic Music {get;private set;}
         public MovementAudio MovementAudio {get;private set;}
@@ -99,6 +100,7 @@ namespace Remains.Runtime
             cameraView.transform.position=new Vector3(0,3,-10); cameraView.backgroundColor=new Color(0.08f,0.09f,0.1f);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
+            GrenadeAudio=new GameObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
             MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=new GameObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
             ImpactAudio=new GameObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);

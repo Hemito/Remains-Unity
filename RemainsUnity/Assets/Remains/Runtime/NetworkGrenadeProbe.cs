@@ -24,6 +24,8 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
+            value.GrenadeAudio.Observed+=message=>
+            {if(Host) NetworkServer.SendToAll(message);}; // Repeat the cosmetic event to verify deduplication.
             value.Session.AttackReceived+=attack=>
             {
                 if(attack.weapon!="grenade" || !explosionIds.Add(attack.id)) return;
@@ -97,6 +99,8 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             int expectedSounds=!Resume && Source?0:1;
+            if(Host && !Resume && runtime.GrenadeAudio.Played==0) success=false;
+            detail+=$" Звуков столкновения гранаты: {runtime.GrenadeAudio.Played}; события повторены для проверки дедупликации.";
             if(runtime.Audio.ExplosionSounds!=expectedSounds) success=false;
             if(runtime.Explosions.Shown!=expectedSounds) success=false;
             detail+=$" Эффектов взрыва: {runtime.Explosions.Shown}, ожидалось {expectedSounds}, уведомление повторено для проверки дедупликации.";

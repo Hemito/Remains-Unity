@@ -19,6 +19,7 @@ namespace Remains.Gameplay
     {
         public IReadOnlyList<GrenadeFlight> Flights=>flights;
         public event Action<GrenadeFlight> Created;
+        public event Action<GrenadeState,float> Impact;
         private readonly List<GrenadeFlight> flights=new();
         private readonly CoopSession session;
         private readonly InteractionAdapter adapter;
@@ -64,7 +65,11 @@ namespace Remains.Gameplay
                 var state=flight.state;
                 if(state.owner==null || !LevelActivity.HasConnectedPlayer(session.World,state.level)) continue;
                 if(session.Pause.IsPaused(state.level)) continue;
-                if(state.remaining>0) GrenadeRules.Step(state,geometry.Get(state.level),dt);
+                if(state.remaining>0)
+                {
+                    float speed=GrenadeRules.Step(state,geometry.Get(state.level),dt);
+                    if(speed>0 && state.owner==session.LocalOwner) Impact?.Invoke(state,speed);
+                }
                 if(state.remaining<=0)
                 {
                     observedExplosions[state.id+":"+state.generation]=state.Position;

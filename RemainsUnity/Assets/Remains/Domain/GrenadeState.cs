@@ -36,22 +36,26 @@ namespace Remains.Domain
         {
             foreach(var grenade in world.grenades) {grenade.owner=null;grenade.generation++;grenade.sequence=0;}
         }
-        public static void Step(GrenadeState state,RoomLayout room,float dt)
+        public static float Step(GrenadeState state,RoomLayout room,float dt)
         {
-            if(dt<=0) return;
+            if(dt<=0) return 0;
+            float impact=0;
             var definition=Remains.Content.WeaponCatalog.Get("grenade");
             var previous=state.Position;
             state.Velocity+=Vector2.down*WorldPhysics.Gravity*dt;
             var delta=state.Velocity*dt;
             var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false)+Vector2.up*.1f;
             state.Position=moved;
-            if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f) state.vx=-state.vx*definition.grenadeRestitution;
+            if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f)
+            {impact=Mathf.Abs(state.vx);state.vx=-state.vx*definition.grenadeRestitution;}
             if(Mathf.Abs(moved.y-previous.y-delta.y)>.00001f)
             {
+                impact=Mathf.Max(impact,Mathf.Abs(state.vy));
                 if(state.vy<0) state.vx*=definition.grenadeGroundRetention;
                 state.vy=-state.vy*definition.grenadeRestitution;
             }
             state.remaining=Mathf.Max(0,state.remaining-dt);
+            return impact;
         }
         public static void Reassign(WorldState world,IReadOnlyCollection<string> owners)
         {
