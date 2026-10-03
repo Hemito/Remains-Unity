@@ -16,6 +16,11 @@ namespace Remains.Runtime
             public string attack,actor;
             public bool local,moving,hasView;
             public float receivedAt,drawnAt,originX,originY,muzzleX,muzzleY,launchGap,poseError;
+            public double observedClock,receivedMotionClock,drawnMotionClock;
+            public int generation,receivedClockGeneration,drawnClockGeneration;
+            public string owner;
+            public uint receivedMotionSequence,drawnMotionSequence;
+            public float receivedGap,receivedX,receivedY,drawnX,drawnY;
         }
         [Serializable] private sealed class Trace {public List<Sample> samples=new();}
         private readonly Trace trace=new();
@@ -24,7 +29,11 @@ namespace Remains.Runtime
         {
             if(attack.weapon!="pistol" || actor==null || trace.samples.Count+pending.Count>=128) return;
             pending.Enqueue(new Sample {attack=attack.id,actor=actor.id,local=local,moving=Mathf.Abs(actor.vx)>4,
-                receivedAt=Time.unscaledTime,originX=attack.originX,originY=attack.originY});
+                receivedAt=Time.unscaledTime,originX=attack.originX,originY=attack.originY,
+                observedClock=Time.unscaledTimeAsDouble,receivedMotionClock=actor.motionSentAt,
+                generation=actor.generation,receivedClockGeneration=actor.motionClockGeneration,owner=actor.owner,
+                receivedMotionSequence=actor.motionSequence,receivedX=actor.x,receivedY=actor.y,
+                receivedGap=Vector2.Distance(attack.Origin,WeaponPose.Muzzle(actor))});
         }
         public bool Draw(WorldState world,InteractionVisuals visuals)
         {
@@ -36,6 +45,8 @@ namespace Remains.Runtime
                 sample.hasView=actor!=null && view!=null && view.gameObject.activeInHierarchy && view.Muzzle!=null;
                 if(sample.hasView)
                 {
+                    sample.drawnMotionClock=actor.motionSentAt;sample.drawnClockGeneration=actor.motionClockGeneration;
+                    sample.drawnMotionSequence=actor.motionSequence;sample.drawnX=actor.x;sample.drawnY=actor.y;
                     Vector2 muzzle=view.Muzzle.position;sample.muzzleX=muzzle.x;sample.muzzleY=muzzle.y;
                     sample.launchGap=Vector2.Distance(new Vector2(sample.originX,sample.originY),muzzle);
                     sample.poseError=Vector2.Distance(WeaponPose.Muzzle(actor),muzzle);
