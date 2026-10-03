@@ -78,11 +78,16 @@ namespace Remains.Presentation
         public event Action<ProjectileVisual> TrailDrawn;
         public string Level=>flight?.state.launch.level;
         public event Action<ProjectileVisual> Ended;
+        public string MuzzleJoinState {get;private set;}="not-requested";
         private void OnDestroy()=>Ended?.Invoke(this);
         public void JoinRemoteMuzzle()
         {
             var actor=session.World?.Find(flight.state.launch.attacker);
-            if(join!=null || actor==null || actor.owner==session.LocalOwner || actor.level!=Level ||
+            MuzzleJoinState=join!=null?"already-joined":actor==null?"missing-actor":
+                flight.state.launch.sourceOwner==session.LocalOwner?"local-shot":actor.level!=Level?"other-level":
+                actor.weapon!=Remains.Content.WeaponRigs.PresentationId(flight.state.launch.weapon)?"other-weapon":
+                flight.path.Traveled!=0?"advanced-flight":"joined";
+            if(join!=null || actor==null || flight.state.launch.sourceOwner==session.LocalOwner || actor.level!=Level ||
                 actor.weapon!=Remains.Content.WeaponRigs.PresentationId(flight.state.launch.weapon) || flight.path.Traveled!=0) return;
             join=new ProjectileTrailJoin();joinGeneration=actor.generation;joinLifecycle=actor.lifecycleSequence;
             joinFlightGeneration=flight.state.generation;

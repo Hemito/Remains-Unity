@@ -11,7 +11,11 @@ namespace Remains.Presentation
         {
             if(!captured)
             {
-                if(!beam && tailDistance>0) muzzle=null; // The first visible trace has already left the launch zone.
+                if(headDistance<=tailDistance) return origin+direction*tailDistance;
+                // Treat sub-millimetre departure as the launch seam. Frame-time jitter
+                // and float subtraction must not abruptly discard the muzzle offset.
+                const float departureTolerance=.001f;
+                if(!beam && tailDistance>departureTolerance) muzzle=null;
                 if(muzzle.HasValue && !IsForward(muzzle.Value,origin+direction*headDistance,direction)) return muzzle.Value;
                 captured=true;offset=muzzle.HasValue?muzzle.Value-origin:Vector2.zero;
             }

@@ -14,6 +14,10 @@ namespace Remains.Editor
         {
             Remains.Content.WeaponRigs.Load();Anatomy.Load();
             var wait=new ProjectileTrailJoin();
+            var hidden=new ProjectileTrailJoin();
+            hidden.Tail(Vector2.zero,Vector2.right,0,0,3,false,new Vector2(-.07f,0));
+            Require(hidden.Tail(Vector2.zero,Vector2.right,1,0,3,false,new Vector2(.07f,0))==new Vector2(.07f,0),
+                "Невидимый след нулевой длины зафиксировал устаревшую позу дула");
             var tail=wait.Tail(Vector2.zero,Vector2.right,.1f,0,3,false,new Vector2(.5f,.2f));
             Require(!ProjectileTrailJoin.IsForward(tail,new Vector2(.1f,0),Vector2.right),"След нарисован назад до дула");
             tail=wait.Tail(Vector2.zero,Vector2.right,1,0,3,false,new Vector2(.6f,.3f));
@@ -21,6 +25,10 @@ namespace Remains.Editor
             Require(wait.Tail(Vector2.zero,Vector2.right,7,4,3,false,Vector2.one*10)==new Vector2(4,0),"След не вернулся на каноническую линию");
             var late=new ProjectileTrailJoin();
             Require(late.Tail(Vector2.zero,Vector2.right,5,2,3,false,Vector2.one)==new Vector2(2,0),"Поздний след растянут обратно к дулу");
+            var boundary=new ProjectileTrailJoin();
+            var boundaryMuzzle=new Vector2(.07f,.02f);
+            Require(Vector2.Distance(boundary.Tail(Vector2.zero,Vector2.right,3.0001f,.0001f,3,false,boundaryMuzzle),boundaryMuzzle)<.001f,
+                "Округление на границе длины следа отключило соединение с дулом");
             foreach(string attackWeapon in new[]{"pistol","npc-shot"})
             {
             var root=new GameObject("Проверка соединения следа "+attackWeapon);
@@ -54,6 +62,15 @@ namespace Remains.Editor
                 Require((Vector2)view.transform.position==flight.path.Position && view.GetComponent<SpriteRenderer>().sprite==artwork.impact[0] &&
                     Quaternion.Angle(view.transform.rotation,Quaternion.identity)<.001f,"Попадание смещено или повёрнуто косметическим соединением");
                 Require(launch.originX==0 && launch.originY==0 && launch.endX==10,"Представление переписало исходную атаку");
+                actor.owner=observer.owner;
+                var handoffObject=new GameObject("Переданный стрелок");handoffObject.transform.SetParent(root.transform);
+                var handoffFlight=new ProjectileFlight {state=new ProjectileState {launch=launch},
+                    path=new LinearProjectilePath(Vector2.zero,Vector2.right,90,10)};
+                var handoff=handoffObject.AddComponent<ProjectileVisual>();handoff.Initialize(handoffFlight,artwork,session);handoff.JoinRemoteMuzzle();
+                handoffFlight.path.Advance(.03f,(_,_)=>null);
+                typeof(ProjectileVisual).GetMethod("LateUpdate",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(handoff,null);
+                Require(Vector2.Distance(handoff.TrailStart,WeaponPose.Muzzle(actor))<.0001f,
+                    "Смена владельца стрелка скрыла удалённое происхождение выстрела");
                 actor.weapon="energy";
                 var changedObject=new GameObject("Другое оружие");changedObject.transform.SetParent(root.transform);
                 var changedFlight=new ProjectileFlight {state=new ProjectileState {launch=launch},

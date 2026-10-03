@@ -6,6 +6,7 @@ using System.Linq;
 using Mirror;
 using Remains.Gameplay;
 using Remains.Domain;
+using Remains.Presentation;
 using UnityEngine;
 
 namespace Remains.Runtime
@@ -27,11 +28,17 @@ namespace Remains.Runtime
         private AttackEvent acceptedShot;
         private int replayProofs;
         private readonly Dictionary<string,float> shots=new();
+        private readonly TrainingWeaponTrace weaponTrace=new("npc-shot");
+        private InteractionVisuals interactionVisuals;
+        private ProjectileVisuals projectileVisuals;
         private bool Host=>runtime.Options.Role=="host";
         private bool Source=>runtime.Options.Character=="session-client-1";
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
+            interactionVisuals=FindFirstObjectByType<InteractionVisuals>();
+            projectileVisuals=FindFirstObjectByType<ProjectileVisuals>();
+            projectileVisuals.TrailDrawn+=ObserveTrail;
             value.Combat.NpcReplayRejected+=id=>{if(Source) NetworkClient.Send(new NpcReplayProof {attack=id});};
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<NpcReplayProof>((connection,message)=>
             {
@@ -46,9 +53,19 @@ namespace Remains.Runtime
             {
                 if(Host && attack.weapon=="energy" && attack.attacker=="player:session-host") acceptedShot=attack;
                 if(attack.weapon!="npc-shot") return;
+                weaponTrace.Observe(attack,value.Session.World?.Find(attack.attacker),attack.sourceOwner==value.Session.LocalOwner);
                 if(shots.ContainsKey(attack.id)) {Finish(false,"NPC повторил ID выстрела.");return;}
                 shots.Add(attack.id,Time.unscaledTime);
             };
+        }
+        private void ObserveTrail(ProjectileVisual view)=>weaponTrace.ObserveTrail(runtime.Session.World,view);
+        private void LateUpdate()
+        {
+            if(!finished && runtime.Session.World!=null) weaponTrace.Draw(runtime.Session.World,interactionVisuals);
+        }
+        private void OnDestroy()
+        {
+            if(projectileVisuals!=null) projectileVisuals.TrailDrawn-=ObserveTrail;
         }
         private PlayerCommand Command()
         {
@@ -127,6 +144,7 @@ namespace Remains.Runtime
             if(finished) return;finished=true;
             if(success && (Host || Source) && shots.Count>0 && !combatMusicObserved) {success=false;detail+=" Не включилась музыка боя.";}
             detail+=$" combatMusicObserved={combatMusicObserved}, perceptionHandoffVerified={perceptionHandoffVerified}.";
+            weaponTrace.Save(runtime.Options.Report+".weapons.json");
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}

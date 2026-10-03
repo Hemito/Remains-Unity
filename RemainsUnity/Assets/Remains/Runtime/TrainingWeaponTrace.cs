@@ -22,11 +22,14 @@ namespace Remains.Runtime
             public uint receivedMotionSequence,drawnMotionSequence;
             public float receivedGap,receivedX,receivedY,drawnX,drawnY;
             public bool trailObserved;
+            public string muzzleJoinState;
             public float trailJoinGap,trailHeadError,trailTailDistance;
         }
         [Serializable] private sealed class Trace {public List<Sample> samples=new();}
         private readonly Trace trace=new();
         private readonly Queue<Sample> pending=new();
+        private readonly string weapon;
+        public TrainingWeaponTrace(string weapon="pistol") {this.weapon=weapon;}
         public void ObserveTrail(WorldState world,ProjectileVisual view)
         {
             var sample=trace.samples.Find(value=>value.attack==view.AttackId);
@@ -34,13 +37,14 @@ namespace Remains.Runtime
             var actor=world?.Find(view.AttackerId);
             if(sample==null || sample.trailObserved || actor==null) return;
             sample.trailObserved=true;
+            sample.muzzleJoinState=view.MuzzleJoinState;
             sample.trailJoinGap=Vector2.Distance(view.TrailStart,WeaponPose.Muzzle(actor));
             sample.trailHeadError=Vector2.Distance(view.TrailEnd,view.PhysicalHead);
             sample.trailTailDistance=view.TrailTailDistance;
         }
         public void Observe(AttackEvent attack,ActorState actor,bool local)
         {
-            if(attack.weapon!="pistol" || actor==null || trace.samples.Count+pending.Count>=128) return;
+            if(attack.weapon!=weapon || actor==null || trace.samples.Count+pending.Count>=128) return;
             pending.Enqueue(new Sample {attack=attack.id,actor=actor.id,local=local,moving=Mathf.Abs(actor.vx)>4,
                 receivedAt=Time.unscaledTime,originX=attack.originX,originY=attack.originY,
                 observedClock=Time.unscaledTimeAsDouble,receivedMotionClock=actor.motionSentAt,
