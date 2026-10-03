@@ -17,8 +17,9 @@ namespace Remains.Presentation
             if(catalog==null) throw new InvalidOperationException("Нет каталога иконок Original/Inventory/icons.");
             foreach(var entry in catalog.CreateLookup())
             {
-                if(!sprites.TryAdd(entry.Key,entry.Value))
-                    throw new InvalidOperationException($"Иконка предмета {entry.Key} конфликтует с иконкой оружия.");
+                // Authored inventory icons explicitly take precedence over held artwork.
+                // A stack throwable can have both a WeaponView and its own inventory icon.
+                sprites[entry.Key]=entry.Value;
             }
         }
         public void Set(Image image,string id)

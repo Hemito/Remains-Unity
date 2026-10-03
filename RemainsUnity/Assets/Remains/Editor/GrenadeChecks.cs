@@ -75,6 +75,19 @@ namespace Remains.Editor
             }
             finally {UnityEngine.Object.DestroyImmediate(first.gameObject);UnityEngine.Object.DestroyImmediate(second.gameObject);}
             var asset=Resources.Load<Remains.Content.WeaponAsset>("Content/weapons/grenade");
+            Require(asset.Presentation!=null && asset.Presentation.Id=="grenade" &&
+                asset.Presentation.Artwork.sprite==prefab.sprite && asset.Presentation.Artwork.sharedMaterial==prefab.sharedMaterial &&
+                !asset.Presentation.ReadRig().HasMuzzle && asset.Presentation.Artwork.sortingOrder==100,
+                "Удерживаемая граната должна использовать графику полёта и не иметь фиктивного дула");
+            var iconRoot=new GameObject("Проверка иконки гранаты",typeof(RectTransform),typeof(UnityEngine.UI.Image));
+            try
+            {
+                var icon=iconRoot.GetComponent<UnityEngine.UI.Image>();
+                new Remains.Presentation.InventoryArtwork().Set(icon,"grenade");
+                var expected=Resources.Load<Remains.Content.InventoryIconAsset>("Original/Inventory/icons").CreateLookup()["grenade"];
+                Require(icon.sprite==expected,"Удерживаемый префаб не должен подменять авторскую иконку инвентаря");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(iconRoot);}
             try
             {
                 asset.SetGrenadeFlight(null);bool rejected=false;
