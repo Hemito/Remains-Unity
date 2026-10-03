@@ -10,7 +10,7 @@ namespace Remains.Content
         [SerializeField,InspectorName("Оружие в порядке загрузки")]
         private WeaponAsset[] weapons=Array.Empty<WeaponAsset>();
         [SerializeField,Min(0),InspectorName("Вынос огнестрела на лестнице (м)")] private float climbingAimRadius;
-        [SerializeField,InspectorName("Радиус следования оружия за курсором")] private float aimRadius=1;
+        [SerializeField,InspectorName("Максимальный горизонтальный вынос огнестрела (м)")] private float aimRadius=1;
         [SerializeField,InspectorName("Высота точки удержания")] private float anchorHeight=.98f;
         public float AimRadius=>aimRadius;
         public float ClimbingAimRadius=>climbingAimRadius;

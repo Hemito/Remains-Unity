@@ -24,7 +24,7 @@ namespace Remains.Editor
                     "На лестнице точка крепления или направление дула неверны");
                 var copy=actor.Copy();
                 Require(Vector2.Distance(WeaponPose.Muzzle(copy),WeaponPose.Muzzle(actor))<.0001f,"Копия потеряла позу оружия на лестнице");
-                actor.climbing=false;WeaponPose.Aim(actor,target);
+                actor.climbing=false;WeaponPose.Aim(actor,WeaponPose.RangedAnchor(actor)+Vector2.right*5);
                 Require(actor.weaponReach>.5f,"Выход с лестницы оставил ограничение выноса");
             }
             foreach(string weapon in new[]{"pistol","energy"})
@@ -38,6 +38,7 @@ namespace Remains.Editor
                 float error=Mathf.Abs(Vector3.Cross(target-muzzle,direction).z);
                 Require(error<.0001f && Vector2.Dot(target-muzzle,direction)>0,$"Луч ствола не проходит через курсор: weapon={weapon}, angle={angle}, distance={distance}, error={error}");
                 Require(Vector2.Distance(mount,WeaponPose.RangedAnchor(actor))<=WeaponPose.AimRadius+.0001f,"Оружие вышло за радиус");
+                Require(Mathf.Abs(mount.y-WeaponPose.RangedAnchor(actor).y)<.0001f,"Поворот ствола изменил высоту удержания");
                 var copy=actor.Copy();
                 Require(WeaponPose.Muzzle(copy)==muzzle,"Копия сетевого состояния меняет положение дула");
             }
