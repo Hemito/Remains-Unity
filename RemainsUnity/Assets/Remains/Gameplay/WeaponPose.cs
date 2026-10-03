@@ -40,7 +40,7 @@ namespace Remains.Gameplay
         {
             if(string.IsNullOrEmpty(actor.weapon)) return;
             var rig=WeaponRigs.Get(actor.weapon);
-            var delta=target-(rig.HasMuzzle?RangedAnchor(actor):Origin(actor));
+            var delta=target-(rig.HasMuzzle || actor.weapon=="grenade"?RangedAnchor(actor):Origin(actor));
             if(delta.sqrMagnitude<.000001f)
             {
                 actor.weaponReach=0;
@@ -48,7 +48,13 @@ namespace Remains.Gameplay
             }
             actor.weaponFlipY=delta.x<0;
             float angle=Mathf.Atan2(delta.y,delta.x);
-            if(rig.HasMuzzle)
+            if(actor.weapon=="grenade")
+            {
+                actor.weaponReach=Mathf.Min(Mathf.Abs(delta.x),reachLimit);
+                delta=target-Mount(actor);
+                angle=Mathf.Atan2(delta.y,delta.x);
+            }
+            else if(rig.HasMuzzle)
             {
                 // The support moves horizontally; barrel elevation must not orbit the whole gun around the actor.
                 // Retract continuously near the body so the forward muzzle does not overshoot a nearby cursor.

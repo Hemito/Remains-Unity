@@ -65,6 +65,7 @@ namespace Remains.Gameplay
         public bool Fire(ActorState attacker, Vector2 aim)
         {
             if(attacker?.weaponInventoryVersion==1) Weapon=WeaponInventory.Selected(attacker)?.definition;
+            if(Weapon=="grenade") return false; // Throws use their own inventory transaction and flight.
             if (string.IsNullOrEmpty(Weapon) || attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready) return false;
             var definition=WeaponCatalog.Get(Weapon);
             attacker.weapon=Weapon;

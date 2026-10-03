@@ -74,7 +74,7 @@ namespace Remains.Networking
             if(actor!=null && session.Pause.IsServerPaused(actor.level))
             {connection.Send(new NoticeMessage {text="Бросок отменён: уровень остановлен. Граната не потрачена."});return;}
             if(!GrenadeLaunchRequest.Matches(actor,message) || session.ServerWorld.completedTransactions.Contains(message.transaction) ||
-                !SharedInventory.Consume(actor,"grenade")) return;
+                !SharedInventory.Consume(actor,"grenade",message.item)) return;
             session.ServerWorld.completedTransactions.Add(message.transaction);
             Vector2 origin=new(message.originX,message.originY);
             // The throwing client captures launch motion with its local pose and aim.
@@ -120,14 +120,15 @@ namespace Remains.Networking
             prop.sequence++;
             NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy },Channels.Unreliable);
         }
-        public void ThrowGrenade(Vector2 aim)
+        public bool ThrowGrenade(Vector2 aim)
         {
             var actor=session.LocalActor;
-            if(actor==null || actor.down || session.Pause.IsPaused(actor.level) || InventoryJournal.Count(actor,"grenade")<=0) return;
+            if(actor==null || actor.down || session.Pause.IsPaused(actor.level) || InventoryJournal.Count(actor,"grenade")<=0 ||
+                WeaponInventory.Selected(actor)?.definition=="grenade" && !WeaponInventory.Available(actor,"grenade")) return false;
             var request=GrenadeLaunchRequest.Capture(actor,aim);
             if(!GrenadeLaunchRequest.Matches(actor,request))
-            {Debug.LogWarning($"Некорректная точка броска гранаты: actor={actor.id}, level={actor.level}, origin=({request.originX};{request.originY}), aim={aim}.");return;}
-            NetworkClient.Send(request);
+            {Debug.LogWarning($"Некорректная точка броска гранаты: actor={actor.id}, level={actor.level}, origin=({request.originX};{request.originY}), aim={aim}.");return false;}
+            NetworkClient.Send(request);return true;
         }
     }
 }

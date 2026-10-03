@@ -17,6 +17,10 @@ namespace Remains.Runtime
         private float deadline,returnAt,settledAt;
         private bool threw,disconnected,returned,finished,handoff,startRequested;
         private string grenadeId;
+        private float heldAt;
+        private Vector2 plannedOrigin;
+        private bool heldLaunchVerified;
+        private bool Held=>runtime.Options.Smoke.Contains("-held-");
         private readonly System.Collections.Generic.HashSet<string> explosionIds=new();
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
         private bool Host=>runtime.Options.Role=="host";
@@ -36,7 +40,14 @@ namespace Remains.Runtime
             value.Explosions.Created+=effect=>
             {if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureExplosion(effect));};
             value.Grenades.Created+=flight=>
-            {if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureFlight());};
+            {
+                if(Held && Source && !heldLaunchVerified)
+                {
+                    heldLaunchVerified=Vector2.Distance(flight.position,plannedOrigin)<.0001f;
+                    if(!heldLaunchVerified) Finish(false,"Граната выпущена не из удерживаемой позиции.");
+                }
+                if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureFlight());
+            };
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<GrenadeProbePhase>(message=>phase=message.phase);
@@ -46,7 +57,16 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             if(Resume || phase!=1 || !Source || threw || runtime.Session.LocalActor==null) return default;
-            threw=true;return new PlayerCommand {grenade=true,hasAim=true,aim=runtime.Session.LocalActor.Position+Vector2.down*3};
+            var actor=runtime.Session.LocalActor;var aim=actor.Position+Vector2.down*3;
+            if(Held)
+            {
+                if(actor.weapon!="grenade") return new PlayerCommand {weaponItem=actor.inventory.First(item=>item.definition=="grenade").id,hasAim=true,aim=aim};
+                if(heldAt==0) {heldAt=Time.unscaledTime;if(runtime.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureHeld());}
+                if(Time.unscaledTime-heldAt<.5f) return new PlayerCommand {hasAim=true,aim=actor.Position+new Vector2(-3,1)};
+                var launchPose=actor.Copy();WeaponPose.Aim(launchPose,aim);
+                plannedOrigin=WeaponPose.Mount(launchPose);
+            }
+            threw=true;return new PlayerCommand {grenade=!Held,fire=Held,hasAim=true,aim=aim};
         }
         private void Update()
         {
@@ -89,7 +109,7 @@ namespace Remains.Runtime
         private bool Validate()
         {
             var world=runtime.Session.World;
-            if(world==null || world.grenades.Count!=0 || world.explosions.Count!=1) return false;
+            if(world==null || world.grenades.Count!=0 || world.explosions.Count!=1 || Held && Source && !heldLaunchVerified) return false;
             var id=world.explosions[0].attack.id;
             return world.actors.Where(a=>a.player && a.connected).All(a=>!Resume && a.character=="session-client-1"?
                 a.health==100 && !a.resolvedExplosions.Contains(id) && a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count)==4:
@@ -98,6 +118,7 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
+            if(Held) detail+=" Проверен выбор стопки и бросок основной кнопкой из удерживаемой позиции.";
             int expectedSounds=!Resume && Source?0:1;
             if(Host && !Resume && runtime.GrenadeAudio.Played==0) success=false;
             detail+=$" Звуков столкновения гранаты: {runtime.GrenadeAudio.Played}; события повторены для проверки дедупликации.";
@@ -119,6 +140,13 @@ namespace Remains.Runtime
             yield return new WaitForSeconds(.25f);
             if(!runtime.Grenades.Flights.Any()) {Finish(false,"Граната исчезла до снимка полёта.");yield break;}
             NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".flight.png",runtime.Hud.GetComponent<Canvas>());
+        }
+        private IEnumerator CaptureHeld()
+        {
+            yield return new WaitForSeconds(.2f);
+            var actor=runtime.Session.LocalActor;
+            if(actor?.weapon!="grenade") {Finish(false,"Перед броском не выбрана граната.");yield break;}
+            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".held.png",runtime.Hud.GetComponent<Canvas>());
         }
         [Serializable] private sealed class Report {public bool success;public string detail;}
     }

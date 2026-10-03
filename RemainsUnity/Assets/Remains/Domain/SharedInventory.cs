@@ -47,11 +47,16 @@ namespace Remains.Domain
             world.revision++;
         }
 
-        public static bool Consume(ActorState actor, string definition)
+        public static bool Consume(ActorState actor, string definition,string itemId=null)
         {
-            var item = actor.inventory.Find(candidate => candidate.definition == definition && InventoryAvailability.Count(actor,candidate)>0);
+            var item = actor.inventory.Find(candidate => candidate.definition == definition && (itemId==null || candidate.id==itemId) && InventoryAvailability.Count(actor,candidate)>0);
             if (item == null) return false;
-            if (--item.count == 0) actor.inventory.Remove(item);
+            if (--item.count == 0)
+            {
+                actor.inventory.Remove(item);
+                if(actor.weaponInventoryVersion==1 && actor.equippedWeaponItem==item.id)
+                    WeaponInventory.Select(actor,null,out _);
+            }
             return true;
         }
 

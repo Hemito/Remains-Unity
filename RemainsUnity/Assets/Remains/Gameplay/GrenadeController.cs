@@ -25,6 +25,15 @@ namespace Remains.Gameplay
         private readonly InteractionAdapter adapter;
         private readonly SimulationGeometry geometry;
         private readonly Dictionary<string,Vector2> observedExplosions=new();
+        private readonly SimulationTimer throwCooldown=new();
+        private string localActorId;
+        private int localGeneration,localLifecycle;
+        public bool TryThrow(Vector2 aim)
+        {
+            if(!throwCooldown.Ready || !adapter.ThrowGrenade(aim)) return false;
+            throwCooldown.Restart(Remains.Content.WeaponCatalog.Get("grenade").cooldown);
+            return true;
+        }
         public GrenadeController(CoopSession session,InteractionAdapter adapter,CombatController combat,SimulationGeometry geometry)
         {
             this.geometry=geometry;
@@ -40,6 +49,12 @@ namespace Remains.Gameplay
         }
         private void Reconcile()
         {
+            var local=session.LocalActor;
+            if(localActorId!=local?.id || localGeneration!=local?.generation || localLifecycle!=local?.lifecycleSequence)
+            {
+                localActorId=local?.id;localGeneration=local?.generation??0;localLifecycle=local?.lifecycleSequence??0;
+                throwCooldown.Restart(0);
+            }
             if(session.World==null) {flights.Clear();observedExplosions.Clear();return;}
             foreach(var state in session.World.grenades) Accept(state);
             flights.RemoveAll(f=>!session.World.grenades.Any(g=>g.id==f.state.id));
@@ -60,6 +75,7 @@ namespace Remains.Gameplay
         public void Step(float dt)
         {
             if(session.World==null) return;
+            if(session.LocalActor is { } local && !session.Pause.IsPaused(local.level)) throwCooldown.Advance(dt);
             foreach(var flight in flights)
             {
                 var state=flight.state;

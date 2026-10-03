@@ -67,6 +67,11 @@ namespace Remains.Presentation
             }
             if(string.IsNullOrEmpty(actor.weapon)) {ammunition.text="Оружие не выбрано";return;}
             var definition=WeaponCatalog.Get(actor.weapon);
+            if(actor.weapon=="grenade")
+            {
+                var stack=WeaponInventory.Selected(actor);
+                ammunition.text=$"В стопке: {(stack==null?0:InventoryAvailability.Count(actor,stack))} · ЛКМ — бросить";return;
+            }
             if(string.IsNullOrEmpty(definition.ammo)) {ammunition.text=actor.weapon=="spear"?"Копьё · урон зависит от скорости":"Лом · ближний бой";return;}
             var magazine=WeaponAmmunition.Magazine(actor,actor.weapon);
             if(magazine==null)

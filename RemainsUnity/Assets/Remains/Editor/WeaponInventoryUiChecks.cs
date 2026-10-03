@@ -27,6 +27,7 @@ namespace Remains.Editor
                 actor.inventory.Add(a);actor.inventory.Add(b);actor.inventory.Add(SharedInventory.Create("heal",3));
                 actor.inventory.Add(new ItemStack {id="spear",definition="spear",count=1,weaponState=new WeaponItemState()});
                 actor.inventory.Add(new ItemStack {id="crowbar",definition="crowbar",count=1,weaponState=new WeaponItemState()});
+                actor.inventory.Add(new ItemStack {id="grenades",definition="grenade",count=3});
                 var world=new WorldState();world.actors.Add(actor);
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
@@ -38,7 +39,7 @@ namespace Remains.Editor
                 var rect=window.GetComponent<RectTransform>();rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);rect.anchoredPosition=Vector2.zero;
                 var view=window.PersonalContents;
                 Action<string> select=id=>{if(!WeaponInventory.Select(actor,id,out var reason)) throw new InvalidOperationException(reason);};
-                var panel=new PersonalInventoryPanel(view,session,id=>id switch {"pistol"=>"10-мм пистолет","spear"=>"Копьё","crowbar"=>"Лом",_=>"Аптечка"},()=>0,
+                var panel=new PersonalInventoryPanel(view,session,id=>id switch {"pistol"=>"10-мм пистолет","spear"=>"Копьё","crowbar"=>"Лом","grenade"=>"Граната",_=>"Аптечка"},()=>0,
                     _=>throw new InvalidOperationException("UI экземпляра вызвал старый выбор определения."),new InventoryArtwork(),select);
                 panel.Refresh(null);view.Rows[1].onClick.Invoke();
                 Require(view.Rows[0].GetComponentInChildren<Text>().text.Contains("7/12") &&
@@ -60,13 +61,16 @@ namespace Remains.Editor
                     view.Rows[row].onClick.Invoke();
                     Require(!view.WeaponDetail.text.Contains("магазине") && view.WeaponDetail.text.Contains("Ближний бой"),"Ближнему оружию показан магазин");
                 }
+                view.Rows[5].onClick.Invoke();view.Use.onClick.Invoke();
+                Require(actor.weapon=="grenade" && actor.equippedWeaponItem=="grenades" && actor.inventory[5].weaponState==null &&
+                    actor.inventory[5].count==3 && view.WeaponDetail.text.Contains("В стопке: 3"),"Инвентарь неверно выбирает или описывает стопку гранат");
                 view.Rows[1].onClick.Invoke();
                 if(render)
                 {
                     var camera=new GameObject("Камера окна").AddComponent<Camera>();camera.transform.SetParent(root.transform);camera.transform.position=new Vector3(0,0,-10);camera.backgroundColor=new Color(.06f,.07f,.08f);
                     target=new RenderTexture(1920,1080,24);target.Create();camera.targetTexture=target;canvas.worldCamera=camera;canvas.planeDistance=1;
                     image=new Texture2D(1920,1080,TextureFormat.RGBA32,false);
-                    foreach(int row in new[]{1,3,4})
+                    foreach(int row in new[]{1,3,4,5})
                     {
                         view.Rows[row].onClick.Invoke();Canvas.ForceUpdateCanvases();
                         Require(view.WeaponDetail.preferredHeight<=view.WeaponDetail.rectTransform.rect.height+.1f,"Описание оружия обрезается");

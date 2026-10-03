@@ -159,6 +159,7 @@ namespace Remains.Editor
         private static void CheckLaunch()
         {
             var actor=new ActorState {id="thrower",x=5,y=2,level="hub",generation=7,lifecycleSequence=3};
+            actor.inventory.Add(SharedInventory.Create("grenade",2));
             var standing=Remains.Networking.GrenadeLaunchRequest.Capture(actor,new Vector2(8,3));
             actor.crouched=true;
             var crouching=Remains.Networking.GrenadeLaunchRequest.Capture(actor,new Vector2(8,3));
@@ -179,6 +180,18 @@ namespace Remains.Editor
             Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Неконечный прицел должен отклоняться до расхода");
             crouching.aimX=8;crouching.vx=float.PositiveInfinity;
             Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Неконечная скорость должна отклоняться до расхода");
+            actor.weaponInventoryVersion=1;actor.crouched=false;
+            var chosen=SharedInventory.Create("grenade",3);actor.inventory.Add(chosen);
+            Require(WeaponInventory.Select(actor,chosen.id,out _),"Стопка гранат не выбирается");
+            var aim=actor.Position+new Vector2(4,2);Remains.Gameplay.WeaponPose.Aim(actor,aim);
+            var held=Remains.Networking.GrenadeLaunchRequest.Capture(actor,aim);
+            Require(held.item==chosen.id && (new Vector2(held.originX,held.originY)-Remains.Gameplay.WeaponPose.Mount(actor)).magnitude<.00001f,
+                "Бросок должен начинаться в удерживаемом предмете и расходовать выбранную стопку");
+            Require(SharedInventory.Consume(actor,"grenade",held.item) && chosen.count==2 && actor.inventory[0].count==2,
+                "Бросок потратил другую стопку");
+            actor.inventoryReservations[chosen.id]=2;
+            Require(!SharedInventory.Consume(actor,"grenade",held.item) && actor.inventory[0].count==2,
+                "Резерв выбранной стопки не должен обходиться расходом другой стопки");
         }
         private static void CheckAimStrength()
         {

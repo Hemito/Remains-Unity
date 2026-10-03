@@ -33,6 +33,16 @@ namespace Remains.Editor
                 "Быстрый слот воссоздал отсутствующее оружие");
             Require(WeaponInventory.Select(actor,null,out _) && actor.weapon==null && WeaponInventory.Selected(actor)==null,
                 "Пустые копыта заменились оружием по умолчанию");
+            var grenades=SharedInventory.Create("grenade",2);actor.inventory.Add(grenades);
+            Require(WeaponInventory.Select(actor,grenades.id,out _) && WeaponInventory.Assign(actor,"2",grenades.id,out _) &&
+                WeaponInventory.Selected(actor)==grenades && grenades.weaponState==null,"Выбор гранаты превратил стопку в отдельное оружие");
+            var saved=actor.Copy();
+            Require(WeaponInventory.Selected(saved)?.count==2 && WeaponInventory.Shortcut(saved,"2")?.id==grenades.id,
+                "Сохранение потеряло удерживаемую стопку");
+            Require(SharedInventory.Consume(actor,"grenade",grenades.id) && WeaponInventory.Available(actor,"grenade"),"Остаток стопки перестал быть доступен");
+            Require(SharedInventory.Consume(actor,"grenade",grenades.id) && WeaponInventory.Selected(actor)==null &&
+                !WeaponInventory.SelectShortcut(actor,"2",out _),"Пустая стопка осталась действующим оружием");
+            Require(actor.weapon==null && actor.equippedWeaponItem==null,"После последней гранаты осталось видимое оружие без предмета");
         }
         private static void Require(bool value,string message)
         {if(!value) throw new InvalidOperationException(message);}

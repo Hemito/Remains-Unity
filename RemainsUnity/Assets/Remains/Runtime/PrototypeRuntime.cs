@@ -286,7 +286,7 @@ namespace Remains.Runtime
             if(mouse!=null)
             {
                 command.hasAim=true;command.aim=cameraView.ScreenToWorldPoint(mouse.position.ReadValue());
-                command.fire=mouse.leftButton.isPressed &&
+                command.fire=(Session.LocalActor?.weapon=="grenade"?mouse.leftButton.wasPressedThisFrame:mouse.leftButton.isPressed) &&
                     (UnityEngine.EventSystems.EventSystem.current==null || !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject());
             }
             return command;
@@ -327,9 +327,13 @@ namespace Remains.Runtime
             if(command.reload && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
             Revival.Step(command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);
-            if(command.grenade && !actor.down) Interactions.ThrowGrenade(command.aim);
+            if(command.grenade && !actor.down && command.hasAim) Grenades.TryThrow(command.aim);
             if(command.heal && !actor.down) Session.RequestSelfHeal();
-            if(command.fire && command.hasAim) Combat.Fire(actor,command.aim);
+            if(command.fire && command.hasAim)
+            {
+                if(actor.weapon=="grenade") Grenades.TryThrow(command.aim);
+                else Combat.Fire(actor,command.aim);
+            }
         }
 
         private void OnApplicationQuit()

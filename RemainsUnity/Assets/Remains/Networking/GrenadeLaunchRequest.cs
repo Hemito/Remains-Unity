@@ -9,14 +9,17 @@ namespace Remains.Networking
     {
         public static ThrowRequest Capture(ActorState actor,Vector2 aim)
         {
-            var origin=WeaponPose.Origin(actor);
+            var selected=WeaponInventory.Selected(actor);
+            bool held=selected?.definition=="grenade";
+            var stack=held?selected:actor.inventory.Find(item=>item.definition=="grenade" && InventoryAvailability.Count(actor,item)>0);
+            var origin=held?WeaponPose.Mount(actor):WeaponPose.Origin(actor);
             var velocity=GrenadeLaunch.Velocity(origin,aim,actor.y,Remains.Content.WeaponCatalog.Get("grenade"));
-            return new ThrowRequest {transaction=Guid.NewGuid().ToString("N"),level=actor.level,
+            return new ThrowRequest {transaction=Guid.NewGuid().ToString("N"),level=actor.level,item=stack?.id,
                 generation=actor.generation,lifecycle=actor.lifecycleSequence,
                 originX=origin.x,originY=origin.y,aimX=aim.x,aimY=aim.y,vx=velocity.x,vy=velocity.y};
         }
         public static bool Matches(ActorState actor,ThrowRequest request)=>actor!=null && !actor.down &&
-            !string.IsNullOrWhiteSpace(request.transaction) && actor.level==request.level &&
+            !string.IsNullOrWhiteSpace(request.transaction) && !string.IsNullOrWhiteSpace(request.item) && actor.level==request.level &&
             actor.generation==request.generation && actor.lifecycleSequence==request.lifecycle &&
             float.IsFinite(request.originX) && float.IsFinite(request.originY) &&
             float.IsFinite(request.aimX) && float.IsFinite(request.aimY) &&

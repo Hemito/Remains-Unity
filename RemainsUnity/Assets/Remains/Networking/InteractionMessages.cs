@@ -6,7 +6,7 @@ namespace Remains.Networking
     public struct PropPoseMessage : NetworkMessage { public string prop; public int generation; public uint sequence; public float x,y,vx,vy; }
     public struct ThrowRequest : NetworkMessage
     {
-        public string transaction,level;
+        public string transaction,level,item;
         public int generation,lifecycle;
         public float originX,originY,aimX,aimY,vx,vy;
     }

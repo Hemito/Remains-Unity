@@ -72,7 +72,7 @@ namespace Remains.Presentation
             use.onClick.AddListener(()=>
             {
                 var actor=session.LocalActor;var item=actor?.inventory.Find(value=>value.id==selected);
-                if(item?.weaponState!=null)
+                if(WeaponInventory.IsEquippable(item))
                 {
                     if(this.equipItem==null) throw new InvalidOperationException("Не подключён выбор экземпляра оружия в инвентаре.");
                     this.equipItem(actor.equippedWeaponItem==item.id?null:item.id);
@@ -90,7 +90,7 @@ namespace Remains.Presentation
             for(int i=0;i<weaponButtons.Length;i++)
             {
                 bool instances=actor?.weaponInventoryVersion==1;
-                var chosenWeapon=actor?.inventory.Find(item=>item.id==selected && item.weaponState!=null);
+                var chosenWeapon=actor?.inventory.Find(item=>item.id==selected && WeaponInventory.IsEquippable(item));
                 OriginalButtonStyle.SetSelected(weaponButtons[i],instances?chosenWeapon!=null && WeaponInventory.Shortcut(actor,(i+1).ToString())?.id==selected:actor?.weapon==weapons[i]);
                 weaponButtons[i].interactable=actor is {down:false} && (!instances || chosenWeapon!=null);
                 weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"Назначить {i+1}":legacyLabels[i];
@@ -119,7 +119,7 @@ namespace Remains.Presentation
             if(rejection==null && chosen!=null && amount>0) rejection=session.Rules.Deposit.Rejection(new DepositContext(actor,container,chosen,amount));
             bool paused=actor!=null && session.Pause.IsPaused(actor.level);
             deposit.interactable=chosen!=null && availableChosen>=amount && amount>0 && rejection==null && !paused;
-            bool weaponSelected=chosen?.weaponState!=null && actor.weaponInventoryVersion==1;
+            bool weaponSelected=WeaponInventory.IsEquippable(chosen) && actor.weaponInventoryVersion==1;
             detail.gameObject.SetActive(!weaponSelected);detailIcon.gameObject.SetActive(!weaponSelected);
             weaponPreview.gameObject.SetActive(weaponSelected);weaponDetail.gameObject.SetActive(weaponSelected);
             portrait.Refresh(weaponSelected?null:actor);
@@ -140,7 +140,7 @@ namespace Remains.Presentation
         private string WeaponDescription(ActorState actor,ItemStack item)
         {
             var definition=WeaponCatalog.Get(item.definition);
-            string resource=definition.magazineSize>0?$"В магазине: {item.weaponState.rounds}/{definition.magazineSize}\n":
+            string resource=item.definition=="grenade"?$"В стопке: {item.count} · ЛКМ — бросить\n":definition.magazineSize>0?$"В магазине: {item.weaponState.rounds}/{definition.magazineSize}\n":
                 definition.meleeMotion is {Length:>0}?"Ближний бой\n":"";
             float damage=session.Rules.Damage.Calculate(item.definition,0);
             if(!float.IsFinite(damage) || damage<0)
@@ -151,7 +151,7 @@ namespace Remains.Presentation
         private static string Description(string id)=>id switch
         {
             "heal"=>"Восстанавливает здоровье. Можно использовать для поднятия союзника.",
-            "grenade"=>"Ручная граната. Бросок — G.",
+            "grenade"=>"Ручная граната. Возьмите в копыта и бросайте левой кнопкой мыши. Быстрый бросок — G.",
             "p10"=>"Боеприпасы 10-мм пистолета. Перезарядка — R.",
             "batt"=>"Боеприпасы лазерного пистолета. Перезарядка — R.",
             "caps"=>"Крышки.",

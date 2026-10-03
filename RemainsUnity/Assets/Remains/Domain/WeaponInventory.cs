@@ -6,22 +6,24 @@ namespace Remains.Domain
     {public string slot,item;}
     public static class WeaponInventory
     {
-        public static ItemStack Selected(ActorState actor)=>actor?.inventory.Find(item=>item.id==actor.equippedWeaponItem && item.weaponState!=null && item.count==1);
+        public static bool IsEquippable(ItemStack item)=>item!=null &&
+            (item.weaponState!=null && item.count==1 || item.weaponState==null && item.definition=="grenade" && item.count>0);
+        public static ItemStack Selected(ActorState actor)=>actor?.inventory.Find(item=>item.id==actor.equippedWeaponItem && IsEquippable(item));
         public static ItemStack Shortcut(ActorState actor,string slot)
         {
             var reference=actor?.weaponShortcuts.Find(value=>value.slot==slot);
-            return reference==null?null:actor.inventory.Find(item=>item.id==reference.item && item.weaponState!=null && item.count==1);
+            return reference==null?null:actor.inventory.Find(item=>item.id==reference.item && IsEquippable(item));
         }
         public static bool Available(ActorState actor,string definition)=>Selected(actor) is { } item &&
-            item.definition==definition && InventoryAvailability.Count(actor,item)==1;
+            item.definition==definition && InventoryAvailability.Count(actor,item)>0;
         public static bool Select(ActorState actor,string itemId,out string reason)
         {
             reason=null;
             if(actor==null || actor.weaponInventoryVersion!=1) {reason="Инвентарь оружия ещё не подготовлен.";return false;}
             if(string.IsNullOrEmpty(itemId)) {actor.equippedWeaponItem=null;actor.weapon=null;actor.weaponSelectionRevision++;actor.revision++;return true;}
             var item=actor.inventory.Find(candidate=>candidate.id==itemId);
-            if(item?.weaponState==null || item.count!=1) {reason="Этот экземпляр оружия отсутствует в личном инвентаре.";return false;}
-            if(InventoryAvailability.Count(actor,item)!=1) {reason="Оружие зарезервировано для передачи.";return false;}
+            if(!IsEquippable(item)) {reason="Этот предмет нельзя взять в копыта.";return false;}
+            if(InventoryAvailability.Count(actor,item)<=0) {reason="Предмет зарезервирован для передачи.";return false;}
             _=WeaponCatalog.Get(item.definition);
             actor.equippedWeaponItem=item.id;actor.weapon=item.definition;actor.weaponSelectionRevision++;actor.revision++;return true;
         }
@@ -30,7 +32,7 @@ namespace Remains.Domain
             reason=null;
             if(actor==null || actor.weaponInventoryVersion!=1 || string.IsNullOrWhiteSpace(slot))
             {reason="Не задан быстрый слот оружия.";return false;}
-            if(!string.IsNullOrEmpty(itemId) && !actor.inventory.Exists(item=>item.id==itemId && item.weaponState!=null && item.count==1))
+            if(!string.IsNullOrEmpty(itemId) && !actor.inventory.Exists(item=>item.id==itemId && IsEquippable(item)))
             {reason="Нельзя назначить отсутствующий экземпляр оружия.";return false;}
             actor.weaponShortcuts.RemoveAll(shortcut=>shortcut.slot==slot);
             if(!string.IsNullOrEmpty(itemId)) actor.weaponShortcuts.Add(new WeaponShortcut {slot=slot,item=itemId});
