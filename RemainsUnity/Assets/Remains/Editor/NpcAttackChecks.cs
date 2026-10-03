@@ -9,6 +9,7 @@ namespace Remains.Editor
         public static void Run()
         {
             CheckWindupMovement();
+            CheckKnockdownDuringAttack();
             var world=new WorldState();
             var a=new ActorState {id="a",player=true,connected=true,owner="a",x=2};
             var b=new ActorState {id="b",player=true,connected=true,owner="b",x=8};
@@ -30,6 +31,28 @@ namespace Remains.Editor
             Debug.Log("NpcAttackChecks PASS: цель, передача после завершения, пауза, сериализация и отмена при обрыве.");
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException("NpcAttackChecks: "+reason);}
+        private static void CheckKnockdownDuringAttack()
+        {
+            var world=new WorldState();
+            var far=new ActorState {id="far",player=true,connected=true,owner="far",x=8};
+            var near=new ActorState {id="near",player=true,connected=true,owner="near",x=1};
+            var npc=new ActorState {id="wounded",actorType="raider",owner="far",target=far.id,health=1,x=0};
+            world.actors.Add(far);world.actors.Add(near);world.actors.Add(npc);
+            NpcAttackRules.Begin(npc,far);
+            var receiver=new DamageReceiver(new PrototypeDamageRule());
+            var hit=new AttackEvent {id="interrupt",attacker=near.id,weapon="pistol",level=npc.level};
+            Require(receiver.Apply(npc,hit,true),"Попадание по атакующему NPC не применено");
+            Require(npc.down && npc.target==null && !npc.attackBusy && npc.attackId==null && npc.attackTarget==null && npc.attackRemaining==0,
+                "Нокаут сохранил незавершённую атаку или цель NPC");
+            Require(!receiver.Apply(npc,hit,true),"Повторное попадание применилось к телу");
+            Require(new OwnershipService().ReassignAndReportChanges(world,new[]{"far","near"}) && npc.owner=="near",
+                "Незавершённая атака удерживает тело у прежнего владельца");
+            Require(NpcAttackRules.Complete(npc,far)==null,"Позднее завершение атаки тела создало выстрел");
+            // A recovered legacy snapshot can still contain a down actor with a pending attack.
+            npc.attackBusy=true;npc.attackId="stale";npc.attackTarget=far.id;npc.attackRemaining=.1f;
+            Require(NpcAttackRules.Complete(npc,far)==null && !npc.attackBusy && npc.attackId==null,
+                "Позднее завершение из сохранённого состояния создало выстрел тела");
+        }
         private static void CheckWindupMovement()
         {
             var root=new GameObject("Проверка движения при подготовке выстрела");

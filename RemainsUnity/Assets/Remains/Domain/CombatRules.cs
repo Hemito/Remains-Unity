@@ -41,7 +41,15 @@ namespace Remains.Domain
             if(lost>0) actor.damageSequence++;
             actor.down |= enter;
             actor.revision++;
-            if (actor.down) ActorPose.Select(actor,"down");
+            if (actor.down)
+            {
+                ActorPose.Select(actor,"down");
+                if(!actor.player)
+                {
+                    actor.target=null;
+                    if(actor.attackBusy) NpcAttackRules.Cancel(actor);
+                }
+            }
             if(lost>0) Applied?.Invoke(new DamageResult {attack=attack.id,actor=actor.id,level=actor.level,
                 generation=actor.generation,amount=lost,x=actor.x,y=actor.y});
             return true;
