@@ -12,18 +12,22 @@ namespace Remains.Presentation
         [Serializable] public sealed class SoundBank {public string id;public string[] clips;}
         [Serializable] public sealed class Settings
         {
-            public float stepDistance,ladderDistance,teleportDistance,volume,landingGain,ladderGain;
+            public float teleportDistance,volume,landingGain,ladderGain;
+            public MovementBeatPattern[] rhythms;
+            public string[] quietPoses;
             public int landingLayers;
             public string[] actorTypes;
             public SoundBank[] banks;
         }
-        private sealed class Track {public readonly MotionContacts contacts=new();public int sample;}
+        private sealed class Track {public readonly MotionContacts contacts=new();public readonly MovementRhythm rhythm=new();public int sample;}
         private CoopSession session;
         private SimulationGeometry geometry;
         private GameplayAudio audio;
         private Settings settings;
         private readonly Dictionary<string,Track> tracks=new();
         private readonly Dictionary<string,AudioClip[]> banks=new();
+        private readonly Dictionary<string,MovementBeatPattern> rhythms=new();
+        private readonly HashSet<string> quietPoses=new();
         private readonly HashSet<string> types=new(),missing=new(),active=new();
         private readonly List<string> removed=new();
         public int LocalContacts {get;private set;}
@@ -38,9 +42,13 @@ namespace Remains.Presentation
             var asset=Resources.Load<TextAsset>("Presentation/movement-audio");
             if(asset==null) throw new InvalidOperationException("Нет настроек Presentation/movement-audio.");
             settings=JsonUtility.FromJson<Settings>(asset.text);
-            if(settings.stepDistance<=0 || settings.ladderDistance<=0 || settings.teleportDistance<=0 ||
+            if(settings.teleportDistance<=0 || settings.rhythms==null || settings.quietPoses==null ||
                 settings.volume<=0 || settings.volume>1 || settings.landingGain<=0 || settings.ladderGain<=0 || settings.landingLayers<1 || settings.landingLayers>8 || settings.banks==null || settings.actorTypes==null)
                 throw new InvalidOperationException("Некорректные настройки звуков движения.");
+            foreach(var rhythm in settings.rhythms) {rhythm.Validate();rhythms.Add(rhythm.pose,rhythm);}
+            foreach(string pose in settings.quietPoses)
+                if(string.IsNullOrWhiteSpace(pose) || rhythms.ContainsKey(pose) || !quietPoses.Add(pose))
+                    throw new InvalidOperationException("Некорректная тихая поза звука движения: "+pose);
             foreach(string type in settings.actorTypes) types.Add(type);
             foreach(var bank in settings.banks)
             {
@@ -77,7 +85,12 @@ namespace Remains.Presentation
                 if(actor.level!=listener.level || !tracks.TryGetValue(actor.id,out var track)) continue;
                 bool grounded=ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
                 var contact=track.contacts.Sample(actor.Position,actor.level,actor.generation,grounded,actor.climbing,
-                    paused || actor.down,settings.stepDistance,settings.ladderDistance,settings.teleportDistance);
+                    paused || actor.down,float.PositiveInfinity,float.PositiveInfinity,settings.teleportDistance);
+                rhythms.TryGetValue(actor.pose,out var rhythm);
+                if(rhythm==null && !quietPoses.Contains(actor.pose) && missing.Add("pose:"+actor.pose))
+                    Debug.LogWarning($"Нет ритма или явной тихой позы: actor={actor.id}, pose={actor.pose}, level={actor.level}. Шаги пропущены.",this);
+                int beats=track.rhythm.Sample(actor,rhythm,grounded,paused || actor.down,settings.teleportDistance);
+                if(contact!=MotionContact.Landing && beats>0) contact=actor.climbing?MotionContact.Ladder:MotionContact.Step;
                 if(contact==MotionContact.None) continue;
                 string bank=contact==MotionContact.Ladder?"ladder":room.movementSound;
                 if(string.IsNullOrEmpty(bank) || !banks.TryGetValue(bank,out var clips))
@@ -86,7 +99,7 @@ namespace Remains.Presentation
                     continue;
                 }
                 float gain=settings.volume*(contact==MotionContact.Landing?settings.landingGain:contact==MotionContact.Ladder?settings.ladderGain:1);
-                int layers=contact==MotionContact.Landing?settings.landingLayers:1;
+                int layers=contact==MotionContact.Landing?settings.landingLayers:beats;
                 int played=0;
                 for(int layer=0;layer<layers;layer++)
                     if(audio.PlayContact(clips[track.sample++%clips.Length],actor.level,actor.Position,gain)) played++;

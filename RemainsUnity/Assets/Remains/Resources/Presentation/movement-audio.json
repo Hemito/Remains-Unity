@@ -1,5 +1,4 @@
 {
-  "stepDistance": 0.7,
   "volume": 0.1,
   "banks": [
     {
@@ -41,10 +40,62 @@
   "landingGain": 2,
   "landingLayers": 2,
   "teleportDistance": 3,
-  "ladderDistance": 0.5,
   "actorTypes": [
     "pony",
     "raider"
   ],
-  "ladderGain": 2
+  "ladderGain": 2,
+  "rhythms": [
+    {
+      "pose": "walk",
+      "period": 0.5333333333333333,
+      "beats": [
+        0.16666666666666666,
+        0.23333333333333334,
+        0.43333333333333335,
+        0.5
+      ]
+    },
+    {
+      "pose": "run",
+      "period": 0.26666666666666666,
+      "beats": [
+        0.03333333333333333,
+        0.06666666666666667,
+        0.16666666666666666,
+        0.2
+      ]
+    },
+    {
+      "pose": "slowWalk",
+      "period": 0.8,
+      "beats": [
+        0.13333333333333333,
+        0.3,
+        0.5333333333333333,
+        0.7
+      ]
+    },
+    {
+      "pose": "climb",
+      "period": 0.4,
+      "beats": [
+        0.06666666666666667,
+        0.13333333333333333,
+        0.26666666666666666,
+        0.3333333333333333
+      ]
+    }
+  ],
+  "quietPoses": [
+    "idle",
+    "jump",
+    "fall",
+    "down",
+    "landing",
+    "crouch",
+    "crawl",
+    "crouchLower",
+    "crouchRise"
+  ]
 }
