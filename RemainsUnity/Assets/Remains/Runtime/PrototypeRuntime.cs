@@ -39,6 +39,7 @@ namespace Remains.Runtime
         private MovementController movement;
         private NpcController npcs;
         private readonly Dictionary<string,ActorVisual> visuals = new();
+        internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
         private ActorVisualLayers visualLayers;
         private PrototypeHud hud;
         private Camera cameraView;

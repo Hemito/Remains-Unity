@@ -35,6 +35,13 @@ namespace Remains.Runtime
         private readonly HashSet<string> observedJumpSupport=new();
         private readonly HashSet<string> observedFall=new();
         private bool fallCaptured;
+        private readonly TrainingAnimationTrace animationTrace=new();
+        private void LateUpdate()
+        {
+            if(finished || runtime?.Session.World==null) return;
+            foreach(var actor in runtime.Session.World.actors)
+                if(actor.player) animationTrace.Observe(actor,runtime.FindActorVisual(actor.id) as PonyVisual,actor.id==runtime.Session.LocalActorId);
+        }
         private readonly Dictionary<string,(int generation,int lifecycle,string pose,float time)> remotePhases=new();
         private int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;
         private float maximumRemoteRunRewind;
@@ -216,6 +223,7 @@ namespace Remains.Runtime
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,landingVoices=runtime.MovementAudio.LandingVoices,ladderContacts=runtime.MovementAudio.LadderContacts,
                 remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,remoteLandingPoses=observedLanding.Count,remoteFallPoses=observedFall.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
+            animationTrace.Save(runtime.Options.Report+".animation.json");
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
         [Serializable] private sealed class Report {public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
