@@ -26,7 +26,7 @@ namespace Remains.Presentation
             if(rows.Count==0) return;
             root=ui.Panel(parent,"Контент персонажа",new Vector2(90,-70),new Vector2(1100,570));
             (ConfirmRect,CancelRect)=ContentComparisonView.Draw(root.transform,rows,
-                "Контент персонажа отличается. Продолжение может изменить игровой результат.",page,
+                $"Персонаж «{session.CharacterId}»: версия игры или набор модов изменились.",page,
                 next=>{page=next;Render();},accept=>
                 {
                     if(accept) session.SendJoin(false,true);

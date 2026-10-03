@@ -26,7 +26,7 @@ namespace Remains.Editor
             var scaler=canvas.gameObject.AddComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1280,720);scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             var menu=new MainMenuPanel(canvas.transform,()=>{},()=>{},()=>{},()=>{},()=>{});
             menu.Character.text="Литлпип";
-            menu.World.text="Мир 7f65d82c · ревизия 930\nВетвь 1122aabb · снимок 48";
+            menu.World.text="Выбран: Мир 7f65d82c\n«Миры и сохранения»: выбор, имя и удаление.";
             if(longName) menu.World.text=LongWorldDescription;
             Canvas.ForceUpdateCanvases();
             Debug.Log($"Описание мира: longName={longName}, требуется={menu.World.preferredHeight}, доступно={menu.World.rectTransform.rect.height}.");

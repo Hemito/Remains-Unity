@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Mirror;
 using Remains.Domain;
+using Remains.Persistence;
 using Remains.Networking;
 using UnityEngine;
 using UnityEngine.UI;
@@ -43,7 +44,7 @@ namespace Remains.Presentation
             {
                 var copy=lobby.Copies[page*5+index];
                 var relation=selected==null?"Другой сохранённый мир":WorldHistory.Description(copy.summary.CompareTo(selected.summary));
-                var button=ui.Button(root.transform,$"{copy.holder} · мир {copy.summary.worldId.Substring(0,8)} · ревизия {copy.summary.revision}\n{relation}",
+                var button=ui.Button(root.transform,$"{new WorldLibrary(session.Saves).Name(copy.summary.worldId)} · копия у {copy.holder} · ревизия {copy.summary.revision}\n{relation}",
                     new Vector2(20,-80-index*65),new Vector2(1060,60),()=>session.Lobby.Select(copy.key));
                 button.interactable=NetworkServer.active && !lobby.ClientBusy;
                 if(copy.key==lobby.ClientSelected) button.GetComponent<Image>().color=new Color(.2f,.28f,.1f);
@@ -61,8 +62,10 @@ namespace Remains.Presentation
         }
         private void RenderContent()
         {
+            var selected=session.Lobby.Copies.Find(copy=>copy.key==session.Lobby.ClientSelected);
+            string name=selected==null?"Выбранный мир":new WorldLibrary(session.Saves).Name(selected.summary.worldId);
             (ContentConfirmRect,ContentCancelRect)=ContentComparisonView.Draw(root.transform,session.Lobby.ContentDifferences,
-                "Контент сохранения отличается. Продолжение может изменить игровой результат.",contentPage,
+                $"{name}: версия игры или набор модов изменились.",contentPage,
                 next=>{contentPage=next;Render();},accept=>session.Lobby.ConfirmContent(accept));
         }
     }

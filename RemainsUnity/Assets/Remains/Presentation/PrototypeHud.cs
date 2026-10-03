@@ -22,6 +22,8 @@ namespace Remains.Presentation
         private GameObject worldPicker;
         private Text selectedWorld;
         private Button worldPickerButton,hostButton;
+        private SaveStore describedStore;
+        private bool worldDescriptionDirty=true;
         private readonly Dictionary<string,RectTransform> worldChoices=new();
         public RectTransform WorldPickerButtonRect=>worldPickerButton.GetComponent<RectTransform>();
         public RectTransform HostButtonRect=>hostButton.GetComponent<RectTransform>();
@@ -197,7 +199,8 @@ namespace Remains.Presentation
             LayoutNotice();
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
-            {containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld();inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
+            {containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld(false);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
+            worldDescriptionDirty=true;
             lobby.SetActive(false);
             leave.gameObject.SetActive(gameplayVisible);friendlyFire.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             factory.gameObject.SetActive(gameplayVisible && (actor.level=="hub" || actor.level=="factory:0"));
@@ -227,17 +230,19 @@ namespace Remains.Presentation
                 slots[i].interactable = item != null && ContainerAccess.ClaimRejection(actor,shownContainer,item,session.Rules.Loot,claimOne?1:0)==null;
             }
         }
-        private void RefreshSelectedWorld()
+        private void RefreshSelectedWorld(bool force=true)
         {
+            if(!force && !worldDescriptionDirty && ReferenceEquals(describedStore,session.Saves)) return;
+            describedStore=session.Saves;worldDescriptionDirty=false;
             var saved=session.Saves.LoadWorld(prepareForPlay:false);
-            hostButton.GetComponentInChildren<Text>().text=saved==null?"Начать игру / создать сессию":"Продолжить / создать сессию";
-            selectedWorld.text=saved==null?"Будет создан новый мир":
-                $"{new WorldLibrary(session.Saves).Name(saved.worldId)} · ревизия {saved.revision}\nВетвь {saved.branchId.Substring(0,8)} · "+
-                (saved.historyVersion==1?$"снимок {saved.checkpointSequence}":"история не подтверждена");
+            hostButton.GetComponentInChildren<Text>().text=saved==null?"Начать в новом мире":"Продолжить выбранный мир";
+            selectedWorld.text=(saved==null?"Сохранённый мир не выбран.":$"Выбран: {new WorldLibrary(session.Saves).Name(saved.worldId)}")+
+                "\n«Миры и сохранения»: выбор, имя и удаление.";
         }
 
         private void ShowWorldPicker(int page)
         {
+            RefreshSelectedWorld();
             if(worldPicker!=null) Destroy(worldPicker);
             worldChoices.Clear();
             var copies=session.Saves.Continuations();
