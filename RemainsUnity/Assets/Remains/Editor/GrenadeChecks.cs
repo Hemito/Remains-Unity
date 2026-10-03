@@ -15,6 +15,7 @@ namespace Remains.Editor
             CheckSettings();
             CheckLaunch();
             CheckFlightTime();
+            CheckFreeFlight();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
@@ -136,6 +137,25 @@ namespace Remains.Editor
             state=new GrenadeState {y=20,remaining=2};
             GrenadeRules.Step(state,room,0);
             Require(state.y==20 && state.remaining==2 && state.vy==0,"Нулевой шаг не должен расходовать запал или менять скорость");
+        }
+        private static void CheckFreeFlight()
+        {
+            var room=new RoomLayout {left=-100,right=100,platforms=Array.Empty<RoomSurface>()};
+            foreach(int rate in new[]{1,30,60,144})
+            {
+                var state=new GrenadeState {x=0,y=20,vx=3,vy=6,remaining=2};
+                for(int i=0;i<rate;i++) GrenadeRules.Step(state,room,1f/rate);
+                // Independent kinematic checkpoint after one second: acceleration is -18 m/s².
+                Require(Mathf.Abs(state.x-3)<.0001f && Mathf.Abs(state.y-17)<.0001f &&
+                    Mathf.Abs(state.vy+12)<.0001f && Mathf.Abs(state.remaining-1)<.0001f,
+                    $"Свободный полёт зависит от частоты кадров: {rate}, position={state.Position}, vy={state.vy}");
+            }
+            var original=new GrenadeState {y=20,vx=3,vy=6,remaining=2};
+            GrenadeRules.Step(original,room,.37f);
+            var restored=original.Copy();
+            GrenadeRules.Step(restored,room,.63f);
+            Require(Mathf.Abs(restored.y-17)<.0001f && Mathf.Abs(restored.x-3)<.0001f,
+                "Восстановление посреди полёта не должно менять траекторию");
         }
         private static void CheckRecoveredPresence()
         {

@@ -43,8 +43,9 @@ namespace Remains.Domain
             float impact=0;
             var definition=Remains.Content.WeaponCatalog.Get("grenade");
             var previous=state.Position;
-            state.Velocity+=Vector2.down*definition.grenadeGravity*dt;
-            var delta=state.Velocity*dt;
+            var acceleration=Vector2.down*definition.grenadeGravity;
+            var delta=state.Velocity*dt+acceleration*(.5f*dt*dt);
+            state.Velocity+=acceleration*dt;
             var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false)+Vector2.up*.1f;
             state.Position=moved;
             if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f)
