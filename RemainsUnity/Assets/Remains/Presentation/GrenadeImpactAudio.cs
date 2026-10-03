@@ -23,6 +23,7 @@ namespace Remains.Presentation
         private readonly HashSet<string> seen=new();
         private readonly Queue<string> recent=new();
         public int Played {get;private set;}
+        public float MinimumSpeed=>settings.minimumSpeed;
         public event Action<GrenadeImpactSound> Observed;
         public void Initialize(CoopSession session,GrenadeController controller,GameplayAudio playback)
         {
@@ -50,19 +51,22 @@ namespace Remains.Presentation
         private void RegisterClient()
         {
             seen.Clear();recent.Clear();
-            NetworkClient.RegisterHandler<GrenadeImpactSound>(message=>
-            {
+            NetworkClient.RegisterHandler<GrenadeImpactSound>(Receive);
+        }
+        private void Receive(GrenadeImpactSound message)
+        {
                 if(!seen.Add(message.token)) return;
                 recent.Enqueue(message.token);if(recent.Count>512) seen.Remove(recent.Dequeue());
                 if(playback.PlayContact(clip,message.level,new Vector2(message.x,message.y),message.gain)) Played++;
                 Observed?.Invoke(message);
-            });
         }
         private void Contact(GrenadeState state,float speed)
         {
             if(speed<settings.minimumSpeed || !NetworkClient.isConnected) return;
-            NetworkClient.Send(new GrenadeImpactSound {token=Guid.NewGuid().ToString("N"),grenade=state.id,
-                level=state.level,generation=state.generation,x=state.x,y=state.y,gain=Mathf.Clamp01(speed/settings.fullGainSpeed)});
+            var message=new GrenadeImpactSound {token=Guid.NewGuid().ToString("N"),grenade=state.id,
+                level=state.level,generation=state.generation,x=state.x,y=state.y,gain=Mathf.Clamp01(speed/settings.fullGainSpeed)};
+            Receive(message);
+            NetworkClient.Send(message);
         }
         private void OnDestroy()
         {

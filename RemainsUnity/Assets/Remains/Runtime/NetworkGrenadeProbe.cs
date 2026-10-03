@@ -20,6 +20,8 @@ namespace Remains.Runtime
         private float heldAt;
         private Vector2 plannedOrigin;
         private bool heldLaunchVerified;
+        private int immediateContacts;
+        private readonly System.Collections.Generic.Dictionary<string,int> contactFrames=new();
         private bool Held=>runtime.Options.Smoke.Contains("-held-");
         private readonly System.Collections.Generic.HashSet<string> explosionIds=new();
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
@@ -30,7 +32,14 @@ namespace Remains.Runtime
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
             File.WriteAllText(value.Options.Report+".hub-layout.json",Remains.Serialization.StateJson.ToJson(Remains.Domain.RoomLayout.Load("hub")));
             value.GrenadeAudio.Observed+=message=>
-            {if(Host) NetworkServer.SendToAll(message);}; // Repeat the cosmetic event to verify deduplication.
+            {contactFrames[message.grenade]=Time.frameCount;if(Host) NetworkServer.SendToAll(message);}; // Repeat the cosmetic event to verify deduplication.
+            value.Grenades.Impact+=(state,speed)=>
+            {
+                if(speed<value.GrenadeAudio.MinimumSpeed || !NetworkClient.isConnected) return;
+                if(!contactFrames.TryGetValue(state.id,out int frame) || frame!=Time.frameCount)
+                {Finish(false,"Локальный звук столкновения ожидает сетевой ответ.");return;}
+                immediateContacts++;
+            };
             value.Session.AttackReceived+=attack=>
             {
                 if(attack.weapon!="grenade" || !explosionIds.Add(attack.id)) return;
@@ -123,7 +132,7 @@ namespace Remains.Runtime
             if(Held) detail+=" Проверен выбор стопки и бросок основной кнопкой из удерживаемой позиции.";
             int expectedSounds=!Resume && Source?0:1;
             if(Host && !Resume && runtime.GrenadeAudio.Played==0) success=false;
-            detail+=$" Звуков столкновения гранаты: {runtime.GrenadeAudio.Played}; события повторены для проверки дедупликации.";
+            detail+=$" Звуков столкновения гранаты: {runtime.GrenadeAudio.Played}; немедленных локальных контактов: {immediateContacts}; события повторены для проверки дедупликации.";
             if(runtime.Audio.ExplosionSounds!=expectedSounds) success=false;
             if(runtime.Explosions.Shown!=expectedSounds) success=false;
             detail+=$" Эффектов взрыва: {runtime.Explosions.Shown}, ожидалось {expectedSounds}, уведомление повторено для проверки дедупликации.";
