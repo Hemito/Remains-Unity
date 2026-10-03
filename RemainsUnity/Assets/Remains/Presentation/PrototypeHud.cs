@@ -157,7 +157,7 @@ namespace Remains.Presentation
             session.Changed += Refresh;
             session.Notice += ShowMessage;
             SessionMods=new SessionModPanel(transform,elements,session);
-            NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
+            NetworkLobby=new WorldLobbyPanel(transform,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
             PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf,()=>AudioSettings.Open());
             sessionHud.Inventory.onClick.AddListener(ToggleInventory);

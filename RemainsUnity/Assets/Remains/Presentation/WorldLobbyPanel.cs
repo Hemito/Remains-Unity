@@ -13,7 +13,6 @@ namespace Remains.Presentation
     public sealed class WorldLobbyPanel
     {
         private readonly Transform parent;
-        private readonly HudElements ui;
         private readonly CoopSession session;
         private GameObject root;
         private int page;
@@ -23,9 +22,9 @@ namespace Remains.Presentation
         public RectTransform ContentCancelRect {get;private set;}
         private int contentPage;
         public RectTransform ChoiceRect(string key)=>choices[key];
-        public WorldLobbyPanel(Transform parent,HudElements ui,CoopSession session,Action refresh)
+        public WorldLobbyPanel(Transform parent,CoopSession session,Action refresh)
         {
-            this.parent=parent;this.ui=ui;this.session=session;
+            this.parent=parent;this.session=session;
             session.Lobby.Changed+=()=>{Render();refresh();};
         }
         private void Render()
@@ -34,31 +33,35 @@ namespace Remains.Presentation
             choices.Clear();StartButtonRect=null;ContentConfirmRect=ContentCancelRect=null;
             var lobby=session.Lobby;
             if(!lobby.ClientWaiting) return;
-            root=ui.Panel(parent,"Выбор мира участниками",new Vector2(90,-70),new Vector2(1100,570));
-            if(NetworkServer.active && lobby.ContentDifferences.Count>0) {RenderContent();return;}
+            var view=WorldLobbyView.Create(parent);root=view.gameObject;
+            if(NetworkServer.active && lobby.ContentDifferences.Count>0) {view.Contents.SetActive(false);RenderContent();return;}
             string instruction=NetworkServer.active?"Выберите целую копию и начните игру.":"Хост выбирает целую копию. Дождитесь начала игры.";
-            ui.Label(root.transform,$"Участников: {lobby.ClientPlayers}. {instruction}\nДругие ветви сохранятся; объединения прогресса нет.",new Vector2(20,-10),new Vector2(1050,60));
+            view.Instruction.text=$"Участников: {lobby.ClientPlayers}. {instruction}\nДругие ветви сохранятся; объединения прогресса нет.";
             var selected=lobby.Copies.Find(c=>c.key==lobby.ClientSelected);
-            int pages=Math.Max(1,(lobby.Copies.Count+4)/5);page=Math.Clamp(page,0,pages-1);
-            for(int index=0;index<5 && page*5+index<lobby.Copies.Count;index++)
+            int capacity=view.Choices.Length;
+            int pages=Math.Max(1,(lobby.Copies.Count+capacity-1)/capacity);page=Math.Clamp(page,0,pages-1);
+            for(int index=0;index<capacity;index++)
             {
-                var copy=lobby.Copies[page*5+index];
+                bool visible=page*capacity+index<lobby.Copies.Count;view.Choices[index].gameObject.SetActive(visible);
+                if(!visible) continue;
+                var copy=lobby.Copies[page*capacity+index];
                 var relation=selected==null?"Другой сохранённый мир":WorldHistory.Description(copy.summary.CompareTo(selected.summary));
-                var button=ui.Button(root.transform,$"{new WorldLibrary(session.Saves).Name(copy.summary.worldId)} · копия у {copy.holder} · ревизия {copy.summary.revision}\n{relation}",
-                    new Vector2(20,-80-index*65),new Vector2(1060,60),()=>session.Lobby.Select(copy.key));
-                button.interactable=NetworkServer.active && !lobby.ClientBusy;
-                if(copy.key==lobby.ClientSelected) button.GetComponent<Image>().color=new Color(.2f,.28f,.1f);
+                var button=view.Choices[index];button.onClick.AddListener(()=>session.Lobby.Select(copy.key));
+                view.ShowChoice(index,new WorldLibrary(session.Saves).Name(copy.summary.worldId),copy.holder,copy.summary.revision,relation,
+                    copy.key==lobby.ClientSelected,NetworkServer.active && !lobby.ClientBusy);
                 choices[copy.key]=button.GetComponent<RectTransform>();
             }
-            ui.Button(root.transform,"Назад",new Vector2(20,-410),new Vector2(150,35),()=>{page--;Render();}).interactable=page>0;
-            ui.Label(root.transform,$"{page+1}/{pages}",new Vector2(190,-410),new Vector2(100,35));
-            ui.Button(root.transform,"Далее",new Vector2(300,-410),new Vector2(150,35),()=>{page++;Render();}).interactable=page+1<pages;
-            ui.Button(root.transform,"Новый мир",new Vector2(480,-410),new Vector2(250,35),()=>session.Lobby.Select("")).interactable=NetworkServer.active && !lobby.ClientBusy;
-            ui.Label(root.transform,lobby.ClientBusy?"Получение и проверка выбранного сохранения…":lobby.ClientError??"",new Vector2(20,-451),new Vector2(1060,50));
-            var start=ui.Button(root.transform,lobby.ClientSelected==""?"Начать в новом мире":"Начать с выбранной копией",new Vector2(20,-510),new Vector2(690,45),()=>session.Lobby.StartSelected());
+            view.Previous.onClick.AddListener(()=>{page--;Render();});view.Previous.interactable=page>0;
+            view.Page.text=$"{page+1}/{pages}";
+            view.Next.onClick.AddListener(()=>{page++;Render();});view.Next.interactable=page+1<pages;
+            view.NewWorld.onClick.AddListener(()=>session.Lobby.Select(""));view.NewWorld.interactable=NetworkServer.active && !lobby.ClientBusy;
+            OriginalButtonStyle.SetSelected(view.NewWorld,lobby.ClientSelected=="");
+            view.Status.text=lobby.ClientBusy?"Получение и проверка выбранного сохранения…":lobby.ClientError??"";
+            var start=view.StartGame;start.GetComponentInChildren<Text>().text=lobby.ClientSelected==""?"Начать в новом мире":"Начать с выбранной копией";
+            start.onClick.AddListener(()=>session.Lobby.StartSelected());
             start.interactable=NetworkServer.active && !lobby.ClientBusy && (lobby.ClientSelected=="" || selected!=null);
             StartButtonRect=start.GetComponent<RectTransform>();
-            ui.Button(root.transform,"Отключиться",new Vector2(760,-510),new Vector2(320,45),()=>{if(NetworkServer.active) session.StopHost();else session.StopClient();});
+            view.Disconnect.onClick.AddListener(()=>{if(NetworkServer.active) session.StopHost();else session.StopClient();});
         }
         private void RenderContent()
         {

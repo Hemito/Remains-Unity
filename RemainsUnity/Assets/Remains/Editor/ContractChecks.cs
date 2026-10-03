@@ -60,6 +60,9 @@ namespace Remains.Editor
             PonyPrefabChecks.Run();
             PonyRenderChecks.Run();
             MainMenuPrefabChecks.Run();
+            var worldLobby=Resources.Load<Remains.Presentation.WorldLobbyView>("Presentation/WorldLobby");
+            if(worldLobby==null) throw new InvalidOperationException("Нет префаба сетевого лобби.");
+            worldLobby.Validate();
             CombatHudPrefabChecks.Run();
             InventoryWindowChecks.Run();
             var pauseMenu=Resources.Load<Remains.Presentation.PauseMenuView>("Presentation/PauseMenu");
