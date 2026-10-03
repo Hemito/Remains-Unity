@@ -66,6 +66,9 @@ namespace Remains.Editor
             if(worldLobby==null) throw new InvalidOperationException("Нет префаба сетевого лобби.");
             worldLobby.Validate();
             CombatHudPrefabChecks.Run();
+            var feedback=Resources.Load<Remains.Presentation.HudFeedbackView>("Presentation/HudFeedback");
+            if(feedback==null) throw new InvalidOperationException("Нет префаба обратной связи HUD.");
+            feedback.Validate();
             InventoryWindowChecks.Run();
             var pauseMenu=Resources.Load<Remains.Presentation.PauseMenuView>("Presentation/PauseMenu");
             if(pauseMenu==null) throw new InvalidOperationException("Нет префаба меню паузы.");

@@ -57,6 +57,7 @@ namespace Remains.Presentation
         public bool InventoryOpen=>inventory.activeSelf;
         private string inventoryActorVersion;
         private CombatHud combatHud;
+        private HudFeedbackView feedback;
         private GameObject quickActions;
         private float noticeUntil;
         private PersonalInventoryPanel personalItems;
@@ -107,8 +108,7 @@ namespace Remains.Presentation
             var sessionHud=SessionHudView.Create(transform);status=sessionHud.Status;
             combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon),item=>EquipWeaponItem?.Invoke(item));
             quickActions=sessionHud.gameObject;
-            message=elements.BackedLabel(transform,"",new Vector2(350,-140),new Vector2(880,55));
-            revival=elements.BackedLabel(transform,"",new Vector2(480,-625),new Vector2(750,35));
+            feedback=HudFeedbackView.Create(transform);message=feedback.Notice;revival=feedback.Revival;
             mainMenu=new MainMenuPanel(transform,
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();},
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);},
@@ -179,15 +179,7 @@ namespace Remains.Presentation
         }
         private void LayoutNotice()
         {
-            // Text measurement runs on changes, never in the per-frame HUD refresh.
-            float width=Mathf.Clamp(message.preferredWidth,220,880);
-            message.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,width);
-            float height=Mathf.Max(26,message.preferredHeight);
-            var panel=(RectTransform)message.transform.parent;
-            panel.anchorMin=panel.anchorMax=panel.pivot=new Vector2(.5f,1);
-            panel.anchoredPosition=new Vector2(0,inventory.activeSelf?-16:-140);
-            panel.sizeDelta=new Vector2(width+24,height+16);
-            HudElements.Rect(message.rectTransform,new Vector2(12,-8),new Vector2(width,height));
+            feedback.LayoutNotice(inventory.activeSelf);
         }
         private void Refresh()
         {
