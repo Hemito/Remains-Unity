@@ -37,7 +37,8 @@ namespace Remains.Editor
             world.actors.Add(source);world.actors.Add(survivor);
             var grenade=new GrenadeState {id="g",attacker=source.id,sourcePlayer=true,level=source.level,owner="a",generation=1,x=1,remaining=1.4f};
             world.grenades.Add(grenade);source.connected=false;
-            GrenadeRules.Reassign(world,new[]{"b"});
+            Require(GrenadeRules.ReassignAndReportChanges(world,new[]{"b"}),"Передача гранаты не отмечена для сохранения");
+            Require(!GrenadeRules.ReassignAndReportChanges(world,new[]{"b"}),"Неизменная граната требует повторного снимка");
             Require(grenade.owner=="b" && grenade.generation==2 && grenade.remaining==1.4f,"Передача сохраняет остаток запала и меняет поколение");
             survivor.level="hub";GrenadeRules.Reassign(world,new[]{"b"});Require(grenade.owner==null,"Пустой уровень не получает фиктивного владельца host");
             survivor.level=source.level;GrenadeRules.Reassign(world,new[]{"b"});

@@ -18,7 +18,9 @@ namespace Remains.Editor
             var flight=new ProjectileState {launch=new AttackEvent {id="shot-save",attacker=source.id,sourceOwner="a",sourcePlayer=true,
                 level=source.level,weapon="pistol",endX=20},owner="a",generation=1,flightSpeed=90,traveled=3};
             world.projectiles.Add(flight);
-            source.connected=false;ProjectileLifecycle.Reassign(world,new[]{"b","host"});
+            source.connected=false;
+            Require(ProjectileLifecycle.ReassignAndReportChanges(world,new[]{"b","host"}),"Передача снаряда не отмечена для сохранения");
+            Require(!ProjectileLifecycle.ReassignAndReportChanges(world,new[]{"b","host"}),"Неизменный полёт требует повторного снимка");
             Require(flight.owner=="b" && flight.generation==2 && flight.launch.sourceOwner=="a" && flight.launch.attacker==source.id,"Передача полёта меняет автора или выбирает далёкого хоста.");
             Require(!ProjectileLifecycle.AcceptProgress(flight,"a",1,10,6,false),"Принят пакет прежнего владельца.");
             Require(ProjectileLifecycle.AcceptProgress(flight,"b",2,1,4,false),"Не принят прогресс нового владельца.");

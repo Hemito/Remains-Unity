@@ -32,7 +32,10 @@ namespace Remains.Domain
             {flight.Path();flight.owner=null;flight.generation++;flight.sequence=0;}
         }
         public static void Reassign(WorldState world,IReadOnlyCollection<string> owners)
+            =>ReassignAndReportChanges(world,owners);
+        public static bool ReassignAndReportChanges(WorldState world,IReadOnlyCollection<string> owners)
         {
+            bool changed=false;
             var players=world.actors.Where(a=>a.player && a.connected && owners.Contains(a.owner)).ToArray();
             foreach(var flight in world.projectiles)
             {
@@ -41,7 +44,9 @@ namespace Remains.Domain
                 string next=NearbySimulationClient.Select(players,flight.launch.level,flight.Path().Position);
                 if(next==flight.owner) continue;
                 flight.owner=next;flight.generation++;flight.sequence=0;
+                changed=true;
             }
+            return changed;
         }
         public static bool AcceptProgress(ProjectileState flight,string owner,int generation,uint sequence,float traveled,bool finished)
         {

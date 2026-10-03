@@ -84,7 +84,10 @@ namespace Remains.Domain
             return impact;
         }
         public static void Reassign(WorldState world,IReadOnlyCollection<string> owners)
+            =>ReassignAndReportChanges(world,owners);
+        public static bool ReassignAndReportChanges(WorldState world,IReadOnlyCollection<string> owners)
         {
+            bool changed=false;
             var players=world.actors.Where(a=>a.player && a.connected && owners.Contains(a.owner)).ToArray();
             foreach(var grenade in world.grenades)
             {
@@ -92,7 +95,9 @@ namespace Remains.Domain
                 string owner=NearbySimulationClient.Select(players,grenade.level,grenade.Position);
                 if(grenade.owner==owner) continue;
                 grenade.owner=owner;grenade.generation++;grenade.sequence=0;
+                changed=true;
             }
+            return changed;
         }
         public static ExplosionState Detonate(WorldState world,GrenadeState grenade,IEnumerable<string> enemyHits)
         {

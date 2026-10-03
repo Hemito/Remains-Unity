@@ -362,13 +362,16 @@ namespace Remains.Networking
 
         private WorldState PersistCopy(string json)
         {
+            long started=BeginRecoveryMeasurement();
             var snapshot=new RecoverySnapshot(json);
             // The host already persisted this payload before sending it. Its local client
             // must not overwrite newer canonical state while processing queued messages.
             if(!NetworkServer.active) Saves.SaveRecovery(snapshot);
             if(NetworkClient.isConnected) NetworkClient.Send(new BackupAckMessage {
                 world=snapshot.WorldId,revision=snapshot.Revision,snapshot=snapshot.Id });
-            return snapshot.CreateLiveWorld();
+            var world=snapshot.CreateLiveWorld();
+            FinishRecoveryMeasurement("recovery-received",started,json.Length);
+            return world;
         }
 
         public void SaveLocalCharacter()
@@ -376,11 +379,20 @@ namespace Remains.Networking
             if(LocalActor!=null) Saves.SaveCharacter(LocalActor);
         }
 
+        public event Action<string,double,int> RecoveryMeasured;
+        private long BeginRecoveryMeasurement()=>RecoveryMeasured==null?0:System.Diagnostics.Stopwatch.GetTimestamp();
+        private void FinishRecoveryMeasurement(string stage,long started,int characters)
+        {
+            if(started!=0) RecoveryMeasured?.Invoke(stage,
+                (System.Diagnostics.Stopwatch.GetTimestamp()-started)/(double)System.Diagnostics.Stopwatch.Frequency,characters);
+        }
         private RecoverySnapshot PrepareRecovery()
         {
+            long started=BeginRecoveryMeasurement();
             var snapshot=Saves.SaveWorld(ServerWorld);
             recoveryReceipts.Register(snapshot);
             RecoveryPrepared?.Invoke(snapshot.Id,snapshot.Revision);
+            FinishRecoveryMeasurement("recovery-prepared",started,snapshot.Json.Length);
             return snapshot;
         }
 
@@ -437,9 +449,14 @@ namespace Remains.Networking
             }
             ActorMotionReplication.PreserveNewerMotion(actor,incoming);
             ServerWorld.actors[ServerWorld.actors.IndexOf(actor)] = incoming;
+            // Ordinary NPC deltas need not save and transmit the whole world.
+            // Reassignment still runs at the same point, and all shared changes
+            // or incapacitation transitions are checkpointed immediately.
+            bool checkpoint=!actor.player && (actor.down!=incoming.down || (actor.health>0)!=(incoming.health>0));
             if(!actor.player && !incoming.attackBusy)
-            {CommitWorld();return;}
+                checkpoint|=ownership.ReassignAndReportChanges(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
+            if(checkpoint) {BroadcastWorld();return;}
             NetworkServer.SendToAll(new ActorMessage { json = JsonUtility.ToJson(incoming) });
         }
 

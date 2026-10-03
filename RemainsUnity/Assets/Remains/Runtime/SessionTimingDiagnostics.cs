@@ -14,6 +14,8 @@ namespace Remains.Runtime
         {
             public string stage,attack,actor;
             public double seconds,rtt,gapSeconds;
+            public double operationSeconds;
+            public int jsonCharacters;
             public bool local;
         }
         [Serializable] private sealed class Report
@@ -39,6 +41,7 @@ namespace Remains.Runtime
                 value.Options.Report+".timing.json";
             value.Session.AttackReceived+=attack=>Record("launch-observed",attack.id,attack.attacker);
             value.Session.Projectiles.Confirmed+=id=>Record("launch-confirmed",id,value.Session.LocalActorId);
+            value.Session.RecoveryMeasured+=(stage,seconds,characters)=>Record(stage,null,null,operation:seconds,characters:characters);
             value.Combat.Projectiles.ContactObserved+=contact=>Record("contact-observed",contact.projectile,contact.target);
             value.Combat.DamageApplied+=result=>Record("damage-applied",result.attack,result.actor);
             value.DamageFeedback.Received+=result=>Record("damage-number-received",result.attack,result.actor);
@@ -55,11 +58,12 @@ namespace Remains.Runtime
             };
             Debug.Log("Диагностика задержек включена. Отчёт будет записан при выходе: "+path);
         }
-        private void Record(string stage,string attack,string actor,double gap=0)
+        private void Record(string stage,string attack,string actor,double gap=0,double operation=0,int characters=0)
         {
             if(report.events.Count>=16384) {report.droppedEntries++;return;}
             report.events.Add(new Entry {stage=stage,attack=attack,actor=actor,
-                seconds=Time.realtimeSinceStartupAsDouble,rtt=NetworkTime.rtt,gapSeconds=gap,local=actor!=null && actor==runtime.Session.LocalActorId});
+                seconds=Time.realtimeSinceStartupAsDouble,rtt=NetworkTime.rtt,gapSeconds=gap,operationSeconds=operation,jsonCharacters=characters,
+                local=actor!=null && actor==runtime.Session.LocalActorId});
         }
         private void Update()
         {

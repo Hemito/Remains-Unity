@@ -15,9 +15,12 @@ namespace Remains.Editor
             var npc=new ActorState {id="npc",owner="a",target=a.id};
             world.actors.Add(a);world.actors.Add(b);world.actors.Add(npc);
             var ownership=new OwnershipService();NpcAttackRules.Begin(npc,a);string id=npc.attackId;
-            b.x=1;npc.target=b.id;ownership.Reassign(world,new[]{"a","b"});
+            b.x=1;npc.target=b.id;
+            Require(!ownership.ReassignAndReportChanges(world,new[]{"a","b"}),"Незавершённая атака ошибочно требует нового снимка владения");
             Require(npc.owner=="a" && npc.target==b.id && npc.attackTarget==a.id,"Начатая атака сохраняет свою цель и владельца при новом решении AI");
-            var attack=NpcAttackRules.Complete(npc,a);ownership.Reassign(world,new[]{"a","b"});
+            var attack=NpcAttackRules.Complete(npc,a);
+            Require(ownership.ReassignAndReportChanges(world,new[]{"a","b"}),"Передача NPC не отмечена для сохранения");
+            Require(!ownership.ReassignAndReportChanges(world,new[]{"a","b"}),"Неизменное владение требует повторного сохранения");
             Require(attack.id==id && npc.owner=="b" && npc.target==b.id && npc.attackCooldown==2,"Завершение передаёт владельца с сохранённой паузой");
             var restored=npc.Copy();Require(restored.attackCooldown==2 && restored.attackId==id,"Пауза и ID переживают сериализацию");
             NpcAttackRules.Begin(npc,b);b.connected=false;ownership.Reassign(world,new[]{"a"});

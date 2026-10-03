@@ -25,9 +25,11 @@ namespace Remains.Domain
             {prop.owner=null;prop.held=false;prop.generation++;}
         }
         public void Reassign(WorldState world, IReadOnlyCollection<string> activeOwners)
+            =>ReassignAndReportChanges(world,activeOwners);
+        public bool ReassignAndReportChanges(WorldState world, IReadOnlyCollection<string> activeOwners)
         {
-            GrenadeRules.Reassign(world,activeOwners);
-            ProjectileLifecycle.Reassign(world,activeOwners);
+            bool changed=GrenadeRules.ReassignAndReportChanges(world,activeOwners);
+            changed|=ProjectileLifecycle.ReassignAndReportChanges(world,activeOwners);
             var active = world.actors.Where(a => a.player && a.connected && !a.down && activeOwners.Contains(a.owner)).ToArray();
             foreach (var actor in world.actors.Where(a => !a.player || !a.connected))
             {
@@ -37,6 +39,7 @@ namespace Remains.Domain
                     {
                         actor.owner=null;actor.target=null;actor.attackBusy=false;actor.attackRemaining=0;
                         actor.generation++;actor.revision++;
+                        changed=true;
                     }
                     continue;
                 }
@@ -46,6 +49,7 @@ namespace Remains.Domain
                     // The latest attack may not have arrived before owner loss.
                     // Reset recovery cooldown even when the last snapshot looked idle.
                     NpcAttackRules.Cancel(actor);
+                    changed=true;
                 }
                 var target=active.FirstOrDefault(a=>a.id==actor.target && a.level==actor.level);
                 var candidate = target ?? active.Where(a => a.level == actor.level)
@@ -55,6 +59,7 @@ namespace Remains.Domain
                 actor.owner = next;
                 actor.generation++;
                 actor.revision++;
+                changed=true;
             }
             foreach(var prop in WorldProps.All(world))
             {
@@ -63,7 +68,9 @@ namespace Remains.Domain
                 string next=candidate?.owner??"host";
                 if(prop.owner==next) continue;
                 prop.owner=next;prop.held=false;prop.generation++;
+                changed=true;
             }
+            return changed;
         }
     }
 }
