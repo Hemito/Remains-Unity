@@ -261,7 +261,7 @@ namespace Remains.Presentation
                 string relation=selected==null?"Сохранённая копия":WorldHistory.Description(
                     WorldHistory.Compare(state,copy.Id,selected.CreateLiveWorld(),selected.Id));
                 var choice=view.Choices[row];
-                choice.GetComponentInChildren<Text>().text=$"{new WorldLibrary(session.Saves).Name(state.worldId)} · ветвь {state.branchId.Substring(0,8)} · ревизия {state.revision}\n{relation}";
+                view.ShowChoice(row,new WorldLibrary(session.Saves).Name(state.worldId),state.branchId,state.revision,relation,selected?.Id==copy.Id);
                 choice.onClick.AddListener(()=>{session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();});
                 worldChoices[copy.Id]=choice.GetComponent<RectTransform>();
                 view.Manage[row].onClick.AddListener(()=>

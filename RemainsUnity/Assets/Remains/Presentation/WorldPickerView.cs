@@ -13,6 +13,12 @@ namespace Remains.Presentation
         [InspectorName("Предыдущая страница")] public Button Previous;
         [InspectorName("Следующая страница")] public Button Next;
         [InspectorName("Закрыть")] public Button Close;
+        public void ShowChoice(int row,string worldName,string branchId,long revision,string relation,bool selected)
+        {
+            string branch=branchId.Substring(0,Math.Min(8,branchId.Length));
+            Choices[row].GetComponentInChildren<Text>().text=$"{worldName}\nВетвь {branch} · ревизия {revision}\n{relation}";
+            OriginalButtonStyle.SetSelected(Choices[row],selected);
+        }
         public void Validate()
         {
             if(Choices==null || Manage==null || Choices.Length==0 || Choices.Length!=Manage.Length || Empty==null || Page==null || Previous==null || Next==null || Close==null)
