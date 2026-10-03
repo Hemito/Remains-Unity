@@ -37,6 +37,7 @@ namespace Remains.Editor
             EntityAssetChecks.Run();
             PropPrefabChecks.Run();
             RoomAuthoringChecks.Run();
+            RoomTextureChecks.Run();
             RoomLightAuthoringChecks.Run();
             WeaponShotChecks.Run();
             WeaponPrefabChecks.Run();

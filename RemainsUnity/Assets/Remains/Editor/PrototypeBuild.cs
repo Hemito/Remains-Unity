@@ -12,7 +12,7 @@ namespace Remains.Editor
     {
         public static void Build()
         {
-            foreach(string guid in AssetDatabase.FindAssets("t:Texture2D",new[]{"Assets/Remains/Resources/Original/Pony","Assets/Remains/Resources/Original/Room/Hub","Assets/Remains/Resources/Original/Room/Factory","Assets/Remains/Resources/Original/Shots","Assets/Remains/Resources/Original/Menu","Assets/Remains/Resources/Original/Hud","Assets/Remains/Resources/Original/Inventory","Assets/Remains/Resources/Original/Training","Assets/Remains/Resources/Original/Props","Assets/Remains/Resources/Original/Raider"}))
+            foreach(string guid in AssetDatabase.FindAssets("t:Texture2D",new[]{"Assets/Remains/Resources/Original/Pony","Assets/Remains/Resources/Original/Room","Assets/Remains/Resources/Original/Shots","Assets/Remains/Resources/Original/Menu","Assets/Remains/Resources/Original/Hud","Assets/Remains/Resources/Original/Inventory","Assets/Remains/Resources/Original/Training","Assets/Remains/Resources/Original/Props","Assets/Remains/Resources/Original/Raider"}))
             {
                 var importer=(TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid));
                 importer.textureType=TextureImporterType.Default;
