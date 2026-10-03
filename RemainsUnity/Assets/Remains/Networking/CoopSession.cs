@@ -182,7 +182,11 @@ namespace Remains.Networking
             });
             Projectiles.RegisterClient();
             NetworkClient.RegisterHandler<PoseMessage>(ReceivePose);
-            NetworkClient.RegisterHandler<AttackMessage>(message => AttackReceived?.Invoke(JsonUtility.FromJson<AttackEvent>(message.json)));
+            NetworkClient.RegisterHandler<AttackMessage>(message =>
+            {
+                var attack=JsonUtility.FromJson<AttackEvent>(message.json);
+                if(WeaponCatalog.Get(attack.weapon).projectileSpeed<=0 || Projectiles.AcceptEcho(attack.id)) AttackReceived?.Invoke(attack);
+            });
             NetworkClient.RegisterHandler<NpcHitMessage>(message => NpcHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<FriendlyHitMessage>(message=>FriendlyHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
@@ -496,18 +500,43 @@ namespace Remains.Networking
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown
         }, Channels.Unreliable);
 
-        public void Fire(AttackEvent attack) => NetworkClient.Send(new AttackMessage { json = JsonUtility.ToJson(attack) });
+        public void Fire(AttackEvent attack)
+        {
+            var definition=WeaponCatalog.Get(attack.weapon);
+            if(definition.projectileSpeed<=0) {NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});return;}
+            var actor=World?.Find(attack.attacker);
+            if(actor==null || actor.owner!=LocalOwner || actor.level!=attack.level || Pause.IsPaused(attack.level)) return;
+            attack.sourceOwner=LocalOwner;attack.sourcePlayer=actor.player;attack.friendlyFireDecision=World.friendlyFireDecision;
+            var speeds=definition.ProjectileSpeedRange;
+            ProjectileLaunch.Prepare(attack,definition,UnityEngine.Random.Range(speeds.x,speeds.y));
+            // Reliable launch precedes progress and contact messages from its local simulation.
+            NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});
+            Projectiles.BeginLocal(attack);AttackReceived?.Invoke(attack);
+        }
         private void RelayAttack(NetworkConnectionToClient connection, AttackMessage message)
         {
             var attack = JsonUtility.FromJson<AttackEvent>(message.json);
             if(attack.weapon=="grenade") {Debug.LogWarning($"Взрыв без сохраняемой сущности отклонён: {attack.id}.");return;}
-            if (!owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.Find(attack.attacker)?.owner != owner) return;
+            void Reject(string reason)
+            {
+                Debug.LogWarning($"Запуск отклонён: shot={attack.id}, actor={attack.attacker}, level={attack.level}, reason={reason}");
+                connection.Send(new ProjectileRejectedMessage {id=attack.id,reason=reason});
+            }
+            if (!owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.Find(attack.attacker)?.owner != owner)
+            {Reject("Выстрел отменён: изменился владелец персонажа.");return;}
             if(string.IsNullOrEmpty(attack.level) || (attack.weapon!="grenade" && attack.level!=ServerWorld.Find(attack.attacker).level))
-            { Debug.LogWarning($"Атака без корректной локации отклонена: id={attack.id}, actor={attack.attacker}, level={attack.level}.");return; }
+            {Reject("Выстрел отменён: изменилась локация персонажа.");return;}
             attack.sourceOwner=owner;attack.sourcePlayer=ServerWorld.Find(attack.attacker).player;
             attack.friendlyFireDecision=ServerWorld.friendlyFireDecision;
             float projectileSpeed=WeaponCatalog.Get(attack.weapon).projectileSpeed;
-            if(projectileSpeed>0 && !Projectiles.Launch(attack)) return;
+            if(projectileSpeed>0)
+            {
+                // An already-fired packet can arrive after pause. Retain its frozen flight;
+                // new local input is blocked by the firing client, not discarded in transit.
+                try {if(!Projectiles.Launch(attack)) return;}
+                catch(Exception error) when(error is ArgumentException || error is InvalidOperationException)
+                {Reject("Некорректные параметры выстрела: "+error.Message);return;}
+            }
             NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }
 
@@ -641,6 +670,7 @@ namespace Remains.Networking
             CharacterContent.Reset();ModMismatch?.Invoke(null);
             Admission.EndClient();
             Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
+            Projectiles.ResetClient();
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
             Pause.ResetClient();

@@ -89,7 +89,11 @@ namespace Remains.Runtime
             var session=runtime.Session;var target=session.ServerWorld.Find("player:session-client-1");
             var attack=new AttackEvent {id="pause-late-shot",attacker=session.LocalActorId,weapon="pistol",level="factory:0",
                 originX=target.x-1,originY=target.y+.7f,endX=target.x+1,endY=target.y+.7f};
-            session.Fire(attack);session.Fire(attack);
+            var definition=Remains.Content.WeaponCatalog.Get(attack.weapon);
+            ProjectileLaunch.Prepare(attack,definition,definition.projectileSpeed);
+            var message=new AttackMessage {json=Remains.Serialization.StateJson.ToJson(attack)};
+            // Inject delivery, not a new firing command: normal Fire correctly rejects paused input.
+            NetworkClient.Send(message);NetworkClient.Send(message);
         }
         private void Receive(PauseProbePhase message)
         {

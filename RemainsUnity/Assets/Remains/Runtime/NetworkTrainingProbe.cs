@@ -103,7 +103,7 @@ namespace Remains.Runtime
         private IEnumerator FinishAfterDelivery()
         {
             yield return new WaitForSecondsRealtime(1);
-            Finish(true,MovingShotExercise?"Измерение оружия на бегу: три выстрела каждым игроком; расхождение точки запуска записано отдельно и не считается исправленным.":
+            Finish(true,MovingShotExercise?"Собственный выстрел на бегу: три запуска без сетевого ожидания, дуло совпало с точкой запуска; удалённое расхождение записано отдельно.":
                 (runtime.Options.ProbePeers==1?"Одиночная игра. ":"Кооператив; стойки и прыжки видны другим клиентам. ")+"Приседание, короткий/длинный прыжок, балка и двойное S. Три мишени, по три выстрела на игрока; отказ 50/120 кг и подъём/падение 25 кг.");
         }
         private PlayerCommand Command()
@@ -250,6 +250,7 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             if(success && MovingShotExercise && movingShots!=3) {success=false;detail="Ожидалось три выстрела на бегу, получено "+movingShots;}
+            if(success && MovingShotExercise && !weaponTrace.ValidateLocal(out var mismatch)) {success=false;detail=mismatch;}
             string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,

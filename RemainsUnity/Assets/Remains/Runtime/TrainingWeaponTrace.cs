@@ -44,6 +44,19 @@ namespace Remains.Runtime
             }
             return movingShot;
         }
+        public bool ValidateLocal(out string reason)
+        {
+            int count=0;
+            foreach(var sample in trace.samples)
+            {
+                if(!sample.local) continue;
+                count++;
+                if(!sample.hasView || !float.IsFinite(sample.launchGap) || sample.launchGap>.001f || sample.poseError>.001f)
+                {reason=$"Дуло собственного выстрела не совпало: shot={sample.attack}, view={sample.hasView}, launchGap={sample.launchGap}, poseError={sample.poseError}.";return false;}
+            }
+            reason=count==3?null:"Ожидались три собственных выстрела в журнале, получено "+count;
+            return reason==null;
+        }
         public void Save(string path)=>File.WriteAllText(path,JsonUtility.ToJson(trace,true));
     }
 }

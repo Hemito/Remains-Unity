@@ -43,6 +43,7 @@ namespace Remains.Editor
             ProjectilePathChecks.Run();
             ProjectilePersistenceChecks.Run();
             ProjectileControllerChecks.Run();
+            LocalProjectileChecks.Run();
             ActorTypeChecks.Run();
             ProjectileAudioChecks.Run();
             RaiderChecks.Run();

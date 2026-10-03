@@ -12,10 +12,11 @@ namespace Remains.Gameplay
         public ProjectileState state;
         public LinearProjectilePath path;
         public AttackEvent segment;
-        public bool contact;
+        public bool contact,cancelled,awaitingConfirmation;
         public float finishedAge,nextPublish;
         public readonly HashSet<string> hit=new();
         internal readonly HashSet<string> observedContacts=new();
+        internal readonly List<(AttackEvent attack,AttackTargetSnapshot target)> pendingContacts=new();
     }
     public sealed class ProjectileController
     {
@@ -29,7 +30,12 @@ namespace Remains.Gameplay
         public event Action<ProjectileContact> ContactObserved;
         public int Contacts {get;private set;}
         public ProjectileController(CoopSession session,SimulationGeometry geometry,Action<AttackEvent,AttackTargetSnapshot,string> apply)
-        {this.session=session;this.geometry=geometry;this.apply=apply;session.Changed+=Reconcile;session.Projectiles.Launched+=Reconcile;}
+        {
+            this.session=session;this.geometry=geometry;this.apply=apply;
+            session.Changed+=Reconcile;session.Projectiles.Launched+=Reconcile;
+            session.Projectiles.Rejected+=id=>
+            {if(flights.Remove(id,out var flight)) {flight.cancelled=true;flight.pendingContacts.Clear();}};
+        }
         private void Reconcile()
         {
             if(session.World==null) {flights.Clear();return;}
@@ -44,11 +50,20 @@ namespace Remains.Gameplay
                         // owning its decision. Re-evaluate from canonical progress; the target's
                         // durable attack receipts, not this visual cache, prevent double damage.
                         existing.hit.Clear();
+                        existing.pendingContacts.Clear();existing.awaitingConfirmation=false;
+                    }
+                    else if(existing.awaitingConfirmation && !session.Projectiles.IsPending(state.launch.id))
+                    {
+                        // Confirm the same flight without resetting path, contacts, age or sequence.
+                        existing.awaitingConfirmation=false;
+                        existing.state.launch.friendlyFireDecision=state.launch.friendlyFireDecision;
+                        existing.segment.friendlyFireDecision=state.launch.friendlyFireDecision;
                     }
                     continue;
                 }
                 if(state.finished) continue;
-                var flight=new ProjectileFlight {state=state.Copy(),path=state.Path(),segment=Remains.Serialization.StateJson.Copy(state.launch)};
+                var flight=new ProjectileFlight {state=state.Copy(),path=state.Path(),segment=Remains.Serialization.StateJson.Copy(state.launch),
+                    awaitingConfirmation=session.Projectiles.IsPending(state.launch.id)};
                 flights.Add(state.launch.id,flight);Created?.Invoke(flight);
             }
         }
@@ -60,6 +75,15 @@ namespace Remains.Gameplay
             {
                 var flight=pair.Value;var state=flight.state;
                 if(state.owner==null || !LevelActivity.HasConnectedPlayer(session.World,state.launch.level) || session.Pause.IsPaused(state.launch.level)) continue;
+                if(!flight.awaitingConfirmation && flight.pendingContacts.Count>0)
+                {
+                    foreach(var pending in flight.pendingContacts)
+                    {
+                        pending.attack.friendlyFireDecision=state.launch.friendlyFireDecision;
+                        apply(pending.attack,pending.target,state.owner);Contacts++;
+                    }
+                    flight.pendingContacts.Clear();
+                }
                 if(flight.path.Finished)
                 {
                     flight.finishedAge+=dt;
@@ -93,7 +117,11 @@ namespace Remains.Gameplay
                 var actor=session.World.Find(target.id);
                 Anatomy.Contact(actor,attack,out float entry);
                 if(definition.stopAtFirstActor) {stop=entry;stoppedAtActor=true;}
-                if(flight.hit.Add(target.id)) {apply(attack,target,flight.state.owner);Contacts++;}
+                if(flight.hit.Add(target.id))
+                {
+                    if(flight.awaitingConfirmation) flight.pendingContacts.Add((Remains.Serialization.StateJson.Copy(attack),target));
+                    else {apply(attack,target,flight.state.owner);Contacts++;}
+                }
                 Observe(flight,"actor:"+target.id,Vector2.Lerp(start,end,entry),target.id,actor.actorType,null);
             }
             if(terrain.HasValue && !stoppedAtActor)

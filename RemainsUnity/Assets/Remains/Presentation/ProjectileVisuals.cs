@@ -70,7 +70,7 @@ namespace Remains.Presentation
         }
         private void LateUpdate()
         {
-            if(session.LocalActor?.level!=flight.state.launch.level) {Destroy(gameObject);return;}
+            if(flight.cancelled || session.LocalActor?.level!=flight.state.launch.level) {Destroy(gameObject);return;}
             // Presentation samples the frozen path as well, including a newly restored view.
             var path=flight.path;
             if(path.Finished && !artwork.beam)
