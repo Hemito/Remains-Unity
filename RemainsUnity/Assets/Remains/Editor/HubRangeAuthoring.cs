@@ -11,6 +11,62 @@ namespace Remains.Editor
     // Explicit editor migration. The resulting room is an ordinary editable prefab.
     public static class HubRangeAuthoring
     {
+        public static void ApplyOriginalLightMasks()
+        {
+            Render();
+            foreach(int x in new[]{36,50})
+            {
+                string image=System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../..",$".reference/tests/hub-range-{x}.png"));
+                string before=image.Replace(".png","-before-original-mask.png");
+                if(!System.IO.File.Exists(before)) System.IO.File.Copy(image,before);
+            }
+            const string path="Assets/Remains/Resources/Levels/hub.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var room=root.GetComponent<RoomAuthoring>();
+                RoomLight reference=null;RoomArtwork fixture=null;
+                foreach(var light in root.GetComponentsInChildren<RoomLightAuthoring>(true))
+                {
+                    var data=light.Read(room);
+                    if(data.id=="lamp-7") reference=data;
+                }
+                foreach(var art in root.GetComponentsInChildren<RoomArtworkAuthoring>(true))
+                {
+                    var data=art.Read(room);
+                    if(data.texture=="Hub/decor-light3-1" && data.x<37) fixture=data;
+                }
+                if(reference?.maskTexture==null || fixture==null || reference.mask!="Original/Room/Hub/light-mask-light3-1")
+                    throw new InvalidOperationException("Не найден эталонный плафон light3 с исходной маской хаба.");
+                int count=0;
+                foreach(var light in root.GetComponentsInChildren<RoomLightAuthoring>(true))
+                {
+                    var data=light.Read(room);if(!data.id.StartsWith("range-",StringComparison.Ordinal)) continue;
+                    var artwork=light.GetComponentsInChildren<RoomArtworkAuthoring>();
+                    if(artwork.Length!=1) throw new InvalidOperationException("Лампа тира должна содержать один плафон: "+data.id);
+                    var art=artwork[0].Read(room);
+                    if(art.texture!=fixture.texture) throw new InvalidOperationException("Другой тип плафона тира: "+data.id);
+                    float sx=art.width/fixture.width;
+                    // Preserve the source fixture's aspect ratio, with its top edge fixed.
+                    float top=art.y+art.height;
+                    var scale=artwork[0].transform.localScale;scale.y*=fixture.height*sx/art.height;
+                    artwork[0].transform.localScale=scale;
+                    art=artwork[0].Read(room);
+                    artwork[0].transform.position+=room.transform.TransformVector(Vector3.up*(top-art.y-art.height));
+                    art=artwork[0].Read(room);
+                    float sy=art.height/fixture.height;
+                    data.mask=reference.mask;data.maskTexture=reference.maskTexture;
+                    data.maskX=art.x+(reference.maskX-fixture.x)*sx;
+                    data.maskY=art.y+(reference.maskY-fixture.y)*sy;
+                    data.maskWidth=reference.maskWidth*sx;data.maskHeight=reference.maskHeight*sy;
+                    var local=light.transform.localPosition;light.Configure(data,reference.maskTexture);light.transform.localPosition=local;count++;
+                }
+                if(count!=3) throw new InvalidOperationException("Ожидались три источника тира, найдено "+count);
+                PrefabUtility.SaveAsPrefabAsset(root,path);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            AssetDatabase.SaveAssets();ContractChecks.Run();Render();
+        }
         public static void BindFixtures()
         {
             const string path="Assets/Remains/Resources/Levels/hub.prefab";
