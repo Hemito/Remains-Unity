@@ -571,7 +571,17 @@ namespace Remains.Networking
             NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }
 
-        public void ReportNpcHit(NpcHitMessage message) => NetworkClient.Send(message);
+        public void ReportNpcHit(NpcHitMessage message)
+        {
+            // Keep the routed contact even for a locally owned target: the host may
+            // already have handed it off. Send before publishing the local result.
+            NetworkClient.Send(message);
+            var target=World?.Find(message.target);
+            if(target!=null && !target.player && target.owner==LocalOwner && target.generation==message.generation)
+                NpcHitReceived?.Invoke(message);
+            // The normal receiver checks scope/pause and uses the same durable
+            // attack receipt. Its later network echo cannot apply damage twice.
+        }
         public void ReportFriendlyHit(FriendlyHitMessage message)=>NetworkClient.Send(message);
         private void RelayFriendlyHit(NetworkConnectionToClient connection,FriendlyHitMessage message)
         {
