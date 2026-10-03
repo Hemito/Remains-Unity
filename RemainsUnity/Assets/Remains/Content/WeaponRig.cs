@@ -14,13 +14,14 @@ namespace Remains.Content
     }
     public static class WeaponRigs
     {
-        [Serializable] private sealed class Library {public float pixelsPerUnit,aimRadius,anchorHeight;public WeaponRig[] weapons;}
+        [Serializable] private sealed class Library {public float pixelsPerUnit,aimRadius,climbingAimRadius,anchorHeight;public WeaponRig[] weapons;}
         private static readonly Dictionary<string,WeaponRig> rigs=new(StringComparer.Ordinal);
         private static readonly Dictionary<string,Remains.Presentation.WeaponView> prefabs=new(StringComparer.Ordinal);
         public static Remains.Presentation.WeaponView Prefab(string id)=>prefabs.TryGetValue(id,out var value)?value:throw new InvalidOperationException("Нет префаба оружия: "+id);
-        public static string ManifestJson()=>JsonUtility.ToJson(new Library {pixelsPerUnit=PixelsPerUnit,aimRadius=AimRadius,anchorHeight=AnchorHeight,weapons=rigs.Values.ToArray()});
+        public static string ManifestJson()=>JsonUtility.ToJson(new Library {pixelsPerUnit=PixelsPerUnit,aimRadius=AimRadius,climbingAimRadius=ClimbingAimRadius,anchorHeight=AnchorHeight,weapons=rigs.Values.ToArray()});
         public static float PixelsPerUnit {get;private set;}
         public static float AimRadius {get;private set;}
+        public static float ClimbingAimRadius {get;private set;}
         public static float AnchorHeight {get;private set;}
         public static IEnumerable<WeaponRig> All=>rigs.Values;
         public static WeaponRig Get(string id)=>rigs.TryGetValue(id,out var rig)?rig:
@@ -29,6 +30,8 @@ namespace Remains.Content
         {
             var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(catalog==null) throw new InvalidOperationException("Нет Content/WeaponCatalog.");
+            if(!float.IsFinite(catalog.ClimbingAimRadius) || catalog.ClimbingAimRadius<0 || catalog.ClimbingAimRadius>catalog.AimRadius)
+                throw new InvalidOperationException("Вынос оружия на лестнице должен быть от нуля до обычного радиуса.");
             var presentations=catalog.Presentations().ToArray();
             if(presentations.Length==0) throw new InvalidOperationException("В каталоге нет префабов оружия.");
             var definitions=presentations.Select(view=>view.ReadRig()).ToArray();
@@ -48,6 +51,7 @@ namespace Remains.Content
             }
             PixelsPerUnit=library.pixelsPerUnit;
             AimRadius=library.aimRadius;AnchorHeight=library.anchorHeight;
+            ClimbingAimRadius=catalog.ClimbingAimRadius;
             rigs.Clear();prefabs.Clear();
             foreach(var pair in validated) rigs.Add(pair.Key,pair.Value);
             foreach(var view in presentations) prefabs.Add(view.Id,view);

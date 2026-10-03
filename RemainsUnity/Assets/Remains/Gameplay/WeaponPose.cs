@@ -7,10 +7,11 @@ namespace Remains.Gameplay
     public static class WeaponPose
     {
         public static float AimRadius=>WeaponRigs.AimRadius;
+        public static float RangedReachLimit(ActorState actor)=>actor.climbing?WeaponRigs.ClimbingAimRadius:AimRadius;
         public static Vector2 RangedAnchor(ActorState actor)=>actor.Position+new Vector2(0,WeaponRigs.AnchorHeight*Anatomy.StanceHeightRatio(actor));
         public static Vector2 Direction(ActorState actor)=>new(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
         public static bool Flip(ActorState actor)=>actor.weaponFlipY;
-        public static Vector2 Mount(ActorState actor)=>RangedAnchor(actor)+Direction(actor)*Mathf.Clamp(actor.weaponReach,0,AimRadius);
+        public static Vector2 Mount(ActorState actor)=>RangedAnchor(actor)+Direction(actor)*Mathf.Clamp(actor.weaponReach,0,RangedReachLimit(actor));
         public static Vector2 Muzzle(ActorState actor)
         {
             var rig=WeaponRigs.Get(actor.weapon);var direction=Direction(actor);
@@ -35,7 +36,7 @@ namespace Remains.Gameplay
                 // Solve the barrel ray through the cursor, including its authored vertical offset.
                 angle-=Mathf.Asin(Mathf.Clamp(lateral/delta.magnitude,-1,1));
                 float along=Mathf.Sqrt(Mathf.Max(0,delta.sqrMagnitude-lateral*lateral));
-                actor.weaponReach=Mathf.Clamp(along-rig.muzzleX-.1f,0,AimRadius);
+                actor.weaponReach=Mathf.Clamp(along-rig.muzzleX-.1f,0,RangedReachLimit(actor));
             }
             else actor.weaponReach=Mathf.Min(delta.magnitude,WeaponCatalog.Get(actor.weapon).range);
             actor.weaponAngle=angle*Mathf.Rad2Deg;

@@ -9,10 +9,20 @@ namespace Remains.Content
     {
         [SerializeField,InspectorName("Оружие в порядке загрузки")]
         private WeaponAsset[] weapons=Array.Empty<WeaponAsset>();
+        [SerializeField,Min(0),InspectorName("Вынос огнестрела на лестнице (м)")] private float climbingAimRadius;
         [SerializeField,InspectorName("Радиус следования оружия за курсором")] private float aimRadius=1;
         [SerializeField,InspectorName("Высота точки удержания")] private float anchorHeight=.98f;
         public float AimRadius=>aimRadius;
+        public float ClimbingAimRadius=>climbingAimRadius;
         public float AnchorHeight=>anchorHeight;
+        private void OnValidate()
+        {
+            if(!float.IsFinite(aimRadius) || !float.IsFinite(climbingAimRadius) || !float.IsFinite(anchorHeight))
+                Debug.LogWarning($"Каталог {name}: неконечные параметры удержания оружия заменены исходными значениями. Проверьте радиусы и высоту.",this);
+            aimRadius=float.IsFinite(aimRadius)?Mathf.Max(.01f,aimRadius):1;
+            climbingAimRadius=float.IsFinite(climbingAimRadius)?Mathf.Clamp(climbingAimRadius,0,aimRadius):0;
+            anchorHeight=float.IsFinite(anchorHeight)?Mathf.Max(0,anchorHeight):.98f;
+        }
         public System.Collections.Generic.IEnumerable<WeaponAsset> AnimatedWeapons()
         {
             foreach(var asset in weapons)

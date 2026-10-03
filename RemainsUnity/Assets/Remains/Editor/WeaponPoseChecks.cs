@@ -14,6 +14,20 @@ namespace Remains.Editor
         public static void Run()
         {
             foreach(string weapon in new[]{"pistol","energy"})
+            foreach(float angle in new[]{0f,90f,180f,270f})
+            {
+                var actor=new ActorState {weapon=weapon,climbing=true,weaponReach=1};
+                Require(Vector2.Distance(WeaponPose.Mount(actor),WeaponPose.RangedAnchor(actor))<.0001f,"Лестница сохранила вынос из предыдущей стойки");
+                var target=WeaponPose.RangedAnchor(actor)+new Vector2(Mathf.Cos(angle*Mathf.Deg2Rad),Mathf.Sin(angle*Mathf.Deg2Rad))*5;
+                WeaponPose.Aim(actor,target);
+                Require(actor.weaponReach==0 && Mathf.Abs(Vector3.Cross(target-WeaponPose.Muzzle(actor),WeaponPose.Direction(actor)).z)<.0001f,
+                    "На лестнице точка крепления или направление дула неверны");
+                var copy=actor.Copy();
+                Require(Vector2.Distance(WeaponPose.Muzzle(copy),WeaponPose.Muzzle(actor))<.0001f,"Копия потеряла позу оружия на лестнице");
+                actor.climbing=false;WeaponPose.Aim(actor,target);
+                Require(actor.weaponReach>.5f,"Выход с лестницы оставил ограничение выноса");
+            }
+            foreach(string weapon in new[]{"pistol","energy"})
             foreach(float angle in new[]{0,45,90,135,180,225,270,315})
             foreach(float distance in new[]{1f,3f,20f})
             {
@@ -48,7 +62,8 @@ namespace Remains.Editor
         public static void Render()=>Render(false);
         public static void RenderMelee()=>Render(true);
         public static void RenderSwing()=>Render(true,true);
-        private static void Render(bool melee,bool motion=false)
+        public static void RenderLadder()=>Render(false,false,true);
+        private static void Render(bool melee,bool motion=false,bool climbing=false)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             Anatomy.Load();WeaponCatalog.Load();Run();PonyAnimationData.Load();PonyVisual.Prepare();
@@ -56,7 +71,7 @@ namespace Remains.Editor
             foreach(string weapon in melee?new[]{"spear","crowbar"}:new[]{"pistol","energy"})
             foreach(float angle in new[]{0f,45,135,180})
             {
-                var actor=new ActorState {id=weapon+angle,weapon=weapon,x=(index%4)*4,y=-(index/4)*3,pose="idle"};
+                var actor=new ActorState {id=weapon+angle,weapon=weapon,x=(index%4)*4,y=-(index/4)*3,pose=climbing?"climb":"idle",climbing=climbing};
                 float distance=!motion && melee && index%4<2 ? (index%4==0?.2f:.7f):4;
                 var anchor=melee?WeaponPose.Origin(actor):WeaponPose.RangedAnchor(actor);
                 float aimAngle=motion?0:angle;
@@ -90,12 +105,12 @@ namespace Remains.Editor
             UnityEngine.Rendering.SortingGroup.UpdateAllSortingGroups();
             var camera=new GameObject("Камера поз оружия").AddComponent<Camera>();camera.orthographic=true;
             camera.orthographicSize=4;camera.transform.position=new Vector3(6,-.3f,-10);camera.backgroundColor=new Color(.15f,.16f,.17f);
-            var target=new RenderTexture(1600,800,24);target.Create();camera.targetTexture=target;
-            var image=new Texture2D(1600,800,TextureFormat.RGBA32,false);
+            var target=new RenderTexture(1920,960,24);target.Create();camera.targetTexture=target;
+            var image=new Texture2D(target.width,target.height,TextureFormat.RGBA32,false);
             try
             {
-                camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,1600,800),0,0);image.Apply();
-                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", motion?".reference/tests/melee-swing-poses.png":melee?".reference/tests/melee-idle-poses.png":".reference/tests/weapon-poses.png"));
+                camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
+                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", climbing?".reference/tests/weapon-ladder-poses.png":motion?".reference/tests/melee-swing-poses.png":melee?".reference/tests/melee-idle-poses.png":".reference/tests/weapon-poses.png"));
                 Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
                 Debug.Log("Кадр поз оружия: "+path);
             }
