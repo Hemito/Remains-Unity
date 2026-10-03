@@ -62,7 +62,7 @@ namespace Remains.Runtime
                 case 2: if(Mathf.Abs(Target.x-12)<.1f && Mathf.Abs(Target.y-7.2f)<.05f) Advance(3);break;
                 case 3:
                     if(Time.unscaledTime-since<2) return;
-                    if(players.Any(a=>a.health!=100) || WeaponAmmunition.Magazine(Shooter,"energy").rounds!=14)
+                    if(players.Any(a=>a.health!=100) || ProbeWeaponSelection.Magazine(Shooter,"energy").rounds!=14)
                     {Complete(false,"Выстрел через бетон нанёс урон или не потратил заряд.");return;}
                     Advance(4);break;
                 case 4: if(Mathf.Abs(Shooter.x-14.48f)<.1f) Advance(5);break;
@@ -71,7 +71,7 @@ namespace Remains.Runtime
                 case 7:
                     if(Time.unscaledTime-since<2) return;
                     Complete(Target.health==92 && Target.damageSequence==1 && players.All(a=>a.mana==100 && (a.id==Target.id || a.health==100)) &&
-                        WeaponAmmunition.Magazine(Shooter,"energy").rounds==13,
+                        ProbeWeaponSelection.Magazine(Shooter,"energy").rounds==13,
                         "Обычные движение/лестница/выстрел: бетон блокирует урон, без преграды одно попадание; два заряда, мана и наблюдатели не затронуты.");break;
             }
         }

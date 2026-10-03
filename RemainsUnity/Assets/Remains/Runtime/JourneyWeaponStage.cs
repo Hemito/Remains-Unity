@@ -35,7 +35,7 @@ namespace Remains.Runtime
                 if(actor.player && (actor.mana!=100 || actor.id!=victim.id && actor.health!=100))
                     throw new InvalidOperationException($"Journey: оружие изменило ману или здоровье наблюдателя {actor.id}.");
             int expectedRounds=phase==14?14:15;
-            if(WeaponAmmunition.Magazine(host,"energy").rounds!=expectedRounds || InventoryJournal.Count(host,"batt")!=45)
+            if(ProbeWeaponSelection.Magazine(host,"energy").rounds!=expectedRounds || InventoryJournal.Count(host,"batt")!=45)
                 throw new InvalidOperationException("Journey: неверный расход батарей лазерного пистолета.");
             Verified++;
         }

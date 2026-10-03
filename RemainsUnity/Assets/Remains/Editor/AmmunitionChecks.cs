@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Persistence;
@@ -37,15 +38,16 @@ namespace Remains.Editor
             var directory=Path.Combine(Path.GetTempPath(),"Remains-ammunition-"+Guid.NewGuid().ToString("N"));
             var saves=new SaveStore(directory);saves.SaveCharacter(actor);
             var restored=saves.LoadCharacter();
-            Require(WeaponAmmunition.Magazine(restored,"energy").rounds==15 && InventoryJournal.Count(restored,"batt")==30 && restored.inventoryUses.Count==1,"Магазины, резерв и журнал переживают загрузку");
+            Require(restored.weaponInventoryVersion==1 && restored.inventory.Single(item=>item.definition=="energy").weaponState.rounds==15 && InventoryJournal.Count(restored,"batt")==30 && restored.inventoryUses.Count==1,"Магазины, резерв и журнал переживают загрузку");
+            int existingBackups=Directory.GetFiles(Path.Combine(directory,"Recovery")).Length;
             var legacy=new ActorState {id="legacy",player=true,health=16,down=true};
             saves.SaveCharacter(legacy);
             string source=File.ReadAllText(Path.Combine(directory,"character.json"));
             restored=saves.LoadCharacter();
-            Require(restored.health==16 && restored.down && Directory.GetFiles(Path.Combine(directory,"Recovery")).Length==1,"Миграция сохраняет последствия и исходную копию");
-            Require(File.ReadAllText(Directory.GetFiles(Path.Combine(directory,"Recovery"))[0])==source,"Резервная копия миграции точна");
+            Require(restored.health==16 && restored.down && Directory.GetFiles(Path.Combine(directory,"Recovery")).Length==existingBackups+1,"Миграция сохраняет последствия и исходную копию");
+            Require(Directory.GetFiles(Path.Combine(directory,"Recovery")).Any(path=>File.ReadAllText(path)==source),"Резервная копия миграции точна");
             saves.SaveCharacter(restored);restored=saves.LoadCharacter();
-            Require(InventoryJournal.Count(restored,"batt")==45 && Directory.GetFiles(Path.Combine(directory,"Recovery")).Length==1,"Миграция не выдаёт боезапас повторно");
+            Require(InventoryJournal.Count(restored,"batt")==45 && restored.inventory.Count(item=>item.weaponState!=null)==4 && Directory.GetFiles(Path.Combine(directory,"Recovery")).Length==existingBackups+1,"Миграция не выдаёт боезапас повторно");
             Debug.Log("Боезапас: PASS — магазин, резерв, отсутствие расхода маны, журнал, сохранение и однократная миграция.");
         }
         private static void Require(bool condition,string detail)

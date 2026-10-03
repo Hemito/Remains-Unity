@@ -28,6 +28,10 @@ namespace Remains.Presentation
         private string selected;
         private int page;
         public RectTransform RowRect(int row)=>rows[row].GetComponent<RectTransform>();
+        public int Page=>page;
+        public int PageSize=>rows.Length;
+        public RectTransform NextRect=>next.GetComponent<RectTransform>();
+        public RectTransform PreviousRect=>previous.GetComponent<RectTransform>();
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
         public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();

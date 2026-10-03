@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.IO;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using Remains.Domain;
@@ -41,6 +42,21 @@ namespace Remains.Editor
             var afterTransfer=prepared.Copy();afterTransfer.inventory.RemoveAll(item=>item.id==pistol.id);
             WeaponInventory.PreserveSelection(prepared,afterTransfer);
             Require(afterTransfer.weapon==null && WeaponInventory.Selected(afterTransfer)==null,"После передачи осталось оружие в копытах");
+            string directory=Path.Combine(Path.GetTempPath(),"Remains-weapon-migration-"+Guid.NewGuid().ToString("N"));
+            var saves=new SaveStore(directory);
+            old.player=true;
+            var world=new WorldState();world.actors.Add(old);saves.SaveWorld(world);saves.SaveCharacter(old);
+            string worldSource=File.ReadAllText(Path.Combine(directory,"world.json"));
+            string characterSource=File.ReadAllText(Path.Combine(directory,"character.json"));
+            var loaded=saves.LoadWorld();var character=saves.LoadCharacter();
+            Require(Directory.GetFiles(Path.Combine(directory,"Recovery")).Any(path=>File.ReadAllText(path)==worldSource) &&
+                Directory.GetFiles(Path.Combine(directory,"Recovery")).Any(path=>File.ReadAllText(path)==characterSource),"Нет точных исходников перед миграцией мира и персонажа");
+            Require(loaded.actors[0].equippedWeaponItem==character.equippedWeaponItem && loaded.actors[0].weaponInventoryVersion==1,
+                "Загрузка не подготовила тело или рассогласовала идентичность");
+            saves.SaveWorld(loaded);saves.SaveCharacter(character);
+            int backups=Directory.GetFiles(Path.Combine(directory,"Recovery")).Length;
+            Require(saves.LoadWorld().actors[0].inventory.Count==character.inventory.Count && saves.LoadCharacter().inventory.Count==character.inventory.Count &&
+                Directory.GetFiles(Path.Combine(directory,"Recovery")).Length==backups,"Повторная загрузка повторила миграцию");
         }
         private static void Require(bool value,string message)
         {if(!value) throw new InvalidOperationException(message);}

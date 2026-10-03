@@ -54,7 +54,7 @@ namespace Remains.Runtime
             if(!active || runtime.Session.LocalActor==null) return default;
             var actor=runtime.Session.LocalActor;
             if(!fired) {fired=true;return new PlayerCommand {weapon="pistol",fire=true,hasAim=true,aim=actor.Position+Vector2.up*10};}
-            if(!reloaded && WeaponAmmunition.Magazine(actor,"pistol").rounds==11) {reloaded=true;return new PlayerCommand {reload=true};}
+            if(!reloaded && ProbeWeaponSelection.Magazine(actor,"pistol").rounds==11) {reloaded=true;return new PlayerCommand {reload=true};}
             return default;
         }
         private void Update()
@@ -65,7 +65,7 @@ namespace Remains.Runtime
             var actor=session.LocalActor;if(actor==null) return;
             if(Host && !active && session.World.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers)
             {active=true;NetworkServer.SendToAll(new ExtensionProbePhase());}
-            if(!active || !reloaded || WeaponAmmunition.Magazine(actor,"pistol").rounds!=12 || InventoryJournal.Count(actor,"p10")!=initialReserve-1) return;
+            if(!active || !reloaded || ProbeWeaponSelection.Magazine(actor,"pistol").rounds!=12 || InventoryJournal.Count(actor,"p10")!=initialReserve-1) return;
             if(!acked)
             {
                 if(!Intact(session.World,"world") || !Intact(actor,runtime.Options.Character) || actor.inventory.Any(i=>!Intact(i,i.id)) || actor.magazines.Any(m=>!Intact(m,m.weapon)))

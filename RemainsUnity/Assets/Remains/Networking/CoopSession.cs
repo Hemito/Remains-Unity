@@ -271,6 +271,7 @@ namespace Remains.Networking
                     WeaponAmmunition.Initialize(actor,true);
                 }
                 actor.id="player:"+message.character;actor.character=message.character;actor.player=true;
+                actor=WeaponInventoryMigration.Prepare(actor);
                 CharacterPlacement.SpawnInHub(actor,ServerWorld.actors.Count(a=>a.player));
                 actor.hair=ServerWorld.actors.Count(a=>a.player);
                 ServerWorld.actors.Add(actor);
@@ -343,10 +344,8 @@ namespace Remains.Networking
                         actor.mana=local.mana;actor.damageSequence=local.damageSequence;actor.resolvedExplosions=local.resolvedExplosions;
                         actor.resolvedAttacks=local.resolvedAttacks;
                         actor.magazines=local.magazines;
-                        if(!InventoryJournal.Merge(actor,local,out var inventoryCopy,out var uses))
-                            throw new InvalidOperationException($"Не удалось согласовать расход инвентаря: actor={actor.id}, revision={actor.revision}.");
-                        actor.inventory=inventoryCopy;actor.inventoryUses=uses;
                     }
+                    PreserveOwnerInventory(actor,local);
                     WeaponInventory.PreserveSelection(local,actor);
                 }
             }
@@ -389,6 +388,7 @@ namespace Remains.Networking
             {
                 ActorPose.CopyMotion(current,actor);
                 NpcAttackRules.CopyProgress(current,actor);
+                PreserveOwnerInventory(actor,current);
             }
             ActorMotionReplication.PreserveNewerMotion(current,actor);
             if(current?.owner==LocalOwner) WeaponInventory.PreserveSelection(current,actor);
@@ -396,6 +396,13 @@ namespace Remains.Networking
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
             Changed?.Invoke();
+        }
+
+        private static void PreserveOwnerInventory(ActorState incoming,ActorState current)
+        {
+            if(!InventoryJournal.Merge(incoming,current,out var inventory,out var uses))
+                throw new InvalidOperationException($"Не удалось согласовать расход инвентаря: actor={incoming.id}, revision={incoming.revision}.");
+            incoming.inventory=inventory;incoming.inventoryUses=uses;
         }
 
         private void UpdateActor(NetworkConnectionToClient connection, ActorMessage message)

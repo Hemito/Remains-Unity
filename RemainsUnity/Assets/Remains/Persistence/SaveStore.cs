@@ -40,6 +40,14 @@ namespace Remains.Persistence
                 foreach(var actor in world.actors.Where(a=>a.player && a.loadoutVersion==0)) UpgradeLoadout(actor,backup);
                 world.revision++;
             }
+            if(world.actors.Any(a=>a.player && a.weaponInventoryVersion==0))
+            {
+                string backup=PreserveSource("world.json");
+                for(int i=0;i<world.actors.Count;i++)
+                    if(world.actors[i].player && world.actors[i].weaponInventoryVersion==0)
+                        world.actors[i]=UpgradeWeaponInventory(world.actors[i],backup);
+                world.revision++;
+            }
             world.grenades ??= new List<GrenadeState>();world.explosions ??= new List<ExplosionState>();
             world.projectiles ??= new List<ProjectileState>();
             foreach(var flight in world.projectiles) flight.Path();
@@ -131,7 +139,7 @@ namespace Remains.Persistence
             if(source==null) return null;
             var actor=JsonUtility.FromJson<ActorState>(source);
             string backup=null;
-            if(preserve || actor.loadoutVersion==0)
+            if(preserve || actor.loadoutVersion==0 || actor.weaponInventoryVersion==0)
             {
                 backup=Path.Combine("Recovery","character-"+Guid.NewGuid().ToString("N")+".json");
                 AtomicWrite(backup,source);
@@ -139,7 +147,15 @@ namespace Remains.Persistence
             }
             actor.resolvedExplosions ??= new List<string>();actor.resolvedAttacks ??= new List<string>();
             if(actor.loadoutVersion==0) UpgradeLoadout(actor,backup);
+            if(actor.weaponInventoryVersion==0) actor=UpgradeWeaponInventory(actor,backup);
             return actor;
+        }
+
+        private static ActorState UpgradeWeaponInventory(ActorState actor,string backup)
+        {
+            var prepared=WeaponInventoryMigration.Prepare(actor);
+            Debug.LogWarning($"Оружие перенесено в предметы: actor={actor.id}, версия=1. Заряды и данные предметов сохранены. Исходник: {backup}.");
+            return prepared;
         }
 
         public string PreserveRecoverySource()

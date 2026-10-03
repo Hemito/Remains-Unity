@@ -63,6 +63,10 @@ namespace Remains.Presentation
         public RectTransform PersonalTabRect=>inventoryWindow.PersonalTab;
         public RectTransform ContainerTabRect=>inventoryWindow.SharedTab;
         public RectTransform DepositRowRect(int index)=>personalItems.RowRect(index);
+        public int PersonalPage=>personalItems.Page;
+        public int PersonalPageSize=>personalItems.PageSize;
+        public RectTransform PersonalNextRect=>personalItems.NextRect;
+        public RectTransform PersonalPreviousRect=>personalItems.PreviousRect;
         public RectTransform DepositActionRect=>personalItems.DepositRect;
         public RectTransform UseItemRect=>personalItems.UseRect;
         public RectTransform InventoryWeaponRect(int index)=>personalItems.WeaponRect(index);

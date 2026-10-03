@@ -46,7 +46,7 @@ namespace Remains.Runtime
                 case 0: if(!runtime.Options.Smoke.Contains("resume")) {command.weapon="";command.fire=true;command.reload=true;} break;
                 case 1: command.weapon="energy";command.fire=true;break;
                 case 2: command.weapon="energy";command.reload=!reloadRequested;reloadRequested=true;break;
-                case 3: command.weapon="pistol";command.fire=WeaponAmmunition.Magazine(actor,"pistol").rounds>9;break;
+                case 3: command.weapon="pistol";command.fire=ProbeWeaponSelection.Magazine(actor,"pistol").rounds>9;break;
                 case 4:
                     command.weapon=Time.unscaledTime-phaseTime<.3f?"pistol":"energy";
                     command.reload=!reloadRequested;reloadRequested=true;break;
@@ -72,8 +72,8 @@ namespace Remains.Runtime
             if(NetworkServer.active && !configured) {configured=true;session.SetFriendlyFire(false);}
             if(session.World.friendlyFire) return;
             if(actor.mana!=100) {Finish(false,"Лазерный пистолет изменил ману.");return;}
-            int energy=WeaponAmmunition.Magazine(actor,"energy").rounds;
-            int pistol=WeaponAmmunition.Magazine(actor,"pistol").rounds;
+            int energy=ProbeWeaponSelection.Magazine(actor,"energy").rounds;
+            int pistol=ProbeWeaponSelection.Magazine(actor,"pistol").rounds;
             switch(phase)
             {
                 case 0:
@@ -117,7 +117,7 @@ namespace Remains.Runtime
                 case 6:
                     if(Time.unscaledTime-phaseTime<4 || sentDone) return;
                     var saved=session.Saves.LoadCharacter();
-                    if(saved==null || WeaponAmmunition.Magazine(saved,"energy").rounds!=15 || WeaponAmmunition.Magazine(saved,"pistol").rounds!=12 ||
+                    if(saved==null || ProbeWeaponSelection.Magazine(saved,"energy").rounds!=15 || ProbeWeaponSelection.Magazine(saved,"pistol").rounds!=12 ||
                         InventoryJournal.Count(saved,"batt")!=30 || InventoryJournal.Count(saved,"p10")!=33 || saved.inventoryUses.Count!=2)
                     {Finish(false,"Сохранение не содержит подтверждённый боезапас.");return;}
                     sentDone=true;NetworkClient.Send(new AmmunitionProbeDone());break;

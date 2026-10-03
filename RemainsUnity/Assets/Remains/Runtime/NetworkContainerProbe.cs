@@ -164,12 +164,12 @@ namespace Remains.Runtime
             int index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="caps");
             int beforeSelection=runtime.Session.LocalActor.inventory.Sum(item=>item.count);
             yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);
-            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index));
+            yield return SelectPersonalRow(index);
             if(runtime.Session.LocalActor.inventory.Sum(item=>item.count)!=beforeSelection) {Finish(false,"Выбор строки сам изменил инвентарь.");yield break;}
             yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
             index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="grenade");
             yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);
-            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index));
+            yield return SelectPersonalRow(index);
             yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
         }
         private IEnumerator Click()
@@ -178,6 +178,13 @@ namespace Remains.Runtime
             if(Partial) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
+        }
+        private IEnumerator SelectPersonalRow(int index)
+        {
+            int page=index/runtime.Hud.PersonalPageSize;
+            while(runtime.Hud.PersonalPage<page) yield return UiPointerProbe.Click(runtime.Hud.PersonalNextRect);
+            while(runtime.Hud.PersonalPage>page) yield return UiPointerProbe.Click(runtime.Hud.PersonalPreviousRect);
+            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index%runtime.Hud.PersonalPageSize));
         }
         private void Finish(bool success,string detail)
         {
