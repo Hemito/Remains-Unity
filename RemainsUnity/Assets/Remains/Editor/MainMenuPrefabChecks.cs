@@ -13,6 +13,12 @@ namespace Remains.Editor
                 var first=new MainMenuPanel(root.transform,()=>calls[0]++,()=>calls[1]++,()=>calls[2]++,()=>calls[3]++,()=>calls[4]++);
                 var second=new MainMenuPanel(root.transform,()=>{},()=>{},()=>{},()=>{},()=>{});
                 var view=first.Root.GetComponent<MainMenuView>();view.Validate();
+                view.World.text=MainMenuRender.LongWorldDescription;
+                if(view.World.preferredHeight>view.World.rectTransform.rect.height+.1f)
+                    throw new InvalidOperationException("Длинное допустимое название мира обрезает сведения о сохранении.");
+                var description=view.World.rectTransform;var picker=view.Worlds.GetComponent<RectTransform>();
+                if(description.anchoredPosition.y-description.rect.height<picker.anchoredPosition.y)
+                    throw new InvalidOperationException("Описание мира перекрывает кнопку выбора сохранения.");
                 view.Host.onClick.Invoke();view.Join.onClick.Invoke();view.Worlds.onClick.Invoke();view.Settings.onClick.Invoke();view.NewGame.onClick.Invoke();
                 foreach(int count in calls) if(count!=1) throw new InvalidOperationException("Действие меню не привязано ровно один раз.");
                 second.Host.onClick.Invoke();first.Character.text="Проверка";

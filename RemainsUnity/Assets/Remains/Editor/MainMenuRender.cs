@@ -12,7 +12,12 @@ namespace Remains.Editor
         {
             foreach(var size in new[]{new Vector2Int(1280,720),new Vector2Int(1024,768),new Vector2Int(2560,1080)}) RenderAt(size.x,size.y);
         }
-        private static void RenderAt(int width,int height)
+        public static readonly string LongWorldDescription=new string('Ш',48)+" · ревизия 9223372036854775807\nВетвь 1122aabb · снимок 9223372036854775807";
+        public static void RenderLongName()
+        {
+            foreach(var size in new[]{new Vector2Int(1024,768),new Vector2Int(1920,1080),new Vector2Int(2560,1080)}) RenderAt(size.x,size.y,true);
+        }
+        private static void RenderAt(int width,int height,bool longName=false)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             var camera=new GameObject("Камера меню").AddComponent<Camera>();camera.transform.position=new Vector3(0,0,-10);
@@ -22,14 +27,16 @@ namespace Remains.Editor
             var menu=new MainMenuPanel(canvas.transform,()=>{},()=>{},()=>{},()=>{},()=>{});
             menu.Character.text="Литлпип";
             menu.World.text="Мир 7f65d82c · ревизия 930\nВетвь 1122aabb · снимок 48";
+            if(longName) menu.World.text=LongWorldDescription;
             Canvas.ForceUpdateCanvases();
+            Debug.Log($"Описание мира: longName={longName}, требуется={menu.World.preferredHeight}, доступно={menu.World.rectTransform.rect.height}.");
             var image=new Texture2D(width,height,TextureFormat.RGBA32,false);
             try
             {
                 camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,width,height),0,0);image.Apply();
-                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", $".reference/tests/main-menu-{width}x{height}.png"));
+                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", $".reference/tests/main-menu-{(longName?"long-name-":"")}{width}x{height}.png"));
                 File.WriteAllBytes(path,image.EncodeToPNG());Debug.Log("Главное меню: кадр сохранён "+path);
-                if(width==1024)
+                if(width==1024 && !longName)
                 {
                     var store=new Remains.Persistence.SaveStore(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/world-management-render")));
                     var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
