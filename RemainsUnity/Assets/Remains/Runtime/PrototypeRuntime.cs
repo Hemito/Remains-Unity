@@ -46,7 +46,7 @@ namespace Remains.Runtime
         private ActorVisualLayers visualLayers;
         private PrototypeHud hud;
         private Camera cameraView;
-        private float nextPose;
+        private readonly ReplicationCadence poseCadence=new(.05);
         private readonly WeaponElevation weaponElevation=new();
         private GameObject roomObject;
         private string shownLevel="hub";
@@ -67,11 +67,14 @@ namespace Remains.Runtime
             passiveMovementSettings=MovementSettings.Load();
             WeaponCatalog.Load();
             Application.runInBackground=true;
-            Application.targetFrameRate=60;
+            Application.targetFrameRate=Options.Smoke==null?60:Options.ProbeFrameRate;
             var networkObject=new GameObject("Сетевая сессия");
             networkObject.SetActive(false);
             var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
             Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;
+            // Mirror configures headless frame rate during StartClient/StartHost.
+            // Apply the requested probe limit after that, including reconnections.
+            if(Options.Smoke!=null) Session.ClientReady+=()=>Application.targetFrameRate=Options.ProbeFrameRate;
             Session.ConfigureRules(WeaponCatalog.Rules);
             Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby") || Options.Smoke.StartsWith("duplicate-lobby") || Options.Smoke.StartsWith("protocol") || Options.Smoke.StartsWith("grenade-resume-"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
             Session.CharacterId=Options.Character;
@@ -248,9 +251,8 @@ namespace Remains.Runtime
                 ApplyCommand(command,Time.deltaTime);
             }
             Combat.Step(Time.deltaTime);
-            if (Time.unscaledTime >= nextPose)
+            if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))
             {
-                nextPose=Time.unscaledTime+0.05f;
                 foreach (var owned in Session.World.actors) if (owned.owner==Session.LocalOwner) Session.PublishPose(owned);
             }
         }

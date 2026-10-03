@@ -12,7 +12,7 @@ namespace Remains.Gameplay
         private readonly SimulationGeometry geometry;
         private bool wasHeld;
         private string selected;
-        private float nextPose;
+        private readonly ReplicationCadence poseCadence=new(.05);
         private float nextStats;
         private readonly MagicRecovery recovery=new();
         private bool statsDirty;
@@ -73,8 +73,7 @@ namespace Remains.Gameplay
             if(rules is ITelekinesisRecoveryRule recoveryRule &&
                 recovery.Step(actor,holding,recoveryRule.RecoveryAcceleration(actor),dt))
             {actor.revision++;statsDirty=true;}
-            if(Time.unscaledTime<nextPose) return;
-            nextPose=Time.unscaledTime+0.05f;
+            if(!poseCadence.TryAdvance(Time.unscaledTimeAsDouble)) return;
             foreach(var prop in WorldProps.All(session.World)) if(prop.owner==session.LocalOwner && prop.level==actor.level) adapter.SendProp(prop);
             if(statsDirty && Time.unscaledTime>=nextStats)
             { nextStats=Time.unscaledTime+0.5f;session.PublishActor(actor);statsDirty=false; }

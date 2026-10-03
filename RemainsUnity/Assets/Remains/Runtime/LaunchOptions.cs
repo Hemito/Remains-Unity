@@ -13,6 +13,7 @@ namespace Remains.Runtime
         public ushort Port { get; private set; } = 7777;
         public int Capacity { get; private set; } = 16;
         public int ProbePeers { get; private set; } = 2;
+        public int ProbeFrameRate { get; private set; } = 60;
         public bool NetworkStress { get; private set; }
         public bool Diagnostics { get; private set; }
         public static LaunchOptions Parse()
@@ -32,6 +33,11 @@ namespace Remains.Runtime
                     case "--smoke": options.Smoke = args[++i]; break;
                     case "--report": options.Report = args[++i]; break;
                     case "--probe-peers": options.ProbePeers=int.Parse(args[++i]); break;
+                    case "--probe-fps":
+                        options.ProbeFrameRate=int.Parse(args[++i]);
+                        if(options.ProbeFrameRate<10 || options.ProbeFrameRate>240)
+                            throw new ArgumentOutOfRangeException("probe-fps","Частота кадров проверки должна быть от 10 до 240.");
+                        break;
                     case "--network-stress": options.NetworkStress=bool.Parse(args[++i]); break;
                     case "--diagnostics": options.Diagnostics=bool.Parse(args[++i]); break;
                 }

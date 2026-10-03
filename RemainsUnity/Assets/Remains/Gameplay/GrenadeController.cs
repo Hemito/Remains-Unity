@@ -12,7 +12,7 @@ namespace Remains.Gameplay
         public GrenadeState state;
         public GrenadeMessage message;
         public bool requested;
-        public float nextPublish;
+        public readonly ReplicationCadence progressCadence=new(.1);
         public Vector2 position=>state.Position;
     }
     public sealed class GrenadeController
@@ -97,8 +97,8 @@ namespace Remains.Gameplay
                         adapter.SendGrenade(state,true,hits);
                     }
                 }
-                else if(state.owner==session.LocalOwner && Time.unscaledTime>=flight.nextPublish)
-                {flight.nextPublish=Time.unscaledTime+.1f;adapter.SendGrenade(state,false);}
+                else if(state.owner==session.LocalOwner && flight.progressCadence.TryAdvance(Time.unscaledTimeAsDouble))
+                    adapter.SendGrenade(state,false);
             }
         }
     }

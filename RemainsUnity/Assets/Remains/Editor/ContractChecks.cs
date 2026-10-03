@@ -28,6 +28,7 @@ namespace Remains.Editor
             FallPoseChecks.Run();
             ActorMotionReplicationChecks.Run();
             RemoteActorMotionChecks.Run();
+            ReplicationCadenceChecks.Run();
             WeaponItemStateChecks.Run();
             HintPlacementChecks.Run();
             CameraFramingChecks.Run();

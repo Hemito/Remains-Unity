@@ -13,7 +13,8 @@ namespace Remains.Gameplay
         public LinearProjectilePath path;
         public AttackEvent segment;
         public bool contact,cancelled,awaitingConfirmation;
-        public float finishedAge,nextPublish;
+        public float finishedAge;
+        public readonly ReplicationCadence progressCadence=new(.05);
         public readonly HashSet<string> hit=new();
         internal readonly HashSet<string> observedContacts=new();
         internal readonly List<(AttackEvent attack,AttackTargetSnapshot target)> pendingContacts=new();
@@ -93,8 +94,8 @@ namespace Remains.Gameplay
                 }
                 var result=flight.path.Advance(dt,(start,end)=>Resolve(flight,start,end));
                 flight.contact|=result.contact;
-                if(state.owner==session.LocalOwner && (flight.path.Finished || Time.unscaledTime>=flight.nextPublish))
-                {flight.nextPublish=Time.unscaledTime+.05f;session.Projectiles.Publish(state,flight.path.Traveled,flight.path.Finished);}
+                if(state.owner==session.LocalOwner && (flight.path.Finished || flight.progressCadence.TryAdvance(Time.unscaledTimeAsDouble)))
+                    session.Projectiles.Publish(state,flight.path.Traveled,flight.path.Finished);
             }
             foreach(string id in expired) flights.Remove(id);
         }
