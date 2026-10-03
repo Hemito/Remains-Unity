@@ -40,6 +40,10 @@ namespace Remains.Editor
             var starters=startupScene.GetRootGameObjects().SelectMany(root=>root.GetComponentsInChildren<Remains.Runtime.PrototypeRuntime>(true)).ToArray();
             if(starters.Length!=1 || !starters[0].enabled || !starters[0].gameObject.activeInHierarchy)
                 throw new InvalidOperationException("Стартовая сцена должна содержать ровно один активный компонент PrototypeRuntime.");
+            var cameras=startupScene.GetRootGameObjects().SelectMany(root=>root.GetComponentsInChildren<Camera>(true))
+                .Where(camera=>camera.enabled && camera.gameObject.activeInHierarchy && camera.CompareTag("MainCamera")).ToArray();
+            if(cameras.Length!=1) throw new InvalidOperationException("Стартовая сцена должна содержать ровно одну активную MainCamera.");
+            Remains.Presentation.CameraFollower.RequireCamera(cameras[0]);
             AssetDatabase.SaveAssets();
             var options=new BuildPlayerOptions { scenes=new[]{path}, locationPathName="Builds/Windows/RemainsPrototype.exe",
                 target=BuildTarget.StandaloneWindows64, options=BuildOptions.Development };

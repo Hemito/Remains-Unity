@@ -8,7 +8,14 @@ namespace Remains.Presentation
         private readonly Camera camera;
         private bool oversizedWarning;
         public RoomLayout Room { get; set; }
-        public CameraFollower(Camera camera,RoomLayout room) {this.camera=camera;Room=room;}
+        public CameraFollower(Camera camera,RoomLayout room) {this.camera=RequireCamera(camera);Room=room;}
+        public static Camera RequireCamera(Camera value)
+        {
+            if(value==null) throw new System.InvalidOperationException("В сцене не назначена активная камера с тегом MainCamera.");
+            if(!value.orthographic || !float.IsFinite(value.orthographicSize) || value.orthographicSize<=0)
+                throw new System.InvalidOperationException($"Камера {value.name}: требуется ортографическая проекция с положительным конечным размером.");
+            return value;
+        }
         public void Step(ActorState actor,float dt)
         {
             float halfWidth=camera.orthographicSize*camera.aspect;

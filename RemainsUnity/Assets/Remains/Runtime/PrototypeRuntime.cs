@@ -94,10 +94,7 @@ namespace Remains.Runtime
             movement=new MovementController(room);
             npcs=new NpcController(Session,Geometry);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
-            cameraView=Camera.main;
-            if (cameraView == null) cameraView=new GameObject("Камера").AddComponent<Camera>();
-            cameraView.orthographic=true; cameraView.orthographicSize=5;
-            cameraView.transform.position=new Vector3(0,3,-10); cameraView.backgroundColor=new Color(0.08f,0.09f,0.1f);
+            cameraView=CameraFollower.RequireCamera(Camera.main);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
             GrenadeAudio=new GameObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
