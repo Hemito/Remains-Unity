@@ -27,6 +27,7 @@ namespace Remains.Runtime
         public GameplayAudio Audio {get;private set;}
         public GrenadeImpactAudio GrenadeAudio {get;private set;}
         public ProjectileAudio ImpactAudio {get;private set;}
+        public MeleeImpactAudio MeleeAudio {get;private set;}
         public AreaMusic Music {get;private set;}
         public MovementAudio MovementAudio {get;private set;}
         public PropContactAudio PropAudio {get;private set;}
@@ -109,6 +110,7 @@ namespace Remains.Runtime
             MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=new GameObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
             ImpactAudio=new GameObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
+            MeleeAudio=new GameObject("Звуки контактов ближнего оружия").AddComponent<MeleeImpactAudio>();MeleeAudio.Initialize(Combat,Audio);
             new GameObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles);
             new GameObject("Попадания лазера").AddComponent<LaserImpactEffects>().Initialize(Session,Combat.Projectiles);
             Explosions=new GameObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session);

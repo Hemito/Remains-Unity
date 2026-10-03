@@ -17,6 +17,8 @@ namespace Remains.Gameplay
         public int VictimDecidedHits {get;private set;}
         public event Action<string> NpcReplayRejected;
         public event Action<DamageResult> DamageApplied;
+        // A locally observed contact is cosmetic evidence, not confirmation of damage.
+        public event Action<AttackEvent,ActorState> ContactObserved;
         private readonly SimulationTimer shotCooldown=new();
         public float ShotCooldownRemaining=>shotCooldown.Remaining;
         private ActorState swingActor;
@@ -166,6 +168,7 @@ namespace Remains.Gameplay
                 var actor=session.World?.Find(target.id);
                 if(!target.CanApply(actor) || !AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) return;
                 bool contact=target.contact;
+                if(contact) ContactObserved?.Invoke(attack,actor);
                 if (actor.player)
                 {
                     if(FriendlyFireDecision.UsesAttacker(attack,actor))

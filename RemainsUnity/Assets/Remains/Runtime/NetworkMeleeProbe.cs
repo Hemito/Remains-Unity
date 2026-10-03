@@ -102,6 +102,8 @@ namespace Remains.Runtime
             int expectedSounds=UiScenario?3:2;
             if(runtime.Audio.MeleeSounds!=expectedSounds) success=false;
             detail+=$" Звуков взмаха: {runtime.Audio.MeleeSounds}, ожидалось {expectedSounds}.";
+            if(runtime.MeleeAudio.Played!=2) success=false;
+            detail+=$" Звуков контакта: {runtime.MeleeAudio.Played}, ожидалось 2 независимо от числа сегментов взмаха.";
             bool attacker=runtime.Options.Smoke.Contains("-attacker-");
             int expected=runtime.Options.Character=="session-client-1"?2:0;
             if(runtime.Combat.AttackerDecidedHits!=(UiScenario?expected/2:attacker?expected:0) || runtime.Combat.VictimDecidedHits!=(UiScenario?expected/2:attacker?0:expected)) success=false;

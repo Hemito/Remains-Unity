@@ -56,6 +56,7 @@ namespace Remains.Editor
             LocalProjectileChecks.Run();
             ActorTypeChecks.Run();
             ProjectileAudioChecks.Run();
+            MeleeImpactAudioChecks.Run();
             RaiderChecks.Run();
             AtlasAssetChecks.Run();
             PonyPrefabChecks.Run();
