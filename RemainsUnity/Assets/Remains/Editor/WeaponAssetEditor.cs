@@ -29,6 +29,10 @@ namespace Remains.Editor
                 Field("grenadeGravity","Ускорение падения, м/с²");
                 Field("grenadeRestitution","Сохранение скорости отскока, доля");
                 Field("grenadeGroundRetention","Сохранение скорости вдоль пола, доля");
+                EditorGUILayout.LabelField("Прицеливание гранатой",EditorStyles.boldLabel);
+                Field("grenadeMaxLaunchSpeed","Предельная скорость броска, м/с");
+                Field("grenadeFullEffortDistance","Расстояние полного усилия, м");
+                Field("grenadeAimLift","Подъём направления на метр выноса");
             }
             EditorGUILayout.LabelField("Ближний бой",EditorStyles.boldLabel);
             Field("meleeMotion","Ключи движения");

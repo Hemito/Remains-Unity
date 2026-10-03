@@ -26,6 +26,7 @@ namespace Remains.Editor
             CheckTerrain();
             CheckSettings();
             CheckLaunch();
+            CheckAimStrength();
             CheckFlightTime();
             CheckFreeFlight();
             CheckBounceFrameRates();
@@ -152,6 +153,9 @@ namespace Remains.Editor
             actor.x=-10;actor.y=0;
             Require(Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching) && crouching.originX==5,
                 "Старая позиция координатора не должна подменять локальную точку броска");
+            var capturedVelocity=new Vector2(crouching.vx,crouching.vy);
+            Require(capturedVelocity.sqrMagnitude>0 && capturedVelocity!=new Vector2(standing.vx,standing.vy),
+                "Скорость запроса должна учитывать локальную стойку при выпуске");
             actor.level="factory:0";
             Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Старый бросок не переносится в другой уровень");
             actor.level="hub";actor.generation++;
@@ -160,6 +164,45 @@ namespace Remains.Editor
             Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Новое воплощение отменяет старый запрос");
             actor.lifecycleSequence--;crouching.aimX=float.NaN;
             Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Неконечный прицел должен отклоняться до расхода");
+            crouching.aimX=8;crouching.vx=float.PositiveInfinity;
+            Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Неконечная скорость должна отклоняться до расхода");
+        }
+        private static void CheckAimStrength()
+        {
+            var definition=Remains.Content.WeaponCatalog.Get("grenade");
+            var origin=new Vector2(0,.8f);
+            Vector2 Launch(Vector2 aim)=>Remains.Gameplay.GrenadeLaunch.Velocity(origin,aim,0,definition);
+            var near=Launch(new Vector2(.5f,0));var far=Launch(new Vector2(5,0));
+            Require(near.magnitude<far.magnitude,"Близкий прицел должен ослаблять бросок");
+            var low=Launch(new Vector2(1,1));var high=Launch(new Vector2(1,3));
+            Require(high.magnitude>low.magnitude && high.y>low.y,"Поднятие прицела должно увеличивать усилие до предела");
+            var distant=Launch(new Vector2(100,50));
+            Require(Mathf.Abs(distant.magnitude-definition.grenadeMaxLaunchSpeed)<.00001f,"Бросок не должен превышать заданную скорость");
+            Require(Launch(new Vector2(0,-3))==Vector2.zero,"Прицел прямо под опорой должен отпускать гранату без толчка вверх");
+            Require(Launch(origin)==Vector2.zero,"Прицел в точке выпуска не должен задавать произвольное направление");
+            var left=Launch(new Vector2(-5,0));
+            Require(Mathf.Abs(left.x+far.x)<.00001f && Mathf.Abs(left.y-far.y)<.00001f,"Направления броска должны быть симметричны");
+            var translated=Remains.Gameplay.GrenadeLaunch.Velocity(origin+new Vector2(17,-9),new Vector2(22,-9),-9,definition);
+            Require((translated-far).magnitude<.00001f,"Сила броска не должна зависеть от положения комнаты в мире");
+            var room=new RoomLayout {left=-100,right=100,platforms=Array.Empty<RoomSurface>()};
+            Vector2? checkpoint=null;
+            foreach(int rate in new[]{30,60,144})
+            {
+                var state=new GrenadeState {y=20,vx=far.x,vy=far.y,remaining=2};
+                for(int i=0;i<rate;i++) GrenadeRules.Step(state,room,1f/rate);
+                if(checkpoint.HasValue) Require((state.Position-checkpoint.Value).magnitude<.0001f,"Прицельный бросок зависит от FPS");
+                checkpoint=state.Position;
+            }
+            foreach(float value in new[]{0f,-1f,float.NaN,float.PositiveInfinity})
+            {
+                var invalid=Remains.Serialization.StateJson.Copy(definition);invalid.grenadeFullEffortDistance=value;
+                bool rejected=false;
+                try {Remains.Content.WeaponCatalogLoader.Load(
+                    Remains.Serialization.StateJson.ToJson(new Remains.Content.WeaponList {weapons=new[]{invalid}}),
+                    Path.Combine(Path.GetTempPath(),"remains-no-mods-"+Guid.NewGuid().ToString("N")));}
+                catch(InvalidDataException) {rejected=true;}
+                Require(rejected,"Ошибочное расстояние полного усилия должно отклоняться с диагностикой");
+            }
         }
         private static void CheckFlightTime()
         {

@@ -77,7 +77,8 @@ namespace Remains.Networking
                 !SharedInventory.Consume(actor,"grenade")) return;
             session.ServerWorld.completedTransactions.Add(message.transaction);
             Vector2 origin=new(message.originX,message.originY);
-            var velocity=(new Vector2(message.aimX,message.aimY)-origin).normalized*7+Vector2.up*3;
+            // The throwing client captures launch motion with its local pose and aim.
+            var velocity=new Vector2(message.vx,message.vy);
             actor.revision++;
             session.ServerWorld.grenades.Add(new GrenadeState {id=message.transaction,attacker=actor.id,level=actor.level,owner=actor.owner,
                 sourcePlayer=actor.player,generation=1,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,
