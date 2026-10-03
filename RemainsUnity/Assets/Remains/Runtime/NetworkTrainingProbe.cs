@@ -17,6 +17,7 @@ namespace Remains.Runtime
         private PrototypeRuntime runtime;
         private float deadline;
         private int stage,shots,results;
+        private readonly int[] targetResults=new int[3];
         private bool sent,finished,configured;
         private string rangeOwner,rangeWorld;
         private int rangeGeneration;
@@ -108,9 +109,10 @@ namespace Remains.Runtime
             };
             value.DamageFeedback.Received+=result=>
             {
-                if(result.actor!="training:hub:1") return;
+                int targetIndex=Array.IndexOf(new[]{"training:hub:1","training:hub:2","training:hub:3"},result.actor);
+                if(targetIndex<0) return;
                 if(result.amount!=11) {Finish(false,"Неверное число урона мишени: "+result.amount);return;}
-                results++;
+                results++;targetResults[targetIndex]++;
             };
         }
         private IEnumerator FinishAfterDelivery()
@@ -174,7 +176,9 @@ namespace Remains.Runtime
                 stage=3;
             }
             if(MovingShotExercise) return new PlayerCommand {hasAim=true,aim=self.Position+Vector2.up*10};
-            var target=runtime.Session.World.Find("training:hub:1");
+            int targetIndex=Array.FindIndex(targetResults,count=>count<runtime.Options.ProbePeers);
+            if(targetIndex<0) targetIndex=2;
+            var target=runtime.Session.World.Find("training:hub:"+(targetIndex+1));
             if(rangeOwner==null) {rangeOwner=self.owner;rangeGeneration=self.generation;rangeWorld=runtime.Session.World.worldId;}
             float firingX=target.x-3;
             if(stage==3 && Mathf.Abs(self.x-firingX)>.08f)
@@ -190,7 +194,7 @@ namespace Remains.Runtime
             if(stage>=4) return CrateCommand();
             // The jump intentionally preserves momentum; readiness is the firing area, not one exact point.
             bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-firingX)<1 && a.y<1);
-            return new PlayerCommand {weapon="pistol",movement=Vector2.up,hasAim=true,aim=target.Position+Vector2.up*.8f,fire=ready && self.weaponLift>0 && raisedWeapons.Count==runtime.Options.ProbePeers && shots<3};
+            return new PlayerCommand {weapon="pistol",movement=Vector2.up,hasAim=true,aim=target.Position+Vector2.up*.8f,fire=ready && self.weaponLift>0 && raisedWeapons.Count==runtime.Options.ProbePeers && shots==targetIndex};
         }
         private PlayerCommand CrateCommand()
         {
@@ -256,7 +260,8 @@ namespace Remains.Runtime
             if(targets.Length!=3 || targets.Any(a=>a.down || a.health!=500 || a.target!=null || a.attackBusy))
             {Finish(false,"Мишени дублируются, погибают или ведут бой.");return;}
             if(results<3*runtime.Options.ProbePeers || sent) return;
-            if(results!=3*runtime.Options.ProbePeers || shots!=3 || targets.Single(a=>a.id=="training:hub:1").resolvedAttacks.Count!=results) return;
+            if(results!=3*runtime.Options.ProbePeers || shots!=3 || targetResults.Any(count=>count!=runtime.Options.ProbePeers) ||
+                targets.Any(a=>a.resolvedAttacks.Count!=runtime.Options.ProbePeers || a.damageSequence!=runtime.Options.ProbePeers)) return;
             if(!observedLift || light.held || Host && (stage<10 || !rejected50 || !rejected120)) return;
             if(runtime.PropAudio.Landings<1) return;
             if(runtime.PropAudio.Landings!=1) {Finish(false,"Звук единственного падения ящика повторён.");return;}
