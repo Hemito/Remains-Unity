@@ -39,6 +39,7 @@ namespace Remains.Runtime
         private MovementController movement;
         private NpcController npcs;
         private readonly Dictionary<string,ActorVisual> visuals = new();
+        private readonly RemoteActorMotion remoteMotion=new();
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
         private ActorVisualLayers visualLayers;
         private PrototypeHud hud;
@@ -219,7 +220,8 @@ namespace Remains.Runtime
         {
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();
             var actor=Session.LocalActor;
-            if (actor==null || !NetworkClient.isConnected) return;
+            if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();return;}
+            remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused);
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors)
             {
