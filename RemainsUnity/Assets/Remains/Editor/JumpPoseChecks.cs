@@ -12,6 +12,7 @@ namespace Remains.Editor
         public static void Run()
         {
             PonyAnimationData.Load();PonyVisual.Prepare();
+            CheckPhysicalLanding();
             var actor=new ActorState {id="jump-pose-check",pose="jump",vy=7.2f};
             int rising=PonyMotionFrames.Sample(actor,0);
             Require(rising==PonyMotionFrames.Sample(actor,10),"Время меняет позу при неизменной скорости.");
@@ -48,6 +49,33 @@ namespace Remains.Editor
             StanceAnimation.Select(raider,"idle",false);
             Require(raider.pose=="idle","Рейдер получил отсутствующую позу пони.");
             Debug.Log("Позы прыжка: PASS — движение, сетевая копия, изображение и область попадания.");
+        }
+        private static void CheckPhysicalLanding()
+        {
+            var room=new RoomLayout {left=-10,right=10,bottom=-1,top=8,
+                platforms=new[]{new RoomSurface {x=-10,y=-1,width=20,height=1}},ladders=Array.Empty<RoomLadder>()};
+            foreach(float dt in new[]{1f/30,1f/60,1f/144})
+            {
+                var actor=new ActorState {id="physical-landing",x=0,y=1,vy=-2,pose="fall"};
+                var motion=new MovementController(room);
+                for(int i=0;i<300 && actor.y>0;i++)
+                {motion.Step(actor,Vector2.zero,false,dt);if(actor.y>0) ActorPose.Advance(actor,dt);}
+                Require(actor.y==0 && actor.vy==0 && actor.pose=="landing","Физическое касание не запустило переход");
+                var landed=actor.Copy();float elapsed=0;
+                while(actor.pose=="landing" && elapsed<1)
+                {
+                    ActorPose.Advance(actor,dt);elapsed+=dt;motion.Step(actor,Vector2.zero,false,dt);
+                    Require(actor.y==0 && actor.vy==0,"Переход приземления сдвинул тело с опоры");
+                }
+                float duration=Anatomy.PoseDuration(actor,"landing");
+                Require(actor.pose=="idle" && elapsed>=duration-.0001f && elapsed<=duration+dt+.0001f,
+                    "Реальный контроллер перезапускает или обрывает приземление");
+                var jump=landed.Copy();new MovementController(room).Step(jump,Vector2.zero,true,dt);
+                Require(jump.y>0 && jump.pose=="jump","Переход блокирует новый прыжок");
+                var walk=landed.Copy();new MovementController(room).Step(walk,Vector2.right,false,dt);
+                Require(walk.x>0 && walk.pose=="walk","Переход блокирует движение");
+                Debug.Log($"Приземление после физического падения: dt={dt}, переход={elapsed}, клип={duration}, прыжок/ходьба доступны.");
+            }
         }
         private static void Require(bool valid,string message)
         {if(!valid) throw new InvalidOperationException("Позы прыжка: "+message);}
