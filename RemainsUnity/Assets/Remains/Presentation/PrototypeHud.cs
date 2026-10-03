@@ -100,9 +100,9 @@ namespace Remains.Presentation
             inventoryAudio=gameObject.AddComponent<InventoryAudio>();inventoryAudio.Initialize(audioPreferences);
             AudioSettings=new AudioSettingsPanel(transform,audioPreferences);
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
-            status=elements.BackedLabel(transform,"",new Vector2(720,-20),new Vector2(285,44));
+            var sessionHud=SessionHudView.Create(transform);status=sessionHud.Status;
             combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon),item=>EquipWeaponItem?.Invoke(item));
-            quickActions=Panel(transform,"Действия",new Vector2(1020,-14),new Vector2(244,96));
+            quickActions=sessionHud.gameObject;
             message=elements.BackedLabel(transform,"",new Vector2(350,-140),new Vector2(880,55));
             revival=elements.BackedLabel(transform,"",new Vector2(480,-625),new Vector2(750,35));
             mainMenu=new MainMenuPanel(transform,
@@ -147,7 +147,7 @@ namespace Remains.Presentation
             leave=pauseView.Leave;leave.onClick.AddListener(()=>
             {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
-            factory=Button(quickActions.transform,"На завод 0",new Vector2(8,-8),new Vector2(228,36),()=>
+            factory=sessionHud.Travel;factory.onClick.AddListener(()=>
             {if(session.LocalActor?.level=="factory:0") session.Travel.RequestHub();else session.ReturnToFactory();});
             factory.gameObject.SetActive(false);
             session.Changed += Refresh;
@@ -156,8 +156,8 @@ namespace Remains.Presentation
             NetworkLobby=new WorldLobbyPanel(transform,elements,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
             PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf,()=>AudioSettings.Open());
-            Button(quickActions.transform,"Инвентарь · I",new Vector2(8,-52),new Vector2(112,36),ToggleInventory).GetComponentInChildren<Text>().fontSize=14;
-            Button(quickActions.transform,"Меню · Esc",new Vector2(126,-52),new Vector2(110,36),()=>PauseMenu.Toggle()).GetComponentInChildren<Text>().fontSize=14;
+            sessionHud.Inventory.onClick.AddListener(ToggleInventory);
+            sessionHud.Menu.onClick.AddListener(()=>PauseMenu.Toggle());
             Refresh();
         }
 
