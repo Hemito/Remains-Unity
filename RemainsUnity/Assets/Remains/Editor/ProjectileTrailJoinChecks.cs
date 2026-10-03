@@ -67,10 +67,20 @@ namespace Remains.Editor
                 var handoffFlight=new ProjectileFlight {state=new ProjectileState {launch=launch},
                     path=new LinearProjectilePath(Vector2.zero,Vector2.right,90,10)};
                 var handoff=handoffObject.AddComponent<ProjectileVisual>();handoff.Initialize(handoffFlight,artwork,session);handoff.JoinRemoteMuzzle();
+                actor.generation++;actor.x+=.07f;
                 handoffFlight.path.Advance(.03f,(_,_)=>null);
                 typeof(ProjectileVisual).GetMethod("LateUpdate",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(handoff,null);
                 Require(Vector2.Distance(handoff.TrailStart,WeaponPose.Muzzle(actor))<.0001f,
                     "Смена владельца стрелка скрыла удалённое происхождение выстрела");
+                var lifecycleObject=new GameObject("Изменённое тело");lifecycleObject.transform.SetParent(root.transform);
+                var lifecycleFlight=new ProjectileFlight {state=new ProjectileState {launch=launch},
+                    path=new LinearProjectilePath(Vector2.zero,Vector2.right,90,10)};
+                var lifecycle=lifecycleObject.AddComponent<ProjectileVisual>();lifecycle.Initialize(lifecycleFlight,artwork,session);lifecycle.JoinRemoteMuzzle();
+                actor.lifecycleSequence++;
+                lifecycleFlight.path.Advance(.03f,(_,_)=>null);
+                typeof(ProjectileVisual).GetMethod("LateUpdate",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(lifecycle,null);
+                Require(lifecycle.TrailStart==Vector2.zero && lifecycle.MuzzlePoseState=="actor-lifecycle",
+                    "Старый выстрел привязался к изменённому состоянию тела");
                 actor.weapon="energy";
                 var changedObject=new GameObject("Другое оружие");changedObject.transform.SetParent(root.transform);
                 var changedFlight=new ProjectileFlight {state=new ProjectileState {launch=launch},

@@ -23,6 +23,7 @@ namespace Remains.Runtime
             public float receivedGap,receivedX,receivedY,drawnX,drawnY;
             public bool trailObserved;
             public string muzzleJoinState;
+            public string muzzlePoseState;
             public float trailJoinGap,trailHeadError,trailTailDistance;
         }
         [Serializable] private sealed class Trace {public List<Sample> samples=new();}
@@ -38,6 +39,7 @@ namespace Remains.Runtime
             if(sample==null || sample.trailObserved || actor==null) return;
             sample.trailObserved=true;
             sample.muzzleJoinState=view.MuzzleJoinState;
+            sample.muzzlePoseState=view.MuzzlePoseState;
             sample.trailJoinGap=Vector2.Distance(view.TrailStart,WeaponPose.Muzzle(actor));
             sample.trailHeadError=Vector2.Distance(view.TrailEnd,view.PhysicalHead);
             sample.trailTailDistance=view.TrailTailDistance;

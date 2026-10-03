@@ -67,7 +67,7 @@ namespace Remains.Presentation
         private SpriteRenderer view;
         private CoopSession session;
         private ProjectileTrailJoin join;
-        private int joinGeneration,joinLifecycle,joinFlightGeneration;
+        private int joinLifecycle,joinFlightGeneration;
         public Vector2 TrailStart {get;private set;}
         public Vector2 TrailEnd {get;private set;}
         public float TrailTailDistance {get;private set;}
@@ -79,6 +79,7 @@ namespace Remains.Presentation
         public string Level=>flight?.state.launch.level;
         public event Action<ProjectileVisual> Ended;
         public string MuzzleJoinState {get;private set;}="not-requested";
+        public string MuzzlePoseState {get;private set;}="not-sampled";
         private void OnDestroy()=>Ended?.Invoke(this);
         public void JoinRemoteMuzzle()
         {
@@ -89,7 +90,7 @@ namespace Remains.Presentation
                 flight.path.Traveled!=0?"advanced-flight":"joined";
             if(join!=null || actor==null || flight.state.launch.sourceOwner==session.LocalOwner || actor.level!=Level ||
                 actor.weapon!=Remains.Content.WeaponRigs.PresentationId(flight.state.launch.weapon) || flight.path.Traveled!=0) return;
-            join=new ProjectileTrailJoin();joinGeneration=actor.generation;joinLifecycle=actor.lifecycleSequence;
+            join=new ProjectileTrailJoin();joinLifecycle=actor.lifecycleSequence;
             joinFlightGeneration=flight.state.generation;
         }
         public void Initialize(ProjectileFlight flight,ShotArtwork artwork,CoopSession session)
@@ -106,7 +107,7 @@ namespace Remains.Presentation
             // Presentation samples the frozen path as well, including a newly restored view.
             var path=flight.path;
             // Recovery resumes a canonical flight, not a fresh muzzle departure.
-            if(join!=null && joinFlightGeneration!=flight.state.generation) join=null;
+            if(join!=null && joinFlightGeneration!=flight.state.generation) {join=null;MuzzlePoseState="flight-recovered";}
             if(path.Finished && !artwork.beam)
             {
                 int frame=Mathf.FloorToInt(flight.finishedAge*artwork.impactFramesPerSecond);
@@ -123,8 +124,10 @@ namespace Remains.Presentation
             if(join!=null)
             {
                 var actor=session.World?.Find(flight.state.launch.attacker);
-                Vector2? muzzle=actor!=null && actor.level==Level && actor.generation==joinGeneration && actor.lifecycleSequence==joinLifecycle &&
-                    actor.weapon==Remains.Content.WeaponRigs.PresentationId(flight.state.launch.weapon) && !actor.down?WeaponPose.Muzzle(actor):null;
+                MuzzlePoseState=actor==null?"missing-actor":actor.level!=Level?"other-level":
+                    actor.lifecycleSequence!=joinLifecycle?"actor-lifecycle":
+                    actor.weapon!=Remains.Content.WeaponRigs.PresentationId(flight.state.launch.weapon)?"other-weapon":actor.down?"down":"current";
+                Vector2? muzzle=MuzzlePoseState=="current"?WeaponPose.Muzzle(actor):null;
                 TrailStart=join.Tail(path.Origin,path.Direction,head,tail,artwork.length,artwork.beam,muzzle);
             }
             // Never show a backwards tracer when the newer visible barrel is ahead of
