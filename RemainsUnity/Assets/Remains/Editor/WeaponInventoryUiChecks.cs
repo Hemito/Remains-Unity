@@ -21,7 +21,7 @@ namespace Remains.Editor
             try
             {
                 var session=root.AddComponent<CoopSession>();session.ConfigureRules(WeaponCatalog.Rules);
-                var actor=new ActorState {id="ui-weapons",owner="ui",character="Проверка инвентаря",weaponInventoryVersion=1,weapon=null};
+                var actor=new ActorState {id="ui-weapons",owner="ui",player=true,connected=true,character="Проверка инвентаря",weaponInventoryVersion=1,weapon=null};
                 var a=new ItemStack {id="first-pistol",definition="pistol",count=1,weaponState=new WeaponItemState {rounds=7}};
                 var b=new ItemStack {id="second-pistol",definition="pistol",count=1,weaponState=new WeaponItemState {rounds=2}};
                 actor.inventory.Add(a);actor.inventory.Add(b);actor.inventory.Add(SharedInventory.Create("heal",3));
@@ -85,6 +85,14 @@ namespace Remains.Editor
                 Require(customAmmoFilter.Includes(new ItemStack {definition="custom-ammo"},InventoryCategory.Ammunition) &&
                     customAmmoFilter.Includes(new ItemStack {definition="custom-item"},InventoryCategory.Items),"Фильтр требует встроенные ID предметов");
                 view.Categories[(int)InventoryCategory.All].onClick.Invoke();view.Rows[1].onClick.Invoke();
+                view.Rows[2].onClick.Invoke();
+                Require(!view.Use.interactable && view.ActionStatus.text==HealingRules.Rejection(actor,actor,true) &&
+                    view.ActionStatus.text.Contains("полное"),"Аптечка не объясняет полное здоровье");
+                actor.health=65;panel.Refresh(null);
+                Require(view.Use.interactable && view.ActionStatus.text=="","Доступное лечение заблокировано отсутствием контейнера");
+                actor.down=true;panel.Refresh(null);
+                Require(!view.Use.interactable && view.ActionStatus.text.Contains("Без сознания"),"Нет причины запрета самолечения без сознания");
+                actor.down=false;actor.health=100;panel.Refresh(null);
                 if(render)
                 {
                     var camera=new GameObject("Камера окна").AddComponent<Camera>();camera.transform.SetParent(root.transform);camera.transform.position=new Vector3(0,0,-10);camera.backgroundColor=new Color(.06f,.07f,.08f);
