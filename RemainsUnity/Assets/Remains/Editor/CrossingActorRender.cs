@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
@@ -13,11 +14,14 @@ namespace Remains.Editor
     // Compare opaque visible surfaces against isolated renders of complete actors.
     public static class CrossingActorRender
     {
-        public static void Render()
+        public static void Render()=>Render(false);
+        public static void RenderAll() {Render(false);Render(true);}
+        private static void Render(bool firing)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             Anatomy.Load();WeaponCatalog.Load();PonyVisual.Prepare();
-            var artwork=WeaponArtwork.Load();var layers=new ActorVisualLayers();
+            var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            var layers=new ActorVisualLayers();
             var groups=new ActorVisualGroup[3];
             var actors=new[]
             {
@@ -32,18 +36,21 @@ namespace Remains.Editor
                 visual.Bind(actor);visual.DrawPose(.12f);
                 groups[i]=layers.Attach(actor.id,visual.transform);
                 WeaponPose.Aim(actor,actor.Position+new Vector2(i==1?-2:2,1.1f));
-                var weapon=new GameObject("Оружие "+actor.id).AddComponent<SpriteRenderer>();
-                var sprite=artwork[actor.weapon];SpriteArtworkMaterial.Apply(weapon,sprite);weapon.sortingOrder=100;
+                var weapon=UnityEngine.Object.Instantiate(WeaponRigs.Prefab(actor.weapon));
+                weapon.name="Оружие "+actor.id;
+                var sprite=weapon.Artwork.sprite;
+                var definition=catalog.AnimatedWeapons().SingleOrDefault(entry=>entry.Id==actor.weapon);
+                if(firing && definition!=null) weapon.SetFrame(definition.ShotAnimation.CopyFrames()[0]);
                 bool ranged=WeaponRigs.Get(actor.weapon).HasMuzzle;
                 weapon.transform.position=ranged?WeaponPose.Mount(actor):WeaponPose.Origin(actor)+WeaponPose.Direction(actor)*(actor.weaponReach-sprite.bounds.max.x);
-                weapon.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);weapon.flipY=WeaponPose.Flip(actor);
+                weapon.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);weapon.SetMirrored(WeaponPose.Flip(actor));
                 layers.Attach(actor.id,weapon.transform);
             }
             layers.Synchronize(new[]{"a","b","c"});
             var camera=new GameObject("Пересечение составных персонажей").AddComponent<Camera>();
             camera.orthographic=true;camera.orthographicSize=1.5f;
             camera.transform.position=new Vector3(.2f,.8f,-10);camera.backgroundColor=Color.clear;
-            var target=new RenderTexture(1200,600,24);target.Create();camera.targetTexture=target;
+            var target=new RenderTexture(1920,960,24);target.Create();camera.targetTexture=target;
             string directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../..",".reference/tests/crossing-actors"));
             Directory.CreateDirectory(directory);
             try
@@ -75,7 +82,9 @@ namespace Remains.Editor
                         for(int i=0;i<a.Length;i++)
                         {
                             int front=2;
-                            while(front>=0 && isolated[front][i].a==0) front--;
+                            // RGBA8 alpha may round a faint edge to zero while sRGB still records its colour.
+                            // Such a pixel is an ambiguous translucent edge, not an absent foreground layer.
+                            while(front>=0 && IsClear(isolated[front][i])) front--;
                             if(front<0) {if(a[i].a>0) wrong++;continue;}
                             visible++;
                             var expected=isolated[front][i];
@@ -83,9 +92,13 @@ namespace Remains.Editor
                             if(expected.a!=255) continue;
                             compared[front]++;
                             if(Math.Abs(a[i].r-expected.r)>2 || Math.Abs(a[i].g-expected.g)>2 ||
-                                Math.Abs(a[i].b-expected.b)>2 || a[i].a!=255) wrong++;
+                                Math.Abs(a[i].b-expected.b)>2 || a[i].a!=255)
+                            {
+                                wrong++;
+                                if(wrong<=12) Debug.LogWarning($"Пиксель перекрытия: x={i%target.width}, y={i/target.width}, layer={front}, expected={expected}, actual={a[i]}, layers={isolated[0][i]};{isolated[1][i]};{isolated[2][i]}.");
+                            }
                         }
-                        string name=reverse?"reverse":"forward";
+                        string name=(firing?"firing-":"")+(reverse?"reverse":"forward");
                         File.WriteAllBytes(Path.Combine(directory,name+".png"),actual.EncodeToPNG());
                         if(Array.Exists(compared,count=>count<1000) || wrong!=0) throw new InvalidOperationException($"Пересечение актёров: порядок={name}, проверено по слоям={string.Join(",",compared)}, ошибок={wrong}.");
                         Debug.Log($"Пересечение актёров: PASS, порядок={name}, актёров=3, оружий=3, видимых пикселей={visible}, проверено по слоям={string.Join(",",compared)}, ошибок={wrong}.");
@@ -95,6 +108,7 @@ namespace Remains.Editor
             }
             finally {camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(target);}
         }
+        private static bool IsClear(Color32 pixel)=>pixel.a==0 && pixel.r==0 && pixel.g==0 && pixel.b==0;
         private static Texture2D Read(RenderTexture target)
         {
             var previous=RenderTexture.active;RenderTexture.active=target;
