@@ -466,6 +466,7 @@ namespace Remains.Networking
             if (NetworkClient.isConnected)
             {
                 actor.motionSequence=unchecked(actor.motionSequence+1);
+                StampMotion(actor);
                 NetworkClient.Send(new ActorMessage { json = JsonUtility.ToJson(actor) });
             }
         }
@@ -494,6 +495,7 @@ namespace Remains.Networking
 
         private static void ApplyPose(ActorState actor, PoseMessage message,bool remote=false)
         {
+            actor.motionSentAt=message.sentAt;actor.motionClockGeneration=message.generation;
             actor.x = message.x; actor.y = message.y; actor.vx = message.vx; actor.vy = message.vy;
             actor.facing = message.facing;
             if(remote) RemotePosePhase.Apply(actor,message.pose,message.poseSequence,message.poseTime);
@@ -513,14 +515,21 @@ namespace Remains.Networking
             }
         }
 
-        public void PublishPose(ActorState actor) => NetworkClient.Send(new PoseMessage
+        private static void StampMotion(ActorState actor)
+        {actor.motionSentAt=Time.unscaledTimeAsDouble;actor.motionClockGeneration=actor.generation;}
+        public void PublishPose(ActorState actor)
         {
+            StampMotion(actor);
+            NetworkClient.Send(new PoseMessage
+        {
+            sentAt=actor.motionSentAt,
             actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = actor.motionSequence=unchecked(actor.motionSequence+1),
             x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,poseSequence=actor.poseSequence,climbing=actor.climbing,crouched=actor.crouched,jumpSupportRemaining=actor.jumpSupportRemaining,
             weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponLift=actor.weaponLift,weaponFlipY=actor.weaponFlipY,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown,
             target=actor.player?null:actor.target,perception=actor.player?null:actor.perception.Copy()
         }, Channels.Unreliable);
+        }
 
         public void Fire(AttackEvent attack)
         {

@@ -231,7 +231,7 @@ namespace Remains.Runtime
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();
             var actor=Session.LocalActor;
             if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();return;}
-            remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused);
+            remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble);
             foreach(var body in Session.World.actors)
                 if(body!=actor && body.down && body.owner==Session.LocalOwner &&
                     LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))

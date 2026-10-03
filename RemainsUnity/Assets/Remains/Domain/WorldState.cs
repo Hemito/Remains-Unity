@@ -63,6 +63,8 @@ namespace Remains.Domain
         public uint poseSequence;
         [NonSerialized] public float poseCorrectionRemaining;
         public uint motionSequence;
+        public double motionSentAt;
+        public int motionClockGeneration=-1;
         public int hair;
         public string weapon="pistol";
         public float weaponAngle;

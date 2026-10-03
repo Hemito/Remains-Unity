@@ -16,13 +16,15 @@ namespace Remains.Gameplay
             public bool down;
             public Vector2 position,velocity,correction,received;
             public float age;
+            public bool clockReady;
+            public double clockOffset;
         }
         private readonly Dictionary<string,Sample> samples=new();
         private readonly List<string> removed=new();
         private int tick;
         private string worldId;
 
-        public void Step(WorldState world,string localOwner,float dt,System.Func<string,bool> paused)
+        public void Step(WorldState world,string localOwner,float dt,System.Func<string,bool> paused,double now)
         {
             if(worldId!=world.worldId) {Clear();worldId=world.worldId;}
             tick++;dt=Mathf.Max(0,dt);
@@ -36,18 +38,21 @@ namespace Remains.Gameplay
                     sample=new Sample {owner=actor.owner,level=actor.level,generation=actor.generation,lifecycle=actor.lifecycleSequence,
                         sequence=actor.motionSequence,down=actor.down,position=actor.Position,received=actor.Position,velocity=actor.Velocity};
                     samples[actor.id]=sample;
+                    ObserveClock(actor,sample,now);
                 }
                 else if(ActorMotionReplication.IsNewer(actor.motionSequence,sample.sequence))
                 {
                     var received=actor.Position;
+                    float age=ObserveClock(actor,sample,now);
+                    var projected=received+actor.Velocity*age;
                     // Teleports must not be traversed as motion. Normal envelopes include the last observed speed.
                     float discontinuity=Mathf.Max(3,(sample.velocity.magnitude+actor.Velocity.magnitude)*PredictionSeconds*2);
-                    if(Vector2.Distance(received,sample.received)>discontinuity) {sample.position=received;sample.correction=Vector2.zero;}
-                    else sample.correction=received-sample.position;
-                    sample.received=received;sample.sequence=actor.motionSequence;sample.velocity=actor.Velocity;sample.age=0;
+                    if(Vector2.Distance(received,sample.received)>discontinuity) {sample.position=projected;sample.correction=Vector2.zero;}
+                    else sample.correction=projected-sample.position;
+                    sample.received=received;sample.sequence=actor.motionSequence;sample.velocity=actor.Velocity;sample.age=age;
                 }
                 sample.seen=tick;
-                if(!paused(actor.level) && LevelActivity.HasConnectedPlayer(world,actor.level) && !actor.down)
+                if(sample.clockReady && !paused(actor.level) && LevelActivity.HasConnectedPlayer(world,actor.level) && !actor.down)
                 {
                     float predict=Mathf.Min(dt,Mathf.Max(0,PredictionSeconds-sample.age));
                     sample.age+=dt;
@@ -60,6 +65,24 @@ namespace Remains.Gameplay
             }
             removed.Clear();foreach(var pair in samples) if(pair.Value.seen!=tick) removed.Add(pair.Key);
             foreach(string id in removed) samples.Remove(id);
+        }
+        private static float ObserveClock(ActorState actor,Sample sample,double now)
+        {
+            // A recovered/handoff pose can predate this owner's clock. Wait for its
+            // first publication; a previous owner's timestamp is not comparable.
+            if(actor.motionClockGeneration!=actor.generation) {sample.clockReady=false;return 0;}
+            if(!double.IsFinite(actor.motionSentAt) || actor.motionSentAt<0)
+            {
+                sample.clockReady=false;
+                Debug.LogWarning($"Некорректная отметка движения: actor={actor.id}, generation={actor.generation}, sequence={actor.motionSequence}, time={actor.motionSentAt}.");
+                return 0;
+            }
+            double offset=now-actor.motionSentAt;
+            sample.clockOffset=sample.clockReady?System.Math.Min(sample.clockOffset,offset):offset;
+            sample.clockReady=true;
+            // Minimum observed offset includes the unknown constant one-way delay.
+            // Only excess delivery delay is compensated; no cross-PC clock equality.
+            return (float)System.Math.Clamp(offset-sample.clockOffset,0,PredictionSeconds);
         }
         public void Clear()=>samples.Clear();
     }

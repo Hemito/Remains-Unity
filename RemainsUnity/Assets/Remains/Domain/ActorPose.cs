@@ -7,6 +7,7 @@ namespace Remains.Domain
             destination.Position=source.Position;destination.Velocity=source.Velocity;
             destination.facing=source.facing;destination.pose=source.pose;destination.poseTime=source.poseTime;
             destination.motionSequence=source.motionSequence;
+            destination.motionSentAt=source.motionSentAt;destination.motionClockGeneration=source.motionClockGeneration;
             destination.poseSequence=source.poseSequence;destination.poseCorrectionRemaining=source.poseCorrectionRemaining;
             destination.climbing=source.climbing;
             destination.crouched=source.crouched;

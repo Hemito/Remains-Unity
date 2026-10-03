@@ -14,6 +14,7 @@ namespace Remains.Networking
         public int generation;
         public int lifecycleSequence;
         public uint sequence;
+        public double sentAt;
         public float x, y, vx, vy;
         public int facing;
         public string pose;

@@ -8,13 +8,15 @@ namespace Remains.Editor
         {
             CheckRemoteRun();
             var current=new ActorState {id="pose-check",owner="a",level="hub",generation=2,lifecycleSequence=3,
-                motionSequence=12,pose="run",poseTime=1.1f,x=17,vx=-8,facing=-1};
+                motionSequence=12,motionSentAt=604800.25,motionClockGeneration=2,pose="run",poseTime=1.1f,x=17,vx=-8,facing=-1};
             foreach(uint sequence in new uint[]{10,12})
             {
                 var snapshot=current.Copy();snapshot.motionSequence=sequence;snapshot.poseTime=1;snapshot.x=18;
                 snapshot.health=23;
+                snapshot.motionSentAt=0;snapshot.motionClockGeneration=-1;
                 ActorMotionReplication.PreserveNewerMotion(current,snapshot);
-                Require(snapshot.poseTime==1.1f && snapshot.x==17 && snapshot.motionSequence==12 && snapshot.health==23,
+                Require(snapshot.poseTime==1.1f && snapshot.x==17 && snapshot.motionSequence==12 && snapshot.health==23 &&
+                    snapshot.motionSentAt==current.motionSentAt && snapshot.motionClockGeneration==current.motionClockGeneration,
                     "Старый снимок откатил движение или потерял новое здоровье");
             }
             var restart=current.Copy();restart.motionSequence=13;restart.poseTime=0;
@@ -40,6 +42,7 @@ namespace Remains.Editor
             Require(ActorMotionReplication.IsNewer(0,uint.MaxValue) && !ActorMotionReplication.IsNewer(uint.MaxValue,0),
                 "Неверный порядок при переполнении счётчика");
             Require(current.Copy().motionSequence==12,"Снимок не сохраняет номер движения");
+            Require(current.Copy().motionSentAt==604800.25 && current.Copy().motionClockGeneration==2,"Снимок потерял время или поколение часов движения");
         }
         private static void CheckRemoteRun()
         {
