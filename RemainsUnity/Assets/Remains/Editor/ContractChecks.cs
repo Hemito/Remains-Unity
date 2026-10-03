@@ -23,6 +23,7 @@ namespace Remains.Editor
             WalkCycleChecks.Run();
             FallPoseChecks.Run();
             ActorMotionReplicationChecks.Run();
+            WeaponItemStateChecks.Run();
             HintPlacementChecks.Run();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();

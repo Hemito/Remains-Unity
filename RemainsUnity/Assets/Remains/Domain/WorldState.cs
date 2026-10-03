@@ -12,10 +12,13 @@ namespace Remains.Domain
         public string id;
         public string definition;
         public int count;
+        public WeaponItemState weaponState;
         public ItemStack Copy()=>StateJson.Copy(this);
         public ItemStack ReservedCopy(int quantity)
         {
             if(quantity<=0 || quantity>count) throw new ArgumentOutOfRangeException(nameof(quantity));
+            if(weaponState!=null && (count!=1 || quantity!=1))
+                throw new InvalidOperationException($"Оружие нельзя разделить: item={id}, definition={definition}, count={count}, quantity={quantity}.");
             var result=Copy();result.count=quantity;
             if(quantity<count) result.id=Guid.NewGuid().ToString("N");
             return result;

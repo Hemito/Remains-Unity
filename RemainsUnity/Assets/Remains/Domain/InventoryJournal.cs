@@ -51,7 +51,7 @@ namespace Remains.Domain
                 if(!Apply(inventory,use)) return false;
                 uses.Add(use);
             }
-            return true;
+            return WeaponItemReplication.Merge(inventory,owner.inventory);
         }
 
         private static bool Apply(List<ItemStack> inventory,InventoryUse use)
