@@ -43,6 +43,7 @@ namespace Remains.Gameplay
             float verticalDistance;
             if (ladder)
             {
+                actor.facing=(int)selected.facing;
                 actor.vy = input.y * settings.climbSpeed * (input.y<0?settings.climbDownMultiplier:1);
                 if(Mathf.Abs(input.x)<.1f && dt>0) actor.vx=Mathf.Clamp((selected.x+selected.movementOffset-actor.x)/dt,-settings.walkSpeed,settings.walkSpeed);
                 verticalDistance=actor.vy*dt;

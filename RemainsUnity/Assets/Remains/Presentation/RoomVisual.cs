@@ -31,9 +31,10 @@ namespace Remains.Presentation
                         ladder.artwork,1,true,1,true,false,false,100,true);
                     continue;
                 }
-                Quad(parent,"Левая стойка",ladder.x-0.25f,ladder.bottom,0.06f,ladder.top-ladder.bottom,ladder.texture,1,true,1,ladder.nativeScale);
-                Quad(parent,"Правая стойка",ladder.x+0.2f,ladder.bottom,0.06f,ladder.top-ladder.bottom,ladder.texture,1,true,1,ladder.nativeScale);
-                for(float y=ladder.bottom;y<ladder.top;y+=0.3f) Quad(parent,"Перекладина",ladder.x-0.25f,y,0.5f,0.06f,ladder.texture,1,true,1,ladder.nativeScale);
+                float imageX=ladder.x+ladder.artworkOffset;
+                Quad(parent,"Левая стойка",imageX-0.25f,ladder.bottom,0.06f,ladder.top-ladder.bottom,ladder.texture,1,true,1,ladder.nativeScale);
+                Quad(parent,"Правая стойка",imageX+0.2f,ladder.bottom,0.06f,ladder.top-ladder.bottom,ladder.texture,1,true,1,ladder.nativeScale);
+                for(float y=ladder.bottom;y<ladder.top;y+=0.3f) Quad(parent,"Перекладина",imageX-0.25f,y,0.5f,0.06f,ladder.texture,1,true,1,ladder.nativeScale);
             }
             return parent.gameObject;
         }

@@ -8,6 +8,24 @@ namespace Remains.Editor
 {
     public static class RoomArtworkMigration
     {
+        public static void AlignFactoryLadder()
+        {
+            const string path="Assets/Remains/Resources/Levels/factory.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var authoring=root.GetComponent<RoomAuthoring>();
+                var ladders=root.GetComponentsInChildren<RoomLadderAuthoring>();
+                if(ladders.Length!=1) throw new InvalidOperationException("Ожидалась одна лестница завода.");
+                var ladder=ladders[0];var data=ladder.Read(authoring);
+                if(data.artworkOffset!=0) throw new InvalidOperationException("Смещение лестницы уже задано; повторная миграция отменена.");
+                data.artworkOffset=.5f;ladder.Configure(data);
+                foreach(Transform child in ladder.transform) child.localPosition+=Vector3.right*.5f;
+                PrefabUtility.SaveAsPrefabAsset(root,path);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            AssetDatabase.SaveAssets();ContractChecks.Run();
+        }
         public static void FinalizeAssets()
         {
             foreach(string key in new[]{"hub","factory"})

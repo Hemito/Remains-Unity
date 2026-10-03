@@ -8,7 +8,7 @@ namespace Remains.Runtime
     // Render the existing client camera and live objects, without rebuilding a scene.
     public static class NetworkFrameCapture
     {
-        public static void Save(Camera camera,string path,Canvas canvas=null)
+        public static void Save(Camera camera,string path,Canvas canvas=null,int width=0,int height=0)
         {
             if(SystemInfo.graphicsDeviceType==GraphicsDeviceType.Null)
                 throw new InvalidOperationException("Съёмка сетевого кадра требует графического устройства; уберите -nographics.");
@@ -18,8 +18,10 @@ namespace Remains.Runtime
             var previousCamera=canvas!=null?canvas.worldCamera:null;
             float previousDistance=canvas!=null?canvas.planeDistance:0;
             int previousOrder=canvas!=null?canvas.sortingOrder:0;
-            var target=new RenderTexture(Screen.width,Screen.height,24);
-            var image=new Texture2D(Screen.width,Screen.height,TextureFormat.RGBA32,false);
+            if(width==0 && height==0) {width=Screen.width;height=Screen.height;}
+            if(width<=0 || height<=0) throw new ArgumentOutOfRangeException(nameof(width),"Задайте обе положительные стороны кадра.");
+            var target=new RenderTexture(width,height,24);
+            var image=new Texture2D(width,height,TextureFormat.RGBA32,false);
             try
             {
                 target.Create();camera.targetTexture=target;

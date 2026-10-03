@@ -31,8 +31,12 @@ namespace Remains.Editor
                 Require(!actor.climbing && actor.vy>0 && actor.pose=="jump","Прыжок отпускает лестницу");
                 foreach(int facing in new[]{-1,1})
                 {
-                    var turning=new ActorState {id="ladder-facing",x=4,y=1,climbing=true,facing=facing};
+                    var ladder=room.ladders[0];var originalFacing=ladder.facing;
+                    ladder.facing=(LadderFacing)facing;
+                    var turning=new ActorState {id="ladder-facing",x=4,y=1,facing=-facing};
                     var turningMotion=new MovementController(room);
+                    turningMotion.Step(turning,Vector2.up,false,dt);
+                    Require(turning.climbing && turning.facing==facing,"Вход спиной не развернул тело к ступеням");
                     var sideways=Vector2.right*-facing;
                     turningMotion.Step(turning,sideways,false,dt);
                     Require(turning.climbing && turning.facing==facing,"Горизонтальный ввод развернул корпус на лестнице");
@@ -40,6 +44,7 @@ namespace Remains.Editor
                     Require(restored.facing==facing && restored.climbing,"Копия потеряла направление хвата");
                     turningMotion.Step(turning,sideways,true,dt);
                     Require(!turning.climbing && turning.facing==-facing,"После прыжка направление осталось заблокировано");
+                    ladder.facing=originalFacing;
                 }
                 actor=new ActorState {id="ladder-side",x=4,y=1,climbing=true};
                 for(int i=0;i<60;i++) motion.Step(actor,Vector2.right,false,dt);
@@ -76,6 +81,29 @@ namespace Remains.Editor
             var atlas=new AtlasActorClip {count=13,framesPerSecond=30,loop=true};
             Require(atlas.FrameIndex(-.02f)==12 && atlas.FrameIndex(-.02f,true)==0,"Атлас поддерживает обратную фазу и покой");
             Require(PonyAnimationData.FrameIndex("crouchLower",-.1f,false)==0,"Незацикленный переход не оборачивается назад");
+        }
+        public static void RenderGrip()
+        {
+            UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,
+                UnityEditor.SceneManagement.NewSceneMode.Single);
+            Anatomy.Load();WeaponCatalog.Load();PonyAnimationData.Load();Remains.Presentation.PonyVisual.Prepare();
+            var camera=new GameObject("Камера хвата лестницы").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=2;
+            foreach(string level in new[]{"hub","factory:0"})
+            {
+                var layout=RoomLayout.Load(level);var room=Remains.Presentation.AuthoredRoomVisual.Create(level,layout);
+                for(int index=0;index<layout.ladders.Length;index++)
+                {
+                    var ladder=layout.ladders[index];
+                    var actor=new ActorState {id="grip-check",x=ladder.x+ladder.movementOffset,y=(ladder.bottom+ladder.top)/2,facing=-(int)ladder.facing};
+                    new MovementController(layout).Step(actor,Vector2.up,false,1f/60);
+                    var visual=new GameObject(actor.id).AddComponent<Remains.Presentation.PonyVisual>();visual.Bind(actor);visual.DrawPose(0);
+                    camera.transform.position=new Vector3(actor.x,actor.y+.9f,-10);
+                    string path=System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../..",$".reference/tests/ladder-grip-{level.Replace(':','-')}-{index}.png"));
+                    Remains.Runtime.NetworkFrameCapture.Save(camera,path,width:1920,height:1440);
+                    UnityEngine.Object.DestroyImmediate(visual.gameObject);
+                }
+                UnityEngine.Object.DestroyImmediate(room);
+            }
         }
         public static void Render()
         {
