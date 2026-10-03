@@ -15,7 +15,7 @@ namespace Remains.Content
         public string ammo;
         public int magazineSize,ammoPerShot;
         public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
-        public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention;
+        public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention,grenadeGravity;
         public float meleeContactStart,meleeContactEnd=1;
         public MeleePoseKey[] meleeMotion;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));

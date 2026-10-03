@@ -38,11 +38,12 @@ namespace Remains.Domain
         }
         public static float Step(GrenadeState state,RoomLayout room,float dt)
         {
-            if(dt<=0) return 0;
+            if(dt<=0 || state.remaining<=0) return 0;
+            dt=Mathf.Min(dt,state.remaining);
             float impact=0;
             var definition=Remains.Content.WeaponCatalog.Get("grenade");
             var previous=state.Position;
-            state.Velocity+=Vector2.down*WorldPhysics.Gravity*dt;
+            state.Velocity+=Vector2.down*definition.grenadeGravity*dt;
             var delta=state.Velocity*dt;
             var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false)+Vector2.up*.1f;
             state.Position=moved;

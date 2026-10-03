@@ -14,6 +14,7 @@ namespace Remains.Editor
             CheckTerrain();
             CheckSettings();
             CheckLaunch();
+            CheckFlightTime();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
@@ -86,6 +87,13 @@ namespace Remains.Editor
                 Require(rejected,"Некорректный отскок должен отклоняться при загрузке");
             }
             float saved=definition.grenadeRestitution;
+            invalid=Remains.Serialization.StateJson.Copy(definition);invalid.grenadeGravity=0;
+            bool missingGravityRejected=false;
+            try {Remains.Content.WeaponCatalogLoader.Load(
+                Remains.Serialization.StateJson.ToJson(new Remains.Content.WeaponList {weapons=new[]{invalid}}),
+                Path.Combine(Path.GetTempPath(),"remains-no-mods-"+Guid.NewGuid().ToString("N")));}
+            catch(InvalidDataException) {missingGravityRejected=true;}
+            Require(missingGravityRejected,"Отсутствующее ускорение гранаты не должно незаметно отключать падение");
             try
             {
                 definition.grenadeRestitution=.2f;
@@ -115,6 +123,19 @@ namespace Remains.Editor
             Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Новое воплощение отменяет старый запрос");
             actor.lifecycleSequence--;crouching.aimX=float.NaN;
             Require(!Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching),"Неконечный прицел должен отклоняться до расхода");
+        }
+        private static void CheckFlightTime()
+        {
+            var room=new RoomLayout {left=-100,right=100,platforms=Array.Empty<RoomSurface>()};
+            var state=new GrenadeState {x=0,y=20,vx=3,vy=0,remaining=.1f};
+            GrenadeRules.Step(state,room,.5f);
+            Require(state.remaining==0 && Mathf.Approximately(state.x,.3f),"Длинный кадр не должен продлевать полёт за конец запала");
+            Require(Mathf.Approximately(state.vy,-1.8f),"Граната должна использовать своё ускорение 18 м/с²");
+            var position=state.Position;GrenadeRules.Step(state,room,.2f);
+            Require(state.Position==position,"Истёкший запал не должен позволять дополнительный шаг");
+            state=new GrenadeState {y=20,remaining=2};
+            GrenadeRules.Step(state,room,0);
+            Require(state.y==20 && state.remaining==2 && state.vy==0,"Нулевой шаг не должен расходовать запал или менять скорость");
         }
         private static void CheckRecoveredPresence()
         {

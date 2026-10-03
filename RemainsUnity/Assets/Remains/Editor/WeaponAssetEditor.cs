@@ -25,6 +25,7 @@ namespace Remains.Editor
             {
                 EditorGUILayout.LabelField("Физика гранаты",EditorStyles.boldLabel);
                 Field("grenadeFuseSeconds","Запал, с");
+                Field("grenadeGravity","Ускорение падения, м/с²");
                 Field("grenadeRestitution","Сохранение скорости отскока, доля");
                 Field("grenadeGroundRetention","Сохранение скорости вдоль пола, доля");
             }
