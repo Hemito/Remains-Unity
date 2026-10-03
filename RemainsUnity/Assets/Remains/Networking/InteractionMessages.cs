@@ -10,6 +10,6 @@ namespace Remains.Networking
         public int generation,lifecycle;
         public float originX,originY,aimX,aimY;
     }
-    public struct GrenadePoseMessage : NetworkMessage {public string id;public int generation;public uint sequence;public float x,y,vx,vy,remaining;public bool detonate;public string[] enemyHits;}
+    public struct GrenadePoseMessage : NetworkMessage {public string id;public int generation;public uint sequence;public float x,y,vx,vy,remaining;public double simulationRemainder;public bool detonate;public string[] enemyHits;}
     public struct GrenadeMessage { public string id,attacker,level; public float x,y,vx,vy,fuse; }
 }

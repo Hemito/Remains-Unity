@@ -8,6 +8,17 @@ namespace Remains.Editor
 {
     public static class GrenadeChecks
     {
+        public static void MeasureFrameRates()
+        {
+            Remains.Content.WeaponCatalog.Load();
+            foreach(int rate in new[]{30,60,144})
+            {
+                var room=new RoomLayout {left=-100,right=100,platforms=new[]{new RoomSurface {x=-100,y=-1,width=200,height=1}}};
+                var state=new GrenadeState {y=3,vx=7,vy=3,remaining=2.5f};
+                for(int i=0;i<rate*2;i++) GrenadeRules.Step(state,room,1f/rate);
+                Debug.Log($"Граната через 2 с, FPS={rate}: x={state.x:R}, y={state.y:R}, vx={state.vx:R}, vy={state.vy:R}, запал={state.remaining:R}");
+            }
+        }
         public static void Run()
         {
             CheckRecoveredPresence();
@@ -16,6 +27,7 @@ namespace Remains.Editor
             CheckLaunch();
             CheckFlightTime();
             CheckFreeFlight();
+            CheckBounceFrameRates();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
@@ -49,27 +61,28 @@ namespace Remains.Editor
         }
         private static void CheckTerrain()
         {
-            foreach(float dt in new[]{1f/30,1f/60,1f/144})
+            foreach(float frameTime in new[]{1f/30,1f/60,1f/144})
             {
+                float dt=Mathf.Max(frameTime,(float)GrenadeRules.SimulationStep);
                 var room=new RoomLayout {left=-20,right=20,platforms=new[]{new RoomSurface {x=1,y=0,width=.05f,height=4}}};
                 var right=new GrenadeState {x=.7f,y=2,vx=100,remaining=2};
                 GrenadeRules.Step(right,room,dt);
-                Require(Mathf.Abs(right.x-.9f)<.0001f && Mathf.Approximately(right.vx,-40),"Граната должна отскочить от тонкой стены справа с заданной потерей скорости");
+                Require(right.x<=.9001f && Mathf.Approximately(right.vx,-40),"Граната должна отскочить от тонкой стены справа с заданной потерей скорости");
                 var left=new GrenadeState {x=1.35f,y=2,vx=-100,remaining=2};
                 GrenadeRules.Step(left,room,dt);
-                Require(Mathf.Abs(left.x-1.15f)<.0001f && left.vx>0,"Граната должна отскочить от стены слева");
+                Require(left.x>=1.1499f && left.vx>0,"Граната должна отскочить от стены слева");
                 room.platforms=new[]{new RoomSurface {x=-10,y=2,width=20,height=.05f}};
                 var up=new GrenadeState {x=0,y=1.7f,vy=100,remaining=2};
                 GrenadeRules.Step(up,room,dt);
-                Require(Mathf.Abs(up.y-1.9f)<.0001f && up.vy<0,"Потолок должен отражать гранату вниз");
+                Require(up.y<=1.9001f && up.vy<0,"Потолок должен отражать гранату вниз");
                 var down=new GrenadeState {x=0,y=2.35f,vy=-100,vx=2,remaining=2};
                 GrenadeRules.Step(down,room,dt);
-                Require(Mathf.Abs(down.y-2.15f)<.0001f && down.vy>0 && Mathf.Approximately(down.vx,1.2f),"Пол должен отражать и тормозить гранату");
+                Require(down.y>=2.1499f && down.vy>0 && Mathf.Approximately(down.vx,1.2f),"Пол должен отражать и тормозить гранату");
                 room.platforms[0].oneWay=true;
                 up=new GrenadeState {x=0,y=1.7f,vy=100,remaining=2};
                 GrenadeRules.Step(up,room,dt);
                 Require(up.y>2 && up.vy>0,"Односторонняя платформа не является потолком");
-                Require(Mathf.Approximately(up.remaining,2-dt),"Столкновения не должны менять темп запала");
+                Require(Math.Abs(up.remaining-up.simulationRemainder-(2-dt))<.00001,"Столкновения не должны менять темп запала");
             }
         }
         private static void CheckSettings()
@@ -102,7 +115,7 @@ namespace Remains.Editor
                 var grenade=new GrenadeState {x=.7f,y=2,vx=100,remaining=1.1f};
                 GrenadeRules.Step(grenade,room,.01f);
                 Require(Mathf.Approximately(grenade.vx,-20),"Отскок должен читать загруженное определение");
-                Require(Mathf.Approximately(grenade.remaining,1.09f),"Настройки не должны перезапускать уже горящий запал");
+                Require(Math.Abs(grenade.remaining-grenade.simulationRemainder-1.09)<.00001,"Настройки не должны перезапускать уже горящий запал");
             }
             finally {definition.grenadeRestitution=saved;}
         }
@@ -156,6 +169,30 @@ namespace Remains.Editor
             GrenadeRules.Step(restored,room,.63f);
             Require(Mathf.Abs(restored.y-17)<.0001f && Mathf.Abs(restored.x-3)<.0001f,
                 "Восстановление посреди полёта не должно менять траекторию");
+        }
+        private static void CheckBounceFrameRates()
+        {
+            var room=new RoomLayout {left=-100,right=100,platforms=new[]{new RoomSurface {x=-100,y=-1,width=200,height=1},
+                new RoomSurface {x=9,y=0,width=.1f,height=5}}};
+            GrenadeState reference=null;
+            foreach(int rate in new[]{30,60,144})
+            {
+                var state=new GrenadeState {y=3,vx=7,vy=3,remaining=2.5f};
+                for(int i=0;i<rate*2;i++) GrenadeRules.Step(state,room,1f/rate);
+                if(reference==null) reference=state;
+                else Require(Vector2.Distance(reference.Position,state.Position)<.00001f &&
+                    Vector2.Distance(reference.Velocity,state.Velocity)<.00001f && Mathf.Abs(reference.remaining-state.remaining)<.00001f,
+                    $"Отскоки зависят от FPS: {rate}, позиция={state.Position}, эталон={reference.Position}");
+            }
+            var uninterrupted=new GrenadeState {y=3,vx=7,vy=3,remaining=2.5f};
+            GrenadeRules.Step(uninterrupted,room,.371f);
+            Require(uninterrupted.simulationRemainder>0,"Проверка передачи должна попадать между тактами");
+            var restored=uninterrupted.Copy();
+            Require(Math.Abs(restored.simulationRemainder-uninterrupted.simulationRemainder)<1e-12,"Сохранение потеряло остаток такта");
+            GrenadeRules.Step(restored,room,1.629f);
+            Require(Vector2.Distance(reference.Position,restored.Position)<.00001f &&
+                Vector2.Distance(reference.Velocity,restored.Velocity)<.00001f,
+                "Неравномерные кадры или восстановление сбили такты отскоков");
         }
         private static void CheckRecoveredPresence()
         {

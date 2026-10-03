@@ -14,6 +14,7 @@ namespace Remains.Domain
         public int generation;
         public uint sequence;
         public float x,y,vx,vy,remaining;
+        public double simulationRemainder;
         public Vector2 Position {get=>new(x,y);set {x=value.x;y=value.y;}}
         public Vector2 Velocity {get=>new(vx,vy);set {vx=value.x;vy=value.y;}}
         public GrenadeState Copy()=>JsonUtility.FromJson<GrenadeState>(JsonUtility.ToJson(this));
@@ -31,6 +32,7 @@ namespace Remains.Domain
     }
     public static class GrenadeRules
     {
+        public const double SimulationStep=1d/120;
         private static readonly MovementHull Hull=new() {width=.2f,height=.2f};
         public static void BeginSession(WorldState world)
         {
@@ -39,9 +41,24 @@ namespace Remains.Domain
         public static float Step(GrenadeState state,RoomLayout room,float dt)
         {
             if(dt<=0 || state.remaining<=0) return 0;
-            dt=Mathf.Min(dt,state.remaining);
+            if(!float.IsFinite(dt) || !double.IsFinite(state.simulationRemainder) || state.simulationRemainder<0 || state.simulationRemainder>=SimulationStep)
+                throw new InvalidOperationException($"Некорректные часы гранаты {state.id}: dt={dt}, остаток={state.simulationRemainder}.");
+            state.simulationRemainder=Math.Min(state.remaining,state.simulationRemainder+dt);
             float impact=0;
             var definition=Remains.Content.WeaponCatalog.Get("grenade");
+            while(state.remaining>0)
+            {
+                double step=Math.Min(SimulationStep,state.remaining);
+                if(state.simulationRemainder+1e-7<step) break;
+                impact=Mathf.Max(impact,Advance(state,room,(float)step,definition));
+                state.simulationRemainder=Math.Max(0,state.simulationRemainder-step);
+                state.remaining=Mathf.Max(0,state.remaining-(float)step);
+            }
+            return impact;
+        }
+        private static float Advance(GrenadeState state,RoomLayout room,float dt,Remains.Content.WeaponDefinition definition)
+        {
+            float impact=0;
             var previous=state.Position;
             var acceleration=Vector2.down*definition.grenadeGravity;
             var delta=state.Velocity*dt+acceleration*(.5f*dt*dt);
@@ -56,7 +73,6 @@ namespace Remains.Domain
                 if(state.vy<0) state.vx*=definition.grenadeGroundRetention;
                 state.vy=-state.vy*definition.grenadeRestitution;
             }
-            state.remaining=Mathf.Max(0,state.remaining-dt);
             return impact;
         }
         public static void Reassign(WorldState world,IReadOnlyCollection<string> owners)

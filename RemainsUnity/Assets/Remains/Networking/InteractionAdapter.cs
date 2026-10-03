@@ -85,7 +85,7 @@ namespace Remains.Networking
             session.CommitWorld();
         }
         private static void Apply(GrenadeState state,GrenadePoseMessage message)
-        {state.x=message.x;state.y=message.y;state.vx=message.vx;state.vy=message.vy;state.remaining=message.remaining;state.sequence=message.sequence;}
+        {state.x=message.x;state.y=message.y;state.vx=message.vx;state.vy=message.vy;state.remaining=message.remaining;state.simulationRemainder=message.simulationRemainder;state.sequence=message.sequence;}
         private void GrenadePose(NetworkConnectionToClient connection,GrenadePoseMessage message)
         {
             var actor=session.ConnectedActor(connection);
@@ -94,6 +94,7 @@ namespace Remains.Networking
                 unchecked((int)(message.sequence-grenade.sequence))<=0) return;
             if(message.detonate && session.Pause.Defer(grenade.level,()=>GrenadePose(connection,message))) return;
             if(!float.IsFinite(message.x) || !float.IsFinite(message.y) || !float.IsFinite(message.vx) || !float.IsFinite(message.vy) ||
+                !double.IsFinite(message.simulationRemainder) || message.simulationRemainder<0 || message.simulationRemainder>=GrenadeRules.SimulationStep ||
                 !float.IsFinite(message.remaining) || message.remaining<0 || message.remaining>grenade.remaining+.001f)
             {Debug.LogWarning($"Некорректное состояние гранаты: id={message.id}, generation={message.generation}, remaining={message.remaining}.");return;}
             Apply(grenade,message);
@@ -110,7 +111,7 @@ namespace Remains.Networking
         {
             state.sequence++;
             NetworkClient.Send(new GrenadePoseMessage {id=state.id,generation=state.generation,sequence=state.sequence,
-                x=state.x,y=state.y,vx=state.vx,vy=state.vy,remaining=state.remaining,detonate=detonate,enemyHits=enemyHits});
+                x=state.x,y=state.y,vx=state.vx,vy=state.vy,remaining=state.remaining,simulationRemainder=state.simulationRemainder,detonate=detonate,enemyHits=enemyHits});
         }
         public void GrabProp(string prop,bool release) => NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });
         public void SendProp(PropState prop)
