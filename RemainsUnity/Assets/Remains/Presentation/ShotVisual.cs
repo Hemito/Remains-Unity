@@ -35,7 +35,7 @@ namespace Remains.Presentation
                 float arrival=distance/artwork.speed;
                 if(elapsed>=arrival)
                 {
-                    int frame=Mathf.FloorToInt((elapsed-arrival)*30);
+                    int frame=Mathf.FloorToInt((elapsed-arrival)*artwork.impactFramesPerSecond);
                     if(!contact || frame>=artwork.impact.Length) {view.enabled=false;return false;}
                     SpriteArtworkMaterial.Apply(view,artwork.impact[frame]);view.enabled=true;view.color=Color.white;
                     transform.localScale=Vector3.one;transform.position=origin+direction*distance;return true;

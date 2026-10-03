@@ -75,7 +75,7 @@ namespace Remains.Presentation
             var path=flight.path;
             if(path.Finished && !artwork.beam)
             {
-                int frame=Mathf.FloorToInt(flight.finishedAge*30);
+                int frame=Mathf.FloorToInt(flight.finishedAge*artwork.impactFramesPerSecond);
                 if(!flight.contact || frame>=artwork.impact.Length) {Destroy(gameObject);return;}
                 SpriteArtworkMaterial.Apply(view,artwork.impact[frame]);view.enabled=true;view.color=Color.white;
                 transform.localScale=Vector3.one;transform.position=path.Position;return;

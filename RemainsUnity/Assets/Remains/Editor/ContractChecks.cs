@@ -48,6 +48,7 @@ namespace Remains.Editor
             WorldLibraryChecks.Run();
             CrouchChecks.Run();
             ProjectilePathChecks.Run();
+            ShotArtworkChecks.Run();
             ProjectilePersistenceChecks.Run();
             ProjectileControllerChecks.Run();
             LocalProjectileChecks.Run();
