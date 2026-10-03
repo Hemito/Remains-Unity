@@ -80,7 +80,8 @@ namespace Remains.Networking
             var velocity=(new Vector2(message.aimX,message.aimY)-origin).normalized*7+Vector2.up*3;
             actor.revision++;
             session.ServerWorld.grenades.Add(new GrenadeState {id=message.transaction,attacker=actor.id,level=actor.level,owner=actor.owner,
-                sourcePlayer=actor.player,generation=1,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,remaining=2});
+                sourcePlayer=actor.player,generation=1,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,
+                remaining=Remains.Content.WeaponCatalog.Get("grenade").grenadeFuseSeconds});
             session.CommitWorld();
         }
         private static void Apply(GrenadeState state,GrenadePoseMessage message)

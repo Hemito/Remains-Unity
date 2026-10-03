@@ -21,6 +21,13 @@ namespace Remains.Editor
             using(new EditorGUI.DisabledScope(definition.FindPropertyRelative("projectileSpeed").floatValue<=0))
             {Field("projectileSpeedVariation","Разброс скорости, доля");Field("projectileLifetime","Время жизни, с");}
             Field("stopAtFirstActor","Остановка на первом актёре");Field("stopAtTerrain","Остановка на геометрии");
+            if(definition.FindPropertyRelative("id").stringValue=="grenade")
+            {
+                EditorGUILayout.LabelField("Физика гранаты",EditorStyles.boldLabel);
+                Field("grenadeFuseSeconds","Запал, с");
+                Field("grenadeRestitution","Сохранение скорости отскока, доля");
+                Field("grenadeGroundRetention","Сохранение скорости вдоль пола, доля");
+            }
             EditorGUILayout.LabelField("Ближний бой",EditorStyles.boldLabel);
             Field("meleeMotion","Ключи движения");
             using(new EditorGUI.DisabledScope(definition.FindPropertyRelative("meleeMotion").arraySize==0))

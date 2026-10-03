@@ -129,6 +129,11 @@ namespace Remains.Content
             foreach(float value in new[]{weapon.damage,weapon.speedDamage,weapon.maxSpeedDamage,weapon.range,weapon.cooldown,weapon.manaCost,weapon.reloadSeconds,weapon.projectileSpeed,weapon.projectileSpeedVariation,weapon.projectileLifetime})
                 if(!float.IsFinite(value) || value<0) throw new InvalidDataException($"Некорректное число оружия: источник={source}, id={weapon.id}.");
             var speeds=weapon.ProjectileSpeedRange;
+            if(!float.IsFinite(weapon.grenadeFuseSeconds) || weapon.grenadeFuseSeconds<0 ||
+                !float.IsFinite(weapon.grenadeRestitution) || weapon.grenadeRestitution<0 || weapon.grenadeRestitution>1 ||
+                !float.IsFinite(weapon.grenadeGroundRetention) || weapon.grenadeGroundRetention<0 || weapon.grenadeGroundRetention>1 ||
+                (weapon.id=="grenade" && weapon.grenadeFuseSeconds<=0))
+                throw new InvalidDataException($"Некорректный запал или отскок гранаты: источник={source}, id={weapon.id}.");
             if(weapon.projectileSpeedVariation>=1 || (weapon.projectileSpeedVariation>0 && weapon.projectileSpeed<=0) ||
                 !float.IsFinite(speeds.y) || (weapon.projectileSpeed>0 && speeds.x<=0))
                 throw new InvalidDataException($"Некорректный диапазон скорости снаряда: источник={source}, id={weapon.id}.");

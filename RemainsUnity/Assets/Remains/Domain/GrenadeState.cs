@@ -39,16 +39,17 @@ namespace Remains.Domain
         public static void Step(GrenadeState state,RoomLayout room,float dt)
         {
             if(dt<=0) return;
+            var definition=Remains.Content.WeaponCatalog.Get("grenade");
             var previous=state.Position;
             state.Velocity+=Vector2.down*WorldPhysics.Gravity*dt;
             var delta=state.Velocity*dt;
             var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false)+Vector2.up*.1f;
             state.Position=moved;
-            if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f) state.vx=-state.vx*.45f;
+            if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f) state.vx=-state.vx*definition.grenadeRestitution;
             if(Mathf.Abs(moved.y-previous.y-delta.y)>.00001f)
             {
-                if(state.vy<0) state.vx*=.75f;
-                state.vy=-state.vy*.45f;
+                if(state.vy<0) state.vx*=definition.grenadeGroundRetention;
+                state.vy=-state.vy*definition.grenadeRestitution;
             }
             state.remaining=Mathf.Max(0,state.remaining-dt);
         }

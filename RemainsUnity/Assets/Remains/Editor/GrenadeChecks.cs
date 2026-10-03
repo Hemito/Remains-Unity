@@ -12,6 +12,7 @@ namespace Remains.Editor
         {
             CheckRecoveredPresence();
             CheckTerrain();
+            CheckSettings();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
@@ -50,7 +51,7 @@ namespace Remains.Editor
                 var room=new RoomLayout {left=-20,right=20,platforms=new[]{new RoomSurface {x=1,y=0,width=.05f,height=4}}};
                 var right=new GrenadeState {x=.7f,y=2,vx=100,remaining=2};
                 GrenadeRules.Step(right,room,dt);
-                Require(Mathf.Abs(right.x-.9f)<.0001f && right.vx<0,"Граната должна отскочить от тонкой стены справа");
+                Require(Mathf.Abs(right.x-.9f)<.0001f && Mathf.Approximately(right.vx,-40),"Граната должна отскочить от тонкой стены справа с заданной потерей скорости");
                 var left=new GrenadeState {x=1.35f,y=2,vx=-100,remaining=2};
                 GrenadeRules.Step(left,room,dt);
                 Require(Mathf.Abs(left.x-1.15f)<.0001f && left.vx>0,"Граната должна отскочить от стены слева");
@@ -60,13 +61,40 @@ namespace Remains.Editor
                 Require(Mathf.Abs(up.y-1.9f)<.0001f && up.vy<0,"Потолок должен отражать гранату вниз");
                 var down=new GrenadeState {x=0,y=2.35f,vy=-100,vx=2,remaining=2};
                 GrenadeRules.Step(down,room,dt);
-                Require(Mathf.Abs(down.y-2.15f)<.0001f && down.vy>0 && Mathf.Approximately(down.vx,1.5f),"Пол должен отражать и тормозить гранату");
+                Require(Mathf.Abs(down.y-2.15f)<.0001f && down.vy>0 && Mathf.Approximately(down.vx,1.2f),"Пол должен отражать и тормозить гранату");
                 room.platforms[0].oneWay=true;
                 up=new GrenadeState {x=0,y=1.7f,vy=100,remaining=2};
                 GrenadeRules.Step(up,room,dt);
                 Require(up.y>2 && up.vy>0,"Односторонняя платформа не является потолком");
                 Require(Mathf.Approximately(up.remaining,2-dt),"Столкновения не должны менять темп запала");
             }
+        }
+        private static void CheckSettings()
+        {
+            var definition=Remains.Content.WeaponCatalog.Get("grenade");
+            Require(Mathf.Approximately(definition.grenadeFuseSeconds,2.5f),"Исходный запал должен быть 2,5 с");
+            var invalid=Remains.Serialization.StateJson.Copy(definition);
+            foreach(float value in new[]{-1f,1.1f,float.NaN})
+            {
+                invalid.grenadeRestitution=value;
+                bool rejected=false;
+                try {Remains.Content.WeaponCatalogLoader.Load(
+                    Remains.Serialization.StateJson.ToJson(new Remains.Content.WeaponList {weapons=new[]{invalid}}),
+                    Path.Combine(Path.GetTempPath(),"remains-no-mods-"+Guid.NewGuid().ToString("N")));}
+                catch(InvalidDataException) {rejected=true;}
+                Require(rejected,"Некорректный отскок должен отклоняться при загрузке");
+            }
+            float saved=definition.grenadeRestitution;
+            try
+            {
+                definition.grenadeRestitution=.2f;
+                var room=new RoomLayout {left=-20,right=20,platforms=new[]{new RoomSurface {x=1,y=0,width=.05f,height=4}}};
+                var grenade=new GrenadeState {x=.7f,y=2,vx=100,remaining=1.1f};
+                GrenadeRules.Step(grenade,room,.01f);
+                Require(Mathf.Approximately(grenade.vx,-20),"Отскок должен читать загруженное определение");
+                Require(Mathf.Approximately(grenade.remaining,1.09f),"Настройки не должны перезапускать уже горящий запал");
+            }
+            finally {definition.grenadeRestitution=saved;}
         }
         private static void CheckRecoveredPresence()
         {
