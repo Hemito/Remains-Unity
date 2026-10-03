@@ -18,6 +18,18 @@ namespace Remains.Editor
             prop.x=13.15f;Require(rule.Rejection(actor,prop,true)!=null,"Выход за дальность удержания отпускает предмет");
             prop.x=0;prop.movable=false;Require(rule.Rejection(actor,prop,false)?.Contains("закреплён")==true,"Закреплённый контейнер не переносится");
             prop.movable=true;actor.mana=0;Require(rule.Rejection(actor,prop,true)!=null,"Исчерпание маны прекращает удержание");
+            foreach(float mass in new[]{1f,25f})
+            {
+                prop.mass=mass;actor.mana=19.99f;
+                Require(rule.Rejection(actor,prop,false)?.Contains("20")==true,"Новый захват ниже порога разрешён");
+                Require(rule.Rejection(actor,prop,true)==null,"Порог нового захвата оборвал уже начатое удержание");
+                actor.mana=20;Require(rule.Rejection(actor,prop,false)==null,"На границе запаса маны захват запрещён");
+            }
+            settings.minimumGrabMana=0;actor.mana=1;
+            Require(rule.Rejection(actor,prop,false)==null,"Явное отключение порога не действует");
+            settings.minimumGrabMana=float.NaN;bool invalidMana=false;
+            try {settings.Validate();} catch(InvalidOperationException) {invalidMana=true;}
+            Require(invalidMana,"Неконечный порог маны принят");settings.minimumGrabMana=20;
             actor.mana=100;actor.down=true;Require(rule.Rejection(actor,prop,true)!=null,"Потеря сознания прекращает удержание");actor.down=false;
             prop.mass=5;Require(rule.ManaPerSecond(actor,prop)==0,"До 5 кг включительно удержание бесплатно");
             prop.mass=25;Require(Mathf.Abs(rule.ManaPerSecond(actor,prop)-2.1213203f)<.0001f,"Расход 25 кг должен быть 2,12132 единицы шкалы 0–100 в секунду");

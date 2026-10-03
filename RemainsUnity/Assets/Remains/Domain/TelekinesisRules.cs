@@ -33,6 +33,8 @@ namespace Remains.Domain
             if(prop.mass>settings.maximumMass) return $"Слишком тяжело: {prop.mass:0.#} кг. Предел подъёма — {settings.maximumMass:0.#} кг.";
             if(actor.down) return "Нельзя удерживать объект без сознания.";
             if(actor.mana<=0) return "Не хватает маны для телекинеза.";
+            if(!alreadyHeld && actor.mana<settings.minimumGrabMana)
+                return $"Для захвата нужно не менее {settings.minimumGrabMana:0.#} маны.";
             if(prop.level!=actor.level) return "Объект находится в другой локации.";
             if(Vector2.Distance(actor.Position,prop.Position)>(alreadyHeld?settings.releaseRange:settings.range))
                 return "Объект вне досягаемости телекинеза.";
