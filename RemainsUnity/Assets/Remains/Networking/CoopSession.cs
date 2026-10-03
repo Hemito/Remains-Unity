@@ -29,6 +29,12 @@ namespace Remains.Networking
         }
         public string CharacterId { get; set; }
         public event Action Changed;
+        public event Action<string,string,float,float> RemotePoseCorrection;
+        private void ObservePoseCorrection(string source,ActorState current,string nextPose,float nextTime)
+        {
+            if(current!=null && current.owner!=LocalOwner && current.pose=="run" && nextPose=="run" && nextTime+.0001f<current.poseTime)
+                RemotePoseCorrection?.Invoke(source,current.id,current.poseTime,nextTime);
+        }
         public event Action<AttackEvent> AttackReceived;
         public event Action<string> Notice;
         public event Action<NpcHitMessage> NpcHitReceived;
@@ -322,6 +328,8 @@ namespace Remains.Networking
                 foreach (var actor in incoming.actors)
                 {
                     var local = World.Find(actor.id);
+                    ActorMotionReplication.PreserveNewerMotion(local,actor);
+                    ObservePoseCorrection("world",local,actor.pose,actor.poseTime);
                     if (local == null || local.owner != LocalOwner || local.generation != actor.generation ||
                         local.lifecycleSequence!=actor.lifecycleSequence || local.level!=actor.level) continue;
                     ActorPose.CopyMotion(local,actor);
@@ -381,6 +389,8 @@ namespace Remains.Networking
                 ActorPose.CopyMotion(current,actor);
                 NpcAttackRules.CopyProgress(current,actor);
             }
+            ActorMotionReplication.PreserveNewerMotion(current,actor);
+            ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
             Changed?.Invoke();
@@ -408,6 +418,7 @@ namespace Remains.Networking
                 connection.Send(new NoticeMessage { text="Смена локации требует подтверждённого перехода." });
                 return;
             }
+            ActorMotionReplication.PreserveNewerMotion(actor,incoming);
             ServerWorld.actors[ServerWorld.actors.IndexOf(actor)] = incoming;
             if(!actor.player && actor.attackBusy && !incoming.attackBusy)
             {CommitWorld();return;}
@@ -418,7 +429,11 @@ namespace Remains.Networking
         public void PublishActor(ActorState actor)
         {
             Changed?.Invoke();
-            if (NetworkClient.isConnected) NetworkClient.Send(new ActorMessage { json = JsonUtility.ToJson(actor) });
+            if (NetworkClient.isConnected)
+            {
+                actor.motionSequence=unchecked(actor.motionSequence+1);
+                NetworkClient.Send(new ActorMessage { json = JsonUtility.ToJson(actor) });
+            }
         }
 
         private void UpdatePose(NetworkConnectionToClient connection, PoseMessage message)
@@ -427,6 +442,7 @@ namespace Remains.Networking
             if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner ||
                 actor.generation != message.generation || actor.lifecycleSequence!=message.lifecycleSequence ||
                 !serverPoses.Accept(message.actor,message.generation,message.lifecycleSequence,message.sequence)) return;
+            if(!ActorMotionReplication.IsNewer(message.sequence,actor.motionSequence)) return;
             ApplyPose(actor, message);
             NetworkServer.SendToAll(message, Channels.Unreliable);
         }
@@ -436,6 +452,8 @@ namespace Remains.Networking
             var actor = World?.Find(message.actor);
             if (actor == null || actor.owner == LocalOwner || actor.generation != message.generation || actor.lifecycleSequence!=message.lifecycleSequence) return;
             if (!clientPoses.Accept(message.actor,message.generation,message.lifecycleSequence,message.sequence)) return;
+            if(!ActorMotionReplication.IsNewer(message.sequence,actor.motionSequence)) return;
+            ObservePoseCorrection("pose",actor,message.pose,message.poseTime);
             ApplyPose(actor, message);
         }
 
@@ -443,7 +461,7 @@ namespace Remains.Networking
         {
             actor.x = message.x; actor.y = message.y; actor.vx = message.vx; actor.vy = message.vy;
             actor.facing = message.facing; actor.pose = message.pose;
-            actor.poseTime=message.poseTime;
+            actor.poseTime=message.poseTime;actor.motionSequence=message.sequence;
             actor.climbing=message.climbing;
             actor.jumpSupportRemaining=message.jumpSupportRemaining;
             actor.crouched=message.crouched;
@@ -457,9 +475,9 @@ namespace Remains.Networking
             }
         }
 
-        public void PublishPose(ActorState actor, uint sequence) => NetworkClient.Send(new PoseMessage
+        public void PublishPose(ActorState actor) => NetworkClient.Send(new PoseMessage
         {
-            actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = sequence,
+            actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = actor.motionSequence=unchecked(actor.motionSequence+1),
             x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,climbing=actor.climbing,crouched=actor.crouched,jumpSupportRemaining=actor.jumpSupportRemaining,
             weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponFlipY=actor.weaponFlipY,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown

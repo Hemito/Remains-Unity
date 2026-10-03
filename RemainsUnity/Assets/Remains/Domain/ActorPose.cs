@@ -6,6 +6,7 @@ namespace Remains.Domain
         {
             destination.Position=source.Position;destination.Velocity=source.Velocity;
             destination.facing=source.facing;destination.pose=source.pose;destination.poseTime=source.poseTime;
+            destination.motionSequence=source.motionSequence;
             destination.climbing=source.climbing;
             destination.crouched=source.crouched;
             destination.jumpSupportRemaining=source.jumpSupportRemaining;

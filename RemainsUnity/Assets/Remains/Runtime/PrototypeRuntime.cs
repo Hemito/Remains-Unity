@@ -43,7 +43,6 @@ namespace Remains.Runtime
         private PrototypeHud hud;
         private Camera cameraView;
         private float nextPose;
-        private uint poseSequence;
         private GameObject roomObject;
         private string shownLevel="hub";
         private CameraFollower cameraFollower;
@@ -231,7 +230,7 @@ namespace Remains.Runtime
             if (Time.unscaledTime >= nextPose)
             {
                 nextPose=Time.unscaledTime+0.05f;
-                foreach (var owned in Session.World.actors) if (owned.owner==Session.LocalOwner) Session.PublishPose(owned,++poseSequence);
+                foreach (var owned in Session.World.actors) if (owned.owner==Session.LocalOwner) Session.PublishPose(owned);
             }
         }
 

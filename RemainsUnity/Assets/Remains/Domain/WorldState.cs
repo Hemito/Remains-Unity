@@ -56,6 +56,7 @@ namespace Remains.Domain
         public int facing = 1;
         public string pose = "idle";
         public float poseTime;
+        public uint motionSequence;
         public int hair;
         public string weapon="pistol";
         public float weaponAngle;

@@ -58,6 +58,8 @@ namespace Remains.Runtime
         }
         public void Initialize(PrototypeRuntime value)
         {
+            value.Session.RemotePoseCorrection+=(source,id,before,after)=>
+                Debug.Log($"Источник изменения фазы: source={source}, actor={id}, before={before}, after={after}, time={Time.unscaledTime}.");
             runtime=value;deadline=Time.unscaledTime+75;value.CommandSource=Command;
             value.Session.Notice+=notice=>
             {
