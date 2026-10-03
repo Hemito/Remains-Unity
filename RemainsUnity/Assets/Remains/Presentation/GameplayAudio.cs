@@ -11,7 +11,7 @@ namespace Remains.Presentation
     public sealed class GameplayAudio : MonoBehaviour
     {
         [Serializable] private sealed class SoundEntry
-        {public string weapon,clip,kind;[NonSerialized] public AudioClip audio;}
+        {public string weapon,clip,kind;public float minGain,maxGain;[NonSerialized] public AudioClip audio;}
         [Serializable] private sealed class SoundCatalog {public SoundEntry[] entries;}
         private sealed class Voice
         {
@@ -29,6 +29,8 @@ namespace Remains.Presentation
         private readonly List<Voice> voices=new();
         private readonly HashSet<string> seen=new(),missing=new();
         private readonly Queue<string> recent=new();
+        // Presentation randomness must not advance a gameplay random sequence.
+        private readonly System.Random gainRandom=new();
         private AudioClip reloadClip;
         private ReloadSoundMessage? localReload;
         public int RemoteReloadStarts {get;private set;}
@@ -52,7 +54,8 @@ namespace Remains.Presentation
             if(catalog?.entries==null) throw new InvalidOperationException("Не заданы записи звуков боя.");
             foreach(var entry in catalog.entries)
             {
-                if(string.IsNullOrEmpty(entry.weapon) || string.IsNullOrEmpty(entry.clip) || entry.kind is not ("shot" or "melee" or "explosion"))
+                if(string.IsNullOrEmpty(entry.weapon) || string.IsNullOrEmpty(entry.clip) || entry.kind is not ("shot" or "melee" or "explosion") ||
+                    !float.IsFinite(entry.minGain) || !float.IsFinite(entry.maxGain) || entry.minGain<=0 || entry.maxGain<entry.minGain || entry.maxGain>1)
                     throw new InvalidOperationException($"Некорректная звуковая привязка: weapon={entry.weapon}, clip={entry.clip}, kind={entry.kind}.");
                 entry.audio=Load(entry.clip);sounds.Add(entry.weapon,entry);
             }
@@ -95,7 +98,8 @@ namespace Remains.Presentation
             {if(missing.Add(attack.weapon)) Debug.LogWarning($"Нет звука атаки: weapon={attack.weapon}, attack={attack.id}.",this);return;}
             if(!seen.Add(attack.id)) return;
             recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
-            if(Play(entry.audio,attack.level,attack.Origin)==null) return;
+            float gain=Mathf.Lerp(entry.minGain,entry.maxGain,(float)gainRandom.NextDouble());
+            if(Play(entry.audio,attack.level,attack.Origin,gain)==null) return;
             if(entry.kind=="melee") MeleeSounds++;
             else if(entry.kind=="explosion") ExplosionSounds++;
             else if(attack.attacker==session.LocalActorId) LocalShots++;else RemoteShots++;

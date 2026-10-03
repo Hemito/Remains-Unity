@@ -22,7 +22,46 @@ namespace Remains.Editor
             Check("Hub/concrete","hit-concrete",false);
             Check("floor","hit-metal",false);
             Check("Hub/concrete","hit-bullet",true);
+            CheckAttackMix();
             Debug.Log("Звуки попаданий: PASS — бетон, металл, актёр перед стеной, отсутствие повторов.");
+        }
+        private static void CheckAttackMix()
+        {
+            var root=new GameObject("Проверка баланса звуков атак");
+            try
+            {
+                var session=root.AddComponent<CoopSession>();
+                var world=new WorldState();
+                var actor=new ActorState {id="listener",player=true,connected=true,level="hub"};
+                world.actors.Add(actor);
+                typeof(CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
+                var playback=root.AddComponent<GameplayAudio>();
+                playback.Initialize(session,new WeaponReloadController(session),root.AddComponent<Camera>());
+                var receive=typeof(GameplayAudio).GetMethod("Attack",Private);
+                foreach(var weapon in new[]{"pistol","energy","grenade","crowbar","spear"})
+                {
+                    var attack=new AttackEvent {id="mix-"+weapon,weapon=weapon,attacker=actor.id,level=actor.level};
+                    int before=root.GetComponentsInChildren<AudioSource>().Length;
+                    receive.Invoke(playback,new object[]{attack});
+                    var sources=root.GetComponentsInChildren<AudioSource>();
+                    Require(sources.Length==before+1,"Не создан источник атаки: "+weapon);
+                    var source=sources.Last();
+                    float initial=source.volume;
+                    bool melee=weapon is "crowbar" or "spear";
+                    Require(melee ? initial>=playback.Volume*.5f && initial<=playback.Volume : Mathf.Abs(initial-playback.Volume)<.00001f,
+                        "Неверный относительный уровень: "+weapon);
+                    Require(!Application.isBatchMode || source.mute,"Фоновая проверка атаки не заглушена");
+                    receive.Invoke(playback,new object[]{attack});
+                    Require(root.GetComponentsInChildren<AudioSource>().Length==before+1,"Повтор атаки создал второй звук: "+weapon);
+                    playback.Volume*=.5f;
+                    typeof(GameplayAudio).GetMethod("Update",Private).Invoke(playback,null);
+                    Require(Mathf.Abs(source.volume-initial*.5f)<.00001f,"Громкость повторно выбрана при обновлении микса: "+weapon);
+                    playback.Volume=playback.BaseVolume;
+                }
+                Debug.Log("Баланс атак: PASS — уровни каталога, отсутствие повторов, сохранение усиления при изменении громкости.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
         }
         private static void Check(string texture,string expected,bool actorBlocks)
         {
