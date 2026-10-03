@@ -82,6 +82,7 @@ namespace Remains.Editor
             DamageFeedbackChecks.Run();
             WeaponPoseChecks.Run();WeaponElevationChecks.Run();
             MovableContainerChecks.Run();
+            PropPlatformChecks.Run();
             TelekinesisRuleChecks.Run();
             MagicRecoveryChecks.Run();
             AttackContactChecks.Run();

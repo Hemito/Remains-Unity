@@ -23,6 +23,7 @@ namespace Remains.Runtime
         private bool Host=>runtime.Options.Role=="host";
         private bool ContainerScenario=>runtime.Options.Smoke.Contains("-container-");
         private string initialItems;
+        private Vector2 abovePlatform,belowPlatform;
         private PropState Target(WorldState world)=>world==null?null:ContainerScenario?world.containers.Single(c=>c.id==ContainerState.PrototypeId):world.props.Single();
         public void Initialize(PrototypeRuntime value)
         {
@@ -44,6 +45,7 @@ namespace Remains.Runtime
             if(!Host || prop==null) return default;
             if(phase==1 || phase==4) return new PlayerCommand {telekinesis=true,hasAim=true,aim=prop.Position};
             if(phase==2) return new PlayerCommand {telekinesis=true,hasAim=true,aim=new Vector2(-1,2)};
+            if(phase==7 || phase==8) return new PlayerCommand {telekinesis=true,hasAim=true,aim=phase==7?abovePlatform:belowPlatform};
             return default;
         }
         private void SetPhase(int value) {phase=value;NetworkServer.SendToAll(new TelekinesisProbePhase {phase=value});}
@@ -65,9 +67,19 @@ namespace Remains.Runtime
             if(PauseScenario && phase==2 && !pauseStarted && prop.held && prop.y>1)
             {pauseStarted=true;pauseRunning=true;StartCoroutine(PauseHeldProp());return;}
             if(phase==0 && !traveled) {traveled=true;session.Travel.RequestFactory();}
-            if(phase==0 && self.level=="factory:0" && !session.Travel.Pending) SetPhase(1);
+            if(phase==0 && self.level=="factory:0" && !session.Travel.Pending)
+            {
+                var surface=runtime.Geometry.Get(self.level).platforms.FirstOrDefault(p=>p.oneWay && p.width>2);
+                if(surface==null) {Finish(false,"Для проверки спуска нет достаточно широкой платформы.");return;}
+                float floor=surface.y+surface.height;
+                abovePlatform=new Vector2(surface.x+1,floor+1+prop.anchorHeight);
+                belowPlatform=new Vector2(surface.x+1,floor-1+prop.anchorHeight);
+                SetPhase(1);
+            }
             else if(phase==1 && prop.held && prop.owner==session.LocalOwner) SetPhase(2);
-            else if(phase==2 && Vector2.Distance(prop.Position,new Vector2(-1,2))<.15f) SetPhase(3);
+            else if(phase==2 && Vector2.Distance(prop.Position,new Vector2(-1,2))<.15f) SetPhase(7);
+            else if(phase==7 && Vector2.Distance(prop.Position,abovePlatform)<.1f) SetPhase(8);
+            else if(phase==8 && Vector2.Distance(prop.Position,belowPlatform)<.1f) SetPhase(3);
             else if(phase==3 && !prop.held && prop.y-prop.anchorHeight<.1f) SetPhase(4);
             else if(phase==4 && prop.held)
             {session.Travel.RequestHub();SetPhase(5);}
@@ -86,7 +98,7 @@ namespace Remains.Runtime
                 }
                 SetPhase(6);
                 NetworkServer.SendToAll(new TelekinesisProbeFinish {success=valid,detail=valid?
-                    "Обычные команды: захват, подъём, расход маны владельца, отпускание, повторный захват, уход в хаб и передача физики предмета другому игроку."+(ContainerScenario?" Содержимое и ID вещей контейнера сохранены без изменений, положение записано в сейв.":""):"Неверный расход маны, положение или сохранность содержимого."});
+                    "Обычные команды: захват, подъём и спуск сквозь платформу, расход маны владельца, отпускание, повторный захват, уход в хаб и передача физики предмета другому игроку."+(ContainerScenario?" Содержимое и ID вещей контейнера сохранены без изменений, положение записано в сейв.":""):"Неверный расход маны, положение или сохранность содержимого."});
             }
         }
         private float[] PauseSnapshot()
