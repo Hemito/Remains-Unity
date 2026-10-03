@@ -20,6 +20,8 @@ namespace Remains.Presentation
         private readonly string[] legacyLabels;
         private readonly Image[] icons;
         private readonly Image detailIcon;
+        private readonly Image weaponPreview;
+        private readonly Text weaponDetail;
         private readonly InventoryArtwork artwork;
         private readonly InventoryPortrait portrait;
         private readonly string[] ids;
@@ -44,6 +46,7 @@ namespace Remains.Presentation
             view.Validate();
             rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
             detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
+            weaponPreview=view.WeaponPreview;weaponDetail=view.WeaponDetail;
             title=view.Title;detail=view.Detail;actionStatus=view.ActionStatus;
             portrait=new InventoryPortrait(view.Portrait,view.PortraitParts);
             weaponIcons=new Image[weaponButtons.Length];legacyLabels=new string[weaponButtons.Length];
@@ -82,7 +85,7 @@ namespace Remains.Presentation
         }
         public void Refresh(InventorySource destination)
         {
-            container=destination;var actor=session.LocalActor;portrait.Refresh(actor);int count=actor?.inventory.Count??0;
+            container=destination;var actor=session.LocalActor;int count=actor?.inventory.Count??0;
             if(actor==null) container=null;
             for(int i=0;i<weaponButtons.Length;i++)
             {
@@ -117,6 +120,14 @@ namespace Remains.Presentation
             bool paused=actor!=null && session.Pause.IsPaused(actor.level);
             deposit.interactable=chosen!=null && availableChosen>=amount && amount>0 && rejection==null && !paused;
             bool weaponSelected=chosen?.weaponState!=null && actor.weaponInventoryVersion==1;
+            detail.gameObject.SetActive(!weaponSelected);detailIcon.gameObject.SetActive(!weaponSelected);
+            weaponPreview.gameObject.SetActive(weaponSelected);weaponDetail.gameObject.SetActive(weaponSelected);
+            portrait.Refresh(weaponSelected?null:actor);
+            if(weaponSelected)
+            {
+                artwork.Set(weaponPreview,chosen.definition);
+                weaponDetail.text=itemName(chosen.definition)+"\n"+WeaponDescription(actor,chosen);
+            }
             use.interactable=availableChosen>0 && !paused && actor is {down:false} &&
                 (weaponSelected || chosen?.definition=="heal" && HealingRules.CanApply(actor,actor,true));
             use.GetComponentInChildren<Text>().text=weaponSelected?(actor.equippedWeaponItem==chosen.id?"Убрать оружие":"Взять в копыта"):"Использовать";

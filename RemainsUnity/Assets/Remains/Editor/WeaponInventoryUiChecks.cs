@@ -43,7 +43,7 @@ namespace Remains.Editor
                 panel.Refresh(null);view.Rows[1].onClick.Invoke();
                 Require(view.Rows[0].GetComponentInChildren<Text>().text.Contains("7/12") &&
                     view.Rows[1].GetComponentInChildren<Text>().text.Contains("2/12"),"Строки не различают боезапас экземпляров");
-                Require(view.Use.interactable && view.Detail.text.Contains("В магазине: 2"),"Нет действия/магазина выбранного экземпляра");
+                Require(view.Use.interactable && view.WeaponDetail.text.Contains("В магазине: 2"),"Нет действия/магазина выбранного экземпляра");
                 view.Use.onClick.Invoke();Require(actor.equippedWeaponItem==b.id,"Выбран первый пистолет вместо второго");
                 view.Weapons[0].onClick.Invoke();Require(WeaponInventory.Shortcut(actor,"1")?.id==b.id,"Назначение не сохранило instance ID");
                 var hudRoot=new GameObject("Проверка быстрых ссылок",typeof(RectTransform));hudRoot.transform.SetParent(root.transform);
@@ -55,7 +55,7 @@ namespace Remains.Editor
                 foreach(int row in new[]{3,4})
                 {
                     view.Rows[row].onClick.Invoke();
-                    Require(!view.Detail.text.Contains("магазине") && view.Detail.text.Contains("Ближний бой"),"Ближнему оружию показан магазин");
+                    Require(!view.WeaponDetail.text.Contains("магазине") && view.WeaponDetail.text.Contains("Ближний бой"),"Ближнему оружию показан магазин");
                 }
                 view.Rows[1].onClick.Invoke();
                 if(render)
@@ -66,7 +66,7 @@ namespace Remains.Editor
                     foreach(int row in new[]{1,3,4})
                     {
                         view.Rows[row].onClick.Invoke();Canvas.ForceUpdateCanvases();
-                        Require(view.Detail.preferredHeight<=view.Detail.rectTransform.rect.height+.1f,"Описание оружия обрезается");
+                        Require(view.WeaponDetail.preferredHeight<=view.WeaponDetail.rectTransform.rect.height+.1f,"Описание оружия обрезается");
                         camera.Render();RenderTexture.active=target;
                         image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();
                         string suffix=row==1?"":"-"+actor.inventory[row].definition;

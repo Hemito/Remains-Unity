@@ -10,6 +10,8 @@ namespace Remains.Presentation
         [InspectorName("Кнопки оружия")] public Button[] Weapons;
         [InspectorName("ID оружия")] public string[] WeaponIds;
         [InspectorName("Иконка выбранного предмета")] public Image DetailIcon;
+        [InspectorName("Широкий просмотр оружия")] public Image WeaponPreview;
+        [InspectorName("Описание выбранного оружия")] public Text WeaponDetail;
         [InspectorName("Портрет")] public GameObject Portrait;
         [InspectorName("Части портрета")] public PortraitPart[] PortraitParts;
         [InspectorName("Предыдущая страница")] public Button Previous;
@@ -22,7 +24,7 @@ namespace Remains.Presentation
         public void Validate()
         {
             if(Rows==null || Icons==null || Rows.Length==0 || Rows.Length!=Icons.Length || Weapons==null || WeaponIds==null || Weapons.Length!=WeaponIds.Length ||
-                DetailIcon==null || Portrait==null || PortraitParts==null || PortraitParts.Length==0 || Previous==null || Next==null || Deposit==null || Use==null || Title==null || Detail==null || ActionStatus==null)
+                DetailIcon==null || WeaponPreview==null || WeaponDetail==null || Portrait==null || PortraitParts==null || PortraitParts.Length==0 || Previous==null || Next==null || Deposit==null || Use==null || Title==null || Detail==null || ActionStatus==null)
                 throw new InvalidOperationException("Личный инвентарь: не заполнены ссылки или не совпадают массивы элементов.");
             if(Array.Exists(Rows,x=>x==null) || Array.Exists(Icons,x=>x==null) || Array.Exists(Weapons,x=>x==null) || Array.Exists(WeaponIds,string.IsNullOrWhiteSpace) || Array.Exists(PortraitParts,x=>x==null))
                 throw new InvalidOperationException("Личный инвентарь: пустой элемент списка, оружия или портрета.");
