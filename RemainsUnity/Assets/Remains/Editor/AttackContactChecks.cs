@@ -8,6 +8,18 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            var npc=new ActorState {id="handoff-target",owner="first",level="hub",generation=4,lifecycleSequence=2};
+            var pending=new AttackTargetSnapshot(npc,true);
+            npc.owner="second";npc.generation++;
+            Require(pending.CanApply(npc),"Смена владельца NPC потеряла уже установленный контакт");
+            npc.lifecycleSequence++;
+            Require(!pending.CanApply(npc),"Контакт применим к новому воплощению NPC");
+            npc.lifecycleSequence--;npc.level="factory:0";
+            Require(!pending.CanApply(npc),"Контакт пересёк границу уровня");
+            npc.level="hub";npc.player=true;
+            Require(!pending.CanApply(npc),"Контакт NPC применим к игроку");
+            pending=new AttackTargetSnapshot(npc,true);npc.generation++;
+            Require(!pending.CanApply(npc),"Смена владельца игрока сохранила старое решение о контакте");
             Require(HitGeometry.CircleEntry(Vector2.zero,1,new Vector2(-2,0),new Vector2(2,0))==.25f,"Точка входа в круг");
             Require(HitGeometry.CircleEntry(Vector2.zero,1,new Vector2(-2,2),new Vector2(2,2))==null,"Промах мимо круга");
             Require(HitGeometry.CircleEntry(Vector2.zero,1,Vector2.zero,Vector2.zero)==0,"Начало внутри круга");

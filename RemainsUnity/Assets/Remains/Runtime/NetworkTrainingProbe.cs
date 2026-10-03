@@ -53,8 +53,8 @@ namespace Remains.Runtime
                 movingShotCaptured=true;
             }
         }
-        private readonly Dictionary<string,(int generation,int lifecycle,string pose,float time)> remotePhases=new();
-        private int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;
+        private readonly Dictionary<string,(int generation,int lifecycle,string pose,uint sequence,float time)> remotePhases=new();
+        private int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds,remoteRunRestarts;
         private float maximumRemoteRunRewind;
         private string previousLocalPose;
         private void ObserveRemoteRun(ActorState actor)
@@ -62,6 +62,13 @@ namespace Remains.Runtime
             if(remotePhases.TryGetValue(actor.id,out var previous) && previous.generation==actor.generation &&
                 previous.lifecycle==actor.lifecycleSequence && previous.pose=="run" && actor.pose=="run")
             {
+                if(previous.sequence!=actor.poseSequence)
+                {
+                    remoteRunRestarts++;
+                    Debug.Log($"Новый запуск удалённого бега: actor={actor.id}, previousSequence={previous.sequence}, sequence={actor.poseSequence}, before={previous.time}, after={actor.poseTime}, time={Time.unscaledTime}.");
+                }
+                else
+                {
                 remoteRunSamples++;
                 float rewind=previous.time-actor.poseTime;
                 if(rewind>.0001f)
@@ -71,8 +78,9 @@ namespace Remains.Runtime
                     maximumRemoteRunRewind=Mathf.Max(maximumRemoteRunRewind,rewind);
                     if(rewind>=1f/30) remoteRunFrameRewinds++;
                 }
+                }
             }
-            remotePhases[actor.id]=(actor.generation,actor.lifecycleSequence,actor.pose,actor.poseTime);
+            remotePhases[actor.id]=(actor.generation,actor.lifecycleSequence,actor.pose,actor.poseSequence,actor.poseTime);
         }
         public void Initialize(PrototypeRuntime value)
         {
@@ -258,7 +266,7 @@ namespace Remains.Runtime
             if(success && MovingShotExercise && !weaponTrace.ValidateLocal(out var mismatch)) {success=false;detail=mismatch;}
             string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 raisedWeapons=raisedWeapons.Count,rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
-                remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
+                remoteRunRestarts=remoteRunRestarts,remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
                 sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,movingShots=movingShots,
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,landingVoices=runtime.MovementAudio.LandingVoices,ladderContacts=runtime.MovementAudio.LadderContacts,
@@ -267,6 +275,6 @@ namespace Remains.Runtime
             weaponTrace.Save(runtime.Options.Report+".weapons.json");
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public int raisedWeapons;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }

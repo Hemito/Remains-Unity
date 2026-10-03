@@ -163,7 +163,7 @@ namespace Remains.Gameplay
         private void ApplyAttackTarget(AttackEvent attack,AttackTargetSnapshot target,string decisionOwner=null)
         {
                 var actor=session.World?.Find(target.id);
-                if(!target.Matches(actor) || !AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) return;
+                if(!target.CanApply(actor) || !AttackScope.CanAffect(attack,actor,session.World.friendlyFire)) return;
                 bool contact=target.contact;
                 if (actor.player)
                 {
