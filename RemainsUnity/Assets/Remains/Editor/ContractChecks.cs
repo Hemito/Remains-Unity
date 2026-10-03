@@ -18,6 +18,7 @@ namespace Remains.Editor
             if(music==null) throw new InvalidOperationException("Нет каталога музыки локаций.");
             music.Validate();
             CombatMusicChecks.Run();
+            NpcPerceptionChecks.Run();
             ExplosionPrefabChecks.Run();
             Anatomy.Load();
             JumpPoseChecks.Run();
