@@ -8,7 +8,7 @@ namespace Remains.Content
     [Serializable] public sealed class TrainingLayout {public string patch,level;public TrainingPlacement[] actors,containers;}
     public static class HubTrainingContent
     {
-        public const string Patch="base:hub-training-2";
+        public const string Patch="base:hub-training-3";
         public static bool NeedsInstall(WorldState world)=>!world.contentPatches.Contains(Patch);
         public static void Install(WorldState world)
         {
@@ -19,6 +19,7 @@ namespace Remains.Content
             if(layout==null || layout.patch!=Patch || layout.level!="hub" || layout.actors==null || layout.containers==null)
                 throw new InvalidOperationException("Некорректная расстановка мишеней хаба.");
             var ids=new HashSet<string>();var additions=new List<ActorState>();
+            var relocations=new List<(ActorState actor,TrainingPlacement placement)>();
             foreach(var entry in layout.actors)
             {
                 if(string.IsNullOrEmpty(entry.id) || !ids.Add(entry.id) || !float.IsFinite(entry.x) || !float.IsFinite(entry.y) || Math.Abs(entry.facing)!=1)
@@ -30,6 +31,7 @@ namespace Remains.Content
                 if(existing!=null)
                 {
                     if(existing.actorType!=entry.type || existing.level!=layout.level) throw new InvalidOperationException("Конфликт ID мишени с существующим актёром: "+entry.id);
+                    relocations.Add((existing,entry));
                     continue;
                 }
                 additions.Add(new ActorState {id=entry.id,actorType=entry.type,level=layout.level,x=entry.x,y=entry.y,
@@ -50,6 +52,8 @@ namespace Remains.Content
                 containers.Add(new ContainerState {id=entry.id,definition=entry.type,level=layout.level,x=entry.x,y=entry.y,
                     mass=definition.mass,width=definition.width,height=definition.height,anchorHeight=0});
             }
+            foreach(var move in relocations)
+            {move.actor.x=move.placement.x;move.actor.y=move.placement.y;move.actor.facing=move.placement.facing;move.actor.vx=move.actor.vy=0;}
             world.actors.AddRange(additions);world.containers.AddRange(containers);world.contentPatches.Add(Patch);world.revision++;
             Debug.Log($"Добавлена тренировочная часть хаба: world={world.worldId}, actors={additions.Count}, patch={Patch}.");
         }

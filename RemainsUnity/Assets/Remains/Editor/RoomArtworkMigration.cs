@@ -88,23 +88,10 @@ namespace Remains.Editor
                     var authoring=root.GetComponent<RoomAuthoring>();
                     if(authoring.HasAuthoredArtwork) throw new InvalidOperationException("Оформление уже перенесено: "+key);
                     var layout=authoring.CreateLayout();generated=RoomVisual.Build(layout);generated.name="Оформление";
-                    string folder=resources+"/"+key+"-artwork";
-                    if(AssetDatabase.IsValidFolder(folder)) throw new InvalidOperationException("Каталог оформления уже существует: "+folder);
-                    AssetDatabase.CreateFolder(resources,key+"-artwork");
-                    int index=0;
-                    foreach(var filter in generated.GetComponentsInChildren<MeshFilter>())
-                    {
-                        var renderer=filter.GetComponent<MeshRenderer>();string prefix=folder+"/layer-"+index++;
-                        AssetDatabase.CreateAsset(filter.sharedMesh,prefix+".asset");
-                        var material=new Material(renderer.sharedMaterial);var block=new MaterialPropertyBlock();renderer.GetPropertyBlock(block);
-                        material.SetFloat("_Emission",block.GetFloat("_Emission"));renderer.SetPropertyBlock(null);
-                        AssetDatabase.CreateAsset(material,prefix+".mat");renderer.sharedMaterial=material;
-                    }
-                    var lifetime=generated.GetComponent<RoomMeshLifetime>();lifetime.Meshes.Clear();UnityEngine.Object.DestroyImmediate(lifetime);
-                    UnityEngine.Object.DestroyImmediate(generated.GetComponent<RoomLighting>());
+                    RoomArtworkAssets.Save(generated,resources,key+"-artwork");
                     generated.transform.SetParent(root.transform,false);
                     authoring.UseAuthoredArtwork();PrefabUtility.SaveAsPrefabAsset(root,path);generated=null;
-                    Debug.Log($"Оформление {key}: сохранено {index} слоёв в префабе.");
+                    Debug.Log($"Оформление {key}: сохранены слои в префабе.");
                 }
                 finally {if(generated!=null) UnityEngine.Object.DestroyImmediate(generated);PrefabUtility.UnloadPrefabContents(root);}
             }

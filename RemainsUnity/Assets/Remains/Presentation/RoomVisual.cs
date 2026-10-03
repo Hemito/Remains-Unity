@@ -7,11 +7,12 @@ namespace Remains.Presentation
 {
     public static class RoomVisual
     {
-        public static GameObject Build(RoomLayout room)
+        public static GameObject Build(RoomLayout room,RoomLightProfile lightingProfile=null)
         {
             var parent=new GameObject("Комната: "+room.id).transform;
             parent.gameObject.AddComponent<RoomMeshLifetime>();
-            var lighting=parent.gameObject.AddComponent<RoomLighting>();lighting.Initialize(room);
+            var lighting=parent.gameObject.AddComponent<RoomLighting>();
+            if(lightingProfile==null) lighting.Initialize(room);else lighting.Initialize(room,lightingProfile);
             foreach(var light in lighting.Profile.lights)
                 if(!string.IsNullOrEmpty(light.fixture)) Quad(parent,"Светильник: "+light.id,light.x-light.width/2,light.y,light.width,light.height,light.fixture,2,false,1,true);
             if(room.artwork!=null)

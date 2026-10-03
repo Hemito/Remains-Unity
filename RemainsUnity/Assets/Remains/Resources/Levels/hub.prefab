@@ -1067,108 +1067,6 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
---- !u!1 &133963170593674451
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 4351801844571156631}
-  - component: {fileID: 6376739985019122411}
-  - component: {fileID: 4161470249857877379}
-  - component: {fileID: 9198702977878499819}
-  m_Layer: 0
-  m_Name: "\u0424\u043E\u043D: Hub/rim"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &4351801844571156631
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 133963170593674451}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.5625, y: 0.8, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 818094607325504343}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &6376739985019122411
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 133963170593674451}
-  m_Mesh: {fileID: 4300000, guid: 3964e8e9dde97ec4992f29382de4244c, type: 2}
---- !u!23 &4161470249857877379
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 133963170593674451}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 8bce4e62e6b40d146a8d8516ad7b031e, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -3
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &9198702977878499819
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 133963170593674451}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  textureKey: Hub/rim
-  repeat: 1
-  stretchY: 0
 --- !u!1 &146739870486890819
 GameObject:
   m_ObjectHideFlags: 0
@@ -1271,6 +1169,63 @@ MonoBehaviour:
   textureKey: Hub/shelf
   repeat: 1
   stretchY: 0
+--- !u!1 &153699514482773234
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3433399497114397271}
+  - component: {fileID: 5176141405392674811}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442 \u0442\u0438\u0440\u0430 50"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3433399497114397271
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 153699514482773234}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 50, y: 6.4, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8705550183626275462}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5176141405392674811
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 153699514482773234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: range-50
+  intensity: 0.85
+  useMask: 0
+  shadow: 0
+  mask: {fileID: 0}
+  maskOffset: {x: -50, y: -6.4}
+  maskSize: {x: 0, y: 0}
+  radius: 6
+  color: {r: 1, g: 0.93, b: 0.75, a: 1}
+  fixture: 
+  maskId: 
+  width: 0
+  height: 0
 --- !u!1 &155463509100746359
 GameObject:
   m_ObjectHideFlags: 0
@@ -2183,108 +2138,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   textureKey: Hub/M
-  repeat: 1
-  stretchY: 0
---- !u!1 &242588944500700173
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 7846529175994192331}
-  - component: {fileID: 1415802046153619664}
-  - component: {fileID: 9128523246012616849}
-  - component: {fileID: 5107136901359978119}
-  m_Layer: 0
-  m_Name: "\u0424\u043E\u043D: Hub/rim"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &7846529175994192331
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 242588944500700173}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.5625, y: 3.2, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 818094607325504343}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &1415802046153619664
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 242588944500700173}
-  m_Mesh: {fileID: 4300000, guid: 558fe0b04efb72b4c8e7bd233bfc3d1c, type: 2}
---- !u!23 &9128523246012616849
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 242588944500700173}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 8bce4e62e6b40d146a8d8516ad7b031e, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -3
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &5107136901359978119
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 242588944500700173}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  textureKey: Hub/rim
   repeat: 1
   stretchY: 0
 --- !u!1 &263458132402064949
@@ -3762,6 +3615,108 @@ MonoBehaviour:
   textureKey: Hub/decor-barrow-1
   repeat: 0
   stretchY: 0
+--- !u!1 &481170501147116958
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6604018332325554773}
+  - component: {fileID: 7574748373176039563}
+  - component: {fileID: 6057820575124723554}
+  - component: {fileID: 4291966432487121698}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/decor-light3-1"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6604018332325554773
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481170501147116958}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 49, y: 6.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &7574748373176039563
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481170501147116958}
+  m_Mesh: {fileID: 4300000, guid: 23710afe034fe9f4f9046bce6142e9c5, type: 2}
+--- !u!23 &6057820575124723554
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481170501147116958}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: d02b9c50b29bdd14b983ecc9140dce52, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -12
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &4291966432487121698
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481170501147116958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/decor-light3-1
+  repeat: 0
+  stretchY: 0
 --- !u!1 &495331349794726104
 GameObject:
   m_ObjectHideFlags: 0
@@ -3820,53 +3775,6 @@ MonoBehaviour:
   maskId: Original/Room/Hub/light-mask-light4-1
   width: 0
   height: 0
---- !u!1 &496936267733430356
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 8028216385768631267}
-  - component: {fileID: 5781151817890778225}
-  m_Layer: 0
-  m_Name: "\u041F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C 86"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &8028216385768631267
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 496936267733430356}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.6, y: 0.8, z: 0}
-  m_LocalScale: {x: 0.8, y: 0.8, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 8705550183626275462}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5781151817890778225
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 496936267733430356}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  texture: Hub/concrete
-  oneWay: 0
-  shotsPassThrough: 0
 --- !u!1 &503365337226444026
 GameObject:
   m_ObjectHideFlags: 0
@@ -5478,108 +5386,6 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
---- !u!1 &762286021270142172
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 3515846448486089555}
-  - component: {fileID: 4436628918206292620}
-  - component: {fileID: 5447266431750753870}
-  - component: {fileID: 6396557875172263913}
-  m_Layer: 0
-  m_Name: "\u0424\u043E\u043D: Hub/concrete"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &3515846448486089555
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 762286021270142172}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.6, y: 3.2, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 818094607325504343}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &4436628918206292620
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 762286021270142172}
-  m_Mesh: {fileID: 4300000, guid: 71e99495abddef3429808951c618234b, type: 2}
---- !u!23 &5447266431750753870
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 762286021270142172}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: a53d3b39e2bb27349a7fb1a2f56107a3, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -4
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6396557875172263913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 762286021270142172}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  textureKey: Hub/concrete
-  repeat: 1
-  stretchY: 0
 --- !u!1 &767438406871634355
 GameObject:
   m_ObjectHideFlags: 0
@@ -6296,6 +6102,108 @@ MonoBehaviour:
   texture: Hub/concrete
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &887799683217804197
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2574656108202817942}
+  - component: {fileID: 4625682573196126602}
+  - component: {fileID: 2373921791776750475}
+  - component: {fileID: 1034550029896028221}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/concrete"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2574656108202817942
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887799683217804197}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 38.4, y: 7.2, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &4625682573196126602
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887799683217804197}
+  m_Mesh: {fileID: 4300000, guid: f53b6012f87bf8f489f3c19cb0193e4b, type: 2}
+--- !u!23 &2373921791776750475
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887799683217804197}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 4e60a3986d99e2d4fada594b096576f4, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -4
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1034550029896028221
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887799683217804197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/concrete
+  repeat: 1
+  stretchY: 0
 --- !u!1 &912124019193482572
 GameObject:
   m_ObjectHideFlags: 0
@@ -6908,6 +6816,108 @@ MonoBehaviour:
   textureKey: Hub/concrete
   repeat: 1
   stretchY: 0
+--- !u!1 &1000875611578954987
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6500778759222561702}
+  - component: {fileID: 5887818512882346447}
+  - component: {fileID: 8339247611023511790}
+  - component: {fileID: 2378156485099106567}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/decor-light3-1"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6500778759222561702
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000875611578954987}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 42, y: 6.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &5887818512882346447
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000875611578954987}
+  m_Mesh: {fileID: 4300000, guid: a9c4e8a2f2429de4a8ed2e47a7aff8f5, type: 2}
+--- !u!23 &8339247611023511790
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000875611578954987}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: c1dd4556538fd7d448ec9435dbdb0cc1, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -12
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &2378156485099106567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000875611578954987}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/decor-light3-1
+  repeat: 0
+  stretchY: 0
 --- !u!1 &1027499495287610023
 GameObject:
   m_ObjectHideFlags: 0
@@ -7410,6 +7420,63 @@ MonoBehaviour:
   texture: Hub/concrete
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &1130258904781631308
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2795076436696611024}
+  - component: {fileID: 2730714212441979044}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442 \u0442\u0438\u0440\u0430 57"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2795076436696611024
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1130258904781631308}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 57, y: 6.4, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8705550183626275462}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2730714212441979044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1130258904781631308}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: range-57
+  intensity: 0.85
+  useMask: 0
+  shadow: 0
+  mask: {fileID: 0}
+  maskOffset: {x: -57, y: -6.4}
+  maskSize: {x: 0, y: 0}
+  radius: 6
+  color: {r: 1, g: 0.93, b: 0.75, a: 1}
+  fixture: 
+  maskId: 
+  width: 0
+  height: 0
 --- !u!1 &1130744599138732142
 GameObject:
   m_ObjectHideFlags: 0
@@ -7865,53 +7932,6 @@ MonoBehaviour:
   textureKey: Hub/concrete
   repeat: 1
   stretchY: 0
---- !u!1 &1168195717444770677
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2810024439931908400}
-  - component: {fileID: 3045659486243052324}
-  m_Layer: 0
-  m_Name: "\u041F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C 82"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2810024439931908400
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1168195717444770677}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.6, y: 2.4, z: 0}
-  m_LocalScale: {x: 0.8, y: 0.8, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 8705550183626275462}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3045659486243052324
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1168195717444770677}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  texture: Hub/concrete
-  oneWay: 0
-  shotsPassThrough: 0
 --- !u!1 &1169053859821415768
 GameObject:
   m_ObjectHideFlags: 0
@@ -8014,6 +8034,102 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &1182926687425764821
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7554867994617028027}
+  - component: {fileID: 3242538813817181856}
+  m_Layer: 0
+  m_Name: "\u0413\u0435\u043E\u043C\u0435\u0442\u0440\u0438\u044F \u0442\u0438\u0440\u0430:
+    Hub/concrete"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7554867994617028027
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1182926687425764821}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 61.6, y: 0.8, z: 0}
+  m_LocalScale: {x: 0.8, y: 6.4, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3242538813817181856
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1182926687425764821}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  texture: Hub/concrete
+  oneWay: 0
+  shotsPassThrough: 0
+--- !u!1 &1184604330287690052
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1033560263309641633}
+  - component: {fileID: 5231398270469788804}
+  m_Layer: 0
+  m_Name: "\u0413\u0435\u043E\u043C\u0435\u0442\u0440\u0438\u044F \u0442\u0438\u0440\u0430:
+    Hub/floor"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1033560263309641633
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1184604330287690052}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 37.6, y: 0, z: 0}
+  m_LocalScale: {x: 24.8, y: 0.8, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5231398270469788804
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1184604330287690052}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  texture: Hub/floor
+  oneWay: 0
+  shotsPassThrough: 0
 --- !u!1 &1189854196552938855
 GameObject:
   m_ObjectHideFlags: 0
@@ -11364,53 +11480,6 @@ MonoBehaviour:
   textureKey: Hub/concrete
   repeat: 1
   stretchY: 0
---- !u!1 &1587868658972093211
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 7374150769308212550}
-  - component: {fileID: 6624183483890901661}
-  m_Layer: 0
-  m_Name: "\u041F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C 80"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &7374150769308212550
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1587868658972093211}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.6, y: 3.2, z: 0}
-  m_LocalScale: {x: 0.8, y: 0.8, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 8705550183626275462}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6624183483890901661
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1587868658972093211}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  texture: Hub/concrete
-  oneWay: 0
-  shotsPassThrough: 0
 --- !u!1 &1615565639622528175
 GameObject:
   m_ObjectHideFlags: 0
@@ -12164,6 +12233,108 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1717432980111479108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/rim
+  repeat: 1
+  stretchY: 0
+--- !u!1 &1736742342931534653
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1176947471599337971}
+  - component: {fileID: 1334669625641550370}
+  - component: {fileID: 4209317503401138128}
+  - component: {fileID: 1594839517529869731}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/rim"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1176947471599337971
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736742342931534653}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 61, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1334669625641550370
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736742342931534653}
+  m_Mesh: {fileID: 4300000, guid: 70c3f6c899576d542b5af140efe23b5b, type: 2}
+--- !u!23 &4209317503401138128
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736742342931534653}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 9ec1292d028f49f4aa9cb63df1419e2a, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -15
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1594839517529869731
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736742342931534653}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
@@ -17685,6 +17856,108 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   textureKey: Hub/rim
+  repeat: 1
+  stretchY: 0
+--- !u!1 &2535527524649706244
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6741907692570820282}
+  - component: {fileID: 2863673835977750366}
+  - component: {fileID: 3445019267351121000}
+  - component: {fileID: 2531759373809056961}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/F"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6741907692570820282
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2535527524649706244}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 37.6, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &2863673835977750366
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2535527524649706244}
+  m_Mesh: {fileID: 4300000, guid: 032efd883448f60418f4665c0f3a7104, type: 2}
+--- !u!23 &3445019267351121000
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2535527524649706244}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: c3dc417ea714ec44490bef3e43799cb7, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -30
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &2531759373809056961
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2535527524649706244}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/F
   repeat: 1
   stretchY: 0
 --- !u!1 &2546416449738525124
@@ -23231,6 +23504,51 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &3297569200538182759
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3949495578203370782}
+  m_Layer: 0
+  m_Name: "\u0422\u0438\u0440"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3949495578203370782
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3297569200538182759}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 6741907692570820282}
+  - {fileID: 2879670686854976624}
+  - {fileID: 2574656108202817942}
+  - {fileID: 2988739269811997933}
+  - {fileID: 3525913430149249151}
+  - {fileID: 3755271949121602103}
+  - {fileID: 1233262952963253453}
+  - {fileID: 1176947471599337971}
+  - {fileID: 6500778759222561702}
+  - {fileID: 6604018332325554773}
+  - {fileID: 2744699357300053206}
+  - {fileID: 1033560263309641633}
+  - {fileID: 6023379201028652154}
+  - {fileID: 7554867994617028027}
+  m_Father: {fileID: 8705550183626275462}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3301461661786011553
 GameObject:
   m_ObjectHideFlags: 0
@@ -26208,6 +26526,54 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3746451551617034465}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  texture: Hub/concrete
+  oneWay: 0
+  shotsPassThrough: 0
+--- !u!1 &3754672740322452763
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6023379201028652154}
+  - component: {fileID: 3930285007224913236}
+  m_Layer: 0
+  m_Name: "\u0413\u0435\u043E\u043C\u0435\u0442\u0440\u0438\u044F \u0442\u0438\u0440\u0430:
+    Hub/concrete"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6023379201028652154
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3754672740322452763}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 38.4, y: 7.2, z: 0}
+  m_LocalScale: {x: 24, y: 0.8, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3930285007224913236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3754672740322452763}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
@@ -29417,6 +29783,63 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &4453161965505244529
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7776534298376458037}
+  - component: {fileID: 5561954025434884229}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442 \u0442\u0438\u0440\u0430 43"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7776534298376458037
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4453161965505244529}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 43, y: 6.4, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8705550183626275462}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5561954025434884229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4453161965505244529}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: range-43
+  intensity: 0.85
+  useMask: 0
+  shadow: 0
+  mask: {fileID: 0}
+  maskOffset: {x: -43, y: -6.4}
+  maskSize: {x: 0, y: 0}
+  radius: 6
+  color: {r: 1, g: 0.93, b: 0.75, a: 1}
+  fixture: 
+  maskId: 
+  width: 0
+  height: 0
 --- !u!1 &4453283566756078025
 GameObject:
   m_ObjectHideFlags: 0
@@ -31054,108 +31477,6 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
---- !u!1 &4679343881077372394
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1796215343408767932}
-  - component: {fileID: 5277540720578221946}
-  - component: {fileID: 1343731697286157488}
-  - component: {fileID: 6849424867048523196}
-  m_Layer: 0
-  m_Name: "\u0424\u043E\u043D: Hub/rim"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1796215343408767932
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4679343881077372394}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.5625, y: 1.6, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 818094607325504343}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &5277540720578221946
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4679343881077372394}
-  m_Mesh: {fileID: 4300000, guid: 609b03737b5807c4c9205fe49a437a4d, type: 2}
---- !u!23 &1343731697286157488
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4679343881077372394}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 8bce4e62e6b40d146a8d8516ad7b031e, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -3
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6849424867048523196
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4679343881077372394}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  textureKey: Hub/rim
-  repeat: 1
-  stretchY: 0
 --- !u!1 &4683151658249677832
 GameObject:
   m_ObjectHideFlags: 0
@@ -31518,13 +31839,9 @@ Transform:
   - {fileID: 5403827757292792803}
   - {fileID: 7335472284392157217}
   - {fileID: 8272133819561992522}
-  - {fileID: 7374150769308212550}
   - {fileID: 763540356544245612}
-  - {fileID: 2810024439931908400}
   - {fileID: 2480751535154921714}
-  - {fileID: 6709435163574959631}
   - {fileID: 4218173774071663428}
-  - {fileID: 8028216385768631267}
   - {fileID: 2855793632755456492}
   - {fileID: 4265475000037410818}
   - {fileID: 8103558706886081911}
@@ -31533,6 +31850,10 @@ Transform:
   - {fileID: 1011303492701553963}
   - {fileID: 4276776017264257797}
   - {fileID: 4603029769569287053}
+  - {fileID: 3949495578203370782}
+  - {fileID: 7776534298376458037}
+  - {fileID: 3433399497114397271}
+  - {fileID: 2795076436696611024}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8824742275746732130
@@ -31552,14 +31873,5264 @@ MonoBehaviour:
     lightingProfile: Presentation/Lighting/hub
     movementSound: metal
     left: 0.8
-    right: 37.6
+    right: 61.6
     bottom: 0
     top: 20
     spawnX: 16.4
     spawnY: 4
     platforms: []
     ladders: []
-    artwork: []
+    artwork:
+    - x: 0
+      y: 0
+      width: 38.4
+      height: 20
+      shade: 0.68
+      texture: Hub/base
+      order: -30
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 19.2
+      width: 38.4
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 18.4
+      width: 0.8
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 18.4
+      width: 9.6
+      height: 0.79999924
+      shade: 0.68
+      texture: Hub/C
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 18.4
+      width: 0.8000002
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 18.4
+      width: 0.79999924
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 18.4
+      width: 9.599998
+      height: 0.79999924
+      shade: 0.68
+      texture: Hub/D
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 18.4
+      width: 0.79999924
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 17.6
+      width: 0.8
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 17.6
+      width: 9.6
+      height: 0.79999924
+      shade: 0.68
+      texture: Hub/C
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 17.6
+      width: 0.8000002
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 17.6
+      width: 0.79999924
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 17.6
+      width: 9.599998
+      height: 0.79999924
+      shade: 0.68
+      texture: Hub/D
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 17.6
+      width: 0.79999924
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 16.8
+      width: 0.8
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 16.8
+      width: 9.6
+      height: 0.79999924
+      shade: 0.68
+      texture: Hub/C
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 16.8
+      width: 0.8000002
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 16.8
+      width: 0.79999924
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 16.8
+      width: 9.599998
+      height: 0.79999924
+      shade: 0.68
+      texture: Hub/D
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 16.8
+      width: 0.79999924
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 16
+      width: 0.8
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 16
+      width: 9.6
+      height: 0.79999924
+      shade: 0.68
+      texture: Hub/C
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 16
+      width: 9.6
+      height: 0.79999924
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 16
+      width: 0.8000002
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 16
+      width: 0.79999924
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 16
+      width: 9.599998
+      height: 0.79999924
+      shade: 0.68
+      texture: Hub/D
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 16
+      width: 9.599998
+      height: 0.79999924
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 16
+      width: 0.79999924
+      height: 0.79999924
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 15.2
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 15.2
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/C
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 15.2
+      width: 3.1999998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/N
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 15.2
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/D
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 15.2
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 14.4
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 14.4
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/C
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 14.4
+      width: 3.1999998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/N
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 14.4
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/D
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 14.4
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 13.6
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 13.6
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/C
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 13.6
+      width: 3.1999998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/N
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 13.6
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/D
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 13.6
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 12.8
+      width: 14.4
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.4
+      y: 12.8
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 15.2
+      y: 12.8
+      width: 8.000001
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 23.2
+      y: 12.8
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 12.8
+      width: 14.400002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 12
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 12
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 12
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 12
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/F
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 12
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 11.2
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 11.2
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 11.2
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 11.2
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/F
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 11.2
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 10.4
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 10.4
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 10.4
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 10.4
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/F
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 10.4
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 9.6
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 9.6
+      width: 1.6000001
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 9.6
+      width: 1.6000001
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 9.6
+      width: 0.79999995
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 9.6
+      width: 3.9999998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 9.6
+      width: 3.1999998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 9.6
+      width: 3.1999998
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 9.6
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 9.6
+      width: 3.1999998
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.4
+      y: 9.6
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 15.2
+      y: 9.6
+      width: 1.5999994
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 21.6
+      y: 9.6
+      width: 1.6000004
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 23.2
+      y: 9.6
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 9.6
+      width: 3.2000008
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 9.6
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 9.6
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/F
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 9.6
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 9.6
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/F
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 9.6
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 8.8
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 8.8
+      width: 1.6000001
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 8.8
+      width: 0.79999995
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 8.8
+      width: 7.2
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 8.8
+      width: 10.400002
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/F
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 8
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 8
+      width: 1.6000001
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 8
+      width: 0.79999995
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 8
+      width: 7.2
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 8
+      width: 10.400002
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/F
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 7.2
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 7.2
+      width: 1.6000001
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 7.2
+      width: 0.79999995
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 7.2
+      width: 7.2
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/G
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 7.2
+      width: 10.400002
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/F
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 6.4
+      width: 14.4
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.4
+      y: 6.4
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 15.2
+      y: 6.4
+      width: 8.000001
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 23.2
+      y: 6.4
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 6.4
+      width: 14.400002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 5.6
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 5.6
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/N
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 5.6
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 5.6
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 5.6
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/B
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 5.6
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 4.8
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 4.8
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/N
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 4.8
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 4.8
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 4.8
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/B
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 4.8
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 4
+      width: 0.8
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 4
+      width: 9.6
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/N
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 4
+      width: 0.8000002
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 4
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 4
+      width: 9.599998
+      height: 0.8000002
+      shade: 0.68
+      texture: Hub/B
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 4
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 3.2
+      width: 0.8
+      height: 0.79999995
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 3.2
+      width: 9.6
+      height: 0.79999995
+      shade: 0.68
+      texture: Hub/M
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 3.2
+      width: 0.8000002
+      height: 0.79999995
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 3.2
+      width: 3.1999998
+      height: 0.79999995
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.4
+      y: 3.2
+      width: 0.8000002
+      height: 0.79999995
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 15.2
+      y: 3.2
+      width: 8.000001
+      height: 0.79999995
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 23.2
+      y: 3.2
+      width: 0.79999924
+      height: 0.79999995
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 3.2
+      width: 3.2000008
+      height: 0.79999995
+      shade: 0.8
+      texture: Hub/shelf
+      order: -5
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 3.2
+      width: 0.79999924
+      height: 0.79999995
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 3.2
+      width: 9.599998
+      height: 0.79999995
+      shade: 0.68
+      texture: Hub/B
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 3.2
+      width: 0.79999924
+      height: 0.79999995
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 2.4
+      width: 0.8
+      height: 0.79999995
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 2.4
+      width: 9.6
+      height: 0.79999995
+      shade: 0.68
+      texture: Hub/M
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 2.4
+      width: 9.599998
+      height: 0.79999995
+      shade: 0.68
+      texture: Hub/B
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 2.4
+      width: 0.79999924
+      height: 0.79999995
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 1.6
+      width: 0.8
+      height: 0.8000001
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 1.6
+      width: 9.6
+      height: 0.8000001
+      shade: 0.68
+      texture: Hub/M
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 1.6
+      width: 9.599998
+      height: 0.8000001
+      shade: 0.68
+      texture: Hub/B
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 1.6
+      width: 0.79999924
+      height: 0.8000001
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 0.8
+      width: 0.8
+      height: 0.8
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 0.8
+      width: 9.6
+      height: 0.8
+      shade: 0.68
+      texture: Hub/M
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 0.8
+      width: 9.599998
+      height: 0.8
+      shade: 0.68
+      texture: Hub/B
+      order: -29
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 0.8
+      width: 0.79999924
+      height: 0.8
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 0
+      width: 38.4
+      height: 0.8
+      shade: 0.72
+      texture: Hub/concrete
+      order: -4
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 19.1625
+      width: 0.8
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 1.6
+      y: 19.1625
+      width: 0.8000001
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 19.1625
+      width: 0.79999995
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 19.1625
+      width: 0.79999995
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4.8
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 5.6
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8.8
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 9.6
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12.8
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 13.6
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.4
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 15.2
+      y: 19.1625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 16
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 16.8
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 17.6
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 18.4
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 19.2
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 20
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 20.8
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 21.6
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 22.4
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 23.2
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24.8
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 25.6
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 26.4
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28.8
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 29.6
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 30.4
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32.8
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 33.6
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 34.4
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 35.2
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36.8
+      y: 19.1625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 18.4
+      width: 0.07499999
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 18.4
+      width: 0.07499981
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 18.4
+      width: 0.07499981
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 18.4
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 18.4
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 18.4
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 17.6
+      width: 0.07499999
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 17.6
+      width: 0.07499981
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 17.6
+      width: 0.07499981
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 17.6
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 17.6
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 17.6
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 16.8
+      width: 0.07499999
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 16.8
+      width: 0.07499981
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 16.8
+      width: 0.07499981
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 16.8
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 16.8
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 16.8
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 16
+      width: 0.07499999
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 16
+      width: 0.07499981
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 16
+      width: 0.07499981
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 15.9625
+      width: 0.8000002
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 16
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 16
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 15.9625
+      width: 0.79999924
+      height: 0.07500076
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 16
+      width: 0.07500076
+      height: 0.79999924
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 15.2
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 15.2
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 14.4
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 14.4
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 13.6
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 13.6
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 12.7625
+      width: 0.8
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 13.5625
+      width: 0.8
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 12.7625
+      width: 0.8
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 1.6
+      y: 13.5625
+      width: 0.8000001
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 1.6
+      y: 12.7625
+      width: 0.8000001
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 13.5625
+      width: 0.79999995
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 12.7625
+      width: 0.79999995
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 13.5625
+      width: 0.79999995
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 12.7625
+      width: 0.79999995
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4.8
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4.8
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 5.6
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 5.6
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8.8
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8.8
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 9.6
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 9.6
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12.8
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12.8
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.3625
+      y: 12.8
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 13.6
+      y: 13.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 13.6
+      y: 12.7625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 23.9625
+      y: 12.8
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24.8
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24.8
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 25.6
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 25.6
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 26.4
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 26.4
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28.8
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28.8
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 29.6
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 29.6
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 30.4
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 30.4
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32.8
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32.8
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 33.6
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 33.6
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 34.4
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 34.4
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 35.2
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 35.2
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36.8
+      y: 13.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36.8
+      y: 12.7625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 12
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 12
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 12
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 12
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 12
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 11.2
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 11.2
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 11.2
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 11.2
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 11.2
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 10.4
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 10.4
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 10.4
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 10.4
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 10.4
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0
+      y: 10.3625
+      width: 0.8
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 10.3625
+      width: 0.8
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 9.5625
+      width: 0.8
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.3625
+      y: 9.6
+      width: 0.07500005
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 1.6
+      y: 10.3625
+      width: 0.8000001
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 1.6
+      y: 9.5625
+      width: 0.8000001
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 9.6
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 9.6
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 9.5625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 9.6
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 9.6
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 9.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 9.6
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 9.5625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 8.8
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 8
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 7.2
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 7.1625
+      width: 0.8
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 6.3625
+      width: 0.8
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 1.6
+      y: 7.1625
+      width: 0.8000001
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 1.6
+      y: 6.3625
+      width: 0.8000001
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 7.1625
+      width: 0.79999995
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 6.3625
+      width: 0.79999995
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 7.1625
+      width: 0.79999995
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 6.3625
+      width: 0.79999995
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4.8
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4.8
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 5.6
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 5.6
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8.8
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8.8
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 9.6
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 9.6
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12.8
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12.8
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.3625
+      y: 6.4
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 13.6
+      y: 7.1625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 13.6
+      y: 6.3625
+      width: 0.8000002
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 23.9625
+      y: 6.4
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24.8
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24.8
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 25.6
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 25.6
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 26.4
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 26.4
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28.8
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28.8
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 29.6
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 29.6
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 30.4
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 30.4
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32.8
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32.8
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 33.6
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 33.6
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 34.4
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 34.4
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 35.2
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 35.2
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36.8
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36.8
+      y: 6.3625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.6
+      y: 7.1625
+      width: 0.79999924
+      height: 0.07499981
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 5.6
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 5.6
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 5.6
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 5.6
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 5.6
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 5.6
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 4.8
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 4.8
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 4.8
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 4.8
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 4.8
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 4.8
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 4
+      width: 0.07499999
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 4
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 4
+      width: 0.07499981
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 4
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 4
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 4
+      width: 0.07500076
+      height: 0.8000002
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 3.2
+      width: 0.07499999
+      height: 0.79999995
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.3625
+      y: 3.2
+      width: 0.07499981
+      height: 0.79999995
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.1625
+      y: 3.2
+      width: 0.07499981
+      height: 0.79999995
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 3.1625
+      width: 0.8000002
+      height: 0.07500005
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.1625
+      y: 3.2
+      width: 0.07500076
+      height: 0.79999995
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.9625
+      y: 3.2
+      width: 0.07500076
+      height: 0.79999995
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 3.1625
+      width: 0.79999924
+      height: 0.07500005
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 3.2
+      width: 0.07500076
+      height: 0.79999995
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 2.4
+      width: 0.07499999
+      height: 0.79999995
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 2.4
+      width: 0.07500076
+      height: 0.79999995
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 1.6
+      width: 0.07499999
+      height: 0.8000001
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 1.6
+      width: 0.07500076
+      height: 0.8000001
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.7625
+      y: 0.8
+      width: 0.07499999
+      height: 0.8
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 37.5625
+      y: 0.8
+      width: 0.07500076
+      height: 0.8
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 0.7625
+      width: 0.8
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 1.6
+      y: 0.7625
+      width: 0.8000001
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 0.7625
+      width: 0.79999995
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 0.7625
+      width: 0.79999995
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4.8
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 5.6
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8.8
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 9.6
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 10.4
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12.8
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 13.6
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.4
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 15.2
+      y: 0.7625
+      width: 0.8000002
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 16
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 16.8
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 17.6
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 18.4
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 19.2
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 20
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 20.8
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 21.6
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 22.4
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 23.2
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24.8
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 25.6
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 26.4
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 27.2
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28.8
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 29.6
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 30.4
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32.8
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 33.6
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 34.4
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 35.2
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36.8
+      y: 0.7625
+      width: 0.79999924
+      height: 0.07499999
+      shade: 0.78
+      texture: Hub/rim
+      order: -3
+      repeat: 1
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28.8
+      y: 17.4
+      width: 1
+      height: 1
+      shade: 0.82
+      texture: Hub/decor-vent-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 21.6
+      y: 14.6
+      width: 5
+      height: 4.6000004
+      shade: 0.82
+      texture: Hub/decor-fwindow-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36.8
+      y: 1.4
+      width: 0.79999924
+      height: 1.0000001
+      shade: 0.82
+      texture: Hub/decor-rak-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 3.2
+      width: 1.2999992
+      height: 1.6000001
+      shade: 0.82
+      texture: Hub/decor-poster-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 33.6
+      y: 3.2
+      width: 1.2999992
+      height: 1.6000001
+      shade: 0.82
+      texture: Hub/decor-poster-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 34.4
+      y: 7.2
+      width: 3.2000008
+      height: 2.4000006
+      shade: 0.82
+      texture: Hub/decor-storage-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 7.2
+      width: 3.2000008
+      height: 2.4000006
+      shade: 0.82
+      texture: Hub/decor-storage-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 17.4
+      width: 1
+      height: 1
+      shade: 0.82
+      texture: Hub/decor-vent-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 17.4
+      width: 1
+      height: 1
+      shade: 0.82
+      texture: Hub/decor-vent-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 33.6
+      y: 17.4
+      width: 1
+      height: 1
+      shade: 0.82
+      texture: Hub/decor-vent-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 9.6
+      width: 0.79999924
+      height: 3.1999998
+      shade: 0.82
+      texture: Hub/decor-konstr-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 6.4
+      width: 0.79999924
+      height: 3.2000003
+      shade: 0.82
+      texture: Hub/decor-konstr-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 16.8
+      width: 3.2000003
+      height: 1.6000004
+      shade: 0.82
+      texture: Hub/decor-bwindow-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 16.8
+      width: 3.2000003
+      height: 1.6000004
+      shade: 0.82
+      texture: Hub/decor-bwindow-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 7.2
+      width: 1.6000001
+      height: 2.4000006
+      shade: 0.82
+      texture: Hub/decor-depot-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 2.4
+      y: 7.2
+      width: 1.5999999
+      height: 2.4000006
+      shade: 0.82
+      texture: Hub/decor-depot-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4
+      y: 7.2
+      width: 1.5999999
+      height: 2.4000006
+      shade: 0.82
+      texture: Hub/decor-depot-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 5.6
+      y: 7.2
+      width: 1.5999999
+      height: 2.4000006
+      shade: 0.82
+      texture: Hub/decor-depot-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 7.2
+      width: 1.6000004
+      height: 2.4000006
+      shade: 0.82
+      texture: Hub/decor-depot-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28
+      y: 4.8
+      width: 1.6000004
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-pipe3-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 29.6
+      y: 4.8
+      width: 1.6000004
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-pipe3-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 4.8
+      width: 1.5999985
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-pipe3-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32.8
+      y: 4.8
+      width: 1.5999985
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-pipe3-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 34.4
+      y: 4.8
+      width: 1.5999985
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-pipe3-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 4.8
+      width: 1.5999985
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-pipe3-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 31.2
+      y: 1.08
+      width: 2.1399994
+      height: 1.32
+      shade: 0.82
+      texture: Hub/decor-barrow-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32.8
+      y: 0.8
+      width: 2.4000015
+      height: 2.4
+      shade: 0.82
+      texture: Hub/decor-oper-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 0.8
+      width: 2.3999996
+      height: 2.4
+      shade: 0.82
+      texture: Hub/decor-gate-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 4.72
+      width: 1.6000004
+      height: 0.8800001
+      shade: 0.82
+      texture: Hub/decor-swindow-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24.8
+      y: 4.72
+      width: 1.6000004
+      height: 0.8800001
+      shade: 0.82
+      texture: Hub/decor-swindow-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 17.6
+      y: 13.6
+      width: 3.2000008
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-railing-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 20.8
+      y: 13.6
+      width: 3.2000008
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-railing-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 14.4
+      y: 13.6
+      width: 3.2000008
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-railing-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 24
+      y: 13.6
+      width: 3.2000008
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-railing-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 11.2
+      y: 13.6
+      width: 3.1999998
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-railing-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 17.6
+      y: 16.8
+      width: 3.3999996
+      height: 1.6000004
+      shade: 0.82
+      texture: Hub/decor-bvent-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 0.8
+      width: 2.32
+      height: 2.4
+      shade: 0.82
+      texture: Hub/decor-stillage-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 0.8
+      y: 4
+      width: 1.6000001
+      height: 1.5999999
+      shade: 0.82
+      texture: Hub/decor-books-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 8.8
+      y: 4
+      width: 1.6000004
+      height: 1.5999999
+      shade: 0.82
+      texture: Hub/decor-books-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 4
+      width: 1.5999999
+      height: 1.5999999
+      shade: 0.82
+      texture: Hub/decor-books-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 4
+      width: 1.6000001
+      height: 1.5999999
+      shade: 0.82
+      texture: Hub/decor-books-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 28.8
+      y: 3.2
+      width: 1.3999996
+      height: 1.6000001
+      shade: 0.82
+      texture: Hub/decor-med-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 7.2
+      y: 2.96
+      width: 1.6000004
+      height: 1.04
+      shade: 0.82
+      texture: Hub/decor-paint-6
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 3.2
+      y: 14.4
+      width: 2.4000003
+      height: 1.6000004
+      shade: 0.82
+      texture: Hub/decor-draw-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 16
+      width: 3.1999998
+      height: 1.6000004
+      shade: 0.82
+      texture: Hub/decor-bar-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 0.8
+      width: 2.3999996
+      height: 2.4
+      shade: 0.82
+      texture: Hub/decor-gate-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 17.6
+      y: 0.8
+      width: 3.2000008
+      height: 3.2
+      shade: 0.82
+      texture: Hub/decor-doorbase2-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 12
+      y: 16
+      width: 3.1999998
+      height: 1.6000004
+      shade: 1
+      texture: Hub/decor-bar-glow
+      order: -19
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 1
+    - x: 28.8
+      y: 6.04
+      width: 1.6000004
+      height: 0.36000013
+      shade: 0.82
+      texture: Hub/decor-light4-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 35.2
+      y: 6.04
+      width: 1.5999985
+      height: 0.36000013
+      shade: 0.82
+      texture: Hub/decor-light4-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 32
+      y: 6.04
+      width: 1.5999985
+      height: 0.36000013
+      shade: 0.82
+      texture: Hub/decor-light4-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 4
+      y: 11
+      width: 1
+      height: 1
+      shade: 0.82
+      texture: Hub/decor-light1-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 11
+      width: 1
+      height: 1
+      shade: 0.82
+      texture: Hub/decor-light1-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 15.2
+      width: 0.79999924
+      height: 0.8000002
+      shade: 0.82
+      texture: Hub/decor-light5-2
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 36
+      y: 11
+      width: 1
+      height: 1
+      shade: 0.82
+      texture: Hub/decor-stlight1-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 6.4
+      y: 15.38
+      width: 1.5999999
+      height: 0.6199999
+      shade: 0.82
+      texture: Hub/decor-light3-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
+    - x: 18.4
+      y: 18.84
+      width: 1.6000004
+      height: 0.3600006
+      shade: 0.82
+      texture: Hub/decor-light4-1
+      order: -20
+      repeat: 0
+      stretchY: 0
+      selfIlluminated: 0
   authoredArtwork: 1
 --- !u!114 &5057139467735775672
 MonoBehaviour:
@@ -32372,6 +37943,108 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   textureKey: Hub/rim
+  repeat: 1
+  stretchY: 0
+--- !u!1 &4821373410939373035
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2879670686854976624}
+  - component: {fileID: 961980884093258137}
+  - component: {fileID: 9175493239101347570}
+  - component: {fileID: 8331581822385550061}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/floor"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2879670686854976624
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4821373410939373035}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 37.6, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &961980884093258137
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4821373410939373035}
+  m_Mesh: {fileID: 4300000, guid: d76b31298b402b244a2eb8af1981b0b5, type: 2}
+--- !u!23 &9175493239101347570
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4821373410939373035}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 738ec14577381124f906e002bb4ab445, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -4
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &8331581822385550061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4821373410939373035}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/concrete
   repeat: 1
   stretchY: 0
 --- !u!1 &4855096970778692558
@@ -33747,108 +39420,6 @@ MonoBehaviour:
   textureKey: Hub/F
   repeat: 1
   stretchY: 0
---- !u!1 &5119524550461092525
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 3193569259347474864}
-  - component: {fileID: 1371984834694891174}
-  - component: {fileID: 538152756424720563}
-  - component: {fileID: 7528677954460533866}
-  m_Layer: 0
-  m_Name: "\u0424\u043E\u043D: Hub/concrete"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &3193569259347474864
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5119524550461092525}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.6, y: 1.6, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 818094607325504343}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &1371984834694891174
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5119524550461092525}
-  m_Mesh: {fileID: 4300000, guid: bf414739c51b72843ab05ad9939b6009, type: 2}
---- !u!23 &538152756424720563
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5119524550461092525}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: a53d3b39e2bb27349a7fb1a2f56107a3, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -4
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7528677954460533866
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5119524550461092525}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  textureKey: Hub/concrete
-  repeat: 1
-  stretchY: 0
 --- !u!1 &5122679525026822809
 GameObject:
   m_ObjectHideFlags: 0
@@ -34869,6 +40440,108 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &5220797341803512130
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3525913430149249151}
+  - component: {fileID: 4578873532389220629}
+  - component: {fileID: 408082127692237954}
+  - component: {fileID: 1174935830486292796}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/rim"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3525913430149249151
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5220797341803512130}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 43, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &4578873532389220629
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5220797341803512130}
+  m_Mesh: {fileID: 4300000, guid: be73811f9f9c07046b84875d4c9654c7, type: 2}
+--- !u!23 &408082127692237954
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5220797341803512130}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 85ca4082db1987f4b99c8f4230f3e946, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -15
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1174935830486292796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5220797341803512130}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/rim
+  repeat: 1
+  stretchY: 0
 --- !u!1 &5267299373029437528
 GameObject:
   m_ObjectHideFlags: 0
@@ -35173,108 +40846,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   textureKey: Hub/rim
-  repeat: 1
-  stretchY: 0
---- !u!1 &5284934265963625942
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 3080548280486872437}
-  - component: {fileID: 297724466815550476}
-  - component: {fileID: 1576698622031402799}
-  - component: {fileID: 970880168027597913}
-  m_Layer: 0
-  m_Name: "\u0424\u043E\u043D: Hub/concrete"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &3080548280486872437
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5284934265963625942}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.6, y: 2.4, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 818094607325504343}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &297724466815550476
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5284934265963625942}
-  m_Mesh: {fileID: 4300000, guid: 127271e9183711d43bb6c5cb9c6c74c9, type: 2}
---- !u!23 &1576698622031402799
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5284934265963625942}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: a53d3b39e2bb27349a7fb1a2f56107a3, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -4
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &970880168027597913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5284934265963625942}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  textureKey: Hub/concrete
   repeat: 1
   stretchY: 0
 --- !u!1 &5313653957405937269
@@ -37269,19 +42840,15 @@ Transform:
   - {fileID: 6567883700397363513}
   - {fileID: 1194577679189430508}
   - {fileID: 3810407758731710078}
-  - {fileID: 3515846448486089555}
   - {fileID: 8888236274334317249}
   - {fileID: 3101148001140827673}
   - {fileID: 6792437449552057701}
-  - {fileID: 3080548280486872437}
   - {fileID: 642713343356544577}
   - {fileID: 3335349221427515284}
   - {fileID: 8415424426550524402}
-  - {fileID: 3193569259347474864}
   - {fileID: 7003820894455547302}
   - {fileID: 4857110814719576433}
   - {fileID: 4587034727128040710}
-  - {fileID: 2198842391002711510}
   - {fileID: 7668341328547072769}
   - {fileID: 1982570723451833079}
   - {fileID: 1726221973758616429}
@@ -37554,13 +43121,9 @@ Transform:
   - {fileID: 4484565228829636857}
   - {fileID: 2388185159662325862}
   - {fileID: 1605180440700544247}
-  - {fileID: 7846529175994192331}
   - {fileID: 1275248927694231915}
-  - {fileID: 1792941891307402799}
   - {fileID: 5896654098958999175}
-  - {fileID: 1796215343408767932}
   - {fileID: 8679247999642141381}
-  - {fileID: 4351801844571156631}
   - {fileID: 6351065376301891417}
   - {fileID: 8780379592724282425}
   - {fileID: 4839994369175950317}
@@ -37657,53 +43220,6 @@ Transform:
   - {fileID: 6154123390303751129}
   m_Father: {fileID: 8705550183626275462}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &5695463167515901200
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 6709435163574959631}
-  - component: {fileID: 3259884102310175835}
-  m_Layer: 0
-  m_Name: "\u041F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C 84"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &6709435163574959631
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5695463167515901200}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.6, y: 1.6, z: 0}
-  m_LocalScale: {x: 0.8, y: 0.8, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 8705550183626275462}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3259884102310175835
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5695463167515901200}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57473e62b23b39144abf7dac89350b26, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  texture: Hub/concrete
-  oneWay: 0
-  shotsPassThrough: 0
 --- !u!1 &5716714295491194022
 GameObject:
   m_ObjectHideFlags: 0
@@ -38104,108 +43620,6 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5739293186168219553}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  textureKey: Hub/rim
-  repeat: 1
-  stretchY: 0
---- !u!1 &5799993623980220147
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1792941891307402799}
-  - component: {fileID: 3148251340460289770}
-  - component: {fileID: 7874005506131623875}
-  - component: {fileID: 955741384449784261}
-  m_Layer: 0
-  m_Name: "\u0424\u043E\u043D: Hub/rim"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1792941891307402799
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5799993623980220147}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.5625, y: 2.4, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 818094607325504343}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &3148251340460289770
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5799993623980220147}
-  m_Mesh: {fileID: 4300000, guid: 0498e14a1b4833144b9357a3d2f5ebfb, type: 2}
---- !u!23 &7874005506131623875
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5799993623980220147}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 8bce4e62e6b40d146a8d8516ad7b031e, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -3
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &955741384449784261
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5799993623980220147}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
@@ -43230,6 +48644,108 @@ MonoBehaviour:
   textureKey: Hub/N
   repeat: 1
   stretchY: 0
+--- !u!1 &6717969830655690899
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1233262952963253453}
+  - component: {fileID: 2852900377548640054}
+  - component: {fileID: 6181948416193054572}
+  - component: {fileID: 6718165326306637739}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/rim"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1233262952963253453
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6717969830655690899}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 55, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &2852900377548640054
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6717969830655690899}
+  m_Mesh: {fileID: 4300000, guid: 80449e9295bfda940bf42d7a3fb3988d, type: 2}
+--- !u!23 &6181948416193054572
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6717969830655690899}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 94861a9f71e511f44bbdeb37ba9bc430, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -15
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &6718165326306637739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6717969830655690899}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/rim
+  repeat: 1
+  stretchY: 0
 --- !u!1 &6719327733741673366
 GameObject:
   m_ObjectHideFlags: 0
@@ -43331,6 +48847,108 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   textureKey: Hub/M
   repeat: 1
+  stretchY: 0
+--- !u!1 &6745868973523881793
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2744699357300053206}
+  - component: {fileID: 5984977959450240729}
+  - component: {fileID: 1339510721825024263}
+  - component: {fileID: 3409896473468141019}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/decor-light3-1"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2744699357300053206
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6745868973523881793}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 56, y: 6.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &5984977959450240729
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6745868973523881793}
+  m_Mesh: {fileID: 4300000, guid: 40cf3a86dc7c673428644051ed824f34, type: 2}
+--- !u!23 &1339510721825024263
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6745868973523881793}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: eafae11b77632154c85d692200007d79, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -12
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &3409896473468141019
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6745868973523881793}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/decor-light3-1
+  repeat: 0
   stretchY: 0
 --- !u!1 &6752085869372768078
 GameObject:
@@ -45108,6 +50726,108 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6989646971704209259}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/rim
+  repeat: 1
+  stretchY: 0
+--- !u!1 &6991219913270358470
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3755271949121602103}
+  - component: {fileID: 5566626225082464929}
+  - component: {fileID: 2887978695973680669}
+  - component: {fileID: 7811699503067359377}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/rim"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3755271949121602103
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6991219913270358470}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 49, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &5566626225082464929
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6991219913270358470}
+  m_Mesh: {fileID: 4300000, guid: 0f3ca0d70393fb94cb6cdd41e52c5313, type: 2}
+--- !u!23 &2887978695973680669
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6991219913270358470}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 736bf27a85add104da143682f9935f6b, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -15
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &7811699503067359377
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6991219913270358470}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
@@ -53328,6 +59048,108 @@ MonoBehaviour:
   textureKey: Hub/decor-poster-1
   repeat: 0
   stretchY: 0
+--- !u!1 &8387687884800038292
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2988739269811997933}
+  - component: {fileID: 3107790766542406137}
+  - component: {fileID: 8892820477298495103}
+  - component: {fileID: 254793825938361379}
+  m_Layer: 0
+  m_Name: "\u0424\u043E\u043D: Hub/concrete"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2988739269811997933
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8387687884800038292}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 61.6, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3949495578203370782}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &3107790766542406137
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8387687884800038292}
+  m_Mesh: {fileID: 4300000, guid: 78212384a97c9aa44b1b523daf01bc58, type: 2}
+--- !u!23 &8892820477298495103
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8387687884800038292}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 1303e0c6e25d26840841dbcb3482364c, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -4
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &254793825938361379
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8387687884800038292}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textureKey: Hub/concrete
+  repeat: 1
+  stretchY: 0
 --- !u!1 &8397052241409806902
 GameObject:
   m_ObjectHideFlags: 0
@@ -55564,108 +61386,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   textureKey: Hub/rim
-  repeat: 1
-  stretchY: 0
---- !u!1 &8719729611466229234
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2198842391002711510}
-  - component: {fileID: 6645243311738040885}
-  - component: {fileID: 211719908171185311}
-  - component: {fileID: 7486929584267940377}
-  m_Layer: 0
-  m_Name: "\u0424\u043E\u043D: Hub/concrete"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2198842391002711510
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8719729611466229234}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 37.6, y: 0.8, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 818094607325504343}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &6645243311738040885
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8719729611466229234}
-  m_Mesh: {fileID: 4300000, guid: e6519162d07e913479abe9203b19651d, type: 2}
---- !u!23 &211719908171185311
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8719729611466229234}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: a53d3b39e2bb27349a7fb1a2f56107a3, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -4
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7486929584267940377
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8719729611466229234}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30f13505f0206124ebf17ba863e560d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  textureKey: Hub/concrete
   repeat: 1
   stretchY: 0
 --- !u!1 &8721558944831410385

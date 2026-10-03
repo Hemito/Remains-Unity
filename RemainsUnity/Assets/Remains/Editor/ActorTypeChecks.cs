@@ -33,6 +33,13 @@ namespace Remains.Editor
             var persisted=world.Copy();HubTrainingContent.Install(persisted);
             Require(persisted.actors.Count==installed && persisted.contentPatches.Contains(HubTrainingContent.Patch),"Копия мира потеряла отметку установки мишеней");
             Require(world.containers.Count==3 && persisted.containers.Count==3 && world.containers.Select(c=>c.mass).SequenceEqual(new[]{25f,50f,120f}),"Неверные массы или повторное добавление тренировочных ящиков");
+            persisted.contentPatches.Remove(HubTrainingContent.Patch);persisted.contentPatches.Add("base:hub-training-2");
+            var oldTarget=persisted.Find("training:hub:1");oldTarget.x=29;oldTarget.health=321;oldTarget.resolvedAttacks.Add("before-range");
+            var oldBox=persisted.containers[0];oldBox.x=22;oldBox.items.Add(SharedInventory.Create("heal",4));
+            HubTrainingContent.Install(persisted);
+            Require(ReferenceEquals(persisted.Find(oldTarget.id),oldTarget) && oldTarget.x==46 && oldTarget.health==321 && oldTarget.resolvedAttacks.Contains("before-range") &&
+                oldBox.x==22 && oldBox.items.Count==1 && oldBox.items[0].count==4 && persisted.actors.Count==installed,
+                "Перенос тира потерял состояние мишени или сдвинул пользовательский контейнер");
             var telekinesis=new MassLimitedTelekinesisRule(TelekinesisSettings.Load());
             foreach(var box in world.containers)
             {

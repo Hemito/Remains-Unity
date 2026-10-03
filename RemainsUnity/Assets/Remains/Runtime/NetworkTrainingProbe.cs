@@ -18,6 +18,9 @@ namespace Remains.Runtime
         private float deadline;
         private int stage,shots,results;
         private bool sent,finished,configured;
+        private string rangeOwner,rangeWorld;
+        private int rangeGeneration;
+        private bool rangeEntered,rangeReturned,rangeSeparated;
         private bool rejected50,rejected120,observedLift;
         private float manaBeforeLift,minimumLiftMana=100;
         private readonly TrainingMagicRecoveryExercise magicRecovery=new();
@@ -118,6 +121,15 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             var self=runtime.Session.LocalActor;if(self==null || finished) return default;
+            if(rangeOwner!=null)
+            {
+                if(self.owner!=rangeOwner || self.generation!=rangeGeneration || self.level!="hub" || runtime.Session.World.worldId!=rangeWorld || runtime.Session.Travel.Pending)
+                {Finish(false,"Проход в тир изменил владельца, мир или запустил переход уровня.");return default;}
+                if(self.x>39) rangeEntered=true;
+                if(rangeEntered && self.x<37) rangeReturned=true;
+                if(runtime.Session.World.actors.Any(a=>a.player && a.connected && a.id!=self.id && a.level=="hub" &&
+                    (self.x<37 && a.x>39 || self.x>39 && a.x<37))) rangeSeparated=true;
+            }
             if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return default;
             if(stage==0)
             {
@@ -161,12 +173,23 @@ namespace Remains.Runtime
                 stage=3;
             }
             if(MovingShotExercise) return new PlayerCommand {hasAim=true,aim=self.Position+Vector2.up*10};
-            if(Host && stage==3 && shots==3 && results==3*runtime.Options.ProbePeers)
-            {stage=4;manaBeforeLift=self.mana;}
+            var target=runtime.Session.World.Find("training:hub:1");
+            if(rangeOwner==null) {rangeOwner=self.owner;rangeGeneration=self.generation;rangeWorld=runtime.Session.World.worldId;}
+            float firingX=target.x-3;
+            if(stage==3 && Mathf.Abs(self.x-firingX)>.08f)
+                return new PlayerCommand {movement=new Vector2(Mathf.Sign(firingX-self.x),0)};
+            if(stage==3 && shots==3 && results==3*runtime.Options.ProbePeers && (Host || rangeSeparated))
+            {stage=13;manaBeforeLift=self.mana;}
+            if(stage==13)
+            {
+                if(Mathf.Abs(self.x-26)>.08f) return new PlayerCommand {movement=new Vector2(Mathf.Sign(26-self.x),0)};
+                if(Host && runtime.Session.World.actors.Any(a=>a.player && a.connected && Mathf.Abs(a.x-26)>1)) return default;
+                stage=Host?4:14;
+            }
             if(stage>=4) return CrateCommand();
             // The jump intentionally preserves momentum; readiness is the firing area, not one exact point.
-            bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-26)<1 && a.y<1);
-            return new PlayerCommand {weapon="pistol",movement=Vector2.up,hasAim=true,aim=new Vector2(29,1.6f),fire=ready && self.weaponLift>0 && raisedWeapons.Count==runtime.Options.ProbePeers && shots<3};
+            bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-firingX)<1 && a.y<1);
+            return new PlayerCommand {weapon="pistol",movement=Vector2.up,hasAim=true,aim=target.Position+Vector2.up*.8f,fire=ready && self.weaponLift>0 && raisedWeapons.Count==runtime.Options.ProbePeers && shots<3};
         }
         private PlayerCommand CrateCommand()
         {
@@ -262,9 +285,11 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
+            if(success && !MovingShotExercise && (!rangeEntered || Host && !rangeReturned || runtime.Options.ProbePeers>1 && !rangeSeparated))
+            {success=false;detail=$"Не подтверждён бесшовный тир: entered={rangeEntered}, returned={rangeReturned}, separated={rangeSeparated}.";}
             if(success && MovingShotExercise && movingShots!=3) {success=false;detail="Ожидалось три выстрела на бегу, получено "+movingShots;}
             if(success && MovingShotExercise && !weaponTrace.ValidateLocal(out var mismatch)) {success=false;detail=mismatch;}
-            string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
+            string json=JsonUtility.ToJson(new Report {rangeEntered=rangeEntered,rangeReturned=rangeReturned,rangeSeparated=rangeSeparated,success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 raisedWeapons=raisedWeapons.Count,rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 remoteRunRestarts=remoteRunRestarts,remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
                 sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,movingShots=movingShots,
@@ -275,6 +300,6 @@ namespace Remains.Runtime
             weaponTrace.Save(runtime.Options.Report+".weapons.json");
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool rangeEntered,rangeReturned,rangeSeparated;public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }
