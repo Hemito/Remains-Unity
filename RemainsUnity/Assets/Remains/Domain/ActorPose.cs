@@ -23,7 +23,9 @@ namespace Remains.Domain
         {
             if(actor.pose=="run" && actor.poseCorrectionRemaining>0)
             {
-                float held=System.Math.Min(System.Math.Max(0,dt),actor.poseCorrectionRemaining);
+                // Repay phase lead without freezing a running character's cycle.
+                // At least half of each positive simulation step remains visible.
+                float held=System.Math.Min(System.Math.Max(0,dt)*.5f,actor.poseCorrectionRemaining);
                 actor.poseCorrectionRemaining-=held;dt-=held;
             }
             if(StationaryClimb(actor)) {actor.poseTime=0;return;}

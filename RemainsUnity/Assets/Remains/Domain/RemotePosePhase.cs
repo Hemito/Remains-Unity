@@ -1,7 +1,7 @@
 namespace Remains.Domain
 {
-    // A late sample can briefly hold a run frame, but cannot replay one already shown.
-    // The hold is consumed in simulation time, so repeated corrections do not accumulate lead.
+    // A late sample cannot replay a phase already shown. ActorPose repays the lead
+    // by temporarily slowing the cycle in simulation time rather than freezing it.
     public static class RemotePosePhase
     {
         public static void Apply(ActorState actor,string pose,uint sequence,float time)

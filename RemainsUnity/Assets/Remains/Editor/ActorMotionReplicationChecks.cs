@@ -50,7 +50,7 @@ namespace Remains.Editor
             RemotePosePhase.Apply(actor,"run",7,.5004858f);
             Require(Math.Abs(actor.poseTime-.5338194f)<.000001f,"Свежий пакет отмотал показанный run");
             ActorPose.Advance(actor,1f/60);
-            Require(Math.Abs(actor.poseTime-.5338194f)<.000001f && actor.poseCorrectionRemaining>0,"Поправка не удержала уже показанную фазу");
+            Require(actor.poseTime>.5338194f && actor.poseTime<.5338194f+1f/60 && actor.poseCorrectionRemaining>0,"Коррекция остановила цикл или не замедлила опережение");
             ActorPose.Advance(actor,.1f);
             Require(Math.Abs(actor.poseTime-(.5004858f+1f/60+.1f))<.00001f && actor.poseCorrectionRemaining==0,"Коррекция накапливает опережение");
             RemotePosePhase.Apply(actor,"run",8,0);
@@ -67,6 +67,21 @@ namespace Remains.Editor
             actor.climbing=true;actor.vy=-1;
             RemotePosePhase.Apply(actor,"climb",11,-.5f);ActorPose.Advance(actor,.1f);
             Require(Math.Abs(actor.poseTime+.6f)<.00001f,"Коррекция run сломала обратное проигрывание лестницы");
+            foreach(int fps in new[]{30,60,144})
+            {
+                var runner=new ActorState {pose="run",poseSequence=1,poseTime=1};
+                RemotePosePhase.Apply(runner,"run",1,.9f);
+                ActorPose.Advance(runner,0);
+                Require(runner.poseTime==1,"Нулевой шаг продвинул коррекцию");
+                float elapsed=0;
+                for(int i=0;i<fps/2;i++)
+                {
+                    float before=runner.poseTime;ActorPose.Advance(runner,1f/fps);elapsed+=1f/fps;
+                    Require(runner.poseTime>before,"Поздняя поза остановила run при FPS="+fps);
+                }
+                Require(runner.poseCorrectionRemaining==0 && Math.Abs(runner.poseTime-(.9f+elapsed))<.00001f,
+                    "Фаза не сошлась с исходным временем при FPS="+fps);
+            }
         }
         private static void Require(bool value,string message)
         {if(!value) throw new InvalidOperationException(message);}
