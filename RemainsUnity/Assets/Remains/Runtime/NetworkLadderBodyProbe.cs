@@ -26,7 +26,7 @@ namespace Remains.Runtime
         private RoomLadder ladder;
         private int phase;
         private float deadline,since,firstDownY,downX,downAt;
-        private bool advancing,finished,sent,climbed,downSeen,fell,landed,revived,movedAfterRevival;
+        private bool advancing,finished,sent,climbed,downSeen,fallVelocitySeen,fell,landed,revived,movedAfterRevival;
         private string owner;private int generation;
         private readonly HashSet<int> done=new(),captures=new();
         private readonly List<Sample> samples=new();
@@ -94,7 +94,9 @@ namespace Remains.Runtime
                 // Damage can arrive after this frame's movement; the remote pose also needs delivery time.
                 if(victim.climbing && Time.unscaledTime-downAt>(Host?.5f:.1f) || Mathf.Abs(victim.x-downX)>.12f)
                 {Finish(false,"Тело удерживает лестницу или принимает горизонтальное управление.");return;}
-                if(victim.vy<-.1f && victim.y<firstDownY-.3f) fell=true;
+                if(victim.vy<-.1f) fallVelocitySeen=true;
+                // Rendered position can lag the latest authoritative landing velocity.
+                if(fallVelocitySeen && victim.y<firstDownY-.3f) fell=true;
                 if(fell && Mathf.Abs(victim.y-ladder.bottom)<.08f && Mathf.Abs(victim.vy)<.001f) landed=true;
             }
             else if(downSeen && landed && victim.health==35) revived=true;

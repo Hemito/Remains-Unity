@@ -9,7 +9,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            foreach(int fps in new[]{30,60,144}) CheckJitter(fps);
+            foreach(int fps in new[]{30,60,144}) {CheckJitter(fps);CheckFallingBody(fps);}
             var motion=new RemoteActorMotion();
             var world=new WorldState();
             var actor=new ActorState {id="remote",owner="remote",player=true,connected=true,vx=8.4f,pose="run"};
@@ -45,6 +45,29 @@ namespace Remains.Editor
         }
         private static void Stamp(ActorState actor,double now)
         {actor.motionSequence++;actor.motionSentAt=now;actor.motionClockGeneration=actor.generation;}
+        private static void CheckFallingBody(int fps)
+        {
+            var world=new WorldState();
+            var actor=new ActorState {id="falling-body",owner="remote",player=true,connected=true,down=true,y=3,vy=-4};
+            world.actors.Add(actor);
+            var motion=new RemoteActorMotion();var cadence=new Remains.Networking.ReplicationCadence(.05);
+            float previous=3,confirmed=3;int betweenPackets=0;
+            for(int frame=0;frame<fps*2;frame++)
+            {
+                double now=(double)frame/fps;bool packet=cadence.TryAdvance(now);
+                if(packet) {confirmed=Mathf.Max(.8f,3-4*(float)now);actor.y=confirmed;actor.vy=confirmed>.8f?-4:0;Stamp(actor,now);}
+                motion.Step(world,"local",1f/fps,_=>false,now);
+                Require(actor.y>=confirmed-.00001f && actor.y<=previous+.00001f,"Изображение падающего тела перескочило подтверждённую позицию");
+                if(!packet && previous-actor.y>.00001f) betweenPackets++;
+                previous=actor.y;
+            }
+            Require(betweenPackets>0 && Mathf.Abs(actor.y-.8f)<.001f,"Тело не движется между пакетами или не остановилось на полу");
+            actor.y=1;Stamp(actor,2);motion.Step(world,"local",1f/fps,_=>false,2);
+            float pausedY=actor.y;motion.Step(world,"local",.5f,_=>true,2.1);
+            Require(actor.y==pausedY,"Пауза продолжает сглаживать тело");
+            actor.owner="local";actor.y=1.5f;motion.Step(world,"local",.1f,_=>false,2.6);
+            Require(actor.y==1.5f,"Сглаживание тела вмешалось после передачи владения");
+        }
         private static void CheckJitter(int fps)
         {
             var world=new WorldState();

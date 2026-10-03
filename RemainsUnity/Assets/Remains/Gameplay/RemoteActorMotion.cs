@@ -44,7 +44,7 @@ namespace Remains.Gameplay
                 {
                     var received=actor.Position;
                     float age=ObserveClock(actor,sample,now);
-                    var projected=received+actor.Velocity*age;
+                    var projected=actor.down?received:received+actor.Velocity*age;
                     // Teleports must not be traversed as motion. Normal envelopes include the last observed speed.
                     float discontinuity=Mathf.Max(3,(sample.velocity.magnitude+actor.Velocity.magnitude)*PredictionSeconds*2);
                     if(Vector2.Distance(received,sample.received)>discontinuity) {sample.position=projected;sample.correction=Vector2.zero;}
@@ -52,15 +52,16 @@ namespace Remains.Gameplay
                     sample.received=received;sample.sequence=actor.motionSequence;sample.velocity=actor.Velocity;sample.age=age;
                 }
                 sample.seen=tick;
-                if(sample.clockReady && !paused(actor.level) && LevelActivity.HasConnectedPlayer(world,actor.level) && !actor.down)
+                if(sample.clockReady && !paused(actor.level) && LevelActivity.HasConnectedPlayer(world,actor.level))
                 {
-                    float predict=Mathf.Min(dt,Mathf.Max(0,PredictionSeconds-sample.age));
+                    // Bodies interpolate toward confirmed positions only: predicting their
+                    // last falling velocity would carry them through an unseen landing.
+                    float predict=actor.down?0:Mathf.Min(dt,Mathf.Max(0,PredictionSeconds-sample.age));
                     sample.age+=dt;
                     var correction=sample.correction*(1-Mathf.Exp(-dt/CorrectionSeconds));
                     sample.correction-=correction;
                     sample.position+=sample.velocity*predict+correction;
                 }
-                else if(actor.down) {sample.position=actor.Position;sample.correction=Vector2.zero;sample.velocity=Vector2.zero;}
                 actor.Position=sample.position;
             }
             removed.Clear();foreach(var pair in samples) if(pair.Value.seen!=tick) removed.Add(pair.Key);
