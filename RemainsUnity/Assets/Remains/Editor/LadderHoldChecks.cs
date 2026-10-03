@@ -29,6 +29,18 @@ namespace Remains.Editor
                 Require(copy.climbing && copy.y==height,"Загрузка сохраняет захват лестницы");
                 motion.Step(actor,Vector2.zero,true,dt);
                 Require(!actor.climbing && actor.vy>0 && actor.pose=="jump","Прыжок отпускает лестницу");
+                foreach(int facing in new[]{-1,1})
+                {
+                    var turning=new ActorState {id="ladder-facing",x=4,y=1,climbing=true,facing=facing};
+                    var turningMotion=new MovementController(room);
+                    var sideways=Vector2.right*-facing;
+                    turningMotion.Step(turning,sideways,false,dt);
+                    Require(turning.climbing && turning.facing==facing,"Горизонтальный ввод развернул корпус на лестнице");
+                    var restored=StateJson.Copy(turning);
+                    Require(restored.facing==facing && restored.climbing,"Копия потеряла направление хвата");
+                    turningMotion.Step(turning,sideways,true,dt);
+                    Require(!turning.climbing && turning.facing==-facing,"После прыжка направление осталось заблокировано");
+                }
                 actor=new ActorState {id="ladder-side",x=4,y=1,climbing=true};
                 for(int i=0;i<60;i++) motion.Step(actor,Vector2.right,false,dt);
                 Require(!actor.climbing && actor.x>4.65f,"Боковой выход отпускает лестницу");

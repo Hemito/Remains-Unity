@@ -38,7 +38,7 @@ namespace Remains.Gameplay
             if(grounded || drop || ladder) actor.jumpSupportRemaining=0;
             if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
             actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings,actor.crouched,actor.crouched?dt:accelerationTime);
-            if (input.x != 0) actor.facing = input.x > 0 ? 1 : -1;
+            if (input.x != 0 && !ladder) actor.facing = input.x > 0 ? 1 : -1;
             bool launched=jump && (grounded || wasClimbing) && !drop && !ladder;
             float verticalDistance;
             if (ladder)
