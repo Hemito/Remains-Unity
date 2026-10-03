@@ -157,7 +157,7 @@ namespace Remains.Editor
             MovementChecks.Run();
             SessionChecks.Run();
             MeleeSweepChecks.Run();
-            AmmunitionChecks.Run(); RecoveryChecks.Run(); RevivalChecks.Run(); GrenadeChecks.Run(); NpcAttackChecks.Run(); ContainerChecks.Run(); StateExtensionChecks.Run();
+            AmmunitionChecks.Run(); RecoveryChecks.Run(); RevivalChecks.Run(); GrenadeChecks.Run(); NpcAttackChecks.Run(); NpcPerceptionIntegrationChecks.Run(); ContainerChecks.Run(); StateExtensionChecks.Run();
             actor.connected=true;actor.down=true;second.connected=false;second.down=false;
             actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});
             actor.injuries.Add(new InjuryState{id="fracture",periodicDamage=false});

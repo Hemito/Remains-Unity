@@ -34,12 +34,19 @@ namespace Remains.Domain
         public bool hasKnownPosition;
         public float knownX,knownY,remainingSeconds;
         public Vector2 KnownPosition=>new(knownX,knownY);
+        public NpcPerceptionMemory Copy()=>(NpcPerceptionMemory)MemberwiseClone();
     }
 
     // Independent perception policy. ActorState.target remains the sole confirmed target ID.
     // Sampling cadence and authoritative ownership belong to the caller, not this module.
     public sealed class NpcPerception
     {
+        public static void CopyState(ActorState source,ActorState destination)
+        {
+            if(source.player) return;
+            if(source.perception==null) throw new InvalidOperationException($"Отсутствует память восприятия: actor={source.id}, type={source.actorType}.");
+            destination.target=source.target;destination.perception=source.perception.Copy();
+        }
         private readonly float sightSquared,closeSquared,hearingSquared,recognitionSeconds,memorySeconds,eyeHeight,targetHeight;
         public NpcPerception(NpcPerceptionSettings settings)
         {

@@ -11,10 +11,12 @@ namespace Remains.Gameplay
     {
         private readonly CoopSession session;
         private readonly SimulationGeometry geometry;
+        private readonly NpcSenses senses;
         private readonly Dictionary<string, MovementController> movement = new();
         public NpcController(CoopSession session,SimulationGeometry geometry)
         {
             this.session=session;this.geometry=geometry;
+            senses=new NpcSenses(session,geometry);
             session.Changed+=()=>
             {
                 var needed=session.World==null?new HashSet<string>():new HashSet<string>(session.World.actors
@@ -34,8 +36,11 @@ namespace Remains.Gameplay
                 if(session.Pause.IsPaused(actor.level)) continue;
                 if(!movement.TryGetValue(actor.level,out var controller))
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
+                senses.Step(actor,dt);
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
-                if(target!=null && target.level==actor.level) WeaponPose.Aim(actor,target.Position+Vector2.up*.55f,geometry.Get(actor.level));
+                if(target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
+                    WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*.55f))
+                    WeaponPose.Aim(actor,target.Position+Vector2.up*.55f,geometry.Get(actor.level));
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {
@@ -49,7 +54,14 @@ namespace Remains.Gameplay
                     }
                     continue;
                 }
-                if(target==null || target.level!=actor.level || target.down || !target.connected) { controller.Step(actor,Vector2.zero,false,dt); continue; }
+                if(target==null || target.level!=actor.level || target.down || !target.connected)
+                {
+                    var memory=actor.perception;
+                    float search=memory.hasKnownPosition?memory.knownX-actor.x:0;
+                    controller.Step(actor,new Vector2(Mathf.Abs(search)>.25f?Mathf.Sign(search)*.5f:0,0),false,dt);
+                    if(Mathf.Abs(search)>.01f) actor.facing=search>=0?1:-1;
+                    continue;
+                }
                 float distance=target.x-actor.x;
                 controller.Step(actor,new Vector2(Mathf.Abs(distance)>5?Mathf.Sign(distance)*0.5f:0,0),false,dt);
                 actor.facing=distance>=0?1:-1;

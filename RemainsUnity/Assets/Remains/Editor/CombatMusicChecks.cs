@@ -21,6 +21,8 @@ namespace Remains.Editor
             state.SetContext(world.worldId,player.level);
             state.ObservePreparation(world,enemy);
             Require(state.Track==null,"Назначение сетевой цели включило бой.");
+            enemy.perception.hasKnownPosition=true;state.ObservePreparation(world,enemy);
+            Require(state.Track=="raider-combat","Подтверждённый контакт не включил музыку до атаки.");
             enemy.attackBusy=true;enemy.attackTarget=player.id;
             state.ObservePreparation(world,enemy);
             Require(state.Track=="raider-combat","Подготовка атаки не включила бой.");
@@ -42,7 +44,7 @@ namespace Remains.Editor
                 var session=root.AddComponent<CoopSession>();
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,player.id);
-                enemy.attackBusy=false;
+                enemy.attackBusy=false;enemy.perception.hasKnownPosition=false;
                 var music=root.AddComponent<AreaMusic>();music.Initialize(session);
                 Require(music.CurrentTrack=="factory","Нет фоновой музыки завода.");
                 enemy.attackBusy=true;

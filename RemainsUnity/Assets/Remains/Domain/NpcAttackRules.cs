@@ -15,7 +15,8 @@ namespace Remains.Domain
         public static AttackEvent Complete(ActorState actor,ActorState target,RoomLayout room=null)
         {
             AttackEvent result=null;
-            if(target!=null && target.id==actor.attackTarget && ActorPresence.IsPresent(target) && target.level==actor.level)
+            if(target!=null && target.id==actor.attackTarget && ActorPresence.IsPresent(target) && target.level==actor.level &&
+                (room==null || RoomVisibility.Clear(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*.55f)))
             {
                 var end=target.Position+new Vector2(0,.55f);
                 Remains.Gameplay.WeaponPose.Aim(actor,end,room);

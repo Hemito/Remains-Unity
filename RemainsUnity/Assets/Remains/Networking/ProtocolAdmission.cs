@@ -11,7 +11,7 @@ namespace Remains.Networking
     public struct ProtocolReply : NetworkMessage {public int version;public bool accepted;public string reason;}
     public static class SessionProtocol
     {
-        public const int Version=31;
+        public const int Version=32;
         public static string Rejection(int offered)=>offered==Version?null:
             $"Несовместимый сетевой протокол: у клиента {offered}, у хоста {Version}. Используйте совместимые сборки. Сохранения не загружены.";
     }

@@ -23,6 +23,7 @@ namespace Remains.Runtime
         private string firstAttack,canceledAttack;
         private bool fired,replayed;
         private bool combatMusicObserved;
+        private bool perceptionHandoffVerified;
         private AttackEvent acceptedShot;
         private int replayProofs;
         private readonly Dictionary<string,float> shots=new();
@@ -89,6 +90,9 @@ namespace Remains.Runtime
                     if(npc.attackBusy || npc.attackCooldown<=0)
                     {Finish(false,"NPC передан до завершения атаки или без паузы.");return;}
                     transferred=true;
+                    perceptionHandoffVerified=npc.perception.hasKnownPosition && npc.perception.remainingSeconds>0 &&
+                        npc.target==source.id && npc.perception.candidate==source.id && npc.perception.exposureSeconds>0;
+                    if(!perceptionHandoffVerified) {Finish(false,"При передаче владельца потеряны подтверждённая цель или память восприятия.");return;}
                     if(acceptedShot==null || npc.health!=132 || !npc.resolvedAttacks.Contains(acceptedShot.id))
                     {Finish(false,"Первое попадание по NPC не зафиксировано до передачи.");return;}
                     // Fault injection: replay one already accepted event to the new owner.
@@ -122,7 +126,7 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             if(success && (Host || Source) && shots.Count>0 && !combatMusicObserved) {success=false;detail+=" Не включилась музыка боя.";}
-            detail+=$" combatMusicObserved={combatMusicObserved}.";
+            detail+=$" combatMusicObserved={combatMusicObserved}, perceptionHandoffVerified={perceptionHandoffVerified}.";
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}

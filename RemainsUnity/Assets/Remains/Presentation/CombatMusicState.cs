@@ -23,8 +23,8 @@ namespace Remains.Presentation
         }
         public void ObservePreparation(WorldState world,ActorState actor)
         {
-            if(!actor.attackBusy) return;
-            var target=world.Find(actor.attackTarget);
+            if(!actor.attackBusy && !actor.perception.hasKnownPosition) return;
+            var target=world.Find(actor.attackBusy?actor.attackTarget:actor.target);
             if(target==null || !target.player || !target.connected || target.down || target.level!=level) return;
             ObserveAttack(actor);
         }

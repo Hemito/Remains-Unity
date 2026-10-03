@@ -47,10 +47,10 @@ namespace Remains.Domain
                     // Reset recovery cooldown even when the last snapshot looked idle.
                     NpcAttackRules.Cancel(actor);
                 }
-                var candidate = active.Where(a => a.level == actor.level)
+                var target=active.FirstOrDefault(a=>a.id==actor.target && a.level==actor.level);
+                var candidate = target ?? active.Where(a => a.level == actor.level)
                     .OrderBy(a => Vector2.Distance(a.Position, actor.Position)).ThenBy(a => a.id).FirstOrDefault();
                 string next = candidate?.owner ?? "host";
-                actor.target = !actor.player && !Remains.Content.ActorTypes.Get(actor.actorType).combatAi?null:candidate?.id;
                 if (actor.owner == next) continue;
                 actor.owner = next;
                 actor.generation++;

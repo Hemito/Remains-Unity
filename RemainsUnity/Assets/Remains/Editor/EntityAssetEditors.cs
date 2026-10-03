@@ -18,7 +18,14 @@ namespace Remains.Editor
             source.enumValueIndex=EditorGUILayout.Popup("Источник представления",source.enumValueIndex,new[]{"Зарегистрированный сборщик","Префаб"});
             using(new EditorGUI.DisabledScope(source.enumValueIndex!=(int)ActorPresentationSource.Prefab))
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("presentationPrefab"),new GUIContent("Префаб персонажа"));
-            Field("combatAi","Боевое поведение");Field("hasWeapon","Отображать оружие");Field("bodyInventory","Инвентарь тела");Field("restoreHealthAfterHit","Восстановление здоровья мишени после удара");serializedObject.ApplyModifiedProperties();
+            Field("combatAi","Боевое поведение");
+            using(new EditorGUI.DisabledScope(!serializedObject.FindProperty("definition").FindPropertyRelative("combatAi").boolValue))
+            {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("definition").FindPropertyRelative("perception"),new GUIContent("Восприятие NPC"),true);
+                EditorGUI.indentLevel--;
+            }
+            Field("hasWeapon","Отображать оружие");Field("bodyInventory","Инвентарь тела");Field("restoreHealthAfterHit","Восстановление здоровья мишени после удара");serializedObject.ApplyModifiedProperties();
         }
     }
     [CustomEditor(typeof(PropAsset))]

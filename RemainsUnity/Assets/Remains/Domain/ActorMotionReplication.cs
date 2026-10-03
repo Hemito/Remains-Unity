@@ -11,7 +11,10 @@ namespace Remains.Domain
         public static void PreserveNewerMotion(ActorState current,ActorState incoming)
         {
             if(SameLifetime(current,incoming) && !IsNewer(incoming.motionSequence,current.motionSequence))
+            {
                 ActorPose.CopyMotion(current,incoming);
+                NpcPerception.CopyState(current,incoming);
+            }
         }
     }
 }

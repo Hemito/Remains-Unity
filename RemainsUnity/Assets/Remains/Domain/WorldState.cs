@@ -34,6 +34,7 @@ namespace Remains.Domain
         public string character;
         public string owner;
         public string target;
+        public NpcPerceptionMemory perception=new();
         public string level = "factory:0";
         public string anatomy = "pony";
         public string actorType = "pony";

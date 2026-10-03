@@ -15,8 +15,8 @@ namespace Remains.Editor
             var npc=new ActorState {id="npc",owner="a",target=a.id};
             world.actors.Add(a);world.actors.Add(b);world.actors.Add(npc);
             var ownership=new OwnershipService();NpcAttackRules.Begin(npc,a);string id=npc.attackId;
-            b.x=1;ownership.Reassign(world,new[]{"a","b"});
-            Require(npc.owner=="a" && npc.target==a.id && npc.attackTarget==a.id,"Начатая атака сохраняет цель и владельца");
+            b.x=1;npc.target=b.id;ownership.Reassign(world,new[]{"a","b"});
+            Require(npc.owner=="a" && npc.target==b.id && npc.attackTarget==a.id,"Начатая атака сохраняет свою цель и владельца при новом решении AI");
             var attack=NpcAttackRules.Complete(npc,a);ownership.Reassign(world,new[]{"a","b"});
             Require(attack.id==id && npc.owner=="b" && npc.target==b.id && npc.attackCooldown==2,"Завершение передаёт владельца с сохранённой паузой");
             var restored=npc.Copy();Require(restored.attackCooldown==2 && restored.attackId==id,"Пауза и ID переживают сериализацию");
