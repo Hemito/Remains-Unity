@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Remains.Serialization;
 namespace Remains.Domain
 {
-    [Serializable] public sealed class WeaponItemState : ExtensibleState
+    [Serializable] public class WeaponItemState : ExtensibleState
     {
         public long revision;
         public int rounds;

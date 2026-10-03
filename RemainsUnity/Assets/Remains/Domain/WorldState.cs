@@ -72,6 +72,9 @@ namespace Remains.Domain
         public float attackCooldown;
         public List<ItemStack> inventory = new();
         public int loadoutVersion;
+        public int weaponInventoryVersion;
+        public string equippedWeaponItem;
+        public List<WeaponShortcut> weaponShortcuts=new();
         public List<WeaponMagazine> magazines = new();
         public List<InventoryUse> inventoryUses = new();
         [NonSerialized] public Dictionary<string,int> inventoryReservations = new();

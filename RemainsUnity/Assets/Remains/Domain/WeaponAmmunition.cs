@@ -4,14 +4,21 @@ using Remains.Content;
 
 namespace Remains.Domain
 {
-    [Serializable] public sealed class WeaponMagazine : Remains.Serialization.ExtensibleState { public string weapon; public int rounds; }
+    [Serializable] public sealed class WeaponMagazine : WeaponItemState { public string weapon; }
 
     public static class WeaponAmmunition
     {
-        public static WeaponMagazine Magazine(ActorState actor,string weapon) => actor.magazines.Find(m=>m.weapon==weapon);
+        public static WeaponItemState Magazine(ActorState actor,string weapon)
+        {
+            if(actor.weaponInventoryVersion==0) return actor.magazines.Find(m=>m.weapon==weapon);
+            if(actor.weaponInventoryVersion!=1) throw new InvalidOperationException($"Неизвестная версия инвентаря оружия: actor={actor.id}, version={actor.weaponInventoryVersion}.");
+            var selected=WeaponInventory.Selected(actor);
+            return selected?.definition==weapon?selected.weaponState:null;
+        }
 
         public static void Initialize(ActorState actor,bool starter)
         {
+            if(actor.weaponInventoryVersion!=0) throw new InvalidOperationException("Старое оснащение нельзя выдавать поверх экземпляров оружия.");
             actor.magazines ??= new List<WeaponMagazine>();
             actor.inventoryUses ??= new List<InventoryUse>();
             foreach(var definition in WeaponCatalog.All)
@@ -26,13 +33,16 @@ namespace Remains.Domain
         public static bool SpendShot(ActorState actor,WeaponDefinition definition,out string reason)
         {
             reason=null;
+            if(actor.weaponInventoryVersion!=0 && !WeaponInventory.Available(actor,definition.id))
+            {reason="Выбранное оружие отсутствует или ожидает передачи.";return false;}
             if(actor.mana<definition.manaCost) {reason="Недостаточно маны.";return false;}
             if(!string.IsNullOrEmpty(definition.ammo))
             {
                 var magazine=Magazine(actor,definition.id);
                 if(magazine==null) {reason=$"Нет магазина оружия {definition.id}. Проверьте сохранение и набор модов.";return false;}
                 if(magazine.rounds<definition.ammoPerShot) {reason="Магазин пуст. Нажмите R для перезарядки.";return false;}
-                magazine.rounds-=definition.ammoPerShot;
+                if(magazine.revision==long.MaxValue) throw new InvalidOperationException("Исчерпан номер состояния магазина.");
+                magazine.rounds-=definition.ammoPerShot;magazine.revision++;
             }
             actor.mana-=definition.manaCost;
             return true;
@@ -40,6 +50,7 @@ namespace Remains.Domain
 
         public static int ReloadAmount(ActorState actor,WeaponDefinition definition)
         {
+            if(actor.weaponInventoryVersion!=0 && !WeaponInventory.Available(actor,definition.id)) return 0;
             var magazine=Magazine(actor,definition.id);
             if(magazine==null || string.IsNullOrEmpty(definition.ammo)) return 0;
             return Math.Max(0,Math.Min(definition.magazineSize-magazine.rounds,InventoryJournal.Count(actor,definition.ammo)));
@@ -48,8 +59,11 @@ namespace Remains.Domain
         public static bool CompleteReload(ActorState actor,WeaponDefinition definition)
         {
             int count=ReloadAmount(actor,definition);
-            if(count==0 || !InventoryJournal.Consume(actor,definition.ammo,count)) return false;
-            Magazine(actor,definition.id).rounds+=count;
+            if(count==0) return false;
+            var magazine=Magazine(actor,definition.id);
+            if(magazine.revision==long.MaxValue) throw new InvalidOperationException("Исчерпан номер состояния магазина.");
+            if(!InventoryJournal.Consume(actor,definition.ammo,count)) return false;
+            magazine.rounds+=count;magazine.revision++;
             actor.revision++;
             return true;
         }
