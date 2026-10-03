@@ -7,6 +7,11 @@ namespace Remains.Domain
     public static class WeaponInventory
     {
         public static ItemStack Selected(ActorState actor)=>actor?.inventory.Find(item=>item.id==actor.equippedWeaponItem && item.weaponState!=null && item.count==1);
+        public static ItemStack Shortcut(ActorState actor,string slot)
+        {
+            var reference=actor?.weaponShortcuts.Find(value=>value.slot==slot);
+            return reference==null?null:actor.inventory.Find(item=>item.id==reference.item && item.weaponState!=null && item.count==1);
+        }
         public static bool Available(ActorState actor,string definition)=>Selected(actor) is { } item &&
             item.definition==definition && InventoryAvailability.Count(actor,item)==1;
         public static bool Select(ActorState actor,string itemId,out string reason)

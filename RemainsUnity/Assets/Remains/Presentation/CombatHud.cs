@@ -15,7 +15,10 @@ namespace Remains.Presentation
         private readonly Button[] weapons;
         private readonly string[] ids;
         private readonly HashSet<string> missing=new();
-        public CombatHud(Transform parent,Action<string> equip)
+        private ActorState displayedActor;
+        private readonly InventoryArtwork artwork=new();
+        private readonly Image[] shortcutIcons;
+        public CombatHud(Transform parent,Action<string> equip,Action<string> equipItem=null)
         {
             var prefab=Resources.Load<CombatHudView>("Presentation/CombatHud");
             if(prefab==null) throw new InvalidOperationException("Нет префаба HUD Presentation/CombatHud.");
@@ -23,10 +26,25 @@ namespace Remains.Presentation
             vitals=view.Vitals;loadout=view.Loadout;name=view.CharacterName;healthText=view.HealthText;manaText=view.ManaText;
             ammunition=view.Ammunition;health=view.Health;mana=view.Mana;weapons=view.Weapons;ids=view.WeaponIds;
             healthWarning=new HealthBarWarning(health.sprite,view.HealthWarningFrames);
-            for(int i=0;i<weapons.Length;i++) {string id=ids[i];weapons[i].onClick.AddListener(()=>equip(id));}
+            shortcutIcons=new Image[weapons.Length];
+            for(int i=0;i<weapons.Length;i++)
+            {
+                string id=ids[i],slot=(i+1).ToString();
+                shortcutIcons[i]=weapons[i].transform.Find("Иконка предмета")?.GetComponent<Image>() ??
+                    throw new InvalidOperationException($"Нет иконки быстрого слота {slot}.");
+                weapons[i].onClick.AddListener(()=>
+                {
+                    if(displayedActor?.weaponInventoryVersion!=1) {equip(id);return;}
+                    var item=WeaponInventory.Shortcut(displayedActor,slot);
+                    if(item==null) return;
+                    if(equipItem==null) throw new InvalidOperationException("Не подключён быстрый выбор экземпляра оружия.");
+                    equipItem(item.id);
+                });
+            }
         }
         public void Refresh(ActorState actor,bool visible,float? reloadRemaining=null)
         {
+            displayedActor=actor;
             vitals.SetActive(visible);loadout.SetActive(visible);
             healthWarning.Refresh(health,actor==null?0:Mathf.Clamp01(actor.health/100),visible,Time.unscaledTime);
             if(actor==null) return;
@@ -35,8 +53,11 @@ namespace Remains.Presentation
             healthText.text=$"Здоровье  {actor.health:0} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";
             for(int i=0;i<weapons.Length;i++)
             {
-                OriginalButtonStyle.SetSelected(weapons[i],ids[i]==actor.weapon);
-                weapons[i].interactable=!actor.down;
+                var item=actor.weaponInventoryVersion==1?WeaponInventory.Shortcut(actor,(i+1).ToString()):null;
+                bool instances=actor.weaponInventoryVersion==1;
+                OriginalButtonStyle.SetSelected(weapons[i],instances?item!=null && item.id==actor.equippedWeaponItem:ids[i]==actor.weapon);
+                weapons[i].interactable=!actor.down && (!instances || item!=null && InventoryAvailability.Count(actor,item)>0);
+                artwork.Set(shortcutIcons[i],instances?item?.definition:ids[i]);
             }
             if(string.IsNullOrEmpty(actor.weapon)) {ammunition.text="Оружие не выбрано";return;}
             var definition=WeaponCatalog.Get(actor.weapon);

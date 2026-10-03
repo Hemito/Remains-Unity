@@ -29,6 +29,7 @@ namespace Remains.Editor
             WeaponCatalog.Load();
             WeaponInventoryChecks.Run();
             WeaponInventoryMigrationChecks.Run();
+            WeaponInventoryUiChecks.Run();
             WeaponAssetChecks.Run();
             EntityAssetChecks.Run();
             PropPrefabChecks.Run();

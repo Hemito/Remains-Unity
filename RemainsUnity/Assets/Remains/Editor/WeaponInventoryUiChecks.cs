@@ -1,0 +1,70 @@
+using System;
+using System.IO;
+using Remains.Content;
+using Remains.Domain;
+using Remains.Networking;
+using Remains.Presentation;
+using UnityEngine;
+using UnityEngine.UI;
+namespace Remains.Editor
+{
+    public static class WeaponInventoryUiChecks
+    {
+        public static void Run()=>Check(false);
+        public static void Render()=>Check(true);
+        public static void BuildAndRender() {PrototypeBuild.Build();Render();}
+        private static void Check(bool render)
+        {
+            WeaponCatalog.Load();
+            var root=new GameObject("Проверка предметов оружия");
+            RenderTexture target=null;Texture2D image=null;var previous=RenderTexture.active;
+            try
+            {
+                var session=root.AddComponent<CoopSession>();session.ConfigureRules(WeaponCatalog.Rules);
+                var actor=new ActorState {id="ui-weapons",owner="ui",character="Проверка инвентаря",weaponInventoryVersion=1,weapon=null};
+                var a=new ItemStack {id="first-pistol",definition="pistol",count=1,weaponState=new WeaponItemState {rounds=7}};
+                var b=new ItemStack {id="second-pistol",definition="pistol",count=1,weaponState=new WeaponItemState {rounds=2}};
+                actor.inventory.Add(a);actor.inventory.Add(b);actor.inventory.Add(SharedInventory.Create("heal",3));
+                var world=new WorldState();world.actors.Add(actor);
+                typeof(CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
+                typeof(CoopSession).GetProperty("LocalOwner").SetValue(session,actor.owner);
+                var canvas=new GameObject("Окно",typeof(RectTransform)).AddComponent<Canvas>();canvas.transform.SetParent(root.transform);
+                canvas.renderMode=RenderMode.ScreenSpaceCamera;
+                var scaler=canvas.gameObject.AddComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1280,720);
+                var window=InventoryWindowView.Create(canvas.transform);window.Personal.SetActive(true);window.Shared.SetActive(false);
+                var rect=window.GetComponent<RectTransform>();rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);rect.anchoredPosition=Vector2.zero;
+                var view=window.PersonalContents;
+                Action<string> select=id=>{if(!WeaponInventory.Select(actor,id,out var reason)) throw new InvalidOperationException(reason);};
+                var panel=new PersonalInventoryPanel(view,session,id=>id=="pistol"?"10-мм пистолет":"Аптечка",()=>0,
+                    _=>throw new InvalidOperationException("UI экземпляра вызвал старый выбор определения."),new InventoryArtwork(),select);
+                panel.Refresh(null);view.Rows[1].onClick.Invoke();
+                Require(view.Use.interactable && view.Detail.text.Contains("В магазине: 2"),"Нет действия/магазина выбранного экземпляра");
+                view.Use.onClick.Invoke();Require(actor.equippedWeaponItem==b.id,"Выбран первый пистолет вместо второго");
+                view.Weapons[0].onClick.Invoke();Require(WeaponInventory.Shortcut(actor,"1")?.id==b.id,"Назначение не сохранило instance ID");
+                var hudRoot=new GameObject("Проверка быстрых ссылок",typeof(RectTransform));hudRoot.transform.SetParent(root.transform);
+                string clicked=null;var hud=new CombatHud(hudRoot.transform,_=>throw new InvalidOperationException("HUD вызвал старый выбор."),id=>clicked=id);
+                hud.Refresh(actor,true);var hudView=hudRoot.GetComponentInChildren<CombatHudView>();hudView.Weapons[0].onClick.Invoke();
+                Require(clicked==b.id && !hudView.Weapons[1].interactable,"HUD выбирает определение или разрешает пустой слот");
+                view.Use.onClick.Invoke();Require(actor.weapon==null && actor.equippedWeaponItem==null,"Кнопка не убрала оружие");
+                view.Use.onClick.Invoke();panel.Refresh(null);hudRoot.SetActive(false);
+                if(render)
+                {
+                    var camera=new GameObject("Камера окна").AddComponent<Camera>();camera.transform.SetParent(root.transform);camera.transform.position=new Vector3(0,0,-10);camera.backgroundColor=new Color(.06f,.07f,.08f);
+                    target=new RenderTexture(1920,1080,24);target.Create();camera.targetTexture=target;canvas.worldCamera=camera;canvas.planeDistance=1;
+                    Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
+                    image=new Texture2D(1920,1080,TextureFormat.RGBA32,false);image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();
+                    File.WriteAllBytes(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/weapon-inventory-ui.png")),image.EncodeToPNG());
+                }
+            }
+            finally
+            {
+                RenderTexture.active=previous;
+                if(image!=null) UnityEngine.Object.DestroyImmediate(image);
+                if(target!=null) {target.Release();UnityEngine.Object.DestroyImmediate(target);}
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+        private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException(message);}
+    }
+}

@@ -115,6 +115,7 @@ namespace Remains.Runtime
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences);
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
+                hud.EquipWeaponItem=EquipWeaponItem;
                 hud.EquipWeapon=weapon=>{if(Session.LocalActor is {down:false}) Combat.Weapon=weapon;};
                 hud.SelectCharacter=name=>
                 {
@@ -263,6 +264,11 @@ namespace Remains.Runtime
                 command.sprint=keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
                 command.weapon=keyboard.digit1Key.wasPressedThisFrame?"spear":keyboard.digit2Key.wasPressedThisFrame?"crowbar":
                     keyboard.digit3Key.wasPressedThisFrame?"pistol":keyboard.digit4Key.wasPressedThisFrame?"energy":null;
+                if(Session.LocalActor?.weaponInventoryVersion==1 && command.weapon!=null)
+                {
+                    command.weaponShortcut=keyboard.digit1Key.wasPressedThisFrame?"1":keyboard.digit2Key.wasPressedThisFrame?"2":keyboard.digit3Key.wasPressedThisFrame?"3":"4";
+                    command.weapon=null;
+                }
                 command.inventory=keyboard.iKey.wasPressedThisFrame;
                 command.menu=keyboard.escapeKey.wasPressedThisFrame;
                 command.reload=keyboard.rKey.wasPressedThisFrame;
@@ -278,6 +284,13 @@ namespace Remains.Runtime
             return command;
         }
 
+        private void EquipWeaponItem(string item)
+        {
+            var actor=Session.LocalActor;
+            if(actor==null || actor.down) return;
+            if(!WeaponInventory.Select(actor,item,out var reason)) {Session.ShowNotice(reason);return;}
+            Combat.Weapon=actor.weapon;Session.PublishActor(actor);
+        }
         private void ApplyCommand(PlayerCommand command,float dt)
         {
             var actor=Session.LocalActor;
@@ -287,7 +300,18 @@ namespace Remains.Runtime
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
             if(Session.Travel.Pending) command=default;
             movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
-            if(command.weapon!=null) Combat.Weapon=command.weapon;
+            if(command.weaponItem!=null) EquipWeaponItem(command.weaponItem);
+            if(command.weaponShortcut!=null)
+            {
+                var item=WeaponInventory.Shortcut(actor,command.weaponShortcut);
+                if(item!=null) EquipWeaponItem(item.id);
+                else Session.ShowNotice("Быстрый слот пуст.");
+            }
+            if(command.weapon!=null)
+            {
+                if(actor.weaponInventoryVersion==0) Combat.Weapon=command.weapon;
+                else Debug.LogWarning($"Отклонён выбор определения вместо экземпляра: actor={actor.id}, weapon={command.weapon}, inventoryVersion={actor.weaponInventoryVersion}. Используйте weaponItem или weaponShortcut.",this);
+            }
             if(actor.weaponInventoryVersion==1) Combat.Weapon=WeaponInventory.Selected(actor)?.definition;
             actor.weapon=Combat.Weapon;
             if(command.hasAim && !Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim);

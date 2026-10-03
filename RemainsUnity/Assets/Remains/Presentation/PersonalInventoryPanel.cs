@@ -9,11 +9,14 @@ namespace Remains.Presentation
     public sealed class PersonalInventoryPanel
     {
         private readonly CoopSession session;
+        private readonly Action<string> equipItem;
         private readonly Func<string,string> itemName;
         private readonly Func<int> quantity;
         private readonly Button[] rows;
         private readonly string[] weapons;
         private readonly Button[] weaponButtons;
+        private readonly Image[] weaponIcons;
+        private readonly string[] legacyLabels;
         private readonly Image[] icons;
         private readonly Image detailIcon;
         private readonly InventoryArtwork artwork;
@@ -28,8 +31,9 @@ namespace Remains.Presentation
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
         public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();
-        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork)
+        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork,Action<string> equipItem=null)
         {
+            this.equipItem=equipItem;
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
             if(view==null) throw new InvalidOperationException("Не назначено содержимое личной страницы инвентаря.");
             view.Validate();
@@ -37,10 +41,37 @@ namespace Remains.Presentation
             detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
             title=view.Title;detail=view.Detail;actionStatus=view.ActionStatus;
             portrait=new InventoryPortrait(view.Portrait,view.PortraitParts);
-            for(int i=0;i<weaponButtons.Length;i++) {string weapon=weapons[i];weaponButtons[i].onClick.AddListener(()=>equip(weapon));}
+            weaponIcons=new Image[weaponButtons.Length];legacyLabels=new string[weaponButtons.Length];
+            for(int i=0;i<weaponButtons.Length;i++)
+            {
+                string weapon=weapons[i],slot=(i+1).ToString();
+                weaponIcons[i]=weaponButtons[i].transform.Find("Иконка предмета")?.GetComponent<Image>() ?? throw new InvalidOperationException($"Нет иконки назначения {slot}.");
+                legacyLabels[i]=weaponButtons[i].GetComponentInChildren<Text>().text;
+                weaponButtons[i].onClick.AddListener(()=>
+                {
+                    var actor=session.LocalActor;
+                    if(actor?.weaponInventoryVersion==1)
+                    {
+                        if(WeaponInventory.Assign(actor,slot,selected,out var reason)) session.PublishActor(actor);
+                        else session.ShowNotice(reason);
+                        Refresh(container);
+                    }
+                    else equip(weapon);
+                });
+            }
             for(int i=0;i<rows.Length;i++) {int index=i;rows[i].onClick.AddListener(()=>{selected=ids[index];Refresh(container);});}
             previous.onClick.AddListener(()=>{page--;Refresh(container);});next.onClick.AddListener(()=>{page++;Refresh(container);});
-            use.onClick.AddListener(()=>{session.RequestSelfHeal();Refresh(container);});
+            use.onClick.AddListener(()=>
+            {
+                var actor=session.LocalActor;var item=actor?.inventory.Find(value=>value.id==selected);
+                if(item?.weaponState!=null)
+                {
+                    if(this.equipItem==null) throw new InvalidOperationException("Не подключён выбор экземпляра оружия в инвентаре.");
+                    this.equipItem(actor.equippedWeaponItem==item.id?null:item.id);
+                }
+                else session.RequestSelfHeal();
+                Refresh(container);
+            });
             deposit.onClick.AddListener(()=>{if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
             session.Deposits.Reconciled+=()=>Refresh(container);
         }
@@ -50,8 +81,12 @@ namespace Remains.Presentation
             if(actor==null) container=null;
             for(int i=0;i<weaponButtons.Length;i++)
             {
-                OriginalButtonStyle.SetSelected(weaponButtons[i],actor?.weapon==weapons[i]);
-                weaponButtons[i].interactable=actor is {down:false};
+                bool instances=actor?.weaponInventoryVersion==1;
+                var chosenWeapon=actor?.inventory.Find(item=>item.id==selected && item.weaponState!=null);
+                OriginalButtonStyle.SetSelected(weaponButtons[i],instances?chosenWeapon!=null && WeaponInventory.Shortcut(actor,(i+1).ToString())?.id==selected:actor?.weapon==weapons[i]);
+                weaponButtons[i].interactable=actor is {down:false} && (!instances || chosenWeapon!=null);
+                weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"Назначить {i+1}":legacyLabels[i];
+                artwork.Set(weaponIcons[i],instances?WeaponInventory.Shortcut(actor,(i+1).ToString())?.definition:weapons[i]);
             }
             page=Mathf.Clamp(page,0,Math.Max(0,(count-1)/rows.Length));
             previous.interactable=page>0;next.interactable=(page+1)*rows.Length<count;
@@ -74,10 +109,13 @@ namespace Remains.Presentation
             if(rejection==null && chosen!=null && amount>0) rejection=session.Rules.Deposit.Rejection(new DepositContext(actor,container,chosen,amount));
             bool paused=actor!=null && session.Pause.IsPaused(actor.level);
             deposit.interactable=chosen!=null && availableChosen>=amount && amount>0 && rejection==null && !paused;
-            use.interactable=chosen?.definition=="heal" && availableChosen>0 && !paused && HealingRules.CanApply(actor,actor,true);
+            bool weaponSelected=chosen?.weaponState!=null && actor.weaponInventoryVersion==1;
+            use.interactable=availableChosen>0 && !paused && actor is {down:false} &&
+                (weaponSelected || chosen?.definition=="heal" && HealingRules.CanApply(actor,actor,true));
+            use.GetComponentInChildren<Text>().text=weaponSelected?(actor.equippedWeaponItem==chosen.id?"Убрать оружие":"Взять в копыта"):"Использовать";
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
-            detail.text=chosen==null?"Выберите предмет в списке.":$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+Description(chosen.definition);
+            detail.text=chosen==null?"Выберите предмет в списке.":$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?$"В магазине: {chosen.weaponState.rounds}\nВыбор: {(actor.equippedWeaponItem==chosen.id?"в копытах":"в инвентаре")}\nКнопки 1–4 назначают быстрый доступ.":Description(chosen.definition));
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen!=null?rejection??"":"";
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
         }

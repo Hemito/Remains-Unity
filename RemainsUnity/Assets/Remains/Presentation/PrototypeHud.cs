@@ -67,6 +67,7 @@ namespace Remains.Presentation
         public RectTransform UseItemRect=>personalItems.UseRect;
         public RectTransform InventoryWeaponRect(int index)=>personalItems.WeaponRect(index);
         public Action<string> EquipWeapon {get;set;}
+        public Action<string> EquipWeaponItem {get;set;}
         private Text revival;
         public Func<float> RevivalProgress {get;set;}
         public Func<bool> RevivalPending {get;set;}
@@ -96,7 +97,7 @@ namespace Remains.Presentation
             AudioSettings=new AudioSettingsPanel(transform,audioPreferences);
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             status=elements.BackedLabel(transform,"",new Vector2(720,-20),new Vector2(285,44));
-            combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon));
+            combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon),item=>EquipWeaponItem?.Invoke(item));
             quickActions=Panel(transform,"Действия",new Vector2(1020,-14),new Vector2(244,96));
             message=elements.BackedLabel(transform,"",new Vector2(350,-140),new Vector2(880,55));
             revival=elements.BackedLabel(transform,"",new Vector2(480,-625),new Vector2(750,35));
@@ -132,7 +133,7 @@ namespace Remains.Presentation
             previousContainer.onClick.AddListener(()=>{containerPage--;Refresh();});
             nextContainer.onClick.AddListener(()=>{containerPage++;Refresh();});
             inventory.SetActive(false);
-            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork);
+            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item));
             inventoryWindow=new InventoryWindow(inventoryView,ToggleInventory,inventoryAudio.Page);
             var pauseView=PauseMenuView.Create(transform);
             friendlyFire=pauseView.FriendlyFire;friendlyFire.onClick.AddListener(()=>session.SetFriendlyFire(!session.World.friendlyFire));
@@ -266,6 +267,10 @@ namespace Remains.Presentation
         {
             switch(id)
             {
+                case "spear":return "Копьё";
+                case "crowbar":return "Лом";
+                case "pistol":return "10-мм пистолет";
+                case "energy":return "Лазерный пистолет";
                 case "caps":return "Крышки";
                 case "heal":return "Аптечка";
                 case "grenade":return "Граната";
