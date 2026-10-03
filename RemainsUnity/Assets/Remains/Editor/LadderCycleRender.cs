@@ -41,7 +41,8 @@ namespace Remains.Editor
                                 var frames=new int[13];
                                 try
                                 {
-                                    motion.Step(actor,Vector2.up*direction,false,1f/30);
+                                    // Acquire in the air with Up before observing either direction of the cycle.
+                                    motion.Step(actor,Vector2.up,false,1f/30);
                                     for(int frame=0;frame<13;frame++)
                                     {
                                         if(frame==0) motion.Step(actor,Vector2.zero,false,1f/30);

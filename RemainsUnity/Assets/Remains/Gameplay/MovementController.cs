@@ -28,8 +28,9 @@ namespace Remains.Gameplay
             var selected=System.Array.Find(room.ladders,l=>Mathf.Abs(actor.x-l.x-l.movementOffset)<0.65f && actor.y>=l.bottom-0.1f && actor.y<l.top+0.2f);
             bool wasClimbing=actor.climbing && selected!=null;
             bool detach=jump && input.y<=.1f;
-            bool ladder = selected!=null && !detach && (wasClimbing || Mathf.Abs(input.y) > 0.1f);
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
+            // Up can catch a ladder in flight; down starts from support or continues an existing hold.
+            bool ladder = selected!=null && !detach && (wasClimbing || input.y>.1f || grounded && input.y<-.1f);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
             bool wasCrouched=actor.crouched;
             CrouchMotion.Step(actor,room,settings,input,jump,grounded,ladder,drop,dt);

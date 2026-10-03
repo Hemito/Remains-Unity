@@ -11,10 +11,27 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            Anatomy.Load();
             CheckAnimation();
             var room=RoomLayout.Load();
             foreach(float dt in new[]{1f/30,1f/60,1f/144})
             {
+                var falling=new ActorState {id="ladder-air-down",x=4,y=1,vy=-1};
+                Require(!ActorTerrainMotion.Supported(room,Anatomy.Movement(falling),falling.Position),"Проверка захвата в воздухе ошибочно стоит на опоре");
+                var fallingMotion=new MovementController(room);
+                fallingMotion.Step(falling,Vector2.down,false,dt);
+                Require(!falling.climbing && falling.y<1 && falling.vy<0,"S в воздухе повторно захватывает лестницу");
+                fallingMotion.Step(falling,Vector2.up,false,dt);
+                Require(falling.climbing && falling.vy>0,"W не захватывает лестницу в воздухе");
+                fallingMotion.Step(falling,Vector2.down,false,dt);
+                Require(falling.climbing && falling.vy<0,"S не продолжает спуск после захвата");
+                var topRoom=new RoomLayout {id="ladder-top",left=-5,right=5,bottom=-1,top=6,
+                    ladders=new[]{new RoomLadder {x=0,bottom=0,top=3}},
+                    platforms=new[]{new RoomSurface {x=-5,y=-1,width=10,height=1},
+                        new RoomSurface {x=-2,y=2.8f,width=4,height=.2f,oneWay=true}}};
+                var onTop=new ActorState {id="ladder-top-down",x=0,y=3};
+                new MovementController(topRoom).Step(onTop,Vector2.down,false,dt);
+                Require(onTop.climbing && onTop.y<3 && onTop.vy<0,"S с верхней опоры не начинает спуск");
                 var actor=new ActorState {id="ladder-hold",x=4,y=1};
                 var motion=new MovementController(room);
                 motion.Step(actor,Vector2.up,false,dt);
@@ -29,6 +46,8 @@ namespace Remains.Editor
                 Require(copy.climbing && copy.y==height,"Загрузка сохраняет захват лестницы");
                 motion.Step(actor,Vector2.zero,true,dt);
                 Require(!actor.climbing && actor.vy>0 && actor.pose=="jump","Прыжок отпускает лестницу");
+                motion.Step(actor,Vector2.down,false,dt);
+                Require(!actor.climbing && actor.vy>0,"S сразу после прыжка вернул персонажа на лестницу");
                 foreach(int facing in new[]{-1,1})
                 {
                     var ladder=room.ladders[0];var originalFacing=ladder.facing;
