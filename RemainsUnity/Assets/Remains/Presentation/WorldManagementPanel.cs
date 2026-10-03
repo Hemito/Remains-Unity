@@ -11,7 +11,8 @@ namespace Remains.Presentation
         {
             var library=new WorldLibrary(store);
             var view=WorldManagementView.Create(parent);var overlay=view.gameObject;
-            var name=view.Name;name.text=library.Name(worldId);var status=view.Status;
+            string savedName=library.Name(worldId);
+            var name=view.Name;name.text=savedName;var status=view.Status;
             void Apply(Action action)
             {
                 try {action();UnityEngine.Object.Destroy(overlay);changed();}
@@ -23,7 +24,8 @@ namespace Remains.Presentation
             {
                 if(!confirm)
                 {
-                    confirm=true;status.text="Удалить этот мир со всеми локальными ветвями? Из списка он исчезнет; резервная копия останется в папке DeletedWorlds. Персонаж не удаляется.";
+                    string shortId=worldId.Substring(0,Math.Min(8,worldId.Length));
+                    confirm=true;status.text=$"Удалить «{savedName}» (мир {shortId}) и все его локальные ветви?\nКопия останется в DeletedWorlds. Персонаж сохранится.";
                     delete.GetComponentInChildren<Text>().text="Да, удалить мир";return;
                 }
                 Apply(()=>library.Delete(worldId));
