@@ -111,7 +111,7 @@ namespace Remains.Presentation
                 var chosenWeapon=actor?.inventory.Find(item=>item.id==selected && WeaponInventory.IsEquippable(item));
                 OriginalButtonStyle.SetSelected(weaponButtons[i],instances?chosenWeapon!=null && WeaponInventory.Shortcut(actor,(i+1).ToString())?.id==selected:actor?.weapon==weapons[i]);
                 weaponButtons[i].interactable=actor is {down:false} && (!instances || chosenWeapon!=null);
-                weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"Назначить {i+1}":legacyLabels[i];
+                weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"Клавиша {i+1}":legacyLabels[i];
                 artwork.Set(weaponIcons[i],instances?WeaponInventory.Shortcut(actor,(i+1).ToString())?.definition:weapons[i]);
             }
             page=Mathf.Clamp(page,0,Math.Max(0,(count-1)/rows.Length));
@@ -128,6 +128,7 @@ namespace Remains.Presentation
                     $" · {item.weaponState.rounds}/{WeaponCatalog.Get(item.definition).magazineSize}":"";
                 rows[i].GetComponentInChildren<Text>().text=item==null?"—":$"{(item.id==selected?"› ":"")}{itemName(item.definition)}{quantityText}"+(available<item.count?$" (доступно {available})":"");
                 rows[i].interactable=item!=null;
+                OriginalButtonStyle.SetSelected(rows[i],item!=null && item.id==selected);
             }
             int availableChosen=chosen==null?0:InventoryAvailability.Count(actor,chosen);
             artwork.Set(detailIcon,chosen?.definition);

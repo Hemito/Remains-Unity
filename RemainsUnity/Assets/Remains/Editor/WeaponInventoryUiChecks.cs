@@ -42,6 +42,7 @@ namespace Remains.Editor
                 var panel=new PersonalInventoryPanel(view,session,id=>id switch {"pistol"=>"10-мм пистолет","spear"=>"Копьё","crowbar"=>"Лом","grenade"=>"Граната",_=>"Аптечка"},()=>0,
                     _=>throw new InvalidOperationException("UI экземпляра вызвал старый выбор определения."),new InventoryArtwork(),select);
                 panel.Refresh(null);view.Rows[1].onClick.Invoke();
+                Require(view.Rows[1].colors.normalColor!=view.Rows[0].colors.normalColor,"Выбранная строка не отличается от соседней");
                 Require(view.Rows[0].GetComponentInChildren<Text>().text.Contains("7/12") &&
                     view.Rows[1].GetComponentInChildren<Text>().text.Contains("2/12"),"Строки не различают боезапас экземпляров");
                 Require(view.Use.interactable && view.WeaponDetail.text.Contains("В магазине: 2"),"Нет действия/магазина выбранного экземпляра");
@@ -101,6 +102,11 @@ namespace Remains.Editor
                     foreach(int row in new[]{1,2,3,4,5})
                     {
                         view.Rows[row].onClick.Invoke();Canvas.ForceUpdateCanvases();
+                        foreach(var button in view.Weapons)
+                        {
+                            var label=button.GetComponentInChildren<Text>();
+                            Require(label.preferredWidth<=label.rectTransform.rect.width+.1f,"Обрезается подпись быстрой клавиши: "+label.text);
+                        }
                         Require(view.WeaponDetail.preferredHeight<=view.WeaponDetail.rectTransform.rect.height+.1f,"Описание оружия обрезается");
                         camera.Render();RenderTexture.active=target;
                         image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();
