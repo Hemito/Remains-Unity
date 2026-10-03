@@ -206,7 +206,7 @@ namespace Remains.Presentation
             if(nearest?.id!=shownContainer?.id) containerPage=0;
             shownContainer=nearest;
             containerHint.Refresh(shownContainer==null?null:session.World.containers.Find(c=>c.id==shownContainer.id),
-                gameplayVisible && !PauseMenu.IsOpen && !AudioSettings.IsOpen);
+                gameplayVisible && !PauseMenu.IsOpen && !AudioSettings.IsOpen,actor);
             int pages=Math.Max(1,((shownContainer?.items.Count??0)+8)/9);
             containerPage=Mathf.Clamp(containerPage,0,pages-1);
             previousContainer.interactable=containerPage>0;nextContainer.interactable=containerPage<pages-1;
@@ -281,7 +281,7 @@ namespace Remains.Presentation
             factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
             if(ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
             bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen;
-            containerHint.Refresh(shownContainer==null?null:session.World?.containers.Find(c=>c.id==shownContainer.id),show && !AudioSettings.IsOpen);
+            containerHint.Refresh(shownContainer==null?null:session.World?.containers.Find(c=>c.id==shownContainer.id),show && !AudioSettings.IsOpen,session.LocalActor);
             combatHud.Refresh(session.LocalActor,show,ReloadRemaining?.Invoke());quickActions.SetActive(show);
             status.transform.parent.gameObject.SetActive(show);
             message.transform.parent.gameObject.SetActive(session.LocalActor!=null && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));

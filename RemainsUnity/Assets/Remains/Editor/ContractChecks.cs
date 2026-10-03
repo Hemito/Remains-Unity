@@ -21,6 +21,7 @@ namespace Remains.Editor
             Anatomy.Load();
             JumpPoseChecks.Run();
             FallPoseChecks.Run();
+            HintPlacementChecks.Run();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
             WeaponAssetChecks.Run();
