@@ -20,6 +20,7 @@ namespace Remains.Editor
             ExplosionPrefabChecks.Run();
             Anatomy.Load();
             JumpPoseChecks.Run();
+            WalkCycleChecks.Run();
             FallPoseChecks.Run();
             HintPlacementChecks.Run();
             CameraFramingChecks.Run();
