@@ -15,10 +15,15 @@ namespace Remains.Presentation
                 !float.IsFinite(bounds.width) || !float.IsFinite(bounds.height) || bounds.width<=0 || bounds.height<=0)
                 throw new InvalidOperationException($"Некорректная маска света: texture={texture?.name}, bounds={bounds}. Требуется читаемая текстура.");
             pixels=texture.GetPixels();width=texture.width;height=texture.height;this.bounds=bounds;
+            // CPU pixels keep the texture's encoding; the light map is sampled as linear data.
+            bool decode=QualitySettings.activeColorSpace==ColorSpace.Linear &&
+                UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsSRGBFormat(texture.graphicsFormat);
             // Interpolate premultiplied colour so invisible RGB cannot tint the edge.
             for(int i=0;i<pixels.Length;i++)
             {
-                var pixel=pixels[i];pixels[i]=new Color(pixel.r*pixel.a,pixel.g*pixel.a,pixel.b*pixel.a,pixel.a);
+                var pixel=pixels[i];
+                if(decode) pixel=pixel.linear;
+                pixels[i]=new Color(pixel.r*pixel.a,pixel.g*pixel.a,pixel.b*pixel.a,pixel.a);
             }
         }
         public Color Sample(Vector2 point)

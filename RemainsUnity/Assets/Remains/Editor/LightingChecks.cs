@@ -9,6 +9,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            CheckMaskColorSpace();
             var room=new RoomLayout {id="light-check",platforms=new[]{new RoomSurface {x=0,y=-2,width=.3f,height=4}}};
             var profile=new RoomLightProfile {ambient=new Color(.2f,.2f,.2f),lights=new[]{new RoomLight {id="test",x=-1,y=0,radius=5,intensity=.8f,color=Color.white}}};
             Require(RoomLightMap.Sample(room,profile,new Vector2(-.5f,0)).r>.7f,"Свет отсутствует рядом с источником");
@@ -41,6 +42,27 @@ namespace Remains.Editor
             Require(RoomLightMap.Sample(room,shadowProfile,Vector2.zero).r==1,"Выключение тени не восстановило свет");
             UnityEngine.Object.DestroyImmediate(texture);
             Debug.Log("Освещение: PASS — затухание, стена, открытая балка, общий шейдер.");
+        }
+        private static void CheckMaskColorSpace()
+        {
+            foreach(bool linear in new[]{false,true})
+            {
+                var texture=new Texture2D(1,1,TextureFormat.RGBA32,false,linear);
+                try
+                {
+                    texture.SetPixel(0,0,new Color(.5f,.25f,.75f,.5f));texture.Apply();
+                    Color stored=texture.GetPixel(0,0);
+                    bool srgb=UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsSRGBFormat(texture.graphicsFormat);
+                    Color decoded=QualitySettings.activeColorSpace==ColorSpace.Linear && srgb?stored.linear:stored;
+                    var mask=new RoomLightMask(texture,new Rect(0,0,1,1));
+                    Color actual=mask.Sample(new Vector2(.5f,.5f));
+                    Debug.Log($"Цвет маски: project={QualitySettings.activeColorSpace}, sRGB={srgb}, stored={stored}, actual={actual}, expectedRGB={decoded*stored.a}.");
+                    Require(Mathf.Abs(actual.r-decoded.r*stored.a)<.001f && Mathf.Abs(actual.g-decoded.g*stored.a)<.001f &&
+                        Mathf.Abs(actual.b-decoded.b*stored.a)<.001f,"RGB маски не согласован с цветовым пространством карты света.");
+                    Require(Mathf.Abs(actual.a-stored.a)<.001f,"Преобразование RGB изменило альфу маски.");
+                }
+                finally {UnityEngine.Object.DestroyImmediate(texture);}
+            }
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException(reason);}
     }
