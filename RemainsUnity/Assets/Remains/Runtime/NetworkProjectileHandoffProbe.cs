@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.IO;
 using System.Linq;
 using Mirror;
@@ -9,11 +10,13 @@ using UnityEngine;
 namespace Remains.Runtime
 {
     public struct ProjectileHandoffFinish : NetworkMessage {public string id;}
+    public struct ProjectileHandoffReceipt : NetworkMessage {public string id;}
     // Ordinary movement/weapon commands and a real client disconnect. No trajectory mutation.
     public sealed class NetworkProjectileHandoffProbe : MonoBehaviour
     {
         private PrototypeRuntime runtime;
         private bool traveled,fired,disconnected,reconnected,finished,transferred;
+        private bool finishSent,closing;
         private string flightId;
         private float deadline,reconnectAt,finishTime,retained;
         private int launches,generation;
@@ -23,12 +26,25 @@ namespace Remains.Runtime
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
             value.Session.AttackReceived+=attack=>
             {if(attack.weapon=="pistol" && attack.attacker=="player:session-client-1") {launches++;flightId=attack.id;}};
+            value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<ProjectileHandoffReceipt>((connection,message)=>
+            {
+                if(finishSent && message.id==flightId && value.Session.ConnectedActor(connection)?.id=="player:session-client-1")
+                    BeginFinish();
+            });
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<ProjectileHandoffFinish>(message=>
             {
+                if(Host || closing) return;
                 var flight=value.Session.World?.projectiles.Find(p=>p.launch.id==message.id);
                 if(flight==null || !flight.finished || launches!=1) Finish(false,"После подключения отсутствует завершённый полёт или повторён запуск.");
-                else Finish(true,"Незавершённый свободный полёт передан один раз, завершён и сохранён; подключение не повторяет выстрел.");
+                else {NetworkClient.Send(new ProjectileHandoffReceipt {id=message.id});BeginFinish();}
             });
+        }
+        private void BeginFinish()
+        {if(closing) return;closing=true;StartCoroutine(FinishAfterDelivery());}
+        private IEnumerator FinishAfterDelivery()
+        {
+            yield return new WaitForSecondsRealtime(1);
+            Finish(true,"Незавершённый свободный полёт передан один раз, завершён и сохранён; подключение не повторяет выстрел.");
         }
         private PlayerCommand Command()
         {
@@ -39,9 +55,10 @@ namespace Remains.Runtime
         }
         private void Update()
         {
-            if(finished) return;
+            if(finished || closing) return;
             var session=runtime.Session;
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут: fired={fired}, disconnected={disconnected}, transferred={transferred}, id={flightId}.");return;}
+            if(finishSent) return;
             if(!Host && disconnected && !reconnected && Time.unscaledTime>=reconnectAt)
             {reconnected=true;session.StartClient();return;}
             if(session.LocalActor==null) return;
@@ -74,7 +91,7 @@ namespace Remains.Runtime
             if(launches!=1 || canonical.generation!=generation || Mathf.Abs(canonical.traveled-range)>.001f ||
                 session.ServerWorld.projectiles.Count(p=>p.launch.id==flightId)!=1 || saved==null || !saved.finished || saved.traveled!=canonical.traveled)
             {Finish(false,"Повтор запуска/владения или несохранённое завершение полёта.");return;}
-            NetworkServer.SendToAll(new ProjectileHandoffFinish {id=flightId});
+            finishSent=true;NetworkServer.SendToAll(new ProjectileHandoffFinish {id=flightId});
         }
         private void Finish(bool success,string detail)
         {

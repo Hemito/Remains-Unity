@@ -18,6 +18,7 @@ namespace Remains.Networking
         public SessionProjectiles(CoopSession session) {this.session=session;}
         public void RegisterServer()=>NetworkServer.RegisterHandler<ProjectileProgressMessage>(Progress);
         public event Action Launched;
+        public event Action<string> Confirmed;
         public event Action<string> Rejected;
         public bool IsPending(string id)=>pending.Contains(id);
         public bool AcceptEcho(string id)=>!localEffects.Remove(id);
@@ -44,6 +45,7 @@ namespace Remains.Networking
             if(session.World==null) return;
             state.Path();
             bool wasPending=pending.Remove(state.launch.id);
+            if(wasPending) Confirmed?.Invoke(state.launch.id);
             var existing=session.World.projectiles.Find(p=>p.launch.id==state.launch.id);
             if(existing!=null)
             {

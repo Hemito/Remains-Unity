@@ -38,6 +38,7 @@ namespace Remains.Runtime
                 Path.Combine(Application.persistentDataPath,"Diagnostics","session-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")+".json"):
                 value.Options.Report+".timing.json";
             value.Session.AttackReceived+=attack=>Record("launch-observed",attack.id,attack.attacker);
+            value.Session.Projectiles.Confirmed+=id=>Record("launch-confirmed",id,value.Session.LocalActorId);
             value.Combat.Projectiles.ContactObserved+=contact=>Record("contact-observed",contact.projectile,contact.target);
             value.Combat.DamageApplied+=result=>Record("damage-applied",result.attack,result.actor);
             value.DamageFeedback.Received+=result=>Record("damage-number-received",result.attack,result.actor);

@@ -119,7 +119,11 @@ namespace Remains.Gameplay
                 if(definition.stopAtFirstActor) {stop=entry;stoppedAtActor=true;}
                 if(flight.hit.Add(target.id))
                 {
-                    if(flight.awaitingConfirmation) flight.pendingContacts.Add((Remains.Serialization.StateJson.Copy(attack),target));
+                    // NPC contact is a report, not a local health change. The reliable
+                    // launch precedes this report on the same connection, so the host can
+                    // validate it and route it to the NPC owner without a return trip first.
+                    // Player contacts still wait for the confirmed friendly-fire policy.
+                    if(flight.awaitingConfirmation && target.player) flight.pendingContacts.Add((Remains.Serialization.StateJson.Copy(attack),target));
                     else {apply(attack,target,flight.state.owner);Contacts++;}
                 }
                 Observe(flight,"actor:"+target.id,Vector2.Lerp(start,end,entry),target.id,actor.actorType,null);
