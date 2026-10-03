@@ -18,6 +18,7 @@ namespace Remains.Networking
         public int facing;
         public string pose;
         public float poseTime;
+        public uint poseSequence;
         public bool climbing;
         public bool crouched;
         public float jumpSupportRemaining;

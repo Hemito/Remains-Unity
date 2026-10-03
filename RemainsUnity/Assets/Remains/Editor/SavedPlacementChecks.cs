@@ -28,6 +28,8 @@ namespace Remains.Editor
             var after=saves.LoadWorld(false).actors[0];
             before.Position=after.Position;before.vx=after.vx;before.vy=after.vy;
             before.revision=after.revision;before.pose=after.pose;before.poseTime=after.poseTime;
+            Require(after.poseSequence==unchecked(before.poseSequence+1),"Восстановленная поза получает новый номер запуска");
+            before.poseSequence=after.poseSequence;
             Require(StateJson.ToJson(before)==StateJson.ToJson(after),"Не изменены здоровье, сознание, инвентарь, ранения и журналы");
             Require(!SavedActorPlacement.Repair(after,room,"повтор загрузки"),"Повторная загрузка не двигает тело");
             var ceiling=new ActorState {id="embedded-ceiling",level="hub",x=16,y=19.5f};

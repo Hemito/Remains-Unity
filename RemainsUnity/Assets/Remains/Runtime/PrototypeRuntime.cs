@@ -222,7 +222,10 @@ namespace Remains.Runtime
             if (actor==null || !NetworkClient.isConnected) return;
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors)
+            {
+                if(animated.owner==Session.LocalOwner) animated.poseCorrectionRemaining=0;
                 if(LevelActivity.HasConnectedPlayer(Session.World,animated.level) && !Session.Pause.IsPaused(animated.level)) ActorPose.Advance(animated,Time.deltaTime);
+            }
             Grenades.Step(Time.deltaTime);
             if (Options.Smoke==null || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {

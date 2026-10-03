@@ -330,6 +330,7 @@ namespace Remains.Networking
                 {
                     var local = World.Find(actor.id);
                     ActorMotionReplication.PreserveNewerMotion(local,actor);
+                    if(actor.owner!=LocalOwner) RemotePosePhase.Reconcile(local,actor);
                     ObservePoseCorrection("world",local,actor.pose,actor.poseTime);
                     if (local == null || local.owner != LocalOwner || local.generation != actor.generation ||
                         local.lifecycleSequence!=actor.lifecycleSequence || local.level!=actor.level) continue;
@@ -391,6 +392,7 @@ namespace Remains.Networking
                 PreserveOwnerInventory(actor,current);
             }
             ActorMotionReplication.PreserveNewerMotion(current,actor);
+            if(actor.owner!=LocalOwner) RemotePosePhase.Reconcile(current,actor);
             if(current?.owner==LocalOwner) WeaponInventory.PreserveSelection(current,actor);
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
@@ -463,14 +465,16 @@ namespace Remains.Networking
             if (!clientPoses.Accept(message.actor,message.generation,message.lifecycleSequence,message.sequence)) return;
             if(!ActorMotionReplication.IsNewer(message.sequence,actor.motionSequence)) return;
             ObservePoseCorrection("pose",actor,message.pose,message.poseTime);
-            ApplyPose(actor, message);
+            ApplyPose(actor, message,true);
         }
 
-        private static void ApplyPose(ActorState actor, PoseMessage message)
+        private static void ApplyPose(ActorState actor, PoseMessage message,bool remote=false)
         {
             actor.x = message.x; actor.y = message.y; actor.vx = message.vx; actor.vy = message.vy;
-            actor.facing = message.facing; actor.pose = message.pose;
-            actor.poseTime=message.poseTime;actor.motionSequence=message.sequence;
+            actor.facing = message.facing;
+            if(remote) RemotePosePhase.Apply(actor,message.pose,message.poseSequence,message.poseTime);
+            else {actor.pose=message.pose;actor.poseTime=message.poseTime;actor.poseSequence=message.poseSequence;actor.poseCorrectionRemaining=0;}
+            actor.motionSequence=message.sequence;
             actor.climbing=message.climbing;
             actor.jumpSupportRemaining=message.jumpSupportRemaining;
             actor.crouched=message.crouched;
@@ -487,7 +491,7 @@ namespace Remains.Networking
         public void PublishPose(ActorState actor) => NetworkClient.Send(new PoseMessage
         {
             actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = actor.motionSequence=unchecked(actor.motionSequence+1),
-            x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,climbing=actor.climbing,crouched=actor.crouched,jumpSupportRemaining=actor.jumpSupportRemaining,
+            x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,poseSequence=actor.poseSequence,climbing=actor.climbing,crouched=actor.crouched,jumpSupportRemaining=actor.jumpSupportRemaining,
             weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponFlipY=actor.weaponFlipY,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown
         }, Channels.Unreliable);
