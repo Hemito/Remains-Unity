@@ -8,7 +8,12 @@ namespace Remains.Content
         public static int Sample(float time,float fps,int count,bool loop,int loopStart=0,bool stationary=false,bool playIntro=false)
         {
             if(stationary) return 0;
-            int frame=Mathf.FloorToInt(time*fps);
+            float position=time*fps;
+            // Float accumulation can turn an exact boundary into -3.0000002.
+            // Snap only within 1/10000 of a source frame (3.3 microseconds at 30 Hz).
+            float nearest=Mathf.Round(position);
+            if(Mathf.Abs(position-nearest)<=.0001f) position=nearest;
+            int frame=Mathf.FloorToInt(position);
             if(!loop) return Mathf.Clamp(frame,0,count-1);
             if(playIntro && frame>=0 && frame<loopStart) return frame;
             if(playIntro) frame-=loopStart;

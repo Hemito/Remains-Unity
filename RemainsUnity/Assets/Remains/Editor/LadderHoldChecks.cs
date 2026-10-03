@@ -58,6 +58,22 @@ namespace Remains.Editor
         private static void CheckAnimation()
         {
             PonyAnimationData.Load();
+            foreach(int direction in new[]{-1,1})
+            {
+                float phase=0;
+                for(int tick=1;tick<=48;tick++)
+                {
+                    phase+=direction/30f;
+                    int expected=1+((direction*tick%12)+12)%12;
+                    Require(PonyAnimationData.FrameIndex("climb",phase,false)==expected,
+                        $"Погрешность границы пропустила/повторила кадр лестницы: direction={direction}, tick={tick}, time={phase:R}");
+                }
+            }
+            Require(AnimationFrames.Sample(-3.001f/30,30,13,true,1)==9 &&
+                AnimationFrames.Sample(-2.999f/30,30,13,true,1)==10 &&
+                AnimationFrames.Sample(2.999f/30,30,13,true,1)==3 &&
+                AnimationFrames.Sample(3.001f/30,30,13,true,1)==4,
+                "Допуск границы захватил обычную промежуточную фазу");
             var actor=new ActorState {id="ladder-animation",climbing=true,pose="climb",vy=3.15f};
             actor.poseTime=.14f;
             int before=PonyAnimationData.FrameIndex(actor.pose,actor.poseTime,false);
