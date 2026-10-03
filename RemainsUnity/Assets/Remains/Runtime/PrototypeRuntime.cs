@@ -288,6 +288,7 @@ namespace Remains.Runtime
             if(Session.Travel.Pending) command=default;
             movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
             if(command.weapon!=null) Combat.Weapon=command.weapon;
+            if(actor.weaponInventoryVersion==1) Combat.Weapon=WeaponInventory.Selected(actor)?.definition;
             actor.weapon=Combat.Weapon;
             if(command.hasAim && !Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim);
             if(command.reload && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);

@@ -66,7 +66,7 @@ namespace Remains.Presentation
             }
             Prune(props,new(session.World.props.Where(p=>p.level==level).Select(p=>p.id)));
             Prune(containers,new(session.World.containers.Where(c=>c.level==level).Select(c=>c.id)));
-            Prune(weapons,new(session.World.actors.Where(a=>ActorPresence.IsPresent(a) && Remains.Content.ActorTypes.Get(a.actorType).hasWeapon && a.level==level).Select(a=>a.id)));
+            Prune(weapons,new(session.World.actors.Where(a=>ActorPresence.IsPresent(a) && !string.IsNullOrEmpty(a.weapon) && Remains.Content.ActorTypes.Get(a.actorType).hasWeapon && a.level==level).Select(a=>a.id)));
             Prune(flights,new(grenades.Flights.Where(f=>f.state.level==level).Select(f=>f.state.id)));
             foreach(var container in session.World.containers.Where(c=>c.level==level))
             {
@@ -75,7 +75,7 @@ namespace Remains.Presentation
             }
             foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,propArtwork.CreateView(prop.definition,prop.id,prop.width));
             foreach(var actor in session.World.actors)
-                if(ActorPresence.IsPresent(actor) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
+                if(ActorPresence.IsPresent(actor) && !string.IsNullOrEmpty(actor.weapon) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
                 {
                     weapons.Add(actor.id,CreateWeapon(actor));
                 }
@@ -103,6 +103,7 @@ namespace Remains.Presentation
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;
+                if(string.IsNullOrEmpty(actor.weapon)) {view.SetVisible(false);continue;}
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.SetVisible(false);continue; }
                 if(view.Id!=actor.weapon)

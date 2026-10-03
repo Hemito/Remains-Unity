@@ -18,6 +18,7 @@ namespace Remains.Gameplay
         }
         public static void Aim(ActorState actor,Vector2 target)
         {
+            if(string.IsNullOrEmpty(actor.weapon)) return;
             var rig=WeaponRigs.Get(actor.weapon);
             var delta=target-(rig.HasMuzzle?RangedAnchor(actor):Origin(actor));
             if(delta.sqrMagnitude<.000001f)

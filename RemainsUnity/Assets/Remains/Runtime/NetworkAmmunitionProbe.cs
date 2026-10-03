@@ -17,6 +17,8 @@ namespace Remains.Runtime
     {
         private PrototypeRuntime runtime;
         private int phase,energyShots;
+        private bool unarmedChecked;
+        private float unarmedSince=-1;
         private float phaseTime,deadline,finishAt;
         private bool reloadRequested,sentDone,finished,configured;
         private readonly HashSet<int> completed=new();
@@ -41,6 +43,7 @@ namespace Remains.Runtime
             var command=new PlayerCommand {hasAim=true,aim=actor.Position+Vector2.up*20};
             switch(phase)
             {
+                case 0: if(!runtime.Options.Smoke.Contains("resume")) {command.weapon="";command.fire=true;command.reload=true;} break;
                 case 1: command.weapon="energy";command.fire=true;break;
                 case 2: command.weapon="energy";command.reload=!reloadRequested;reloadRequested=true;break;
                 case 3: command.weapon="pistol";command.fire=WeaponAmmunition.Magazine(actor,"pistol").rounds>9;break;
@@ -82,6 +85,14 @@ namespace Remains.Runtime
                     }
                     if(energy!=15 || pistol!=12 || InventoryJournal.Count(actor,"batt")!=45 || InventoryJournal.Count(actor,"p10")!=36)
                     {Finish(false,"Неверное стартовое оснащение.");return;}
+                    if(unarmedSince<0) unarmedSince=Time.unscaledTime;
+                    if(Time.unscaledTime-unarmedSince<.4f) return;
+                    if(!string.IsNullOrEmpty(actor.weapon) || runtime.Combat.Reload.Active || runtime.Audio.LocalShots!=0 || runtime.Audio.ReloadStarts!=0 ||
+                        FindObjectsByType<Remains.Presentation.WeaponView>(FindObjectsSortMode.None).Any(view=>view.GetComponentInParent<Remains.Presentation.ActorVisualGroup>()?.ActorId==actor.id))
+                    {Finish(false,"Пустые копыта создали оружие, выстрел или перезарядку.");return;}
+                    unarmedChecked=true;
+                    if(runtime.Options.Smoke.Contains("-frames-"))
+                        NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".unarmed.png",runtime.Hud.GetComponent<Canvas>());
                     Next();break;
                 case 1:
                     // Keep pulling an empty trigger to verify it cannot emit extra attacks.
@@ -120,11 +131,11 @@ namespace Remains.Runtime
                 bool audio=runtime.Audio.LocalShots==18 && runtime.Audio.RemoteShots==18*(runtime.Options.ProbePeers-1) && runtime.Audio.ReloadStarts==3 && runtime.Audio.RemoteReloadStarts==3*(runtime.Options.ProbePeers-1) && runtime.Audio.RemoteReloadStops==3*(runtime.Options.ProbePeers-1);
                 success &= audio;detail+=audio?" Звуковые события: 18 своих выстрелов, выстрелы других игроков и 3 начала перезарядки подтверждены (беззвучный режим).":" Неверное количество звуковых событий.";
             }
-            string json=JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,actor=actorId,stress=runtime.Options.NetworkStress,
+            string json=JsonUtility.ToJson(new Report {unarmedChecked=unarmedChecked,success=success,detail=detail,phase=phase,actor=actorId,stress=runtime.Options.NetworkStress,
                 localShotAudio=runtime.Audio.LocalShots,remoteShotAudio=runtime.Audio.RemoteShots,reloadAudio=runtime.Audio.ReloadStarts,remoteReloadAudio=runtime.Audio.RemoteReloadStarts,remoteReloadStops=runtime.Audio.RemoteReloadStops},true);
             if(runtime.Options.Report!=null) File.WriteAllText(runtime.Options.Report,json);
             Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report { public bool success,stress;public string detail,actor;public int phase,localShotAudio,remoteShotAudio,reloadAudio,remoteReloadAudio,remoteReloadStops; }
+        [Serializable] private sealed class Report { public bool success,stress,unarmedChecked;public string detail,actor;public int phase,localShotAudio,remoteShotAudio,reloadAudio,remoteReloadAudio,remoteReloadStops; }
     }
 }

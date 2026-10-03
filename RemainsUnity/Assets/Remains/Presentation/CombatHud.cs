@@ -38,6 +38,7 @@ namespace Remains.Presentation
                 OriginalButtonStyle.SetSelected(weapons[i],ids[i]==actor.weapon);
                 weapons[i].interactable=!actor.down;
             }
+            if(string.IsNullOrEmpty(actor.weapon)) {ammunition.text="Оружие не выбрано";return;}
             var definition=WeaponCatalog.Get(actor.weapon);
             if(string.IsNullOrEmpty(definition.ammo)) {ammunition.text=actor.weapon=="spear"?"Копьё · урон зависит от скорости":"Лом · ближний бой";return;}
             var magazine=WeaponAmmunition.Magazine(actor,actor.weapon);

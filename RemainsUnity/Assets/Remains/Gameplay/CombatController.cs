@@ -21,7 +21,7 @@ namespace Remains.Gameplay
         public float ShotCooldownRemaining=>shotCooldown.Remaining;
         private ActorState swingActor;
         private MeleeSweep swingSweep;
-        private string swingId,swingWeapon;
+        private string swingId,swingWeapon,swingItem;
         private string swingLevel;
         private int swingGeneration,swingLifecycle;
         public string Weapon { get; set; } = "pistol";
@@ -64,7 +64,8 @@ namespace Remains.Gameplay
 
         public bool Fire(ActorState attacker, Vector2 aim)
         {
-            if (attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready) return false;
+            if(attacker?.weaponInventoryVersion==1) Weapon=WeaponInventory.Selected(attacker)?.definition;
+            if (string.IsNullOrEmpty(Weapon) || attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready) return false;
             var definition=WeaponCatalog.Get(Weapon);
             attacker.weapon=Weapon;
             WeaponPose.Aim(attacker,aim);
@@ -88,7 +89,7 @@ namespace Remains.Gameplay
             shotCooldown.Restart(definition.cooldown);
             if(melee)
             {
-                swingActor=attacker;swingWeapon=Weapon;
+                swingActor=attacker;swingWeapon=Weapon;swingItem=attacker.equippedWeaponItem;
                 swingLevel=attacker.level;swingGeneration=attacker.generation;swingLifecycle=attacker.lifecycleSequence;
                 swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker),direction,attacker.weaponReach);
                 return true;
@@ -110,7 +111,8 @@ namespace Remains.Gameplay
             if(swingActor==null) return;
             var actor=session.World?.Find(swingActor.id);
             if(actor==null || actor.down || actor.owner!=session.LocalOwner || actor.level!=swingLevel ||
-                actor.generation!=swingGeneration || actor.lifecycleSequence!=swingLifecycle) { swingActor=null;return; }
+                actor.generation!=swingGeneration || actor.lifecycleSequence!=swingLifecycle ||
+                actor.weaponInventoryVersion==1 && (actor.equippedWeaponItem!=swingItem || !WeaponInventory.Available(actor,swingWeapon))) { swingActor=null;return; }
             if(session.Pause.IsPaused(actor.level)) return;
             var origin=WeaponPose.Origin(actor);
             swingSweep.Advance(origin,dt,segment=>session.Fire(new AttackEvent { id=swingId,attacker=actor.id,weapon=swingWeapon,level=swingLevel,
