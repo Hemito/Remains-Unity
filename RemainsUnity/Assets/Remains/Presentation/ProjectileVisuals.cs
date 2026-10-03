@@ -83,7 +83,7 @@ namespace Remains.Presentation
         {
             var actor=session.World?.Find(flight.state.launch.attacker);
             if(join!=null || actor==null || actor.owner==session.LocalOwner || actor.level!=Level ||
-                actor.weapon!=flight.state.launch.weapon || flight.path.Traveled!=0) return;
+                actor.weapon!=Remains.Content.WeaponRigs.PresentationId(flight.state.launch.weapon) || flight.path.Traveled!=0) return;
             join=new ProjectileTrailJoin();joinGeneration=actor.generation;joinLifecycle=actor.lifecycleSequence;
             joinFlightGeneration=flight.state.generation;
         }
@@ -119,7 +119,7 @@ namespace Remains.Presentation
             {
                 var actor=session.World?.Find(flight.state.launch.attacker);
                 Vector2? muzzle=actor!=null && actor.level==Level && actor.generation==joinGeneration && actor.lifecycleSequence==joinLifecycle &&
-                    actor.weapon==flight.state.launch.weapon && !actor.down?WeaponPose.Muzzle(actor):null;
+                    actor.weapon==Remains.Content.WeaponRigs.PresentationId(flight.state.launch.weapon) && !actor.down?WeaponPose.Muzzle(actor):null;
                 TrailStart=join.Tail(path.Origin,path.Direction,head,tail,artwork.length,artwork.beam,muzzle);
             }
             // Never show a backwards tracer when the newer visible barrel is ahead of

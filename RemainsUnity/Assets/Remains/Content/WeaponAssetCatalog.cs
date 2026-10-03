@@ -54,6 +54,14 @@ namespace Remains.Content
                 ids.Add(prefab.Id,prefab);yield return prefab;
             }
         }
+        public System.Collections.Generic.IEnumerable<WeaponAsset> PresentedWeapons()
+        {
+            foreach(var asset in weapons)
+            {
+                if(asset==null) throw new InvalidOperationException("Нет ссылки на оружие в "+name);
+                if(asset.Presentation!=null) yield return asset;
+            }
+        }
         public void SetAssets(WeaponAsset[] value)=>weapons=(WeaponAsset[])value.Clone();
         public string CreateJson()
         {

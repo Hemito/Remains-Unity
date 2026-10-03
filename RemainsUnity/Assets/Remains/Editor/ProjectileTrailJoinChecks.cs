@@ -12,6 +12,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            Remains.Content.WeaponRigs.Load();Anatomy.Load();
             var wait=new ProjectileTrailJoin();
             var tail=wait.Tail(Vector2.zero,Vector2.right,.1f,0,3,false,new Vector2(.5f,.2f));
             Require(!ProjectileTrailJoin.IsForward(tail,new Vector2(.1f,0),Vector2.right),"След нарисован назад до дула");
@@ -20,24 +21,27 @@ namespace Remains.Editor
             Require(wait.Tail(Vector2.zero,Vector2.right,7,4,3,false,Vector2.one*10)==new Vector2(4,0),"След не вернулся на каноническую линию");
             var late=new ProjectileTrailJoin();
             Require(late.Tail(Vector2.zero,Vector2.right,5,2,3,false,Vector2.one)==new Vector2(2,0),"Поздний след растянут обратно к дулу");
-            var root=new GameObject("Проверка соединения следа");
+            foreach(string attackWeapon in new[]{"pistol","npc-shot"})
+            {
+            var root=new GameObject("Проверка соединения следа "+attackWeapon);
             try
             {
                 var session=root.AddComponent<CoopSession>();
                 var world=new WorldState();var observer=new ActorState {id="observer",owner="local",player=true,connected=true,level="hub"};
-                var actor=new ActorState {id="source",owner="remote",player=true,connected=true,level="hub",weapon="pistol"};
+                var actor=new ActorState {id="source",owner="remote",player=attackWeapon=="pistol",connected=true,level="hub",weapon="pistol"};
                 world.actors.Add(observer);world.actors.Add(actor);
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,observer.id);
                 typeof(CoopSession).GetProperty("LocalOwner").SetValue(session,observer.owner);
                 actor.Position+=new Vector2(.3f,.2f)-WeaponPose.Muzzle(actor);
-                var launch=new AttackEvent {id="join-check",attacker=actor.id,sourceOwner=actor.owner,weapon="pistol",level="hub",endX=10};
+                var launch=new AttackEvent {id="join-check",attacker=actor.id,sourceOwner=actor.owner,weapon=attackWeapon,level="hub",endX=10};
                 var flight=new ProjectileFlight {state=new ProjectileState {launch=launch},path=new LinearProjectilePath(Vector2.zero,Vector2.right,90,10)};
-                ShotArtwork.Prepare();ShotArtwork.TryGet("pistol",out var artwork);
+                ShotArtwork.Prepare();ShotArtwork.TryGet(attackWeapon,out var artwork);
                 var obj=new GameObject("След");obj.transform.SetParent(root.transform);
                 var view=obj.AddComponent<ProjectileVisual>();view.Initialize(flight,artwork,session);view.JoinRemoteMuzzle();
                 void Draw()=>typeof(ProjectileVisual).GetMethod("LateUpdate",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(view,null);
                 flight.path.Advance(1f/144,(_,_)=>null);Draw();
+                Debug.Log($"Связь следа с дулом: attack={attackWeapon}, weapon={actor.weapon}, gap={Vector2.Distance(view.TrailStart,WeaponPose.Muzzle(actor)):R} м.");
                 Require(Vector2.Distance(view.TrailStart,WeaponPose.Muzzle(actor))<.0001f && view.TrailEnd==flight.path.Position,"Начало не у дула или передний край изменил путь");
                 Vector2 renderedTail=view.transform.TransformPoint(new Vector3(artwork.trace.bounds.min.x,artwork.trace.bounds.center.y));
                 Require(Vector2.Distance(renderedTail,view.TrailStart)<.0001f,"Рендерер не использует рассчитанное начало следа");
@@ -50,8 +54,17 @@ namespace Remains.Editor
                 Require((Vector2)view.transform.position==flight.path.Position && view.GetComponent<SpriteRenderer>().sprite==artwork.impact[0] &&
                     Quaternion.Angle(view.transform.rotation,Quaternion.identity)<.001f,"Попадание смещено или повёрнуто косметическим соединением");
                 Require(launch.originX==0 && launch.originY==0 && launch.endX==10,"Представление переписало исходную атаку");
+                actor.weapon="energy";
+                var changedObject=new GameObject("Другое оружие");changedObject.transform.SetParent(root.transform);
+                var changedFlight=new ProjectileFlight {state=new ProjectileState {launch=launch},
+                    path=new LinearProjectilePath(Vector2.zero,Vector2.right,90,10)};
+                var changed=changedObject.AddComponent<ProjectileVisual>();changed.Initialize(changedFlight,artwork,session);changed.JoinRemoteMuzzle();
+                changedFlight.path.Advance(1f/144,(_,_)=>null);
+                typeof(ProjectileVisual).GetMethod("LateUpdate",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(changed,null);
+                Require(changed.TrailStart==Vector2.zero,"След привязан к другому оружию после смены представления");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
+            }
             Debug.Log("Соединение следа: PASS — дуло, физический передний край, отсутствие обратного следа, завершение и неизменная точка попадания.");
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException(reason);}

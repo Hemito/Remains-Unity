@@ -17,6 +17,9 @@ namespace Remains.Content
         [Serializable] private sealed class Library {public float pixelsPerUnit,aimRadius,climbingAimRadius,anchorHeight,raiseHeight,raiseDelay;public WeaponRig[] weapons;}
         private static readonly Dictionary<string,WeaponRig> rigs=new(StringComparer.Ordinal);
         private static readonly Dictionary<string,Remains.Presentation.WeaponView> prefabs=new(StringComparer.Ordinal);
+        private static readonly Dictionary<string,string> attackPresentations=new(StringComparer.Ordinal);
+        public static string PresentationId(string attack)=>attackPresentations.TryGetValue(attack,out var id)?id:
+            throw new InvalidOperationException("Нет связи атаки с префабом оружия: "+attack);
         public static Remains.Presentation.WeaponView Prefab(string id)=>prefabs.TryGetValue(id,out var value)?value:throw new InvalidOperationException("Нет префаба оружия: "+id);
         public static string ManifestJson()=>JsonUtility.ToJson(new Library {pixelsPerUnit=PixelsPerUnit,aimRadius=AimRadius,climbingAimRadius=ClimbingAimRadius,anchorHeight=AnchorHeight,raiseHeight=RaiseHeight,raiseDelay=RaiseDelay,weapons=rigs.Values.ToArray()});
         public static float PixelsPerUnit {get;private set;}
@@ -57,9 +60,12 @@ namespace Remains.Content
             PixelsPerUnit=library.pixelsPerUnit;
             AimRadius=library.aimRadius;AnchorHeight=library.anchorHeight;
             ClimbingAimRadius=catalog.ClimbingAimRadius;
-            rigs.Clear();prefabs.Clear();
+            var bindings=new Dictionary<string,string>(StringComparer.Ordinal);
+            foreach(var weapon in catalog.PresentedWeapons()) bindings.Add(weapon.Id,weapon.Presentation.Id);
+            rigs.Clear();prefabs.Clear();attackPresentations.Clear();
             foreach(var pair in validated) rigs.Add(pair.Key,pair.Value);
             foreach(var view in presentations) prefabs.Add(view.Id,view);
+            foreach(var pair in bindings) attackPresentations.Add(pair.Key,pair.Value);
         }
     }
 }
