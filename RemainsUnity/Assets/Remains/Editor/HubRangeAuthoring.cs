@@ -11,6 +11,32 @@ namespace Remains.Editor
     // Explicit editor migration. The resulting room is an ordinary editable prefab.
     public static class HubRangeAuthoring
     {
+        public static void BindFixtures()
+        {
+            const string path="Assets/Remains/Resources/Levels/hub.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var room=root.GetComponent<RoomAuthoring>();int count=0;
+                foreach(var light in root.GetComponentsInChildren<RoomLightAuthoring>(true))
+                {
+                    var data=light.Read(room);if(!data.id.StartsWith("range-",StringComparison.Ordinal)) continue;
+                    var matches=new List<RoomArtworkAuthoring>();
+                    foreach(var art in root.GetComponentsInChildren<RoomArtworkAuthoring>(true))
+                    {
+                        var item=art.Read(room);
+                        if(item.texture=="Hub/decor-light3-1" && Mathf.Abs(item.x-(data.x-1))<.001f && Mathf.Abs(item.y-6.6f)<.001f)
+                            matches.Add(art);
+                    }
+                    if(matches.Count!=1) throw new InvalidOperationException($"Свет тира {data.id}: найдено изображений {matches.Count}, ожидалось одно.");
+                    matches[0].transform.SetParent(light.transform,true);count++;
+                }
+                if(count!=3) throw new InvalidOperationException($"Ожидались три лампы тира, найдено {count}.");
+                PrefabUtility.SaveAsPrefabAsset(root,path);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            ContractChecks.Run();
+        }
         public static void PolishFloor()
         {
             const string path="Assets/Remains/Resources/Levels/hub.prefab";
@@ -121,7 +147,7 @@ namespace Remains.Editor
                 PrefabUtility.SaveAsPrefabAsset(root,path);generated=null;
             }
             finally {if(generated!=null) UnityEngine.Object.DestroyImmediate(generated);PrefabUtility.UnloadPrefabContents(root);}
-            AssetDatabase.SaveAssets();ContractChecks.Run();
+            AssetDatabase.SaveAssets();BindFixtures();
         }
     }
 }

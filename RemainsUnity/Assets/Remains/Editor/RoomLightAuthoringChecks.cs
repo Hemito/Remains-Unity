@@ -26,6 +26,25 @@ namespace Remains.Editor
                     light.gameObject.SetActive(false);
                     if(lighting.CreateProfile(instance).lights.Length!=before.lights.Length-1) throw new InvalidOperationException("Отключённый источник продолжает светить.");
                     if(source.GetComponent<RoomLightingAuthoring>().CreateProfile(source).lights[0].x!=before.lights[0].x) throw new InvalidOperationException("Правка экземпляра изменила префаб света.");
+                    if(level=="hub")
+                    {
+                        int rangeCount=0;
+                        foreach(var rangeLight in instance.GetComponentsInChildren<RoomLightAuthoring>())
+                        {
+                            var data=rangeLight.Read(instance);if(!data.id.StartsWith("range-",StringComparison.Ordinal)) continue;
+                            var image=rangeLight.GetComponentInChildren<RoomArtworkAuthoring>();
+                            if(image==null) throw new InvalidOperationException("Лампа тира отделена от света: "+data.id);
+                            var position=image.transform.position;var offset=new Vector3(1,2,0);
+                            rangeLight.transform.position+=offset;
+                            if((image.transform.position-position-offset).sqrMagnitude>.000001f || Mathf.Abs(rangeLight.Read(instance).y-data.y-2)>.00001f)
+                                throw new InvalidOperationException("Лампа тира и свет перемещаются раздельно: "+data.id);
+                            rangeLight.gameObject.SetActive(false);
+                            if(image.gameObject.activeInHierarchy || Array.Exists(lighting.CreateProfile(instance).lights,item=>item.id==data.id))
+                                throw new InvalidOperationException("Отключённая лампа тира остаётся активной: "+data.id);
+                            rangeCount++;
+                        }
+                        if(rangeCount!=3) throw new InvalidOperationException("Не проверены все три лампы тира.");
+                    }
                 }
                 finally {UnityEngine.Object.DestroyImmediate(instance.gameObject);}
             }
