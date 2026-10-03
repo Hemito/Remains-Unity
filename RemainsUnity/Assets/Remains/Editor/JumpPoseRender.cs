@@ -13,6 +13,7 @@ namespace Remains.Editor
         public static void RenderMotion()=>Render(true,"jump");
         public static void RenderLanding()=>Render(false,"landing");
         public static void RenderFall()=>Render(false,"fall");
+        public static void RenderRun()=>Render(false,"run");
         public static void RenderFallMotion()=>Render(true,"fall");
         private static void Render(bool motion,string pose)
         {
