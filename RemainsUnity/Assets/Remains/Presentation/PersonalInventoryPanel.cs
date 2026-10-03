@@ -137,12 +137,16 @@ namespace Remains.Presentation
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen!=null?rejection??"":"";
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
         }
-        private static string WeaponDescription(ActorState actor,ItemStack item)
+        private string WeaponDescription(ActorState actor,ItemStack item)
         {
             var definition=WeaponCatalog.Get(item.definition);
             string resource=definition.magazineSize>0?$"В магазине: {item.weaponState.rounds}/{definition.magazineSize}\n":
                 definition.meleeMotion is {Length:>0}?"Ближний бой\n":"";
-            return resource+$"Выбор: {(actor.equippedWeaponItem==item.id?"в копытах":"в инвентаре")}\nКнопки 1–4 назначают быстрый доступ.";
+            float damage=session.Rules.Damage.Calculate(item.definition,0);
+            if(!float.IsFinite(damage) || damage<0)
+                throw new InvalidOperationException($"Некорректный урон в описании оружия {item.definition}: {damage}.");
+            return $"Урон без движения: {damage:0.##}\nИнтервал атак: {definition.cooldown:0.##} с\n"+
+                resource+$"Выбор: {(actor.equippedWeaponItem==item.id?"в копытах":"в инвентаре")}";
         }
         private static string Description(string id)=>id switch
         {

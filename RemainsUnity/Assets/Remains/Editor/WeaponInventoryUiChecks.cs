@@ -44,6 +44,9 @@ namespace Remains.Editor
                 Require(view.Rows[0].GetComponentInChildren<Text>().text.Contains("7/12") &&
                     view.Rows[1].GetComponentInChildren<Text>().text.Contains("2/12"),"Строки не различают боезапас экземпляров");
                 Require(view.Use.interactable && view.WeaponDetail.text.Contains("В магазине: 2"),"Нет действия/магазина выбранного экземпляра");
+                Require(view.WeaponDetail.text.Contains($"Урон без движения: {session.Rules.Damage.Calculate(b.definition,0):0.##}") &&
+                    view.WeaponDetail.text.Contains($"Интервал атак: {WeaponCatalog.Get(b.definition).cooldown:0.##} с"),
+                    "Описание не показывает характеристики текущего оружия");
                 view.Use.onClick.Invoke();Require(actor.equippedWeaponItem==b.id,"Выбран первый пистолет вместо второго");
                 view.Weapons[0].onClick.Invoke();Require(WeaponInventory.Shortcut(actor,"1")?.id==b.id,"Назначение не сохранило instance ID");
                 var hudRoot=new GameObject("Проверка быстрых ссылок",typeof(RectTransform));hudRoot.transform.SetParent(root.transform);
