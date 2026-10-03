@@ -23,6 +23,7 @@ namespace Remains.Editor
             Field("stopAtFirstActor","Остановка на первом актёре");Field("stopAtTerrain","Остановка на геометрии");
             if(definition.FindPropertyRelative("id").stringValue=="grenade")
             {
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("grenadeFlight"),new GUIContent("Префаб летящей гранаты"));
                 EditorGUILayout.LabelField("Физика гранаты",EditorStyles.boldLabel);
                 Field("grenadeFuseSeconds","Запал, с");
                 Field("grenadeGravity","Ускорение падения, м/с²");

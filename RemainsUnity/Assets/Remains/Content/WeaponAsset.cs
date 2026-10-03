@@ -12,6 +12,9 @@ namespace Remains.Content
         public Remains.Presentation.WeaponView Presentation=>presentation;
         [SerializeField,InspectorName("Анимация выстрела (необязательно)")] private WeaponShotClip shotAnimation;
         public WeaponShotClip ShotAnimation=>shotAnimation;
+        [SerializeField,InspectorName("Префаб летящей гранаты")] private SpriteRenderer grenadeFlight;
+        public SpriteRenderer GrenadeFlight=>grenadeFlight;
+        public void SetGrenadeFlight(SpriteRenderer value)=>grenadeFlight=value;
         public string Id=>definition.id;
         public void SetShotAnimation(WeaponShotClip value)=>shotAnimation=value;
         public void SetPresentation(Remains.Presentation.WeaponView value)=>presentation=value;

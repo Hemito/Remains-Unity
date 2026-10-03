@@ -12,6 +12,7 @@ namespace Remains.Presentation
     {
         private CoopSession session;
         private GrenadeController grenades;
+        private SpriteRenderer grenadePrefab;
         private ActorVisualLayers layers;
         private PropArtwork propArtwork;
         private WeaponShotAnimation shotAnimation;
@@ -26,7 +27,7 @@ namespace Remains.Presentation
         {
             this.session=session;this.grenades=grenades;this.layers=layers;
             propArtwork=new PropArtwork();
-            sprites.Add("grenade",GrenadeArtwork.Load());
+            grenadePrefab=GrenadeArtwork.LoadPrefab();
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
             shotAnimation=gameObject.AddComponent<WeaponShotAnimation>();shotAnimation.Initialize(session);
             ShotArtwork.Prepare();
@@ -45,9 +46,9 @@ namespace Remains.Presentation
                 shot.Initialize(attack,limit,artwork,session);
             };
         }
-        private static SpriteRenderer Create(string name,Sprite sprite)
+        private SpriteRenderer CreateGrenade(string name)
         {
-            var renderer=new GameObject(name).AddComponent<SpriteRenderer>();SpriteArtworkMaterial.Prepare(sprite);SpriteArtworkMaterial.Apply(renderer,sprite);renderer.sortingOrder=ActorVisualLayers.WorldObjectOrder;
+            var renderer=Instantiate(grenadePrefab);renderer.name=name;
             return renderer;
         }
         private void Refresh()
@@ -74,7 +75,7 @@ namespace Remains.Presentation
                     weapons.Add(actor.id,CreateWeapon(actor));
                 }
             foreach(var flight in grenades.Flights.Where(f=>f.state.level==level))
-                if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"]));
+                if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,CreateGrenade("Граната "+flight.state.id));
         }
         private static void Prune<T>(Dictionary<string,T> views,HashSet<string> retained) where T:Component
         {

@@ -21,6 +21,7 @@ namespace Remains.Editor
         }
         public static void Run()
         {
+            CheckArtwork();
             CheckRecoveredPresence();
             CheckTerrain();
             CheckSettings();
@@ -58,6 +59,28 @@ namespace Remains.Editor
                 Debug.Log("GrenadeChecks PASS: передача, пустой уровень, сохранение полёта, однократный взрыв и решения.");
             }
             finally {if(Directory.Exists(path)) Directory.Delete(path,true);}
+        }
+        private static void CheckArtwork()
+        {
+            var prefab=Remains.Presentation.GrenadeArtwork.LoadPrefab();
+            var first=UnityEngine.Object.Instantiate(prefab);var second=UnityEngine.Object.Instantiate(prefab);
+            try
+            {
+                Require(Mathf.Approximately(prefab.sprite.pixelsPerUnit,200),"Потерян масштаб исходной графики гранаты 4×");
+                var tint=prefab.color;first.color=Color.magenta;first.transform.position=Vector3.one;
+                Require(second.color==tint && prefab.color==tint && first.sprite==prefab.sprite &&
+                    first.sharedMaterial==prefab.sharedMaterial && second.transform.position==prefab.transform.position,
+                    "Экземпляры гранаты должны читать ресурсы префаба и сохранять независимость состояния");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(first.gameObject);UnityEngine.Object.DestroyImmediate(second.gameObject);}
+            var asset=Resources.Load<Remains.Content.WeaponAsset>("Content/weapons/grenade");
+            try
+            {
+                asset.SetGrenadeFlight(null);bool rejected=false;
+                try {Remains.Presentation.GrenadeArtwork.LoadPrefab();} catch(InvalidOperationException) {rejected=true;}
+                Require(rejected,"Потеря ссылки на графику гранаты не должна скрываться runtime-сборкой");
+            }
+            finally {asset.SetGrenadeFlight(prefab);}
         }
         private static void CheckTerrain()
         {

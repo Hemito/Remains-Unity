@@ -1,19 +1,20 @@
 using System;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Presentation
 {
     public static class GrenadeArtwork
     {
-        // visgrenade 4142, frame 1, vector export at 4x. Original scene scale: 50 px/m.
-        // Retain transparent margins; they must not determine the visible object's size.
-        private const float PixelsPerUnit=4*50;
-        public static Sprite Load()
+        public static SpriteRenderer LoadPrefab()
         {
-            const string path="Original/Props/grenade-flight";
-            var texture=Resources.Load<Texture2D>(path);
-            if(texture==null) throw new InvalidOperationException($"Нет графики гранаты: {path}.");
-            return Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,.5f),PixelsPerUnit);
+            var definition=Resources.Load<WeaponAsset>("Content/weapons/grenade");
+            if(definition==null || definition.GrenadeFlight==null)
+                throw new InvalidOperationException("Граната grenade: не назначен префаб полёта в Content/weapons/grenade.");
+            var prefab=definition.GrenadeFlight;
+            if(prefab.sprite==null || prefab.sharedMaterial==null)
+                throw new InvalidOperationException($"Префаб гранаты {prefab.name}: отсутствует спрайт или материал.");
+            return prefab;
         }
     }
 }
