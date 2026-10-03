@@ -36,11 +36,21 @@ namespace Remains.Runtime
         private readonly HashSet<string> observedFall=new();
         private bool fallCaptured;
         private readonly TrainingAnimationTrace animationTrace=new();
+        private readonly TrainingWeaponTrace weaponTrace=new();
+        private int movingShots;
+        private bool movingShotCaptured;
+        private bool MovingShotExercise=>runtime.Options.Smoke.Contains("-moving-");
+        private InteractionVisuals interactionVisuals;
         private void LateUpdate()
         {
             if(finished || runtime?.Session.World==null) return;
             foreach(var actor in runtime.Session.World.actors)
-                if(actor.player) animationTrace.Observe(actor,runtime.FindActorVisual(actor.id) as PonyVisual,actor.id==runtime.Session.LocalActorId);
+                if(actor.player) animationTrace.Observe(actor,runtime.FindActorVisual(actor.id) as PonyVisual,actor.id==runtime.Session.LocalActorId,interactionVisuals.FindWeapon(actor.id));
+            if(weaponTrace.Draw(runtime.Session.World,interactionVisuals) && !movingShotCaptured && runtime.Options.Smoke.Contains("-frames-"))
+            {
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".moving-shot.png",runtime.Hud.GetComponent<Canvas>());
+                movingShotCaptured=true;
+            }
         }
         private readonly Dictionary<string,(int generation,int lifecycle,string pose,float time)> remotePhases=new();
         private int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;
@@ -65,6 +75,7 @@ namespace Remains.Runtime
         }
         public void Initialize(PrototypeRuntime value)
         {
+            interactionVisuals=FindFirstObjectByType<InteractionVisuals>();
             value.Session.RemotePoseCorrection+=(source,id,before,after)=>
                 Debug.Log($"Источник изменения фазы: source={source}, actor={id}, before={before}, after={after}, time={Time.unscaledTime}.");
             runtime=value;deadline=Time.unscaledTime+75;value.CommandSource=Command;
@@ -76,7 +87,12 @@ namespace Remains.Runtime
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<TrainingDoneMessage>((connection,message)=>
             {done.Add(connection.connectionId);if(done.Count==value.Options.ProbePeers) NetworkServer.SendToAll(new TrainingFinishMessage());});
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<TrainingFinishMessage>(_=>StartCoroutine(FinishAfterDelivery()));
-            value.Session.AttackReceived+=attack=>{if(attack.attacker==value.Session.LocalActorId && attack.weapon=="pistol") shots++;};
+            value.Session.AttackReceived+=attack=>
+            {
+                weaponTrace.Observe(attack,value.Session.World?.Find(attack.attacker),attack.attacker==value.Session.LocalActorId);
+                if(attack.attacker!=value.Session.LocalActorId || attack.weapon!="pistol") return;
+                if(MovingShotExercise) movingShots++;else shots++;
+            };
             value.DamageFeedback.Received+=result=>
             {
                 if(result.actor!="training:hub:1") return;
@@ -87,7 +103,8 @@ namespace Remains.Runtime
         private IEnumerator FinishAfterDelivery()
         {
             yield return new WaitForSecondsRealtime(1);
-            Finish(true,(runtime.Options.ProbePeers==1?"Одиночная игра. ":"Кооператив; стойки и прыжки видны другим клиентам. ")+"Приседание, короткий/длинный прыжок, балка и двойное S. Три мишени, по три выстрела на игрока; отказ 50/120 кг и подъём/падение 25 кг.");
+            Finish(true,MovingShotExercise?"Измерение оружия на бегу: три выстрела каждым игроком; расхождение точки запуска записано отдельно и не считается исправленным.":
+                (runtime.Options.ProbePeers==1?"Одиночная игра. ":"Кооператив; стойки и прыжки видны другим клиентам. ")+"Приседание, короткий/длинный прыжок, балка и двойное S. Три мишени, по три выстрела на игрока; отказ 50/120 кг и подъём/падение 25 кг.");
         }
         private PlayerCommand Command()
         {
@@ -119,11 +136,22 @@ namespace Remains.Runtime
                 {Finish(false,$"Неверная высота прыжка от обычного ввода: short={jumping.ShortHeight}, long={jumping.LongHeight}.");return default;}
                 if(!sprinting.Complete)
                 {
-                    try {return sprinting.Step(self);}
+                    try
+                    {
+                        var command=sprinting.Step(self);
+                        if(MovingShotExercise)
+                        {
+                            command.weapon="pistol";command.hasAim=true;
+                            command.aim=self.Position+Vector2.up*10;
+                            command.fire=self.pose=="run" && movingShots<3;
+                        }
+                        return command;
+                    }
                     catch(InvalidOperationException error) {Finish(false,error.Message);return default;}
                 }
                 stage=3;
             }
+            if(MovingShotExercise) return new PlayerCommand {hasAim=true,aim=self.Position+Vector2.up*10};
             if(Host && stage==3 && shots==3 && results==3*runtime.Options.ProbePeers)
             {stage=4;manaBeforeLift=self.mana;}
             if(stage>=4) return CrateCommand();
@@ -152,6 +180,11 @@ namespace Remains.Runtime
             if(finished) return;
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут мишеней: stage={stage}, shots={shots}, results={results}, position={runtime.Session.LocalActor?.Position}.");return;}
             var self=runtime.Session.LocalActor;if(self==null) return;
+            if(MovingShotExercise && stage==3 && movingShots==3)
+            {
+                if(!sent) {sent=true;NetworkClient.Send(new TrainingDoneMessage());}
+                return;
+            }
             if(previousLocalPose!=self.pose)
             {
                 if(previousLocalPose=="run" || self.pose=="run")
@@ -216,16 +249,18 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
+            if(success && MovingShotExercise && movingShots!=3) {success=false;detail="Ожидалось три выстрела на бегу, получено "+movingShots;}
             string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
-                sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,
+                sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,movingShots=movingShots,
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,landingVoices=runtime.MovementAudio.LandingVoices,ladderContacts=runtime.MovementAudio.LadderContacts,
                 remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,remoteLandingPoses=observedLanding.Count,remoteFallPoses=observedFall.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
             animationTrace.Save(runtime.Options.Report+".animation.json");
+            weaponTrace.Save(runtime.Options.Report+".weapons.json");
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }
