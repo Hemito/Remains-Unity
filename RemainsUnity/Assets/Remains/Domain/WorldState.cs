@@ -73,6 +73,7 @@ namespace Remains.Domain
         public List<ItemStack> inventory = new();
         public int loadoutVersion;
         public int weaponInventoryVersion;
+        public long weaponSelectionRevision;
         public string equippedWeaponItem;
         public List<WeaponShortcut> weaponShortcuts=new();
         public List<WeaponMagazine> magazines = new();

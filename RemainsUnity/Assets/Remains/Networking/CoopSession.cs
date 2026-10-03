@@ -347,6 +347,7 @@ namespace Remains.Networking
                             throw new InvalidOperationException($"Не удалось согласовать расход инвентаря: actor={actor.id}, revision={actor.revision}.");
                         actor.inventory=inventoryCopy;actor.inventoryUses=uses;
                     }
+                    WeaponInventory.PreserveSelection(local,actor);
                 }
             }
             World = incoming;
@@ -390,6 +391,7 @@ namespace Remains.Networking
                 NpcAttackRules.CopyProgress(current,actor);
             }
             ActorMotionReplication.PreserveNewerMotion(current,actor);
+            if(current?.owner==LocalOwner) WeaponInventory.PreserveSelection(current,actor);
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);

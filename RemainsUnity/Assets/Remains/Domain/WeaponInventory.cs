@@ -13,12 +13,12 @@ namespace Remains.Domain
         {
             reason=null;
             if(actor==null || actor.weaponInventoryVersion!=1) {reason="Инвентарь оружия ещё не подготовлен.";return false;}
-            if(string.IsNullOrEmpty(itemId)) {actor.equippedWeaponItem=null;actor.weapon=null;actor.revision++;return true;}
+            if(string.IsNullOrEmpty(itemId)) {actor.equippedWeaponItem=null;actor.weapon=null;actor.weaponSelectionRevision++;actor.revision++;return true;}
             var item=actor.inventory.Find(candidate=>candidate.id==itemId);
             if(item?.weaponState==null || item.count!=1) {reason="Этот экземпляр оружия отсутствует в личном инвентаре.";return false;}
             if(InventoryAvailability.Count(actor,item)!=1) {reason="Оружие зарезервировано для передачи.";return false;}
             _=WeaponCatalog.Get(item.definition);
-            actor.equippedWeaponItem=item.id;actor.weapon=item.definition;actor.revision++;return true;
+            actor.equippedWeaponItem=item.id;actor.weapon=item.definition;actor.weaponSelectionRevision++;actor.revision++;return true;
         }
         public static bool Assign(ActorState actor,string slot,string itemId,out string reason)
         {
@@ -29,7 +29,19 @@ namespace Remains.Domain
             {reason="Нельзя назначить отсутствующий экземпляр оружия.";return false;}
             actor.weaponShortcuts.RemoveAll(shortcut=>shortcut.slot==slot);
             if(!string.IsNullOrEmpty(itemId)) actor.weaponShortcuts.Add(new WeaponShortcut {slot=slot,item=itemId});
-            actor.revision++;return true;
+            actor.weaponSelectionRevision++;actor.revision++;return true;
+        }
+        public static void PreserveSelection(ActorState current,ActorState incoming)
+        {
+            if(incoming.weaponInventoryVersion!=1) return;
+            if(ActorMotionReplication.SameLifetime(current,incoming) && current.weaponInventoryVersion==1 &&
+                current.weaponSelectionRevision>incoming.weaponSelectionRevision)
+            {
+                incoming.equippedWeaponItem=current.equippedWeaponItem;
+                incoming.weaponSelectionRevision=current.weaponSelectionRevision;
+                incoming.weaponShortcuts=Remains.Serialization.StateJson.Copy(current.weaponShortcuts);
+            }
+            incoming.weapon=Selected(incoming)?.definition;
         }
         public static bool SelectShortcut(ActorState actor,string slot,out string reason)
         {
