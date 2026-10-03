@@ -14,7 +14,8 @@ namespace Remains.Presentation
                 throw new InvalidOperationException($"Недопустимый размер карты света: room={room.id}, bounds={bounds}.");
             foreach(var light in profile.lights)
                 if(light==null || string.IsNullOrEmpty(light.id) || !float.IsFinite(light.x) || !float.IsFinite(light.y) ||
-                    !float.IsFinite(light.radius) || light.radius<=0 || !float.IsFinite(light.intensity) || light.intensity<0)
+                    !float.IsFinite(light.radius) || light.radius<=0 || !float.IsFinite(light.intensity) || light.intensity<0 ||
+                    light.shadow && (light.intensity>1 || string.IsNullOrEmpty(light.mask) && light.maskTexture==null))
                     throw new InvalidOperationException($"Некорректный источник света: room={room.id}, light={light?.id}.");
             int width=Mathf.CeilToInt(bounds.width*8),height=Mathf.CeilToInt(bounds.height*8);
             var colors=new Color[width*height];
@@ -40,9 +41,15 @@ namespace Remains.Presentation
         }
         private static Color Sample(RoomLayout room,RoomLightProfile profile,Vector2 position,Dictionary<string,RoomLightMask> masks)
         {
-            Color result=profile.ambient;
+            Color result=profile.ambient;float shadowTransmission=1;
             foreach(var light in profile.lights)
             {
+                if(light.shadow)
+                {
+                    if(!masks.TryGetValue(light.id,out var shadow)) throw new InvalidOperationException($"Нет маски затемнения: light={light.id}.");
+                    shadowTransmission*=1-Mathf.Clamp01(shadow.Sample(position).a*light.intensity);
+                    continue;
+                }
                 var origin=new Vector2(light.x,light.y);float distance=Vector2.Distance(position,origin);
                 if(Blocked(room,origin,position)) continue;
                 if(masks.TryGetValue(light.id,out var mask)) result+=mask.Sample(position)*light.intensity;
@@ -53,7 +60,9 @@ namespace Remains.Presentation
                     result+=light.color*(light.intensity*falloff*falloff);
                 }
             }
-            result.r=Mathf.Clamp01(result.r);result.g=Mathf.Clamp01(result.g);result.b=Mathf.Clamp01(result.b);result.a=1;return result;
+            // Authored black-overlay opacity is display-space attenuation, while the map stores linear light in a linear project.
+            float attenuation=QualitySettings.activeColorSpace==ColorSpace.Linear?Mathf.GammaToLinearSpace(shadowTransmission):shadowTransmission;
+            result.r=Mathf.Clamp01(result.r)*attenuation;result.g=Mathf.Clamp01(result.g)*attenuation;result.b=Mathf.Clamp01(result.b)*attenuation;result.a=1;return result;
         }
         private static bool Blocked(RoomLayout room,Vector2 start,Vector2 end)
         {

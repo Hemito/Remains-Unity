@@ -3807,6 +3807,7 @@ MonoBehaviour:
   id: lamp-0
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
   maskOffset: {x: -2.5820007, y: -3.7299998}
   maskSize: {x: 5.13, y: 3.91}
@@ -5158,6 +5159,7 @@ MonoBehaviour:
   id: lamp-5
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: cba8d49ca1bbbc047bfbee94d92e74ef, type: 3}
   maskOffset: {x: -1.4610023, y: -1.4490004}
   maskSize: {x: 2.93, y: 2.93}
@@ -5677,6 +5679,63 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &770946375278218228
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4603029769569287053}
+  - component: {fileID: 2056816602529965379}
+  m_Layer: 0
+  m_Name: "\u0422\u0435\u043D\u044C: library"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4603029769569287053
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 770946375278218228}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.8, y: 0.7999997, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8705550183626275462}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2056816602529965379
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 770946375278218228}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: shadow-library
+  intensity: 0.9
+  useMask: 1
+  shadow: 1
+  mask: {fileID: 2800000, guid: ca2e37443ecbcf84cb0e708a9a64631d, type: 3}
+  maskOffset: {x: 0, y: 0}
+  maskSize: {x: 9.6, y: 5.6}
+  radius: 1
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-shadow-1
+  width: 0
+  height: 0
 --- !u!1 &786294544717404879
 GameObject:
   m_ObjectHideFlags: 0
@@ -18841,6 +18900,63 @@ MonoBehaviour:
   textureKey: Hub/rim
   repeat: 1
   stretchY: 0
+--- !u!1 &2737186428045081352
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4276776017264257797}
+  - component: {fileID: 1931006362910442916}
+  m_Layer: 0
+  m_Name: "\u0422\u0435\u043D\u044C: upper-right"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4276776017264257797
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2737186428045081352}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 28, y: 13.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8705550183626275462}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1931006362910442916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2737186428045081352}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: shadow-upper-right
+  intensity: 0.9
+  useMask: 1
+  shadow: 1
+  mask: {fileID: 2800000, guid: ca2e37443ecbcf84cb0e708a9a64631d, type: 3}
+  maskOffset: {x: 0, y: 0}
+  maskSize: {x: 9.6, y: 5.6}
+  radius: 1
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-shadow-1
+  width: 0
+  height: 0
 --- !u!1 &2769277414676899476
 GameObject:
   m_ObjectHideFlags: 0
@@ -21070,6 +21186,7 @@ MonoBehaviour:
   id: lamp-8
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
   maskOffset: {x: -2.5820007, y: -3.7300005}
   maskSize: {x: 5.13, y: 3.91}
@@ -29948,6 +30065,7 @@ MonoBehaviour:
   id: hall-0
   intensity: 0.65
   useMask: 0
+  shadow: 0
   mask: {fileID: 0}
   maskOffset: {x: -16, y: -3}
   maskSize: {x: 0, y: 0}
@@ -30821,6 +30939,7 @@ MonoBehaviour:
   id: lamp-4
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: dc5f1973628521a41958b11818462378, type: 3}
   maskOffset: {x: -2.6210003, y: -2.6090002}
   maskSize: {x: 5.25, y: 5.25}
@@ -31409,6 +31528,8 @@ Transform:
   - {fileID: 2348907913466034411}
   - {fileID: 818094607325504343}
   - {fileID: 1011303492701553963}
+  - {fileID: 4276776017264257797}
+  - {fileID: 4603029769569287053}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8824742275746732130
@@ -35655,6 +35776,7 @@ MonoBehaviour:
   id: hall-2
   intensity: 0.65
   useMask: 0
+  shadow: 0
   mask: {fileID: 0}
   maskOffset: {x: -21, y: -13}
   maskSize: {x: 0, y: 0}
@@ -36677,6 +36799,7 @@ MonoBehaviour:
   id: lamp-6
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: f147707503c8f354d9d469fea865de8e, type: 3}
   maskOffset: {x: -2.6209984, y: -2.6090002}
   maskSize: {x: 5.25, y: 5.25}
@@ -42333,6 +42456,7 @@ MonoBehaviour:
   id: lamp-1
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
   maskOffset: {x: -2.5820007, y: -3.7299998}
   maskSize: {x: 5.13, y: 3.91}
@@ -44163,6 +44287,7 @@ MonoBehaviour:
   id: lamp-3
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: dc5f1973628521a41958b11818462378, type: 3}
   maskOffset: {x: -2.621, y: -2.6090002}
   maskSize: {x: 5.25, y: 5.25}
@@ -49139,6 +49264,7 @@ MonoBehaviour:
   id: lamp-2
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
   maskOffset: {x: -2.5819988, y: -3.7299998}
   maskSize: {x: 5.13, y: 3.91}
@@ -50726,6 +50852,7 @@ MonoBehaviour:
   id: lamp-7
   intensity: 1.1
   useMask: 1
+  shadow: 0
   mask: {fileID: 2800000, guid: c13d2e693f2049947959e7f75b0c5d48, type: 3}
   maskOffset: {x: -3.1009998, y: -1.8689995}
   maskSize: {x: 6.17, y: 3.77}
@@ -54767,6 +54894,7 @@ MonoBehaviour:
   id: hall-1
   intensity: 0.65
   useMask: 0
+  shadow: 0
   mask: {fileID: 0}
   maskOffset: {x: -20, y: -8}
   maskSize: {x: 0, y: 0}

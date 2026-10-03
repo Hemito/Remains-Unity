@@ -16,11 +16,14 @@ namespace Remains.Presentation
                 throw new InvalidOperationException($"Некорректная маска света: texture={texture?.name}, bounds={bounds}. Требуется читаемая текстура.");
             pixels=texture.GetPixels();width=texture.width;height=texture.height;this.bounds=bounds;
             // Interpolate premultiplied colour so invisible RGB cannot tint the edge.
-            for(int i=0;i<pixels.Length;i++) pixels[i]*=pixels[i].a;
+            for(int i=0;i<pixels.Length;i++)
+            {
+                var pixel=pixels[i];pixels[i]=new Color(pixel.r*pixel.a,pixel.g*pixel.a,pixel.b*pixel.a,pixel.a);
+            }
         }
         public Color Sample(Vector2 point)
         {
-            if(!bounds.Contains(point)) return Color.black;
+            if(!bounds.Contains(point)) return Color.clear;
             float x=Mathf.Clamp((point.x-bounds.x)/bounds.width*width-.5f,0,width-1);
             float y=Mathf.Clamp((point.y-bounds.y)/bounds.height*height-.5f,0,height-1);
             int left=Mathf.FloorToInt(x),bottom=Mathf.FloorToInt(y),right=Mathf.Min(left+1,width-1),top=Mathf.Min(bottom+1,height-1);

@@ -9,6 +9,7 @@ namespace Remains.Content
         [SerializeField,InspectorName("ID источника")] private string id;
         [SerializeField,InspectorName("Яркость")] private float intensity=1;
         [SerializeField,InspectorName("Использовать исходную маску")] private bool useMask;
+        [SerializeField,InspectorName("Затемнение по альфе маски")] private bool shadow;
         [SerializeField,InspectorName("Маска света")] private Texture2D mask;
         [SerializeField,InspectorName("Смещение маски")] private Vector2 maskOffset;
         [SerializeField,InspectorName("Размер маски")] private Vector2 maskSize;
@@ -19,7 +20,7 @@ namespace Remains.Content
         public void Configure(RoomLight light,Texture2D texture)
         {
             id=light.id;intensity=light.intensity;radius=light.radius;color=light.color;fixture=light.fixture;width=light.width;height=light.height;
-            maskId=light.mask;useMask=!string.IsNullOrEmpty(light.mask);mask=texture;
+            maskId=light.mask;useMask=!string.IsNullOrEmpty(light.mask);mask=texture;shadow=light.shadow;
             maskOffset=new Vector2(light.maskX-light.x,light.maskY-light.y);maskSize=new Vector2(light.maskWidth,light.maskHeight);
             transform.localPosition=new Vector3(light.x,light.y,0);
         }
@@ -29,16 +30,17 @@ namespace Remains.Content
             var rect=RoomAuthoring.ReadRect(transform,room.transform);
             if(Mathf.Abs(rect.width-1)>.00001f || Mathf.Abs(rect.height-1)>.00001f) throw new InvalidOperationException($"Свет {name}: размер задаётся радиусом/маской, масштаб Transform должен быть 1.");
             if(useMask && mask==null) throw new InvalidOperationException($"Свет {id}: отсутствует ссылка на маску.");
-            return new RoomLight {id=id,x=rect.x,y=rect.y,intensity=intensity,radius=radius,color=color,fixture=fixture,width=width,height=height,
+            return new RoomLight {id=id,x=rect.x,y=rect.y,intensity=intensity,radius=radius,color=color,fixture=fixture,width=width,height=height,shadow=shadow,
                 mask=useMask?maskId:null,maskTexture=useMask?mask:null,maskX=rect.x+maskOffset.x,maskY=rect.y+maskOffset.y,maskWidth=maskSize.x,maskHeight=maskSize.y};
         }
         private void Validate()
         {
             if(string.IsNullOrWhiteSpace(id) || !float.IsFinite(intensity) || intensity<0 || !float.IsFinite(radius) || radius<=0 ||
-                useMask && (mask==null || !float.IsFinite(maskOffset.x) || !float.IsFinite(maskOffset.y) || !float.IsFinite(maskSize.x) || !float.IsFinite(maskSize.y) || maskSize.x<=0 || maskSize.y<=0))
+                shadow && (!useMask || intensity>1) || useMask && (mask==null || !float.IsFinite(maskOffset.x) || !float.IsFinite(maskOffset.y) || !float.IsFinite(maskSize.x) || !float.IsFinite(maskSize.y) || maskSize.x<=0 || maskSize.y<=0))
                 throw new InvalidOperationException($"Свет {name}, ID={id}: проверьте яркость, радиус и ссылку/размеры маски.");
         }
         private void OnValidate()
-        {try {Validate();} catch(InvalidOperationException error) {Debug.LogWarning(error.Message,this);}}
+        {if(!useMask) shadow=false;if(shadow && float.IsFinite(intensity)) intensity=Mathf.Clamp01(intensity);
+            try {Validate();} catch(InvalidOperationException error) {Debug.LogWarning(error.Message,this);}}
     }
 }
