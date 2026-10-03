@@ -65,6 +65,26 @@ namespace Remains.Editor
                 Require(actor.weapon=="grenade" && actor.equippedWeaponItem=="grenades" && actor.inventory[5].weaponState==null &&
                     actor.inventory[5].count==3 && view.WeaponDetail.text.Contains("В стопке: 3"),"Инвентарь неверно выбирает или описывает стопку гранат");
                 view.Rows[1].onClick.Invoke();
+                string inventoryBefore=Remains.Serialization.StateJson.ToJson(actor.inventory);
+                view.Categories[(int)InventoryCategory.Items].onClick.Invoke();
+                Require(view.Rows[0].GetComponentInChildren<Text>().text.Contains("Аптечка") && !view.Rows[1].interactable && !view.Use.interactable,
+                    "Фильтр предметов оставил оружие или скрытое действие");
+                view.Categories[(int)InventoryCategory.Ammunition].onClick.Invoke();
+                Require(!view.Rows[0].interactable && !view.Next.interactable,"Пустая категория содержит строки");
+                view.Categories[(int)InventoryCategory.Weapons].onClick.Invoke();view.Rows[1].onClick.Invoke();
+                view.Use.onClick.Invoke();
+                Require(actor.equippedWeaponItem==b.id && view.Rows[4].GetComponentInChildren<Text>().text.Contains("Граната"),
+                    "Фильтр потерял ID второго пистолета или стопку гранат");
+                Require(Remains.Serialization.StateJson.ToJson(actor.inventory)==inventoryBefore,"Фильтры изменили сам инвентарь");
+                for(int i=0;i<9;i++) actor.inventory.Add(new ItemStack {id="filter-page-"+i,definition="heal",count=1});
+                view.Categories[(int)InventoryCategory.Items].onClick.Invoke();view.Next.onClick.Invoke();
+                Require(panel.Page==1 && !view.Next.interactable,"Страницы считаются по нефильтрованному списку");
+                actor.inventory.RemoveAll(item=>item.id.StartsWith("filter-page-",StringComparison.Ordinal));panel.Refresh(null);
+                Require(panel.Page==0 && !view.Previous.interactable,"Исчезнувшая страница не зажата после удаления предметов");
+                var customAmmoFilter=new InventoryItemFilter(new[]{new WeaponDefinition {id="test",ammo="custom-ammo"}});
+                Require(customAmmoFilter.Includes(new ItemStack {definition="custom-ammo"},InventoryCategory.Ammunition) &&
+                    customAmmoFilter.Includes(new ItemStack {definition="custom-item"},InventoryCategory.Items),"Фильтр требует встроенные ID предметов");
+                view.Categories[(int)InventoryCategory.All].onClick.Invoke();view.Rows[1].onClick.Invoke();
                 if(render)
                 {
                     var camera=new GameObject("Камера окна").AddComponent<Camera>();camera.transform.SetParent(root.transform);camera.transform.position=new Vector3(0,0,-10);camera.backgroundColor=new Color(.06f,.07f,.08f);

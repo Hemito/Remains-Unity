@@ -181,6 +181,12 @@ namespace Remains.Runtime
         }
         private IEnumerator SelectPersonalRow(int index)
         {
+            foreach(var category in new[]{Remains.Presentation.InventoryCategory.Weapons,Remains.Presentation.InventoryCategory.Ammunition,
+                Remains.Presentation.InventoryCategory.Items,Remains.Presentation.InventoryCategory.All})
+            {
+                yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(category));
+                if(runtime.Hud.PersonalCategory!=category) {Finish(false,"Не сработала кнопка категории инвентаря: "+category);yield break;}
+            }
             int page=index/runtime.Hud.PersonalPageSize;
             while(runtime.Hud.PersonalPage<page) yield return UiPointerProbe.Click(runtime.Hud.PersonalNextRect);
             while(runtime.Hud.PersonalPage>page) yield return UiPointerProbe.Click(runtime.Hud.PersonalPreviousRect);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Remains.Domain;
 using Remains.Networking;
 using Remains.Content;
@@ -30,8 +31,14 @@ namespace Remains.Presentation
         private InventorySource container;
         private string selected;
         private int page;
+        private InventoryCategory category;
+        private readonly InventoryItemFilter filter;
+        private readonly Button[] categories;
+        private readonly List<ItemStack> visible=new();
         public RectTransform RowRect(int row)=>rows[row].GetComponent<RectTransform>();
         public int Page=>page;
+        public InventoryCategory Category=>category;
+        public RectTransform CategoryRect(InventoryCategory value)=>categories[(int)value].GetComponent<RectTransform>();
         public int PageSize=>rows.Length;
         public RectTransform NextRect=>next.GetComponent<RectTransform>();
         public RectTransform PreviousRect=>previous.GetComponent<RectTransform>();
@@ -44,6 +51,12 @@ namespace Remains.Presentation
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
             if(view==null) throw new InvalidOperationException("Не назначено содержимое личной страницы инвентаря.");
             view.Validate();
+            filter=new InventoryItemFilter(WeaponCatalog.All);categories=view.Categories;
+            for(int i=0;i<categories.Length;i++)
+            {
+                var choice=(InventoryCategory)i;
+                categories[i].onClick.AddListener(()=>{category=choice;page=0;Refresh(container);});
+            }
             rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
             detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
             weaponPreview=view.WeaponPreview;weaponDetail=view.WeaponDetail;
@@ -85,7 +98,12 @@ namespace Remains.Presentation
         }
         public void Refresh(InventorySource destination)
         {
-            container=destination;var actor=session.LocalActor;int count=actor?.inventory.Count??0;
+            container=destination;var actor=session.LocalActor;
+            visible.Clear();
+            if(actor!=null) foreach(var item in actor.inventory) if(filter.Includes(item,category)) visible.Add(item);
+            int count=visible.Count;
+            if(!visible.Exists(item=>item.id==selected)) selected=null;
+            for(int i=0;i<categories.Length;i++) OriginalButtonStyle.SetSelected(categories[i],i==(int)category);
             if(actor==null) container=null;
             for(int i=0;i<weaponButtons.Length;i++)
             {
@@ -98,12 +116,12 @@ namespace Remains.Presentation
             }
             page=Mathf.Clamp(page,0,Math.Max(0,(count-1)/rows.Length));
             previous.interactable=page>0;next.interactable=(page+1)*rows.Length<count;
-            title.text=$"Личный инвентарь · {page+1}/{Math.Max(1,(count+rows.Length-1)/rows.Length)}";
+            title.text=$"Инвентарь · {page+1}/{Math.Max(1,(count+rows.Length-1)/rows.Length)}";
             var chosen=actor?.inventory.Find(item=>item.id==selected);
             if(chosen==null) selected=null;
             for(int i=0;i<rows.Length;i++)
             {
-                int index=page*rows.Length+i;var item=index<count?actor.inventory[index]:null;ids[i]=item?.id;
+                int index=page*rows.Length+i;var item=index<count?visible[index]:null;ids[i]=item?.id;
                 int available=item==null?0:InventoryAvailability.Count(actor,item);
                 artwork.Set(icons[i],item?.definition);
                 string quantityText=item?.weaponState==null?$" × {item?.count}":WeaponCatalog.Get(item.definition).magazineSize>0?
@@ -133,7 +151,7 @@ namespace Remains.Presentation
             use.GetComponentInChildren<Text>().text=weaponSelected?(actor.equippedWeaponItem==chosen.id?"Убрать оружие":"Взять в копыта"):"Использовать";
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
-            detail.text=chosen==null?"Выберите предмет в списке.":$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):Description(chosen.definition));
+            detail.text=chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):Description(chosen.definition));
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen!=null?rejection??"":"";
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
         }

@@ -60,6 +60,8 @@ namespace Remains.Presentation
         private GameObject quickActions;
         private float noticeUntil;
         private PersonalInventoryPanel personalItems;
+        public InventoryCategory PersonalCategory=>personalItems.Category;
+        public RectTransform PersonalCategoryRect(InventoryCategory category)=>personalItems.CategoryRect(category);
         private InventoryWindow inventoryWindow;
         private InventoryAudio inventoryAudio;
         public RectTransform PersonalTabRect=>inventoryWindow.PersonalTab;

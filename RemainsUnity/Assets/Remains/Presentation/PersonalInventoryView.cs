@@ -5,6 +5,7 @@ namespace Remains.Presentation
 {
     public sealed class PersonalInventoryView : MonoBehaviour
     {
+        [InspectorName("Фильтры: все / оружие / боеприпасы / предметы")] public Button[] Categories;
         [InspectorName("Строки предметов")] public Button[] Rows;
         [InspectorName("Иконки строк")] public Image[] Icons;
         [InspectorName("Кнопки оружия")] public Button[] Weapons;
@@ -23,6 +24,8 @@ namespace Remains.Presentation
         [InspectorName("Состояние действия")] public Text ActionStatus;
         public void Validate()
         {
+            if(Categories==null || Categories.Length!=Enum.GetValues(typeof(InventoryCategory)).Length || Array.Exists(Categories,x=>x==null))
+                throw new InvalidOperationException("Личный инвентарь: не назначены четыре фильтра предметов.");
             if(Rows==null || Icons==null || Rows.Length==0 || Rows.Length!=Icons.Length || Weapons==null || WeaponIds==null || Weapons.Length!=WeaponIds.Length ||
                 DetailIcon==null || WeaponPreview==null || WeaponDetail==null || Portrait==null || PortraitParts==null || PortraitParts.Length==0 || Previous==null || Next==null || Deposit==null || Use==null || Title==null || Detail==null || ActionStatus==null)
                 throw new InvalidOperationException("Личный инвентарь: не заполнены ссылки или не совпадают массивы элементов.");
