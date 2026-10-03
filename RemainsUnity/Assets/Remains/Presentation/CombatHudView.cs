@@ -12,6 +12,8 @@ namespace Remains.Presentation
         [InspectorName("Текст здоровья")] public Text HealthText;
         [InspectorName("Текст маны")] public Text ManaText;
         [InspectorName("Боезапас")] public Text Ammunition;
+        [InspectorName("Запас гранат")] public Text Grenades;
+        [InspectorName("Иконка гранаты")] public Image GrenadeIcon;
         [InspectorName("Шкала здоровья")] public Image Health;
         [InspectorName("Шкала маны")] public Image Mana;
         [InspectorName("Кнопки оружия")] public Button[] Weapons;
@@ -20,7 +22,7 @@ namespace Remains.Presentation
         public void Validate()
         {
             if(Vitals==null || Loadout==null || CharacterName==null || HealthText==null || ManaText==null || Ammunition==null ||
-                Health==null || Health.sprite==null || Mana==null || Mana.sprite==null || Weapons==null || WeaponIds==null || Weapons.Length==0 || Weapons.Length!=WeaponIds.Length)
+                Grenades==null || GrenadeIcon==null || GrenadeIcon.sprite==null || Health==null || Health.sprite==null || Mana==null || Mana.sprite==null || Weapons==null || WeaponIds==null || Weapons.Length==0 || Weapons.Length!=WeaponIds.Length)
                 throw new InvalidOperationException("HUD: отсутствуют ссылки или не совпадают кнопки и ID оружия.");
             var ids=new HashSet<string>();
             for(int i=0;i<Weapons.Length;i++) if(Weapons[i]==null || string.IsNullOrWhiteSpace(WeaponIds[i]) || !ids.Add(WeaponIds[i]))

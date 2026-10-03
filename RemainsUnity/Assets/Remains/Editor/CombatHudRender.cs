@@ -30,6 +30,7 @@ namespace Remains.Editor
                 WeaponAmmunition.Initialize(actor,true);
                 WeaponAmmunition.Magazine(actor,"pistol").rounds=0;
                 if(i==2) actor.inventory.Clear();
+                if(i==0) actor.inventory.Add(SharedInventory.Create("grenade",5));
                 hud.Refresh(actor,true,i==0?1.2f:(float?)null);
             }
             Canvas.ForceUpdateCanvases();

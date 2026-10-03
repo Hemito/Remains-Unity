@@ -9,7 +9,8 @@ namespace Remains.Presentation
     public sealed class CombatHud
     {
         private readonly GameObject vitals,loadout;
-        private readonly Text name,healthText,manaText,ammunition;
+        private readonly Text name,healthText,manaText,ammunition,grenades;
+        private readonly Image grenadeIcon;
         private readonly Image health,mana;
         private readonly HealthBarWarning healthWarning;
         private readonly Button[] weapons;
@@ -25,6 +26,7 @@ namespace Remains.Presentation
             prefab.Validate();var view=UnityEngine.Object.Instantiate(prefab,parent,false);
             vitals=view.Vitals;loadout=view.Loadout;name=view.CharacterName;healthText=view.HealthText;manaText=view.ManaText;
             ammunition=view.Ammunition;health=view.Health;mana=view.Mana;weapons=view.Weapons;ids=view.WeaponIds;
+            grenades=view.Grenades;grenadeIcon=view.GrenadeIcon;
             healthWarning=new HealthBarWarning(health.sprite,view.HealthWarningFrames);
             shortcutIcons=new Image[weapons.Length];
             for(int i=0;i<weapons.Length;i++)
@@ -48,6 +50,10 @@ namespace Remains.Presentation
             vitals.SetActive(visible);loadout.SetActive(visible);
             healthWarning.Refresh(health,actor==null?0:Mathf.Clamp01(actor.health/100),visible,Time.unscaledTime);
             if(actor==null) return;
+            int grenadeCount=InventoryJournal.Count(actor,"grenade");
+            grenades.text=$"G · Гранаты: {grenadeCount}";
+            var grenadeColor=grenadeCount>0 && !actor.down?new Color(.65f,1,.75f):new Color(.4f,.5f,.44f);
+            grenades.color=grenadeColor;grenadeIcon.color=grenadeCount>0 && !actor.down?Color.white:new Color(.5f,.5f,.5f);
             name.text=actor.down?"Без сознания · нужна помощь":actor.character;
             health.fillAmount=Mathf.Clamp01(actor.health/100);mana.fillAmount=Mathf.Clamp01(actor.mana/100);
             healthText.text=$"Здоровье  {actor.health:0} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";

@@ -18,6 +18,14 @@ namespace Remains.Editor
                 var normal=view.Health.sprite;
                 var actor=new ActorState {id="hud-check",character="Проверка",weapon="pistol",health=19,mana=36};WeaponAmmunition.Initialize(actor,true);
                 hud.Refresh(actor,true);
+                Require(view.Grenades.text=="G · Гранаты: 0","Пустой запас гранат не показан");
+                actor.inventory.Add(SharedInventory.Create("grenade",3));hud.Refresh(actor,true);
+                Require(view.Grenades.text=="G · Гранаты: 3","HUD не прочитал запас гранат из инвентаря");
+                InventoryJournal.Consume(actor,"grenade",1);hud.Refresh(actor,true);
+                Require(view.Grenades.text=="G · Гранаты: 2","Подтверждённый расход не обновил HUD");
+                actor.inventoryReservations[actor.inventory.Find(item=>item.definition=="grenade").id]=1;hud.Refresh(actor,true);
+                Require(view.Grenades.text=="G · Гранаты: 1","Зарезервированная граната ошибочно показана доступной");
+                actor.inventoryReservations.Clear();
                 Require(Mathf.Approximately(view.Health.fillAmount,.19f) && Mathf.Approximately(view.Mana.fillAmount,.36f),"Неверное заполнение шкал");
                 Require(view.Health.sprite!=normal,"Не включилось предупреждение здоровья");
                 for(int i=0;i<view.Weapons.Length;i++)
