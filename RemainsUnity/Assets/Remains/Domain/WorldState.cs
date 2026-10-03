@@ -69,6 +69,7 @@ namespace Remains.Domain
         public bool weaponFlipY;
         public float weaponTipX,weaponTipY;
         public float weaponReach=1.4f;
+        public float weaponLift;
         public bool attackBusy;
         public float attackRemaining;
         public string attackId,attackTarget;

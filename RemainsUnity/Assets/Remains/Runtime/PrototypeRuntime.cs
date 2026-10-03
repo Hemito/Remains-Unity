@@ -45,6 +45,7 @@ namespace Remains.Runtime
         private PrototypeHud hud;
         private Camera cameraView;
         private float nextPose;
+        private readonly WeaponElevation weaponElevation=new();
         private GameObject roomObject;
         private string shownLevel="hub";
         private CameraFollower cameraFollower;
@@ -322,6 +323,7 @@ namespace Remains.Runtime
             }
             if(actor.weaponInventoryVersion==1) Combat.Weapon=WeaponInventory.Selected(actor)?.definition;
             actor.weapon=Combat.Weapon;
+            weaponElevation.Step(actor,Geometry.Get(actor.level),command.movement.y>.1f,dt);
             if(command.hasAim && !Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim,Geometry.Get(actor.level));
             if(command.reload && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
             Revival.Step(command.revive,dt);

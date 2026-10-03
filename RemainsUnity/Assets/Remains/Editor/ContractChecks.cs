@@ -78,7 +78,7 @@ namespace Remains.Editor
             LightingChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();
             DamageFeedbackChecks.Run();
-            WeaponPoseChecks.Run();
+            WeaponPoseChecks.Run();WeaponElevationChecks.Run();
             MovableContainerChecks.Run();
             TelekinesisRuleChecks.Run();
             MagicRecoveryChecks.Run();

@@ -94,7 +94,8 @@ namespace Remains.Editor
         public static void RenderMelee()=>Render(true);
         public static void RenderSwing()=>Render(true,true);
         public static void RenderLadder()=>Render(false,false,true);
-        private static void Render(bool melee,bool motion=false,bool climbing=false)
+        public static void RenderRaised()=>Render(false,false,false,true);
+        private static void Render(bool melee,bool motion=false,bool climbing=false,bool raised=false)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             Anatomy.Load();WeaponCatalog.Load();Run();PonyAnimationData.Load();PonyVisual.Prepare();
@@ -102,7 +103,7 @@ namespace Remains.Editor
             foreach(string weapon in melee?new[]{"spear","crowbar"}:new[]{"pistol","energy"})
             foreach(float angle in new[]{0f,45,135,180})
             {
-                var actor=new ActorState {id=weapon+angle,weapon=weapon,x=(index%4)*4,y=-(index/4)*3,pose=climbing?"climb":"idle",climbing=climbing};
+                var actor=new ActorState {id=weapon+angle,weapon=weapon,x=(index%4)*4,y=-(index/4)*3,pose=climbing?"climb":"idle",climbing=climbing,weaponLift=raised?WeaponRigs.RaiseHeight:0};
                 float distance=!motion && melee && index%4<2 ? (index%4==0?.2f:.7f):4;
                 var anchor=melee?WeaponPose.Origin(actor):WeaponPose.RangedAnchor(actor);
                 float aimAngle=motion?0:angle;
@@ -141,7 +142,7 @@ namespace Remains.Editor
             try
             {
                 camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
-                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", climbing?".reference/tests/weapon-ladder-poses.png":motion?".reference/tests/melee-swing-poses.png":melee?".reference/tests/melee-idle-poses.png":".reference/tests/weapon-poses.png"));
+                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", raised?".reference/tests/weapon-raised-poses.png":climbing?".reference/tests/weapon-ladder-poses.png":motion?".reference/tests/melee-swing-poses.png":melee?".reference/tests/melee-idle-poses.png":".reference/tests/weapon-poses.png"));
                 Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
                 Debug.Log("Кадр поз оружия: "+path);
             }

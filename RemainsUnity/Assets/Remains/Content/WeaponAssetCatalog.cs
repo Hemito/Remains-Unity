@@ -15,8 +15,16 @@ namespace Remains.Content
         public float AimRadius=>aimRadius;
         public float ClimbingAimRadius=>climbingAimRadius;
         public float AnchorHeight=>anchorHeight;
+        [SerializeField,Min(0),InspectorName("Подъём огнестрела при удержании вверх (м)")] private float raiseHeight=.8f;
+        [SerializeField,Min(0),InspectorName("Задержка подъёма огнестрела (с)")] private float raiseDelay=.3666667f;
+        public float RaiseHeight=>raiseHeight;
+        public float RaiseDelay=>raiseDelay;
         private void OnValidate()
         {
+            if(!float.IsFinite(raiseHeight) || !float.IsFinite(raiseDelay) || raiseHeight<0 || raiseDelay<0)
+                Debug.LogWarning($"Каталог {name}: высота и задержка подъёма должны быть конечными неотрицательными числами.",this);
+            if(float.IsFinite(raiseHeight)) raiseHeight=Mathf.Max(0,raiseHeight);
+            if(float.IsFinite(raiseDelay)) raiseDelay=Mathf.Max(0,raiseDelay);
             if(!float.IsFinite(aimRadius) || !float.IsFinite(climbingAimRadius) || !float.IsFinite(anchorHeight))
                 Debug.LogWarning($"Каталог {name}: неконечные параметры удержания оружия заменены исходными значениями. Проверьте радиусы и высоту.",this);
             aimRadius=float.IsFinite(aimRadius)?Mathf.Max(.01f,aimRadius):1;

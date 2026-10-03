@@ -38,7 +38,8 @@ namespace Remains.Runtime
         private readonly TrainingAnimationTrace animationTrace=new();
         private readonly TrainingWeaponTrace weaponTrace=new();
         private int movingShots;
-        private bool movingShotCaptured;
+        private bool movingShotCaptured,raisedCaptured;
+        private readonly HashSet<string> raisedWeapons=new();
         private bool MovingShotExercise=>runtime.Options.Smoke.Contains("-moving-");
         private InteractionVisuals interactionVisuals;
         private void LateUpdate()
@@ -157,7 +158,7 @@ namespace Remains.Runtime
             if(stage>=4) return CrateCommand();
             // The jump intentionally preserves momentum; readiness is the firing area, not one exact point.
             bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-26)<1 && a.y<1);
-            return new PlayerCommand {weapon="pistol",hasAim=true,aim=new Vector2(29,1.6f),fire=ready && shots<3};
+            return new PlayerCommand {weapon="pistol",movement=Vector2.up,hasAim=true,aim=new Vector2(29,1.6f),fire=ready && self.weaponLift>0 && raisedWeapons.Count==runtime.Options.ProbePeers && shots<3};
         }
         private PlayerCommand CrateCommand()
         {
@@ -191,6 +192,10 @@ namespace Remains.Runtime
                     Debug.Log($"Переход локального бега: actor={self.id}, from={previousLocalPose}, to={self.pose}, phase={self.poseTime}, x={self.x}, facing={self.facing}, time={Time.unscaledTime}.");
                 previousLocalPose=self.pose;
             }
+            foreach(var player in runtime.Session.World.actors)
+                if(player.player && player.weaponLift>.7f) raisedWeapons.Add(player.id);
+            if(!raisedCaptured && self.weaponLift>.7f && runtime.Options.Smoke.Contains("-frames-"))
+            {NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".raised-weapon.png",runtime.Hud.GetComponent<Canvas>());raisedCaptured=true;}
             if(Host && stage>=4) minimumLiftMana=Mathf.Min(minimumLiftMana,self.mana);
             foreach(var other in runtime.Session.World.actors)
                 if(other.player && other.id!=self.id)
@@ -252,7 +257,7 @@ namespace Remains.Runtime
             if(success && MovingShotExercise && movingShots!=3) {success=false;detail="Ожидалось три выстрела на бегу, получено "+movingShots;}
             if(success && MovingShotExercise && !weaponTrace.ValidateLocal(out var mismatch)) {success=false;detail=mismatch;}
             string json=JsonUtility.ToJson(new Report {success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
-                rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
+                raisedWeapons=raisedWeapons.Count,rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
                 sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,movingShots=movingShots,
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
@@ -262,6 +267,6 @@ namespace Remains.Runtime
             weaponTrace.Save(runtime.Options.Report+".weapons.json");
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public int raisedWeapons;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }

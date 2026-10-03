@@ -8,7 +8,8 @@ namespace Remains.Gameplay
     {
         public static float AimRadius=>WeaponRigs.AimRadius;
         public static float RangedReachLimit(ActorState actor)=>actor.climbing?WeaponRigs.ClimbingAimRadius:AimRadius;
-        public static Vector2 RangedAnchor(ActorState actor)=>actor.Position+new Vector2(0,WeaponRigs.AnchorHeight*Anatomy.StanceHeightRatio(actor));
+        public static Vector2 RangedAnchor(ActorState actor)=>actor.Position+new Vector2(0,WeaponRigs.AnchorHeight*Anatomy.StanceHeightRatio(actor)+
+            (actor.down || actor.climbing || actor.crouched?0:Mathf.Clamp(actor.weaponLift,0,WeaponRigs.RaiseHeight)));
         public static Vector2 Direction(ActorState actor)=>new(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
         public static bool Flip(ActorState actor)=>actor.weaponFlipY;
         public static Vector2 Mount(ActorState actor)=>RangedAnchor(actor)+Vector2.right*(Flip(actor)?-1:1)*Mathf.Clamp(actor.weaponReach,0,RangedReachLimit(actor));
@@ -20,9 +21,20 @@ namespace Remains.Gameplay
         public static void Aim(ActorState actor,Vector2 target,RoomLayout room=null)
         {
             AimWithReach(actor,target,RangedReachLimit(actor));
+            LowerUnderCeiling(actor,target,room,RangedReachLimit(actor));
             if(room!=null && !string.IsNullOrEmpty(actor.weapon) && WeaponRigs.Get(actor.weapon).HasMuzzle &&
                 ShotObstacles.FirstContact(room,RangedAnchor(actor),Muzzle(actor)).HasValue)
+            {
                 AimWithReach(actor,target,0);
+                LowerUnderCeiling(actor,target,room,0);
+            }
+        }
+        private static void LowerUnderCeiling(ActorState actor,Vector2 target,RoomLayout room,float reachLimit)
+        {
+            if(room==null || actor.weaponLift<=0 || string.IsNullOrEmpty(actor.weapon) || !WeaponRigs.Get(actor.weapon).HasMuzzle) return;
+            var mount=Mount(actor);
+            if(RoomVisibility.Clear(room,mount-Vector2.up*actor.weaponLift,mount)) return;
+            actor.weaponLift=0;AimWithReach(actor,target,reachLimit);
         }
         private static void AimWithReach(ActorState actor,Vector2 target,float reachLimit)
         {

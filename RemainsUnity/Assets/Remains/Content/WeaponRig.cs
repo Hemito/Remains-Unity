@@ -14,15 +14,17 @@ namespace Remains.Content
     }
     public static class WeaponRigs
     {
-        [Serializable] private sealed class Library {public float pixelsPerUnit,aimRadius,climbingAimRadius,anchorHeight;public WeaponRig[] weapons;}
+        [Serializable] private sealed class Library {public float pixelsPerUnit,aimRadius,climbingAimRadius,anchorHeight,raiseHeight,raiseDelay;public WeaponRig[] weapons;}
         private static readonly Dictionary<string,WeaponRig> rigs=new(StringComparer.Ordinal);
         private static readonly Dictionary<string,Remains.Presentation.WeaponView> prefabs=new(StringComparer.Ordinal);
         public static Remains.Presentation.WeaponView Prefab(string id)=>prefabs.TryGetValue(id,out var value)?value:throw new InvalidOperationException("Нет префаба оружия: "+id);
-        public static string ManifestJson()=>JsonUtility.ToJson(new Library {pixelsPerUnit=PixelsPerUnit,aimRadius=AimRadius,climbingAimRadius=ClimbingAimRadius,anchorHeight=AnchorHeight,weapons=rigs.Values.ToArray()});
+        public static string ManifestJson()=>JsonUtility.ToJson(new Library {pixelsPerUnit=PixelsPerUnit,aimRadius=AimRadius,climbingAimRadius=ClimbingAimRadius,anchorHeight=AnchorHeight,raiseHeight=RaiseHeight,raiseDelay=RaiseDelay,weapons=rigs.Values.ToArray()});
         public static float PixelsPerUnit {get;private set;}
         public static float AimRadius {get;private set;}
         public static float ClimbingAimRadius {get;private set;}
         public static float AnchorHeight {get;private set;}
+        public static float RaiseHeight {get;private set;}
+        public static float RaiseDelay {get;private set;}
         public static IEnumerable<WeaponRig> All=>rigs.Values;
         public static WeaponRig Get(string id)=>rigs.TryGetValue(id,out var rig)?rig:
             throw new InvalidOperationException($"Нет графической позы оружия: {id}.");
@@ -32,6 +34,9 @@ namespace Remains.Content
             if(catalog==null) throw new InvalidOperationException("Нет Content/WeaponCatalog.");
             if(!float.IsFinite(catalog.ClimbingAimRadius) || catalog.ClimbingAimRadius<0 || catalog.ClimbingAimRadius>catalog.AimRadius)
                 throw new InvalidOperationException("Вынос оружия на лестнице должен быть от нуля до обычного радиуса.");
+            if(!float.IsFinite(catalog.RaiseHeight) || catalog.RaiseHeight<0 || !float.IsFinite(catalog.RaiseDelay) || catalog.RaiseDelay<0)
+                throw new InvalidOperationException("Некорректная высота или задержка подъёма огнестрела.");
+            RaiseHeight=catalog.RaiseHeight;RaiseDelay=catalog.RaiseDelay;
             var presentations=catalog.Presentations().ToArray();
             if(presentations.Length==0) throw new InvalidOperationException("В каталоге нет префабов оружия.");
             var definitions=presentations.Select(view=>view.ReadRig()).ToArray();

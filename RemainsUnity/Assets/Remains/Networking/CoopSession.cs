@@ -486,7 +486,7 @@ namespace Remains.Networking
             actor.crouched=message.crouched;
             actor.weapon=message.weapon;actor.weaponAngle=message.weaponAngle;
             actor.weaponTipX=message.weaponTipX;actor.weaponTipY=message.weaponTipY;
-            actor.weaponReach=message.weaponReach;
+            actor.weaponReach=message.weaponReach;actor.weaponLift=message.weaponLift;
             actor.weaponFlipY=message.weaponFlipY;
             if(!actor.player && message.perception!=null) {actor.target=message.target;actor.perception=message.perception.Copy();}
             if(actor.attackId==message.attackId && actor.attackBusy==message.attackBusy)
@@ -499,7 +499,7 @@ namespace Remains.Networking
         {
             actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = actor.motionSequence=unchecked(actor.motionSequence+1),
             x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,poseSequence=actor.poseSequence,climbing=actor.climbing,crouched=actor.crouched,jumpSupportRemaining=actor.jumpSupportRemaining,
-            weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponFlipY=actor.weaponFlipY,
+            weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponLift=actor.weaponLift,weaponFlipY=actor.weaponFlipY,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown,
             target=actor.player?null:actor.target,perception=actor.player?null:actor.perception.Copy()
         }, Channels.Unreliable);

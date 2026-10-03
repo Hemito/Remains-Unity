@@ -14,7 +14,7 @@ namespace Remains.Domain
             destination.weapon=source.weapon;destination.weaponAngle=source.weaponAngle;
             destination.weaponFlipY=source.weaponFlipY;
             destination.weaponTipX=source.weaponTipX;destination.weaponTipY=source.weaponTipY;
-            destination.weaponReach=source.weaponReach;
+            destination.weaponReach=source.weaponReach;destination.weaponLift=source.weaponLift;
         }
         public static string Clip(ActorState actor)=>actor.down?"down":actor.pose;
         public static bool StationaryClimb(ActorState actor)=>actor.climbing && !actor.down && System.Math.Abs(actor.vy)<.001f;
