@@ -25,7 +25,7 @@ namespace Remains.Presentation
         {
             this.session=session;this.grenades=grenades;this.layers=layers;
             propArtwork=new PropArtwork();
-            foreach(var key in new[]{"crate","grenade"}) sprites.Add(key,Load("Original/Props/"+key));
+            sprites.Add("grenade",GrenadeArtwork.Load());
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
             shotAnimation=gameObject.AddComponent<WeaponShotAnimation>();shotAnimation.Initialize(session);
             ShotArtwork.Prepare();
@@ -44,16 +44,9 @@ namespace Remains.Presentation
                 shot.Initialize(attack,limit,artwork,session);
             };
         }
-        private static Sprite Load(string path)
-        {
-            var texture=Resources.Load<Texture2D>(path);
-            if(texture==null) throw new InvalidOperationException($"Отсутствует визуальный ресурс: {path}.");
-            return Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(0.5f,0.5f),100);
-        }
-        private static SpriteRenderer Create(string name,Sprite sprite,float width)
+        private static SpriteRenderer Create(string name,Sprite sprite)
         {
             var renderer=new GameObject(name).AddComponent<SpriteRenderer>();SpriteArtworkMaterial.Prepare(sprite);SpriteArtworkMaterial.Apply(renderer,sprite);renderer.sortingOrder=ActorVisualLayers.WorldObjectOrder;
-            renderer.transform.localScale=Vector3.one*(width/sprite.bounds.size.x);
             return renderer;
         }
         private void Refresh()
@@ -80,7 +73,7 @@ namespace Remains.Presentation
                     weapons.Add(actor.id,CreateWeapon(actor));
                 }
             foreach(var flight in grenades.Flights.Where(f=>f.state.level==level))
-                if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"],.35f));
+                if(!flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,Create("Граната "+flight.state.id,sprites["grenade"]));
         }
         private static void Prune<T>(Dictionary<string,T> views,HashSet<string> retained) where T:Component
         {

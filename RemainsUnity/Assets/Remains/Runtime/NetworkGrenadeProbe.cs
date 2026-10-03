@@ -33,6 +33,8 @@ namespace Remains.Runtime
             };
             value.Explosions.Created+=effect=>
             {if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureExplosion(effect));};
+            value.Grenades.Created+=flight=>
+            {if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureFlight());};
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<GrenadeProbePhase>(message=>phase=message.phase);
@@ -107,6 +109,12 @@ namespace Remains.Runtime
             yield return new WaitForSeconds(.12f);
             if(effect==null) {Finish(false,"Эффект взрыва исчез до снимка.");yield break;}
             NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".explosion.png",runtime.Hud.GetComponent<Canvas>());
+        }
+        private IEnumerator CaptureFlight()
+        {
+            yield return new WaitForSeconds(.25f);
+            if(!runtime.Grenades.Flights.Any()) {Finish(false,"Граната исчезла до снимка полёта.");yield break;}
+            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".flight.png",runtime.Hud.GetComponent<Canvas>());
         }
         [Serializable] private sealed class Report {public bool success;public string detail;}
     }
