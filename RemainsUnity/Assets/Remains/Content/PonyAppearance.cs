@@ -5,9 +5,11 @@ namespace Remains.Content
 {
     public static class PonyAppearance
     {
+        private static PonyPaletteAsset palette;
+        public static void Prepare()=>palette=PonyPaletteAsset.Load();
         public static Color Tint(string slot,int hair)=>slot switch
         {
-            "hair"=>hair%2==0?new Color(133/255f,70/255f,9/255f):new Color(.15f,.5f,.85f),
+            "hair"=>(palette!=null?palette:throw new InvalidOperationException("Палитра пони не подготовлена перед отрисовкой.")).Hair(hair),
             "fur"=>new Color(163/255f,163/255f,163/255f),
             "eye"=>new Color(22/255f,243/255f,67/255f),
             "magic"=>Color.green,

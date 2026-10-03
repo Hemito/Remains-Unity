@@ -35,6 +35,7 @@ namespace Remains.Presentation
 
         public static void Prepare()
         {
+            PonyAppearance.Prepare();
             if(cache.Count>0 && cache.Values.All(clip=>clip.All(sample=>sample.All(part=>part.mesh!=null && part.material!=null)))) return;
             var asset=Resources.Load<PonyRenderAsset>("Original/Pony/render");
             if(asset==null) throw new InvalidOperationException("Нет сохранённой графики пони Original/Pony/render. Пересоберите её в Unity.");

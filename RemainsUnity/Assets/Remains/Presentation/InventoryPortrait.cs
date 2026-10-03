@@ -8,7 +8,7 @@ namespace Remains.Presentation
         private readonly GameObject root;
         private readonly PortraitPart[] parts;
         private int? hair;
-        public InventoryPortrait(GameObject root,PortraitPart[] parts) {this.root=root;this.parts=parts;}
+        public InventoryPortrait(GameObject root,PortraitPart[] parts) {Content.PonyAppearance.Prepare();this.root=root;this.parts=parts;}
         public void Refresh(ActorState actor)
         {
             root.SetActive(actor!=null);

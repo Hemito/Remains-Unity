@@ -270,6 +270,7 @@ namespace Remains.Networking
                 if(actor==null)
                 {
                     actor=new ActorState();
+                    actor.hair=PonyPaletteAsset.Load().ForNewCharacter(ServerWorld.actors);
                     actor.inventory.Add(SharedInventory.Create("heal", 5));
                     actor.inventory.Add(SharedInventory.Create("grenade", 5));
                     WeaponAmmunition.Initialize(actor,true);
@@ -277,7 +278,6 @@ namespace Remains.Networking
                 actor.id="player:"+message.character;actor.character=message.character;actor.player=true;
                 actor=WeaponInventoryMigration.Prepare(actor);
                 CharacterPlacement.SpawnInHub(actor,ServerWorld.actors.Count(a=>a.player));
-                actor.hair=ServerWorld.actors.Count(a=>a.player);
                 ServerWorld.actors.Add(actor);
             }
             actor.owner = owner;
