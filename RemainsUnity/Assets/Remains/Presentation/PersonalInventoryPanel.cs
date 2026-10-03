@@ -1,6 +1,7 @@
 using System;
 using Remains.Domain;
 using Remains.Networking;
+using Remains.Content;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -102,7 +103,9 @@ namespace Remains.Presentation
                 int index=page*rows.Length+i;var item=index<count?actor.inventory[index]:null;ids[i]=item?.id;
                 int available=item==null?0:InventoryAvailability.Count(actor,item);
                 artwork.Set(icons[i],item?.definition);
-                rows[i].GetComponentInChildren<Text>().text=item==null?"—":$"{(item.id==selected?"› ":"")}{itemName(item.definition)} × {item.count}"+(available<item.count?$" (доступно {available})":"");
+                string quantityText=item?.weaponState==null?$" × {item?.count}":WeaponCatalog.Get(item.definition).magazineSize>0?
+                    $" · {item.weaponState.rounds}/{WeaponCatalog.Get(item.definition).magazineSize}":"";
+                rows[i].GetComponentInChildren<Text>().text=item==null?"—":$"{(item.id==selected?"› ":"")}{itemName(item.definition)}{quantityText}"+(available<item.count?$" (доступно {available})":"");
                 rows[i].interactable=item!=null;
             }
             int availableChosen=chosen==null?0:InventoryAvailability.Count(actor,chosen);
@@ -119,9 +122,16 @@ namespace Remains.Presentation
             use.GetComponentInChildren<Text>().text=weaponSelected?(actor.equippedWeaponItem==chosen.id?"Убрать оружие":"Взять в копыта"):"Использовать";
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
-            detail.text=chosen==null?"Выберите предмет в списке.":$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?$"В магазине: {chosen.weaponState.rounds}\nВыбор: {(actor.equippedWeaponItem==chosen.id?"в копытах":"в инвентаре")}\nКнопки 1–4 назначают быстрый доступ.":Description(chosen.definition));
+            detail.text=chosen==null?"Выберите предмет в списке.":$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):Description(chosen.definition));
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen!=null?rejection??"":"";
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
+        }
+        private static string WeaponDescription(ActorState actor,ItemStack item)
+        {
+            var definition=WeaponCatalog.Get(item.definition);
+            string resource=definition.magazineSize>0?$"В магазине: {item.weaponState.rounds}/{definition.magazineSize}\n":
+                definition.meleeMotion is {Length:>0}?"Ближний бой\n":"";
+            return resource+$"Выбор: {(actor.equippedWeaponItem==item.id?"в копытах":"в инвентаре")}\nКнопки 1–4 назначают быстрый доступ.";
         }
         private static string Description(string id)=>id switch
         {

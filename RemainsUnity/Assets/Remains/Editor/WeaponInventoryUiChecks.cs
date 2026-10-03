@@ -25,6 +25,8 @@ namespace Remains.Editor
                 var a=new ItemStack {id="first-pistol",definition="pistol",count=1,weaponState=new WeaponItemState {rounds=7}};
                 var b=new ItemStack {id="second-pistol",definition="pistol",count=1,weaponState=new WeaponItemState {rounds=2}};
                 actor.inventory.Add(a);actor.inventory.Add(b);actor.inventory.Add(SharedInventory.Create("heal",3));
+                actor.inventory.Add(new ItemStack {id="spear",definition="spear",count=1,weaponState=new WeaponItemState()});
+                actor.inventory.Add(new ItemStack {id="crowbar",definition="crowbar",count=1,weaponState=new WeaponItemState()});
                 var world=new WorldState();world.actors.Add(actor);
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
@@ -36,9 +38,11 @@ namespace Remains.Editor
                 var rect=window.GetComponent<RectTransform>();rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);rect.anchoredPosition=Vector2.zero;
                 var view=window.PersonalContents;
                 Action<string> select=id=>{if(!WeaponInventory.Select(actor,id,out var reason)) throw new InvalidOperationException(reason);};
-                var panel=new PersonalInventoryPanel(view,session,id=>id=="pistol"?"10-мм пистолет":"Аптечка",()=>0,
+                var panel=new PersonalInventoryPanel(view,session,id=>id switch {"pistol"=>"10-мм пистолет","spear"=>"Копьё","crowbar"=>"Лом",_=>"Аптечка"},()=>0,
                     _=>throw new InvalidOperationException("UI экземпляра вызвал старый выбор определения."),new InventoryArtwork(),select);
                 panel.Refresh(null);view.Rows[1].onClick.Invoke();
+                Require(view.Rows[0].GetComponentInChildren<Text>().text.Contains("7/12") &&
+                    view.Rows[1].GetComponentInChildren<Text>().text.Contains("2/12"),"Строки не различают боезапас экземпляров");
                 Require(view.Use.interactable && view.Detail.text.Contains("В магазине: 2"),"Нет действия/магазина выбранного экземпляра");
                 view.Use.onClick.Invoke();Require(actor.equippedWeaponItem==b.id,"Выбран первый пистолет вместо второго");
                 view.Weapons[0].onClick.Invoke();Require(WeaponInventory.Shortcut(actor,"1")?.id==b.id,"Назначение не сохранило instance ID");
@@ -48,13 +52,26 @@ namespace Remains.Editor
                 Require(clicked==b.id && !hudView.Weapons[1].interactable,"HUD выбирает определение или разрешает пустой слот");
                 view.Use.onClick.Invoke();Require(actor.weapon==null && actor.equippedWeaponItem==null,"Кнопка не убрала оружие");
                 view.Use.onClick.Invoke();panel.Refresh(null);hudRoot.SetActive(false);
+                foreach(int row in new[]{3,4})
+                {
+                    view.Rows[row].onClick.Invoke();
+                    Require(!view.Detail.text.Contains("магазине") && view.Detail.text.Contains("Ближний бой"),"Ближнему оружию показан магазин");
+                }
+                view.Rows[1].onClick.Invoke();
                 if(render)
                 {
                     var camera=new GameObject("Камера окна").AddComponent<Camera>();camera.transform.SetParent(root.transform);camera.transform.position=new Vector3(0,0,-10);camera.backgroundColor=new Color(.06f,.07f,.08f);
                     target=new RenderTexture(1920,1080,24);target.Create();camera.targetTexture=target;canvas.worldCamera=camera;canvas.planeDistance=1;
-                    Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
-                    image=new Texture2D(1920,1080,TextureFormat.RGBA32,false);image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();
-                    File.WriteAllBytes(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/weapon-inventory-ui.png")),image.EncodeToPNG());
+                    image=new Texture2D(1920,1080,TextureFormat.RGBA32,false);
+                    foreach(int row in new[]{1,3,4})
+                    {
+                        view.Rows[row].onClick.Invoke();Canvas.ForceUpdateCanvases();
+                        Require(view.Detail.preferredHeight<=view.Detail.rectTransform.rect.height+.1f,"Описание оружия обрезается");
+                        camera.Render();RenderTexture.active=target;
+                        image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();
+                        string suffix=row==1?"":"-"+actor.inventory[row].definition;
+                        File.WriteAllBytes(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/weapon-inventory-ui"+suffix+".png")),image.EncodeToPNG());
+                    }
                 }
             }
             finally
