@@ -317,7 +317,7 @@ namespace Remains.Runtime
             }
             if(actor.weaponInventoryVersion==1) Combat.Weapon=WeaponInventory.Selected(actor)?.definition;
             actor.weapon=Combat.Weapon;
-            if(command.hasAim && !Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim);
+            if(command.hasAim && !Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim,Geometry.Get(actor.level));
             if(command.reload && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
             Revival.Step(command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);

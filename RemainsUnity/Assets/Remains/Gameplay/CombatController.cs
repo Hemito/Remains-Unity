@@ -68,11 +68,11 @@ namespace Remains.Gameplay
             if (string.IsNullOrEmpty(Weapon) || attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready) return false;
             var definition=WeaponCatalog.Get(Weapon);
             attacker.weapon=Weapon;
-            WeaponPose.Aim(attacker,aim);
+            WeaponPose.Aim(attacker,aim,geometry.Get(attacker.level));
             bool melee=Weapon is "spear" or "crowbar";
             Vector2 origin=melee?WeaponPose.Origin(attacker):WeaponPose.Muzzle(attacker);
             Vector2 direction=WeaponPose.Direction(attacker);
-            if(!melee && ShotObstacles.Limit(geometry.Get(attacker.level),WeaponPose.RangedAnchor(attacker),origin)<1)
+            if(!melee && ShotObstacles.FirstContact(geometry.Get(attacker.level),WeaponPose.RangedAnchor(attacker),origin).HasValue)
             {
                 if(Time.unscaledTime>=nextResourceNotice)
                 {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice("Ствол перекрыт препятствием.");}

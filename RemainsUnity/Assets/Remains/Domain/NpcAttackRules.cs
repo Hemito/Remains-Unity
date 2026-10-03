@@ -12,15 +12,16 @@ namespace Remains.Domain
             actor.attackId=Guid.NewGuid().ToString("N");actor.attackTarget=target.id;
             actor.attackBusy=true;actor.attackRemaining=PreparationSeconds;actor.revision++;
         }
-        public static AttackEvent Complete(ActorState actor,ActorState target)
+        public static AttackEvent Complete(ActorState actor,ActorState target,RoomLayout room=null)
         {
             AttackEvent result=null;
             if(target!=null && target.id==actor.attackTarget && ActorPresence.IsPresent(target) && target.level==actor.level)
             {
                 var end=target.Position+new Vector2(0,.55f);
-                Remains.Gameplay.WeaponPose.Aim(actor,end);
+                Remains.Gameplay.WeaponPose.Aim(actor,end,room);
                 var origin=Remains.Gameplay.WeaponPose.Muzzle(actor);
-                result=new AttackEvent {id=actor.attackId,attacker=actor.id,weapon="npc-shot",level=actor.level,
+                if(room==null || !ShotObstacles.FirstContact(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),origin).HasValue)
+                    result=new AttackEvent {id=actor.attackId,attacker=actor.id,weapon="npc-shot",level=actor.level,
                     originX=origin.x,originY=origin.y,endX=end.x,endY=end.y};
             }
             actor.attackBusy=false;actor.attackRemaining=0;actor.attackCooldown=CooldownSeconds;

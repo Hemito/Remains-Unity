@@ -17,7 +17,14 @@ namespace Remains.Gameplay
             var rig=WeaponRigs.Get(actor.weapon);var direction=Direction(actor);
             return Mount(actor)+direction*rig.muzzleX+new Vector2(-direction.y,direction.x)*(Flip(actor)?-rig.muzzleY:rig.muzzleY);
         }
-        public static void Aim(ActorState actor,Vector2 target)
+        public static void Aim(ActorState actor,Vector2 target,RoomLayout room=null)
+        {
+            AimWithReach(actor,target,RangedReachLimit(actor));
+            if(room!=null && !string.IsNullOrEmpty(actor.weapon) && WeaponRigs.Get(actor.weapon).HasMuzzle &&
+                ShotObstacles.FirstContact(room,RangedAnchor(actor),Muzzle(actor)).HasValue)
+                AimWithReach(actor,target,0);
+        }
+        private static void AimWithReach(ActorState actor,Vector2 target,float reachLimit)
         {
             if(string.IsNullOrEmpty(actor.weapon)) return;
             var rig=WeaponRigs.Get(actor.weapon);
@@ -33,7 +40,7 @@ namespace Remains.Gameplay
             {
                 // The support moves horizontally; barrel elevation must not orbit the whole gun around the actor.
                 // Retract continuously near the body so the forward muzzle does not overshoot a nearby cursor.
-                actor.weaponReach=Mathf.Clamp(Mathf.Abs(delta.x)-rig.muzzleX-.1f,0,RangedReachLimit(actor));
+                actor.weaponReach=Mathf.Clamp(Mathf.Abs(delta.x)-rig.muzzleX-.1f,0,reachLimit);
                 delta=target-Mount(actor);
                 angle=Mathf.Atan2(delta.y,delta.x);
                 float side=delta.x<0?-1:1;

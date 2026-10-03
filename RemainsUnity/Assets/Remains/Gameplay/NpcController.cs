@@ -10,10 +10,11 @@ namespace Remains.Gameplay
     public sealed class NpcController
     {
         private readonly CoopSession session;
+        private readonly SimulationGeometry geometry;
         private readonly Dictionary<string, MovementController> movement = new();
         public NpcController(CoopSession session,SimulationGeometry geometry)
         {
-            this.session=session;
+            this.session=session;this.geometry=geometry;
             session.Changed+=()=>
             {
                 var needed=session.World==null?new HashSet<string>():new HashSet<string>(session.World.actors
@@ -34,7 +35,7 @@ namespace Remains.Gameplay
                 if(!movement.TryGetValue(actor.level,out var controller))
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
-                if(target!=null && target.level==actor.level) WeaponPose.Aim(actor,target.Position+Vector2.up*.55f);
+                if(target!=null && target.level==actor.level) WeaponPose.Aim(actor,target.Position+Vector2.up*.55f,geometry.Get(actor.level));
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {
@@ -42,7 +43,7 @@ namespace Remains.Gameplay
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
-                        var attack=NpcAttackRules.Complete(actor,target);
+                        var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level));
                         if(attack!=null) session.Fire(attack);
                         session.PublishActor(actor);
                     }

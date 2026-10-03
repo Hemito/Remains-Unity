@@ -13,6 +13,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            CheckObstacles();
             foreach(string weapon in new[]{"pistol","energy"})
             foreach(float angle in new[]{0f,90f,180f,270f})
             {
@@ -58,6 +59,35 @@ namespace Remains.Editor
                     "Копия состояния меняет положение ближнего оружия");
             }
             Debug.Log("Поза оружия: PASS — дуло, радиус, близкий курсор ближнего оружия и копирование состояния.");
+        }
+
+        private static void CheckObstacles()
+        {
+            foreach(string weapon in new[]{"pistol","energy"})
+            foreach(float side in new[]{-1f,1f})
+            {
+                var actor=new ActorState {weapon=weapon,level="hub"};
+                var target=WeaponPose.RangedAnchor(actor)+Vector2.right*side*5;
+                var wall=new RoomSurface {x=side>0?.9f:-.91f,y=0,width=.01f,height=3};
+                var room=new RoomLayout {platforms=new[]{wall}};
+                WeaponPose.Aim(actor,target);
+                Require(ShotObstacles.FirstContact(room,WeaponPose.RangedAnchor(actor),WeaponPose.Muzzle(actor)).HasValue,
+                    "Проверочный ствол не пересекает стену");
+                WeaponPose.Aim(actor,target,room);
+                Require(actor.weaponReach==0 && !ShotObstacles.FirstContact(room,WeaponPose.RangedAnchor(actor),WeaponPose.Muzzle(actor)).HasValue,
+                    "Удержание не убрано перед тонкой стеной");
+                Require(Mathf.Abs(Vector3.Cross(target-WeaponPose.Muzzle(actor),WeaponPose.Direction(actor)).z)<.0001f,
+                    "После возврата оружия луч не направлен на курсор");
+                wall.shotsPassThrough=true;WeaponPose.Aim(actor,target,room);
+                Require(actor.weaponReach>.5f,"Прозрачная для пуль поверхность убрала оружие");
+                wall.shotsPassThrough=false;wall.x=side>0?.1f:-.11f;
+                var victim=new ActorState {id="victim",player=true,connected=true,level="hub",x=side*5};
+                NpcAttackRules.Begin(actor,victim);
+                Require(NpcAttackRules.Complete(actor,victim,room)==null && !actor.attackBusy && actor.attackCooldown>0,
+                    "NPC выстрелил через перекрытый ствол или не закончил атаку");
+                room.platforms=Array.Empty<RoomSurface>();WeaponPose.Aim(actor,target,room);
+                Require(actor.weaponReach>.5f,"Оружие не вернулось после освобождения пространства");
+            }
         }
 
         public static void Render()=>Render(false);
