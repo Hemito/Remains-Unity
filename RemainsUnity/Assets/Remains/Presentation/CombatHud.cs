@@ -56,7 +56,7 @@ namespace Remains.Presentation
             grenades.color=grenadeColor;grenadeIcon.color=grenadeCount>0 && !actor.down?Color.white:new Color(.5f,.5f,.5f);
             name.text=actor.down?"Без сознания · нужна помощь":actor.character;
             health.fillAmount=Mathf.Clamp01(actor.health/100);mana.fillAmount=Mathf.Clamp01(actor.mana/100);
-            healthText.text=$"Здоровье  {actor.health:0} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";
+            healthText.text=$"Здоровье  {Mathf.CeilToInt(actor.health)} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";
             for(int i=0;i<weapons.Length;i++)
             {
                 var item=actor.weaponInventoryVersion==1?WeaponInventory.Shortcut(actor,(i+1).ToString()):null;

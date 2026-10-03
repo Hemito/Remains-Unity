@@ -26,7 +26,7 @@ namespace Remains.Editor
                 var panel=ui.Panel(canvas.transform,"Состояние",new Vector2(i*480,0),new Vector2(480,320));
                 var hud=new CombatHud(panel.transform,_=>{});
                 var actor=new ActorState {id="hud-render",character=i==0?"Перезарядка":i==1?"Пустой магазин":"Нет запаса",weapon="pistol",health=100,mana=100};
-                if(healthSamples) {actor.health=new[]{100f,19f,0f}[i];actor.down=i==2;actor.character="Проверка здоровья";}
+                if(healthSamples) {actor.health=new[]{19.1f,.4f,0f}[i];actor.down=i==2;actor.character="Проверка здоровья";}
                 WeaponAmmunition.Initialize(actor,true);
                 WeaponAmmunition.Magazine(actor,"pistol").rounds=0;
                 if(i==2) actor.inventory.Clear();

@@ -31,6 +31,14 @@ namespace Remains.Editor
                 for(int i=0;i<view.Weapons.Length;i++)
                 {view.Weapons[i].onClick.Invoke();Require(selected==view.WeaponIds[i] && calls==i+1,"Кнопка выбирает неверное оружие или дублирует действие");}
                 actor.health=20;hud.Refresh(actor,true);Require(view.Health.sprite==normal,"Лечение не вернуло обычную шкалу");
+                actor.health=.4f;hud.Refresh(actor,true);
+                Require(view.HealthText.text=="Здоровье  1 / 100" && Mathf.Approximately(view.Health.fillAmount,.004f) &&
+                    actor.health==.4f && !actor.down,"Положительное дробное здоровье показано нулём либо округлено в симуляции");
+                actor.health=19.1f;hud.Refresh(actor,true);
+                Require(view.HealthText.text=="Здоровье  20 / 100" && view.Health.sprite!=normal,
+                    "Округлённая подпись отключила предупреждение при фактическом здоровье ниже 20%");
+                actor.health=0;hud.Refresh(actor,true);
+                Require(view.HealthText.text=="Здоровье  0 / 100" && view.Health.fillAmount==0,"Нулевое здоровье показано положительным");
                 actor.down=true;hud.Refresh(actor,true);
                 foreach(var button in view.Weapons) Require(!button.interactable,"Оружие доступно без сознания");
                 hud.Refresh(actor,false);Require(!view.Vitals.activeSelf && !view.Loadout.activeSelf,"HUD не скрылся");
