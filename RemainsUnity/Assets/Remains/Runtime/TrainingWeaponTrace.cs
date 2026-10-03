@@ -21,10 +21,23 @@ namespace Remains.Runtime
             public string owner;
             public uint receivedMotionSequence,drawnMotionSequence;
             public float receivedGap,receivedX,receivedY,drawnX,drawnY;
+            public bool trailObserved;
+            public float trailJoinGap,trailHeadError,trailTailDistance;
         }
         [Serializable] private sealed class Trace {public List<Sample> samples=new();}
         private readonly Trace trace=new();
         private readonly Queue<Sample> pending=new();
+        public void ObserveTrail(WorldState world,ProjectileVisual view)
+        {
+            var sample=trace.samples.Find(value=>value.attack==view.AttackId);
+            if(sample==null) foreach(var value in pending) if(value.attack==view.AttackId) {sample=value;break;}
+            var actor=world?.Find(view.AttackerId);
+            if(sample==null || sample.trailObserved || actor==null) return;
+            sample.trailObserved=true;
+            sample.trailJoinGap=Vector2.Distance(view.TrailStart,WeaponPose.Muzzle(actor));
+            sample.trailHeadError=Vector2.Distance(view.TrailEnd,view.PhysicalHead);
+            sample.trailTailDistance=view.TrailTailDistance;
+        }
         public void Observe(AttackEvent attack,ActorState actor,bool local)
         {
             if(attack.weapon!="pistol" || actor==null || trace.samples.Count+pending.Count>=128) return;

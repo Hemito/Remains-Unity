@@ -13,10 +13,17 @@ namespace Remains.Presentation
         private CoopSession session;
         private ProjectileController controller;
         private readonly Dictionary<string,ProjectileVisual> views=new();
+        public event Action<ProjectileVisual> TrailDrawn;
         public void Initialize(CoopSession session,ProjectileController controller)
         {
             this.session=session;this.controller=controller;controller.Created+=Created;
+            session.AttackReceived+=ObserveAttack;
             session.Changed+=Reconcile;Reconcile();
+        }
+        private void ObserveAttack(AttackEvent attack)
+        {
+            if(attack.sourceOwner!=session.LocalOwner && views.TryGetValue(attack.id,out var view) && view!=null)
+                view.JoinRemoteMuzzle();
         }
         private void Reconcile()
         {
@@ -43,12 +50,14 @@ namespace Remains.Presentation
             if(flight.state.launch.level!=session.LocalActor?.level || !ShotArtwork.TryGet(flight.state.launch.weapon,out var artwork)) return;
             var view=new GameObject("Полёт "+flight.state.launch.id).AddComponent<ProjectileVisual>();
             view.transform.SetParent(transform,false);view.Initialize(flight,artwork,session);views[id]=view;
+            view.TrailDrawn+=value=>TrailDrawn?.Invoke(value);
             view.Ended+=ended=>{if(views.TryGetValue(id,out var current) && current==ended) views.Remove(id);};
         }
         private void OnDestroy()
         {
             if(controller!=null) controller.Created-=Created;
             if(session!=null) session.Changed-=Reconcile;
+            if(session!=null) session.AttackReceived-=ObserveAttack;
         }
     }
     public sealed class ProjectileVisual : MonoBehaviour
@@ -57,9 +66,27 @@ namespace Remains.Presentation
         private ShotArtwork artwork;
         private SpriteRenderer view;
         private CoopSession session;
+        private ProjectileTrailJoin join;
+        private int joinGeneration,joinLifecycle,joinFlightGeneration;
+        public Vector2 TrailStart {get;private set;}
+        public Vector2 TrailEnd {get;private set;}
+        public float TrailTailDistance {get;private set;}
+        public bool TrailVisible=>view!=null && view.enabled && !flight.path.Finished;
+        public string AttackId=>flight.state.launch.id;
+        public Vector2 PhysicalHead=>flight.path.Position;
+        public string AttackerId=>flight.state.launch.attacker;
+        public event Action<ProjectileVisual> TrailDrawn;
         public string Level=>flight?.state.launch.level;
         public event Action<ProjectileVisual> Ended;
         private void OnDestroy()=>Ended?.Invoke(this);
+        public void JoinRemoteMuzzle()
+        {
+            var actor=session.World?.Find(flight.state.launch.attacker);
+            if(join!=null || actor==null || actor.owner==session.LocalOwner || actor.level!=Level ||
+                actor.weapon!=flight.state.launch.weapon || flight.path.Traveled!=0) return;
+            join=new ProjectileTrailJoin();joinGeneration=actor.generation;joinLifecycle=actor.lifecycleSequence;
+            joinFlightGeneration=flight.state.generation;
+        }
         public void Initialize(ProjectileFlight flight,ShotArtwork artwork,CoopSession session)
         {
             this.flight=flight;this.artwork=artwork;this.session=session;
@@ -73,20 +100,37 @@ namespace Remains.Presentation
             if(flight.cancelled || session.LocalActor?.level!=flight.state.launch.level) {Destroy(gameObject);return;}
             // Presentation samples the frozen path as well, including a newly restored view.
             var path=flight.path;
+            // Recovery resumes a canonical flight, not a fresh muzzle departure.
+            if(join!=null && joinFlightGeneration!=flight.state.generation) join=null;
             if(path.Finished && !artwork.beam)
             {
                 int frame=Mathf.FloorToInt(flight.finishedAge*artwork.impactFramesPerSecond);
                 if(!flight.contact || frame>=artwork.impact.Length) {Destroy(gameObject);return;}
                 SpriteArtworkMaterial.Apply(view,artwork.impact[frame]);view.enabled=true;view.color=Color.white;
+                transform.rotation=Quaternion.Euler(0,0,Mathf.Atan2(path.Direction.y,path.Direction.x)*Mathf.Rad2Deg);
                 transform.localScale=Vector3.one;transform.position=path.Position;return;
             }
             float alpha=artwork.beam && path.Finished?Mathf.Clamp01(1-flight.finishedAge/artwork.lifetime):1;
             if(alpha<=0) {Destroy(gameObject);return;}
             float head=path.Traveled,tail=artwork.beam?0:Mathf.Max(0,head-artwork.length);
-            view.enabled=head>tail;
+            TrailTailDistance=tail;
+            TrailStart=path.Origin+path.Direction*tail;TrailEnd=path.Position;
+            if(join!=null)
+            {
+                var actor=session.World?.Find(flight.state.launch.attacker);
+                Vector2? muzzle=actor!=null && actor.level==Level && actor.generation==joinGeneration && actor.lifecycleSequence==joinLifecycle &&
+                    actor.weapon==flight.state.launch.weapon && !actor.down?WeaponPose.Muzzle(actor):null;
+                TrailStart=join.Tail(path.Origin,path.Direction,head,tail,artwork.length,artwork.beam,muzzle);
+            }
+            // Never show a backwards tracer when the newer visible barrel is ahead of
+            // the physical projectile; a contact still renders immediately above.
+            view.enabled=head>tail && ProjectileTrailJoin.IsForward(TrailStart,TrailEnd,path.Direction);
             SpriteArtworkMaterial.Apply(view,artwork.trace);view.color=new Color(1,1,1,alpha);
-            transform.localScale=new Vector3((head-tail)/artwork.trace.bounds.size.x,1,1);
-            transform.position=path.Origin+path.Direction*((head+tail)*.5f);
+            Vector2 delta=TrailEnd-TrailStart;
+            transform.rotation=Quaternion.Euler(0,0,Mathf.Atan2(delta.y,delta.x)*Mathf.Rad2Deg);
+            transform.localScale=new Vector3(delta.magnitude/artwork.trace.bounds.size.x,1,1);
+            transform.position=(TrailStart+TrailEnd)*.5f;
+            if(view.enabled) TrailDrawn?.Invoke(this);
         }
     }
 }

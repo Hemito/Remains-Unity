@@ -52,6 +52,7 @@ namespace Remains.Editor
             ShotArtworkChecks.Run();
             ProjectilePersistenceChecks.Run();
             ProjectileControllerChecks.Run();
+            ProjectileTrailJoinChecks.Run();
             LocalProjectileChecks.Run();
             ActorTypeChecks.Run();
             ProjectileAudioChecks.Run();

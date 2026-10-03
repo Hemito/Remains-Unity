@@ -88,6 +88,7 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             interactionVisuals=FindFirstObjectByType<InteractionVisuals>();
+            FindFirstObjectByType<ProjectileVisuals>().TrailDrawn+=view=>weaponTrace.ObserveTrail(value.Session.World,view);
             value.Session.RemotePoseCorrection+=(source,id,before,after)=>
                 Debug.Log($"Источник изменения фазы: source={source}, actor={id}, before={before}, after={after}, time={Time.unscaledTime}.");
             runtime=value;deadline=Time.unscaledTime+75;value.CommandSource=Command;
