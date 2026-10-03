@@ -13,6 +13,7 @@ namespace Remains.Editor
         public static void RenderMotion()=>Render(true,"jump");
         public static void RenderLanding()=>Render(false,"landing");
         public static void RenderFall()=>Render(false,"fall");
+        public static void RenderFallMotion()=>Render(true,"fall");
         private static void Render(bool motion,string pose)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
@@ -43,7 +44,7 @@ namespace Remains.Editor
             {
                 camera.Render();RenderTexture.active=target;
                 image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
-                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..",motion?".reference/tests/jump-motion-poses.png":$".reference/tests/{pose}-pose-library.png"));
+                string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..",motion?$".reference/tests/{pose}-motion-poses.png":$".reference/tests/{pose}-pose-library.png"));
                 Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
                 Debug.Log($"Библиотека прыжка: {clip.frames.Length} кадров, {path}");
             }
