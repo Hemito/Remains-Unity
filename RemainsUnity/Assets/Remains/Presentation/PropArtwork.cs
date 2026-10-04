@@ -32,7 +32,7 @@ namespace Remains.Presentation
                 view=new GameObject(name).AddComponent<PropView>();var renderer=view.gameObject.AddComponent<SpriteRenderer>();
                 SpriteArtworkMaterial.Apply(renderer,Get(id));renderer.sortingOrder=ActorVisualLayers.WorldObjectOrder;view.SetArtwork(renderer);
             }
-            view.name=name;view.FitWidth(width);return view;
+            view.name=name;view.FitWidth(width);view.PrepareHeldGlow();return view;
         }
     }
 }
