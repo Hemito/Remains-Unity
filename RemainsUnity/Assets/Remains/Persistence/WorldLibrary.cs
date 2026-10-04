@@ -1,6 +1,8 @@
+using JsonUtility=Remains.Serialization.StateJson;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 namespace Remains.Persistence
@@ -15,6 +17,8 @@ namespace Remains.Persistence
         public WorldLibrary(SaveStore store)=>this.store=store;
         private Labels Read()=>File.Exists(LabelsPath)?JsonUtility.FromJson<Labels>(File.ReadAllText(LabelsPath))??throw new InvalidDataException("Не удалось прочитать имена миров."):new Labels();
         public string Name(string id)=>Read().entries.Find(entry=>entry.id==id)?.name??"Мир "+id.Substring(0,Math.Min(8,id.Length));
+        public Dictionary<string,string> Names()=>Read().entries.ToDictionary(entry=>entry.id,entry=>entry.name,StringComparer.Ordinal);
+        public static string DisplayName(Dictionary<string,string> names,string id)=>names.TryGetValue(id,out string name)?name:"Мир "+id.Substring(0,Math.Min(8,id.Length));
         public void Rename(string id,string name)
         {
             name=(name??"").Trim();
@@ -40,12 +44,10 @@ namespace Remains.Persistence
         }
         public void Delete(string worldId)
         {
-            var paths=new List<string>();
-            string active=Path.Combine(store.DirectoryPath,"world.json");
-            if(File.Exists(active) && new RecoverySnapshot(File.ReadAllText(active)).WorldId==worldId) paths.Add(active);
-            string root=Path.Combine(store.DirectoryPath,"Worlds");
-            if(Directory.Exists(root)) foreach(string path in Directory.EnumerateFiles(root,"*.json",SearchOption.AllDirectories))
-                if(new RecoverySnapshot(File.ReadAllText(path)).WorldId==worldId) paths.Add(path);
+            var catalog=store.Catalog.Read();
+            foreach(string warning in catalog.warnings) Debug.LogWarning(warning);
+            var paths=catalog.files.Where(entry=>entry.summary?.worldId==worldId)
+                .Select(entry=>WorldCatalog.Resolve(store.DirectoryPath,entry.file)).ToList();
             if(paths.Count==0) throw new InvalidOperationException("Этот мир уже отсутствует в локальных сохранениях.");
             Archive(paths,"DeletedWorlds");
         }

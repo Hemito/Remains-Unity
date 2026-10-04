@@ -24,8 +24,13 @@ namespace Remains.Persistence
             Json = json;
             WorldId = world.worldId;
             Revision = world.revision;
-            using var sha = SHA256.Create();
-            Id = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(json))).Replace("-", "").ToLowerInvariant();
+            Id = Fingerprint(json);
+        }
+
+        public static string Fingerprint(string text)
+        {
+            using var sha=SHA256.Create();
+            return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
         }
 
         public WorldState CreateLiveWorld() => JsonUtility.FromJson<WorldState>(Json);

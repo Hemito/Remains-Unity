@@ -57,6 +57,7 @@ namespace Remains.Editor
             WeaponShotChecks.Run();
             WeaponPrefabChecks.Run();
             WorldLibraryChecks.Run();
+            WorldCatalogChecks.Run();
             CrouchChecks.Run();
             ProjectilePathChecks.Run();
             ShotArtworkChecks.Run();

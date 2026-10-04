@@ -11,10 +11,12 @@ namespace Remains.Persistence
     public sealed class SaveStore
     {
         public string DirectoryPath { get; }
+        public WorldCatalog Catalog {get;}
         public SaveStore(string directory)
         {
             DirectoryPath = SavePath.Absolute(directory);
             Directory.CreateDirectory(DirectoryPath);
+            Catalog=new WorldCatalog(DirectoryPath);
         }
 
         public WorldState LoadWorld(bool prepareForPlay=true)
@@ -72,24 +74,16 @@ namespace Remains.Persistence
 
         public List<RecoverySnapshot> Continuations()
         {
-            var all=new Dictionary<string,RecoverySnapshot>();
-            var selected=SelectedSnapshotForListing();
-            if(selected!=null) all[selected.Id]=selected;
-            string root=Path.Combine(DirectoryPath,"Worlds");
-            if(Directory.Exists(root))
-                foreach(string path in Directory.EnumerateFiles(root,"*.json",SearchOption.AllDirectories))
-                {
-                    try { var snapshot=new RecoverySnapshot(File.ReadAllText(path));all[snapshot.Id]=snapshot; }
-                    catch(Exception exception) when(exception is InvalidDataException || exception is ArgumentException)
-                    { Debug.LogWarning($"Пропущен повреждённый снимок {path}: {exception.Message}"); }
-                }
-            // Only proven ancestors are hidden. Conflicting or legacy copies stay visible.
-            var decoded=all.Values.Select(snapshot=>new {snapshot,state=snapshot.CreateLiveWorld()}).ToList();
-            var heads=decoded.GroupBy(a=>a.state.historyVersion==1?a.state.worldId+":"+a.state.branchId:a.snapshot.Id)
-                .SelectMany(group=>group.Where(a=>a.state.checkpointSequence==group.Max(b=>b.state.checkpointSequence))).ToList();
-            return heads.Where(a=>!heads.Any(b=>a.snapshot.Id!=b.snapshot.Id &&
-                WorldHistory.Compare(b.state,b.snapshot.Id,a.state,a.snapshot.Id)==WorldRelation.Newer))
-                .Select(a=>a.snapshot).OrderBy(a=>a.WorldId).ThenBy(a=>a.Id).ToList();
+            var catalog=Catalog.Read();
+            foreach(string warning in catalog.warnings) Debug.LogWarning(warning);
+            var copies=new List<RecoverySnapshot>();
+            foreach(var entry in catalog.entries)
+            {
+                try {copies.Add(entry.Load(DirectoryPath));}
+                catch(Exception error) when(error is InvalidDataException || error is ArgumentException)
+                {Debug.LogWarning($"Полный снимок не прошёл проверку: файл={entry.file}, мир={entry.summary.worldId}; {error.Message}");}
+            }
+            return copies;
         }
 
         public void SelectContinuation(RecoverySnapshot snapshot) => SaveRecovery(snapshot);

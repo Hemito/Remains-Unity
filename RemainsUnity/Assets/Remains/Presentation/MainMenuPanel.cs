@@ -15,6 +15,11 @@ namespace Remains.Presentation
         public Button Worlds=>view.Worlds;
         public Text World=>view.World;
         public Text Notice=>view.Notice;
+        public void SetActionsBusy(bool busy)
+        {
+            foreach(var button in new[]{view.Host,view.Join,view.Worlds,view.NewGame}) button.interactable=!busy;
+            view.Character.interactable=!busy;view.Address.interactable=!busy;
+        }
         public static string DescribeWorld(string name,string branch,long revision)=>
             $"Выбран: {name}\nВетвь {branch.Substring(0,Math.Min(8,branch.Length))} · состояние №{revision}";
         public RectTransform SoundRect=>view.Settings.GetComponent<RectTransform>();

@@ -27,6 +27,10 @@ namespace Remains.Presentation
         private Button worldPickerButton,hostButton;
         private SaveStore describedStore;
         private bool worldDescriptionDirty=true;
+        private SelectedWorldPanel selectedWorldPanel;
+        private BackgroundSaveOperation newGameOperation;
+        public bool WorldPickerReady=>worldPicker!=null && worldPicker.GetComponent<WorldPickerPanel>().Ready;
+        public bool WorldDescriptionReady=>selectedWorldPanel!=null && !selectedWorldPanel.Busy;
         private readonly Dictionary<string,RectTransform> worldChoices=new();
         public RectTransform WorldPickerButtonRect=>worldPickerButton.GetComponent<RectTransform>();
         public RectTransform HostButtonRect=>hostButton.GetComponent<RectTransform>();
@@ -119,10 +123,15 @@ namespace Remains.Presentation
                 ()=>{if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);},()=>AudioSettings.Open(),()=>
                 {
                     if(SelectCharacter?.Invoke(character.text)!=true) return;
-                    try {new WorldLibrary(session.Saves).PrepareNewGame();RefreshSelectedWorld();HostRequested?.Invoke();}
-                    catch(Exception error) {ShowMessage("Не удалось создать новую игру: "+error.Message);Debug.LogError(error);}
+                    if(newGameOperation.Busy) return;
+                    var store=session.Saves;mainMenu.SetActionsBusy(true);selectedWorldPanel.SetPending("Подготовка нового мира…");ShowMessage("Подготовка нового мира…");
+                    newGameOperation.Run(_=>{new WorldLibrary(store).PrepareNewGame();return true;},_=>
+                    {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("");HostRequested?.Invoke();},error=>
+                    {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("Не удалось создать новую игру: "+error.Message);Debug.LogError(error);});
                 });
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
+            selectedWorldPanel=mainMenu.Root.AddComponent<SelectedWorldPanel>();selectedWorldPanel.Initialize(selectedWorld,hostButton);
+            newGameOperation=mainMenu.Root.AddComponent<BackgroundSaveOperation>();
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
             var inventoryView=InventoryWindowView.Create(transform);inventory=inventoryView.gameObject;
@@ -257,18 +266,7 @@ namespace Remains.Presentation
         {
             if(!force && !worldDescriptionDirty && ReferenceEquals(describedStore,session.Saves)) return;
             describedStore=session.Saves;worldDescriptionDirty=false;
-            Remains.Domain.WorldState saved;
-            try {saved=session.Saves.LoadWorld(prepareForPlay:false);hostButton.interactable=true;}
-            catch(System.IO.InvalidDataException error)
-            {
-                hostButton.interactable=false;
-                selectedWorld.text="Выбранное сохранение повреждено или имеет неподдерживаемый формат.\nОткройте «Миры и сохранения» и выберите другую копию.";
-                Debug.LogWarning($"Не удалось прочитать выбранный мир {session.Saves.DirectoryPath}: {error.Message}");
-                return;
-            }
-            hostButton.GetComponentInChildren<Text>().text=saved==null?"Начать в новом мире":"Продолжить выбранный мир";
-            selectedWorld.text=saved==null?"Сохранённый мир не выбран.\n«Миры и сохранения»: выбор, имя и удаление.":
-                MainMenuPanel.DescribeWorld(new WorldLibrary(session.Saves).Name(saved.worldId),saved.branchId,saved.revision);
+            selectedWorldPanel.Refresh(session.Saves);
         }
 
         private void ShowWorldPicker(int page)
@@ -276,41 +274,9 @@ namespace Remains.Presentation
             RefreshSelectedWorld();
             if(worldPicker!=null) Destroy(worldPicker);
             worldChoices.Clear();
-            var copies=session.Saves.Continuations();
-            var selected=session.Saves.SelectedSnapshotForListing();
             var view=WorldPickerView.Create(transform);worldPicker=view.gameObject;
-            int capacity=view.Choices.Length;
-            int pages=Math.Max(1,(copies.Count+capacity-1)/capacity);page=Math.Clamp(page,0,pages-1);
-            for(int row=0;row<capacity;row++)
-            {
-                int index=page*capacity+row;bool visible=index<copies.Count;
-                view.Choices[row].gameObject.SetActive(visible);view.Manage[row].gameObject.SetActive(visible);
-                if(!visible) continue;
-                var copy=copies[index];var state=copy.CreateLiveWorld();
-                string relation=selected==null?"Сохранённая копия":WorldHistory.Description(
-                    WorldHistory.Compare(state,copy.Id,selected.CreateLiveWorld(),selected.Id));
-                var choice=view.Choices[row];
-                view.ShowChoice(row,new WorldLibrary(session.Saves).Name(state.worldId),state.branchId,state.revision,relation,selected?.Id==copy.Id);
-                choice.onClick.AddListener(()=>
-                {
-                    try {session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();ShowMessage("");}
-                    catch(Exception error)
-                    {
-                        // Return to the menu so its notice is not obscured by the picker.
-                        Destroy(worldPicker);
-                        ShowMessage("Не удалось выбрать мир: сохранение недоступно или повреждено.\nПодробности — в журнале игры. Можно выбрать другой мир.");
-                        Debug.LogError($"Выбор мира {state.worldId}, снимок {copy.Id}: {error}");
-                    }
-                });
-                worldChoices[copy.Id]=choice.GetComponent<RectTransform>();
-                view.Manage[row].onClick.AddListener(()=>
-                    WorldManagementPanel.Open(transform,session.Saves,state.worldId,()=>{ShowWorldPicker(page);RefreshSelectedWorld();}));
-            }
-            view.Empty.gameObject.SetActive(copies.Count==0);
-            view.Previous.onClick.AddListener(()=>ShowWorldPicker(page-1));view.Previous.interactable=page>0;
-            view.Page.text=$"{page+1} / {pages}";
-            view.Next.onClick.AddListener(()=>ShowWorldPicker(page+1));view.Next.interactable=page+1<pages;
-            view.Close.onClick.AddListener(()=>Destroy(worldPicker));
+            var panel=worldPicker.AddComponent<WorldPickerPanel>();
+            panel.Initialize(view,session.Saves,page,worldChoices,()=>RefreshSelectedWorld(),ShowMessage);
         }
 
         private static string ItemName(string id)

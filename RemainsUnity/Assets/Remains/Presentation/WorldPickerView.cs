@@ -9,6 +9,7 @@ namespace Remains.Presentation
         [InspectorName("Выбор копии мира")] public Button[] Choices;
         [InspectorName("Управление миром")] public Button[] Manage;
         [InspectorName("Пустой список")] public Text Empty;
+        [InspectorName("Предупреждения списка")] public Text Warning;
         [InspectorName("Номер страницы")] public Text Page;
         [InspectorName("Предыдущая страница")] public Button Previous;
         [InspectorName("Следующая страница")] public Button Next;
@@ -21,7 +22,7 @@ namespace Remains.Presentation
         }
         public void Validate()
         {
-            if(Choices==null || Manage==null || Choices.Length==0 || Choices.Length!=Manage.Length || Empty==null || Page==null || Previous==null || Next==null || Close==null)
+            if(Choices==null || Manage==null || Choices.Length==0 || Choices.Length!=Manage.Length || Empty==null || Warning==null || Page==null || Previous==null || Next==null || Close==null)
                 throw new InvalidOperationException($"Список миров {name}: не заполнены ссылки или размеры строк различаются.");
             var unique=new HashSet<Button>();
             foreach(var group in new[]{Choices,Manage,new[]{Previous,Next,Close}})

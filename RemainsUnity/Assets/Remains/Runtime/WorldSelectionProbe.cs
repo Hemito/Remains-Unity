@@ -29,7 +29,9 @@ namespace Remains.Runtime
             var rightSnapshot=store.SaveWorld(right);
             store.SelectContinuation(leftSnapshot);
             yield return UiPointerProbe.Click(runtime.Hud.WorldPickerButtonRect);
+            while(!runtime.Hud.WorldPickerReady && !finished) yield return null;
             yield return UiPointerProbe.Click(runtime.Hud.WorldChoiceRect(rightSnapshot.Id));
+            while((runtime.Hud.GetComponentInChildren<Remains.Presentation.WorldPickerView>()!=null || !runtime.Hud.WorldDescriptionReady) && !finished) yield return null;
             if(store.SelectedSnapshot().Id!=rightSnapshot.Id) {Finish(false,"UI не выбрал указанную ветвь.");yield break;}
             yield return UiPointerProbe.Click(runtime.Hud.HostButtonRect);
             while(runtime.Session.LocalActor==null && !finished) yield return null;

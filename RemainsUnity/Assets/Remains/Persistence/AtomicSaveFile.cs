@@ -7,11 +7,11 @@ namespace Remains.Persistence
 {
     public static class AtomicSaveFile
     {
-        public static void Write(string destination,string content)
+        public static void Write(string destination,string content,bool uniqueTemporary=false)
         {
             destination=SavePath.Absolute(destination);
             Directory.CreateDirectory(Path.GetDirectoryName(destination));
-            string temporary=destination+".tmp";
+            string temporary=destination+".tmp"+(uniqueTemporary?"-"+Guid.NewGuid().ToString("N"):"");
             File.WriteAllText(temporary,content);
             for(int attempt=0;;attempt++)
             {
