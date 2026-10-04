@@ -8,6 +8,14 @@ namespace Remains.Domain
     // The firing owner selects the trajectory once. Peers validate and retain that trajectory.
     public static class ProjectileLaunch
     {
+        public static float SelectSpeed(WeaponDefinition definition,float sample)
+        {
+            if(!float.IsFinite(sample) || sample<0 || sample>1)
+                throw new ArgumentException("Выбор скорости снаряда: случайная доля должна быть в диапазоне 0–1.");
+            var bounds=definition.ProjectileSpeedRange;
+            // Fixed-speed weapons must retain the exact configured value.
+            return bounds.x==bounds.y?bounds.x:Mathf.Clamp(Mathf.Lerp(bounds.x,bounds.y,sample),bounds.x,bounds.y);
+        }
         public static void Prepare(AttackEvent attack,WeaponDefinition definition,float speed)
         {
             attack.speed=speed;

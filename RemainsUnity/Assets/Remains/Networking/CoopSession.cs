@@ -543,8 +543,7 @@ namespace Remains.Networking
             var actor=World?.Find(attack.attacker);
             if(actor==null || actor.owner!=LocalOwner || actor.level!=attack.level || Pause.IsPaused(attack.level)) return;
             attack.sourceOwner=LocalOwner;attack.sourcePlayer=actor.player;attack.friendlyFireDecision=World.friendlyFireDecision;
-            var speeds=definition.ProjectileSpeedRange;
-            ProjectileLaunch.Prepare(attack,definition,UnityEngine.Random.Range(speeds.x,speeds.y));
+            ProjectileLaunch.Prepare(attack,definition,ProjectileLaunch.SelectSpeed(definition,UnityEngine.Random.value));
             // Reliable launch precedes progress and contact messages from its local simulation.
             NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});
             Projectiles.BeginLocal(attack);AttackReceived?.Invoke(attack);

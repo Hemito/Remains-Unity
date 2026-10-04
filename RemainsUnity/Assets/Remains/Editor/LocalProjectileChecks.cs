@@ -13,7 +13,24 @@ namespace Remains.Editor
     {
         private const BindingFlags Private=BindingFlags.Instance|BindingFlags.NonPublic;
         public static void Run()
-        {Check(false);Check(true);}
+        {CheckSpeedSelection();Check(false);Check(true);}
+        private static void CheckSpeedSelection()
+        {
+            foreach(var weapon in new[]{"npc-shot","pistol","energy"})
+            {
+                var definition=WeaponCatalog.Get(weapon);var bounds=definition.ProjectileSpeedRange;
+                for(int i=0;i<=1000;i++)
+                {
+                    float speed=ProjectileLaunch.SelectSpeed(definition,i/1000f);
+                    Require(speed>=bounds.x && speed<=bounds.y,"Выбранная скорость вышла за пределы оружия: "+weapon);
+                    if(bounds.x==bounds.y) Require(speed==definition.projectileSpeed,"Постоянная скорость изменилась при выборе: "+weapon);
+                    var attack=new AttackEvent {id="speed-"+i,weapon=weapon,attacker="source",sourceOwner="owner",level="hub",endX=8,endY=3};
+                    ProjectileLaunch.Prepare(attack,definition,speed);
+                    ProjectileLaunch.Create(Remains.Serialization.StateJson.Copy(attack),definition);
+                }
+            }
+            Debug.Log("Выбор скорости: PASS — постоянная скорость, границы разброса, сериализация и валидация запуска.");
+        }
         private static void Check(bool playerTarget)
         {
             var root=new GameObject("Проверка немедленного выстрела");
