@@ -230,8 +230,8 @@ namespace Remains.Presentation
             describedStore=session.Saves;worldDescriptionDirty=false;
             var saved=session.Saves.LoadWorld(prepareForPlay:false);
             hostButton.GetComponentInChildren<Text>().text=saved==null?"Начать в новом мире":"Продолжить выбранный мир";
-            selectedWorld.text=(saved==null?"Сохранённый мир не выбран.":$"Выбран: {new WorldLibrary(session.Saves).Name(saved.worldId)}")+
-                "\n«Миры и сохранения»: выбор, имя и удаление.";
+            selectedWorld.text=saved==null?"Сохранённый мир не выбран.\n«Миры и сохранения»: выбор, имя и удаление.":
+                MainMenuPanel.DescribeWorld(new WorldLibrary(session.Saves).Name(saved.worldId),saved.branchId,saved.revision);
         }
 
         private void ShowWorldPicker(int page)

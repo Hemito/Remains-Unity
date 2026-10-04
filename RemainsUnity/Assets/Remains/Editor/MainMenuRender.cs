@@ -12,7 +12,8 @@ namespace Remains.Editor
         {
             foreach(var size in new[]{new Vector2Int(1280,720),new Vector2Int(1024,768),new Vector2Int(2560,1080)}) RenderAt(size.x,size.y);
         }
-        public static readonly string LongWorldDescription=new string('Ш',48)+" · ревизия 9223372036854775807\nВетвь 1122aabb · снимок 9223372036854775807";
+        public static readonly string LongWorldDescription=MainMenuPanel.DescribeWorld(new string('Ш',48),"1122aabb",long.MaxValue);
+        public static void RenderAndBuild() {RenderLongName();Render();PrototypeBuild.Build();}
         public static void RenderLongName()
         {
             foreach(var size in new[]{new Vector2Int(1024,768),new Vector2Int(1920,1080),new Vector2Int(2560,1080)}) RenderAt(size.x,size.y,true);
@@ -26,9 +27,11 @@ namespace Remains.Editor
             var scaler=canvas.gameObject.AddComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1280,720);scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             var menu=new MainMenuPanel(canvas.transform,()=>{},()=>{},()=>{},()=>{},()=>{});
             menu.Character.text="Литлпип";
-            menu.World.text="Выбран: Мир 7f65d82c\n«Миры и сохранения»: выбор, имя и удаление.";
+            menu.World.text=MainMenuPanel.DescribeWorld("Мир 7f65d82c","1122aabb",930);
             if(longName) menu.World.text=LongWorldDescription;
             Canvas.ForceUpdateCanvases();
+            if(menu.World.preferredHeight>menu.World.rectTransform.rect.height+.1f)
+                throw new System.InvalidOperationException("Описание выбранного мира обрезано.");
             Debug.Log($"Описание мира: longName={longName}, требуется={menu.World.preferredHeight}, доступно={menu.World.rectTransform.rect.height}.");
             var image=new Texture2D(width,height,TextureFormat.RGBA32,false);
             try

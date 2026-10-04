@@ -15,6 +15,8 @@ namespace Remains.Presentation
         public Button Worlds=>view.Worlds;
         public Text World=>view.World;
         public Text Notice=>view.Notice;
+        public static string DescribeWorld(string name,string branch,long revision)=>
+            $"Выбран: {name}\nВетвь {branch.Substring(0,Math.Min(8,branch.Length))} · состояние №{revision}";
         public RectTransform SoundRect=>view.Settings.GetComponent<RectTransform>();
         public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame)
         {
