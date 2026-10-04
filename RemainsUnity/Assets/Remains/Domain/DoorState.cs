@@ -13,6 +13,7 @@ namespace Remains.Domain
         public bool open;
         public long revision;
         public Rect Bounds=>new(x,y,width,height);
+        public float DistanceTo(Vector2 point)=>Vector2.Distance(point,new Vector2(Mathf.Clamp(point.x,x,x+width),Mathf.Clamp(point.y,y,y+height)));
         public void Validate()
         {
             if(string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(definition) || string.IsNullOrWhiteSpace(level) ||

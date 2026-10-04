@@ -20,8 +20,7 @@ namespace Remains.Domain
             if(actor==null || !actor.connected || !actor.player) return "Для взаимодействия нужен подключённый игрок.";
             if(actor.down) return "Без сознания нельзя открыть дверь.";
             if(actor.level!=door.level) return "Дверь находится в другой локации.";
-            var nearest=new Vector2(Mathf.Clamp(actor.x,door.x,door.x+door.width),Mathf.Clamp(actor.y,door.y,door.y+door.height));
-            if(!float.IsFinite(actor.x) || !float.IsFinite(actor.y) || Vector2.Distance(actor.Position,nearest)>distance)
+            if(!float.IsFinite(actor.x) || !float.IsFinite(actor.y) || door.DistanceTo(actor.Position)>distance)
                 return "Подойдите ближе к двери.";
             return null;
         }

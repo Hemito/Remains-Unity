@@ -19,7 +19,7 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;
-            value.CommandSource=()=>default;
+            value.CommandSource=Command;
             value.Session.Doors.Finished+=reply=>{if(reply.accepted) accepted++;else Finish(false,reply.reason);};
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<DoorProbeFinished>(_=>
                 Finish(opened && value.Session.World.doors.Any(d=>d.id==DoorId && !d.open && d.revision==2) &&
@@ -50,9 +50,16 @@ namespace Remains.Runtime
                     NetworkServer.SendToAll(new DoorProbeFinished());
                 return;
             }
-            if(!requestedOpen) {requestedOpen=session.Doors.Request(DoorId,true);return;}
+        }
+        private Remains.Gameplay.PlayerCommand Command()
+        {
+            var session=runtime.Session;
+            if(finished || runtime.Options.Role=="host" || session.LocalActor==null ||
+                session.World.doors.Find(d=>d.id==DoorId)==null) return default;
+            if(!requestedOpen) {requestedOpen=true;return new Remains.Gameplay.PlayerCommand {interact=true};}
             if(opened && !requestedClose && !session.Doors.Pending && Time.unscaledTime-openedAt>.5f)
-                requestedClose=session.Doors.Request(DoorId,false);
+            {requestedClose=true;return new Remains.Gameplay.PlayerCommand {interact=true};}
+            return default;
         }
         private void Finish(bool success,string detail)
         {

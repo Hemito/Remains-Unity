@@ -182,6 +182,14 @@ namespace Remains.Presentation
             if(AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var source=ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit);
             if(source==null) {ShowMessage("Рядом нет доступного контейнера.");return;}
+            OpenContainer(source.id);
+        }
+        public void OpenContainer(string id)
+        {
+            if(AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
+            var source=InventorySource.Resolve(session.World,id);
+            if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
+            {ShowMessage("Контейнер больше недоступен.");return;}
             openContainerId=source.id;containerPage=0;
             inventory.SetActive(true);containerWindow.gameObject.SetActive(true);
             inventory.transform.SetAsLastSibling();containerWindow.transform.SetAsLastSibling();
