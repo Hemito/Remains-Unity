@@ -110,7 +110,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 286, y: 20}
+  m_SizeDelta: {x: 286, y: 17.16}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &694286216855590601
 CanvasRenderer:
@@ -301,7 +301,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.04, g: 0.08, b: 0.07, a: 0.72}
+  m_Color: {r: 0, g: 0, b: 0, a: 0}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -833,8 +833,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 16, y: -42}
-  m_SizeDelta: {x: 275, y: 24}
+  m_AnchoredPosition: {x: 16, y: -32}
+  m_SizeDelta: {x: 278, y: 34.32}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &2067427089366509395
 CanvasRenderer:
@@ -871,7 +871,7 @@ MonoBehaviour:
     m_BestFit: 0
     m_MinSize: 10
     m_MaxSize: 40
-    m_Alignment: 0
+    m_Alignment: 3
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
@@ -914,7 +914,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 286, y: 25}
+  m_SizeDelta: {x: 286, y: 34.32}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &8152176810592438853
 CanvasRenderer:
@@ -965,6 +965,7 @@ GameObject:
   - component: {fileID: 5492375456713808936}
   - component: {fileID: 5510566034101565691}
   - component: {fileID: 1726487190471608697}
+  - component: {fileID: 5618307306613028401}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -988,8 +989,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 12, y: -8}
-  m_SizeDelta: {x: 286, y: 25}
+  m_AnchoredPosition: {x: 12, y: -5}
+  m_SizeDelta: {x: 286, y: 24}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &5510566034101565691
 CanvasRenderer:
@@ -1033,6 +1034,21 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436"
+--- !u!114 &5618307306613028401
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5420127669524448051}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_EffectColor: {r: 0, g: 0, b: 0, a: 0.9}
+  m_EffectDistance: {x: 1, y: -1}
+  m_UseGraphicAlpha: 1
 --- !u!1 &5587528593190631313
 GameObject:
   m_ObjectHideFlags: 0
@@ -1143,8 +1159,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 12, y: -40}
-  m_SizeDelta: {x: 286, y: 25}
+  m_AnchoredPosition: {x: 12, y: -32}
+  m_SizeDelta: {x: 286, y: 34.32}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &252125527627200547
 CanvasRenderer:
@@ -1803,8 +1819,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 12, y: -78}
-  m_SizeDelta: {x: 286, y: 20}
+  m_AnchoredPosition: {x: 12, y: -70}
+  m_SizeDelta: {x: 286, y: 17.16}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &1591030310106781544
 CanvasRenderer:
@@ -2012,6 +2028,7 @@ GameObject:
   - component: {fileID: 6856757027539642023}
   - component: {fileID: 7380324549527924427}
   - component: {fileID: 2468703588303036132}
+  - component: {fileID: 1778413529163556754}
   m_Layer: 0
   m_Name: "\u0422\u0435\u043A\u0441\u0442"
   m_TagString: Untagged
@@ -2035,8 +2052,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 16, y: -78}
-  m_SizeDelta: {x: 275, y: 24}
+  m_AnchoredPosition: {x: 306, y: -67}
+  m_SizeDelta: {x: 150, y: 24}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &7380324549527924427
 CanvasRenderer:
@@ -2073,13 +2090,28 @@ MonoBehaviour:
     m_BestFit: 0
     m_MinSize: 10
     m_MaxSize: 40
-    m_Alignment: 0
+    m_Alignment: 3
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u041C\u0430\u043D\u0430  100 / 100"
+--- !u!114 &1778413529163556754
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8408626706058678218}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_EffectColor: {r: 0, g: 0, b: 0, a: 0.9}
+  m_EffectDistance: {x: 1, y: -1}
+  m_UseGraphicAlpha: 1
 --- !u!1 &9017694067528721662
 GameObject:
   m_ObjectHideFlags: 0

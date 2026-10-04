@@ -9,6 +9,40 @@ namespace Remains.Editor
     // Explicit authoring command. Runtime only instantiates the saved prefab.
     public static class CompactHudAuthoring
     {
+        public static void RefineVitals()
+        {
+            const string path="Assets/Remains/Resources/Presentation/CombatHud.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var view=root.GetComponent<CombatHudView>();view.Validate();
+                view.Vitals.GetComponent<Image>().color=Color.clear;
+                float width=view.Health.rectTransform.sizeDelta.x;
+                void Bar(Image fill,Text label,float top,int fontSize)
+                {
+                    var bar=fill.transform.parent as RectTransform;
+                    if(bar==null || bar.parent!=view.Vitals.transform || label.transform.parent!=view.Vitals.transform)
+                        throw new InvalidOperationException("HUD: изменилась структура шкалы "+fill.name);
+                    float height=width*fill.sprite.rect.height/fill.sprite.rect.width;
+                    HudElements.Rect(bar,new Vector2(12,-top),new Vector2(width,height));
+                    HudElements.Rect(fill.rectTransform,Vector2.zero,new Vector2(width,height));
+                    HudElements.Rect(label.rectTransform,new Vector2(16,-top),new Vector2(width-8,height));
+                    label.fontSize=fontSize;label.alignment=TextAnchor.MiddleLeft;
+                }
+                Bar(view.Health,view.HealthText,32,16);
+                Bar(view.Mana,view.ManaText,70,12);
+                HudElements.Rect(view.ManaText.rectTransform,new Vector2(width+20,-67),new Vector2(150,24));
+                view.ManaText.fontSize=16;
+                var manaOutline=view.ManaText.GetComponent<Outline>()??view.ManaText.gameObject.AddComponent<Outline>();
+                manaOutline.effectColor=new Color(0,0,0,.9f);manaOutline.effectDistance=new Vector2(1,-1);
+                HudElements.Rect(view.CharacterName.rectTransform,new Vector2(12,-5),new Vector2(width,24));
+                var outline=view.CharacterName.GetComponent<Outline>()??view.CharacterName.gameObject.AddComponent<Outline>();
+                outline.effectColor=new Color(0,0,0,.9f);outline.effectDistance=new Vector2(1,-1);
+                PrefabUtility.SaveAsPrefabAsset(root,path);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            AssetDatabase.SaveAssets();CombatHudRender.Render();CombatHudRender.RenderHealth();
+        }
         public static void Run()
         {
             const string path="Assets/Remains/Resources/Presentation/SessionHud.prefab";
