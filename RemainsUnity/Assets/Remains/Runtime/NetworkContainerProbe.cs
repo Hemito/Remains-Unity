@@ -13,6 +13,7 @@ namespace Remains.Runtime
     public struct ContainerProbePhase : NetworkMessage {public int phase;public long clickAt;}
     public struct ContainerProbeAck : NetworkMessage {public bool pending;}
     public struct ContainerProbeFinish : NetworkMessage { }
+    public struct ContainerProbeFinishAck : NetworkMessage { }
     [DefaultExecutionOrder(10000)]
     public sealed class NetworkContainerProbe : MonoBehaviour
     {
@@ -29,6 +30,9 @@ namespace Remains.Runtime
         private float deadline,started;
         private bool rejected,requested,traveled,opened,clicked,acked,finished,sawPending,anyPending;
         private readonly HashSet<int> acknowledgements=new();
+        private readonly HashSet<int> finishAcknowledgements=new();
+        private bool resultReceived;
+        private string resultDetail;
         private readonly HashSet<int> captured=new();
         private int capturePhase=-1;
         private bool claimCompletedNotice;
@@ -60,15 +64,33 @@ namespace Remains.Runtime
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<ContainerProbePhase>(m=>{phase=m.phase;clickAt=m.clickAt;if(phase==5) acked=false;});
-                NetworkClient.RegisterHandler<ContainerProbeFinish>(_=>Finish(true,Deposits?"Частичный подбор и обратное внесение через UI: сумма и уникальные ID сохранены, pending закрыты.":Partial?"Подбор частей стопки: по одной единице у каждого, остаток в контейнере, уникальные ID и отсутствие незавершённых резервов подтверждены.":Resume?"Перезапуск: общая выдача сохранена ровно у одного персонажа.":"UI-подбор: чужая локация отклонена, одновременные клики дали один предмет после резерва без предварительной выдачи."));
+                NetworkClient.RegisterHandler<ContainerProbeFinish>(_=>
+                {
+                    resultReceived=true;
+                    resultDetail=Deposits?"Частичный подбор и обратное внесение через UI: сумма и уникальные ID сохранены, pending закрыты.":Partial?"Подбор частей стопки: по одной единице у каждого, остаток в контейнере, уникальные ID и отсутствие незавершённых резервов подтверждены.":Resume?"Перезапуск: общая выдача сохранена ровно у одного персонажа.":"UI-подбор: чужая локация отклонена, одновременные клики дали один предмет после резерва без предварительной выдачи.";
+                    NetworkClient.Send(new ContainerProbeFinishAck());
+                });
             };
-            value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<ContainerProbeAck>((connection,m)=>{acknowledgements.Add(connection.connectionId);anyPending|=m.pending;});
+            value.Session.ServerReady+=()=>
+            {
+                NetworkServer.RegisterHandler<ContainerProbeAck>((connection,m)=>{acknowledgements.Add(connection.connectionId);anyPending|=m.pending;});
+                NetworkServer.RegisterHandler<ContainerProbeFinishAck>((connection,m)=>finishAcknowledgements.Add(connection.connectionId));
+            };
         }
         private void Advance(int next)
         {phase=next;clickAt=DateTime.UtcNow.AddSeconds(1.5).Ticks;NetworkServer.SendToAll(new ContainerProbePhase {phase=next,clickAt=clickAt});}
         private void Update()
         {
             if(finished) return;
+            // Keep both ends alive until every participant has received the verified result.
+            // A client can accept host departure only after receiving that result itself.
+            if(resultReceived)
+            {
+                if(Host?finishAcknowledgements.Count==runtime.Options.ProbePeers:!NetworkClient.isConnected)
+                {Finish(true,resultDetail);return;}
+                if(Time.unscaledTime>deadline) Finish(false,"Таймаут подтверждения итогов проверки контейнера.");
+                return;
+            }
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут контейнера: phase={phase}, rejected={rejected}, pending={sawPending}, acknowledgements={acknowledgements.Count}.");return;}
             var session=runtime.Session;var actor=session.LocalActor;if(actor==null) return;
             if(Resume)
