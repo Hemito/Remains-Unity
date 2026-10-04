@@ -11,8 +11,19 @@ namespace Remains.Editor
 {
     public static class RaiderChecks
     {
+        public static void AuditTexture()
+        {
+            const string path="Assets/Remains/Resources/Original/Raider/raider5.png";
+            var importer=(UnityEditor.TextureImporter)UnityEditor.AssetImporter.GetAtPath(path);
+            importer.GetSourceTextureWidthAndHeight(out int width,out int height);
+            var texture=UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            var standalone=importer.GetPlatformTextureSettings("Standalone");
+            Require(texture!=null && texture.width==width && texture.height==height,"Unity уменьшил исходный атлас рейдера");
+            Debug.Log($"Атлас рейдера: исходник={width}×{height}, импорт={texture.width}×{texture.height}, формат={texture.format}, фильтр={texture.filterMode}, Windows override={standalone.overridden}.");
+        }
         public static void Run()
         {
+            AuditTexture();
             var world=new WorldState();
             var actor=new ActorState {id="npc:training-guard",x=6,y=2,health=37,down=true,owner="client-b",generation=7,attackId="saved"};
             actor.inventory.Add(new ItemStack {id="saved-item",definition="heal",count=2});world.actors.Add(actor);
