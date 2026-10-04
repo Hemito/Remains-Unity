@@ -92,7 +92,26 @@ namespace Remains.Editor
                     receive.Invoke(combat,new object[]{wall});
                     Require(audio.Played==expected,"Радиус оружия создал звук за пределами досягаемости.");
                 }
-                Debug.Log("Контакты ближнего оружия: PASS — реальные пересечения, два WAV и уровня, три типа целей, повтор/вторая цель, промах и выключенный FF.");
+                rooms["hub"].platforms=Array.Empty<RoomSurface>();
+                world.props.Add(new PropState {id="wood",definition="box",level="hub",x=1,y=.7f});
+                world.containers.Add(new ContainerState {id="metal",definition="mcrate1",level="hub",x=2,y=0});
+                world.props.Add(new PropState {id="other-level",definition="box",level="factory:0",x=1,y=.7f});
+                string beforeProps=Remains.Serialization.StateJson.ToJson(world);
+                foreach(string weapon in new[]{"crowbar","spear"})
+                {
+                    var strike=new AttackEvent {id="props-"+weapon,attacker=observer.id,sourceOwner="remote",
+                        weapon=weapon,level="hub",originY=.7f,endX=4,endY=.7f,radius=.08f};
+                    int beforePlayed=audio.PropPlayed;
+                    receive.Invoke(combat,new object[]{strike});receive.Invoke(combat,new object[]{strike});
+                    Require(audio.PropPlayed==beforePlayed+2,"Объект/контейнер пропущен, повторён или озвучен в другом уровне.");
+                    Require(root.GetComponentsInChildren<AudioSource>().Any(s=>s.clip==Resources.Load<AudioClip>("Original/Audio/hit-wood")),
+                        "Деревянный ящик не использует исходный звук дерева.");
+                    strike.id+="-miss";strike.originY=strike.endY=4;
+                    receive.Invoke(combat,new object[]{strike});
+                    Require(audio.PropPlayed==beforePlayed+2,"Промах мимо объектов создал контакт.");
+                }
+                Require(Remains.Serialization.StateJson.ToJson(world)==beforeProps,"Косметический контакт изменил мир или содержимое контейнера.");
+                Debug.Log("Контакты ближнего оружия: PASS — актёры, стены, край оружия, дерево/металл объектов и контейнеров, уровни, дедупликация и сохранность мира.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
         }

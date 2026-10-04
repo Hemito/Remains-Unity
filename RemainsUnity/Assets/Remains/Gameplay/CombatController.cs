@@ -20,6 +20,7 @@ namespace Remains.Gameplay
         // A locally observed contact is cosmetic evidence, not confirmation of damage.
         public event Action<AttackEvent,ActorState> ContactObserved;
         public event Action<AttackEvent,string,Vector2> SurfaceContactObserved;
+        public event Action<AttackEvent,string,string,Vector2> PropContactObserved;
         private readonly SimulationTimer shotCooldown=new();
         public float ShotCooldownRemaining=>shotCooldown.Remaining;
         private ActorState swingActor;
@@ -166,6 +167,18 @@ namespace Remains.Gameplay
                 else SurfaceContactObserved?.Invoke(attack,surface.texture,position);
             }
             float limit=definition.stopAtTerrain?terrain??1:1;
+            foreach(var prop in WorldProps.All(session.World))
+            {
+                if(prop.level!=attack.level) continue;
+                var bounds=new Rect(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height);
+                var contact=SurfaceContact.Entry(bounds,attack.Origin,attack.End,attack.radius);
+                if(!contact.HasValue || contact.Value>limit) continue;
+                var center=Vector2.Lerp(attack.Origin,attack.End,contact.Value);
+                var point=new Vector2(Mathf.Clamp(center.x,bounds.xMin,bounds.xMax),Mathf.Clamp(center.y,bounds.yMin,bounds.yMax));
+                string id=prop.id,type=prop.definition;
+                if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>PropContactObserved?.Invoke(attack,id,type,point));
+                else PropContactObserved?.Invoke(attack,id,type,point);
+            }
             foreach(var target in AttackContacts.Capture(session.World.actors,attack,session.World.friendlyFire,
                 definition.stopAtFirstActor,limit))
             {

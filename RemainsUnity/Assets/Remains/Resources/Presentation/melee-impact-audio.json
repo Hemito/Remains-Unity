@@ -1,10 +1,94 @@
 {
   "entries": [
-    {"weapon":"crowbar","actors":["pony","raider","training-dummy"],"clip":"Original/Audio/hit-flesh","gain":0.5},
-    {"weapon":"spear","actors":["pony","raider","training-dummy"],"clip":"Original/Audio/hit-blade","gain":0.8},
-    {"weapon":"crowbar","surfaces":["floor"],"clip":"Original/Audio/hit-metal","gain":0.4},
-    {"weapon":"spear","surfaces":["floor"],"clip":"Original/Audio/hit-metal","gain":0.4},
-    {"weapon":"crowbar","surfaces":["Hub/concrete"],"clip":"Original/Audio/hit-concrete","gain":0.5},
-    {"weapon":"spear","surfaces":["Hub/concrete"],"clip":"Original/Audio/hit-concrete","gain":0.5}
+    {
+      "weapon": "crowbar",
+      "actors": [
+        "pony",
+        "raider",
+        "training-dummy"
+      ],
+      "clip": "Original/Audio/hit-flesh",
+      "gain": 0.5
+    },
+    {
+      "weapon": "spear",
+      "actors": [
+        "pony",
+        "raider",
+        "training-dummy"
+      ],
+      "clip": "Original/Audio/hit-blade",
+      "gain": 0.8
+    },
+    {
+      "weapon": "crowbar",
+      "surfaces": [
+        "floor"
+      ],
+      "clip": "Original/Audio/hit-metal",
+      "gain": 0.4
+    },
+    {
+      "weapon": "spear",
+      "surfaces": [
+        "floor"
+      ],
+      "clip": "Original/Audio/hit-metal",
+      "gain": 0.4
+    },
+    {
+      "weapon": "crowbar",
+      "surfaces": [
+        "Hub/concrete"
+      ],
+      "clip": "Original/Audio/hit-concrete",
+      "gain": 0.5
+    },
+    {
+      "weapon": "spear",
+      "surfaces": [
+        "Hub/concrete"
+      ],
+      "clip": "Original/Audio/hit-concrete",
+      "gain": 0.5
+    },
+    {
+      "clip": "Original/Audio/hit-metal",
+      "weapon": "crowbar",
+      "props": [
+        "mcrate1",
+        "mcrate2",
+        "mcrate3",
+        "prototype-crate"
+      ],
+      "gain": 0.4
+    },
+    {
+      "clip": "Original/Audio/hit-wood",
+      "weapon": "crowbar",
+      "props": [
+        "box"
+      ],
+      "gain": 0.5
+    },
+    {
+      "clip": "Original/Audio/hit-metal",
+      "weapon": "spear",
+      "props": [
+        "mcrate1",
+        "mcrate2",
+        "mcrate3",
+        "prototype-crate"
+      ],
+      "gain": 0.4
+    },
+    {
+      "clip": "Original/Audio/hit-wood",
+      "weapon": "spear",
+      "props": [
+        "box"
+      ],
+      "gain": 0.5
+    }
   ]
 }

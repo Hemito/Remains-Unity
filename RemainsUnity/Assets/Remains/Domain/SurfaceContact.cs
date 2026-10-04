@@ -6,8 +6,10 @@ namespace Remains.Domain
     public static class SurfaceContact
     {
         public static float? Entry(RoomSurface surface,Vector2 start,Vector2 end,float radius=0)
+            =>Entry(new Rect(surface.x,surface.y,surface.width,surface.height),start,end,radius);
+        public static float? Entry(Rect bounds,Vector2 start,Vector2 end,float radius=0)
         {
-            float left=surface.x,right=left+surface.width,bottom=surface.y,top=bottom+surface.height;
+            float left=bounds.xMin,right=bounds.xMax,bottom=bounds.yMin,top=bounds.yMax;
             if(radius<=0) return RectangleEntry(start,end,left,right,bottom,top);
             // Swept circle against a rectangle: two edge strips and four rounded corners.
             // Expanding only the bounding box would report false hits outside the corners.
