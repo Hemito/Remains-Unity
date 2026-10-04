@@ -66,7 +66,7 @@ namespace Remains.Presentation
             foreach(var container in session.World.containers.Where(c=>c.level==level))
             {
                 if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=propArtwork.CreateView(container.definition,"Контейнер "+container.id,container.width));
-                view.transform.position=container.Center;view.SetVisible(container.level==session.LocalActor?.level);
+                view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),0);view.SetVisible(container.level==session.LocalActor?.level);
             }
             foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,propArtwork.CreateView(prop.definition,prop.id,prop.width));
             foreach(var actor in session.World.actors)
@@ -91,10 +91,10 @@ namespace Remains.Presentation
         {
             if(session?.World==null) return;
             foreach(var prop in session.World.props)
-                if(props.TryGetValue(prop.id,out var view)) {view.transform.position=prop.Center;view.SetVisible(prop.level==session.LocalActor?.level);}
+                if(props.TryGetValue(prop.id,out var view)) {view.DrawMotion(prop,session.LocalOwner,session.Pause.IsPaused(prop.level),Time.deltaTime);view.SetVisible(prop.level==session.LocalActor?.level);}
             foreach(var container in session.World.containers)
                 if(containers.TryGetValue(container.id,out var view))
-                {view.transform.position=container.Center;view.SetVisible(container.level==session.LocalActor?.level);}
+                {view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),Time.deltaTime);view.SetVisible(container.level==session.LocalActor?.level);}
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;
