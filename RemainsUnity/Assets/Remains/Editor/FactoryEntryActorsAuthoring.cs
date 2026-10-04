@@ -12,6 +12,25 @@ namespace Remains.Editor
     public static class FactoryEntryActorsAuthoring
     {
         private const string Draft="Assets/Remains/RoomDrafts/FactoryEntry46.prefab";
+        public static void InstallPhysicalVersion()
+        {
+            var root=PrefabUtility.LoadPrefabContents(Draft);
+            try
+            {
+                if(root.GetComponent<RoomPhysicalContent>()!=null) throw new InvalidOperationException("Версия физических объектов уже задана.");
+                root.AddComponent<RoomPhysicalContent>().Configure("base:factory-entry-46:physical-v1");
+                var room=root.GetComponent<RoomAuthoring>();
+                var main=RoomPhysicalContent.Read(room,"factory:0");
+                var other=RoomPhysicalContent.Read(room,"factory:6");
+                var world=new WorldState();PhysicalContentInstaller.Apply(world,main);PhysicalContentInstaller.Apply(world,other);
+                if(world.props.Count!=8 || world.containers.Count!=0 || world.props.Select(p=>p.id).Distinct().Count()!=8 ||
+                    main.props.Any(p=>p.anchorHeight!=0)) throw new InvalidOperationException("Расстановка смешала фабрики, контейнеры или привязки.");
+                PrefabUtility.SaveAsPrefabAsset(root,Draft);AssetDatabase.SaveAssets();
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            ContractChecks.Run();
+            Debug.Log("Вход завода: четыре физических ящика устанавливаются независимо в фабрики 0 и 6.");
+        }
         public static void Import()
         {
             ActorTypes.Load();Anatomy.Load();
