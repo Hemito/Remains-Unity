@@ -37,6 +37,7 @@ namespace Remains.Editor
             WeaponCatalog.Load();
             FactoryRoomContentChecks.Run();
             WorldRoomChecks.Run();
+            SurfaceSoundChecks.Run();
             WeaponInventoryChecks.Run();
             WeaponInventoryMigrationChecks.Run();
             WeaponInventoryUiChecks.Run();

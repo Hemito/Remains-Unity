@@ -92,7 +92,7 @@ namespace Remains.Presentation
                 int beats=track.rhythm.Sample(actor,rhythm,grounded,paused || actor.down,settings.teleportDistance);
                 if(contact!=MotionContact.Landing && beats>0) contact=actor.climbing?MotionContact.Ladder:MotionContact.Step;
                 if(contact==MotionContact.None) continue;
-                string bank=contact==MotionContact.Ladder?"ladder":room.movementSound;
+                string bank=contact==MotionContact.Ladder?"ladder":SurfaceContactSound.Resolve(room,Anatomy.Movement(actor),actor.Position);
                 if(string.IsNullOrEmpty(bank) || !banks.TryGetValue(bank,out var clips))
                 {
                     if(missing.Add(room.id+":"+bank)) Debug.LogWarning($"Нет звуков поверхности: room={room.id}, bank={bank}, actor={actor.id}.",this);
