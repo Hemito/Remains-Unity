@@ -27,6 +27,7 @@ namespace Remains.Presentation
         private readonly InventoryPortrait portrait;
         private readonly string[] ids;
         private readonly Button previous,next,deposit,use;
+        private readonly Scrollbar scrollbar;
         private readonly Text title,detail,actionStatus;
         private InventorySource container;
         private string selected;
@@ -60,6 +61,9 @@ namespace Remains.Presentation
             }
             rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
             detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
+            scrollbar=view.Scrollbar;
+            scrollbar.onValueChanged.AddListener(value=>
+            {firstVisibleRow=Mathf.RoundToInt(value*Math.Max(0,visible.Count-rows.Length));Refresh(container);});
             weaponPreview=view.WeaponPreview;weaponDetail=view.WeaponDetail;
             title=view.Title;detail=view.Detail;actionStatus=view.ActionStatus;
             portrait=new InventoryPortrait(view.Portrait,view.PortraitParts);
@@ -118,8 +122,11 @@ namespace Remains.Presentation
                 artwork.Set(weaponIcons[i],instances?WeaponInventory.Shortcut(actor,(i+1).ToString())?.definition:weapons[i]);
             }
             firstVisibleRow=Mathf.Clamp(firstVisibleRow,0,Math.Max(0,count-rows.Length));
+            scrollbar.gameObject.SetActive(count>rows.Length);
+            scrollbar.size=count==0?1:Mathf.Min(1,rows.Length/(float)count);
+            scrollbar.SetValueWithoutNotify(count>rows.Length?firstVisibleRow/(float)(count-rows.Length):0);
             previous.interactable=firstVisibleRow>0;next.interactable=firstVisibleRow+rows.Length<count;
-            title.text=count==0?"Инвентарь · пусто":$"Инвентарь · {firstVisibleRow+1}–{Math.Min(count,firstVisibleRow+rows.Length)} из {count}";
+            title.text=count==0?"Инвентарь · пусто":$"Инвентарь · {firstVisibleRow+1}–{Math.Min(count,firstVisibleRow+rows.Length)}/{count}";
             var chosen=actor?.inventory.Find(item=>item.id==selected);
             if(chosen==null) selected=null;
             for(int i=0;i<rows.Length;i++)

@@ -24,6 +24,7 @@ namespace Remains.Presentation
         [InspectorName("Описание предмета")] public Text Detail;
         [InspectorName("Состояние действия")] public Text ActionStatus;
         public event Action<int> ScrollRows;
+        [InspectorName("Прокрутка списка")] public Scrollbar Scrollbar;
         public void OnScroll(PointerEventData eventData)
         {
             if(!isActiveAndEnabled || eventData==null || eventData.scrollDelta.y==0) return;
@@ -32,6 +33,8 @@ namespace Remains.Presentation
         }
         public void Validate()
         {
+            if(Scrollbar==null || Scrollbar.handleRect==null || Scrollbar.direction!=UnityEngine.UI.Scrollbar.Direction.TopToBottom)
+                throw new InvalidOperationException("Личный инвентарь: нужна вертикальная полоса прокрутки сверху вниз с ползунком.");
             if(Categories==null || Categories.Length!=Enum.GetValues(typeof(InventoryCategory)).Length || Array.Exists(Categories,x=>x==null))
                 throw new InvalidOperationException("Личный инвентарь: не назначены четыре фильтра предметов.");
             if(Rows==null || Icons==null || Rows.Length==0 || Rows.Length!=Icons.Length || Weapons==null || WeaponIds==null || Weapons.Length!=WeaponIds.Length ||

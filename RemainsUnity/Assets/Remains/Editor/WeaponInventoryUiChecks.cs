@@ -81,6 +81,11 @@ namespace Remains.Editor
                 for(int i=0;i<9;i++) actor.inventory.Add(new ItemStack {id="filter-page-"+i,definition="heal",count=1});
                 view.Categories[(int)InventoryCategory.Items].onClick.Invoke();view.Next.onClick.Invoke();
                 Require(panel.FirstVisibleRow==2 && !view.Next.interactable,"Конец списка считается по нефильтрованным предметам");
+                Require(view.Scrollbar.gameObject.activeSelf && Mathf.Abs(view.Scrollbar.size-.8f)<.001f,"Ползунок не отражает долю видимых строк");
+                view.Scrollbar.value=.5f;
+                Require(panel.FirstVisibleRow==1,"Перемещение ползунка не сдвинуло список");
+                view.Scrollbar.value=1;
+                Require(panel.FirstVisibleRow==2 && !view.Next.interactable,"Ползунок не достиг конца списка");
                 string beforeScroll=Remains.Serialization.StateJson.ToJson(actor.inventory);
                 void Scroll(float direction)
                 {
@@ -96,6 +101,7 @@ namespace Remains.Editor
                 Require(Remains.Serialization.StateJson.ToJson(actor.inventory)==beforeScroll,"Прокрутка изменила предметы");
                 actor.inventory.RemoveAll(item=>item.id.StartsWith("filter-page-",StringComparison.Ordinal));panel.Refresh(null);
                 Require(panel.FirstVisibleRow==0 && !view.Previous.interactable,"Начало списка не зажато после удаления предметов");
+                Require(!view.Scrollbar.gameObject.activeSelf,"Полоса прокрутки осталась у короткого списка");
                 Scroll(-1);Require(panel.FirstVisibleRow==0,"Колесо открыло удалённые строки");
                 var customAmmoFilter=new InventoryItemFilter(new[]{new WeaponDefinition {id="test",ammo="custom-ammo"}});
                 Require(customAmmoFilter.Includes(new ItemStack {definition="custom-ammo"},InventoryCategory.Ammunition) &&
@@ -128,6 +134,12 @@ namespace Remains.Editor
                         string suffix=row==1?"":"-"+actor.inventory[row].definition;
                         File.WriteAllBytes(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/weapon-inventory-ui"+suffix+".png")),image.EncodeToPNG());
                     }
+                    for(int i=0;i<20;i++) actor.inventory.Add(new ItemStack {id="scroll-render-"+i,definition="heal",count=i+1});
+                    view.Categories[(int)InventoryCategory.Items].onClick.Invoke();view.Scrollbar.value=.5f;
+                    Require(view.Title.preferredWidth<=view.Title.rectTransform.rect.width+.1f,"Диапазон предметов не помещается в заголовке.");
+                    Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
+                    image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();
+                    File.WriteAllBytes(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/inventory-scrollbar.png")),image.EncodeToPNG());
                 }
             }
             finally
