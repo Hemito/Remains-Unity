@@ -9,6 +9,7 @@ namespace Remains.Content
         public string id,presentation,artwork;
         public bool combatAi,hasWeapon,bodyInventory;
         public float restoreHealthAfterHit;
+        [Min(0),InspectorName("Поглощение урона от попадания")] public float hitProtection;
         [InspectorName("Восприятие (для боевого AI)")] public Remains.Domain.NpcPerceptionSettings perception;
     }
     [Serializable] public sealed class ActorTypeList {public ActorTypeDefinition[] actors;}
@@ -31,7 +32,8 @@ namespace Remains.Content
         internal static void Validate(ActorTypeDefinition definition)
         {
             if(definition==null || string.IsNullOrWhiteSpace(definition.id) || string.IsNullOrWhiteSpace(definition.presentation) ||
-                !float.IsFinite(definition.restoreHealthAfterHit) || definition.restoreHealthAfterHit<0)
+                !float.IsFinite(definition.restoreHealthAfterHit) || definition.restoreHealthAfterHit<0 ||
+                !float.IsFinite(definition.hitProtection) || definition.hitProtection<0)
                 throw new InvalidOperationException($"Некорректное определение актёра: {definition?.id}.");
             if(definition.combatAi)
             {

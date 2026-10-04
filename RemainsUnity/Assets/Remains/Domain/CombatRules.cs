@@ -23,8 +23,9 @@ namespace Remains.Domain
         public event System.Action<DamageResult> Applied;
         private readonly IDamageRule rules;
         private readonly IKnockdownRule knockdown;
-        public DamageReceiver(IDamageRule rules,IKnockdownRule knockdown=null)
-        {this.rules=rules;this.knockdown=knockdown??new ZeroHealthKnockdownRule();}
+        private readonly IHitProtectionRule protection;
+        public DamageReceiver(IDamageRule rules,IKnockdownRule knockdown=null,IHitProtectionRule protection=null)
+        {this.rules=rules;this.knockdown=knockdown??new ZeroHealthKnockdownRule();this.protection=protection??new TypeHitProtectionRule();}
 
         public bool Apply(ActorState actor, AttackEvent attack, bool contact)
         {
@@ -33,6 +34,9 @@ namespace Remains.Domain
             float amount=rules.Calculate(attack.weapon,attack.speed);
             if(float.IsNaN(amount) || float.IsInfinity(amount) || amount<0)
                 throw new System.InvalidOperationException($"Правило урона вернуло некорректное значение: actor={actor.id}, attack={attack.id}, damage={amount}.");
+            amount=protection.Resolve(actor,attack,amount);
+            if(!float.IsFinite(amount) || amount<0)
+                throw new System.InvalidOperationException($"Правило защиты вернуло некорректный урон: actor={actor.id}, attack={attack.id}, damage={amount}.");
             float remaining=Mathf.Max(0,previousHealth-amount);
             float lost=previousHealth-remaining;
             float restore=ActorTypes.Get(actor.actorType).restoreHealthAfterHit;
