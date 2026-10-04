@@ -18,7 +18,10 @@ namespace Remains.Content
             if(content==null || string.IsNullOrWhiteSpace(content.patch))
                 throw new InvalidOperationException($"Комната {room.name}: у дверей нет версии расстановки.");
             if(!content.enabled) return null;
-            return new DoorLayout {patch=content.patch,level=level,doors=placements.Select(p=>p.Read(room,level)).ToArray()};
+            return new DoorLayout {patch=level+":"+content.patch,level=level,doors=placements.Select(p=>
+            {
+                var door=p.Read(room,level);door.id=level+":"+door.id;return door;
+            }).ToArray()};
         }
         private void OnValidate()
         {if(string.IsNullOrWhiteSpace(patch)) Debug.LogWarning($"Комната {name}: не задана версия расстановки дверей.",this);}
