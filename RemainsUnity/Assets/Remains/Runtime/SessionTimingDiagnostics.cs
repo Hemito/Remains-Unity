@@ -53,7 +53,13 @@ namespace Remains.Runtime
             value.Combat.Projectiles.ContactObserved+=contact=>Record("contact-observed",contact.projectile,contact.target);
             value.Combat.DamageApplied+=result=>Record("damage-applied",result.attack,result.actor);
             value.DamageFeedback.Received+=result=>Record("damage-number-received",result.attack,result.actor);
-            value.DamageFeedback.DeliveryMeasured+=(stage,result)=>Record(stage,result.attack,result.actor);
+            value.DamageFeedback.DeliveryMeasured+=(stage,result)=>
+            {
+                bool server=stage=="damage-number-relayed" || stage.StartsWith("damage-number-rejected-",StringComparison.Ordinal);
+                var target=(server?value.Session.ServerWorld:value.Session.World)?.Find(result.actor);
+                Record(stage,result.attack,result.actor,owner:target?.owner,
+                    requestedGeneration:result.generation,targetGeneration:target?.generation??-1);
+            };
             value.DamageNumbers.Shown+=result=>Record("damage-number-shown",result.attack,result.actor);
             value.DamageNumbers.PreparationMeasured+=(result,creation,initialization,placement)=>
             {

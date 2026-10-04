@@ -43,7 +43,13 @@ namespace Remains.Networking
         {
             var result=message.result;var sender=session.ConnectedActor(connection);
             var target=session.ServerWorld?.Find(result.actor);
-            if(sender==null || target==null || sender.owner!=target.owner || target.generation!=result.generation || target.level!=result.level || !Valid(result)) return;
+            string rejection=sender==null?"sender":target==null?"target":sender.owner!=target.owner?"owner":
+                target.generation!=result.generation?"generation":target.level!=result.level?"level":!Valid(result)?"invalid":null;
+            if(rejection!=null)
+            {
+                DeliveryMeasured?.Invoke("damage-number-rejected-"+rejection,result);
+                return;
+            }
             DeliveryMeasured?.Invoke("damage-number-relayed",result);
             NetworkServer.SendToAll(message);
         }
