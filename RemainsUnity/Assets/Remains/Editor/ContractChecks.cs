@@ -103,6 +103,7 @@ namespace Remains.Editor
             WeaponPoseChecks.Run();WeaponElevationChecks.Run();
             MovableContainerChecks.Run();
             PropPlatformChecks.Run();
+            PropStackChecks.Run();
             TelekinesisRuleChecks.Run();
             MagicRecoveryChecks.Run();
             AttackContactChecks.Run();

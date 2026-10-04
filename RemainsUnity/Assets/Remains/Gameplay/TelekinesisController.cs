@@ -60,14 +60,14 @@ namespace Remains.Gameplay
                 {
                     holding=true;
                     Vector2 target=rules.Target(actor,aim);
-                    PropMotion.Step(prop,geometry.Get(prop.level),dt,target);
+                    PropMotion.Step(prop,geometry.Get(prop.level),dt,target,WorldProps.All(session.World));
                     actor.mana=Mathf.Max(0,actor.mana-rules.ManaPerSecond(actor,prop)*dt);
                     actor.revision++;
                     statsDirty=true;
                 }
                 else
                 {
-                    PropMotion.Step(prop,geometry.Get(prop.level),dt,null);
+                    PropMotion.Step(prop,geometry.Get(prop.level),dt,null,WorldProps.All(session.World));
                 }
             }
             if(rules is ITelekinesisRecoveryRule recoveryRule &&
