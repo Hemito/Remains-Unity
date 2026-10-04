@@ -296,7 +296,7 @@ namespace Remains.Runtime
                 command.inventory=keyboard.tabKey.wasPressedThisFrame;
                 command.menu=keyboard.escapeKey.wasPressedThisFrame;
                 command.reload=keyboard.rKey.wasPressedThisFrame;
-                command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;
+                command.interact=keyboard.eKey.wasPressedThisFrame;command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;
                 command.grenade=keyboard.gKey.wasPressedThisFrame;command.heal=keyboard.hKey.wasPressedThisFrame;
             }
             if(mouse!=null)
@@ -320,6 +320,7 @@ namespace Remains.Runtime
             var actor=Session.LocalActor;
             if(command.inventory) hud?.ToggleInventory();
             if(command.menu) hud?.ToggleMenu();
+            if(command.interact && !Session.Travel.Pending && (hud.ContainerOpen || !Session.World.actors.Exists(a=>HealingRules.CanApply(actor,a,false)))) hud.ToggleContainer();
             if(hud?.BlocksGameplayInput==true) command=default;
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
             if(Session.Travel.Pending) command=default;

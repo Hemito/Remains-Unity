@@ -107,11 +107,11 @@ namespace Remains.Runtime
             var item=runtime.Session.World.Find(BodyId).inventory.ElementAtOrDefault(1);
             if(item?.definition!="grenade") {Finish(false,"К моменту клика слот уже не содержал исходную стопку гранат.");yield break;}
             string intended=item.id;
-            yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
+            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(1));
             NetworkClient.Send(new BodyInventoryTried {item=intended});
         }
-        private IEnumerator Give() {yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);if(Race) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(0));yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);}
+        private IEnumerator Give() {if(Race) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(0));yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);}
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;

@@ -28,7 +28,7 @@ namespace Remains.Presentation
         public void Refresh(ContainerState container,bool visible,ActorState localActor=null)
         {
             selected=container;allowed=visible;actor=localActor;
-            if(container!=null) label.text=$"I · Контейнер · {container.mass:0.#} кг";
+            if(container!=null) label.text=$"E · Контейнер · {container.mass:0.#} кг";
             Place();
         }
         public void Dispose()=>Canvas.willRenderCanvases-=Place;

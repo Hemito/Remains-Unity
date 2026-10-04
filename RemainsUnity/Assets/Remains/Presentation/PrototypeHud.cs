@@ -19,6 +19,9 @@ namespace Remains.Presentation
         private GameObject lobby;
         private MainMenuPanel mainMenu;
         private GameObject inventory;
+        private ContainerWindowView containerWindow;
+        private string openContainerId;
+        public bool ContainerOpen=>containerWindow!=null && containerWindow.gameObject.activeSelf;
         private GameObject worldPicker;
         private Text selectedWorld;
         private Button worldPickerButton,hostButton;
@@ -123,7 +126,10 @@ namespace Remains.Presentation
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
             var inventoryView=InventoryWindowView.Create(transform);inventory=inventoryView.gameObject;
-            var containerView=inventoryView.SharedContents;
+            containerWindow=ContainerWindowView.Create(transform);
+            containerWindow.Close.onClick.AddListener(CloseContainer);
+            containerWindow.gameObject.SetActive(false);
+            var containerView=containerWindow.Contents;
             containerTitle=containerView.Title;
             for (int i = 0; i < slots.Length; i++)
             {
@@ -135,7 +141,8 @@ namespace Remains.Presentation
                         session.RequestClaim(shownContainer.id,shownContainer.items[containerPage*9+index].id,claimOne?1:0);
                 });
             }
-            claimQuantity=inventoryView.Quantity;
+            claimQuantity=containerWindow.Quantity;
+            inventoryView.Quantity.gameObject.SetActive(false);
             claimQuantity.onClick.AddListener(()=>
             {claimOne=!claimOne;claimQuantity.GetComponentInChildren<Text>().text=claimOne?"Количество: 1 предмет":"Количество: вся стопка";Refresh();});
             previousContainer=containerView.Previous;nextContainer=containerView.Next;
@@ -143,7 +150,7 @@ namespace Remains.Presentation
             nextContainer.onClick.AddListener(()=>{containerPage++;Refresh();});
             inventory.SetActive(false);
             personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>claimOne?1:0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item));
-            inventoryWindow=new InventoryWindow(inventoryView,ToggleInventory,inventoryAudio.Page);
+            inventoryWindow=new InventoryWindow(inventoryView,ToggleInventory,inventoryAudio.Page,OpenContainer);
             var pauseView=PauseMenuView.Create(transform);
             friendlyFire=pauseView.FriendlyFire;friendlyFire.onClick.AddListener(()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=pauseView.FriendlyDecision;friendlyDecision.onClick.AddListener(()=>
@@ -166,8 +173,24 @@ namespace Remains.Presentation
             Refresh();
         }
 
-        public void ToggleMenu() {if(AudioSettings.IsOpen) AudioSettings.Cancel();else PauseMenu.Toggle();}
-        public void ToggleInventory() {if(AudioSettings.IsOpen) return; inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
+        public void ToggleMenu() {if(ContainerOpen) {CloseContainer();return;}if(AudioSettings.IsOpen) AudioSettings.Cancel();else PauseMenu.Toggle();}
+        public void ToggleInventory() {if(AudioSettings.IsOpen) return; inventoryAudio.Toggle();if(inventory.activeSelf) CloseContainer();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
+        public void OpenContainer() {if(!ContainerOpen) ToggleContainer();}
+        public void ToggleContainer()
+        {
+            if(ContainerOpen) {CloseContainer();return;}
+            if(AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
+            var source=ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit);
+            if(source==null) {ShowMessage("Рядом нет доступного контейнера.");return;}
+            openContainerId=source.id;containerPage=0;
+            inventory.SetActive(true);containerWindow.gameObject.SetActive(true);
+            inventory.transform.SetAsLastSibling();containerWindow.transform.SetAsLastSibling();
+            inventoryAudio.Toggle();Refresh();PauseMenu.PublishIntent();
+        }
+        public void CloseContainer()
+        {
+            openContainerId=null;containerWindow.gameObject.SetActive(false);Refresh();
+        }
         public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
         public RectTransform FriendlyFireButtonRect=>friendlyFire.GetComponent<RectTransform>();
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
@@ -187,7 +210,7 @@ namespace Remains.Presentation
             var actor = session.LocalActor;
             mainMenu.Root.SetActive(actor==null);
             string version=actor==null?null:$"{actor.id}:{actor.generation}:{actor.lifecycleSequence}";
-            if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);}
+            if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);openContainerId=null;containerWindow.gameObject.SetActive(false);}
             bool gameplayVisible=actor!=null && !inventory.activeSelf;
             status.transform.parent.gameObject.SetActive(gameplayVisible);
             combatHud.Refresh(actor,gameplayVisible && !PauseMenu.IsOpen,ReloadRemaining?.Invoke());quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
@@ -205,7 +228,9 @@ namespace Remains.Presentation
             friendlyDecision.GetComponentInChildren<Text>().text="Прямое попадание:\nрешает "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");
             status.text=$"{(actor.level=="hub"?"Хаб":"Завод 0")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count}";
 
-            var nearest=ContainerAccess.Nearest(session.World,actor,session.Rules.Loot,session.Rules.Deposit);
+            var nearest=openContainerId==null?ContainerAccess.Nearest(session.World,actor,session.Rules.Loot,session.Rules.Deposit):InventorySource.Resolve(session.World,openContainerId);
+            if(openContainerId!=null && !ContainerAccess.Accessible(actor,nearest,session.Rules.Loot,session.Rules.Deposit))
+            {openContainerId=null;containerWindow.gameObject.SetActive(false);nearest=null;}
             if(nearest?.id!=shownContainer?.id) containerPage=0;
             shownContainer=nearest;
             containerHint.Refresh(shownContainer==null?null:session.World.containers.Find(c=>c.id==shownContainer.id),
@@ -213,7 +238,7 @@ namespace Remains.Presentation
             int pages=Math.Max(1,((shownContainer?.items.Count??0)+8)/9);
             containerPage=Mathf.Clamp(containerPage,0,pages-1);
             previousContainer.interactable=containerPage>0;nextContainer.interactable=containerPage<pages-1;
-            personalItems.Refresh(shownContainer);
+            personalItems.Refresh(ContainerOpen?shownContainer:null);
             containerTitle.text=shownContainer==null?"Рядом нет контейнера": $"{(shownContainer.Body==null?$"Контейнер · {shownContainer.Mass:0.#} кг":"Тело")} · {containerPage+1}/{pages}";
             if(shownContainer!=null && session.World.pendingGrants.Exists(g=>g.containerId==shownContainer.id && g.recipient==actor.id))
                 containerTitle.text="Подбор подтверждается…";
@@ -306,7 +331,9 @@ namespace Remains.Presentation
         {
             if(session.LocalActor==null && AudioSettings.IsOpen && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true) AudioSettings.Cancel();
             factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
-            if(ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
+            if(ContainerOpen)
+            {if(!ContainerAccess.Accessible(session.LocalActor,InventorySource.Resolve(session.World,openContainerId),session.Rules.Loot,session.Rules.Deposit)) CloseContainer();}
+            else if(ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
             bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen;
             containerHint.Refresh(shownContainer==null?null:session.World?.containers.Find(c=>c.id==shownContainer.id),show && !AudioSettings.IsOpen,session.LocalActor);
             combatHud.Refresh(session.LocalActor,show,ReloadRemaining?.Invoke());quickActions.SetActive(show);

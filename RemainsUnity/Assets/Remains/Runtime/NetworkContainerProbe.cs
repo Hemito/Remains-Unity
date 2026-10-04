@@ -49,7 +49,7 @@ namespace Remains.Runtime
             value.CommandSource=()=>
             {
                 if(phase>=1 && !opened && value.Session.LocalActor?.level=="factory:0" && !value.Session.Travel.Pending)
-                {opened=true;return new PlayerCommand {inventory=true};}
+                {opened=true;return new PlayerCommand {interact=true};}
                 return default;
             };
             value.Session.Notice+=text=>{if(text=="Контейнер находится в другой локации.") rejected=true;};
@@ -175,7 +175,7 @@ namespace Remains.Runtime
         }
         private IEnumerator CheckPage()
         {
-            yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
+            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerNextRect);
             if(runtime.Hud.ContainerPage!=1) {Finish(false,"Вторая страница контейнера недоступна.");yield break;}
             pageChecked=true;
@@ -185,12 +185,12 @@ namespace Remains.Runtime
             while(DateTime.UtcNow.Ticks<clickAt) yield return null;
             int index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="caps");
             int beforeSelection=runtime.Session.LocalActor.inventory.Sum(item=>item.count);
-            yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);
+
             yield return SelectPersonalRow(index);
             if(runtime.Session.LocalActor.inventory.Sum(item=>item.count)!=beforeSelection) {Finish(false,"Выбор строки сам изменил инвентарь.");yield break;}
             yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
             index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="grenade");
-            yield return UiPointerProbe.Click(runtime.Hud.PersonalTabRect);
+
             yield return SelectPersonalRow(index);
             yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
         }
@@ -198,7 +198,7 @@ namespace Remains.Runtime
         {
             while(DateTime.UtcNow.Ticks<clickAt) yield return null;
             if(Partial) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
-            yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
+            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
         }
         private IEnumerator SelectPersonalRow(int index)

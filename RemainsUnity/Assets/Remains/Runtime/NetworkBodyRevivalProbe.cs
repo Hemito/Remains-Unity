@@ -106,8 +106,9 @@ namespace Remains.Runtime
         private IEnumerator Take()
         {
             if(runtime.Hud.ShownInventorySourceId!=InventorySource.BodyId(ActorId)) {Finish(false,"Не открыт нужный инвентарь тела.");yield break;}
+            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
-            yield return UiPointerProbe.Click(Deposit?runtime.Hud.PersonalTabRect:runtime.Hud.ContainerTabRect);
+            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(Deposit?runtime.Hud.DepositRowRect(1):runtime.Hud.ContainerSlotRect(1));
             if(Deposit) yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
         }

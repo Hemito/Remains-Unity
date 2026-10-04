@@ -23,6 +23,12 @@ namespace Remains.Editor
                 Require(view.GetComponentsInChildren<PersonalInventoryView>(true).Length==1 && view.GetComponentsInChildren<SharedInventoryView>(true).Length==1,"Страницы отсутствуют или дублируются");
                 view.SharedTab.onClick.Invoke();Require(source.Personal.activeSelf && !source.Shared.activeSelf,"Вкладка изменяет исходный префаб");
                 Require(view.GetComponent<RectTransform>().sizeDelta==source.GetComponent<RectTransform>().sizeDelta,"Контроллер изменил размеры корпуса");
+                var separate=InventoryWindowView.Create(parent.transform);int opened=0;
+                var personalOnly=new InventoryWindow(separate,()=>{},()=>{},()=>opened++);
+                separate.SharedTab.onClick.Invoke();
+                Require(opened==1 && separate.Personal.activeSelf && !separate.Shared.activeSelf,"Отдельный контейнер подменяет личную страницу");
+                var container=ContainerWindowView.Create(parent.transform);container.Validate();
+                Require(!container.transform.IsChildOf(separate.transform),"Контейнер должен быть самостоятельным окном");
                 Debug.Log("Окно инвентаря: PASS — вкладки, закрытие, звук страницы и независимость префаба.");
             }
             finally {UnityEngine.Object.DestroyImmediate(parent);}

@@ -162,7 +162,7 @@ namespace Remains.Runtime
         private IEnumerator Claim()
         {
             yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
-            yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
+            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
         }
         private void LateUpdate()
