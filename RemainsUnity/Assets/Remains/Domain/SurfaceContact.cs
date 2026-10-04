@@ -5,11 +5,26 @@ namespace Remains.Domain
     // Shared segment/rectangle intersection; callers choose which surfaces block their query.
     public static class SurfaceContact
     {
-        public static float? Entry(RoomSurface surface,Vector2 start,Vector2 end)
+        public static float? Entry(RoomSurface surface,Vector2 start,Vector2 end,float radius=0)
+        {
+            float left=surface.x,right=left+surface.width,bottom=surface.y,top=bottom+surface.height;
+            if(radius<=0) return RectangleEntry(start,end,left,right,bottom,top);
+            // Swept circle against a rectangle: two edge strips and four rounded corners.
+            // Expanding only the bounding box would report false hits outside the corners.
+            float? nearest=RectangleEntry(start,end,left-radius,right+radius,bottom,top);
+            Include(RectangleEntry(start,end,left,right,bottom-radius,top+radius));
+            Include(HitGeometry.CircleEntry(new Vector2(left,bottom),radius,start,end));
+            Include(HitGeometry.CircleEntry(new Vector2(left,top),radius,start,end));
+            Include(HitGeometry.CircleEntry(new Vector2(right,bottom),radius,start,end));
+            Include(HitGeometry.CircleEntry(new Vector2(right,top),radius,start,end));
+            return nearest;
+            void Include(float? value) {if(value.HasValue && (!nearest.HasValue || value.Value<nearest.Value)) nearest=value;}
+        }
+        private static float? RectangleEntry(Vector2 start,Vector2 end,float left,float right,float bottom,float top)
         {
             float enter=0,exit=1;var delta=end-start;
-            return Clip(start.x,delta.x,surface.x,surface.x+surface.width,ref enter,ref exit) &&
-                Clip(start.y,delta.y,surface.y,surface.y+surface.height,ref enter,ref exit)?enter:null;
+            return Clip(start.x,delta.x,left,right,ref enter,ref exit) &&
+                Clip(start.y,delta.y,bottom,top,ref enter,ref exit)?enter:null;
         }
         private static bool Clip(float start,float delta,float min,float max,ref float enter,ref float exit)
         {

@@ -156,10 +156,12 @@ namespace Remains.Gameplay
             if(!LevelActivity.HasConnectedPlayer(session.World,attack.level)) return;
             var definition=WeaponCatalog.Get(attack.weapon);
             if(definition.projectileSpeed>0) return;
-            var terrain=ShotObstacles.FirstContact(geometry.Get(attack.level),attack.Origin,attack.End,out var surface);
+            var terrain=ShotObstacles.FirstContact(geometry.Get(attack.level),attack.Origin,attack.End,out var surface,attack.radius);
             if(terrain.HasValue)
             {
                 var position=Vector2.Lerp(attack.Origin,attack.End,terrain.Value);
+                position=new Vector2(Mathf.Clamp(position.x,surface.x,surface.x+surface.width),
+                    Mathf.Clamp(position.y,surface.y,surface.y+surface.height));
                 if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>SurfaceContactObserved?.Invoke(attack,surface.texture,position));
                 else SurfaceContactObserved?.Invoke(attack,surface.texture,position);
             }

@@ -15,6 +15,14 @@ namespace Remains.Editor
         private const BindingFlags Private=BindingFlags.Instance|BindingFlags.NonPublic;
         public static void Run()
         {
+            var corner=new RoomSurface {x=0,y=0,width=1,height=1};
+            Require(!SurfaceContact.Entry(corner,new Vector2(-.09f,-.09f),new Vector2(-.08f,-.08f),.1f).HasValue,
+                "Квадратное расширение создало ложный контакт за округлым углом.");
+            Require(SurfaceContact.Entry(corner,new Vector2(-.06f,-.06f),new Vector2(-.06f,-.06f),.1f)==0,
+                "Начальное перекрытие округлого угла потеряно.");
+            var grazing=SurfaceContact.Entry(corner,new Vector2(.5f,1.5f),new Vector2(.5f,1.05f),.1f);
+            Require(grazing.HasValue && Mathf.Abs(grazing.Value-8f/9)<.00001f,
+                "Радиус не остановил касание верхнего ребра в правильной точке.");
             var root=new GameObject("Проверка звуков контакта ближнего оружия");
             try
             {
@@ -77,6 +85,12 @@ namespace Remains.Editor
                     Require(Mathf.Abs(source.volume-playback.Volume*gain*attenuation)<.00001f,"Звук стены использует конец взмаха вместо точки контакта.");
                     wall.id+="-miss";wall.originY=wall.endY=3;
                     receive.Invoke(combat,new object[]{wall});Require(audio.Played==expected,"Промах над стеной озвучен как контакт.");
+                    wall.id+="-edge";wall.originY=wall.endY=2.05f;wall.radius=.08f;
+                    receive.Invoke(combat,new object[]{wall});receive.Invoke(combat,new object[]{wall});expected++;
+                    Require(audio.Played==expected,"Касание стены краем оружия пропущено или озвучено дважды.");
+                    wall.id+="-outside";wall.originY=wall.endY=2.1f;
+                    receive.Invoke(combat,new object[]{wall});
+                    Require(audio.Played==expected,"Радиус оружия создал звук за пределами досягаемости.");
                 }
                 Debug.Log("Контакты ближнего оружия: PASS — реальные пересечения, два WAV и уровня, три типа целей, повтор/вторая цель, промах и выключенный FF.");
             }
