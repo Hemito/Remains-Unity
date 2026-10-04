@@ -55,7 +55,8 @@ namespace Remains.Runtime
             value.DamageFeedback.Received+=result=>Record("damage-number-received",result.attack,result.actor);
             value.DamageFeedback.DeliveryMeasured+=(stage,result)=>
             {
-                bool server=stage=="damage-number-relayed" || stage.StartsWith("damage-number-rejected-",StringComparison.Ordinal);
+                bool server=stage=="damage-number-relayed" || stage.StartsWith("damage-number-rejected-",StringComparison.Ordinal) ||
+                    stage.StartsWith("damage-number-arrived-",StringComparison.Ordinal);
                 var target=(server?value.Session.ServerWorld:value.Session.World)?.Find(result.actor);
                 Record(stage,result.attack,result.actor,owner:target?.owner,
                     requestedGeneration:result.generation,targetGeneration:target?.generation??-1);
