@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Mirror;
 using Remains.Domain;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Runtime
@@ -16,7 +17,8 @@ namespace Remains.Runtime
         private float deadline,openedAt=-1;
         private bool installed,opened,requestedOpen,requestedClose,finished;
         private int accepted;
-        private bool capturedOpen;
+        private bool capturedOpen,reinstalled;
+        private DoorLayout authored;
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;
@@ -24,7 +26,7 @@ namespace Remains.Runtime
             value.Session.Doors.Finished+=reply=>{if(reply.accepted) accepted++;else Finish(false,reply.reason);};
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<DoorProbeFinished>(_=>
                 Finish(opened && value.Session.World.doors.Any(d=>d.id==DoorId && !d.open && d.revision==2) &&
-                    (value.Options.Role=="host" || accepted==2) && value.DoorVisuals.SoundChanges==2 && value.DoorVisuals.PlayedSounds==2 &&
+                    (value.Options.Role=="host" || accepted==2) && value.DoorVisuals.SoundChanges==2 && value.DoorVisuals.PlayedSounds==2 && value.Session.World.contentPatches.Contains("probe:doors:v1") &&
                     value.DoorVisuals.Find(DoorId).Artwork.sprite==value.DoorVisuals.Find(DoorId).Definition.Closed,"Открытие и закрытие удалённым участником, обе реплики совпали."));
         }
         private void Update()
@@ -38,8 +40,9 @@ namespace Remains.Runtime
                 var players=session.ServerWorld.actors.Where(a=>a.player && a.connected).ToArray();
                 if(players.Length!=2) return;
                 var remote=players.Single(a=>a.id!=session.LocalActorId);
-                session.ServerWorld.doors.Add(new DoorState {id=DoorId,definition="door1",level=remote.level,
-                    x=remote.x+1.7f,y=remote.y,width=.8f,height=1.6f,surfaceTexture="door:wood"});
+                authored=new DoorLayout {patch="probe:doors:v1",level=remote.level,doors=new[]{new DoorState {id=DoorId,definition="door1",level=remote.level,
+                    x=remote.x+1.7f,y=remote.y,width=.8f,height=1.6f,surfaceTexture="door:wood"}}};
+                DoorContentInstaller.Apply(session.ServerWorld,authored);
                 installed=true;session.CommitWorld();
             }
             var door=session.World.doors.Find(d=>d.id==DoorId);
@@ -55,6 +58,12 @@ namespace Remains.Runtime
             }
             if(runtime.Options.Role=="host")
             {
+                if(opened && !reinstalled)
+                {
+                    reinstalled=true;
+                    if(DoorContentInstaller.Apply(session.ServerWorld,authored) || !session.ServerWorld.doors.Find(d=>d.id==DoorId).open)
+                    {Finish(false,"Повтор расстановки сбросил открытую дверь.");return;}
+                }
                 // Allow the reply, sent after the snapshot, to reach the requesting peer.
                 if(opened && !door.open && door.revision==2 && Time.unscaledTime-openedAt>2)
                     NetworkServer.SendToAll(new DoorProbeFinished());

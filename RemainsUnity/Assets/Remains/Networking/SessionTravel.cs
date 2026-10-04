@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Mirror;
 using Remains.Domain;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Networking
@@ -75,6 +76,8 @@ namespace Remains.Networking
             var reply = new TravelReply { id = request.id, accepted = reason == null, reason = reason };
             if (reply.accepted)
             {
+                var doorLayout=RoomDoorContent.Read(RoomAuthoring.Load(request.destination),request.destination);
+                if(doorLayout!=null) DoorContentInstaller.Apply(session.ServerWorld,doorLayout);
                 TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination));
                 session.CommitWorld();
                 Debug.Log($"Переход подтверждён: actor={actor.id}, request={request.id}, level={actor.level}, lifecycle={actor.lifecycleSequence}.");

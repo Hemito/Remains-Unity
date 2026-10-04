@@ -12,6 +12,23 @@ namespace Remains.Editor
     {
         private const string Folder="Assets/Remains/Resources/Presentation/Doors";
         private const string Draft="Assets/Remains/RoomDrafts/FactoryEntry46.prefab";
+        public static void InstallContentVersion()
+        {
+            var root=PrefabUtility.LoadPrefabContents(Draft);
+            try
+            {
+                if(root.GetComponent<RoomDoorContent>()!=null) throw new InvalidOperationException("Версия дверей уже задана.");
+                root.AddComponent<RoomDoorContent>().Configure("base:factory-entry-46:doors-v1");
+                var layout=RoomDoorContent.Read(root.GetComponent<RoomAuthoring>(),"factory:0");
+                if(layout.doors.Length!=3) throw new InvalidOperationException("Потеряна расстановка трёх дверей.");
+                var world=new Remains.Domain.WorldState();DoorContentInstaller.Apply(world,layout);
+                if(world.doors.Count!=3) throw new InvalidOperationException("Не установлены двери черновика.");
+                PrefabUtility.SaveAsPrefabAsset(root,Draft);AssetDatabase.SaveAssets();
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            ContractChecks.Run();
+            Debug.Log("Расстановка FactoryEntry46: три авторские двери с версией и независимыми состояниями мира.");
+        }
         public static void Import()
         {
             if(AssetDatabase.IsValidFolder(Folder)) throw new InvalidOperationException("Префабы дверей уже существуют; авторские правки не заменены.");

@@ -137,10 +137,15 @@ namespace Remains.Networking
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
             npcHits?.Reset();
-            if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld))
+            var doorLayouts=ServerWorld.actors.Select(a=>a.level).Concat(ServerWorld.containers.Select(c=>c.level))
+                .Concat(ServerWorld.props.Select(p=>p.level)).Append("hub").Distinct()
+                .Select(level=>RoomDoorContent.Read(RoomAuthoring.Load(level),level)).Where(layout=>layout!=null).ToArray();
+            if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld) ||
+                doorLayouts.Any(layout=>DoorContentInstaller.NeedsInstall(ServerWorld,layout)))
             {
                 if(source!=null) Debug.Log("Сохранена копия мира перед обновлением базового контента: "+Saves.PreserveRecoverySource());
                 HubTrainingContent.Install(ServerWorld);FactoryRaiderContent.Install(ServerWorld);
+                foreach(var layout in doorLayouts) DoorContentInstaller.Apply(ServerWorld,layout);
             }
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             WorldHistory.BeginContinuation(ServerWorld);

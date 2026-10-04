@@ -58,6 +58,11 @@ namespace Remains.Content
             inputs.Add("Content/prototype-room",Remains.Serialization.StateJson.ToJson(RoomAuthoring.Load("factory:0").CreateLayout(includeArtwork:false)));
             inputs.Add("Content/prototype-hub",Remains.Serialization.StateJson.ToJson(RoomAuthoring.Load("hub").CreateLayout(includeArtwork:false)));
             inputs.Add("Content/hub-training",Remains.Serialization.StateJson.ToJson(HubTrainingContent.ReadLayout()));
+            foreach(string level in new[]{"hub","factory:0"})
+            {
+                var doors=RoomDoorContent.Read(RoomAuthoring.Load(level),level);
+                if(doors!=null) inputs.Add("Content/doors/"+level,Remains.Serialization.StateJson.ToJson(doors));
+            }
             var entities=EntityAssetCatalog.Load();
             inputs.Add("Content/actors",entities.ActorsJson());inputs.Add("Content/props",entities.PropsJson());
             inputs.Add("Original/Weapons/artwork",WeaponRigs.ManifestJson());
