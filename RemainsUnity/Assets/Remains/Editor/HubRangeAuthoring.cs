@@ -11,6 +11,7 @@ namespace Remains.Editor
     // Explicit editor migration. The resulting room is an ordinary editable prefab.
     public static class HubRangeAuthoring
     {
+        public static void ApplyBackgroundLightingAndBuild() {ApplyBackgroundLighting();PrototypeBuild.Build();}
         public static void ApplyBackgroundLighting()
         {
             const string path="Assets/Remains/Resources/Levels/hub.prefab";
@@ -23,7 +24,8 @@ namespace Remains.Editor
                 foreach(var light in root.GetComponentsInChildren<RoomLightAuthoring>())
                 {
                     var data=light.Read(room);
-                    if(data.id=="hall-0" || data.id=="hall-1" || data.id=="hall-2") {light.SetBackgroundIntensity(.05f);fills++;}
+                    if(data.id=="hall-0" || data.id=="hall-1" || data.id=="hall-2")
+                    {light.SetBackgroundIntensity(data.id=="hall-0"?.01f:.05f);fills++;}
                 }
                 foreach(var art in root.GetComponentsInChildren<RoomArtworkAuthoring>())
                 {
