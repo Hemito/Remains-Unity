@@ -34,6 +34,12 @@ namespace Remains.Editor
             Require(room==RoomCatalogAsset.Load().Resolve("base:factory-entry-46"),"Снимок потерял выбор комнаты.");
             var layout=RoomLayout.Load("factory:0",restored);var old=RoomLayout.Load("factory:0",legacy);
             Require(layout.right==38.4f && layout.top==20 && old.left==-10 && old.right==12,"Смешаны геометрии старого и нового заводов.");
+            var falling=new ActorState {x=19,y=5.6f,vx=4.2f,vy=-2};
+            Require(!ActorPositionRecovery.Repair(falling,layout,"спуск у лестницы") && falling.y==5.6f && falling.vy==-2,
+                "Допустимое падение под перекрытием запустило восстановление.");
+            falling.y=-1;
+            Require(ActorPositionRecovery.Repair(falling,layout,"выход за нижнюю границу") && Mathf.Abs(falling.y-.8f)<.001f,
+                "Восстановление пропустило нижнюю одностороннюю платформу.");
             var actor=new ActorState();TravelRules.Apply(actor,"factory:0",layout);
             Require(actor.x==layout.spawnX && actor.y==layout.spawnY,"Вход использует координаты другой комнаты.");
             RoomContentInstaller.Apply(restored,RoomContentBatch.Read(room,"factory:0"));

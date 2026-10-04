@@ -19,7 +19,7 @@ namespace Remains.Runtime
         private readonly HashSet<int> ready=new();
         private int phase;
         private float deadline,entered,xStart,distance;
-        private bool finished;
+        private bool finished,doorRequested,containerRequested,doorOpened,containerOpened;
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+55;
@@ -32,15 +32,15 @@ namespace Remains.Runtime
                 world.rooms.Add(new WorldRoom {level="factory:0",definition="base:factory-entry-46"});
                 value.Session.Saves.SaveWorld(world);
             }
-            value.CommandSource=()=>phase==2?new PlayerCommand {movement=Vector2.right}:default;
+            value.CommandSource=Command;
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<FactoryRoomReady>((connection,_)=>
             {if(value.Session.ConnectedActor(connection)?.level=="hub") ready.Add(connection.connectionId);});
-            value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<FactoryRoomFinished>(_=>Finish(phase==4,"Вход, движение, контент и возврат обоих участников."));
+            value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<FactoryRoomFinished>(_=>Finish(phase==4 && doorOpened && containerOpened,"Вход, движение, дверь через E, окно контейнера через E и возврат обоих участников."));
         }
         private void Update()
         {
             if(finished) return;
-            if(Time.unscaledTime>deadline) {Finish(false,"Таймаут проверки новой комнаты.");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут новой комнаты: phase={phase}, position={runtime.Session.LocalActor?.Position}.");return;}
             var session=runtime.Session;var actor=session.LocalActor;
             if(actor==null) return;
             if(phase==0)
@@ -64,6 +64,10 @@ namespace Remains.Runtime
                 if(distance<1 || actor.down || actor.y<0) {Finish(false,"Обычное движение у входа не выполнено.");return;}
                 phase=5;
             }
+            else if(phase==6 && actor.x>=18.9f) phase=7;
+            else if(phase==7 && actor.y<1.1f) phase=8;
+            else if(phase==8 && Door.open) {doorOpened=true;phase=9;}
+            else if(phase==9 && runtime.Hud.ContainerOpen) {containerOpened=true;phase=10;}
             else if(phase==3 && actor.level=="hub" && !session.Travel.Pending)
             {
                 phase=4;NetworkClient.Send(new FactoryRoomReady());
@@ -73,21 +77,53 @@ namespace Remains.Runtime
                 ready.Clear();NetworkServer.SendToAll(new FactoryRoomFinished());
             }
         }
+        private DoorState Door=>runtime.Session.World.doors.Single(d=>d.level=="factory:0" && d.definition=="door3");
+        private PlayerCommand Command()
+        {
+            var actor=runtime.Session.LocalActor;if(actor==null || finished) return default;
+            if(phase==2 || phase==6) return new PlayerCommand {movement=Vector2.right};
+            if(phase==8)
+            {
+                if(actor.x>10.4f) return new PlayerCommand {movement=Vector2.left};
+                if(runtime.Options.Role=="host" && !doorRequested && !Door.open)
+                {
+                    var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules);
+                    if(target.kind!=InteractionKind.Door || target.id!=Door.id) {Finish(false,"У двери E выбирает другой объект.");return default;}
+                    doorRequested=true;return new PlayerCommand {interact=true};
+                }
+            }
+            if(phase==9)
+            {
+                var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules);
+                if(target.kind==InteractionKind.Container && !containerRequested)
+                {containerRequested=true;return new PlayerCommand {interact=true};}
+                if(!containerRequested) return new PlayerCommand {movement=Vector2.left};
+            }
+            return default;
+        }
         private void LateUpdate()
         {
             // Capture after all pose/camera updates, before requesting another scene.
-            if(finished || phase!=5) return;
-            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".factory.png",runtime.Hud?.GetComponent<Canvas>());
-            phase=3;runtime.Session.Travel.RequestHub();
+            if(finished) return;
+            if(phase==5)
+            {
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".factory.png",runtime.Hud?.GetComponent<Canvas>());
+                phase=6;
+            }
+            else if(phase==10)
+            {
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".container.png",runtime.Hud.GetComponent<Canvas>());
+                runtime.Hud.CloseContainer();phase=3;runtime.Session.Travel.RequestHub();
+            }
         }
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,distance=distance},true));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,distance=distance,doorOpened=doorOpened,containerOpened=containerOpened},true));
             exitCode=success?0:1;Invoke(nameof(Exit),3);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public float distance;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public float distance;public bool doorOpened,containerOpened;}
     }
 }

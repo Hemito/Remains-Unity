@@ -9,11 +9,11 @@ namespace Remains.Domain
         {
             bool finite=float.IsFinite(actor.x) && float.IsFinite(actor.y) && float.IsFinite(actor.vx) && float.IsFinite(actor.vy);
             float x=finite?Mathf.Clamp(actor.x,room.left,room.right):room.spawnX;
-            if(!RoomSupport.TryLowestFloor(room,x,out float floor))
-                throw new InvalidOperationException($"Нет нижнего пола для восстановления: actor={actor.id}, room={room.id}, x={x}, context={context}.");
             bool outsideX=!finite || actor.x<room.left || actor.x>room.right;
-            bool belowFloor=!finite || actor.y<floor-RoomSupport.ContactTolerance;
+            bool belowFloor=!finite || actor.y<room.bottom-RoomSupport.ContactTolerance;
             if(!outsideX && !belowFloor) return false;
+            if(!RoomSupport.TryLowestFloor(room,x,out float floor,includeOneWay:true))
+                throw new InvalidOperationException($"Нет нижнего пола для восстановления: actor={actor.id}, room={room.id}, x={x}, context={context}.");
             var oldPosition=actor.Position;
             var oldVelocity=actor.Velocity;
             actor.x=x;actor.y=floor;actor.vx=actor.vy=0;

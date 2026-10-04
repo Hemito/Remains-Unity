@@ -28,11 +28,11 @@ namespace Remains.Domain
             return !float.IsNegativeInfinity(height);
         }
 
-        public static bool TryLowestFloor(RoomLayout room,float x,out float height)
+        public static bool TryLowestFloor(RoomLayout room,float x,out float height,bool includeOneWay=false)
         {
             height=float.PositiveInfinity;
             foreach(var surface in room.platforms)
-                if(!surface.oneWay && ContainsX(surface,x)) height=Mathf.Min(height,surface.y+surface.height);
+                if((includeOneWay || !surface.oneWay) && ContainsX(surface,x)) height=Mathf.Min(height,surface.y+surface.height);
             return !float.IsPositiveInfinity(height);
         }
     }
