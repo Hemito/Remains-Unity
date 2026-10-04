@@ -53,7 +53,27 @@ namespace Remains.Runtime
             if(store.Continuations().Count!=5 || store.Continuations().Any(x=>x.WorldId==lastWorld) ||
                 picker.Page.text!="1 / 1" || picker.Next.interactable || picker.Choices.Count(x=>x.gameObject.activeSelf)!=5)
             {Finish(false,"После удаления последней записи страница не вернулась к пяти оставшимся мирам.");yield break;}
-            yield return UiPointerProbe.Click(Button("Закрыть"));
+            // Deleting the last page may also delete the selected world; select a known baseline through the UI.
+            yield return UiPointerProbe.Click(runtime.Hud.WorldChoiceRect(store.Continuations()[1].Id));
+            yield return UiPointerProbe.Click(runtime.Hud.WorldPickerButtonRect);
+            // Damage only the isolated archived payload after the picker has read valid choices.
+            var rejected=store.Continuations()[0];
+            string archive=Path.Combine(store.DirectoryPath,"Worlds",rejected.WorldId,"Snapshots",rejected.Id+".json");
+            string preservedArchive=File.ReadAllText(archive);
+            string selectedBefore=File.ReadAllText(Path.Combine(store.DirectoryPath,"world.json"));
+            File.WriteAllText(archive,"invalid-test-snapshot");
+            yield return UiPointerProbe.Click(runtime.Hud.WorldChoiceRect(rejected.Id));
+            File.WriteAllText(archive,preservedArchive);
+            var menu=runtime.Hud.GetComponentInChildren<Remains.Presentation.MainMenuView>();
+            if(runtime.Hud.GetComponentInChildren<Remains.Presentation.WorldPickerView>()!=null ||
+                !menu.Notice.text.StartsWith("Не удалось выбрать мир:") || !menu.Notice.gameObject.activeInHierarchy ||
+                File.ReadAllText(Path.Combine(store.DirectoryPath,"world.json"))!=selectedBefore)
+            {Finish(false,"Ошибка выбора мира не показана или заменила выбранное сохранение.");yield break;}
+            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".selection-error.png",runtime.Hud.GetComponent<Canvas>());
+            yield return UiPointerProbe.Click(runtime.Hud.WorldPickerButtonRect);
+            yield return UiPointerProbe.Click(runtime.Hud.WorldChoiceRect(rejected.Id));
+            if(store.SelectedSnapshot().Id!=rejected.Id || !string.IsNullOrEmpty(menu.Notice.text))
+            {Finish(false,"Повторный выбор исправной копии не работает после ошибки.");yield break;}
             var old=new WorldState();store.SaveWorld(old);
             yield return UiPointerProbe.Click(Button("Новая игра"));
             while(runtime.Session.LocalActor==null && !finished) yield return null;

@@ -254,7 +254,17 @@ namespace Remains.Presentation
                     WorldHistory.Compare(state,copy.Id,selected.CreateLiveWorld(),selected.Id));
                 var choice=view.Choices[row];
                 view.ShowChoice(row,new WorldLibrary(session.Saves).Name(state.worldId),state.branchId,state.revision,relation,selected?.Id==copy.Id);
-                choice.onClick.AddListener(()=>{session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();});
+                choice.onClick.AddListener(()=>
+                {
+                    try {session.Saves.SelectContinuation(copy);Destroy(worldPicker);RefreshSelectedWorld();ShowMessage("");}
+                    catch(Exception error)
+                    {
+                        // Return to the menu so its notice is not obscured by the picker.
+                        Destroy(worldPicker);
+                        ShowMessage("Не удалось выбрать мир: сохранение недоступно или повреждено.\nПодробности — в журнале игры. Можно выбрать другой мир.");
+                        Debug.LogError($"Выбор мира {state.worldId}, снимок {copy.Id}: {error}");
+                    }
+                });
                 worldChoices[copy.Id]=choice.GetComponent<RectTransform>();
                 view.Manage[row].onClick.AddListener(()=>
                     WorldManagementPanel.Open(transform,session.Saves,state.worldId,()=>{ShowWorldPicker(page);RefreshSelectedWorld();}));
