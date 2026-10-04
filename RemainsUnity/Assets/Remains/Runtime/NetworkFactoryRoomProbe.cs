@@ -19,6 +19,9 @@ namespace Remains.Runtime
         private readonly HashSet<int> ready=new();
         private int phase;
         private float deadline,entered,xStart,distance;
+        private string claimedItem,claimedDefinition,claimedContainer;
+        private int claimedCount,inventoryBefore;
+        private bool lootVerified;
         private bool finished,doorRequested,containerRequested,doorOpened,containerOpened;
         public void Initialize(PrototypeRuntime value)
         {
@@ -28,14 +31,14 @@ namespace Remains.Runtime
             if(value.Options.Role=="host")
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка нового завода не заменяет существующий мир.");
-                var world=new WorldState();
+                var world=new WorldState {worldId="2bbb03303d6848758e98eb9a573eac8d"};
                 world.rooms.Add(new WorldRoom {level="factory:0",definition="base:factory-entry-46"});
                 value.Session.Saves.SaveWorld(world);
             }
             value.CommandSource=Command;
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<FactoryRoomReady>((connection,_)=>
             {if(value.Session.ConnectedActor(connection)?.level=="hub") ready.Add(connection.connectionId);});
-            value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<FactoryRoomFinished>(_=>Finish(phase==4 && doorOpened && containerOpened,"Вход, движение, дверь через E, окно контейнера через E и возврат обоих участников."));
+            value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<FactoryRoomFinished>(_=>Finish(phase==4 && doorOpened && containerOpened && (runtime.Options.Role!="host" || lootVerified),"Вход, движение, дверь через E, окно контейнера через E и возврат обоих участников."));
         }
         private void Update()
         {
@@ -68,8 +71,23 @@ namespace Remains.Runtime
             else if(phase==7 && actor.y<1.1f) phase=8;
             else if(phase==8 && Door.open) {doorOpened=true;phase=9;}
             else if(phase==9 && runtime.Hud.ContainerOpen) {containerOpened=true;phase=10;}
+            else if(phase==11)
+            {
+                var source=session.World.containers.Single(c=>c.id==claimedContainer);
+                if(source.items.Any(i=>i.id==claimedItem) || session.World.pendingGrants.Any(g=>g.containerId==claimedContainer)) return;
+                if(InventoryJournal.Count(actor,claimedDefinition)!=inventoryBefore+claimedCount)
+                {Finish(false,"Подтверждённый лут не совпал с изменением личного инвентаря.");return;}
+                lootVerified=true;runtime.Hud.CloseContainer();phase=3;session.Travel.RequestHub();
+            }
             else if(phase==3 && actor.level=="hub" && !session.Travel.Pending)
             {
+                if(runtime.Options.Role=="host")
+                {
+                    var saved=session.Saves.LoadWorld(false);
+                    if(!lootVerified || saved.containers.Single(c=>c.id==claimedContainer).items.Any(i=>i.id==claimedItem) ||
+                        InventoryJournal.Count(saved.Find(actor.id),claimedDefinition)!=inventoryBefore+claimedCount)
+                    {Finish(false,"После возврата сохранение потеряло результат подбора.");return;}
+                }
                 phase=4;NetworkClient.Send(new FactoryRoomReady());
             }
             if(runtime.Options.Role=="host" && ready.Count==runtime.Options.ProbePeers)
@@ -113,17 +131,25 @@ namespace Remains.Runtime
             else if(phase==10)
             {
                 NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".container.png",runtime.Hud.GetComponent<Canvas>());
-                runtime.Hud.CloseContainer();phase=3;runtime.Session.Travel.RequestHub();
+                if(runtime.Options.Role=="host")
+                {
+                    var source=runtime.Session.World.containers.Single(c=>c.id==runtime.Hud.ShownInventorySourceId);
+                    if(source.items.Count==0) {Finish(false,"Фиксированный тестовый мир не создал лут в исходном ящике.");return;}
+                    var item=source.items[0];claimedItem=item.id;claimedDefinition=item.definition;claimedCount=item.count;claimedContainer=source.id;
+                    inventoryBefore=InventoryJournal.Count(runtime.Session.LocalActor,item.definition);
+                    phase=11;StartCoroutine(UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0)));
+                }
+                else {runtime.Hud.CloseContainer();phase=3;runtime.Session.Travel.RequestHub();}
             }
         }
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,distance=distance,doorOpened=doorOpened,containerOpened=containerOpened},true));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,distance=distance,doorOpened=doorOpened,containerOpened=containerOpened,lootVerified=lootVerified,claimedCount=claimedCount},true));
             exitCode=success?0:1;Invoke(nameof(Exit),3);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public float distance;public bool doorOpened,containerOpened;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public float distance;public bool doorOpened,containerOpened,lootVerified;public int claimedCount;}
     }
 }
