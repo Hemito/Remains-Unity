@@ -31,7 +31,7 @@ namespace Remains.Networking
         }
         public bool Request(string containerId,string itemId,int quantity=0)
         {
-            var actor=session.LocalActor;var item=actor?.inventory.Find(i=>i.id==itemId);
+            var actor=session.LocalActor;var item=InventoryStacks.Find(actor,itemId);
             var container=InventorySource.Resolve(session.World,containerId);
             if(actor==null || item==null || container==null || !NetworkClient.isConnected) return false;
             if(session.Pause.IsPaused(actor.level)) {session.ShowNotice(InventoryTransactions.PausedReason);return false;}
@@ -39,7 +39,7 @@ namespace Remains.Networking
             string reason=amount<=0 || amount>InventoryAvailability.Count(actor,item)?"Это количество уже зарезервировано или недоступно.":
                 session.Rules.Deposit.AccessRejection(new LootAccessContext(actor,container))??session.Rules.Deposit.Rejection(new DepositContext(actor,container,item,amount));
             if(reason!=null) {session.ShowNotice(reason);return false;}
-            var request=new DepositRequest {transaction=Guid.NewGuid().ToString("N"),container=containerId,item=itemId,quantity=amount,generation=actor.generation,lifecycle=actor.lifecycleSequence};
+            var request=new DepositRequest {transaction=Guid.NewGuid().ToString("N"),container=containerId,item=item.id,quantity=amount,generation=actor.generation,lifecycle=actor.lifecycleSequence};
             // Publish prior client debits before the reservation on the same reliable channel.
             session.PublishActor(actor);requests.Add(request.transaction,request);Reconcile();
             NetworkClient.Send(request);nextRetry=Time.unscaledTime+2;
@@ -62,8 +62,9 @@ namespace Remains.Networking
                 {requests.Remove(pair.Key);session.ShowNotice("Внесение в контейнер сохранено.");continue;}
                 // Once the canonical debit arrived, the remainder is safe to spend.
                 if(actor.inventoryUses.Any(use=>use.id==pair.Key)) continue;
-                actor.inventoryReservations.TryGetValue(pair.Value.item,out int existing);
-                actor.inventoryReservations[pair.Value.item]=existing+pair.Value.quantity;
+                string item=InventoryStacks.ResolveId(actor.inventoryAliases,pair.Value.item);
+                actor.inventoryReservations.TryGetValue(item,out int existing);
+                actor.inventoryReservations[item]=existing+pair.Value.quantity;
             }
             Reconciled?.Invoke();
         }

@@ -23,7 +23,7 @@ namespace Remains.Domain
                 use.debits.Add(new ItemDebit {item=item.id,count=take});remaining-=take;
                 if(remaining==0) break;
             }
-            if(!Apply(actor.inventory,use)) return false;
+            if(!Apply(actor.inventory,actor.inventoryAliases,use)) return false;
             actor.inventoryUses.Add(use);
             return true;
         }
@@ -31,10 +31,10 @@ namespace Remains.Domain
         public static bool Debit(ActorState actor,string transaction,string item,int count)
         {
             if(string.IsNullOrEmpty(transaction) || actor.inventoryUses.Exists(use=>use.id==transaction)) return false;
-            var source=actor.inventory.Find(i=>i.id==item);
+            var source=InventoryStacks.Find(actor,item);
             if(source==null || InventoryAvailability.Count(actor,source)<count) return false;
             var use=new InventoryUse {id=transaction,debits=new List<ItemDebit> {new() {item=item,count=count}}};
-            if(!Apply(actor.inventory,use)) return false;
+            if(!Apply(actor.inventory,actor.inventoryAliases,use)) return false;
             actor.inventoryUses.Add(use);return true;
         }
 
@@ -48,22 +48,23 @@ namespace Remains.Domain
             {
                 if(string.IsNullOrEmpty(use.id)) return false;
                 if(!accepted.Add(use.id)) continue;
-                if(!Apply(inventory,use)) return false;
+                if(!Apply(inventory,authoritative.inventoryAliases,use)) return false;
                 uses.Add(use);
             }
             return WeaponItemReplication.Merge(inventory,owner.inventory);
         }
 
-        private static bool Apply(List<ItemStack> inventory,InventoryUse use)
+        private static bool Apply(List<ItemStack> inventory,Dictionary<string,string> aliases,InventoryUse use)
         {
             if(use.debits==null || use.debits.Count==0) return false;
             var totals=new Dictionary<string,int>();
             foreach(var debit in use.debits)
             {
                 if(string.IsNullOrEmpty(debit.item) || debit.count<=0) return false;
-                totals.TryGetValue(debit.item,out int previous);
+                string current=InventoryStacks.ResolveId(aliases,debit.item);
+                totals.TryGetValue(current,out int previous);
                 if(debit.count>int.MaxValue-previous) return false;
-                totals[debit.item]=previous+debit.count;
+                totals[current]=previous+debit.count;
             }
             foreach(var pair in totals)
                 if(inventory.Find(i=>i.id==pair.Key) is not { } item || item.count<pair.Value) return false;

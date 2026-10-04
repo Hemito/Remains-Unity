@@ -23,6 +23,9 @@ namespace Remains.Runtime
                 world.actors.Add(npc);
             }
             var container=new ContainerState();world.containers.Add(container);
+            // The old container position overlaps the subsequently authored exit.
+            // UI transaction probes need an independently reachable E target.
+            if(options.Smoke.StartsWith("container")) container.x=1;
             container.items.Add(SharedInventory.Create("caps",20));
             container.items.Add(SharedInventory.Create("heal",3));
             container.items.Add(SharedInventory.Create("grenade",3));

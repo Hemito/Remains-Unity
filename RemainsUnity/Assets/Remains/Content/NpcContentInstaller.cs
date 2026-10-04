@@ -25,7 +25,10 @@ namespace Remains.Content
                 var existing=world.actors.FindAll(a=>a.id==actor.id);
                 if(existing.Count>1 || existing.Count==1 && (existing[0].player || existing[0].actorType!=actor.actorType || existing[0].level!=actor.level))
                     throw new InvalidOperationException("Конфликт сохранённого NPC: "+actor.id);
-                if(existing.Count==0) additions.Add(actor.Copy());
+                if(existing.Count==0)
+                {
+                    var added=actor.Copy();InventoryStacks.Consolidate(added.inventory,added.inventoryAliases);additions.Add(added);
+                }
             }
             if(world.revision==long.MaxValue) throw new InvalidOperationException("Исчерпан счётчик мира при установке NPC.");
             world.actors.AddRange(additions);world.contentPatches.Add(layout.patch);world.revision++;

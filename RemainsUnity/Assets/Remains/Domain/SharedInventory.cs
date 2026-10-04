@@ -17,7 +17,7 @@ namespace Remains.Domain
             reason="Операция подбора уже обработана или не имеет ID.";
             if(InventoryTransactions.Contains(world,transaction)) return false;
             if(levelPaused) {reason=InventoryTransactions.PausedReason;return false;}
-            var item = container?.items.Find(candidate => candidate.id == itemId);
+            var item = container?.Find(itemId);
             reason=ContainerAccess.ClaimRejection(recipient,container,item,rule,quantity);
             if(reason!=null) return false;
             int amount=quantity==0?item.count:quantity;
@@ -34,7 +34,7 @@ namespace Remains.Domain
             var recipient=world.Find(grant.recipient);
             if(!world.completedTransactions.Contains(grant.transaction))
             {
-                if(recipient!=null) {recipient.inventory.Add(grant.item);recipient.revision++;}
+                if(recipient!=null) {InventoryStacks.Add(recipient,grant.item);recipient.revision++;}
                 else
                 {
                     var container=InventorySource.Resolve(world,grant.containerId);
@@ -50,12 +50,13 @@ namespace Remains.Domain
 
         public static bool Consume(ActorState actor, string definition,string itemId=null)
         {
-            var item = actor.inventory.Find(candidate => candidate.definition == definition && (itemId==null || candidate.id==itemId) && InventoryAvailability.Count(actor,candidate)>0);
+            string current=InventoryStacks.ResolveId(actor.inventoryAliases,itemId);
+            var item = actor.inventory.Find(candidate => candidate.definition == definition && (itemId==null || candidate.id==current) && InventoryAvailability.Count(actor,candidate)>0);
             if (item == null) return false;
             if (--item.count == 0)
             {
                 actor.inventory.Remove(item);
-                if(actor.weaponInventoryVersion==1 && actor.equippedWeaponItem==item.id)
+                if(actor.weaponInventoryVersion==1 && InventoryStacks.ResolveId(actor.inventoryAliases,actor.equippedWeaponItem)==item.id)
                     WeaponInventory.Select(actor,null,out _);
             }
             return true;

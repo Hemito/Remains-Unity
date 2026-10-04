@@ -90,7 +90,7 @@ namespace Remains.Presentation
             view.ScrollRows+=Scroll;
             use.onClick.AddListener(()=>
             {
-                var actor=session.LocalActor;var item=actor?.inventory.Find(value=>value.id==selected);
+                var actor=session.LocalActor;var item=InventoryStacks.Find(actor,selected);
                 if(WeaponInventory.IsEquippable(item))
                 {
                     if(this.equipItem==null) throw new InvalidOperationException("Не подключён выбор экземпляра оружия в инвентаре.");
@@ -115,7 +115,8 @@ namespace Remains.Presentation
             for(int i=0;i<weaponButtons.Length;i++)
             {
                 bool instances=actor?.weaponInventoryVersion==1;
-                var chosenWeapon=actor?.inventory.Find(item=>item.id==selected && WeaponInventory.IsEquippable(item));
+                var chosenWeapon=InventoryStacks.Find(actor,selected);
+                if(!WeaponInventory.IsEquippable(chosenWeapon)) chosenWeapon=null;
                 OriginalButtonStyle.SetSelected(weaponButtons[i],instances?chosenWeapon!=null && WeaponInventory.Shortcut(actor,(i+1).ToString())?.id==selected:actor?.weapon==weapons[i]);
                 weaponButtons[i].interactable=actor is {down:false} && (!instances || chosenWeapon!=null);
                 weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"Клавиша {i+1}":legacyLabels[i];
@@ -127,7 +128,7 @@ namespace Remains.Presentation
             scrollbar.SetValueWithoutNotify(count>rows.Length?firstVisibleRow/(float)(count-rows.Length):0);
             previous.interactable=firstVisibleRow>0;next.interactable=firstVisibleRow+rows.Length<count;
             title.text=count==0?"Инвентарь · пусто":$"Инвентарь · {firstVisibleRow+1}–{Math.Min(count,firstVisibleRow+rows.Length)}/{count}";
-            var chosen=actor?.inventory.Find(item=>item.id==selected);
+            var chosen=InventoryStacks.Find(actor,selected);
             if(chosen==null) selected=null;
             for(int i=0;i<rows.Length;i++)
             {

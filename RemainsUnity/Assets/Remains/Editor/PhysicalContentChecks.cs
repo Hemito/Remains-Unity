@@ -30,6 +30,14 @@ namespace Remains.Editor
             conflict=new WorldState();var actor=new ActorState {id="player"};actor.inventory.Add(container.items[0].Copy());conflict.actors.Add(actor);
             RejectUnchanged(conflict,layout);
             container.items.Add(container.items[0].Copy());RejectUnchanged(new WorldState(),layout);container.items.RemoveAt(1);
+            container.items.Add(new ItemStack {id="test:absorbed",definition="medkit",count=2});
+            conflict=new WorldState();actor=new ActorState {id="player"};
+            actor.inventory.Add(container.items[1].Copy());conflict.actors.Add(actor);
+            RejectUnchanged(conflict,layout);
+            var merged=new WorldState();PhysicalContentInstaller.Apply(merged,layout);
+            Require(merged.containers[0].items.Count==1 && merged.containers[0].items[0].count==5 &&
+                InventoryStacks.Find(merged.containers[0].items,merged.containers[0].itemAliases,"test:absorbed").count==5,
+                "Начальные одинаковые предметы не объединились после проверки их ID.");
             Debug.Log("Физическая расстановка: PASS — сохранение перемещения и пустого контейнера, отсутствие повторного лута, удаление, атомарный отказ конфликтов.");
         }
         private static void RejectUnchanged(WorldState world,PhysicalLayout layout)

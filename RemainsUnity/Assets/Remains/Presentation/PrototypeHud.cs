@@ -225,7 +225,12 @@ namespace Remains.Presentation
             var actor = session.LocalActor;
             mainMenu.Root.SetActive(actor==null);
             string version=actor==null?null:$"{actor.id}:{actor.generation}:{actor.lifecycleSequence}";
-            if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);openContainerId=null;containerWindow.gameObject.SetActive(false);}
+            if(inventoryActorVersion!=version)
+            {
+                if(inventory.activeSelf || ContainerOpen)
+                    Debug.Log($"Окна инвентаря закрыты при смене состояния персонажа: прежнее={inventoryActorVersion}, текущее={version}, container={openContainerId}.");
+                inventoryActorVersion=version;inventory.SetActive(false);openContainerId=null;containerWindow.gameObject.SetActive(false);
+            }
             bool gameplayVisible=actor!=null && !inventory.activeSelf && !WorldMap.IsOpen;
             status.transform.parent.gameObject.SetActive(gameplayVisible);
             combatHud.Refresh(actor,gameplayVisible && !PauseMenu.IsOpen,ReloadRemaining?.Invoke());quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);

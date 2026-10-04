@@ -25,7 +25,7 @@ namespace Remains.Domain
             {
                 if(string.IsNullOrEmpty(definition.ammo) || Magazine(actor,definition.id)!=null) continue;
                 actor.magazines.Add(new WeaponMagazine {weapon=definition.id,rounds=starter?definition.magazineSize:0});
-                if(starter) actor.inventory.Add(SharedInventory.Create(definition.ammo,definition.magazineSize*3));
+                if(starter) InventoryStacks.Add(actor,SharedInventory.Create(definition.ammo,definition.magazineSize*3));
             }
             actor.loadoutVersion=1;
         }

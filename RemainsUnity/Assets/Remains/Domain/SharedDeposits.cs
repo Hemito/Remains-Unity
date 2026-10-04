@@ -40,7 +40,7 @@ namespace Remains.Domain
             reason="Отправитель или контейнер больше недоступен.";
             var destination=InventorySource.Resolve(world,containerId);
             if(source==null || world.Find(source.id)!=source || destination==null) return false;
-            var item=source.inventory.Find(i=>i.id==itemId);
+            var item=InventoryStacks.Find(source,itemId);
             reason="Указанное количество недоступно. Обновите выбор.";
             if(item==null || item.count<=0 || quantity<0 || quantity>item.count) return false;
             int amount=quantity==0?item.count:quantity;
@@ -63,7 +63,7 @@ namespace Remains.Domain
             if(cancel)
             {
                 var source=world.Find(pending.source)??throw new InvalidOperationException($"Нет отправителя резерва: transaction={transaction}, actor={pending.source}.");
-                source.inventory.Add(pending.item);source.revision++;
+                InventoryStacks.Add(source,pending.item);source.revision++;
             }
             else
             {

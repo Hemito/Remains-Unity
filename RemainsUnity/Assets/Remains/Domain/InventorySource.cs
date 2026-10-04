@@ -17,6 +17,8 @@ namespace Remains.Domain
         public float? Mass=>Body==null?container.mass:null;
         public Vector2 Position=>Body==null?container.Position:Body.Position;
         public List<ItemStack> items=>Body==null?container.items:Body.inventory;
+        public Dictionary<string,string> Aliases=>Body==null?container.itemAliases:Body.inventoryAliases;
+        public ItemStack Find(string item)=>InventoryStacks.Find(items,Aliases,item);
         public static string BodyId(string actor)=>BodyPrefix+actor;
         public static implicit operator InventorySource(ContainerState value)=>value==null?null:new(value);
         public static InventorySource Resolve(WorldState world,string id)
@@ -48,6 +50,6 @@ namespace Remains.Domain
             else {if(item.count==count) items.Remove(item);else item.count-=count;}
             reserved=copy;return true;
         }
-        public void Add(ItemStack item) {items.Add(item);if(Body!=null) Body.revision++;}
+        public void Add(ItemStack item) {InventoryStacks.Add(items,Aliases,item);if(Body!=null) Body.revision++;}
     }
 }

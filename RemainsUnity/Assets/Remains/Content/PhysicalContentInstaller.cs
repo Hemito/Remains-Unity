@@ -25,7 +25,8 @@ namespace Remains.Content
                 binding.table.Validate();
                 var targets=layout.containers.Where(c=>c!=null && c.id==binding.container).ToArray();
                 if(targets.Length!=1 || targets[0].items==null) throw new InvalidOperationException("Нет единственного контейнера таблицы лута: "+binding.container);
-                if(!world.containers.Exists(c=>c.id==binding.container)) targets[0].items.AddRange(binding.table.Generate(world.worldId,binding.container));
+                if(!world.containers.Exists(c=>c.id==binding.container))
+                    targets[0].items.AddRange(binding.table.Generate(world.worldId,binding.container));
             }
             var ids=new HashSet<string>(StringComparer.Ordinal);var itemIds=new HashSet<string>(StringComparer.Ordinal);
             var props=new List<PropState>();var containers=new List<ContainerState>();
@@ -58,7 +59,12 @@ namespace Remains.Content
                     foreach(var item in ((ContainerState)entry).items)
                         if(world.containers.Any(c=>c.items.Any(i=>i.id==item.id)) || world.actors.Any(a=>a.inventory.Any(i=>i.id==item.id)))
                             throw new InvalidOperationException("Начальный предмет уже существует в мире: "+item.id);
-                if(container) containers.Add(StateJson.Copy((ContainerState)entry));
+                if(container)
+                {
+                    var source=(ContainerState)entry;
+                    InventoryStacks.Consolidate(source.items,source.itemAliases);
+                    containers.Add(StateJson.Copy(source));
+                }
                 else props.Add(StateJson.Copy(entry));
             }
             if(world.revision==long.MaxValue) throw new InvalidOperationException("Исчерпан счётчик мира при установке объектов.");

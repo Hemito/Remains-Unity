@@ -44,6 +44,7 @@ namespace Remains.Editor
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();
             WeaponInventoryChecks.Run();
+            InventoryStackChecks.Run();
             WeaponInventoryMigrationChecks.Run();
             WeaponInventoryUiChecks.Run();
             InventoryPauseChecks.Run();

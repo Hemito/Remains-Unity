@@ -58,6 +58,7 @@ namespace Remains.Runtime
             world.containers.Count(c=>c.level=="factory:0")==1 && world.actors.Count(a=>a.id==BodyId)==1 &&
             (!RemoteRace || InventoryJournal.Count(world.Find("player:session-host"),"grenade")==5) &&
             world.actors.Where(a=>a.player).All(a=>InventoryJournal.Count(a,"p10")==36 && InventoryJournal.Count(a,"batt")==45) &&
+            world.actors.All(a=>!InventoryStacks.NeedsConsolidation(a.inventory)) && world.containers.All(c=>!InventoryStacks.NeedsConsolidation(c.items)) &&
             world.actors.SelectMany(a=>a.inventory).Concat(world.containers.SelectMany(c=>c.items)).GroupBy(i=>i.id).All(group=>group.Count()==1);
         private void Update()
         {

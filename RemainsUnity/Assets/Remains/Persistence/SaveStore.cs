@@ -54,6 +54,14 @@ namespace Remains.Persistence
             world.projectiles ??= new List<ProjectileState>();
             foreach(var flight in world.projectiles) flight.Path();
             foreach(var actor in world.actors) {actor.inventoryUses ??= new List<InventoryUse>();actor.resolvedExplosions ??= new List<string>();actor.resolvedAttacks ??= new List<string>();}
+            if(InventoryStackMigration.Needed(world))
+            {
+                string backup=PreserveSource("world.json");
+                world=InventoryStackMigration.Prepare(world,out int removed);
+                Debug.LogWarning($"Стопки мира объединены: world={world.worldId}, убрано отдельных записей={removed}, старые ID сохранены как ссылки. Исходник: {backup}.");
+            }
+            foreach(var actor in world.actors) InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);
+            foreach(var container in world.containers) InventoryStacks.Validate(container.items,container.itemAliases);
             return world;
         }
 
@@ -147,7 +155,7 @@ namespace Remains.Persistence
             if(source==null) return null;
             var actor=JsonUtility.FromJson<ActorState>(source);
             string backup=null;
-            if(preserve || actor.loadoutVersion==0 || actor.weaponInventoryVersion==0)
+            if(preserve || actor.loadoutVersion==0 || actor.weaponInventoryVersion==0 || InventoryStackMigration.Needed(actor))
             {
                 backup=Path.Combine("Recovery","character-"+Guid.NewGuid().ToString("N")+".json");
                 AtomicWrite(backup,source);
@@ -156,6 +164,12 @@ namespace Remains.Persistence
             actor.resolvedExplosions ??= new List<string>();actor.resolvedAttacks ??= new List<string>();
             if(actor.loadoutVersion==0) UpgradeLoadout(actor,backup);
             if(actor.weaponInventoryVersion==0) actor=UpgradeWeaponInventory(actor,backup);
+            if(InventoryStackMigration.Needed(actor))
+            {
+                int removed=InventoryStackMigration.Apply(actor);
+                Debug.LogWarning($"Стопки персонажа объединены: actor={actor.id}, убрано отдельных записей={removed}, старые ID сохранены как ссылки. Исходник: {backup}.");
+            }
+            InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);
             return actor;
         }
 

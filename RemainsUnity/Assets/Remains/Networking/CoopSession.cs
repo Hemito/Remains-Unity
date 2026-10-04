@@ -276,8 +276,8 @@ namespace Remains.Networking
                 {
                     actor=new ActorState();
                     actor.hair=PonyPaletteAsset.Load().ForNewCharacter(ServerWorld.actors);
-                    actor.inventory.Add(SharedInventory.Create("heal", 5));
-                    actor.inventory.Add(SharedInventory.Create("grenade", 5));
+                    InventoryStacks.Add(actor,SharedInventory.Create("heal", 5));
+                    InventoryStacks.Add(actor,SharedInventory.Create("grenade", 5));
                     WeaponAmmunition.Initialize(actor,true);
                 }
                 actor.id="player:"+message.character;actor.character=message.character;actor.player=true;
@@ -442,6 +442,7 @@ namespace Remains.Networking
                 return;
             }
             incoming.inventory=inventoryCopy;incoming.inventoryUses=uses;
+            incoming.inventoryAliases=Remains.Serialization.StateJson.Copy(actor.inventoryAliases);
             incoming.owner = actor.owner;
             // Hold grants belong to the shared coordinator; pose/health still belong to this client.
             incoming.hold=actor.hold;incoming.holdEpoch=actor.holdEpoch;

@@ -48,8 +48,16 @@ namespace Remains.Runtime
             if(RuleScenario) value.Session.ConfigureRules(new GameplayRuleSet(new PrototypeDamageRule(),new ZeroHealthKnockdownRule(),new HubPartyDefeatRule(),new NoHealingLoot()));
             value.CommandSource=()=>
             {
+                if(value.Hud.ContainerOpen && value.Hud.ShownInventorySourceId==ContainerState.PrototypeId) opened=true;
                 if(phase>=1 && !opened && value.Session.LocalActor?.level=="factory:0" && !value.Session.Travel.Pending)
-                {opened=true;return new PlayerCommand {interact=true};}
+                {
+                    var actor=value.Session.LocalActor;
+                    var target=InteractionSelection.Select(value.Session.World,actor,value.Session.Rules,value.Session.Travel.Points(actor.level));
+                    if(target.kind==InteractionKind.Container && target.id==ContainerState.PrototypeId)
+                        return new PlayerCommand {interact=true};
+                    var box=value.Session.World.containers.Single(c=>c.id==ContainerState.PrototypeId);
+                    return new PlayerCommand {movement=new Vector2(Math.Sign(box.x-actor.x),0)};
+                }
                 return default;
             };
             value.Session.Notice+=text=>{if(text=="Контейнер находится в другой локации.") rejected=true;};
@@ -131,7 +139,10 @@ namespace Remains.Runtime
                     session.World.containers.SelectMany(c=>c.items).Where(i=>i.definition=="grenade").Sum(i=>i.count)!=3+runtime.Options.ProbePeers ||
                     session.World.actors.Where(a=>a.player).Any(a=>a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count)!=4)) return;
                 if(!Resume && runtime.Options.ProbePeers==4 && !pageChecked)
-                {if(!pageClickStarted) {pageClickStarted=true;StartCoroutine(CheckPage());}return;}
+                {if(!pageClickStarted) {pageClickStarted=true;StartCoroutine(CheckMergedContents());}return;}
+                if(session.World.containers.Any(c=>InventoryStacks.NeedsConsolidation(c.items)) ||
+                    session.World.actors.Any(a=>InventoryStacks.NeedsConsolidation(a.inventory)))
+                {Finish(false,"Внесение оставило одинаковые предметы отдельными стопками.");return;}
                 if(!CaptureReady(5)) return;
                 if(!acked) {acked=true;NetworkClient.Send(new ContainerProbeAck {pending=sawDepositPending});}
                 if(Host && acknowledgements.Count==runtime.Options.ProbePeers)
@@ -173,11 +184,13 @@ namespace Remains.Runtime
             int value=capturePhase;capturePhase=-1;
             NetworkSceneRecord.Save(runtime,value);captured.Add(value);
         }
-        private IEnumerator CheckPage()
+        private IEnumerator CheckMergedContents()
         {
             if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
-            yield return UiPointerProbe.Click(runtime.Hud.ContainerNextRect);
-            if(runtime.Hud.ContainerPage!=1) {Finish(false,"Вторая страница контейнера недоступна.");yield break;}
+            var source=InventorySource.Resolve(runtime.Session.World,runtime.Hud.ShownInventorySourceId);
+            if(source==null || InventoryStacks.NeedsConsolidation(source.items) || source.items.Count>9 ||
+                runtime.Hud.ContainerPage!=0 || runtime.Hud.ContainerNextRect.GetComponent<UnityEngine.UI.Button>().interactable)
+            {Finish(false,"После объединения содержимое не помещается на первой странице либо остались отдельные стопки.");yield break;}
             pageChecked=true;
         }
         private IEnumerator Deposit()
@@ -196,7 +209,7 @@ namespace Remains.Runtime
         }
         private IEnumerator Click()
         {
-            while(DateTime.UtcNow.Ticks<clickAt) yield return null;
+            while(DateTime.UtcNow.Ticks<clickAt || !opened) yield return null;
             if(Partial) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
             if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
