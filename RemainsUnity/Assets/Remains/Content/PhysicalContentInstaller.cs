@@ -8,11 +8,12 @@ namespace Remains.Content
 {
     public static class PhysicalContentInstaller
     {
+        public static bool NeedsInstall(WorldState world,PhysicalLayout layout)=>layout!=null && !world.contentPatches.Contains(layout.patch);
         public static bool Apply(WorldState world,PhysicalLayout layout)
         {
             if(world==null || layout==null || string.IsNullOrWhiteSpace(layout.patch) || string.IsNullOrWhiteSpace(layout.level) || layout.props==null || layout.containers==null)
                 throw new InvalidOperationException("Неполная расстановка физических объектов.");
-            if(world.contentPatches.Contains(layout.patch)) return false;
+            if(!NeedsInstall(world,layout)) return false;
             var ids=new HashSet<string>(StringComparer.Ordinal);var itemIds=new HashSet<string>(StringComparer.Ordinal);
             var props=new List<PropState>();var containers=new List<ContainerState>();
             foreach(var entry in layout.props.Cast<PropState>().Concat(layout.containers))

@@ -55,6 +55,7 @@ namespace Remains.Networking
             session.PublishActor(actor);
             NetworkClient.Send(new TravelRequest { id = pending, source = actor.level, destination = destination,
                 generation = actor.generation, lifecycle = actor.lifecycleSequence });
+            Debug.Log($"Переход отправлен: request={pending}, actor={actor.id}, destination={destination}, time={Time.unscaledTime}.");
             session.ShowNotice("Ожидание подтверждения перехода…");
         }
 
@@ -69,6 +70,7 @@ namespace Remains.Networking
         private void ReceiveRequest(NetworkConnectionToClient connection, TravelRequest request)
         {
             var actor = session.ConnectedActor(connection);
+            Debug.Log($"Переход получен: request={request.id}, connection={connection.connectionId}, actor={actor?.id}, time={Time.unscaledTime}.");
             string key = connection.connectionId + ":" + request.id;
             if (replies.TryGetValue(key, out var previous)) { connection.Send(previous); return; }
             string reason = TravelRules.Rejection(actor, request.source, request.destination, request.generation, request.lifecycle,session.Pause.IsServerPaused(request.destination));
@@ -78,6 +80,8 @@ namespace Remains.Networking
             {
                 var doorLayout=RoomDoorContent.Read(RoomAuthoring.Load(request.destination),request.destination);
                 if(doorLayout!=null) DoorContentInstaller.Apply(session.ServerWorld,doorLayout);
+                var physicalLayout=RoomPhysicalContent.Read(RoomAuthoring.Load(request.destination),request.destination);
+                if(physicalLayout!=null) PhysicalContentInstaller.Apply(session.ServerWorld,physicalLayout);
                 TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination));
                 session.CommitWorld();
                 Debug.Log($"Переход подтверждён: actor={actor.id}, request={request.id}, level={actor.level}, lifecycle={actor.lifecycleSequence}.");

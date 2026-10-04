@@ -51,11 +51,17 @@ namespace Remains.Presentation
                     continue;
                 }
                 var origin=new Vector2(light.x,light.y);float distance=Vector2.Distance(position,origin);
-                if(Blocked(room,origin,position)) continue;
-                if(masks.TryGetValue(light.id,out var mask)) result+=mask.Sample(position)*light.intensity;
+                if(masks.TryGetValue(light.id,out var mask))
+                {
+                    var contribution=mask.Sample(position)*light.intensity;
+                    // Alpha is replaced below. A zero RGB contribution needs no wall traversal.
+                    if(contribution.r==0 && contribution.g==0 && contribution.b==0) continue;
+                    if(!Blocked(room,origin,position)) result+=contribution;
+                }
                 else
                 {
                     if(distance>=light.radius) continue;
+                    if(Blocked(room,origin,position)) continue;
                     float falloff=1-distance/light.radius;
                     result+=light.color*(light.intensity*falloff*falloff);
                 }

@@ -40,10 +40,12 @@ namespace Remains.Runtime
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
         private ActorState Victim=>runtime.Session.World?.Find("player:session-client-1");
         private ActorState Healer=>runtime.Session.World?.Find("player:session-host");
+        private JourneyTransportTrace trace;
 
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+100;runtime.CommandSource=Command;
+            trace=gameObject.AddComponent<JourneyTransportTrace>();trace.Initialize(value.Session.transport);
             weapons=new JourneyWeaponStage(value);
             interactions=new JourneyInteractionStage(value);
             if(Resume)
@@ -86,11 +88,13 @@ namespace Remains.Runtime
         {
             if(!FramesReady(phase)) return;
             completed.Add(phase);phase=next;since=Time.unscaledTime;action=false;
+            Debug.Log($"Проверка маршрута: phase={phase}, time={Time.unscaledTime}, deadline={deadline}.");
             NetworkServer.SendToAll(new JourneyPhase {value=next});
         }
         private void Update()
         {
             if(finished) return;
+            trace.Sample(phase);
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут journey: phase={phase}, body={sawBody}, hp={Healer?.health}/{Victim?.health}.");return;}
             var session=runtime.Session;
             if(Source && disconnected && !reconnected && Time.unscaledTime>=reconnectAt)
@@ -161,8 +165,8 @@ namespace Remains.Runtime
         }
         private IEnumerator Claim()
         {
-            yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
             if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
+            yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
             yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
         }
         private void LateUpdate()

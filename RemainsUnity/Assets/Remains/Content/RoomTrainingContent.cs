@@ -22,7 +22,7 @@ namespace Remains.Content
             // Placement nodes remain available as data. Gameplay representations are created from WorldState.
             foreach(var marker in instance.GetComponentsInChildren<RoomActorPlacement>(true))
                 foreach(var view in marker.GetComponentsInChildren<Renderer>(true)) view.enabled=false;
-            foreach(var marker in instance.GetComponentsInChildren<RoomContainerPlacement>(true))
+            foreach(var marker in instance.GetComponentsInChildren<RoomPhysicalPlacement>(true))
                 foreach(var view in marker.GetComponentsInChildren<Renderer>(true)) view.enabled=false;
         }
     }

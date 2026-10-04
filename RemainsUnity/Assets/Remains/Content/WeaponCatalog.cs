@@ -62,6 +62,8 @@ namespace Remains.Content
             {
                 var doors=RoomDoorContent.Read(RoomAuthoring.Load(level),level);
                 if(doors!=null) inputs.Add("Content/doors/"+level,Remains.Serialization.StateJson.ToJson(doors));
+                var physical=RoomPhysicalContent.Read(RoomAuthoring.Load(level),level);
+                if(physical!=null) inputs.Add("Content/physical/"+level,Remains.Serialization.StateJson.ToJson(physical));
             }
             var entities=EntityAssetCatalog.Load();
             inputs.Add("Content/actors",entities.ActorsJson());inputs.Add("Content/props",entities.PropsJson());

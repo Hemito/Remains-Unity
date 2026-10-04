@@ -52,6 +52,7 @@ namespace Remains.Presentation
         }
         public void Initialize(RoomLayout room,RoomLightProfile profile)
         {
+            var elapsed=System.Diagnostics.Stopwatch.StartNew();
             Release();
             Profile=profile??throw new InvalidOperationException("Нет профиля света: "+room.id);
             float bottom=room.artwork==null?0:room.bottom,top=room.artwork==null?7:room.top;
@@ -62,6 +63,7 @@ namespace Remains.Presentation
             Shader.SetGlobalTexture("_BackgroundLightMap",backgroundMap);
             Shader.SetGlobalVector("_WorldLightBounds",new Vector4(bounds.x,bounds.y,1/bounds.width,1/bounds.height));
             Shader.SetGlobalFloat("_WorldLightEnabled",1);
+            if(elapsed.ElapsedMilliseconds>100) Debug.Log($"Построение света: room={room.id}, sources={Profile.lights.Length}, milliseconds={elapsed.ElapsedMilliseconds}.");
         }
         private void OnDestroy()=>Release();
         public void Release()
