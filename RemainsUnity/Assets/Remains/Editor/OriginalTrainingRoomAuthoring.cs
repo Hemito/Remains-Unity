@@ -34,19 +34,7 @@ namespace Remains.Editor
             var light=new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()};
             try
             {
-                var authoring=root.AddComponent<RoomAuthoring>();authoring.Configure(layout);
-                int index=0;
-                foreach(var surface in layout.platforms)
-                {
-                    var part=new GameObject("Поверхность "+index++);part.transform.SetParent(root.transform,false);
-                    part.AddComponent<RoomSurfaceAuthoring>().Configure(surface);
-                }
-                index=0;
-                foreach(var ladder in layout.ladders)
-                {
-                    var part=new GameObject("Лестница "+index++);part.transform.SetParent(root.transform,false);
-                    part.AddComponent<RoomLadderAuthoring>().Configure(ladder);
-                }
+                var authoring=RoomDraftGeometry.Create(root,layout);
                 var visual=RoomVisual.Build(layout,light);visual.name="Оформление";
                 RoomArtworkAssets.Save(visual,folder,"TrainingRoomArtwork");visual.transform.SetParent(root.transform,false);
                 authoring.UseAuthoredArtwork();
@@ -60,7 +48,7 @@ namespace Remains.Editor
             }
             finally {root.GetComponent<RoomLighting>()?.Release();UnityEngine.Object.DestroyImmediate(root);}
         }
-        internal static void Render(GameObject room,RoomLayout layout)
+        internal static void Render(GameObject room,RoomLayout layout,string fileName="original-training-room-draft.png")
         {
             var camera=new GameObject("Камера проверки стрельбища").AddComponent<Camera>();
             camera.orthographic=true;camera.orthographicSize=10.5f;camera.transform.position=new Vector3(19.2f,10,-10);
@@ -70,7 +58,7 @@ namespace Remains.Editor
             try
             {
                 camera.Render();RenderTexture.active=target;pixels.ReadPixels(new Rect(0,0,3840,2100),0,0);pixels.Apply();
-                var output=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/original-training-room-draft.png"));
+                var output=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/"+fileName));
                 File.WriteAllBytes(output,pixels.EncodeToPNG());
             }
             finally
