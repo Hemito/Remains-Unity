@@ -8,6 +8,29 @@ namespace Remains.Editor
 {
     public static class RoomArtworkMigration
     {
+        public static void ClearLegacyCopies()
+        {
+            foreach(string key in new[]{"hub","factory"})
+            {
+                string path="Assets/Remains/Resources/Levels/"+key+".prefab";
+                var root=PrefabUtility.LoadPrefabContents(path);
+                try
+                {
+                    var room=root.GetComponent<RoomAuthoring>();
+                    if(!room.HasAuthoredArtwork) throw new InvalidOperationException("Нет авторского оформления: "+key);
+                    var serialized=new SerializedObject(room);
+                    int count=serialized.FindProperty("settings").FindPropertyRelative("artwork").arraySize;
+                    string before=Remains.Serialization.StateJson.ToJson(room.CreateLayout());
+                    room.UseAuthoredArtwork();
+                    if(before!=Remains.Serialization.StateJson.ToJson(room.CreateLayout()))
+                        throw new InvalidOperationException("Удаление старой копии изменило комнату: "+key);
+                    if(count>0) PrefabUtility.SaveAsPrefabAsset(root,path);
+                    Debug.Log($"Авторская комната {key}: удалено устаревших записей {count}, актуальные данные совпадают.");
+                }
+                finally {PrefabUtility.UnloadPrefabContents(root);}
+            }
+            AssetDatabase.SaveAssets();PrototypeBuild.Build();
+        }
         public static void AlignFactoryLadder()
         {
             const string path="Assets/Remains/Resources/Levels/factory.prefab";

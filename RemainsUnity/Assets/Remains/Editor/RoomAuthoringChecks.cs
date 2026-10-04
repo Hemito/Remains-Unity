@@ -12,6 +12,12 @@ namespace Remains.Editor
             var source=RoomAuthoring.Load("factory:0");var instance=UnityEngine.Object.Instantiate(source);
             try
             {
+                var authored=instance.CreateLayout();string authoredBefore=Remains.Serialization.StateJson.ToJson(authored);
+                instance.Configure(authored);
+                var serialized=new UnityEditor.SerializedObject(instance);
+                if(serialized.FindProperty("settings").FindPropertyRelative("artwork").arraySize!=0 ||
+                    authoredBefore!=Remains.Serialization.StateJson.ToJson(instance.CreateLayout()))
+                    throw new InvalidOperationException("Настройка авторской комнаты создала вторую копию оформления или изменила дочерние данные.");
                 string gameplayBefore=Remains.Serialization.StateJson.ToJson(instance.CreateLayout(includeArtwork:false));
                 var decoration=instance.GetComponentInChildren<RoomArtworkAuthoring>();
                 if(decoration==null) throw new InvalidOperationException("Проверка комнаты требует авторского декоративного слоя.");

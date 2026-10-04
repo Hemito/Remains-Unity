@@ -16,6 +16,7 @@ namespace Remains.Content
         {
             settings=StateJson.FromJson<RoomLayout>(StateJson.ToJson(source));
             settings.platforms=null;settings.ladders=null;
+            if(authoredArtwork) settings.artwork=null;
         }
         public RoomLayout CreateLayout(bool includeArtwork=true)
         {
