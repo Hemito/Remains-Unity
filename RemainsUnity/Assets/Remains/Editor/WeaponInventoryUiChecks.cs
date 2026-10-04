@@ -80,21 +80,23 @@ namespace Remains.Editor
                 Require(Remains.Serialization.StateJson.ToJson(actor.inventory)==inventoryBefore,"Фильтры изменили сам инвентарь");
                 for(int i=0;i<9;i++) actor.inventory.Add(new ItemStack {id="filter-page-"+i,definition="heal",count=1});
                 view.Categories[(int)InventoryCategory.Items].onClick.Invoke();view.Next.onClick.Invoke();
-                Require(panel.Page==1 && !view.Next.interactable,"Страницы считаются по нефильтрованному списку");
+                Require(panel.FirstVisibleRow==2 && !view.Next.interactable,"Конец списка считается по нефильтрованным предметам");
                 string beforeScroll=Remains.Serialization.StateJson.ToJson(actor.inventory);
                 void Scroll(float direction)
                 {
                     var input=new PointerEventData(EventSystem.current) {scrollDelta=new Vector2(0,direction)};
                     ExecuteEvents.ExecuteHierarchy(view.Rows[0].gameObject,input,ExecuteEvents.scrollHandler);
                 }
-                Scroll(-1);Require(panel.Page==1,"Колесо вышло за последнюю страницу");
-                Scroll(1);Require(panel.Page==0 && panel.Category==InventoryCategory.Items,"Колесо не вернуло предыдущую страницу категории");
-                Scroll(1);Require(panel.Page==0,"Колесо вышло за первую страницу");
-                Scroll(-1);Require(panel.Page==1,"Колесо над строкой не дошло до окна списка");
+                Scroll(-1);Require(panel.FirstVisibleRow==2,"Колесо вышло за конец списка");
+                Scroll(1);Require(panel.FirstVisibleRow==1 && panel.Category==InventoryCategory.Items,"Колесо не сдвинуло список ровно на строку");
+                Scroll(1);Scroll(1);Require(panel.FirstVisibleRow==0,"Колесо вышло за начало списка");
+                Scroll(-1);Require(panel.FirstVisibleRow==1,"Колесо над строкой не дошло до окна списка");
+                view.Rows[0].onClick.Invoke();
+                Require(view.Detail.text.Contains("Аптечка"),"Сдвинутая строка выбрала другой предмет");
                 Require(Remains.Serialization.StateJson.ToJson(actor.inventory)==beforeScroll,"Прокрутка изменила предметы");
                 actor.inventory.RemoveAll(item=>item.id.StartsWith("filter-page-",StringComparison.Ordinal));panel.Refresh(null);
-                Require(panel.Page==0 && !view.Previous.interactable,"Исчезнувшая страница не зажата после удаления предметов");
-                Scroll(-1);Require(panel.Page==0,"Колесо открыло удалённую страницу");
+                Require(panel.FirstVisibleRow==0 && !view.Previous.interactable,"Начало списка не зажато после удаления предметов");
+                Scroll(-1);Require(panel.FirstVisibleRow==0,"Колесо открыло удалённые строки");
                 var customAmmoFilter=new InventoryItemFilter(new[]{new WeaponDefinition {id="test",ammo="custom-ammo"}});
                 Require(customAmmoFilter.Includes(new ItemStack {definition="custom-ammo"},InventoryCategory.Ammunition) &&
                     customAmmoFilter.Includes(new ItemStack {definition="custom-item"},InventoryCategory.Items),"Фильтр требует встроенные ID предметов");

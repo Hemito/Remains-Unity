@@ -23,13 +23,12 @@ namespace Remains.Presentation
         [InspectorName("Заголовок")] public Text Title;
         [InspectorName("Описание предмета")] public Text Detail;
         [InspectorName("Состояние действия")] public Text ActionStatus;
+        public event Action<int> ScrollRows;
         public void OnScroll(PointerEventData eventData)
         {
             if(!isActiveAndEnabled || eventData==null || eventData.scrollDelta.y==0) return;
-            var button=eventData.scrollDelta.y<0?Next:Previous;
-            if(button==null) {Debug.LogWarning("Личный инвентарь: не назначена кнопка прокрутки страницы.",this);return;}
-            if(!button.IsActive() || !button.IsInteractable()) return;
-            button.onClick.Invoke();eventData.Use();
+            if(ScrollRows==null) {Debug.LogWarning("Личный инвентарь: не подключена прокрутка списка.",this);return;}
+            ScrollRows.Invoke(eventData.scrollDelta.y<0?1:-1);eventData.Use();
         }
         public void Validate()
         {

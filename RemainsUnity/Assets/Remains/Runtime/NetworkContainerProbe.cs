@@ -209,10 +209,9 @@ namespace Remains.Runtime
                 yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(category));
                 if(runtime.Hud.PersonalCategory!=category) {Finish(false,"Не сработала кнопка категории инвентаря: "+category);yield break;}
             }
-            int page=index/runtime.Hud.PersonalPageSize;
-            while(runtime.Hud.PersonalPage<page) yield return UiPointerProbe.Click(runtime.Hud.PersonalNextRect);
-            while(runtime.Hud.PersonalPage>page) yield return UiPointerProbe.Click(runtime.Hud.PersonalPreviousRect);
-            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index%runtime.Hud.PersonalPageSize));
+            while(index>=runtime.Hud.PersonalFirstVisibleRow+runtime.Hud.PersonalPageSize) yield return UiPointerProbe.Click(runtime.Hud.PersonalNextRect);
+            while(index<runtime.Hud.PersonalFirstVisibleRow) yield return UiPointerProbe.Click(runtime.Hud.PersonalPreviousRect);
+            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(index-runtime.Hud.PersonalFirstVisibleRow));
         }
         private void Finish(bool success,string detail)
         {

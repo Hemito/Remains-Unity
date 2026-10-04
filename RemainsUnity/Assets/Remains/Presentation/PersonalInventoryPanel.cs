@@ -30,13 +30,14 @@ namespace Remains.Presentation
         private readonly Text title,detail,actionStatus;
         private InventorySource container;
         private string selected;
-        private int page;
+        private int firstVisibleRow;
         private InventoryCategory category;
         private readonly InventoryItemFilter filter;
         private readonly Button[] categories;
         private readonly List<ItemStack> visible=new();
         public RectTransform RowRect(int row)=>rows[row].GetComponent<RectTransform>();
-        public int Page=>page;
+        public int Page=>firstVisibleRow/rows.Length;
+        public int FirstVisibleRow=>firstVisibleRow;
         public InventoryCategory Category=>category;
         public RectTransform CategoryRect(InventoryCategory value)=>categories[(int)value].GetComponent<RectTransform>();
         public int PageSize=>rows.Length;
@@ -55,7 +56,7 @@ namespace Remains.Presentation
             for(int i=0;i<categories.Length;i++)
             {
                 var choice=(InventoryCategory)i;
-                categories[i].onClick.AddListener(()=>{category=choice;page=0;Refresh(container);});
+                categories[i].onClick.AddListener(()=>{category=choice;firstVisibleRow=0;Refresh(container);});
             }
             rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
             detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
@@ -81,7 +82,8 @@ namespace Remains.Presentation
                 });
             }
             for(int i=0;i<rows.Length;i++) {int index=i;rows[i].onClick.AddListener(()=>{selected=ids[index];Refresh(container);});}
-            previous.onClick.AddListener(()=>{page--;Refresh(container);});next.onClick.AddListener(()=>{page++;Refresh(container);});
+            previous.onClick.AddListener(()=>Scroll(-rows.Length));next.onClick.AddListener(()=>Scroll(rows.Length));
+            view.ScrollRows+=Scroll;
             use.onClick.AddListener(()=>
             {
                 var actor=session.LocalActor;var item=actor?.inventory.Find(value=>value.id==selected);
@@ -96,6 +98,7 @@ namespace Remains.Presentation
             deposit.onClick.AddListener(()=>{if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
             session.Deposits.Reconciled+=()=>Refresh(container);
         }
+        private void Scroll(int rowsToMove) {firstVisibleRow+=rowsToMove;Refresh(container);}
         public void Refresh(InventorySource destination)
         {
             container=destination;var actor=session.LocalActor;
@@ -114,14 +117,14 @@ namespace Remains.Presentation
                 weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"Клавиша {i+1}":legacyLabels[i];
                 artwork.Set(weaponIcons[i],instances?WeaponInventory.Shortcut(actor,(i+1).ToString())?.definition:weapons[i]);
             }
-            page=Mathf.Clamp(page,0,Math.Max(0,(count-1)/rows.Length));
-            previous.interactable=page>0;next.interactable=(page+1)*rows.Length<count;
-            title.text=$"Инвентарь · {page+1}/{Math.Max(1,(count+rows.Length-1)/rows.Length)}";
+            firstVisibleRow=Mathf.Clamp(firstVisibleRow,0,Math.Max(0,count-rows.Length));
+            previous.interactable=firstVisibleRow>0;next.interactable=firstVisibleRow+rows.Length<count;
+            title.text=count==0?"Инвентарь · пусто":$"Инвентарь · {firstVisibleRow+1}–{Math.Min(count,firstVisibleRow+rows.Length)} из {count}";
             var chosen=actor?.inventory.Find(item=>item.id==selected);
             if(chosen==null) selected=null;
             for(int i=0;i<rows.Length;i++)
             {
-                int index=page*rows.Length+i;var item=index<count?visible[index]:null;ids[i]=item?.id;
+                int index=firstVisibleRow+i;var item=index<count?visible[index]:null;ids[i]=item?.id;
                 rows[i].gameObject.SetActive(item!=null);
                 int available=item==null?0:InventoryAvailability.Count(actor,item);
                 artwork.Set(icons[i],item?.definition);
