@@ -41,19 +41,24 @@ namespace Remains.Editor
                                 var layers=new ActorVisualLayers();
                                 layers.Attach(actor.id,visual.transform);layers.Attach(actor.id,weapon.transform);
                                 layers.Synchronize(new[]{actor.id});
-                                var sheet=new Texture2D(3840,2160,TextureFormat.RGB24,false);
-                                var frames=new int[13];
+                                const int sampleCount=25;
+                                const int rows=(sampleCount+3)/4;
+                                var sheet=new Texture2D(3840,rows*540,TextureFormat.RGB24,false);
+                                var frames=new int[sampleCount];
+                                var samples=new System.Text.StringBuilder("sample,frame,y,vy,poseTime,stationary\n");
                                 try
                                 {
                                     // Acquire in the air with Up before observing either direction of the cycle.
                                     motion.Step(actor,Vector2.up,false,1f/30);
-                                    for(int frame=0;frame<13;frame++)
+                                    for(int frame=0;frame<sampleCount;frame++)
                                     {
                                         if(frame==0) motion.Step(actor,Vector2.zero,false,1f/30);
                                         else {motion.Step(actor,Vector2.up*direction,false,1f/30);ActorPose.Advance(actor,1f/30);}
                                         if(!actor.climbing || actor.facing!=(int)ladder.facing)
                                             throw new InvalidOperationException($"Потерян хват/сторона: {level}, лестница={index}, направление={direction}, кадр={frame}.");
                                         visual.DrawPose(actor.poseTime);frames[frame]=visual.DrawnFrame;
+                                        samples.AppendFormat(System.Globalization.CultureInfo.InvariantCulture,
+                                            "{0},{1},{2:R},{3:R},{4:R},{5}\n",frame,frames[frame],actor.y,actor.vy,actor.poseTime,ActorPose.StationaryClimb(actor));
                                         // Aim remains independent of the body's authored ladder facing.
                                         WeaponPose.Aim(actor,actor.Position+new Vector2(-(int)ladder.facing*3,-2));
                                         weapon.transform.position=WeaponPose.Mount(actor);
@@ -61,12 +66,13 @@ namespace Remains.Editor
                                         weapon.SetMirrored(WeaponPose.Flip(actor));
                                         camera.transform.position=new Vector3(actor.x,actor.y+.9f,-10);
                                         camera.Render();RenderTexture.active=target;
-                                        sheet.ReadPixels(new Rect(0,0,960,540),frame%4*960,(3-frame/4)*540);
+                                        sheet.ReadPixels(new Rect(0,0,960,540),frame%4*960,(rows-1-frame/4)*540);
                                     }
                                     sheet.Apply();
                                     string name=$"{level.Replace(':','-')}-{index}-{(direction>0?"up":"down")}";
                                     File.WriteAllBytes(Path.Combine(directory,name+".png"),sheet.EncodeToPNG());
                                     File.WriteAllText(Path.Combine(directory,name+".txt"),"Ячейки слева направо, сверху вниз; первая — неподвижный хват. Кадры: "+string.Join(",",frames));
+                                    File.WriteAllText(Path.Combine(directory,name+".csv"),samples.ToString());
                                 }
                                 finally {UnityEngine.Object.DestroyImmediate(sheet);UnityEngine.Object.DestroyImmediate(weapon.gameObject);UnityEngine.Object.DestroyImmediate(visual.gameObject);}
                             }
