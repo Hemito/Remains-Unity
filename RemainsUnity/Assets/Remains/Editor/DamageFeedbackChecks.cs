@@ -65,5 +65,30 @@ namespace Remains.Editor
             }
             finally {RenderTexture.active=null;camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);}
         }
+        public static void RenderLayered()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+            Anatomy.Load();
+            PonyVisual.Prepare();
+            var layers=new ActorVisualLayers();
+            foreach(var actor in new[]{new ActorState {id="rear",hair=0,x=-.18f},new ActorState {id="front",hair=1,x=.18f}})
+            {
+                var visual=new GameObject(actor.id).AddComponent<PonyVisual>();visual.Bind(actor);visual.DrawPose(.12f);
+                layers.Attach(actor.id,visual.transform);
+            }
+            layers.Synchronize(new[]{"rear","front"});
+            var explosion=UnityEngine.Object.Instantiate(Resources.Load<ExplosionVisual>("Presentation/Explosion"));
+            explosion.Initialize(null,"hub",new Vector2(0,.8f));explosion.Draw(.1f);
+            var numbers=CreateBurst();
+            int effectOrder=explosion.GetComponentInChildren<SpriteRenderer>().sortingOrder;
+            foreach(var number in numbers)
+                if(number.GetComponent<Canvas>().sortingOrder<=effectOrder)
+                    throw new InvalidOperationException("Число урона находится под взрывом по порядку отрисовки.");
+            Canvas.ForceUpdateCanvases();UnityEngine.Rendering.SortingGroup.UpdateAllSortingGroups();
+            var camera=new GameObject("Камера боевых слоёв").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=2.5f;
+            camera.transform.position=new Vector3(0,2,-10);camera.backgroundColor=new Color(.12f,.13f,.14f);
+            string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/damage-layered.png"));
+            Remains.Runtime.NetworkFrameCapture.Save(camera,path,width:1920,height:1080);
+        }
     }
 }
