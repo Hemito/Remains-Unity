@@ -29,10 +29,20 @@ namespace Remains.Presentation
         {
             Validate();origin=new Vector3(result.x,result.y+1.7f,0);tint=label.color;
             label.text=result.amount.ToString("0.##",CultureInfo.InvariantCulture);
+            MeasureText();
+            Draw(0);
+        }
+        public void PrepareText()
+        {
+            Validate();
+            label.text="0123456789.";
+            MeasureText();
+        }
+        private void MeasureText()
+        {
             var rect=GetComponent<RectTransform>();
             rect.sizeDelta=new Vector2(label.preferredWidth+12,label.preferredHeight+8);
             size=Vector2.Scale(rect.sizeDelta,new Vector2(transform.lossyScale.x,transform.lossyScale.y));
-            Draw(0);
         }
         public void PlaceAbove(IReadOnlyList<Rect> occupied)
         {

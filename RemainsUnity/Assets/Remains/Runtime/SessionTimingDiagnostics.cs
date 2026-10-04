@@ -55,6 +55,12 @@ namespace Remains.Runtime
             value.DamageFeedback.Received+=result=>Record("damage-number-received",result.attack,result.actor);
             value.DamageFeedback.DeliveryMeasured+=(stage,result)=>Record(stage,result.attack,result.actor);
             value.DamageNumbers.Shown+=result=>Record("damage-number-shown",result.attack,result.actor);
+            value.DamageNumbers.PreparationMeasured+=(result,creation,initialization,placement)=>
+            {
+                Record("damage-number-create",result.attack,result.actor,operation:creation);
+                Record("damage-number-initialize",result.attack,result.actor,operation:initialization);
+                Record("damage-number-place",result.attack,result.actor,operation:placement);
+            };
             value.Session.PoseReceived+=actor=>
             {
                 double now=Time.realtimeSinceStartupAsDouble;report.poses++;
