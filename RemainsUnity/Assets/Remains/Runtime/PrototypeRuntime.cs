@@ -293,7 +293,7 @@ namespace Remains.Runtime
                     command.weaponShortcut=keyboard.digit1Key.wasPressedThisFrame?"1":keyboard.digit2Key.wasPressedThisFrame?"2":keyboard.digit3Key.wasPressedThisFrame?"3":"4";
                     command.weapon=null;
                 }
-                command.inventory=keyboard.iKey.wasPressedThisFrame;
+                command.inventory=keyboard.tabKey.wasPressedThisFrame;
                 command.menu=keyboard.escapeKey.wasPressedThisFrame;
                 command.reload=keyboard.rKey.wasPressedThisFrame;
                 command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;

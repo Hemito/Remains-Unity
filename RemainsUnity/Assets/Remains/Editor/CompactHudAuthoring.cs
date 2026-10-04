@@ -57,7 +57,7 @@ namespace Remains.Editor
                 var view=root.AddComponent<SessionHudView>();
                 view.Status=elements.Label(root.transform,"Хаб · игроков: 1",new Vector2(8,-4),new Vector2(214,20));view.Status.fontSize=14;
                 view.Travel=elements.Button(root.transform,"На завод 0",new Vector2(8,-26),new Vector2(214,26),()=>{});
-                view.Inventory=elements.Button(root.transform,"Инвентарь · I",new Vector2(8,-55),new Vector2(104,26),()=>{});
+                view.Inventory=elements.Button(root.transform,"Инвентарь · Tab",new Vector2(8,-55),new Vector2(104,26),()=>{});
                 view.Menu=elements.Button(root.transform,"Меню · Esc",new Vector2(118,-55),new Vector2(104,26),()=>{});
                 foreach(var button in new[]{view.Travel,view.Inventory,view.Menu})
                 {
