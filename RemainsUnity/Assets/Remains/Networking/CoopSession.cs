@@ -239,17 +239,7 @@ namespace Remains.Networking
             }
         }
 
-        private static WorldState CreateWorld()
-        {
-            var world = new WorldState();
-            world.actors.Add(new ActorState { id = "npc:training-guard", actorType="raider", anatomy="raider", owner = "host", x = 8, health = 140 });
-            var container=new ContainerState();world.containers.Add(container);
-            container.items.Add(SharedInventory.Create("caps", 20));
-            container.items.Add(SharedInventory.Create("heal", 3));
-            container.items.Add(SharedInventory.Create("grenade", 3));
-            world.props.Add(PropCatalog.Create("prop:crate-1","mcrate1","factory:0",new Vector2(-3,.8f)));
-            return world;
-        }
+        private static WorldState CreateWorld()=>NewGameWorld.Create();
 
         private void Join(NetworkConnectionToClient connection, JoinMessage message)
         {

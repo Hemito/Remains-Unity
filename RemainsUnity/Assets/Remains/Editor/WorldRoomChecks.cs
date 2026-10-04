@@ -26,6 +26,9 @@ namespace Remains.Editor
         }
         public static void Run()
         {
+            var fresh=NewGameWorld.Create();
+            Require(WorldRooms.Definition(fresh,"factory:0")=="base:factory-entry-46" && fresh.actors.Count==0 && fresh.containers.Count==0 && fresh.props.Count==0,
+                "Новый мир использует старую геометрию или лишнюю тестовую расстановку.");
             var legacy=StateJson.FromJson<WorldState>("{\"schema\":1,\"worldId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}");
             Require(WorldRooms.Definition(legacy,"factory:0")=="base:factory-prototype","Старое сохранение изменило комнату.");
             var world=new WorldState();world.rooms.Add(new WorldRoom {level="factory:0",definition="base:factory-entry-46"});

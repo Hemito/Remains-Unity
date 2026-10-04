@@ -32,8 +32,8 @@ namespace Remains.Runtime
             if(value.Options.Role=="host")
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка нового завода не заменяет существующий мир.");
-                var world=new WorldState {worldId="2bbb03303d6848758e98eb9a573eac8d"};
-                world.rooms.Add(new WorldRoom {level="factory:0",definition="base:factory-entry-46"});
+                var world=Remains.Content.NewGameWorld.Create();
+                world.worldId="2bbb03303d6848758e98eb9a573eac8d";
                 value.Session.Saves.SaveWorld(world);
             }
             value.CommandSource=Command;

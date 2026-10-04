@@ -185,6 +185,7 @@ namespace Remains.Runtime
 
         private void Start()
         {
+            LegacyPrototypeFixture.Prepare(this);
             if (Options.Role=="host") Session.StartHost();
             else if (Options.Role=="client") Session.StartClient();
         }
