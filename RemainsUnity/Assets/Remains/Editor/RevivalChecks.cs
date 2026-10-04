@@ -8,6 +8,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            CheckSelectedStack();
             var healer=new ActorState {id="healer",player=true,connected=true};
             healer.inventory.Add(SharedInventory.Create("heal",2));
             var target=new ActorState {id="target",player=true,connected=true,down=true,health=0,x=1};
@@ -30,6 +31,22 @@ namespace Remains.Editor
             Require(!AttackScope.CanAffect(blast,target,false) && AttackScope.CanAffect(blast,target,true),"Дружественный огонь управляет уроном союзникам");
             blast.weapon="pistol";Require(!AttackScope.CanAffect(blast,healer,true),"Прямой выстрел не попадает в автора");
             Debug.Log("RevivalChecks PASS: удержание, отпускание, расстояние, урон, поколение, однократный расход.");
+        }
+        private static void CheckSelectedStack()
+        {
+            var actor=new ActorState {id="selected-heal",player=true,connected=true,health=20};
+            var first=SharedInventory.Create("heal",2);var chosen=SharedInventory.Create("heal",3);
+            var ammo=SharedInventory.Create("p10",5);
+            actor.inventory.Add(first);actor.inventory.Add(chosen);actor.inventory.Add(ammo);
+            Require(HealingRules.Apply(actor,actor,true,chosen.id) && chosen.count==2 && first.count==2 && actor.health==55,
+                "Лечение списало первую стопку вместо выбранной");
+            actor.inventoryReservations[chosen.id]=2;
+            foreach(var id in new[]{chosen.id,"missing-stack",ammo.id,""})
+                Require(!HealingRules.Apply(actor,actor,true,id) && actor.health==55 && first.count==2 && chosen.count==2 && ammo.count==5,
+                    "Недоступная выбранная стопка заменилась другой или изменила здоровье: "+id);
+            Require(HealingRules.Apply(actor,actor,true) && first.count==1 && actor.health==90,
+                "Лечение горячей клавишей перестало выбирать доступную стопку");
+            Debug.Log("Выбранная аптечка: PASS — точный расход, резерв/чужой тип/нет ID без подмены, горячая клавиша.");
         }
         private static void Require(bool value,string reason) {if(!value) throw new InvalidOperationException("RevivalChecks: "+reason);}
     }

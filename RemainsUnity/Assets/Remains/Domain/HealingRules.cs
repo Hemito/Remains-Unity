@@ -23,8 +23,10 @@ namespace Remains.Domain
             return null;
         }
         public static bool Apply(ActorState healer,ActorState target,bool selfHeal)
+            =>Apply(healer,target,selfHeal,null);
+        public static bool Apply(ActorState healer,ActorState target,bool selfHeal,string itemId)
         {
-            if(!CanApply(healer,target,selfHeal) || !SharedInventory.Consume(healer,"heal")) return false;
+            if(!CanApply(healer,target,selfHeal) || !SharedInventory.Consume(healer,"heal",itemId)) return false;
             target.health=Mathf.Min(100,target.health+35);target.down=false;ActorPose.Select(target,"idle");
             target.lifecycleSequence++;
             target.revision++;

@@ -614,15 +614,16 @@ namespace Remains.Networking
 
         public void RequestClaim(string container,string item,int quantity=0) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"),container=container, item = item,quantity=quantity });
         public string RequestRevive(string target)=>RequestHealing(target,false);
-        public void RequestSelfHeal()=>RequestHealing(LocalActorId,true);
-        private string RequestHealing(string targetId,bool selfHeal)
+        public void RequestSelfHeal()=>RequestSelfHeal(null);
+        public void RequestSelfHeal(string itemId)=>RequestHealing(LocalActorId,true,itemId);
+        private string RequestHealing(string targetId,bool selfHeal,string itemId=null)
         {
             var healer=LocalActor;var target=World?.Find(targetId);
             if(healer==null || target==null) return null;
             string transaction=Guid.NewGuid().ToString("N");
             NetworkClient.Send(new ReviveMessage {target=targetId,transaction=transaction,selfHeal=selfHeal,
                 healerGeneration=healer.generation,healerLifecycle=healer.lifecycleSequence,damageSequence=healer.damageSequence,
-                targetGeneration=target.generation,targetLifecycle=target.lifecycleSequence});
+                targetGeneration=target.generation,targetLifecycle=target.lifecycleSequence,item=itemId});
             return transaction;
         }
         public void ReturnToFactory() => Travel.RequestFactory();
@@ -638,7 +639,7 @@ namespace Remains.Networking
             var target = ServerWorld.Find(message.target);
             bool current=target!=null && healer.generation==message.healerGeneration && healer.lifecycleSequence==message.healerLifecycle &&
                 healer.damageSequence==message.damageSequence && target.generation==message.targetGeneration && target.lifecycleSequence==message.targetLifecycle;
-            if(!current || !HealingRules.Apply(healer,target,message.selfHeal))
+            if(!current || !HealingRules.Apply(healer,target,message.selfHeal,message.item))
             {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=false,reason="Лечение отменено: изменилось состояние, расстояние или нет лечебного предмета."});return;}
             ServerWorld.completedTransactions.Add(message.transaction);
             ServerWorld.revision++;

@@ -37,7 +37,7 @@ namespace Remains.Networking
     public struct NpcHitMessage : NetworkMessage { public string target; public int generation; public string attackJson; }
     public struct FriendlyHitMessage : NetworkMessage {public string target;public int generation,lifecycle;public string attackJson;}
     public struct ClaimMessage : NetworkMessage { public string transaction; public string container;public string item;public int quantity; }
-    public struct ReviveMessage : NetworkMessage { public string target; public string transaction; public bool selfHeal; public int healerGeneration,healerLifecycle,targetGeneration,targetLifecycle,damageSequence; }
+    public struct ReviveMessage : NetworkMessage { public string target; public string transaction; public bool selfHeal; public int healerGeneration,healerLifecycle,targetGeneration,targetLifecycle,damageSequence; public string item; }
     public struct HealingReplyMessage : NetworkMessage {public string transaction;public bool success;public string reason;}
     public struct NoticeMessage : NetworkMessage { public string text; }
     public struct BackupAckMessage : NetworkMessage { public string world; public long revision; public string snapshot; }

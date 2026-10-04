@@ -96,7 +96,7 @@ namespace Remains.Presentation
                     if(this.equipItem==null) throw new InvalidOperationException("Не подключён выбор экземпляра оружия в инвентаре.");
                     this.equipItem(actor.equippedWeaponItem==item.id?null:item.id);
                 }
-                else session.RequestSelfHeal();
+                else if(item?.definition=="heal") session.RequestSelfHeal(item.id);
                 Refresh(container);
             });
             deposit.onClick.AddListener(()=>{if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
