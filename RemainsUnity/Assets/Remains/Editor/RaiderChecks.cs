@@ -35,9 +35,11 @@ namespace Remains.Editor
                     Require(renderer.enabled && renderer.sprite!=null && renderer.sprite.rect.width==120,"Не отображается поза рейдера: "+pose);
                     Require(pose=="idle" || first!=renderer.sprite,"Не меняется кадр: "+pose);
                     var clip=AtlasAnimationData.Get("Original/Raider/artwork").Clip(pose);
-                    for(int frame=0;frame<clip.count;frame++)
+                    for(int frame=0;frame<clip.count*3;frame++)
                     {
                         actor.poseTime=(frame+.25f)/clip.framesPerSecond;actor.facing=1;visual.Draw();
+                        if(pose=="walk")
+                            Require(clip.FrameIndex(actor.poseTime)==(frame==0?0:1+(frame-1)%16),"В повтор ходьбы рейдера попал вступительный кадр");
                         Require(Mathf.Abs(renderer.sprite.rect.x/120-clip.FrameIndex(actor.poseTime))<.001f,"Кадр рисунка расходится с выбором кадра анатомии");
                         foreach(string region in new[]{"head","torso","legs"})
                         {

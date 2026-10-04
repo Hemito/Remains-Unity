@@ -42,5 +42,16 @@ namespace Remains.Editor
             if(guid!=afterGuid || id!=afterId) throw new InvalidOperationException("Пересборка изменила постоянную ссылку на кадр.");
             Run();
         }
+        public static void ApplyRaiderWalkAndBuild()
+        {
+            var asset=Resources.Load<AtlasSpriteAsset>("Original/Raider/artwork");
+            if(asset==null) throw new InvalidOperationException("Нет атласа рейдера для уточнения цикла.");
+            var data=asset.CreateDefinition();var walk=data.Clip("walk");
+            if(walk.row!=1 || walk.count!=17 || !walk.loop)
+                throw new InvalidOperationException("Изменились исходные границы ходьбы рейдера; требуется сверка.");
+            walk.loopStartFrame=1;asset.Configure(asset.Texture,data);
+            AtlasSpriteAssetEditor.Rebuild(asset);
+            PrototypeBuild.Build();
+        }
     }
 }

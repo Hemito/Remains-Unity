@@ -10,9 +10,10 @@ namespace Remains.Content
         [InspectorName("Количество кадров")] public int count;
         [InspectorName("Кадров в секунду")] public float framesPerSecond;
         [InspectorName("Зациклить")] public bool loop;
+        [Min(0),InspectorName("Первый кадр повторяемого участка")] public int loopStartFrame;
         public int FrameIndex(float time,bool stationary=false)
         {
-            return AnimationFrames.Sample(time,framesPerSecond,count,loop,stationary:stationary);
+            return AnimationFrames.Sample(time,framesPerSecond,count,loop,loopStartFrame,stationary,playIntro:true);
         }
     }
     [Serializable] public sealed class AtlasActorArtwork
@@ -47,7 +48,8 @@ namespace Remains.Content
             var poses=new HashSet<string>();
             foreach(var clip in data.clips)
                 if(clip==null || string.IsNullOrEmpty(clip.pose) || !poses.Add(clip.pose) || clip.count<1 ||
-                    !float.IsFinite(clip.framesPerSecond) || clip.framesPerSecond<=0)
+                    !float.IsFinite(clip.framesPerSecond) || clip.framesPerSecond<=0 ||
+                    clip.loopStartFrame<0 || clip.loopStartFrame>=clip.count || (!clip.loop && clip.loopStartFrame!=0))
                     throw new InvalidOperationException("Некорректная поза атласа: "+key);
             cache.Add(key,data);return data;
         }

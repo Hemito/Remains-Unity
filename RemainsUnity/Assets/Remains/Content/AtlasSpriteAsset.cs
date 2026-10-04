@@ -10,6 +10,12 @@ namespace Remains.Content
         [SerializeField,HideInInspector] private Sprite[] frames;
         [SerializeField,HideInInspector] private string bakedDefinition;
         public Texture2D Texture=>texture;
+        private void OnValidate()
+        {
+            if(definition?.clips==null) return;
+            foreach(var clip in definition.clips)
+                if(clip!=null) clip.loopStartFrame=clip.loop?Mathf.Clamp(clip.loopStartFrame,0,Mathf.Max(0,clip.count-1)):0;
+        }
         public AtlasActorArtwork CreateDefinition()=>JsonUtility.FromJson<AtlasActorArtwork>(JsonUtility.ToJson(definition));
         public void Configure(Texture2D source,AtlasActorArtwork data) {texture=source;definition=data;}
         public void SetFrames(Sprite[] value) {frames=(Sprite[])value.Clone();bakedDefinition=JsonUtility.ToJson(definition);}
