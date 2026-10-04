@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Presentation;
@@ -14,12 +15,14 @@ namespace Remains.Editor
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             PropCatalog.Load();var artwork=new PropArtwork();
-            for(int i=0;i<3;i++)
+            var definitions=PropCatalog.All.OrderBy(p=>p.id).ToArray();
+            for(int row=0;row<definitions.Length;row++) for(int i=0;i<3;i++)
             {
-                var state=new ContainerState {id="glow-"+i,owner="remote",x=(i-1)*1.6f,held=i==1};
+                var definition=definitions[row];
+                var state=new ContainerState {id="glow-"+row+"-"+i,owner="remote",x=(i-1)*1.6f,y=-row*1.5f,held=i==1};
                 state.items.Add(SharedInventory.Create("heal",3));
                 string before=Remains.Serialization.StateJson.ToJson(state);
-                var view=artwork.CreateView("prototype-crate",state.id,1.2f);
+                var view=artwork.CreateView(definition.id,state.id,1.2f);
                 view.DrawMotion(state,"local",false,.016f);
                 if(view.HeldGlowVisible!=state.held) throw new Exception("Свечение не соответствует удержанию.");
                 state.held=true;view.DrawMotion(state,"local",true,.016f);
@@ -28,7 +31,8 @@ namespace Remains.Editor
                     throw new Exception("Отпускание/пауза изменили предмет или оставили свечение.");
             }
             var camera=new GameObject("Камера сравнения удержания").AddComponent<Camera>();
-            camera.orthographic=true;camera.orthographicSize=1.65f;camera.transform.position=new Vector3(0,0,-10);
+            camera.orthographic=true;camera.orthographicSize=Mathf.Max(1.65f,definitions.Length*.75f+.8f);
+            camera.transform.position=new Vector3(0,-(definitions.Length-1)*.75f,-10);
             camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.08f,.08f,.08f);
             var target=new RenderTexture(1920,1080,24);target.Create();camera.targetTexture=target;
             var image=new Texture2D(1920,1080,TextureFormat.RGBA32,false);

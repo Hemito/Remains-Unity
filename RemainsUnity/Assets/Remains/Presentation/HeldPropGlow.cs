@@ -10,14 +10,15 @@ namespace Remains.Presentation
         private Material material;
         private MeshRenderer halo;
         public bool Visible=>halo!=null && halo.enabled;
-        public void Initialize(SpriteRenderer artwork,Color color)
+        public void Initialize(SpriteRenderer artwork,Color color,float border)
         {
+            if(!float.IsFinite(border) || border<=0 || !float.IsFinite(color.r) || !float.IsFinite(color.g) || !float.IsFinite(color.b) || !float.IsFinite(color.a))
+                throw new InvalidOperationException("Некорректные настройки свечения предмета: "+artwork.name);
             var sprite=artwork.sprite;
             if(sprite==null || sprite.packed) throw new InvalidOperationException("Свечение предмета требует отдельного непакованного спрайта: "+artwork.name);
             var shader=Resources.Load<Shader>("Presentation/HeldPropGlow");
             if(shader==null) throw new InvalidOperationException("Нет шейдера Presentation/HeldPropGlow.");
             var bounds=sprite.bounds;
-            const float border=.08f;
             float x0=bounds.min.x-border,x1=bounds.max.x+border;
             float y0=bounds.min.y-border,y1=bounds.max.y+border;
             mesh=new Mesh {name="Ореол предмета"};
