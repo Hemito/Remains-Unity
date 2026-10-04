@@ -35,7 +35,7 @@ namespace Remains.Presentation
         {
             if(attack.level!=session.LocalActor?.level || !byAttack.TryGetValue(attack.weapon,out var clip)) return;
             var actor=session.World?.Find(attack.attacker);
-            if(actor==null || actor.down || actor.weapon!=clip.weapon || actor.level!=attack.level || !ActorPresence.IsPresent(actor)) return;
+            if(actor==null || ActorSessionRules.IsPassive(actor) || actor.weapon!=clip.weapon || actor.level!=attack.level || !ActorPresence.IsPresent(actor)) return;
             if(!seen.Add(attack.id)) return;
             recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
             playing[actor.id]=new Playing {clip=clip,level=actor.level,generation=actor.generation,lifecycle=actor.lifecycleSequence};
@@ -46,7 +46,7 @@ namespace Remains.Presentation
             int frame=Mathf.FloorToInt(effect.elapsed*effect.clip.fps);
             return frame<effect.clip.sprites.Length?effect.clip.sprites[frame]:rest;
         }
-        private bool Matches(ActorState actor,Playing effect)=>!actor.down && ActorPresence.IsPresent(actor) && actor.level==session.LocalActor?.level &&
+        private bool Matches(ActorState actor,Playing effect)=>!ActorSessionRules.IsPassive(actor) && ActorPresence.IsPresent(actor) && actor.level==session.LocalActor?.level &&
             actor.level==effect.level && actor.weapon==effect.clip.weapon && actor.generation==effect.generation && actor.lifecycleSequence==effect.lifecycle;
         public void Step(float dt)
         {

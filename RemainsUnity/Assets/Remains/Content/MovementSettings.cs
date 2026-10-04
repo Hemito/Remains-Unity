@@ -11,6 +11,7 @@ namespace Remains.Content
         public float actorGravity,jumpSupportSeconds;
         public float crouchSpeed,crouchSolidSeconds,crouchPlatformSeconds;
         public float sprintPreparationSeconds;
+        public float stepHeight;
         public void Validate()
         {
             foreach(float value in new[]{walkSpeed,runSpeed,climbSpeed,jumpSpeed,dropSpeed,doubleTapSeconds,
@@ -19,6 +20,8 @@ namespace Remains.Content
             if(runSpeed<walkSpeed) throw new InvalidOperationException("Скорость бега ниже скорости ходьбы.");
             if(!float.IsFinite(sprintPreparationSeconds) || sprintPreparationSeconds<0)
                 throw new InvalidOperationException("Время подготовки бега должно быть конечным неотрицательным числом.");
+            if(!float.IsFinite(stepHeight) || stepHeight<0)
+                throw new InvalidOperationException("Высота перешагивания должна быть конечной и неотрицательной.");
         }
         public static MovementSettings Load()
         {

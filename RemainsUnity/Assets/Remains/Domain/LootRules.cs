@@ -8,7 +8,7 @@ namespace Remains.Domain
         public readonly float distance;
         public LootAccessContext(ActorState actor,InventorySource container)
         {
-            body=container.Body!=null;bodyDown=container.Body?.down??false;bodyPresent=ActorPresence.IsPresent(container.Body);bodyActorId=container.Body?.id;
+            body=container.Body!=null;bodyDown=ActorSessionRules.IsPassive(container.Body);bodyPresent=ActorPresence.IsPresent(container.Body);bodyActorId=container.Body?.id;
             actorId=actor.id;actorLevel=actor.level;containerId=container.id;containerLevel=container.level;
             connected=actor.connected;down=actor.down;distance=UnityEngine.Vector2.Distance(actor.Position,container.Position);
         }

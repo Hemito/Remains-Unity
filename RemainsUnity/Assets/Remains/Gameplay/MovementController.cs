@@ -23,16 +23,18 @@ namespace Remains.Gameplay
             bool dropPressed=downTap.Step(input.y<-.1f,dt);
             float accelerationTime=sprintPreparation.AccelerationTime(actor,input.x,sprint,dt,settings.sprintPreparationSeconds);
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
-            if (actor.down) { PassiveActorMotion.Step(actor,room,dt,settings);return; }
+            if (ActorSessionRules.IsPassive(actor)) { PassiveActorMotion.Step(actor,room,dt,settings);return; }
             var previous=actor.Position;
             var hull=Anatomy.Movement(actor);
             var selected=System.Array.Find(room.ladders,l=>Mathf.Abs(actor.x-l.x-l.movementOffset)<0.65f && actor.y>=l.bottom-0.1f && actor.y<l.top+0.2f);
             bool wasClimbing=actor.climbing && selected!=null;
             bool detach=jump && input.y<=.1f;
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
-            bool stepOff=wasClimbing && grounded && Mathf.Abs(input.x)>.1f && Mathf.Abs(input.y)<.1f;
+            bool endpoint=selected!=null && (actor.y<=selected.bottom+.001f || actor.y>=selected.top-.001f);
+            bool stepOff=wasClimbing && (grounded || endpoint) && Mathf.Abs(input.x)>.1f && Mathf.Abs(input.y)<.1f;
             // Up can catch a ladder in flight; down starts from support or continues an existing hold.
-            bool ladder = selected!=null && !detach && !stepOff && (wasClimbing || input.y>.1f || grounded && input.y<-.1f);
+            bool ladder = selected!=null && !detach && !stepOff && (wasClimbing ||
+                input.y>.1f && actor.y<selected.top-.001f || grounded && input.y<-.1f && actor.y>selected.bottom+.001f);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
             bool wasCrouched=actor.crouched;
             CrouchMotion.Step(actor,room,settings,input,jump,grounded,ladder,drop,dt);
@@ -58,18 +60,27 @@ namespace Remains.Gameplay
             }
             var desired=new Vector2(actor.vx*dt,verticalDistance);
             actor.Position=ActorTerrainMotion.Move(room,hull,previous,desired,ladder,droppedSurface);
+            if(grounded && !actor.crouched && !ladder && !drop && !launched &&
+                ActorStepMotion.TryMove(room,hull,previous,desired,actor.Position,settings.stepHeight,out var stepped))
+                actor.Position=stepped;
             if(Mathf.Abs(actor.x-previous.x-desired.x)>.0001f) actor.vx=0;
             if(Mathf.Abs(actor.y-previous.y-desired.y)>.0001f) {actor.vy=0;actor.jumpSupportRemaining=0;}
             if(ladder)
             {
                 float y=Mathf.Clamp(actor.y,selected.bottom,selected.top);
-                if(y!=actor.y) actor.vy=0;
                 actor.y=y;
             }
             bool supported=ActorTerrainMotion.Supported(room,hull,actor.Position);
             if(ladder && Mathf.Abs(actor.x-selected.x-selected.movementOffset)>=.65f) ladder=false;
             if(ladder && supported && Mathf.Abs(input.y)<.1f &&
                 (actor.y<=selected.bottom+.001f || actor.y>=selected.top-.001f)) ladder=false;
+            if(ladder && (input.y>.1f && actor.y>=selected.top-.001f || input.y<-.1f && actor.y<=selected.bottom+.001f))
+            {
+                ladder=false;
+                // A real landing stops the climb; an unsupported end releases the
+                // same body into normal gravity with its existing climb momentum.
+                if(supported) actor.vy=0;
+            }
             actor.climbing=ladder;
             StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? "climb" : !supported ? AirbornePose.Select(actor,launched,grounded || wasClimbing || drop) : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched);
         }

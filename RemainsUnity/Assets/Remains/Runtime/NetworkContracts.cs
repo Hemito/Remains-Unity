@@ -58,7 +58,7 @@ namespace Remains.Runtime
                 { reconnecting=true;runtime.Session.StartClient(); }
                 if(reconnecting && NetworkClient.isConnected && runtime.Session.LocalActor is { connected:true } restored)
                 {
-                    if(restored.id==clientId && restored.down && restored.health<=65)
+                    if(restored.id==clientId && !restored.down && restored.health>0 && restored.health<=65)
                     {
                         if(!acted)
                         {
@@ -168,7 +168,7 @@ namespace Remains.Runtime
                         disconnected=true;
                         if(body.health>65)
                         { runtime.Combat.Weapon="pistol";acted=runtime.Combat.Fire(self,body.Position+new Vector2(0,0.2f)); }
-                        if(body.down && body.health<=65 && !passed.Contains("Отключённое тело получило урон у нового владельца"))
+                        if(ActorSessionRules.IsDisconnectedBody(body) && body.health>0 && body.health<=65 && !passed.Contains("Отключённое тело получило урон у нового владельца"))
                             passed.Add("Отключённое тело получило урон у нового владельца");
                     }
                     if(acked && disconnected && Time.unscaledTime-ackedAt>2) Finish(true,"Сетевые контракты выполнены двумя независимыми процессами");

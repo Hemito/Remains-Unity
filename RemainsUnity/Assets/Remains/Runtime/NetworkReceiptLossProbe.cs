@@ -135,7 +135,7 @@ namespace Remains.Runtime
             if(source!=null && !source.connected)
             {
                 if(Loot && session.ServerWorld.pendingGrants.Count>0 || Deposit && session.ServerWorld.pendingDeposits.Count>0) return;
-                if(ActorPresence.IsPresent(source)!=Body || (!Body && source.owner!=null) || InventoryJournal.Count(source,Item)!=After || source.down!=Body)
+                if(ActorPresence.IsPresent(source)!=Body || (!Body && source.owner!=null) || InventoryJournal.Count(source,Item)!=After || ActorSessionRules.IsDisconnectedBody(source)!=Body)
                 {Finish(false,"Отключённая запись хаба потеряла расход или осталась телом с владельцем.");return;}
                 retained=true;
             }

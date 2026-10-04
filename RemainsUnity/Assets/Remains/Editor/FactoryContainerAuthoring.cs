@@ -112,7 +112,7 @@ namespace Remains.Editor
             try
             {
                 var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=sprite;renderer.sharedMaterial=material;
-                renderer.sortingOrder=ActorVisualLayers.WorldObjectOrder;
+                renderer.sortingOrder=ActorVisualLayers.RestingObjectOrder;
                 root.AddComponent<PropView>().SetArtwork(renderer);
                 asset.SetPrefab(PrefabUtility.SaveAsPrefabAsset(root,Folder+"/"+id+".prefab").GetComponent<PropView>());
             }

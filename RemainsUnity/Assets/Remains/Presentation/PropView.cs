@@ -14,6 +14,8 @@ namespace Remains.Presentation
         public SpriteRenderer Artwork=>artwork;
         private readonly RemotePropMotion motion=new();
         private HeldPropGlow glow;
+        private SortingGroup sorting;
+        public int Order=>sorting!=null?sorting.sortingOrder:artwork.sortingOrder;
         public bool HeldGlowVisible=>glow!=null && glow.Visible;
         public void PrepareHeldGlow()
         {
@@ -24,6 +26,7 @@ namespace Remains.Presentation
                 group=gameObject.AddComponent<SortingGroup>();
                 group.sortingLayerID=artwork.sortingLayerID;group.sortingOrder=artwork.sortingOrder;
             }
+            sorting=group;sorting.sortingOrder=ActorVisualLayers.RestingObjectOrder;
             artwork.sortingOrder=0;
             var child=new GameObject("Свечение удерживаемого предмета");
             child.transform.SetParent(artwork.transform,false);
@@ -39,7 +42,11 @@ namespace Remains.Presentation
             heldIntensity=float.IsFinite(heldIntensity)?Mathf.Clamp01(heldIntensity):.7f;
         }
         public void DrawMotion(Remains.Domain.PropState state,string localOwner,bool paused,float dt)
-        {transform.position=motion.Sample(state,localOwner,paused,dt);glow?.Draw(state.held);}
+        {
+            transform.position=motion.Sample(state,localOwner,paused,dt);
+            if(sorting!=null) sorting.sortingOrder=state.held?ActorVisualLayers.WorldObjectOrder:ActorVisualLayers.RestingObjectOrder;
+            glow?.Draw(state.held);
+        }
         public void SetArtwork(SpriteRenderer value)=>artwork=value;
         public void FitWidth(float width)
         {

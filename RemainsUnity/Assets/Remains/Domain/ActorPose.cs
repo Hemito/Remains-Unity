@@ -17,8 +17,8 @@ namespace Remains.Domain
             destination.weaponTipX=source.weaponTipX;destination.weaponTipY=source.weaponTipY;
             destination.weaponReach=source.weaponReach;destination.weaponLift=source.weaponLift;
         }
-        public static string Clip(ActorState actor)=>actor.down?"down":actor.pose;
-        public static bool StationaryClimb(ActorState actor)=>actor.climbing && !actor.down && System.Math.Abs(actor.vy)<.001f;
+        public static string Clip(ActorState actor)=>ActorSessionRules.IsPassive(actor)?"down":actor.pose;
+        public static bool StationaryClimb(ActorState actor)=>actor.climbing && !ActorSessionRules.IsPassive(actor) && System.Math.Abs(actor.vy)<.001f;
         public static void Advance(ActorState actor,float dt)
         {
             if(actor.pose=="run" && actor.poseCorrectionRemaining>0)
@@ -29,7 +29,7 @@ namespace Remains.Domain
                 actor.poseCorrectionRemaining-=held;dt-=held;
             }
             if(StationaryClimb(actor)) {actor.poseTime=0;return;}
-            actor.poseTime+=actor.climbing && !actor.down && actor.vy<0?-dt:dt;
+            actor.poseTime+=actor.climbing && !ActorSessionRules.IsPassive(actor) && actor.vy<0?-dt:dt;
         }
         public static void Select(ActorState actor,string pose)
         {

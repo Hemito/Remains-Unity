@@ -9,7 +9,7 @@ namespace Remains.Gameplay
     {
         public static void Step(ActorState actor,RoomLayout room,float dt,MovementSettings settings)
         {
-            if(dt<=0 || !actor.down) return;
+            if(dt<=0 || !ActorSessionRules.IsPassive(actor)) return;
             actor.climbing=false;actor.jumpSupportRemaining=0;
             ActorPose.Select(actor,"down");
             var hull=Anatomy.Movement(actor);var previous=actor.Position;

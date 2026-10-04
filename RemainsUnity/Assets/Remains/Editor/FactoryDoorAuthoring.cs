@@ -80,7 +80,7 @@ namespace Remains.Editor
             var root=new GameObject(id);
             try
             {
-                var renderer=root.AddComponent<SpriteRenderer>();renderer.sharedMaterial=material;renderer.sortingOrder=ActorVisualLayers.WorldObjectOrder;
+                var renderer=root.AddComponent<SpriteRenderer>();renderer.sharedMaterial=material;renderer.sortingOrder=ActorVisualLayers.RestingObjectOrder;
                 root.AddComponent<DoorView>().Configure(asset,renderer);
                 PrefabUtility.SaveAsPrefabAsset(root,$"{Folder}/{id}.prefab");
             }

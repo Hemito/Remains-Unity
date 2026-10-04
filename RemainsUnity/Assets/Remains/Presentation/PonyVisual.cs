@@ -15,6 +15,7 @@ namespace Remains.Presentation
 
         private static readonly Dictionary<string, PonyRenderPart[][]> cache = new();
         private static readonly Dictionary<string, Bounds[]> poseBounds = new();
+        private static Bounds cameraEnvelope;
         [SerializeField,HideInInspector] private List<MeshFilter> filters = new();
         [SerializeField,HideInInspector] private List<MeshRenderer> renderers = new();
         [SerializeField,HideInInspector] private bool authoredStructure;
@@ -45,6 +46,17 @@ namespace Remains.Presentation
                 cache.Add(clip.id,clip.frames.Select(frame=>frame.parts).ToArray());
                 poseBounds.Add(clip.id,clip.frames.Select(frame=>frame.bounds).ToArray());
             }
+            cameraEnvelope=asset.Clips[0].frames[0].bounds;
+            foreach(var clip in asset.Clips) foreach(var sample in clip.frames) cameraEnvelope.Encapsulate(sample.bounds);
+            // Facing and animation phase cannot change the camera composition envelope.
+            float extent=Mathf.Max(Mathf.Abs(cameraEnvelope.min.x),Mathf.Abs(cameraEnvelope.max.x));
+            cameraEnvelope.SetMinMax(new Vector3(-extent,cameraEnvelope.min.y,cameraEnvelope.min.z),
+                new Vector3(extent,cameraEnvelope.max.y,cameraEnvelope.max.z));
+        }
+        public static Bounds CameraBounds(ActorState actor)
+        {
+            if(poseBounds.Count==0) throw new InvalidOperationException("Границы камеры пони не подготовлены.");
+            var bounds=cameraEnvelope;bounds.center+=new Vector3(actor.x,actor.y,0);return bounds;
         }
         public static Bounds WorldBounds(ActorState actor)
         {
@@ -106,7 +118,7 @@ namespace Remains.Presentation
             }
             if (pose != next) { pose = next; frame = -1; }
             var frames = cache[pose];
-            int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,state.down,ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
+            int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorSessionRules.IsPassive(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
             if (nextFrame == frame) return;
             frame = nextFrame;
             var parts = frames[frame];

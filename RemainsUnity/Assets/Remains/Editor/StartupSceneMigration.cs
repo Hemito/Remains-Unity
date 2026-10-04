@@ -11,7 +11,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            const string path="Assets/Remains/Scenes/Prototype.unity";
+            string path=EditorBuildSettings.scenes.Single(scene=>scene.enabled).path;
             if(AssetDatabase.LoadAssetAtPath<SceneAsset>(path)==null) throw new InvalidOperationException("Отсутствует стартовая сцена: "+path);
             var scene=EditorSceneManager.OpenScene(path,OpenSceneMode.Single);
             var roots=scene.GetRootGameObjects();
@@ -19,7 +19,7 @@ namespace Remains.Editor
             if(count>1) throw new InvalidOperationException("В стартовой сцене несколько компонентов запуска; требуется исправить сцену.");
             if(count==0) new GameObject("Запуск игры").AddComponent<PrototypeRuntime>();
             EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);
-            Debug.Log("Явный запуск сохранён в Prototype.unity; существующие объекты сцены сохранены.");
+            Debug.Log("Явный запуск сохранён в стартовой сцене; существующие объекты сцены сохранены.");
         }
     }
 }

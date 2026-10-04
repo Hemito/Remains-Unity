@@ -39,7 +39,9 @@
     {
       "weapon": "crowbar",
       "surfaces": [
-        "Hub/concrete"
+        "Hub/concrete",
+        "Factory46/26_tConcrete",
+        "Factory18/26_tConcrete"
       ],
       "clip": "Original/Audio/hit-concrete",
       "gain": 0.5
@@ -47,7 +49,9 @@
     {
       "weapon": "spear",
       "surfaces": [
-        "Hub/concrete"
+        "Hub/concrete",
+        "Factory46/26_tConcrete",
+        "Factory18/26_tConcrete"
       ],
       "clip": "Original/Audio/hit-concrete",
       "gain": 0.5
@@ -95,6 +99,22 @@
       "surfaces": [
         "door:wood"
       ]
+    },
+    {
+      "weapon": "crowbar",
+      "actors": [
+        "training-armored-dummy"
+      ],
+      "clip": "Original/Audio/hit-metal",
+      "gain": 0.4
+    },
+    {
+      "weapon": "spear",
+      "actors": [
+        "training-armored-dummy"
+      ],
+      "clip": "Original/Audio/hit-metal",
+      "gain": 0.4
     }
   ]
 }

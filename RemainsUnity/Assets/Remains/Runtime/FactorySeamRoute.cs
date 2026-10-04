@@ -96,7 +96,9 @@ namespace Remains.Runtime
             else if(phase==5 && !Host && claimedItem!=null && !Container.items.Any(i=>i.id==claimedItem))
             {runtime.Hud.CloseContainer();phase=7;}
             else if(phase==7 && Mathf.Abs(Actor.x-16.22f)<.08f) phase=8;
-            else if(phase==8 && Actor.y<=7.3f) {phase=9;jumped=false;}
+            // Jump before the unsupported lower end releases the grip. Below that
+            // point the actor is already falling behind the entry platform.
+            else if(phase==8 && Actor.y<=initialRoom.spawnY+.7f) {phase=9;jumped=false;}
             else if(phase==9 && Mathf.Abs(Actor.x-initialRoom.spawnX)<.08f && Mathf.Abs(Actor.y-initialRoom.spawnY)<.03f)
                 phase=10;
         }

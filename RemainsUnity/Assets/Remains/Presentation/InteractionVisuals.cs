@@ -103,7 +103,7 @@ namespace Remains.Presentation
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.SetVisible(false);continue; }
                 if(view.Id!=actor.weapon)
                 {view.gameObject.SetActive(false);Destroy(view.gameObject);view=CreateWeapon(actor);weapons[actor.id]=view;}
-                view.SetVisible(ActorPresence.IsPresent(actor) && !actor.down && actor.level==session.LocalActor?.level);
+                view.SetVisible(ActorPresence.IsPresent(actor) && !ActorSessionRules.IsPassive(actor) && actor.level==session.LocalActor?.level);
                 sprite=shotAnimation.Select(actor,sprite);
                 view.SetFrame(sprite);
                 var direction=WeaponPose.Direction(actor);

@@ -82,7 +82,7 @@ namespace Remains.Runtime
             if(Source && returned && session.LocalActor!=null && !acknowledged)
             {
                 acknowledged=true;var actor=session.LocalActor;
-                bool valid=actor.id==BodyId && actor.generation>generation && actor.down && actor.level=="factory:0" && Valid(session.World);
+                bool valid=actor.id==BodyId && actor.generation>generation && !actor.down && actor.level=="factory:0" && Valid(session.World);
                 if(!valid) {Finish(false,"Возвращение владельца тела потеряло результаты обмена.");return;}
                 NetworkClient.Send(new BodyInventoryReady {valid=true});
             }
@@ -91,7 +91,7 @@ namespace Remains.Runtime
             if(phase==0 && session.ServerWorld.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers &&
                 body?.level=="factory:0" && session.LocalActor.level=="factory:0" && (!Race || session.ServerWorld.actors.Where(a=>a.player).All(a=>a.level=="factory:0")))
             {targetItem=body.inventory.Single(i=>i.definition=="grenade").id;phase=1;NetworkServer.SendToAll(new BodyInventoryPhase {phase=1});}
-            if(phase==1 && body is {connected:false,down:true})
+            if(phase==1 && ActorSessionRules.IsDisconnectedBody(body))
             {phase=2;clickAt=DateTime.UtcNow.AddSeconds(1).Ticks;NetworkServer.SendToAll(new BodyInventoryPhase {phase=2,clickAt=clickAt});}
             if(phase==2 && (Race?claimers.Count==runtime.Options.ProbePeers-1-(RemoteRace?1:0) && InventoryJournal.Count(body,"grenade")==0:InventoryJournal.Count(session.LocalActor,"grenade")==6) && !gifted)
             {gifted=true;StartCoroutine(Give());}

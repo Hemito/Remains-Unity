@@ -16,6 +16,18 @@ namespace Remains.Runtime
         private int damageSequence;
         public bool TelekinesisVerified {get;private set;}
         public bool GrenadeVerified {get;private set;}
+        public bool PropSettled
+        {
+            get
+            {
+                var prop=runtime.Session.World.props.Single();
+                if(prop.held || Mathf.Abs(prop.vy)>.1f) return false;
+                var feet=prop.Position-Vector2.up*prop.anchorHeight;var contact=feet;
+                return ActorTerrainMotion.Supported(runtime.Geometry.Get(prop.level),
+                    new MovementHull {width=prop.width,height=prop.height},feet) ||
+                    PropSupport.Resolve(prop,feet,ref contact,WorldProps.All(runtime.Session.World));
+            }
+        }
         private bool Host=>runtime.Options.Role=="host";
         public JourneyInteractionStage(PrototypeRuntime value) {runtime=value;}
         public PlayerCommand Command(int phase)
@@ -28,7 +40,7 @@ namespace Remains.Runtime
             {
                 if(Host && self.health<=70 && InventoryJournal.Count(self,"heal")>0) return new PlayerCommand {heal=true};
                 float target=Host?5:11+int.Parse(self.character.Split('-').Last());
-                return returnRoute.Command(self,target);
+                return returnRoute.Command(self,target,runtime.Geometry.Get("hub"));
             }
             if(phase==21 && Host && !threw)
             {threw=true;return new PlayerCommand {grenade=true,hasAim=true,aim=self.Position+Vector2.down*3};}
@@ -40,7 +52,7 @@ namespace Remains.Runtime
             var host=world.Find("player:session-host");
             if(phase==15 && prop.held && prop.owner==host.owner) return 16;
             if(phase==16 && Vector2.Distance(prop.Position,new Vector2(-1,2))<.15f) return 17;
-            if(phase==17 && !prop.held && prop.y-prop.anchorHeight<.1f)
+            if(phase==17 && PropSettled)
             {
                 if(host.mana>=100 || world.actors.Any(a=>a.player && a.id!=host.id && a.mana!=100))
                     throw new InvalidOperationException("Journey: неверный расход маны телекинеза.");

@@ -336,6 +336,8 @@ namespace Remains.Presentation
             var interaction=InteractionSelection.Select(session.World,session.LocalActor,session.Rules,session.Travel.Points(session.LocalActor?.level));
             if(interaction.kind is InteractionKind.Map or InteractionKind.Exit)
                 containerHint.Refresh(session.Travel.Find(interaction.id,session.LocalActor.level),show,session.LocalActor);
+            else if(interaction.kind==InteractionKind.Door)
+                containerHint.Refresh(session.World.doors.Find(door=>door.id==interaction.id),show,session.LocalActor);
             else containerHint.Refresh(interaction.kind==InteractionKind.Container?session.World?.containers.Find(c=>c.id==interaction.id):null,show,session.LocalActor);
         }
         private void Update()

@@ -10,6 +10,7 @@ namespace Remains.Presentation
     {
         public const int FirstActorOrder=1000,WorldObjectOrder=21000,EffectOrder=30000;
         public const int WallFixtureOrder=FirstActorOrder-1;
+        public const int RestingObjectOrder=FirstActorOrder-2;
         private readonly Dictionary<string,ActorVisualGroup> groups=new(StringComparer.Ordinal);
         private readonly Transform parent;
         public ActorVisualLayers(Transform parent=null)=>this.parent=parent;

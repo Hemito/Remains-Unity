@@ -21,6 +21,9 @@ namespace Remains.Editor
             Require(Mathf.Abs(mix.Pan(-10,0)+mix.Pan(10,0))<.00001f,"Панорама несимметрична.");
             Check("Hub/concrete","hit-concrete",false);
             Check("floor","hit-metal",false);
+            Check("Factory46/26_tConcrete","hit-concrete",false);
+            Check("Factory18/26_tConcrete","hit-concrete",false);
+            Check("Hub/concrete","hit-metal",true,"training-armored-dummy");
             Check("Hub/concrete","hit-bullet",true);
             CheckAttackMix();
             CheckDistantAttacks();
@@ -94,7 +97,7 @@ namespace Remains.Editor
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
         }
-        private static void Check(string texture,string expected,bool actorBlocks)
+        private static void Check(string texture,string expected,bool actorBlocks,string actorType="training-dummy")
         {
             var root=new GameObject("Проверка звуков контакта");
             try
@@ -103,7 +106,7 @@ namespace Remains.Editor
                 var world=new WorldState();
                 var observer=new ActorState {id="observer",owner="listener",player=true,connected=true,level="hub",x=-2};
                 world.actors.Add(observer);
-                if(actorBlocks) world.actors.Add(new ActorState {id="target",actorType="training-dummy",level="hub",x=2});
+                if(actorBlocks) world.actors.Add(new ActorState {id="target",actorType=actorType,level="hub",x=2});
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,observer.id);
                 // The near surface passes shots; the farther one must supply the sound key.

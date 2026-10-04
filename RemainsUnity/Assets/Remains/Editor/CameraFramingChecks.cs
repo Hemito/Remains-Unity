@@ -22,6 +22,25 @@ namespace Remains.Editor
                 rejected=false;
                 try {CameraFollower.RequireCamera(null);} catch(InvalidOperationException) {rejected=true;}
                 if(!rejected) throw new InvalidOperationException("Отсутствующая камера скрыта runtime-подстановкой.");
+                camera.orthographic=true;camera.orthographicSize=5;camera.aspect=1280f/534;
+                PonyVisual.Prepare();
+                var follower=new CameraFollower(camera,new Remains.Domain.RoomLayout {id="camera-edge",left=0,right=80,bottom=0,top=30});
+                var actor=new Remains.Domain.ActorState {id="edge-climber",x=.1f,y=25,climbing=true,pose="climb"};
+                follower.Step(actor,10);var stable=camera.transform.position;
+                var render=Resources.Load<Remains.Content.PonyRenderAsset>("Original/Pony/render");
+                foreach(var clip in render.Clips) foreach(var frame in clip.frames)
+                {
+                    actor.pose=clip.id;actor.poseTime+=.1f;actor.facing=-actor.facing;
+                    var envelope=PonyVisual.CameraBounds(actor);
+                    var minimum=frame.bounds.min+new Vector3(actor.x,actor.y,0);
+                    var maximum=frame.bounds.max+new Vector3(actor.x,actor.y,0);
+                    if(minimum.x<envelope.min.x-.0001f || maximum.x>envelope.max.x+.0001f ||
+                        minimum.y<envelope.min.y-.0001f || maximum.y>envelope.max.y+.0001f)
+                        throw new InvalidOperationException("Общая граница камеры не вмещает кадр "+clip.id);
+                    follower.Step(actor,1f/60);
+                    if(Vector3.Distance(camera.transform.position,stable)>.0001f)
+                        throw new InvalidOperationException("Кадры анимации двигают камеру неподвижного персонажа у края комнаты");
+                }
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
             foreach(var sample in new[] {

@@ -85,11 +85,11 @@ namespace Remains.Presentation
                 if(actor.level!=listener.level || !tracks.TryGetValue(actor.id,out var track)) continue;
                 bool grounded=ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
                 var contact=track.contacts.Sample(actor.Position,actor.level,actor.generation,grounded,actor.climbing,
-                    paused || actor.down,float.PositiveInfinity,float.PositiveInfinity,settings.teleportDistance);
+                    paused || ActorSessionRules.IsPassive(actor),float.PositiveInfinity,float.PositiveInfinity,settings.teleportDistance);
                 rhythms.TryGetValue(actor.pose,out var rhythm);
                 if(rhythm==null && !quietPoses.Contains(actor.pose) && missing.Add("pose:"+actor.pose))
                     Debug.LogWarning($"Нет ритма или явной тихой позы: actor={actor.id}, pose={actor.pose}, level={actor.level}. Шаги пропущены.",this);
-                int beats=track.rhythm.Sample(actor,rhythm,grounded,paused || actor.down,settings.teleportDistance);
+                int beats=track.rhythm.Sample(actor,rhythm,grounded,paused || ActorSessionRules.IsPassive(actor),settings.teleportDistance);
                 if(contact!=MotionContact.Landing && beats>0) contact=actor.climbing?MotionContact.Ladder:MotionContact.Step;
                 if(contact==MotionContact.None) continue;
                 string bank=contact==MotionContact.Ladder?"ladder":SurfaceContactSound.Resolve(room,Anatomy.Movement(actor),actor.Position);

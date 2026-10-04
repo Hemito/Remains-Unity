@@ -23,6 +23,7 @@ namespace Remains.Editor
             NpcPerceptionChecks.Run();
             ExplosionPrefabChecks.Run();
             Anatomy.Load();
+            ActorStepChecks.Run();
             SlopedSupportChecks.Run();
             DoorVisualChecks.Run();DoorGeometryChecks.Run();DoorRequestChecks.Run();DoorClosureMotionChecks.Run();InteractionSelectionChecks.Run();TravelPointChecks.Run();
             PassiveActorMotionChecks.Run();
@@ -36,6 +37,8 @@ namespace Remains.Editor
             HintPlacementChecks.Run();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
+            ActorControlChecks.Run();
+            DoorCombatChecks.Run();
             FactoryRoomContentChecks.Run();
             ConnectedFactoryChecks.Run();
             WorldRoomChecks.Run();

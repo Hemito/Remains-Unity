@@ -43,6 +43,8 @@ namespace Remains.Domain
         public long revision;
         public bool player;
         public bool connected;
+        // Version 0 saves conflated loss of connection with gameplay knockdown.
+        public int controlStateVersion;
         public bool down;
         public bool climbing;
         public bool crouched;

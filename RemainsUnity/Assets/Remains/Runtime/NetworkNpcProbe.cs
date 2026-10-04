@@ -132,7 +132,7 @@ namespace Remains.Runtime
             if(canceled && shots.ContainsKey(canceledAttack)) {Finish(false,"Выстрел отменённой атаки дошёл после обрыва.");return;}
             if(canceled && shots.Any(s=>s.Value>canceledAt && s.Value-canceledAt<1.5f)) {Finish(false,"После передачи потеряна пауза между атаками.");return;}
             if(!canceled || source?.connected!=true || !shots.Any(s=>s.Value>canceledAt)) return;
-            bool valid=deferred && replayed && replayProofs>=2 && npc.health==132 && npc.resolvedAttacks.Count(id=>id==acceptedShot.id)==1 && shots.ContainsKey(firstAttack) && source.down && source.level=="factory:0" && session.ServerWorld.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers &&
+            bool valid=deferred && replayed && replayProofs>=2 && npc.health==132 && npc.resolvedAttacks.Count(id=>id==acceptedShot.id)==1 && shots.ContainsKey(firstAttack) && source.down==(source.health<=0) && source.level=="factory:0" && session.ServerWorld.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers &&
                 session.ServerWorld.actors.Where(a=>a.player && a.character!="session-host" && a.character!="session-client-1").All(a=>a.level=="hub" && a.health==100);
             phase=2;
             NetworkServer.SendToAll(new NpcProbeFinish {success=valid,detail=valid?

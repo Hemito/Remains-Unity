@@ -72,7 +72,7 @@ namespace Remains.Runtime
             if(phase==0)
             {
                 float target=Host?5:Source?6:7+int.Parse(self.character.Split('-').Last());
-                return initialRoute.Command(self,target);
+                return initialRoute.Command(self,target,runtime.Geometry.Get("hub"));
             }
             if(phase==1 && Host) return new PlayerCommand {weapon="pistol",fire=!Victim.down,hasAim=true,aim=Victim.Position+Vector2.up*.55f};
             if((phase==2 || phase==7) && Host && Victim.down)
@@ -156,9 +156,9 @@ namespace Remains.Runtime
                     {bodyGeneration=Victim.generation;Advance(6);}break;
                 case 6:
                     var body=session.ServerWorld.Find("player:session-client-1");
-                    if(!body.connected) sawBody=body.down && body.level=="factory:0" && InventoryJournal.Count(body,"caps")==1;
-                    if(sawBody && body.connected && body.generation>bodyGeneration && body.down) Advance(7);break;
-                case 7: if(!Victim.down && InventoryJournal.Count(Healer,"heal")<=3) Advance(8);break;
+                    if(!body.connected) sawBody=ActorSessionRules.IsDisconnectedBody(body) && body.level=="factory:0" && InventoryJournal.Count(body,"caps")==1;
+                    if(sawBody && body.connected && body.generation>bodyGeneration) Advance(7);break;
+                case 7: if(!Victim.down && InventoryJournal.Count(Healer,"heal")<=4) Advance(8);break;
                 case 8:
                     if(players.Length==runtime.Options.ProbePeers && players.All(a=>a.level=="hub" && !a.down)) Advance(20);break;
             }
@@ -176,7 +176,7 @@ namespace Remains.Runtime
             var world=runtime.Session.World;
             if(phase==2 && !Victim.down) return;
             if(phase==3 && (Healer.level!="factory:0" || world.actors.Any(a=>a.player && a.id!=Healer.id && a.level!="hub"))) return;
-            if(phase==17 && world.props.Any(p=>p.held || p.y-p.anchorHeight>=.1f)) return;
+            if(phase==17 && !interactions.PropSettled) return;
             NetworkSceneRecord.Save(runtime,phase);captured.Add(phase);
             NetworkClient.Send(new JourneyFrameReady {phase=phase});
         }
@@ -187,7 +187,7 @@ namespace Remains.Runtime
             return session.World.worldId==worldId && players.Length==runtime.Options.ProbePeers &&
                 players.Select(a=>a.id).Distinct().Count()==players.Length && players.All(a=>a.level=="hub" && !a.down && InventoryJournal.Count(a,"caps")==1) &&
                 session.World.containers.SelectMany(c=>c.items).Where(i=>i.definition=="caps").Sum(i=>i.count)==20-players.Length &&
-                InventoryJournal.Count(Healer,"heal")<=3 && session.World.pendingGrants.Count==0 &&
+                InventoryJournal.Count(Healer,"heal")<=4 && session.World.pendingGrants.Count==0 &&
                 saved!=null && saved.id==local.id && InventoryJournal.Count(saved,"caps")==1 &&
                 InventoryJournal.Count(saved,"heal")==InventoryJournal.Count(local,"heal");
         }

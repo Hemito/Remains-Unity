@@ -32,7 +32,9 @@ namespace Remains.Editor
             var inventoryShell=Resources.Load<Texture2D>("Original/Inventory/shell");
             if(inventoryShell==null || inventoryShell.width!=2097 || inventoryShell.height!=1080)
                 throw new InvalidOperationException("Корпус инвентаря должен сохранять исходный размер 2097×1080 после импорта.");
-            string path="Assets/Remains/Scenes/Prototype.unity";
+            var enabledScenes=EditorBuildSettings.scenes.Where(scene=>scene.enabled).ToArray();
+            if(enabledScenes.Length!=1) throw new InvalidOperationException("Build Settings должны содержать одну стартовую сцену игры.");
+            string path=enabledScenes[0].path;
             RoomAuthoringScenes.ValidateSavedOverrides();
             if(AssetDatabase.LoadAssetAtPath<SceneAsset>(path)==null)
                 throw new InvalidOperationException($"Нет стартовой сцены {path}. Сборка не создаёт и не заменяет сцены.");
@@ -45,7 +47,7 @@ namespace Remains.Editor
             if(cameras.Length!=1) throw new InvalidOperationException("Стартовая сцена должна содержать ровно одну активную MainCamera.");
             Remains.Presentation.CameraFollower.RequireCamera(cameras[0]);
             AssetDatabase.SaveAssets();
-            var options=new BuildPlayerOptions { scenes=new[]{path}, locationPathName="Builds/Windows/RemainsPrototype.exe",
+            var options=new BuildPlayerOptions { scenes=new[]{path}, locationPathName="Builds/Windows/Remains.exe",
                 target=BuildTarget.StandaloneWindows64, options=BuildOptions.Development };
             var report=BuildPipeline.BuildPlayer(options);
             if(report.summary.result!=BuildResult.Succeeded) throw new InvalidOperationException($"Сборка не завершена: {report.summary.result}, ошибок: {report.summary.totalErrors}.");

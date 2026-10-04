@@ -9,6 +9,7 @@ namespace Remains.Presentation
     {
         private readonly RectTransform canvas, panel;
         private readonly Text label;
+        private readonly Color normalColor;
         private readonly Camera camera;
         private readonly Canvas root;
         private Vector2 targetTop;
@@ -20,6 +21,7 @@ namespace Remains.Presentation
             canvas=(RectTransform)parent;camera=Camera.main;root=parent.GetComponent<Canvas>();
             Canvas.willRenderCanvases+=Place;
             label=ui.BackedLabel(parent,"",Vector2.zero,new Vector2(220,27));
+            normalColor=label.color;
             label.alignment=TextAnchor.MiddleCenter;label.fontSize=16;
             panel=(RectTransform)label.transform.parent;
             panel.anchorMin=panel.anchorMax=panel.pivot=new Vector2(.5f,.5f);
@@ -29,13 +31,23 @@ namespace Remains.Presentation
         public void Refresh(ContainerState container,bool visible,ActorState localActor=null)
         {
             hasTarget=container!=null;allowed=visible;actor=localActor;
-            if(container!=null) {label.text=$"E · Контейнер · {container.mass:0.#} кг";targetTop=container.Position+Vector2.up*(container.height-container.anchorHeight+.25f);}
+            if(container!=null) {label.color=normalColor;label.text=$"E · Контейнер · {container.mass:0.#} кг";targetTop=container.Position+Vector2.up*(container.height-container.anchorHeight+.25f);}
             Place();
         }
         public void Refresh(TravelPoint point,bool visible,ActorState localActor)
         {
             hasTarget=point!=null;allowed=visible;actor=localActor;
-            if(point!=null) {label.text="E · "+point.title;targetTop=new Vector2(point.x+point.width*.5f,point.y+point.height+.25f);}
+            if(point!=null) {label.color=normalColor;label.text="E · "+point.title;targetTop=new Vector2(point.x+point.width*.5f,point.y+point.height+.25f);}
+            Place();
+        }
+        public void Refresh(DoorState door,bool visible,ActorState localActor)
+        {
+            hasTarget=door!=null;allowed=visible;actor=localActor;
+            if(door!=null)
+            {
+                label.color=Color.yellow;label.text=door.open?"E · Закрыть дверь":"E · Открыть дверь";
+                targetTop=new Vector2(door.x+door.width*.5f,door.y+door.height+.25f);
+            }
             Place();
         }
         public void Dispose()=>Canvas.willRenderCanvases-=Place;

@@ -15,7 +15,7 @@ namespace Remains.Gameplay
             var delta=TelekinesisFollow.Displacement(origin,target,dt);
             body.Position=ActorTerrainMotion.Move(room,hull,origin,delta,ignoreOneWay:delta.y<0);
             body.Velocity=(body.Position-origin)/dt;
-            ActorPose.Select(body,body.down?"down":"jump");
+            ActorPose.Select(body,ActorSessionRules.IsPassive(body)?"down":"jump");
         }
     }
 }

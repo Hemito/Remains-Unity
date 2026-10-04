@@ -56,7 +56,7 @@ namespace Remains.Runtime
             if(phase==0)
             {
                 if(Mathf.Abs(self.x-Axis)>.08f) return Move(Axis,self);
-                return self.y>ladder.bottom+.1f?new PlayerCommand {movement=Vector2.down}:default;
+                return self.climbing || self.y>ladder.bottom+RoomSupport.ContactTolerance?new PlayerCommand {movement=Vector2.down}:default;
             }
             if(!Host)
             {
@@ -114,7 +114,9 @@ namespace Remains.Runtime
             if(!Host || advancing || runtime.Session.World.actors.Count(a=>a.player && a.connected)!=2) return;
             switch(phase)
             {
-                case 0: if(new[]{victim,Healer}.All(a=>Mathf.Abs(a.x-Axis)<.12f && Mathf.Abs(a.y-ladder.bottom)<.12f)) Next();break;
+                case 0: if(new[]{victim,Healer}.All(a=>Mathf.Abs(a.x-Axis)<.12f && !a.climbing &&
+                    ActorTerrainMotion.Supported(runtime.Geometry.Get(a.level),Anatomy.Movement(a),a.Position) &&
+                    Mathf.Abs(a.y-ladder.bottom)<=RoomSupport.ContactTolerance)) Next();break;
                 case 1: if(climbed && Mathf.Abs(Healer.x-(Axis+2.5f))<.12f) Next();break;
                 case 2: if(victim.down) Next();break;
                 case 3: if(landed && Mathf.Abs(Healer.x-(Axis+1.1f))<.12f) Next();break;

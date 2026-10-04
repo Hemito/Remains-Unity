@@ -30,7 +30,7 @@ namespace Remains.Presentation
             else
             {
                 view=new GameObject(name).AddComponent<PropView>();var renderer=view.gameObject.AddComponent<SpriteRenderer>();
-                SpriteArtworkMaterial.Apply(renderer,Get(id));renderer.sortingOrder=ActorVisualLayers.WorldObjectOrder;view.SetArtwork(renderer);
+                SpriteArtworkMaterial.Apply(renderer,Get(id));renderer.sortingOrder=ActorVisualLayers.RestingObjectOrder;view.SetArtwork(renderer);
             }
             view.name=name;view.FitWidth(width);view.PrepareHeldGlow();return view;
         }

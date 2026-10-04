@@ -32,11 +32,11 @@ namespace Remains.Gameplay
             {
                 if(actor.owner==localOwner || !ActorPresence.IsPresent(actor)) {samples.Remove(actor.id);continue;}
                 bool reset=!samples.TryGetValue(actor.id,out var sample) || sample.owner!=actor.owner || sample.level!=actor.level ||
-                    sample.generation!=actor.generation || sample.lifecycle!=actor.lifecycleSequence || sample.down!=actor.down;
+                    sample.generation!=actor.generation || sample.lifecycle!=actor.lifecycleSequence || sample.down!=ActorSessionRules.IsPassive(actor);
                 if(reset)
                 {
                     sample=new Sample {owner=actor.owner,level=actor.level,generation=actor.generation,lifecycle=actor.lifecycleSequence,
-                        sequence=actor.motionSequence,down=actor.down,position=actor.Position,received=actor.Position,velocity=actor.Velocity};
+                        sequence=actor.motionSequence,down=ActorSessionRules.IsPassive(actor),position=actor.Position,received=actor.Position,velocity=actor.Velocity};
                     samples[actor.id]=sample;
                     ObserveClock(actor,sample,now);
                 }
@@ -44,7 +44,7 @@ namespace Remains.Gameplay
                 {
                     var received=actor.Position;
                     float age=ObserveClock(actor,sample,now);
-                    var projected=actor.down?received:received+actor.Velocity*age;
+                    var projected=ActorSessionRules.IsPassive(actor)?received:received+actor.Velocity*age;
                     // Teleports must not be traversed as motion. Normal envelopes include the last observed speed.
                     float discontinuity=Mathf.Max(3,(sample.velocity.magnitude+actor.Velocity.magnitude)*PredictionSeconds*2);
                     if(Vector2.Distance(received,sample.received)>discontinuity) {sample.position=projected;sample.correction=Vector2.zero;}
@@ -56,7 +56,7 @@ namespace Remains.Gameplay
                 {
                     // Bodies interpolate toward confirmed positions only: predicting their
                     // last falling velocity would carry them through an unseen landing.
-                    float predict=actor.down?0:Mathf.Min(dt,Mathf.Max(0,PredictionSeconds-sample.age));
+                    float predict=ActorSessionRules.IsPassive(actor)?0:Mathf.Min(dt,Mathf.Max(0,PredictionSeconds-sample.age));
                     sample.age+=dt;
                     var correction=sample.correction*(1-Mathf.Exp(-dt/CorrectionSeconds));
                     sample.correction-=correction;

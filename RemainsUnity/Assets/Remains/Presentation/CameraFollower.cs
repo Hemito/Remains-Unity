@@ -24,7 +24,7 @@ namespace Remains.Presentation
                 Mathf.Clamp(actor.y+1,Room.bottom+camera.orthographicSize,Room.top-camera.orthographicSize);
             var target=new Vector3(x,y,-10);
             var position=Vector3.Lerp(camera.transform.position,target,1-Mathf.Exp(-8*dt));
-            var bounds=PonyVisual.WorldBounds(actor);
+            var bounds=PonyVisual.CameraBounds(actor);
             bool oversized=bounds.size.x>halfWidth*2-.3f || bounds.size.y>camera.orthographicSize*2-.3f;
             if(oversized && !oversizedWarning)
                 Debug.LogWarning($"Поза не помещается в камеру: actor={actor.id}, bounds={bounds}, viewport={halfWidth*2}x{camera.orthographicSize*2}. Поза центрирована, требуется настройка масштаба камеры.");
@@ -34,7 +34,8 @@ namespace Remains.Presentation
             camera.transform.position=position;
         }
         // Room limits guide composition, but must not crop the local character.
-        // Pose bounds are compiled once with the visible meshes, not rebuilt per frame.
+        // The complete animation envelope is compiled once with the visible meshes;
+        // individual limb frames must never push the camera back and forth.
         public static float FrameAxis(float center,float minimum,float maximum,float halfSize)
         {
             const float margin=.15f;

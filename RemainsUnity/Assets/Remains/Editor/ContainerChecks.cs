@@ -52,7 +52,7 @@ namespace Remains.Editor
             inventory.CommitGrant(world.pendingGrants[0]);
             var recovered=hub.Copy();recovered.connected=true;
             Require(ActorPresence.IsPresent(recovered) && recovered.inventory.Count==1 && recovered.inventory[0].id==reserved.id,"Завершённая выдача сохраняется в отсутствующей записи и возвращается с персонажем");
-            ActorSessionRules.Disconnect(other);Require(other.down && ActorPresence.IsPresent(other),"Отключение вне хаба сохраняет тело без сознания");
+            ActorSessionRules.Disconnect(other);Require(!other.down && ActorSessionRules.IsPassive(other) && ActorPresence.IsPresent(other),"Отключение вне хаба сохраняет тело без сознания");
             var partialWorld=new WorldState();
             var partialContainer=new ContainerState {x=0};partialWorld.containers.Add(partialContainer);
             var left=new ActorState {id="left",connected=true,player=true};

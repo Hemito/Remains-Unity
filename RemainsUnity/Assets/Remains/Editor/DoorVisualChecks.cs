@@ -16,6 +16,12 @@ namespace Remains.Editor
                 var door=new DoorState {id="visual-door",definition="door1",level="hub",x=2,y=1,width=.8f,height=1.6f,surfaceTexture="door:wood"};
                 world.doors.Add(door);visuals.Reconcile(world,"hub");var view=visuals.Find(door.id);
                 Require(view!=null && view.Artwork.sprite==view.Definition.Closed && visuals.SoundChanges==0,"Начальная загрузка не молчит или не рисует дверь.");
+                foreach(string id in new[]{"door1","door2","door3"})
+                {
+                    var prefab=Resources.Load<DoorView>("Presentation/Doors/"+id);
+                    Require(prefab!=null && prefab.Artwork.sortingOrder==ActorVisualLayers.RestingObjectOrder,
+                        "Обычная дверь перекрывает персонажа: "+id);
+                }
                 var definition=view.Definition;var position=view.transform.position;door.open=true;door.revision++;
                 visuals.Reconcile(world,"hub");visuals.Reconcile(world.Copy(),"hub");
                 Require(view.Artwork.sprite==view.Definition.Opened && view.transform.position==position && visuals.SoundChanges==1,"Открытие смещает дверь или повторяет звук.");

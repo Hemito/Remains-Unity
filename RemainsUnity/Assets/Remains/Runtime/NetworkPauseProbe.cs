@@ -130,7 +130,7 @@ namespace Remains.Runtime
             if(finished) yield break;
             var resumed=session.LocalActor;
             if(resumed.id!=original.id || resumed.level!=original.level || resumed.generation<=original.generation ||
-                !resumed.down || resumed.Position!=original.Position || resumed.health>original.health ||
+                resumed.down!=original.down || resumed.Position!=original.Position || resumed.health>original.health ||
                 session.World.actors.Count(actor=>actor.character==original.character)!=1 ||
                 runtime.Hud.InventoryOpen || runtime.Hud.PauseMenu.IsOpen)
             {failure="Возвращение после автопаузы изменило тело/позицию либо сохранило старый интерфейс";Finish(false);yield break;}
@@ -201,7 +201,7 @@ namespace Remains.Runtime
             if(finished) return;
             if(Time.unscaledTime>deadline) {Finish(false);return;}
             var session=runtime.Session;
-            if(Host && phase==13 && session.ServerWorld?.Find("player:session-client-1") is {connected:false,down:true,level:"factory:0"} && !session.Pause.IsServerPaused("factory:0"))
+            if(Host && phase==13 && session.ServerWorld?.Find("player:session-client-1") is {connected:false,level:"factory:0"} && !session.Pause.IsServerPaused("factory:0"))
                 observedDisconnected=true;
             if(uiBusy || phase<0 || acknowledged==phase || session.LocalActor==null || session.Travel.Pending || session.Pause.Revision<0) return;
             if(phase==4 && Host) return;

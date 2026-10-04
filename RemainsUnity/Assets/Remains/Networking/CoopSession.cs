@@ -138,6 +138,7 @@ namespace Remains.Networking
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
+            ActorControlMigration.Prepare(ServerWorld,Rules.Knockdown,Saves.PreserveRecoverySource);
             npcHits?.Reset();
             var contentLevels=ServerWorld.actors.Select(a=>a.level).Concat(ServerWorld.containers.Select(c=>c.level))
                 .Concat(ServerWorld.props.Select(p=>p.level)).Concat(ServerWorld.doors.Select(d=>d.level)).Append("hub").Distinct().ToArray();
@@ -284,12 +285,7 @@ namespace Remains.Networking
                 CharacterPlacement.SpawnInHub(actor,ServerWorld.actors.Count(a=>a.player));
                 ServerWorld.actors.Add(actor);
             }
-            actor.owner = owner;
-            ActorHoldRules.Release(actor);
-            actor.connected = true;
-            actor.generation++;
-            actor.lifecycleSequence++;
-            actor.revision++;
+            ActorSessionRules.Connect(actor,owner);
             playerIds[owner] = actor.id;
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
             ServerWorld.revision++;

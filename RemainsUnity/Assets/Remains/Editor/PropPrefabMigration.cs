@@ -27,7 +27,7 @@ namespace Remains.Editor
                 var root=new GameObject(definition.name);
                 try
                 {
-                    var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=sprite;renderer.sharedMaterial=material;renderer.sortingOrder=ActorVisualLayers.WorldObjectOrder;
+                    var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=sprite;renderer.sharedMaterial=material;renderer.sortingOrder=ActorVisualLayers.RestingObjectOrder;
                     var view=root.AddComponent<PropView>();view.SetArtwork(renderer);view.FitWidth(definition.width);
                     var prefab=PrefabUtility.SaveAsPrefabAsset(root,path+".prefab");asset.SetPrefab(prefab.GetComponent<PropView>());EditorUtility.SetDirty(asset);
                 }

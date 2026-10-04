@@ -77,6 +77,25 @@ namespace Remains.Editor
                     Require(!supportedActor.climbing && supportedActor.vx*direction>0 && Mathf.Abs(supportedActor.y-3)<.001f,
                         "Боковой сход с опоры требует прыжка");
                 }
+                var openEnd=new RoomLayout {id="ladder-open-end",left=-5,right=5,bottom=-1,top=6,
+                    ladders=new[]{new RoomLadder {x=0,bottom=0,top=3}},
+                    platforms=new[]{new RoomSurface {x=-5,y=-1,width=10,height=1}}};
+                var exiting=new ActorState {id="ladder-no-top-platform",x=0,y=2.9f,climbing=true};
+                var exitMotion=new MovementController(openEnd);
+                for(int i=0;i<20 && exiting.climbing;i++) exitMotion.Step(exiting,Vector2.up,false,dt);
+                Require(!exiting.climbing && exiting.y==3 && exiting.vy>0,"Конец лестницы без платформы запирает подъём");
+                exitMotion.Step(exiting,Vector2.right,false,dt);
+                Require(!exiting.climbing && exiting.vx>0,"Выход сверху без платформы не возвращает горизонтальное управление");
+                foreach(int direction in new[]{-1,1})
+                {
+                    var sidewaysEnd=new ActorState {id="ladder-end-side",y=3,climbing=true};
+                    new MovementController(openEnd).Step(sidewaysEnd,Vector2.right*direction,false,dt);
+                    Require(!sidewaysEnd.climbing && sidewaysEnd.vx*direction>0,"Боковой сход с конца лестницы требует прыжка");
+                }
+                var landing=new ActorState {id="ladder-floor-exit",y=.01f,climbing=true};
+                new MovementController(openEnd).Step(landing,Vector2.down,false,dt);
+                Require(!landing.climbing && landing.y==0 && landing.vy==0 && landing.pose!="climb",
+                    "После опоры на нижний пол осталась поза лестницы");
                 actor=new ActorState {id="ladder-down",x=4,y=1,climbing=true,down=true};
                 motion.Step(actor,Vector2.zero,false,dt);
                 Require(!actor.climbing,"Нокдаун снимает захват лестницы");

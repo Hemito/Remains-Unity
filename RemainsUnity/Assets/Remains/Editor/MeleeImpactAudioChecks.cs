@@ -41,7 +41,7 @@ namespace Remains.Editor
                 var receive=typeof(CombatController).GetMethod("ReceiveAttack",Private);
                 int expected=0;
                 foreach(string weapon in new[]{"crowbar","spear"})
-                foreach(string type in new[]{"pony","raider","training-dummy"})
+                foreach(string type in new[]{"pony","raider","training-dummy","training-armored-dummy"})
                 {
                     target.actorType=type;
                     var attack=new AttackEvent {id=weapon+type,attacker=observer.id,sourceOwner="remote",sourcePlayer=true,
@@ -50,9 +50,9 @@ namespace Remains.Editor
                     expected++;
                     Require(audio.Played==expected,"Контакт пропущен или повторён: "+attack.id);
                     var source=root.GetComponentsInChildren<AudioSource>().Last();
-                    var clip=Resources.Load<AudioClip>("Original/Audio/"+(weapon=="spear"?"hit-blade":"hit-flesh"));
+                    var clip=Resources.Load<AudioClip>("Original/Audio/"+(type=="training-armored-dummy"?"hit-metal":weapon=="spear"?"hit-blade":"hit-flesh"));
                     Require(source.clip==clip,"Неверный WAV: "+attack.id);
-                    float gain=weapon=="spear"?.8f:.5f;
+                    float gain=type=="training-armored-dummy"?.4f:weapon=="spear"?.8f:.5f;
                     Require(Mathf.Abs(source.volume-playback.Volume*gain*GameplayAudio.Attenuation(Vector2.Distance(attack.End,observer.Position)))<.00001f,"Неверная громкость: "+attack.id);
                     Require(!Application.isBatchMode || source.mute,"Фоновый звук не заглушен.");
                     target.id+="-next";
@@ -69,7 +69,7 @@ namespace Remains.Editor
                 Require(audio.Played==expected,"Выключенный дружественный огонь создал контакт с союзником.");
                 target.x=100;
                 foreach(string weapon in new[]{"crowbar","spear"})
-                foreach(string texture in new[]{"floor","Hub/concrete"})
+                foreach(string texture in new[]{"floor","Hub/concrete","Factory46/26_tConcrete","Factory18/26_tConcrete"})
                 {
                     geometry.Get("hub").platforms=new[]{new RoomSurface {x=1,y=0,width=.2f,height=2,texture=texture}};
                     var wall=new AttackEvent {id="wall-"+weapon+texture,attacker=observer.id,sourceOwner="remote",
