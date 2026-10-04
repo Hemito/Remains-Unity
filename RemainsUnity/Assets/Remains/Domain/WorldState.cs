@@ -116,6 +116,7 @@ namespace Remains.Domain
         public List<PendingGrant> pendingGrants = new();
         public List<PendingDeposit> pendingDeposits = new();
         public List<PropState> props = new();
+        public List<DoorState> doors = new();
         public List<GrenadeState> grenades = new();
         public List<ProjectileState> projectiles = new();
         public List<ExplosionState> explosions = new();
