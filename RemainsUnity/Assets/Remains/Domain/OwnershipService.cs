@@ -4,8 +4,25 @@ using UnityEngine;
 
 namespace Remains.Domain
 {
+    public interface IProximityOwnershipRule
+    {
+        bool KeepCurrent(float currentDistance,float nearestDistance);
+    }
+    public sealed class StableProximityOwnershipRule : IProximityOwnershipRule
+    {
+        public float RequiredAdvantage {get;}
+        public StableProximityOwnershipRule(float requiredAdvantage=.5f)
+        {
+            if(!float.IsFinite(requiredAdvantage) || requiredAdvantage<0)
+                throw new System.ArgumentOutOfRangeException(nameof(requiredAdvantage),"Преимущество расстояния должно быть конечным и неотрицательным.");
+            RequiredAdvantage=requiredAdvantage;
+        }
+        public bool KeepCurrent(float currentDistance,float nearestDistance)=>currentDistance<=nearestDistance+RequiredAdvantage;
+    }
     public sealed class OwnershipService
     {
+        private readonly IProximityOwnershipRule proximity;
+        public OwnershipService(IProximityOwnershipRule proximity=null)=>this.proximity=proximity??new StableProximityOwnershipRule();
         public void BeginSession(WorldState world)
         {
             ProjectileLifecycle.BeginSession(world);
@@ -54,6 +71,12 @@ namespace Remains.Domain
                 var target=active.FirstOrDefault(a=>a.id==actor.target && a.level==actor.level);
                 var candidate = target ?? active.Where(a => a.level == actor.level)
                     .OrderBy(a => Vector2.Distance(a.Position, actor.Position)).ThenBy(a => a.id).FirstOrDefault();
+                if(target==null && candidate!=null)
+                {
+                    var current=active.FirstOrDefault(a=>a.owner==actor.owner && a.level==actor.level);
+                    if(current!=null && proximity.KeepCurrent(Vector2.Distance(current.Position,actor.Position),
+                        Vector2.Distance(candidate.Position,actor.Position))) candidate=current;
+                }
                 string next = candidate?.owner ?? "host";
                 if (actor.owner == next) continue;
                 actor.owner = next;

@@ -26,6 +26,7 @@ namespace Remains.Networking
         {
             if(NetworkServer.active || NetworkClient.active) throw new InvalidOperationException("Нельзя менять правила во время подключения или игры.");
             this.rules=rules??throw new ArgumentNullException(nameof(rules));
+            ownership=new OwnershipService(rules.ProximityOwnership);
         }
         public string CharacterId { get; set; }
         public event Action Changed;
@@ -74,7 +75,7 @@ namespace Remains.Networking
         private readonly Dictionary<int,long> backupRevisions = new();
         private readonly RecoveryReceiptGate recoveryReceipts = new();
         private readonly WorldReplication worldReplication=new();
-        private readonly OwnershipService ownership = new();
+        private OwnershipService ownership = new();
         private SharedInventory inventory;
         private readonly HashSet<string> recoveredActors=new();
 

@@ -94,6 +94,7 @@ namespace Remains.Editor
             LightingChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();InventoryAudioChecks.Run();
             DamageFeedbackChecks.Run();
+            OwnershipStabilityChecks.Run();
             WeaponPoseChecks.Run();WeaponElevationChecks.Run();
             MovableContainerChecks.Run();
             PropPlatformChecks.Run();
