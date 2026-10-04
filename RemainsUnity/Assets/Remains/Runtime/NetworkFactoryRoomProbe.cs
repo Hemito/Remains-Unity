@@ -16,6 +16,7 @@ namespace Remains.Runtime
     public sealed class NetworkFactoryRoomProbe : MonoBehaviour
     {
         private PrototypeRuntime runtime;
+        private FactoryCombatRoute combat;
         private readonly HashSet<int> ready=new();
         private int phase;
         private float deadline,entered,xStart,distance;
@@ -25,7 +26,7 @@ namespace Remains.Runtime
         private bool finished,doorRequested,containerRequested,doorOpened,containerOpened;
         public void Initialize(PrototypeRuntime value)
         {
-            runtime=value;deadline=Time.unscaledTime+55;
+            runtime=value;if(value.Options.Smoke.Contains("-combat-")) combat=new FactoryCombatRoute(value);deadline=Time.unscaledTime+55;
             if(string.IsNullOrEmpty(value.Options.SaveDirectory) || string.IsNullOrEmpty(value.Options.Report))
                 throw new InvalidOperationException("Проверка завода требует отдельного каталога сохранений и отчёта.");
             if(value.Options.Role=="host")
@@ -38,7 +39,7 @@ namespace Remains.Runtime
             value.CommandSource=Command;
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<FactoryRoomReady>((connection,_)=>
             {if(value.Session.ConnectedActor(connection)?.level=="hub") ready.Add(connection.connectionId);});
-            value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<FactoryRoomFinished>(_=>Finish(phase==4 && doorOpened && containerOpened && (runtime.Options.Role!="host" || lootVerified),"Вход, движение, дверь через E, окно контейнера через E и возврат обоих участников."));
+            value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<FactoryRoomFinished>(_=>Finish(phase==4 && (combat!=null?combat.Complete:doorOpened && containerOpened && (runtime.Options.Role!="host" || lootVerified)),combat!=null?"Прыжок через проём, дверь через E, бой с рейдером и сохранение результата.":"Вход, движение, дверь через E, окно контейнера через E и возврат обоих участников."));
         }
         private void Update()
         {
@@ -67,6 +68,7 @@ namespace Remains.Runtime
                 if(distance<1 || actor.down || actor.y<0) {Finish(false,"Обычное движение у входа не выполнено.");return;}
                 phase=5;
             }
+            else if(phase==20 && combat.Complete) {phase=21;entered=Time.unscaledTime;}
             else if(phase==6 && actor.x>=18.9f) phase=7;
             else if(phase==7 && actor.y<1.1f) phase=8;
             else if(phase==8 && Door.open) {doorOpened=true;phase=9;}
@@ -84,9 +86,9 @@ namespace Remains.Runtime
                 if(runtime.Options.Role=="host")
                 {
                     var saved=session.Saves.LoadWorld(false);
-                    if(!lootVerified || saved.containers.Single(c=>c.id==claimedContainer).items.Any(i=>i.id==claimedItem) ||
+                    if(combat!=null?!combat.Saved(saved):!lootVerified || saved.containers.Single(c=>c.id==claimedContainer).items.Any(i=>i.id==claimedItem) ||
                         InventoryJournal.Count(saved.Find(actor.id),claimedDefinition)!=inventoryBefore+claimedCount)
-                    {Finish(false,"После возврата сохранение потеряло результат подбора.");return;}
+                    {Finish(false,"После возврата сохранение потеряло результат маршрута.");return;}
                 }
                 phase=4;NetworkClient.Send(new FactoryRoomReady());
             }
@@ -99,6 +101,7 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             var actor=runtime.Session.LocalActor;if(actor==null || finished) return default;
+            if(phase==20) return combat.Command();
             if(phase==2 || phase==6) return new PlayerCommand {movement=Vector2.right};
             if(phase==8)
             {
@@ -126,7 +129,12 @@ namespace Remains.Runtime
             if(phase==5)
             {
                 NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".factory.png",runtime.Hud?.GetComponent<Canvas>());
-                phase=6;
+                phase=combat!=null?20:6;
+            }
+            else if(phase==21 && Time.unscaledTime-entered>=1)
+            {
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".combat.png",runtime.Hud.GetComponent<Canvas>());
+                phase=3;runtime.Session.Travel.RequestHub();
             }
             else if(phase==10)
             {
@@ -145,11 +153,11 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,distance=distance,doorOpened=doorOpened,containerOpened=containerOpened,lootVerified=lootVerified,claimedCount=claimedCount},true));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,distance=distance,doorOpened=doorOpened,containerOpened=containerOpened,lootVerified=lootVerified,claimedCount=claimedCount,combatVerified=combat?.Complete==true},true));
             exitCode=success?0:1;Invoke(nameof(Exit),3);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public float distance;public bool doorOpened,containerOpened,lootVerified;public int claimedCount;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public float distance;public bool doorOpened,containerOpened,lootVerified,combatVerified;public int claimedCount;}
     }
 }
