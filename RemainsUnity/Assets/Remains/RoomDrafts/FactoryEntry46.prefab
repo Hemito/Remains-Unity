@@ -1509,6 +1509,65 @@ MonoBehaviour:
   texture: Factory46/26_tConcrete
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &678900404341837260
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9106731630519914457}
+  - component: {fileID: 5461605575471216013}
+  m_Layer: 0
+  m_Name: "light2 \xB7 original:plant:46:record:83"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9106731630519914457
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 678900404341837260}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 35.300003, y: 9.32, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8845453999442360880}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5461605575471216013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 678900404341837260}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:83
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 701b926ed28e43843a14ce500397812a, type: 3}
+  maskOffset: {x: -3.2400017, y: -1.9799995}
+  maskSize: {x: 6.28, y: 3.72}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light2-1
+  width: 0
+  height: 0
 --- !u!1 &770465247861617317
 GameObject:
   m_ObjectHideFlags: 0
@@ -2093,12 +2152,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1051972122498196491}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 11.2, y: 3, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.5, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 1273307675933882707}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &2655818488927832692
 MeshFilter:
@@ -3925,6 +3984,65 @@ MonoBehaviour:
   textureKey: Factory46/decor-gate-1
   repeat: 0
   stretchY: 0
+--- !u!1 &1773147041803693952
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6121367389070010336}
+  - component: {fileID: 9127431199199007851}
+  m_Layer: 0
+  m_Name: "light2 \xB7 original:plant:46:record:68"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6121367389070010336
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1773147041803693952}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 8.9, y: 18.119999, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 480729353863390014}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9127431199199007851
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1773147041803693952}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:68
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 701b926ed28e43843a14ce500397812a, type: 3}
+  maskOffset: {x: -3.2399998, y: -1.9799995}
+  maskSize: {x: 6.28, y: 3.72}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light2-1
+  width: 0
+  height: 0
 --- !u!1 &1773362194707368715
 GameObject:
   m_ObjectHideFlags: 0
@@ -4372,6 +4490,65 @@ MonoBehaviour:
   textureKey: Factory46/decor-hkonstr-1
   repeat: 0
   stretchY: 0
+--- !u!1 &2034657259480879840
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8664711962433063007}
+  - component: {fileID: 3552680303970628402}
+  m_Layer: 0
+  m_Name: "light2 \xB7 original:plant:46:record:107"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8664711962433063007
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2034657259480879840}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 14.5, y: 12.52, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 6952303684061092227}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3552680303970628402
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2034657259480879840}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:107
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 701b926ed28e43843a14ce500397812a, type: 3}
+  maskOffset: {x: -3.2399998, y: -1.9800005}
+  maskSize: {x: 6.28, y: 3.72}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light2-1
+  width: 0
+  height: 0
 --- !u!1 &2088753365079918984
 GameObject:
   m_ObjectHideFlags: 0
@@ -5321,6 +5498,65 @@ MonoBehaviour:
   textureKey: Factory46/36_tShelf
   repeat: 1
   stretchY: 0
+--- !u!1 &2684493879542475259
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1273307675933882707}
+  - component: {fileID: 7915941695134283385}
+  m_Layer: 0
+  m_Name: "light1 \xB7 original:plant:46:record:85"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1273307675933882707
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2684493879542475259}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 11.7, y: 3.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4921104900091206154}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7915941695134283385
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2684493879542475259}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:85
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: be0f655b53fecd64e8856a65f0d920da, type: 3}
+  maskOffset: {x: -2.7209997, y: -2.501}
+  maskSize: {x: 5.245, y: 5.245}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light1-1
+  width: 0
+  height: 0
 --- !u!1 &2693734395286508673
 GameObject:
   m_ObjectHideFlags: 0
@@ -6446,12 +6682,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3011115070365046969}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 13.6, y: 12.24, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.8999996, y: -0.2800007, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 8664711962433063007}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5133317333348894308
 MeshFilter:
@@ -7909,6 +8145,65 @@ MonoBehaviour:
   texture: Factory46/26_tConcrete
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &3964778252518956032
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2055152797380551716}
+  - component: {fileID: 422577693236737675}
+  m_Layer: 0
+  m_Name: "light1 \xB7 original:plant:46:record:88"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2055152797380551716
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3964778252518956032}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 23.7, y: 3.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 281297065104099499}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &422577693236737675
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3964778252518956032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:88
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: be0f655b53fecd64e8856a65f0d920da, type: 3}
+  maskOffset: {x: -2.7210007, y: -2.501}
+  maskSize: {x: 5.245, y: 5.245}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light1-1
+  width: 0
+  height: 0
 --- !u!1 &4001394897839491869
 GameObject:
   m_ObjectHideFlags: 0
@@ -8242,12 +8537,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4094102954454593991}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 23.2, y: 3, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.5, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 2055152797380551716}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &640872176043030411
 MeshFilter:
@@ -9849,6 +10144,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6336487721977502892}
   - component: {fileID: 2253326563149637839}
+  - component: {fileID: 3996312594163843411}
   m_Layer: 0
   m_Name: FactoryEntry46
   m_TagString: Untagged
@@ -9936,6 +10232,7 @@ Transform:
   - {fileID: 1942848806337908741}
   - {fileID: 6855516052237100094}
   - {fileID: 8055872605701334594}
+  - {fileID: 993307478046581712}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2253326563149637839
@@ -9964,6 +10261,20 @@ MonoBehaviour:
     ladders: []
     artwork: []
   authoredArtwork: 1
+--- !u!114 &3996312594163843411
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4639252473051735563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91db2b4057695c2468f2b97d7797f3fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ambient: {r: 0.38, g: 0.4, b: 0.43, a: 1}
+  backgroundAmbientScale: 0.6
 --- !u!1 &4648146481314113612
 GameObject:
   m_ObjectHideFlags: 0
@@ -9991,12 +10302,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4648146481314113612}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 35.2, y: 3, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.5, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 3528623568928753000}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &2232167227084925983
 MeshFilter:
@@ -10242,12 +10553,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4704237087729305614}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 16.8, y: 3, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.5, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 6291602980982234188}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &7417965427017141800
 MeshFilter:
@@ -11180,6 +11491,65 @@ MonoBehaviour:
   textureKey: Factory46/14_tMetalPlates
   repeat: 1
   stretchY: 0
+--- !u!1 &5148962694943137116
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5140106279362824609}
+  - component: {fileID: 1795452273131629608}
+  m_Layer: 0
+  m_Name: "light4 \xB7 original:plant:46:record:58"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5140106279362824609
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5148962694943137116}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 29.599998, y: 19.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 739690056673393044}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1795452273131629608
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5148962694943137116}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:58
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: ace5344ab79a4dc41ba71dd6974a7b7d, type: 3}
+  maskOffset: {x: -2.5819988, y: -3.7300005}
+  maskSize: {x: 5.125, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &5151809880716049832
 GameObject:
   m_ObjectHideFlags: 0
@@ -11513,12 +11883,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5198213168263735548}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 29.6, y: 3, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.5, y: -0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 3200536506808219798}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &6647851361808970539
 MeshFilter:
@@ -11717,12 +12087,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5395044994976085266}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 34.4, y: 9.04, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.9000015, y: -0.27999973, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 9106731630519914457}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &3124086784823490812
 MeshFilter:
@@ -11792,6 +12162,65 @@ MonoBehaviour:
   textureKey: Factory46/decor-light2-1
   repeat: 0
   stretchY: 0
+--- !u!1 &5446682651850452278
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4389331453927158281}
+  - component: {fileID: 6856696948664097476}
+  m_Layer: 0
+  m_Name: "light2 \xB7 original:plant:46:record:82"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4389331453927158281
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5446682651850452278}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 30.5, y: 9.32, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1124003404330625418}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6856696948664097476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5446682651850452278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:82
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 701b926ed28e43843a14ce500397812a, type: 3}
+  maskOffset: {x: -3.2399998, y: -1.9799995}
+  maskSize: {x: 6.28, y: 3.72}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light2-1
+  width: 0
+  height: 0
 --- !u!1 &5449371322984622253
 GameObject:
   m_ObjectHideFlags: 0
@@ -11819,12 +12248,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5449371322984622253}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 29.6, y: 9.04, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.8999996, y: -0.27999973, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 4389331453927158281}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5939674182050552658
 MeshFilter:
@@ -11921,12 +12350,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5453781995374621072}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 28.8, y: 18.84, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.79999924, y: -0.1800003, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 5140106279362824609}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5273889598657565474
 MeshFilter:
@@ -12247,6 +12676,65 @@ MonoBehaviour:
   textureKey: Factory46/21_tConPlates
   repeat: 1
   stretchY: 0
+--- !u!1 &5574774448286736522
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3528623568928753000}
+  - component: {fileID: 7310209924931085158}
+  m_Layer: 0
+  m_Name: "light1 \xB7 original:plant:46:record:86"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3528623568928753000
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5574774448286736522}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 35.7, y: 3.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2528765162026160067}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7310209924931085158
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5574774448286736522}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:86
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: be0f655b53fecd64e8856a65f0d920da, type: 3}
+  maskOffset: {x: -2.7210007, y: -2.501}
+  maskSize: {x: 5.245, y: 5.245}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light1-1
+  width: 0
+  height: 0
 --- !u!1 &5661621530540575858
 GameObject:
   m_ObjectHideFlags: 0
@@ -13262,6 +13750,65 @@ MonoBehaviour:
   textureKey: Factory46/13_tMetalVert
   repeat: 1
   stretchY: 0
+--- !u!1 &6156695789552682371
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5375393503455714279}
+  - component: {fileID: 2240629993629441318}
+  m_Layer: 0
+  m_Name: "light2 \xB7 original:plant:46:record:62"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5375393503455714279
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6156695789552682371}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 5.7000003, y: 18.119999, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3190314834846020541}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2240629993629441318
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6156695789552682371}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:62
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 701b926ed28e43843a14ce500397812a, type: 3}
+  maskOffset: {x: -3.2400002, y: -1.9799995}
+  maskSize: {x: 6.28, y: 3.72}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light2-1
+  width: 0
+  height: 0
 --- !u!1 &6174437025551438129
 GameObject:
   m_ObjectHideFlags: 0
@@ -15270,6 +15817,65 @@ MonoBehaviour:
   texture: Factory46/26_tConcrete
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &6908590814725267821
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9121891703621676911}
+  - component: {fileID: 8050221859094365234}
+  m_Layer: 0
+  m_Name: "light2 \xB7 original:plant:46:record:108"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9121891703621676911
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6908590814725267821}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 17.699999, y: 12.52, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7876372345923173550}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8050221859094365234
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6908590814725267821}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:108
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 701b926ed28e43843a14ce500397812a, type: 3}
+  maskOffset: {x: -3.2399988, y: -1.9800005}
+  maskSize: {x: 6.28, y: 3.72}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light2-1
+  width: 0
+  height: 0
 --- !u!1 &6915650472384803848
 GameObject:
   m_ObjectHideFlags: 0
@@ -15419,6 +16025,65 @@ MonoBehaviour:
   texture: Factory46/16_tMetal
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &6919686849987811690
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6291602980982234188}
+  - component: {fileID: 8084745275976721371}
+  m_Layer: 0
+  m_Name: "light1 \xB7 original:plant:46:record:87"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6291602980982234188
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6919686849987811690}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 17.3, y: 3.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2971476496927670186}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8084745275976721371
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6919686849987811690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:87
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: be0f655b53fecd64e8856a65f0d920da, type: 3}
+  maskOffset: {x: -2.7209988, y: -2.501}
+  maskSize: {x: 5.245, y: 5.245}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light1-1
+  width: 0
+  height: 0
 --- !u!1 &6949674756507562900
 GameObject:
   m_ObjectHideFlags: 0
@@ -16191,12 +16856,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7213513562391010058}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 16.8, y: 12.24, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.8999996, y: -0.2800007, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 9121891703621676911}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5563352061257314974
 MeshFilter:
@@ -18685,12 +19350,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8276225100096975562}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 32, y: 9.04, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.9000015, y: -0.27999973, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 6733716018701749364}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &2928221287510651779
 MeshFilter:
@@ -18807,6 +19472,50 @@ MonoBehaviour:
   texture: Factory46/16_tMetal
   oneWay: 0
   shotsPassThrough: 0
+--- !u!1 &8377975306286094478
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 993307478046581712}
+  m_Layer: 0
+  m_Name: "\u0418\u0441\u0445\u043E\u0434\u043D\u044B\u0435 \u0441\u0432\u0435\u0442\u0438\u043B\u044C\u043D\u0438\u043A\u0438"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &993307478046581712
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8377975306286094478}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1273307675933882707}
+  - {fileID: 3528623568928753000}
+  - {fileID: 6291602980982234188}
+  - {fileID: 2055152797380551716}
+  - {fileID: 3200536506808219798}
+  - {fileID: 5375393503455714279}
+  - {fileID: 6121367389070010336}
+  - {fileID: 4389331453927158281}
+  - {fileID: 9106731630519914457}
+  - {fileID: 6733716018701749364}
+  - {fileID: 8664711962433063007}
+  - {fileID: 9121891703621676911}
+  - {fileID: 5140106279362824609}
+  m_Father: {fileID: 6336487721977502892}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8509171761252622706
 GameObject:
   m_ObjectHideFlags: 0
@@ -18909,6 +19618,65 @@ MonoBehaviour:
   textureKey: Factory46/26_tConcrete
   repeat: 1
   stretchY: 0
+--- !u!1 &8589316437926224434
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6733716018701749364}
+  - component: {fileID: 4450219084465633941}
+  m_Layer: 0
+  m_Name: "light2 \xB7 original:plant:46:record:84"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6733716018701749364
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8589316437926224434}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 32.9, y: 9.32, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2626428585231354636}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4450219084465633941
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8589316437926224434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:84
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 701b926ed28e43843a14ce500397812a, type: 3}
+  maskOffset: {x: -3.2400017, y: -1.9799995}
+  maskSize: {x: 6.28, y: 3.72}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light2-1
+  width: 0
+  height: 0
 --- !u!1 &8688620837278771808
 GameObject:
   m_ObjectHideFlags: 0
@@ -19011,6 +19779,65 @@ MonoBehaviour:
   textureKey: Factory46/26_tConcrete
   repeat: 1
   stretchY: 0
+--- !u!1 &8729858500869037705
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3200536506808219798}
+  - component: {fileID: 2743636776724026369}
+  m_Layer: 0
+  m_Name: "light1 \xB7 original:plant:46:record:89"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3200536506808219798
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8729858500869037705}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 30.1, y: 3.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4923710580150151932}
+  m_Father: {fileID: 993307478046581712}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2743636776724026369
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8729858500869037705}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: original:plant:46:record:89
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: be0f655b53fecd64e8856a65f0d920da, type: 3}
+  maskOffset: {x: -2.7210007, y: -2.501}
+  maskSize: {x: 5.245, y: 5.245}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Factory46/light-mask-light1-1
+  width: 0
+  height: 0
 --- !u!1 &8809308530910414876
 GameObject:
   m_ObjectHideFlags: 0
@@ -19395,17 +20222,14 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8970709987853678095}
-  - {fileID: 739690056673393044}
   - {fileID: 8036849898732035811}
   - {fileID: 6677707578574626561}
   - {fileID: 5156917649411762821}
-  - {fileID: 3190314834846020541}
   - {fileID: 1948125534275829277}
   - {fileID: 3148674618725062751}
   - {fileID: 4411082704291098730}
   - {fileID: 8508840034509648442}
   - {fileID: 847142274645049922}
-  - {fileID: 480729353863390014}
   - {fileID: 3525718692962241960}
   - {fileID: 1505342158359011810}
   - {fileID: 1806118944099074115}
@@ -19418,14 +20242,6 @@ Transform:
   - {fileID: 6179606728100516766}
   - {fileID: 21138388290678912}
   - {fileID: 8259992941348665087}
-  - {fileID: 1124003404330625418}
-  - {fileID: 8845453999442360880}
-  - {fileID: 2626428585231354636}
-  - {fileID: 4921104900091206154}
-  - {fileID: 2528765162026160067}
-  - {fileID: 2971476496927670186}
-  - {fileID: 281297065104099499}
-  - {fileID: 4923710580150151932}
   - {fileID: 9080140540698640878}
   - {fileID: 3771498971845528180}
   - {fileID: 973351933015227623}
@@ -19443,8 +20259,6 @@ Transform:
   - {fileID: 148462032080514200}
   - {fileID: 936207895040203736}
   - {fileID: 534313370932694139}
-  - {fileID: 6952303684061092227}
-  - {fileID: 7876372345923173550}
   - {fileID: 1313489578638167707}
   - {fileID: 7292725475177492378}
   - {fileID: 7084763069414458060}
@@ -19683,12 +20497,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9134733183162656594}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4.8, y: 17.84, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.9000001, y: -0.27999878, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 5375393503455714279}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &2490459947589046164
 MeshFilter:
@@ -19989,12 +20803,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9163239271368349304}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8, y: 17.84, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.8999996, y: -0.27999878, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8055872605701334594}
+  m_Father: {fileID: 6121367389070010336}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5749526891067802025
 MeshFilter:

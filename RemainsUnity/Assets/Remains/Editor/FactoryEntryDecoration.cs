@@ -20,9 +20,12 @@ namespace Remains.Editor
                 var room=root.GetComponent<RoomAuthoring>();var layout=room.CreateLayout();
                 if(layout.artwork.Length!=163 || layout.platforms.Length!=63 || layout.ladders.Length!=2)
                     throw new InvalidOperationException("Сохранённый префаб входа потерял содержимое.");
-                var light=new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()};
+                var authored=root.GetComponent<RoomLightingAuthoring>();
+                var light=authored!=null?authored.CreateProfile(room):new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()};
+                if(authored==null) Debug.LogWarning("FactoryEntry46: проверочный рендер без авторского освещения — используется белый свет черновика.",root);
+                else if(light.lights.Length!=13) throw new InvalidOperationException("В сохранённом входе ожидались 13 светильников.");
                 root.AddComponent<RoomLighting>().Initialize(layout,light);
-                OriginalTrainingRoomAuthoring.Render(root,layout,"factory-entry-46-decor.png");
+                OriginalTrainingRoomAuthoring.Render(root,layout,authored!=null?"factory-entry-46-lighting.png":"factory-entry-46-decor.png");
             }
             finally {root.GetComponent<RoomLighting>()?.Release();UnityEngine.Object.DestroyImmediate(root);}
             ContractChecks.Run();
