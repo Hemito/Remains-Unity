@@ -685,6 +685,9 @@ namespace Remains.Networking
             var snapshot=PrepareRecovery();
             foreach(int id in owners.Keys)
                 if(NetworkServer.connections.TryGetValue(id,out var connection)) WorldReplication.Send(connection,snapshot);
+            // New authority arrives before its pending hits on the same reliable channel.
+            // A generation change must not wait for the periodic retry timer.
+            npcHits?.Flush();
         }
         public ActorState ConnectedActor(NetworkConnectionToClient connection) =>
             owners.TryGetValue(connection.connectionId,out var owner) && playerIds.TryGetValue(owner,out var id)?ServerWorld.Find(id):null;
