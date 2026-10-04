@@ -1,9 +1,10 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 namespace Remains.Presentation
 {
-    public sealed class PersonalInventoryView : MonoBehaviour
+    public sealed class PersonalInventoryView : MonoBehaviour, IScrollHandler
     {
         [InspectorName("Фильтры: все / оружие / боеприпасы / предметы")] public Button[] Categories;
         [InspectorName("Строки предметов")] public Button[] Rows;
@@ -22,6 +23,14 @@ namespace Remains.Presentation
         [InspectorName("Заголовок")] public Text Title;
         [InspectorName("Описание предмета")] public Text Detail;
         [InspectorName("Состояние действия")] public Text ActionStatus;
+        public void OnScroll(PointerEventData eventData)
+        {
+            if(!isActiveAndEnabled || eventData==null || eventData.scrollDelta.y==0) return;
+            var button=eventData.scrollDelta.y<0?Next:Previous;
+            if(button==null) {Debug.LogWarning("Личный инвентарь: не назначена кнопка прокрутки страницы.",this);return;}
+            if(!button.IsActive() || !button.IsInteractable()) return;
+            button.onClick.Invoke();eventData.Use();
+        }
         public void Validate()
         {
             if(Categories==null || Categories.Length!=Enum.GetValues(typeof(InventoryCategory)).Length || Array.Exists(Categories,x=>x==null))

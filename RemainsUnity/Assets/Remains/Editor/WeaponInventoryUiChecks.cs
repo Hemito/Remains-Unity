@@ -6,6 +6,7 @@ using Remains.Networking;
 using Remains.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 namespace Remains.Editor
 {
     public static class WeaponInventoryUiChecks
@@ -80,8 +81,20 @@ namespace Remains.Editor
                 for(int i=0;i<9;i++) actor.inventory.Add(new ItemStack {id="filter-page-"+i,definition="heal",count=1});
                 view.Categories[(int)InventoryCategory.Items].onClick.Invoke();view.Next.onClick.Invoke();
                 Require(panel.Page==1 && !view.Next.interactable,"Страницы считаются по нефильтрованному списку");
+                string beforeScroll=Remains.Serialization.StateJson.ToJson(actor.inventory);
+                void Scroll(float direction)
+                {
+                    var input=new PointerEventData(EventSystem.current) {scrollDelta=new Vector2(0,direction)};
+                    ExecuteEvents.ExecuteHierarchy(view.Rows[0].gameObject,input,ExecuteEvents.scrollHandler);
+                }
+                Scroll(-1);Require(panel.Page==1,"Колесо вышло за последнюю страницу");
+                Scroll(1);Require(panel.Page==0 && panel.Category==InventoryCategory.Items,"Колесо не вернуло предыдущую страницу категории");
+                Scroll(1);Require(panel.Page==0,"Колесо вышло за первую страницу");
+                Scroll(-1);Require(panel.Page==1,"Колесо над строкой не дошло до окна списка");
+                Require(Remains.Serialization.StateJson.ToJson(actor.inventory)==beforeScroll,"Прокрутка изменила предметы");
                 actor.inventory.RemoveAll(item=>item.id.StartsWith("filter-page-",StringComparison.Ordinal));panel.Refresh(null);
                 Require(panel.Page==0 && !view.Previous.interactable,"Исчезнувшая страница не зажата после удаления предметов");
+                Scroll(-1);Require(panel.Page==0,"Колесо открыло удалённую страницу");
                 var customAmmoFilter=new InventoryItemFilter(new[]{new WeaponDefinition {id="test",ammo="custom-ammo"}});
                 Require(customAmmoFilter.Includes(new ItemStack {definition="custom-ammo"},InventoryCategory.Ammunition) &&
                     customAmmoFilter.Includes(new ItemStack {definition="custom-item"},InventoryCategory.Items),"Фильтр требует встроенные ID предметов");
