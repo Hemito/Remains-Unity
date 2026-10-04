@@ -10393,6 +10393,7 @@ GameObject:
   - component: {fileID: 3996312594163843411}
   - component: {fileID: 7915650240582060598}
   - component: {fileID: 514759165753614041}
+  - component: {fileID: 2914108553526261912}
   m_Layer: 0
   m_Name: FactoryEntry46
   m_TagString: Untagged
@@ -10565,6 +10566,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   patch: base:factory-entry-46:physical-v1
+--- !u!114 &2914108553526261912
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4639252473051735563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14e554bb4c7f3824e947a3803e09e545, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  patch: base:factory-entry-46:npc-v1
 --- !u!1 &4648146481314113612
 GameObject:
   m_ObjectHideFlags: 0
@@ -14650,6 +14664,7 @@ MonoBehaviour:
   facing: -1
   fixedPlacement: 0
   preview: {fileID: 0}
+  spawn: {fileID: 11400000, guid: eaa6cdb468900f841ade6566ea40a800, type: 2}
 --- !u!1 &6311692546193759869
 GameObject:
   m_ObjectHideFlags: 0

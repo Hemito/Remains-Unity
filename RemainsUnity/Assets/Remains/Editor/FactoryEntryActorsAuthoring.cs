@@ -12,6 +12,39 @@ namespace Remains.Editor
     public static class FactoryEntryActorsAuthoring
     {
         private const string Draft="Assets/Remains/RoomDrafts/FactoryEntry46.prefab";
+        public static void InstallNpcVersion()
+        {
+            const string path="Assets/Remains/RoomDrafts/FactoryRaiderSpawn.asset";
+            if(AssetDatabase.LoadAssetAtPath<NpcSpawnAsset>(path)!=null) throw new InvalidOperationException("Начальное состояние рейдера уже создано.");
+            var spawn=ScriptableObject.CreateInstance<NpcSpawnAsset>();spawn.Configure("raider","raider",140,"pistol");
+            AssetDatabase.CreateAsset(spawn,path);
+            var root=PrefabUtility.LoadPrefabContents(Draft);
+            try
+            {
+                root.GetComponentInChildren<RoomActorPlacement>().SetSpawn(spawn);
+                if(root.GetComponent<RoomNpcContent>()!=null) throw new InvalidOperationException("Версия NPC уже задана.");
+                root.AddComponent<RoomNpcContent>().Configure("base:factory-entry-46:npc-v1");
+                PrefabUtility.SaveAsPrefabAsset(root,Draft);AssetDatabase.SaveAssets();
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            VerifyNpcContent();ContractChecks.Run();
+        }
+        public static void VerifyNpcContent()
+        {
+            ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
+            var room=AssetDatabase.LoadAssetAtPath<GameObject>(Draft).GetComponent<RoomAuthoring>();
+            var world=new WorldState();
+            foreach(string level in new[]{"factory:0","factory:6"})
+            {
+                var layout=RoomNpcContent.Read(room,level);
+                if(layout.actors.Length!=1) throw new InvalidOperationException("Потерян рейдер расстановки.");
+                var actor=layout.actors[0];_=ActorTypes.Get(actor.actorType);_=Anatomy.Movement(actor.anatomy);_=WeaponCatalog.Get(actor.weapon);
+                NpcContentInstaller.Apply(world,layout);
+            }
+            if(world.actors.Count!=2 || world.actors.Select(a=>a.id).Distinct().Count()!=2 || world.actors.Any(a=>a.owner!=null || a.x!=32 || a.y!=5.6f))
+                throw new InvalidOperationException("NPC смешал экземпляры фабрик, владельцев или исходные позиции.");
+            Debug.Log("Рейдер завода: PASS — начальное состояние из SO, независимые фабрики, владелец не назначен авторингом.");
+        }
         public static void InstallPhysicalVersion()
         {
             var root=PrefabUtility.LoadPrefabContents(Draft);

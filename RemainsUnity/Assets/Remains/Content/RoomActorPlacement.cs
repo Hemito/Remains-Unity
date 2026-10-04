@@ -12,6 +12,13 @@ namespace Remains.Content
         [SerializeField,InspectorName("Закреплённая мишень (исходное свойство)")] private bool fixedPlacement;
         [SerializeField,InspectorName("Предпросмотр, не игровой персонаж")] private SpriteRenderer preview;
         public bool FixedPlacement=>fixedPlacement;
+        [SerializeField,InspectorName("Начальное состояние NPC (для обычных персонажей)")] private NpcSpawnAsset spawn;
+        public void SetSpawn(NpcSpawnAsset value)=>spawn=value;
+        public Remains.Domain.ActorState ReadNpc(RoomAuthoring room,string level)
+        {
+            if(fixedPlacement || spawn==null) throw new InvalidOperationException("Для NPC нужна обычная расстановка и начальное состояние: "+name);
+            return spawn.Create(Read(room),level);
+        }
         public void Configure(string id,string type,int direction,bool anchored,SpriteRenderer view)
         {stableId=id;actorType=type;facing=direction;fixedPlacement=anchored;preview=view;RefreshPreview();}
         public TrainingPlacement Read(RoomAuthoring room)

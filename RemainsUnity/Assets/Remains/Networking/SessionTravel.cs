@@ -82,6 +82,8 @@ namespace Remains.Networking
                 if(doorLayout!=null) DoorContentInstaller.Apply(session.ServerWorld,doorLayout);
                 var physicalLayout=RoomPhysicalContent.Read(RoomAuthoring.Load(request.destination),request.destination);
                 if(physicalLayout!=null) PhysicalContentInstaller.Apply(session.ServerWorld,physicalLayout);
+                var npcLayout=RoomNpcContent.Read(RoomAuthoring.Load(request.destination),request.destination);
+                if(npcLayout!=null) NpcContentInstaller.Apply(session.ServerWorld,npcLayout);
                 TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination));
                 session.CommitWorld();
                 Debug.Log($"Переход подтверждён: actor={actor.id}, request={request.id}, level={actor.level}, lifecycle={actor.lifecycleSequence}.");
