@@ -14,7 +14,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            DoorStateChecks.Run();DoorContentChecks.Run();PhysicalContentChecks.Run();
+            DoorStateChecks.Run();DoorContentChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();
             PonyAppearance.Prepare();PonyPaletteChecks.Run();
             var music=Resources.Load<MusicCatalogAsset>("Content/area-music");
             if(music==null) throw new InvalidOperationException("Нет каталога музыки локаций.");

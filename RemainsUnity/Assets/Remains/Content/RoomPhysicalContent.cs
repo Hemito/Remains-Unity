@@ -5,11 +5,13 @@ using UnityEngine;
 
 namespace Remains.Content
 {
+    [Serializable] public sealed class ContainerLootBinding {public string container;public ContainerLootTable table;}
     [Serializable] public sealed class PhysicalLayout
     {
         public string patch,level;
         public PropState[] props=Array.Empty<PropState>();
         public ContainerState[] containers=Array.Empty<ContainerState>();
+        public ContainerLootBinding[] loot=Array.Empty<ContainerLootBinding>();
     }
     public sealed class RoomPhysicalContent : MonoBehaviour
     {
@@ -36,6 +38,8 @@ namespace Remains.Content
                 }
                 return state;
             }).ToArray();
+            layout.loot=room.GetComponentsInChildren<RoomContainerPlacement>(true).Where(room.Included)
+                .Select(p=>new ContainerLootBinding {container=level+":"+p.Read(room).id,table=p.ReadLoot()}).Where(b=>b.table!=null).ToArray();
             return layout;
         }
         private static PropState ReadProp(RoomPhysicalPlacement marker,RoomAuthoring room,string level,bool container)

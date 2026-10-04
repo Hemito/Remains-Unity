@@ -12,6 +12,60 @@ namespace Remains.Editor
     {
         private const string Folder="Assets/Remains/RoomDrafts/Containers";
         private const string Draft="Assets/Remains/RoomDrafts/FactoryEntry46.prefab";
+        public static void VerifyDraftLoot()
+        {
+            var room=AssetDatabase.LoadAssetAtPath<GameObject>(Draft).GetComponent<RoomAuthoring>();
+            var layout=RoomPhysicalContent.Read(room,"factory:0");
+            if(layout.loot.Length!=6 || layout.loot.Any(b=>b.table.entries.Any(e=>e.weaponState!=null)))
+                throw new InvalidOperationException("Сохранённые таблицы потеряли привязки или получили ложное состояние оружия.");
+            var world=new Remains.Domain.WorldState {worldId="factory-loot-authoring-check"};
+            PhysicalContentInstaller.Apply(world,layout);
+            int count=world.containers.Sum(c=>c.items.Count);
+            if(count==0 || world.containers.Any(c=>c.items.Any(i=>i.weaponState!=null)))
+                throw new InvalidOperationException("Сохранённые таблицы не создают обычные предметы.");
+            Debug.Log($"Сохранённый лут завода: PASS — таблиц {layout.loot.Length}, контейнеров {world.containers.Count}, стопок {count}.");
+        }
+        public static void InstallDraftLoot()
+        {
+            if(AssetDatabase.LoadAssetAtPath<ContainerLootAsset>(Folder+"/case-loot.asset")!=null)
+                throw new InvalidOperationException("Таблицы уже созданы; авторские правки не заменены.");
+            CompleteDraftLoot();
+        }
+        public static void CompleteDraftLoot()
+        {
+            ContainerLootAsset Table(string id,params ContainerLootEntry[] entries)
+            {
+                string path=Folder+"/"+id+"-loot.asset";
+                var asset=AssetDatabase.LoadAssetAtPath<ContainerLootAsset>(path);
+                bool create=asset==null;
+                if(create) asset=ScriptableObject.CreateInstance<ContainerLootAsset>();
+                asset.Configure(new ContainerLootTable {id="base:draft:"+id,version="1",entries=entries});
+                if(create) AssetDatabase.CreateAsset(asset,path);else EditorUtility.SetDirty(asset);
+                return asset;
+            }
+            var money=Table("case",new ContainerLootEntry {id="caps",minimum=0,maximum=30,definition="caps"});
+            var ammo=Table("ammobox",
+                new ContainerLootEntry {id="p10",minimum=0,maximum=24,definition="p10"},
+                new ContainerLootEntry {id="batt",minimum=0,maximum=12,definition="batt"});
+            var root=PrefabUtility.LoadPrefabContents(Draft);
+            try
+            {
+                foreach(var marker in root.GetComponentsInChildren<RoomContainerPlacement>(true))
+                {
+                    string type=marker.Definition.CreateDefinition().id;
+                    if(type=="case") marker.SetLoot(money);
+                    else if(type=="ammobox") marker.SetLoot(ammo);
+                }
+                var layout=RoomPhysicalContent.Read(root.GetComponent<RoomAuthoring>(),"factory:0");
+                if(layout.loot.Length!=6) throw new InvalidOperationException("Не назначены шесть таблиц контейнеров.");
+                var world=new Remains.Domain.WorldState {worldId="factory-loot-authoring-check"};PhysicalContentInstaller.Apply(world,layout);
+                if(world.containers.Count!=8 || !world.containers.Any(c=>c.items.Count>0)) throw new InvalidOperationException("Не создано тестовое содержимое контейнеров.");
+                PrefabUtility.SaveAsPrefabAsset(root,Draft);AssetDatabase.SaveAssets();
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            Debug.LogWarning("Черновые таблицы завода: количества заданы для текущего набора предметов; вероятности оригинала и полный лут сундуков ещё не воспроизведены.");
+            ContractChecks.Run();
+        }
         public static void Import()
         {
             if(AssetDatabase.IsValidFolder(Folder)) throw new InvalidOperationException("Контейнеры уже импортированы; авторские правки не заменены.");

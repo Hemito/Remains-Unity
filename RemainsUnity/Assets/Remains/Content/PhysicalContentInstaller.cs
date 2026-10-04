@@ -14,6 +14,19 @@ namespace Remains.Content
             if(world==null || layout==null || string.IsNullOrWhiteSpace(layout.patch) || string.IsNullOrWhiteSpace(layout.level) || layout.props==null || layout.containers==null)
                 throw new InvalidOperationException("Неполная расстановка физических объектов.");
             if(!NeedsInstall(world,layout)) return false;
+            // Work on a detached description; no generated items leak into the authored manifest.
+            layout=StateJson.Copy(layout);
+            var bound=new HashSet<string>(StringComparer.Ordinal);
+            if(layout.loot==null) throw new InvalidOperationException("Нет списка таблиц лута расстановки.");
+            foreach(var binding in layout.loot)
+            {
+                if(binding==null || string.IsNullOrWhiteSpace(binding.container) || !bound.Add(binding.container) || binding.table==null)
+                    throw new InvalidOperationException("Некорректная привязка таблицы лута.");
+                binding.table.Validate();
+                var targets=layout.containers.Where(c=>c!=null && c.id==binding.container).ToArray();
+                if(targets.Length!=1 || targets[0].items==null) throw new InvalidOperationException("Нет единственного контейнера таблицы лута: "+binding.container);
+                if(!world.containers.Exists(c=>c.id==binding.container)) targets[0].items.AddRange(binding.table.Generate(world.worldId,binding.container));
+            }
             var ids=new HashSet<string>(StringComparer.Ordinal);var itemIds=new HashSet<string>(StringComparer.Ordinal);
             var props=new List<PropState>();var containers=new List<ContainerState>();
             foreach(var entry in layout.props.Cast<PropState>().Concat(layout.containers))
