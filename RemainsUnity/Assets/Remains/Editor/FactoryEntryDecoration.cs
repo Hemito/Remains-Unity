@@ -18,7 +18,8 @@ namespace Remains.Editor
             try
             {
                 var room=root.GetComponent<RoomAuthoring>();var layout=room.CreateLayout();
-                if(layout.artwork.Length!=163 || layout.platforms.Length!=63 || layout.ladders.Length!=2)
+                int backdropCount=Array.FindAll(layout.artwork,a=>a.texture=="Factory46/backwall").Length;
+                if(backdropCount>1 || layout.artwork.Length!=163+backdropCount || layout.platforms.Length!=63 || layout.ladders.Length!=2)
                     throw new InvalidOperationException("Сохранённый префаб входа потерял содержимое.");
                 var authored=root.GetComponent<RoomLightingAuthoring>();
                 var light=authored!=null?authored.CreateProfile(room):new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()};
