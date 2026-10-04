@@ -151,7 +151,8 @@ namespace Remains.Runtime
             }
             if(stage==1)
             {
-                if(self.y>1) return new PlayerCommand {movement=Vector2.down};
+                if(self.y>1 || !ActorTerrainMotion.Supported(runtime.Geometry.Get(self.level),Anatomy.Movement(self),self.Position))
+                    return new PlayerCommand {movement=Vector2.down};
                 stage=2;
             }
             if(stage==2)
@@ -193,6 +194,8 @@ namespace Remains.Runtime
             {
                 if(self.y<7.22f) return new PlayerCommand {movement=Vector2.up};
                 stage=3;
+                // Leave an airborne grip explicitly; walking never drags a held body sideways.
+                return new PlayerCommand {movement=Vector2.right,jump=true};
             }
             if(MovingShotExercise) return new PlayerCommand {hasAim=true,aim=self.Position+Vector2.up*10};
             int targetIndex=Array.FindIndex(targetResults,count=>count<runtime.Options.ProbePeers);
