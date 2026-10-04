@@ -49,7 +49,7 @@ namespace Remains.Content
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
             var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
-            foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/hub-training","Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
+            foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
             {
                 var data=Resources.Load<TextAsset>(path);
                 if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");
@@ -57,6 +57,7 @@ namespace Remains.Content
             }
             inputs.Add("Content/prototype-room",Remains.Serialization.StateJson.ToJson(RoomAuthoring.Load("factory:0").CreateLayout(includeArtwork:false)));
             inputs.Add("Content/prototype-hub",Remains.Serialization.StateJson.ToJson(RoomAuthoring.Load("hub").CreateLayout(includeArtwork:false)));
+            inputs.Add("Content/hub-training",Remains.Serialization.StateJson.ToJson(HubTrainingContent.ReadLayout()));
             var entities=EntityAssetCatalog.Load();
             inputs.Add("Content/actors",entities.ActorsJson());inputs.Add("Content/props",entities.PropsJson());
             inputs.Add("Original/Weapons/artwork",WeaponRigs.ManifestJson());

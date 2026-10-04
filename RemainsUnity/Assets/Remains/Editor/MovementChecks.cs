@@ -43,7 +43,7 @@ namespace Remains.Editor
             }
 
             var hub=RoomLayout.Load("hub");var hubMovement=new MovementController(hub);
-            Require(hub.artwork.Length>0 && hub.ladders.Length==3,"Геометрия хаба");
+            Require(hub.artwork.Length>0 && hub.ladders.Length==5 && hub.right==76,"Геометрия хаба и оригинального стрельбища");
             actor=new ActorState {id="hub-ladder",level="hub",x=14.48f,y=4};
             for(int i=0;i<300;i++) hubMovement.Step(actor,Vector2.up,false,1f/60);
             Require(Mathf.Abs(actor.x-14.98f)<.001f && Mathf.Abs(actor.y-13.6f)<.001f,

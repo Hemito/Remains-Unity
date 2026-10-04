@@ -32,14 +32,14 @@ namespace Remains.Editor
             Require(world.actors.Count==installed && world.revision==revision && world.Find("player")==player,"Повтор установки мишеней изменил существующий мир");
             var persisted=world.Copy();HubTrainingContent.Install(persisted);
             Require(persisted.actors.Count==installed && persisted.contentPatches.Contains(HubTrainingContent.Patch),"Копия мира потеряла отметку установки мишеней");
-            Require(world.containers.Count==3 && persisted.containers.Count==3 && world.containers.Select(c=>c.mass).SequenceEqual(new[]{25f,50f,120f}),"Неверные массы или повторное добавление тренировочных ящиков");
+            Require(world.containers.Count==5 && persisted.containers.Count==5 && world.containers.Select(c=>c.mass).OrderBy(m=>m).SequenceEqual(new[]{15f,25f,75f,120f,1000f}),"Неверные массы или повторное добавление тренировочных ящиков");
             persisted.contentPatches.Remove(HubTrainingContent.Patch);persisted.contentPatches.Add("base:hub-training-2");
             var oldTarget=persisted.Find("training:hub:1");oldTarget.x=29;oldTarget.health=321;oldTarget.resolvedAttacks.Add("before-range");
             var oldBox=persisted.containers[0];oldBox.x=22;oldBox.items.Add(SharedInventory.Create("heal",4));
             HubTrainingContent.Install(persisted);
-            Require(ReferenceEquals(persisted.Find(oldTarget.id),oldTarget) && oldTarget.x==46 && oldTarget.health==321 && oldTarget.resolvedAttacks.Contains("before-range") &&
-                oldBox.x==22 && oldBox.items.Count==1 && oldBox.items[0].count==4 && persisted.actors.Count==installed,
-                "Перенос тира потерял состояние мишени или сдвинул пользовательский контейнер");
+            Require(ReferenceEquals(persisted.Find(oldTarget.id),oldTarget) && oldTarget.x==HubTrainingContent.ReadLayout().actors.Single(a=>a.id==oldTarget.id).x && oldTarget.health==321 && oldTarget.resolvedAttacks.Contains("before-range") &&
+                oldBox.x==HubTrainingContent.ReadLayout().containers.Single(c=>c.id==oldBox.id).x && oldBox.items.Count==1 && oldBox.items[0].count==4 && persisted.actors.Count==installed,
+                "Перенос тира потерял состояние мишени или не перенёс контейнер вместе с содержимым");
             var telekinesis=new MassLimitedTelekinesisRule(TelekinesisSettings.Load());
             foreach(var box in world.containers)
             {

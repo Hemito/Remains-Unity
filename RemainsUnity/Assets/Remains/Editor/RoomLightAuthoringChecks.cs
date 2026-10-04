@@ -31,7 +31,7 @@ namespace Remains.Editor
                         int rangeCount=0;
                         foreach(var rangeLight in instance.GetComponentsInChildren<RoomLightAuthoring>())
                         {
-                            var data=rangeLight.Read(instance);if(!data.id.StartsWith("range-",StringComparison.Ordinal)) continue;
+                            var data=rangeLight.Read(instance);if(!data.id.StartsWith("training-lamp-",StringComparison.Ordinal)) continue;
                             var image=rangeLight.GetComponentInChildren<RoomArtworkAuthoring>();
                             if(image==null) throw new InvalidOperationException("Лампа тира отделена от света: "+data.id);
                             var position=image.transform.position;var offset=new Vector3(1,2,0);
@@ -43,7 +43,7 @@ namespace Remains.Editor
                                 throw new InvalidOperationException("Отключённая лампа тира остаётся активной: "+data.id);
                             rangeCount++;
                         }
-                        if(rangeCount!=3) throw new InvalidOperationException("Не проверены все три лампы тира.");
+                        if(rangeCount!=7) throw new InvalidOperationException("Не проверены все семь ламп тира.");
                     }
                 }
                 finally {UnityEngine.Object.DestroyImmediate(instance.gameObject);}

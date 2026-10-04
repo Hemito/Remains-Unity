@@ -252,15 +252,15 @@ namespace Remains.Editor
         public static void CheckPassage()
         {
             var room=RoomLayout.Load("hub");
-            if(room.right<60) throw new InvalidOperationException("Тир не входит в границы хаба.");
+            if(room.right<75) throw new InvalidOperationException("Тир не входит в границы хаба.");
             foreach(float dt in new[]{1f/30,1f/60,1f/144})
             {
-                var actor=new ActorState {id="range-passage",x=36,y=.8f};
+                var actor=new ActorState {id="range-passage",x=35,y=7.2f};
                 var movement=new Remains.Gameplay.MovementController(room);
                 for(int i=0;i<Mathf.CeilToInt(3/dt);i++) movement.Step(actor,Vector2.right,false,dt);
-                if(actor.x<44 || Mathf.Abs(actor.y-.8f)>.001f) throw new InvalidOperationException("Проход в тир заблокирован или пол расходится: "+actor.Position);
+                if(actor.x<42 || Mathf.Abs(actor.y-7.2f)>.001f) throw new InvalidOperationException("Проход в тир заблокирован или пол расходится: "+actor.Position);
                 for(int i=0;i<Mathf.CeilToInt(3/dt);i++) movement.Step(actor,Vector2.left,false,dt);
-                if(actor.x>37 || Mathf.Abs(actor.y-.8f)>.001f) throw new InvalidOperationException("Обратный проход из тира заблокирован: "+actor.Position);
+                if(actor.x>37 || Mathf.Abs(actor.y-7.2f)>.001f) throw new InvalidOperationException("Обратный проход из тира заблокирован: "+actor.Position);
             }
             Debug.Log("Проход хаб/тир: PASS — непрерывная геометрия, ходьба в обе стороны при 30/60/144 FPS.");
         }
