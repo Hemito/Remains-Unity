@@ -67,8 +67,9 @@ namespace Remains.Editor
                 var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
                 if(material==null) {material=WorldArtworkMaterial.Create(sprite.texture);if(map) material.SetFloat("_Emission",1);AssetDatabase.CreateAsset(material,materialPath);}
                 renderer.sharedMaterial=material;
-                float floor=layout.platforms.Where(s=>RoomSupport.ContainsX(s,position.x) && s.y+s.height<=position.y+.02f)
-                    .Select(s=>s.y+s.height).Where(y=>ActorTerrainMotion.IsClear(layout,Anatomy.Movement(new ActorState()),new Vector2(position.x,y)))
+                var hull=Anatomy.Movement(new ActorState());
+                float floor=layout.platforms.Where(s=>RoomSupport.ContainsX(s,position.x) && RoomSupport.Top(s,position.x,hull.width)<=position.y+.02f)
+                    .Select(s=>RoomSupport.Top(s,position.x,hull.width)).Where(y=>ActorTerrainMotion.IsClear(layout,hull,new Vector2(position.x,y)))
                     .OrderByDescending(y=>y).First();
                 node.AddComponent<RoomTravelPointAuthoring>().Configure(map?MapId:"base:"+layout.id+":hub-exit",
                     map?TravelPointKind.Map:TravelPointKind.Exit,map?"Карта Пустоши":"Выход в хаб",map?"factory:0":"hub",

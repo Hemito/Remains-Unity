@@ -12,7 +12,7 @@ namespace Remains.Domain
             bool outsideX=!finite || actor.x<room.left || actor.x>room.right;
             bool belowFloor=!finite || actor.y<room.bottom-RoomSupport.ContactTolerance;
             if(!outsideX && !belowFloor) return false;
-            if(!RoomSupport.TryLowestFloor(room,x,out float floor,includeOneWay:true))
+            if(!RoomSupport.TryLowestFloor(room,x,out float floor,includeOneWay:true,width:Anatomy.Movement(actor).width))
                 throw new InvalidOperationException($"Нет нижнего пола для восстановления: actor={actor.id}, room={room.id}, x={x}, context={context}.");
             var oldPosition=actor.Position;
             var oldVelocity=actor.Velocity;

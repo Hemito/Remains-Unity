@@ -14,6 +14,7 @@ namespace Remains.Presentation
             var instance=UnityEngine.Object.Instantiate(source);instance.name="Комната: "+room.id;
             try
             {
+                foreach(var audit in instance.GetComponentsInChildren<RoomImportAudit>(true)) audit.WarnIncomplete();
                 RoomTrainingContent.HidePreviews(instance);
                 foreach(var door in instance.GetComponentsInChildren<RoomDoorAuthoring>(true)) door.gameObject.SetActive(false);
                 var lighting=instance.GetComponent<RoomLightingAuthoring>();

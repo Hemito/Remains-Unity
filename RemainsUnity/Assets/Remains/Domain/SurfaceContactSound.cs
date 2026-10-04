@@ -10,7 +10,7 @@ namespace Remains.Domain
             RoomSurface selected=null;float largest=0;
             foreach(var surface in room.platforms)
             {
-                if(Mathf.Abs(position.y-surface.y-surface.height)>RoomSupport.ContactTolerance) continue;
+                if(Mathf.Abs(position.y-RoomSupport.Top(surface,position.x,hull.width))>RoomSupport.ContactTolerance) continue;
                 float overlap=Mathf.Min(position.x+hull.width*.5f,surface.x+surface.width)-Mathf.Max(position.x-hull.width*.5f,surface.x);
                 if(overlap<=0) continue;
                 if(selected==null || overlap>largest || overlap==largest && surface.x<selected.x)

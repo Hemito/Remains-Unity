@@ -22,6 +22,7 @@ namespace Remains.Runtime
     public sealed class NetworkTravelPointProbe : MonoBehaviour
     {
         private PrototypeRuntime runtime;
+        private FactorySeamRoute seam;
         private int phase,route;
         private float ladderX,deadline;
         private bool finished,jumped,interacted,clicking,separated,blocked,farRejected,pausedExit,preserved,pauseRequested;
@@ -36,6 +37,7 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+110;
+            if(value.Options.Smoke.Contains("-seam-")) {seam=new FactorySeamRoute(value);deadline+=70;}
             if(value.Session.DebugTravelAllowed || string.IsNullOrEmpty(value.Options.SaveDirectory))
                 throw new InvalidOperationException("Маршрут требует обычных правил перехода и отдельного сохранения.");
             if(Host)
@@ -54,7 +56,7 @@ namespace Remains.Runtime
                     farRejected=!reply.accepted && reply.reason=="Подойдите к точке перехода ближе.";
                     if(!farRejected) Finish(false,"Сервер разрешил переход издалека или указал другую причину.");
                 };
-                NetworkClient.RegisterHandler<TravelRouteFinish>(_=>Finish(phase==12 && pausedExit && preserved && farRejected && (Solo || separated) && (Host || blocked),
+                NetworkClient.RegisterHandler<TravelRouteFinish>(_=>Finish(phase==12 && pausedExit && preserved && farRejected && (Solo || separated) && (Host || blocked) && (seam==null || seam.Complete),
                     "Движение к карте, E, выбор завода указателем, разделение уровней, отказ издалека, выход через дверь при паузе и повторный вход с сохранённым содержимым."));
             };
             value.Session.ServerReady+=()=>
@@ -68,6 +70,7 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             var actor=Actor;if(actor==null || finished) return default;
+            if(phase==13) return seam.Command();
             if(phase==0)
             {
                 if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return default;
@@ -108,7 +111,7 @@ namespace Remains.Runtime
         private void Update()
         {
             if(finished) return;
-            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут карты/выхода: phase={phase}, route={route}, pos={Actor?.Position}, level={Actor?.level}.");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут карты/выхода: phase={phase}, route={route}, pos={Actor?.Position}, level={Actor?.level}, {seam?.Progress}.");return;}
             var actor=Actor;if(actor==null) return;
             var session=runtime.Session;
             if(session.World.actors.Any(a=>a.player && a.connected && a.id!=actor.id && a.level!=actor.level)) separated=true;
@@ -116,11 +119,17 @@ namespace Remains.Runtime
             {phase=2;clicking=true;StartCoroutine(ChooseFactory(true));}
             else if(phase==2 && actor.level=="factory:0" && !session.Travel.Pending)
             {
-                if(WorldRooms.Definition(session.World,actor.level)!="base:factory-entry-46") {Finish(false,"Маршрут использовал старый тестовый завод.");return;}
+                if(WorldRooms.Definition(session.World,actor.level)!=NewGameWorld.FactoryDefinitionId) {Finish(false,"Маршрут использовал старый тестовый завод.");return;}
                 phase=3;
             }
             else if(phase==3 && session.World.actors.Count(a=>a.player && a.connected && a.level=="factory:0")==runtime.Options.ProbePeers)
-            {roomState=ContentState(session.World);phase=4;}
+            {if(seam==null) {roomState=ContentState(session.World);phase=4;} else {seam.Begin();phase=13;}}
+            else if(phase==13)
+            {
+                seam.Tick();
+                if(seam.Failure!=null) {Finish(false,seam.Failure);return;}
+                if(seam.Complete) {roomState=ContentState(session.World);phase=4;}
+            }
             else if(phase==4 && Mathf.Abs(actor.x-6)<.08f)
             {
                 if(ExitPoint.Rejection(actor)==null) {Finish(false,"Дверь достижима издалека.");return;}
@@ -187,15 +196,15 @@ namespace Remains.Runtime
         private void Capture(string name)
         {if(runtime.Options.Smoke.Contains("-frames-")) capture=name;}
         private void LateUpdate()
-        {if(capture==null) return;NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+"."+capture+".png",runtime.Hud.GetComponent<Canvas>());capture=null;}
+        {seam?.Capture();if(capture==null) return;NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+"."+capture+".png",runtime.Hud.GetComponent<Canvas>());capture=null;}
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved},true));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved,seamVerified=seam?.Complete==true},true));
             exitCode=success?0:1;Invoke(nameof(Exit),3);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public bool separated,blocked,farRejected,pausedExit,preserved;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public bool separated,blocked,farRejected,pausedExit,preserved,seamVerified;}
     }
 }

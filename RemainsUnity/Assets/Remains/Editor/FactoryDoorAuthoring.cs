@@ -86,12 +86,12 @@ namespace Remains.Editor
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
         }
-        private static void Place(GameObject root,string id,string source,int x,int y,string material)
+        public static void Place(GameObject root,string id,string source,int x,int y,string material,int sourceIndex=46)
         {
             var instance=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>($"{Folder}/{id}.prefab"),root.transform);
             instance.name=$"Дверь {id} · {source}";
             instance.transform.localPosition=new Vector3((x+.5f)*.8f,(25-y-1)*.8f,0);
-            instance.AddComponent<RoomDoorAuthoring>().Configure("original:plant:46:"+source,false,material);
+            instance.AddComponent<RoomDoorAuthoring>().Configure("original:plant:"+sourceIndex+":"+source,false,material);
         }
         public static void Verify()
         {

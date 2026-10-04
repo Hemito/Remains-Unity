@@ -27,7 +27,7 @@ namespace Remains.Editor
         public static void Run()
         {
             var fresh=NewGameWorld.Create();
-            Require(WorldRooms.Definition(fresh,"factory:0")=="base:factory-entry-46" && fresh.actors.Count==0 && fresh.containers.Count==0 && fresh.props.Count==0,
+            Require(WorldRooms.Definition(fresh,"factory:0")==NewGameWorld.FactoryDefinitionId && fresh.actors.Count==0 && fresh.containers.Count==0 && fresh.props.Count==0,
                 "Новый мир использует старую геометрию или лишнюю тестовую расстановку.");
             var legacy=StateJson.FromJson<WorldState>("{\"schema\":1,\"worldId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}");
             Require(WorldRooms.Definition(legacy,"factory:0")=="base:factory-prototype","Старое сохранение изменило комнату.");
@@ -37,6 +37,7 @@ namespace Remains.Editor
             Require(room==RoomCatalogAsset.Load().Resolve("base:factory-entry-46"),"Снимок потерял выбор комнаты.");
             var layout=RoomLayout.Load("factory:0",restored);var old=RoomLayout.Load("factory:0",legacy);
             Require(layout.right==38.4f && layout.top==20 && old.left==-10 && old.right==12,"Смешаны геометрии старого и нового заводов.");
+            Require(RoomLayout.Load("factory:0",fresh).right==76.8f,"Новая игра не использует связный завод.");
             var falling=new ActorState {x=19,y=5.6f,vx=4.2f,vy=-2};
             Require(!ActorPositionRecovery.Repair(falling,layout,"спуск у лестницы") && falling.y==5.6f && falling.vy==-2,
                 "Допустимое падение под перекрытием запустило восстановление.");

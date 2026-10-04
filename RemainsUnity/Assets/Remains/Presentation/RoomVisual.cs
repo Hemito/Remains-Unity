@@ -17,7 +17,7 @@ namespace Remains.Presentation
                 if(!string.IsNullOrEmpty(light.fixture)) Quad(parent,"Светильник: "+light.id,light.x-light.width/2,light.y,light.width,light.height,light.fixture,2,false,1,true);
             if(room.artwork!=null)
                 foreach(var layer in room.artwork)
-                    Quad(parent,"Фон: "+layer.texture,layer.x,layer.y,layer.width,layer.height,layer.texture,layer.order,layer.repeat,layer.shade,true,layer.stretchY,layer.selfIlluminated,backgroundLighting:layer.backgroundLighting).AddComponent<Remains.Content.RoomArtworkAuthoring>().Configure(layer);
+                    Quad(parent,"Фон: "+layer.texture,layer.x,layer.y,layer.width,layer.height,layer.texture,layer.order,layer.repeat,layer.shade,true,layer.stretchY,layer.selfIlluminated,backgroundLighting:layer.backgroundLighting,slopeDirection:layer.slopeDirection).AddComponent<Remains.Content.RoomArtworkAuthoring>().Configure(layer);
             else
             {
                 Quad(parent,"Задняя стена",room.left,0,room.right-room.left,7,"wall",-10);
@@ -39,7 +39,7 @@ namespace Remains.Presentation
             }
             return parent.gameObject;
         }
-        private static GameObject Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false,bool selfIlluminated=false,float pixelsPerUnit=50,bool localUv=false,bool backgroundLighting=false)
+        private static GameObject Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false,bool selfIlluminated=false,float pixelsPerUnit=50,bool localUv=false,bool backgroundLighting=false,int slopeDirection=0)
         {
             var texture=Resources.Load<Texture2D>("Original/Room/"+key);
             if(texture==null) throw new InvalidOperationException($"Отсутствует текстура комнаты: {key}, объект={name}.");
@@ -51,6 +51,18 @@ namespace Remains.Presentation
             var mesh=new Mesh { vertices=new[]{Vector3.zero,new Vector3(width,0,0),new Vector3(0,height,0),new Vector3(width,height,0)},
                 uv=new[]{offset,offset+new Vector2(u,0),offset+new Vector2(0,v),offset+new Vector2(u,v)},triangles=new[]{0,2,1,2,3,1},
                 colors=new[]{new Color(shade,shade,shade),new Color(shade,shade,shade),new Color(shade,shade,shade),new Color(shade,shade,shade)} };
+            if(slopeDirection!=0)
+            {
+                // Clip a diagonal beam to its authored cell. Its upper edge is the physical support.
+                float thickness=Mathf.Min(.12f,height),inset=thickness*width/height;
+                var vertices=new[]{Vector3.zero,new Vector3(inset,0,0),new Vector3(width,height,0),new Vector3(width,height-thickness,0)};
+                if(slopeDirection<0) for(int i=0;i<vertices.Length;i++) vertices[i].x=width-vertices[i].x;
+                mesh.vertices=vertices;
+                mesh.triangles=slopeDirection>0?new[]{0,2,1,2,3,1}:new[]{0,1,2,2,1,3};
+                float length=Mathf.Sqrt(width*width+height*height);
+                mesh.uv=new[]{Vector2.zero,new Vector2(inset/length,0),new Vector2(length*pixelsPerUnit/texture.width,1),new Vector2(length*pixelsPerUnit/texture.width,0)};
+                mesh.RecalculateBounds();
+            }
             parent.GetComponent<RoomMeshLifetime>().Meshes.Add(mesh);
             obj.AddComponent<MeshFilter>().sharedMesh=mesh;
             var materials=parent.GetComponent<RoomMeshLifetime>().Materials;

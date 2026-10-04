@@ -15,18 +15,17 @@ namespace Remains.Domain
             var origin=actor.Position;
             float half=hull.width*.5f;
             var xs=new SortedSet<float> {origin.x,room.left+half,room.right-half};
-            var ys=new SortedSet<float>();
             foreach(var surface in room.platforms)
             {
-                ys.Add(surface.y+surface.height);
                 // Solid faces and full-footprint support endpoints delimit safe intervals.
                 xs.Add(surface.x-half);xs.Add(surface.x+half);
                 xs.Add(surface.x+surface.width-half);xs.Add(surface.x+surface.width+half);
             }
             Vector2 best=default;double distance=double.PositiveInfinity;
-            foreach(float y in ys)
-                foreach(float x in xs)
+            foreach(float x in xs)
+                foreach(var surface in room.platforms)
                 {
+                    float y=RoomSupport.Top(surface,x,hull.width);
                     var candidate=new Vector2(x,y);
                     if(!ActorTerrainMotion.IsClear(room,hull,candidate) || !ActorTerrainMotion.Supported(room,hull,candidate)) continue;
                     double dx=(double)x-origin.x,dy=(double)y-origin.y;

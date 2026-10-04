@@ -28,13 +28,21 @@ namespace Remains.Domain
                 if(delta.x>0 && start.x<=left+Epsilon && x>left) x=left;
                 if(delta.x<0 && start.x>=right-Epsilon && x<right) x=right;
             }
-            float y=start.y+delta.y;
+            float baseY=start.y;
+            if(delta.y<=0 && !ignoreOneWay && !droppedSurface.HasValue)
+                if(SlopeContactMotion.TryFollow(room,hull,start,x,out float height))
+                {
+                    if(IsClear(room,hull,new Vector2(x,height))) baseY=height;
+                    else x=start.x; // A ceiling must not push the actor through the ramp.
+                }
+            float y=baseY+delta.y;
             foreach(var surface in room.platforms)
             {
                 if(x+half<=surface.x+Epsilon || x-half>=surface.x+surface.width-Epsilon) continue;
-                float floor=surface.y+surface.height,ceiling=surface.y-hull.height;
+                if(surface.slopeDirection!=0 && droppedSurface.HasValue) continue;
+                float floor=RoomSupport.Top(surface,x,hull.width),ceiling=surface.y-hull.height;
                 if(surface.oneWay && droppedSurface.HasValue && Mathf.Abs(floor-droppedSurface.Value)<=RoomSupport.ContactTolerance) continue;
-                if(delta.y<=0 && !(ignoreOneWay && surface.oneWay) && start.y>=floor-Epsilon && y<floor) y=floor;
+                if(delta.y<=0 && !(ignoreOneWay && surface.oneWay) && baseY>=floor-Epsilon && y<floor) y=floor;
                 if(delta.y>0 && !surface.oneWay && start.y<=ceiling+Epsilon && y>ceiling) y=ceiling;
             }
             return new Vector2(x,y);
@@ -43,7 +51,7 @@ namespace Remains.Domain
         {
             foreach(var surface in room.platforms)
                 if(position.x+hull.width*.5f>surface.x+Epsilon && position.x-hull.width*.5f<surface.x+surface.width-Epsilon &&
-                    Mathf.Abs(position.y-surface.y-surface.height)<=RoomSupport.ContactTolerance) return true;
+                    Mathf.Abs(position.y-RoomSupport.Top(surface,position.x,hull.width))<=RoomSupport.ContactTolerance) return true;
             return false;
         }
 
@@ -53,7 +61,7 @@ namespace Remains.Domain
             foreach(var surface in room.platforms)
             {
                 if(position.x+hull.width*.5f<=surface.x+Epsilon || position.x-hull.width*.5f>=surface.x+surface.width-Epsilon ||
-                    Mathf.Abs(position.y-surface.y-surface.height)>RoomSupport.ContactTolerance) continue;
+                    Mathf.Abs(position.y-RoomSupport.Top(surface,position.x,hull.width))>RoomSupport.ContactTolerance) continue;
                 if(!surface.oneWay) return false;
                 supported=true;
             }
