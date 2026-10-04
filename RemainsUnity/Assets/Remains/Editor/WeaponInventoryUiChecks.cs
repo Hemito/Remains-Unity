@@ -136,6 +136,7 @@ namespace Remains.Editor
                     }
                     for(int i=0;i<20;i++) actor.inventory.Add(new ItemStack {id="scroll-render-"+i,definition="heal",count=i+1});
                     view.Categories[(int)InventoryCategory.Items].onClick.Invoke();view.Scrollbar.value=.5f;
+                    CheckScrollbarPointer(root,canvas,camera,view,panel);
                     Require(view.Title.preferredWidth<=view.Title.rectTransform.rect.width+.1f,"Диапазон предметов не помещается в заголовке.");
                     Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
                     image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();
@@ -151,5 +152,34 @@ namespace Remains.Editor
             }
         }
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException(message);}
+        private static void CheckScrollbarPointer(GameObject root,Canvas canvas,Camera camera,PersonalInventoryView view,PersonalInventoryPanel panel)
+        {
+            var events=new GameObject("Указатель проверки",typeof(EventSystem));events.transform.SetParent(root.transform);
+            var raycaster=canvas.GetComponent<GraphicRaycaster>()??canvas.gameObject.AddComponent<GraphicRaycaster>();
+            Canvas.ForceUpdateCanvases();camera.Render();
+            var handle=view.Scrollbar.handleRect;
+            var start=RectTransformUtility.WorldToScreenPoint(camera,handle.TransformPoint(handle.rect.center));
+            var pointer=new PointerEventData(events.GetComponent<EventSystem>()) {position=start,pressPosition=start,button=PointerEventData.InputButton.Left};
+            var hits=new System.Collections.Generic.List<RaycastResult>();raycaster.Raycast(pointer,hits);
+            Require(hits.Count>0 && hits[0].gameObject.transform.IsChildOf(view.Scrollbar.transform),$"Ползунок закрыт для указателя: point={start}, screen={Screen.width}x{Screen.height}, depth={handle.GetComponent<Image>().depth}, hits={string.Join(",",hits.ConvertAll(hit=>hit.gameObject.name))}.");
+            pointer.pointerPressRaycast=hits[0];pointer.pointerCurrentRaycast=hits[0];
+            view.Rows[2].onClick.Invoke();string selectedDescription=view.Detail.text;
+            ExecuteEvents.Execute(view.Scrollbar.gameObject,pointer,ExecuteEvents.initializePotentialDrag);
+            ExecuteEvents.Execute(view.Scrollbar.gameObject,pointer,ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(view.Scrollbar.gameObject,pointer,ExecuteEvents.beginDragHandler);
+            var track=view.Scrollbar.GetComponent<RectTransform>();
+            foreach(bool bottom in new[]{true,false})
+            {
+                var local=new Vector2(track.rect.center.x,bottom?track.rect.yMin+1:track.rect.yMax-1);
+                pointer.position=RectTransformUtility.WorldToScreenPoint(camera,track.TransformPoint(local));
+                ExecuteEvents.Execute(view.Scrollbar.gameObject,pointer,ExecuteEvents.dragHandler);
+                Require(bottom?!view.Next.interactable:panel.FirstVisibleRow==0,"Перетаскивание не достигло границы списка.");
+                Require(view.Detail.text==selectedDescription,"Перетаскивание изменило выбранный предмет.");
+            }
+            ExecuteEvents.Execute(view.Scrollbar.gameObject,pointer,ExecuteEvents.endDragHandler);
+            ExecuteEvents.Execute(view.Scrollbar.gameObject,pointer,ExecuteEvents.pointerUpHandler);
+            view.Scrollbar.value=.5f;Canvas.ForceUpdateCanvases();
+            Debug.Log("Указатель инвентаря: PASS — доступный ползунок, перетаскивание к обеим границам, сохранение выбора.");
+        }
     }
 }
