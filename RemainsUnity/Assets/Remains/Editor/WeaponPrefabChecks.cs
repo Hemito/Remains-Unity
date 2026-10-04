@@ -11,7 +11,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            WeaponRigs.Load();
+            Anatomy.Load();WeaponCatalog.Load();WeaponRigs.Load();
             foreach(var rig in WeaponRigs.All)
             {
                 var source=WeaponRigs.Prefab(rig.id);
@@ -41,7 +41,42 @@ namespace Remains.Editor
                 }
                 finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
             }
-            Debug.Log("Префабы оружия: PASS — точка дула, отражение и независимость экземпляров.");
+            CheckGrenadeRelease();
+            Debug.Log("Префабы оружия: PASS — точка дула, отражение, независимость экземпляров и непрерывность изображения гранаты при выпуске.");
+        }
+        private static void CheckGrenadeRelease()
+        {
+            var held=UnityEngine.Object.Instantiate(WeaponRigs.Prefab("grenade"));
+            var flight=UnityEngine.Object.Instantiate(GrenadeArtwork.LoadPrefab());
+            try
+            {
+                foreach(string stance in new[]{"standing","crouching","climbing"})
+                foreach(float aimX in new[]{-4f,4f})
+                {
+                    var actor=new ActorState {id="grenade-release",weaponInventoryVersion=1,x=2,y=3,
+                        crouched=stance=="crouching",climbing=stance=="climbing"};
+                    var item=SharedInventory.Create("grenade",2);actor.inventory.Add(item);
+                    if(!WeaponInventory.Select(actor,item.id,out var reason)) throw new InvalidOperationException(reason);
+                    var aim=actor.Position+new Vector2(aimX,2);
+                    WeaponPose.Aim(actor,aim);
+                    held.transform.position=WeaponPose.Mount(actor);held.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
+                    held.SetMirrored(WeaponPose.Flip(actor));
+                    var request=Remains.Networking.GrenadeLaunchRequest.Capture(actor,aim);
+                    flight.transform.position=new Vector3(request.originX,request.originY,0);
+                    flight.transform.rotation=Quaternion.Euler(0,0,request.angle);flight.flipY=request.mirrored;
+                    for(int corner=0;corner<4;corner++)
+                        if(Vector2.Distance(Corner(held.Artwork,corner),Corner(flight,corner))>.00001f)
+                            throw new InvalidOperationException($"Граната меняет положение/размер при выпуске: стойка={stance}, прицел={aimX}, угол={corner}.");
+                }
+            }
+            finally {UnityEngine.Object.DestroyImmediate(held.gameObject);UnityEngine.Object.DestroyImmediate(flight.gameObject);}
+        }
+        private static Vector3 Corner(SpriteRenderer renderer,int corner)
+        {
+            var bounds=renderer.sprite.bounds;
+            var point=new Vector3(corner%2==0?bounds.min.x:bounds.max.x,corner<2?bounds.min.y:bounds.max.y,0);
+            if(renderer.flipX) point.x=-point.x;if(renderer.flipY) point.y=-point.y;
+            return renderer.transform.TransformPoint(point);
         }
     }
 }
