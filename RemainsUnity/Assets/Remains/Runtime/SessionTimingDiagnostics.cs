@@ -53,6 +53,7 @@ namespace Remains.Runtime
             value.Combat.Projectiles.ContactObserved+=contact=>Record("contact-observed",contact.projectile,contact.target);
             value.Combat.DamageApplied+=result=>Record("damage-applied",result.attack,result.actor);
             value.DamageFeedback.Received+=result=>Record("damage-number-received",result.attack,result.actor);
+            value.DamageFeedback.DeliveryMeasured+=(stage,result)=>Record(stage,result.attack,result.actor);
             value.DamageNumbers.Shown+=result=>Record("damage-number-shown",result.attack,result.actor);
             value.Session.PoseReceived+=actor=>
             {

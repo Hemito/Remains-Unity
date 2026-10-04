@@ -13,6 +13,7 @@ namespace Remains.Networking
         private readonly HashSet<string> seen=new();
         private readonly Queue<string> recent=new();
         public event Action<DamageResult> Received;
+        public event Action<string,DamageResult> DeliveryMeasured;
         public int Accepted {get;private set;}
         public DamageFeedback(CoopSession session)
         {
@@ -21,7 +22,11 @@ namespace Remains.Networking
             session.ClientReady+=()=>
             {
                 seen.Clear();recent.Clear();Accepted=0;
-                NetworkClient.RegisterHandler<DamageFeedbackMessage>(message=>Receive(message.result));
+                NetworkClient.RegisterHandler<DamageFeedbackMessage>(message=>
+                {
+                    DeliveryMeasured?.Invoke("damage-number-delivered",message.result);
+                    Receive(message.result);
+                });
             };
         }
         public void Publish(DamageResult result)
@@ -31,6 +36,7 @@ namespace Remains.Networking
             var target=session.World?.Find(result.actor);
             if(target!=null && target.owner==session.LocalOwner && target.generation==result.generation && target.level==result.level)
                 Receive(result);
+            DeliveryMeasured?.Invoke("damage-number-sent",result);
             NetworkClient.Send(new DamageFeedbackMessage {result=result});
         }
         private void Relay(NetworkConnectionToClient connection,DamageFeedbackMessage message)
@@ -38,6 +44,7 @@ namespace Remains.Networking
             var result=message.result;var sender=session.ConnectedActor(connection);
             var target=session.ServerWorld?.Find(result.actor);
             if(sender==null || target==null || sender.owner!=target.owner || target.generation!=result.generation || target.level!=result.level || !Valid(result)) return;
+            DeliveryMeasured?.Invoke("damage-number-relayed",result);
             NetworkServer.SendToAll(message);
         }
         public static bool Valid(DamageResult result)=>!string.IsNullOrEmpty(result.attack) && !string.IsNullOrEmpty(result.actor) &&
