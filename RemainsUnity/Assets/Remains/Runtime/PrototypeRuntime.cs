@@ -33,6 +33,7 @@ namespace Remains.Runtime
         public PropContactAudio PropAudio {get;private set;}
         public ExplosionEffects Explosions {get;private set;}
         public AudioPreferences AudioPreferences {get;private set;}
+        public DoorVisuals DoorVisuals {get;private set;}
         private float musicMixVolume;
         public DamageFeedback DamageFeedback {get;private set;}
         public DamageNumbers DamageNumbers {get;private set;}
@@ -106,6 +107,7 @@ namespace Remains.Runtime
             cameraView=CameraFollower.RequireCamera(Camera.main);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
+            DoorVisuals=new GameObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio);
             GrenadeAudio=new GameObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
             MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=new GameObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);

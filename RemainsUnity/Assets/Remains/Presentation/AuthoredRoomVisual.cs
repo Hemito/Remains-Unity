@@ -15,6 +15,7 @@ namespace Remains.Presentation
             try
             {
                 RoomTrainingContent.HidePreviews(instance);
+                foreach(var door in instance.GetComponentsInChildren<RoomDoorAuthoring>(true)) door.gameObject.SetActive(false);
                 var lighting=instance.GetComponent<RoomLightingAuthoring>();
                 if(lighting==null) throw new InvalidOperationException("Нет авторинга света: "+level);
                 instance.gameObject.AddComponent<RoomLighting>().Initialize(room,lighting.CreateProfile(instance));return instance.gameObject;
