@@ -7,6 +7,7 @@ Shader "Remains/WorldLit"
         [HideInInspector] _RendererColor ("Renderer", Color) = (1,1,1,1)
         [HideInInspector] _Flip ("Flip", Vector) = (1,1,1,1)
         _Emission ("Self illumination", Range(0,1)) = 0
+        [Toggle] _BackgroundLighting ("Освещение фоновой декорации", Float) = 0
     }
     SubShader
     {
@@ -21,6 +22,8 @@ Shader "Remains/WorldLit"
             #pragma multi_compile_instancing
             #include "UnitySprites.cginc"
             sampler2D _WorldLightMap;
+            sampler2D _BackgroundLightMap;
+            float _BackgroundLighting;
             float4 _WorldLightBounds;
             float _WorldLightEnabled, _Emission;
             struct lit_v2f
@@ -47,7 +50,8 @@ Shader "Remains/WorldLit"
             fixed4 Frag(lit_v2f input) : SV_Target
             {
                 fixed4 color=SampleSpriteTexture(input.uv)*input.color;
-                fixed3 light=lerp(fixed3(1,1,1),tex2D(_WorldLightMap,input.lightUV).rgb,_WorldLightEnabled);
+                fixed3 sampled=lerp(tex2D(_WorldLightMap,input.lightUV).rgb,tex2D(_BackgroundLightMap,input.lightUV).rgb,_BackgroundLighting);
+                fixed3 light=lerp(fixed3(1,1,1),sampled,_WorldLightEnabled);
                 color.rgb*=lerp(light,fixed3(1,1,1),_Emission)*color.a;
                 return color;
             }

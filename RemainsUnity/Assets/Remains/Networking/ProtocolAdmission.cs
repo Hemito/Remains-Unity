@@ -54,11 +54,13 @@ namespace Remains.Networking
                 ClientApproved=true;session.ProtocolAccepted();
             });
         }
-        public void Connected(NetworkConnectionToClient connection)=>waiting[connection.connectionId]=Time.unscaledTime+10;
+        // Startup can spend seconds loading a room within one frame. The cached frame time
+        // must not make a newly opened connection appear older than it actually is.
+        public void Connected(NetworkConnectionToClient connection)=>waiting[connection.connectionId]=Time.realtimeSinceStartup+10;
         public void Disconnected(int id) {approved.Remove(id);waiting.Remove(id);closing.Remove(id);}
         public void Begin()
         {
-            pending=true;ClientApproved=false;LastError=null;deadline=Time.unscaledTime+10;
+            pending=true;ClientApproved=false;LastError=null;deadline=Time.realtimeSinceStartup+10;
             NetworkClient.Send(new ProtocolHello {version=OfferedVersion});
         }
         public void ResetClient() {pending=false;ClientApproved=false;}
@@ -73,21 +75,21 @@ namespace Remains.Networking
             if(closing.ContainsKey(connection.connectionId)) return;
             approved.Remove(connection.connectionId);waiting.Remove(connection.connectionId);RejectedCount++;
             connection.Send(new ProtocolReply {version=SessionProtocol.Version,accepted=false,reason=reason});
-            closing[connection.connectionId]=Time.unscaledTime+1;
+            closing[connection.connectionId]=Time.realtimeSinceStartup+1;
             Debug.LogWarning($"Подключение отклонено: connection={connection.connectionId}, причина={reason}");
         }
         public void RejectDuplicateCharacter(NetworkConnectionToClient connection,string character)=>
             Reject(connection,$"Персонаж с именем «{character}» уже находится в сессии. Выберите другое имя в главном меню и подключитесь снова.");
         public void Step()
         {
-            if(pending && Time.unscaledTime>deadline)
+            if(pending && Time.realtimeSinceStartup>deadline)
             {pending=false;LastError="Хост не подтвердил версию протокола. Проверьте соединение и совместимость сборок.";session.ShowNotice(LastError);session.StopClient();}
             if(!NetworkServer.active) return;
             foreach(var pair in waiting.ToArray())
-                if(Time.unscaledTime>pair.Value && NetworkServer.connections.TryGetValue(pair.Key,out var connection))
+                if(Time.realtimeSinceStartup>pair.Value && NetworkServer.connections.TryGetValue(pair.Key,out var connection))
                     Reject(connection,"Клиент не выполнил согласование сетевого протокола.");
             foreach(var pair in closing.ToArray())
-                if(Time.unscaledTime>pair.Value)
+                if(Time.realtimeSinceStartup>pair.Value)
                 {closing.Remove(pair.Key);if(NetworkServer.connections.TryGetValue(pair.Key,out var connection)) connection.Disconnect();}
         }
     }

@@ -8,6 +8,8 @@ namespace Remains.Content
     {
         [SerializeField,InspectorName("ID источника")] private string id;
         [SerializeField,InspectorName("Яркость")] private float intensity=1;
+        [SerializeField,InspectorName("Яркость на фоне (-1: общая)")] private float backgroundIntensity=-1;
+        public void SetBackgroundIntensity(float value)=>backgroundIntensity=value;
         [SerializeField,InspectorName("Использовать исходную маску")] private bool useMask;
         [SerializeField,InspectorName("Затемнение по альфе маски")] private bool shadow;
         [SerializeField,InspectorName("Маска света")] private Texture2D mask;
@@ -19,7 +21,7 @@ namespace Remains.Content
         [SerializeField,HideInInspector] private float width,height;
         public void Configure(RoomLight light,Texture2D texture)
         {
-            id=light.id;intensity=light.intensity;radius=light.radius;color=light.color;fixture=light.fixture;width=light.width;height=light.height;
+            id=light.id;intensity=light.intensity;backgroundIntensity=light.backgroundIntensity;radius=light.radius;color=light.color;fixture=light.fixture;width=light.width;height=light.height;
             maskId=light.mask;useMask=!string.IsNullOrEmpty(light.mask);mask=texture;shadow=light.shadow;
             maskOffset=new Vector2(light.maskX-light.x,light.maskY-light.y);maskSize=new Vector2(light.maskWidth,light.maskHeight);
             transform.localPosition=new Vector3(light.x,light.y,0);
@@ -30,12 +32,12 @@ namespace Remains.Content
             var rect=RoomAuthoring.ReadRect(transform,room.transform);
             if(Mathf.Abs(rect.width-1)>.00001f || Mathf.Abs(rect.height-1)>.00001f) throw new InvalidOperationException($"Свет {name}: размер задаётся радиусом/маской, масштаб Transform должен быть 1.");
             if(useMask && mask==null) throw new InvalidOperationException($"Свет {id}: отсутствует ссылка на маску.");
-            return new RoomLight {id=id,x=rect.x,y=rect.y,intensity=intensity,radius=radius,color=color,fixture=fixture,width=width,height=height,shadow=shadow,
+            return new RoomLight {id=id,x=rect.x,y=rect.y,intensity=intensity,backgroundIntensity=backgroundIntensity,radius=radius,color=color,fixture=fixture,width=width,height=height,shadow=shadow,
                 mask=useMask?maskId:null,maskTexture=useMask?mask:null,maskX=rect.x+maskOffset.x,maskY=rect.y+maskOffset.y,maskWidth=maskSize.x,maskHeight=maskSize.y};
         }
         private void Validate()
         {
-            if(string.IsNullOrWhiteSpace(id) || !float.IsFinite(intensity) || intensity<0 || !float.IsFinite(radius) || radius<=0 ||
+            if(!float.IsFinite(backgroundIntensity) || backgroundIntensity<0 && backgroundIntensity!= -1 || shadow && backgroundIntensity>1 || string.IsNullOrWhiteSpace(id) || !float.IsFinite(intensity) || intensity<0 || !float.IsFinite(radius) || radius<=0 ||
                 shadow && (!useMask || intensity>1) || useMask && (mask==null || !float.IsFinite(maskOffset.x) || !float.IsFinite(maskOffset.y) || !float.IsFinite(maskSize.x) || !float.IsFinite(maskSize.y) || maskSize.x<=0 || maskSize.y<=0))
                 throw new InvalidOperationException($"Свет {name}, ID={id}: проверьте яркость, радиус и ссылку/размеры маски.");
         }

@@ -10,6 +10,7 @@ namespace Remains.Editor
         public static void Run()
         {
             CheckMaskColorSpace();
+            CheckBackgroundSeparation();
             var room=new RoomLayout {id="light-check",platforms=new[]{new RoomSurface {x=0,y=-2,width=.3f,height=4}}};
             var profile=new RoomLightProfile {ambient=new Color(.2f,.2f,.2f),lights=new[]{new RoomLight {id="test",x=-1,y=0,radius=5,intensity=.8f,color=Color.white}}};
             Require(RoomLightMap.Sample(room,profile,new Vector2(-.5f,0)).r>.7f,"Свет отсутствует рядом с источником");
@@ -42,6 +43,24 @@ namespace Remains.Editor
             Require(RoomLightMap.Sample(room,shadowProfile,Vector2.zero).r==1,"Выключение тени не восстановило свет");
             UnityEngine.Object.DestroyImmediate(texture);
             Debug.Log("Освещение: PASS — затухание, стена, открытая балка, общий шейдер.");
+        }
+        private static void CheckBackgroundSeparation()
+        {
+            var room=new RoomLayout {id="background-check",platforms=Array.Empty<RoomSurface>()};
+            var original=new RoomLightProfile {ambient=new Color(.4f,.4f,.4f),backgroundAmbientScale=.225f,
+                lights=new[]{new RoomLight {id="fill",radius=5,intensity=.4f,backgroundIntensity=.05f},
+                    new RoomLight {id="fixture",radius=5,intensity=.1f,maskTexture=Texture2D.whiteTexture}}};
+            var background=original.ForBackground();
+            Require(Mathf.Abs(background.ambient.r-.09f)<.0001f && background.lights[0].intensity==.05f,"Фон не получил свои настройки");
+            Require(original.lights[0].intensity==.4f && original.ambient.r==.4f,"Настройки фона изменили свет актёров");
+            Require(background.lights[1].intensity==.1f && background.lights[1].maskTexture==Texture2D.whiteTexture,"Фон потерял яркость или прямую ссылку на маску светильника");
+            original.lights[1].maskTexture=null;background.lights[1].maskTexture=null;
+            Require(RoomLightMap.Sample(room,original,Vector2.zero).r>RoomLightMap.Sample(room,background,Vector2.zero).r+.5f,"Разделение профилей не изменило результат освещения");
+            background.lights[0].intensity=0;
+            Require(original.lights[0].intensity==.4f,"Профили разделяют изменяемые источники");
+            var legacy=JsonUtility.FromJson<RoomLightProfile>("{\"ambient\":{\"r\":0.4,\"g\":0.4,\"b\":0.4,\"a\":1},\"lights\":[{\"id\":\"legacy\",\"intensity\":0.5}]}");
+            Require(legacy.ForBackground().ambient==legacy.ambient && legacy.ForBackground().lights[0].intensity==.5f,"Старый профиль без новых полей изменил свет");
+            Debug.Log("Фоновое освещение: PASS — независимые профили, маски, яркость и совместимость данных.");
         }
         private static void CheckMaskColorSpace()
         {

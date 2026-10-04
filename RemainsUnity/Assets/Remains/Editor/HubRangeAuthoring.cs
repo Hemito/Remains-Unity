@@ -11,6 +11,37 @@ namespace Remains.Editor
     // Explicit editor migration. The resulting room is an ordinary editable prefab.
     public static class HubRangeAuthoring
     {
+        public static void ApplyBackgroundLighting()
+        {
+            const string path="Assets/Remains/Resources/Levels/hub.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var room=root.GetComponent<RoomAuthoring>();
+                root.GetComponent<RoomLightingAuthoring>().SetBackgroundAmbientScale(.225f);
+                int fills=0,artworks=0;
+                foreach(var light in root.GetComponentsInChildren<RoomLightAuthoring>())
+                {
+                    var data=light.Read(room);
+                    if(data.id=="hall-0" || data.id=="hall-1" || data.id=="hall-2") {light.SetBackgroundIntensity(.05f);fills++;}
+                }
+                foreach(var art in root.GetComponentsInChildren<RoomArtworkAuthoring>())
+                {
+                    var data=art.Read(room);
+                    if(data.order> -10 || data.texture=="Hub/concrete" || data.texture=="Hub/rim") continue;
+                    var renderer=art.GetComponent<MeshRenderer>();var source=renderer.sharedMaterial;
+                    if(source.GetFloat("_BackgroundLighting")==1) {artworks++;continue;}
+                    string materialPath="Assets/Remains/Resources/Levels/hub-background-"+AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(source))+".mat";
+                    var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+                    if(material==null) {material=new Material(source) {name="Фон хаба: "+data.texture};material.SetFloat("_BackgroundLighting",1);AssetDatabase.CreateAsset(material,materialPath);}
+                    renderer.sharedMaterial=material;artworks++;
+                }
+                if(fills!=3 || artworks==0) throw new InvalidOperationException($"Свет хаба: ожидались 3 заполняющих источника и фон, найдено {fills}/{artworks}.");
+                PrefabUtility.SaveAsPrefabAsset(root,path);Debug.Log($"Фоновый свет хаба: источников {fills}, слоёв {artworks}.");
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            AssetDatabase.SaveAssets();RenderOccupiedHubComparison();
+        }
         public static void ApplyStructuralLightResponse()
         {
             const string path="Assets/Remains/Resources/Levels/hub.prefab";
@@ -167,6 +198,31 @@ namespace Remains.Editor
         public static void RenderReferenceHub()
             =>RenderReferenceHub(false);
         public static void RenderReferenceHubCandidate()=>RenderReferenceHub(true);
+        public static void RenderOccupiedHubComparison()
+        {
+            foreach(bool candidate in new[]{false,true})
+            {
+                RenderReferenceHub(candidate);
+                Anatomy.Load();WeaponCatalog.Load();PonyVisual.Prepare();
+                var layers=new ActorVisualLayers();
+                foreach(var entry in new[]{(x:17f,y:.8f),(x:21f,y:7.2f),(x:29f,y:.8f)})
+                {
+                    var actor=new ActorState {id="light-check-"+entry.x,x=entry.x,y=entry.y,pose="idle",weapon="pistol",facing=1};
+                    Remains.Gameplay.WeaponPose.Aim(actor,actor.Position+new Vector2(3,1.1f));
+                    var visual=(PonyVisual)ActorVisualFactory.Create(actor);visual.Bind(actor);visual.DrawPose(.12f);
+                    layers.Attach(actor.id,visual.transform);
+                    var weapon=UnityEngine.Object.Instantiate(WeaponRigs.Prefab(actor.weapon));
+                    weapon.transform.position=Remains.Gameplay.WeaponPose.Mount(actor);
+                    weapon.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
+                    weapon.SetMirrored(Remains.Gameplay.WeaponPose.Flip(actor));layers.Attach(actor.id,weapon.transform);
+                }
+                layers.Synchronize(new[]{"light-check-17","light-check-21","light-check-29"});
+                var camera=UnityEngine.Object.FindFirstObjectByType<Camera>();
+                camera.orthographicSize=5;camera.transform.position=new Vector3(21,4.4f,-10);
+                string path=System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../../.reference/tests/hub-occupied-"+(candidate?"candidate":"current")+".png"));
+                Remains.Runtime.NetworkFrameCapture.Save(camera,path,width:1920,height:1080);
+            }
+        }
         private static void RenderReferenceHub(bool candidate)
         {
             UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,UnityEditor.SceneManagement.NewSceneMode.Single);
