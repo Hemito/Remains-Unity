@@ -122,11 +122,12 @@ namespace Remains.Presentation
             for(int i=0;i<rows.Length;i++)
             {
                 int index=page*rows.Length+i;var item=index<count?visible[index]:null;ids[i]=item?.id;
+                rows[i].gameObject.SetActive(item!=null);
                 int available=item==null?0:InventoryAvailability.Count(actor,item);
                 artwork.Set(icons[i],item?.definition);
                 string quantityText=item?.weaponState==null?$" × {item?.count}":WeaponCatalog.Get(item.definition).magazineSize>0?
                     $" · {item.weaponState.rounds}/{WeaponCatalog.Get(item.definition).magazineSize}":"";
-                rows[i].GetComponentInChildren<Text>().text=item==null?"—":$"{(item.id==selected?"› ":"")}{itemName(item.definition)}{quantityText}"+(available<item.count?$" (доступно {available})":"");
+                rows[i].GetComponentInChildren<Text>().text=item==null?"":$"{(item.id==selected?"› ":"")}{itemName(item.definition)}{quantityText}"+(available<item.count?$" (доступно {available})":"");
                 rows[i].interactable=item!=null;
                 OriginalButtonStyle.SetSelected(rows[i],item!=null && item.id==selected);
             }
