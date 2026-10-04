@@ -11,6 +11,35 @@ namespace Remains.Editor
     // Explicit editor migration. The resulting room is an ordinary editable prefab.
     public static class HubRangeAuthoring
     {
+        public static void ApplyStructuralLightResponse()
+        {
+            const string path="Assets/Remains/Resources/Levels/hub.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);int count=0;
+            try
+            {
+                var room=root.GetComponent<RoomAuthoring>();
+                foreach(var art in root.GetComponentsInChildren<RoomArtworkAuthoring>())
+                {
+                    var data=art.Read(room);
+                    if(data.texture!="Hub/concrete" && data.texture!="Hub/rim") continue;
+                    string materialPath="Assets/Remains/Resources/Levels/hub-structural-"+data.texture.Substring(4)+".mat";
+                    var renderer=art.GetComponent<MeshRenderer>();
+                    var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+                    if(material==null)
+                    {
+                        material=new Material(renderer.sharedMaterial) {name="Обрамление хаба: "+data.texture};
+                        material.SetFloat("_Emission",1);AssetDatabase.CreateAsset(material,materialPath);
+                    }
+                    if(material.GetFloat("_Emission")!=1) throw new InvalidOperationException("Материал обрамления изменён: "+materialPath);
+                    renderer.sharedMaterial=material;count++;
+                }
+                if(count==0) throw new InvalidOperationException("Не найдены бетонные слои обрамления хаба.");
+                PrefabUtility.SaveAsPrefabAsset(root,path);
+                Debug.Log($"Обрамление хаба: сохранено слоёв {count}, общий свет и материалы актёров не изменены.");
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            AssetDatabase.SaveAssets();RenderReferenceHub();
+        }
         public static void ApplyOriginalLightMasks()
         {
             Render();
@@ -148,6 +177,13 @@ namespace Remains.Editor
                 profile.ambient=new Color(.09f,.09f,.09f,1);
                 foreach(var light in profile.lights) if(light.id=="hall-0" || light.id=="hall-1" || light.id=="hall-2") light.intensity=.05f;
                 lighting.Initialize(layout,profile);
+                foreach(var art in room.GetComponentsInChildren<RoomArtworkAuthoring>())
+                {
+                    var data=art.Read(room.GetComponent<RoomAuthoring>());
+                    if(data.texture!="Hub/concrete" && data.texture!="Hub/rim") continue;
+                    var block=new MaterialPropertyBlock();var renderer=art.GetComponent<MeshRenderer>();
+                    renderer.GetPropertyBlock(block);block.SetFloat("_Emission",1);renderer.SetPropertyBlock(block);
+                }
             }
             var camera=new GameObject("Сравнение исходной части хаба").AddComponent<Camera>();
             camera.orthographic=true;camera.orthographicSize=38.4f*1327/2606/2;

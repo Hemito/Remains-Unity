@@ -45,7 +45,15 @@ namespace Remains.Runtime
                     canvas.sortingOrder=previousOrder;
                     Canvas.ForceUpdateCanvases();
                 }
-                target.Release();UnityEngine.Object.Destroy(target);UnityEngine.Object.Destroy(image);
+                target.Release();
+                if(Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(target);UnityEngine.Object.Destroy(image);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(target);UnityEngine.Object.DestroyImmediate(image);
+                }
             }
         }
     }
