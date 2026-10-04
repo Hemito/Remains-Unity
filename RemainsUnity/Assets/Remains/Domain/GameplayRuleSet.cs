@@ -52,6 +52,7 @@ namespace Remains.Domain
     // Session-scoped composition; transport and persistence remain outside the rules.
     public sealed class GameplayRuleSet
     {
+        public IDoorAccessRule DoorAccess {get;}
         public IDamageRule Damage {get;}
         public IKnockdownRule Knockdown {get;}
         public IPartyDefeatRule PartyDefeat {get;}
@@ -65,7 +66,10 @@ namespace Remains.Domain
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis)
             :this(damage,knockdown,partyDefeat,loot,pause,deposit,telekinesis,new StableProximityOwnershipRule()) {}
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership)
+            :this(damage,knockdown,partyDefeat,loot,pause,deposit,telekinesis,proximityOwnership,new NearbyDoorAccess()) {}
+        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess)
         {
+            DoorAccess=doorAccess??new NearbyDoorAccess();
             Damage=damage??throw new ArgumentNullException(nameof(damage));
             Knockdown=knockdown??throw new ArgumentNullException(nameof(knockdown));
             PartyDefeat=partyDefeat??throw new ArgumentNullException(nameof(partyDefeat));

@@ -69,6 +69,8 @@ namespace Remains.Networking
         public SessionProjectiles Projectiles=>projectiles ??= new SessionProjectiles(this);
         private SessionReloadAudio reloadAudio;
         public SessionReloadAudio ReloadAudio=>reloadAudio ??= new SessionReloadAudio(this);
+        private SessionDoors doors;
+        public SessionDoors Doors=>doors ??= new SessionDoors(this);
         private SessionPause pause;
         public SessionPause Pause=>pause ??= new SessionPause(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
@@ -92,7 +94,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
-            Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
+            Doors.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
             Admission.RegisterServer();
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
@@ -171,7 +173,7 @@ namespace Remains.Networking
             Admission.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
-            Pause.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
+            Doors.RegisterClient();Pause.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
@@ -724,7 +726,7 @@ namespace Remains.Networking
             Projectiles.ResetClient();
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
-            Pause.ResetClient();
+            Doors.ResetClient();Pause.ResetClient();
             Changed?.Invoke();
         }
         public void SetFriendlyFire(bool enabled)

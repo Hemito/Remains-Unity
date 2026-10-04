@@ -145,6 +145,7 @@ namespace Remains.Runtime
                 if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("appearance")) gameObject.AddComponent<NetworkAppearanceProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("projectile-handoff")) gameObject.AddComponent<NetworkProjectileHandoffProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("door")) gameObject.AddComponent<NetworkDoorProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("training")) gameObject.AddComponent<NetworkTrainingProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("ladder-body")) gameObject.AddComponent<NetworkLadderBodyProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("obstacle")) gameObject.AddComponent<NetworkObstacleProbe>().Initialize(this);
