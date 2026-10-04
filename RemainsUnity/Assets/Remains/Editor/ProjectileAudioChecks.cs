@@ -23,7 +23,38 @@ namespace Remains.Editor
             Check("floor","hit-metal",false);
             Check("Hub/concrete","hit-bullet",true);
             CheckAttackMix();
+            CheckDistantAttacks();
             Debug.Log("Звуки попаданий: PASS — бетон, металл, актёр перед стеной, отсутствие повторов.");
+        }
+        public static void CheckDistantAttacks()
+        {
+            var root=new GameObject("Проверка дальних звуков атак");
+            try
+            {
+                var session=root.AddComponent<CoopSession>();
+                var world=new WorldState();
+                var actor=new ActorState {id="listener",player=true,connected=true,level="hub"};
+                world.actors.Add(actor);
+                typeof(CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
+                var playback=root.AddComponent<GameplayAudio>();
+                playback.Initialize(session,new WeaponReloadController(session),root.AddComponent<Camera>());
+                var receive=typeof(GameplayAudio).GetMethod("Attack",Private);
+                for(int i=0;i<64;i++)
+                    receive.Invoke(playback,new object[]{new AttackEvent {id="distant-"+i,weapon="pistol",attacker="remote",level="hub",originX=30}});
+                Require(root.GetComponentsInChildren<AudioSource>().Length==0,
+                    "Неслышимые дальние атаки заняли источники и могут заглушить близкий выстрел");
+                actor.x=30;
+                receive.Invoke(playback,new object[]{new AttackEvent {id="distant-0",weapon="pistol",attacker="remote",level="hub",originX=30}});
+                Require(root.GetComponentsInChildren<AudioSource>().Length==0,"Поздний повтор далёкого выстрела зазвучал после приближения");
+                receive.Invoke(playback,new object[]{new AttackEvent {id="nearby",weapon="pistol",attacker="remote",level="hub",originX=31}});
+                var source=root.GetComponentInChildren<AudioSource>();
+                Require(source!=null && source.volume>0 && playback.RemoteShots==1,
+                    "Близкий выстрел потерян после потока неслышимых атак");
+                Require(!Application.isBatchMode || source.mute,"Фоновая проверка не заглушена");
+                Debug.Log("Дальние атаки: PASS — не занимают источники, поздний повтор не звучит, близкий выстрел сохранён.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
         }
         private static void CheckAttackMix()
         {

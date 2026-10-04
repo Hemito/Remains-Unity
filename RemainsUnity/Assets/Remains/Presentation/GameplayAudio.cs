@@ -98,6 +98,9 @@ namespace Remains.Presentation
             {if(missing.Add(attack.weapon)) Debug.LogWarning($"Нет звука атаки: weapon={attack.weapon}, attack={attack.id}.",this);return;}
             if(!seen.Add(attack.id)) return;
             recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
+            // A one-shot outside hearing range must not consume the voice budget.
+            // Remember its ID first so a late duplicate cannot sound after approaching.
+            if(Attenuation(Vector2.Distance(attack.Origin,session.LocalActor.Position))<=0) return;
             float gain=Mathf.Lerp(entry.minGain,entry.maxGain,(float)gainRandom.NextDouble());
             if(Play(entry.audio,attack.level,attack.Origin,gain)==null) return;
             if(entry.kind=="melee") MeleeSounds++;
