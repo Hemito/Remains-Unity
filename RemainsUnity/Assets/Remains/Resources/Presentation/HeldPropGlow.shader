@@ -6,6 +6,7 @@ Shader "Remains/HeldPropGlow"
         _Color ("Цвет магии", Color) = (0.1,1,0.15,0.7)
         _SpriteRect ("Область спрайта", Vector) = (0,0,1,1)
         _Radius ("Радиус", Vector) = (.05,.05,0,0)
+        _Border ("Расширение геометрии", Float) = .08
     }
     SubShader
     {
@@ -20,9 +21,15 @@ Shader "Remains/HeldPropGlow"
             #include "UnityCG.cginc"
             sampler2D _MainTex;
             float4 _SpriteRect,_Radius,_Color,_MainTex_TexelSize;
+            float _Border;
             struct inputData {float4 vertex:POSITION;float2 uv:TEXCOORD0;};
             struct outputData {float4 vertex:SV_POSITION;float2 uv:TEXCOORD0;};
-            outputData vert(inputData v) {outputData o;o.vertex=UnityObjectToClipPos(v.vertex);o.uv=v.uv;return o;}
+            outputData vert(inputData v)
+            {
+                outputData o;float2 uv=(v.uv-_SpriteRect.xy)/_SpriteRect.zw;
+                float2 direction=uv*2-1;v.vertex.xy+=direction*_Border;
+                o.vertex=UnityObjectToClipPos(v.vertex);o.uv=uv+direction*_Radius.xy;return o;
+            }
             float alphaAt(float2 uv)
             {
                 float2 edge=min(uv,1-uv);

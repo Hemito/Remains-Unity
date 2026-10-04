@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Remains.Presentation
 {
@@ -17,6 +18,13 @@ namespace Remains.Presentation
         public void PrepareHeldGlow()
         {
             if(glow!=null) return;
+            var group=GetComponent<SortingGroup>();
+            if(group==null)
+            {
+                group=gameObject.AddComponent<SortingGroup>();
+                group.sortingLayerID=artwork.sortingLayerID;group.sortingOrder=artwork.sortingOrder;
+            }
+            artwork.sortingOrder=0;
             var child=new GameObject("Свечение удерживаемого предмета");
             child.transform.SetParent(artwork.transform,false);
             glow=child.AddComponent<HeldPropGlow>();

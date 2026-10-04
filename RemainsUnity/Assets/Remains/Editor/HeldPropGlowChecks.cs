@@ -42,8 +42,45 @@ namespace Remains.Editor
                 File.WriteAllBytes(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/held-prop-glow.png")),image.EncodeToPNG());
             }
             finally {RenderTexture.active=null;camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);}
+            CheckOverlap(camera,artwork);
             Debug.Log("Свечение предмета: PASS — удержание, отпускание на паузе, сохранность заполненного контейнера.");
             PrototypeBuild.Build();
+        }
+        private static void CheckOverlap(Camera camera,PropArtwork artwork)
+        {
+            foreach(var view in UnityEngine.Object.FindObjectsByType<PropView>(FindObjectsSortMode.None)) view.gameObject.SetActive(false);
+            var back=artwork.CreateView("prototype-crate","Задний светящийся ящик",1.2f);
+            back.DrawMotion(new PropState {id="back",held=true,x=-.35f},"local",false,0);
+            var front=artwork.CreateView("prototype-crate","Передний ящик",1.2f);
+            front.DrawMotion(new PropState {id="front",x=.15f},"local",false,0);
+            front.GetComponent<UnityEngine.Rendering.SortingGroup>().sortingOrder++;
+            UnityEngine.Rendering.SortingGroup.UpdateAllSortingGroups();
+            camera.transform.position=new Vector3(0,0,-10);camera.orthographicSize=1.5f;
+            camera.backgroundColor=new Color(0,0,0,0);
+            var target=new RenderTexture(1920,1080,24);target.Create();camera.targetTexture=target;
+            var image=new Texture2D(1920,1080,TextureFormat.RGBA32,false);
+            try
+            {
+                camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();
+                var combined=image.GetPixels32();
+                File.WriteAllBytes(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/held-prop-overlap.png")),image.EncodeToPNG());
+                back.gameObject.SetActive(false);
+                camera.Render();image.ReadPixels(new Rect(0,0,1920,1080),0,0);image.Apply();var alone=image.GetPixels32();
+                var min=camera.WorldToScreenPoint(front.Artwork.bounds.min);var max=camera.WorldToScreenPoint(front.Artwork.bounds.max);
+                int compared=0;
+                for(int y=Mathf.CeilToInt(min.y)+10;y<Mathf.FloorToInt(max.y)-10;y++)
+                    for(int x=Mathf.CeilToInt(min.x)+10;x<Mathf.FloorToInt(max.x)-10;x++)
+                    {
+                        int index=y*1920+x;
+                        // The source crate has translucent pixels inside its rectangular bounds.
+                        if(alone[index].a!=255) continue;
+                        compared++;
+                        if(!combined[index].Equals(alone[index])) throw new Exception("Свечение заднего ящика перекрыло непрозрачную часть переднего.");
+                    }
+                if(compared<1000) throw new Exception("Недостаточно пикселей для проверки перекрытия ящиков.");
+                Debug.Log($"Целостность ящиков: PASS, сравнение {compared} пикселей переднего предмета.");
+            }
+            finally {RenderTexture.active=null;camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);}
         }
     }
 }
