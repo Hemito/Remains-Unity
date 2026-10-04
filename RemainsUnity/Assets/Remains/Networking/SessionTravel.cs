@@ -78,12 +78,8 @@ namespace Remains.Networking
             var reply = new TravelReply { id = request.id, accepted = reason == null, reason = reason };
             if (reply.accepted)
             {
-                var doorLayout=RoomDoorContent.Read(RoomAuthoring.Load(request.destination),request.destination);
-                if(doorLayout!=null) DoorContentInstaller.Apply(session.ServerWorld,doorLayout);
-                var physicalLayout=RoomPhysicalContent.Read(RoomAuthoring.Load(request.destination),request.destination);
-                if(physicalLayout!=null) PhysicalContentInstaller.Apply(session.ServerWorld,physicalLayout);
-                var npcLayout=RoomNpcContent.Read(RoomAuthoring.Load(request.destination),request.destination);
-                if(npcLayout!=null) NpcContentInstaller.Apply(session.ServerWorld,npcLayout);
+                var content=RoomContentBatch.Read(RoomAuthoring.Load(request.destination),request.destination);
+                RoomContentInstaller.Apply(session.ServerWorld,content);
                 TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination));
                 session.CommitWorld();
                 Debug.Log($"Переход подтверждён: actor={actor.id}, request={request.id}, level={actor.level}, lifecycle={actor.lifecycleSequence}.");

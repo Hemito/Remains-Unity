@@ -139,20 +139,13 @@ namespace Remains.Networking
             npcHits?.Reset();
             var contentLevels=ServerWorld.actors.Select(a=>a.level).Concat(ServerWorld.containers.Select(c=>c.level))
                 .Concat(ServerWorld.props.Select(p=>p.level)).Concat(ServerWorld.doors.Select(d=>d.level)).Append("hub").Distinct().ToArray();
-            var doorLayouts=contentLevels
-                .Select(level=>RoomDoorContent.Read(RoomAuthoring.Load(level),level)).Where(layout=>layout!=null).ToArray();
-            var physicalLayouts=contentLevels.Select(level=>RoomPhysicalContent.Read(RoomAuthoring.Load(level),level)).Where(layout=>layout!=null).ToArray();
-            var npcLayouts=contentLevels.Select(level=>RoomNpcContent.Read(RoomAuthoring.Load(level),level)).Where(layout=>layout!=null).ToArray();
+            var roomContent=contentLevels.Select(level=>RoomContentBatch.Read(RoomAuthoring.Load(level),level)).ToArray();
             if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld) ||
-                doorLayouts.Any(layout=>DoorContentInstaller.NeedsInstall(ServerWorld,layout)) ||
-                physicalLayouts.Any(layout=>PhysicalContentInstaller.NeedsInstall(ServerWorld,layout)) ||
-                npcLayouts.Any(layout=>NpcContentInstaller.NeedsInstall(ServerWorld,layout)))
+                roomContent.Any(batch=>RoomContentInstaller.NeedsInstall(ServerWorld,batch)))
             {
                 if(source!=null) Debug.Log("Сохранена копия мира перед обновлением базового контента: "+Saves.PreserveRecoverySource());
                 HubTrainingContent.Install(ServerWorld);FactoryRaiderContent.Install(ServerWorld);
-                foreach(var layout in doorLayouts) DoorContentInstaller.Apply(ServerWorld,layout);
-                foreach(var layout in physicalLayouts) PhysicalContentInstaller.Apply(ServerWorld,layout);
-                foreach(var layout in npcLayouts) NpcContentInstaller.Apply(ServerWorld,layout);
+                foreach(var batch in roomContent) RoomContentInstaller.Apply(ServerWorld,batch);
             }
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             WorldHistory.BeginContinuation(ServerWorld);
