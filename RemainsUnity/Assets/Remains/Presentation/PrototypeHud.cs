@@ -253,7 +253,7 @@ namespace Remains.Presentation
             for (int i = 0; i < slots.Length; i++)
             {
                 var item = shownContainer!=null && containerPage*9+i < shownContainer.items.Count ? shownContainer.items[containerPage*9+i] : null;
-                slots[i].GetComponentInChildren<Text>().text = item == null ? "Пусто" : $"{ItemName(item.definition)}\n{item.count}";
+                containerWindow.SetSlotLabel(i,item==null?null:ItemName(item.definition),item?.count??0);
                 inventoryArtwork.Set(slotIcons[i],item?.definition);
                 slots[i].interactable = item != null && ContainerAccess.ClaimRejection(actor,shownContainer,item,session.Rules.Loot,claimOne?1:0)==null;
             }
