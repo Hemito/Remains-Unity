@@ -135,6 +135,26 @@ namespace Remains.Editor
                 Remains.Runtime.NetworkFrameCapture.Save(camera,path,width:1920,height:1080);
             }
         }
+        public static void RenderReferenceHub()
+            =>RenderReferenceHub(false);
+        public static void RenderReferenceHubCandidate()=>RenderReferenceHub(true);
+        private static void RenderReferenceHub(bool candidate)
+        {
+            UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,UnityEditor.SceneManagement.NewSceneMode.Single);
+            var layout=RoomLayout.Load("hub");var room=AuthoredRoomVisual.Create("hub",layout);
+            if(candidate)
+            {
+                var lighting=room.GetComponent<RoomLighting>();var profile=lighting.Profile;
+                profile.ambient=new Color(.09f,.09f,.09f,1);
+                foreach(var light in profile.lights) if(light.id=="hall-0" || light.id=="hall-1" || light.id=="hall-2") light.intensity=.05f;
+                lighting.Initialize(layout,profile);
+            }
+            var camera=new GameObject("Сравнение исходной части хаба").AddComponent<Camera>();
+            camera.orthographic=true;camera.orthographicSize=38.4f*1327/2606/2;
+            camera.transform.position=new Vector3(19.2f,10,-10);camera.backgroundColor=new Color(.07f,.08f,.09f);
+            string path=System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,candidate?"../../.reference/tests/hub-reference-lighting-candidate.png":"../../.reference/tests/hub-reference-lighting.png"));
+            Remains.Runtime.NetworkFrameCapture.Save(camera,path,width:2606,height:1327);
+        }
         public static void CheckPassage()
         {
             var room=RoomLayout.Load("hub");
