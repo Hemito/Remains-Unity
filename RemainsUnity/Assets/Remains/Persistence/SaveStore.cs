@@ -73,7 +73,7 @@ namespace Remains.Persistence
         public List<RecoverySnapshot> Continuations()
         {
             var all=new Dictionary<string,RecoverySnapshot>();
-            var selected=SelectedSnapshot();
+            var selected=SelectedSnapshotForListing();
             if(selected!=null) all[selected.Id]=selected;
             string root=Path.Combine(DirectoryPath,"Worlds");
             if(Directory.Exists(root))
@@ -93,6 +93,13 @@ namespace Remains.Persistence
         }
 
         public void SelectContinuation(RecoverySnapshot snapshot) => SaveRecovery(snapshot);
+        // Browsing must remain possible when the active file is corrupt. Loading stays strict.
+        public RecoverySnapshot SelectedSnapshotForListing()
+        {
+            try {return SelectedSnapshot();}
+            catch(InvalidDataException error)
+            {Debug.LogWarning($"Выбранное сохранение не показано в списке: {DirectoryPath}/world.json. {error.Message}");return null;}
+        }
 
         public void SaveRecovery(RecoverySnapshot snapshot)
         {
@@ -115,7 +122,14 @@ namespace Remains.Persistence
         {
             string path=Path.Combine(DirectoryPath,filename);
             if(!File.Exists(path)) return;
-            var previous=new RecoverySnapshot(File.ReadAllText(path));
+            RecoverySnapshot previous;
+            try {previous=new RecoverySnapshot(File.ReadAllText(path));}
+            catch(InvalidDataException error)
+            {
+                string backup=PreserveSource(filename);
+                Debug.LogWarning($"Повреждённое сохранение сохранено перед заменой: source={path}, backup={backup}. {error.Message}");
+                return;
+            }
             string archive=Path.Combine("Worlds",previous.WorldId,"Snapshots",previous.Id+".json");
             if(!File.Exists(Path.Combine(DirectoryPath,archive))) AtomicWrite(archive,previous.Json);
         }

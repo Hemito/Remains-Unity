@@ -74,11 +74,25 @@ namespace Remains.Runtime
             yield return UiPointerProbe.Click(runtime.Hud.WorldChoiceRect(rejected.Id));
             if(store.SelectedSnapshot().Id!=rejected.Id || !string.IsNullOrEmpty(menu.Notice.text))
             {Finish(false,"Повторный выбор исправной копии не работает после ошибки.");yield break;}
+            string activePath=Path.Combine(store.DirectoryPath,"world.json");
+            const string damagedSelection="damaged-selected-world-probe";
+            File.WriteAllText(activePath,damagedSelection);
+            yield return UiPointerProbe.Click(runtime.Hud.WorldPickerButtonRect);
+            if(menu.Host.interactable || !menu.World.text.Contains("повреждено") || store.Continuations().Count==0)
+            {Finish(false,"Повреждённый выбранный мир заблокировал список или оставил запуск доступным.");yield break;}
+            yield return UiPointerProbe.Click(runtime.Hud.WorldChoiceRect(rejected.Id));
+            bool preserved=Directory.EnumerateFiles(Path.Combine(store.DirectoryPath,"Recovery"),"*.json",SearchOption.AllDirectories)
+                .Any(path=>File.ReadAllText(path)==damagedSelection);
+            if(!preserved || !menu.Host.interactable || store.SelectedSnapshot().Id!=rejected.Id)
+            {Finish(false,"Выбор исправной копии не сохранил повреждённый исходник или не восстановил запуск.");yield break;}
             var old=new WorldState();store.SaveWorld(old);
+            File.WriteAllText(activePath,damagedSelection+"-new-game");
             yield return UiPointerProbe.Click(Button("Новая игра"));
             while(runtime.Session.LocalActor==null && !finished) yield return null;
             if(finished) yield break;
-            bool valid=runtime.Session.ServerWorld.worldId!=old.worldId && store.Continuations().Any(value=>value.WorldId==old.worldId);
+            bool valid=runtime.Session.ServerWorld.worldId!=old.worldId && store.Continuations().Any(value=>value.WorldId==old.worldId) &&
+                Directory.EnumerateFiles(Path.Combine(store.DirectoryPath,"Recovery"),"*.json",SearchOption.AllDirectories)
+                    .Any(path=>File.ReadAllText(path)==damagedSelection+"-new-game");
             Finish(valid,"UI: имя сохранено, удаление подтверждено, удаление последнего мира второй страницы вернуло первую; новая игра сохранила старый мир.");
         }
         private void Update() {if(!finished && Time.unscaledTime>deadline) Finish(false,"Таймаут проверки меню сохранений.");}

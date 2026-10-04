@@ -228,7 +228,15 @@ namespace Remains.Presentation
         {
             if(!force && !worldDescriptionDirty && ReferenceEquals(describedStore,session.Saves)) return;
             describedStore=session.Saves;worldDescriptionDirty=false;
-            var saved=session.Saves.LoadWorld(prepareForPlay:false);
+            Remains.Domain.WorldState saved;
+            try {saved=session.Saves.LoadWorld(prepareForPlay:false);hostButton.interactable=true;}
+            catch(System.IO.InvalidDataException error)
+            {
+                hostButton.interactable=false;
+                selectedWorld.text="Выбранное сохранение повреждено или имеет неподдерживаемый формат.\nОткройте «Миры и сохранения» и выберите другую копию.";
+                Debug.LogWarning($"Не удалось прочитать выбранный мир {session.Saves.DirectoryPath}: {error.Message}");
+                return;
+            }
             hostButton.GetComponentInChildren<Text>().text=saved==null?"Начать в новом мире":"Продолжить выбранный мир";
             selectedWorld.text=saved==null?"Сохранённый мир не выбран.\n«Миры и сохранения»: выбор, имя и удаление.":
                 MainMenuPanel.DescribeWorld(new WorldLibrary(session.Saves).Name(saved.worldId),saved.branchId,saved.revision);
@@ -240,7 +248,7 @@ namespace Remains.Presentation
             if(worldPicker!=null) Destroy(worldPicker);
             worldChoices.Clear();
             var copies=session.Saves.Continuations();
-            var selected=session.Saves.SelectedSnapshot();
+            var selected=session.Saves.SelectedSnapshotForListing();
             var view=WorldPickerView.Create(transform);worldPicker=view.gameObject;
             int capacity=view.Choices.Length;
             int pages=Math.Max(1,(copies.Count+capacity-1)/capacity);page=Math.Clamp(page,0,pages-1);

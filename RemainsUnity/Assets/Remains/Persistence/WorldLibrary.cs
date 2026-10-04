@@ -26,7 +26,14 @@ namespace Remains.Persistence
         }
         public void PrepareNewGame()
         {
-            var selected=store.SelectedSnapshot();
+            RecoverySnapshot selected;
+            try {selected=store.SelectedSnapshot();}
+            catch(InvalidDataException error)
+            {
+                Archive(new[]{Path.Combine(store.DirectoryPath,"world.json")},"Recovery");
+                Debug.LogWarning($"Перед новой игрой повреждённый выбранный файл перенесён в {store.DirectoryPath}/Recovery. {error.Message}");
+                return;
+            }
             if(selected==null) return;
             store.SaveRecovery(selected);
             Archive(new[]{Path.Combine(store.DirectoryPath,"world.json")},"Selections");
