@@ -19,7 +19,7 @@ namespace Remains.Editor
             try
             {
                 var asset=AssetDatabase.LoadAssetAtPath<ActorTypeAsset>(ArmoredTrainingTargetAuthoring.AssetPath);
-                var definition=asset.CreateDefinition();ActorTypes.Register(definition);
+                var definition=asset.CreateDefinition();ActorTypes.Register(definition,true);
                 Require(definition.hitProtection==20 && definition.restoreHealthAfterHit==500 && !definition.combatAi && !definition.bodyInventory,"Неверное определение броневой мишени.");
                 var target=new ActorState {id="armored-target",actorType=definition.id,level="hub",health=500};
                 var damage=new FixedDamage();var receiver=new DamageReceiver(damage);float total=0;int events=0;

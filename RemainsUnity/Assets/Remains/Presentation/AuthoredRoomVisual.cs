@@ -14,6 +14,7 @@ namespace Remains.Presentation
             var instance=UnityEngine.Object.Instantiate(source);instance.name="Комната: "+room.id;
             try
             {
+                RoomTrainingContent.HidePreviews(instance);
                 var lighting=instance.GetComponent<RoomLightingAuthoring>();
                 if(lighting==null) throw new InvalidOperationException("Нет авторинга света: "+level);
                 instance.gameObject.AddComponent<RoomLighting>().Initialize(room,lighting.CreateProfile(instance));return instance.gameObject;
