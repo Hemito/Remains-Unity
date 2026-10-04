@@ -60,7 +60,7 @@ namespace Remains.Editor
             }
             finally {root.GetComponent<RoomLighting>()?.Release();UnityEngine.Object.DestroyImmediate(root);}
         }
-        private static void Render(GameObject room,RoomLayout layout)
+        internal static void Render(GameObject room,RoomLayout layout)
         {
             var camera=new GameObject("Камера проверки стрельбища").AddComponent<Camera>();
             camera.orthographic=true;camera.orthographicSize=10.5f;camera.transform.position=new Vector3(19.2f,10,-10);
