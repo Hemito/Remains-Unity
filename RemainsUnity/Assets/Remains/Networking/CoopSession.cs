@@ -39,6 +39,9 @@ namespace Remains.Networking
         public event Action<ActorState> PoseReceived;
         public event Action<string> Notice;
         public event Action<NpcHitMessage> NpcHitReceived;
+        public event Action<string,NpcHitMessage,ActorState> NpcHitTrace;
+        internal void TraceNpcHit(string stage,NpcHitMessage message,bool server=false)
+            =>NpcHitTrace?.Invoke(stage,message,(server?ServerWorld:World)?.Find(message.target));
         public event Action<FriendlyHitMessage> FriendlyHitReceived;
         public event Action ServerReady;
         public event Action ClientReady;
@@ -188,7 +191,8 @@ namespace Remains.Networking
                 var attack=JsonUtility.FromJson<AttackEvent>(message.json);
                 if(WeaponCatalog.Get(attack.weapon).projectileSpeed<=0 || Projectiles.AcceptEcho(attack.id)) AttackReceived?.Invoke(attack);
             });
-            NetworkClient.RegisterHandler<NpcHitMessage>(message => NpcHitReceived?.Invoke(message));
+            NetworkClient.RegisterHandler<NpcHitMessage>(message =>
+            {TraceNpcHit("npc-hit-received",message);NpcHitReceived?.Invoke(message);});
             NetworkClient.RegisterHandler<FriendlyHitMessage>(message=>FriendlyHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
             NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(JsonUtility.FromJson<ContentManifest>(System.Text.Encoding.UTF8.GetString(message.manifest))));
@@ -573,6 +577,7 @@ namespace Remains.Networking
 
         public void ReportNpcHit(NpcHitMessage message)
         {
+            TraceNpcHit("npc-hit-reported",message);
             // Keep the routed contact even for a locally owned target: the host may
             // already have handed it off. Send before publishing the local result.
             NetworkClient.Send(message);
@@ -598,6 +603,7 @@ namespace Remains.Networking
         }
         private void RelayNpcHit(NetworkConnectionToClient connection, NpcHitMessage message)
         {
+            TraceNpcHit("npc-hit-relay",message,true);
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             var target = ServerWorld.Find(message.target);
             if (target == null || target.player || string.IsNullOrEmpty(attack?.id) || !AttackScope.Includes(attack,target) ||

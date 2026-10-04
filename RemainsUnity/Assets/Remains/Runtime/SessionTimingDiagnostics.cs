@@ -17,6 +17,8 @@ namespace Remains.Runtime
             public double operationSeconds;
             public int jsonCharacters;
             public bool local;
+            public string targetOwner;
+            public int requestedGeneration,targetGeneration;
         }
         [Serializable] private sealed class Report
         {
@@ -41,6 +43,12 @@ namespace Remains.Runtime
                 value.Options.Report+".timing.json";
             value.Session.AttackReceived+=attack=>Record("launch-observed",attack.id,attack.attacker);
             value.Session.Projectiles.Confirmed+=id=>Record("launch-confirmed",id,value.Session.LocalActorId);
+            value.Session.NpcHitTrace+=(stage,message,target)=>
+            {
+                var attack=Remains.Serialization.StateJson.FromJson<Remains.Domain.AttackEvent>(message.attackJson);
+                Record(stage,attack.id,message.target,owner:target?.owner,
+                    requestedGeneration:message.generation,targetGeneration:target?.generation??-1);
+            };
             value.Session.RecoveryMeasured+=(stage,seconds,characters)=>Record(stage,null,null,operation:seconds,characters:characters);
             value.Combat.Projectiles.ContactObserved+=contact=>Record("contact-observed",contact.projectile,contact.target);
             value.Combat.DamageApplied+=result=>Record("damage-applied",result.attack,result.actor);
@@ -59,11 +67,13 @@ namespace Remains.Runtime
             };
             Debug.Log("Диагностика задержек включена. Отчёт будет записан при выходе: "+path);
         }
-        private void Record(string stage,string attack,string actor,double gap=0,double operation=0,int characters=0)
+        private void Record(string stage,string attack,string actor,double gap=0,double operation=0,int characters=0,
+            string owner=null,int requestedGeneration=0,int targetGeneration=0)
         {
             if(report.events.Count>=16384) {report.droppedEntries++;return;}
             report.events.Add(new Entry {stage=stage,attack=attack,actor=actor,
                 seconds=Time.realtimeSinceStartupAsDouble,rtt=NetworkTime.rtt,gapSeconds=gap,operationSeconds=operation,jsonCharacters=characters,
+                targetOwner=owner,requestedGeneration=requestedGeneration,targetGeneration=targetGeneration,
                 local=actor!=null && actor==runtime.Session.LocalActorId});
         }
         private void Update()

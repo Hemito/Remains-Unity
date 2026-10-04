@@ -39,7 +39,8 @@ namespace Remains.Networking
                 {completed.Add(pair.Key);continue;}
                 if(session.Pause.IsPaused(target.level)) continue;
                 var recipient=resolve(target.owner);if(recipient==null) continue;
-                var message=item.message;message.generation=target.generation;recipient.Send(message);
+                var message=item.message;message.generation=target.generation;
+                session.TraceNpcHit("npc-hit-forwarded",message,true);recipient.Send(message);
             }
             foreach(string key in completed) pending.Remove(key);
         }
