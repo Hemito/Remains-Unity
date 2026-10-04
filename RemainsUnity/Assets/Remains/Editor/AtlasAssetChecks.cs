@@ -53,5 +53,17 @@ namespace Remains.Editor
             AtlasSpriteAssetEditor.Rebuild(asset);
             PrototypeBuild.Build();
         }
+        public static void ApplyRaiderAirborneAndBuild()
+        {
+            var asset=Resources.Load<AtlasSpriteAsset>("Original/Raider/artwork");
+            if(asset==null) throw new InvalidOperationException("Нет атласа рейдера для настройки воздушной позы.");
+            var data=asset.CreateDefinition();var jump=data.Clip("jump");
+            if(jump.row!=3 || jump.count!=16) throw new InvalidOperationException("Изменился воздушный ряд рейдера; требуется сверка.");
+            // Authored from this controller's launch speed and the atlas silhouette, not a legacy formula.
+            jump.verticalFrames=new[] {new MotionFramePoint {velocity=-7.2f,frame=15},
+                new MotionFramePoint {velocity=0,frame=7},new MotionFramePoint {velocity=7.2f,frame=0}};
+            asset.Configure(asset.Texture,data);AtlasSpriteAssetEditor.Rebuild(asset);
+            PrototypeBuild.Build();
+        }
     }
 }

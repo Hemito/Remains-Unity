@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Remains.Domain;
 namespace Remains.Content
 {
     [Serializable] public sealed class AtlasActorClip
@@ -11,6 +12,11 @@ namespace Remains.Content
         [InspectorName("Кадров в секунду")] public float framesPerSecond;
         [InspectorName("Зациклить")] public bool loop;
         [Min(0),InspectorName("Первый кадр повторяемого участка")] public int loopStartFrame;
+        [InspectorName("Кадры по вертикальной скорости (пусто — по времени)")] public MotionFramePoint[] verticalFrames;
+        public bool UsesMotion=>verticalFrames!=null && verticalFrames.Length>0;
+        public int Sample(ActorState actor)=>UsesMotion && !actor.down
+            ?MotionFrameSampling.Sample(verticalFrames,actor.vy)
+            :FrameIndex(actor.poseTime,ActorPose.StationaryClimb(actor));
         public int FrameIndex(float time,bool stationary=false)
         {
             return AnimationFrames.Sample(time,framesPerSecond,count,loop,loopStartFrame,stationary,playIntro:true);
@@ -47,10 +53,13 @@ namespace Remains.Content
             if(data?.clips==null || data.clips.Length==0) throw new InvalidOperationException("Нет клипов атласа: "+key);
             var poses=new HashSet<string>();
             foreach(var clip in data.clips)
+            {
                 if(clip==null || string.IsNullOrEmpty(clip.pose) || !poses.Add(clip.pose) || clip.count<1 ||
                     !float.IsFinite(clip.framesPerSecond) || clip.framesPerSecond<=0 ||
                     clip.loopStartFrame<0 || clip.loopStartFrame>=clip.count || (!clip.loop && clip.loopStartFrame!=0))
                     throw new InvalidOperationException("Некорректная поза атласа: "+key);
+                if(clip.UsesMotion) MotionFrameSampling.Validate(clip.verticalFrames,clip.count,key+":"+clip.pose);
+            }
             cache.Add(key,data);return data;
         }
     }

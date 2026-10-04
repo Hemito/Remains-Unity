@@ -6571,36 +6571,48 @@ MonoBehaviour:
       framesPerSecond: 30
       loop: 1
       loopStartFrame: 0
+      verticalFrames: []
     - pose: walk
       row: 1
       count: 17
       framesPerSecond: 30
       loop: 1
       loopStartFrame: 1
+      verticalFrames: []
     - pose: run
       row: 2
       count: 8
       framesPerSecond: 30
       loop: 1
       loopStartFrame: 0
+      verticalFrames: []
     - pose: jump
       row: 3
       count: 16
       framesPerSecond: 30
       loop: 0
       loopStartFrame: 0
+      verticalFrames:
+      - velocity: -7.2
+        frame: 15
+      - velocity: 0
+        frame: 7
+      - velocity: 7.2
+        frame: 0
     - pose: down
       row: 4
       count: 20
       framesPerSecond: 30
       loop: 0
       loopStartFrame: 0
+      verticalFrames: []
     - pose: climb
       row: 8
       count: 12
       framesPerSecond: 30
       loop: 1
       loopStartFrame: 0
+      verticalFrames: []
   frames:
   - {fileID: -6692424230689893343}
   - {fileID: -6270385738060135126}
@@ -6676,7 +6688,7 @@ MonoBehaviour:
   - {fileID: 4994411133713970358}
   - {fileID: 6062950284222554836}
   - {fileID: 1163331516037787893}
-  bakedDefinition: '{"resource":"Original/Raider/raider5","width":2880,"height":1080,"cellWidth":120,"cellHeight":120,"pixelsPerUnit":50.0,"pivotX":0.5,"pivotY":0.0833333358168602,"facesLeft":false,"clips":[{"pose":"idle","row":0,"count":1,"framesPerSecond":30.0,"loop":true,"loopStartFrame":0},{"pose":"walk","row":1,"count":17,"framesPerSecond":30.0,"loop":true,"loopStartFrame":1},{"pose":"run","row":2,"count":8,"framesPerSecond":30.0,"loop":true,"loopStartFrame":0},{"pose":"jump","row":3,"count":16,"framesPerSecond":30.0,"loop":false,"loopStartFrame":0},{"pose":"down","row":4,"count":20,"framesPerSecond":30.0,"loop":false,"loopStartFrame":0},{"pose":"climb","row":8,"count":12,"framesPerSecond":30.0,"loop":true,"loopStartFrame":0}]}'
+  bakedDefinition: '{"resource":"Original/Raider/raider5","width":2880,"height":1080,"cellWidth":120,"cellHeight":120,"pixelsPerUnit":50.0,"pivotX":0.5,"pivotY":0.0833333358168602,"facesLeft":false,"clips":[{"pose":"idle","row":0,"count":1,"framesPerSecond":30.0,"loop":true,"loopStartFrame":0,"verticalFrames":[]},{"pose":"walk","row":1,"count":17,"framesPerSecond":30.0,"loop":true,"loopStartFrame":1,"verticalFrames":[]},{"pose":"run","row":2,"count":8,"framesPerSecond":30.0,"loop":true,"loopStartFrame":0,"verticalFrames":[]},{"pose":"jump","row":3,"count":16,"framesPerSecond":30.0,"loop":false,"loopStartFrame":0,"verticalFrames":[{"velocity":-7.199999809265137,"frame":15},{"velocity":0.0,"frame":7},{"velocity":7.199999809265137,"frame":0}]},{"pose":"down","row":4,"count":20,"framesPerSecond":30.0,"loop":false,"loopStartFrame":0,"verticalFrames":[]},{"pose":"climb","row":8,"count":12,"framesPerSecond":30.0,"loop":true,"loopStartFrame":0,"verticalFrames":[]}]}'
 --- !u!213 &293302250029912985
 Sprite:
   m_ObjectHideFlags: 0

@@ -28,10 +28,13 @@ namespace Remains.Editor
                 throw new InvalidOperationException($"Атлас {asset.name}: неверная текстура, сетка, масштаб или точка привязки.");
             var poses=new HashSet<string>();
             foreach(var clip in data.clips)
+            {
                 if(clip==null || string.IsNullOrWhiteSpace(clip.pose) || !poses.Add(clip.pose) || clip.row<0 || clip.row>=data.height/data.cellHeight ||
                     clip.count<1 || clip.count>data.width/data.cellWidth || !float.IsFinite(clip.framesPerSecond) || clip.framesPerSecond<=0 ||
                     clip.loopStartFrame<0 || clip.loopStartFrame>=clip.count || (!clip.loop && clip.loopStartFrame!=0))
                     throw new InvalidOperationException($"Атлас {asset.name}: неверная поза {clip?.pose}.");
+                if(clip.UsesMotion) MotionFrameSampling.Validate(clip.verticalFrames,clip.count,asset.name+":"+clip.pose);
+            }
             string path=AssetDatabase.GetAssetPath(asset);
             if(string.IsNullOrEmpty(path)) throw new InvalidOperationException("Сначала сохраните атлас в проект.");
             var existing=AssetDatabase.LoadAllAssetsAtPath(path).OfType<Sprite>().ToDictionary(sprite=>sprite.name);

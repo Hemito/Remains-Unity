@@ -30,17 +30,23 @@ namespace Remains.Editor
                 var sourceRenderer=source.GetComponent<SpriteRenderer>();var sourceSprite=sourceRenderer.sprite;
                 foreach(string pose in new[]{"idle","walk","run","jump","climb","down"})
                 {
-                    actor.pose=pose;actor.poseTime=0;visual.Draw();var first=renderer.sprite;
-                    actor.poseTime=.1f;visual.Draw();
+                    actor.pose=pose;actor.poseTime=0;actor.vy=pose=="jump"?7.2f:0;visual.Draw();var first=renderer.sprite;
+                    actor.poseTime=.1f;actor.vy=0;visual.Draw();
                     Require(renderer.enabled && renderer.sprite!=null && renderer.sprite.rect.width==120,"Не отображается поза рейдера: "+pose);
                     Require(pose=="idle" || first!=renderer.sprite,"Не меняется кадр: "+pose);
                     var clip=AtlasAnimationData.Get("Original/Raider/artwork").Clip(pose);
                     for(int frame=0;frame<clip.count*3;frame++)
                     {
                         actor.poseTime=(frame+.25f)/clip.framesPerSecond;actor.facing=1;visual.Draw();
+                        if(pose=="jump")
+                        {
+                            int index=frame%16;
+                            actor.vy=index<=7?7.2f*(1-index/7f):-7.2f*(index-7)/8f;visual.Draw();
+                            Require(Mathf.Abs(renderer.sprite.rect.x/120-index)<.001f,"Воздушный кадр не соответствует скорости рейдера");
+                        }
                         if(pose=="walk")
                             Require(clip.FrameIndex(actor.poseTime)==(frame==0?0:1+(frame-1)%16),"В повтор ходьбы рейдера попал вступительный кадр");
-                        Require(Mathf.Abs(renderer.sprite.rect.x/120-clip.FrameIndex(actor.poseTime))<.001f,"Кадр рисунка расходится с выбором кадра анатомии");
+                        Require(Mathf.Abs(renderer.sprite.rect.x/120-clip.Sample(actor))<.001f,"Кадр рисунка расходится с выбором кадра анатомии");
                         foreach(string region in new[]{"head","torso","legs"})
                         {
                             Require(Anatomy.TryRegion(actor,region,out var center,out float radius),"Нет области кадра: "+pose+":"+frame+":"+region);
@@ -52,6 +58,7 @@ namespace Remains.Editor
                         }
                     }
                 }
+                CheckAirborne(actor,visual,renderer);
                 actor.pose="down";actor.poseTime=10;visual.Draw();var final=renderer.sprite;
                 actor.poseTime=11;visual.Draw();Require(renderer.sprite==final,"Падение зациклено");
                 actor.facing=-1;visual.Draw();Require(renderer.flipX,"Не отражается рейдер влево");
@@ -90,6 +97,41 @@ namespace Remains.Editor
             string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/raider-regions.png"));
             Directory.CreateDirectory(Path.GetDirectoryName(path));Remains.Runtime.NetworkFrameCapture.Save(camera,path);
             Debug.Log("Кадр рейдера: "+path);
+        }
+        private static void CheckAirborne(ActorState actor,AtlasActorVisual visual,SpriteRenderer renderer)
+        {
+            float[] velocities={-20,-7.2f,0,7.2f,20};int[] expected={15,15,7,0,0};
+            actor.pose="jump";actor.down=false;actor.facing=1;
+            for(int i=0;i<velocities.Length;i++)
+            {
+                actor.vy=velocities[i];actor.poseTime=0;visual.Draw();
+                Require(Anatomy.TryRegion(actor,"head",out var before,out var radius),"Нет головы в воздушной позе");
+                actor.owner="other-client";actor.generation++;actor.poseTime=100;visual.Draw();
+                Require(Mathf.Abs(renderer.sprite.rect.x/120-expected[i])<.001f,"Воздушная поза зависит от времени/владельца");
+                Require(Anatomy.TryRegion(actor,"head",out var after,out var afterRadius) && before==after && radius==afterRadius,
+                    "Область попадания сменилась без изменения движения");
+            }
+            bool rejected=false;
+            try {MotionFrameSampling.Validate(new[] {new MotionFramePoint {velocity=0},new MotionFramePoint {velocity=0}},16,"проверка");}
+            catch(InvalidOperationException) {rejected=true;}
+            Require(rejected,"Принята неоднозначная кривая воздушной позы");
+        }
+        public static void RenderAirborne()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);WeaponCatalog.Load();Anatomy.Load();Run();
+            float[] velocities={7.2f,0,-7.2f};
+            for(int row=0;row<2;row++)
+            for(int column=0;column<3;column++)
+            {
+                var actor=new ActorState {id=$"airborne-{row}-{column}",actorType="raider",anatomy="raider",
+                    pose="jump",poseTime=row*100,vy=velocities[column],x=column*3,y=-row*3,facing=1};
+                ActorVisualFactory.Create(actor).Bind(actor);
+            }
+            var camera=new GameObject("Камера воздушных поз").AddComponent<Camera>();camera.orthographic=true;
+            camera.orthographicSize=3.5f;camera.transform.position=new Vector3(3,-.4f,-10);camera.backgroundColor=new Color(.22f,.23f,.25f);
+            string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/raider-airborne-motion.png"));
+            Directory.CreateDirectory(Path.GetDirectoryName(path));Remains.Runtime.NetworkFrameCapture.Save(camera,path,width:1920,height:1080);
+            Debug.Log("Воздушные позы: верх t=0, низ t=100; слева направо vy=+7,2/0/−7,2. "+path);
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException(reason);}
     }

@@ -7,9 +7,14 @@ namespace Remains.Editor
     [CustomPropertyDrawer(typeof(AtlasActorClip))]
     public sealed class AtlasActorClipDrawer : PropertyDrawer
     {
-        private static readonly string[] fields={"pose","row","count","framesPerSecond","loop","loopStartFrame"};
+        private static readonly string[] fields={"pose","row","count","framesPerSecond","loop","loopStartFrame","verticalFrames"};
         public override float GetPropertyHeight(SerializedProperty property,GUIContent label)
-            =>(property.isExpanded?7:1)*(EditorGUIUtility.singleLineHeight+EditorGUIUtility.standardVerticalSpacing);
+        {
+            float height=EditorGUIUtility.singleLineHeight+EditorGUIUtility.standardVerticalSpacing;
+            if(property.isExpanded)
+                foreach(string name in fields) height+=EditorGUI.GetPropertyHeight(property.FindPropertyRelative(name),true)+EditorGUIUtility.standardVerticalSpacing;
+            return height;
+        }
         public override void OnGUI(Rect position,SerializedProperty property,GUIContent label)
         {
             EditorGUI.BeginProperty(position,label,property);
@@ -18,11 +23,15 @@ namespace Remains.Editor
             if(property.isExpanded)
             {
                 EditorGUI.indentLevel++;
+                bool motion=property.FindPropertyRelative("verticalFrames").arraySize>0;
+                line.y+=EditorGUIUtility.singleLineHeight+EditorGUIUtility.standardVerticalSpacing;
                 foreach(string name in fields)
                 {
-                    line.y+=EditorGUIUtility.singleLineHeight+EditorGUIUtility.standardVerticalSpacing;
-                    using(new EditorGUI.DisabledScope(name=="loopStartFrame" && !property.FindPropertyRelative("loop").boolValue))
-                        EditorGUI.PropertyField(line,property.FindPropertyRelative(name));
+                    var child=property.FindPropertyRelative(name);line.height=EditorGUI.GetPropertyHeight(child,true);
+                    bool disabled=motion && (name=="framesPerSecond" || name=="loop" || name=="loopStartFrame") ||
+                        name=="loopStartFrame" && !property.FindPropertyRelative("loop").boolValue;
+                    using(new EditorGUI.DisabledScope(disabled)) EditorGUI.PropertyField(line,child,true);
+                    line.y+=line.height+EditorGUIUtility.standardVerticalSpacing;
                 }
                 EditorGUI.indentLevel--;
             }

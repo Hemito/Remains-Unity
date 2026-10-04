@@ -11,9 +11,9 @@ namespace Remains.Presentation
         private sealed class Clip
         {
             public Sprite[] frames;public AtlasActorClip definition;
-            public Sprite Sample(float time,bool stationary)
+            public Sprite Sample(ActorState actor)
             {
-                return frames[definition.FrameIndex(time,stationary)];
+                return frames[definition.Sample(actor)];
             }
         }
         private sealed class Artwork
@@ -81,7 +81,7 @@ namespace Remains.Presentation
                 if(missingPose!=pose) Debug.LogWarning($"Нет позы атласа: actor={state.id}, artwork={artworkKey}, pose={pose}. Отображение пропущено.",this);
                 missingPose=pose;view.enabled=false;return;
             }
-            missingPose=null;view.enabled=true;var sprite=clip.Sample(state.poseTime,ActorPose.StationaryClimb(state));
+            missingPose=null;view.enabled=true;var sprite=clip.Sample(state);
             if(view.sprite!=sprite)
             {if(generatedView) SpriteArtworkMaterial.Apply(view,sprite);else view.sprite=sprite;}
         }

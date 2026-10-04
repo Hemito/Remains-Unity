@@ -112,7 +112,7 @@ namespace Remains.Domain
             string pose=ActorPose.Clip(actor);
             if(!string.IsNullOrEmpty(definition.atlasArtwork) || region.shapes!=null && region.shapes.Length>0)
             {
-                int frame=!string.IsNullOrEmpty(definition.atlasArtwork)?AtlasAnimationData.Get(definition.atlasArtwork).Clip(pose).FrameIndex(actor.poseTime,ActorPose.StationaryClimb(actor)):
+                int frame=!string.IsNullOrEmpty(definition.atlasArtwork)?AtlasAnimationData.Get(definition.atlasArtwork).Clip(pose).Sample(actor):
                     PonyMotionFrames.Sample(actor,actor.poseTime);
                 if(!poseCenters.TryGetValue(actor.anatomy+":"+region.id+":"+pose,out var centers) || !centers[frame].HasValue)
                 {Debug.LogWarning($"Нет графической привязки области {region.id}: actor={actor.id}, pose={actor.pose}, frame={frame}.");return false;}
