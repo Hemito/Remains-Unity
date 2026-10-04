@@ -18,7 +18,7 @@ namespace Remains.Domain
                     float.IsNaN(recovery.position.x) || float.IsInfinity(recovery.position.x) || float.IsNaN(recovery.position.y) || float.IsInfinity(recovery.position.y))
                     throw new System.InvalidOperationException($"Правило поражения вернуло некорректное восстановление: level={recovery.level}, health={recovery.health}, position={recovery.position}.");
             }
-            foreach(string level in recoveries.Select(r=>r.level).Distinct()) RoomLayout.Load(level);
+            foreach(string level in recoveries.Select(r=>r.level).Distinct()) RoomLayout.Load(level,world);
             for(int i=0;i<players.Length;i++)
             {
                 var actor=players[i];var recovery=recoveries[i];

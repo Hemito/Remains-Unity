@@ -39,11 +39,9 @@ namespace Remains.Content
         }
         public static RoomAuthoring Load(string level)
         {
-            string key=level switch {"hub"=>"hub","factory:0"=>"factory",_=>throw new InvalidOperationException("Неизвестная локация: "+level)};
-            var prefab=Resources.Load<GameObject>("Levels/"+key);
-            if(prefab==null || !prefab.TryGetComponent<RoomAuthoring>(out var room)) throw new InvalidOperationException("Нет определения уровня Levels/"+key);
-            return room;
+            return Load(level,null);
         }
+        public static RoomAuthoring Load(string level,WorldState world)=>RoomCatalogAsset.Load().Resolve(WorldRooms.Definition(world,level));
         public static Rect ReadRect(Transform part,Transform root)
         {
             var matrix=root.worldToLocalMatrix*part.localToWorldMatrix;

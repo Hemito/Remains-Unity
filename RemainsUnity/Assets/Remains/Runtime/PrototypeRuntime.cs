@@ -52,6 +52,7 @@ namespace Remains.Runtime
         private readonly WeaponElevation weaponElevation=new();
         private GameObject roomObject;
         private string shownLevel="hub";
+        private string shownRoom="base:hub";
         private CameraFollower cameraFollower;
         private bool releaseRequested;
         public bool ReleasingUnusedAssets {get;private set;}
@@ -194,11 +195,12 @@ namespace Remains.Runtime
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
                 visuals.Clear();visualLayers.Synchronize(System.Array.Empty<string>());return;
             }
-            if(Session.LocalActor!=null && shownLevel!=Session.LocalActor.level)
+            string definition=WorldRooms.Definition(Session.World,Session.LocalActor.level);
+            if(shownLevel!=Session.LocalActor.level || shownRoom!=definition)
             {
-                shownLevel=Session.LocalActor.level;
+                shownLevel=Session.LocalActor.level;shownRoom=definition;
                 var room=Geometry.Get(shownLevel);
-                Destroy(roomObject);roomObject=AuthoredRoomVisual.Create(shownLevel,room);
+                Destroy(roomObject);roomObject=AuthoredRoomVisual.Create(shownLevel,room,Session.World);
                 movement=new MovementController(room);
                 cameraFollower.Room=room;
                 releaseRequested=true;

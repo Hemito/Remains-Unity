@@ -139,7 +139,7 @@ namespace Remains.Networking
             npcHits?.Reset();
             var contentLevels=ServerWorld.actors.Select(a=>a.level).Concat(ServerWorld.containers.Select(c=>c.level))
                 .Concat(ServerWorld.props.Select(p=>p.level)).Concat(ServerWorld.doors.Select(d=>d.level)).Append("hub").Distinct().ToArray();
-            var roomContent=contentLevels.Select(level=>RoomContentBatch.Read(RoomAuthoring.Load(level),level)).ToArray();
+            var roomContent=contentLevels.Select(level=>RoomContentBatch.Read(RoomAuthoring.Load(level,ServerWorld),level)).ToArray();
             if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld) ||
                 roomContent.Any(batch=>RoomContentInstaller.NeedsInstall(ServerWorld,batch)))
             {
@@ -152,7 +152,7 @@ namespace Remains.Networking
             GrenadeRules.BeginSession(ServerWorld);
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
-                if(SavedActorPlacement.Repair(actor,RoomLayout.Load(actor.level),"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
+                if(SavedActorPlacement.Repair(actor,RoomLayout.Load(actor.level,ServerWorld),"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
             if(recoveredActors.Count>0)
             {
                 string backup=Saves.PreserveRecoverySource();

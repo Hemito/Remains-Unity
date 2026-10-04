@@ -110,6 +110,7 @@ namespace Remains.Domain
         public string friendlyFireDecision=FriendlyFireDecision.Victim;
         public List<ActorState> actors = new();
         public List<string> contentPatches = new();
+        public List<WorldRoom> rooms = new();
         public List<ContainerState> containers = new();
         public List<ItemStack> container; // Legacy schema: read only by explicit migration.
         public List<string> completedTransactions = new();

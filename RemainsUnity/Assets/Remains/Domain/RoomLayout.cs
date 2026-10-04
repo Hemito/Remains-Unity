@@ -16,8 +16,10 @@ namespace Remains.Domain
         public RoomLadder[] ladders;
         public RoomArtwork[] artwork;
         public static RoomLayout Load(string level="factory:0")
+            =>Load(level,null);
+        public static RoomLayout Load(string level,WorldState world)
         {
-            var result=Remains.Content.RoomAuthoring.Load(level).CreateLayout();
+            var result=Remains.Content.RoomAuthoring.Load(level,world).CreateLayout();
             if(result.platforms==null || result.ladders==null || result.left>=result.right)
                 throw new InvalidOperationException($"Некорректная геометрия комнаты: {result.id}.");
             return result;

@@ -12,13 +12,16 @@ namespace Remains.Gameplay
         private readonly Dictionary<string,RoomDoorGeometry> rooms=new();
         private readonly Func<string,RoomLayout> load;
         private string worldId;
+        private string roomDefinitions;
         public IEnumerable<string> LoadedLevels=>rooms.Keys;
         public SimulationGeometry(Func<string,RoomLayout> load)=>this.load=load??throw new ArgumentNullException(nameof(load));
-        public SimulationGeometry(CoopSession session):this(RoomLayout.Load)
+        public SimulationGeometry(CoopSession session):this(level=>RoomLayout.Load(level,session.World))
         {session.Changed+=()=>Reconcile(session.World);}
         public void Reconcile(WorldState world)
         {
-            if(worldId!=world?.worldId) {rooms.Clear();worldId=world?.worldId;}
+            string definitions=Remains.Serialization.StateJson.ToJson(world?.rooms);
+            if(worldId!=world?.worldId || roomDefinitions!=definitions)
+            {rooms.Clear();worldId=world?.worldId;roomDefinitions=definitions;}
             var required=world==null?new HashSet<string>():new HashSet<string>(world.actors.Where(a=>a.player && a.connected).Select(a=>a.level));
             foreach(string level in rooms.Keys.Where(level=>!required.Contains(level)).ToArray()) rooms.Remove(level);
             foreach(string level in required)

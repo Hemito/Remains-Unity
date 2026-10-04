@@ -78,9 +78,9 @@ namespace Remains.Networking
             var reply = new TravelReply { id = request.id, accepted = reason == null, reason = reason };
             if (reply.accepted)
             {
-                var content=RoomContentBatch.Read(RoomAuthoring.Load(request.destination),request.destination);
+                var content=RoomContentBatch.Read(RoomAuthoring.Load(request.destination,session.ServerWorld),request.destination);
                 RoomContentInstaller.Apply(session.ServerWorld,content);
-                TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination));
+                TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination,session.ServerWorld));
                 session.CommitWorld();
                 Debug.Log($"Переход подтверждён: actor={actor.id}, request={request.id}, level={actor.level}, lifecycle={actor.lifecycleSequence}.");
             }

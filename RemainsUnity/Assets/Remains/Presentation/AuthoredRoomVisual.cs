@@ -7,9 +7,9 @@ namespace Remains.Presentation
 {
     public static class AuthoredRoomVisual
     {
-        public static GameObject Create(string level,RoomLayout room)
+        public static GameObject Create(string level,RoomLayout room,WorldState world=null)
         {
-            var source=RoomAuthoring.Load(level);
+            var source=RoomAuthoring.Load(level,world);
             if(!source.HasAuthoredArtwork) throw new InvalidOperationException("Не перенесено оформление уровня: "+level);
             var instance=UnityEngine.Object.Instantiate(source);instance.name="Комната: "+room.id;
             try
