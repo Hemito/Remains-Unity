@@ -30,8 +30,9 @@ namespace Remains.Gameplay
             bool wasClimbing=actor.climbing && selected!=null;
             bool detach=jump && input.y<=.1f;
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
+            bool stepOff=wasClimbing && grounded && Mathf.Abs(input.x)>.1f && Mathf.Abs(input.y)<.1f;
             // Up can catch a ladder in flight; down starts from support or continues an existing hold.
-            bool ladder = selected!=null && !detach && (wasClimbing || input.y>.1f || grounded && input.y<-.1f);
+            bool ladder = selected!=null && !detach && !stepOff && (wasClimbing || input.y>.1f || grounded && input.y<-.1f);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
             bool wasCrouched=actor.crouched;
             CrouchMotion.Step(actor,room,settings,input,jump,grounded,ladder,drop,dt);
@@ -47,7 +48,8 @@ namespace Remains.Gameplay
             {
                 actor.facing=(int)selected.facing;
                 actor.vy = input.y * settings.climbSpeed * (input.y<0?settings.climbDownMultiplier:1);
-                if(Mathf.Abs(input.x)<.1f && dt>0) actor.vx=Mathf.Clamp((selected.x+selected.movementOffset-actor.x)/dt,-settings.walkSpeed,settings.walkSpeed);
+                // A held body stays at its grip even while horizontal input is pressed.
+                actor.vx=dt>0?Mathf.Clamp((selected.x+selected.movementOffset-actor.x)/dt,-settings.walkSpeed,settings.walkSpeed):0;
                 verticalDistance=actor.vy*dt;
             }
             else

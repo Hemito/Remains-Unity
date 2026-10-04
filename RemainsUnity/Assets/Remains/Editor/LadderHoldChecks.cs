@@ -67,7 +67,16 @@ namespace Remains.Editor
                 }
                 actor=new ActorState {id="ladder-side",x=4,y=1,climbing=true};
                 for(int i=0;i<60;i++) motion.Step(actor,Vector2.right,false,dt);
-                Require(!actor.climbing && actor.x>4.65f,"Боковой выход отпускает лестницу");
+                Require(actor.climbing && Mathf.Abs(actor.x-4)<.001f && Mathf.Abs(actor.y-1)<.001f,"Боковой ввод сдвигает тело без опоры");
+                motion.Step(actor,Vector2.right,true,dt);
+                Require(!actor.climbing && actor.vx>0 && actor.vy>0,"Прыжок вбок не отпускает хват");
+                foreach(int direction in new[]{-1,1})
+                {
+                    var supportedActor=new ActorState {id="ladder-supported-side",x=0,y=3,climbing=true};
+                    new MovementController(topRoom).Step(supportedActor,Vector2.right*direction,false,dt);
+                    Require(!supportedActor.climbing && supportedActor.vx*direction>0 && Mathf.Abs(supportedActor.y-3)<.001f,
+                        "Боковой сход с опоры требует прыжка");
+                }
                 actor=new ActorState {id="ladder-down",x=4,y=1,climbing=true,down=true};
                 motion.Step(actor,Vector2.zero,false,dt);
                 Require(!actor.climbing,"Нокдаун снимает захват лестницы");
