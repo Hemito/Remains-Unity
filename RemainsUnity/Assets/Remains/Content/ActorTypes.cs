@@ -8,6 +8,8 @@ namespace Remains.Content
     {
         public string id,presentation,artwork;
         public bool combatAi,hasWeapon,bodyInventory;
+        [Min(0),InspectorName("Масса тела, кг")] public float bodyMassKg;
+        [InspectorName("Разрешён перенос телекинезом")] public bool telekinesisMovable;
         public float restoreHealthAfterHit;
         [Min(0),InspectorName("Поглощение урона от попадания")] public float hitProtection;
         [InspectorName("Восприятие (для боевого AI)")] public Remains.Domain.NpcPerceptionSettings perception;
@@ -33,7 +35,9 @@ namespace Remains.Content
         {
             if(definition==null || string.IsNullOrWhiteSpace(definition.id) || string.IsNullOrWhiteSpace(definition.presentation) ||
                 !float.IsFinite(definition.restoreHealthAfterHit) || definition.restoreHealthAfterHit<0 ||
-                !float.IsFinite(definition.hitProtection) || definition.hitProtection<0)
+                !float.IsFinite(definition.hitProtection) || definition.hitProtection<0 ||
+                !float.IsFinite(definition.bodyMassKg) || definition.bodyMassKg<0 ||
+                definition.telekinesisMovable && definition.bodyMassKg<=0)
                 throw new InvalidOperationException($"Некорректное определение актёра: {definition?.id}.");
             if(definition.combatAi)
             {

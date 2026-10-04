@@ -16,7 +16,12 @@ namespace Remains.Runtime
             if(string.IsNullOrEmpty(options.SaveDirectory)) throw new InvalidOperationException("Старый тестовый мир требует отдельного каталога сохранений.");
             if(runtime.Session.Saves.SelectedSnapshot()!=null) return;
             var world=new WorldState();
-            world.actors.Add(new ActorState {id="npc:training-guard",actorType="raider",anatomy="raider",owner="host",x=8,health=140});
+            if(!(options.Smoke.StartsWith("actor-hold") && options.Smoke.Contains("-player-")))
+            {
+                var npc=new ActorState {id="npc:training-guard",actorType="raider",anatomy="raider",owner="host",x=8,health=140};
+                if(options.Smoke.StartsWith("actor-hold")) npc.inventory.Add(SharedInventory.Create("heal",3));
+                world.actors.Add(npc);
+            }
             var container=new ContainerState();world.containers.Add(container);
             container.items.Add(SharedInventory.Create("caps",20));
             container.items.Add(SharedInventory.Create("heal",3));

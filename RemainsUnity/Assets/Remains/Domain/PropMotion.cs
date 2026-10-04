@@ -12,7 +12,7 @@ namespace Remains.Domain
             var feet=origin-Vector2.up*prop.anchorHeight;
             var hull=new MovementHull {width=prop.width,height=prop.height};
             Vector2 delta;
-            if(target.HasValue) delta=(target.Value-origin)*(1-Mathf.Exp(-8*dt));
+            if(target.HasValue) delta=TelekinesisFollow.Displacement(origin,target.Value,dt);
             else {prop.vy-=WorldPhysics.Gravity*dt;delta=new Vector2(prop.vx,prop.vy)*dt;}
             bool lowerThroughPlatform=target.HasValue && delta.y<0;
             var moved=ActorTerrainMotion.Move(room,hull,feet,delta,ignoreOneWay:lowerThroughPlatform);

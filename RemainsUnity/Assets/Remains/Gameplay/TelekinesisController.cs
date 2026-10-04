@@ -1,4 +1,3 @@
-using System.Linq;
 using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
@@ -16,18 +15,23 @@ namespace Remains.Gameplay
         private float nextStats;
         private readonly MagicRecovery recovery=new();
         private bool statsDirty;
-        public TelekinesisController(CoopSession session,InteractionAdapter adapter,SimulationGeometry geometry) { this.session=session;this.adapter=adapter;this.geometry=geometry; }
+        private readonly BodyTelekinesisController bodies;
+        public TelekinesisController(CoopSession session,InteractionAdapter adapter,SimulationGeometry geometry)
+        {this.session=session;this.adapter=adapter;this.geometry=geometry;bodies=new BodyTelekinesisController(session,geometry);}
         public void Step(bool held,Vector2 aim,float dt)
         {
             var actor=session.LocalActor;
             if(actor==null) return;
             if(session.Pause.IsPaused(actor.level)) return;
             var rules=session.Rules.Telekinesis;
+            bool publish=poseCadence.TryAdvance(Time.unscaledTimeAsDouble);
             if(held && !wasHeld)
             {
-                var nearest=WorldProps.All(session.World).Where(p=>p.level==actor.level && Vector2.Distance(p.Center,aim)<1).OrderBy(p=>Vector2.Distance(p.Center,aim)).FirstOrDefault();
-                if(nearest!=null)
+                var target=TelekinesisTarget.Nearest(session.World,actor,aim);
+                if(target?.Body!=null) bodies.Begin(target.Value.Body);
+                else if(target?.Prop!=null)
                 {
+                    var nearest=target.Value.Prop;
                     string rejection=rules.Rejection(actor,nearest,false);
                     if(rejection==null && rules is ITelekinesisSightRule sight)
                         rejection=sight.SightRejection(actor,nearest,geometry.Get(actor.level));
@@ -52,7 +56,9 @@ namespace Remains.Gameplay
                 actor.revision++;session.PublishActor(actor);
             }
             wasHeld=held;
-            bool holding=false;
+            float bodyCost=bodies.Step(held,aim,dt,publish,out bool holding);
+            if(holding)
+            {actor.mana=Mathf.Max(0,actor.mana-bodyCost);actor.revision++;statsDirty=true;}
             foreach(var prop in WorldProps.All(session.World))
             {
                 if(prop.owner!=session.LocalOwner || prop.level!=actor.level) continue;
@@ -73,7 +79,7 @@ namespace Remains.Gameplay
             if(rules is ITelekinesisRecoveryRule recoveryRule &&
                 recovery.Step(actor,holding,recoveryRule.RecoveryAcceleration(actor),dt))
             {actor.revision++;statsDirty=true;}
-            if(!poseCadence.TryAdvance(Time.unscaledTimeAsDouble)) return;
+            if(!publish) return;
             foreach(var prop in WorldProps.All(session.World)) if(prop.owner==session.LocalOwner && prop.level==actor.level) adapter.SendProp(prop);
             if(statsDirty && Time.unscaledTime>=nextStats)
             { nextStats=Time.unscaledTime+0.5f;session.PublishActor(actor);statsDirty=false; }

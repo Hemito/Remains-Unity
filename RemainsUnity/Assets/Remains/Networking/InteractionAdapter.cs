@@ -53,6 +53,8 @@ namespace Remains.Networking
             else
             {
                 if(actor.down) return;
+                if(actor.hold!=null || session.ServerWorld.actors.Any(a=>a.hold?.holder==actor.id))
+                {connection.Send(new NoticeMessage {text="Сначала завершите захват тела."});return;}
                 if(!prop.movable) {connection.Send(new NoticeMessage {text="Этот объект закреплён."});return;}
                 if(prop.held && prop.owner!=actor.owner) {connection.Send(new NoticeMessage {text="Объект уже удерживает другой игрок."});return;}
                 prop.owner=actor.owner;prop.generation++;prop.held=true;

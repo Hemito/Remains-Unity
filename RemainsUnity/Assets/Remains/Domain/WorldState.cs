@@ -46,6 +46,8 @@ namespace Remains.Domain
         public bool down;
         public bool climbing;
         public bool crouched;
+        public int holdEpoch;
+        public ActorHoldState hold;
         [NonSerialized] public float crouchPressSeconds;
         public float jumpSupportRemaining;
         public int damageSequence;

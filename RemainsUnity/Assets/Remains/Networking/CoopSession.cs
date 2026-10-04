@@ -71,6 +71,8 @@ namespace Remains.Networking
         public SessionReloadAudio ReloadAudio=>reloadAudio ??= new SessionReloadAudio(this);
         private SessionDoors doors;
         public SessionDoors Doors=>doors ??= new SessionDoors(this);
+        private SessionActorHolds actorHolds;
+        public SessionActorHolds ActorHolds=>actorHolds ??= new SessionActorHolds(this);
         private SessionPause pause;
         public SessionPause Pause=>pause ??= new SessionPause(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
@@ -94,7 +96,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
-            Doors.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
+            Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
             Admission.RegisterServer();
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
@@ -178,7 +180,7 @@ namespace Remains.Networking
             Admission.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
-            Doors.RegisterClient();Pause.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
+            Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
@@ -283,6 +285,7 @@ namespace Remains.Networking
                 ServerWorld.actors.Add(actor);
             }
             actor.owner = owner;
+            ActorHoldRules.Release(actor);
             actor.connected = true;
             actor.generation++;
             actor.lifecycleSequence++;
@@ -335,6 +338,7 @@ namespace Remains.Networking
                 foreach (var actor in incoming.actors)
                 {
                     var local = World.Find(actor.id);
+                    ActorHoldRules.PreserveNewerTarget(local,actor);
                     ActorMotionReplication.PreserveNewerMotion(local,actor);
                     if(actor.owner!=LocalOwner) RemotePosePhase.Reconcile(local,actor);
                     ObservePoseCorrection("world",local,actor.pose,actor.poseTime);
@@ -402,6 +406,7 @@ namespace Remains.Networking
         {
             if (World == null) return;
             var current = World.Find(actor.id);
+            ActorHoldRules.PreserveNewerTarget(current,actor);
             if (current != null && ActorVersion.IsOlder(actor,current)) return;
             if(current!=null && current.owner==LocalOwner && current.generation==actor.generation &&
                 current.lifecycleSequence==actor.lifecycleSequence && current.level==actor.level)
@@ -442,6 +447,8 @@ namespace Remains.Networking
             }
             incoming.inventory=inventoryCopy;incoming.inventoryUses=uses;
             incoming.owner = actor.owner;
+            // Hold grants belong to the shared coordinator; pose/health still belong to this client.
+            incoming.hold=actor.hold;incoming.holdEpoch=actor.holdEpoch;
             incoming.connected = actor.connected;
             if(incoming.level!=actor.level)
             {

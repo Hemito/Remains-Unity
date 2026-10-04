@@ -33,6 +33,7 @@ namespace Remains.Gameplay
             foreach(var actor in session.World.actors)
             {
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
+                if(ActorHoldRules.Active(actor)) continue;
                 if(!Remains.Content.ActorTypes.Get(actor.actorType).combatAi) continue;
                 if(!LevelActivity.HasConnectedPlayer(session.World,actor.level)) continue;
                 if(session.Pause.IsPaused(actor.level)) continue;

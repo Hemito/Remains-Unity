@@ -105,6 +105,7 @@ namespace Remains.Editor
             PropPlatformChecks.Run();
             PropStackChecks.Run();
             TelekinesisRuleChecks.Run();
+            ActorHoldChecks.Run();
             MagicRecoveryChecks.Run();
             AttackContactChecks.Run();
             WeaponModChecks.Run();

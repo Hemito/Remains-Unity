@@ -30,6 +30,7 @@ namespace Remains.Domain
             {
                 // Transport connection IDs have no identity across session boundaries.
                 actor.owner=null;
+                ActorHoldRules.Release(actor);
                 if(actor.player) actor.connected=false;
                 else
                 {
@@ -47,6 +48,7 @@ namespace Remains.Domain
         {
             bool changed=GrenadeRules.ReassignAndReportChanges(world,activeOwners);
             changed|=ProjectileLifecycle.ReassignAndReportChanges(world,activeOwners);
+            changed|=ActorHoldRules.Reconcile(world,activeOwners);
             var active = world.actors.Where(a => a.player && a.connected && !a.down && activeOwners.Contains(a.owner)).ToArray();
             foreach (var actor in world.actors.Where(a => !a.player || !a.connected))
             {
@@ -69,9 +71,10 @@ namespace Remains.Domain
                     changed=true;
                 }
                 var target=active.FirstOrDefault(a=>a.id==actor.target && a.level==actor.level);
-                var candidate = target ?? active.Where(a => a.level == actor.level)
+                var holder=actor.hold==null?null:active.FirstOrDefault(a=>a.id==actor.hold.holder && a.level==actor.level);
+                var candidate = holder ?? target ?? active.Where(a => a.level == actor.level)
                     .OrderBy(a => Vector2.Distance(a.Position, actor.Position)).ThenBy(a => a.id).FirstOrDefault();
-                if(target==null && candidate!=null)
+                if(holder==null && target==null && candidate!=null)
                 {
                     var current=active.FirstOrDefault(a=>a.owner==actor.owner && a.level==actor.level);
                     if(current!=null && proximity.KeepCurrent(Vector2.Distance(current.Position,actor.Position),

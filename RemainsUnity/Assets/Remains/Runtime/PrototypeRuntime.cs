@@ -169,6 +169,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("npc")) gameObject.AddComponent<NetworkNpcProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("freeze")) gameObject.AddComponent<NetworkFreezeProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("telekinesis")) gameObject.AddComponent<NetworkTelekinesisProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("actor-hold")) gameObject.AddComponent<NetworkActorHoldProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("melee")) gameObject.AddComponent<NetworkMeleeProbe>().Initialize(this);
                 else if(Options.Smoke=="world-management") gameObject.AddComponent<WorldManagementProbe>().Initialize(this);
                 else if(Options.Smoke=="history") gameObject.AddComponent<WorldSelectionProbe>().Initialize(this);
@@ -241,14 +242,17 @@ namespace Remains.Runtime
         }
         private void Update()
         {
-            Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();
+            Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             var actor=Session.LocalActor;
             if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();return;}
             remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble);
             foreach(var body in Session.World.actors)
-                if(body!=actor && body.down && body.owner==Session.LocalOwner &&
+                if(body.owner==Session.LocalOwner &&
                     LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
-                    PassiveActorMotion.Step(body,Geometry.Get(body.level),Time.deltaTime,passiveMovementSettings);
+                {
+                    if(ActorHoldRules.Active(body)) ActorHoldMotion.Step(body,Geometry.Get(body.level),Time.deltaTime);
+                    else if(body!=actor && body.down) PassiveActorMotion.Step(body,Geometry.Get(body.level),Time.deltaTime,passiveMovementSettings);
+                }
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors)
             {
@@ -256,7 +260,7 @@ namespace Remains.Runtime
                 if(LevelActivity.HasConnectedPlayer(Session.World,animated.level) && !Session.Pause.IsPaused(animated.level)) ActorPose.Advance(animated,Time.deltaTime);
             }
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 npcs.Step(Time.deltaTime);
                 var command=CommandSource?.Invoke() ?? ReadCommand();
@@ -347,7 +351,7 @@ namespace Remains.Runtime
             if(hud?.BlocksGameplayInput==true) command=default;
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
             if(Session.Travel.Pending) command=default;
-            movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
+            if(!ActorHoldRules.Active(actor)) movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
             if(command.weaponItem!=null) EquipWeaponItem(command.weaponItem);
             if(command.weaponShortcut!=null)
             {
