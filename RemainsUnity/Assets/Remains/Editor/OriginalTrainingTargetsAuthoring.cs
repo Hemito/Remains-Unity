@@ -74,7 +74,10 @@ namespace Remains.Editor
                     placements.Count(p=>p.type=="training-armored-dummy")!=2 || targets.Count(p=>p.FixedPlacement)!=3)
                     throw new InvalidOperationException("Сохранённый префаб потерял мишени или их свойства.");
                 var layout=room.CreateLayout();
-                root.AddComponent<RoomLighting>().Initialize(layout,new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()});
+                var authoredLight=root.GetComponent<RoomLightingAuthoring>();
+                if(authoredLight==null) Debug.LogWarning("Черновик стрельбища без авторского света: рендер выполняется с явно белым проверочным освещением.");
+                var profile=authoredLight!=null?authoredLight.CreateProfile(room):new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()};
+                root.AddComponent<RoomLighting>().Initialize(layout,profile);
                 OriginalTrainingRoomAuthoring.Render(root,layout);
                 Debug.Log("Проверена сохранённая расстановка пяти мишеней и выполнен рендер 3840×2100.");
             }

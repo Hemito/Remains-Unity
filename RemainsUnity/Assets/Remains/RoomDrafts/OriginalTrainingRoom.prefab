@@ -2593,12 +2593,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 852855759756104508}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 9.6, y: 18.84, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.8000002, y: -0.1800003, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4788534010219988730}
+  m_Father: {fileID: 8174305931617959438}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &7789323947518997264
 MeshFilter:
@@ -4469,12 +4469,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1356976179376666859}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 16, y: 18.84, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.79999924, y: -0.1800003, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4788534010219988730}
+  m_Father: {fileID: 428113622499195729}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5701742184542764961
 MeshFilter:
@@ -6686,6 +6686,66 @@ MonoBehaviour:
   textureKey: TrainingRoom/steel-rim
   repeat: 1
   stretchY: 0
+--- !u!1 &1960470250423825975
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3049534415451349444}
+  - component: {fileID: 8587286344948949426}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442\u0438\u043B\u044C\u043D\u0438\u043A light5 \xB7
+    0"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3049534415451349444
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1960470250423825975}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 36.4, y: 18, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2078948536990305781}
+  m_Father: {fileID: 3060406860676527868}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8587286344948949426
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1960470250423825975}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: training-lamp-0
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 4669978d373eaf844a506818ce289953, type: 3}
+  maskOffset: {x: -1.4610023, y: -1.441}
+  maskSize: {x: 2.93, y: 2.93}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/TrainingRoom/light-mask-light5-1
+  width: 0
+  height: 0
 --- !u!1 &1970525550312806820
 GameObject:
   m_ObjectHideFlags: 0
@@ -7957,6 +8017,44 @@ MonoBehaviour:
   textureKey: TrainingRoom/shelf
   repeat: 1
   stretchY: 0
+--- !u!1 &2190568791058491654
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3060406860676527868}
+  m_Layer: 0
+  m_Name: "\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438 \u0441\u0432\u0435\u0442\u0430"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3060406860676527868
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2190568791058491654}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3049534415451349444}
+  - {fileID: 8877739050759167300}
+  - {fileID: 8324062498369979170}
+  - {fileID: 239746198800081482}
+  - {fileID: 8174305931617959438}
+  - {fileID: 428113622499195729}
+  - {fileID: 5049814468185754814}
+  m_Father: {fileID: 1831756104914713236}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2235889970083566849
 GameObject:
   m_ObjectHideFlags: 0
@@ -15359,6 +15457,66 @@ MonoBehaviour:
   textureKey: TrainingRoom/steel-rim
   repeat: 1
   stretchY: 0
+--- !u!1 &3852274625795607370
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8174305931617959438}
+  - component: {fileID: 9096526722147211341}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442\u0438\u043B\u044C\u043D\u0438\u043A light4 \xB7
+    4"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8174305931617959438
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3852274625795607370}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 10.400001, y: 19.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3138147371053405618}
+  m_Father: {fileID: 3060406860676527868}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9096526722147211341
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3852274625795607370}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: training-lamp-4
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
+  maskOffset: {x: -2.5820003, y: -3.7299995}
+  maskSize: {x: 5.13, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &3873687805268170857
 GameObject:
   m_ObjectHideFlags: 0
@@ -17285,12 +17443,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4297862567660881684}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.2, y: 18.84, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.79999995, y: -0.1800003, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4788534010219988730}
+  m_Father: {fileID: 239746198800081482}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &1444092116084199186
 MeshFilter:
@@ -18352,12 +18510,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4555558697867282179}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 22.4, y: 18.84, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.80000114, y: -0.1800003, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4788534010219988730}
+  m_Father: {fileID: 5049814468185754814}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5570349929909729034
 MeshFilter:
@@ -19155,12 +19313,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4734099503179541730}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 36, y: 17.6, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.40000153, y: -0.39999962, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4788534010219988730}
+  m_Father: {fileID: 3049534415451349444}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &3132013422850979245
 MeshFilter:
@@ -19379,6 +19537,66 @@ MonoBehaviour:
   textureKey: TrainingRoom/F
   repeat: 1
   stretchY: 0
+--- !u!1 &4768778700559796426
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8324062498369979170}
+  - component: {fileID: 9022145539888547941}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442\u0438\u043B\u044C\u043D\u0438\u043A light5 \xB7
+    2"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8324062498369979170
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4768778700559796426}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 36.4, y: 10, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8240834623918813753}
+  m_Father: {fileID: 3060406860676527868}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9022145539888547941
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4768778700559796426}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: training-lamp-2
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 4669978d373eaf844a506818ce289953, type: 3}
+  maskOffset: {x: -1.4610023, y: -1.440999}
+  maskSize: {x: 2.93, y: 2.93}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/TrainingRoom/light-mask-light5-1
+  width: 0
+  height: 0
 --- !u!1 &4785828205100825322
 GameObject:
   m_ObjectHideFlags: 0
@@ -22125,6 +22343,66 @@ MonoBehaviour:
   textureKey: TrainingRoom/steel-rim
   repeat: 1
   stretchY: 0
+--- !u!1 &5609109366248545402
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 428113622499195729}
+  - component: {fileID: 4129185734496941971}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442\u0438\u043B\u044C\u043D\u0438\u043A light4 \xB7
+    5"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &428113622499195729
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5609109366248545402}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 16.8, y: 19.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7351092556460211307}
+  m_Father: {fileID: 3060406860676527868}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4129185734496941971
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5609109366248545402}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: training-lamp-5
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
+  maskOffset: {x: -2.5819988, y: -3.7299995}
+  maskSize: {x: 5.13, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &5647179016953369950
 GameObject:
   m_ObjectHideFlags: 0
@@ -24147,16 +24425,9 @@ Transform:
   - {fileID: 4483575315701535863}
   - {fileID: 6571246028719382636}
   - {fileID: 286625172531040897}
-  - {fileID: 2078948536990305781}
   - {fileID: 7310243422497605027}
   - {fileID: 6283460095185006363}
   - {fileID: 6121933932710101221}
-  - {fileID: 5988511443710008308}
-  - {fileID: 8240834623918813753}
-  - {fileID: 7802855758242354468}
-  - {fileID: 3138147371053405618}
-  - {fileID: 7351092556460211307}
-  - {fileID: 3499879596706055785}
   - {fileID: 2555555042886428511}
   - {fileID: 7064330870551097401}
   - {fileID: 1031956207818765245}
@@ -24396,12 +24667,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6135447504066975219}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 36, y: 13.6, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.40000153, y: -0.39999962, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4788534010219988730}
+  m_Father: {fileID: 8877739050759167300}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &688491614219327542
 MeshFilter:
@@ -24675,6 +24946,66 @@ MonoBehaviour:
   textureKey: TrainingRoom/steel-rim
   repeat: 1
   stretchY: 0
+--- !u!1 &6173636905647026494
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8877739050759167300}
+  - component: {fileID: 6727452273968197735}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442\u0438\u043B\u044C\u043D\u0438\u043A light5 \xB7
+    1"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8877739050759167300
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6173636905647026494}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 36.4, y: 14, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 5988511443710008308}
+  m_Father: {fileID: 3060406860676527868}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6727452273968197735
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6173636905647026494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: training-lamp-1
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 4669978d373eaf844a506818ce289953, type: 3}
+  maskOffset: {x: -1.4610023, y: -1.440999}
+  maskSize: {x: 2.93, y: 2.93}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/TrainingRoom/light-mask-light5-1
+  width: 0
+  height: 0
 --- !u!1 &6185978272086713113
 GameObject:
   m_ObjectHideFlags: 0
@@ -24777,6 +25108,66 @@ MonoBehaviour:
   textureKey: TrainingRoom/steel-rim
   repeat: 1
   stretchY: 0
+--- !u!1 &6198873313747067021
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5049814468185754814}
+  - component: {fileID: 1522829932356057440}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442\u0438\u043B\u044C\u043D\u0438\u043A light4 \xB7
+    6"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5049814468185754814
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6198873313747067021}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 23.2, y: 19.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3499879596706055785}
+  m_Father: {fileID: 3060406860676527868}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1522829932356057440
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6198873313747067021}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: training-lamp-6
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
+  maskOffset: {x: -2.5820007, y: -3.7299995}
+  maskSize: {x: 5.13, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &6224832537667666971
 GameObject:
   m_ObjectHideFlags: 0
@@ -31581,12 +31972,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7566779312428963407}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 36, y: 9.6, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.40000153, y: -0.39999962, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4788534010219988730}
+  m_Father: {fileID: 8324062498369979170}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5069219144148251998
 MeshFilter:
@@ -32064,6 +32455,66 @@ MonoBehaviour:
   textureKey: TrainingRoom/R
   repeat: 1
   stretchY: 0
+--- !u!1 &7720845622504312122
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 239746198800081482}
+  - component: {fileID: 250708574073006422}
+  m_Layer: 0
+  m_Name: "\u0421\u0432\u0435\u0442\u0438\u043B\u044C\u043D\u0438\u043A light4 \xB7
+    3"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &239746198800081482
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7720845622504312122}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 4, y: 19.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7802855758242354468}
+  m_Father: {fileID: 3060406860676527868}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &250708574073006422
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7720845622504312122}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 544c6588265696247baf0e6210708ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: training-lamp-3
+  intensity: 1.1
+  backgroundIntensity: -1
+  useMask: 1
+  shadow: 0
+  mask: {fileID: 2800000, guid: 4ef48f5ebf0633541909d65e3ace7ce7, type: 3}
+  maskOffset: {x: -2.5819998, y: -3.7299995}
+  maskSize: {x: 5.13, y: 3.91}
+  radius: 7
+  color: {r: 1, g: 1, b: 1, a: 1}
+  fixture: 
+  maskId: Original/Room/Hub/light-mask-light4-1
+  width: 0
+  height: 0
 --- !u!1 &7732883798762356500
 GameObject:
   m_ObjectHideFlags: 0
@@ -36794,6 +37245,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1831756104914713236}
   - component: {fileID: 1087490278934964551}
+  - component: {fileID: 4944715372197245570}
   m_Layer: 0
   m_Name: OriginalTrainingRoom
   m_TagString: Untagged
@@ -36877,6 +37329,7 @@ Transform:
   - {fileID: 4788534010219988730}
   - {fileID: 7951253029317864718}
   - {fileID: 8444110792535640910}
+  - {fileID: 3060406860676527868}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1087490278934964551
@@ -36905,6 +37358,20 @@ MonoBehaviour:
     ladders: []
     artwork: []
   authoredArtwork: 1
+--- !u!114 &4944715372197245570
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8728919336811529709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91db2b4057695c2468f2b97d7797f3fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ambient: {r: 0.38, g: 0.4, b: 0.43, a: 1}
+  backgroundAmbientScale: 0.6
 --- !u!1 &8780031372067789103
 GameObject:
   m_ObjectHideFlags: 0
