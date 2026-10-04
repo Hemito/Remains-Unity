@@ -34,9 +34,13 @@ namespace Remains.Editor
                             {
                                 var ladder=layout.ladders[index];
                                 var actor=new ActorState {id="ladder-cycle",x=ladder.x+ladder.movementOffset,
-                                    y=ladder.bottom+(ladder.top-ladder.bottom)*(direction>0?.25f:.75f),facing=-(int)ladder.facing};
+                                    y=ladder.bottom+(ladder.top-ladder.bottom)*(direction>0?.25f:.75f),facing=-(int)ladder.facing,weapon="pistol"};
                                 var motion=new MovementController(layout);
                                 var visual=new GameObject(actor.id).AddComponent<PonyVisual>();visual.Bind(actor);
+                                var weapon=UnityEngine.Object.Instantiate(WeaponRigs.Prefab(actor.weapon));
+                                var layers=new ActorVisualLayers();
+                                layers.Attach(actor.id,visual.transform);layers.Attach(actor.id,weapon.transform);
+                                layers.Synchronize(new[]{actor.id});
                                 var sheet=new Texture2D(3840,2160,TextureFormat.RGB24,false);
                                 var frames=new int[13];
                                 try
@@ -50,6 +54,11 @@ namespace Remains.Editor
                                         if(!actor.climbing || actor.facing!=(int)ladder.facing)
                                             throw new InvalidOperationException($"Потерян хват/сторона: {level}, лестница={index}, направление={direction}, кадр={frame}.");
                                         visual.DrawPose(actor.poseTime);frames[frame]=visual.DrawnFrame;
+                                        // Aim remains independent of the body's authored ladder facing.
+                                        WeaponPose.Aim(actor,actor.Position+new Vector2(-(int)ladder.facing*3,-2));
+                                        weapon.transform.position=WeaponPose.Mount(actor);
+                                        weapon.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
+                                        weapon.SetMirrored(WeaponPose.Flip(actor));
                                         camera.transform.position=new Vector3(actor.x,actor.y+.9f,-10);
                                         camera.Render();RenderTexture.active=target;
                                         sheet.ReadPixels(new Rect(0,0,960,540),frame%4*960,(3-frame/4)*540);
@@ -59,7 +68,7 @@ namespace Remains.Editor
                                     File.WriteAllBytes(Path.Combine(directory,name+".png"),sheet.EncodeToPNG());
                                     File.WriteAllText(Path.Combine(directory,name+".txt"),"Ячейки слева направо, сверху вниз; первая — неподвижный хват. Кадры: "+string.Join(",",frames));
                                 }
-                                finally {UnityEngine.Object.DestroyImmediate(sheet);UnityEngine.Object.DestroyImmediate(visual.gameObject);}
+                                finally {UnityEngine.Object.DestroyImmediate(sheet);UnityEngine.Object.DestroyImmediate(weapon.gameObject);UnityEngine.Object.DestroyImmediate(visual.gameObject);}
                             }
                     }
                     finally {UnityEngine.Object.DestroyImmediate(room);}
