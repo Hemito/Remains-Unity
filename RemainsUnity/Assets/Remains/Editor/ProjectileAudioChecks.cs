@@ -106,12 +106,11 @@ namespace Remains.Editor
                 if(actorBlocks) world.actors.Add(new ActorState {id="target",actorType="training-dummy",level="hub",x=2});
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,observer.id);
-                var geometry=new SimulationGeometry(session);
-                var rooms=(Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry);
                 // The near surface passes shots; the farther one must supply the sound key.
-                rooms.Add("hub",new RoomLayout {platforms=new[]{
+                var geometry=new SimulationGeometry(_=>new RoomLayout {platforms=new[]{
                     new RoomSurface {x=1,y=0,width=.1f,height=2,texture="ignored",shotsPassThrough=true},
                     new RoomSurface {x=4,y=0,width=.2f,height=2,texture=texture}}});
+                geometry.Reconcile(world);
                 int hits=0,contacts=0;
                 var controller=new ProjectileController(session,geometry,(_,_,_)=>hits++);
                 controller.ContactObserved+=contact=>

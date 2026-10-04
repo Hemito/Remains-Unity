@@ -67,8 +67,7 @@ namespace Remains.Editor
                 typeof(Remains.Networking.CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(Remains.Networking.CoopSession).GetProperty("LocalOwner").SetValue(session,"owner");
                 var geometry=new Remains.Gameplay.SimulationGeometry(session);
-                typeof(Remains.Gameplay.SimulationGeometry).GetMethod("Reconcile",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)
-                    .Invoke(geometry,new object[]{world});
+                geometry.Reconcile(world);
                 var controller=new Remains.Gameplay.NpcController(session,geometry);
                 var cache=(System.Collections.Generic.Dictionary<string,Remains.Gameplay.MovementController>)typeof(Remains.Gameplay.NpcController)
                     .GetField("movement",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(controller);

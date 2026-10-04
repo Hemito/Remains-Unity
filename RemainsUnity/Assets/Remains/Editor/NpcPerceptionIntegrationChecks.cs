@@ -23,11 +23,10 @@ namespace Remains.Editor
                 typeof(CoopSession).GetProperty("LocalOwner").SetValue(session,"owner-a");
                 var ownership=new OwnershipService();ownership.Reassign(world,new[]{"owner-a"});
                 Require(npc.target==null,"Координатор сети назначил боевую цель.");
-                var geometry=new SimulationGeometry(session);
                 var floor=new RoomSurface {x=-10,y=-.4f,width=30,height=.4f};
                 var room=new RoomLayout {left=-10,right=20,bottom=-.4f,top=5,platforms=new[]{floor},ladders=Array.Empty<RoomLadder>()};
-                ((Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",BindingFlags.Instance|BindingFlags.NonPublic)
-                    .GetValue(geometry)).Add(npc.level,room);
+                var geometry=new SimulationGeometry(_=>room);
+                geometry.Reconcile(world);
                 var controller=new NpcController(session,geometry);
                 ((Dictionary<string,MovementController>)typeof(NpcController).GetField("movement",BindingFlags.Instance|BindingFlags.NonPublic)
                     .GetValue(controller)).Add(npc.level,new MovementController(room));

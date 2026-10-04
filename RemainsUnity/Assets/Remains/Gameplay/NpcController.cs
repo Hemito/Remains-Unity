@@ -22,7 +22,9 @@ namespace Remains.Gameplay
                 var needed=session.World==null?new HashSet<string>():new HashSet<string>(session.World.actors
                     .Where(a=>!a.player && Remains.Content.ActorTypes.Get(a.actorType).combatAi && a.owner==session.LocalOwner && !a.down && LevelActivity.HasConnectedPlayer(session.World,a.level)).Select(a=>a.level));
                 foreach(string level in movement.Keys.Where(level=>!needed.Contains(level)).ToArray()) movement.Remove(level);
-                foreach(string level in needed) if(!movement.ContainsKey(level)) movement.Add(level,new MovementController(geometry.Get(level)));
+                foreach(string level in needed)
+                    if(!movement.TryGetValue(level,out var controller) || !ReferenceEquals(controller.Room,geometry.Get(level)))
+                        movement[level]=new MovementController(geometry.Get(level));
             };
         }
         public void Step(float dt)

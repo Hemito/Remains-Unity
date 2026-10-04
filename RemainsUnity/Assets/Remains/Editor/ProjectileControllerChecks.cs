@@ -29,9 +29,8 @@ namespace Remains.Editor
                 world.actors.Add(player);world.actors.Add(target);
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,player.id);
-                var geometry=new SimulationGeometry(session);
-                var rooms=(Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry);
-                rooms.Add("hub",new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                var geometry=new SimulationGeometry(_=>new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                geometry.Reconcile(world);
                 int hits=0;string decidingOwner=null;float contactSpeed=0;
                 var controller=new ProjectileController(session,geometry,(attack,contact,owner)=>{hits++;decidingOwner=owner;contactSpeed=attack.speed;});
                 ProjectileFlight flight=null;int created=0;
@@ -98,9 +97,8 @@ namespace Remains.Editor
                 var target=new ActorState {id="npc",owner="b",level="hub",x=8,health=100};
                 world.actors.Add(observer);world.actors.Add(target);
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
-                var geometry=new SimulationGeometry(session);
-                var rooms=(Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry);
-                rooms.Add("hub",new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                var geometry=new SimulationGeometry(_=>new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                geometry.Reconcile(world);
                 var damage=new DamageReceiver(new PrototypeDamageRule());int applied=0,contacts=0,observed=0;
                 // The observer sees the contact before becoming the decision owner.
                 var controller=new ProjectileController(session,geometry,(attack,contact,owner)=>

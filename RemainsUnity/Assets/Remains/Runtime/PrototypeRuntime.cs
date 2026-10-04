@@ -201,6 +201,9 @@ namespace Remains.Runtime
                 releaseRequested=true;
                 if(!ReleasingUnusedAssets) StartCoroutine(ReleaseUnusedAssets());
             }
+            var activeRoom=Geometry.Get(Session.LocalActor.level);
+            if(!ReferenceEquals(movement.Room,activeRoom)) movement=new MovementController(activeRoom);
+            cameraFollower.Room=activeRoom;
             foreach (var actor in Session.World.actors)
             {
                 if (!ActorPresence.IsPresent(actor) || actor.level!=Session.LocalActor.level) continue;

@@ -25,9 +25,9 @@ namespace Remains.Editor
             world.actors.Add(new ActorState {id="target",actorType="training-dummy",level="hub",x=2});
             typeof(CoopSession).GetProperty("World").SetValue(session,world);
             typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
-            var geometry=new SimulationGeometry(session);
-            ((Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry)).Add("hub",
+            var geometry=new SimulationGeometry(_=>
                 new RoomLayout {platforms=new[]{new RoomSurface {x=2,y=0,width=.2f,height=2,texture="Hub/concrete"}}});
+            geometry.Reconcile(world);
             var controller=new ProjectileController(session,geometry,(_,_,_)=>{});
             ProjectileContact? lastContact=null;int contacts=0;
             controller.ContactObserved+=contact=>{lastContact=contact;contacts++;};

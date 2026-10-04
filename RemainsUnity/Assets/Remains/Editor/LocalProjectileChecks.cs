@@ -41,9 +41,8 @@ namespace Remains.Editor
                 var target=new ActorState {id="target",owner="b",level="hub",x=2,player=playerTarget,connected=playerTarget};
                 world.actors.Add(observer);world.actors.Add(target);
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
-                var geometry=new SimulationGeometry(session);
-                ((Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry))
-                    .Add("hub",new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                var geometry=new SimulationGeometry(_=>new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                geometry.Reconcile(world);
                 int hits=0,created=0;ProjectileFlight flight=null;
                 var controller=new ProjectileController(session,geometry,(_,_,_)=>hits++);
                 controller.Created+=value=>{flight=value;created++;};

@@ -7,6 +7,7 @@ namespace Remains.Gameplay
     public sealed class MovementController
     {
         private readonly RoomLayout room;
+        public RoomLayout Room=>room;
         private readonly ReleasedTapGesture downTap;
         private readonly MovementSettings settings;
         private readonly SprintPreparation sprintPreparation=new();

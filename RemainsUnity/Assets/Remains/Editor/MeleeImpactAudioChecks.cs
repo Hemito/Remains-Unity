@@ -33,9 +33,8 @@ namespace Remains.Editor
                 world.actors.Add(observer);world.actors.Add(target);
                 typeof(CoopSession).GetProperty("World").SetValue(session,world);
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,observer.id);
-                var geometry=new SimulationGeometry(session);
-                var rooms=(Dictionary<string,RoomLayout>)typeof(SimulationGeometry).GetField("rooms",Private).GetValue(geometry);
-                rooms.Add("hub",new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                var geometry=new SimulationGeometry(_=>new RoomLayout {platforms=Array.Empty<RoomSurface>()});
+                geometry.Reconcile(world);
                 var combat=new CombatController(session,geometry);
                 var playback=root.AddComponent<GameplayAudio>();playback.Initialize(session,combat.Reload,root.AddComponent<Camera>());
                 var audio=root.AddComponent<MeleeImpactAudio>();audio.Initialize(combat,playback);
@@ -72,7 +71,7 @@ namespace Remains.Editor
                 foreach(string weapon in new[]{"crowbar","spear"})
                 foreach(string texture in new[]{"floor","Hub/concrete"})
                 {
-                    rooms["hub"].platforms=new[]{new RoomSurface {x=1,y=0,width=.2f,height=2,texture=texture}};
+                    geometry.Get("hub").platforms=new[]{new RoomSurface {x=1,y=0,width=.2f,height=2,texture=texture}};
                     var wall=new AttackEvent {id="wall-"+weapon+texture,attacker=observer.id,sourceOwner="remote",
                         weapon=weapon,level="hub",originY=.7f,endX=4,endY=.7f};
                     receive.Invoke(combat,new object[]{wall});receive.Invoke(combat,new object[]{wall});expected++;
@@ -92,7 +91,7 @@ namespace Remains.Editor
                     receive.Invoke(combat,new object[]{wall});
                     Require(audio.Played==expected,"Радиус оружия создал звук за пределами досягаемости.");
                 }
-                rooms["hub"].platforms=Array.Empty<RoomSurface>();
+                geometry.Get("hub").platforms=Array.Empty<RoomSurface>();
                 world.props.Add(new PropState {id="wood",definition="box",level="hub",x=1,y=.7f});
                 world.containers.Add(new ContainerState {id="metal",definition="mcrate1",level="hub",x=2,y=0});
                 world.props.Add(new PropState {id="other-level",definition="box",level="factory:0",x=1,y=.7f});
