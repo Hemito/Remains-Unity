@@ -5,6 +5,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Mirror;
 using Remains.Domain;
+using Remains.Content;
 using Remains.Gameplay;
 using Remains.Presentation;
 using UnityEngine;
@@ -22,13 +23,15 @@ namespace Remains.Runtime
         private string rangeOwner,rangeWorld;
         private int rangeGeneration;
         private bool rangeEntered,rangeReturned,rangeSeparated;
-        private bool rejected50,rejected120,observedLift;
+        private bool rejected75,rejected120,observedLift;
         private float manaBeforeLift,minimumLiftMana=100;
         private readonly TrainingMagicRecoveryExercise magicRecovery=new();
         private readonly TrainingSprintExercise sprinting=new();
         private float liftObservedAt=-1;
         private bool Host=>runtime.Options.Role=="host";
-        private ContainerState Crate(int index)=>runtime.Session.World.containers.Single(c=>c.id=="training:crate:"+index);
+        private ContainerState Crate(int index)=>runtime.Session.World.containers.Single(c=>c.level=="hub" && c.definition=="mcrate"+index);
+        private readonly Dictionary<int,Vector2> crateStarts=new();
+        private float hubLadderX;
         private readonly HashSet<int> done=new();
         private readonly TrainingJumpExercise jumping=new();
         private readonly TrainingCrouchExercise crouching=new();
@@ -92,10 +95,16 @@ namespace Remains.Runtime
             FindFirstObjectByType<ProjectileVisuals>().TrailDrawn+=view=>weaponTrace.ObserveTrail(value.Session.World,view);
             value.Session.RemotePoseCorrection+=(source,id,before,after)=>
                 Debug.Log($"Источник изменения фазы: source={source}, actor={id}, before={before}, after={after}, time={Time.unscaledTime}.");
-            runtime=value;deadline=Time.unscaledTime+75;value.CommandSource=Command;
+            runtime=value;deadline=Time.unscaledTime+140;
+            var hub=RoomLayout.Load("hub");
+            var ladder=hub.ladders.Where(l=>l.x<38 && l.bottom<1 && l.top>7.2f).OrderByDescending(l=>l.x).First();
+            hubLadderX=ladder.x+ladder.movementOffset;
+            var placements=HubTrainingContent.ReadLayout().containers;
+            for(int i=1;i<=3;i++) {var entry=placements.Single(p=>p.type=="mcrate"+i);crateStarts.Add(i,new Vector2(entry.x,entry.y));}
+            value.CommandSource=Command;
             value.Session.Notice+=notice=>
             {
-                if(notice.StartsWith("Слишком тяжело: 50 кг",StringComparison.Ordinal)) rejected50=true;
+                if(notice.StartsWith("Слишком тяжело: 75 кг",StringComparison.Ordinal)) rejected75=true;
                 if(notice.StartsWith("Слишком тяжело: 120 кг",StringComparison.Ordinal)) rejected120=true;
             };
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<TrainingDoneMessage>((connection,message)=>
@@ -119,7 +128,7 @@ namespace Remains.Runtime
         {
             yield return new WaitForSecondsRealtime(1);
             Finish(true,MovingShotExercise?"Собственный выстрел на бегу: три запуска без сетевого ожидания, дуло совпало с точкой запуска; удалённое расхождение записано отдельно.":
-                (runtime.Options.ProbePeers==1?"Одиночная игра. ":"Кооператив; стойки и прыжки видны другим клиентам. ")+"Приседание, короткий/длинный прыжок, балка и двойное S. Три мишени, по три выстрела на игрока; отказ 50/120 кг и подъём/падение 25 кг.");
+                (runtime.Options.ProbePeers==1?"Одиночная игра. ":"Кооператив; стойки и прыжки видны другим клиентам. ")+"Приседание, короткий/длинный прыжок, балка и двойное S. Три мишени, по три выстрела на игрока; отказ 75/120 кг и подъём/падение 25 кг.");
         }
         private PlayerCommand Command()
         {
@@ -173,6 +182,16 @@ namespace Remains.Runtime
                     }
                     catch(InvalidOperationException error) {Finish(false,error.Message);return default;}
                 }
+                stage=MovingShotExercise?3:12;
+            }
+            if(stage==12)
+            {
+                if(Mathf.Abs(self.x-hubLadderX)>.08f) return new PlayerCommand {movement=new Vector2(Mathf.Sign(hubLadderX-self.x),0)};
+                stage=16;
+            }
+            if(stage==16)
+            {
+                if(self.y<7.22f) return new PlayerCommand {movement=Vector2.up};
                 stage=3;
             }
             if(MovingShotExercise) return new PlayerCommand {hasAim=true,aim=self.Position+Vector2.up*10};
@@ -187,13 +206,19 @@ namespace Remains.Runtime
             {stage=13;manaBeforeLift=self.mana;}
             if(stage==13)
             {
-                if(Mathf.Abs(self.x-26)>.08f) return new PlayerCommand {movement=new Vector2(Mathf.Sign(26-self.x),0)};
-                if(Host && runtime.Session.World.actors.Any(a=>a.player && a.connected && Mathf.Abs(a.x-26)>1)) return default;
-                stage=Host?4:14;
+                float destination=Host?36:43;
+                if(Mathf.Abs(self.x-destination)>.08f) return new PlayerCommand {movement=new Vector2(Mathf.Sign(destination-self.x),0)};
+                stage=Host?15:14;
+            }
+            if(stage==15)
+            {
+                if(Mathf.Abs(self.x-43)>.08f) return new PlayerCommand {movement=new Vector2(Mathf.Sign(43-self.x),0)};
+                if(runtime.Session.World.actors.Any(a=>a.player && a.connected && Mathf.Abs(a.x-43)>1)) return default;
+                stage=4;
             }
             if(stage>=4) return CrateCommand();
             // The jump intentionally preserves momentum; readiness is the firing area, not one exact point.
-            bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-firingX)<1 && a.y<1);
+            bool ready=runtime.Session.World.actors.Where(a=>a.player && a.connected).All(a=>Mathf.Abs(a.x-firingX)<1 && Mathf.Abs(a.y-7.2f)<.1f);
             return new PlayerCommand {weapon="pistol",movement=Vector2.up,hasAim=true,aim=target.Position+Vector2.up*.8f,fire=ready && self.weaponLift>0 && raisedWeapons.Count==runtime.Options.ProbePeers && shots==targetIndex};
         }
         private PlayerCommand CrateCommand()
@@ -201,14 +226,14 @@ namespace Remains.Runtime
             switch(stage)
             {
                 case 4: stage=5;return new PlayerCommand {telekinesis=true,hasAim=true,aim=Crate(2).Position};
-                case 5: if(rejected50) stage=6;return default;
+                case 5: if(rejected75) stage=6;return default;
                 case 6: stage=7;return new PlayerCommand {telekinesis=true,hasAim=true,aim=Crate(3).Position};
                 case 7: if(rejected120) stage=8;return default;
                 case 8: stage=9;return new PlayerCommand {telekinesis=true,hasAim=true,aim=Crate(1).Position};
                 case 9:
                     // Keep the normal held input long enough for remote snapshots to observe it.
                     if(observedLift && Time.unscaledTime-liftObservedAt>.75f) stage=10;
-                    return new PlayerCommand {telekinesis=true,hasAim=true,aim=new Vector2(18,1.5f)};
+                    return new PlayerCommand {telekinesis=true,hasAim=true,aim=crateStarts[1]+Vector2.up*1.2f};
                 default:return default;
             }
         }
@@ -252,17 +277,17 @@ namespace Remains.Runtime
             if(runtime.Session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers || runtime.Session.World.friendlyFire) return;
             var targets=runtime.Session.World.actors.Where(a=>a.actorType=="training-dummy").ToArray();
             var light=Crate(1);
-            if(light.held && light.y>1.15f)
+            if(light.held && light.y>crateStarts[1].y+.35f)
             {if(!observedLift) liftObservedAt=Time.unscaledTime;observedLift=true;}
-            if(Crate(2).held || Crate(3).held || Vector2.Distance(Crate(2).Position,new Vector2(20,.8f))>.03f ||
-                Vector2.Distance(Crate(3).Position,new Vector2(23,.8f))>.03f)
+            if(Crate(2).held || Crate(3).held || Vector2.Distance(Crate(2).Position,crateStarts[2])>.03f ||
+                Vector2.Distance(Crate(3).Position,crateStarts[3])>.03f)
             {Finish(false,"Тяжёлый ящик сдвинут или захвачен при пределе 30 кг.");return;}
             if(targets.Length!=3 || targets.Any(a=>a.down || a.health!=500 || a.target!=null || a.attackBusy))
             {Finish(false,"Мишени дублируются, погибают или ведут бой.");return;}
             if(results<3*runtime.Options.ProbePeers || sent) return;
             if(results!=3*runtime.Options.ProbePeers || shots!=3 || targetResults.Any(count=>count!=runtime.Options.ProbePeers) ||
                 targets.Any(a=>a.resolvedAttacks.Count!=runtime.Options.ProbePeers || a.damageSequence!=runtime.Options.ProbePeers)) return;
-            if(!observedLift || light.held || Host && (stage<10 || !rejected50 || !rejected120)) return;
+            if(!observedLift || light.held || Host && (stage<10 || !rejected75 || !rejected120)) return;
             if(runtime.PropAudio.Landings<1) return;
             if(runtime.PropAudio.Landings!=1) {Finish(false,"Звук единственного падения ящика повторён.");return;}
             if(!jumping.Complete || observedJumpSupport.Count!=runtime.Options.ProbePeers-1) return;
@@ -281,7 +306,7 @@ namespace Remains.Runtime
                 catch(Exception error) {Finish(false,error.Message);return;}
             }
             var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
-            if(views.Length!=3 || views.Select(v=>v.ActorId).Distinct().Count()!=3) {Finish(false,"Неверное количество моделей мишеней.");return;}
+            if(views.Length!=5 || views.Select(v=>v.ActorId).Distinct().Count()!=5) {Finish(false,"Неверное количество моделей мишеней.");return;}
             foreach(var view in views)
                 if(view.GetComponentsInParent<ActorVisualGroup>().Length!=1) {Finish(false,"Мишень не включена в целую группу отрисовки.");return;}
             if(runtime.Options.Smoke.Contains("-frames-"))
@@ -296,7 +321,7 @@ namespace Remains.Runtime
             if(success && MovingShotExercise && movingShots!=3) {success=false;detail="Ожидалось три выстрела на бегу, получено "+movingShots;}
             if(success && MovingShotExercise && !weaponTrace.ValidateLocal(out var mismatch)) {success=false;detail=mismatch;}
             string json=JsonUtility.ToJson(new Report {rangeEntered=rangeEntered,rangeReturned=rangeReturned,rangeSeparated=rangeSeparated,success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
-                raisedWeapons=raisedWeapons.Count,rejected50=rejected50,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
+                raisedWeapons=raisedWeapons.Count,rejected75=rejected75,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 remoteRunRestarts=remoteRunRestarts,remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
                 sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,movingShots=movingShots,
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
@@ -306,6 +331,6 @@ namespace Remains.Runtime
             weaponTrace.Save(runtime.Options.Report+".weapons.json");
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool rangeEntered,rangeReturned,rangeSeparated;public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected50,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool rangeEntered,rangeReturned,rangeSeparated;public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected75,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }
