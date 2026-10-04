@@ -630,6 +630,8 @@ namespace Remains.Networking
             return transaction;
         }
         public void ReturnToFactory() => Travel.RequestFactory();
+        // Isolated regression scenarios retain explicit fixture transitions.
+        public bool DebugTravelAllowed {get;set;}
 
         private void Revive(NetworkConnectionToClient connection, ReviveMessage message)
         {

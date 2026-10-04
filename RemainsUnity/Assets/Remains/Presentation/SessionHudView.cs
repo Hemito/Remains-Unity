@@ -7,14 +7,13 @@ namespace Remains.Presentation
     public sealed class SessionHudView : MonoBehaviour
     {
         [InspectorName("Локация и участники")] public Text Status;
-        [InspectorName("Переход между локациями")] public Button Travel;
         [InspectorName("Открыть инвентарь")] public Button Inventory;
         [InspectorName("Открыть меню")] public Button Menu;
         public void Validate()
         {
-            if(Status==null || Travel==null || Inventory==null || Menu==null)
+            if(Status==null || Inventory==null || Menu==null)
                 throw new InvalidOperationException("Панель сессии: не назначены текст состояния или кнопки.");
-            foreach(var button in new[]{Travel,Inventory,Menu})
+            foreach(var button in new[]{Inventory,Menu})
                 if(button.GetComponent<Image>()?.sprite==null)
                     throw new InvalidOperationException($"Панель сессии: у кнопки {button.name} отсутствует сохранённая графика.");
         }

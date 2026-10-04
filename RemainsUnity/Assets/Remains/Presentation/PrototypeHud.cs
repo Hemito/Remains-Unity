@@ -38,7 +38,7 @@ namespace Remains.Presentation
         private readonly Image[] slotIcons=new Image[9];
         private InventoryArtwork inventoryArtwork;
         private Text containerTitle;
-        private ContainerHint containerHint;
+        private InteractionHint containerHint;
         private Button claimQuantity;
         private bool claimOne;
         public RectTransform ClaimQuantityRect=>claimQuantity.GetComponent<RectTransform>();
@@ -56,7 +56,7 @@ namespace Remains.Presentation
         public PauseMenu PauseMenu {get;private set;}
         public AudioSettingsPanel AudioSettings {get;private set;}
         public RectTransform MainMenuSoundRect=>mainMenu.SoundRect;
-        public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen || AudioSettings.IsOpen;
+        public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen;
         public bool InventoryOpen=>inventory.activeSelf;
         private string inventoryActorVersion;
         private CombatHud combatHud;
@@ -88,7 +88,7 @@ namespace Remains.Presentation
         private Button friendlyFire;
         private Button friendlyDecision;
         private Button leave;
-        private Button factory;
+        public WorldMapPanel WorldMap {get;private set;}
         public event Action HostRequested;
         public event Action<string> JoinRequested;
 
@@ -104,7 +104,7 @@ namespace Remains.Presentation
             scaler.referenceResolution = new Vector2(1280,720);
             scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
-            containerHint=new ContainerHint(transform,elements);
+            containerHint=new InteractionHint(transform,elements);
             audioPreferences??=new AudioPreferences(null);
             inventoryAudio=gameObject.AddComponent<InventoryAudio>();inventoryAudio.Initialize(audioPreferences);
             AudioSettings=new AudioSettingsPanel(transform,audioPreferences);
@@ -159,22 +159,21 @@ namespace Remains.Presentation
             leave=pauseView.Leave;leave.onClick.AddListener(()=>
             {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
-            factory=sessionHud.Travel;factory.onClick.AddListener(()=>
-            {if(session.LocalActor?.level=="factory:0") session.Travel.RequestHub();else session.ReturnToFactory();});
-            factory.gameObject.SetActive(false);
+            WorldMap=new WorldMapPanel(transform,session);
             session.Changed += Refresh;
             session.Notice += ShowMessage;
             SessionMods=new SessionModPanel(transform,elements,session);
             NetworkLobby=new WorldLobbyPanel(transform,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
-            PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf,()=>AudioSettings.Open());
+            PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf,()=>AudioSettings.Open(),()=>WorldMap.IsOpen);
+            WorldMap.StateChanged+=PauseMenu.PublishIntent;
             sessionHud.Inventory.onClick.AddListener(ToggleInventory);
             sessionHud.Menu.onClick.AddListener(()=>PauseMenu.Toggle());
             Refresh();
         }
 
-        public void ToggleMenu() {if(ContainerOpen) {CloseContainer();return;}if(AudioSettings.IsOpen) AudioSettings.Cancel();else PauseMenu.Toggle();}
-        public void ToggleInventory() {if(AudioSettings.IsOpen) return; inventoryAudio.Toggle();if(inventory.activeSelf) CloseContainer();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
+        public void ToggleMenu() {if(WorldMap.IsOpen) {WorldMap.Close();return;}if(ContainerOpen) {CloseContainer();return;}if(AudioSettings.IsOpen) AudioSettings.Cancel();else PauseMenu.Toggle();}
+        public void ToggleInventory() {if(AudioSettings.IsOpen) return;if(WorldMap.IsOpen) WorldMap.Close(); inventoryAudio.Toggle();if(inventory.activeSelf) CloseContainer();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent(); }
         public void OpenContainer() {if(!ContainerOpen) ToggleContainer();}
         public void ToggleContainer()
         {
@@ -199,7 +198,6 @@ namespace Remains.Presentation
         {
             openContainerId=null;containerWindow.gameObject.SetActive(false);Refresh();
         }
-        public RectTransform FactoryButtonRect => factory.GetComponent<RectTransform>();
         public RectTransform FriendlyFireButtonRect=>friendlyFire.GetComponent<RectTransform>();
         public RectTransform FriendlyDecisionButtonRect=>friendlyDecision.GetComponent<RectTransform>();
         public bool FriendlyDecisionInteractable=>friendlyDecision.interactable;
@@ -219,18 +217,16 @@ namespace Remains.Presentation
             mainMenu.Root.SetActive(actor==null);
             string version=actor==null?null:$"{actor.id}:{actor.generation}:{actor.lifecycleSequence}";
             if(inventoryActorVersion!=version) {inventoryActorVersion=version;inventory.SetActive(false);openContainerId=null;containerWindow.gameObject.SetActive(false);}
-            bool gameplayVisible=actor!=null && !inventory.activeSelf;
+            bool gameplayVisible=actor!=null && !inventory.activeSelf && !WorldMap.IsOpen;
             status.transform.parent.gameObject.SetActive(gameplayVisible);
             combatHud.Refresh(actor,gameplayVisible && !PauseMenu.IsOpen,ReloadRemaining?.Invoke());quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
             LayoutNotice();
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
-            {containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld(false);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);factory.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
+            {containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld(false);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             worldDescriptionDirty=true;
             lobby.SetActive(false);
             leave.gameObject.SetActive(gameplayVisible);friendlyFire.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
-            factory.gameObject.SetActive(gameplayVisible && (actor.level=="hub" || actor.level=="factory:0"));
-            factory.GetComponentInChildren<Text>().text=actor.level=="hub"?"На завод 0":"Вернуться в хаб";
             friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
             friendlyDecision.interactable=session.World.friendlyFire;
             friendlyDecision.GetComponentInChildren<Text>().text="Прямое попадание:\nрешает "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");
@@ -241,8 +237,7 @@ namespace Remains.Presentation
             {openContainerId=null;containerWindow.gameObject.SetActive(false);nearest=null;}
             if(nearest?.id!=shownContainer?.id) containerPage=0;
             shownContainer=nearest;
-            containerHint.Refresh(shownContainer==null?null:session.World.containers.Find(c=>c.id==shownContainer.id),
-                gameplayVisible && !PauseMenu.IsOpen && !AudioSettings.IsOpen,actor);
+            RefreshInteractionHint();
             int pages=Math.Max(1,((shownContainer?.items.Count??0)+8)/9);
             containerPage=Mathf.Clamp(containerPage,0,pages-1);
             previousContainer.interactable=containerPage>0;nextContainer.interactable=containerPage<pages-1;
@@ -335,15 +330,23 @@ namespace Remains.Presentation
             }
         }
 
+        private void RefreshInteractionHint()
+        {
+            bool show=session.LocalActor!=null && !BlocksGameplayInput;
+            var interaction=InteractionSelection.Select(session.World,session.LocalActor,session.Rules,session.Travel.Points(session.LocalActor?.level));
+            if(interaction.kind is InteractionKind.Map or InteractionKind.Exit)
+                containerHint.Refresh(session.Travel.Find(interaction.id,session.LocalActor.level),show,session.LocalActor);
+            else containerHint.Refresh(interaction.kind==InteractionKind.Container?session.World?.containers.Find(c=>c.id==interaction.id):null,show,session.LocalActor);
+        }
         private void Update()
         {
             if(session.LocalActor==null && AudioSettings.IsOpen && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true) AudioSettings.Cancel();
-            factory.interactable=session.LocalActor is {down:false} && !session.Travel.Pending;
+            WorldMap.Refresh();
             if(ContainerOpen)
             {if(!ContainerAccess.Accessible(session.LocalActor,InventorySource.Resolve(session.World,openContainerId),session.Rules.Loot,session.Rules.Deposit)) CloseContainer();}
             else if(ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id!=shownContainer?.id) Refresh();
-            bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen;
-            containerHint.Refresh(shownContainer==null?null:session.World?.containers.Find(c=>c.id==shownContainer.id),show && !AudioSettings.IsOpen,session.LocalActor);
+            bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen && !WorldMap.IsOpen;
+            RefreshInteractionHint();
             combatHud.Refresh(session.LocalActor,show,ReloadRemaining?.Invoke());quickActions.SetActive(show);
             status.transform.parent.gameObject.SetActive(show);
             message.transform.parent.gameObject.SetActive(session.LocalActor!=null && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));

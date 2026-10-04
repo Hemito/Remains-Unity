@@ -9,9 +9,11 @@ namespace Remains.Content
         public DoorLayout doors;
         public PhysicalLayout physical;
         public NpcLayout npcs;
+        public TravelPoint[] travelPoints;
         public static RoomContentBatch Read(RoomAuthoring room,string level)=>new()
         {
-            doors=RoomDoorContent.Read(room,level),physical=RoomPhysicalContent.Read(room,level),npcs=RoomNpcContent.Read(room,level)
+            doors=RoomDoorContent.Read(room,level),physical=RoomPhysicalContent.Read(room,level),npcs=RoomNpcContent.Read(room,level),
+            travelPoints=RoomTravelPointAuthoring.ReadAll(room,level)
         };
     }
     public static class RoomContentInstaller

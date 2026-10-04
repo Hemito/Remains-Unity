@@ -108,8 +108,8 @@ namespace Remains.Runtime
             var players=session.World.actors.Where(a=>a.player && a.connected).ToArray();
             if(phase<0 && Host && players.Length==runtime.Options.ProbePeers) {Advance(Resume?10:0);return;}
             if((phase==3 && Host || phase==4 && !Host || phase==8) && !action && !self.down &&
-                !session.Travel.Pending && runtime.Hud.FactoryButtonRect.GetComponent<UnityEngine.UI.Button>().IsInteractable())
-            {action=true;StartCoroutine(UiPointerProbe.Click(runtime.Hud.FactoryButtonRect));}
+                !session.Travel.Pending)
+            {action=true;if(self.level=="hub") session.Travel.RequestFactory();else session.Travel.RequestHub();}
             if(phase==5 && !action && runtime.Hud.InventoryOpen)
             {action=true;StartCoroutine(Claim());}
             if(phase==6 && Source && !disconnected)

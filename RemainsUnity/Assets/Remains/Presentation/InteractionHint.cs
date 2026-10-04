@@ -4,17 +4,18 @@ using UnityEngine.UI;
 
 namespace Remains.Presentation
 {
-    // Shows exactly the container selected by the inventory, without another selection rule.
-    public sealed class ContainerHint
+    // Displays the same target that the common E interaction selected.
+    public sealed class InteractionHint
     {
         private readonly RectTransform canvas, panel;
         private readonly Text label;
         private readonly Camera camera;
         private readonly Canvas root;
-        private ContainerState selected;
+        private Vector2 targetTop;
+        private bool hasTarget;
         private bool allowed;
         private ActorState actor;
-        public ContainerHint(Transform parent,HudElements ui)
+        public InteractionHint(Transform parent,HudElements ui)
         {
             canvas=(RectTransform)parent;camera=Camera.main;root=parent.GetComponent<Canvas>();
             Canvas.willRenderCanvases+=Place;
@@ -23,21 +24,25 @@ namespace Remains.Presentation
             panel=(RectTransform)label.transform.parent;
             panel.anchorMin=panel.anchorMax=panel.pivot=new Vector2(.5f,.5f);
             panel.gameObject.SetActive(false);
-            if(camera==null) Debug.LogWarning("Подсказка контейнера недоступна: не найдена камера MainCamera.");
+            if(camera==null) Debug.LogWarning("Подсказка взаимодействия недоступна: не найдена камера MainCamera.");
         }
         public void Refresh(ContainerState container,bool visible,ActorState localActor=null)
         {
-            selected=container;allowed=visible;actor=localActor;
-            if(container!=null) label.text=$"E · Контейнер · {container.mass:0.#} кг";
+            hasTarget=container!=null;allowed=visible;actor=localActor;
+            if(container!=null) {label.text=$"E · Контейнер · {container.mass:0.#} кг";targetTop=container.Position+Vector2.up*(container.height-container.anchorHeight+.25f);}
+            Place();
+        }
+        public void Refresh(TravelPoint point,bool visible,ActorState localActor)
+        {
+            hasTarget=point!=null;allowed=visible;actor=localActor;
+            if(point!=null) {label.text="E · "+point.title;targetTop=new Vector2(point.x+point.width*.5f,point.y+point.height+.25f);}
             Place();
         }
         public void Dispose()=>Canvas.willRenderCanvases-=Place;
         private void Place()
         {
-            var container=selected;
-            if(!allowed || container==null || camera==null) {panel.gameObject.SetActive(false);return;}
-            var top=container.Position+Vector2.up*(container.height-container.anchorHeight+.25f);
-            var screen=camera.WorldToScreenPoint(top);
+            if(!allowed || !hasTarget || camera==null) {panel.gameObject.SetActive(false);return;}
+            var screen=camera.WorldToScreenPoint(targetTop);
             bool onScreen=screen.z>0 && camera.pixelRect.Contains(new Vector2(screen.x,screen.y));
             panel.gameObject.SetActive(onScreen);
             if(!onScreen) return;

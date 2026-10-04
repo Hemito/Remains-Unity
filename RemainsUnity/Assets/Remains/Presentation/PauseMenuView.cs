@@ -11,7 +11,6 @@ namespace Remains.Presentation
         [InspectorName("Возобновить уровень")] public Button Resume;
         [InspectorName("Пауза при меню")] public Button MenuSetting;
         [InspectorName("Пауза при инвентаре")] public Button InventorySetting;
-        [InspectorName("Вернуться в хаб")] public Button ExitToHub;
         [InspectorName("Закрыть меню")] public Button Close;
         [InspectorName("Настройки звука")] public Button Sound;
         [InspectorName("Дружественный огонь")] public Button FriendlyFire;
@@ -21,7 +20,7 @@ namespace Remains.Presentation
         {
             if(Panel==null || Status==null || !Panel.transform.IsChildOf(transform) || !Status.transform.IsChildOf(transform))
                 throw new InvalidOperationException($"Меню паузы {name}: не назначены панель или индикатор.");
-            var buttons=new[]{ManualPause,Resume,MenuSetting,InventorySetting,ExitToHub,Close,Sound,FriendlyFire,FriendlyDecision,Leave};
+            var buttons=new[]{ManualPause,Resume,MenuSetting,InventorySetting,Close,Sound,FriendlyFire,FriendlyDecision,Leave};
             var unique=new System.Collections.Generic.HashSet<Button>();
             foreach(var button in buttons)
                 if(button==null || !unique.Add(button) || !button.transform.IsChildOf(Panel.transform) || button.GetComponentInChildren<Text>(true)==null)

@@ -147,7 +147,8 @@ namespace Remains.Runtime
         private IEnumerator ExitPausedLevel()
         {
             uiBusy=true;yield return OpenMenu();
-            yield return UiPointerProbe.Click(runtime.Hud.PauseMenu.ExitToHubRect);
+            // This legacy fixture exercises the protocol policy; the ordinary UI uses a physical exit.
+            runtime.Session.Travel.RequestHub();
             while((runtime.Session.LocalActor?.level!="hub" || runtime.Session.Travel.Pending) && !finished) yield return null;
             if(runtime.Hud.InventoryOpen || runtime.Hud.PauseMenu.IsOpen)
             {failure="Переход сохранил старый открытый интерфейс";Finish(false);}

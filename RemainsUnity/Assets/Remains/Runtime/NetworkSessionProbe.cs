@@ -124,7 +124,7 @@ namespace Remains.Runtime
             if(finished) return;
             // Completion was acknowledged by every peer before phase 7. A host exit
             // must not make a slower client's report depend on the live player count.
-            if(phase==7) {if(Time.unscaledTime-phaseTime>1) Finish(true,"Обычная симуляция: UI-переходы в обе стороны, разделение группы, граната в исходной локации, независимое движение и видимость; выход всей группы и повторный вход без пересоздания NPC/контейнеров.");return;}
+            if(phase==7) {if(Time.unscaledTime-phaseTime>1) Finish(true,"Обычная симуляция: переходы тестового мира в обе стороны, разделение группы, граната в исходной локации, независимое движение и видимость; выход всей группы и повторный вход без пересоздания NPC/контейнеров.");return;}
             if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут: phase={phase}, level={runtime.Session.LocalActor?.level}, pending={runtime.Session.Travel.Pending}");return;}
             var session=runtime.Session;var self=session.LocalActor;
             if(self==null) return;
@@ -134,7 +134,7 @@ namespace Remains.Runtime
             if(players.Length!=runtime.Options.ProbePeers) return;
             if(phase<0) {if(Host) Advance(0);return;}
             if((phase==1 && Host && runtime.Grenades.Flights.Count>0 || phase==2 && !Host || phase==4 && Host || phase==5 && !Host || phase==6) && !travelRequested)
-            {travelRequested=true;StartCoroutine(UiPointerProbe.Click(runtime.Hud.FactoryButtonRect));}
+            {travelRequested=true;if(self.level=="hub") session.Travel.RequestFactory();else session.Travel.RequestHub();}
             if(Time.unscaledTime-phaseTime<1) return;
             bool ready=phase switch
             {
