@@ -19,6 +19,7 @@ namespace Remains.Gameplay
         public event Action<DamageResult> DamageApplied;
         // A locally observed contact is cosmetic evidence, not confirmation of damage.
         public event Action<AttackEvent,ActorState> ContactObserved;
+        public event Action<AttackEvent,string,Vector2> SurfaceContactObserved;
         private readonly SimulationTimer shotCooldown=new();
         public float ShotCooldownRemaining=>shotCooldown.Remaining;
         private ActorState swingActor;
@@ -155,7 +156,14 @@ namespace Remains.Gameplay
             if(!LevelActivity.HasConnectedPlayer(session.World,attack.level)) return;
             var definition=WeaponCatalog.Get(attack.weapon);
             if(definition.projectileSpeed>0) return;
-            float limit=definition.stopAtTerrain?ShotObstacles.Limit(geometry.Get(attack.level),attack.Origin,attack.End):1;
+            var terrain=ShotObstacles.FirstContact(geometry.Get(attack.level),attack.Origin,attack.End,out var surface);
+            if(terrain.HasValue)
+            {
+                var position=Vector2.Lerp(attack.Origin,attack.End,terrain.Value);
+                if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>SurfaceContactObserved?.Invoke(attack,surface.texture,position));
+                else SurfaceContactObserved?.Invoke(attack,surface.texture,position);
+            }
+            float limit=definition.stopAtTerrain?terrain??1:1;
             foreach(var target in AttackContacts.Capture(session.World.actors,attack,session.World.friendlyFire,
                 definition.stopAtFirstActor,limit))
             {

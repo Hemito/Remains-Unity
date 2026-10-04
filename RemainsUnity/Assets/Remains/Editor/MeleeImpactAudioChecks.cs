@@ -60,6 +60,24 @@ namespace Remains.Editor
                 miss.id="friendly-disabled";miss.originY=miss.endY=.7f;
                 receive.Invoke(combat,new object[]{miss});
                 Require(audio.Played==expected,"Выключенный дружественный огонь создал контакт с союзником.");
+                target.x=100;
+                foreach(string weapon in new[]{"crowbar","spear"})
+                foreach(string texture in new[]{"floor","Hub/concrete"})
+                {
+                    rooms["hub"].platforms=new[]{new RoomSurface {x=1,y=0,width=.2f,height=2,texture=texture}};
+                    var wall=new AttackEvent {id="wall-"+weapon+texture,attacker=observer.id,sourceOwner="remote",
+                        weapon=weapon,level="hub",originY=.7f,endX=4,endY=.7f};
+                    receive.Invoke(combat,new object[]{wall});receive.Invoke(combat,new object[]{wall});expected++;
+                    Require(audio.Played==expected,"Контакт стены потерян или повторён: "+wall.id);
+                    var source=root.GetComponentsInChildren<AudioSource>().Last();
+                    string clip=texture=="floor"?"hit-metal":"hit-concrete";
+                    float gain=texture=="floor"?.4f:.5f;
+                    Require(source.clip==Resources.Load<AudioClip>("Original/Audio/"+clip),"Неверный материал звука стены.");
+                    float attenuation=GameplayAudio.Attenuation(Vector2.Distance(new Vector2(1,.7f),observer.Position));
+                    Require(Mathf.Abs(source.volume-playback.Volume*gain*attenuation)<.00001f,"Звук стены использует конец взмаха вместо точки контакта.");
+                    wall.id+="-miss";wall.originY=wall.endY=3;
+                    receive.Invoke(combat,new object[]{wall});Require(audio.Played==expected,"Промах над стеной озвучен как контакт.");
+                }
                 Debug.Log("Контакты ближнего оружия: PASS — реальные пересечения, два WAV и уровня, три типа целей, повтор/вторая цель, промах и выключенный FF.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
