@@ -36,14 +36,18 @@ namespace Remains.Editor
                 camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,width,height),0,0);image.Apply();
                 string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", $".reference/tests/main-menu-{(longName?"long-name-":"")}{width}x{height}.png"));
                 File.WriteAllBytes(path,image.EncodeToPNG());Debug.Log("Главное меню: кадр сохранён "+path);
-                if(width==1024 && !longName)
+                if(width==1024)
                 {
                     var store=new Remains.Persistence.SaveStore(Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/world-management-render")));
-                    var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+                    new Remains.Persistence.WorldLibrary(store).Rename("menu-preview",longName?new string('Ш',48):"Проверочный мир");
                     WorldManagementPanel.Open(canvas.transform,store,"menu-preview",()=>{});
+                    var management=canvas.GetComponentInChildren<WorldManagementView>();
+                    if(longName) management.Delete.onClick.Invoke();
                     Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
                     image.ReadPixels(new Rect(0,0,width,height),0,0);image.Apply();
                     File.WriteAllBytes(Path.ChangeExtension(path,"world-management.png"),image.EncodeToPNG());
+                    if(management.Status.preferredHeight>management.Status.rectTransform.rect.height+.1f)
+                        throw new System.InvalidOperationException($"Подтверждение удаления обрезано: нужно {management.Status.preferredHeight}, доступно {management.Status.rectTransform.rect.height}.");
                 }
             }
             finally {RenderTexture.active=null;camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);}
