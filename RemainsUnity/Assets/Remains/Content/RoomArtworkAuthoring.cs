@@ -1,5 +1,6 @@
 using System;
 using Remains.Domain;
+using Remains.Presentation;
 using UnityEngine;
 
 namespace Remains.Content
@@ -19,7 +20,8 @@ namespace Remains.Content
             var colors=filter.sharedMesh.colors;
             return new RoomArtwork {texture=textureKey,x=min.x,y=min.y,width=max.x-min.x,height=max.y-min.y,
                 order=renderer.sortingOrder,shade=colors.Length>0?colors[0].r:1,repeat=repeat,stretchY=stretchY,
-                selfIlluminated=renderer.sharedMaterial.GetFloat("_Emission")>0};
+                selfIlluminated=WorldArtworkMaterial.ReadFloat(renderer,"_Emission")>0,
+                backgroundLighting=WorldArtworkMaterial.ReadFloat(renderer,"_BackgroundLighting")>0};
         }
     }
 }

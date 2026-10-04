@@ -17,7 +17,7 @@ namespace Remains.Presentation
                 if(!string.IsNullOrEmpty(light.fixture)) Quad(parent,"Светильник: "+light.id,light.x-light.width/2,light.y,light.width,light.height,light.fixture,2,false,1,true);
             if(room.artwork!=null)
                 foreach(var layer in room.artwork)
-                    Quad(parent,"Фон: "+layer.texture,layer.x,layer.y,layer.width,layer.height,layer.texture,layer.order,layer.repeat,layer.shade,true,layer.stretchY,layer.selfIlluminated).AddComponent<Remains.Content.RoomArtworkAuthoring>().Configure(layer);
+                    Quad(parent,"Фон: "+layer.texture,layer.x,layer.y,layer.width,layer.height,layer.texture,layer.order,layer.repeat,layer.shade,true,layer.stretchY,layer.selfIlluminated,backgroundLighting:layer.backgroundLighting).AddComponent<Remains.Content.RoomArtworkAuthoring>().Configure(layer);
             else
             {
                 Quad(parent,"Задняя стена",room.left,0,room.right-room.left,7,"wall",-10);
@@ -39,7 +39,7 @@ namespace Remains.Presentation
             }
             return parent.gameObject;
         }
-        private static GameObject Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false,bool selfIlluminated=false,float pixelsPerUnit=50,bool localUv=false)
+        private static GameObject Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false,bool selfIlluminated=false,float pixelsPerUnit=50,bool localUv=false,bool backgroundLighting=false)
         {
             var texture=Resources.Load<Texture2D>("Original/Room/"+key);
             if(texture==null) throw new InvalidOperationException($"Отсутствует текстура комнаты: {key}, объект={name}.");
@@ -58,9 +58,10 @@ namespace Remains.Presentation
             {material=WorldArtworkMaterial.Create(texture);material.name="RoomMaterial:"+parent.name+":"+key;materials.Add(key,material);}
             var renderer=obj.AddComponent<MeshRenderer>(); renderer.sharedMaterial=material;
             renderer.sortingOrder=order;
-            if(selfIlluminated)
+            if(selfIlluminated || backgroundLighting)
             {
-                var properties=new MaterialPropertyBlock();properties.SetFloat("_Emission",1);renderer.SetPropertyBlock(properties);
+                var properties=new MaterialPropertyBlock();properties.SetFloat("_Emission",selfIlluminated?1:0);
+                properties.SetFloat("_BackgroundLighting",backgroundLighting?1:0);renderer.SetPropertyBlock(properties);
             }
             return obj;
         }

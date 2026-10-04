@@ -11,6 +11,7 @@ namespace Remains.Editor
         {
             CheckMaskColorSpace();
             CheckBackgroundSeparation();
+            CheckArtworkRoundTrip();
             var room=new RoomLayout {id="light-check",platforms=new[]{new RoomSurface {x=0,y=-2,width=.3f,height=4}}};
             var profile=new RoomLightProfile {ambient=new Color(.2f,.2f,.2f),lights=new[]{new RoomLight {id="test",x=-1,y=0,radius=5,intensity=.8f,color=Color.white}}};
             Require(RoomLightMap.Sample(room,profile,new Vector2(-.5f,0)).r>.7f,"Свет отсутствует рядом с источником");
@@ -43,6 +44,28 @@ namespace Remains.Editor
             Require(RoomLightMap.Sample(room,shadowProfile,Vector2.zero).r==1,"Выключение тени не восстановило свет");
             UnityEngine.Object.DestroyImmediate(texture);
             Debug.Log("Освещение: PASS — затухание, стена, открытая балка, общий шейдер.");
+        }
+        private static void CheckArtworkRoundTrip()
+        {
+            var layout=new RoomLayout {id="artwork-light-contract",left=0,right=4,bottom=0,top=2,
+                platforms=Array.Empty<RoomSurface>(),ladders=Array.Empty<RoomLadder>(),artwork=new RoomArtwork[4]};
+            for(int i=0;i<4;i++) layout.artwork[i]=new RoomArtwork {texture="Hub/concrete",x=i,width=1,height=1,
+                selfIlluminated=(i&1)!=0,backgroundLighting=(i&2)!=0};
+            var room=RoomVisual.Build(layout,new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()});
+            try
+            {
+                var authoring=room.AddComponent<Remains.Content.RoomAuthoring>();
+                var layers=room.GetComponentsInChildren<Remains.Content.RoomArtworkAuthoring>();
+                Require(layers.Length==4,"Потеряны слои тестового оформления");
+                for(int i=0;i<4;i++)
+                {
+                    var restored=JsonUtility.FromJson<RoomArtwork>(JsonUtility.ToJson(layers[i].Read(authoring)));
+                    Require(restored.selfIlluminated==layout.artwork[i].selfIlluminated && restored.backgroundLighting==layout.artwork[i].backgroundLighting,
+                        "Чтение/сериализация оформления потеряли роль освещения: "+i);
+                }
+            }
+            finally {UnityEngine.Object.DestroyImmediate(room);}
+            Debug.Log("Оформление: PASS — роли света сохранены при построении, чтении и сериализации общего ресурса.");
         }
         private static void CheckBackgroundSeparation()
         {

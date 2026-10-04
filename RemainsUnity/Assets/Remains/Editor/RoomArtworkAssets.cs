@@ -18,7 +18,8 @@ namespace Remains.Editor
                 var renderer=filter.GetComponent<MeshRenderer>();string prefix=folder+"/layer-"+index++;
                 AssetDatabase.CreateAsset(filter.sharedMesh,prefix+".asset");
                 var material=new Material(renderer.sharedMaterial);var block=new MaterialPropertyBlock();renderer.GetPropertyBlock(block);
-                material.SetFloat("_Emission",block.GetFloat("_Emission"));renderer.SetPropertyBlock(null);
+                material.SetFloat("_Emission",WorldArtworkMaterial.ReadFloat(renderer,"_Emission"));
+                material.SetFloat("_BackgroundLighting",WorldArtworkMaterial.ReadFloat(renderer,"_BackgroundLighting"));renderer.SetPropertyBlock(null);
                 AssetDatabase.CreateAsset(material,prefix+".mat");renderer.sharedMaterial=material;
             }
             var lifetime=generated.GetComponent<RoomMeshLifetime>();lifetime.Meshes.Clear();UnityEngine.Object.DestroyImmediate(lifetime);
