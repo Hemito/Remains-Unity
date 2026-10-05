@@ -6,6 +6,7 @@ namespace Remains.Domain
     [Serializable] public sealed class NpcWeaponActionState : Remains.Serialization.ExtensibleState
     {
         public string kind,item,weapon;
+        public string naturalAttackType;
         public long selectionRevision;
     }
     public interface INpcWeaponTimingRule
@@ -58,7 +59,7 @@ namespace Remains.Domain
             action.selectionRevision==actor.weaponSelectionRevision && WeaponInventory.Selected(actor) is { } item &&
             item.id==action.item && item.definition==action.weapon && actor.weapon==action.weapon && WeaponInventory.Available(actor,action.weapon);
         public static bool SameBinding(NpcWeaponActionState a,NpcWeaponActionState b)=>a==null?b==null:
-            b!=null && a.kind==b.kind && a.item==b.item && a.weapon==b.weapon && a.selectionRevision==b.selectionRevision;
+            b!=null && a.kind==b.kind && a.item==b.item && a.weapon==b.weapon && a.selectionRevision==b.selectionRevision && a.naturalAttackType==b.naturalAttackType;
         public static float ValidSeconds(float value,string context)
         {
             if(!float.IsFinite(value) || value<0) throw new InvalidOperationException("Некорректное время действия NPC: "+context);

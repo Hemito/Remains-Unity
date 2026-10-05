@@ -21,7 +21,8 @@ namespace Remains.Editor
                 {
                     bool rejected=false;
                     try {AtomicSaveFile.Write(path,"pending");} catch(IOException) {rejected=true;}
-                    Require(rejected && File.ReadAllText(path)=="second" && File.ReadAllText(path+".tmp")=="pending","Постоянная блокировка не подтверждает запись и сохраняет исходник/ожидающие данные");
+                    var pending=Directory.GetFiles(directory,"world.json.tmp-*");
+                    Require(rejected && File.ReadAllText(path)=="second" && pending.Length==1 && File.ReadAllText(pending[0])=="pending","Постоянная блокировка не подтверждает запись и сохраняет исходник/ожидающие данные в уникальном временном файле");
                 }
                 var transient=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read);
                 var release=Task.Run(()=>{System.Threading.Thread.Sleep(35);transient.Dispose();});

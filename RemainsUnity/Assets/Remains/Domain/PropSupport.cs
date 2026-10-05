@@ -7,6 +7,12 @@ namespace Remains.Domain
     // No ownership transfer: each simulator resolves only the object it already owns.
     public static class PropSupport
     {
+        // Read-only observation of the same support rule used by physical movement.
+        public static bool Supported(PropState moving,Vector2 feet,IEnumerable<PropState> neighbours)
+        {
+            var end=feet;
+            return Resolve(moving,feet,ref end,neighbours);
+        }
         public static bool Resolve(PropState moving,Vector2 start,ref Vector2 end,IEnumerable<PropState> neighbours)
         {
             if(neighbours==null || end.y>start.y) return false;

@@ -84,6 +84,7 @@ namespace Remains.Editor
         }
         private static GameObject Artwork(GameObject root,RoomLayout layout,string name,string folder)
         {
+            RoomTextureSampling.ConfigureRepeatingArtwork(layout);
             var group=RoomVisual.Build(layout,new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()});group.name=name;
             foreach(var art in group.GetComponentsInChildren<RoomArtworkAuthoring>())
                 if(art.Read(root.GetComponent<RoomAuthoring>()).order<-10) art.GetComponent<MeshRenderer>().sharedMaterial.SetFloat("_BackgroundLighting",1);

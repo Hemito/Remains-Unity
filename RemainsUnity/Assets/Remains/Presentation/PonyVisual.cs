@@ -64,7 +64,8 @@ namespace Remains.Presentation
             DrawOrder=20;
         }
 
-        private void Update()
+        // Draw only after the movement/pose contact decision for this frame.
+        private void LateUpdate()
         {
             DrawPose(state?.poseTime??0);
         }

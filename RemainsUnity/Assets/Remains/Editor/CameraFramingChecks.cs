@@ -6,6 +6,46 @@ namespace Remains.Editor
 {
     public static class CameraFramingChecks
     {
+        // Exercise the edge transition while position changes; the older check
+        // below covers a stationary body across graphic frames only.
+        private static void CheckEdgeTravel(Camera camera)
+        {
+            var room=new Remains.Domain.RoomLayout {id="camera-edge-travel",left=0,right=80,bottom=0,top=30};
+            var clips=Resources.Load<Remains.Content.PonyRenderAsset>("Original/Pony/render").Clips;
+            foreach(float aspect in new[]{16f/9,4f/3,1280f/534})
+            foreach(float dt in new[]{1f/30,1f/60,1f/144})
+            foreach(int edge in new[]{0,1,2,3})
+            {
+                camera.aspect=aspect;
+                var actor=new Remains.Domain.ActorState {id=$"camera-edge-{edge}-{dt:R}",x=edge==0?.5f:edge==1?79.5f:40,
+                    y=edge==2?.1f:edge==3?28.5f:15};
+                var direction=edge==0?Vector2.right:edge==1?Vector2.left:edge==2?Vector2.up:Vector2.down;
+                var follower=new CameraFollower(camera,room);
+                camera.transform.position=new Vector3(actor.x,actor.y,-10);
+                follower.Step(actor,10);
+                var previous=camera.transform.position;
+                for(int sample=0;sample<Mathf.CeilToInt(4/dt);sample++)
+                {
+                    actor.Position+=direction*(3*dt);
+                    actor.pose=clips[sample%clips.Length].id;actor.poseTime=sample*dt;
+                    actor.climbing=sample%2==0;actor.facing=sample%2==0?1:-1;
+                    follower.Step(actor,dt);
+                    var current=camera.transform.position;
+                    var displacement=new Vector2(current.x-previous.x,current.y-previous.y);
+                    if(Vector2.Dot(displacement,direction)<-.0001f)
+                        throw new InvalidOperationException($"Камера колеблется при монотонном уходе от края: edge={edge}, dt={dt:R}, sample={sample}, previous={previous}, current={current}.");
+                    float transverse=edge<2?displacement.y:displacement.x;
+                    if(Mathf.Abs(transverse)>.0001f)
+                        throw new InvalidOperationException($"Смена позы двигает камеру по неподвижной оси: edge={edge}, dt={dt:R}, sample={sample}, delta={displacement}.");
+                    var bounds=PonyVisual.CameraBounds(actor);
+                    float halfWidth=camera.orthographicSize*camera.aspect;
+                    if(current.x-halfWidth>bounds.min.x-.149f || current.x+halfWidth<bounds.max.x+.149f ||
+                        current.y-camera.orthographicSize>bounds.min.y-.149f || current.y+camera.orthographicSize<bounds.max.y+.149f)
+                        throw new InvalidOperationException($"Камера обрезает общую границу поз при уходе от края: edge={edge}, dt={dt:R}, sample={sample}, camera={current}, bounds={bounds}.");
+                    previous=current;
+                }
+            }
+        }
         public static void Run()
         {
             var root=new GameObject("Проверка авторской камеры");
@@ -24,6 +64,7 @@ namespace Remains.Editor
                 if(!rejected) throw new InvalidOperationException("Отсутствующая камера скрыта runtime-подстановкой.");
                 camera.orthographic=true;camera.orthographicSize=5;camera.aspect=1280f/534;
                 PonyVisual.Prepare();
+                CheckEdgeTravel(camera);
                 var follower=new CameraFollower(camera,new Remains.Domain.RoomLayout {id="camera-edge",left=0,right=80,bottom=0,top=30});
                 var actor=new Remains.Domain.ActorState {id="edge-climber",x=.1f,y=25,climbing=true,pose="climb"};
                 follower.Step(actor,10);var stable=camera.transform.position;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
@@ -75,7 +76,8 @@ namespace Remains.Content
             var entities=EntityAssetCatalog.Load();
             inputs.Add("Content/actors",entities.ActorsJson());inputs.Add("Content/props",entities.PropsJson());
             inputs.Add("Original/Weapons/artwork",WeaponRigs.ManifestJson());
-            inputs.Add("Original/Raider/artwork",JsonUtility.ToJson(AtlasAnimationData.Get("Original/Raider/artwork")));
+            foreach(string key in entities.CreateActors().Where(a=>a.presentation=="atlas").Select(a=>a.artwork).Distinct(StringComparer.Ordinal))
+                inputs.Add(key,JsonUtility.ToJson(AtlasAnimationData.Get(key)));
             var complete=GameplayContentManifest.Compose(loaded.manifest,inputs);
             var rules=GameplayCodeMods.Compose(loaded.codeMods);
             definitions=loaded.definitions;

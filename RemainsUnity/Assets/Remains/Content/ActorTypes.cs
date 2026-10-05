@@ -15,6 +15,7 @@ namespace Remains.Content
         public float restoreHealthAfterHit;
         [Min(0),InspectorName("Поглощение урона от попадания")] public float hitProtection;
         [InspectorName("Восприятие (для боевого AI)")] public Remains.Domain.NpcPerceptionSettings perception;
+        [SerializeReference,InspectorName("Естественная атака (пусто — оружейный AI)")] public Remains.Domain.NaturalAttackDefinition naturalAttack;
     }
     [Serializable] public sealed class ActorTypeList {public ActorTypeDefinition[] actors;}
     public static class ActorTypes
@@ -48,6 +49,12 @@ namespace Remains.Content
             {
                 if(definition.perception==null) throw new InvalidOperationException($"У боевого типа {definition.id} нет настроек восприятия.");
                 definition.perception.Validate();
+            }
+            if(definition.naturalAttack!=null)
+            {
+                if(!definition.combatAi || definition.hasWeapon || definition.atlasWeaponSocket)
+                    throw new InvalidOperationException("Естественная атака требует безоружный боевой тип: "+definition.id);
+                definition.naturalAttack.Validate(definition.id);
             }
         }
     }

@@ -24,14 +24,19 @@ namespace Remains.Domain
         private readonly IDamageRule rules;
         private readonly IKnockdownRule knockdown;
         private readonly IHitProtectionRule protection;
+        private readonly INaturalAttackDamageRule natural;
         public DamageReceiver(IDamageRule rules,IKnockdownRule knockdown=null,IHitProtectionRule protection=null)
-        {this.rules=rules;this.knockdown=knockdown??new ZeroHealthKnockdownRule();this.protection=protection??new TypeHitProtectionRule();}
+            :this(rules,knockdown,protection,new TypeNaturalAttackDamageRule()) {}
+        public DamageReceiver(IDamageRule rules,IKnockdownRule knockdown,IHitProtectionRule protection,INaturalAttackDamageRule natural)
+        {this.rules=rules;this.knockdown=knockdown??new ZeroHealthKnockdownRule();this.protection=protection??new TypeHitProtectionRule();this.natural=natural??throw new System.ArgumentNullException(nameof(natural));}
 
         public bool Apply(ActorState actor, AttackEvent attack, bool contact)
         {
             if (!AttackScope.Includes(attack,actor) || !contact || actor.health <= 0 || actor.resolvedAttacks.Contains(attack.id)) return false;
             float previousHealth=actor.health;
-            float amount=rules.Calculate(attack.weapon,attack.speed);
+            if(NpcNaturalAttack.IsNatural(attack)) NpcNaturalAttack.ValidateEvent(attack);
+            if(NpcNaturalAttack.IsNatural(attack) && actor.id!=attack.naturalAttackTarget) return false;
+            float amount=NpcNaturalAttack.IsNatural(attack)?natural.Calculate(attack.naturalAttackType):rules.Calculate(attack.weapon,attack.speed);
             if(float.IsNaN(amount) || float.IsInfinity(amount) || amount<0)
                 throw new System.InvalidOperationException($"Правило урона вернуло некорректное значение: actor={actor.id}, attack={attack.id}, damage={amount}.");
             amount=protection.Resolve(actor,attack,amount);

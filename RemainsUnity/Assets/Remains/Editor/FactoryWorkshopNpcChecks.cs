@@ -13,10 +13,18 @@ namespace Remains.Editor
         {
             ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
             var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
-            var layout=RoomNpcContent.Read(room,"factory:0");var geometry=room.CreateLayout();
+            var current=RoomNpcContent.Read(room,"factory:0");var geometry=room.CreateLayout();
+            int crawlers=current.actors.Count(a=>a.actorType=="radroach");
+            Require(crawlers==0 || crawlers==2,"Радтараканы установлены частично.");
+            // Retain the preceding raider expansion's focused fixture after the crawler addition.
+            var layout=StateJson.Copy(current);layout.actors=layout.actors.Where(a=>a.actorType!="radroach").ToArray();
+            layout.loot=layout.loot.Where(b=>layout.actors.Any(a=>a.id==b.actor)).ToArray();
+            layout.patch="factory:0:"+FactoryWorkshopNpcAuthoring.Patch;
+            layout.expansion=new ContentExpansion {previousPatch="factory:0:"+FactoryWorkshopNpcAuthoring.PreviousPatch,
+                additions=layout.actors.Where(a=>a.id.StartsWith("factory:0:original:plant:18:",StringComparison.Ordinal)).Select(a=>a.id).ToArray()};
             var records=room.GetComponentInChildren<RoomImportAudit>().Report.Records;
             var normal=records.Where(r=>r.kind=="enl2").ToArray();
-            Require(normal.Length==5 && normal.All(r=>r.installed) && records.Count(r=>r.kind=="enl1" && !r.installed)==2,
+            Require(normal.Length==5 && normal.All(r=>r.installed) && records.Count(r=>r.kind=="enl1" && r.installed)==crawlers,
                 "Метки обычных и мелких ползучих врагов потеряны или смешаны.");
             Require(layout.actors.Length==6 && layout.loot.Length==6 && layout.expansion?.additions.Length==5,"Не объявлены инвентари входа/цеха и пять добавочных NPC.");
             foreach(var record in normal)
@@ -41,7 +49,12 @@ namespace Remains.Editor
             var same=new WorldState {worldId=world.worldId};NpcContentInstaller.Apply(same,layout);
             Require(StateJson.ToJson(same.actors.Where(a=>layout.expansion.additions.Contains(a.id)).Select(a=>a.inventory).ToArray())==inventory,
                 "Один WorldId/ActorId даёт другой начальный лут.");
-            var second=RoomNpcContent.Read(room,"factory:6");NpcContentInstaller.Apply(world,second);
+            var second=StateJson.Copy(layout);second.level="factory:6";second.patch=second.patch.Replace("factory:0:","factory:6:");
+            second.expansion.previousPatch=second.expansion.previousPatch.Replace("factory:0:","factory:6:");
+            second.expansion.additions=second.expansion.additions.Select(id=>id.Replace("factory:0:","factory:6:")).ToArray();
+            foreach(var actor in second.actors) {actor.id=actor.id.Replace("factory:0:","factory:6:");actor.level=second.level;}
+            foreach(var binding in second.loot) binding.actor=binding.actor.Replace("factory:0:","factory:6:");
+            NpcContentInstaller.Apply(world,second);
             var items=world.actors.SelectMany(a=>a.inventory).ToArray();
             Require(world.actors.Count==12 && items.Length==36 && items.Select(i=>i.id).Distinct().Count()==36,
                 "Экземпляры заводов делят врагов или предметы.");

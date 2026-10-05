@@ -11,6 +11,19 @@ namespace Remains.Content
         [SerializeField,InspectorName("Физические объекты")] private PropAsset[] props=Array.Empty<PropAsset>();
         public void SetAssets(ActorTypeAsset[] actorAssets,PropAsset[] propAssets)
         {actors=(ActorTypeAsset[])actorAssets.Clone();props=(PropAsset[])propAssets.Clone();}
+        public void AddActor(ActorTypeAsset asset)
+        {
+            if(asset==null) throw new InvalidOperationException("Не задан тип персонажа для каталога.");
+            string id=asset.CreateDefinition().id;
+            foreach(var current in actors)
+            {
+                if(current==null) throw new InvalidOperationException("Каталог "+name+": пустая ссылка типа персонажа.");
+                if(current.CreateDefinition().id!=id) continue;
+                if(current!=asset) throw new InvalidOperationException("Тип персонажа уже зарегистрирован другим ассетом: "+id);
+                return;
+            }
+            Array.Resize(ref actors,actors.Length+1);actors[actors.Length-1]=asset;
+        }
         public void AddProp(PropAsset asset)
         {
             if(asset==null || asset.Prefab==null) throw new InvalidOperationException("Не готов ассет физического объекта для каталога.");

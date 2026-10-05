@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
@@ -110,6 +111,29 @@ namespace Remains.Editor
                     Require(audio.PropPlayed==beforePlayed+2,"Промах мимо объектов создал контакт.");
                 }
                 Require(Remains.Serialization.StateJson.ToJson(world)==beforeProps,"Косметический контакт изменил мир или содержимое контейнера.");
+                // Use registered factory dimensions and definitions, rather than legacy hub-only fixtures.
+                PropCatalog.Load();world.props.Clear();world.containers.Clear();
+                foreach(string definition in new[]{"woodbox","chest","ammobox","bigbox","mcrate4"})
+                foreach(string weapon in new[]{"crowbar","spear"})
+                {
+                    var prop=PropCatalog.Create("factory-contact",definition,"hub",new Vector2(2,1));
+                    world.props.Add(prop);
+                    var strike=new AttackEvent {id="factory-"+weapon+definition,attacker=observer.id,sourceOwner="remote",
+                        weapon=weapon,level="hub",originY=1,endX=4,endY=1,radius=.08f};
+                    int beforePlayed=audio.PropPlayed;
+                    string before=Remains.Serialization.StateJson.ToJson(prop);
+                    receive.Invoke(combat,new object[]{strike});receive.Invoke(combat,new object[]{strike});
+                    Require(audio.PropPlayed==beforePlayed+1,"Заводской объект пропущен или озвучен дважды: "+strike.id);
+                    var source=root.GetComponentsInChildren<AudioSource>().Last();
+                    bool wood=definition=="woodbox";
+                    Require(source.clip==Resources.Load<AudioClip>("Original/Audio/"+(wood?"hit-wood":"hit-metal")),"Неверный материал заводского объекта: "+definition);
+                    float gain=wood?.5f:.4f;
+                    var point=new Vector2(prop.x-prop.width*.5f,1);
+                    Require(Mathf.Abs(source.volume-playback.Volume*gain*GameplayAudio.Attenuation(Vector2.Distance(point,observer.Position)))<.00001f,
+                        "Неверная громкость заводского объекта: "+definition);
+                    Require(Remains.Serialization.StateJson.ToJson(prop)==before,"Звук изменил заводской объект: "+definition);
+                    world.props.Clear();
+                }
                 Debug.Log("Контакты ближнего оружия: PASS — актёры, стены, край оружия, дерево/металл объектов и контейнеров, уровни, дедупликация и сохранность мира.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}

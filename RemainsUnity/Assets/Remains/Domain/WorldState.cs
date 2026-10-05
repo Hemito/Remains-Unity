@@ -174,6 +174,8 @@ namespace Remains.Domain
         public bool sourcePlayer;
         public string weapon;
         public float originX;
+        public string naturalAttackType;
+        public string naturalAttackTarget;
         public float originY;
         public float endX;
         public float endY;

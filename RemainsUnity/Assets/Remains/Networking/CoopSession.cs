@@ -204,7 +204,7 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<AttackMessage>(message =>
             {
                 var attack=JsonUtility.FromJson<AttackEvent>(message.json);
-                if(WeaponCatalog.Get(attack.weapon).projectileSpeed<=0 || Projectiles.AcceptEcho(attack.id)) AttackReceived?.Invoke(attack);
+                if(NpcNaturalAttack.IsNatural(attack) || WeaponCatalog.Get(attack.weapon).projectileSpeed<=0 || Projectiles.AcceptEcho(attack.id)) AttackReceived?.Invoke(attack);
             });
             NetworkClient.RegisterHandler<NpcHitMessage>(message =>
             {TraceNpcHit("npc-hit-received",message);NpcHitReceived?.Invoke(message);});
@@ -574,6 +574,13 @@ namespace Remains.Networking
 
         public void Fire(AttackEvent attack)
         {
+            if(NpcNaturalAttack.IsNatural(attack))
+            {
+                var source=World?.Find(attack.attacker);
+                if(source==null || source.owner!=LocalOwner || Pause.IsPaused(attack.level)) return;
+                NpcNaturalAttack.ValidateEvent(attack,source);
+                NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});return;
+            }
             var definition=WeaponCatalog.Get(attack.weapon);
             if(definition.projectileSpeed<=0) {NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});return;}
             var actor=World?.Find(attack.attacker);
@@ -599,7 +606,12 @@ namespace Remains.Networking
             {Reject("Выстрел отменён: изменилась локация персонажа.");return;}
             attack.sourceOwner=owner;attack.sourcePlayer=ServerWorld.Find(attack.attacker).player;
             attack.friendlyFireDecision=ServerWorld.friendlyFireDecision;
-            float projectileSpeed=WeaponCatalog.Get(attack.weapon).projectileSpeed;
+            if(NpcNaturalAttack.IsNatural(attack))
+            {
+                try {NpcNaturalAttack.ValidateEvent(attack,ServerWorld.Find(attack.attacker));}
+                catch(InvalidOperationException error) {Reject(error.Message);return;}
+            }
+            float projectileSpeed=NpcNaturalAttack.IsNatural(attack)?0:WeaponCatalog.Get(attack.weapon).projectileSpeed;
             if(projectileSpeed>0)
             {
                 // An already-fired packet can arrive after pause. Retain its frozen flight;
@@ -631,7 +643,7 @@ namespace Remains.Networking
             var source=ServerWorld.Find(attack.attacker);
             if(target==null || target.generation!=message.generation || target.lifecycleSequence!=message.lifecycle ||
                 !owners.TryGetValue(connection.connectionId,out var owner) ||
-                !(WeaponCatalog.Get(attack.weapon).projectileSpeed>0?Projectiles.IsDecisionOwner(owner,attack):source!=null && source.player && source.owner==owner && attack.sourceOwner==owner) ||
+                !(!NpcNaturalAttack.IsNatural(attack) && WeaponCatalog.Get(attack.weapon).projectileSpeed>0?Projectiles.IsDecisionOwner(owner,attack):source!=null && source.player && source.owner==owner && attack.sourceOwner==owner) ||
                 !FriendlyFireDecision.UsesAttacker(attack,target) || !AttackScope.CanAffect(attack,target,ServerWorld.friendlyFire)) return;
             foreach(var pair in owners)
                 if(pair.Value==target.owner && NetworkServer.connections.TryGetValue(pair.Key,out var destination))
@@ -642,8 +654,13 @@ namespace Remains.Networking
             TraceNpcHit("npc-hit-relay",message,true);
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             var target = ServerWorld.Find(message.target);
-            if (target == null || target.player || string.IsNullOrEmpty(attack?.id) || !AttackScope.Includes(attack,target) ||
-                !owners.TryGetValue(connection.connectionId, out string owner) || !(WeaponCatalog.Get(attack.weapon).projectileSpeed>0?Projectiles.IsDecisionOwner(owner,attack):ServerWorld.Find(attack.attacker)?.owner==owner)) return;
+            if (target == null || target.player || string.IsNullOrEmpty(attack?.id) || !AttackScope.CanAffect(attack,target,ServerWorld.friendlyFire) ||
+                !owners.TryGetValue(connection.connectionId, out string owner) || !(!NpcNaturalAttack.IsNatural(attack) && WeaponCatalog.Get(attack.weapon).projectileSpeed>0?Projectiles.IsDecisionOwner(owner,attack):ServerWorld.Find(attack.attacker)?.owner==owner)) return;
+            if(NpcNaturalAttack.IsNatural(attack))
+            {
+                try {NpcNaturalAttack.ValidateEvent(attack,ServerWorld.Find(attack.attacker));}
+                catch(InvalidOperationException error) {Debug.LogWarning(error.Message);return;}
+            }
             npcHits.Accept(message,attack);
         }
 

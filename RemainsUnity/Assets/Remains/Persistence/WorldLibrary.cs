@@ -19,6 +19,11 @@ namespace Remains.Persistence
         private Labels Read()
         {
             store.EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(store.WorldDirectoryPath);
+            return ReadLabels();
+        }
+        private Labels ReadLabels()
+        {
             return File.Exists(LabelsPath)?JsonUtility.FromJson<Labels>(File.ReadAllText(LabelsPath))??throw new InvalidDataException("Не удалось прочитать имена миров."):new Labels();
         }
         public string Name(string id)=>Read().entries.Find(entry=>entry.id==id)?.name??"Мир "+id.Substring(0,Math.Min(8,id.Length));
@@ -29,7 +34,9 @@ namespace Remains.Persistence
             name=(name??"").Trim();
             if(name.Length==0 || name.Length>48 || Array.Exists(name.ToCharArray(),char.IsControl))
                 throw new ArgumentException("Название должно содержать от 1 до 48 символов без переносов строки.");
-            var labels=Read();var entry=labels.entries.Find(value=>value.id==id);
+            store.EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(store.WorldDirectoryPath);
+            var labels=ReadLabels();var entry=labels.entries.Find(value=>value.id==id);
             if(entry==null) {entry=new Entry {id=id};labels.entries.Add(entry);}
             entry.name=name;AtomicSaveFile.Write(LabelsPath,JsonUtility.ToJson(labels,true));
         }
@@ -38,7 +45,9 @@ namespace Remains.Persistence
         {
             if(string.IsNullOrWhiteSpace(name) || name.Length>48 || Array.Exists(name.ToCharArray(),char.IsControl))
                 throw new ArgumentException($"Некорректная старая подпись: профиль={profile}, мир={id}.");
-            var labels=Read();var entry=labels.entries.Find(value=>value.id==id);
+            store.EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(store.WorldDirectoryPath);
+            var labels=ReadLabels();var entry=labels.entries.Find(value=>value.id==id);
             if(entry==null) {entry=new Entry {id=id,name=name};labels.entries.Add(entry);}
             entry.legacyNames??=new();
             if(!entry.legacyNames.Any(value=>value.profile==profile && value.name==name)) entry.legacyNames.Add(new Alias {profile=profile,name=name});
@@ -47,6 +56,8 @@ namespace Remains.Persistence
         }
         public void PrepareNewGame()
         {
+            store.EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(store.WorldDirectoryPath);
             RecoverySnapshot selected;
             try {selected=store.SelectedSnapshot();}
             catch(InvalidDataException error)
@@ -61,6 +72,8 @@ namespace Remains.Persistence
         }
         public void Delete(string worldId)
         {
+            store.EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(store.WorldDirectoryPath);
             var catalog=store.Catalog.Read();
             foreach(string warning in catalog.warnings) Debug.LogWarning(warning);
             var paths=catalog.files.Where(entry=>entry.summary?.worldId==worldId)

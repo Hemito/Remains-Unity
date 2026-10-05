@@ -36,6 +36,7 @@ namespace Remains.Presentation
             grenades.Created+=flight=>Refresh();
             session.AttackReceived+=attack=>
             {
+                if(NpcNaturalAttack.IsNatural(attack)) return;
                 if(attack.weapon is "spear" or "crowbar" or "grenade" || attack.level!=session.LocalActor?.level) return;
                 if(Remains.Content.WeaponCatalog.Get(attack.weapon).projectileSpeed>0) return;
                 float limit=Remains.Content.WeaponCatalog.Get(attack.weapon).stopAtTerrain?

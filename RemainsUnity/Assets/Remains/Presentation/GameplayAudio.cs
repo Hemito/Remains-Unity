@@ -94,6 +94,12 @@ namespace Remains.Presentation
         private void Attack(AttackEvent attack)
         {
             if(session.LocalActor?.level!=attack.level) return;
+            if(NpcNaturalAttack.IsNatural(attack))
+            {
+                if(missing.Add("natural:"+attack.naturalAttackType))
+                    Debug.LogWarning($"Звук естественной атаки пока не настроен: type={attack.naturalAttackType}, actor={attack.attacker}, attack={attack.id}. Оружейный звук не подставляется; см. CRAWLER_SPEC.md.",this);
+                return;
+            }
             if(!sounds.TryGetValue(attack.weapon,out var entry))
             {if(missing.Add(attack.weapon)) Debug.LogWarning($"Нет звука атаки: weapon={attack.weapon}, attack={attack.id}.",this);return;}
             if(!seen.Add(attack.id)) return;

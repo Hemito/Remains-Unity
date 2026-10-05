@@ -28,8 +28,8 @@ namespace Remains.Editor
                 var geometry=new SimulationGeometry(_=>room);
                 geometry.Reconcile(world);
                 var controller=new NpcController(session,geometry);
-                ((Dictionary<string,MovementController>)typeof(NpcController).GetField("movement",BindingFlags.Instance|BindingFlags.NonPublic)
-                    .GetValue(controller)).Add(npc.level,new MovementController(room));
+                ((Dictionary<(string level,string type),MovementController>)typeof(NpcController).GetField("movement",BindingFlags.Instance|BindingFlags.NonPublic)
+                    .GetValue(controller)).Add((npc.level,npc.actorType),new MovementController(room));
                 for(int i=0;i<40;i++) controller.Step(1f/60);
                 Require(npc.target==player.id && npc.perception.hasKnownPosition,"Игровой контроллер не подтвердил видимого игрока.");
                 var known=npc.perception.KnownPosition;

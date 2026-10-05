@@ -15,6 +15,7 @@ namespace Remains.Content
         public void Configure(string value)=>patch=value;
         public void ConfigureExpansion(string previous,string[] additions)=>expansion=new ContentExpansion
         {previousPatch=previous,additions=(string[])additions.Clone()};
+        public void ConfigureExpansion(ContentExpansion value)=>expansion=Remains.Serialization.StateJson.Copy(value);
         public static NpcLayout Read(RoomAuthoring room,string level)
         {
             var content=room.GetComponent<RoomNpcContent>();

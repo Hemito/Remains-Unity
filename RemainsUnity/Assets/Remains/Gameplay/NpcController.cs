@@ -12,19 +12,29 @@ namespace Remains.Gameplay
         private readonly CoopSession session;
         private readonly SimulationGeometry geometry;
         private readonly NpcSenses senses;
-        private readonly Dictionary<string, MovementController> movement = new();
+        private readonly Remains.Content.MovementSettings movementSettings;
+        private readonly Dictionary<(string level,string type),MovementController> movement=new();
         public NpcController(CoopSession session,SimulationGeometry geometry)
         {
             this.session=session;this.geometry=geometry;
+            movementSettings=Remains.Content.MovementSettings.Load();
             senses=new NpcSenses(session,geometry);
             session.Changed+=()=>
             {
-                var needed=session.World==null?new HashSet<string>():new HashSet<string>(session.World.actors
-                    .Where(a=>!a.player && Remains.Content.ActorTypes.Get(a.actorType).combatAi && a.owner==session.LocalOwner && !a.down && LevelActivity.HasConnectedPlayer(session.World,a.level)).Select(a=>a.level));
-                foreach(string level in movement.Keys.Where(level=>!needed.Contains(level)).ToArray()) movement.Remove(level);
-                foreach(string level in needed)
-                    if(!movement.TryGetValue(level,out var controller) || !ReferenceEquals(controller.Room,geometry.Get(level)))
-                        movement[level]=new MovementController(geometry.Get(level));
+                var needed=session.World==null?Array.Empty<(string level,string type)>():session.World.actors
+                    .Where(a=>!a.player && Remains.Content.ActorTypes.Get(a.actorType).combatAi && a.owner==session.LocalOwner && !a.down && LevelActivity.HasConnectedPlayer(session.World,a.level))
+                    .Select(a=>(level:a.level,type:a.actorType)).Distinct().ToArray();
+                var keys=needed.ToHashSet();
+                foreach(var key in movement.Keys.Where(key=>!keys.Contains(key)).ToArray()) movement.Remove(key);
+                foreach(var value in needed)
+                {
+                    var key=value;
+                    if(movement.TryGetValue(key,out var controller) && ReferenceEquals(controller.Room,geometry.Get(value.level))) continue;
+                    var settings=Remains.Serialization.StateJson.Copy(movementSettings);
+                    var natural=Remains.Content.ActorTypes.Get(value.type).naturalAttack;
+                    if(natural!=null) {settings.walkSpeed=natural.approachSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);}
+                    movement[key]=new MovementController(geometry.Get(value.level),settings);
+                }
             };
         }
         public void Step(float dt)
@@ -34,20 +44,22 @@ namespace Remains.Gameplay
             {
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
                 if(ActorHoldRules.Active(actor)) continue;
-                if(!Remains.Content.ActorTypes.Get(actor.actorType).combatAi) continue;
+                var type=Remains.Content.ActorTypes.Get(actor.actorType);
+                if(!type.combatAi) continue;
+                bool natural=type.naturalAttack!=null;
                 if(!LevelActivity.HasConnectedPlayer(session.World,actor.level)) continue;
                 if(session.Pause.IsPaused(actor.level)) continue;
-                if(!movement.TryGetValue(actor.level,out var controller))
+                if(!movement.TryGetValue((actor.level,actor.actorType),out var controller))
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
                 senses.Step(actor,dt);
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
                 bool visible=target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
-                    WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*.55f);
+                    natural?NpcNaturalAttack.Origin(actor):WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*(natural?type.perception.targetHeight:.55f));
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {
                     controller.Step(actor,Vector2.zero,false,dt);
-                    NpcWeaponAim.Apply(actor,visible?target.Position+Vector2.up*.55f:null,controller.Room);
+                    if(!natural) NpcWeaponAim.Apply(actor,visible?target.Position+Vector2.up*.55f:null,controller.Room);
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
@@ -59,6 +71,14 @@ namespace Remains.Gameplay
                 }
                 Vector2? destination=visible?target.Position:
                     actor.perception.hasKnownPosition?actor.perception.KnownPosition:null;
+                if(natural)
+                {
+                    controller.Step(actor,new Vector2(NpcNaturalAttack.Approach(actor,destination,type.naturalAttack.approachSpeed),0),false,dt);
+                    if(destination.HasValue && Mathf.Abs(destination.Value.x-actor.x)>.01f) actor.facing=destination.Value.x>=actor.x?1:-1;
+                    if(visible && target.connected && !target.down && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
+                        session.PublishActor(actor);
+                    continue;
+                }
                 if(destination.HasValue)
                 {
                     var door=NpcDoorIntent.Select(actor,destination.Value,session.World.doors,geometry.Get(actor.level));

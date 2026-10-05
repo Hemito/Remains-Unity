@@ -32,6 +32,8 @@ namespace Remains.Persistence
         }
         public void Ensure(CancellationToken cancellation=default)
         {
+            // Always acquire the library before migration locks, including reentrant callers.
+            using var access=SaveAccess.Enter(worlds,cancellation);
             lock(gate)
             {
                 if(complete) return;

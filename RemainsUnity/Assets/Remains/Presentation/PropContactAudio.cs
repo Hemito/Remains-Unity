@@ -12,8 +12,7 @@ namespace Remains.Presentation
     {
         [Serializable] public sealed class Entry {public string definition,clip;}
         [Serializable] public sealed class Settings {public float volume,teleportDistance;public Entry[] entries;}
-        private sealed class Track {public readonly MotionContacts contacts=new();public readonly MovementHull hull=new();}
-        private readonly Dictionary<string,Track> tracks=new();
+        private readonly Dictionary<string,PropContactObservation> tracks=new();
         private readonly Dictionary<string,AudioClip> clips=new();
         private readonly HashSet<string> active=new(),missing=new();
         private readonly List<string> removed=new();
@@ -46,7 +45,7 @@ namespace Remains.Presentation
             if(listener!=null)
                 foreach(var prop in WorldProps.All(session.World))
                     if(prop.level==listener.level && prop.movable)
-                    {active.Add(prop.id);if(!tracks.ContainsKey(prop.id)) tracks.Add(prop.id,new Track());}
+                    {active.Add(prop.id);if(!tracks.ContainsKey(prop.id)) tracks.Add(prop.id,new PropContactObservation());}
             removed.Clear();
             foreach(string id in tracks.Keys) if(!active.Contains(id)) removed.Add(id);
             foreach(string id in removed) tracks.Remove(id);
@@ -59,11 +58,7 @@ namespace Remains.Presentation
             foreach(var prop in WorldProps.All(session.World))
             {
                 if(prop.level!=listener.level || !tracks.TryGetValue(prop.id,out var track)) continue;
-                track.hull.width=prop.width;track.hull.height=prop.height;
-                var feet=prop.Position-Vector2.up*prop.anchorHeight;
-                bool grounded=ActorTerrainMotion.Supported(room,track.hull,feet);
-                var contact=track.contacts.Sample(feet,prop.level,prop.generation,grounded,false,
-                    paused || prop.held,float.MaxValue,float.MaxValue,settings.teleportDistance);
+                var contact=track.Sample(prop,room,WorldProps.All(session.World),paused,settings.teleportDistance);
                 if(contact!=MotionContact.Landing) continue;
                 if(!clips.TryGetValue(prop.definition,out var clip))
                 {

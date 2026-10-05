@@ -42,6 +42,7 @@ namespace Remains.Gameplay
             if(session.World==null) {flights.Clear();return;}
             foreach(var state in session.World.projectiles)
             {
+                if(NpcNaturalAttack.IsNatural(state.launch)) throw new InvalidOperationException("Естественная атака не может быть снарядом: "+state.launch.id);
                 if(flights.TryGetValue(state.launch.id,out var existing))
                 {
                     if(state.generation>existing.state.generation)

@@ -48,6 +48,8 @@ namespace Remains.Editor
             FactoryRoomContentChecks.Run();
             FactoryBigBoxChecks.Run();
             FactoryWorkshopNpcChecks.Run();
+            FactoryCrawlerChecks.Run();
+            FactoryStairArtworkAuthoring.RunChecks();
             ConnectedFactoryChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();

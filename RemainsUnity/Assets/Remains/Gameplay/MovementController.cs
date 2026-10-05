@@ -52,7 +52,13 @@ namespace Remains.Gameplay
                 actor.vy = input.y * settings.climbSpeed * (input.y<0?settings.climbDownMultiplier:1);
                 // A held body stays at its grip even while horizontal input is pressed.
                 actor.vx=dt>0?Mathf.Clamp((selected.x+selected.movementOffset-actor.x)/dt,-settings.walkSpeed,settings.walkSpeed):0;
-                verticalDistance=actor.vy*dt;
+                var nextBody=actor.Position+new Vector2(actor.vx*dt,actor.vy*dt);
+                if(wasClimbing && actor.vy<0 && LadderPoseContact.ShouldRelease(actor,room,nextBody))
+                {
+                    ladder=false;
+                    verticalDistance=VerticalMotion.Step(actor,false,jumpHeld,dt,settings);
+                }
+                else verticalDistance=actor.vy*dt;
             }
             else
             {

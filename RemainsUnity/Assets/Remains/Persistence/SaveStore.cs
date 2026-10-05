@@ -32,6 +32,7 @@ namespace Remains.Persistence
         public WorldState LoadWorld(bool prepareForPlay=true)
         {
             EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(WorldDirectoryPath);
             string path = Path.Combine(WorldDirectoryPath, "world.json");
             if (!File.Exists(path)) return null;
             var world = JsonUtility.FromJson<WorldState>(File.ReadAllText(path));
@@ -89,6 +90,7 @@ namespace Remains.Persistence
         public RecoverySnapshot SelectedSnapshot()
         {
             EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(WorldDirectoryPath);
             string path=Path.Combine(WorldDirectoryPath,"world.json");
             return File.Exists(path)?new RecoverySnapshot(File.ReadAllText(path)):null;
         }
@@ -119,6 +121,7 @@ namespace Remains.Persistence
         public void SaveRecovery(RecoverySnapshot snapshot)
         {
             EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(WorldDirectoryPath);
             // Keep every distinct payload, including branches with identical revision numbers.
             string archive=Path.Combine("Worlds",snapshot.WorldId,"Snapshots",snapshot.Id+".json");
             string path=Path.Combine(WorldDirectoryPath,archive);

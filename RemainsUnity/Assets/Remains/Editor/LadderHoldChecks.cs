@@ -12,7 +12,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();
-            CheckAnimation();
+            CheckAnimation();LadderPoseContactChecks.Run();
             var room=RoomLayout.Load();
             foreach(float dt in new[]{1f/30,1f/60,1f/144})
             {

@@ -33,6 +33,7 @@ namespace Remains.Presentation
         }
         public void Observe(AttackEvent attack)
         {
+            if(NpcNaturalAttack.IsNatural(attack)) return;
             if(attack.level!=session.LocalActor?.level || !byAttack.TryGetValue(attack.weapon,out var clip)) return;
             var actor=session.World?.Find(attack.attacker);
             if(actor==null || ActorSessionRules.IsPassive(actor) || actor.weapon!=clip.weapon || actor.level!=attack.level || !ActorPresence.IsPresent(actor)) return;

@@ -43,7 +43,13 @@ namespace Remains.Presentation
         {
             var texture=Resources.Load<Texture2D>("Original/Room/"+key);
             if(texture==null) throw new InvalidOperationException($"Отсутствует текстура комнаты: {key}, объект={name}.");
-            texture.wrapMode=TextureWrapMode.Repeat;
+            if(repeat)
+            {
+                if(texture.wrapModeU!=TextureWrapMode.Repeat || !stretchY && texture.wrapModeV!=TextureWrapMode.Repeat)
+                    Debug.LogWarning($"Генератор оформления {name}, текстура {key}: импортированный sampler U={texture.wrapModeU}, V={texture.wrapModeV}. Временно запрошен Repeat для старого генератора; сохраните явные оси Repeat в импортёре. Сохранённые префабы используют данные импорта.");
+                texture.wrapModeU=TextureWrapMode.Repeat;
+                if(!stretchY) texture.wrapModeV=TextureWrapMode.Repeat;
+            }
             var obj=new GameObject(name); obj.transform.SetParent(parent,false); obj.transform.position=new Vector3(x,y,0);
             float u=repeat?(nativeScale?width*pixelsPerUnit/texture.width:width):1;
             float v=repeat && !stretchY?(nativeScale?height*pixelsPerUnit/texture.height:height):1;

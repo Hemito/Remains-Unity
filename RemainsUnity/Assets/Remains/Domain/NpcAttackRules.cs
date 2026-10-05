@@ -12,6 +12,7 @@ namespace Remains.Domain
         public static bool TryBegin(ActorState actor,ActorState target,INpcWeaponTimingRule timing=null)
         {
             if(actor.down || actor.attackBusy || actor.attackCooldown>0 || target==null) return false;
+            if(Remains.Content.ActorTypes.Get(actor.actorType).naturalAttack!=null) return NpcNaturalAttack.Begin(actor,target);
             var action=NpcWeaponActions.Prepare(actor);if(action==null) return false;
             var weapon=Remains.Content.WeaponCatalog.Get(action.weapon);timing ??=standardTiming;
             float duration=action.kind==NpcWeaponActions.Reload?weapon.reloadSeconds:timing.Preparation(actor,weapon);
@@ -25,6 +26,7 @@ namespace Remains.Domain
             if(actor.down) {Cancel(actor);return null;}
             if(!actor.attackBusy || actor.attackRemaining>0) return null;
             var action=actor.npcWeaponAction;
+            if(action?.kind==NpcNaturalAttack.Kind) return NpcNaturalAttack.Complete(actor,target,room);
             if(action==null || action.kind!=NpcWeaponActions.Shot && action.kind!=NpcWeaponActions.Reload)
             {
                 Debug.LogWarning($"Отменено действие NPC без поддержанной привязки: actor={actor.id}, attack={actor.attackId}, kind={action?.kind}.");

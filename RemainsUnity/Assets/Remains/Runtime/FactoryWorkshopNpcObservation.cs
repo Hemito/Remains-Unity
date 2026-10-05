@@ -11,7 +11,7 @@ namespace Remains.Runtime
     {
         public static void Verify(PrototypeRuntime runtime)
         {
-            var actors=runtime.Session.World.actors.Where(a=>!a.player && a.id.StartsWith("factory:0:original:plant:18:",StringComparison.Ordinal)).ToArray();
+            var actors=runtime.Session.World.actors.Where(a=>!a.player && a.actorType=="raider" && a.id.StartsWith("factory:0:original:plant:18:",StringComparison.Ordinal)).ToArray();
             var views=UnityEngine.Object.FindObjectsByType<ActorVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None);
             if(actors.Length!=5 || actors.Any(a=>a.actorType!="raider" || a.inventory.Count!=3 || string.IsNullOrWhiteSpace(a.owner) ||
                 WeaponInventory.Selected(a)?.definition!="pistol" || !views.Any(v=>v.ActorId==a.id && v.gameObject.activeInHierarchy)))

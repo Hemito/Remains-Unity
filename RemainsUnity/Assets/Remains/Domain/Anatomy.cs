@@ -8,20 +8,22 @@ namespace Remains.Domain
     [Serializable] public sealed class HitRegionDefinition { public string id; public float x,y,radius; public string[] shapes; public HitRegionPose[] poses; }
     [Serializable] public sealed class HitRegionPose {public string pose;public Vector2[] centers;}
     [Serializable] public sealed class MovementHull { public float width,height; }
-    [Serializable] public sealed class AnatomyDefinition { public string id,atlasArtwork,landingPose,fallPose; public MovementHull movement,crouchingMovement; public HitRegionDefinition[] regions; }
+    [Serializable] public sealed class AnatomyDefinition { public string id,atlasArtwork,landingPose,fallPose; public MovementHull movement,crouchingMovement; public PoseSupportDefinition supportContacts; public HitRegionDefinition[] regions; }
     [Serializable] public sealed class AnatomyCatalog { public AnatomyDefinition[] anatomies; }
     public static class Anatomy
     {
         private static readonly Dictionary<string,AnatomyDefinition> definitions=new();
         private static readonly Dictionary<string,Vector2?[]> poseCenters=new();
+        private static readonly Dictionary<string,PoseSupportContactData> supportContacts=new();
         public static void Load()
         {
             definitions.Clear();
-            poseCenters.Clear();
+            poseCenters.Clear();supportContacts.Clear();
             PonyAnimationData.Load();
             var asset=Resources.Load<TextAsset>("Content/anatomy");
             if(asset==null) throw new InvalidOperationException("Не найдены определения анатомии Content/anatomy.");
-            var catalog=JsonUtility.FromJson<AnatomyCatalog>(asset.text);
+            // Missing optional definitions must remain null, rather than empty Unity-serialized classes.
+            var catalog=Remains.Serialization.StateJson.FromJson<AnatomyCatalog>(asset.text);
             foreach(var definition in catalog.anatomies)
             {
                 if(definition.movement==null || !float.IsFinite(definition.movement.width) || !float.IsFinite(definition.movement.height) ||
@@ -35,6 +37,16 @@ namespace Remains.Domain
                     if(region==null || string.IsNullOrEmpty(region.id) || !ids.Add(region.id) || !float.IsFinite(region.radius) || region.radius<=0 || !float.IsFinite(region.x) || !float.IsFinite(region.y))
                         throw new InvalidOperationException($"Некорректная область {region?.id} анатомии {definition.id}.");
                 definitions.Add(definition.id,definition);
+                if(definition.supportContacts!=null)
+                {
+                    if(!string.IsNullOrEmpty(definition.atlasArtwork))
+                        throw new InvalidOperationException($"Контакты из составной графики не подходят атласной анатомии: anatomy={definition.id}, artwork={definition.atlasArtwork}.");
+                    var legs=Array.Find(definition.regions,region=>region.id=="legs");
+                    if(legs?.shapes==null || definition.supportContacts.shapes==null ||
+                        !System.Linq.Enumerable.SequenceEqual(legs.shapes,definition.supportContacts.shapes))
+                        throw new InvalidOperationException($"Контакты ног не соответствуют объявленным частям: anatomy={definition.id}.");
+                    supportContacts.Add(definition.id,new PoseSupportContactData(definition.id,definition.supportContacts));
+                }
                 foreach(var optionalPose in new[]{definition.landingPose,definition.fallPose})
                 if(!string.IsNullOrEmpty(optionalPose))
                 {
@@ -79,6 +91,14 @@ namespace Remains.Domain
                     }
                 }
             }
+        }
+
+        public static bool TrySupportContacts(ActorState actor,out IReadOnlyList<Vector2> contacts)
+        {
+            contacts=null;
+            if(!supportContacts.TryGetValue(actor.anatomy,out var data)) return false;
+            contacts=data.Sample(ActorPose.Clip(actor),PonyMotionFrames.Sample(actor,actor.poseTime));
+            return true;
         }
 
         public static string FallPose(ActorState actor)=>definitions[actor.anatomy].fallPose;

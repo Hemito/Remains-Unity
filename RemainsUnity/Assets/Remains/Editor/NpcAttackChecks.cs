@@ -72,9 +72,9 @@ namespace Remains.Editor
                 var geometry=new Remains.Gameplay.SimulationGeometry(session);
                 geometry.Reconcile(world);
                 var controller=new Remains.Gameplay.NpcController(session,geometry);
-                var cache=(System.Collections.Generic.Dictionary<string,Remains.Gameplay.MovementController>)typeof(Remains.Gameplay.NpcController)
+                var cache=(System.Collections.Generic.Dictionary<(string level,string type),Remains.Gameplay.MovementController>)typeof(Remains.Gameplay.NpcController)
                     .GetField("movement",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(controller);
-                cache.Add(npc.level,new Remains.Gameplay.MovementController(geometry.Get(npc.level)));
+                cache.Add((npc.level,npc.actorType),new Remains.Gameplay.MovementController(geometry.Get(npc.level)));
                 for(int i=0;i<12;i++) controller.Step(1f/60);
                 Require(npc.vx==0 && npc.pose=="idle" && npc.attackBusy && npc.x>0 && npc.x<.15f,"Подготовка выстрела сохраняет бег на месте или не тормозит");
                 npc.y=1;npc.vy=0;controller.Step(.1f);

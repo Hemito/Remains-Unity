@@ -9,6 +9,7 @@ namespace Remains.Editor
         public static void Run()
         {
             MovementRhythmChecks.Run();
+            PropContactAudioChecks.Run();
             foreach(int rate in new[]{30,60,144})
             {
                 var track=new MotionContacts();int contacts=0;

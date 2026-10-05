@@ -58,6 +58,7 @@ namespace Remains.Persistence
         public WorldCatalogResult Read(CancellationToken cancellation=default)
         {
             prepare?.Invoke(cancellation);
+            using var access=SaveAccess.Enter(directory,cancellation);
             lock(gate)
             {
                 var result=new WorldCatalogResult();
@@ -84,7 +85,7 @@ namespace Remains.Persistence
                 cancellation.ThrowIfCancellationRequested();
                 result.files=records.entries;
                 string body=StateJson.ToJson(records);
-                AtomicSaveFile.Write(cachePath,StateJson.ToJson(new Cache {payload=body,hash=RecoverySnapshot.Fingerprint(body)}),uniqueTemporary:true);
+                AtomicSaveFile.Write(cachePath,StateJson.ToJson(new Cache {payload=body,hash=RecoverySnapshot.Fingerprint(body)}),uniqueTemporary:true,cancellation:cancellation);
                 // Prefer the immutable archive over a mutable selected/flat file.
                 var copies=records.entries.Where(e=>e.summary!=null).GroupBy(e=>e.summary.snapshot)
                     .Select(g=>g.OrderByDescending(e=>e.file.Contains("Snapshots"+Path.DirectorySeparatorChar)).ThenBy(e=>e.file,StringComparer.Ordinal).First()).ToList();

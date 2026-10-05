@@ -23,6 +23,15 @@ namespace Remains.Presentation
         [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer view;
         public void SetRenderer(SpriteRenderer renderer)=>view=renderer;
         private bool generatedView;
+        [SerializeField,HideInInspector] private bool customDeadPresentation;
+        [SerializeField,HideInInspector] private bool deadFlipY;
+        [SerializeField,HideInInspector] private float deadLift;
+        [SerializeField,HideInInspector] private Color deadTint=Color.white;
+        public void ConfigureDeadPresentation(bool flipY,float lift,Color tint)
+        {
+            if(!float.IsFinite(lift)) throw new InvalidOperationException("Некорректное смещение изображения тела: "+name);
+            customDeadPresentation=true;deadFlipY=flipY;deadLift=lift;deadTint=tint;
+        }
         private Artwork artwork;
         private string artworkKey,missingPose;
         public string Resource=>artwork?.resource;
@@ -74,7 +83,8 @@ namespace Remains.Presentation
         private void Update() {if(state!=null) Draw();}
         public void Draw()
         {
-            transform.position=state.Position;view.flipX=(state.facing<0)!=artwork.facesLeft;
+            transform.position=state.Position+Vector2.up*(state.down?deadLift:0);view.flipX=(state.facing<0)!=artwork.facesLeft;
+            if(customDeadPresentation) {view.flipY=state.down && deadFlipY;view.color=state.down?deadTint:Color.white;}
             string pose=ActorPose.Clip(state);
             if(!artwork.clips.TryGetValue(pose,out var clip))
             {

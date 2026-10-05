@@ -45,7 +45,7 @@ namespace Remains.Gameplay
         {
             this.session = session;
             this.geometry=geometry;
-            session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);damage.Applied+=result=>DamageApplied?.Invoke(result);AttackerDecidedHits=VictimDecidedHits=0;};
+            session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown,null,session.Rules.NaturalAttackDamage);damage.Applied+=result=>DamageApplied?.Invoke(result);AttackerDecidedHits=VictimDecidedHits=0;};
             Reload=new WeaponReloadController(session);
             Projectiles=new ProjectileController(session,geometry,ApplyAttackTarget);
             session.AttackReceived += ReceiveAttack;
@@ -156,6 +156,13 @@ namespace Remains.Gameplay
             if (session.World == null) return;
             if(attack.weapon=="grenade") return; // Persisted explosion decisions are processed from World.
             if(!LevelActivity.HasConnectedPlayer(session.World,attack.level)) return;
+            if(NpcNaturalAttack.IsNatural(attack))
+            {
+                foreach(var target in NpcNaturalAttack.Contacts(session.World,attack,geometry.Get(attack.level)))
+                    if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>ApplyAttackTarget(attack,target));
+                    else ApplyAttackTarget(attack,target);
+                return;
+            }
             var definition=WeaponCatalog.Get(attack.weapon);
             if(definition.projectileSpeed>0) return;
             var terrain=ShotObstacles.FirstContact(geometry.Get(attack.level),attack.Origin,attack.End,out var surface,attack.radius);
