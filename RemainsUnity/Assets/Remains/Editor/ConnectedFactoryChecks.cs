@@ -14,7 +14,8 @@ namespace Remains.Editor
         public static void Check(RoomAuthoring room)
         {
             var layout=room.CreateLayout();var batch=RoomContentBatch.Read(room,"factory:0");
-            Require(layout.right==76.8f && layout.top==20 && layout.platforms.Length==127 && layout.ladders.Length==8 && layout.artwork.Length==325,
+            int exterior=FactoryBoundaryChecks.Check(room);
+            Require(layout.right==76.8f && layout.top==20 && layout.platforms.Length==127+exterior && layout.ladders.Length==8 && layout.artwork.Length==325+exterior,
                 "Потеряны границы или геометрия модулей.");
             Require(batch.doors.doors.Length==6 && batch.physical.props.Length==4 && batch.physical.containers.Length==14 &&
                 batch.physical.loot.Length==12 && batch.npcs.actors.Length==1 && batch.travelPoints.Length==1,
