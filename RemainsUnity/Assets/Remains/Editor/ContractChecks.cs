@@ -14,6 +14,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            ProjectStorageChecks.Run();
             ItemShortcutChecks.Run();
             DoorStateChecks.Run();DoorContentChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
             PonyAppearance.Prepare();PonyPaletteChecks.Run();

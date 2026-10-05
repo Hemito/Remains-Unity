@@ -39,7 +39,7 @@ namespace Remains.Runtime
         {
             runtime=value;report.character=value.Options.Character;lastFrame=Time.realtimeSinceStartupAsDouble;
             path=string.IsNullOrEmpty(value.Options.Report)?
-                Path.Combine(Application.persistentDataPath,"Diagnostics","session-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")+".json"):
+                Path.Combine(ProjectStorage.RootDirectory,"Diagnostics","session-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")+".json"):
                 value.Options.Report+".timing.json";
             value.Session.AttackReceived+=attack=>Record("launch-observed",attack.id,attack.attacker);
             value.Session.Projectiles.Confirmed+=id=>Record("launch-confirmed",id,value.Session.LocalActorId);

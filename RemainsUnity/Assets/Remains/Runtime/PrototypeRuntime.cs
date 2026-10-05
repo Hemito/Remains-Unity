@@ -85,7 +85,7 @@ namespace Remains.Runtime
             Session.CharacterId=Options.Character;
             Session.DebugTravelAllowed=Options.Smoke!=null && !Options.Smoke.StartsWith("travel-points");
             Session.networkAddress=Options.Address;
-            Session.Saves=new SaveStore(Options.SaveDirectory ?? Path.Combine(Application.persistentDataPath,"Profiles",Options.Character));
+            Session.Saves=new SaveStore(Options.SaveDirectory ?? Path.Combine(ProjectStorage.RootDirectory,"Profiles",Options.Character));
             if(Options.Smoke!=null && Options.Role=="host" && !string.IsNullOrEmpty(Options.Report))
                 gameObject.AddComponent<RecoveryTimingProbe>().Initialize(Session,Options.Report);
             // NetworkManager.Awake must see the final transport, including a test wrapper.
@@ -123,7 +123,7 @@ namespace Remains.Runtime
             Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             if(Application.isBatchMode && Options.Smoke!=null && string.IsNullOrEmpty(Options.SaveDirectory))
                 throw new System.InvalidOperationException("Фоновая проверка требует отдельного каталога --save-dir для настроек.");
-            AudioPreferences=new AudioPreferences(Path.Combine(Options.SaveDirectory??Application.persistentDataPath,"Settings","audio.json"));
+            AudioPreferences=new AudioPreferences(Path.Combine(Options.SaveDirectory??ProjectStorage.RootDirectory,"Settings","audio.json"));
             musicMixVolume=Music.Volume;AudioPreferences.Changed+=ApplyAudioPreferences;ApplyAudioPreferences();
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
@@ -138,7 +138,7 @@ namespace Remains.Runtime
                     (Keyboard.current?.leftShiftKey.isPressed==true || Keyboard.current?.rightShiftKey.isPressed==true));
                 hud.EquipWeapon=weapon=>{if(Session.LocalActor is {down:false}) Combat.Weapon=weapon;};
                 bool characterProbe=Options.Smoke?.StartsWith("characters")==true;
-                var characterLibrary=new CharacterLibrary(characterProbe?Path.Combine(Options.SaveDirectory,"Profiles"):Path.Combine(Application.persistentDataPath,"Profiles"),characterProbe?null:Options.SaveDirectory);
+                var characterLibrary=new CharacterLibrary(characterProbe?Path.Combine(Options.SaveDirectory,"Profiles"):Path.Combine(ProjectStorage.RootDirectory,"Profiles"),characterProbe?null:Options.SaveDirectory);
                 hud.SelectCharacter=name=>
                 {
                     if(!System.Text.RegularExpressions.Regex.IsMatch(name??"",@"^[\p{L}\p{N}_ -]{1,32}$"))
