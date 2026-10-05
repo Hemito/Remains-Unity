@@ -186,6 +186,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("container")) gameObject.AddComponent<NetworkContainerProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("npc") && Options.Smoke.Contains("-door-")) gameObject.AddComponent<NetworkNpcDoorProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("npc") && Options.Smoke.Contains("-workshop-loot-")) gameObject.AddComponent<NetworkWorkshopLootProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("npc") && Options.Smoke.Contains("-ammo-")) gameObject.AddComponent<NetworkNpcAmmunitionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("npc")) gameObject.AddComponent<NetworkNpcProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("freeze")) gameObject.AddComponent<NetworkFreezeProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("telekinesis")) gameObject.AddComponent<NetworkTelekinesisProbe>().Initialize(this);

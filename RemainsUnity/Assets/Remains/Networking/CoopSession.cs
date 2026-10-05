@@ -152,6 +152,8 @@ namespace Remains.Networking
                 foreach(var batch in roomContent) RoomContentInstaller.Apply(ServerWorld,batch);
             }
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
+            NpcWeaponInventoryMigration.Apply(ServerWorld,source==null?null:()=>Debug.Log("Сохранена копия мира перед преобразованием оружия NPC: "+Saves.PreserveRecoverySource()));
+            NpcWeaponActions.ValidateWorld(ServerWorld);
             WorldHistory.BeginContinuation(ServerWorld);
             GrenadeRules.BeginSession(ServerWorld);
             recoveredActors.Clear();
@@ -349,6 +351,7 @@ namespace Remains.Networking
                         actor.extensions=local.extensions;
                         actor.attackId=local.attackId;actor.attackTarget=local.attackTarget;actor.attackBusy=local.attackBusy;
                         actor.attackRemaining=local.attackRemaining;actor.attackCooldown=local.attackCooldown;
+                        actor.npcWeaponAction=Remains.Serialization.StateJson.Copy(local.npcWeaponAction);
                         actor.health = local.health; actor.down = local.down; actor.revision = local.revision;
                         actor.mana=local.mana;actor.damageSequence=local.damageSequence;actor.resolvedExplosions=local.resolvedExplosions;
                         actor.resolvedAttacks=local.resolvedAttacks;

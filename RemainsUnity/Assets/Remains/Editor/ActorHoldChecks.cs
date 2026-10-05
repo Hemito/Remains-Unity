@@ -16,6 +16,7 @@ namespace Remains.Editor
             var victim=new ActorState {id="B",owner="b",player=true,connected=true,x=3};
             var npc=new ActorState {id="npc",owner="b",actorType="raider",anatomy="raider",x=2,health=140,target=victim.id};
             npc.inventory.Add(SharedInventory.Create("heal",3));
+            NpcWeaponTestItems.Equip(npc);
             world.actors.AddRange(new[]{holder,victim,npc});
             var rules=new MassLimitedTelekinesisRule(TelekinesisSettings.Load());
             Require(rules.Rejection(holder,new TelekinesisTarget(npc),false)?.Contains("55 кг")==true,"Нет отказа по фактической массе рейдера");
@@ -25,7 +26,7 @@ namespace Remains.Editor
             ActorHoldRules.Begin(holder,npc,"first");
             var ownership=new OwnershipService();ownership.Reassign(world,new[]{"a","b"});
             Require(npc.owner=="b" && npc.hold.pendingAttack && npc.attackId==attack && npc.attackTarget==victim.id,"Передача прервала старую атаку");
-            NpcAttackRules.Complete(npc,victim);ownership.Reassign(world,new[]{"a","b"});
+            NpcWeaponTestItems.Finish(npc,victim);ownership.Reassign(world,new[]{"a","b"});
             Require(npc.owner=="a" && ActorHoldRules.Active(npc),"Владелец не передан после окончания атаки");
             Require(ActorHoldRules.Rejection(world,victim,npc)!=null,"Разрешены два держателя");
             Require(ActorHoldRules.SetTarget(npc,holder.id,npc.holdEpoch,1,new Vector2(1,4)) &&

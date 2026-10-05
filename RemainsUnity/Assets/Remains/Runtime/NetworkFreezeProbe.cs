@@ -33,7 +33,7 @@ namespace Remains.Runtime
             value.Session.AttackReceived+=attack=>
             {
                 if(value.Options.Role!="host") return;
-                if(Resume && attack.weapon=="npc-shot")
+                if(Resume && value.Session.World?.Find(attack.attacker) is {player:false})
                 {
                     if(attack.id==oldAttack || enteredAt==0 || Time.unscaledTime-enteredAt<1.5f)
                     {Complete(false,"После перезапуска пришла старая атака или потеряна пауза восстановления.");return;}

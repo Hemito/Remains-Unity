@@ -19,6 +19,12 @@ namespace Remains.Runtime
             if(!options.Smoke.StartsWith("shortcuts") && !(options.Smoke.StartsWith("actor-hold") && options.Smoke.Contains("-player-")))
             {
                 var npc=new ActorState {id="npc:training-guard",actorType="raider",anatomy="raider",owner="host",x=8,health=140};
+                if(options.Smoke.StartsWith("npc") && options.Smoke.Contains("-ammo-"))
+                {
+                    var item=SharedInventory.Create("pistol",1);item.weaponState=new WeaponItemState {rounds=1};npc.inventory.Add(item);
+                    npc.inventory.Add(SharedInventory.Create("p10",2));npc.weaponInventoryVersion=1;
+                    if(!WeaponInventory.Select(npc,item.id,out string reason)) throw new InvalidOperationException(reason);
+                }
                 if(options.Smoke.StartsWith("actor-hold")) npc.inventory.Add(SharedInventory.Create("heal",3));
                 world.actors.Add(npc);
             }

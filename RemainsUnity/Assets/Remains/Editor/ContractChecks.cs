@@ -40,6 +40,7 @@ namespace Remains.Editor
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
             RaiderWeaponSocketChecks.Run();
+            NpcAmmunitionChecks.Run();
             CharacterInterfaceChecks.Run();
             ActorControlChecks.Run();
             DoorCombatChecks.Run();

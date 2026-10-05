@@ -79,7 +79,7 @@ namespace Remains.Editor
             }
             finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
             var target=new ActorState {id="target",player=true,connected=true,x=-3,y=4};
-            NpcAttackRules.Begin(actor,target);var shot=NpcAttackRules.Complete(actor,target);
+            NpcWeaponTestItems.Equip(actor);actor.attackCooldown=0;NpcAttackRules.Begin(actor,target);var shot=NpcWeaponTestItems.Finish(actor,target);
             var muzzle=WeaponPose.Muzzle(actor);
             Require(shot!=null && Vector2.Distance(new Vector2(shot.originX,shot.originY),muzzle)<.0001f,"Выстрел NPC не начинается из дула");
             Require(Mathf.Abs(Vector3.Cross(new Vector2(shot.endX,shot.endY)-muzzle,WeaponPose.Direction(actor)).z)<.0001f,"Дуло NPC не направлено на цель");

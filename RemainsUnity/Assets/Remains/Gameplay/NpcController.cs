@@ -51,7 +51,7 @@ namespace Remains.Gameplay
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
-                        var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level));
+                        var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level),session.Rules.NpcWeaponTiming);
                         if(attack!=null) session.Fire(attack);
                         session.PublishActor(actor);
                     }
@@ -79,7 +79,7 @@ namespace Remains.Gameplay
                 NpcWeaponAim.Apply(actor,target.Position+Vector2.up*.55f,controller.Room);
                 if(visible && Mathf.Abs(distance)<7 && actor.attackCooldown<=0)
                 {
-                    NpcAttackRules.Begin(actor,target);session.PublishActor(actor);
+                    if(NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming)) session.PublishActor(actor);
                 }
             }
         }

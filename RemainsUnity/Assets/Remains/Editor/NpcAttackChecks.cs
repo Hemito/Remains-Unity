@@ -14,19 +14,20 @@ namespace Remains.Editor
             var a=new ActorState {id="a",player=true,connected=true,owner="a",x=2};
             var b=new ActorState {id="b",player=true,connected=true,owner="b",x=8};
             var npc=new ActorState {id="npc",owner="a",target=a.id};
+            NpcWeaponTestItems.Equip(npc);
             world.actors.Add(a);world.actors.Add(b);world.actors.Add(npc);
             var ownership=new OwnershipService();NpcAttackRules.Begin(npc,a);string id=npc.attackId;
             b.x=1;npc.target=b.id;
             Require(!ownership.ReassignAndReportChanges(world,new[]{"a","b"}),"Незавершённая атака ошибочно требует нового снимка владения");
             Require(npc.owner=="a" && npc.target==b.id && npc.attackTarget==a.id,"Начатая атака сохраняет свою цель и владельца при новом решении AI");
-            var attack=NpcAttackRules.Complete(npc,a);
+            var attack=NpcWeaponTestItems.Finish(npc,a);
             Require(ownership.ReassignAndReportChanges(world,new[]{"a","b"}),"Передача NPC не отмечена для сохранения");
             Require(!ownership.ReassignAndReportChanges(world,new[]{"a","b"}),"Неизменное владение требует повторного сохранения");
             Require(attack.id==id && npc.owner=="b" && npc.target==b.id && npc.attackCooldown==2,"Завершение передаёт владельца с сохранённой паузой");
             var restored=npc.Copy();Require(restored.attackCooldown==2 && restored.attackId==id,"Пауза и ID переживают сериализацию");
-            NpcAttackRules.Begin(npc,b);b.connected=false;ownership.Reassign(world,new[]{"a"});
+            npc.attackCooldown=0;NpcAttackRules.Begin(npc,b);b.connected=false;ownership.Reassign(world,new[]{"a"});
             Require(npc.owner=="a" && !npc.attackBusy && npc.attackTarget==null && npc.attackId==null && npc.attackCooldown==2,"Обрыв отменяет старую атаку и оставляет паузу новому владельцу");
-            var old=npc.Copy();NpcAttackRules.Begin(npc,a);npc.attackRemaining=.2f;
+            var old=npc.Copy();npc.attackCooldown=0;NpcAttackRules.Begin(npc,a);npc.attackRemaining=.2f;
             NpcAttackRules.CopyProgress(old,npc);Require(npc.attackRemaining==.2f,"Поздний прогресс предыдущей атаки не переписывает новую");
             Debug.Log("NpcAttackChecks PASS: цель, передача после завершения, пауза, сериализация и отмена при обрыве.");
         }
@@ -37,6 +38,7 @@ namespace Remains.Editor
             var far=new ActorState {id="far",player=true,connected=true,owner="far",x=8};
             var near=new ActorState {id="near",player=true,connected=true,owner="near",x=1};
             var npc=new ActorState {id="wounded",actorType="raider",owner="far",target=far.id,health=1,x=0};
+            NpcWeaponTestItems.Equip(npc);
             world.actors.Add(far);world.actors.Add(near);world.actors.Add(npc);
             NpcAttackRules.Begin(npc,far);
             var receiver=new DamageReceiver(new PrototypeDamageRule());
@@ -59,6 +61,7 @@ namespace Remains.Editor
             try
             {
                 var session=root.AddComponent<Remains.Networking.CoopSession>();
+                session.ConfigureRules(GameplayRuleSet.CreateDefault());
                 var world=new WorldState();
                 var player=new ActorState {id="target",player=true,connected=true,owner="owner",x=4};
                 var npc=new ActorState {id="guard",actorType="raider",anatomy="raider",weapon="pistol",owner="owner",x=0,vx=2.1f,pose="walk",

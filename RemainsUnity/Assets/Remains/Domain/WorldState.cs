@@ -80,6 +80,7 @@ namespace Remains.Domain
         public bool attackBusy;
         public float attackRemaining;
         public string attackId,attackTarget;
+        public NpcWeaponActionState npcWeaponAction;
         public float attackCooldown;
         public List<ItemStack> inventory = new();
         public int loadoutVersion;

@@ -54,6 +54,7 @@ namespace Remains.Domain
     {
         public IDoorAccessRule DoorAccess {get;}
         public IItemActionRule ItemActions {get;}
+        public INpcWeaponTimingRule NpcWeaponTiming {get;}
         public IDamageRule Damage {get;}
         public IKnockdownRule Knockdown {get;}
         public IPartyDefeatRule PartyDefeat {get;}
@@ -71,7 +72,10 @@ namespace Remains.Domain
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess)
             :this(damage,knockdown,partyDefeat,loot,pause,deposit,telekinesis,proximityOwnership,doorAccess,new StandardItemActions()) {}
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess,IItemActionRule itemActions)
+            :this(damage,knockdown,partyDefeat,loot,pause,deposit,telekinesis,proximityOwnership,doorAccess,itemActions,new GuardWeaponTiming()) {}
+        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess,IItemActionRule itemActions,INpcWeaponTimingRule npcWeaponTiming)
         {
+            NpcWeaponTiming=npcWeaponTiming??throw new ArgumentNullException(nameof(npcWeaponTiming));
             ItemActions=itemActions??throw new ArgumentNullException(nameof(itemActions));
             DoorAccess=doorAccess??new NearbyDoorAccess();
             Damage=damage??throw new ArgumentNullException(nameof(damage));

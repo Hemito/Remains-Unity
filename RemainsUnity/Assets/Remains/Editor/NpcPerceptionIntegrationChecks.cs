@@ -59,8 +59,9 @@ namespace Remains.Editor
                 room.platforms[1].oneWay=true;
                 Require(RoomVisibility.Clear(room,new Vector2(0,1),new Vector2(6,1)),"Односторонняя платформа стала сплошной стеной зрения.");
                 room.platforms[1].oneWay=false;
-                NpcAttackRules.Begin(npc,player);
-                Require(NpcAttackRules.Complete(npc,player,room)==null,"NPC выпустил прицельный выстрел через закрывшую цель стену.");
+                if(npc.weaponInventoryVersion==0) NpcWeaponTestItems.Equip(npc);
+                npc.attackCooldown=0;NpcAttackRules.Begin(npc,player);
+                Require(NpcWeaponTestItems.Finish(npc,player,room)==null,"NPC выпустил прицельный выстрел через закрывшую цель стену.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
             Debug.Log("NpcPerceptionIntegrationChecks PASS: контроллер, геометрия, сохранение, защита от отката и владелец по цели.");

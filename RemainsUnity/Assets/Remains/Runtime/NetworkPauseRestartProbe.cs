@@ -42,7 +42,7 @@ namespace Remains.Runtime
             value.Session.Changed+=()=>{if(Host && Resume && enteredAt==0 && value.Session.LocalActor!=null) enteredAt=Time.unscaledTime;};
             value.Session.AttackReceived+=eventData=>
             {
-                if(!Host || !Resume || eventData.weapon!="npc-shot") return;
+                if(!Host || !Resume || value.Session.World?.Find(eventData.attacker) is not {player:false}) return;
                 if(eventData.id==attack || enteredAt==0 || Time.unscaledTime-enteredAt<1.5f)
                 {Complete(false,"После загрузки исполнилась старая атака либо пропущено время восстановления владельца.");return;}
                 resumedShots++;

@@ -42,7 +42,7 @@ namespace Remains.Editor
 
             a.down=false;a.x=5;b.level=npc.level;b.x=7;
             perception.Step(npc,memory,subjects,Clear,.31f);
-            NpcAttackRules.Begin(npc,a);string attack=npc.attackId;
+            NpcWeaponTestItems.Equip(npc);NpcAttackRules.Begin(npc,a);string attack=npc.attackId;
             b.x=2;perception.Step(npc,memory,subjects,Clear,.31f);
             Require(npc.target==b.id && npc.attackTarget==a.id && npc.attackId==attack && npc.attackBusy,
                 "Новая обнаруженная цель переписала уже начатую атаку.");

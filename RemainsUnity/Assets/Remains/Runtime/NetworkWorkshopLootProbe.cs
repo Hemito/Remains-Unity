@@ -10,7 +10,7 @@ using UnityEngine;
 namespace Remains.Runtime
 {
     public struct WorkshopLootFixture : NetworkMessage {public string source,item;public int generation;}
-    public struct WorkshopLootObserved : NetworkMessage {public string item,owner;public bool defeated,opened,granted;}
+    public struct WorkshopLootObserved : NetworkMessage {public string item,owner;public bool defeated,opened,granted;public int rounds,shots;public long magazineRevision;}
     public struct WorkshopLootFinish : NetworkMessage {public bool success;public string detail;}
     // An isolated combat fixture: only the player is placed near an actual authored NPC.
     // Enemy health, position, controller and loot are untouched; production input and UI do the rest.
@@ -23,6 +23,9 @@ namespace Remains.Runtime
         private float deadline;
         private bool traveled,installed,defeated,opened,clicked,granted,observed,finished;
         private string capture;
+        private int roundsAtDeath=-1;
+        private long magazineRevisionAtDeath;
+        private readonly System.Collections.Generic.HashSet<string> npcShots=new();
         private bool Host=>runtime.Options.Role=="host";
         private bool Source=>runtime.Options.ProbePeers==1 || runtime.Options.Character=="session-client-1";
         private ActorState Npc=>runtime.Session.World.Find(NpcId);
@@ -36,6 +39,7 @@ namespace Remains.Runtime
                 value.Session.Saves.SaveWorld(NewGameWorld.Create());
             }
             value.CommandSource=Command;
+            value.Session.AttackReceived+=attack=>{if(attack.attacker==NpcId && attack.weapon=="pistol") npcShots.Add(attack.id);};
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<WorkshopLootFixture>(message=>fixture=message);
@@ -49,13 +53,15 @@ namespace Remains.Runtime
                 var received=player.inventory.SingleOrDefault(i=>i.id==fixture.item);
                 bool valid=message.item==fixture.item && message.defeated && message.opened && message.granted && body is {down:true,health:<=0} &&
                     body.resolvedAttacks.Count>0 && body.owner==player.owner && body.owner==message.owner &&
-                    received?.definition=="pistol" && received.weaponState?.rounds==6 && body.inventory.Count==2 &&
+                    received?.definition=="pistol" && received.weaponState?.rounds==message.rounds && message.rounds>=0 &&
+                    message.rounds<=WeaponCatalog.Get("pistol").magazineSize && message.shots>0 && message.magazineRevision>=message.shots &&
+                    received.weaponState.revision==message.magazineRevision && body.inventory.Count==2 &&
                     !body.inventory.Any(i=>i.id==fixture.item) && !value.Session.ServerWorld.pendingGrants.Any();
                 if(valid)
                 {
                     value.Session.CommitWorld();var saved=value.Session.Saves.LoadWorld(false);
                     valid=saved.Find(NpcId) is {down:true,health:<=0} savedBody && savedBody.inventory.Count==2 &&
-                        !savedBody.inventory.Any(i=>i.id==fixture.item) && saved.Find(player.id).inventory.Any(i=>i.id==fixture.item && i.weaponState?.rounds==6);
+                        !savedBody.inventory.Any(i=>i.id==fixture.item) && saved.Find(player.id).inventory.Any(i=>i.id==fixture.item && i.weaponState?.rounds==message.rounds && i.weaponState.revision==message.magazineRevision);
                 }
                 NetworkServer.SendToAll(new WorkshopLootFinish {success=valid,detail=valid?
                     "Исходный рейдер цеха побеждён настоящими выстрелами; E открыл его единый инвентарь, клик выдал пистолет с магазином ровно один раз, результат сохранён.":
@@ -96,7 +102,8 @@ namespace Remains.Runtime
             }
             if(!Source || fixture.source==null || actor.generation!=fixture.generation || Npc is not { } npc) return;
             if(actor.down) {Finish(false,"Игрок потерял сознание в боевой встрече цеха.");return;}
-            if(npc.down && !defeated) {defeated=true;capture="defeated";}
+            if(npc.down && !defeated)
+            {defeated=true;var state=WeaponInventory.Selected(npc)?.weaponState;roundsAtDeath=state?.rounds ?? -1;magazineRevisionAtDeath=state?.revision ?? -1;capture="defeated";}
             if(opened && !clicked && runtime.Hud.ContainerOpen)
             {
                 if(runtime.Hud.ShownInventorySourceId!=InventorySource.BodyId(npc.id) || npc.inventory[0].id!=fixture.item)
@@ -107,7 +114,8 @@ namespace Remains.Runtime
                 !session.World.pendingGrants.Any(g=>g.containerId==InventorySource.BodyId(npc.id)) && !granted)
             {
                 granted=true;runtime.Hud.CloseContainer();capture="granted";
-                NetworkClient.Send(new WorkshopLootObserved {item=fixture.item,owner=npc.owner,defeated=defeated,opened=opened,granted=true});
+                NetworkClient.Send(new WorkshopLootObserved {item=fixture.item,owner=npc.owner,defeated=defeated,opened=opened,granted=true,
+                    rounds=roundsAtDeath,shots=npcShots.Count,magazineRevision=magazineRevisionAtDeath});
             }
         }
         private void Setup(ActorState player)
@@ -138,11 +146,11 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,source=Source,
-                defeated=defeated,opened=opened,granted=granted,npcOwner=Npc?.owner,item=fixture.item},true));
+                defeated=defeated,opened=opened,granted=granted,npcOwner=Npc?.owner,item=fixture.item,roundsAtDeath=roundsAtDeath,npcShots=npcShots.Count,magazineRevision=magazineRevisionAtDeath},true));
             exitCode=success?0:1;Invoke(nameof(Exit),2);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success,source,defeated,opened,granted;public string detail,npcOwner,item;}
+        [Serializable] private sealed class Report {public bool success,source,defeated,opened,granted;public string detail,npcOwner,item;public int roundsAtDeath,npcShots;public long magazineRevision;}
     }
 }

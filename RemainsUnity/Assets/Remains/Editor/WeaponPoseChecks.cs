@@ -82,8 +82,9 @@ namespace Remains.Editor
                 Require(actor.weaponReach>.5f,"Прозрачная для пуль поверхность убрала оружие");
                 wall.shotsPassThrough=false;wall.x=side>0?.1f:-.11f;
                 var victim=new ActorState {id="victim",player=true,connected=true,level="hub",x=side*5};
+                NpcWeaponTestItems.Equip(actor,weapon);
                 NpcAttackRules.Begin(actor,victim);
-                Require(NpcAttackRules.Complete(actor,victim,room)==null && !actor.attackBusy && actor.attackCooldown>0,
+                Require(NpcWeaponTestItems.Finish(actor,victim,room)==null && !actor.attackBusy && actor.attackCooldown>0,
                     "NPC выстрелил через перекрытый ствол или не закончил атаку");
                 room.platforms=Array.Empty<RoomSurface>();WeaponPose.Aim(actor,target,room);
                 Require(actor.weaponReach>.5f,"Оружие не вернулось после освобождения пространства");

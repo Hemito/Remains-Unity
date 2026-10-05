@@ -28,7 +28,7 @@ namespace Remains.Runtime
         private AttackEvent acceptedShot;
         private int replayProofs;
         private readonly Dictionary<string,float> shots=new();
-        private readonly TrainingWeaponTrace weaponTrace=new("npc-shot");
+        private readonly TrainingWeaponTrace weaponTrace=new("pistol");
         private InteractionVisuals interactionVisuals;
         private ProjectileVisuals projectileVisuals;
         private bool Host=>runtime.Options.Role=="host";
@@ -52,7 +52,7 @@ namespace Remains.Runtime
             value.Session.AttackReceived+=attack=>
             {
                 if(Host && attack.weapon=="energy" && attack.attacker=="player:session-host") acceptedShot=attack;
-                if(attack.weapon!="npc-shot") return;
+                if(value.Session.World?.Find(attack.attacker) is not {player:false} || attack.weapon!="pistol") return;
                 weaponTrace.Observe(attack,value.Session.World?.Find(attack.attacker),attack.sourceOwner==value.Session.LocalOwner);
                 if(shots.ContainsKey(attack.id)) {Finish(false,"NPC повторил ID выстрела.");return;}
                 shots.Add(attack.id,Time.unscaledTime);

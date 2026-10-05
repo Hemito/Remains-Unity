@@ -18,7 +18,7 @@ namespace Remains.Editor
             var normal=records.Where(r=>r.kind=="enl2").ToArray();
             Require(normal.Length==5 && normal.All(r=>r.installed) && records.Count(r=>r.kind=="enl1" && !r.installed)==2,
                 "Метки обычных и мелких ползучих врагов потеряны или смешаны.");
-            Require(layout.actors.Length==6 && layout.loot.Length==5 && layout.expansion?.additions.Length==5,"Не объявлены пять добавочных NPC и их инвентари.");
+            Require(layout.actors.Length==6 && layout.loot.Length==6 && layout.expansion?.additions.Length==5,"Не объявлены инвентари входа/цеха и пять добавочных NPC.");
             foreach(var record in normal)
             {
                 string id="factory:0:original:plant:18:"+record.code;
@@ -43,7 +43,7 @@ namespace Remains.Editor
                 "Один WorldId/ActorId даёт другой начальный лут.");
             var second=RoomNpcContent.Read(room,"factory:6");NpcContentInstaller.Apply(world,second);
             var items=world.actors.SelectMany(a=>a.inventory).ToArray();
-            Require(world.actors.Count==12 && items.Length==30 && items.Select(i=>i.id).Distinct().Count()==30,
+            Require(world.actors.Count==12 && items.Length==36 && items.Select(i=>i.id).Distinct().Count()==36,
                 "Экземпляры заводов делят врагов или предметы.");
             CheckUpgrade(layout);CheckClaims(layout);CheckInvalid(layout);
             Debug.Log("Враги цеха: PASS — пять исходных мест, отдельные фабрики, единый инвентарь, добавление в старый мир без возрождения/пополнения, первый подтверждённый запрос и атомарные отказы.");
