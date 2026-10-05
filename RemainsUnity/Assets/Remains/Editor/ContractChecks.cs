@@ -24,6 +24,7 @@ namespace Remains.Editor
             NpcPerceptionChecks.Run();
             ExplosionPrefabChecks.Run();
             Anatomy.Load();
+            NpcDoorChecks.Run();
             ActorStepChecks.Run();
             SlopedSupportChecks.Run();
             DoorVisualChecks.Run();DoorGeometryChecks.Run();DoorRequestChecks.Run();DoorClosureMotionChecks.Run();InteractionSelectionChecks.Run();TravelPointChecks.Run();

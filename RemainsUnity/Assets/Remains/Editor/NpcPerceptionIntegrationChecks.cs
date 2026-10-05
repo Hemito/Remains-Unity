@@ -33,7 +33,12 @@ namespace Remains.Editor
                 for(int i=0;i<40;i++) controller.Step(1f/60);
                 Require(npc.target==player.id && npc.perception.hasKnownPosition,"Игровой контроллер не подтвердил видимого игрока.");
                 var known=npc.perception.KnownPosition;
-                room.platforms=new[]{floor,new RoomSurface {x=2,y=0,width=.5f,height=4}};
+                room.platforms=new[]{floor,new RoomSurface {x=2,y=0,width=.5f,height=4},new RoomSurface {x=-2,y=0,width=.5f,height=4}};
+                // A cached target ID may survive until the next perception sample.
+                // Even between samples, movement must use the remembered point, not a hidden player's new position.
+                player.x=-6;controller.Step(0);
+                Require(npc.target==player.id && npc.facing==1 && npc.perception.KnownPosition==known,
+                    "Между опросами зрения NPC повернулся к новым скрытым координатам вместо известного места.");
                 player.x=6;
                 for(int i=0;i<12;i++) controller.Step(1f/60);
                 Require(npc.target==null && npc.perception.KnownPosition==known,"Игровой NPC продолжает следить через стену.");

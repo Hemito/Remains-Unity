@@ -17,8 +17,11 @@ namespace Remains.Domain
         }
         public string Rejection(ActorState actor,DoorState door)
         {
-            if(actor==null || !actor.connected || !actor.player) return "Для взаимодействия нужен подключённый игрок.";
+            if(actor==null || actor.player && !actor.connected) return "Для взаимодействия нужен действующий персонаж.";
+            if(!actor.player && (!Remains.Content.ActorTypes.Get(actor.actorType).canUseDoors || string.IsNullOrEmpty(actor.owner)))
+                return "Этот персонаж не может пользоваться дверями.";
             if(actor.down) return "Без сознания нельзя открыть дверь.";
+            if(!actor.player && (ActorHoldRules.Active(actor) || actor.attackBusy)) return "Персонаж занят и не может открыть дверь.";
             if(actor.level!=door.level) return "Дверь находится в другой локации.";
             if(!float.IsFinite(actor.x) || !float.IsFinite(actor.y) || door.DistanceTo(actor.Position)>distance)
                 return "Подойдите ближе к двери.";

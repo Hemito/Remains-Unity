@@ -41,8 +41,9 @@ namespace Remains.Gameplay
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
                 senses.Step(actor,dt);
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
-                if(target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
-                    WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*.55f))
+                bool visible=target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
+                    WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*.55f);
+                if(visible)
                     WeaponPose.Aim(actor,target.Position+Vector2.up*.55f,geometry.Get(actor.level));
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
@@ -57,7 +58,14 @@ namespace Remains.Gameplay
                     }
                     continue;
                 }
-                if(target==null || target.level!=actor.level || target.down || !target.connected)
+                Vector2? destination=visible?target.Position:
+                    actor.perception.hasKnownPosition?actor.perception.KnownPosition:null;
+                if(destination.HasValue)
+                {
+                    var door=NpcDoorIntent.Select(actor,destination.Value,session.World.doors,geometry.Get(actor.level));
+                    if(door!=null) session.Doors.RequestNpcOpen(actor,door.id);
+                }
+                if(!visible || target.level!=actor.level || target.down || !target.connected)
                 {
                     var memory=actor.perception;
                     float search=memory.hasKnownPosition?memory.knownX-actor.x:0;
@@ -68,7 +76,7 @@ namespace Remains.Gameplay
                 float distance=target.x-actor.x;
                 controller.Step(actor,new Vector2(Mathf.Abs(distance)>5?Mathf.Sign(distance)*0.5f:0,0),false,dt);
                 actor.facing=distance>=0?1:-1;
-                if(Mathf.Abs(distance)<7 && actor.attackCooldown<=0)
+                if(visible && Mathf.Abs(distance)<7 && actor.attackCooldown<=0)
                 {
                     NpcAttackRules.Begin(actor,target);session.PublishActor(actor);
                 }

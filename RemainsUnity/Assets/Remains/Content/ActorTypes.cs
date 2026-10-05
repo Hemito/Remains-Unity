@@ -8,6 +8,7 @@ namespace Remains.Content
     {
         public string id,presentation,artwork;
         public bool combatAi,hasWeapon,bodyInventory;
+        [InspectorName("Может пользоваться дверями")] public bool canUseDoors;
         [Min(0),InspectorName("Масса тела, кг")] public float bodyMassKg;
         [InspectorName("Разрешён перенос телекинезом")] public bool telekinesisMovable;
         public float restoreHealthAfterHit;
