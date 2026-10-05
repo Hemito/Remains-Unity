@@ -16,7 +16,7 @@ namespace Remains.Editor
                 var view=root.GetComponent<PersonalInventoryView>();
                 if(view.Scrollbar==null)
                 {
-                    var ui=new HudElements(view.Title.font);
+                    var ui=new HudElements(view.Detail.font);
                     var first=view.Rows[0].GetComponent<RectTransform>();
                     var last=view.Rows[view.Rows.Length-1].GetComponent<RectTransform>();
                     float height=first.anchoredPosition.y-last.anchoredPosition.y+last.sizeDelta.y;

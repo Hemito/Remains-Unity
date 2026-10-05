@@ -65,10 +65,7 @@ namespace Remains.Presentation
         private PersonalInventoryPanel personalItems;
         public InventoryCategory PersonalCategory=>personalItems.Category;
         public RectTransform PersonalCategoryRect(InventoryCategory category)=>personalItems.CategoryRect(category);
-        private InventoryWindow inventoryWindow;
         private InventoryAudio inventoryAudio;
-        public RectTransform PersonalTabRect=>inventoryWindow.PersonalTab;
-        public RectTransform ContainerTabRect=>inventoryWindow.SharedTab;
         public RectTransform DepositRowRect(int index)=>personalItems.RowRect(index);
         public int PersonalPage=>personalItems.Page;
         public int PersonalFirstVisibleRow=>personalItems.FirstVisibleRow;
@@ -133,10 +130,8 @@ namespace Remains.Presentation
             containerWindow=ContainerWindowView.Create(transform);
             containerPanel=new FloatingContainerPanel(containerWindow,session,inventoryArtwork,worldCamera,()=>
             {personalItems?.Refresh(containerPanel?.Source);PauseMenu?.PublishIntent();});
-            inventoryView.Quantity.gameObject.SetActive(false);
             inventory.SetActive(false);
-            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item));
-            inventoryWindow=new InventoryWindow(inventoryView,ToggleInventory,inventoryAudio.Page,OpenContainer);
+            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item),inventoryAudio.Page);
             var pauseView=PauseMenuView.Create(transform);
             friendlyFire=pauseView.FriendlyFire;friendlyFire.onClick.AddListener(()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=pauseView.FriendlyDecision;friendlyDecision.onClick.AddListener(()=>

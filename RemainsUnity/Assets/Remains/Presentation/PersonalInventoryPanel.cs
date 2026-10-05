@@ -28,7 +28,7 @@ namespace Remains.Presentation
         private readonly string[] ids;
         private readonly Button previous,next,deposit,use;
         private readonly Scrollbar scrollbar;
-        private readonly Text title,detail,actionStatus;
+        private readonly Text detail,actionStatus;
         private InventorySource container;
         private string selected;
         private int firstVisibleRow;
@@ -47,7 +47,7 @@ namespace Remains.Presentation
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
         public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();
-        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork,Action<string> equipItem=null)
+        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork,Action<string> equipItem=null,Action pageSound=null)
         {
             this.equipItem=equipItem;
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
@@ -57,7 +57,7 @@ namespace Remains.Presentation
             for(int i=0;i<categories.Length;i++)
             {
                 var choice=(InventoryCategory)i;
-                categories[i].onClick.AddListener(()=>{category=choice;firstVisibleRow=0;Refresh(container);});
+                categories[i].onClick.AddListener(()=>{category=choice;firstVisibleRow=0;Refresh(container);pageSound?.Invoke();});
             }
             rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
             detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
@@ -65,7 +65,7 @@ namespace Remains.Presentation
             scrollbar.onValueChanged.AddListener(value=>
             {firstVisibleRow=Mathf.RoundToInt(value*Math.Max(0,visible.Count-rows.Length));Refresh(container);});
             weaponPreview=view.WeaponPreview;weaponDetail=view.WeaponDetail;
-            title=view.Title;detail=view.Detail;actionStatus=view.ActionStatus;
+            detail=view.Detail;actionStatus=view.ActionStatus;
             portrait=new InventoryPortrait(view.Portrait,view.PortraitParts);
             weaponIcons=new Image[weaponButtons.Length];legacyLabels=new string[weaponButtons.Length];
             for(int i=0;i<weaponButtons.Length;i++)
@@ -106,6 +106,7 @@ namespace Remains.Presentation
         public void Refresh(InventorySource destination)
         {
             container=destination;var actor=session.LocalActor;
+            bool armor=category==InventoryCategory.Armor;
             visible.Clear();
             if(actor!=null) foreach(var item in actor.inventory) if(filter.Includes(item,category)) visible.Add(item);
             int count=visible.Count;
@@ -114,12 +115,13 @@ namespace Remains.Presentation
             if(actor==null) container=null;
             for(int i=0;i<weaponButtons.Length;i++)
             {
+                weaponButtons[i].gameObject.SetActive(!armor);
                 bool instances=actor?.weaponInventoryVersion==1;
                 var chosenWeapon=InventoryStacks.Find(actor,selected);
                 if(!WeaponInventory.IsEquippable(chosenWeapon)) chosenWeapon=null;
                 OriginalButtonStyle.SetSelected(weaponButtons[i],instances?chosenWeapon!=null && WeaponInventory.Shortcut(actor,(i+1).ToString())?.id==selected:actor?.weapon==weapons[i]);
                 weaponButtons[i].interactable=actor is {down:false} && (!instances || chosenWeapon!=null);
-                weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"Клавиша {i+1}":legacyLabels[i];
+                weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"[{i+1}]":legacyLabels[i];
                 artwork.Set(weaponIcons[i],instances?WeaponInventory.Shortcut(actor,(i+1).ToString())?.definition:weapons[i]);
             }
             firstVisibleRow=Mathf.Clamp(firstVisibleRow,0,Math.Max(0,count-rows.Length));
@@ -127,7 +129,6 @@ namespace Remains.Presentation
             scrollbar.size=count==0?1:Mathf.Min(1,rows.Length/(float)count);
             scrollbar.SetValueWithoutNotify(count>rows.Length?firstVisibleRow/(float)(count-rows.Length):0);
             previous.interactable=firstVisibleRow>0;next.interactable=firstVisibleRow+rows.Length<count;
-            title.text=count==0?"Инвентарь · пусто":$"Инвентарь · {firstVisibleRow+1}–{Math.Min(count,firstVisibleRow+rows.Length)}/{count}";
             var chosen=InventoryStacks.Find(actor,selected);
             if(chosen==null) selected=null;
             for(int i=0;i<rows.Length;i++)
@@ -151,9 +152,11 @@ namespace Remains.Presentation
             bool paused=actor!=null && session.Pause.IsPaused(actor.level);
             deposit.interactable=chosen!=null && availableChosen>=amount && amount>0 && rejection==null && !paused;
             bool weaponSelected=WeaponInventory.IsEquippable(chosen) && actor.weaponInventoryVersion==1;
-            detail.gameObject.SetActive(!weaponSelected);detailIcon.gameObject.SetActive(!weaponSelected);
-            weaponPreview.gameObject.SetActive(weaponSelected);weaponDetail.gameObject.SetActive(weaponSelected);
-            portrait.Refresh(weaponSelected?null:actor);
+            detail.gameObject.SetActive(!armor && !weaponSelected);detailIcon.gameObject.SetActive(!armor && !weaponSelected);
+            weaponPreview.gameObject.SetActive(!armor && weaponSelected);weaponDetail.gameObject.SetActive(!armor && weaponSelected);
+            portrait.Refresh(armor || weaponSelected?null:actor);
+            foreach(var control in new[]{use,deposit,previous,next}) control.gameObject.SetActive(!armor);
+            actionStatus.gameObject.SetActive(!armor);
             if(weaponSelected)
             {
                 artwork.Set(weaponPreview,chosen.definition);

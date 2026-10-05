@@ -101,9 +101,6 @@ namespace Remains.Editor
             comparison.Validate();
             PersonalInventoryPrefabChecks.Run();
             _=new Remains.Presentation.InventoryArtwork();
-            var sharedInventory=Resources.Load<Remains.Presentation.SharedInventoryView>("Presentation/SharedInventory");
-            if(sharedInventory==null) throw new InvalidOperationException("Нет префаба общего контейнера.");
-            sharedInventory.Validate();
             LightingChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();InventoryAudioChecks.Run();
             DamageFeedbackChecks.Run();

@@ -6,6 +6,8 @@ using System.Linq;
 using Mirror;
 using Remains.Domain;
 using Remains.Gameplay;
+using Remains.Presentation;
+using Remains.Serialization;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -28,7 +30,7 @@ namespace Remains.Runtime
         {
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
             value.Session.AttackReceived+=attack=>{if(attack.attacker==value.Session.LocalActorId) localAttacks++;};
-            value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<ContainerWindowFinish>(_=>Finish(true,"E-окно отдельно от инвентаря; целая стопка, клики без выстрела, ходьба/бег/дальность и порядок Escape проверены."));
+            value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<ContainerWindowFinish>(_=>Finish(true,"E-окно отдельно от инвентаря; целая стопка, клики без выстрела, пустая вкладка брони без изменения вещей, ходьба/бег/дальность и порядок Escape проверены."));
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<ContainerWindowReady>((connection,_)=>peers.Add(connection.connectionId));
         }
         private PlayerCommand Command()
@@ -111,6 +113,19 @@ namespace Remains.Runtime
             if(actor.inventory.Single(i=>i.definition=="pistol").weaponState.rounds!=rounds || InventoryJournal.Count(actor,"grenade")!=grenades || localAttacks!=0 ||
                 caps.Length!=1 || caps[0].count!=20)
             {Finish(false,"Клик окна потратил боеприпасы/гранату либо целая стопка не выдана ровно одному игроку.");yield break;}
+            string beforeArmor=StateJson.ToJson(actor.inventory),held=actor.equippedWeaponItem;
+            runtime.Hud.ToggleInventory();
+            yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Armor));
+            if(!runtime.Hud.InventoryOpen || !runtime.Hud.BlocksGameplayInput || runtime.Hud.PersonalCategory!=InventoryCategory.Armor)
+            {Finish(false,"Указатель не открыл пустую вкладку брони или разблокировал игровое управление.");yield break;}
+            if(runtime.Options.Smoke.Contains("-frames-")) NetworkSceneRecord.Save(runtime,20);
+            yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.All));
+            actor=runtime.Session.LocalActor;
+            if(runtime.Hud.PersonalCategory!=InventoryCategory.All || StateJson.ToJson(actor.inventory)!=beforeArmor || actor.equippedWeaponItem!=held)
+            {Finish(false,"Переключение вкладки брони изменило вещи/оружие или не вернулось в общий список.");yield break;}
+            runtime.Hud.ToggleInventory();
+            if(runtime.Hud.InventoryOpen || !runtime.Hud.ContainerOpen || runtime.Hud.PauseMenu.IsOpen)
+            {Finish(false,"Закрытие личного окна не вернуло отдельное окно контейнера.");yield break;}
             weapon="pistol";walkX=actor.x;since=Time.unscaledTime;phase=3;
         }
         private void LateUpdate()

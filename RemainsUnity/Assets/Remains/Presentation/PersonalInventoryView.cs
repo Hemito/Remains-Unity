@@ -6,10 +6,10 @@ namespace Remains.Presentation
 {
     public sealed class PersonalInventoryView : MonoBehaviour, IScrollHandler
     {
-        [InspectorName("Фильтры: все / оружие / боеприпасы / предметы")] public Button[] Categories;
+        [InspectorName("Вкладки: все / оружие / боеприпасы / предметы / броня")] public Button[] Categories;
         [InspectorName("Строки предметов")] public Button[] Rows;
         [InspectorName("Иконки строк")] public Image[] Icons;
-        [InspectorName("Кнопки оружия")] public Button[] Weapons;
+        [InspectorName("Назначения клавиш")] public Button[] Weapons;
         [InspectorName("ID оружия")] public string[] WeaponIds;
         [InspectorName("Иконка выбранного предмета")] public Image DetailIcon;
         [InspectorName("Широкий просмотр оружия")] public Image WeaponPreview;
@@ -20,7 +20,6 @@ namespace Remains.Presentation
         [InspectorName("Следующая страница")] public Button Next;
         [InspectorName("Передать в контейнер")] public Button Deposit;
         [InspectorName("Использовать")] public Button Use;
-        [InspectorName("Заголовок")] public Text Title;
         [InspectorName("Описание предмета")] public Text Detail;
         [InspectorName("Состояние действия")] public Text ActionStatus;
         public event Action<int> ScrollRows;
@@ -36,9 +35,9 @@ namespace Remains.Presentation
             if(Scrollbar==null || Scrollbar.handleRect==null || Scrollbar.direction!=UnityEngine.UI.Scrollbar.Direction.TopToBottom)
                 throw new InvalidOperationException("Личный инвентарь: нужна вертикальная полоса прокрутки сверху вниз с ползунком.");
             if(Categories==null || Categories.Length!=Enum.GetValues(typeof(InventoryCategory)).Length || Array.Exists(Categories,x=>x==null))
-                throw new InvalidOperationException("Личный инвентарь: не назначены четыре фильтра предметов.");
+                throw new InvalidOperationException("Личный инвентарь: не назначены все вкладки, включая пустую вкладку брони.");
             if(Rows==null || Icons==null || Rows.Length==0 || Rows.Length!=Icons.Length || Weapons==null || WeaponIds==null || Weapons.Length!=WeaponIds.Length ||
-                DetailIcon==null || WeaponPreview==null || WeaponDetail==null || Portrait==null || PortraitParts==null || PortraitParts.Length==0 || Previous==null || Next==null || Deposit==null || Use==null || Title==null || Detail==null || ActionStatus==null)
+                DetailIcon==null || WeaponPreview==null || WeaponDetail==null || Portrait==null || PortraitParts==null || PortraitParts.Length==0 || Previous==null || Next==null || Deposit==null || Use==null || Detail==null || ActionStatus==null)
                 throw new InvalidOperationException("Личный инвентарь: не заполнены ссылки или не совпадают массивы элементов.");
             if(Array.Exists(Rows,x=>x==null) || Array.Exists(Icons,x=>x==null) || Array.Exists(Weapons,x=>x==null) || Array.Exists(WeaponIds,string.IsNullOrWhiteSpace) || Array.Exists(PortraitParts,x=>x==null))
                 throw new InvalidOperationException("Личный инвентарь: пустой элемент списка, оружия или портрета.");
