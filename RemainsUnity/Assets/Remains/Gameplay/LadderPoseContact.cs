@@ -20,7 +20,7 @@ namespace Remains.Gameplay
             foreach(var local in contacts)
             {
                 var point=nextBodyPosition+new Vector2(local.x*actor.facing,local.y);
-                foreach(var surface in room.platforms)
+                foreach(var surface in RoomSurfaces.All(room))
                 {
                     // A held body deliberately passes the one-way beams.
                     if(surface.oneWay || !RoomSupport.ContainsX(surface,point.x)) continue;

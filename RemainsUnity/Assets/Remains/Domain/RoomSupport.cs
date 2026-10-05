@@ -18,7 +18,7 @@ namespace Remains.Domain
 
         public static bool IsSupported(RoomLayout room,Vector2 position)
         {
-            foreach(var surface in room.platforms)
+            foreach(var surface in RoomSurfaces.All(room))
                 if(ContainsX(surface,position.x) && Mathf.Abs(position.y-Top(surface,position.x))<=ContactTolerance) return true;
             return false;
         }
@@ -27,7 +27,7 @@ namespace Remains.Domain
         {
             height=float.NegativeInfinity;
             if(next.y>previous.y) return false;
-            foreach(var surface in room.platforms)
+            foreach(var surface in RoomSurfaces.All(room))
             {
                 if(climbing && surface.oneWay || !ContainsX(surface,next.x)) continue;
                 float top=Top(surface,next.x);
@@ -39,7 +39,7 @@ namespace Remains.Domain
         public static bool TryLowestFloor(RoomLayout room,float x,out float height,bool includeOneWay=false,float width=0)
         {
             height=float.PositiveInfinity;
-            foreach(var surface in room.platforms)
+            foreach(var surface in RoomSurfaces.All(room))
                 if((includeOneWay || !surface.oneWay) && ContainsX(surface,x)) height=Mathf.Min(height,Top(surface,x,width));
             return !float.IsPositiveInfinity(height);
         }

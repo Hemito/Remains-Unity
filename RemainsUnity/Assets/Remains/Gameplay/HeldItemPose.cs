@@ -25,7 +25,7 @@ namespace Remains.Gameplay
             var offset=Vector2.ClampMagnitude(delta,ReachLimit(actor));
             if(room!=null)
             {
-                foreach(var surface in room.platforms)
+                foreach(var surface in RoomSurfaces.All(room))
                 {
                     if(surface.oneWay) continue;
                     var contact=SurfaceContact.Entry(surface,anchor,anchor+offset,ClearanceRadius);

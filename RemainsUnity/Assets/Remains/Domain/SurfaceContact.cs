@@ -40,7 +40,7 @@ namespace Remains.Domain
     {
         public static bool Clear(RoomLayout room,Vector2 start,Vector2 end)
         {
-            foreach(var surface in room.platforms)
+            foreach(var surface in RoomSurfaces.All(room))
                 if(!surface.oneWay && SurfaceContact.Entry(surface,start,end).HasValue) return false;
             return true;
         }

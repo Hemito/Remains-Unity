@@ -7,12 +7,14 @@ namespace Remains.Gameplay
     // Incapacitation removes input, not momentum, gravity or terrain contacts.
     public static class PassiveActorMotion
     {
-        public static void Step(ActorState actor,RoomLayout room,float dt,MovementSettings settings)
+        public static void Step(ActorState actor,RoomLayout room,float dt,MovementSettings settings,PassengerMotionState passenger=null)
         {
             if(dt<=0 || !ActorSessionRules.IsPassive(actor)) return;
             actor.climbing=false;actor.jumpSupportRemaining=0;
             ActorPose.Select(actor,"down");
-            var hull=Anatomy.Movement(actor);var previous=actor.Position;
+            var hull=Anatomy.Movement(actor);
+            actor.Position=PassengerMotion.Carry(room,hull,actor.Position,dt,passenger,actor.vy<=0 && !ActorHoldRules.Active(actor));
+            var previous=actor.Position;
             bool grounded=ActorTerrainMotion.Supported(room,hull,previous);
             actor.vx=HorizontalMotion.Step(actor.vx,0,grounded,false,dt,settings);
             float vertical=VerticalMotion.Step(actor,false,false,dt,settings);

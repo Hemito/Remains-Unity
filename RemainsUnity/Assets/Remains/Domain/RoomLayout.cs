@@ -15,6 +15,7 @@ namespace Remains.Domain
         public RoomSurface[] platforms;
         public RoomLadder[] ladders;
         public RoomArtwork[] artwork;
+        [NonSerialized] public DynamicSurfaceFrame dynamicSurfaces;
         public static RoomLayout Load(string level="factory:0")
             =>Load(level,null);
         public static RoomLayout Load(string level,WorldState world)

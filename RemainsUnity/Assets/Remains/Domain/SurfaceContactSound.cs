@@ -8,7 +8,7 @@ namespace Remains.Domain
         public static string Resolve(RoomLayout room,MovementHull hull,Vector2 position)
         {
             RoomSurface selected=null;float largest=0;
-            foreach(var surface in room.platforms)
+            foreach(var surface in RoomSurfaces.All(room))
             {
                 if(Mathf.Abs(position.y-RoomSupport.Top(surface,position.x,hull.width))>RoomSupport.ContactTolerance) continue;
                 float overlap=Mathf.Min(position.x+hull.width*.5f,surface.x+surface.width)-Mathf.Max(position.x-hull.width*.5f,surface.x);

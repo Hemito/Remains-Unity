@@ -15,7 +15,7 @@ namespace Remains.Domain
             var origin=actor.Position;
             float half=hull.width*.5f;
             var xs=new SortedSet<float> {origin.x,room.left+half,room.right-half};
-            foreach(var surface in room.platforms)
+            foreach(var surface in RoomSurfaces.All(room))
             {
                 // Solid faces and full-footprint support endpoints delimit safe intervals.
                 xs.Add(surface.x-half);xs.Add(surface.x+half);
@@ -23,7 +23,7 @@ namespace Remains.Domain
             }
             Vector2 best=default;double distance=double.PositiveInfinity;
             foreach(float x in xs)
-                foreach(var surface in room.platforms)
+                foreach(var surface in RoomSurfaces.All(room))
                 {
                     float y=RoomSupport.Top(surface,x,hull.width);
                     var candidate=new Vector2(x,y);

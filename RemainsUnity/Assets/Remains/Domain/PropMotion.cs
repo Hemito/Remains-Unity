@@ -5,12 +5,14 @@ namespace Remains.Domain
 {
     public static class PropMotion
     {
-        public static void Step(PropState prop,RoomLayout room,float dt,Vector2? target,IEnumerable<PropState> neighbours=null)
+        public static void Step(PropState prop,RoomLayout room,float dt,Vector2? target,IEnumerable<PropState> neighbours=null,PassengerMotionState passenger=null)
         {
             if(dt<=0 || !prop.movable) return;
-            var origin=prop.Position;
-            var feet=origin-Vector2.up*prop.anchorHeight;
+            var feet=prop.Position-Vector2.up*prop.anchorHeight;
             var hull=new MovementHull {width=prop.width,height=prop.height};
+            feet=PassengerMotion.Carry(room,hull,feet,dt,passenger,!target.HasValue && !prop.held && prop.vy<=0);
+            prop.Position=feet+Vector2.up*prop.anchorHeight;
+            var origin=prop.Position; // Relative velocity excludes the support displacement; no feedback/drift.
             Vector2 delta;
             if(target.HasValue) delta=TelekinesisFollow.Displacement(origin,target.Value,dt);
             else {prop.vy-=WorldPhysics.Gravity*dt;delta=new Vector2(prop.vx,prop.vy)*dt;}

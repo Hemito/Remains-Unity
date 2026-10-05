@@ -11,25 +11,27 @@ namespace Remains.Gameplay
         private readonly ReleasedTapGesture downTap;
         private readonly MovementSettings settings;
         private readonly SprintPreparation sprintPreparation=new();
+        private readonly PassengerMotionRegistry passengers=new();
         private float? droppedSurface;
         public MovementController(RoomLayout room,MovementSettings settings=null)
         {
             this.room=room;this.settings=settings??MovementSettings.Load();this.settings.Validate();
             downTap=new ReleasedTapGesture(this.settings.doubleTapSeconds);
         }
-        public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false,bool jumpHeld=false)
+        public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false,bool jumpHeld=false,PassengerMotionState passenger=null)
         {
             ActorPositionRecovery.Repair(actor,room,"движение");
             bool dropPressed=downTap.Step(input.y<-.1f,dt);
             float accelerationTime=sprintPreparation.AccelerationTime(actor,input.x,sprint,dt,settings.sprintPreparationSeconds);
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
-            if (ActorSessionRules.IsPassive(actor)) { PassiveActorMotion.Step(actor,room,dt,settings);return; }
+            if(room.dynamicSurfaces?.Count>0) passenger??=passengers.ForActor(actor);
+            if (ActorSessionRules.IsPassive(actor)) { PassiveActorMotion.Step(actor,room,dt,settings,passenger);return; }
             var previous=actor.Position;
             var hull=Anatomy.Movement(actor);
             var selected=System.Array.Find(room.ladders,l=>Mathf.Abs(actor.x-l.x-l.movementOffset)<0.65f && actor.y>=l.bottom-0.1f && actor.y<l.top+0.2f);
             bool wasClimbing=actor.climbing && selected!=null;
             bool detach=jump && input.y<=.1f;
-            bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position);
+            bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position) || PassengerMotion.PreviouslySupported(room,hull,actor.Position,dt);
             bool endpoint=selected!=null && (actor.y<=selected.bottom+.001f || actor.y>=selected.top-.001f);
             bool stepOff=wasClimbing && (grounded || endpoint) && Mathf.Abs(input.x)>.1f && Mathf.Abs(input.y)<.1f;
             // Up can catch a ladder in flight; down starts from support or continues an existing hold.
@@ -40,6 +42,9 @@ namespace Remains.Gameplay
             CrouchMotion.Step(actor,room,settings,input,jump,grounded,ladder,drop,dt);
             hull=Anatomy.Movement(actor);
             if(actor.crouched) {ladder=false;jump=false;}
+            actor.Position=PassengerMotion.Carry(room,hull,actor.Position,dt,passenger,
+                !ladder && !drop && !(jump && (grounded || wasClimbing)) && actor.vy<=0 && !ActorHoldRules.Active(actor));
+            previous=actor.Position;
             if(grounded || drop || ladder) actor.jumpSupportRemaining=0;
             if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
             actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings,actor.crouched,actor.crouched?dt:accelerationTime);
