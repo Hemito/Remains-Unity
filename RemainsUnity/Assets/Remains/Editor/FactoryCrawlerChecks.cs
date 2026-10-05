@@ -17,7 +17,7 @@ namespace Remains.Editor
             var records=room.GetComponentInChildren<RoomImportAudit>().Report.Records;
             var crawlers=layout.actors.Where(a=>a.actorType=="radroach").ToArray();
             Require(crawlers.Length==2 && layout.actors.Length==8 && layout.loot.Length==8 && layout.expansion.additions.Length==2 &&
-                records.Length==24 && records.Count(r=>!r.installed)==5 && records.Where(r=>r.kind=="enl1").All(r=>r.installed),"Потеряны две исходные метки или журнал оставшегося содержимого.");
+                records.Length==24 && records.All(r=>r.installed || r.kind is "platform2" or "knop3" or "vendor" or "instr2") && records.Where(r=>r.kind=="enl1").All(r=>r.installed),"Потеряны две исходные метки или журнал оставшегося содержимого.");
             foreach(var actor in crawlers)
             {
                 var record=records.Single(r=>actor.id.EndsWith(":"+r.code,StringComparison.Ordinal));
@@ -30,7 +30,7 @@ namespace Remains.Editor
             var atlas=Resources.Load<AtlasSpriteAsset>(type.artwork);Require(atlas.Texture.width==480 && atlas.Texture.height==30,"Не выбран отдельный исходный атлас.");
             foreach(var clip in atlas.CreateDefinition().clips) Require(atlas.Frames(clip.pose).Length==clip.count,"Не сохранены кадры: "+clip.pose);
             CheckUpgrade(layout);NaturalAttackChecks.Run();
-            Debug.Log("Радтараканы цеха: PASS — два стабильных ID, самостоятельные ресурсы/анатомия/префаб, v1/v2/v3 без возвращения смерти/лута, остальные пять записей явно не подключены.");
+            Debug.Log($"Радтараканы цеха: PASS — два стабильных ID, самостоятельные ресурсы/анатомия/префаб, v1/v2/v3 без возвращения смерти/лута; не подключено записей: {records.Count(r=>!r.installed)}.");
         }
         public static void CheckUpgrade(NpcLayout layout)
         {

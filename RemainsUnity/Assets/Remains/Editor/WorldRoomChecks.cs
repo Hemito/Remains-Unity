@@ -46,6 +46,7 @@ namespace Remains.Editor
                 "Восстановление пропустило нижнюю одностороннюю платформу.");
             var actor=new ActorState();TravelRules.Apply(actor,"factory:0",layout);
             Require(actor.x==layout.spawnX && actor.y==layout.spawnY,"Вход использует координаты другой комнаты.");
+            MechanismPersistence.Prepare(restored,()=>{});
             RoomContentInstaller.Apply(restored,RoomContentBatch.Read(room,"factory:0"));
             Require(restored.doors.Count==3 && restored.containers.Count==8 && restored.props.Count==4 && restored.actors.Count==1,"Содержимое не соответствует выбранной комнате.");
             restored.rooms[0].definition="missing:room";

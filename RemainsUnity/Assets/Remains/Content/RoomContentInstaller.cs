@@ -9,18 +9,19 @@ namespace Remains.Content
         public DoorLayout doors;
         public PhysicalLayout physical;
         public NpcLayout npcs;
+        public MechanismLayout mechanisms;
         public TravelPoint[] travelPoints;
         public static RoomContentBatch Read(RoomAuthoring room,string level)=>new()
         {
             doors=RoomDoorContent.Read(room,level),physical=RoomPhysicalContent.Read(room,level),npcs=RoomNpcContent.Read(room,level),
-            travelPoints=RoomTravelPointAuthoring.ReadAll(room,level)
+            travelPoints=RoomTravelPointAuthoring.ReadAll(room,level),mechanisms=RoomMechanismContent.Read(room,level)
         };
     }
     public static class RoomContentInstaller
     {
         public static bool NeedsInstall(WorldState world,RoomContentBatch batch)=>batch!=null &&
             (DoorContentInstaller.NeedsInstall(world,batch.doors) || PhysicalContentInstaller.NeedsInstall(world,batch.physical) ||
-             NpcContentInstaller.NeedsInstall(world,batch.npcs));
+             NpcContentInstaller.NeedsInstall(world,batch.npcs) || MechanismContentInstaller.NeedsInstall(world,batch.mechanisms));
         public static bool Apply(WorldState world,RoomContentBatch batch)
         {
             if(world==null || batch==null) throw new InvalidOperationException("Нет мира или набора содержимого комнаты.");
@@ -34,6 +35,7 @@ namespace Remains.Content
             if(batch.doors!=null) Check(batch.doors.patch,batch.doors.level);
             if(batch.physical!=null) Check(batch.physical.patch,batch.physical.level);
             if(batch.npcs!=null) Check(batch.npcs.patch,batch.npcs.level);
+            if(batch.mechanisms!=null) Check(batch.mechanisms.patch,batch.mechanisms.level);
             if(!NeedsInstall(world,batch)) return false;
             // Validate the whole batch on a detached world before touching any live objects.
             // Individual installers are deterministic, have no callbacks and perform no I/O.
@@ -48,6 +50,7 @@ namespace Remains.Content
             if(batch.doors!=null) DoorContentInstaller.Apply(world,batch.doors);
             if(batch.physical!=null) PhysicalContentInstaller.Apply(world,batch.physical);
             if(batch.npcs!=null) NpcContentInstaller.Apply(world,batch.npcs);
+            if(batch.mechanisms!=null) MechanismContentInstaller.Apply(world,batch.mechanisms);
         }
     }
 }
