@@ -16,20 +16,26 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();PonyVisual.Prepare();
+            CheckVisibleFeet();
             var settings=MovementSettings.Load();
             var room=new RoomLayout {id="ladder-pose-contact",left=-5,right=5,bottom=-1,top=6,
                 ladders=new[]{new RoomLadder {x=0,bottom=0,top=3}},
                 platforms=new[]{new RoomSurface {x=-5,y=-1,width=10,height=1}}};
-            var counterexample=new ActorState {id="climb-visible-floor",y=.1f,vy=-settings.climbSpeed*settings.climbDownMultiplier,
+            var counterexample=new ActorState {id="climb-visible-floor",y=.55f,vy=-settings.climbSpeed*settings.climbDownMultiplier,
                 climbing=true,pose="climb",poseTime=.1f};
             Require(PonyMotionFrames.Sample(counterexample,counterexample.poseTime)==4,"Контрпример должен использовать настоящий кадрclimb4");
-            Require(LadderPoseContact.ShouldRelease(counterexample,room,counterexample.Position+Vector2.up*(counterexample.vy/60)),
+            var nextBody=counterexample.Position+Vector2.up*(counterexample.vy/60);
+            Require(nextBody.y+GraphicLowest("climb",4,"61/1/1","25").y>0,
+                "Контрпример должен проходить прежнюю неполную проверку верхней части ноги");
+            Require(nextBody.y+GraphicLowest("climb",4,"57/1/1","298").y<0,
+                "Настоящее пропущенное копыто должно пересечь пол при том же следующем положении");
+            Require(LadderPoseContact.ShouldRelease(counterexample,room,nextBody),
                 "Нижняя видимая нога не обнаружила твёрдый пол раньше габарита тела");
             new MovementController(room).Step(counterexample,Vector2.down,false,1f/60);
             Require(!counterexample.climbing && counterexample.y>0 && counterexample.vy<0,"Контакт ноги не отпустил хват с сохранением спуска до приземления тела");
             var idle=new ActorState {id="unchanged-idle",pose="idle"};
             Require(Anatomy.TrySupportContacts(idle,out var idleContacts) && MinimumY(idleContacts)<0,
-                "Исходные малые пикселиidle неожиданно исправлены вместе с лестницей");
+                "Исходное положение копытidle неожиданно исправлено вместе с данными контакта");
             room.platforms[0].oneWay=true;
             var beam=new ActorState {id="climb-one-way",y=.1f,vy=-4.725f,climbing=true,pose="climb",poseTime=.1f};
             Require(!LadderPoseContact.ShouldRelease(beam,room,beam.Position+Vector2.down*.08f),"Хват преждевременно отпущен у проходимой балки");
@@ -80,7 +86,81 @@ namespace Remains.Editor
             }
             var directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/ladder-pose-contact"));
             Directory.CreateDirectory(directory);File.WriteAllText(Path.Combine(directory,"descent.csv"),trace.ToString());
-            Debug.Log("Контакт ног при спуске: PASS — настоящие PonyVisual кадры, твёрдый пол, прежняя скорость/гравитация, проход балки, оба направления и30/60/144Гц. Trace: "+directory);
+            Debug.Log("Контакт ног при спуске: PASS — четыре нижние ноги во всех267кадрах, отдельная от урона декларация, реальные PNG копыт3/102/298 и PonyVisual кадры, твёрдый пол, прежняя скорость/гравитация, проход балки, оба направления и30/60/144Гц. Trace: "+directory);
+        }
+        private static void CheckVisibleFeet()
+        {
+            var catalog=Remains.Serialization.StateJson.FromJson<AnatomyCatalog>(Resources.Load<TextAsset>("Content/anatomy").text);
+            var pony=Array.Find(catalog.anatomies,value=>value.id=="pony");
+            var shapes=pony.supportContacts.shapes;
+            Require(shapes.Length==4 && Array.TrueForAll(new[]{"3","102","275","298"},shape=>Array.IndexOf(shapes,shape)>=0),
+                "Декларация опор потеряла прямое или согнутое переднее/заднее копыто");
+            var damageLegs=Array.Find(pony.regions,value=>value.id=="legs");
+            Require(damageLegs.shapes.Length==2 && damageLegs.shapes[0]=="25" && damageLegs.shapes[1]=="275",
+                "Исправление контактов изменило независимые области урона");
+            int count=0;
+            foreach(var clip in PonyAnimationData.Library.clips)
+            for(int frame=0;frame<clip.frames.Length;frame++)
+            {
+                Require(Array.FindAll(clip.frames[frame].parts,part=>Array.IndexOf(shapes,part.shape)>=0).Length==4,
+                    $"Не объявлены все четыре нижние ноги: pose={clip.id}, frame={frame}");
+                count++;
+            }
+            Require(count==267,"Проверяемый ресурс изменился: пересмотрите полноту декларации копыт");
+            CheckDrawnFoot("idle",0,"57/1/1","3",-.036454f);
+            CheckDrawnFoot("climb",4,"57/1/1","298",-.509750f);
+            CheckDrawnFoot("crouch",0,"frleg3/1/1","102",-.027330f);
+            CheckDrawnFoot("crawl",9,"frleg3/1/1","102",-.065410f);
+        }
+        private static void CheckDrawnFoot(string pose,int frame,string path,string shape,float expectedY)
+        {
+            var clip=Array.Find(PonyAnimationData.Library.clips,value=>value.id==pose);
+            var actor=new ActorState {id="graphic-contact-"+pose,pose=pose,poseTime=(frame+.01f)/clip.fps,
+                climbing=pose=="climb",vy=pose=="climb"?-1:0};
+            Require(PonyMotionFrames.Sample(actor,actor.poseTime)==frame,$"Проверка выбрала другой кадр: pose={pose}");
+            var pixel=GraphicLowest(pose,frame,path,shape);
+            Require(Mathf.Abs(pixel.y-expectedY)<.00001f,$"Исходное копыто изменилось: pose={pose}, path={path}, y={pixel.y:R}");
+            Require(Anatomy.TrySupportContacts(actor,out var contacts) && Contains(contacts,pixel),
+                $"Настоящее видимое копыто пропущено: pose={pose}, frame={frame}, path={path}, shape={shape}, point={pixel}");
+            var visual=new GameObject(actor.id).AddComponent<PonyVisual>();
+            try
+            {
+                visual.Bind(actor);visual.DrawPose(actor.poseTime);
+                Require(visual.DrawnClip==pose && visual.DrawnFrame==frame,$"Контакт и рисунок выбрали разные кадры: pose={pose}");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
+        }
+        // Test-only PNG measurement. The runtime still reads only the baked contacts.
+        private static Vector2 GraphicLowest(string pose,int frame,string path,string shape)
+        {
+            var clip=Array.Find(PonyAnimationData.Library.clips,value=>value.id==pose);
+            var part=Array.Find(clip.frames[frame].parts,value=>value.path==path && value.shape==shape);
+            Require(part!=null,$"Нет проверяемого glyph: pose={pose}, frame={frame}, path={path}, shape={shape}");
+            var texture=new Texture2D(2,2,TextureFormat.RGBA32,false);
+            try
+            {
+                string file=Path.Combine(Application.dataPath,"Remains/Resources/Original/Pony",part.texture+".png");
+                Require(ImageConversion.LoadImage(texture,File.ReadAllBytes(file)),"PNG копыта не декодирован: "+file);
+                var pixels=texture.GetPixels32();var bounds=part.bounds;
+                var lowest=new Vector2(0,float.PositiveInfinity);
+                for(int y=0;y<texture.height;y++)
+                for(int x=0;x<texture.width;x++)
+                {
+                    if(pixels[y*texture.width+x].a<192) continue;
+                    var source=new Vector2(Mathf.Lerp(bounds[0],bounds[2],(x+.5f)/texture.width),
+                        Mathf.Lerp(bounds[3],bounds[1],(y+.5f)/texture.height));
+                    var point=PonyAnimationData.TransformPoint(part,source);
+                    if(point.y<lowest.y) lowest=point;
+                }
+                Require(float.IsFinite(lowest.y),"Нет непрозрачного контакта: "+file);
+                return lowest;
+            }
+            finally {UnityEngine.Object.DestroyImmediate(texture);}
+        }
+        private static bool Contains(IReadOnlyList<Vector2> contacts,Vector2 expected)
+        {
+            foreach(var point in contacts) if((point-expected).sqrMagnitude<.00000001f) return true;
+            return false;
         }
         private static float MinimumY(IReadOnlyList<Vector2> contacts)
         {

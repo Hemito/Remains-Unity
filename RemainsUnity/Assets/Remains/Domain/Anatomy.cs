@@ -41,10 +41,8 @@ namespace Remains.Domain
                 {
                     if(!string.IsNullOrEmpty(definition.atlasArtwork))
                         throw new InvalidOperationException($"Контакты из составной графики не подходят атласной анатомии: anatomy={definition.id}, artwork={definition.atlasArtwork}.");
-                    var legs=Array.Find(definition.regions,region=>region.id=="legs");
-                    if(legs?.shapes==null || definition.supportContacts.shapes==null ||
-                        !System.Linq.Enumerable.SequenceEqual(legs.shapes,definition.supportContacts.shapes))
-                        throw new InvalidOperationException($"Контакты ног не соответствуют объявленным частям: anatomy={definition.id}.");
+                    // Visible foot contacts and anatomical damage regions have different purposes.
+                    // Each declares its own graphic parts; neither may restrict the other's coverage.
                     supportContacts.Add(definition.id,new PoseSupportContactData(definition.id,definition.supportContacts));
                 }
                 foreach(var optionalPose in new[]{definition.landingPose,definition.fallPose})

@@ -24,6 +24,11 @@ namespace Remains.Content
                 source.sourceHash!=PonyRenderAsset.SourceHash() || source.shapes==null || source.shapes.Length==0 || source.poses==null)
                 throw new InvalidOperationException($"Некорректные или устаревшие контакты ног: anatomy={anatomy}. Перезапеките контакты из текущей графики.");
             var clips=PonyAnimationData.Library.clips;
+            var declared=new HashSet<string>();
+            foreach(var shape in source.shapes)
+                if(string.IsNullOrWhiteSpace(shape) || !declared.Add(shape) ||
+                    !Array.Exists(clips,clip=>Array.Exists(clip.frames,frame=>Array.Exists(frame.parts,part=>part.shape==shape))))
+                    throw new InvalidOperationException($"Неизвестная или повторная часть опоры: anatomy={anatomy}, shape={shape}.");
             if(source.poses.Length!=clips.Length)
                 throw new InvalidOperationException($"Неполный набор поз контакта: anatomy={anatomy}, poses={source.poses.Length}, expected={clips.Length}.");
             foreach(var track in source.poses)
