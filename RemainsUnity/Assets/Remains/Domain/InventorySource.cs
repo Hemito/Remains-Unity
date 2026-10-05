@@ -46,6 +46,8 @@ namespace Remains.Domain
             if(Body!=null)
             {
                 if(!InventoryJournal.Debit(Body,transaction,item.id,count)) return false;
+                if(Body.weaponInventoryVersion==1 && !string.IsNullOrEmpty(Body.equippedWeaponItem) && WeaponInventory.Selected(Body)==null)
+                    WeaponInventory.Select(Body,null,out _);
                 Body.revision++;
             }
             else {if(item.count==count) items.Remove(item);else item.count-=count;}

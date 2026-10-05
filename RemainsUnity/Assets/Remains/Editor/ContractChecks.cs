@@ -44,6 +44,7 @@ namespace Remains.Editor
             DoorCombatChecks.Run();
             FactoryRoomContentChecks.Run();
             FactoryBigBoxChecks.Run();
+            FactoryWorkshopNpcChecks.Run();
             ConnectedFactoryChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();

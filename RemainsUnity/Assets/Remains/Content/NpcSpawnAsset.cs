@@ -11,6 +11,9 @@ namespace Remains.Content
         [SerializeField,InspectorName("Анатомия")] private string anatomy;
         [SerializeField,InspectorName("Начальное здоровье")] private float health=100;
         [SerializeField,InspectorName("Оружие (пусто — без оружия)")] private string weapon;
+        [SerializeField,InspectorName("Начальный инвентарь (пусто — без предметов)")] private ContainerLootAsset inventory;
+        public void SetInventory(ContainerLootAsset value)=>inventory=value;
+        public ContainerLootTable ReadInventory()=>inventory==null?null:inventory.Read();
         public void Configure(string type,string body,float hp,string weaponId)
         {actorType=type;anatomy=body;health=hp;weapon=weaponId;Validate();}
         private void Validate()

@@ -6,11 +6,7 @@ using UnityEngine;
 namespace Remains.Content
 {
     [Serializable] public sealed class ContainerLootBinding {public string container;public ContainerLootTable table;}
-    [Serializable] public sealed class PhysicalExpansion
-    {
-        [InspectorName("Предыдущая версия")] public string previousPatch;
-        [InspectorName("ID добавленных объектов")] public string[] additions=Array.Empty<string>();
-    }
+    [Serializable] public sealed class PhysicalExpansion : ContentExpansion {}
     [Serializable] public sealed class PhysicalLayout
     {
         public string patch,level;
@@ -33,12 +29,7 @@ namespace Remains.Content
             if(string.IsNullOrWhiteSpace(content.patch) || string.IsNullOrWhiteSpace(level))
                 throw new InvalidOperationException($"Комната {room.name}: не задан уровень или версия физических объектов.");
             var layout=new PhysicalLayout {patch=level+":"+content.patch,level=level};
-            if(content.expansion!=null && !string.IsNullOrWhiteSpace(content.expansion.previousPatch))
-            {
-                if(content.expansion.additions==null) throw new InvalidOperationException($"Комната {room.name}: нет списка добавленных объектов.");
-                layout.expansion=new PhysicalExpansion {previousPatch=level+":"+content.expansion.previousPatch,
-                    additions=content.expansion.additions.Select(id=>level+":"+id).ToArray()};
-            }
+            layout.expansion=ContentExpansionRules.InLevel(content.expansion,level);
             layout.props=room.GetComponentsInChildren<RoomPropPlacement>(true).Where(room.Included).Select(p=>ReadProp(p,room,level,false)).ToArray();
             layout.containers=room.GetComponentsInChildren<RoomContainerPlacement>(true).Where(room.Included).Select(p=>
             {

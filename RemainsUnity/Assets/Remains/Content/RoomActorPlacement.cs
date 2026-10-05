@@ -14,6 +14,7 @@ namespace Remains.Content
         public bool FixedPlacement=>fixedPlacement;
         [SerializeField,InspectorName("Начальное состояние NPC (для обычных персонажей)")] private NpcSpawnAsset spawn;
         public void SetSpawn(NpcSpawnAsset value)=>spawn=value;
+        public ContainerLootTable ReadInventory()=>spawn==null?null:spawn.ReadInventory();
         public Remains.Domain.ActorState ReadNpc(RoomAuthoring room,string level)
         {
             if(fixedPlacement || spawn==null) throw new InvalidOperationException("Для NPC нужна обычная расстановка и начальное состояние: "+name);

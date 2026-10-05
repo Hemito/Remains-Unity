@@ -111,7 +111,7 @@ namespace Remains.Runtime
             if(WorldRooms.Definition(session.ServerWorld,"factory:0")!=NewGameWorld.FactoryDefinitionId)
                 throw new InvalidOperationException("Проверка двери использует другой завод.");
             var door=session.ServerWorld.doors.Single(d=>d.id==DoorId);
-            var npc=session.ServerWorld.actors.Single(a=>!a.player && a.level=="factory:0" && a.actorType=="raider");
+            var npc=session.ServerWorld.actors.Single(a=>a.id=="factory:0:original:plant:46:Pca2ee6SiIQvzRpV");
             var room=runtime.Geometry.Get("factory:0");
             var npcStart=new Vector2(door.x-1.6f,door.y);var playerStart=new Vector2(door.x+door.width+7.2f,door.y);
             foreach(var placement in new[]{(actor:npc,position:npcStart),(actor:player,position:playerStart)})

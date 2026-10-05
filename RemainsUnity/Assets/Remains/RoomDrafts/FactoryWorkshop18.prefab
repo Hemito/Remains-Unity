@@ -206,6 +206,56 @@ MonoBehaviour:
   repeat: 0
   stretchY: 0
   slopeDirection: 0
+--- !u!1 &187333336843381449
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6260640763598119251}
+  - component: {fileID: 7069132506700828967}
+  m_Layer: 0
+  m_Name: "\u0420\u0435\u0439\u0434\u0435\u0440 \xB7 bU92TKI1pfiaqh6L"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6260640763598119251
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 187333336843381449}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 11.2, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 461016970148979504}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7069132506700828967
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 187333336843381449}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4639818be9c5823448950dbd913682cb, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  stableId: original:plant:18:bU92TKI1pfiaqh6L
+  actorType: raider
+  facing: -1
+  fixedPlacement: 0
+  preview: {fileID: 0}
+  spawn: {fileID: 11400000, guid: 31cf4536deac6af4dadf1883c1081687, type: 2}
 --- !u!1 &343990578411790978
 GameObject:
   m_ObjectHideFlags: 0
@@ -6217,6 +6267,56 @@ MonoBehaviour:
   oneWay: 0
   shotsPassThrough: 0
   slopeDirection: 0
+--- !u!1 &2394531223262760327
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1709097017294392365}
+  - component: {fileID: 7199622710783954938}
+  m_Layer: 0
+  m_Name: "\u0420\u0435\u0439\u0434\u0435\u0440 \xB7 Cf5jLZ7MxuNJWaNp"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1709097017294392365
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2394531223262760327}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 35.2, y: 7.2000003, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 461016970148979504}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7199622710783954938
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2394531223262760327}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4639818be9c5823448950dbd913682cb, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  stableId: original:plant:18:Cf5jLZ7MxuNJWaNp
+  actorType: raider
+  facing: -1
+  fixedPlacement: 0
+  preview: {fileID: 0}
+  spawn: {fileID: 11400000, guid: 31cf4536deac6af4dadf1883c1081687, type: 2}
 --- !u!1 &2417176753994735142
 GameObject:
   m_ObjectHideFlags: 0
@@ -12500,6 +12600,7 @@ GameObject:
   - component: {fileID: 387618141317177028}
   - component: {fileID: 6406370102143564393}
   - component: {fileID: 5790121976742073011}
+  - component: {fileID: 7683558705906858284}
   m_Layer: 0
   m_Name: FactoryWorkshop18
   m_TagString: Untagged
@@ -12606,6 +12707,11 @@ Transform:
   - {fileID: 3166793624155453398}
   - {fileID: 7129195925585131860}
   - {fileID: 2697425065979862104}
+  - {fileID: 1709097017294392365}
+  - {fileID: 5286094307337412365}
+  - {fileID: 331023748485447066}
+  - {fileID: 6260640763598119251}
+  - {fileID: 515703475282269375}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4838459058586843727
@@ -12692,6 +12798,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   report: {fileID: 11400000, guid: ce47f55ad4b716a4d89d42fae583b1e8, type: 2}
+--- !u!114 &7683558705906858284
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5300161484523417046}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14e554bb4c7f3824e947a3803e09e545, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  patch: base:factory-workshop-18:npcs-v1
+  expansion:
+    previousPatch:
+    additions: []
 --- !u!1 &5339424222898628946
 GameObject:
   m_ObjectHideFlags: 0
@@ -13761,6 +13883,56 @@ MonoBehaviour:
   repeat: 1
   stretchY: 0
   slopeDirection: 0
+--- !u!1 &6353364853441171395
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 515703475282269375}
+  - component: {fileID: 1220985022294422690}
+  m_Layer: 0
+  m_Name: "\u0420\u0435\u0439\u0434\u0435\u0440 \xB7 M95L1aBcGmQqi0sF"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &515703475282269375
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6353364853441171395}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 31.2, y: 10.400001, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 461016970148979504}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1220985022294422690
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6353364853441171395}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4639818be9c5823448950dbd913682cb, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  stableId: original:plant:18:M95L1aBcGmQqi0sF
+  actorType: raider
+  facing: -1
+  fixedPlacement: 0
+  preview: {fileID: 0}
+  spawn: {fileID: 11400000, guid: 31cf4536deac6af4dadf1883c1081687, type: 2}
 --- !u!1 &6392376976902441412
 GameObject:
   m_ObjectHideFlags: 0
@@ -17361,6 +17533,56 @@ MonoBehaviour:
   oneWay: 0
   shotsPassThrough: 0
   slopeDirection: 0
+--- !u!1 &7942516104848241005
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 331023748485447066}
+  - component: {fileID: 5318566030837518573}
+  m_Layer: 0
+  m_Name: "\u0420\u0435\u0439\u0434\u0435\u0440 \xB7 wbwDV8Xo0VuVgEiA"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &331023748485447066
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7942516104848241005}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 22.4, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 461016970148979504}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5318566030837518573
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7942516104848241005}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4639818be9c5823448950dbd913682cb, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  stableId: original:plant:18:wbwDV8Xo0VuVgEiA
+  actorType: raider
+  facing: -1
+  fixedPlacement: 0
+  preview: {fileID: 0}
+  spawn: {fileID: 11400000, guid: 31cf4536deac6af4dadf1883c1081687, type: 2}
 --- !u!1 &7957029141946295153
 GameObject:
   m_ObjectHideFlags: 0
@@ -19698,6 +19920,56 @@ MonoBehaviour:
   oneWay: 0
   shotsPassThrough: 0
   slopeDirection: 0
+--- !u!1 &8752334563874046094
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5286094307337412365}
+  - component: {fileID: 3745720437760466021}
+  m_Layer: 0
+  m_Name: "\u0420\u0435\u0439\u0434\u0435\u0440 \xB7 swErvzt28X2xM0R3"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5286094307337412365
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8752334563874046094}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 27.2, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 461016970148979504}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3745720437760466021
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8752334563874046094}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4639818be9c5823448950dbd913682cb, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  stableId: original:plant:18:swErvzt28X2xM0R3
+  actorType: raider
+  facing: -1
+  fixedPlacement: 0
+  preview: {fileID: 0}
+  spawn: {fileID: 11400000, guid: 31cf4536deac6af4dadf1883c1081687, type: 2}
 --- !u!1 &8783094886675344317
 GameObject:
   m_ObjectHideFlags: 0

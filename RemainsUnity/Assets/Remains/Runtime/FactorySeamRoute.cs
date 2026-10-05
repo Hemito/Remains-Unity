@@ -22,6 +22,7 @@ namespace Remains.Runtime
         private bool jumped,opened,claiming,crossed,shared;
         public bool Complete=>phase==10 && crossed && shared;
         public bool BigBoxesVerified {get;private set;}
+        public bool WorkshopNpcsVerified {get;private set;}
         public string Progress=>$"seamPhase={phase}, opened={opened}, shared={shared}, claiming={claiming}, item={claimedItem}";
         public string Failure {get;private set;}
         private ActorState Actor=>runtime.Session.LocalActor;
@@ -76,7 +77,7 @@ namespace Remains.Runtime
             else if(phase==2 && Actor.y>=10.39f) {phase=3;jumped=false;}
             else if(phase==3 && Mathf.Abs(Actor.x-40.4f)<.08f && ActorTerrainMotion.Supported(initialRoom,Anatomy.Movement(Actor),Actor.Position))
             {
-                try {FactoryBigBoxObservation.Verify(runtime);BigBoxesVerified=true;}
+                try {FactoryBigBoxObservation.Verify(runtime);BigBoxesVerified=true;FactoryWorkshopNpcObservation.Verify(runtime);WorkshopNpcsVerified=true;}
                 catch(InvalidOperationException error) {Failure=error.Message;return;}
                 phase=4;crossed=true;capture="workshop";
             }
@@ -113,7 +114,7 @@ namespace Remains.Runtime
             if(runtime.Options.Smoke.Contains("-frames-"))
             {
                 NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+"."+capture+".png",runtime.Hud.GetComponent<Canvas>());
-                if(capture=="workshop") FactoryBigBoxObservation.Capture(runtime);
+                if(capture=="workshop") {FactoryBigBoxObservation.Capture(runtime);FactoryWorkshopNpcObservation.Capture(runtime);}
             }
             capture=null;
         }

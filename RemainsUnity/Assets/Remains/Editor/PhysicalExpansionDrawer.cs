@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Remains.Editor
 {
-    [CustomPropertyDrawer(typeof(PhysicalExpansion))]
+    [CustomPropertyDrawer(typeof(ContentExpansion),true)]
     public sealed class PhysicalExpansionDrawer : PropertyDrawer
     {
         public override float GetPropertyHeight(SerializedProperty property,GUIContent label)
