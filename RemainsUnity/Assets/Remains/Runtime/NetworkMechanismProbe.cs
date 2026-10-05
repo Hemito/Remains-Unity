@@ -42,10 +42,16 @@ namespace Remains.Runtime
         private readonly Dictionary<string,DurableProof> snapshots=new(StringComparer.Ordinal);
         private readonly List<DurableProof> durableProofs=new();
         private readonly List<MotionPoint> motion=new();
+        private readonly Queue<CarrierFrame> carrierFrames=new();
+        private readonly Queue<ClockEpoch> clockEpochs=new();
         private readonly HashSet<int> observed=new();
         private readonly List<string> captures=new();
         private string latestSnapshot;
         private double nextTrace;
+        private Vector2 previousCarrierPosition,previousCarrierAnchor;
+        private double previousCarrierClock;
+        private WorldState previousCarrierWorld;
+        private string failureCaptureError;
         private bool Host=>runtime.Options.Role=="host";
         private ActorState Actor=>runtime.Session.LocalActor;
         private MechanismButtonState Button=>runtime.Session.World?.mechanismButtons.Find(b=>b.id==ButtonId);
@@ -69,6 +75,7 @@ namespace Remains.Runtime
             value.CommandSource=Command;
             value.Session.RecoveryPrepared+=RecoveryPrepared;
             value.Session.RecoveryMeasured+=RecoveryMeasured;
+            value.Session.LevelTime.EpochChanged+=ClockEpochChanged;
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<MechanismProbeStage>(Begin);
@@ -80,6 +87,15 @@ namespace Remains.Runtime
         private void RecoveryPrepared(string id,long revision) {if(Host) ReadSelected(id);}
         private void RecoveryMeasured(string label,double milliseconds,int characters)
         {if(!Host && label=="recovery-received") ReadSelected(null);}
+        private void ClockEpochChanged()
+        {
+            if(finished || !runtime.Session.LevelTime.HasLocal(Level)) return;
+            clockEpochs.Enqueue(new ClockEpoch {stage=(int)stage,frame=Time.frameCount,realSeconds=Time.unscaledTime,
+                networkSeconds=NetworkTime.time,networkLocalSeconds=NetworkTime.localTime,networkRtt=NetworkTime.rtt,
+                clockSequence=runtime.Session.LevelTime.ClientSequence,levelSeconds=Clock,
+                running=runtime.Session.LevelTime.RunsLocal(Level),paused=Paused,pauseRevision=runtime.Session.Pause.Revision});
+            while(clockEpochs.Count>80) clockEpochs.Dequeue();
+        }
         private void ReadSelected(string expected)
         {
             // Explicit persistence event, never a per-frame disk read. Record that this was
@@ -338,15 +354,54 @@ namespace Remains.Runtime
             float height=Math.Abs(actor.y-sample.SupportBounds.yMax);
             maximumRelativeError=Math.Max(maximumRelativeError,relative);maximumHeightError=Math.Max(maximumHeightError,height);
             contactSamples++;if(sample.Moving && !Paused) movingSamples++;
-            if(relative>CarryTolerance || height>.12f)
-                throw new InvalidOperationException($"Обычный контроллер потерял относительный контакт: actor={actor.id}, relativeError={relative}, heightError={height}, player={actor.Position}, anchor={sample.Anchor}, bounds={sample.SupportBounds}.");
-            if(Time.unscaledTime>=nextTrace)
+            var recorded=RecordCarrierFrame(sample,relative,height);
+            bool lost=relative>CarryTolerance || height>.12f;
+            if(lost || Time.unscaledTime>=nextTrace)
             {
                 nextTrace=Time.unscaledTime+.1;
-                motion.Add(new MotionPoint {stage=(int)stage,realSeconds=Time.unscaledTime,levelSeconds=Clock,actor=actor.Position,
+                motion.Add(new MotionPoint {stage=(int)stage,realSeconds=Time.unscaledTime,levelSeconds=recorded.levelSeconds,actor=actor.Position,
                     platform=sample.Anchor,relativeError=relative,heightError=height,paused=Paused,frozenWindow=stage==Stage.Pause && pauseBaseline,
                     sequence=Platform.segment?.sequence??0});
             }
+            // Record the failing frame before rejecting it. No correction or fixture rebase.
+            if(lost)
+                throw new InvalidOperationException($"Обычный контроллер потерял относительный контакт: actor={actor.id}, relativeError={relative}, heightError={height}, player={actor.Position}, anchor={sample.Anchor}, bounds={sample.SupportBounds}, frame={recorded.frame}, clockSequence={recorded.clockSequence}, physicsContinuous={recorded.physicsContinuous}, physicsClock={recorded.physicsPreviousSeconds}->{recorded.physicsSeconds}, delta={recorded.deltaSeconds}, clockAdvance={recorded.clockAdvance}, sampleSkew={recorded.clockSampleSkew}.");
+        }
+        private CarrierFrame RecordCarrierFrame(MovingPlatformSample sample,float relative,float height)
+        {
+            // Bounded scalar observations of the actual published frame. This does not
+            // evaluate platform motion, rebuild geometry, read assets or alter a passenger.
+            var actor=Actor;var world=runtime.Session.World;double clock=Clock;
+            bool prior=carrierFrames.Count>0;
+            var frame=new CarrierFrame {stage=(int)stage,frame=Time.frameCount,realSeconds=Time.unscaledTime,
+                deltaSeconds=Time.deltaTime,unscaledDeltaSeconds=Time.unscaledDeltaTime,levelSeconds=clock,
+                clockAdvance=prior?clock-previousCarrierClock:0,clockSequence=runtime.Session.LevelTime.ClientSequence,
+                networkSeconds=NetworkTime.time,networkLocalSeconds=NetworkTime.localTime,networkRtt=NetworkTime.rtt,
+                clockRunning=runtime.Session.LevelTime.RunsLocal(Level),paused=Paused,pauseRevision=runtime.Session.Pause.Revision,
+                worldRevision=world.revision,worldReplaced=prior && !ReferenceEquals(world,previousCarrierWorld),
+                geometryTopologyVersion=runtime.Geometry.TopologyVersion,actor=actor.Position,platform=sample.Anchor,
+                actorStep=prior?actor.Position-previousCarrierPosition:Vector2.zero,
+                platformStep=prior?sample.Anchor-previousCarrierAnchor:Vector2.zero,
+                actorMotionSequence=actor.motionSequence,actorRevision=actor.revision,velocity=new Vector2(actor.vx,actor.vy),
+                relativeError=relative,heightError=height,progress=sample.Progress,segmentSequence=Platform.segment?.sequence??0};
+            var published=runtime.Geometry.Get(Level).dynamicSurfaces;
+            if(published!=null)
+            {
+                frame.physicsPublished=published.IsPublished;frame.physicsSequence=published.Sequence;
+                frame.physicsTopologyVersion=published.TopologyVersion;frame.physicsPreviousSeconds=published.PreviousElapsedSeconds;
+                frame.physicsSeconds=published.ElapsedSeconds;frame.clockSampleSkew=clock-published.ElapsedSeconds;
+                if(published.IsPublished)
+                    for(int i=0;i<published.Count;i++)
+                    {
+                        var pose=published.Pose(i);if(pose.Id!=PlatformId) continue;
+                        frame.physicsFound=true;frame.physicsContinuous=pose.Continuous;frame.physicsDelta=pose.Delta;
+                        frame.physicsPrevious=new Vector2(pose.Previous.x,pose.Previous.y);
+                        frame.physicsCurrent=new Vector2(pose.Current.x,pose.Current.y);break;
+                    }
+            }
+            carrierFrames.Enqueue(frame);while(carrierFrames.Count>240) carrierFrames.Dequeue();
+            previousCarrierClock=clock;previousCarrierPosition=actor.Position;previousCarrierAnchor=sample.Anchor;previousCarrierWorld=world;
+            return frame;
         }
         private void Capture(string name)
         {
@@ -373,7 +428,14 @@ namespace Remains.Runtime
             if(success && (stage!=Stage.Arrived || captures.Count!=3 || durableProofs.Count!=3 || !boarded || !pauseVerified))
             {success=false;detail="Неполный локальный набор доказательств. "+detail;}
             finished=true;
-            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,context=Context(),role=runtime.Options.Role,
+            string finishContext=Context();
+            if(!success && boarded)
+            {
+                try {Capture("failed");}
+                catch(Exception error)
+                {failureCaptureError=error.Message;Debug.LogWarning("Не удалось снять кадр ошибки перевозки: "+error.Message,this);}
+            }
+            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,context=finishContext,role=runtime.Options.Role,
                 observer=Actor?.id,sourceActor=sourceActor,world=runtime.Session.World?.worldId,button=ButtonId,platform=PlatformId,debugTravel=true,
                 fixturePosition=fixturePosition,boardingPosition=boardingPosition,boardingAnchor=boardingAnchor,
                 playerEnd=Actor?.Position??default,routeDistance=Platform==null?0:Platform.End.x-Platform.Start.x,
@@ -381,9 +443,11 @@ namespace Remains.Runtime
                 segmentSequence=segmentSequence,contactSamples=contactSamples,movingSamples=movingSamples,
                 maximumRelativeError=maximumRelativeError,maximumHeightError=maximumHeightError,
                 pauseClockError=pauseClockError,pausePositionError=pausePositionError,pausePlatformError=pausePlatformError,
-                durationSeconds=durationSeconds,expectedRemainingSeconds=expectedRemainingSeconds,observedRemainingSeconds=arrivalClock-boardClock,
+                durationSeconds=durationSeconds,expectedRemainingSeconds=expectedRemainingSeconds,arrivalObserved=arrivalAt>=0,
+                observedRemainingSeconds=arrivalAt>=0?arrivalClock-boardClock:0,
                 sourceRepairProgress=capturedRepairProgress,localRepairProgressAtCapture=localRepairProgressAtCapture,repairEEdges=repairEEdges,activationEEdges=activationEEdges,
-                width=1920,height=1080,captures=captures.ToArray(),durable=durableProofs.ToArray(),motion=motion.ToArray()},true));
+                width=1920,height=1080,captures=captures.ToArray(),durable=durableProofs.ToArray(),motion=motion.ToArray(),
+                carrierFrames=carrierFrames.ToArray(),clockEpochs=clockEpochs.ToArray(),failureCaptureError=failureCaptureError},true));
             Invoke(nameof(Exit),1.5f);exitSuccess=success;
         }
         private bool exitSuccess;
@@ -392,16 +456,31 @@ namespace Remains.Runtime
         {
             if(runtime==null) return;
             runtime.Session.RecoveryPrepared-=RecoveryPrepared;runtime.Session.RecoveryMeasured-=RecoveryMeasured;
+            runtime.Session.LevelTime.EpochChanged-=ClockEpochChanged;
         }
         [Serializable] private sealed class DurableProof
         {public int stage,endpoint,segmentFrom,segmentTo,mechanismTransactions;public string identityHash,world,button,platform,repairState;
             public long worldRevision,buttonRevision,platformRevision,segmentSequence;public bool pressed,observedSelected;}
         [Serializable] private sealed class MotionPoint
         {public int stage;public double realSeconds,levelSeconds;public Vector2 actor,platform;public float relativeError,heightError;public bool paused,frozenWindow;public long sequence;}
+        [Serializable] private sealed class ClockEpoch
+        {public int stage,frame;public double realSeconds,networkSeconds,networkLocalSeconds,networkRtt,levelSeconds;public long clockSequence,pauseRevision;public bool running,paused;}
+        [Serializable] private sealed class CarrierFrame
+        {
+            public int stage,frame;
+            public double realSeconds,levelSeconds,clockAdvance,clockSampleSkew,networkSeconds,networkLocalSeconds,networkRtt,
+                physicsPreviousSeconds,physicsSeconds,progress;
+            public float deltaSeconds,unscaledDeltaSeconds,relativeError,heightError;
+            public long clockSequence,pauseRevision,worldRevision,geometryTopologyVersion,actorMotionSequence,actorRevision,
+                segmentSequence,physicsSequence,physicsTopologyVersion;
+            public Vector2 actor,platform,actorStep,platformStep,velocity,physicsPrevious,physicsCurrent,physicsDelta;
+            public bool clockRunning,paused,worldReplaced,physicsPublished,physicsFound,physicsContinuous;
+        }
         [Serializable] private sealed class Report
-        {public bool success,debugTravel;public string detail,context,role,observer,sourceActor,world,button,platform;public Vector2 fixturePosition,boardingPosition,boardingAnchor,playerEnd;
+        {public bool success,debugTravel,arrivalObserved;public string detail,context,role,observer,sourceActor,world,button,platform;public Vector2 fixturePosition,boardingPosition,boardingAnchor,playerEnd;
             public float routeDistance,carriedDistance,expectedCarriedDistance,maximumRelativeError,maximumHeightError,pauseClockError,pausePositionError,pausePlatformError;
             public double sourceRepairProgress,localRepairProgressAtCapture,durationSeconds,expectedRemainingSeconds,observedRemainingSeconds;
-            public int contactSamples,movingSamples,repairEEdges,activationEEdges,width,height;public long segmentSequence;public string[] captures;public DurableProof[] durable;public MotionPoint[] motion;}
+            public int contactSamples,movingSamples,repairEEdges,activationEEdges,width,height;public long segmentSequence;public string[] captures;public DurableProof[] durable;public MotionPoint[] motion;
+            public CarrierFrame[] carrierFrames;public ClockEpoch[] clockEpochs;public string failureCaptureError;}
     }
 }
