@@ -28,7 +28,7 @@ namespace Remains.Editor
             foreach(var pair in new[]{(FactoryWorkshopDraft.Path,0f),(ConnectedFactoryAuthoring.Path,38.4f)})
             {
                 var room=AssetDatabase.LoadAssetAtPath<GameObject>(pair.Item1).GetComponent<RoomAuthoring>();
-                var layout=RoomPhysicalContent.Read(room,"factory:0");var stand=layout.containers.Single(c=>c.definition=="instr2");
+                var layout=FactoryContentCheckFixtures.BeforeOffice(RoomPhysicalContent.Read(room,"factory:0"));var stand=layout.containers.Single(c=>c.definition=="instr2");
                 Require(stand.id=="factory:0:"+FactoryToolStandAuthoring.SourceId && !stand.movable && !stand.hasPhysicalBody && stand.mass==0 &&
                     stand.anchorHeight==0 && Vector2.Distance(stand.Position,new Vector2(2.4f+pair.Item2,1.62f))<.0001f,"Стенд потерял исходную позицию/ID/политику при чтении комнаты.");
                 Require(layout.containers.Length==(pair.Item2==0?7:15) && layout.expansion.earlierVersions.Length==1,"Потеряна расстановка или цепочка v1/v2→v3.");

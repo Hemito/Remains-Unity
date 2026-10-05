@@ -14,21 +14,28 @@ namespace Remains.Editor
         public static void Check(RoomAuthoring room)
         {
             var layout=room.CreateLayout();var batch=RoomContentBatch.Read(room,"factory:0");
+            var office=room.GetComponentsInChildren<RoomAuthoring>(true).SingleOrDefault(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
+            var officeLayout=office?.CreateLayout();var officeBatch=office==null?null:RoomContentBatch.Read(office,"factory:0");
+            int officeSurfaces=officeLayout?.platforms.Length??0,officeArt=officeLayout?.artwork.Length??0,officeLadders=officeLayout?.ladders.Length??0;
+            int connector=office==null?0:3;
             int exterior=FactoryBoundaryChecks.Check(room);
             int crawlers=batch.npcs.actors.Count(a=>a.actorType=="radroach");
             int mechanisms=(batch.mechanisms?.movingPlatforms.Length??0)+(batch.mechanisms?.mechanismButtons.Length??0);
             Require(mechanisms is 0 or 3,"Расстановка платформы/кнопок установлена частично.");
             Require(crawlers==0 || crawlers==2,"Расстановка радтараканов установлена частично.");
             int landings=FactoryLadderLandingChecks.CheckConnected(room,false);
-            Require(layout.right==76.8f && layout.top==20 && layout.platforms.Length==127+exterior+landings && layout.ladders.Length==8 && layout.artwork.Length==325+exterior+landings,
+            int officeLandings=office?.GetComponentsInChildren<RoomLadderLandingAuthoring>(true).Length??0;
+            Require(Mathf.Abs(layout.right-(office==null?76.8f:FactoryOfficeConnectionAuthoring.Right))<.001f && layout.top==20 &&
+                layout.platforms.Length==127+exterior+landings+officeSurfaces-officeLandings+connector && layout.ladders.Length==8+officeLadders && layout.artwork.Length==325+exterior+landings+officeArt-officeLandings+connector,
                 "Потеряны границы или геометрия модулей.");
-            Require(batch.doors.doors.Length==6 && batch.physical.props.Length==6 && batch.physical.containers.Length==15 &&
-                batch.physical.loot.Length==13 && batch.npcs.actors.Length==6+crawlers && batch.travelPoints.Length==1,
+            Require(batch.doors.doors.Length==6+(officeBatch?.doors?.doors.Length??0) && batch.physical.props.Length==6+(officeBatch?.physical?.props.Length??0) && batch.physical.containers.Length==15+(officeBatch?.physical?.containers.Length??0) &&
+                batch.physical.loot.Length==13+(officeBatch?.physical?.loot.Length??0) && batch.npcs.actors.Length==6+crawlers && batch.travelPoints.Length==1,
                 "Потеряно содержимое модулей или размножена выходная дверь.");
             var lights=room.GetComponent<RoomLightingAuthoring>().CreateProfile(room);
-            Require(lights.lights.Length==15 && lights.lights.Select(l=>l.id).Distinct().Count()==15 &&
-                lights.lights.Count(l=>l.x>38.4f)==2,"Потеряны или не смещены источники света цеха.");
-            var record=room.GetComponentInChildren<RoomImportAudit>().Report;
+            int officeLights=office?.GetComponent<RoomLightingAuthoring>()?.CreateProfile(office).lights.Length??0;
+            Require(lights.lights.Length==15+officeLights && lights.lights.Select(l=>l.id).Distinct().Count()==15+officeLights &&
+                lights.lights.Count(l=>l.x>38.4f && l.x<76.8f)==2,"Потеряны или не смещены источники света цеха.");
+            var record=room.GetComponentsInChildren<RoomImportAudit>().Single(a=>a.Report.SourceId=="original:plant:18").Report;
             Require(record.Records.Length==24 && record.Records.Count(r=>!r.installed)==6-crawlers-mechanisms,"Пропуски исходного содержимого скрыты или потеряны.");
             var ammo=batch.physical.containers.Single(c=>c.id.EndsWith(":sjN3zN7dP8aCZGe6",StringComparison.Ordinal));
             Require(Mathf.Abs(ammo.x-40.4f)<.001f && Mathf.Abs(ammo.y-10.4f)<.001f,"Контейнер соседней комнаты не получил смещение модуля.");
@@ -45,7 +52,7 @@ namespace Remains.Editor
                 Require(direction>0?start.x>39.9f:start.x<37.1f,"Пересечение стыка заблокировано.");
             }
             var world=new WorldState {worldId="connected-factory-content-check"};MechanismPersistence.Prepare(world,()=>{});RoomContentInstaller.Apply(world,batch);
-            Require(world.containers.Count==15 && world.doors.Count==6 && world.actors.Count==6+crawlers,"Расстановка связного мира потеряла объекты.");
+            Require(world.containers.Count==batch.physical.containers.Length && world.doors.Count==batch.doors.doors.Length && world.actors.Count==6+crawlers,"Расстановка связного мира потеряла объекты.");
             var container=world.containers.Single(c=>c.id==ammo.id);container.items.Clear();container.x+=.2f;
             var restored=StateJson.Copy(world);var before=StateJson.ToJson(restored);
             Require(!RoomContentInstaller.Apply(restored,batch) && StateJson.ToJson(restored)==before,"Повторный вход пополнил лут или сбросил положение.");

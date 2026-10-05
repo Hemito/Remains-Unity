@@ -22,8 +22,11 @@ namespace Remains.Runtime
     [DefaultExecutionOrder(10000)]
     public sealed class NetworkToolStandProbe : MonoBehaviour
     {
-        private const string StandId="factory:0:original:plant:18:A1LGxhvIcc83ZfC2";
+        private bool Office=>runtime.Options.Smoke.StartsWith("office-cabinet",StringComparison.Ordinal);
+        private string StandId=>Office?"factory:0:original:plant:53:U7xbZnkwspR6bhob":"factory:0:original:plant:18:A1LGxhvIcc83ZfC2";
+        private string Label=>Office?"Офисная картотека":"Стенд инструментов";
         private PrototypeRuntime runtime;
+        private FactoryOfficeSeamProbe officeSeam;
         private ToolStandFixture fixture;
         private readonly HashSet<int> opened=new(), observed=new();
         private float deadline;
@@ -38,7 +41,8 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+95;
-            if(string.IsNullOrEmpty(value.Options.SaveDirectory)) throw new InvalidOperationException("Стенд требует отдельного каталога сохранений.");
+            if(Office) officeSeam=new FactoryOfficeSeamProbe(value);
+            if(string.IsNullOrEmpty(value.Options.SaveDirectory)) throw new InvalidOperationException(Label+": требуется отдельный каталог сохранений.");
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка стенда не заменяет существующий мир.");
@@ -63,6 +67,7 @@ namespace Remains.Runtime
         {
             var actor=runtime.Session.LocalActor;
             if(actor==null || finished) return default;
+            if(Office && !officeSeam.ContainerReady) return officeSeam.Command();
             if(actor.weapon!="pistol") return new PlayerCommand {weapon="pistol"};
             if(fixture.pin!=null && actor.generation==ExpectedGeneration)
             {
@@ -89,6 +94,12 @@ namespace Remains.Runtime
             var session=runtime.Session;var actor=session.LocalActor;
             if(actor==null || session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return;
             if(!traveled) {traveled=true;session.Travel.RequestFactory();}
+            if(Office)
+            {
+                officeSeam.Tick();
+                if(officeSeam.Failure!=null) {Finish(false,officeSeam.Failure);return;}
+                if(!officeSeam.ContainerReady) return;
+            }
             if(Host && !installed && session.ServerWorld.actors.Where(a=>a.player && a.connected).All(a=>a.level=="factory:0") &&
                 session.World.actors.Where(a=>a.player && a.connected).All(a=>a.level=="factory:0") && !session.Travel.Pending)
             {
@@ -97,7 +108,7 @@ namespace Remains.Runtime
             if(fixture.pin==null || actor.generation!=ExpectedGeneration || actor.level!="factory:0" || Stand==null) return;
             if(settledSince<0) settledSince=Time.unscaledTime;
             if(actor.down) {Finish(false,"Игрок потерял сознание у стенда.");return;}
-            if(!PolicyValid(Stand)) {Finish(false,"Настенный стенд получил физическое тело, движение или другой anchor.");return;}
+            if(!PolicyValid(Stand)) {Finish(false,Label+": нарушены физическое тело, масса или положение.");return;}
             if(opening && runtime.Hud.ContainerOpen && !ready)
             {
                 if(runtime.Hud.ShownInventorySourceId!=StandId || runtime.Hud.InventoryOpen || runtime.Hud.BlocksGameplayInput)
@@ -120,12 +131,12 @@ namespace Remains.Runtime
         private void Setup()
         {
             var session=runtime.Session;var stand=session.ServerWorld.containers.Single(c=>c.id==StandId);
-            if(!PolicyValid(stand) || stand.items.All(i=>i.definition!="pin") || stand.items.All(i=>i.definition!="rep"))
+            if(!PolicyValid(stand) || stand.items.All(i=>i.definition!="pin") || !Office && stand.items.All(i=>i.definition!="rep"))
                 throw new InvalidOperationException("Обычный authored стенд отсутствует или не получил исходный Unity-лут.");
             var room=runtime.Geometry.Get("factory:0");
             foreach(var player in session.ServerWorld.actors.Where(a=>a.player && a.connected))
             {
-                var start=new Vector2(stand.x+(player.character=="session-host"?-.95f:.95f),.8f);var hull=Anatomy.Movement(player);
+                var start=new Vector2(stand.x+(player.character=="session-host"?-.95f:.95f),Office?7.2f:.8f);var hull=Anatomy.Movement(player);
                 if(!ActorTerrainMotion.IsClear(room,hull,start) || !ActorTerrainMotion.Supported(room,hull,start))
                     throw new InvalidOperationException("Проверочное положение игрока у стенда не имеет опоры: "+start);
                 player.Position=start;player.Velocity=Vector2.zero;player.climbing=false;player.pose="idle";player.poseTime=0;
@@ -183,25 +194,28 @@ namespace Remains.Runtime
                 }
             }
             stage=3;NetworkServer.SendToAll(new ToolStandFinish {success=valid,detail=valid?
-                "Настенный стенд: общий исходный лут, E и Unity UI, одна выдача полной стопки, клики без выстрела, сохранение пустого содержимого без пополнения; тело/масса/движение отсутствуют.":
+                Label+": общий лут, E и Unity UI, одна выдача полной стопки, клики без выстрела, сохранение пустого содержимого без пополнения; политика тела и массы сохранена.":
                 "Сохранение или повторная установка изменили пустой настенный контейнер."});
         }
-        private static bool PolicyValid(ContainerState stand)=>stand!=null && !stand.hasPhysicalBody && !stand.movable && stand.mass==0 &&
-            !stand.held && stand.vx==0 && stand.vy==0 && Mathf.Abs(stand.x-40.8f)<.0001f && Mathf.Abs(stand.y-1.62f)<.0001f;
+        private bool PolicyValid(ContainerState stand)=>stand!=null && !stand.held && Mathf.Abs(stand.vx)<.0001f && Mathf.Abs(stand.vy)<.0001f &&
+            (Office?stand.definition=="filecab" && stand.hasPhysicalBody && stand.movable && stand.mass==12 &&
+                Mathf.Abs(stand.x-79.6f)<.0001f && Mathf.Abs(stand.y-7.2f)<.0001f:
+                !stand.hasPhysicalBody && !stand.movable && stand.mass==0 && Mathf.Abs(stand.x-40.8f)<.0001f && Mathf.Abs(stand.y-1.62f)<.0001f);
         private void LateUpdate()
         {
+            officeSeam?.Capture();
             if(capture==null || !runtime.Options.Smoke.Contains("-frames-")) return;
-            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".tool-stand-"+capture+".png",runtime.Hud.GetComponent<Canvas>());
+            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+(Office?".office-cabinet-":".tool-stand-")+capture+".png",runtime.Hud.GetComponent<Canvas>());
             capture=null;
         }
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,stage=stage,opened=ready,attacks=attacks,
-                pin=fixture.pin,pins=fixture.pins,empty=Stand?.items.Count==0,policyValid=PolicyValid(Stand)},true));
+                pin=fixture.pin,pins=fixture.pins,empty=Stand?.items.Count==0,policyValid=PolicyValid(Stand),seamVerified=officeSeam?.Verified??false},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        [Serializable] private sealed class Report {public bool success,opened,empty,policyValid;public string detail,pin;public int stage,attacks,pins;}
+        [Serializable] private sealed class Report {public bool success,opened,empty,policyValid,seamVerified;public string detail,pin;public int stage,attacks,pins;}
     }
 }

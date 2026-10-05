@@ -30,7 +30,29 @@ namespace Remains.Editor
             world.contentPatches.Clear();door.x=2;before=StateJson.ToJson(world);rejected=false;
             try {DoorContentInstaller.Apply(world,layout);} catch(InvalidOperationException) {rejected=true;}
             Require(rejected && StateJson.ToJson(world)==before,"Неявная миграция перенесла сохранённую дверь.");
-            Debug.Log("Расстановка дверей: PASS — однократная установка, сохранение/загрузка, принятие существующих, удаление и атомарный отказ конфликтов.");
+            CheckExpansion();
+            Debug.Log("Расстановка дверей: PASS — однократная установка, сохранение/загрузка, добавочные версии без возрождения удалённых дверей и атомарный отказ конфликтов.");
+        }
+        private static void CheckExpansion()
+        {
+            const string level="factory:0";
+            DoorState Door(string id,float x)=>new() {id=level+":"+id,definition="door1",level=level,x=x,y=0,width=.8f,height=1.6f,surfaceTexture="door:wood"};
+            var first=Door("old",1);var second=Door("new",3);
+            var old=new DoorLayout {level=level,patch=level+":doors-v1",doors=new[]{first}};
+            var current=new DoorLayout {level=level,patch=level+":doors-v2",doors=new[]{first,second},
+                expansion=new ContentExpansion {previousPatch=old.patch,additions=new[]{second.id}}};
+            var deleted=new WorldState();DoorContentInstaller.Apply(deleted,old);deleted.doors.Clear();
+            Require(DoorContentInstaller.Apply(deleted,current) && deleted.doors.Count==1 && deleted.doors[0].id==second.id,
+                "Добавление соседнего модуля вернуло удалённую прежнюю дверь.");
+            var world=new WorldState();DoorContentInstaller.Apply(world,old);world.doors[0].open=true;world.doors[0].revision=19;
+            string preserved=StateJson.ToJson(world.doors[0]);DoorContentInstaller.Apply(world,current);
+            Require(world.doors.Count==2 && StateJson.ToJson(world.doors[0])==preserved,"Добавление модуля сбросило состояние прежней двери.");
+            string before=StateJson.ToJson(world);Require(!DoorContentInstaller.Apply(world,current) && StateJson.ToJson(world)==before,
+                "Повторное добавление изменило мир.");
+            var broken=StateJson.Copy(current);broken.expansion.additions=new[]{level+":missing"};
+            var invalid=new WorldState();before=StateJson.ToJson(invalid);bool rejected=false;
+            try {DoorContentInstaller.Apply(invalid,broken);} catch(InvalidOperationException) {rejected=true;}
+            Require(rejected && StateJson.ToJson(invalid)==before,"Ошибочные ID дополнения частично изменили мир.");
         }
         private static void Require(bool condition,string reason) {if(!condition) throw new InvalidOperationException(reason);}
     }

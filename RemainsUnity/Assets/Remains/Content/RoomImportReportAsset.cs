@@ -21,6 +21,7 @@ namespace Remains.Content
         [SerializeField,InspectorName("Исходный шаблон")] private string sourceId;
         [SerializeField,InspectorName("SHA256 исходного содержимого")] private string sourceHash;
         [SerializeField,InspectorName("Исходные игровые объекты")] private RoomSourceRecord[] records;
+        public string SourceId=>sourceId;
         public RoomSourceRecord[] Records {get {Validate();return records;}}
         public void Configure(string id,string hash,RoomSourceRecord[] values) {sourceId=id;sourceHash=hash;records=values;Validate();}
         public void Validate()

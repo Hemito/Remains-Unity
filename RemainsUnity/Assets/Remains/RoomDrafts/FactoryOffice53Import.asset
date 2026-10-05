@@ -1,0 +1,585 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58a647ef39233024fbeca5121fc5abd1, type: 3}
+  m_Name: FactoryOffice53Import
+  m_EditorClassIdentifier:
+  sourceId: original:plant:53
+  sourceHash: e008b7795261a45fe627eaa921ad764ba0492365fc5e91b93b097251a57767d8
+  records:
+  - recordId: original:plant:53:record:26
+    kind: door1a
+    code: oYIjQIPJl0C4IamY
+    sourceX: 12
+    sourceY: 23
+    sourceData: "<obj id=\"door1a\" code=\"oYIjQIPJl0C4IamY\" x=\"12\" y=\"23\" />\n    "
+    installed: 0
+    reason: "\u041D\u0435\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043D\u043D\u043E\u0433\u043E
+      \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E\u0433\u043E door/hatch \u043A\u043E\u043D\u0442\u0440\u0430\u043A\u0442\u0430
+      \u0438 \u0440\u0435\u0441\u0443\u0440\u0441\u0430; \u043E\u0431\u044B\u0447\u043D\u043E\u0439
+      \u0434\u0432\u0435\u0440\u044C\u044E \u043C\u043E\u043B\u0447\u0430 \u043D\u0435
+      \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F."
+  - recordId: original:plant:53:record:27
+    kind: door1
+    code: NMeCLKXlWsv6CYYL
+    sourceX: 28
+    sourceY: 5
+    sourceData: "<obj id=\"door1\" code=\"NMeCLKXlWsv6CYYL\" x=\"28\" y=\"5\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u044B\u0447\u043D\u0430\u044F \u0434\u0432\u0435\u0440\u044C
+      Unity \u0447\u0435\u0440\u0435\u0437 E; source code \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D.
+      \u0421\u043E\u0432\u043F\u0430\u0434\u0430\u044E\u0449\u0438\u0439 record28
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u0451\u0442 \u0432\u0442\u043E\u0440\u043E\u0439
+      collider."
+  - recordId: original:plant:53:record:28
+    kind: door1
+    code: zlnR8eeCKCDkaJ8P
+    sourceX: 28
+    sourceY: 5
+    sourceData: "<obj id=\"door1\" code=\"zlnR8eeCKCDkaJ8P\" x=\"28\" y=\"5\" />\n    "
+    installed: 0
+    reason: "coincident-source-door: \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u0435\u0442
+      \u0441 record27 \u0432 (28;5); \u0432\u044B\u0431\u0440\u0430\u043D record27,
+      \u0443\u0441\u043B\u043E\u0432\u0438\u044F \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u043F\u0430\u0440\u044B \u043D\u0435 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u044B,
+      \u0432\u0442\u043E\u0440\u043E\u0439 collider \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u0451\u0442\u0441\u044F."
+  - recordId: original:plant:53:record:29
+    kind: door1b
+    code: A18hgrfbuzhgXKQF
+    sourceX: 40
+    sourceY: 23
+    sourceData: "<obj id=\"door1b\" code=\"A18hgrfbuzhgXKQF\" x=\"40\" y=\"23\" />\n    "
+    installed: 0
+    reason: "\u041D\u0435\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043D\u043D\u043E\u0433\u043E
+      \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E\u0433\u043E door/hatch \u043A\u043E\u043D\u0442\u0440\u0430\u043A\u0442\u0430
+      \u0438 \u0440\u0435\u0441\u0443\u0440\u0441\u0430; \u043E\u0431\u044B\u0447\u043D\u043E\u0439
+      \u0434\u0432\u0435\u0440\u044C\u044E \u043C\u043E\u043B\u0447\u0430 \u043D\u0435
+      \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F."
+  - recordId: original:plant:53:record:30
+    kind: septum
+    code: zri9VcgQNIco2Kwg
+    sourceX: 12
+    sourceY: 3
+    sourceData: "<obj id=\"septum\" code=\"zri9VcgQNIco2Kwg\" x=\"12\" y=\"3\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u044B \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u044B\u0435
+      \u043F\u0440\u043E\u0451\u043C/\u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u0435/\u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u0438\u0435
+      \u0434\u0430\u043D\u043D\u044B\u0435; \u0437\u0430\u043F\u0438\u0441\u044C
+      \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430 \u0431\u0435\u0437 generic
+      wall."
+  - recordId: original:plant:53:record:31
+    kind: window1
+    code: cK9ZcCyQv8c4oTfH
+    sourceX: 21
+    sourceY: 20
+    sourceData: "<obj id=\"window1\" code=\"cK9ZcCyQv8c4oTfH\" x=\"21\" y=\"20\"
+      />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u044B \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u044B\u0435
+      \u043F\u0440\u043E\u0451\u043C/\u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u0435/\u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u0438\u0435
+      \u0434\u0430\u043D\u043D\u044B\u0435; \u0437\u0430\u043F\u0438\u0441\u044C
+      \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430 \u0431\u0435\u0437 generic
+      wall."
+  - recordId: original:plant:53:record:32
+    kind: chest
+    code: KGFzJ42eGXsViOgQ
+    sourceX: 1
+    sourceY: 3
+    sourceData: "<obj id=\"chest\" code=\"KGFzJ42eGXsViOgQ\" x=\"1\" y=\"3\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u043E\u0435 \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0435
+      \u044F\u0432\u043D\u043E \u043F\u0443\u0441\u0442\u043E\u0435, \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439
+      loot generator \u043D\u0435 \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0438\u043B\u0441\u044F."
+  - recordId: original:plant:53:record:33
+    kind: case
+    code: Vlre7BfXHBfUemNy
+    sourceX: 2
+    sourceY: 11
+    sourceData: "<obj id=\"case\" code=\"Vlre7BfXHBfUemNy\" x=\"2\" y=\"11\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:34
+    kind: case
+    code: DJiqbtuSenz3QGiT
+    sourceX: 46
+    sourceY: 15
+    sourceData: "<obj id=\"case\" code=\"DJiqbtuSenz3QGiT\" x=\"46\" y=\"15\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:35
+    kind: ammobox
+    code: DSI0AduFTCgsODxn
+    sourceX: 2
+    sourceY: 23
+    sourceData: "<obj id=\"ammobox\" code=\"DSI0AduFTCgsODxn\" x=\"2\" y=\"23\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:36
+    kind: ammobox
+    code: ZHMq46C6uEF0ARmX
+    sourceX: 45
+    sourceY: 3
+    sourceData: "<obj id=\"ammobox\" code=\"ZHMq46C6uEF0ARmX\" x=\"45\" y=\"3\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:37
+    kind: ammobox
+    code: gTVSpm8g3ivYxgt9
+    sourceX: 8
+    sourceY: 6
+    sourceData: "<obj id=\"ammobox\" code=\"gTVSpm8g3ivYxgt9\" x=\"8\" y=\"6\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:38
+    kind: explbox
+    code: Bf6ZE9xBKE8ABZ5b
+    sourceX: 1
+    sourceY: 23
+    sourceData: "<obj id=\"explbox\" code=\"Bf6ZE9xBKE8ABZ5b\" x=\"1\" y=\"23\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u044B \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0435
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0435 \u0442\u0438\u043F/\u0440\u0435\u0441\u0443\u0440\u0441/\u043D\u0430\u0447\u0430\u043B\u044C\u043D\u043E\u0435
+      \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0435; \u0447\u0443\u0436\u0438\u043C
+      \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043E\u043C \u043D\u0435
+      \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F."
+  - recordId: original:plant:53:record:39
+    kind: weapbox
+    code: IB0Ok16gZlifX67F
+    sourceX: 45
+    sourceY: 23
+    sourceData: "<obj id=\"weapbox\" code=\"IB0Ok16gZlifX67F\" x=\"45\" y=\"23\"
+      />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u044B \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0435
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0435 \u0442\u0438\u043F/\u0440\u0435\u0441\u0443\u0440\u0441/\u043D\u0430\u0447\u0430\u043B\u044C\u043D\u043E\u0435
+      \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0435; \u0447\u0443\u0436\u0438\u043C
+      \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043E\u043C \u043D\u0435
+      \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F."
+  - recordId: original:plant:53:record:40
+    kind: medbox
+    code: iX0lf6vnsIAfRQqE
+    sourceX: 44
+    sourceY: 22
+    sourceData: "<obj id=\"medbox\" code=\"iX0lf6vnsIAfRQqE\" x=\"44\" y=\"22\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u044B \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0435
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0435 \u0442\u0438\u043F/\u0440\u0435\u0441\u0443\u0440\u0441/\u043D\u0430\u0447\u0430\u043B\u044C\u043D\u043E\u0435
+      \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0435; \u0447\u0443\u0436\u0438\u043C
+      \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043E\u043C \u043D\u0435
+      \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F."
+  - recordId: original:plant:53:record:41
+    kind: instr1
+    code: jfV1kHAk9SCKk0h5
+    sourceX: 19
+    sourceY: 5
+    sourceData: "<obj id=\"instr1\" code=\"jfV1kHAk9SCKk0h5\" x=\"19\" y=\"5\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u044B \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0435
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0435 \u0442\u0438\u043F/\u0440\u0435\u0441\u0443\u0440\u0441/\u043D\u0430\u0447\u0430\u043B\u044C\u043D\u043E\u0435
+      \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0435; \u0447\u0443\u0436\u0438\u043C
+      \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043E\u043C \u043D\u0435
+      \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F."
+  - recordId: original:plant:53:record:42
+    kind: table
+    code: no27T8YFjTx8ZVz4
+    sourceX: 24
+    sourceY: 15
+    sourceData: "<obj id=\"table\" code=\"no27T8YFjTx8ZVz4\" x=\"24\" y=\"15\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u043E \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0435
+      \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u043E\u0435/\u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0441 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u043E\u0439; \u043D\u0435\u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F
+      \u0434\u0435\u043A\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u043D\u0430
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:43
+    kind: table
+    code: Qyc8bJzHANJlny9s
+    sourceX: 42
+    sourceY: 15
+    sourceData: "<obj id=\"table\" code=\"Qyc8bJzHANJlny9s\" x=\"42\" y=\"15\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u043E \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0435
+      \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u043E\u0435/\u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0441 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u043E\u0439; \u043D\u0435\u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F
+      \u0434\u0435\u043A\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u043D\u0430
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:44
+    kind: hatch1
+    code: cLSBzRkMe7e7pefR
+    sourceX: 16
+    sourceY: 6
+    sourceData: "<obj id=\"hatch1\" code=\"cLSBzRkMe7e7pefR\" x=\"16\" y=\"6\" />\n    "
+    installed: 0
+    reason: "\u041D\u0435\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043D\u043D\u043E\u0433\u043E
+      \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E\u0433\u043E door/hatch \u043A\u043E\u043D\u0442\u0440\u0430\u043A\u0442\u0430
+      \u0438 \u0440\u0435\u0441\u0443\u0440\u0441\u0430; \u043E\u0431\u044B\u0447\u043D\u043E\u0439
+      \u0434\u0432\u0435\u0440\u044C\u044E \u043C\u043E\u043B\u0447\u0430 \u043D\u0435
+      \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F."
+  - recordId: original:plant:53:record:45
+    kind: trash
+    code: HaoIW4PYZAYl0YKb
+    sourceX: 19
+    sourceY: 10
+    sourceData: "<obj id=\"trash\" code=\"HaoIW4PYZAYl0YKb\" x=\"19\" y=\"10\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u043E \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0435
+      \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u043E\u0435/\u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0441 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u043E\u0439; \u043D\u0435\u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F
+      \u0434\u0435\u043A\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u043D\u0430
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:46
+    kind: filecab
+    code: vGV9nVSmdLXqbaD1
+    sourceX: 31
+    sourceY: 10
+    sourceData: "<obj id=\"filecab\" code=\"vGV9nVSmdLXqbaD1\" x=\"31\" y=\"10\"
+      />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:47
+    kind: filecab
+    code: U7xbZnkwspR6bhob
+    sourceX: 3
+    sourceY: 15
+    sourceData: "<obj id=\"filecab\" code=\"U7xbZnkwspR6bhob\" x=\"3\" y=\"15\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:48
+    kind: filecab
+    code: O1rqdDg0OSdZX4P4
+    sourceX: 5
+    sourceY: 15
+    sourceData: "<obj id=\"filecab\" code=\"O1rqdDg0OSdZX4P4\" x=\"5\" y=\"15\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:49
+    kind: filecab
+    code: P1gRKizntx3wGKTy
+    sourceX: 6
+    sourceY: 15
+    sourceData: "<obj id=\"filecab\" code=\"P1gRKizntx3wGKTy\" x=\"6\" y=\"15\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:50
+    kind: woodbox
+    code: HXyaO4yUNtyfmglr
+    sourceX: 37
+    sourceY: 23
+    sourceData: "<obj id=\"woodbox\" code=\"HXyaO4yUNtyfmglr\" x=\"37\" y=\"23\"
+      />\n    "
+    installed: 1
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u0430\u044F \u043C\u0435\u0442\u043A\u0430
+      \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0438\u043C\u043E\u0433\u043E \u044F\u0449\u0438\u043A\u0430;
+      \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u0441\u0430\u043C\u043E\u0441\u0442\u043E\u044F\u0442\u0435\u043B\u044C\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 Unity."
+  - recordId: original:plant:53:record:51
+    kind: woodbox
+    code: KYd94y2TDhiwTO63
+    sourceX: 28
+    sourceY: 23
+    sourceData: "<obj id=\"woodbox\" code=\"KYd94y2TDhiwTO63\" x=\"28\" y=\"23\"
+      />\n    "
+    installed: 1
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u0430\u044F \u043C\u0435\u0442\u043A\u0430
+      \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0438\u043C\u043E\u0433\u043E \u044F\u0449\u0438\u043A\u0430;
+      \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u0441\u0430\u043C\u043E\u0441\u0442\u043E\u044F\u0442\u0435\u043B\u044C\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 Unity."
+  - recordId: original:plant:53:record:52
+    kind: woodbox
+    code: m7hkZeSB0nxWMD88
+    sourceX: 26
+    sourceY: 23
+    sourceData: "<obj id=\"woodbox\" code=\"m7hkZeSB0nxWMD88\" x=\"26\" y=\"23\"
+      />\n    "
+    installed: 1
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u0430\u044F \u043C\u0435\u0442\u043A\u0430
+      \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0438\u043C\u043E\u0433\u043E \u044F\u0449\u0438\u043A\u0430;
+      \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u0441\u0430\u043C\u043E\u0441\u0442\u043E\u044F\u0442\u0435\u043B\u044C\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 Unity."
+  - recordId: original:plant:53:record:53
+    kind: table1
+    code: D08uoqM6f1EaCJfJ
+    sourceX: 36
+    sourceY: 15
+    sourceData: "<obj id=\"table1\" code=\"D08uoqM6f1EaCJfJ\" x=\"36\" y=\"15\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u043E \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0435
+      \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u043E\u0435/\u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0441 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u043E\u0439; \u043D\u0435\u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F
+      \u0434\u0435\u043A\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u043D\u0430
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:54
+    kind: table1
+    code: TGISVy91GeyHglBk
+    sourceX: 37
+    sourceY: 10
+    sourceData: "<obj id=\"table1\" code=\"TGISVy91GeyHglBk\" x=\"37\" y=\"10\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u043E \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0435
+      \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u043E\u0435/\u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0441 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u043E\u0439; \u043D\u0435\u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F
+      \u0434\u0435\u043A\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u043D\u0430
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:55
+    kind: table1
+    code: mA7CG0NX9srOOsJv
+    sourceX: 24
+    sourceY: 10
+    sourceData: "<obj id=\"table1\" code=\"mA7CG0NX9srOOsJv\" x=\"24\" y=\"10\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u043E \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0435
+      \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u043E\u0435/\u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0441 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u043E\u0439; \u043D\u0435\u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F
+      \u0434\u0435\u043A\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u043D\u0430
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:56
+    kind: ammobox
+    code: LjwB4czpuBXSS6uh
+    sourceX: 1
+    sourceY: 11
+    sourceData: "<obj id=\"ammobox\" code=\"LjwB4czpuBXSS6uh\" x=\"1\" y=\"11\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:57
+    kind: case
+    code: FyPFe0sjFMO4vVEi
+    sourceX: 5
+    sourceY: 11
+    sourceData: "<obj id=\"case\" code=\"FyPFe0sjFMO4vVEi\" x=\"5\" y=\"11\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u0449\u0438\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440;
+      \u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 ID/anchor, \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438 \u044F\u0432\u043D\u043E
+      \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u0430\u044F \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u0430\u044F
+      \u0442\u0430\u0431\u043B\u0438\u0446\u0430 Unity."
+  - recordId: original:plant:53:record:58
+    kind: table
+    code: B37xGIBuhSjLOfSc
+    sourceX: 29
+    sourceY: 10
+    sourceData: "<obj id=\"table\" code=\"B37xGIBuhSjLOfSc\" x=\"29\" y=\"10\" />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u043E \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0435
+      \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u043E\u0435/\u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0441 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u043E\u0439; \u043D\u0435\u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F
+      \u0434\u0435\u043A\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u043D\u0430
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:59
+    kind: bookcase
+    code: HLHr8wbz490ZTI9b
+    sourceX: 45
+    sourceY: 10
+    sourceData: "<obj id=\"bookcase\" code=\"HLHr8wbz490ZTI9b\" x=\"45\" y=\"10\"
+      />\n    "
+    installed: 0
+    reason: "\u041D\u0443\u0436\u043D\u043E \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0435
+      \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u043E\u0435/\u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u043D\u043E\u0435
+      \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0441 \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u043E\u0439; \u043D\u0435\u0438\u043D\u0442\u0435\u0440\u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F
+      \u0434\u0435\u043A\u043E\u0440\u0430\u0442\u0438\u0432\u043D\u0430\u044F \u0437\u0430\u043C\u0435\u043D\u0430
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:60
+    kind: player
+    code: AOIW3WJHUb8W7ADI
+    sourceX: 9
+    sourceY: 23
+    sourceData: "<obj id=\"player\" code=\"AOIW3WJHUb8W7ADI\" x=\"9\" y=\"23\" />\n    "
+    installed: 1
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u0430\u044F \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u0430\u044F
+      \u043C\u0435\u0442\u043A\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430
+      \u043A\u0430\u043A reference. Preview \u0432\u044B\u0431\u0440\u0430\u043D
+      \u043F\u043E record60 (9;23); actor \u0438\u0437 \u043C\u0435\u0442\u043A\u0438
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u0451\u0442\u0441\u044F, \u0432\u0445\u043E\u0434
+      \u0441\u0432\u044F\u0437\u043D\u043E\u0433\u043E \u0443\u0440\u043E\u0432\u043D\u044F
+      \u0437\u0430\u0434\u0430\u0451\u0442\u0441\u044F \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E."
+  - recordId: original:plant:53:record:61
+    kind: player
+    code: T7vi17Fg0VPhWC2R
+    sourceX: 7
+    sourceY: 15
+    sourceData: "<obj id=\"player\" code=\"T7vi17Fg0VPhWC2R\" x=\"7\" y=\"15\" />\n    "
+    installed: 1
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u0430\u044F \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u0430\u044F
+      \u043C\u0435\u0442\u043A\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430
+      \u043A\u0430\u043A reference. Preview \u0432\u044B\u0431\u0440\u0430\u043D
+      \u043F\u043E record60 (9;23); actor \u0438\u0437 \u043C\u0435\u0442\u043A\u0438
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u0451\u0442\u0441\u044F, \u0432\u0445\u043E\u0434
+      \u0441\u0432\u044F\u0437\u043D\u043E\u0433\u043E \u0443\u0440\u043E\u0432\u043D\u044F
+      \u0437\u0430\u0434\u0430\u0451\u0442\u0441\u044F \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E."
+  - recordId: original:plant:53:record:62
+    kind: enl1
+    code: asgXcpTEfby23bgi
+    sourceX: 17
+    sourceY: 5
+    sourceData: "<obj id=\"enl1\" code=\"asgXcpTEfby23bgi\" x=\"17\" y=\"5\" />\n    "
+    installed: 0
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u043E\u0435 \u043C\u0435\u0441\u0442\u043E
+      \u043F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E;
+      NPC-\u0432\u0441\u0442\u0440\u0435\u0447\u0430 \u044D\u0442\u043E\u0433\u043E
+      \u043C\u043E\u0434\u0443\u043B\u044F \u043F\u043E\u043A\u0430 \u043D\u0435
+      \u0432\u044B\u0431\u0440\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:63
+    kind: enl1
+    code: lAIXKaUQC2e4JtW5
+    sourceX: 45
+    sourceY: 15
+    sourceData: "<obj id=\"enl1\" code=\"lAIXKaUQC2e4JtW5\" x=\"45\" y=\"15\" />\n    "
+    installed: 0
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u043E\u0435 \u043C\u0435\u0441\u0442\u043E
+      \u043F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E;
+      NPC-\u0432\u0441\u0442\u0440\u0435\u0447\u0430 \u044D\u0442\u043E\u0433\u043E
+      \u043C\u043E\u0434\u0443\u043B\u044F \u043F\u043E\u043A\u0430 \u043D\u0435
+      \u0432\u044B\u0431\u0440\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:64
+    kind: enl2
+    code: ql47iXGSZW2VGGdF
+    sourceX: 34
+    sourceY: 10
+    sourceData: "<obj id=\"enl2\" code=\"ql47iXGSZW2VGGdF\" x=\"34\" y=\"10\" />\n    "
+    installed: 0
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u043E\u0435 \u043C\u0435\u0441\u0442\u043E
+      \u043F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E;
+      NPC-\u0432\u0441\u0442\u0440\u0435\u0447\u0430 \u044D\u0442\u043E\u0433\u043E
+      \u043C\u043E\u0434\u0443\u043B\u044F \u043F\u043E\u043A\u0430 \u043D\u0435
+      \u0432\u044B\u0431\u0440\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:65
+    kind: enl2
+    code: IpYV76WRjtmgXV2M
+    sourceX: 23
+    sourceY: 23
+    sourceData: "<obj id=\"enl2\" code=\"IpYV76WRjtmgXV2M\" x=\"23\" y=\"23\" />\n    "
+    installed: 0
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u043E\u0435 \u043C\u0435\u0441\u0442\u043E
+      \u043F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E;
+      NPC-\u0432\u0441\u0442\u0440\u0435\u0447\u0430 \u044D\u0442\u043E\u0433\u043E
+      \u043C\u043E\u0434\u0443\u043B\u044F \u043F\u043E\u043A\u0430 \u043D\u0435
+      \u0432\u044B\u0431\u0440\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:66
+    kind: lov
+    code: hU8hEGEKUlImGpxO
+    sourceX: 6
+    sourceY: 6
+    sourceData: "<obj id=\"lov\" code=\"hU8hEGEKUlImGpxO\" x=\"6\" y=\"6\" />\n    "
+    installed: 0
+    reason: "\u041B\u043E\u0432\u0443\u0448\u043A\u0430 \u0442\u0440\u0435\u0431\u0443\u0435\u0442
+      \u0441\u0430\u043C\u043E\u0441\u0442\u043E\u044F\u0442\u0435\u043B\u044C\u043D\u043E\u0439
+      \u043C\u0435\u0445\u0430\u043D\u0438\u043A\u0438 \u0438 ownership; \u0437\u0430\u043F\u0438\u0441\u044C
+      \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430 \u0431\u0435\u0437 \u043F\u043E\u0434\u043C\u0435\u043D\u044B."
+  - recordId: original:plant:53:record:67
+    kind: lov
+    code: cdNHtQoJsmLygi1p
+    sourceX: 26
+    sourceY: 15
+    sourceData: "<obj id=\"lov\" code=\"cdNHtQoJsmLygi1p\" x=\"26\" y=\"15\" />\n    "
+    installed: 0
+    reason: "\u041B\u043E\u0432\u0443\u0448\u043A\u0430 \u0442\u0440\u0435\u0431\u0443\u0435\u0442
+      \u0441\u0430\u043C\u043E\u0441\u0442\u043E\u044F\u0442\u0435\u043B\u044C\u043D\u043E\u0439
+      \u043C\u0435\u0445\u0430\u043D\u0438\u043A\u0438 \u0438 ownership; \u0437\u0430\u043F\u0438\u0441\u044C
+      \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430 \u0431\u0435\u0437 \u043F\u043E\u0434\u043C\u0435\u043D\u044B."
+  - recordId: original:plant:53:record:68
+    kind: enl2
+    code: eb4N723M2J7Ve4OV
+    sourceX: 42
+    sourceY: 10
+    sourceData: "<obj id=\"enl2\" code=\"eb4N723M2J7Ve4OV\" x=\"42\" y=\"10\" />\n    "
+    installed: 0
+    reason: "\u0418\u0441\u0445\u043E\u0434\u043D\u043E\u0435 \u043C\u0435\u0441\u0442\u043E
+      \u043F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E;
+      NPC-\u0432\u0441\u0442\u0440\u0435\u0447\u0430 \u044D\u0442\u043E\u0433\u043E
+      \u043C\u043E\u0434\u0443\u043B\u044F \u043F\u043E\u043A\u0430 \u043D\u0435
+      \u0432\u044B\u0431\u0440\u0430\u043D\u0430."
+  - recordId: original:plant:53:record:69
+    kind: door1
+    code: foMRNLiLOHCLfItd
+    sourceX: 21
+    sourceY: 15
+    sourceData: "<obj id=\"door1\" code=\"foMRNLiLOHCLfItd\" x=\"21\" y=\"15\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u044B\u0447\u043D\u0430\u044F \u0434\u0432\u0435\u0440\u044C
+      Unity \u0447\u0435\u0440\u0435\u0437 E; source code \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D.
+      \u0421\u043E\u0432\u043F\u0430\u0434\u0430\u044E\u0449\u0438\u0439 record28
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u0451\u0442 \u0432\u0442\u043E\u0440\u043E\u0439
+      collider."
+  - recordId: original:plant:53:record:70
+    kind: door1
+    code: ffoNKTl2qsZVBCG3
+    sourceX: 21
+    sourceY: 10
+    sourceData: "<obj id=\"door1\" code=\"ffoNKTl2qsZVBCG3\" x=\"21\" y=\"10\" />\n    "
+    installed: 1
+    reason: "\u041E\u0431\u044B\u0447\u043D\u0430\u044F \u0434\u0432\u0435\u0440\u044C
+      Unity \u0447\u0435\u0440\u0435\u0437 E; source code \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D.
+      \u0421\u043E\u0432\u043F\u0430\u0434\u0430\u044E\u0449\u0438\u0439 record28
+      \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u0451\u0442 \u0432\u0442\u043E\u0440\u043E\u0439
+      collider."
+  - recordId: original:plant:53:record:84
+    kind: door1a
+    code: BismxaUgPvTiH2aN
+    sourceX: 21
+    sourceY: 23
+    sourceData: "<obj id=\"door1a\" code=\"BismxaUgPvTiH2aN\" x=\"21\" y=\"23\" />\n    "
+    installed: 0
+    reason: "\u041D\u0435\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043D\u043D\u043E\u0433\u043E
+      \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E\u0433\u043E door/hatch \u043A\u043E\u043D\u0442\u0440\u0430\u043A\u0442\u0430
+      \u0438 \u0440\u0435\u0441\u0443\u0440\u0441\u0430; \u043E\u0431\u044B\u0447\u043D\u043E\u0439
+      \u0434\u0432\u0435\u0440\u044C\u044E \u043C\u043E\u043B\u0447\u0430 \u043D\u0435
+      \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F."

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Remains.Domain;
 using Remains.Serialization;
 
@@ -13,6 +14,9 @@ namespace Remains.Content
             if(world==null || layout==null || string.IsNullOrWhiteSpace(layout.patch) || string.IsNullOrWhiteSpace(layout.level) || layout.doors==null)
                 throw new InvalidOperationException("Неполная расстановка дверей.");
             if(!NeedsInstall(world,layout)) return false;
+            layout=StateJson.Copy(layout);
+            var selected=ContentExpansionRules.SelectedIds(world,layout.patch,layout.level,layout.expansion,layout.doors.Select(d=>d?.id));
+            if(selected!=null) layout.doors=layout.doors.Where(d=>selected.Contains(d.id)).ToArray();
             var ids=new HashSet<string>(StringComparer.Ordinal);var additions=new List<DoorState>();
             foreach(var door in layout.doors)
             {

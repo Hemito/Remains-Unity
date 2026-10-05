@@ -14,14 +14,17 @@ namespace Remains.Editor
             // The connected-room check installs NPC content, including its initial weapon.
             WeaponCatalog.Load();
             var source=FactoryLadderLandingSource.Load();
-            Require(source.records.Length==6 && source.Room(46).Length==2 && source.Room(18).Length==4,"Нужны ровно шесть подтверждённых записей.");
+            Require(source.records.Length==8 && source.Room(46).Length==2 && source.Room(18).Length==4 && source.Room(53).Length==2,"Нужны восемь явных записей входа, цеха и офисов.");
             var entry=AssetDatabase.LoadAssetAtPath<GameObject>(FactoryLadderLandingAuthoring.EntryPath).GetComponent<RoomAuthoring>();
             var workshop=AssetDatabase.LoadAssetAtPath<GameObject>(FactoryWorkshopDraft.Path).GetComponent<RoomAuthoring>();
             Require(entry.GetComponentsInChildren<RoomLadderLandingAuthoring>(true).Length==2 && workshop.GetComponentsInChildren<RoomLadderLandingAuthoring>(true).Length==4,"Незнакомые marker в отдельных модулях.");
             CheckInstalled(entry,source.Room(46),0,false);CheckInstalled(workshop,source.Room(18),0,false);
+            var office=AssetDatabase.LoadAssetAtPath<GameObject>(FactoryOfficeDraft.Path).GetComponent<RoomAuthoring>();
+            Require(office.GetComponentsInChildren<RoomLadderLandingAuthoring>(true).Length==2,"Нет двух верхних посадок офиса.");
+            CheckInstalled(office,source.Room(53),0,false);
             var connected=AssetDatabase.LoadAssetAtPath<GameObject>(ConnectedFactoryAuthoring.Path).GetComponent<RoomAuthoring>();
             CheckConnected(connected,false);ConnectedFactoryChecks.Check(connected);CheckMissingLandingGuard(connected);
-            Debug.Log("Верхние посадки: PASS — шесть stable ID, отдельные опоры/исходная графика/UV/Clamp, rung без наложения, вход и цех в связном уровне.");
+            Debug.Log("Верхние посадки: PASS — восемь stable ID, отдельные опоры/исходная графика/UV/Clamp, rung без наложения, вход/цех/офисы в связном уровне.");
         }
         private static void CheckMissingLandingGuard(RoomAuthoring original)
         {
@@ -41,8 +44,11 @@ namespace Remains.Editor
         {
             var source=FactoryLadderLandingSource.Load();var markers=room.GetComponentsInChildren<RoomLadderLandingAuthoring>(true);
             if(markers.Length==0 && allowAbsent) return 0;
-            Require(markers.Length==source.records.Length && markers.Select(m=>m.StableId).Distinct(StringComparer.Ordinal).Count()==markers.Length,"Неполная установка или повтор ID в общем уровне.");
-            return CheckInstalled(room,source.Room(46),0,false)+CheckInstalled(room,source.Room(18),38.4f,false);
+            bool office=room.GetComponentsInChildren<RoomImportAudit>(true).Any(a=>a.Report.SourceId=="original:plant:53");
+            int expected=source.Room(46).Length+source.Room(18).Length+(office?source.Room(53).Length:0);
+            Require(markers.Length==expected && markers.Select(m=>m.StableId).Distinct(StringComparer.Ordinal).Count()==markers.Length,"Неполная установка или повтор ID в общем уровне.");
+            return CheckInstalled(room,source.Room(46),0,false)+CheckInstalled(room,source.Room(18),38.4f,false)+
+                (office?CheckInstalled(room,source.Room(53),76.8f,false):0);
         }
         public static int CheckInstalled(RoomAuthoring room,FactoryLadderLandingRecord[] records,float offset,bool allowAbsent)
         {

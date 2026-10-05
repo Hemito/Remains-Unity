@@ -53,6 +53,8 @@ namespace Remains.Editor
             FactoryCrawlerChecks.Run();
             FactoryStairArtworkAuthoring.RunChecks();
             FactoryLadderLandingChecks.Run();
+            FactoryOfficeConnectionChecks.Run();
+            FactoryFileCabinetChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();
             WeaponInventoryChecks.Run();
