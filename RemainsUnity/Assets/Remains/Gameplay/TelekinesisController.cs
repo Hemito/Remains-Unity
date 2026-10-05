@@ -70,17 +70,13 @@ namespace Remains.Gameplay
                     actor.mana=Mathf.Max(0,actor.mana-rules.ManaPerSecond(actor,prop)*dt);
                     actor.revision++;
                     statsDirty=true;
-                }
-                else
-                {
-                    PropMotion.Step(prop,geometry.Get(prop.level),dt,null,WorldProps.All(session.World));
+                    if(publish) adapter.SendProp(prop);
                 }
             }
             if(rules is ITelekinesisRecoveryRule recoveryRule &&
                 recovery.Step(actor,holding,recoveryRule.RecoveryAcceleration(actor),dt))
             {actor.revision++;statsDirty=true;}
             if(!publish) return;
-            foreach(var prop in WorldProps.All(session.World)) if(prop.owner==session.LocalOwner && prop.level==actor.level) adapter.SendProp(prop);
             if(statsDirty && Time.unscaledTime>=nextStats)
             { nextStats=Time.unscaledTime+0.5f;session.PublishActor(actor);statsDirty=false; }
         }
