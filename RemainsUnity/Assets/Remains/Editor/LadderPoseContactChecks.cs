@@ -107,15 +107,14 @@ namespace Remains.Editor
                 count++;
             }
             Require(count==267,"Проверяемый ресурс изменился: пересмотрите полноту декларации копыт");
-            CheckDrawnFoot("idle",0,"57/1/1","3",-.036454f);
-            CheckDrawnFoot("climb",4,"57/1/1","298",-.509750f);
-            CheckDrawnFoot("crouch",0,"frleg3/1/1","102",-.027330f);
-            CheckDrawnFoot("crawl",9,"frleg3/1/1","102",-.065410f);
+            CheckDrawnFoot("idle",0,0,"57/1/1","3",-.036454f);
+            CheckDrawnFoot("climb",4,.1f,"57/1/1","298",-.509750f);
+            CheckDrawnFoot("crouch",0,0,"frleg3/1/1","102",-.027330f);
+            CheckDrawnFoot("crawl",9,.3f,"frleg3/1/1","102",-.065410f);
         }
-        private static void CheckDrawnFoot(string pose,int frame,string path,string shape,float expectedY)
+        private static void CheckDrawnFoot(string pose,int frame,float phase,string path,string shape,float expectedY)
         {
-            var clip=Array.Find(PonyAnimationData.Library.clips,value=>value.id==pose);
-            var actor=new ActorState {id="graphic-contact-"+pose,pose=pose,poseTime=(frame+.01f)/clip.fps,
+            var actor=new ActorState {id="graphic-contact-"+pose,pose=pose,poseTime=phase,
                 climbing=pose=="climb",vy=pose=="climb"?-1:0};
             Require(PonyMotionFrames.Sample(actor,actor.poseTime)==frame,$"Проверка выбрала другой кадр: pose={pose}");
             var pixel=GraphicLowest(pose,frame,path,shape);

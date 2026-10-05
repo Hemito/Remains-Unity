@@ -51,7 +51,7 @@ namespace Remains.Editor
             FactoryWorkshopNpcChecks.Run();
             FactoryCrawlerChecks.Run();
             FactoryStairArtworkAuthoring.RunChecks();
-            ConnectedFactoryChecks.Run();
+            FactoryLadderLandingChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();
             WeaponInventoryChecks.Run();

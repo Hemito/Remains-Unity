@@ -23,6 +23,7 @@ namespace Remains.Runtime
         public bool Complete=>phase==10 && crossed && shared;
         public bool BigBoxesVerified {get;private set;}
         public bool WorkshopNpcsVerified {get;private set;}
+        public bool LadderLandingVerified {get;private set;}
         public string Progress=>$"seamPhase={phase}, opened={opened}, shared={shared}, claiming={claiming}, item={claimedItem}";
         public string Failure {get;private set;}
         private ActorState Actor=>runtime.Session.LocalActor;
@@ -47,7 +48,6 @@ namespace Remains.Runtime
             if(phase==2) return new PlayerCommand {movement=Vector2.up};
             if(phase==3)
             {
-                if(!jumped) {jumped=true;return new PlayerCommand {movement=Vector2.right,jump=true};}
                 return Move(40.4f);
             }
             if(phase==4 && !opened)
@@ -62,7 +62,7 @@ namespace Remains.Runtime
             if(phase==9)
             {
                 if(!jumped) {jumped=true;return new PlayerCommand {movement=Vector2.left,jump=true,jumpHeld=true,sprint=true};}
-                var command=Move(initialRoom.spawnX);command.jumpHeld=Actor.x>11;command.sprint=Actor.x>11;return command;
+                var command=Move(initialRoom.spawnX);command.sprint=Actor.x>11;return command;
             }
             return default;
         }
@@ -75,7 +75,12 @@ namespace Remains.Runtime
             {Failure="Проход между комнатами изменил актёра, управление, поколение, локацию или геометрию.";return;}
             if(Actor.down) {Failure="Персонаж потерял сознание на маршруте через стык.";return;}
             if(phase==1 && Mathf.Abs(Actor.x-16.22f)<.08f) phase=2;
-            else if(phase==2 && Actor.y>=10.39f) {phase=3;jumped=false;}
+            else if(phase==2 && Actor.y>=10.4f-.0001f)
+            {
+                if(Actor.climbing || !ActorTerrainMotion.Supported(initialRoom,Anatomy.Movement(Actor),Actor.Position))
+                {Failure="Верх лестницы не завершился опорой на площадку.";return;}
+                LadderLandingVerified=true;phase=3;capture="ladder-top";
+            }
             else if(phase==3 && Mathf.Abs(Actor.x-40.4f)<.08f && ActorTerrainMotion.Supported(initialRoom,Anatomy.Movement(Actor),Actor.Position))
             {
                 try {FactoryBigBoxObservation.Verify(runtime);BigBoxesVerified=true;FactoryWorkshopNpcObservation.Verify(runtime);WorkshopNpcsVerified=true;}
@@ -105,7 +110,7 @@ namespace Remains.Runtime
             else if(phase==7 && Mathf.Abs(Actor.x-16.22f)<.08f) phase=8;
             // Jump before the unsupported lower end releases the grip. Below that
             // point the actor is already falling behind the entry platform.
-            else if(phase==8 && Actor.y<=initialRoom.spawnY+.7f) {phase=9;jumped=false;}
+            else if(phase==8 && Actor.y<=initialRoom.spawnY+.7f) {phase=9;jumped=false;capture="ladder-return-release";}
             else if(phase==9 && Mathf.Abs(Actor.x-initialRoom.spawnX)<.08f && Mathf.Abs(Actor.y-initialRoom.spawnY)<.03f)
                 phase=10;
         }

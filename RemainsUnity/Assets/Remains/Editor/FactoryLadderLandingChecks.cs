@@ -11,6 +11,8 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            // The connected-room check installs NPC content, including its initial weapon.
+            WeaponCatalog.Load();
             var source=FactoryLadderLandingSource.Load();
             Require(source.records.Length==6 && source.Room(46).Length==2 && source.Room(18).Length==4,"Нужны ровно шесть подтверждённых записей.");
             var entry=AssetDatabase.LoadAssetAtPath<GameObject>(FactoryLadderLandingAuthoring.EntryPath).GetComponent<RoomAuthoring>();
@@ -18,8 +20,22 @@ namespace Remains.Editor
             Require(entry.GetComponentsInChildren<RoomLadderLandingAuthoring>(true).Length==2 && workshop.GetComponentsInChildren<RoomLadderLandingAuthoring>(true).Length==4,"Незнакомые marker в отдельных модулях.");
             CheckInstalled(entry,source.Room(46),0,false);CheckInstalled(workshop,source.Room(18),0,false);
             var connected=AssetDatabase.LoadAssetAtPath<GameObject>(ConnectedFactoryAuthoring.Path).GetComponent<RoomAuthoring>();
-            CheckConnected(connected,false);ConnectedFactoryChecks.Check(connected);
+            CheckConnected(connected,false);ConnectedFactoryChecks.Check(connected);CheckMissingLandingGuard(connected);
             Debug.Log("Верхние посадки: PASS — шесть stable ID, отдельные опоры/исходная графика/UV/Clamp, rung без наложения, вход и цех в связном уровне.");
+        }
+        private static void CheckMissingLandingGuard(RoomAuthoring original)
+        {
+            var copy=UnityEngine.Object.Instantiate(original.gameObject);
+            try
+            {
+                foreach(var marker in copy.GetComponentsInChildren<RoomLadderLandingAuthoring>(true))
+                    UnityEngine.Object.DestroyImmediate(marker.gameObject);
+                bool rejected=false;
+                try {ConnectedFactoryChecks.Check(copy.GetComponent<RoomAuthoring>());}
+                catch(InvalidOperationException) {rejected=true;}
+                Require(rejected,"Общая проверка приняла связный завод после удаления всех обязательных верхних посадок.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(copy);}
         }
         public static int CheckConnected(RoomAuthoring room,bool allowAbsent=true)
         {

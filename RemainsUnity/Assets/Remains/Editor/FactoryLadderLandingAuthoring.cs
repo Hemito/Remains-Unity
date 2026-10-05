@@ -68,7 +68,8 @@ namespace Remains.Editor
                 if(rungs[i]==null || !AssetDatabase.Contains(rungs[i].sharedMesh) || rungs[i].sharedMesh.vertexCount!=4 || rungs[i].sharedMesh.uv.Length!=4)
                     throw new InvalidOperationException("Посадка "+record.id+": нет единственного сохранённого прямоугольного rung; ручная графика не заменена.");
             }
-            var layout=new RoomLayout {id="factory-ladder-landings-"+sourceRoom,platforms=Array.Empty<RoomSurface>(),ladders=Array.Empty<RoomLadder>(),
+            var layout=new RoomLayout {id="factory-ladder-landings-"+sourceRoom,left=before.left,right=before.right,bottom=before.bottom,top=before.top,
+                platforms=Array.Empty<RoomSurface>(),ladders=Array.Empty<RoomLadder>(),
                 artwork=records.Where((r,i)=>caps[i]==null).Select(r=>r.artwork).ToArray()};
             var graphics=RoomVisual.Build(layout,new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()});
             graphics.name="Верхушки внутренних лестниц";RoomArtworkAssets.Save(graphics,"Assets/Remains/RoomDrafts",folderName);graphics.transform.SetParent(root.transform,false);
