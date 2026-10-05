@@ -165,9 +165,8 @@ namespace Remains.Runtime
         }
         private IEnumerator Claim()
         {
-            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
-            yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
-            yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
+            InventoryTransactionProbe.Claim(runtime,0,1);
+            yield return null;
         }
         private void LateUpdate()
         {

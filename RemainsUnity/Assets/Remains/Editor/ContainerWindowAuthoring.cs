@@ -1,4 +1,3 @@
-using System;
 using Remains.Presentation;
 using UnityEditor;
 using UnityEngine;
@@ -8,64 +7,32 @@ namespace Remains.Editor
 {
     public static class ContainerWindowAuthoring
     {
-        public static void LayoutSlots(ContainerWindowView view)
-        {
-            var names=new Text[9];var counts=new Text[9];
-            var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
-            for(int i=0;i<9;i++)
-            {
-                var slot=view.Contents.Slots[i];
-                names[i]=view.Names?.Length==9?view.Names[i]:slot.GetComponentInChildren<Text>();
-                counts[i]=view.Counts?.Length==9?view.Counts[i]:ui.Label(slot.transform,"",Vector2.zero,Vector2.one);
-                names[i].name="Название предмета";counts[i].name="Количество в стопке";
-                HudElements.Rect(names[i].rectTransform,new Vector2(4,-36),new Vector2(96,38));
-                names[i].fontSize=12;names[i].resizeTextForBestFit=true;names[i].resizeTextMinSize=10;names[i].resizeTextMaxSize=12;
-                names[i].alignment=TextAnchor.MiddleCenter;names[i].horizontalOverflow=HorizontalWrapMode.Wrap;
-                HudElements.Rect(counts[i].rectTransform,new Vector2(40,-5),new Vector2(60,24));
-                counts[i].fontSize=14;counts[i].alignment=TextAnchor.MiddleRight;counts[i].raycastTarget=false;
-                HudElements.Rect(view.Contents.Icons[i].rectTransform,new Vector2(6,-4),new Vector2(30,28));
-            }
-            view.Names=names;view.Counts=counts;
-        }
-        private static void Style(ContainerWindowView view)
-        {
-            view.GetComponent<Image>().color=new Color(.04f,.08f,.07f,1);
-            var sprite=Resources.Load<InventoryWindowView>("Presentation/InventoryWindow").Quantity.GetComponent<Image>().sprite;
-            if(sprite==null || !AssetDatabase.Contains(sprite)) throw new InvalidOperationException("Нет сохранённой графики кнопки контейнера.");
-            view.Close.GetComponent<Image>().sprite=sprite;view.Quantity.GetComponent<Image>().sprite=sprite;
-        }
-        public static void FinalizeLayout()
-        {
-            const string path="Assets/Remains/Resources/Presentation/ContainerWindow.prefab";
-            var root=PrefabUtility.LoadPrefabContents(path);
-            try {var view=root.GetComponent<ContainerWindowView>();LayoutSlots(view);Style(view);view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);}
-            finally {PrefabUtility.UnloadPrefabContents(root);}
-            AssetDatabase.SaveAssets();PrototypeBuild.Build();
-        }
         public static void Run()
         {
-            const string path="Assets/Remains/Resources/Presentation/ContainerWindow.prefab";
-            if(AssetDatabase.LoadAssetAtPath<GameObject>(path)!=null)
-                throw new InvalidOperationException("Окно контейнера уже существует; авторские изменения не заменены.");
             var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
-            var root=ui.Panel(null,"Контейнер",Vector2.zero,new Vector2(340,440));
+            var root=ui.Panel(null,"Окно содержимого контейнера",Vector2.zero,new Vector2(228,214));
             try
             {
-                var rect=(RectTransform)root.transform;
-                rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);rect.anchoredPosition=new Vector2(440,0);
-                var view=root.AddComponent<ContainerWindowView>();
-                view.Contents=((GameObject)PrefabUtility.InstantiatePrefab(Resources.Load<SharedInventoryView>("Presentation/SharedInventory").gameObject,root.transform)).GetComponent<SharedInventoryView>();
-                HudElements.Rect((RectTransform)view.Contents.transform,new Vector2(10,-10),new Vector2(320,340));
-                HudElements.Rect(view.Contents.Title.rectTransform,Vector2.zero,new Vector2(320,40));view.Contents.Title.fontSize=16;
+                var rect=(RectTransform)root.transform;rect.anchorMin=rect.anchorMax=new Vector2(.5f,.5f);rect.pivot=new Vector2(.5f,0);
+                var view=root.AddComponent<ContainerWindowView>();view.Slots=new Button[9];view.Icons=new Image[9];view.Intents=new ContainerSlotIntent[9];
                 for(int i=0;i<9;i++)
-                    HudElements.Rect((RectTransform)view.Contents.Slots[i].transform,new Vector2(i%3*108,-48-i/3*84),new Vector2(104,80));
-                HudElements.Rect((RectTransform)view.Contents.Previous.transform,new Vector2(0,-304),new Vector2(150,32));
-                HudElements.Rect((RectTransform)view.Contents.Next.transform,new Vector2(170,-304),new Vector2(150,32));
-                view.Quantity=ui.Button(root.transform,"Количество: вся стопка",new Vector2(10,-352),new Vector2(320,34),()=>{});
-                view.Close=ui.Button(root.transform,"Закрыть контейнер · E",new Vector2(10,-394),new Vector2(320,34),()=>{});
-                LayoutSlots(view);Style(view);view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
+                {
+                    var cell=ui.Panel(root.transform,"Ячейка "+(i+1),new Vector2(8+i%3*66,-8-i/3*66),new Vector2(62,62));
+                    cell.GetComponent<Image>().color=new Color(.13f,.23f,.18f,1);
+                    var button=cell.AddComponent<Button>();button.targetGraphic=cell.GetComponent<Image>();view.Slots[i]=button;
+                    view.Intents[i]=cell.AddComponent<ContainerSlotIntent>();
+                    var icon=ui.Panel(cell.transform,"Иконка предмета",new Vector2(5,-5),new Vector2(52,52)).GetComponent<Image>();
+                    icon.color=Color.white;icon.raycastTarget=false;icon.preserveAspect=true;view.Icons[i]=icon;
+                }
+                var rail=ui.Panel(root.transform,"Прокрутка",new Vector2(210,-8),new Vector2(10,194));
+                view.Scrollbar=rail.AddComponent<Scrollbar>();view.Scrollbar.direction=Scrollbar.Direction.TopToBottom;
+                var handle=ui.Panel(rail.transform,"Ползунок",Vector2.zero,new Vector2(10,40)).GetComponent<Image>();
+                handle.color=new Color(.4f,.8f,.5f,1);view.Scrollbar.handleRect=handle.rectTransform;view.Scrollbar.targetGraphic=handle;
+                view.Pending=ui.Panel(root.transform,"Подбор ожидает подтверждения",new Vector2(4,-4),new Vector2(6,6)).GetComponent<Image>();
+                view.Pending.color=new Color(1,.8f,.1f,1);view.Pending.raycastTarget=false;view.Pending.gameObject.SetActive(false);
+                view.Validate();PrefabUtility.SaveAsPrefabAsset(root,"Assets/Remains/Resources/Presentation/ContainerWindow.prefab");
             }
-            finally {UnityEngine.Object.DestroyImmediate(root);}
+            finally {Object.DestroyImmediate(root);}
             AssetDatabase.SaveAssets();PrototypeBuild.Build();
         }
     }

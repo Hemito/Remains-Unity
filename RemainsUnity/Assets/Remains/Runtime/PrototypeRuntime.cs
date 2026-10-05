@@ -127,7 +127,7 @@ namespace Remains.Runtime
             Session.Changed+=RefreshVisuals;
             if (!Application.isBatchMode || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
-                hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences);
+                hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
                 hud.EquipWeaponItem=EquipWeaponItem;
@@ -169,6 +169,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("bodyrevival")) gameObject.AddComponent<NetworkBodyRevivalProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("body")) gameObject.AddComponent<NetworkBodyInventoryProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("receipt")) gameObject.AddComponent<NetworkReceiptLossProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("container-window")) gameObject.AddComponent<NetworkContainerWindowProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("container")) gameObject.AddComponent<NetworkContainerProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("npc")) gameObject.AddComponent<NetworkNpcProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("freeze")) gameObject.AddComponent<NetworkFreezeProbe>().Initialize(this);
@@ -320,8 +321,10 @@ namespace Remains.Runtime
             }
             if(mouse!=null)
             {
+                command.pointer=mouse.position.ReadValue();command.hasPointer=true;
                 command.hasAim=true;command.aim=cameraView.ScreenToWorldPoint(mouse.position.ReadValue());
                 command.fire=(Session.LocalActor?.weapon=="grenade"?mouse.leftButton.wasPressedThisFrame:mouse.leftButton.isPressed) &&
+                    !hud.BlocksPointerGameplay(command.pointer) &&
                     (UnityEngine.EventSystems.EventSystem.current==null || !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject());
             }
             return command;
@@ -337,6 +340,7 @@ namespace Remains.Runtime
         private void ApplyCommand(PlayerCommand command,float dt)
         {
             var actor=Session.LocalActor;
+            if(command.hasPointer && hud.BlocksPointerGameplay(command.pointer)) command.fire=false;
             if(command.inventory) hud?.ToggleInventory();
             if(command.menu) hud?.ToggleMenu();
             if(command.interact && !Session.Travel.Pending)
@@ -357,6 +361,7 @@ namespace Remains.Runtime
                 }
             }
             if(hud?.BlocksGameplayInput==true) command=default;
+            hud?.CloseContainerForSprint(command.sprint,command.movement);
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
             if(Session.Travel.Pending) command=default;
             if(!ActorHoldRules.Active(actor)) movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);

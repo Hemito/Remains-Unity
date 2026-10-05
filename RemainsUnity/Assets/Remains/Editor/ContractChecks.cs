@@ -83,6 +83,7 @@ namespace Remains.Editor
             if(feedback==null) throw new InvalidOperationException("Нет префаба обратной связи HUD.");
             feedback.Validate();
             InventoryWindowChecks.Run();
+            FloatingContainerChecks.Run();
             var pauseMenu=Resources.Load<Remains.Presentation.PauseMenuView>("Presentation/PauseMenu");
             if(pauseMenu==null) throw new InvalidOperationException("Нет префаба меню паузы.");
             pauseMenu.Validate();

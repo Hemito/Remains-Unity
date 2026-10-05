@@ -34,13 +34,13 @@ namespace Remains.Runtime
             runtime=value;deadline=Time.unscaledTime+45;
             value.CommandSource=()=>
             {
-                if(!Resume && (Taker || Host) && phase==2 && !opened) {opened=true;return new PlayerCommand {inventory=true};}
+                if(!Resume && (Taker || Host) && phase==2 && !opened) {opened=true;value.Hud.OpenContainer(InventorySource.BodyId(BodyId));}
                 return default;
             };
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<BodyInventoryPhase>(message=>{phase=message.phase;clickAt=message.clickAt;});
-                NetworkClient.RegisterHandler<BodyInventoryFinish>(_=>Finish(Valid(value.Session.World),Resume?"Новые процессы сохранили результаты обмена с телом.":Race?"Одновременные клики по стопке тела дали одного получателя; внесение и возвращение владельца сохранены.":"Подбор из тела, внесение и возвращение владельца проверены через UI."));
+                NetworkClient.RegisterHandler<BodyInventoryFinish>(_=>Finish(Valid(value.Session.World),Resume?"Новые процессы сохранили результаты обмена с телом.":Race?"Одновременные UI-клики по стопке тела дали одного получателя; внесение по контракту и возвращение владельца сохранены.":"Частичный подбор из тела и внесение по контракту, возвращение владельца проверены."));
             };
             value.Session.ServerReady+=()=>
             {
@@ -74,7 +74,7 @@ namespace Remains.Runtime
                 }
                 return;
             }
-            if(Taker && phase==2 && runtime.Hud.InventoryOpen && !clicked) {clicked=true;StartCoroutine(Take());}
+            if(Taker && phase==2 && runtime.Hud.ContainerOpen && !clicked) {clicked=true;StartCoroutine(Take());}
             if((Host || Source || Race) && !traveled && session.LocalActor!=null) {traveled=true;session.Travel.RequestFactory();}
             if(Source && phase==1 && !disconnected)
             {generation=session.LocalActor.generation;disconnected=true;session.StopClient();returnAt=Time.unscaledTime+6;return;}
@@ -103,16 +103,15 @@ namespace Remains.Runtime
         private IEnumerator Take()
         {
             if(runtime.Hud.ShownInventorySourceId!=InventorySource.BodyId(BodyId)) {Finish(false,"UI выбрал не инвентарь отключённого тела.");yield break;}
-            if(!Race) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
             while(DateTime.UtcNow.Ticks<clickAt) yield return null;
             var item=runtime.Session.World.Find(BodyId).inventory.ElementAtOrDefault(1);
             if(item?.definition!="grenade") {Finish(false,"К моменту клика слот уже не содержал исходную стопку гранат.");yield break;}
             string intended=item.id;
-            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
-            yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(1));
+            if(Race) yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(1));
+            else InventoryTransactionProbe.Claim(runtime,1,1);
             NetworkClient.Send(new BodyInventoryTried {item=intended});
         }
-        private IEnumerator Give() {if(Race) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(0));yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);}
+        private IEnumerator Give() {InventoryTransactionProbe.Deposit(runtime,"heal",1);yield return null;}
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;

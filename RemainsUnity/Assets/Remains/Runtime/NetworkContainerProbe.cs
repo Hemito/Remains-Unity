@@ -75,7 +75,7 @@ namespace Remains.Runtime
                 NetworkClient.RegisterHandler<ContainerProbeFinish>(_=>
                 {
                     resultReceived=true;
-                    resultDetail=Deposits?"Частичный подбор и обратное внесение через UI: сумма и уникальные ID сохранены, pending закрыты.":Partial?"Подбор частей стопки: по одной единице у каждого, остаток в контейнере, уникальные ID и отсутствие незавершённых резервов подтверждены.":Resume?"Перезапуск: общая выдача сохранена ровно у одного персонажа.":"UI-подбор: чужая локация отклонена, одновременные клики дали один предмет после резерва без предварительной выдачи.";
+                    resultDetail=Deposits?"Частичный подбор по контракту, внесение крышек через UI и гранаты по контракту: сумма и уникальные ID сохранены, pending закрыты.":Partial?"Контракт подбора частей стопки: по одной единице у каждого, остаток в контейнере, уникальные ID и отсутствие незавершённых резервов подтверждены.":Resume?"Перезапуск: общая выдача сохранена ровно у одного персонажа.":"UI-подбор: чужая локация отклонена, одновременные клики дали один предмет после резерва без предварительной выдачи.";
                     NetworkClient.Send(new ContainerProbeFinishAck());
                 });
             };
@@ -186,16 +186,17 @@ namespace Remains.Runtime
         }
         private IEnumerator CheckMergedContents()
         {
-            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
+            if(runtime.Hud.InventoryOpen) {runtime.Hud.ToggleInventory();yield return null;}
             var source=InventorySource.Resolve(runtime.Session.World,runtime.Hud.ShownInventorySourceId);
             if(source==null || InventoryStacks.NeedsConsolidation(source.items) || source.items.Count>9 ||
-                runtime.Hud.ContainerPage!=0 || runtime.Hud.ContainerNextRect.GetComponent<UnityEngine.UI.Button>().interactable)
+                runtime.Hud.FirstVisibleContainerItem!=0 || runtime.Hud.ContainerRowCount>3)
             {Finish(false,"После объединения содержимое не помещается на первой странице либо остались отдельные стопки.");yield break;}
             pageChecked=true;
         }
         private IEnumerator Deposit()
         {
             while(DateTime.UtcNow.Ticks<clickAt) yield return null;
+            if(!runtime.Hud.InventoryOpen) {runtime.Hud.ToggleInventory();yield return null;}
             int index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="caps");
             int beforeSelection=runtime.Session.LocalActor.inventory.Sum(item=>item.count);
 
@@ -205,14 +206,13 @@ namespace Remains.Runtime
             index=runtime.Session.LocalActor.inventory.FindIndex(i=>i.definition=="grenade");
 
             yield return SelectPersonalRow(index);
-            yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
+            InventoryTransactionProbe.Deposit(runtime,"grenade",1);
         }
         private IEnumerator Click()
         {
             while(DateTime.UtcNow.Ticks<clickAt || !opened) yield return null;
-            if(Partial) yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
-            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
-            yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
+            if(Partial) InventoryTransactionProbe.Claim(runtime,0,1);
+            else yield return UiPointerProbe.Click(runtime.Hud.ContainerSlotRect(0));
         }
         private IEnumerator SelectPersonalRow(int index)
         {

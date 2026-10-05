@@ -18,6 +18,7 @@ namespace Remains.Runtime
         private int phase;
         private float deadline,returnAt,unblockAt;
         private bool traveled,disconnected,returned,ready,opened,clicked,offlineSeen,raisedPending,rejected,finished;
+        private bool knocked;
         private string pendingId;
         private Transport blocked;
         private Action<ArraySegment<byte>,int> receive;
@@ -31,8 +32,8 @@ namespace Remains.Runtime
             value.CommandSource=()=>
             {
                 if(!Host) return default;
-                if(phase==3 && !opened) {opened=true;return new PlayerCommand {inventory=true};}
-                if(phase==4) return runtime.Hud.InventoryOpen?new PlayerCommand {inventory=true}:new PlayerCommand {revive=true};
+                if(phase==3 && !opened) {opened=true;value.Hud.OpenContainer(InventorySource.BodyId(ActorId));}
+                if(phase==4) {value.Hud.CloseContainer();return new PlayerCommand {revive=true};}
                 return default;
             };
             value.Session.Notice+=text=>{if(text=="Инвентарь этого персонажа недоступен.") rejected=true;};
@@ -53,6 +54,8 @@ namespace Remains.Runtime
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<BodyRevivalReady>((connection,message)=>
             {
                 if(value.Session.ConnectedActor(connection)?.id!=ActorId) return;
+                if(message.stage==0 && value.Session.ConnectedActor(connection).down)
+                    connection.Send(new BodyRevivalPhase {phase=10});
                 if(message.stage==1 && offlineSeen) {phase=2;NetworkServer.SendToAll(new BodyRevivalPhase {phase=2});}
                 if(message.stage==2) phase=3;
             });
@@ -70,7 +73,15 @@ namespace Remains.Runtime
             var session=runtime.Session;
             if(Source && receive!=null && Time.unscaledTime>=unblockAt) {blocked.OnClientDataReceived=receive;receive=null;}
             if((Host || Source) && !traveled && session.LocalActor!=null) {traveled=true;session.Travel.RequestFactory();}
-            if(Source && phase==1 && !disconnected)
+            if(Source && phase==1 && !knocked && session.LocalActor?.level=="factory:0" && !session.Travel.Pending)
+            {
+                knocked=true;var actor=session.LocalActor;
+                var damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown);
+                for(int i=0;i<2;i++) damage.Apply(actor,new AttackEvent {id="body-revival-fixture:"+i,attacker=actor.id,weapon="grenade",level=actor.level},true);
+                if(!actor.down) {Finish(false,"Подготовка проверки не вызвала нокдаун правилом урона.");return;}
+                session.PublishActor(actor);NetworkClient.Send(new BodyRevivalReady {stage=0});
+            }
+            if(Source && phase==10 && !disconnected)
             {disconnected=true;session.StopClient();returnAt=Time.unscaledTime+1;return;}
             if(Source && disconnected && !returned && Time.unscaledTime>=returnAt) {returned=true;session.StartClient();return;}
             if(Source && returned && session.LocalActor!=null && !ready)
@@ -80,7 +91,7 @@ namespace Remains.Runtime
             if(phase==0 && session.ServerWorld.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers && body?.level=="factory:0" && session.LocalActor.level=="factory:0")
             {phase=1;NetworkServer.SendToAll(new BodyRevivalPhase {phase=1});}
             if(phase==1 && body is {connected:false,down:true}) offlineSeen=true;
-            if(phase==3 && runtime.Hud.InventoryOpen && !clicked) {clicked=true;StartCoroutine(Take());}
+            if(phase==3 && runtime.Hud.ContainerOpen && !clicked) {clicked=true;StartCoroutine(Take());}
             if(phase==3)
             {
                 string id=Deposit?session.ServerWorld.pendingDeposits.SingleOrDefault(g=>g.containerId==InventorySource.BodyId(ActorId))?.transaction:
@@ -106,11 +117,9 @@ namespace Remains.Runtime
         private IEnumerator Take()
         {
             if(runtime.Hud.ShownInventorySourceId!=InventorySource.BodyId(ActorId)) {Finish(false,"Не открыт нужный инвентарь тела.");yield break;}
-            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
-            yield return UiPointerProbe.Click(runtime.Hud.ClaimQuantityRect);
-            if(!runtime.Hud.ContainerOpen) yield return UiPointerProbe.Click(runtime.Hud.ContainerTabRect);
-            yield return UiPointerProbe.Click(Deposit?runtime.Hud.DepositRowRect(1):runtime.Hud.ContainerSlotRect(1));
-            if(Deposit) yield return UiPointerProbe.Click(runtime.Hud.DepositActionRect);
+            if(Deposit) InventoryTransactionProbe.Deposit(runtime,"grenade",1);
+            else InventoryTransactionProbe.Claim(runtime,1,1);
+            yield return null;
         }
         private void Finish(bool success,string detail)
         {

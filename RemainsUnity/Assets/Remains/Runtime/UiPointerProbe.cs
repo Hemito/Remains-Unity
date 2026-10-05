@@ -10,14 +10,14 @@ namespace Remains.Runtime
     // A virtual Unity device only. Never injects input into Windows or another process.
     public static class UiPointerProbe
     {
-        public static IEnumerator Click(RectTransform target)
+        public static IEnumerator Click(RectTransform target,Vector2? localPoint=null)
         {
             var mouse=InputSystem.AddDevice<Mouse>("SessionProbeMouse");
             try
             {
                 yield return null;
                 Canvas.ForceUpdateCanvases();
-                var position=RectTransformUtility.WorldToScreenPoint(null,target.TransformPoint(target.rect.center));
+                var position=RectTransformUtility.WorldToScreenPoint(null,target.TransformPoint(localPoint??target.rect.center));
                 var hits=new List<RaycastResult>();
                 EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current){position=position},hits);
                 if(hits.Count==0 || (hits[0].gameObject!=target.gameObject && !hits[0].gameObject.transform.IsChildOf(target)))
