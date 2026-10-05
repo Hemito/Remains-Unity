@@ -21,7 +21,9 @@ namespace Remains.Content
         public void SetFrames(Sprite[] value) {frames=(Sprite[])value.Clone();bakedDefinition=JsonUtility.ToJson(definition);}
         public Sprite[] Frames(string pose)
         {
-            if(texture==null || frames==null || bakedDefinition!=JsonUtility.ToJson(definition))
+            // Normalize absent optional fields in an older bake; changed socket data still invalidates it.
+            string normalizedBake=string.IsNullOrEmpty(bakedDefinition)?null:JsonUtility.ToJson(JsonUtility.FromJson<AtlasActorArtwork>(bakedDefinition));
+            if(texture==null || frames==null || normalizedBake!=JsonUtility.ToJson(definition))
                 throw new InvalidOperationException($"Атлас {name}: кадры не собраны или устарели. Нажмите «Пересобрать кадры» в Inspector.");
             int offset=0;
             foreach(var clip in definition.clips)

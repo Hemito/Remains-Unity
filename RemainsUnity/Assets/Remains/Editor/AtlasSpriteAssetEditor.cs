@@ -34,6 +34,7 @@ namespace Remains.Editor
                     clip.loopStartFrame<0 || clip.loopStartFrame>=clip.count || (!clip.loop && clip.loopStartFrame!=0))
                     throw new InvalidOperationException($"Атлас {asset.name}: неверная поза {clip?.pose}.");
                 if(clip.UsesMotion) MotionFrameSampling.Validate(clip.verticalFrames,clip.count,asset.name+":"+clip.pose);
+                AtlasWeaponSockets.ValidateClip(clip,asset.name);
             }
             string path=AssetDatabase.GetAssetPath(asset);
             if(string.IsNullOrEmpty(path)) throw new InvalidOperationException("Сначала сохраните атлас в проект.");

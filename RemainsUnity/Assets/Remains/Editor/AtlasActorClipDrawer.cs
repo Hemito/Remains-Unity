@@ -7,7 +7,7 @@ namespace Remains.Editor
     [CustomPropertyDrawer(typeof(AtlasActorClip))]
     public sealed class AtlasActorClipDrawer : PropertyDrawer
     {
-        private static readonly string[] fields={"pose","row","count","framesPerSecond","loop","loopStartFrame","verticalFrames"};
+        private static readonly string[] fields={"pose","row","count","framesPerSecond","loop","loopStartFrame","verticalFrames","weaponSockets"};
         public override float GetPropertyHeight(SerializedProperty property,GUIContent label)
         {
             float height=EditorGUIUtility.singleLineHeight+EditorGUIUtility.standardVerticalSpacing;

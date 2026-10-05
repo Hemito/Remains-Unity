@@ -43,12 +43,11 @@ namespace Remains.Gameplay
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
                 bool visible=target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
                     WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*.55f);
-                if(visible)
-                    WeaponPose.Aim(actor,target.Position+Vector2.up*.55f,geometry.Get(actor.level));
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {
                     controller.Step(actor,Vector2.zero,false,dt);
+                    NpcWeaponAim.Apply(actor,visible?target.Position+Vector2.up*.55f:null,controller.Room);
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
@@ -71,11 +70,13 @@ namespace Remains.Gameplay
                     float search=memory.hasKnownPosition?memory.knownX-actor.x:0;
                     controller.Step(actor,new Vector2(Mathf.Abs(search)>.25f?Mathf.Sign(search)*.5f:0,0),false,dt);
                     if(Mathf.Abs(search)>.01f) actor.facing=search>=0?1:-1;
+                    NpcWeaponAim.Apply(actor,memory.hasKnownPosition?memory.KnownPosition+Vector2.up*.55f:null,controller.Room);
                     continue;
                 }
                 float distance=target.x-actor.x;
                 controller.Step(actor,new Vector2(Mathf.Abs(distance)>5?Mathf.Sign(distance)*0.5f:0,0),false,dt);
                 actor.facing=distance>=0?1:-1;
+                NpcWeaponAim.Apply(actor,target.Position+Vector2.up*.55f,controller.Room);
                 if(visible && Mathf.Abs(distance)<7 && actor.attackCooldown<=0)
                 {
                     NpcAttackRules.Begin(actor,target);session.PublishActor(actor);

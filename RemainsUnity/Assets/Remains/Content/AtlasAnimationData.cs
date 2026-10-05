@@ -4,6 +4,11 @@ using UnityEngine;
 using Remains.Domain;
 namespace Remains.Content
 {
+    [Serializable] public sealed class AtlasWeaponSocketPoint
+    {
+        [InspectorName("X от левого края ячейки, пикс.")] public float x;
+        [InspectorName("Y от верхнего края ячейки, пикс.")] public float y;
+    }
     [Serializable] public sealed class AtlasActorClip
     {
         [InspectorName("ID позы")] public string pose;
@@ -13,6 +18,7 @@ namespace Remains.Content
         [InspectorName("Зациклить")] public bool loop;
         [Min(0),InspectorName("Первый кадр повторяемого участка")] public int loopStartFrame;
         [InspectorName("Кадры по вертикальной скорости (пусто — по времени)")] public MotionFramePoint[] verticalFrames;
+        [InspectorName("Точки оружия по кадрам (для типа с привязкой к атласу)")] public AtlasWeaponSocketPoint[] weaponSockets;
         public bool UsesMotion=>verticalFrames!=null && verticalFrames.Length>0;
         public int Sample(ActorState actor)=>UsesMotion && !actor.down
             ?MotionFrameSampling.Sample(verticalFrames,actor.vy)
@@ -43,6 +49,8 @@ namespace Remains.Content
     public static class AtlasAnimationData
     {
         private static readonly Dictionary<string,AtlasActorArtwork> cache=new();
+        public static AtlasActorArtwork RequirePrepared(string key)=>cache.TryGetValue(key,out var value)?value:
+            throw new InvalidOperationException($"Атлас не подготовлен при регистрации содержимого: {key}.");
         public static AtlasActorArtwork Get(string key)
         {
             if(cache.TryGetValue(key,out var cached)) return cached;
@@ -59,6 +67,7 @@ namespace Remains.Content
                     clip.loopStartFrame<0 || clip.loopStartFrame>=clip.count || (!clip.loop && clip.loopStartFrame!=0))
                     throw new InvalidOperationException("Некорректная поза атласа: "+key);
                 if(clip.UsesMotion) MotionFrameSampling.Validate(clip.verticalFrames,clip.count,key+":"+clip.pose);
+                AtlasWeaponSockets.ValidateClip(clip,key);
             }
             cache.Add(key,data);return data;
         }

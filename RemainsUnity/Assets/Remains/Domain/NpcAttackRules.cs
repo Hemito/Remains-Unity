@@ -20,7 +20,7 @@ namespace Remains.Domain
                 (room==null || RoomVisibility.Clear(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*.55f)))
             {
                 var end=target.Position+new Vector2(0,.55f);
-                Remains.Gameplay.WeaponPose.Aim(actor,end,room);
+                Remains.Gameplay.NpcWeaponAim.Apply(actor,end,room);
                 var origin=Remains.Gameplay.WeaponPose.Muzzle(actor);
                 if(room==null || !ShotObstacles.FirstContact(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),origin).HasValue)
                     result=new AttackEvent {id=actor.attackId,attacker=actor.id,weapon="npc-shot",level=actor.level,

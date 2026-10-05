@@ -24,6 +24,8 @@ namespace Remains.Content
         public void SetDefinition(ActorTypeDefinition value)=>definition=StateJson.FromJson<ActorTypeDefinition>(StateJson.ToJson(value));
         private void OnValidate()
         {
+            if(definition!=null && (!definition.hasWeapon || definition.presentation!="atlas" || string.IsNullOrWhiteSpace(definition.artwork)))
+                definition.atlasWeaponSocket=false;
             try {ActorTypes.Validate(definition);}
             catch(System.InvalidOperationException error) {Debug.LogWarning($"Ассет {name}: {error.Message}",this);}
         }

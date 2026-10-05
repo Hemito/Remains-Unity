@@ -7,8 +7,8 @@ namespace Remains.Gameplay
     public static class WeaponPose
     {
         public static float AimRadius=>WeaponRigs.AimRadius;
-        public static float RangedReachLimit(ActorState actor)=>actor.climbing?WeaponRigs.ClimbingAimRadius:AimRadius;
-        public static Vector2 RangedAnchor(ActorState actor)=>actor.Position+new Vector2(0,WeaponRigs.AnchorHeight*Anatomy.StanceHeightRatio(actor)+
+        public static float RangedReachLimit(ActorState actor)=>AtlasWeaponSockets.Enabled(actor)?0:actor.climbing?WeaponRigs.ClimbingAimRadius:AimRadius;
+        public static Vector2 RangedAnchor(ActorState actor)=>AtlasWeaponSockets.Enabled(actor)?AtlasWeaponSockets.Anchor(actor):actor.Position+new Vector2(0,WeaponRigs.AnchorHeight*Anatomy.StanceHeightRatio(actor)+
             (ActorSessionRules.IsPassive(actor) || actor.climbing || actor.crouched?0:Mathf.Clamp(actor.weaponLift,0,WeaponRigs.RaiseHeight)));
         public static Vector2 Direction(ActorState actor)=>new(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
         public static bool Flip(ActorState actor)=>actor.weaponFlipY;

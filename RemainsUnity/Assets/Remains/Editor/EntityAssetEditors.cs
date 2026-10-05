@@ -25,7 +25,17 @@ namespace Remains.Editor
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("definition").FindPropertyRelative("perception"),new GUIContent("Восприятие NPC"),true);
                 EditorGUI.indentLevel--;
             }
-            Field("hasWeapon","Отображать оружие");Field("bodyInventory","Инвентарь тела");Field("restoreHealthAfterHit","Восстановление здоровья мишени после удара");serializedObject.ApplyModifiedProperties();
+            Field("hasWeapon","Отображать оружие");
+            var definition=serializedObject.FindProperty("definition");
+            using(new EditorGUI.DisabledScope(!definition.FindPropertyRelative("hasWeapon").boolValue ||
+                definition.FindPropertyRelative("presentation").stringValue!="atlas" || string.IsNullOrWhiteSpace(definition.FindPropertyRelative("artwork").stringValue)))
+            {
+                EditorGUI.indentLevel++;Field("atlasWeaponSocket","Оружие на точке кадра атласа");EditorGUI.indentLevel--;
+            }
+            Field("bodyInventory","Инвентарь тела");Field("canUseDoors","Может пользоваться дверями");
+            Field("telekinesisMovable","Разрешён перенос телекинезом");Field("bodyMassKg","Масса тела, кг");
+            Field("hitProtection","Поглощение урона от попадания");
+            Field("restoreHealthAfterHit","Восстановление здоровья мишени после удара");serializedObject.ApplyModifiedProperties();
         }
     }
     [CustomEditor(typeof(PropAsset))]

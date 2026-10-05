@@ -8,6 +8,7 @@ namespace Remains.Content
     {
         public string id,presentation,artwork;
         public bool combatAi,hasWeapon,bodyInventory;
+        [InspectorName("Оружие на точке кадра атласа")] public bool atlasWeaponSocket;
         [InspectorName("Может пользоваться дверями")] public bool canUseDoors;
         [Min(0),InspectorName("Масса тела, кг")] public float bodyMassKg;
         [InspectorName("Разрешён перенос телекинезом")] public bool telekinesisMovable;
@@ -29,6 +30,7 @@ namespace Remains.Content
         public static void Register(ActorTypeDefinition definition,bool replace=false)
         {
             Validate(definition);
+            AtlasWeaponSockets.Prepare(definition);
             if(!replace && definitions.ContainsKey(definition.id)) throw new InvalidOperationException($"Повтор типа актёра: {definition.id}.");
             definitions[definition.id]=definition;
         }
@@ -40,6 +42,8 @@ namespace Remains.Content
                 !float.IsFinite(definition.bodyMassKg) || definition.bodyMassKg<0 ||
                 definition.telekinesisMovable && definition.bodyMassKg<=0)
                 throw new InvalidOperationException($"Некорректное определение актёра: {definition?.id}.");
+            if(definition.atlasWeaponSocket && (!definition.hasWeapon || definition.presentation!="atlas" || string.IsNullOrWhiteSpace(definition.artwork)))
+                throw new InvalidOperationException($"Тип {definition.id}: точка оружия требует оружие и атласное представление с указанным ресурсом.");
             if(definition.combatAi)
             {
                 if(definition.perception==null) throw new InvalidOperationException($"У боевого типа {definition.id} нет настроек восприятия.");
