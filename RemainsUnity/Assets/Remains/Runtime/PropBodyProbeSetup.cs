@@ -11,6 +11,7 @@ namespace Remains.Runtime
     // Read-only fixture selection. Only the caller's own player may be placed once.
     public sealed class PropBodyProbeSetup
     {
+        private const float LiftHeight=1.2f;
         public ContainerState Cargo {get;private set;}
         public Vector2 PlayerPosition {get;private set;}
         public Vector2 Lift {get;private set;}
@@ -18,6 +19,33 @@ namespace Remains.Runtime
         public string Contents {get;private set;}
         public int InitialGeneration {get;private set;}
         public static string Inventory(ContainerState cargo)=>StateJson.ToJson(cargo.items)+"|"+StateJson.ToJson(cargo.itemAliases);
+        public static string ManifestRejection(WorldState world,ActorState sender,string hostActorId,bool remote,PropBodyPrepared message,
+            float maximumMass,float grenadeDamage)
+        {
+            if(world==null || sender==null || !sender.player || !sender.connected || sender.down || sender.id!=message.source ||
+                sender.level!="factory:0" || string.IsNullOrEmpty(sender.owner) || sender.owner!=message.owner ||
+                string.IsNullOrEmpty(hostActorId) || (remote?sender.id==hostActorId:sender.id!=hostActorId))
+                return $"Неверный подключённый источник: sender={sender?.id}, requested={message.source}, owner={message.owner}, remote={remote}.";
+            if(WorldRooms.Definition(world,sender.level)!=NewGameWorld.FactoryDefinitionId ||
+                world.actors.Count(a=>a.player && a.connected)!=2 ||
+                world.actors.Any(a=>a.player && a.connected && a.id!=sender.id && (a.level!="hub" || a.down)))
+                return "Подготовка не подтверждает авторский завод и активного союзника в хабе.";
+            var cargo=world.containers.Find(c=>c.id==message.cargo);
+            if(cargo==null || !cargo.id.Contains(":original:plant:") || cargo.level!=sender.level || !cargo.movable ||
+                cargo.presentationItem!=null || !cargo.held || cargo.owner!=sender.owner || cargo.generation!=message.heldGeneration ||
+                cargo.definition!=message.definition || !float.IsFinite(cargo.mass) || cargo.mass<0 || cargo.mass>maximumMass ||
+                cargo.mass!=message.mass || cargo.items.Count==0 || Inventory(cargo)!=message.contents)
+                return $"Серверный контейнер не соответствует подготовке: cargo={message.cargo}, owner={cargo?.owner}, held={cargo?.held}, generation={cargo?.generation}/{message.heldGeneration}.";
+            if(message.previousAttacks==null || !sender.resolvedAttacks.SequenceEqual(message.previousAttacks) ||
+                sender.resolvedAttacks.Count!=0 || sender.health!=100 || sender.health!=message.initialHealth ||
+                message.initialGrenades<2 || sender.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count)!=message.initialGrenades ||
+                grenadeDamage!=message.damage)
+                return "Начальные HP, гранаты, урон или решения об атаках не совпадают с серверным источником.";
+            if(new[]{message.floor,message.liftX,message.liftY,message.playerX,message.playerY}.Any(v=>!float.IsFinite(v)) ||
+                Mathf.Abs(message.liftY-message.floor-cargo.anchorHeight-LiftHeight)>.001f)
+                return "Некорректная геометрия подготовленной позиции и подъёма.";
+            return null;
+        }
         public static bool Supported(ContainerState cargo,RoomLayout room,WorldState world)
         {
             var feet=cargo.Position-Vector2.up*cargo.anchorHeight;
@@ -35,7 +63,7 @@ namespace Remains.Runtime
                 var cargoHull=new MovementHull {width=cargo.width,height=cargo.height};
                 if(!ActorTerrainMotion.Supported(room,cargoHull,new Vector2(cargo.x,floor))) continue;
                 if(world.actors.Any(a=>!a.player && !a.down && a.level==actor.level && Vector2.Distance(a.Position,cargo.Position)<10)) continue;
-                var lift=cargo.Position+Vector2.up*1.2f;
+                var lift=cargo.Position+Vector2.up*LiftHeight;
                 if(!ActorTerrainMotion.IsClear(room,cargoHull,lift-Vector2.up*cargo.anchorHeight)) continue;
                 foreach(int direction in new[]{1,-1})
                 {

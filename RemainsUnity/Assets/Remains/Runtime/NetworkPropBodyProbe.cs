@@ -35,7 +35,7 @@ namespace Remains.Runtime
         private AudioClip expectedClip;
         private int stage,serverStage,landingBaseline;
         private float deadline,heldSince=-1,evidenceSince=-1,heldY,releasedY;
-        private bool fixture,mapClick,prepared,threw,reported,finished,released,fell,downCaptured;
+        private bool fixture,mapClick,manifestSent,prepared,threw,reported,finished,released,fell,downCaptured;
         private string savedSnapshot,capture;
         private long savedRevision;
         private readonly List<string> grenades=new();
@@ -45,6 +45,9 @@ namespace Remains.Runtime
         private readonly HashSet<int> voiceIds=new();
         private readonly Dictionary<int,HashSet<int>> observed=new();
         private bool Host=>runtime.Options.Role=="host";
+        private bool Remote=>runtime.Options.Smoke.Contains("-remote-");
+        private string SourceRole=>Remote?"client":"host";
+        private bool SourceRoleHere=>runtime.Options.Role==SourceRole;
         private bool Frames=>runtime.Options.Smoke.Contains("-frames-");
         private bool Source=>prepared && runtime.Session.LocalActorId==manifest.source;
         private ActorState Actor=>runtime.Session.LocalActor;
@@ -73,28 +76,46 @@ namespace Remains.Runtime
                 {stage=message.stage;threw=reported=false;evidenceSince=-1;savedSnapshot=message.snapshot;savedRevision=message.revision;});
                 NetworkClient.RegisterHandler<PropBodyFinished>(message=>Finish(message.success,message.detail));
             };
-            value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<PropBodyObserved>((connection,message)=>
+            value.Session.ServerReady+=()=>
             {
-                if(value.Session.ConnectedActor(connection)==null) return;
-                if(!message.success) {NetworkServer.SendToAll(new PropBodyFinished {success=false,detail=message.detail});return;}
-                if(message.stage!=serverStage) return;
-                if(!observed.TryGetValue(serverStage,out var peers)) observed.Add(serverStage,peers=new());
-                if(!peers.Add(connection.connectionId) || peers.Count!=2) return;
-                if(serverStage==4)
-                {NetworkServer.SendToAll(new PropBodyFinished {success=true,detail="Реальные Q/G, два решения пострадавшего, свободная физика подключённого тела, один голос приземления у источника и сохранение обоими участниками."});return;}
-                serverStage++;
-                var next=new PropBodyStage {stage=serverStage};
-                if(serverStage==4)
+                NetworkServer.RegisterHandler<PropBodyPrepared>(AcceptPrepared);
+                NetworkServer.RegisterHandler<PropBodyObserved>((connection,message)=>
                 {
-                    value.Session.CommitWorld();
-                    var snapshot=value.Session.Saves.SelectedSnapshot();next.snapshot=snapshot.Id;next.revision=snapshot.Revision;
-                }
-                NetworkServer.SendToAll(next);
-            });
+                    if(value.Session.ConnectedActor(connection)==null) return;
+                    if(!message.success) {NetworkServer.SendToAll(new PropBodyFinished {success=false,detail=message.detail});return;}
+                    if(message.stage!=serverStage) return;
+                    if(!observed.TryGetValue(serverStage,out var peers)) observed.Add(serverStage,peers=new());
+                    if(!peers.Add(connection.connectionId) || peers.Count!=2) return;
+                    if(serverStage==4)
+                    {NetworkServer.SendToAll(new PropBodyFinished {success=true,detail="Реальные Q/G, два решения пострадавшего, свободная физика подключённого тела, один голос приземления у источника и сохранение обоими участниками."});return;}
+                    serverStage++;
+                    var next=new PropBodyStage {stage=serverStage};
+                    if(serverStage==4)
+                    {
+                        value.Session.CommitWorld();
+                        var snapshot=value.Session.Saves.SelectedSnapshot();next.snapshot=snapshot.Id;next.revision=snapshot.Revision;
+                    }
+                    NetworkServer.SendToAll(next);
+                });
+            };
+        }
+        private void AcceptPrepared(NetworkConnectionToClient connection,PropBodyPrepared message)
+        {
+            if(serverStage!=0 || finished) return;
+            try
+            {
+                var sender=runtime.Session.ConnectedActor(connection);
+                var rejection=PropBodyProbeSetup.ManifestRejection(runtime.Session.ServerWorld,sender,runtime.Session.LocalActorId,
+                    Remote,message,TelekinesisSettings.Load().maximumMass,WeaponCatalog.Get("grenade").damage);
+                if(rejection!=null) throw new InvalidOperationException(rejection);
+                serverStage=1;NetworkServer.SendToAll(message,Channels.Reliable);
+            }
+            catch(Exception error)
+            {NetworkServer.SendToAll(new PropBodyFinished {success=false,detail="Сервер отклонил подготовку probe: "+error.Message});}
         }
         private PlayerCommand Command()
         {
-            if(finished || !Host || Actor==null || runtime.Session.World.actors.Count(a=>a.player && a.connected)!=2) return default;
+            if(finished || !SourceRoleHere || Actor==null || runtime.Session.World.actors.Count(a=>a.player && a.connected)!=2) return default;
             if(!fixture)
             {
                 if(Actor.level!="hub" || route==null) return default;
@@ -125,7 +146,7 @@ namespace Remains.Runtime
                 if(Actor==null || runtime.Session.World.actors.Count(a=>a.player && a.connected)!=2) return;
                 if(!prepared)
                 {
-                    if(!Host) return;
+                    if(!SourceRoleHere || manifestSent) return;
                     if(!fixture)
                     {
                         if(Actor.level=="hub")
@@ -145,13 +166,12 @@ namespace Remains.Runtime
                     if(cargo.generation!=setup.InitialGeneration+1) throw new InvalidOperationException("Один обычный захват дал неверную generation.");
                     if(Actor.health!=100 || Actor.down || Actor.resolvedAttacks.Count!=0)
                         throw new InvalidOperationException("Источник уже получил урон до первого броска. HP и атаки не исправлялись.");
-                    serverStage=1;
-                    NetworkServer.SendToAll(new PropBodyPrepared {source=Actor.id,cargo=cargo.id,definition=cargo.definition,mass=cargo.mass,owner=cargo.owner,contents=setup.Contents,
+                    NetworkClient.Send(new PropBodyPrepared {source=Actor.id,cargo=cargo.id,definition=cargo.definition,mass=cargo.mass,owner=cargo.owner,contents=setup.Contents,
                         previousAttacks=Actor.resolvedAttacks.ToArray(),heldGeneration=cargo.generation,initialGrenades=CountGrenades(Actor),
                         initialHealth=Actor.health,damage=WeaponCatalog.Get("grenade").damage,floor=setup.Floor,
-                        liftX=setup.Lift.x,liftY=setup.Lift.y,playerX=setup.PlayerPosition.x,playerY=setup.PlayerPosition.y});
-                    // Wait for the reliable prepared message; do not send another manifest.
-                    heldSince=float.PositiveInfinity;return;
+                        liftX=setup.Lift.x,liftY=setup.Lift.y,playerX=setup.PlayerPosition.x,playerY=setup.PlayerPosition.y},Channels.Reliable);
+                    // Both source roles use this reliable request and the same server validation.
+                    manifestSent=true;return;
                 }
                 if(Cargo==null || Victim==null) return;
                 foreach(var explosion in runtime.Session.World.explosions)
@@ -285,7 +305,7 @@ namespace Remains.Runtime
             if(label=="down") downCaptured=true;
         }
         private void Notice(string text) {if(fixture && !finished) Fail("Игровая команда отклонена: "+text);}
-        private string Context()=> $"stage={stage}, source={manifest.source}, cargo={manifest.cargo}, observer={Actor?.level}, HP={Victim?.health}, down={Victim?.down}, owner={Cargo?.owner}, held={Cargo?.held}, generation={Cargo?.generation}/{manifest.heldGeneration}, position={Cargo?.Position}, grenades={string.Join(",",grenades)}, fall={fell}, voices={landingVoices.Count}";
+        private string Context()=> $"stage={stage}, sourceRole={SourceRole}, source={manifest.source}, cargo={manifest.cargo}, observer={Actor?.level}, HP={Victim?.health}, down={Victim?.down}, owner={Cargo?.owner}, held={Cargo?.held}, generation={Cargo?.generation}/{manifest.heldGeneration}, position={Cargo?.Position}, grenades={string.Join(",",grenades)}, fall={fell}, voices={landingVoices.Count}";
         private void Fail(string reason)
         {
             if(finished) return;
@@ -298,7 +318,7 @@ namespace Remains.Runtime
             if(success && (proofs.Count!=4 || !fell || launches.Count!=2 || Source && (landingVoices.Count!=1 || Frames && !downCaptured)))
             {success=false;detail="Неполный локальный набор доказательств. "+detail;}
             File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,context=Context(),
-                source=Source,manifest=manifest,proofs=proofs.ToArray(),launches=launches.ToArray(),voices=landingVoices.ToArray(),
+                source=Source,sourceRole=SourceRole,manifest=manifest,proofs=proofs.ToArray(),launches=launches.ToArray(),voices=landingVoices.ToArray(),
                 batchMuted=Application.isBatchMode,downCaptured=downCaptured},true));
             StartCoroutine(Exit(success));
         }
@@ -310,6 +330,6 @@ namespace Remains.Runtime
         [Serializable] private sealed class Proof
         {public int stage,generation,landingCounter;public uint sequence;public float time,sourceHealth,heldBeforeDownY,firstObservedFreeY;public bool sourceDown,held,fallVerified,landingVoiceRequired;public string owner,observerLevel,snapshot;public Vector2 position,velocity;public string[] grenadeIds;public Voice[] landingVoices;}
         [Serializable] private sealed class Report
-        {public bool success,source,batchMuted,downCaptured;public string detail,context;public PropBodyPrepared manifest;public Proof[] proofs;public Launch[] launches;public Voice[] voices;}
+        {public bool success,source,batchMuted,downCaptured;public string detail,context,sourceRole;public PropBodyPrepared manifest;public Proof[] proofs;public Launch[] launches;public Voice[] voices;}
     }
 }
