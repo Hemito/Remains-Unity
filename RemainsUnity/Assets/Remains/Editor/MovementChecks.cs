@@ -13,6 +13,7 @@ namespace Remains.Editor
         {
             PlatformDropChecks.Run();
             LadderHoldChecks.Run();
+            LadderEntryPoseChecks.Run();
             HorizontalMotionChecks.Run();
             VariableJumpChecks.Run();
             CheckSolidGeometry();

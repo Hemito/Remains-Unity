@@ -6,9 +6,23 @@ namespace Remains.Presentation
     public sealed class CameraFollower
     {
         private readonly Camera camera;
+        private readonly CameraFollowMotion motion=new();
         private bool oversizedWarning;
-        public RoomLayout Room { get; set; }
+        private RoomLayout room;
+        private string actorId,actorLevel;
+        private int actorGeneration;
+        private long actorLifecycle;
+        private float previousHalfWidth,previousHalfHeight;
+        private bool hasContext;
+        public RoomLayout Room
+        {
+            get=>room;
+            set {if(!ReferenceEquals(room,value)) {room=value;ResetMotion();}}
+        }
         public CameraFollower(Camera camera,RoomLayout room) {this.camera=RequireCamera(camera);Room=room;}
+        // Explicit same-level teleports/recovery repairs must discard target history.
+        // No distance/speed heuristic: fast continuous gameplay remains continuous.
+        public void ResetMotion()=>motion.Reset();
         public static Camera RequireCamera(Camera value)
         {
             if(value==null) throw new System.InvalidOperationException("В сцене не назначена активная камера с тегом MainCamera.");
@@ -19,11 +33,17 @@ namespace Remains.Presentation
         public void Step(ActorState actor,float dt)
         {
             float halfWidth=camera.orthographicSize*camera.aspect;
+            if(!hasContext || actorId!=actor.id || actorLevel!=actor.level || actorGeneration!=actor.generation ||
+                actorLifecycle!=actor.lifecycleSequence || previousHalfWidth!=halfWidth || previousHalfHeight!=camera.orthographicSize)
+            {
+                ResetMotion();hasContext=true;actorId=actor.id;actorLevel=actor.level;actorGeneration=actor.generation;
+                actorLifecycle=actor.lifecycleSequence;previousHalfWidth=halfWidth;previousHalfHeight=camera.orthographicSize;
+            }
             float x=Room.right-Room.left<=halfWidth*2?(Room.left+Room.right)/2:Mathf.Clamp(actor.x,Room.left+halfWidth,Room.right-halfWidth);
             float y=Room.top-Room.bottom<=camera.orthographicSize*2?(Room.top+Room.bottom)/2:
                 Mathf.Clamp(actor.y+1,Room.bottom+camera.orthographicSize,Room.top-camera.orthographicSize);
             var target=new Vector3(x,y,-10);
-            var position=Vector3.Lerp(camera.transform.position,target,1-Mathf.Exp(-8*dt));
+            var position=motion.Step(camera.transform.position,target,dt);
             var bounds=PonyVisual.CameraBounds(actor);
             bool oversized=bounds.size.x>halfWidth*2-.3f || bounds.size.y>camera.orthographicSize*2-.3f;
             if(oversized && !oversizedWarning)

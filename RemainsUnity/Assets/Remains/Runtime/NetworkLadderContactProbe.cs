@@ -21,7 +21,7 @@ namespace Remains.Runtime
     [DefaultExecutionOrder(10000)]
     public sealed class NetworkLadderContactProbe : MonoBehaviour
     {
-        private enum Stage {Waiting,Approach,LowerStart,AscendShort,DescendShort,AscendHigh,DescendHigh,Complete}
+        private enum Stage {Waiting,Approach,LowerStart,MountStop,MountReverse,MountJump,AscendShort,DescendShort,AscendHigh,DescendHigh,Complete}
         private PrototypeRuntime runtime;
         private RoomLayout room;
         private RoomLadder ladder;
@@ -33,6 +33,10 @@ namespace Remains.Runtime
         private bool shortAscended,shortLanded,highAscended,highLanded,repeatNearTop;
         private Vector2 startPosition,lastCommand;
         private int movementCommands,upCommands,downCommands,shortDescendingSamples,highDescendingSamples;
+        private int mountCommands,mountSettleCommands;
+        private float mountStoppedAt;
+        private bool mountCaptured,mountJumpIssued,lastJump;
+        private readonly HashSet<Stage> mountedSequences=new();
         private readonly HashSet<int> observations=new();
         private readonly Dictionary<string,PonyVisual> views=new(StringComparer.Ordinal);
         private readonly Dictionary<string,Witness> witnesses=new(StringComparer.Ordinal);
@@ -45,6 +49,7 @@ namespace Remains.Runtime
         private ActorState Actor=>runtime.Session.LocalActor;
         private float Axis=>ladder.x+ladder.movementOffset;
         private bool Descending=>stage is Stage.DescendShort or Stage.DescendHigh;
+        private bool Mounting=>stage is Stage.MountStop or Stage.MountReverse or Stage.MountJump;
 
         public void Initialize(PrototypeRuntime value)
         {
@@ -79,6 +84,7 @@ namespace Remains.Runtime
         {
             if(message.stage<=(int)stage) return;
             stage=(Stage)message.stage;stageAt=Time.unscaledTime;reported=false;
+            mountCommands=0;mountSettleCommands=0;mountStoppedAt=0;mountCaptured=false;mountJumpIssued=false;
             if(stage==Stage.Approach) StartCoroutine(PrepareWhenReady());
         }
         private void AcceptObserved(NetworkConnectionToClient connection,LadderContactObserved message)
@@ -90,7 +96,8 @@ namespace Remains.Runtime
             if(message.stage!=(int)serverStage || !observations.Add(connection.connectionId) || observations.Count!=runtime.Options.ProbePeers) return;
             Stage next=serverStage switch
             {
-                Stage.Approach=>Stage.LowerStart,Stage.LowerStart=>Stage.AscendShort,Stage.AscendShort=>Stage.DescendShort,
+                Stage.Approach=>Stage.LowerStart,Stage.LowerStart=>Stage.MountStop,Stage.MountStop=>Stage.MountReverse,
+                Stage.MountReverse=>Stage.MountJump,Stage.MountJump=>Stage.AscendShort,Stage.AscendShort=>Stage.DescendShort,
                 Stage.DescendShort=>Stage.AscendHigh,Stage.AscendHigh=>Stage.DescendHigh,Stage.DescendHigh=>Stage.Complete,
                 _=>throw new InvalidOperationException("Неожиданный барьер лестницы: "+serverStage)
             };
@@ -103,12 +110,27 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             lastCommand=default;
+            lastJump=false;
             if(finished || !prepared || reported || Actor==null) return default;
             if(!repeatNearTop && (stage is Stage.AscendHigh or Stage.DescendHigh)) return default;
             if(stage==Stage.Approach)
             {
                 float distance=Axis-Actor.x;
                 if(Mathf.Abs(distance)>.12f) lastCommand.x=Mathf.Sign(distance);
+            }
+            else if(Mounting)
+            {
+                // A synchronous evidence capture stalls the next game frame. Wait with
+                // ordinary neutral commands so it cannot conceal a short first Up step.
+                if(mountSettleCommands++<6) return default;
+                if(mountCommands<2) {lastCommand.y=1;mountCommands++;}
+                else if(stage==Stage.MountStop && (mountStoppedAt==0 || Time.unscaledTime-mountStoppedAt<.2f))
+                {
+                    if(mountStoppedAt==0) mountStoppedAt=Time.unscaledTime;
+                }
+                else if(stage==Stage.MountJump && !mountJumpIssued)
+                {mountJumpIssued=true;lastJump=true;return new PlayerCommand {jump=true};}
+                else if(stage!=Stage.MountJump && (Actor.climbing || Actor.y>lowerY+RoomSupport.ContactTolerance)) lastCommand.y=-1;
             }
             else if(stage==Stage.LowerStart || Descending)
             {
@@ -225,10 +247,32 @@ namespace Remains.Runtime
                 {
                     case Stage.Approach:
                         if(Mathf.Abs(Actor.x-Axis)<=.3f && Mathf.Abs(Actor.vx)<.1f &&
-                            ActorTerrainMotion.Supported(room,Anatomy.Movement(Actor),Actor.Position)) Observed();
+                            ActorTerrainMotion.Supported(room,Anatomy.Movement(Actor),Actor.Position))
+                        {CaptureFrame(14,"approach-support");Observed();}
                         break;
                     case Stage.LowerStart:
                         if(lower) {CaptureFrame(1,"lower-start");Observed();} break;
+                    case Stage.MountStop:
+                    case Stage.MountReverse:
+                    case Stage.MountJump:
+                        bool firstAction=mountCommands==2 && (stage==Stage.MountStop?mountStoppedAt>0:
+                            stage==Stage.MountJump?lastJump:lastCommand.y<0);
+                        if(!mountCaptured && firstAction)
+                        {
+                            if(stage==Stage.MountJump && (Actor.climbing || Actor.vy<=0 || Actor.y<=lowerY || Actor.pose!="jump"))
+                                throw new InvalidOperationException("Обычная команда прыжка после коротких Up не отпустила хват и не запустила настоящее тело.");
+                            // Capture only after the stop/reverse/jump command was simulated.
+                            // Capturing the preceding Up would turn this action into a long frame.
+                            CaptureFrame(8+((int)stage-(int)Stage.MountStop)*2,"mount-"+stage+"-action");mountCaptured=true;
+                        }
+                        bool sequenceIssued=stage==Stage.MountStop?mountStoppedAt>0 && Time.unscaledTime-mountStoppedAt>=.2f:
+                            stage==Stage.MountJump?mountJumpIssued:mountCommands==2 && lastCommand.y<0;
+                        // Reverse may reach the floor in its first command. Keep that evidence
+                        // after the command, rather than expecting a second airborne frame.
+                        if(sequenceIssued) mountedSequences.Add(stage);
+                        if(lower && mountedSequences.Contains(stage) && mountCaptured)
+                        {CaptureFrame(9+((int)stage-(int)Stage.MountStop)*2,"mount-"+stage+"-lower");Observed();}
+                        break;
                     case Stage.AscendShort:
                         if(Actor.y>=shortY && Actor.climbing)
                         {shortAscended=true;CaptureFrame(2,"ascending-short");Observed();} break;
@@ -287,11 +331,12 @@ namespace Remains.Runtime
                     }
                 }
                 bool descending=ActiveDescending(actor,view);
+                bool held=actor.climbing && !ActorSessionRules.IsPassive(actor);
                 var envelope=PonyVisual.CameraBounds(actor);
                 var cameraMinimum=camera.transform.position-new Vector3(camera.orthographicSize*camera.aspect,camera.orthographicSize,0);
                 var cameraMaximum=camera.transform.position+new Vector3(camera.orthographicSize*camera.aspect,camera.orthographicSize,0);
-                var sample=new Sample {stage=(int)stage,frame=Time.frameCount,seconds=Time.unscaledTime,actor=actor.id,local=actor.id==Actor.id,
-                    body=actor.Position,visual=view.transform.position,velocity=new Vector2(actor.vx,actor.vy),command=actor.id==Actor.id?lastCommand:default,
+                var sample=new Sample {stage=(int)stage,frame=Time.frameCount,seconds=Time.unscaledTime,deltaTime=Time.deltaTime,actor=actor.id,local=actor.id==Actor.id,
+                    body=actor.Position,visual=view.transform.position,velocity=new Vector2(actor.vx,actor.vy),command=actor.id==Actor.id?lastCommand:default,commandJump=actor.id==Actor.id && lastJump,
                     anatomy=actor.anatomy,logicalPose=actor.pose,poseTime=actor.poseTime,drawnClip=view.DrawnClip,drawnFrame=view.DrawnFrame,drawnTime=view.DrawnTime,
                     climbing=actor.climbing,activeDescending=descending,ladder=actor.climbing?CurrentLadderId(actor):null,
                     predictedFeet=feet,predictedFootMinimum=footMinimum,hasSolidFloor=!float.IsPositiveInfinity(clearance),
@@ -302,7 +347,16 @@ namespace Remains.Runtime
                     envelopeBottom=envelope.min.y-cameraMinimum.y,envelopeTop=cameraMaximum.y-envelope.max.y};
                 if(trace.Count>=20000) throw new InvalidOperationException("Превышен ограниченный объём лестничной трассы.");
                 trace.Add(sample);
+                if(sample.local && Mathf.Min(Mathf.Min(sample.envelopeLeft,sample.envelopeRight),Mathf.Min(sample.envelopeBottom,sample.envelopeTop))<.149f)
+                    throw new InvalidOperationException($"Камера обрезала текущую общую границу поз: actor={actor.id}, stage={stage}, frame={sample.frame}, camera={sample.cameraCenter}, envelope={envelope}, margins={sample.envelopeLeft}/{sample.envelopeRight}/{sample.envelopeBottom}/{sample.envelopeTop}.");
                 var witness=witnesses[actor.id];witness.drawnSamples++;
+                if(held)
+                {
+                    witness.heldSamples++;
+                    if(sample.hasSolidFloor && (witness.heldMinimum==null || clearance<witness.heldMinimum.minimumSolidClearance)) witness.heldMinimum=sample;
+                    if(sample.hasSolidFloor && clearance< -RoomSupport.ContactTolerance-.00001f)
+                        throw new InvalidOperationException($"Нарисованный хват пересёк твёрдый пол: actor={actor.id}, local={sample.local}, stage={stage}, ladder={sample.ladder}, drawn={view.DrawnClip}/{view.DrawnFrame}@{view.DrawnTime}, bodyY={actor.y}, footY={footMinimum}, floor={supportId}@{supportTop}, clearance={clearance}, tolerance={RoomSupport.ContactTolerance}.");
+                }
                 if(descending)
                 {
                     witness.descendingSamples++;
@@ -347,9 +401,9 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;
-            if(success && (!shortAscended || !shortLanded || !shortDescendingCapture || shortDescendingSamples==0 ||
+            if(success && (mountedSequences.Count!=3 || !shortAscended || !shortLanded || !shortDescendingCapture || shortDescendingSamples==0 ||
                 repeatNearTop && (!highAscended || !highLanded || !highDescendingCapture || highDescendingSamples==0) ||
-                witnesses.Count!=runtime.Options.ProbePeers || witnesses.Values.Any(value=>value.descendingSamples==0 || value.minimum==null)))
+                witnesses.Count!=runtime.Options.ProbePeers || witnesses.Values.Any(value=>value.descendingSamples==0 || value.minimum==null || value.heldSamples==0 || value.heldMinimum==null)))
             {success=false;detail="Неполное независимое доказательство контакта лестницы. "+detail;}
             finished=true;
             if(!success && prepared)
@@ -362,7 +416,7 @@ namespace Remains.Runtime
                 start=startPosition,authoredSpawn=room==null?default:new Vector2(room.spawnX,room.spawnY),end=Actor?.Position??default,
                 ladderId=ladderId,ladder=ladder,lowerSupport=lowerSupport,lowerY=lowerY,shortY=shortY,highY=highY,
                 repeatNearTop=repeatNearTop,highRouteReason=highRouteReason,shortAscended=shortAscended,shortLanded=shortLanded,highAscended=highAscended,highLanded=highLanded,
-                movementCommands=movementCommands,upCommands=upCommands,downCommands=downCommands,shortDescendingSamples=shortDescendingSamples,highDescendingSamples=highDescendingSamples,
+                movementCommands=movementCommands,upCommands=upCommands,downCommands=downCommands,shortDescendingSamples=shortDescendingSamples,highDescendingSamples=highDescendingSamples,mountSequences=mountedSequences.Count,
                 contactSources=contactSources,witnesses=witnesses.Values.ToArray(),captures=captures.ToArray(),barriers=barriers.ToArray(),trace=trace.ToArray(),failureCaptureError=failureCaptureError,
                 contactTolerance=RoomSupport.ContactTolerance,limit="Контакты — предсказанные минимумы видимых опорных частей из общего baked source; не анализ PNG каждого кадра. Idle не проверяется на все пиксели копыт. Камера записана с полным envelope, без утверждения идеального следования. Remote — отдельное локальное представление реплики. ActorState не хранит ID лестницы: наблюдаемый хват сопоставляется с authored hierarchy path и runtime geometry; это диагностический ID, не persistent gameplay ID."},true));
             exitSuccess=success;Invoke(nameof(Exit),1.5f);
@@ -372,12 +426,12 @@ namespace Remains.Runtime
 
         [Serializable] private sealed class Barrier {public int stage,frame;public float seconds;public Vector2 position;}
         [Serializable] private sealed class Capture {public int phase;public string name;public Sample sample;}
-        [Serializable] private sealed class Witness {public string actor;public bool local;public int drawnSamples,descendingSamples;public Sample minimum;}
+        [Serializable] private sealed class Witness {public string actor;public bool local;public int drawnSamples,descendingSamples,heldSamples;public Sample minimum,heldMinimum;}
         [Serializable] private sealed class ContactSource {public string anatomy,renderSourceHash;public int schema,alphaMinimum;public string[] declaredShapes;}
         [Serializable] private sealed class Sample
         {
-            public int stage,frame,drawnFrame;public float seconds,poseTime,drawnTime,predictedFootMinimum,minimumSolidClearance,solidTop;
-            public string actor,anatomy,logicalPose,drawnClip,ladder,solidFloor;public bool local,climbing,activeDescending,hasSolidFloor;
+            public int stage,frame,drawnFrame;public float seconds,deltaTime,poseTime,drawnTime,predictedFootMinimum,minimumSolidClearance,solidTop;
+            public string actor,anatomy,logicalPose,drawnClip,ladder,solidFloor;public bool local,climbing,activeDescending,hasSolidFloor,commandJump;
             public Vector2 body,velocity,command;public Vector2[] predictedFeet;public Vector3 visual,cameraCenter,cameraMinimum,cameraMaximum,fullEnvelopeMinimum,fullEnvelopeMaximum;
             public float envelopeLeft,envelopeRight,envelopeBottom,envelopeTop;
         }
@@ -385,7 +439,7 @@ namespace Remains.Runtime
         {
             public bool success,repeatNearTop,shortAscended,shortLanded,highAscended,highLanded;
             public string detail,context,role,observer,world,level,ladderId,highRouteReason,limit,failureCaptureError;
-            public int width,height,peers,movementCommands,upCommands,downCommands,shortDescendingSamples,highDescendingSamples;
+            public int width,height,peers,movementCommands,upCommands,downCommands,shortDescendingSamples,highDescendingSamples,mountSequences;
             public float lowerY,shortY,highY,contactTolerance;public Vector2 start,authoredSpawn,end;public RoomLadder ladder;public RoomSurface lowerSupport;
             public ContactSource[] contactSources;
             public Witness[] witnesses;public Capture[] captures;public Barrier[] barriers;public Sample[] trace;

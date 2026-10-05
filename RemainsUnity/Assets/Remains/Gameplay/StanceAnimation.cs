@@ -6,7 +6,7 @@ namespace Remains.Gameplay
     // Presentation of an already resolved stance; never changes collision or input.
     public static class StanceAnimation
     {
-        public static void Select(ActorState actor,string target,bool wasCrouched)
+        public static void Select(ActorState actor,string target,bool wasCrouched,StandingSupportPose standing=null,RoomLayout room=null)
         {
             string landing=Anatomy.LandingPose(actor);
             if(!string.IsNullOrEmpty(landing) && target=="idle")
@@ -21,6 +21,7 @@ namespace Remains.Gameplay
             }
             bool compatible=actor.pose=="crouchLower" && target=="crouch" || actor.pose=="crouchRise" && target=="idle";
             if(compatible && actor.poseTime<PonyAnimationData.Duration(actor.pose)) return;
+            if(standing!=null) target=standing.Select(actor,room,target);
             ActorPose.Select(actor,target);
         }
     }

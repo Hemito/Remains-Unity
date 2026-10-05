@@ -25,6 +25,7 @@ namespace Remains.Editor
             NpcPerceptionChecks.Run();
             ExplosionPrefabChecks.Run();
             Anatomy.Load();
+            StandingEdgePoseChecks.Run();StandingSupportPoseChecks.Run();
             DynamicSupportChecks.Run();PlatformSimulationChecks.Run();FactoryWorkshopMechanismChecks.Run();PlatformIntegrationChecks.Run();
             NpcDoorChecks.Run();
             ActorStepChecks.Run();

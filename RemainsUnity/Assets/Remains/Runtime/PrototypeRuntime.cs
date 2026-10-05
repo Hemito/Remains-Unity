@@ -121,7 +121,7 @@ namespace Remains.Runtime
             new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades,Geometry,visualLayers);
             HeldItems=new GameObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
             var room=RoomLayout.Load(shownLevel);
-            movement=new MovementController(room);
+            movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
             cameraView=CameraFollower.RequireCamera(Camera.main);
@@ -265,13 +265,13 @@ namespace Remains.Runtime
                 shownLevel=Session.LocalActor.level;shownRoom=definition;
                 var room=Geometry.Get(shownLevel);
                 Destroy(roomObject);roomObject=AuthoredRoomVisual.Create(shownLevel,room,Session.World);
-                movement=new MovementController(room);
+                movement=CreateMovement(room);
                 cameraFollower.Room=room;
                 releaseRequested=true;
                 if(!ReleasingUnusedAssets) StartCoroutine(ReleaseUnusedAssets());
             }
             var activeRoom=Geometry.Get(Session.LocalActor.level);
-            if(!ReferenceEquals(movement.Room,activeRoom)) movement=new MovementController(activeRoom);
+            if(!ReferenceEquals(movement.Room,activeRoom)) movement=CreateMovement(activeRoom);
             cameraFollower.Room=activeRoom;
             foreach (var actor in Session.World.actors)
             {
@@ -293,6 +293,16 @@ namespace Remains.Runtime
             }
             foreach (var id in removed) visuals.Remove(id);
             visualLayers.Synchronize(visuals.Keys);
+        }
+
+        private MovementController CreateMovement(RoomLayout room)
+        {
+            var controller=new MovementController(room);
+            controller.PositionRecovered+=recovered=>
+            {
+                if(recovered.id==Session.LocalActor?.id) cameraFollower?.ResetMotion();
+            };
+            return controller;
         }
 
         private void ApplyAudioPreferences()
@@ -317,7 +327,6 @@ namespace Remains.Runtime
                     if(ActorHoldRules.Active(body)) ActorHoldMotion.Step(body,Geometry.Get(body.level),Time.deltaTime);
                     else if(body!=actor && ActorSessionRules.IsPassive(body)) PassiveActorMotion.Step(body,Geometry.Get(body.level),Time.deltaTime,passiveMovementSettings,passengers.ForActor(body));
                 }
-            cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors)
             {
                 if(animated.owner==Session.LocalOwner) animated.poseCorrectionRemaining=0;
@@ -338,6 +347,10 @@ namespace Remains.Runtime
             {
                 foreach (var owned in Session.World.actors) if (owned.owner==Session.LocalOwner) Session.PublishPose(owned);
             }
+            // Follow the resolved body that the visuals will draw in LateUpdate.
+            // Input above used the camera from the last displayed frame.
+            if(Session.LocalActor is {} renderedActor && NetworkClient.isConnected)
+                cameraFollower.Step(renderedActor,Time.deltaTime);
         }
 
         private IEnumerator ReleaseUnusedAssets()

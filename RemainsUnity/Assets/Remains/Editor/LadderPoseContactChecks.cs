@@ -86,7 +86,7 @@ namespace Remains.Editor
             }
             var directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../..", ".reference/tests/ladder-pose-contact"));
             Directory.CreateDirectory(directory);File.WriteAllText(Path.Combine(directory,"descent.csv"),trace.ToString());
-            Debug.Log("Контакт ног при спуске: PASS — четыре нижние ноги во всех267кадрах, отдельная от урона декларация, реальные PNG копыт3/102/298 и PonyVisual кадры, твёрдый пол, прежняя скорость/гравитация, проход балки, оба направления и30/60/144Гц. Trace: "+directory);
+            Debug.Log("Контакт ног при спуске: PASS — четыре нижние ноги: прежние13поз/267кадров и44краевые позы/44кадра, отдельная от урона декларация, реальные PNG копыт3/102/298 и PonyVisual кадры, твёрдый пол, прежняя скорость/гравитация, проход балки, оба направления и30/60/144Гц. Trace: "+directory);
         }
         private static void CheckVisibleFeet()
         {
@@ -98,15 +98,25 @@ namespace Remains.Editor
             var damageLegs=Array.Find(pony.regions,value=>value.id=="legs");
             Require(damageLegs.shapes.Length==2 && damageLegs.shapes[0]=="25" && damageLegs.shapes[1]=="275",
                 "Исправление контактов изменило независимые области урона");
-            int count=0;
+            int count=0,edgeCount=0,legacyPoses=0;
             foreach(var clip in PonyAnimationData.Library.clips)
-            for(int frame=0;frame<clip.frames.Length;frame++)
             {
-                Require(Array.FindAll(clip.frames[frame].parts,part=>Array.IndexOf(shapes,part.shape)>=0).Length==4,
-                    $"Не объявлены все четыре нижние ноги: pose={clip.id}, frame={frame}");
-                count++;
+                bool edge=clip.id.StartsWith("edgeStand",StringComparison.Ordinal) || clip.id.StartsWith("edgeCrouch",StringComparison.Ordinal);
+                if(edge) Require(clip.frames.Length==1,"Краевая поза перестала быть одно-кадровой: "+clip.id);
+                else legacyPoses++;
+                for(int frame=0;frame<clip.frames.Length;frame++)
+                {
+                    Require(Array.FindAll(clip.frames[frame].parts,part=>Array.IndexOf(shapes,part.shape)>=0).Length==4,
+                        $"Не объявлены все четыре нижние ноги: pose={clip.id}, frame={frame}");
+                    count++;
+                    if(edge) edgeCount++;
+                }
             }
-            Require(count==267,"Проверяемый ресурс изменился: пересмотрите полноту декларации копыт");
+            Require(legacyPoses==13 && count-edgeCount==267 && edgeCount==44 && count==311,"Проверяемый ресурс изменился: пересмотрите полноту декларации копыт");
+            foreach(var expected in new Dictionary<string,int> {{"idle",1},{"walk",17},{"slowWalk",25},{"run",58},{"jump",32},{"climb",13},
+                {"down",40},{"crouch",1},{"crawl",14},{"crouchLower",9},{"crouchRise",9},{"landing",6},{"fall",42}})
+                Require(Array.Find(PonyAnimationData.Library.clips,clip=>clip.id==expected.Key)?.frames.Length==expected.Value,
+                    "Прежняя поза потеряла свои кадры: "+expected.Key);
             CheckDrawnFoot("idle",0,0,"57/1/1","3",-.036454f);
             CheckDrawnFoot("climb",4,.1f,"57/1/1","298",-.509750f);
             CheckDrawnFoot("crouch",0,0,"frleg3/1/1","102",-.027330f);
