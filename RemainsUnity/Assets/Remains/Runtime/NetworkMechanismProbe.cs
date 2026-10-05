@@ -52,6 +52,7 @@ namespace Remains.Runtime
         private double previousCarrierClock;
         private WorldState previousCarrierWorld;
         private string failureCaptureError;
+        private BoardingEvidence boardingEvidence;
         private bool Host=>runtime.Options.Role=="host";
         private ActorState Actor=>runtime.Session.LocalActor;
         private MechanismButtonState Button=>runtime.Session.World?.mechanismButtons.Find(b=>b.id==ButtonId);
@@ -302,15 +303,23 @@ namespace Remains.Runtime
                         if(!Paused || runtime.Session.LevelTime.RunsLocal(Level) || !DurableReady() || Time.unscaledTime-stageAt<.3f) return;
                         if(!boarded)
                         {
-                            var sample=Sample();
-                            if(Platform.segment==null || !sample.Moving || sample.Progress>.1)
-                                throw new InvalidOperationException("Посадка не получила раннюю каноническую движущуюся платформу.");
+                            var sample=Sample();double clock=Clock;var platform=Platform;
+                            ValidateBoarding(platform,sample,clock,initialPlatformRevision+1);
                             boardingPosition=new Vector2(sample.Anchor.x+(Host?-.3f:.3f),sample.SupportBounds.yMax);
                             if(!ActorTerrainMotion.IsClear(runtime.Geometry.Get(Level),Anatomy.Movement(Actor),boardingPosition))
                                 throw new InvalidOperationException("Над движущейся опорой нет свободного места для fixture.");
-                            PlaceOwnPlayer(boardingPosition);boardingAnchor=sample.Anchor;boardClock=Clock;
-                            expectedRemainingSeconds=Platform.segment.durationSeconds*(1-sample.Progress);
-                            segmentSequence=Platform.segment.sequence;boarded=true;return;
+                            PlaceOwnPlayer(boardingPosition);boardingAnchor=sample.Anchor;boardClock=clock;
+                            expectedRemainingSeconds=platform.segment.EndElapsedSeconds-clock;
+                            segmentSequence=platform.segment.sequence;
+                            boardingEvidence=new BoardingEvidence {observer=Actor.id,world=runtime.Session.World.worldId,platform=platform.id,
+                                snapshot=expectedSnapshot,localSeconds=clock,startSeconds=platform.segment.startElapsedSeconds,
+                                endSeconds=platform.segment.EndElapsedSeconds,prestartSeconds=Math.Max(0,platform.segment.startElapsedSeconds-clock),
+                                expectedRemainingSeconds=expectedRemainingSeconds,progress=sample.Progress,started=sample.Started,completed=sample.Completed,
+                                sampledAnchor=sample.Anchor,fromEndpoint=platform.segment.fromEndpoint==0?platform.Start:platform.End,
+                                fixture=boardingPosition,segmentSequence=segmentSequence,platformRevision=platform.revision,
+                                clockSequence=runtime.Session.LevelTime.ClientSequence,pauseRevision=runtime.Session.Pause.Revision,paused=Paused};
+                            File.WriteAllText(runtime.Options.Report+".phase-7.boarding.json",StateJson.ToJson(boardingEvidence,true));
+                            boarded=true;return;
                         }
                         if(Time.unscaledTime-stageAt<.6f) return;
                         Observe();break;
@@ -333,6 +342,10 @@ namespace Remains.Runtime
                         pauseVerified=true;Capture("moving");Observe();break;
                     case Stage.Arrived:
                         if(!DurableReady() || Platform.segment!=null || Platform.endpoint!=1) return;
+                        // The exact canonical completion can precede continuous local playback.
+                        // Wait for this observer's actual support, then keep the same assertions.
+                        var arrivalSample=Sample();
+                        if(arrivalSample.Moving || Vector2.Distance(arrivalSample.Anchor,Platform.End)>.001f) return;
                         if(arrivalAt<0) {arrivalAt=Time.unscaledTime;arrivalClock=Clock;return;}
                         if(Time.unscaledTime-arrivalAt<.5f) return;
                         float expected=Platform.End.x-boardingAnchor.x;
@@ -347,6 +360,21 @@ namespace Remains.Runtime
         }
         private MovingPlatformSample Sample()=>runtime.Platforms.TrySample(PlatformId,out var sample)?sample:
             throw new InvalidOperationException("Runtime не построил фактическую опору платформы "+PlatformId);
+        private static void ValidateBoarding(MovingPlatformState platform,MovingPlatformSample sample,double clock,long expectedRevision)
+        {
+            var segment=platform?.segment;
+            if(platform!=null && segment!=null) platform.Validate();
+            if(platform==null || platform.id!=PlatformId || platform.removed || segment==null ||
+                platform.revision!=expectedRevision || segment.sequence!=expectedRevision || platform.endpoint!=0 ||
+                segment.fromEndpoint!=0 || segment.toEndpoint!=1 || !double.IsFinite(clock) || clock<0 ||
+                !double.IsFinite(sample.Progress) || sample.Progress<0 || sample.Progress>.1 || sample.Completed || clock>=segment.EndElapsedSeconds)
+                throw new InvalidOperationException($"Посадка не получила ранний подтверждённый segment: platform={platform?.id}, revision={platform?.revision}/{expectedRevision}, sequence={segment?.sequence}, clock={clock}, start/end={segment?.startElapsedSeconds}/{segment?.EndElapsedSeconds}, progress={sample.Progress}, started={sample.Started}, completed={sample.Completed}.");
+            bool prestart=clock<segment.startElapsedSeconds;
+            var from=segment.fromEndpoint==0?platform.Start:platform.End;
+            if(prestart && (sample.Started || sample.Progress!=0 || Vector2.Distance(sample.Anchor,from)>.0001f) ||
+                !prestart && !sample.Started)
+                throw new InvalidOperationException($"Локальная опора не совпала с границей start: clock={clock}, start={segment.startElapsedSeconds}, prestart={prestart}, started={sample.Started}, progress={sample.Progress}, anchor={sample.Anchor}, from={from}.");
+        }
         private void ObservePassenger()
         {
             var sample=Sample();var actor=Actor;
@@ -447,7 +475,8 @@ namespace Remains.Runtime
                 observedRemainingSeconds=arrivalAt>=0?arrivalClock-boardClock:0,
                 sourceRepairProgress=capturedRepairProgress,localRepairProgressAtCapture=localRepairProgressAtCapture,repairEEdges=repairEEdges,activationEEdges=activationEEdges,
                 width=1920,height=1080,captures=captures.ToArray(),durable=durableProofs.ToArray(),motion=motion.ToArray(),
-                carrierFrames=carrierFrames.ToArray(),clockEpochs=clockEpochs.ToArray(),failureCaptureError=failureCaptureError},true));
+                carrierFrames=carrierFrames.ToArray(),clockEpochs=clockEpochs.ToArray(),failureCaptureError=failureCaptureError,
+                boarding=boardingEvidence,clockPhaseLimitation="Непрерывные локальные часы могут иметь разную абсолютную фазу. Общая пауза фиксирует текущую фазу каждого участника; эта проверка не доказывает синхронность фаз."},true));
             Invoke(nameof(Exit),1.5f);exitSuccess=success;
         }
         private bool exitSuccess;
@@ -465,6 +494,9 @@ namespace Remains.Runtime
         {public int stage;public double realSeconds,levelSeconds;public Vector2 actor,platform;public float relativeError,heightError;public bool paused,frozenWindow;public long sequence;}
         [Serializable] private sealed class ClockEpoch
         {public int stage,frame;public double realSeconds,networkSeconds,networkLocalSeconds,networkRtt,levelSeconds;public long clockSequence,pauseRevision;public bool running,paused;}
+        [Serializable] private sealed class BoardingEvidence
+        {public string observer,world,platform,snapshot;public double localSeconds,startSeconds,endSeconds,prestartSeconds,expectedRemainingSeconds,progress;
+            public Vector2 sampledAnchor,fromEndpoint,fixture;public long segmentSequence,platformRevision,clockSequence,pauseRevision;public bool started,completed,paused;}
         [Serializable] private sealed class CarrierFrame
         {
             public int stage,frame;
@@ -481,6 +513,6 @@ namespace Remains.Runtime
             public float routeDistance,carriedDistance,expectedCarriedDistance,maximumRelativeError,maximumHeightError,pauseClockError,pausePositionError,pausePlatformError;
             public double sourceRepairProgress,localRepairProgressAtCapture,durationSeconds,expectedRemainingSeconds,observedRemainingSeconds;
             public int contactSamples,movingSamples,repairEEdges,activationEEdges,width,height;public long segmentSequence;public string[] captures;public DurableProof[] durable;public MotionPoint[] motion;
-            public CarrierFrame[] carrierFrames;public ClockEpoch[] clockEpochs;public string failureCaptureError;}
+            public CarrierFrame[] carrierFrames;public ClockEpoch[] clockEpochs;public string failureCaptureError,clockPhaseLimitation;public BoardingEvidence boarding;}
     }
 }
