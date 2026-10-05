@@ -19,7 +19,8 @@ namespace Remains.Editor
             {
                 var room=root.GetComponent<RoomAuthoring>();var layout=room.CreateLayout();
                 int backdropCount=Array.FindAll(layout.artwork,a=>a.texture=="Factory46/backwall").Length;
-                if(backdropCount>1 || layout.artwork.Length!=163+backdropCount || layout.platforms.Length!=63 || layout.ladders.Length!=2)
+                int landings=FactoryLadderLandingChecks.CheckInstalled(room,FactoryLadderLandingSource.Load().Room(46),0,true);
+                if(backdropCount>1 || layout.artwork.Length!=163+backdropCount+landings || layout.platforms.Length!=63+landings || layout.ladders.Length!=2)
                     throw new InvalidOperationException("Сохранённый префаб входа потерял содержимое.");
                 var authored=root.GetComponent<RoomLightingAuthoring>();
                 var light=authored!=null?authored.CreateProfile(room):new RoomLightProfile {ambient=Color.white,lights=Array.Empty<RoomLight>()};
@@ -56,7 +57,8 @@ namespace Remains.Editor
                 RoomArtworkAssets.Save(decor,"Assets/Remains/RoomDrafts","FactoryEntry46Decoration");
                 decor.transform.SetParent(root.transform,false);
                 var room=root.GetComponent<RoomAuthoring>();var actual=room.CreateLayout();
-                if(actual.artwork.Length!=107+layout.artwork.Length || index!=layout.artwork.Length)
+                int landings=FactoryLadderLandingChecks.CheckInstalled(room,FactoryLadderLandingSource.Load().Room(46),0,true);
+                if(actual.artwork.Length!=107+layout.artwork.Length+landings || index!=layout.artwork.Length)
                     throw new InvalidOperationException("Оформление входа: потеряны исходные слои или новые объекты.");
                 PrefabUtility.SaveAsPrefabAsset(root,path);AssetDatabase.SaveAssets();
                 Debug.LogWarning("FactoryEntry46: добавлены изображения декора, включая светильники. Световые маски, общий задник, сколы и игровые объекты ещё не восстановлены.",root);

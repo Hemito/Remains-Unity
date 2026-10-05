@@ -19,7 +19,8 @@ namespace Remains.Editor
             int mechanisms=(batch.mechanisms?.movingPlatforms.Length??0)+(batch.mechanisms?.mechanismButtons.Length??0);
             Require(mechanisms is 0 or 3,"Расстановка платформы/кнопок установлена частично.");
             Require(crawlers==0 || crawlers==2,"Расстановка радтараканов установлена частично.");
-            Require(layout.right==76.8f && layout.top==20 && layout.platforms.Length==127+exterior && layout.ladders.Length==8 && layout.artwork.Length==325+exterior,
+            int landings=FactoryLadderLandingChecks.CheckConnected(room);
+            Require(layout.right==76.8f && layout.top==20 && layout.platforms.Length==127+exterior+landings && layout.ladders.Length==8 && layout.artwork.Length==325+exterior+landings,
                 "Потеряны границы или геометрия модулей.");
             Require(batch.doors.doors.Length==6 && batch.physical.props.Length==6 && batch.physical.containers.Length==14 &&
                 batch.physical.loot.Length==12 && batch.npcs.actors.Length==6+crawlers && batch.travelPoints.Length==1,

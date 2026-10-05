@@ -33,15 +33,16 @@ namespace Remains.Editor
                 var visual=RoomVisual.Build(layout,light);visual.name="Основные текстуры — без сколов и декора";
                 RoomArtworkAssets.Save(visual,folder,"FactoryEntry46Artwork");visual.transform.SetParent(root.transform,false);
                 authoring.UseAuthoredArtwork();
+                FactoryLadderLandingAuthoring.InstallOn(root,46);
                 var actual=authoring.CreateLayout();
-                if(actual.platforms.Length!=63 || actual.ladders.Length!=2 || actual.artwork.Length!=107)
+                if(actual.platforms.Length!=65 || actual.ladders.Length!=2 || actual.artwork.Length!=109)
                     throw new InvalidOperationException("При импорте входа потеряны поверхности, лестницы или слои.");
                 PrefabUtility.SaveAsPrefabAsset(root,path);AssetDatabase.SaveAssets();
                 root.AddComponent<RoomLighting>().Initialize(layout,light);
                 OriginalTrainingRoomAuthoring.Render(root,layout,"factory-entry-46-geometry.png");
                 Debug.LogWarning("FactoryEntry46: черновик геометрии. Не импортированы декор, маски разрушений, наследуемый задник, двери, противники и контейнеры. В игровой каталог не включён.",root);
                 ContractChecks.Run();
-                Debug.Log("FactoryEntry46: PASS — 63 поверхности, 2 лестницы, 107 слоёв, сохранённый префаб и рендер черновика.");
+                Debug.Log("FactoryEntry46: PASS — 65 поверхностей, 2 лестницы, 109 слоёв, две явные верхние посадки, сохранённый префаб и рендер черновика.");
             }
             finally {root.GetComponent<RoomLighting>()?.Release();UnityEngine.Object.DestroyImmediate(root);}
         }

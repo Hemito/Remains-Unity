@@ -72,12 +72,13 @@ namespace Remains.Editor
                 }
                 var report=ScriptableObject.CreateInstance<RoomImportReportAsset>();report.Configure(source.sourceId,source.sourceHash,source.records);
                 AssetDatabase.CreateAsset(report,"Assets/Remains/RoomDrafts/FactoryWorkshop18Import.asset");root.AddComponent<RoomImportAudit>().Configure(report);
+                FactoryLadderLandingAuthoring.InstallOn(root,18);
                 var actual=room.CreateLayout();var physical=RoomPhysicalContent.Read(room,"factory:0");var doors=RoomDoorContent.Read(room,"factory:0");
-                if(actual.platforms.Length!=64 || actual.ladders.Length!=6 || actual.artwork.Length!=161 ||
+                if(actual.platforms.Length!=68 || actual.ladders.Length!=6 || actual.artwork.Length!=165 ||
                     actual.platforms.Count(s=>s.slopeDirection!=0)!=4 || physical.containers.Length!=6 || physical.loot.Length!=6 || doors.doors.Length!=3)
                     throw new InvalidOperationException("Импорт цеха потерял геометрию, оформление или объекты.");
                 PrefabUtility.SaveAsPrefabAsset(root,Path);AssetDatabase.SaveAssets();report.WarnIncomplete(root);
-                Debug.Log("Цех18: сохранены 64 поверхности, 6 лестниц, 161 слой оформления, 2 светильника, 6 контейнеров и 3 двери.");
+                Debug.Log("Цех18: сохранены 68 поверхностей, 6 лестниц, 165 слоёв оформления, четыре явные верхние посадки, 2 светильника, 6 контейнеров и 3 двери.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
             ContractChecks.Run();
