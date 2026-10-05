@@ -61,7 +61,7 @@ namespace Remains.Gameplay
             {actor.mana=Mathf.Max(0,actor.mana-bodyCost);actor.revision++;statsDirty=true;}
             foreach(var prop in WorldProps.All(session.World))
             {
-                if(prop.owner!=session.LocalOwner || prop.level!=actor.level) continue;
+                if(!prop.hasPhysicalBody || !prop.movable || prop.owner!=session.LocalOwner || prop.level!=actor.level) continue;
                 if(prop.held && prop.id==selected && held)
                 {
                     holding=true;

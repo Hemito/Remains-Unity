@@ -14,7 +14,7 @@ namespace Remains.Editor
             RunMotion();
             PropCatalog.Load();
             var settings=JsonUtility.FromJson<PropContactAudio.Settings>(Resources.Load<TextAsset>("Presentation/prop-audio").text);
-            foreach(var definition in PropCatalog.All)
+            foreach(var definition in PropCatalog.All.Where(d=>d.hasPhysicalBody && d.movable))
             {
                 var entry=settings.entries.SingleOrDefault(e=>e.definition==definition.id);
                 Require(entry!=null && Resources.Load<AudioClip>(entry.clip)?.samples>0,"Нет банка зарегистрированного объекта: "+definition.id);

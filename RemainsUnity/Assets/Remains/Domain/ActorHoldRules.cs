@@ -29,7 +29,7 @@ namespace Remains.Domain
                 if(actor.hold?.holder==holder.id) return "Вы уже удерживаете другое тело.";
             }
             foreach(var prop in WorldProps.All(world))
-                if(prop.held && prop.owner==holder.owner) return "Сначала отпустите удерживаемый предмет.";
+                if(prop.hasPhysicalBody && prop.movable && prop.held && prop.owner==holder.owner) return "Сначала отпустите удерживаемый предмет.";
             if(body.hold!=null) return "Тело уже удерживает другой игрок.";
             return null;
         }

@@ -15,6 +15,9 @@ namespace Remains.Editor
             foreach(string guid in AssetDatabase.FindAssets("t:Texture2D",new[]{"Assets/Remains/Resources/Original/Pony","Assets/Remains/Resources/Original/Room","Assets/Remains/Resources/Original/Shots","Assets/Remains/Resources/Original/Menu","Assets/Remains/Resources/Original/Hud","Assets/Remains/Resources/Original/Inventory","Assets/Remains/Resources/Original/Training","Assets/Remains/Resources/Original/Props","Assets/Remains/Resources/Original/Raider"}))
             {
                 var importer=(TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid));
+                // These resources have explicit, validated native import policies. Preserve their Sprite IDs and RGBA pixels.
+                if(importer.assetPath.Contains("/Original/Room/WorkshopToolStand/") ||
+                    importer.assetPath.Contains("/Original/Inventory/tool-components/")) continue;
                 importer.textureType=TextureImporterType.Default;
                 importer.alphaIsTransparency=true;
                 importer.textureCompression=TextureImporterCompression.Uncompressed;

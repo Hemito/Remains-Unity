@@ -49,9 +49,12 @@ namespace Remains.Editor
         }
         private static void CheckUpgrade(PhysicalLayout current)
         {
-            Require(current.expansion!=null && current.expansion.additions.Length==2,"Не объявлено добавочное обновление.");
-            var old=StateJson.Copy(current);old.patch=current.expansion.previousPatch;old.expansion=null;
+            Require(current.expansion!=null && current.expansion.earlierVersions.Length==1 &&
+                current.expansion.earlierVersions[0].additions.Length==3,"Не сохранено добавочное обновление v1→v3.");
+            var old=StateJson.Copy(current);old.patch=current.expansion.earlierVersions[0].previousPatch;old.expansion=null;
             old.props=old.props.Where(p=>p.definition!="bigbox").ToArray();
+            old.containers=old.containers.Where(p=>p.definition!="instr2").ToArray();
+            old.loot=old.loot.Where(p=>p.container!=FactoryToolStandAuthoring.SourceId && !p.container.EndsWith(":"+FactoryToolStandAuthoring.SourceId,StringComparison.Ordinal)).ToArray();
             var world=new WorldState {worldId="bigbox-upgrade-check"};PhysicalContentInstaller.Apply(world,old);
             var removedProp=world.props[0].id;world.props.RemoveAt(0);
             var removedContainer=world.containers[0].id;world.containers.RemoveAt(0);
@@ -61,7 +64,8 @@ namespace Remains.Editor
             world=StateJson.Copy(world);
             Require(PhysicalContentInstaller.Apply(world,current),"Новая расстановка не установлена.");
             Require(world.props.Count(p=>p.definition=="bigbox")==2 && !world.props.Any(p=>p.id==removedProp) && !world.containers.Any(c=>c.id==removedContainer),"Возвращён удалённый объект или потеряно дополнение.");
-            Require(StateJson.ToJson(world.props.Where(p=>p.definition!="bigbox").ToList())==propsBefore && StateJson.ToJson(world.containers)==containersBefore,"Изменено прежнее положение, удержание или содержимое.");
+            Require(StateJson.ToJson(world.props.Where(p=>p.definition!="bigbox").ToList())==propsBefore &&
+                StateJson.ToJson(world.containers.Where(p=>p.definition!="instr2").ToList())==containersBefore,"Изменено прежнее положение, удержание или содержимое.");
             world=StateJson.Copy(world);string before=StateJson.ToJson(world);
             Require(!PhysicalContentInstaller.Apply(world,current) && StateJson.ToJson(world)==before,"Повторная загрузка изменила состояние.");
             var bad=StateJson.Copy(current);bad.patch+="-invalid";bad.expansion.additions=new[]{"missing-id"};bool rejected=false;

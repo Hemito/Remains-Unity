@@ -26,7 +26,7 @@ namespace Remains.Networking
                 NetworkClient.RegisterHandler<PropPoseMessage>(message=>
                 {
                     var prop=WorldProps.Find(session.World,message.prop);
-                    if(prop==null || prop.owner==session.LocalOwner || prop.generation!=message.generation) return;
+                    if(prop==null || prop.generation!=message.generation || !PropReplication.CanAcceptPose(prop) || prop.owner==session.LocalOwner) return;
                     PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy);
                 });
                 NetworkClient.RegisterHandler<GrenadePoseMessage>(message=>
@@ -43,6 +43,7 @@ namespace Remains.Networking
             var actor=session.ConnectedActor(connection);
             var prop=WorldProps.Find(session.ServerWorld,message.prop);
             if(actor==null || prop==null || actor.level!=prop.level) return;
+            PropBodyRules.Validate(prop);
             if(session.Pause.IsServerPaused(actor.level))
             {connection.Send(new NoticeMessage {text="Захват/отпускание отменено: уровень остановлен."});return;}
             if(message.release)
@@ -55,7 +56,7 @@ namespace Remains.Networking
                 if(actor.down) return;
                 if(actor.hold!=null || session.ServerWorld.actors.Any(a=>a.hold?.holder==actor.id))
                 {connection.Send(new NoticeMessage {text="Сначала завершите захват тела."});return;}
-                if(!prop.movable) {connection.Send(new NoticeMessage {text="Этот объект закреплён."});return;}
+                if(!prop.movable || !prop.hasPhysicalBody) {connection.Send(new NoticeMessage {text="Этот объект закреплён."});return;}
                 if(prop.held && prop.owner!=actor.owner) {connection.Send(new NoticeMessage {text="Объект уже удерживает другой игрок."});return;}
                 prop.owner=actor.owner;prop.generation++;prop.held=true;
             }
@@ -65,6 +66,7 @@ namespace Remains.Networking
         {
             var actor=session.ConnectedActor(connection);
             var prop=WorldProps.Find(session.ServerWorld,message.prop);
+            if(prop!=null && !PropReplication.CanAcceptPose(prop)) return;
             if(!PropPoseScope.CanPublish(session.ServerWorld,actor,prop,prop!=null && session.Pause.IsServerPaused(prop.level)) ||
                 !PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy)) return;
             NetworkServer.SendToAll(message,Channels.Unreliable);
@@ -123,6 +125,7 @@ namespace Remains.Networking
         public void GrabProp(string prop,bool release) => NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });
         public void SendProp(PropState prop)
         {
+            if(!PropReplication.CanAcceptPose(prop)) return;
             prop.sequence++;
             NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy },Channels.Unreliable);
         }

@@ -7,7 +7,7 @@ namespace Remains.Domain
     {
         public static void Step(PropState prop,RoomLayout room,float dt,Vector2? target,IEnumerable<PropState> neighbours=null,PassengerMotionState passenger=null)
         {
-            if(dt<=0 || !prop.movable) return;
+            if(dt<=0 || !prop.movable || !prop.hasPhysicalBody) return;
             var feet=prop.Position-Vector2.up*prop.anchorHeight;
             var hull=new MovementHull {width=prop.width,height=prop.height};
             feet=PassengerMotion.Carry(room,hull,feet,dt,passenger,!target.HasValue && !prop.held && prop.vy<=0);

@@ -23,6 +23,7 @@ namespace Remains.Presentation
         private readonly Image weaponPreview;
         private readonly Text weaponDetail;
         private readonly InventoryArtwork artwork;
+        private readonly ItemTextCatalog itemText;
         private readonly InventoryPortrait portrait;
         private readonly string[] ids;
         private readonly Button previous,next,deposit,use;
@@ -47,9 +48,10 @@ namespace Remains.Presentation
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
         public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();
-        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork,Action<string> equipItem=null,Action pageSound=null)
+        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork,Action<string> equipItem=null,Action pageSound=null,ItemTextCatalog itemText=null)
         {
             this.equipItem=equipItem;
+            this.itemText=itemText??ItemTextCatalog.Load();
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
             if(view==null) throw new InvalidOperationException("Не назначено содержимое личной страницы инвентаря.");
             view.Validate();
@@ -169,7 +171,7 @@ namespace Remains.Presentation
             use.GetComponentInChildren<Text>().text=weaponSelected?(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==chosen.id?"Убрать оружие":"Взять в копыта"):"Использовать";
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
-            detail.text=chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):Description(chosen.definition));
+            detail.text=chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):itemText.Description(chosen.definition,"PersonalInventoryPanel: actor="+actor.id+", item="+chosen.id));
             string useRejection=chosen?.definition=="heal"?HealingRules.Rejection(actor,actor,true):null;
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen==null?"":
                 paused?"Область на паузе. Действия временно недоступны.":
@@ -187,15 +189,7 @@ namespace Remains.Presentation
             return $"Урон без движения: {damage:0.##}\nИнтервал атак: {definition.cooldown:0.##} с\n"+
                 resource+$"Выбор: {(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==item.id?"в копытах":"в инвентаре")}";
         }
-        private static string Description(string id)=>id switch
-        {
-            "heal"=>"Восстанавливает здоровье. Можно использовать для поднятия союзника.",
-            "grenade"=>"Ручная граната. Возьмите в копыта и бросайте левой кнопкой мыши. Быстрый бросок — G.",
-            "p10"=>"Боеприпасы 10-мм пистолета. Перезарядка — R.",
-            "batt"=>"Боеприпасы лазерного пистолета. Перезарядка — R.",
-            "caps"=>"Крышки.",
-            _=>"Описание этого предмета пока отсутствует."
-        };
+
     }
 }
 

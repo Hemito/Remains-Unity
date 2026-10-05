@@ -16,7 +16,7 @@ namespace Remains.Domain
         public Vector2 Position=>Prop?.Position??Body.Position;
         public Vector2 Center=>Prop?.Center??Body.Position+Vector2.up*(Anatomy.Movement(Body).height*.5f);
         public float Mass=>Prop?.mass??bodyType.bodyMassKg;
-        public bool Movable=>Prop?.movable??bodyType.telekinesisMovable;
+        public bool Movable=>Prop!=null?Prop.movable && Prop.hasPhysicalBody:bodyType.telekinesisMovable;
         public static TelekinesisTarget? Nearest(WorldState world,ActorState holder,Vector2 cursor)
         {
             TelekinesisTarget? nearest=null;float distance=1;

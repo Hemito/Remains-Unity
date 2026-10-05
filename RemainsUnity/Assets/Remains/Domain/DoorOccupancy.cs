@@ -18,7 +18,7 @@ namespace Remains.Domain
             foreach(var prop in world.props) if(Occupied(prop)) return true;
             foreach(var container in world.containers) if(Occupied(container)) return true;
             return false;
-            bool Occupied(PropState prop)=>prop.level==door.level &&
+            bool Occupied(PropState prop)=>prop.hasPhysicalBody && prop.level==door.level &&
                 Intersects(door,new Rect(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height),prop.id);
         }
         private static bool Intersects(DoorState door,Rect bounds,string id)

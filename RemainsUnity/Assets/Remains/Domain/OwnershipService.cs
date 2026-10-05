@@ -90,6 +90,7 @@ namespace Remains.Domain
             }
             foreach(var prop in WorldProps.All(world))
             {
+                if(!prop.hasPhysicalBody) continue;
                 if(active.Any(a=>a.owner==prop.owner && a.level==prop.level)) continue;
                 // An incapacitated connected player still runs a client and keeps
                 // this level active. Use its real connection ID when nobody stands.

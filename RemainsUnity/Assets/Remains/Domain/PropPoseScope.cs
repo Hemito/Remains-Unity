@@ -6,7 +6,7 @@ namespace Remains.Domain
     {
         public static bool CanPublish(WorldState world,ActorState sender,PropState prop,bool levelPaused)=>
             sender!=null && sender.player && sender.connected && !string.IsNullOrEmpty(sender.owner) && prop!=null &&
-            prop.movable && prop.owner==sender.owner && !levelPaused && LevelActivity.HasConnectedPlayer(world,prop.level) &&
+            prop.movable && prop.hasPhysicalBody && prop.owner==sender.owner && !levelPaused && LevelActivity.HasConnectedPlayer(world,prop.level) &&
             (!prop.held || !sender.down && sender.level==prop.level);
     }
 }

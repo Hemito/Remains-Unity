@@ -42,9 +42,10 @@ namespace Remains.Content
             {
                 if(entry==null || string.IsNullOrWhiteSpace(entry.id) || !ids.Add(entry.id) || entry.level!=layout.level ||
                     string.IsNullOrWhiteSpace(entry.definition) || !float.IsFinite(entry.x) || !float.IsFinite(entry.y) ||
-                    !float.IsFinite(entry.mass) || entry.mass<=0 || !float.IsFinite(entry.width) || entry.width<=0 ||
+                    !float.IsFinite(entry.width) || entry.width<=0 ||
                     !float.IsFinite(entry.height) || entry.height<=0 || entry.anchorHeight!=0 || entry.held || entry.owner!=null)
                     throw new InvalidOperationException("Некорректный физический объект расстановки: "+entry?.id);
+                PropBodyRules.Validate(entry);
                 bool container=entry is ContainerState;
                 if(!container && entry.GetType()!=typeof(PropState)) throw new InvalidOperationException("Неизвестный тип расстановки: "+entry.id);
                 if(world.actors.Exists(a=>a.id==entry.id) || world.doors.Exists(d=>d.id==entry.id) ||

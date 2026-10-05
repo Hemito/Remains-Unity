@@ -30,9 +30,9 @@ namespace Remains.Editor
             var connected=AssetDatabase.LoadAssetAtPath<GameObject>(ConnectedFactoryAuthoring.Path).GetComponent<RoomAuthoring>();
             CheckRoom(workshop,0);CheckRoom(connected,38.4f);
             var records=workshop.GetComponent<RoomImportAudit>().Report.Records;
-            Require(records.Length==24 && records.Count(r=>!r.installed)==2 &&
+            Require(records.Length==24 && records.Count(r=>!r.installed)==1 &&
                 records.Where(r=>r.kind=="platform2" || r.kind=="knop3").All(r=>r.installed) &&
-                records.Where(r=>!r.installed).All(r=>r.kind=="vendor" || r.kind=="instr2"),"Журнал должен содержать ровно vendor и instr2");
+                records.Where(r=>!r.installed).All(r=>r.kind=="vendor"),"Журнал должен содержать ровно отложенного vendor");
             var main=RoomContentBatch.Read(connected,"factory:0");var six=RoomContentBatch.Read(connected,"factory:6");var minus=RoomContentBatch.Read(connected,"factory:-27");
             var world=new WorldState {mechanismVersion=1};
             RoomContentInstaller.Apply(world,main);RoomContentInstaller.Apply(world,six);RoomContentInstaller.Apply(world,minus);
@@ -45,7 +45,7 @@ namespace Remains.Editor
             changed=StateJson.Copy(main.mechanisms);changed.platformDefinitions[0].durationSeconds+=1;
             Require(StateJson.ToJson(changed)!=StateJson.ToJson(main.mechanisms) && fingerprint.Contains("repairDurationSeconds"),"Physics/repair definition параметры входят в RoomContentBatch");
             CheckPreservation(main.mechanisms);
-            Debug.Log("Механизмы цеха: PASS — три исходных ID, room-scoped d2, saved PNG/mesh/prefabs, отдельные0/6/-27, сохранение removed/repair/midsegment/mod data; vendor/instr2 отложены.");
+            Debug.Log("Механизмы цеха: PASS — три исходных ID, room-scoped d2, saved PNG/mesh/prefabs, отдельные0/6/-27, сохранение removed/repair/midsegment/mod data; vendor отложен.");
         }
         public static void CheckRoom(RoomAuthoring room,float offset)
         {

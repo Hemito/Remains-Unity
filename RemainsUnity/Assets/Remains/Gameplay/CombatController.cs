@@ -177,7 +177,7 @@ namespace Remains.Gameplay
             float limit=definition.stopAtTerrain?terrain??1:1;
             foreach(var prop in WorldProps.All(session.World))
             {
-                if(prop.level!=attack.level) continue;
+                if(!prop.hasPhysicalBody || prop.level!=attack.level) continue;
                 var bounds=new Rect(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height);
                 var contact=SurfaceContact.Entry(bounds,attack.Origin,attack.End,attack.radius);
                 if(!contact.HasValue || contact.Value>limit) continue;

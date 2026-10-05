@@ -17,6 +17,12 @@ namespace Remains.Content
         public void SetDefinition(PropDefinition value)=>definition=StateJson.FromJson<PropDefinition>(StateJson.ToJson(value));
         private void OnValidate()
         {
+            if(definition!=null && !definition.hasPhysicalBody)
+            {
+                if(definition.movable || definition.mass!=0)
+                    Debug.LogWarning($"Ассет {name}, type={definition.id}: без физического тела перенос недоступен и масса не используется; movable=false, mass=0.",this);
+                definition.movable=false;definition.mass=0;
+            }
             try {PropCatalog.Validate(definition);}
             catch(System.InvalidOperationException error) {Debug.LogWarning($"Ассет {name}: {error.Message}",this);}
             if(Texture==null) Debug.LogWarning($"Ассет {name}: отсутствует префаб или его основной спрайт для {definition?.id}.",this);

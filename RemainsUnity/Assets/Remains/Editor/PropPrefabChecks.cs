@@ -40,7 +40,9 @@ namespace Remains.Editor
                 {
                     first=artwork.CreateView(definition.id,"Проверка исходной ширины",definition.width);
                     second=artwork.CreateView(definition.id,"Проверка ширины сохранения",definition.width*2);
-                    if(Mathf.Abs(first.Artwork.bounds.size.x-definition.width)>.001f || Mathf.Abs(second.Artwork.bounds.size.x-definition.width*2)>.001f)
+                    float nativeWidth=prefab.Artwork.bounds.size.x;
+                    if(Mathf.Abs(first.Artwork.bounds.size.x-(prefab.FitsStateWidth?definition.width:nativeWidth))>.001f ||
+                        Mathf.Abs(second.Artwork.bounds.size.x-(prefab.FitsStateWidth?definition.width*2:nativeWidth))>.001f)
                         throw new InvalidOperationException("Размер экземпляра не соответствует состоянию мира: "+definition.id);
                     if(first.Artwork.sharedMaterial!=prefab.Artwork.sharedMaterial || first.Artwork.sprite!=prefab.Artwork.sprite)
                         throw new InvalidOperationException("Экземпляр не использует графику префаба: "+definition.id);

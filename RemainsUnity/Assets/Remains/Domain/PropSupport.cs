@@ -15,12 +15,12 @@ namespace Remains.Domain
         }
         public static bool Resolve(PropState moving,Vector2 start,ref Vector2 end,IEnumerable<PropState> neighbours)
         {
-            if(neighbours==null || end.y>start.y) return false;
+            if(!moving.hasPhysicalBody || neighbours==null || end.y>start.y) return false;
             bool supported=false;
             const float epsilon=.0001f;
             foreach(var other in neighbours)
             {
-                if(ReferenceEquals(moving,other) || other.level!=moving.level) continue;
+                if(!other.hasPhysicalBody || ReferenceEquals(moving,other) || other.level!=moving.level) continue;
                 float reach=(moving.width+other.width)*.5f;
                 if(Mathf.Abs(end.x-other.x)>=reach-epsilon) continue;
                 float top=other.y-other.anchorHeight+other.height;

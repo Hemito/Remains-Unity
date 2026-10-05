@@ -20,8 +20,13 @@ namespace Remains.Content
         [SerializeField,InspectorName("Версия расстановки физических объектов")] private string patch;
         [SerializeField,InspectorName("Добавочное обновление")] private PhysicalExpansion expansion=new();
         public void Configure(string value)=>patch=value;
-        public void ConfigureExpansion(string previous,string[] additions)=>expansion=new PhysicalExpansion
-        {previousPatch=previous,additions=(string[])additions.Clone()};
+        public void ConfigureExpansion(string previous,string[] additions)=>ConfigureExpansion(previous,additions,Array.Empty<ContentExpansionStep>());
+        public void ConfigureExpansion(string previous,string[] additions,ContentExpansionStep[] earlierVersions)
+        {
+            if(additions==null || earlierVersions==null) throw new ArgumentNullException(additions==null?nameof(additions):nameof(earlierVersions));
+            expansion=Remains.Serialization.StateJson.Copy(new PhysicalExpansion
+                {previousPatch=previous,additions=additions,earlierVersions=earlierVersions});
+        }
         public static PhysicalLayout Read(RoomAuthoring room,string level)
         {
             var content=room.GetComponent<RoomPhysicalContent>();
@@ -55,12 +60,14 @@ namespace Remains.Content
             state.id=level+":"+placement.id;state.definition=definition.id;state.level=level;
             state.x=placement.x;state.y=placement.y;state.anchorHeight=0;
             state.mass=definition.mass;state.width=definition.width;state.height=definition.height;
+            state.movable=definition.movable;state.hasPhysicalBody=definition.hasPhysicalBody;
+            PropBodyRules.Validate(state);
             return state;
         }
         private void OnValidate()
         {
             if(string.IsNullOrWhiteSpace(patch)) Debug.LogWarning($"Комната {name}: не задана версия физических объектов.",this);
-            if(expansion!=null && string.IsNullOrWhiteSpace(expansion.previousPatch) && expansion.additions?.Length>0)
+            if(expansion!=null && string.IsNullOrWhiteSpace(expansion.previousPatch) && (expansion.additions?.Length>0 || expansion.earlierVersions?.Length>0))
                 Debug.LogWarning($"Комната {name}: ID дополнения не действуют без предыдущей версии расстановки.",this);
         }
     }

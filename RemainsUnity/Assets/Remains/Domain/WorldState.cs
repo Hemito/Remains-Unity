@@ -151,6 +151,7 @@ namespace Remains.Domain
         public float x,y,vx,vy;
         public float mass = 8;
         public bool movable=true;
+        public bool hasPhysicalBody=true;
         public float width=.8f,height=.6f,anchorHeight=.3f;
         public string level="factory:0";
         public bool held;

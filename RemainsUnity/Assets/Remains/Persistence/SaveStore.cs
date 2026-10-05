@@ -74,6 +74,9 @@ namespace Remains.Persistence
             }
             foreach(var actor in world.actors) {Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);}
             foreach(var container in world.containers) InventoryStacks.Validate(container.items,container.itemAliases);
+            try {PropBodyRules.ValidateWorld(world);}
+            catch(InvalidOperationException error)
+            {throw new InvalidDataException($"Некорректные физические тела сейва: path={path}, world={world.worldId}. {error.Message}",error);}
             return world;
         }
 

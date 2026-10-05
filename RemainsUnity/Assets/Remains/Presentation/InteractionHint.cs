@@ -41,9 +41,7 @@ namespace Remains.Presentation
         }
         public void Refresh(ContainerState container,bool visible,ActorState localActor=null)
         {
-            hasTarget=container!=null;allowed=visible;actor=localActor;
-            if(container!=null) {label.color=normalColor;label.text=container.presentationItem==null?$"E · Контейнер · {container.mass:0.#} кг":"E · Подобрать предмет";targetTop=container.Position+Vector2.up*(container.height-container.anchorHeight+.25f);}
-            Place();
+            RefreshSource(container,visible,localActor);
         }
         public void RefreshSource(InventorySource source,bool visible,ActorState localActor,bool pickupPending=false)
         {
@@ -52,7 +50,7 @@ namespace Remains.Presentation
             {
                 label.color=normalColor;
                 label.text=source.IsLooseItem?(pickupPending?"Подбор выбранной вещи подтверждается…":"E · Подобрать предмет"):
-                    source.Body!=null?"E · Обыскать тело":$"E · Контейнер · {source.Mass:0.#} кг";
+                    source.Body!=null?"E · Обыскать тело":source.Mass.HasValue?$"E · Контейнер · {source.Mass:0.#} кг":"E · Контейнер · Закреплён";
                 targetTop=new Vector2(source.Bounds.center.x,source.Bounds.yMax+.25f);
             }
             Place();

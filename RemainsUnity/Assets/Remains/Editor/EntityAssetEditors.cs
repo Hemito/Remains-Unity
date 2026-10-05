@@ -46,7 +46,19 @@ namespace Remains.Editor
             serializedObject.Update();Field("id","Стабильный ID");Field("name","Название");
             Field("resource","Стабильный ключ графики (для модов)");
             EditorGUILayout.PropertyField(serializedObject.FindProperty("prefab"),new GUIContent("Префаб объекта"));
-            Field("mass","Масса, кг");Field("width","Ширина, м");Field("height","Высота, м");serializedObject.ApplyModifiedProperties();
+            Field("hasPhysicalBody","Физическое тело");
+            bool physical=serializedObject.FindProperty("definition").FindPropertyRelative("hasPhysicalBody").boolValue;
+            using(new EditorGUI.DisabledScope(!physical))
+            {
+                if(!physical)
+                {
+                    serializedObject.FindProperty("definition").FindPropertyRelative("movable").boolValue=false;
+                    serializedObject.FindProperty("definition").FindPropertyRelative("mass").floatValue=0;
+                }
+                Field("movable","Разрешён перенос");Field("mass","Масса физического тела, кг");
+            }
+            Field("width",physical?"Ширина тела и взаимодействия, м":"Ширина области взаимодействия, м");
+            Field("height",physical?"Высота тела и взаимодействия, м":"Высота области взаимодействия, м");serializedObject.ApplyModifiedProperties();
         }
     }
 }

@@ -44,7 +44,7 @@ namespace Remains.Presentation
             var listener=session.LocalActor;
             if(listener!=null)
                 foreach(var prop in WorldProps.All(session.World))
-                    if(prop.level==listener.level && prop.movable)
+                    if(prop.level==listener.level && prop.movable && prop.hasPhysicalBody)
                     {active.Add(prop.id);if(!tracks.ContainsKey(prop.id)) tracks.Add(prop.id,new PropContactObservation());}
             removed.Clear();
             foreach(string id in tracks.Keys) if(!active.Contains(id)) removed.Add(id);

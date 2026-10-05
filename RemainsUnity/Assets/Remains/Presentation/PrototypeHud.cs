@@ -46,6 +46,7 @@ namespace Remains.Presentation
         public RectTransform CharactersButtonRect=>mainMenu.Characters.GetComponent<RectTransform>();
         public Func<string,bool> SelectCharacter { get; set; }
         private InventoryArtwork inventoryArtwork;
+        private ItemTextCatalog itemText;
         private InteractionHint containerHint;
         public Func<InteractionTarget> SelectedInteraction {get;set;}
         public Func<bool> PickupPending {get;set;}
@@ -102,6 +103,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession value,AudioPreferences audioPreferences=null,Camera worldCamera=null)
         {
             session = value;
+            itemText=ItemTextCatalog.Load();
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (font == null) throw new InvalidOperationException("Не найден системный шрифт Unity LegacyRuntime.ttf.");
             elements=new HudElements(font);
@@ -145,7 +147,7 @@ namespace Remains.Presentation
             containerPanel=new FloatingContainerPanel(containerWindow,session,inventoryArtwork,worldCamera,()=>
             {personalItems?.Refresh(containerPanel?.Source);PauseMenu?.PublishIntent();});
             inventory.SetActive(false);
-            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item),inventoryAudio.Page);
+            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item),inventoryAudio.Page,itemText);
             var pauseView=PauseMenuView.Create(transform);
             friendlyFire=pauseView.FriendlyFire;friendlyFire.onClick.AddListener(()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=pauseView.FriendlyDecision;friendlyDecision.onClick.AddListener(()=>
@@ -290,22 +292,7 @@ namespace Remains.Presentation
             panel.Initialize(view,session.Saves,page,worldChoices,()=>RefreshSelectedWorld(),ShowMessage);
         }
 
-        private static string ItemName(string id)
-        {
-            switch(id)
-            {
-                case "spear":return "Копьё";
-                case "crowbar":return "Лом";
-                case "pistol":return "10-мм пистолет";
-                case "energy":return "Лазерный пистолет";
-                case "caps":return "Крышки";
-                case "heal":return "Аптечка";
-                case "grenade":return "Граната";
-                case "p10":return "10-мм патроны";
-                case "batt":return "Энергобатареи";
-                default:Debug.LogWarning($"Нет русской подписи предмета в инвентаре: {id}.");return "["+id+"]";
-            }
-        }
+        private string ItemName(string id)=>itemText.Name(id,"PrototypeHud.ItemName");
 
         private void RefreshInteractionHint()
         {
