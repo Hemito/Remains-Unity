@@ -1327,7 +1327,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e7cd088434fa1e48b949c172b1a6b7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  patch: base:factory-connected-46-18:physical-v1
+  patch: base:factory-connected-46-18:physical-v2
+  expansion:
+    previousPatch: base:factory-connected-46-18:physical-v1
+    additions:
+    - original:plant:18:ZoIAvJZMFks7XYbh
+    - original:plant:18:Ainu8fDKejKYdTIz
 --- !u!114 &3130814218967473859
 MonoBehaviour:
   m_ObjectHideFlags: 0

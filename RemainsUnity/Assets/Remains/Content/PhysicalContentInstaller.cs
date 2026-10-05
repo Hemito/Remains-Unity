@@ -16,6 +16,24 @@ namespace Remains.Content
             if(!NeedsInstall(world,layout)) return false;
             // Work on a detached description; no generated items leak into the authored manifest.
             layout=StateJson.Copy(layout);
+            if(layout.expansion!=null)
+            {
+                var expansion=layout.expansion;
+                var known=layout.props.Cast<PropState>().Concat(layout.containers).Select(p=>p?.id).ToHashSet(StringComparer.Ordinal);
+                if(layout.props.Any(p=>p==null) || layout.containers.Any(c=>c==null) ||
+                    string.IsNullOrWhiteSpace(expansion.previousPatch) || !expansion.previousPatch.StartsWith(layout.level+":",StringComparison.Ordinal) ||
+                    expansion.previousPatch==layout.patch || expansion.additions==null ||
+                    expansion.additions.Length==0 || expansion.additions.Any(id=>string.IsNullOrWhiteSpace(id) || !known.Contains(id)) ||
+                    expansion.additions.Distinct(StringComparer.Ordinal).Count()!=expansion.additions.Length)
+                    throw new InvalidOperationException("Некорректное добавочное обновление расстановки: "+layout.patch);
+                if(world.contentPatches.Contains(expansion.previousPatch))
+                {
+                    var additions=expansion.additions.ToHashSet(StringComparer.Ordinal);
+                    layout.props=layout.props.Where(p=>additions.Contains(p.id)).ToArray();
+                    layout.containers=layout.containers.Where(c=>additions.Contains(c.id)).ToArray();
+                    layout.loot=layout.loot?.Where(b=>additions.Contains(b?.container)).ToArray();
+                }
+            }
             var bound=new HashSet<string>(StringComparer.Ordinal);
             if(layout.loot==null) throw new InvalidOperationException("Нет списка таблиц лута расстановки.");
             foreach(var binding in layout.loot)

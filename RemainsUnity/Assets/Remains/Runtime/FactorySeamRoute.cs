@@ -21,6 +21,7 @@ namespace Remains.Runtime
         private int quantity;
         private bool jumped,opened,claiming,crossed,shared;
         public bool Complete=>phase==10 && crossed && shared;
+        public bool BigBoxesVerified {get;private set;}
         public string Progress=>$"seamPhase={phase}, opened={opened}, shared={shared}, claiming={claiming}, item={claimedItem}";
         public string Failure {get;private set;}
         private ActorState Actor=>runtime.Session.LocalActor;
@@ -74,7 +75,11 @@ namespace Remains.Runtime
             if(phase==1 && Mathf.Abs(Actor.x-16.22f)<.08f) phase=2;
             else if(phase==2 && Actor.y>=10.39f) {phase=3;jumped=false;}
             else if(phase==3 && Mathf.Abs(Actor.x-40.4f)<.08f && ActorTerrainMotion.Supported(initialRoom,Anatomy.Movement(Actor),Actor.Position))
-            {phase=4;crossed=true;capture="workshop";}
+            {
+                try {FactoryBigBoxObservation.Verify(runtime);BigBoxesVerified=true;}
+                catch(InvalidOperationException error) {Failure=error.Message;return;}
+                phase=4;crossed=true;capture="workshop";
+            }
             else if(phase==4 && runtime.Hud.ContainerOpen)
             {
                 if(runtime.Hud.ShownInventorySourceId!=Container.id) {Failure="Окно цеха показывает другой контейнер.";return;}
@@ -105,7 +110,11 @@ namespace Remains.Runtime
         public void Capture()
         {
             if(capture==null) return;
-            if(runtime.Options.Smoke.Contains("-frames-")) NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+"."+capture+".png",runtime.Hud.GetComponent<Canvas>());
+            if(runtime.Options.Smoke.Contains("-frames-"))
+            {
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+"."+capture+".png",runtime.Hud.GetComponent<Canvas>());
+                if(capture=="workshop") FactoryBigBoxObservation.Capture(runtime);
+            }
             capture=null;
         }
     }

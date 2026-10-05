@@ -200,11 +200,11 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved,seamVerified=seam?.Complete==true},true));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved,seamVerified=seam?.Complete==true,bigBoxesVerified=seam?.BigBoxesVerified==true},true));
             exitCode=success?0:1;Invoke(nameof(Exit),3);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public bool separated,blocked,farRejected,pausedExit,preserved,seamVerified;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public bool separated,blocked,farRejected,pausedExit,preserved,seamVerified,bigBoxesVerified;}
     }
 }

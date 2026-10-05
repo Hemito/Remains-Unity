@@ -23,6 +23,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,SpriteRenderer> flights=new();
         private readonly HashSet<string> missingGraphics=new();
         public WeaponView FindWeapon(string actorId)=>weapons.TryGetValue(actorId,out var view)?view:null;
+        public PropView FindProp(string id)=>props.TryGetValue(id,out var view)?view:null;
         public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers)
         {
             this.session=session;this.grenades=grenades;this.layers=layers;

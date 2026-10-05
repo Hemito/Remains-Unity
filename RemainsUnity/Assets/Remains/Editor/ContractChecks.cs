@@ -42,6 +42,7 @@ namespace Remains.Editor
             ActorControlChecks.Run();
             DoorCombatChecks.Run();
             FactoryRoomContentChecks.Run();
+            FactoryBigBoxChecks.Run();
             ConnectedFactoryChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();

@@ -12,27 +12,16 @@ namespace Remains.Editor
     {
         public static void Register()
         {
-            var catalog=EntityAssetCatalog.Load();var serialized=new SerializedObject(catalog);
-            var props=serialized.FindProperty("props");
+            var catalog=EntityAssetCatalog.Load();
             foreach(string path in new[]{"Assets/Remains/RoomDrafts/woodbox.asset",
                 "Assets/Remains/RoomDrafts/Containers/case.asset","Assets/Remains/RoomDrafts/Containers/chest.asset",
                 "Assets/Remains/RoomDrafts/Containers/ammobox.asset"})
             {
                 var asset=AssetDatabase.LoadAssetAtPath<PropAsset>(path);
                 if(asset==null || asset.Prefab==null) throw new InvalidOperationException("Не готов физический объект: "+path);
-                string id=asset.CreateDefinition().id;
-                bool exists=false;
-                for(int i=0;i<props.arraySize;i++)
-                {
-                    var current=props.GetArrayElementAtIndex(i).objectReferenceValue as PropAsset;
-                    if(current==null) throw new InvalidOperationException("Пустая ссылка каталога: "+i);
-                    if(current.CreateDefinition().id!=id) continue;
-                    if(current!=asset) throw new InvalidOperationException("Тип уже зарегистрирован другим ассетом: "+id);
-                    exists=true;
-                }
-                if(!exists) {int index=props.arraySize;props.InsertArrayElementAtIndex(index);props.GetArrayElementAtIndex(index).objectReferenceValue=asset;}
+                catalog.AddProp(asset);
             }
-            serialized.ApplyModifiedPropertiesWithoutUndo();AssetDatabase.SaveAssets();Verify();
+            EditorUtility.SetDirty(catalog);AssetDatabase.SaveAssets();Verify();
             ContractChecks.Run();
         }
         public static void Verify()

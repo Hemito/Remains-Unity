@@ -122,7 +122,7 @@ namespace Remains.Editor
         public static RoomContainerPlacement Place(GameObject root,PropAsset asset,string code,int x,int y,int cells,int sourceIndex=46)
         {
             var definition=asset.CreateDefinition();var marker=new GameObject(definition.name+" · "+code);
-            marker.transform.SetParent(root.transform,false);marker.transform.localPosition=new Vector3((x+cells*.5f)*.8f,(24-y)*.8f,0);
+            marker.transform.SetParent(root.transform,false);marker.transform.localPosition=FactorySourceCoordinates.Placement(x,y,cells);
             var placement=marker.AddComponent<RoomContainerPlacement>();placement.Configure("original:plant:"+sourceIndex+":"+code,asset);
             var preview=(GameObject)PrefabUtility.InstantiatePrefab(asset.Prefab.gameObject,marker.transform);
             preview.transform.localPosition=new Vector3(0,definition.height*.5f,0);
