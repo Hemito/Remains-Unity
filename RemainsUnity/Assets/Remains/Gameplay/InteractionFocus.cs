@@ -9,10 +9,11 @@ namespace Remains.Gameplay
     {
         public InteractionTarget Target {get;private set;}
         private Vector2? cursor;
-        public void Step(WorldState world,ActorState actor,GameplayRuleSet rules,Vector2? pointerWorld,bool blocked,IReadOnlyList<TravelPoint> points)
+        public void Step(WorldState world,ActorState actor,GameplayRuleSet rules,Vector2? pointerWorld,bool blocked,IReadOnlyList<TravelPoint> points,
+            IReadOnlyList<MechanismInteractionPoint> mechanisms=null)
         {
             cursor=pointerWorld;
-            Target=blocked || cursor==null?default:InteractionSelection.Select(world,actor,rules,cursor.Value,points);
+            Target=blocked || cursor==null?default:InteractionSelection.Select(world,actor,rules,cursor.Value,points,mechanisms);
         }
         public void Clear() {cursor=null;Target=default;}
     }

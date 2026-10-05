@@ -29,7 +29,7 @@ namespace Remains.Domain
         public static bool PreviouslySupported(RoomLayout room,MovementHull hull,Vector2 feet,float dt)
         {
             var frame=room.dynamicSurfaces;if(frame==null) return false;
-            for(int i=0;i<frame.Count;i++) {var pose=frame.Pose(i);if(pose.Continuous && pose.ElapsedSeconds-pose.PreviousElapsedSeconds<=dt+.001 && Contact(pose.Previous,hull,feet)>0) return true;}
+            for(int i=0;i<frame.Count;i++) {var pose=frame.Pose(i);if(pose.Continuous && LevelTimePlayback.IsContinuous(pose.PreviousElapsedSeconds,pose.ElapsedSeconds,dt) && Contact(pose.Previous,hull,feet)>0) return true;}
             return false;
         }
         public static Vector2 Carry(RoomLayout room,MovementHull hull,Vector2 start,float dt,PassengerMotionState state,bool enabled=true)
@@ -52,7 +52,7 @@ namespace Remains.Domain
             for(int i=0;i<frame.Count;i++)
             {
                 var pose=frame.Pose(i);float contact=Contact(pose.Previous,hull,start);
-                if(!pose.Continuous || Math.Abs(pose.PreviousElapsedSeconds-previous)>1e-6 || pose.ElapsedSeconds-pose.PreviousElapsedSeconds>dt+.001 || contact<=overlap) continue;
+                if(!pose.Continuous || Math.Abs(pose.PreviousElapsedSeconds-previous)>1e-6 || !LevelTimePlayback.IsContinuous(pose.PreviousElapsedSeconds,pose.ElapsedSeconds,dt) || contact<=overlap) continue;
                 chosen=pose;overlap=contact;
             }
             if(overlap<=0) {state.BlockedSupport=null;return start;}

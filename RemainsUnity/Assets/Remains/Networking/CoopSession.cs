@@ -79,6 +79,8 @@ namespace Remains.Networking
         public SessionPause Pause=>pause ??= new SessionPause(this);
         private SessionLevelTime levelTime;
         public SessionLevelTime LevelTime=>levelTime ??= new SessionLevelTime(this);
+        private SessionMechanisms mechanisms;
+        public SessionMechanisms Mechanisms=>mechanisms ??= new SessionMechanisms(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
         private readonly Dictionary<int,long> backupRevisions = new();
         private readonly RecoveryReceiptGate recoveryReceipts = new();
@@ -100,6 +102,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
+            Mechanisms.RegisterServer();
             Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
             Admission.RegisterServer();
             ServerWorld=null;
@@ -143,6 +146,8 @@ namespace Remains.Networking
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
             ActorControlMigration.Prepare(ServerWorld,Rules.Knockdown,Saves.PreserveRecoverySource);
+            MechanismPersistence.Prepare(ServerWorld,source==null?()=>{}:
+                ()=>Debug.Log("Исходный мир сохранён перед добавлением механизмов: "+Saves.PreserveRecoverySource()));
             npcHits?.Reset();
             var contentLevels=ServerWorld.actors.Select(a=>a.level).Concat(ServerWorld.containers.Select(c=>c.level))
                 .Concat(ServerWorld.props.Select(p=>p.level)).Concat(ServerWorld.doors.Select(d=>d.level)).Append("hub").Distinct().ToArray();
@@ -161,10 +166,15 @@ namespace Remains.Networking
             LevelTimeMigration.Prepare(ServerWorld,contentLevels.Concat(ServerWorld.rooms.Select(room=>room.level)),source==null?null:
                 ()=>Debug.Log("Исходный мир сохранён перед установкой часов уровней: "+Saves.PreserveRecoverySource()));
             LevelTime.BeginServer();
+            Mechanisms.ReconcileServer();
             GrenadeRules.BeginSession(ServerWorld);
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
-                if(SavedActorPlacement.Repair(actor,RoomLayout.Load(actor.level,ServerWorld),"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
+            {
+                var room=RoomLayout.Load(actor.level,ServerWorld);
+                Remains.Gameplay.PlatformSimulation.RestoreSupport(ServerWorld,room,actor.level,LevelTime.ReadServer(actor.level));
+                if(SavedActorPlacement.Repair(actor,room,"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
+            }
             if(recoveredActors.Count>0)
             {
                 string backup=Saves.PreserveRecoverySource();
@@ -178,7 +188,7 @@ namespace Remains.Networking
 
         internal void DiscardUnstartedWorld()
         {
-            CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
+            CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
         }
 
         internal void AdmitLobbyPlayer(NetworkConnectionToClient connection,JoinMessage message)=>Join(connection,message);
@@ -190,7 +200,8 @@ namespace Remains.Networking
             Admission.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
-            Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
+            Mechanisms.RegisterClient();
+            Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
@@ -793,6 +804,7 @@ namespace Remains.Networking
             CancelInvoke(nameof(CheckpointWorld));
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
             LevelTime.ResetServer();
+            Mechanisms.ResetServer();
         }
         public override void OnStopClient()
         {
@@ -803,7 +815,7 @@ namespace Remains.Networking
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
             playTime.Stop();
-            Doors.ResetClient();Pause.ResetClient();
+            Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
             Changed?.Invoke();
         }
         public void SetFriendlyFire(bool enabled)

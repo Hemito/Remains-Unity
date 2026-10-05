@@ -50,7 +50,8 @@ namespace Remains.Editor
                 cargo.items.Add(new ItemStack {id="ammo",definition="12p10",count=12});cargo.itemAliases.Add("former","ammo");
                 string inventory=StateJson.ToJson(cargo.items),aliases=StateJson.ToJson(cargo.itemAliases);var propPassenger=State("cargo");
                 PassengerMotion.Carry(room,Hull(),actor,1f/fps,passenger);PropMotion.Step(cargo,room,1f/fps,null,passenger:propPassenger);
-                var type=new MovingPlatformDefinition {id="platform2",version=1,width=2.4f,height=.78f,graphicWidth=2.4f,graphicHeight=.7f,durationSeconds=6};
+                var type=new MovingPlatformDefinition {id="platform2",version=1,width=2.4f,height=.78f,graphicWidth=2.4f,graphicHeight=.7f,durationSeconds=6,
+                    surfaceTexture="floor",movementSound="metal"};
                 var mechanism=new MovingPlatformState {id="factory:0:check",definition=type.id,definitionVersion=1,level="factory:0",roomId="check",groupId="d2",revision=1,
                     startX=49.2f,startY=9.62f,endX=66,endY=9.62f,segment=new MovingPlatformSegment {sequence=1,fromEndpoint=0,toEndpoint=1,startElapsedSeconds=0,durationSeconds=6}};
                 var sampler=new MovingPlatformMotion(type);string mechanismBefore=StateJson.ToJson(mechanism);

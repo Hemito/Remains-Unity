@@ -18,6 +18,7 @@ namespace Remains.Presentation
         private Vector2 targetTop;
         private bool hasTarget;
         private bool allowed;
+        private string sizedText;
         private ActorState actor;
         public InteractionHint(Transform parent,HudElements ui)
         {
@@ -59,7 +60,7 @@ namespace Remains.Presentation
         public void Highlight(InteractionTarget target,bool visible)
         {
             targetBounds=target.bounds;
-            highlightVisible=visible && target.kind is InteractionKind.Container or InteractionKind.Pickup or InteractionKind.Door or InteractionKind.Map or InteractionKind.Exit or InteractionKind.Revival;
+            highlightVisible=visible && target.kind is InteractionKind.Container or InteractionKind.Pickup or InteractionKind.Door or InteractionKind.Map or InteractionKind.Exit or InteractionKind.Revival or InteractionKind.Mechanism;
             PlaceHighlight();
         }
         public void RefreshRevival(ActorState ally,bool visible,ActorState localActor)
@@ -89,9 +90,29 @@ namespace Remains.Presentation
             Place();
         }
         public void Dispose()=>Canvas.willRenderCanvases-=Place;
+        public void RefreshMechanism(MechanismButtonState button,Rect bounds,bool visible,ActorState localActor,double progress,bool pending)
+        {
+            hasTarget=button!=null && !button.removed;allowed=visible;actor=localActor;
+            if(hasTarget)
+            {
+                label.color=Color.yellow;
+                label.text=pending?"Подтверждение взаимодействия…":button.repairState==MechanismRepairStates.Ready?
+                    "E · Запустить платформу":button.repairState==MechanismRepairStates.NeedsRepair?
+                    progress>0?$"E (удерживать) · Ремонт: {progress:P0}":"E (удерживать) · Починить кнопку":"Ремонт кнопки пока недоступен";
+                targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
+            }
+            Place();
+        }
         private void Place()
         {
             PlaceHighlight();
+            if(sizedText!=label.text)
+            {
+                sizedText=label.text;
+                var size=new Vector2(Mathf.Max(220,Mathf.Ceil(label.preferredWidth)),27);
+                ((RectTransform)label.transform).sizeDelta=size;
+                panel.sizeDelta=size+new Vector2(12,12);
+            }
             if(!allowed || !hasTarget || camera==null) {panel.gameObject.SetActive(false);return;}
             var screen=camera.WorldToScreenPoint(targetTop);
             bool onScreen=screen.z>0 && camera.pixelRect.Contains(new Vector2(screen.x,screen.y));

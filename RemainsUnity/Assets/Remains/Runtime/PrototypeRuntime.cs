@@ -21,6 +21,9 @@ namespace Remains.Runtime
         public ItemShortcutActions ItemActions {get;private set;}
         public InteractionFocus InteractionFocus {get;}=new();
         public LooseItemPickup Pickup {get;private set;}
+        public MechanismInteraction MechanismInteraction {get;private set;}
+        public PlatformSimulation Platforms {get;private set;}
+        private readonly PassengerMotionRegistry passengers=new();
         public HeldItemVisuals HeldItems {get;private set;}
         private Vector2? lastGameplayAim;
         public LaunchOptions Options { get; private set; }
@@ -101,6 +104,8 @@ namespace Remains.Runtime
             networkObject.SetActive(true);
             DontDestroyOnLoad(gameObject);
             Geometry=new SimulationGeometry(Session);
+            Platforms=new PlatformSimulation(Session,Geometry);
+            MechanismInteraction=new MechanismInteraction(Session);
             Combat=new CombatController(Session,Geometry);
             DamageFeedback=new DamageFeedback(Session);
             DamageNumbers=new GameObject("Числа урона").AddComponent<DamageNumbers>();DamageNumbers.Initialize(Session,DamageFeedback);
@@ -123,6 +128,7 @@ namespace Remains.Runtime
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
             DoorVisuals=new GameObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio);
+            new GameObject("Механизмы мира").AddComponent<MechanismVisuals>().Initialize(Session,Platforms);
             GrenadeAudio=new GameObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
             MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=new GameObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
@@ -144,6 +150,8 @@ namespace Remains.Runtime
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
                 hud.SelectedInteraction=()=>InteractionFocus.Target;
                 hud.PickupPending=()=>Pickup.Pending;
+                hud.MechanismProgress=()=>MechanismInteraction.Progress;
+                hud.MechanismPending=()=>MechanismInteraction.Pending;
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
                 hud.EquipWeaponItem=EquipWeaponItem;
@@ -176,6 +184,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("appearance")) gameObject.AddComponent<NetworkAppearanceProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("contact-audio")) gameObject.AddComponent<NetworkContactAudioProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("prop-body")) gameObject.AddComponent<NetworkPropBodyProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("mechanism")) gameObject.AddComponent<NetworkMechanismProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("crawler")) gameObject.AddComponent<NetworkCrawlerProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("projectile-handoff")) gameObject.AddComponent<NetworkProjectileHandoffProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("factory-room")) gameObject.AddComponent<NetworkFactoryRoomProbe>().Initialize(this);
@@ -243,6 +252,7 @@ namespace Remains.Runtime
 
         private void RefreshVisuals()
         {
+            passengers.Reconcile(Session.World,Session.LocalOwner);
             if (Session.World==null || Session.LocalActor==null)
             {
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
@@ -294,6 +304,7 @@ namespace Remains.Runtime
         {
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             Session.LevelTime.Step(Time.deltaTime);
+            Session.Mechanisms.Step();Platforms.Step(Time.deltaTime);
             var actor=Session.LocalActor;
             Pickup.Step();
             if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();InteractionFocus.Clear();return;}
@@ -303,7 +314,7 @@ namespace Remains.Runtime
                     LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
                 {
                     if(ActorHoldRules.Active(body)) ActorHoldMotion.Step(body,Geometry.Get(body.level),Time.deltaTime);
-                    else if(body!=actor && ActorSessionRules.IsPassive(body)) PassiveActorMotion.Step(body,Geometry.Get(body.level),Time.deltaTime,passiveMovementSettings);
+                    else if(body!=actor && ActorSessionRules.IsPassive(body)) PassiveActorMotion.Step(body,Geometry.Get(body.level),Time.deltaTime,passiveMovementSettings,passengers.ForActor(body));
                 }
             cameraFollower.Step(actor,Time.deltaTime);
             foreach(var animated in Session.World.actors)
@@ -312,7 +323,7 @@ namespace Remains.Runtime
                 if(LevelActivity.HasConnectedPlayer(Session.World,animated.level) && !Session.Pause.IsPaused(animated.level)) ActorPose.Advance(animated,Time.deltaTime);
             }
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 npcs.Step(Time.deltaTime);
                 var command=CommandSource?.Invoke() ?? ReadCommand();
@@ -390,7 +401,9 @@ namespace Remains.Runtime
             InteractionFocus.Step(Session.World,actor,Session.Rules,command.hasAim?command.aim:(Vector2?)null,
                 Session.Travel.Pending || hud?.BlocksGameplayInput==true || command.hasPointer &&
                     (hud?.BlocksPointerGameplay(command.pointer)==true || UnityEngine.EventSystems.EventSystem.current?.IsPointerOverGameObject()==true),
-                Session.Travel.Points(actor.level));
+                Session.Travel.Points(actor.level),MechanismInteraction.Points);
+            MechanismInteraction.Step(InteractionFocus.Target,command.interact,command.revive,
+                !Session.Travel.Pending && hud?.BlocksGameplayInput!=true && hud?.ContainerOpen!=true,dt);
             if(command.interact && !Session.Travel.Pending)
             {
                 if(hud.WorldMap.IsOpen) hud.WorldMap.Close();
@@ -449,6 +462,6 @@ namespace Remains.Runtime
         {
             Session?.SaveLocalCharacter();
         }
-        private void OnDestroy()=>Pickup?.Dispose();
+        private void OnDestroy() {Pickup?.Dispose();MechanismInteraction?.Dispose();Platforms?.Dispose();}
     }
 }

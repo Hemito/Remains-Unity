@@ -49,6 +49,8 @@ namespace Remains.Presentation
         private InteractionHint containerHint;
         public Func<InteractionTarget> SelectedInteraction {get;set;}
         public Func<bool> PickupPending {get;set;}
+        public Func<double> MechanismProgress {get;set;}
+        public Func<bool> MechanismPending {get;set;}
         public InteractionTarget CurrentInteraction=>SelectedInteraction?.Invoke()??default;
         public string ShownInventorySourceId=>containerPanel.Source?.id??
             (CurrentInteraction.kind is InteractionKind.Container or InteractionKind.Pickup?CurrentInteraction.id:null);
@@ -315,6 +317,9 @@ namespace Remains.Presentation
                 containerHint.Refresh(session.World.doors.Find(door=>door.id==interaction.id),show,session.LocalActor);
             else if(interaction.kind==InteractionKind.Revival)
                 containerHint.RefreshRevival(session.World.Find(interaction.id),show,session.LocalActor);
+            else if(interaction.kind==InteractionKind.Mechanism)
+                containerHint.RefreshMechanism(session.World.mechanismButtons.Find(button=>button.id==interaction.id),interaction.bounds,
+                    show,session.LocalActor,MechanismProgress?.Invoke()??0,MechanismPending?.Invoke()==true);
             else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
                 InventorySource.Resolve(session.World,interaction.id):null,show,session.LocalActor,PickupPending?.Invoke()==true);
             containerHint.Highlight(interaction,show);

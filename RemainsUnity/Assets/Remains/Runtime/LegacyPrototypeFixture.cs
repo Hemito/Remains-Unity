@@ -12,7 +12,7 @@ namespace Remains.Runtime
         public static void Prepare(PrototypeRuntime runtime)
         {
             var options=runtime.Options;
-            if(options.Smoke==null || options.Smoke.StartsWith("prop-body") || options.Smoke.StartsWith("factory-room") || options.Smoke.StartsWith("travel-points") || options.Smoke.StartsWith("contact-audio") || options.Smoke.StartsWith("crawler") || options.Role!="host") return;
+            if(options.Smoke==null || options.Smoke.StartsWith("mechanism") || options.Smoke.StartsWith("prop-body") || options.Smoke.StartsWith("factory-room") || options.Smoke.StartsWith("travel-points") || options.Smoke.StartsWith("contact-audio") || options.Smoke.StartsWith("crawler") || options.Role!="host") return;
             if(string.IsNullOrEmpty(options.SaveDirectory)) throw new InvalidOperationException("Старый тестовый мир требует отдельного каталога сохранений.");
             if(runtime.Session.Saves.SelectedSnapshot()!=null) return;
             var world=new WorldState();

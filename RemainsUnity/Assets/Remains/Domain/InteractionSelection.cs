@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Remains.Domain
 {
-    public enum InteractionKind { None, Revival, Container, Door, Map, Exit, Pickup }
+    public enum InteractionKind { None, Revival, Container, Door, Map, Exit, Pickup, Mechanism }
     public readonly struct InteractionTarget
     {
         public readonly InteractionKind kind;
@@ -44,7 +44,8 @@ namespace Remains.Domain
         }
 
         public static InteractionTarget Select(WorldState world,ActorState actor,GameplayRuleSet rules,Vector2 cursor,
-            System.Collections.Generic.IReadOnlyList<TravelPoint> travelPoints=null)
+            System.Collections.Generic.IReadOnlyList<TravelPoint> travelPoints=null,
+            System.Collections.Generic.IReadOnlyList<MechanismInteractionPoint> mechanismPoints=null)
         {
             if(world==null || actor==null || actor.down || !actor.connected || !float.IsFinite(cursor.x) || !float.IsFinite(cursor.y)) return default;
             foreach(var other in world.actors)
@@ -61,6 +62,9 @@ namespace Remains.Domain
                 if(rules.DoorAccess.Rejection(actor,door)==null) Consider(InteractionKind.Door,door.id,door.Bounds);
             if(travelPoints!=null) foreach(var point in travelPoints)
                 if(point.Rejection(actor)==null) Consider(point.kind==TravelPointKind.Map?InteractionKind.Map:InteractionKind.Exit,point.id,point.Bounds);
+            if(mechanismPoints!=null) foreach(var point in mechanismPoints)
+                if(MechanismButtonAccess.Rejection(actor,point.Button,point.Radius)==null)
+                    Consider(InteractionKind.Mechanism,point.Button.id,point.Bounds);
             return selected;
 
             void ConsiderSource(InventorySource source)

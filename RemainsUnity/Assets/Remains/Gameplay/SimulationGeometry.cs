@@ -13,6 +13,7 @@ namespace Remains.Gameplay
         private readonly Func<string,RoomLayout> load;
         private string worldId;
         private string roomDefinitions;
+        public long TopologyVersion {get;private set;}
         public IEnumerable<string> LoadedLevels=>rooms.Keys;
         public SimulationGeometry(Func<string,RoomLayout> load)=>this.load=load??throw new ArgumentNullException(nameof(load));
         public SimulationGeometry(CoopSession session):this(level=>RoomLayout.Load(level,session.World))
@@ -21,12 +22,12 @@ namespace Remains.Gameplay
         {
             string definitions=Remains.Serialization.StateJson.ToJson(world?.rooms);
             if(worldId!=world?.worldId || roomDefinitions!=definitions)
-            {rooms.Clear();worldId=world?.worldId;roomDefinitions=definitions;}
+            {rooms.Clear();worldId=world?.worldId;roomDefinitions=definitions;TopologyVersion++;}
             var required=world==null?new HashSet<string>():new HashSet<string>(world.actors.Where(a=>a.player && a.connected).Select(a=>a.level));
-            foreach(string level in rooms.Keys.Where(level=>!required.Contains(level)).ToArray()) rooms.Remove(level);
+            foreach(string level in rooms.Keys.Where(level=>!required.Contains(level)).ToArray()) {rooms.Remove(level);TopologyVersion++;}
             foreach(string level in required)
             {
-                if(!rooms.TryGetValue(level,out var geometry)) {geometry=new RoomDoorGeometry(load(level));rooms.Add(level,geometry);}
+                if(!rooms.TryGetValue(level,out var geometry)) {geometry=new RoomDoorGeometry(load(level));rooms.Add(level,geometry);TopologyVersion++;}
                 geometry.Reconcile(world.doors,level);
             }
         }

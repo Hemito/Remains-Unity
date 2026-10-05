@@ -1237,6 +1237,7 @@ GameObject:
   - component: {fileID: 3037126559005669171}
   - component: {fileID: 8715306537185875027}
   - component: {fileID: 3130814218967473859}
+  - component: {fileID: 5433993671517778035}
   m_Layer: 0
   m_Name: ConnectedFactory46And18
   m_TagString: Untagged
@@ -1362,6 +1363,23 @@ MonoBehaviour:
       - original:plant:18:M95L1aBcGmQqi0sF
       - original:plant:18:QyxFODdq6EPvuE6L
       - original:plant:18:flGB6kWfuOYOeN8G
+--- !u!114 &5433993671517778035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6391376698667984476}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 557c661bba8e4a12bcddc6469970fdb5, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  patch: base:factory-connected-46-18:mechanisms-v1
+  expansion:
+    previousPatch:
+    additions: []
+    earlierVersions: []
 --- !u!1 &6847045959441468156
 GameObject:
   m_ObjectHideFlags: 0

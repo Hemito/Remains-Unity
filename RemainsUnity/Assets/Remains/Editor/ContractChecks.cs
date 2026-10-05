@@ -14,7 +14,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            ProjectStorageChecks.Run();
+            ProjectStorageChecks.Run();LevelTimeReplicaChecks.Run();MechanismOperationsChecks.Run();
             ItemShortcutChecks.Run();
             DoorStateChecks.Run();DoorContentChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
             PonyAppearance.Prepare();PonyPaletteChecks.Run();
@@ -25,6 +25,7 @@ namespace Remains.Editor
             NpcPerceptionChecks.Run();
             ExplosionPrefabChecks.Run();
             Anatomy.Load();
+            DynamicSupportChecks.Run();PlatformSimulationChecks.Run();FactoryWorkshopMechanismChecks.Run();PlatformIntegrationChecks.Run();
             NpcDoorChecks.Run();
             ActorStepChecks.Run();
             SlopedSupportChecks.Run();

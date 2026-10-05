@@ -122,6 +122,7 @@ namespace Remains.Networking
                 var content=RoomContentBatch.Read(RoomAuthoring.Load(request.destination,session.ServerWorld),request.destination);
                 RoomContentInstaller.Apply(session.ServerWorld,content);
                 session.LevelTime.EnsureLevel(request.destination);
+                session.Mechanisms.ReconcileServer();
                 TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination,session.ServerWorld));
                 if(arrival!=null) actor.Position=arrival.Arrival;
                 session.CommitWorld();

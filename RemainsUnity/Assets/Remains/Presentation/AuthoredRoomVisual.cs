@@ -17,6 +17,8 @@ namespace Remains.Presentation
                 foreach(var audit in instance.GetComponentsInChildren<RoomImportAudit>(true)) audit.WarnIncomplete();
                 RoomTrainingContent.HidePreviews(instance);
                 foreach(var door in instance.GetComponentsInChildren<RoomDoorAuthoring>(true)) door.gameObject.SetActive(false);
+                foreach(var platform in instance.GetComponentsInChildren<RoomMovingPlatformPlacement>(true)) platform.gameObject.SetActive(false);
+                foreach(var button in instance.GetComponentsInChildren<RoomMechanismButtonPlacement>(true)) button.gameObject.SetActive(false);
                 var lighting=instance.GetComponent<RoomLightingAuthoring>();
                 if(lighting==null) throw new InvalidOperationException("Нет авторинга света: "+level);
                 instance.gameObject.AddComponent<RoomLighting>().Initialize(room,lighting.CreateProfile(instance));return instance.gameObject;

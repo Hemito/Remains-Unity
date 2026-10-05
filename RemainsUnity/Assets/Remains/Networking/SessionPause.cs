@@ -87,6 +87,7 @@ namespace Remains.Networking
                     pauseOnInventory=coordinator.PauseOnInventory,levels=levels};
             // Also send an unchanged state after joins/world transitions so late clients see it.
             NetworkServer.SendToAll(published);
+            session.LevelTime.Publish();
         }
         private void Receive(PauseStateMessage message)
         {
