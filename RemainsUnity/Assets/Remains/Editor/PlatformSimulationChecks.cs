@@ -16,9 +16,10 @@ namespace Remains.Editor
             foreach(int fps in new[]{30,60,144})
             {
                 InterleavedPassengers(fps,false);InterleavedPassengers(fps,true);
+                AcceleratedPlayback(fps);EarlyCompletion(fps);
             }
             CommonFrameAndNewSegment();ClockRecovery();UnconfirmedEpoch();FinalDelta();GeometryLifecycle();
-            if(log) Debug.Log("Адаптер платформы: PASS — carry A/Changed/carry B при 30/60/144, snapshot rebind, общие часы двух опор, segment/clock rebase без исторического переноса, неподтверждённый epoch, финальный delta, reload/add level на том же World. Сетевой runtime не проверен.");
+            if(log) Debug.Log("Адаптер платформы: PASS — carry A/Changed/carry B при 30/60/144, accelerated playback с обычным dt, ранний canonical completion без скачка, snapshot rebind, общие часы двух опор, segment/clock rebase без исторического переноса, неподтверждённый epoch, финальный delta, reload/add level на том же World. Сетевой runtime не проверен.");
         }
         private sealed class Fixture : IDisposable
         {
@@ -64,13 +65,17 @@ namespace Remains.Editor
         };
         private static MovementHull Hull()=>new() {width=.8f,height=1.4f};
         private static PassengerMotionState State(string id)=>new(id,"connection:1",2,Level);
+        private static ContainerState Cargo(Vector2 position)
+        {
+            var cargo=new ContainerState {id="cargo",owner="connection:1",generation=2,level=Level,mass=5.2488f,
+                x=position.x,y=position.y,width=.72f,height=.54f,anchorHeight=0};
+            cargo.items.Add(new ItemStack {id="contents",definition="12p10",count=12});cargo.itemAliases.Add("former","contents");return cargo;
+        }
         private static void InterleavedPassengers(int fps,bool snapshot)
         {
             using var f=new Fixture();float dt=1f/fps;
             var actor=f.Feet();var actorState=State("actor");var cargoState=State("cargo");
-            var cargo=new ContainerState {id="cargo",owner="connection:1",generation=2,level=Level,mass=5.2488f,
-                x=actor.x,y=actor.y,width=.72f,height=.54f,anchorHeight=0};
-            cargo.items.Add(new ItemStack {id="contents",definition="12p10",count=12});cargo.itemAliases.Add("former","contents");
+            var cargo=Cargo(actor);
             string inventory=StateJson.ToJson(cargo.items),aliases=StateJson.ToJson(cargo.itemAliases);
             PassengerMotion.Carry(f.RoomGeometry,Hull(),actor,dt,actorState);PropMotion.Step(cargo,f.RoomGeometry,dt,null,passenger:cargoState);
             for(int i=0;i<fps;i++)
@@ -87,6 +92,56 @@ namespace Remains.Editor
             }
             Require(StateJson.ToJson(cargo.items)==inventory && StateJson.ToJson(cargo.itemAliases)==aliases && Mathf.Abs(cargo.vx)<.0001f,
                 "Snapshot/carry изменил содержимое или создал feedback скорости.");
+        }
+        private static void AcceleratedPlayback(int fps)
+        {
+            using var f=new Fixture();float realDt=1f/fps;var playback=new LevelTimePlayback();playback.Advance(0,true,0);
+            var actor=new ActorState {id="accelerated-rider",owner="connection:1",generation=2,level=Level,player=true,connected=true};actor.Position=f.Feet();
+            var actorState=State(actor.id);var cargo=Cargo(actor.Position);var cargoState=State(cargo.id);
+            PassengerMotion.Carry(f.RoomGeometry,Hull(),actor.Position,realDt,actorState);PropMotion.Step(cargo,f.RoomGeometry,realDt,null,passenger:cargoState);
+            string items=StateJson.ToJson(cargo.items),aliases=StateJson.ToJson(cargo.itemAliases),mechanism=StateJson.ToJson(f.World.movingPlatforms[0]);
+            double canonicalElapsed=f.World.levelTimes[0].elapsedSeconds;
+            for(int i=1;i<=fps*2;i++)
+            {
+                double previous=playback.ElapsedSeconds;playback.Advance(i*(double)realDt+2,true,realDt);
+                Require(playback.ElapsedSeconds-previous>realDt+.001 && LevelTimePlayback.IsContinuous(previous,playback.ElapsedSeconds,realDt),
+                    "Fixture не упражняет ускоренный clock с прежним real dt: fps="+fps);
+                f.Now=playback.ElapsedSeconds;f.Simulation.Step(realDt);
+                Require(f.Frame.Pose(0).Continuous && PassengerMotion.PreviouslySupported(f.RoomGeometry,Hull(),actor.Position,realDt),
+                    "Accelerated frame не принят общим support contract: fps="+fps);
+                actor.Position=PassengerMotion.Carry(f.RoomGeometry,Hull(),actor.Position,realDt,actorState);
+                if(i%3==0) f.Snapshot();
+                PropMotion.Step(cargo,f.RoomGeometry,realDt,null,passenger:cargoState);
+                Require(Near(actor.Position,f.Feet()) && Near(cargo.Position,actor.Position),"Actor/cargo потерял ускоренный delta при обычном dt: fps="+fps);
+            }
+            Require(actor.x>55.8f && Mathf.Abs(cargo.vx)<.0001f && Mathf.Abs(cargo.vy)<.0001f &&
+                StateJson.ToJson(cargo.items)==items && StateJson.ToJson(cargo.itemAliases)==aliases &&
+                StateJson.ToJson(f.World.movingPlatforms[0])==mechanism && f.World.levelTimes[0].elapsedSeconds==canonicalElapsed,
+                "Playback не перевёз дополнительный путь или изменил cargo/canonical state.");
+        }
+        private static void EarlyCompletion(int fps)
+        {
+            using var f=new Fixture(5.7);float realDt=1f/fps;var actor=f.Feet();var actorState=State("tail-rider");
+            var cargo=Cargo(actor);var cargoState=State(cargo.id);
+            PassengerMotion.Carry(f.RoomGeometry,Hull(),actor,realDt,actorState);PropMotion.Step(cargo,f.RoomGeometry,realDt,null,passenger:cargoState);
+            f.Snapshot(world=>{world.movingPlatforms[0].endpoint=1;world.movingPlatforms[0].segment=null;world.movingPlatforms[0].revision++;});
+            string completed=StateJson.ToJson(f.World.movingPlatforms[0]);
+            Require(Near(actor,f.Feet()) && f.World.movingPlatforms[0].segment==null,"Completion snapshot сразу передвинул опору.");
+            int tailFrames=(int)Math.Ceiling(.3/realDt);
+            for(int i=0;i<tailFrames;i++)
+            {
+                var previous=actor;f.Advance(realDt);actor=PassengerMotion.Carry(f.RoomGeometry,Hull(),actor,realDt,actorState);
+                if(i%3==0) f.Snapshot();
+                PropMotion.Step(cargo,f.RoomGeometry,realDt,null,passenger:cargoState);
+                Require(f.Frame.Pose(0).Continuous && actor.x>previous.x && actor.x-previous.x<=2.8f*realDt+.00002f &&
+                    Near(actor,f.Feet()) && Near(cargo.Position,actor),"Оставшийся .3 s tail дал endpoint jump или пропущенный delta: fps="+fps+", frame="+i);
+                Require(f.World.movingPlatforms[0].segment==null && StateJson.ToJson(f.World.movingPlatforms[0])==completed,
+                    "Локальная выборка восстановила retired segment в canonical state.");
+            }
+            Require(Near(actor,new Vector2(66,10.4f)),"Плавный tail не закончил весь оставшийся путь: fps="+fps);
+            f.Advance(realDt);var stopped=PassengerMotion.Carry(f.RoomGeometry,Hull(),actor,realDt,actorState);
+            PropMotion.Step(cargo,f.RoomGeometry,realDt,null,passenger:cargoState);
+            Require(Near(stopped,actor) && Near(cargo.Position,actor),"После local completion повторён оставшийся delta.");
         }
         private static void CommonFrameAndNewSegment()
         {
