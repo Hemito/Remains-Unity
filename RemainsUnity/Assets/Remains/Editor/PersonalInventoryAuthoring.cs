@@ -46,14 +46,7 @@ namespace Remains.Editor
                     HudElements.Rect(label.rectTransform,new Vector2(2,-2),new Vector2(144,24));
                     label.alignment=TextAnchor.MiddleCenter;
                 }
-                for(int i=0;i<view.Weapons.Length;i++)
-                {
-                    var label=view.Weapons[i].GetComponentInChildren<Text>();label.name="ShortcutKey";
-                    label.text=$"[{i+1}]";label.fontSize=14;label.color=new Color(1,.86f,.2f);
-                    var rect=label.rectTransform;rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(1,0);
-                    rect.anchoredPosition=new Vector2(-5,2);rect.sizeDelta=new Vector2(26,18);
-                    label.alignment=TextAnchor.MiddleCenter;
-                }
+                view.Weapons=ItemShortcutAuthoring.Configure(view.Weapons,root.transform,new Vector2(20,-56));
                 view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}

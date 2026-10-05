@@ -77,6 +77,7 @@ namespace Remains.Presentation
         public RectTransform InventoryWeaponRect(int index)=>personalItems.WeaponRect(index);
         public Action<string> EquipWeapon {get;set;}
         public Action<string> EquipWeaponItem {get;set;}
+        public Action<string> UseItemShortcut {get;set;}
         private Text revival;
         public Func<float> RevivalProgress {get;set;}
         public Func<bool> RevivalPending {get;set;}
@@ -106,7 +107,11 @@ namespace Remains.Presentation
             AudioSettings=new AudioSettingsPanel(transform,audioPreferences);
             var events = new GameObject("События интерфейса"); events.AddComponent<EventSystem>(); events.AddComponent<InputSystemUIInputModule>();
             var sessionHud=SessionHudView.Create(transform);status=sessionHud.Status;
-            combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon),item=>EquipWeaponItem?.Invoke(item));
+            combatHud=new CombatHud(transform,weapon=>EquipWeapon?.Invoke(weapon),item=>EquipWeaponItem?.Invoke(item),slot=>
+            {
+                if(UseItemShortcut==null) {Debug.LogWarning("Не подключено действие быстрой клавиши: slot="+slot,this);return;}
+                UseItemShortcut(slot);
+            });
             quickActions=sessionHud.gameObject;
             feedback=HudFeedbackView.Create(transform);message=feedback.Notice;revival=feedback.Revival;
             mainMenu=new MainMenuPanel(transform,

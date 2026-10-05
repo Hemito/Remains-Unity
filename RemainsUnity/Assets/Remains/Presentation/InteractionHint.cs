@@ -31,7 +31,7 @@ namespace Remains.Presentation
         public void Refresh(ContainerState container,bool visible,ActorState localActor=null)
         {
             hasTarget=container!=null;allowed=visible;actor=localActor;
-            if(container!=null) {label.color=normalColor;label.text=$"E · Контейнер · {container.mass:0.#} кг";targetTop=container.Position+Vector2.up*(container.height-container.anchorHeight+.25f);}
+            if(container!=null) {label.color=normalColor;label.text=container.presentationItem==null?$"E · Контейнер · {container.mass:0.#} кг":"E · Подобрать предмет";targetTop=container.Position+Vector2.up*(container.height-container.anchorHeight+.25f);}
             Place();
         }
         public void Refresh(TravelPoint point,bool visible,ActorState localActor)

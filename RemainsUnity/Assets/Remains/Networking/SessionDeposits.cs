@@ -7,7 +7,8 @@ using UnityEngine;
 
 namespace Remains.Networking
 {
-    public struct DepositRequest : NetworkMessage {public string transaction,container,item;public int quantity,generation,lifecycle;}
+    public struct DepositRequest : NetworkMessage
+    {public string transaction,container,item,level;public int quantity,generation,lifecycle;public bool toss;public float x,y,vx,vy;}
     public struct DepositReply : NetworkMessage {public string transaction,reason;public bool accepted;}
     public sealed class SessionDeposits
     {
@@ -30,20 +31,35 @@ namespace Remains.Networking
             });
         }
         public bool Request(string containerId,string itemId,int quantity=0)
+            =>Send(new DepositRequest {container=containerId,item=itemId,quantity=quantity});
+        public bool Toss(string itemId,Vector2 aim,int quantity=1)
         {
-            var actor=session.LocalActor;var item=InventoryStacks.Find(actor,itemId);
-            var container=InventorySource.Resolve(session.World,containerId);
-            if(actor==null || item==null || container==null || !NetworkClient.isConnected) return false;
+            var actor=session.LocalActor;if(actor==null) return false;
+            var origin=Remains.Gameplay.WeaponPose.Origin(actor);
+            var velocity=Remains.Gameplay.GrenadeLaunch.Velocity(origin,aim,actor.y,Remains.Content.WeaponCatalog.Get("grenade"));
+            return Send(new DepositRequest {toss=true,item=itemId,quantity=quantity,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y});
+        }
+        private bool Send(DepositRequest request)
+        {
+            var actor=session.LocalActor;var item=InventoryStacks.Find(actor,request.item);
+            if(actor==null || item==null || !NetworkClient.isConnected) return false;
             if(session.Pause.IsPaused(actor.level)) {session.ShowNotice(InventoryTransactions.PausedReason);return false;}
-            int amount=quantity==0?InventoryAvailability.Count(actor,item):quantity;
+            request.transaction=Guid.NewGuid().ToString("N");
+            InventorySource container=request.toss?DroppedItemTransfer.Preview(actor,request.transaction,item.definition,new Vector2(request.x,request.y),new Vector2(request.vx,request.vy)):
+                InventorySource.Resolve(session.World,request.container);
+            if(container==null) return false;
+            int amount=request.quantity==0?InventoryAvailability.Count(actor,item):request.quantity;
             string reason=amount<=0 || amount>InventoryAvailability.Count(actor,item)?"Это количество уже зарезервировано или недоступно.":
-                session.Rules.Deposit.AccessRejection(new LootAccessContext(actor,container))??session.Rules.Deposit.Rejection(new DepositContext(actor,container,item,amount));
+                session.Rules.Deposit.AccessRejection(new LootAccessContext(actor,container))??session.Rules.Deposit.Rejection(new DepositContext(actor,container,item,amount,
+                    request.toss?InventoryTransactions.TossPurpose:InventoryTransactions.DepositPurpose));
             if(reason!=null) {session.ShowNotice(reason);return false;}
-            var request=new DepositRequest {transaction=Guid.NewGuid().ToString("N"),container=containerId,item=item.id,quantity=amount,generation=actor.generation,lifecycle=actor.lifecycleSequence};
+            request.item=item.id;request.quantity=amount;
+            request.generation=actor.generation;request.lifecycle=actor.lifecycleSequence;request.level=actor.level;
             // Publish prior client debits before the reservation on the same reliable channel.
             session.PublishActor(actor);requests.Add(request.transaction,request);Reconcile();
             NetworkClient.Send(request);nextRetry=Time.unscaledTime+2;
-            session.ShowNotice("Внесение ожидает сохранения копий мира. Количество зарезервировано.");return true;
+            session.ShowNotice(request.toss?"Бросаем предмет… Количество зарезервировано.":
+                "Внесение ожидает сохранения копий мира. Количество зарезервировано.");return true;
         }
         public void Step()
         {
@@ -59,7 +75,7 @@ namespace Remains.Networking
             foreach(var pair in requests.ToArray())
             {
                 if(session.World.completedTransactions.Contains(pair.Key))
-                {requests.Remove(pair.Key);session.ShowNotice("Внесение в контейнер сохранено.");continue;}
+                {requests.Remove(pair.Key);session.ShowNotice(pair.Value.toss?"Предмет брошен.":"Внесение в контейнер сохранено.");continue;}
                 // Once the canonical debit arrived, the remainder is safe to spend.
                 if(actor.inventoryUses.Any(use=>use.id==pair.Key)) continue;
                 string item=InventoryStacks.ResolveId(actor.inventoryAliases,pair.Value.item);
@@ -80,8 +96,16 @@ namespace Remains.Networking
             else if(session.ServerWorld.completedTransactions.Contains(request.transaction))
                 reason="Операция уже завершена; проверьте содержимое контейнера.";
             else if(actor.generation==request.generation && actor.lifecycleSequence==request.lifecycle)
-                accepted=new SharedDeposits(session.ServerWorld,session.Rules.Deposit).Prepare(request.transaction,actor,request.container,request.item,request.quantity,out reason,session.Pause.IsServerPaused(actor.level));
-            var reply=new DepositReply {transaction=request.transaction,accepted=accepted,reason=accepted?"Внесение подтверждается копиями мира…":reason};
+            {
+                bool paused=session.Pause.IsServerPaused(actor.level);
+                if(request.toss && actor.level==request.level)
+                    accepted=DroppedItemTransfer.Prepare(session.ServerWorld,actor,request.transaction,request.item,request.quantity,
+                        new Vector2(request.x,request.y),new Vector2(request.vx,request.vy),session.Rules.Deposit,out reason,paused);
+                else if(!request.toss)
+                    accepted=new SharedDeposits(session.ServerWorld,session.Rules.Deposit).Prepare(request.transaction,actor,request.container,request.item,request.quantity,out reason,paused);
+            }
+            var reply=new DepositReply {transaction=request.transaction,accepted=accepted,reason=accepted?
+                request.toss?"Бросаем предмет…":"Внесение подтверждается копиями мира…":reason};
             replies[key]=reply;
             if(accepted) {session.CommitWorld();session.CompleteInventoryTransactions();}
             connection.Send(reply);

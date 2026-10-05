@@ -18,6 +18,8 @@ namespace Remains.Runtime
     {
         public CoopSession Session { get; private set; }
         public CombatController Combat { get; private set; }
+        public ItemShortcutActions ItemActions {get;private set;}
+        private Vector2? lastGameplayAim;
         public LaunchOptions Options { get; private set; }
         public RevivalController Revival { get; private set; }
         public InteractionAdapter Interactions { get; private set; }
@@ -125,12 +127,15 @@ namespace Remains.Runtime
             musicMixVolume=Music.Volume;AudioPreferences.Changed+=ApplyAudioPreferences;ApplyAudioPreferences();
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
+            ItemActions=new ItemShortcutActions(Session,EquipWeaponItem);
             if (!Application.isBatchMode || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
                 hud.EquipWeaponItem=EquipWeaponItem;
+                hud.UseItemShortcut=slot=>ItemActions.Activate(slot,lastGameplayAim,Application.isFocused &&
+                    (Keyboard.current?.leftShiftKey.isPressed==true || Keyboard.current?.rightShiftKey.isPressed==true));
                 hud.EquipWeapon=weapon=>{if(Session.LocalActor is {down:false}) Combat.Weapon=weapon;};
                 hud.SelectCharacter=name=>
                 {
@@ -169,6 +174,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("bodyrevival")) gameObject.AddComponent<NetworkBodyRevivalProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("body")) gameObject.AddComponent<NetworkBodyInventoryProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("receipt")) gameObject.AddComponent<NetworkReceiptLossProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("shortcuts")) gameObject.AddComponent<NetworkItemShortcutProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("container-window")) gameObject.AddComponent<NetworkContainerWindowProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("container")) gameObject.AddComponent<NetworkContainerProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("npc")) gameObject.AddComponent<NetworkNpcProbe>().Initialize(this);
@@ -266,7 +272,7 @@ namespace Remains.Runtime
                 if(LevelActivity.HasConnectedPlayer(Session.World,animated.level) && !Session.Pause.IsPaused(animated.level)) ActorPose.Advance(animated,Time.deltaTime);
             }
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 npcs.Step(Time.deltaTime);
                 var command=CommandSource?.Invoke() ?? ReadCommand();
@@ -306,13 +312,7 @@ namespace Remains.Runtime
                 command.jump=keyboard.spaceKey.wasPressedThisFrame;
                 command.jumpHeld=keyboard.spaceKey.isPressed;
                 command.sprint=keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
-                command.weapon=keyboard.digit1Key.wasPressedThisFrame?"spear":keyboard.digit2Key.wasPressedThisFrame?"crowbar":
-                    keyboard.digit3Key.wasPressedThisFrame?"pistol":keyboard.digit4Key.wasPressedThisFrame?"energy":null;
-                if(Session.LocalActor?.weaponInventoryVersion==1 && command.weapon!=null)
-                {
-                    command.weaponShortcut=keyboard.digit1Key.wasPressedThisFrame?"1":keyboard.digit2Key.wasPressedThisFrame?"2":keyboard.digit3Key.wasPressedThisFrame?"3":"4";
-                    command.weapon=null;
-                }
+                command.weaponShortcut=ItemShortcutInput.Pressed(keyboard);command.shortcutWholeStack=command.sprint;
                 command.inventory=keyboard.tabKey.wasPressedThisFrame;
                 command.menu=keyboard.escapeKey.wasPressedThisFrame;
                 command.reload=keyboard.rKey.wasPressedThisFrame;
@@ -341,6 +341,9 @@ namespace Remains.Runtime
         {
             var actor=Session.LocalActor;
             if(command.hasPointer && hud.BlocksPointerGameplay(command.pointer)) command.fire=false;
+            if(command.hasAim && hud?.BlocksGameplayInput!=true && (!command.hasPointer ||
+                hud?.BlocksPointerGameplay(command.pointer)!=true && (UnityEngine.EventSystems.EventSystem.current==null ||
+                !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()))) lastGameplayAim=command.aim;
             if(command.inventory) hud?.ToggleInventory();
             if(command.menu) hud?.ToggleMenu();
             if(command.interact && !Session.Travel.Pending)
@@ -367,11 +370,7 @@ namespace Remains.Runtime
             if(!ActorHoldRules.Active(actor)) movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
             if(command.weaponItem!=null) EquipWeaponItem(command.weaponItem);
             if(command.weaponShortcut!=null)
-            {
-                var item=WeaponInventory.Shortcut(actor,command.weaponShortcut);
-                if(item!=null) EquipWeaponItem(item.id);
-                else Session.ShowNotice("Быстрый слот пуст.");
-            }
+                ItemActions.Activate(command.weaponShortcut,command.hasAim?command.aim:lastGameplayAim,command.shortcutWholeStack);
             if(command.weapon!=null)
             {
                 if(actor.weaponInventoryVersion==0) Combat.Weapon=command.weapon;

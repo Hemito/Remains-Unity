@@ -15,6 +15,7 @@ namespace Remains.Domain
         public string id=>Body==null?container.id:BodyId(Body.id);
         public string level=>Body==null?container.level:Body.level;
         public float? Mass=>Body==null?container.mass:null;
+        public bool IsLooseItem=>Body==null && container.presentationItem!=null;
         public Vector2 Position=>Body==null?container.Position:Body.Position;
         public List<ItemStack> items=>Body==null?container.items:Body.inventory;
         public Dictionary<string,string> Aliases=>Body==null?container.itemAliases:Body.inventoryAliases;

@@ -18,7 +18,7 @@ namespace Remains.Editor
         {
             WeaponCatalog.Load();
             var root=new GameObject("Проверка предметов оружия");
-            RenderTexture target=null;Texture2D image=null;var previous=RenderTexture.active;
+            RenderTexture target=null;Texture2D image=null;Camera camera=null;var previous=RenderTexture.active;
             try
             {
                 var session=root.AddComponent<CoopSession>();session.ConfigureRules(WeaponCatalog.Rules);
@@ -52,6 +52,9 @@ namespace Remains.Editor
                     "Описание не показывает характеристики текущего оружия");
                 view.Use.onClick.Invoke();Require(actor.equippedWeaponItem==b.id,"Выбран первый пистолет вместо второго");
                 view.Weapons[0].onClick.Invoke();Require(WeaponInventory.Shortcut(actor,"1")?.id==b.id,"Назначение не сохранило instance ID");
+                view.Rows[2].onClick.Invoke();view.Weapons[11].onClick.Invoke();
+                Require(ItemShortcuts.Get(actor,"=")?.definition=="heal" && actor.equippedWeaponItem==b.id,"Назначение аптечки не сохранило экземпляр или сменило оружие");
+                view.Rows[1].onClick.Invoke();
                 var hudRoot=new GameObject("Проверка быстрых ссылок",typeof(RectTransform));hudRoot.transform.SetParent(root.transform);
                 string clicked=null;var hud=new CombatHud(hudRoot.transform,_=>throw new InvalidOperationException("HUD вызвал старый выбор."),id=>clicked=id);
                 hud.Refresh(actor,true);var hudView=hudRoot.GetComponentInChildren<CombatHudView>();hudView.Weapons[0].onClick.Invoke();
@@ -129,7 +132,7 @@ namespace Remains.Editor
                 actor.down=false;actor.health=100;panel.Refresh(null);
                 if(render)
                 {
-                    var camera=new GameObject("Камера окна").AddComponent<Camera>();camera.transform.SetParent(root.transform);camera.transform.position=new Vector3(0,0,-10);camera.backgroundColor=new Color(.06f,.07f,.08f);
+                    camera=new GameObject("Камера окна").AddComponent<Camera>();camera.transform.SetParent(root.transform);camera.transform.position=new Vector3(0,0,-10);camera.backgroundColor=new Color(.06f,.07f,.08f);
                     target=new RenderTexture(1920,1080,24);target.Create();camera.targetTexture=target;canvas.worldCamera=camera;canvas.planeDistance=1;
                     image=new Texture2D(1920,1080,TextureFormat.RGBA32,false);
                     void SaveFrame(string name)
@@ -161,7 +164,7 @@ namespace Remains.Editor
             {
                 RenderTexture.active=previous;
                 if(image!=null) UnityEngine.Object.DestroyImmediate(image);
-                if(target!=null) {target.Release();UnityEngine.Object.DestroyImmediate(target);}
+                if(target!=null) {camera.targetTexture=null;target.Release();UnityEngine.Object.DestroyImmediate(target);}
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }

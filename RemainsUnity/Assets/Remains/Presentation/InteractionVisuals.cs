@@ -65,7 +65,7 @@ namespace Remains.Presentation
             Prune(flights,new(grenades.Flights.Where(f=>f.state.level==level).Select(f=>f.state.id)));
             foreach(var container in session.World.containers.Where(c=>c.level==level))
             {
-                if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=propArtwork.CreateView(container.definition,"Контейнер "+container.id,container.width));
+                if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=propArtwork.CreateContainerView(container));
                 view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),0);view.SetVisible(container.level==session.LocalActor?.level);
             }
             foreach(var prop in session.World.props.Where(p=>p.level==level)) if(!props.ContainsKey(prop.id)) props.Add(prop.id,propArtwork.CreateView(prop.definition,prop.id,prop.width));

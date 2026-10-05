@@ -11,5 +11,6 @@ namespace Remains.Gameplay
         public bool hasAim, jump, jumpHeld, sprint, fire, revive, telekinesis, grenade, heal, inventory, interact, reload, menu;
         public string weapon; // Legacy definition command for v0 actors.
         public string weaponItem,weaponShortcut;
+        public bool shortcutWholeStack;
     }
 }

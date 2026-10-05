@@ -60,6 +60,20 @@ namespace Remains.Editor
                 }
                 finally {if(first!=null) UnityEngine.Object.DestroyImmediate(first.gameObject);if(second!=null) UnityEngine.Object.DestroyImmediate(second.gameObject);}
             }
+            var icons=new InventoryArtwork();
+            foreach(string definition in new[]{"p10","batt","caps","heal","grenade"})
+            {
+                PropView dropped=null;
+                try
+                {
+                    dropped=artwork.CreateContainerView(new Remains.Domain.ContainerState
+                        {id="drop-visual:"+definition,definition="loose-item",presentationItem=definition,width=.35f});
+                    if(dropped.Artwork.sprite!=icons.Require(definition) || dropped.Artwork.sharedMaterial==null ||
+                        Mathf.Abs(dropped.Artwork.bounds.size.x-.35f)>.001f || dropped.Order>=ActorVisualLayers.FirstActorOrder)
+                        throw new InvalidOperationException("Брошенная вещь потеряла иконку, материал, размер или слой: "+definition);
+                }
+                finally {if(dropped!=null) UnityEngine.Object.DestroyImmediate(dropped.gameObject);}
+            }
             var asset=Resources.Load<PropAsset>("Content/props/mcrate1");var original=asset.Prefab;
             try
             {
@@ -68,7 +82,7 @@ namespace Remains.Editor
                 if(!rejected) throw new InvalidOperationException("Нет ошибки при удалённой ссылке на префаб.");
             }
             finally {asset.SetPrefab(original);}
-            Debug.Log("Префабы объектов: PASS — все типы, материалы, размеры, изоляция экземпляров, отсутствие скрытой подстановки.");
+            Debug.Log("Префабы объектов: PASS — все типы, брошенные вещи, материалы, размеры, изоляция экземпляров, отсутствие скрытой подстановки.");
         }
     }
 }

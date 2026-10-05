@@ -19,7 +19,7 @@ namespace Remains.Presentation
         private ActorState displayedActor;
         private readonly InventoryArtwork artwork=new();
         private readonly Image[] shortcutIcons;
-        public CombatHud(Transform parent,Action<string> equip,Action<string> equipItem=null)
+        public CombatHud(Transform parent,Action<string> equip,Action<string> equipItem=null,Action<string> activateShortcut=null)
         {
             var prefab=Resources.Load<CombatHudView>("Presentation/CombatHud");
             if(prefab==null) throw new InvalidOperationException("Нет префаба HUD Presentation/CombatHud.");
@@ -31,14 +31,17 @@ namespace Remains.Presentation
             shortcutIcons=new Image[weapons.Length];
             for(int i=0;i<weapons.Length;i++)
             {
-                string id=ids[i],slot=(i+1).ToString();
+                string id=i<ids.Length?ids[i]:null,slot=ItemShortcuts.Keys[i];
                 shortcutIcons[i]=weapons[i].transform.Find("Иконка предмета")?.GetComponent<Image>() ??
                     throw new InvalidOperationException($"Нет иконки быстрого слота {slot}.");
                 weapons[i].onClick.AddListener(()=>
                 {
-                    if(displayedActor?.weaponInventoryVersion!=1) {equip(id);return;}
-                    var item=WeaponInventory.Shortcut(displayedActor,slot);
+                    if(displayedActor?.weaponInventoryVersion!=1) {if(id!=null) equip(id);return;}
+                    var item=ItemShortcuts.Get(displayedActor,slot);
                     if(item==null) return;
+                    if(activateShortcut!=null) {activateShortcut(slot);return;}
+                    if(!WeaponInventory.IsEquippable(item))
+                    {Debug.LogWarning($"HUD: не подключено действие предмета, slot={slot}, item={item.id}, definition={item.definition}.");return;}
                     if(equipItem==null) throw new InvalidOperationException("Не подключён быстрый выбор экземпляра оружия.");
                     equipItem(item.id);
                 });
@@ -50,6 +53,8 @@ namespace Remains.Presentation
             vitals.SetActive(visible);loadout.SetActive(visible);
             healthWarning.Refresh(health,actor==null?0:Mathf.Clamp01(actor.health/100),visible,Time.unscaledTime);
             if(actor==null) return;
+            if(actor.weaponInventoryVersion!=1 && missing.Add("legacy:"+actor.id))
+                Debug.LogWarning($"HUD показывает диагностические определения старого инвентаря: actor={actor.id}, inventoryVersion={actor.weaponInventoryVersion}. Для игры требуется миграция экземпляров.");
             int grenadeCount=InventoryJournal.Count(actor,"grenade");
             grenades.text=$"G · Гранаты: {grenadeCount}";
             var grenadeColor=grenadeCount>0 && !actor.down?new Color(.65f,1,.75f):new Color(.4f,.5f,.44f);
@@ -59,11 +64,12 @@ namespace Remains.Presentation
             healthText.text=$"Здоровье  {Mathf.CeilToInt(actor.health)} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";
             for(int i=0;i<weapons.Length;i++)
             {
-                var item=actor.weaponInventoryVersion==1?WeaponInventory.Shortcut(actor,(i+1).ToString()):null;
+                var item=actor.weaponInventoryVersion==1?ItemShortcuts.Get(actor,ItemShortcuts.Keys[i]):null;
                 bool instances=actor.weaponInventoryVersion==1;
-                OriginalButtonStyle.SetSelected(weapons[i],instances?item!=null && item.id==actor.equippedWeaponItem:ids[i]==actor.weapon);
-                weapons[i].interactable=!actor.down && (!instances || item!=null && InventoryAvailability.Count(actor,item)>0);
-                artwork.Set(shortcutIcons[i],instances?item?.definition:ids[i]);
+                string legacy=i<ids.Length?ids[i]:null;
+                OriginalButtonStyle.SetSelected(weapons[i],instances?item!=null && item.id==actor.equippedWeaponItem:legacy!=null && legacy==actor.weapon);
+                weapons[i].interactable=!actor.down && (instances?item!=null && InventoryAvailability.Count(actor,item)>0:legacy!=null);
+                artwork.Set(shortcutIcons[i],instances?item?.definition:legacy);
             }
             if(string.IsNullOrEmpty(actor.weapon)) {ammunition.text="Оружие не выбрано";return;}
             var definition=WeaponCatalog.Get(actor.weapon);

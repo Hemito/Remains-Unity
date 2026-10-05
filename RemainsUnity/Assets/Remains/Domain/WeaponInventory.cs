@@ -30,17 +30,7 @@ namespace Remains.Domain
             actor.equippedWeaponItem=item.id;actor.weapon=item.definition;actor.weaponSelectionRevision++;actor.revision++;return true;
         }
         public static bool Assign(ActorState actor,string slot,string itemId,out string reason)
-        {
-            reason=null;
-            if(actor==null || actor.weaponInventoryVersion!=1 || string.IsNullOrWhiteSpace(slot))
-            {reason="Не задан быстрый слот оружия.";return false;}
-            var item=string.IsNullOrEmpty(itemId)?null:Equippable(actor,itemId);
-            if(!string.IsNullOrEmpty(itemId) && item==null)
-            {reason="Нельзя назначить отсутствующий экземпляр оружия.";return false;}
-            actor.weaponShortcuts.RemoveAll(shortcut=>shortcut.slot==slot);
-            if(item!=null) actor.weaponShortcuts.Add(new WeaponShortcut {slot=slot,item=item.id});
-            actor.weaponSelectionRevision++;actor.revision++;return true;
-        }
+            =>ItemShortcuts.Assign(actor,slot,itemId,out reason);
         public static void PreserveSelection(ActorState current,ActorState incoming)
         {
             if(incoming.weaponInventoryVersion!=1) return;

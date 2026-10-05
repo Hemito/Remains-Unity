@@ -10,7 +10,7 @@ namespace Remains.Presentation
         [InspectorName("Строки предметов")] public Button[] Rows;
         [InspectorName("Иконки строк")] public Image[] Icons;
         [InspectorName("Назначения клавиш")] public Button[] Weapons;
-        [InspectorName("ID оружия")] public string[] WeaponIds;
+        [InspectorName("Оружие старых данных: первые четыре клавиши (диагностика)")] public string[] WeaponIds;
         [InspectorName("Иконка выбранного предмета")] public Image DetailIcon;
         [InspectorName("Широкий просмотр оружия")] public Image WeaponPreview;
         [InspectorName("Описание выбранного оружия")] public Text WeaponDetail;
@@ -36,7 +36,7 @@ namespace Remains.Presentation
                 throw new InvalidOperationException("Личный инвентарь: нужна вертикальная полоса прокрутки сверху вниз с ползунком.");
             if(Categories==null || Categories.Length!=Enum.GetValues(typeof(InventoryCategory)).Length || Array.Exists(Categories,x=>x==null))
                 throw new InvalidOperationException("Личный инвентарь: не назначены все вкладки, включая пустую вкладку брони.");
-            if(Rows==null || Icons==null || Rows.Length==0 || Rows.Length!=Icons.Length || Weapons==null || WeaponIds==null || Weapons.Length!=WeaponIds.Length ||
+            if(Rows==null || Icons==null || Rows.Length==0 || Rows.Length!=Icons.Length || Weapons==null || Weapons.Length!=Remains.Domain.ItemShortcuts.Keys.Count || WeaponIds==null || WeaponIds.Length!=4 ||
                 DetailIcon==null || WeaponPreview==null || WeaponDetail==null || Portrait==null || PortraitParts==null || PortraitParts.Length==0 || Previous==null || Next==null || Deposit==null || Use==null || Detail==null || ActionStatus==null)
                 throw new InvalidOperationException("Личный инвентарь: не заполнены ссылки или не совпадают массивы элементов.");
             if(Array.Exists(Rows,x=>x==null) || Array.Exists(Icons,x=>x==null) || Array.Exists(Weapons,x=>x==null) || Array.Exists(WeaponIds,string.IsNullOrWhiteSpace) || Array.Exists(PortraitParts,x=>x==null))

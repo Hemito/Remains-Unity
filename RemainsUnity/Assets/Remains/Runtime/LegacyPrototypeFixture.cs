@@ -16,13 +16,14 @@ namespace Remains.Runtime
             if(string.IsNullOrEmpty(options.SaveDirectory)) throw new InvalidOperationException("Старый тестовый мир требует отдельного каталога сохранений.");
             if(runtime.Session.Saves.SelectedSnapshot()!=null) return;
             var world=new WorldState();
-            if(!(options.Smoke.StartsWith("actor-hold") && options.Smoke.Contains("-player-")))
+            if(!options.Smoke.StartsWith("shortcuts") && !(options.Smoke.StartsWith("actor-hold") && options.Smoke.Contains("-player-")))
             {
                 var npc=new ActorState {id="npc:training-guard",actorType="raider",anatomy="raider",owner="host",x=8,health=140};
                 if(options.Smoke.StartsWith("actor-hold")) npc.inventory.Add(SharedInventory.Create("heal",3));
                 world.actors.Add(npc);
             }
             var container=new ContainerState();world.containers.Add(container);
+            if(options.Smoke.StartsWith("shortcuts")) container.x=-5;
             // The old container position overlaps the subsequently authored exit.
             // UI transaction probes need an independently reachable E target.
             if(options.Smoke.StartsWith("container")) container.x=1;

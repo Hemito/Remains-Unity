@@ -674,6 +674,7 @@ namespace Remains.Networking
                 changed=true;
             }
             changed|=Deposits.CompleteBackedUp();
+            changed|=DroppedItemTransfer.PruneEmpty(ServerWorld);
             if(changed) { BroadcastWorld(); }
             foreach(var connection in NetworkServer.connections.Values)
             {

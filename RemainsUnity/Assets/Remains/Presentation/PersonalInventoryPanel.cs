@@ -18,7 +18,6 @@ namespace Remains.Presentation
         private readonly string[] weapons;
         private readonly Button[] weaponButtons;
         private readonly Image[] weaponIcons;
-        private readonly string[] legacyLabels;
         private readonly Image[] icons;
         private readonly Image detailIcon;
         private readonly Image weaponPreview;
@@ -36,6 +35,7 @@ namespace Remains.Presentation
         private readonly InventoryItemFilter filter;
         private readonly Button[] categories;
         private readonly List<ItemStack> visible=new();
+        private readonly HashSet<string> legacyActors=new();
         public RectTransform RowRect(int row)=>rows[row].GetComponent<RectTransform>();
         public int Page=>firstVisibleRow/rows.Length;
         public int FirstVisibleRow=>firstVisibleRow;
@@ -67,22 +67,21 @@ namespace Remains.Presentation
             weaponPreview=view.WeaponPreview;weaponDetail=view.WeaponDetail;
             detail=view.Detail;actionStatus=view.ActionStatus;
             portrait=new InventoryPortrait(view.Portrait,view.PortraitParts);
-            weaponIcons=new Image[weaponButtons.Length];legacyLabels=new string[weaponButtons.Length];
+            weaponIcons=new Image[weaponButtons.Length];
             for(int i=0;i<weaponButtons.Length;i++)
             {
-                string weapon=weapons[i],slot=(i+1).ToString();
+                string weapon=i<weapons.Length?weapons[i]:null,slot=ItemShortcuts.Keys[i];
                 weaponIcons[i]=weaponButtons[i].transform.Find("Иконка предмета")?.GetComponent<Image>() ?? throw new InvalidOperationException($"Нет иконки назначения {slot}.");
-                legacyLabels[i]=weaponButtons[i].GetComponentInChildren<Text>().text;
                 weaponButtons[i].onClick.AddListener(()=>
                 {
                     var actor=session.LocalActor;
                     if(actor?.weaponInventoryVersion==1)
                     {
-                        if(WeaponInventory.Assign(actor,slot,selected,out var reason)) session.PublishActor(actor);
+                        if(ItemShortcuts.Assign(actor,slot,selected,out var reason)) session.PublishActor(actor);
                         else session.ShowNotice(reason);
                         Refresh(container);
                     }
-                    else equip(weapon);
+                    else if(weapon!=null) {Debug.LogWarning($"Старый инвентарь не подготовлен: actor={actor?.id}, slot={slot}. Выбор определения доступен только для диагностики.",view);equip(weapon);}
                 });
             }
             for(int i=0;i<rows.Length;i++) {int index=i;rows[i].onClick.AddListener(()=>{selected=ids[index];Refresh(container);});}
@@ -106,6 +105,8 @@ namespace Remains.Presentation
         public void Refresh(InventorySource destination)
         {
             container=destination;var actor=session.LocalActor;
+            if(actor!=null && actor.weaponInventoryVersion!=1 && legacyActors.Add(actor.id))
+                Debug.LogWarning($"Личный инвентарь показывает диагностические определения: actor={actor.id}, inventoryVersion={actor.weaponInventoryVersion}. Для назначений любых предметов требуется миграция экземпляров.");
             bool armor=category==InventoryCategory.Armor;
             visible.Clear();
             if(actor!=null) foreach(var item in actor.inventory) if(filter.Includes(item,category)) visible.Add(item);
@@ -117,12 +118,13 @@ namespace Remains.Presentation
             {
                 weaponButtons[i].gameObject.SetActive(!armor);
                 bool instances=actor?.weaponInventoryVersion==1;
-                var chosenWeapon=InventoryStacks.Find(actor,selected);
-                if(!WeaponInventory.IsEquippable(chosenWeapon)) chosenWeapon=null;
-                OriginalButtonStyle.SetSelected(weaponButtons[i],instances?chosenWeapon!=null && WeaponInventory.Shortcut(actor,(i+1).ToString())?.id==selected:actor?.weapon==weapons[i]);
-                weaponButtons[i].interactable=actor is {down:false} && (!instances || chosenWeapon!=null);
-                weaponButtons[i].GetComponentInChildren<Text>().text=instances?$"[{i+1}]":legacyLabels[i];
-                artwork.Set(weaponIcons[i],instances?WeaponInventory.Shortcut(actor,(i+1).ToString())?.definition:weapons[i]);
+                var chosenItem=InventoryStacks.Find(actor,selected);
+                string legacy=i<weapons.Length?weapons[i]:null;
+                var assigned=ItemShortcuts.Get(actor,ItemShortcuts.Keys[i]);
+                OriginalButtonStyle.SetSelected(weaponButtons[i],instances?chosenItem!=null && assigned?.id==selected:legacy!=null && actor?.weapon==legacy);
+                weaponButtons[i].interactable=actor is {down:false} && (instances?chosenItem!=null:legacy!=null);
+                weaponButtons[i].GetComponentInChildren<Text>().text=$"[{ItemShortcuts.Keys[i]}]";
+                artwork.Set(weaponIcons[i],instances?assigned?.definition:legacy);
             }
             firstVisibleRow=Mathf.Clamp(firstVisibleRow,0,Math.Max(0,count-rows.Length));
             scrollbar.gameObject.SetActive(count>rows.Length);

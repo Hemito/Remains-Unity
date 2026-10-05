@@ -14,15 +14,20 @@ namespace Remains.Domain
         public readonly LootAccessContext access;
         public readonly string itemId,definition;
         public readonly int count,availableCount;
+        public readonly string purpose;
+        public readonly bool looseTarget;
         public DepositContext(ActorState source,InventorySource destination,ItemStack item,int amount)
-        {access=new LootAccessContext(source,destination);itemId=item.id;definition=item.definition;count=amount;availableCount=item.count;}
+            :this(source,destination,item,amount,InventoryTransactions.DepositPurpose) {}
+        public DepositContext(ActorState source,InventorySource destination,ItemStack item,int amount,string purpose)
+        {access=new LootAccessContext(source,destination);itemId=item.id;definition=item.definition;count=amount;availableCount=item.count;this.purpose=purpose;looseTarget=destination.IsLooseItem;}
     }
     public interface IDepositRule {string AccessRejection(LootAccessContext context);string Rejection(DepositContext context);}
     public sealed class NearbyDepositRule : IDepositRule
     {
         private readonly NearbyLootRule access=new();
         public string AccessRejection(LootAccessContext context)=>access.AccessRejection(context);
-        public string Rejection(DepositContext context)=>null;
+        public string Rejection(DepositContext context)=>context.looseTarget && context.purpose!=InventoryTransactions.TossPurpose?
+            "Брошенный предмет можно подобрать. Для внесения нужен контейнер.":null;
     }
 
     // Domain transaction only. The coordinator must persist/replicate Prepare before allowing Commit.
@@ -33,6 +38,8 @@ namespace Remains.Domain
         public SharedDeposits(WorldState world,IDepositRule rule=null)
         {this.world=world;this.rule=rule??new NearbyDepositRule();}
         public bool Prepare(string transaction,ActorState source,string containerId,string itemId,int quantity,out string reason,bool levelPaused=false)
+            =>Prepare(transaction,source,containerId,itemId,quantity,out reason,levelPaused,InventoryTransactions.DepositPurpose);
+        public bool Prepare(string transaction,ActorState source,string containerId,string itemId,int quantity,out string reason,bool levelPaused,string purpose)
         {
             reason="Операция внесения уже обработана или не имеет ID.";
             if(InventoryTransactions.Contains(world,transaction)) return false;
@@ -44,7 +51,7 @@ namespace Remains.Domain
             reason="Указанное количество недоступно. Обновите выбор.";
             if(item==null || item.count<=0 || quantity<0 || quantity>item.count) return false;
             int amount=quantity==0?item.count:quantity;
-            reason=rule.AccessRejection(new LootAccessContext(source,destination))??rule.Rejection(new DepositContext(source,destination,item,amount));
+            reason=rule.AccessRejection(new LootAccessContext(source,destination))??rule.Rejection(new DepositContext(source,destination,item,amount,purpose));
             if(reason!=null) return false;
             var reserved=item.ReservedCopy(amount);
             if(!InventoryJournal.Debit(source,transaction,item.id,amount))
@@ -76,6 +83,7 @@ namespace Remains.Domain
     }
     public static class InventoryTransactions
     {
+        public const string DepositPurpose="deposit",TossPurpose="toss";
         public const string PausedReason="Область на паузе. Передача предметов временно недоступна.";
         public static bool Contains(WorldState world,string id)=>string.IsNullOrEmpty(id) || world.completedTransactions.Contains(id) ||
             world.pendingGrants.Exists(p=>p.transaction==id) || world.pendingDeposits.Exists(p=>p.transaction==id);

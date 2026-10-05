@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Remains.Content;
+using Remains.Domain;
 using UnityEngine;
 namespace Remains.Presentation
 {
@@ -8,8 +9,14 @@ namespace Remains.Presentation
     {
         private readonly Dictionary<string,Sprite> sprites=new();
         private readonly Dictionary<string,PropView> prefabs=new();
+        private readonly InventoryArtwork items=new();
+        private readonly PropView droppedPrefab;
         public PropArtwork()
         {
+            items.PrepareWorldMaterials();
+            droppedPrefab=Resources.Load<PropView>("Presentation/DroppedItem");
+            if(droppedPrefab==null || droppedPrefab.Artwork==null)
+                throw new InvalidOperationException("Нет сохранённого префаба брошенного предмета Presentation/DroppedItem или ссылки на его спрайт.");
             var builtIn=EntityAssetCatalog.Load();
             foreach(var definition in PropCatalog.All)
             {
@@ -23,6 +30,15 @@ namespace Remains.Presentation
             }
         }
         public Sprite Get(string id)=>sprites.TryGetValue(id,out var sprite)?sprite:throw new InvalidOperationException("Нет спрайта физического объекта: "+id);
+        public PropView CreateContainerView(ContainerState state)
+        {
+            if(state.presentationItem==null) return CreateView(state.definition,"Контейнер "+state.id,state.width);
+            var view=UnityEngine.Object.Instantiate(droppedPrefab);view.name="Брошенный предмет "+state.id;
+            var renderer=view.Artwork;
+            SpriteArtworkMaterial.Apply(renderer,items.Require(state.presentationItem));
+            renderer.sortingOrder=ActorVisualLayers.RestingObjectOrder;view.SetArtwork(renderer);
+            view.FitWidth(state.width);view.PrepareHeldGlow();return view;
+        }
         public PropView CreateView(string id,string name,float width)
         {
             PropView view;
