@@ -17,7 +17,9 @@ namespace Remains.Runtime
     [DefaultExecutionOrder(10000)]
     public sealed class NetworkWorkshopLootProbe : MonoBehaviour
     {
-        private const string NpcId="factory:0:original:plant:18:bU92TKI1pfiaqh6L";
+        private bool Office=>runtime.Options.Smoke.Contains("-office-loot-",StringComparison.Ordinal);
+        private string NpcId=>Office?"factory:0:original:plant:53:ql47iXGSZW2VGGdF":"factory:0:original:plant:18:bU92TKI1pfiaqh6L";
+        private string Location=>Office?"офисов":"цеха";
         private PrototypeRuntime runtime;
         private WorkshopLootFixture fixture;
         private float deadline;
@@ -26,6 +28,7 @@ namespace Remains.Runtime
         private int roundsAtDeath=-1;
         private long magazineRevisionAtDeath;
         private readonly System.Collections.Generic.HashSet<string> npcShots=new();
+        private readonly System.Collections.Generic.HashSet<string> playerShots=new();
         private bool Host=>runtime.Options.Role=="host";
         private bool Source=>runtime.Options.ProbePeers==1 || runtime.Options.Character=="session-client-1";
         private ActorState Npc=>runtime.Session.World.Find(NpcId);
@@ -39,7 +42,12 @@ namespace Remains.Runtime
                 value.Session.Saves.SaveWorld(NewGameWorld.Create());
             }
             value.CommandSource=Command;
-            value.Session.AttackReceived+=attack=>{if(attack.attacker==NpcId && attack.weapon=="pistol") npcShots.Add(attack.id);};
+            value.Session.AttackReceived+=attack=>
+            {
+                if(attack.weapon!="pistol") return;
+                if(attack.attacker==NpcId) npcShots.Add(attack.id);
+                if(attack.attacker==fixture.source) playerShots.Add(attack.id);
+            };
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<WorkshopLootFixture>(message=>fixture=message);
@@ -52,7 +60,7 @@ namespace Remains.Runtime
                 observed=true;
                 var received=player.inventory.SingleOrDefault(i=>i.id==fixture.item);
                 bool valid=message.item==fixture.item && message.defeated && message.opened && message.granted && body is {down:true,health:<=0} &&
-                    body.resolvedAttacks.Count>0 && body.owner==player.owner && body.owner==message.owner &&
+                    playerShots.Contains(body.resolvedAttacks.LastOrDefault()??string.Empty) && body.owner==player.owner && body.owner==message.owner &&
                     received?.definition=="pistol" && received.weaponState?.rounds==message.rounds && message.rounds>=0 &&
                     message.rounds<=WeaponCatalog.Get("pistol").magazineSize && message.shots>0 && message.magazineRevision>=message.shots &&
                     received.weaponState.revision==message.magazineRevision && body.inventory.Count==2 &&
@@ -61,10 +69,11 @@ namespace Remains.Runtime
                 {
                     value.Session.CommitWorld();var saved=value.Session.Saves.LoadWorld(false);
                     valid=saved.Find(NpcId) is {down:true,health:<=0} savedBody && savedBody.inventory.Count==2 &&
-                        !savedBody.inventory.Any(i=>i.id==fixture.item) && saved.Find(player.id).inventory.Any(i=>i.id==fixture.item && i.weaponState?.rounds==message.rounds && i.weaponState.revision==message.magazineRevision);
+                        !savedBody.inventory.Any(i=>i.id==fixture.item) && saved.Find(player.id).inventory.Any(i=>i.id==fixture.item && i.weaponState?.rounds==message.rounds && i.weaponState.revision==message.magazineRevision) &&
+                        RoomContentProbePersistence.UnchangedOnReinstall(saved,body.level);
                 }
                 NetworkServer.SendToAll(new WorkshopLootFinish {success=valid,detail=valid?
-                    "Исходный рейдер цеха побеждён настоящими выстрелами; E открыл его единый инвентарь, клик выдал пистолет с магазином ровно один раз, результат сохранён.":
+                    $"Рейдер {Location} побеждён настоящими выстрелами; E открыл его единый инвентарь, клик выдал пистолет с магазином ровно один раз, результат сохранён и повторная установка контента его не изменила.":
                     $"Разошлись бой/инвентарь/владелец/сохранение: down={body?.down}, items={body?.inventory.Count}, received={received?.id}, owner={body?.owner}/{message.owner}."});
             });
         }
@@ -139,7 +148,7 @@ namespace Remains.Runtime
             try
             {
                 camera.transform.position=new Vector3(Npc.x,Npc.y+3,saved.z);
-                NetworkFrameCapture.Save(camera,runtime.Options.Report+".workshop-loot-"+capture+".png",runtime.Hud.GetComponent<Canvas>());
+                NetworkFrameCapture.Save(camera,runtime.Options.Report+(Office?".office-loot-":".workshop-loot-")+capture+".png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
             }
             finally {camera.transform.position=saved;capture=null;}
         }
@@ -147,11 +156,12 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,source=Source,
-                defeated=defeated,opened=opened,granted=granted,npcOwner=Npc?.owner,item=fixture.item,roundsAtDeath=roundsAtDeath,npcShots=npcShots.Count,magazineRevision=magazineRevisionAtDeath},true));
+                defeated=defeated,opened=opened,granted=granted,npc=NpcId,npcOwner=Npc?.owner,item=fixture.item,lethalAttack=Npc?.resolvedAttacks.LastOrDefault(),
+                playerHits=Npc?.resolvedAttacks.Count(playerShots.Contains)??0,roundsAtDeath=roundsAtDeath,npcShots=npcShots.Count,magazineRevision=magazineRevisionAtDeath},true));
             exitCode=success?0:1;Invoke(nameof(Exit),2);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success,source,defeated,opened,granted;public string detail,npcOwner,item;public int roundsAtDeath,npcShots;public long magazineRevision;}
+        [Serializable] private sealed class Report {public bool success,source,defeated,opened,granted;public string detail,npc,npcOwner,item,lethalAttack;public int roundsAtDeath,npcShots,playerHits;public long magazineRevision;}
     }
 }

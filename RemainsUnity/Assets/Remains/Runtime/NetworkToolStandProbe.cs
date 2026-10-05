@@ -188,9 +188,7 @@ namespace Remains.Runtime
                 valid=PolicyValid(restored) && restored.items.Count==0;
                 if(valid)
                 {
-                    var before=Remains.Serialization.StateJson.ToJson(saved);
-                    RoomContentInstaller.Apply(saved,RoomContentBatch.Read(RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId),"factory:0"));
-                    valid=before==Remains.Serialization.StateJson.ToJson(saved);
+                    valid=RoomContentProbePersistence.UnchangedOnReinstall(saved,"factory:0");
                 }
             }
             stage=3;NetworkServer.SendToAll(new ToolStandFinish {success=valid,detail=valid?

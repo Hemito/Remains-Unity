@@ -70,9 +70,11 @@ namespace Remains.Editor
             CheckPreservation(batch);
             var independent=new WorldState {worldId="office-factory-index-check",mechanismVersion=1};
             RoomContentInstaller.Apply(independent,batch);RoomContentInstaller.Apply(independent,RoomContentBatch.Read(room,"factory:6"));
-            var ids=independent.props.Select(p=>p.id).Concat(independent.containers.Select(c=>c.id)).Concat(independent.doors.Select(d=>d.id));
+            var ids=independent.props.Select(p=>p.id).Concat(independent.containers.Select(c=>c.id)).Concat(independent.doors.Select(d=>d.id)).Concat(independent.actors.Select(a=>a.id));
             Require(ids.Distinct(StringComparer.Ordinal).Count()==ids.Count() && independent.containers.Count==batch.physical.containers.Length*2 &&
-                independent.containers.SelectMany(c=>c.items).Select(i=>i.id).Distinct(StringComparer.Ordinal).Count()==independent.containers.Sum(c=>c.items.Count),
+                independent.actors.Count==batch.npcs.actors.Length*2 &&
+                independent.containers.SelectMany(c=>c.items).Concat(independent.actors.SelectMany(a=>a.inventory)).Select(i=>i.id).Distinct(StringComparer.Ordinal).Count()==
+                    independent.containers.Sum(c=>c.items.Count)+independent.actors.Sum(a=>a.inventory.Count),
                 "Фабрики0 и6 разделяют ID объекта или лута.");
             Debug.Log($"Офисы53: PASS — {local.platforms.Length} поверхностей, {local.ladders.Length} лестниц, {local.artwork.Length} слоёв, средний стык в обе стороны, замкнутый контур, 46 исходных записей, цепочка старых миров без возврата лута/удалённых объектов.");
         }
@@ -112,6 +114,11 @@ namespace Remains.Editor
                 world.contentPatches.Remove(batch.doors.patch);world.contentPatches.Add(batch.doors.expansion.previousPatch);
                 world.doors.RemoveAll(d=>batch.doors.expansion.additions.Contains(d.id));world.doors.RemoveAt(0);
                 world.doors[0].open=true;world.doors[0].revision=17;
+                var dead=world.actors[0];dead.health=0;dead.down=true;dead.inventory.Clear();dead.owner="saved-npc-owner";dead.generation=9;
+                dead.extensions=new System.Collections.Generic.Dictionary<string,Newtonsoft.Json.Linq.JToken> {
+                    {"modBodyProgress",Newtonsoft.Json.Linq.JToken.Parse("{\"nested\":[19,\"сохранённая смерть\"]}")}};
+                var armed=world.actors.First(a=>a.id!=dead.id && a.weapon=="pistol");armed.owner="another-saved-owner";armed.x+=.15f;
+                foreach(var item in armed.inventory.Where(i=>i.weaponState!=null)) {item.weaponState.rounds=1;item.weaponState.revision=12;}
                 var oldProps=world.props.Select(p=>(p.id,json:StateJson.ToJson(p))).ToArray();
                 var oldContainers=world.containers.Select(p=>(p.id,json:StateJson.ToJson(p))).ToArray();
                 var oldDoors=world.doors.Select(p=>(p.id,json:StateJson.ToJson(p))).ToArray();

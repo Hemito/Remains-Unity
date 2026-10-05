@@ -13,8 +13,8 @@ namespace Remains.Editor
         {
             ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
             var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
-            var layout=RoomNpcContent.Read(room,"factory:0");var geometry=room.CreateLayout();
-            var records=room.GetComponentInChildren<RoomImportAudit>().Report.Records;
+            var layout=FactoryContentCheckFixtures.BeforeOffice(RoomNpcContent.Read(room,"factory:0"));var geometry=room.CreateLayout();
+            var records=room.GetComponentsInChildren<RoomImportAudit>(true).Single(a=>a.Report.SourceId=="original:plant:18").Report.Records;
             var crawlers=layout.actors.Where(a=>a.actorType=="radroach").ToArray();
             Require(crawlers.Length==2 && layout.actors.Length==8 && layout.loot.Length==8 && layout.expansion.additions.Length==2 &&
                 records.Length==24 && records.All(r=>r.installed || r.kind is "platform2" or "knop3" or "vendor" or "instr2") && records.Where(r=>r.kind=="enl1").All(r=>r.installed),"Потеряны две исходные метки или журнал оставшегося содержимого.");

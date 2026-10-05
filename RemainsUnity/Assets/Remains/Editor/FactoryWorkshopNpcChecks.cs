@@ -13,7 +13,7 @@ namespace Remains.Editor
         {
             ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
             var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
-            var current=RoomNpcContent.Read(room,"factory:0");var geometry=room.CreateLayout();
+            var current=FactoryContentCheckFixtures.BeforeOffice(RoomNpcContent.Read(room,"factory:0"));var geometry=room.CreateLayout();
             int crawlers=current.actors.Count(a=>a.actorType=="radroach");
             Require(crawlers==0 || crawlers==2,"Радтараканы установлены частично.");
             // Retain the preceding raider expansion's focused fixture after the crawler addition.
@@ -22,7 +22,7 @@ namespace Remains.Editor
             layout.patch="factory:0:"+FactoryWorkshopNpcAuthoring.Patch;
             layout.expansion=new ContentExpansion {previousPatch="factory:0:"+FactoryWorkshopNpcAuthoring.PreviousPatch,
                 additions=layout.actors.Where(a=>a.id.StartsWith("factory:0:original:plant:18:",StringComparison.Ordinal)).Select(a=>a.id).ToArray()};
-            var records=room.GetComponentInChildren<RoomImportAudit>().Report.Records;
+            var records=room.GetComponentsInChildren<RoomImportAudit>(true).Single(a=>a.Report.SourceId=="original:plant:18").Report.Records;
             var normal=records.Where(r=>r.kind=="enl2").ToArray();
             Require(normal.Length==5 && normal.All(r=>r.installed) && records.Count(r=>r.kind=="enl1" && r.installed)==crawlers,
                 "Метки обычных и мелких ползучих врагов потеряны или смешаны.");

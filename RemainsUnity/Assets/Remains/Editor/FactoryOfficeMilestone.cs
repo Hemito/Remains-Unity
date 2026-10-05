@@ -1,5 +1,6 @@
 using System.IO;
 using Remains.Content;
+using Remains.Domain;
 using Remains.Presentation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -63,6 +64,9 @@ namespace Remains.Editor
             var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             var root=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(FactoryOfficeDraft.Path));
             var room=root.GetComponent<RoomAuthoring>();RoomLightingPreview.Refresh(room);
+            ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
+            var npcs=RoomNpcContent.Read(room,"factory:0");
+            if(npcs!=null) foreach(var actor in npcs.actors) ActorVisualFactory.Create(actor).Bind(actor);
             var camera=new GameObject("Предпросмотр офисов").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=11;
             camera.transform.position=new Vector3(19.2f,10,-10);camera.backgroundColor=new Color(.08f,.09f,.1f);
             var target=new RenderTexture(1920,1080,24);target.Create();camera.targetTexture=target;
@@ -77,7 +81,7 @@ namespace Remains.Editor
                 RenderTexture.active=previous;camera.targetTexture=null;target.Release();
                 Object.DestroyImmediate(pixels);Object.DestroyImmediate(target);RoomLightingPreview.Clear();
             }
-            Debug.Log("Предпросмотр сохранённого офисного модуля: 1920×1080, исходные текстуры и авторский свет.");
+            Debug.Log($"Предпросмотр сохранённого офисного модуля: 1920×1080, исходные текстуры/свет, NPC={npcs?.actors.Length??0} из авторской расстановки.");
         }
     }
 }

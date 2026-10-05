@@ -17,7 +17,8 @@ namespace Remains.Runtime
     [DefaultExecutionOrder(10000)]
     public sealed class NetworkCrawlerProbe : MonoBehaviour
     {
-        public const string NpcId="factory:0:original:plant:18:QyxFODdq6EPvuE6L";
+        private string NpcId=>runtime.Options.Smoke.Contains("-office-",StringComparison.Ordinal)?
+            "factory:0:original:plant:53:asgXcpTEfby23bgi":"factory:0:original:plant:18:QyxFODdq6EPvuE6L";
         private PrototypeRuntime runtime;
         private CrawlerFixture fixture;
         private readonly HashSet<string> contacts=new();
@@ -55,7 +56,8 @@ namespace Remains.Runtime
                 {
                     value.Session.CommitWorld();var saved=value.Session.Saves.LoadWorld(false);
                     valid=saved.Find(NpcId) is {down:true,health:<=0} dead && dead.inventory.Count==0 &&
-                        InventoryJournal.Count(saved.Find(player.id),"caps")==fixture.initialCaps+fixture.loot;
+                        InventoryJournal.Count(saved.Find(player.id),"caps")==fixture.initialCaps+fixture.loot &&
+                        RoomContentProbePersistence.UnchangedOnReinstall(saved,body.level);
                 }
                 NetworkServer.SendToAll(new CrawlerFinish {success=valid,detail=valid?
                     "Авторский радтаракан подошёл, переждал подтверждённую паузу и нанёс естественный урон пострадавшему; побеждён настоящим выстрелом, единый лут тела подтверждён и смерть/выдача сохранены.":
@@ -156,11 +158,11 @@ namespace Remains.Runtime
             if(success && (contacts.Count==0 || Npc is not {down:true,health:<=0} || Npc.inventory.Count!=0))
             {success=false;detail="Локальная реплика не подтвердила события/смерть/изъятие лута радтаракана.";}
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,source=Source,
-                contacts=contacts.Count,paused=paused,preparationPaused=frozenBusy,approached=approached,claim=claim,owner=Npc?.owner,health=Npc?.health??-1},true));
+                contacts=contacts.Count,paused=paused,preparationPaused=frozenBusy,approached=approached,claim=claim,npc=NpcId,owner=Npc?.owner,health=Npc?.health??-1},true));
             exitCode=success?0:1;Invoke(nameof(Exit),2);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success,source,paused,preparationPaused,approached;public int contacts;public float health;public string detail,claim,owner;}
+        [Serializable] private sealed class Report {public bool success,source,paused,preparationPaused,approached;public int contacts;public float health;public string detail,claim,npc,owner;}
     }
 }
