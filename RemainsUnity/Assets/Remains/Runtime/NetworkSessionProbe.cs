@@ -30,6 +30,8 @@ namespace Remains.Runtime
         private string retainedContents,retainedActors;
         private int visualChangedFrame;
         private int capturePhase=-1;
+        private readonly Dictionary<string,int> receiptCounts=new(),numberCounts=new();
+        private readonly HashSet<string> postTravelDamage=new();
         private readonly HashSet<int> acknowledgements=new();
         private bool Host=>runtime.Options.Role=="host";
         private static float Destination(string character)=>character switch
@@ -44,8 +46,14 @@ namespace Remains.Runtime
             runtime=value;deadline=Time.unscaledTime+60;
             // Duplicate only the cosmetic receipt; gameplay is never replayed here.
             value.Combat.DamageApplied+=result=>value.DamageFeedback.Publish(result);
-            value.DamageFeedback.Received+=result=>{if(result.attack==grenadeAttack) grenadeReceipts++;};
-            value.DamageNumbers.Shown+=result=>{if(result.attack==grenadeAttack) grenadeNumbers++;};
+            value.DamageFeedback.Received+=result=>
+            {
+                receiptCounts[result.attack]=receiptCounts.TryGetValue(result.attack,out int count)?count+1:1;
+                // AttackReceived can announce the throw before detonation. The
+                // damage receipt observes the actual result after the transition.
+                if(result.level=="hub" && value.Session.World.Find("player:session-host")?.level=="factory:0") postTravelDamage.Add(result.attack);
+            };
+            value.DamageNumbers.Shown+=result=>numberCounts[result.attack]=numberCounts.TryGetValue(result.attack,out int count)?count+1:1;
             value.Session.Changed+=()=>visualChangedFrame=Time.frameCount;
             runtime.CommandSource=Command;
             value.Session.AttackReceived+=attack=>
@@ -53,7 +61,6 @@ namespace Remains.Runtime
                 if(attack.weapon=="grenade" && attack.attacker=="player:session-host")
                 {
                     grenadeAttack=attack.id;
-                    blastAfterTravel=attack.level=="hub" && value.Session.World.Find(attack.attacker)?.level=="factory:0";
                 }
             };
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<SessionProbePhase>(message=>
@@ -94,11 +101,13 @@ namespace Remains.Runtime
             var actor=runtime.Session.LocalActor;
             foreach(int index in new[]{3,2})
             {
-
-                yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(index));
                 string expected=index==3?"energy":"pistol";
+                int weaponRow=runtime.Session.LocalActor.inventory.FindIndex(item=>item.definition==expected && item.weaponState!=null);
+                if(weaponRow<0 || weaponRow>=8) {Finish(false,"Оружие не найдено на первой странице инвентаря: "+expected);yield break;}
+                yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(weaponRow));
+                yield return UiPointerProbe.Click(runtime.Hud.UseItemRect);
                 if(runtime.Session.LocalActor.weapon!=expected)
-                {Finish(false,$"Кнопка оружия не применилась: expected={expected}, actual={runtime.Session.LocalActor.weapon}.");yield break;}
+                {Finish(false,$"Экипировка из списка не применилась: expected={expected}, actual={runtime.Session.LocalActor.weapon}.");yield break;}
                 inventoryWeaponChanges++;
             }
             int row=actor.inventory.FindIndex(item=>item.definition=="heal");
@@ -122,10 +131,16 @@ namespace Remains.Runtime
         private void Update()
         {
             if(finished) return;
+            if(grenadeAttack!=null)
+            {
+                grenadeReceipts=receiptCounts.TryGetValue(grenadeAttack,out int receipts)?receipts:0;
+                grenadeNumbers=numberCounts.TryGetValue(grenadeAttack,out int numbers)?numbers:0;
+                blastAfterTravel=postTravelDamage.Contains(grenadeAttack);
+            }
             // Completion was acknowledged by every peer before phase 7. A host exit
             // must not make a slower client's report depend on the live player count.
             if(phase==7) {if(Time.unscaledTime-phaseTime>1) Finish(true,"Обычная симуляция: переходы тестового мира в обе стороны, разделение группы, граната в исходной локации, независимое движение и видимость; выход всей группы и повторный вход без пересоздания NPC/контейнеров.");return;}
-            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут: phase={phase}, level={runtime.Session.LocalActor?.level}, pending={runtime.Session.Travel.Pending}");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут: phase={phase}, level={runtime.Session.LocalActor?.level}, pending={runtime.Session.Travel.Pending}, blastAfterTravel={blastAfterTravel}, attack={grenadeAttack}, receipts={grenadeReceipts}, numbers={grenadeNumbers}, explosions={runtime.Explosions.Shown}; players={string.Join(";",runtime.Session.World?.actors.Where(a=>a.player).Select(a=>a.character+":"+a.level+":"+a.health)??Array.Empty<string>())}");return;}
             var session=runtime.Session;var self=session.LocalActor;
             if(self==null) return;
             if(runtime.Options.NetworkStress && Transport.active is not LatencySimulation)
@@ -178,13 +193,19 @@ namespace Remains.Runtime
             {Finish(false,"Снаряд остался в представлении другой локации.");return;}
             if(projectiles.Length>0) return;
             int expectedSprites=session.World.actors.Where(a=>expected.Contains(a.id)).Sum(a=>(Remains.Content.ActorTypes.Get(a.actorType).hasWeapon?1:0)+(Remains.Content.ActorTypes.Get(a.actorType).presentation=="pony"?0:1))+session.World.props.Count(p=>p.level==self.level)+session.World.containers.Count(c=>c.level==self.level)+runtime.Grenades.Flights.Count(f=>f.state.level==self.level);
-            var spriteViews=FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            // Authored placement previews and dormant glow renderers are retained
+            // deliberately. Count visible gameplay plus current-room decoration;
+            // actor identity and the number of room roots are checked separately.
+            var spriteViews=FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).Where(view=>view.enabled && view.gameObject.activeInHierarchy).ToArray();
             int spriteCount=spriteViews.Length;
             var rooms=FindObjectsByType<Remains.Content.RoomAuthoring>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            expectedSprites+=rooms.Sum(room=>room.GetComponentsInChildren<SpriteRenderer>().Count(view=>view.enabled && view.gameObject.activeInHierarchy));
+            expectedSprites+=session.World.doors.Count(door=>door.level==self.level);
             var lighting=FindObjectsByType<RoomLighting>(FindObjectsInactive.Include,FindObjectsSortMode.None);
             int lightMaps=Resources.FindObjectsOfTypeAll<Texture2D>().Count(texture=>texture.name.StartsWith("Свет: "));
             int roomMaterials=Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("RoomMaterial:"));
-            if(spriteCount!=expectedSprites || rooms.Length!=1 || lighting.Length!=1 || lighting[0].gameObject!=rooms[0].gameObject || lightMaps!=1 || roomMaterials!=0)
+            // The lighting contract has separate actor and background maps.
+            if(spriteCount!=expectedSprites || rooms.Length!=1 || lighting.Length!=1 || lighting[0].gameObject!=rooms[0].gameObject || lightMaps!=2 || roomMaterials!=0)
             {Finish(false,$"Ресурсы локации не освобождены: sprites={spriteCount}/{expectedSprites}, rooms={rooms.Length}, lights={lighting.Length}, lightMaps={lightMaps}, legacyMaterials={roomMaterials}; objects={string.Join(",",spriteViews.Select(view=>view.name))}.");return;}
             if(!acked)
             {

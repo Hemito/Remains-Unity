@@ -13,9 +13,6 @@ namespace Remains.Presentation
     public sealed class PonyVisual : ActorVisual
     {
 
-        private static readonly Dictionary<string, PonyRenderPart[][]> cache = new();
-        private static readonly Dictionary<string, Bounds[]> poseBounds = new();
-        private static Bounds cameraEnvelope;
         [SerializeField,HideInInspector] private List<MeshFilter> filters = new();
         [SerializeField,HideInInspector] private List<MeshRenderer> renderers = new();
         [SerializeField,HideInInspector] private bool authoredStructure;
@@ -24,6 +21,7 @@ namespace Remains.Presentation
         private string pose;
         private int frame = -1;
         private MaterialPropertyBlock properties;
+        private PonyAppearanceKey? appearance;
         public override string ActorId=>state?.id;
         public string DrawnClip=>pose;
         public int DrawnFrame=>frame;
@@ -34,46 +32,15 @@ namespace Remains.Presentation
             set => GetComponent<SortingGroup>().sortingOrder=value;
         }
 
-        public static void Prepare()
-        {
-            PonyAppearance.Prepare();
-            if(cache.Count>0 && cache.Values.All(clip=>clip.All(sample=>sample.All(part=>part.mesh!=null && part.material!=null)))) return;
-            var asset=Resources.Load<PonyRenderAsset>("Original/Pony/render");
-            if(asset==null) throw new InvalidOperationException("Нет сохранённой графики пони Original/Pony/render. Пересоберите её в Unity.");
-            asset.Validate();PonyAnimationData.Load();cache.Clear();poseBounds.Clear();
-            foreach(var clip in asset.Clips)
-            {
-                cache.Add(clip.id,clip.frames.Select(frame=>frame.parts).ToArray());
-                poseBounds.Add(clip.id,clip.frames.Select(frame=>frame.bounds).ToArray());
-            }
-            cameraEnvelope=asset.Clips[0].frames[0].bounds;
-            foreach(var clip in asset.Clips) foreach(var sample in clip.frames) cameraEnvelope.Encapsulate(sample.bounds);
-            // Facing and animation phase cannot change the camera composition envelope.
-            float extent=Mathf.Max(Mathf.Abs(cameraEnvelope.min.x),Mathf.Abs(cameraEnvelope.max.x));
-            cameraEnvelope.SetMinMax(new Vector3(-extent,cameraEnvelope.min.y,cameraEnvelope.min.z),
-                new Vector3(extent,cameraEnvelope.max.y,cameraEnvelope.max.z));
-        }
-        public static Bounds CameraBounds(ActorState actor)
-        {
-            if(poseBounds.Count==0) throw new InvalidOperationException("Границы камеры пони не подготовлены.");
-            var bounds=cameraEnvelope;bounds.center+=new Vector3(actor.x,actor.y,0);return bounds;
-        }
-        public static Bounds WorldBounds(ActorState actor)
-        {
-            string clip=ActorPose.Clip(actor);
-            int sample=PonyMotionFrames.Sample(actor,actor.poseTime);
-            if(!poseBounds.TryGetValue(clip,out var frames))
-                throw new InvalidOperationException($"Нет границ позы: actor={actor.id}, clip={clip}.");
-            var bounds=frames[sample];
-            bounds.center=new Vector3(actor.x+bounds.center.x*actor.facing,actor.y+bounds.center.y,bounds.center.z);
-            return bounds;
-        }
+        public static void Prepare()=>PonyRenderSelection.Prepare();
+        public static Bounds CameraBounds(ActorState actor)=>PonyRenderSelection.CameraBounds(actor);
+        public static Bounds WorldBounds(ActorState actor)=>PonyRenderSelection.WorldBounds(actor);
 
         public override void Bind(ActorState actor)
         {
-            state = actor;
-            int capacity = 0;
-            foreach (var clip in cache.Values) foreach (var sample in clip) capacity = Mathf.Max(capacity,sample.Length);
+            state = actor;appearance=null;frame=-1;
+            int capacity = PonyRenderSelection.Capacity;
+            if(capacity==0) throw new InvalidOperationException("Графика пони не подготовлена перед созданием экземпляра.");
             if(authoredStructure)
             {
                 if(filters.Count<capacity || filters.Count!=renderers.Count)
@@ -110,14 +77,16 @@ namespace Remains.Presentation
             transform.position = new Vector3(state.x, state.y, 0);
             transform.localScale = new Vector3(state.facing, 1, 1);
             string next = ActorPose.Clip(state);
-            if (!cache.ContainsKey(next))
+            if (!PonyRenderSelection.HasClip(next))
             {
                 Debug.LogWarning($"Нет анимации {next} для {state.id}; отображение пропущено.", this);
                 gameObject.SetActive(false);
                 return;
             }
+            var nextAppearance=PonyAppearance.Snapshot(state);
+            if(!appearance.HasValue || !appearance.Value.Equals(nextAppearance)) {appearance=nextAppearance;frame=-1;}
             if (pose != next) { pose = next; frame = -1; }
-            var frames = cache[pose];
+            var frames = PonyRenderSelection.Frames(nextAppearance,pose);
             int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorSessionRules.IsPassive(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
             if (nextFrame == frame) return;
             frame = nextFrame;
@@ -129,7 +98,7 @@ namespace Remains.Presentation
                 filters[i].sharedMesh = parts[i].mesh;
                 renderers[i].sharedMaterial = parts[i].material;
                 renderers[i].sortingOrder = i + 20;
-                properties.SetColor("_Color", PonyAppearance.Tint(parts[i].slot,state.hair));
+                properties.SetColor("_Color", PonyAppearance.Tint(parts[i].slot,nextAppearance));
                 properties.SetFloat("_Emission",parts[i].slot=="magic"?1:0);
                 renderers[i].SetPropertyBlock(properties);
             }

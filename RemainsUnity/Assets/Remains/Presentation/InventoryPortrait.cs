@@ -7,14 +7,16 @@ namespace Remains.Presentation
     {
         private readonly GameObject root;
         private readonly PortraitPart[] parts;
-        private int? hair;
+        private Content.PonyAppearanceKey? appearance;
         public InventoryPortrait(GameObject root,PortraitPart[] parts) {Content.PonyAppearance.Prepare();this.root=root;this.parts=parts;}
         public void Refresh(ActorState actor)
         {
             root.SetActive(actor!=null);
-            if(actor==null || hair==actor.hair) return;
-            hair=actor.hair;
-            foreach(var part in parts) part.ApplyAppearance(actor.hair);
+            if(actor==null) return;
+            var value=Content.PonyAppearance.Snapshot(actor);
+            if(appearance.HasValue && appearance.Value.Equals(value)) return;
+            appearance=value;
+            foreach(var part in parts) part.ApplyAppearance(value);
         }
     }
 }

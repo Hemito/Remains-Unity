@@ -49,7 +49,8 @@ namespace Remains.Editor
                         var mesh=new Mesh {name=$"mesh:{clip.id}:{f}:{p}",vertices=PonyAnimationData.Quad(part),
                             uv=new[]{Vector2.zero,Vector2.right,Vector2.up,Vector2.one},triangles=new[]{0,2,1,2,3,1},colors=new[]{tint,tint,tint,tint}};
                         mesh.RecalculateBounds();mesh=Save(mesh);meshCount++;
-                        bool visible=PonyAppearance.IsVisible(part);frame.parts[p]=new PonyRenderPart {mesh=mesh,material=material,slot=part.slot,visible=visible};
+                        bool visible=!part.path.StartsWith("pip2/");frame.parts[p]=new PonyRenderPart {mesh=mesh,material=material,slot=part.slot,visible=visible,
+                            hairStyle=part.hairStyle,eyeStyle=part.eyeStyle,drawOrder=part.drawOrder};
                         if(visible) {if(!hasBounds){frame.bounds=mesh.bounds;hasBounds=true;}else frame.bounds.Encapsulate(mesh.bounds);}
                     }
                     if(!hasBounds) throw new InvalidOperationException($"Нет видимых частей: {clip.id}:{f}.");

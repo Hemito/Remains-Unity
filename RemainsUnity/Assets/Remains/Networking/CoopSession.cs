@@ -272,6 +272,7 @@ namespace Remains.Networking
                 actor=string.IsNullOrEmpty(message.characterJson)?null:JsonUtility.FromJson<ActorState>(message.characterJson);
                 if(actor!=null && actor.character!=message.character)
                     throw new InvalidOperationException($"Персонаж в пакете не соответствует ID: {actor.character}, ожидается {message.character}.");
+                PonyAppearance.ValidateSettings(actor?.appearance,message.character);
                 if(actor==null)
                 {
                     actor=new ActorState();

@@ -10,13 +10,20 @@ namespace Remains.Presentation
         [SerializeField] private Vector2 minimum,maximum;
         [SerializeField] private string slot;
         [SerializeField] private Color baseColor;
+        [SerializeField] private int hairStyle,eyeStyle;
         public void SetAppearance(string value,Color tint) {slot=value;baseColor=tint;ApplyAppearance(0);}
+        public void ConfigureSelection(int hair,int eyes) {hairStyle=hair;eyeStyle=eyes;}
         public void ApplyAppearance(int hair)=>color=baseColor*PonyAppearance.Tint(slot,hair);
+        public void ApplyAppearance(PonyAppearanceKey appearance)
+        {
+            color=baseColor*PonyAppearance.Tint(slot,appearance);
+            gameObject.SetActive(PonyAppearance.Matches(hairStyle,eyeStyle,slot,appearance.HairStyle,appearance.EyeStyle,appearance.SecondaryEnabled));
+        }
         public override Texture mainTexture=>texture;
         public void Validate()
         {
             if(texture==null || points==null || points.Length!=4 || !float.IsFinite(minimum.x) || !float.IsFinite(minimum.y) ||
-                !float.IsFinite(maximum.x) || !float.IsFinite(maximum.y) || maximum.x<=minimum.x || maximum.y<=minimum.y || string.IsNullOrEmpty(slot))
+                !float.IsFinite(maximum.x) || !float.IsFinite(maximum.y) || maximum.x<=minimum.x || maximum.y<=minimum.y || string.IsNullOrEmpty(slot) || hairStyle<0 || eyeStyle<0)
                 throw new System.InvalidOperationException($"Часть портрета {name}: отсутствуют текстура, вершины, границы или цветовая область.");
             foreach(var point in points) if(!float.IsFinite(point.x) || !float.IsFinite(point.y) || !float.IsFinite(point.z))
                 throw new System.InvalidOperationException($"Часть портрета {name}: некорректная вершина.");

@@ -32,6 +32,7 @@ namespace Remains.Domain
         public List<Remains.Content.ContentManifest> weaponContentHistory=new();
         public string id;
         public string character;
+        public CharacterAppearance appearance;
         public string owner;
         public string target;
         public NpcPerceptionMemory perception=new();

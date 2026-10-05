@@ -75,6 +75,7 @@ namespace Remains.Editor
             AtlasAssetChecks.Run();
             PonyPrefabChecks.Run();
             PonyRenderChecks.Run();
+            PonyAppearanceChecks.Run();
             MainMenuPrefabChecks.Run();
             var worldLobby=Resources.Load<Remains.Presentation.WorldLobbyView>("Presentation/WorldLobby");
             if(worldLobby==null) throw new InvalidOperationException("Нет префаба сетевого лобби.");

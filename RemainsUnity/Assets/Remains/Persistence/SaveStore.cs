@@ -60,13 +60,14 @@ namespace Remains.Persistence
                 world=InventoryStackMigration.Prepare(world,out int removed);
                 Debug.LogWarning($"Стопки мира объединены: world={world.worldId}, убрано отдельных записей={removed}, старые ID сохранены как ссылки. Исходник: {backup}.");
             }
-            foreach(var actor in world.actors) InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);
+            foreach(var actor in world.actors) {Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);}
             foreach(var container in world.containers) InventoryStacks.Validate(container.items,container.itemAliases);
             return world;
         }
 
         public RecoverySnapshot SaveWorld(WorldState world)
         {
+            foreach(var actor in world.actors) Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
             ContentProvenance.Record(ref world.weaponContent,ref world.weaponContentHistory);
             if(world.historyVersion==1) world.checkpointSequence++;
             var snapshot=new RecoverySnapshot(JsonUtility.ToJson(world));
@@ -137,6 +138,7 @@ namespace Remains.Persistence
         }
         public void SaveCharacter(ActorState actor)
         {
+            Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
             var saved=actor.Copy();
             ContentProvenance.Record(ref saved.weaponContent,ref saved.weaponContentHistory);
             AtomicWrite("character.json",JsonUtility.ToJson(saved,true));
@@ -154,6 +156,7 @@ namespace Remains.Persistence
         {
             if(source==null) return null;
             var actor=JsonUtility.FromJson<ActorState>(source);
+            Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
             string backup=null;
             if(preserve || actor.loadoutVersion==0 || actor.weaponInventoryVersion==0 || InventoryStackMigration.Needed(actor))
             {

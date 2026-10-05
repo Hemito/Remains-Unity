@@ -4,12 +4,12 @@ using System.Text;
 using UnityEngine;
 namespace Remains.Content
 {
-    [Serializable] public sealed class PonyRenderPart {public Mesh mesh;public Material material;public string slot;public bool visible;}
+    [Serializable] public sealed class PonyRenderPart {public Mesh mesh;public Material material;public string slot;public bool visible;public int hairStyle,eyeStyle,drawOrder;}
     [Serializable] public sealed class PonyRenderFrame {public PonyRenderPart[] parts;public Bounds bounds;}
     [Serializable] public sealed class PonyRenderClip {public string id;public PonyRenderFrame[] frames;}
     public sealed class PonyRenderAsset : ScriptableObject
     {
-        public const int CompilerVersion=1;
+        public const int CompilerVersion=2;
         [SerializeField,HideInInspector] private int compilerVersion;
         [SerializeField,HideInInspector] private string sourceHash;
         [SerializeField,HideInInspector] private PonyRenderClip[] clips;
