@@ -42,8 +42,11 @@ namespace Remains.Editor
                 var point=player.Position+Vector2.right*(i*.075f);CheckGround(geometry,player,point,"подход к телу ql47iX");
                 CheckPhysicalClear(room,player,point);
             }
-            var crawler=layout.actors.Single(a=>a.id=="factory:0:original:plant:53:asgXcpTEfby23bgi");
-            var crawlerStart=crawler.Position+Vector2.right*1.1f;CheckGround(geometry,player,crawlerStart,"начало проверки укуса asgXcp");
+            bool officeLoot=FactoryOfficeLootChecks.CheckOfficeStage(office);
+            // instr1 now occupies the historical first-crawler player fixture. Source bodies are unchanged.
+            var crawler=layout.actors.Single(a=>a.id=="factory:0:original:plant:53:"+(officeLoot?"lAIXKaUQC2e4JtW5":"asgXcpTEfby23bgi"));
+            var crawlerStart=crawler.Position+(officeLoot?Vector2.left:Vector2.right)*1.1f;
+            CheckGround(geometry,player,crawlerStart,"начало проверки укуса "+crawler.id);
             CheckPhysicalClear(room,player,crawlerStart);
             Require(RoomVisibility.Clear(geometry,crawler.Position+Vector2.up*.16f,crawlerStart+Vector2.up*.25f),"Стена закрывает проверку естественной атаки.");
             CheckPersistence(layout,RoomNpcContent.Read(room,"factory:6"));
@@ -52,7 +55,8 @@ namespace Remains.Editor
         internal static void CheckOffice(RoomAuthoring room,bool installed)
         {
             FactoryOfficeNpcAuthoring.ValidateSource(room.GetComponent<RoomImportAudit>().Report,installed);
-            Require(room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==(installed?21:26),"Скрыты другие неподключённые объекты офиса.");
+            bool officeLoot=FactoryOfficeLootChecks.CheckOfficeStage(room);
+            Require(room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==(installed?21:26)-(officeLoot?4:0),"Скрыты другие неподключённые объекты офиса.");
             var layout=RoomNpcContent.Read(room,"factory:0");var geometry=room.CreateLayout(false);
             var markers=room.GetComponentsInChildren<RoomActorPlacement>(true).Where(room.Included).ToArray();
             Require(layout?.patch=="factory:0:"+FactoryOfficeNpcAuthoring.OfficePatch && layout.actors.Length==5 && layout.loot.Length==5 &&

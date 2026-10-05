@@ -8,6 +8,7 @@ using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
+using Remains.Serialization;
 using UnityEngine;
 
 namespace Remains.Runtime
@@ -38,6 +39,7 @@ namespace Remains.Runtime
         {
             runtime=value;deadline=Time.unscaledTime+110;
             if(value.Options.Smoke.Contains("-seam-")) {seam=new FactorySeamRoute(value);deadline+=70;}
+            if(value.Options.Smoke.Contains("-office-",StringComparison.Ordinal)) deadline+=240;
             if(value.Session.DebugTravelAllowed || string.IsNullOrEmpty(value.Options.SaveDirectory))
                 throw new InvalidOperationException("Маршрут требует обычных правил перехода и отдельного сохранения.");
             if(Host)
@@ -193,7 +195,9 @@ namespace Remains.Runtime
         }
         private static string ContentState(WorldState world)=>string.Join("|",world.containers.Where(c=>c.level=="factory:0").OrderBy(c=>c.id)
             .Select(c=>c.id+":"+string.Join(",",c.items.Select(i=>i.id+":"+i.definition+":"+i.count))))+
-            ";"+string.Join("|",world.props.Where(p=>p.level=="factory:0").Select(p=>p.id).OrderBy(id=>id));
+            ";"+string.Join("|",world.props.Where(p=>p.level=="factory:0").Select(p=>p.id).OrderBy(id=>id))+
+            ";"+StateJson.ToJson(world.mechanismButtons.Where(p=>p.level=="factory:0").OrderBy(p=>p.id).ToArray())+
+            ";"+StateJson.ToJson(world.movingPlatforms.Where(p=>p.level=="factory:0").OrderBy(p=>p.id).ToArray());
         private void Capture(string name)
         {if(runtime.Options.Smoke.Contains("-frames-")) capture=name;}
         private void LateUpdate()
@@ -201,11 +205,20 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved,seamVerified=seam?.Complete==true,bigBoxesVerified=seam?.BigBoxesVerified==true,workshopNpcsVerified=seam?.WorkshopNpcsVerified==true,ladderLandingVerified=seam?.LadderLandingVerified==true},true));
+            if(!success && runtime.Options.Smoke.Contains("-frames-",StringComparison.Ordinal) && Camera.main!=null)
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".route-failure.png",runtime.Hud.GetComponent<Canvas>());
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved,seamVerified=seam?.Complete==true,bigBoxesVerified=seam?.BigBoxesVerified==true,workshopNpcsVerified=seam?.WorkshopNpcsVerified==true,ladderLandingVerified=seam?.LadderLandingVerified==true,
+                officeRouteVerified=seam?.OfficeRouteVerified==true,officeLowerFloorVerified=seam?.OfficeLowerFloorVerified==true,officeReturnVerified=seam?.OfficeReturnVerified==true,
+                officeContainer=seam?.OfficeContainer,officeClaimedItem=seam?.OfficeClaimedItem,officeClaimedDefinition=seam?.OfficeClaimedDefinition,officeClaimedCount=seam?.OfficeClaimedCount??0,
+                officePlatformRepairReady=seam?.OfficePlatformRepairReady==true,officePlatformCarryVerified=seam?.OfficePlatformCarryVerified==true,
+                officePlatformCarryDistance=seam?.OfficePlatformCarryDistance??0,officePlatformCarryMaximumRelativeError=seam?.OfficePlatformCarryMaximumRelativeError??0},true));
             exitCode=success?0:1;Invoke(nameof(Exit),3);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public bool separated,blocked,farRejected,pausedExit,preserved,seamVerified,bigBoxesVerified,workshopNpcsVerified,ladderLandingVerified;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public bool separated,blocked,farRejected,pausedExit,preserved,seamVerified,bigBoxesVerified,workshopNpcsVerified,ladderLandingVerified;
+            public bool officeRouteVerified,officeLowerFloorVerified,officeReturnVerified,officePlatformRepairReady,officePlatformCarryVerified;
+            public string officeContainer,officeClaimedItem,officeClaimedDefinition;public int officeClaimedCount;
+            public float officePlatformCarryDistance,officePlatformCarryMaximumRelativeError;}
     }
 }

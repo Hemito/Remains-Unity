@@ -39,7 +39,8 @@ namespace Remains.Editor
             Require(ActorTerrainMotion.IsClear(room,hull,rider.Position) && ActorTerrainMotion.Supported(room,hull,rider.Position),"restored live platform support");
             Require(!SavedActorPlacement.Repair(rider,room,"проверка сохранённой платформы") && StateJson.ToJson(restored)==saved,"load keeps rider/segment/clock exactly");
             Require(!StateJson.ToJson(room).Contains("dynamicSurfaces",StringComparison.Ordinal),"transient support excluded from save/hash");
-            Debug.Log("Интеграция платформы: PASS — реальный контент, раздельные ремонт/запуск и восстановление опоры перед загрузкой пассажира.");
+            PlatformSimulationChecks.CheckDepartures(type,platform,room,hull);
+            Debug.Log("Интеграция платформы: PASS — реальный контент, раздельные ремонт/запуск и восстановление опоры перед загрузкой пассажира; первый departure/reverse уже стоящих actor/cargo на реальной сохранённой платформе/геометрии при 30/60/144.");
         }
         private static void Require(bool valid,string context) {if(!valid) throw new InvalidOperationException("PlatformIntegration: "+context);}
     }

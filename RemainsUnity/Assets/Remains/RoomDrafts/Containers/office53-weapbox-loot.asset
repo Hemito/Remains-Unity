@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1897bacc50b3944d943418309220653, type: 3}
+  m_Name: office53-weapbox-loot
+  m_EditorClassIdentifier:
+  table:
+    id: base:office53-weapbox
+    version: 1
+    entries:
+    - id: pistol
+      definition: pistol
+      weaponState:
+        rid: 5813030149076811776
+      minimum: 1
+      maximum: 1
+    - id: p10
+      definition: p10
+      weaponState:
+        rid: -2
+      minimum: 10
+      maximum: 10
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 5813030149076811776
+      type: {class: WeaponItemState, ns: Remains.Domain, asm: Assembly-CSharp}
+      data:
+        revision: 0
+        rounds: 6

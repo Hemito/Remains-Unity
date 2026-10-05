@@ -56,6 +56,7 @@ namespace Remains.Editor
             FactoryOfficeConnectionChecks.Run();
             FactoryOfficeNpcChecks.Run();
             FactoryFileCabinetChecks.Run();
+            FactoryOfficeLootChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();
             WeaponInventoryChecks.Run();

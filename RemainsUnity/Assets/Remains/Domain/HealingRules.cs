@@ -22,12 +22,21 @@ namespace Remains.Domain
             if(InventoryJournal.Count(healer,"heal")<=0) return "Нет доступной аптечки.";
             return null;
         }
+        // Canonical coordinator entry point; legacy local Apply overloads remain available.
+        public static bool ApplyOnce(WorldState world,ActorState healer,ActorState target,bool selfHeal,string itemId,string transaction)
+        {
+            if(world==null || string.IsNullOrWhiteSpace(transaction) || !world.actors.Contains(healer) || !world.actors.Contains(target)) return false;
+            if(world.completedTransactions.Contains(transaction)) return true;
+            if(!Apply(healer,target,selfHeal,itemId)) return false;
+            world.completedTransactions.Add(transaction);world.revision++;return true;
+        }
         public static bool Apply(ActorState healer,ActorState target,bool selfHeal)
             =>Apply(healer,target,selfHeal,null);
         public static bool Apply(ActorState healer,ActorState target,bool selfHeal,string itemId)
         {
             if(!CanApply(healer,target,selfHeal) || !SharedInventory.Consume(healer,"heal",itemId)) return false;
-            target.health=Mathf.Min(100,target.health+35);target.down=false;ActorPose.Select(target,"idle");
+            target.health=Mathf.Min(100,target.health+35);target.down=false;
+            if(!selfHeal) ActorPose.Select(target,"idle");
             target.lifecycleSequence++;
             target.revision++;
             if(target!=healer) healer.revision++;

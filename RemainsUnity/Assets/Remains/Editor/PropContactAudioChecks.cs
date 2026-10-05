@@ -21,7 +21,8 @@ namespace Remains.Editor
             }
             foreach(var expected in new[]{("woodbox","crate-wood-fall"),("case","crate-metal-small-fall"),
                 ("chest","crate-metal-fall"),("ammobox","crate-metal-small-fall"),("bigbox","crate-metal-fall"),
-                ("mcrate4","crate-metal-safe-fall")})
+                ("mcrate4","crate-metal-safe-fall"),("explbox","crate-metal-small-fall"),
+                ("weapbox","crate-metal-fall"),("instr1","crate-wood-fall")})
                 Require(settings.entries.Single(e=>e.definition==expected.Item1).clip=="Original/Audio/"+expected.Item2,
                     "Банк заводского объекта расходится с подтверждённым назначением: "+expected.Item1);
             Debug.Log("Звуки физических объектов: PASS — реальные банки, один контакт с полом/ящиком, удержание, пауза, смена владельца, снятие опоры и сохранность состояния при 30/60/144 FPS.");

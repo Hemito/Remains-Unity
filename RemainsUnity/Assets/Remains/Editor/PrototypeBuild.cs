@@ -24,6 +24,7 @@ namespace Remains.Editor
                 // These resources have explicit, validated native import policies. Preserve their Sprite IDs and RGBA pixels.
                 if(importer.assetPath.Contains("/Original/Room/WorkshopToolStand/") ||
                     importer.assetPath.Contains("/Original/Room/FactoryObjects/") ||
+                    importer.assetPath.Contains("/Original/Containers/OfficeLoot/") ||
                     importer.assetPath.Contains("/Original/Inventory/tool-components/")) continue;
                 importer.textureType=TextureImporterType.Default;
                 importer.alphaIsTransparency=true;

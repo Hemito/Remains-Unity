@@ -18,7 +18,7 @@ namespace Remains.Runtime
     public sealed class NetworkCrawlerProbe : MonoBehaviour
     {
         private string NpcId=>runtime.Options.Smoke.Contains("-office-",StringComparison.Ordinal)?
-            "factory:0:original:plant:53:asgXcpTEfby23bgi":"factory:0:original:plant:18:QyxFODdq6EPvuE6L";
+            "factory:0:original:plant:53:lAIXKaUQC2e4JtW5":"factory:0:original:plant:18:QyxFODdq6EPvuE6L";
         private PrototypeRuntime runtime;
         private CrawlerFixture fixture;
         private readonly HashSet<string> contacts=new();
@@ -132,7 +132,9 @@ namespace Remains.Runtime
             if(npc is not {actorType:"radroach",down:false,health:8} || npc.inventory.Count!=1 || npc.inventory[0].definition!="caps")
                 throw new InvalidOperationException("Проверка не получила сохранённый вид/расположение/инвентарь радтаракана.");
             // Enter the creature's ordinary close-detection radius from behind, leaving room for its approach.
-            var position=npc.Position+Vector2.right*1.1f;var hull=Anatomy.Movement(player);
+            // The office's first crawler now shares its shelf with the restored tool container.
+            // Use the second authored crawler and its clear left side; never move the creature or its props.
+            var position=npc.Position+Vector2.right*(runtime.Options.Smoke.Contains("-office-",StringComparison.Ordinal)?-1.1f:1.1f);var hull=Anatomy.Movement(player);
             if(!ActorTerrainMotion.IsClear(room,hull,position) || !ActorTerrainMotion.Supported(room,hull,position))
                 throw new InvalidOperationException("Нет безопасной опоры проверочного игрока у исходного радтаракана: "+position);
             player.Position=position;player.Velocity=Vector2.zero;player.climbing=false;player.pose="idle";player.poseTime=0;player.generation++;player.revision++;

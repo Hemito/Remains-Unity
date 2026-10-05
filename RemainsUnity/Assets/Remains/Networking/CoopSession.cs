@@ -49,6 +49,8 @@ namespace Remains.Networking
         public event Action ClientReady;
         public event Action<ContentManifest> ModMismatch;
         public event Action<string,bool> HealingFinished;
+        public event Action<string> SelfHealingRequested;
+        private readonly SelfHealingReconciliation selfHealing=new(message=>Debug.LogWarning(message));
         public event Action<string,bool> ClaimPrepared;
         public event Action<string,long> RecoveryPrepared;
         public event Action<int,string,long> RecoveryAcknowledged;
@@ -228,7 +230,7 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
             NetworkClient.RegisterHandler<ClaimReplyMessage>(message=>{ClaimPrepared?.Invoke(message.transaction,message.accepted);Notice?.Invoke(message.reason);});
             NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(JsonUtility.FromJson<ContentManifest>(System.Text.Encoding.UTF8.GetString(message.manifest))));
-            NetworkClient.RegisterHandler<HealingReplyMessage>(message=>{HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);});
+            NetworkClient.RegisterHandler<HealingReplyMessage>(message=>{if(!message.success) selfHealing.Reject(message.transaction);HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);});
             ClientReady?.Invoke();
         }
 
@@ -369,15 +371,22 @@ namespace Remains.Networking
         private void ReceiveWorld(WorldMessage message)
         {
             var incoming = PersistCopy(message.json);
+            bool publishHealing=false;
             if (World != null && World.worldId == incoming.worldId)
             {
                 foreach(var prop in WorldProps.All(incoming))
                     PropReplication.PreserveNewerPose(WorldProps.Find(World,prop.id),prop,LocalOwner);
                 // A full backup must not rewind locally-owned pose or an unacknowledged health change.
-                foreach (var actor in incoming.actors)
+                for(int actorIndex=0;actorIndex<incoming.actors.Count;actorIndex++)
                 {
+                    var actor=incoming.actors[actorIndex];
                     var local = World.Find(actor.id);
+                    if(selfHealing.DiscardPreHealingState(incoming.worldId,local,actor,LocalOwner))
+                    {incoming.actors[actorIndex]=local.Copy();continue;}
                     ActorHoldRules.PreserveNewerTarget(local,actor);
+                    selfHealing.Observe(World.worldId,local);
+                    if(selfHealing.TryApply(incoming.worldId,incoming.completedTransactions,local,ref actor,LocalOwner))
+                    {PreserveOwnerInventory(actor,local);WeaponInventory.PreserveSelection(local,actor);incoming.actors[actorIndex]=actor;publishHealing|=actor.id==LocalActorId;continue;}
                     ActorMotionReplication.PreserveNewerMotion(local,actor);
                     if(actor.owner!=LocalOwner) RemotePosePhase.Reconcile(local,actor);
                     ObservePoseCorrection("world",local,actor.pose,actor.poseTime);
@@ -401,9 +410,10 @@ namespace Remains.Networking
                     WeaponInventory.PreserveSelection(local,actor);
                 }
             }
+            if(World?.worldId!=incoming.worldId) selfHealing.Reset();
             World = incoming;
             SaveLocalCharacter();
-            Changed?.Invoke();
+            if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else Changed?.Invoke();
         }
 
         private WorldState PersistCopy(string json)
@@ -448,7 +458,11 @@ namespace Remains.Networking
             var current = World.Find(actor.id);
             ActorHoldRules.PreserveNewerTarget(current,actor);
             if (current != null && ActorVersion.IsOlder(actor,current)) return;
-            if(current!=null && current.owner==LocalOwner && current.generation==actor.generation &&
+            selfHealing.Observe(World.worldId,current);
+            bool selfHealTransition=selfHealing.TryApply(World.worldId,World.completedTransactions,current,ref actor,LocalOwner);
+            if(!selfHealTransition && selfHealing.AwaitingCommit(World.worldId,World.completedTransactions,current,actor,LocalOwner)) return;
+            if(selfHealTransition) PreserveOwnerInventory(actor,current);
+            if(!selfHealTransition && current!=null && current.owner==LocalOwner && current.generation==actor.generation &&
                 current.lifecycleSequence==actor.lifecycleSequence && current.level==actor.level)
             {
                 ActorPose.CopyMotion(current,actor);
@@ -456,13 +470,13 @@ namespace Remains.Networking
                 NpcAttackRules.CopyProgress(current,actor);
                 PreserveOwnerInventory(actor,current);
             }
-            ActorMotionReplication.PreserveNewerMotion(current,actor);
+            if(!selfHealTransition) ActorMotionReplication.PreserveNewerMotion(current,actor);
             if(actor.owner!=LocalOwner) RemotePosePhase.Reconcile(current,actor);
             if(current?.owner==LocalOwner) WeaponInventory.PreserveSelection(current,actor);
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
-            Changed?.Invoke();
+            if(selfHealTransition) PublishActor(actor);else Changed?.Invoke();
         }
 
         private static void PreserveOwnerInventory(ActorState incoming,ActorState current)
@@ -512,6 +526,7 @@ namespace Remains.Networking
 
         public void PublishActor(ActorState actor)
         {
+            selfHealing.Observe(World?.worldId,actor);
             Changed?.Invoke();
             if (NetworkClient.isConnected)
             {
@@ -698,6 +713,12 @@ namespace Remains.Networking
             var healer=LocalActor;var target=World?.Find(targetId);
             if(healer==null || target==null) return null;
             string transaction=Guid.NewGuid().ToString("N");
+            if(selfHeal)
+            {
+                string reason=HealingRules.Rejection(healer,target,true);
+                if(reason!=null) {Notice?.Invoke(reason);return null;}
+                selfHealing.Capture(World.worldId,transaction,healer);SelfHealingRequested?.Invoke(transaction);
+            }
             NetworkClient.Send(new ReviveMessage {target=targetId,transaction=transaction,selfHeal=selfHeal,
                 healerGeneration=healer.generation,healerLifecycle=healer.lifecycleSequence,damageSequence=healer.damageSequence,
                 targetGeneration=target.generation,targetLifecycle=target.lifecycleSequence,item=itemId});
@@ -718,10 +739,8 @@ namespace Remains.Networking
             var target = ServerWorld.Find(message.target);
             bool current=target!=null && healer.generation==message.healerGeneration && healer.lifecycleSequence==message.healerLifecycle &&
                 healer.damageSequence==message.damageSequence && target.generation==message.targetGeneration && target.lifecycleSequence==message.targetLifecycle;
-            if(!current || !HealingRules.Apply(healer,target,message.selfHeal,message.item))
+            if(!current || !HealingRules.ApplyOnce(ServerWorld,healer,target,message.selfHeal,message.item,message.transaction))
             {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=false,reason="Лечение отменено: изменилось состояние, расстояние или нет лечебного предмета."});return;}
-            ServerWorld.completedTransactions.Add(message.transaction);
-            ServerWorld.revision++;
             BroadcastWorld();
             connection.Send(new HealingReplyMessage {transaction=message.transaction,success=true,
                 reason=message.selfHeal?"Лечебный предмет использован.":"Союзник поднят. Лечебный предмет использован."});
@@ -808,6 +827,7 @@ namespace Remains.Networking
         }
         public override void OnStopClient()
         {
+            selfHealing.Reset();
             CharacterContent.Reset();ModMismatch?.Invoke(null);
             Admission.EndClient();
             Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();

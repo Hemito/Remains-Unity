@@ -65,8 +65,9 @@ namespace Remains.Editor
                         "Потеряна лестница модуля: "+module.name);
             }
             var batch=RoomContentBatch.Read(room,"factory:0");var additions=RoomContentBatch.Read(office,"factory:0");
-            Require(additions.physical.containers.Count(c=>c.definition=="filecab")==4 && additions.physical.containers.Length==12 &&
-                additions.physical.props.Length==3,"Нет исходных четырёх картотек/восьми общих ящиков/трёх деревянных ящиков.");
+            bool officeLoot=FactoryOfficeLootChecks.CheckOfficeStage(office);
+            Require(additions.physical.containers.Count(c=>c.definition=="filecab")==4 && additions.physical.containers.Length==(officeLoot?16:12) &&
+                additions.physical.props.Length==3,"Нет исходных четырёх картотек/восьми прежних общих ящиков/трёх деревянных ящиков либо нового дополнения четырёх контейнеров.");
             CheckPreservation(batch);
             var independent=new WorldState {worldId="office-factory-index-check",mechanismVersion=1};
             RoomContentInstaller.Apply(independent,batch);RoomContentInstaller.Apply(independent,RoomContentBatch.Read(room,"factory:6"));

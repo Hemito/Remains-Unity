@@ -16,6 +16,7 @@ namespace Remains.Editor
             var layout=room.CreateLayout();var batch=RoomContentBatch.Read(room,"factory:0");
             var office=room.GetComponentsInChildren<RoomAuthoring>(true).SingleOrDefault(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
             var officeLayout=office?.CreateLayout();var officeBatch=office==null?null:RoomContentBatch.Read(office,"factory:0");
+            if(office!=null) FactoryOfficeLootChecks.CheckOfficeStage(office);
             int officeSurfaces=officeLayout?.platforms.Length??0,officeArt=officeLayout?.artwork.Length??0,officeLadders=officeLayout?.ladders.Length??0;
             int connector=office==null?0:3;
             int exterior=FactoryBoundaryChecks.Check(room);

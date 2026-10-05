@@ -4,6 +4,7 @@ using System.Linq;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Networking;
+using Remains.Serialization;
 
 namespace Remains.Gameplay
 {
@@ -31,8 +32,9 @@ namespace Remains.Gameplay
         private readonly Func<string,MovingPlatformDefinition> loadDefinition;
         private WorldState boundWorld;
         private long boundGeometryVersion=-1;
+        private long boundWorldRevision=-1;
         private readonly Dictionary<string,Entry> entries=new(StringComparer.Ordinal);
-        private readonly Dictionary<string,MovingPlatformMotion> motions=new(StringComparer.Ordinal);
+        private readonly Dictionary<(string Id,int Version),MovingPlatformMotion> motions=new();
         private readonly Dictionary<string,Level> levels=new(StringComparer.Ordinal);
         private string worldId;
         private long sequence;
@@ -54,8 +56,10 @@ namespace Remains.Gameplay
             var world=currentWorld();
             // PublishActor also raises Changed within the current physics interval.
             // An actor-only event cannot rebuild or overwrite the shared surface frame.
-            if(ReferenceEquals(world,boundWorld) && boundGeometryVersion==geometry.TopologyVersion) return;
+            if(ReferenceEquals(world,boundWorld) && boundWorldRevision==world?.revision &&
+                worldId==world?.worldId && boundGeometryVersion==geometry.TopologyVersion) return;
             boundWorld=world;
+            boundWorldRevision=world?.revision??-1;
             boundGeometryVersion=geometry.TopologyVersion;
             if(worldId!=world?.worldId) {entries.Clear();levels.Clear();worldId=world?.worldId;}
             if(world==null) return;
@@ -74,15 +78,17 @@ namespace Remains.Gameplay
                 var selected=new Entry[states.Length];
                 for(int i=0;i<states.Length;i++)
                 {
-                    var state=states[i];retained.Add(state.id);
-                    if(!motions.TryGetValue(state.definition,out var motion))
-                        motions.Add(state.definition,motion=new MovingPlatformMotion(loadDefinition(state.definition)));
+                    // Event-time platform snapshots protect route and retired segments from
+                    // in-place canonical mutations. Actor-only Changed returns before copying.
+                    var state=StateJson.Copy(states[i]);retained.Add(state.id);
+                    var motionKey=(state.definition,state.definitionVersion);
+                    if(!motions.TryGetValue(motionKey,out var motion))
+                        motions.Add(motionKey,motion=new MovingPlatformMotion(loadDefinition(state.definition)));
                     if(!entries.TryGetValue(state.id,out var entry))
                         entries.Add(state.id,entry=new Entry {motion=motion});
-                    bool newSegment=state.segment!=null && state.segment.sequence!=entry.state?.segment?.sequence;
                     bool changedRoute=entry.state!=null && (state.definition!=entry.state.definition || state.definitionVersion!=entry.state.definitionVersion ||
                         state.Start!=entry.state.Start || state.End!=entry.state.End);
-                    entry.needsRebase|=newSegment || changedRoute;
+                    entry.needsRebase|=changedRoute;
                     if(topologyChanged || !hadFrame) entry.initialized=false;
                     entry.motion=motion;
                     var previousSampleState=entry.samplingState??entry.state;
@@ -120,7 +126,11 @@ namespace Remains.Gameplay
                 foreach(var entry in level.entries)
                 {
                     var next=entry.motion.Evaluate(entry.samplingState,now);
-                    bool carryInterval=continuous && !entry.needsRebase;
+                    // A newly confirmed segment can begin inside this unconsumed interval.
+                    // Carry it only when its trajectory agrees with the actual last
+                    // published support; a delayed past trajectory becomes a baseline.
+                    bool carryInterval=continuous && !entry.needsRebase &&
+                        entry.motion.Evaluate(entry.samplingState,entry.elapsed).SupportBounds.Equals(entry.sample.SupportBounds);
                     level.room.dynamicSurfaces.SetPose(entry.state.id,carryInterval?entry.sample.SupportBounds:next.SupportBounds,next.SupportBounds,
                         continuous?previous:now,now,frameSequence,carryInterval);
                     entry.needsRebase=false;

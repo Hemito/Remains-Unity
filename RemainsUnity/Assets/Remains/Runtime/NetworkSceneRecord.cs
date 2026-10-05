@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Remains.Content;
 using Remains.Domain;
 using Remains.Presentation;
 using Remains.Serialization;
@@ -41,7 +42,7 @@ namespace Remains.Runtime
             {
                 if(view.sprite==null) throw new InvalidOperationException($"Нет спрайта при записи: {view.name}.");
                 var sprite=view.sprite;
-                return new NetworkSpriteRecord {name=view.name,resource=view.GetComponent<StaticActorVisual>()?.Resource ?? view.GetComponent<AtlasActorVisual>()?.Resource ?? "Original/"+(view.name.StartsWith("Оружие ",StringComparison.Ordinal)?"Weapons/":"Props/")+sprite.texture.name,
+                return new NetworkSpriteRecord {name=view.name,resource=Resource(view,world),
                     position=view.transform.position,scale=view.transform.localScale,euler=view.transform.eulerAngles,
                     rectX=sprite.rect.x,rectY=sprite.rect.y,rectWidth=sprite.rect.width,rectHeight=sprite.rect.height,
                     pivot=new Vector2(sprite.pivot.x/sprite.rect.width,sprite.pivot.y/sprite.rect.height),pixelsPerUnit=sprite.pixelsPerUnit,order=view.sortingOrder,
@@ -57,6 +58,24 @@ namespace Remains.Runtime
                 NetworkFrameCapture.Save(camera,runtime.Options.Report+$".phase-{phase}.hud.png",runtime.Hud.GetComponent<Canvas>());
                 File.WriteAllText(runtime.Options.Report+$".phase-{phase}.scene.json",StateJson.ToJson(record,true));
             }
+        }
+        private static string Resource(SpriteRenderer view,WorldState world)
+        {
+            // A container's canonical resource may live outside Original/Props. Its
+            // texture name alone is not a resource path (for example OfficeLoot).
+            const string prefix="Контейнер ";
+            if(view.GetComponent<PropView>()!=null && view.name.StartsWith(prefix,StringComparison.Ordinal))
+            {
+                string id=view.name.Substring(prefix.Length);var source=world.containers.Find(c=>c.id==id);
+                if(source==null)
+                {
+                    Debug.LogWarning($"Нет состояния контейнера для записи графики: id={id}, view={view.name}.",view);
+                    return null;
+                }
+                return PropCatalog.Get(source.definition).resource;
+            }
+            return view.GetComponent<StaticActorVisual>()?.Resource ?? view.GetComponent<AtlasActorVisual>()?.Resource ??
+                "Original/"+(view.name.StartsWith("Оружие ",StringComparison.Ordinal)?"Weapons/":"Props/")+view.sprite.texture.name;
         }
     }
 }

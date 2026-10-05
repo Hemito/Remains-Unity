@@ -8,6 +8,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            SelfHealingReconciliationChecks.Run();
             CheckSelectedStack();
             var healer=new ActorState {id="healer",player=true,connected=true};
             healer.inventory.Add(SharedInventory.Create("heal",2));
