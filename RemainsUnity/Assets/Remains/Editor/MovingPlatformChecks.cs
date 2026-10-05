@@ -51,6 +51,12 @@ namespace Remains.Editor
             invalidState=StateJson.Copy(state);invalidState.schema=2;Reject(()=>invalidState.Validate(),"Неизвестная схема принята.");
             invalidState=StateJson.Copy(state);invalidState.startX=float.NaN;Reject(()=>invalidState.Validate(),"Неверные точки пути приняты.");
             var invalidType=Definition();invalidType.width=0;Reject(()=>invalidType.Validate(),"Неверная опора принята.");
+            invalidType=Definition();invalidType.surfaceTexture=" ";Reject(()=>invalidType.Validate(),"Пустой surfaceTexture принят.");
+            invalidType=Definition();invalidType.movementSound=null;Reject(()=>invalidType.Validate(),"Отсутствующий movementSound принят.");
+            var policy=Definition();policy.oneWay=true;policy.shotsPassThrough=true;
+            var copiedPolicy=StateJson.Copy(policy);
+            Check(copiedPolicy.oneWay && copiedPolicy.shotsPassThrough && copiedPolicy.surfaceTexture=="floor" && copiedPolicy.movementSound=="metal",
+                "Collision/audio data определения потеряны при reload.");
             invalidType=Definition();invalidType.graphicHeight=float.PositiveInfinity;Reject(()=>invalidType.Validate(),"Неверный рисунок принят.");
             var removed=StateJson.Copy(state);removed.removed=true;removed.Validate();removed=StateJson.Copy(removed);
             Check(removed.removed && removed.segment!=null,"Сериализация воскресила/стерла tombstone.");
@@ -105,7 +111,7 @@ namespace Remains.Editor
             Reject(()=>StateJson.ToJson(type),"Конфликт unknown с известным полем принят.");
         }
         private static MovingPlatformDefinition Definition()=>new() {id="platform2",version=1,width=2.4f,height=.78f,
-            graphicOffsetX=-1.2f,graphicOffsetY=.1f,graphicWidth=2.4f,graphicHeight=.7f,durationSeconds=6};
+            graphicOffsetX=-1.2f,graphicOffsetY=.1f,graphicWidth=2.4f,graphicHeight=.7f,durationSeconds=6,surfaceTexture="floor",movementSound="metal"};
         private static MovingPlatformState State(string level="factory:0")=>new() {
             id=level+":original:plant:18:TFAERLMCSehXRcAt",definition="platform2",definitionVersion=1,level=level,roomId="original:plant:18",groupId="d2",
             startX=49.2f,startY=9.62f,endX=66,endY=9.62f,endpoint=0,revision=1,

@@ -123,6 +123,9 @@ namespace Remains.Domain
         public List<WorldRoom> rooms = new();
         public int levelTimeVersion;
         public List<LevelSimulationTime> levelTimes = new();
+        public int mechanismVersion;
+        public List<MovingPlatformState> movingPlatforms = new();
+        public List<MechanismButtonState> mechanismButtons = new();
         public List<ContainerState> containers = new();
         public List<ItemStack> container; // Legacy schema: read only by explicit migration.
         public List<string> completedTransactions = new();

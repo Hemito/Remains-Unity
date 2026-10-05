@@ -13,21 +13,13 @@ namespace Remains.Domain
     {
         public string Rejection(ActorState actor,MechanismButtonState button,float accessRadius)
         {
-            if(actor==null) return "Ремонт недоступен: персонаж отсутствует.";
-            if(button==null || button.removed) return "Кнопка больше недоступна.";
-            if(!actor.connected) return "Ремонт отменён: персонаж отключён.";
-            if(actor.down || actor.health<=0) return "Нельзя ремонтировать кнопку без сознания.";
-            if(actor.level!=button.level) return "Кнопка находится в другой локации.";
+            string access=MechanismButtonAccess.Rejection(actor,button,accessRadius);
+            if(access!=null) return access;
             if(button.repairState==MechanismRepairStates.Ready) return "Кнопка уже исправна.";
             if(button.repairState==MechanismRepairStates.Broken) return "Для сломанной кнопки правило ремонта пока не задано.";
             if(button.repairState!=MechanismRepairStates.NeedsRepair)
                 return $"Состояние ремонта '{button.repairState}' не поддерживается правилом удержания E: button={button.id}.";
-            if(!float.IsFinite(actor.x) || !float.IsFinite(actor.y) || !float.IsFinite(actor.health))
-                return $"Ремонт недоступен: неверные координаты или здоровье персонажа {actor.id}.";
-            if(!float.IsFinite(accessRadius) || accessRadius<=0)
-                throw new ArgumentOutOfRangeException(nameof(accessRadius),"Радиус ремонта должен быть конечным положительным числом.");
-            double dx=(double)actor.x-button.x,dy=(double)actor.y-button.y;
-            return dx*dx+dy*dy>(double)accessRadius*accessRadius?"Кнопка вне досягаемости ремонта.":null;
+            return null;
         }
     }
 

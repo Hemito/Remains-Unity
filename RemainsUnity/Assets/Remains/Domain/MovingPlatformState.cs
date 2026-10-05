@@ -12,6 +12,8 @@ namespace Remains.Domain
         public string id;
         public float width,height;
         public float graphicOffsetX,graphicOffsetY,graphicWidth,graphicHeight;
+        public bool oneWay,shotsPassThrough;
+        public string surfaceTexture,movementSound;
         public double durationSeconds;
         public void Validate()
         {
@@ -23,6 +25,8 @@ namespace Remains.Domain
                 float.IsFinite(graphicWidth) && graphicWidth>0 && float.IsFinite(graphicHeight) && graphicHeight>0 &&
                 float.IsFinite(graphicOffsetX+graphicWidth) && float.IsFinite(graphicOffsetY+graphicHeight),"graphic bounds",id);
             MechanismStateValidation.Require(double.IsFinite(durationSeconds) && durationSeconds>0,"durationSeconds",id);
+            MechanismStateValidation.Require(!string.IsNullOrWhiteSpace(surfaceTexture),"surfaceTexture",id);
+            MechanismStateValidation.Require(!string.IsNullOrWhiteSpace(movementSound),"movementSound",id);
         }
     }
 
