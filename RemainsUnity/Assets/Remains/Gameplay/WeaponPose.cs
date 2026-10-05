@@ -12,7 +12,7 @@ namespace Remains.Gameplay
             (ActorSessionRules.IsPassive(actor) || actor.climbing || actor.crouched?0:Mathf.Clamp(actor.weaponLift,0,WeaponRigs.RaiseHeight)));
         public static Vector2 Direction(ActorState actor)=>new(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
         public static bool Flip(ActorState actor)=>actor.weaponFlipY;
-        public static Vector2 Mount(ActorState actor)=>RangedAnchor(actor)+Vector2.right*(Flip(actor)?-1:1)*Mathf.Clamp(actor.weaponReach,0,RangedReachLimit(actor));
+        public static Vector2 Mount(ActorState actor)=>actor.weapon=="grenade"?HeldItemPose.Mount(actor):RangedAnchor(actor)+Vector2.right*(Flip(actor)?-1:1)*Mathf.Clamp(actor.weaponReach,0,RangedReachLimit(actor));
         public static Vector2 Muzzle(ActorState actor)
         {
             var rig=WeaponRigs.Get(actor.weapon);var direction=Direction(actor);
@@ -20,6 +20,7 @@ namespace Remains.Gameplay
         }
         public static void Aim(ActorState actor,Vector2 target,RoomLayout room=null)
         {
+            if(actor.weapon=="grenade") {HeldItemPose.Aim(actor,target,room);return;}
             AimWithReach(actor,target,RangedReachLimit(actor));
             LowerUnderCeiling(actor,target,room,RangedReachLimit(actor));
             if(room!=null && !string.IsNullOrEmpty(actor.weapon) && WeaponRigs.Get(actor.weapon).HasMuzzle &&
@@ -40,7 +41,7 @@ namespace Remains.Gameplay
         {
             if(string.IsNullOrEmpty(actor.weapon)) return;
             var rig=WeaponRigs.Get(actor.weapon);
-            var delta=target-(rig.HasMuzzle || actor.weapon=="grenade"?RangedAnchor(actor):Origin(actor));
+            var delta=target-(rig.HasMuzzle?RangedAnchor(actor):Origin(actor));
             if(delta.sqrMagnitude<.000001f)
             {
                 actor.weaponReach=0;
@@ -48,13 +49,7 @@ namespace Remains.Gameplay
             }
             actor.weaponFlipY=delta.x<0;
             float angle=Mathf.Atan2(delta.y,delta.x);
-            if(actor.weapon=="grenade")
-            {
-                actor.weaponReach=Mathf.Min(Mathf.Abs(delta.x),reachLimit);
-                delta=target-Mount(actor);
-                angle=Mathf.Atan2(delta.y,delta.x);
-            }
-            else if(rig.HasMuzzle)
+            if(rig.HasMuzzle)
             {
                 // The support moves horizontally; barrel elevation must not orbit the whole gun around the actor.
                 // Retract continuously near the body so the forward muzzle does not overshoot a nearby cursor.

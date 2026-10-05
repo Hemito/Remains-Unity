@@ -27,6 +27,9 @@ namespace Remains.Networking
         public float weaponAngle,weaponTipX,weaponTipY;
         public float weaponReach,weaponLift;
         public bool weaponFlipY;
+        public long weaponSelectionRevision;
+        public float heldItemPoseX,heldItemPoseY;
+        public bool heldItemPoseValid;
         public string attackId;
         public bool attackBusy;
         public float attackRemaining,attackCooldown;
@@ -36,7 +39,9 @@ namespace Remains.Networking
     public struct AttackMessage : NetworkMessage { public string json; }
     public struct NpcHitMessage : NetworkMessage { public string target; public int generation; public string attackJson; }
     public struct FriendlyHitMessage : NetworkMessage {public string target;public int generation,lifecycle;public string attackJson;}
-    public struct ClaimMessage : NetworkMessage { public string transaction; public string container;public string item;public int quantity; }
+    public struct ClaimMessage : NetworkMessage { public string transaction; public string container;public string item;public int quantity;public int actorGeneration,actorLifecycle; }
+    // Acceptance means a prepared reservation, never an already awarded item.
+    public struct ClaimReplyMessage : NetworkMessage {public string transaction;public bool accepted;public string reason;}
     public struct ReviveMessage : NetworkMessage { public string target; public string transaction; public bool selfHeal; public int healerGeneration,healerLifecycle,targetGeneration,targetLifecycle,damageSequence; public string item; }
     public struct HealingReplyMessage : NetworkMessage {public string transaction;public bool success;public string reason;}
     public struct NoticeMessage : NetworkMessage { public string text; }

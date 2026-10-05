@@ -52,9 +52,10 @@ namespace Remains.Runtime
             }
             if(phase==4 && !opened)
             {
-                var target=InteractionSelection.Select(runtime.Session.World,Actor,runtime.Session.Rules,runtime.Session.Travel.Points(Actor.level));
+                var cursor=((InventorySource)Container).Bounds.center;
+                var target=InteractionSelection.Select(runtime.Session.World,Actor,runtime.Session.Rules,cursor,runtime.Session.Travel.Points(Actor.level));
                 if(target.kind!=InteractionKind.Container || target.id!=Container.id) {Failure="E в цехе выбирает другой объект: "+target.kind;return default;}
-                opened=true;return new PlayerCommand {interact=true};
+                opened=true;return new PlayerCommand {interact=true,hasAim=true,aim=cursor};
             }
             if(phase==7) return runtime.Hud.InventoryOpen?new PlayerCommand {inventory=true}:Move(16.22f);
             if(phase==8) return new PlayerCommand {movement=Vector2.down};

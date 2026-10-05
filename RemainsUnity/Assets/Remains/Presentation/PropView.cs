@@ -44,6 +44,8 @@ namespace Remains.Presentation
         public void DrawMotion(Remains.Domain.PropState state,string localOwner,bool paused,float dt)
         {
             transform.position=motion.Sample(state,localOwner,paused,dt);
+            if(state is Remains.Domain.ContainerState {presentationItem:not null} loose)
+            {transform.rotation=Quaternion.Euler(0,0,loose.presentationAngle);artwork.flipY=loose.presentationMirrored;}
             if(sorting!=null) sorting.sortingOrder=state.held?ActorVisualLayers.WorldObjectOrder:ActorVisualLayers.RestingObjectOrder;
             glow?.Draw(state.held);
         }

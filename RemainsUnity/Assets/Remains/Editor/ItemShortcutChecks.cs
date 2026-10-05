@@ -34,7 +34,7 @@ namespace Remains.Editor
                 "Переназначение стёрло дополнительные данные быстрой клавиши");
             Require(!ItemShortcuts.Assign(sender,"13",ammunition.id,out _) && !ItemShortcuts.Assign(sender,"5","absent",out _),"Принято неизвестное назначение");
             Require(!WeaponInventory.Select(sender,ammunition.id,out _),"Патроны превратились в стреляющее оружие");
-            var actions=new StandardItemActions();Require(actions.Action(ammunition)==StandardItemActions.Toss &&
+            var actions=new StandardItemActions();Require(actions.Action(ammunition)==StandardItemActions.Hold &&
                 actions.Action(SharedInventory.Create("heal",1))==StandardItemActions.Heal &&
                 actions.Action(SharedInventory.Create("grenade",1))==StandardItemActions.Equip,"Не различаются действия предметов");
             var origin=new Vector2(.3f,.7f);var velocity=new Vector2(4,5);
@@ -47,9 +47,10 @@ namespace Remains.Editor
             Require(!DroppedItemTransfer.PruneEmpty(world) && !DroppedItemTransfer.Prepare(world,sender,"toss",ammunition.id,5,origin,velocity,new NearbyDepositRule(),out _) &&
                 StateJson.ToJson(world)==pending,"Резерв удалён или повтор броска изменил состояние");
             string savePath=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/item-shortcuts-persistence-"+Guid.NewGuid().ToString("N")));
+            Require(HeldItemSelection.Select(sender,ammunition.id,out _),"Не выбран остаток для сохранения удержания");
             var store=new SaveStore(savePath);store.SaveWorld(world);store.SaveCharacter(sender);
             var recovered=store.LoadWorld();var loadedCharacter=store.LoadCharacter();
-            Require(loadedCharacter.inventory[0].count==15 && ItemShortcuts.Get(loadedCharacter,"=")?.id==ammunition.id &&
+            Require(loadedCharacter.inventory[0].count==15 && HeldItemSelection.Selected(loadedCharacter)?.id==ammunition.id && ItemShortcuts.Get(loadedCharacter,"=")?.id==ammunition.id &&
                 recovered.pendingDeposits.Count==1 && recovered.containers.Find(value=>value.id==drop.id).presentationItem=="p10",
                 "Запись и загрузка потеряли резерв броска, его изображение, количество или назначение");
             Require(new SharedDeposits(recovered).Commit("toss") && !new SharedDeposits(recovered).Commit("toss"),"Восстановленный бросок потерян/применён дважды");

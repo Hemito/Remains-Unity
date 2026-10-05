@@ -19,6 +19,9 @@ namespace Remains.Runtime
         public CoopSession Session { get; private set; }
         public CombatController Combat { get; private set; }
         public ItemShortcutActions ItemActions {get;private set;}
+        public InteractionFocus InteractionFocus {get;}=new();
+        public LooseItemPickup Pickup {get;private set;}
+        public HeldItemVisuals HeldItems {get;private set;}
         private Vector2? lastGameplayAim;
         public LaunchOptions Options { get; private set; }
         public RevivalController Revival { get; private set; }
@@ -49,6 +52,7 @@ namespace Remains.Runtime
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
         private ActorVisualLayers visualLayers;
         private PrototypeHud hud;
+        private SaveLibraries saveLibraries;
         private Camera cameraView;
         private readonly ReplicationCadence poseCadence=new(.05);
         private readonly WeaponElevation weaponElevation=new();
@@ -77,6 +81,7 @@ namespace Remains.Runtime
             networkObject.SetActive(false);
             var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
             Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;
+            Pickup=new LooseItemPickup(Session);
             // Mirror configures headless frame rate during StartClient/StartHost.
             // Apply the requested probe limit after that, including reconnections.
             if(Options.Smoke!=null) Session.ClientReady+=()=>Application.targetFrameRate=Options.ProbeFrameRate;
@@ -85,7 +90,10 @@ namespace Remains.Runtime
             Session.CharacterId=Options.Character;
             Session.DebugTravelAllowed=Options.Smoke!=null && !Options.Smoke.StartsWith("travel-points");
             Session.networkAddress=Options.Address;
-            Session.Saves=new SaveStore(Options.SaveDirectory ?? Path.Combine(ProjectStorage.RootDirectory,"Profiles",Options.Character));
+            bool characterLibraryProbe=Options.Smoke?.StartsWith("characters")==true;
+            if(Options.SaveDirectory==null || characterLibraryProbe)
+                saveLibraries=new SaveLibraries(characterLibraryProbe?Options.SaveDirectory:ProjectStorage.RootDirectory,Options.Character);
+            Session.Saves=saveLibraries?.ForCharacter(Options.Character)??new SaveStore(Options.SaveDirectory);
             if(Options.Smoke!=null && Options.Role=="host" && !string.IsNullOrEmpty(Options.Report))
                 gameObject.AddComponent<RecoveryTimingProbe>().Initialize(Session,Options.Report);
             // NetworkManager.Awake must see the final transport, including a test wrapper.
@@ -104,6 +112,7 @@ namespace Remains.Runtime
             Telekinesis=new TelekinesisController(Session,Interactions,Geometry);
             visualLayers=new ActorVisualLayers(transform);
             new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades,Geometry,visualLayers);
+            HeldItems=new GameObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
             var room=RoomLayout.Load(shownLevel);
             movement=new MovementController(room);
             npcs=new NpcController(Session,Geometry);
@@ -131,6 +140,8 @@ namespace Remains.Runtime
             if (!Application.isBatchMode || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
+                hud.SelectedInteraction=()=>InteractionFocus.Target;
+                hud.PickupPending=()=>Pickup.Pending;
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
                 hud.RevivalProgress=()=>Revival.Progress;hud.RevivalPending=()=>Revival.Pending;
                 hud.EquipWeaponItem=EquipWeaponItem;
@@ -138,7 +149,7 @@ namespace Remains.Runtime
                     (Keyboard.current?.leftShiftKey.isPressed==true || Keyboard.current?.rightShiftKey.isPressed==true));
                 hud.EquipWeapon=weapon=>{if(Session.LocalActor is {down:false}) Combat.Weapon=weapon;};
                 bool characterProbe=Options.Smoke?.StartsWith("characters")==true;
-                var characterLibrary=new CharacterLibrary(characterProbe?Path.Combine(Options.SaveDirectory,"Profiles"):Path.Combine(ProjectStorage.RootDirectory,"Profiles"),characterProbe?null:Options.SaveDirectory);
+                var characterLibrary=saveLibraries?.Characters??new CharacterLibrary(Path.Combine(ProjectStorage.RootDirectory,"Profiles"),Options.SaveDirectory);
                 hud.SelectCharacter=name=>
                 {
                     if(!System.Text.RegularExpressions.Regex.IsMatch(name??"",@"^[\p{L}\p{N}_ -]{1,32}$"))
@@ -147,7 +158,7 @@ namespace Remains.Runtime
                     {hud.ShowCharacterLibrary();return false;}
                     if(Session.CharacterId==name) return true;
                     Session.CharacterId=name;
-                    Session.Saves=new SaveStore(characterLibrary.ProfilePath(name));
+                    Session.Saves=saveLibraries?.ForCharacter(name)??new SaveStore(characterLibrary.ProfilePath(name));
                     Session.CharacterContent.Reset();
                     return true;
                 };
@@ -206,10 +217,21 @@ namespace Remains.Runtime
             }
         }
 
-        private void Start()
+        private IEnumerator Start()
         {
-            if(Options.Smoke?.StartsWith("characters")==true) return;
+            if(Options.Smoke?.StartsWith("characters")==true) yield break;
             LegacyPrototypeFixture.Prepare(this);
+            if(saveLibraries!=null && Options.Role!=null)
+            {
+                var preparation=System.Threading.Tasks.Task.Run(()=>Session.Saves.EnsureWorldLibrary());
+                while(!preparation.IsCompleted) yield return null;
+                if(preparation.IsFaulted)
+                {
+                    Debug.LogError("Не удалось подготовить общую библиотеку миров: "+preparation.Exception);
+                    Session.ShowNotice("Не удалось подготовить библиотеку миров. Подключение не начато; подробности — в журнале игры.");
+                    yield break;
+                }
+            }
             if (Options.Role=="host") Session.StartHost();
             else if (Options.Role=="client") Session.StartClient();
         }
@@ -267,7 +289,8 @@ namespace Remains.Runtime
         {
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             var actor=Session.LocalActor;
-            if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();return;}
+            Pickup.Step();
+            if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();InteractionFocus.Clear();return;}
             remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble);
             foreach(var body in Session.World.actors)
                 if(body.owner==Session.LocalOwner &&
@@ -323,7 +346,7 @@ namespace Remains.Runtime
                 command.jump=keyboard.spaceKey.wasPressedThisFrame;
                 command.jumpHeld=keyboard.spaceKey.isPressed;
                 command.sprint=keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
-                command.weaponShortcut=ItemShortcutInput.Pressed(keyboard);command.shortcutWholeStack=command.sprint;
+                command.weaponShortcut=ItemShortcutInput.Pressed(keyboard);command.shortcutWholeStack=command.sprint;command.throwWholeStack=command.sprint;
                 command.inventory=keyboard.tabKey.wasPressedThisFrame;
                 command.menu=keyboard.escapeKey.wasPressedThisFrame;
                 command.reload=keyboard.rKey.wasPressedThisFrame;
@@ -334,7 +357,7 @@ namespace Remains.Runtime
             {
                 command.pointer=mouse.position.ReadValue();command.hasPointer=true;
                 command.hasAim=true;command.aim=cameraView.ScreenToWorldPoint(mouse.position.ReadValue());
-                command.fire=(Session.LocalActor?.weapon=="grenade"?mouse.leftButton.wasPressedThisFrame:mouse.leftButton.isPressed) &&
+                command.fire=(Session.LocalActor?.weapon=="grenade" || HeldItemSelection.HasSelection(Session.LocalActor)?mouse.leftButton.wasPressedThisFrame:mouse.leftButton.isPressed) &&
                     !hud.BlocksPointerGameplay(command.pointer) &&
                     (UnityEngine.EventSystems.EventSystem.current==null || !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject());
             }
@@ -357,14 +380,19 @@ namespace Remains.Runtime
                 !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()))) lastGameplayAim=command.aim;
             if(command.inventory) hud?.ToggleInventory();
             if(command.menu) hud?.ToggleMenu();
+            InteractionFocus.Step(Session.World,actor,Session.Rules,command.hasAim?command.aim:(Vector2?)null,
+                Session.Travel.Pending || hud?.BlocksGameplayInput==true || command.hasPointer &&
+                    (hud?.BlocksPointerGameplay(command.pointer)==true || UnityEngine.EventSystems.EventSystem.current?.IsPointerOverGameObject()==true),
+                Session.Travel.Points(actor.level));
             if(command.interact && !Session.Travel.Pending)
             {
                 if(hud.WorldMap.IsOpen) hud.WorldMap.Close();
                 else if(hud.ContainerOpen) hud.CloseContainer();
                 else if(!hud.BlocksGameplayInput)
                 {
-                    var target=InteractionSelection.Select(Session.World,actor,Session.Rules,Session.Travel.Points(actor.level));
+                    var target=InteractionFocus.Target;
                     if(target.kind==InteractionKind.Container) hud.OpenContainer(target.id);
+                    else if(target.kind==InteractionKind.Pickup) Pickup.Request(target);
                     else if(target.kind==InteractionKind.Door)
                     {
                         var door=Session.World.doors.Find(d=>d.id==target.id);
@@ -379,6 +407,7 @@ namespace Remains.Runtime
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
             if(Session.Travel.Pending) command=default;
             if(!ActorHoldRules.Active(actor)) movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
+            long selectionBefore=actor.weaponSelectionRevision;
             if(command.weaponItem!=null) EquipWeaponItem(command.weaponItem);
             if(command.weaponShortcut!=null)
                 ItemActions.Activate(command.weaponShortcut,command.hasAim?command.aim:lastGameplayAim,command.shortcutWholeStack);
@@ -390,15 +419,21 @@ namespace Remains.Runtime
             if(actor.weaponInventoryVersion==1) Combat.Weapon=WeaponInventory.Selected(actor)?.definition;
             actor.weapon=Combat.Weapon;
             weaponElevation.Step(actor,Geometry.Get(actor.level),command.movement.y>.1f,dt);
-            if(command.hasAim && !Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim,Geometry.Get(actor.level));
-            if(command.reload && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
+            if(command.hasAim)
+            {
+                if(HeldItemSelection.HasSelection(actor)) HeldItemPose.Aim(actor,command.aim,Geometry.Get(actor.level));
+                else if(!Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim,Geometry.Get(actor.level));
+            }
+            if(command.reload && !HeldItemSelection.HasSelection(actor) && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
             Revival.Step(command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);
             if(command.grenade && !actor.down && command.hasAim) Grenades.TryThrow(command.aim);
             if(command.heal && !actor.down) Session.RequestSelfHeal();
-            if(command.fire && command.hasAim)
+            if(command.fire && command.hasAim && (actor.weaponSelectionRevision==selectionBefore ||
+                !HeldItemSelection.HasSelection(actor) && actor.weapon!="grenade"))
             {
-                if(actor.weapon=="grenade") Grenades.TryThrow(command.aim);
+                if(HeldItemSelection.HasSelection(actor)) ItemActions.TryThrow(command.aim,command.throwWholeStack);
+                else if(actor.weapon=="grenade") Grenades.TryThrow(command.aim);
                 else Combat.Fire(actor,command.aim);
             }
         }
@@ -407,5 +442,6 @@ namespace Remains.Runtime
         {
             Session?.SaveLocalCharacter();
         }
+        private void OnDestroy()=>Pickup?.Dispose();
     }
 }

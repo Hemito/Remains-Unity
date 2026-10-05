@@ -52,10 +52,11 @@ namespace Remains.Runtime
                 if(phase>=1 && !opened && value.Session.LocalActor?.level=="factory:0" && !value.Session.Travel.Pending)
                 {
                     var actor=value.Session.LocalActor;
-                    var target=InteractionSelection.Select(value.Session.World,actor,value.Session.Rules,value.Session.Travel.Points(actor.level));
-                    if(target.kind==InteractionKind.Container && target.id==ContainerState.PrototypeId)
-                        return new PlayerCommand {interact=true};
                     var box=value.Session.World.containers.Single(c=>c.id==ContainerState.PrototypeId);
+                    var cursor=((InventorySource)box).Bounds.center;
+                    var target=InteractionSelection.Select(value.Session.World,actor,value.Session.Rules,cursor,value.Session.Travel.Points(actor.level));
+                    if(target.kind==InteractionKind.Container && target.id==ContainerState.PrototypeId)
+                        return new PlayerCommand {interact=true,hasAim=true,aim=cursor};
                     return new PlayerCommand {movement=new Vector2(Math.Sign(box.x-actor.x),0)};
                 }
                 return default;

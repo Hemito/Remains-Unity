@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Remains.Networking
 {
     public struct DepositRequest : NetworkMessage
-    {public string transaction,container,item,level;public int quantity,generation,lifecycle;public bool toss;public float x,y,vx,vy;}
+    {public string transaction,container,item,level;public int quantity,generation,lifecycle;public bool toss;public long selectionRevision;public float x,y,vx,vy,angle;public bool mirrored;}
     public struct DepositReply : NetworkMessage {public string transaction,reason;public bool accepted;}
     public sealed class SessionDeposits
     {
@@ -35,9 +35,12 @@ namespace Remains.Networking
         public bool Toss(string itemId,Vector2 aim,int quantity=1)
         {
             var actor=session.LocalActor;if(actor==null) return false;
-            var origin=Remains.Gameplay.WeaponPose.Origin(actor);
-            var velocity=Remains.Gameplay.GrenadeLaunch.Velocity(origin,aim,actor.y,Remains.Content.WeaponCatalog.Get("grenade"));
-            return Send(new DepositRequest {toss=true,item=itemId,quantity=quantity,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y});
+            var selected=HeldItemSelection.Selected(actor);
+            if(selected==null || selected.id!=InventoryStacks.Find(actor,itemId)?.id || !actor.heldItemPoseValid)
+            {session.ShowNotice("Сначала возьмите предмет и укажите курсором направление броска.");return false;}
+            var launch=Remains.Gameplay.HeldItemPose.Capture(actor,aim);
+            var origin=launch.origin;var velocity=launch.velocity;
+            return Send(new DepositRequest {toss=true,item=itemId,quantity=quantity,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,angle=launch.angle,mirrored=launch.mirrored});
         }
         private bool Send(DepositRequest request)
         {
@@ -45,7 +48,7 @@ namespace Remains.Networking
             if(actor==null || item==null || !NetworkClient.isConnected) return false;
             if(session.Pause.IsPaused(actor.level)) {session.ShowNotice(InventoryTransactions.PausedReason);return false;}
             request.transaction=Guid.NewGuid().ToString("N");
-            InventorySource container=request.toss?DroppedItemTransfer.Preview(actor,request.transaction,item.definition,new Vector2(request.x,request.y),new Vector2(request.vx,request.vy)):
+            InventorySource container=request.toss?DroppedItemTransfer.Preview(actor,request.transaction,item.definition,new Vector2(request.x,request.y),new Vector2(request.vx,request.vy),request.angle,request.mirrored):
                 InventorySource.Resolve(session.World,request.container);
             if(container==null) return false;
             int amount=request.quantity==0?InventoryAvailability.Count(actor,item):request.quantity;
@@ -54,7 +57,7 @@ namespace Remains.Networking
                     request.toss?InventoryTransactions.TossPurpose:InventoryTransactions.DepositPurpose));
             if(reason!=null) {session.ShowNotice(reason);return false;}
             request.item=item.id;request.quantity=amount;
-            request.generation=actor.generation;request.lifecycle=actor.lifecycleSequence;request.level=actor.level;
+            request.generation=actor.generation;request.lifecycle=actor.lifecycleSequence;request.level=actor.level;request.selectionRevision=actor.weaponSelectionRevision;
             // Publish prior client debits before the reservation on the same reliable channel.
             session.PublishActor(actor);requests.Add(request.transaction,request);Reconcile();
             NetworkClient.Send(request);nextRetry=Time.unscaledTime+2;
@@ -98,9 +101,10 @@ namespace Remains.Networking
             else if(actor.generation==request.generation && actor.lifecycleSequence==request.lifecycle)
             {
                 bool paused=session.Pause.IsServerPaused(actor.level);
-                if(request.toss && actor.level==request.level)
+                if(request.toss && actor.level==request.level && request.selectionRevision==actor.weaponSelectionRevision &&
+                    HeldItemSelection.Selected(actor)?.id==request.item)
                     accepted=DroppedItemTransfer.Prepare(session.ServerWorld,actor,request.transaction,request.item,request.quantity,
-                        new Vector2(request.x,request.y),new Vector2(request.vx,request.vy),session.Rules.Deposit,out reason,paused);
+                        new Vector2(request.x,request.y),new Vector2(request.vx,request.vy),session.Rules.Deposit,out reason,paused,request.angle,request.mirrored);
                 else if(!request.toss)
                     accepted=new SharedDeposits(session.ServerWorld,session.Rules.Deposit).Prepare(request.transaction,actor,request.container,request.item,request.quantity,out reason,paused);
             }

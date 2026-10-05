@@ -59,7 +59,7 @@ namespace Remains.Editor
                     }
                     PrefabUtility.SaveAsPrefabAsset(root,path);return;
                 }
-                var position=map?new Vector2(18,8):new Vector2(layout.spawnX-1,layout.spawnY);
+                var position=map?new Vector2(19.2f,7.6f):new Vector2(layout.spawnX-1,layout.spawnY);
                 var sprite=Artwork(map?"hub-map":"exit",true);var node=new GameObject(map?"Карта Пустоши · worldMap":"Дверь выхода в хаб");
                 node.transform.SetParent(root.transform,false);node.transform.localPosition=position;
                 var renderer=node.AddComponent<SpriteRenderer>();renderer.sprite=sprite;renderer.sortingOrder=ActorVisualLayers.WallFixtureOrder;

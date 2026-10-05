@@ -39,9 +39,10 @@ namespace Remains.Runtime
             if(actor.weapon!=weapon) return new PlayerCommand {weaponItem=actor.inventory.Single(i=>i.definition==weapon).id};
             if(phase is 1 or 5 or 7 && actor.level=="factory:0" && !runtime.Session.Travel.Pending && !runtime.Hud.ContainerOpen)
             {
-                var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules,runtime.Session.Travel.Points(actor.level));
-                if(target.kind==InteractionKind.Container && target.id==ContainerState.PrototypeId) return new PlayerCommand {interact=true};
                 var box=runtime.Session.World.containers.Single(c=>c.id==ContainerState.PrototypeId);
+                var cursor=((InventorySource)box).Bounds.center;
+                var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules,cursor,runtime.Session.Travel.Points(actor.level));
+                if(target.kind==InteractionKind.Container && target.id==ContainerState.PrototypeId) return new PlayerCommand {interact=true,hasAim=true,aim=cursor};
                 return new PlayerCommand {movement=new Vector2(Math.Sign(box.x-actor.x),0)};
             }
             if(phase is 3 or 4 or 6) return new PlayerCommand {movement=Vector2.right,sprint=phase==4};

@@ -77,10 +77,11 @@ namespace Remains.Runtime
             if(Mathf.Abs(actor.x-npc.x)>.12f) return new PlayerCommand {movement=Vector2.right*Mathf.Sign(npc.x-actor.x)};
             if(!opened)
             {
-                var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules);
+                var cursor=InventorySource.Resolve(runtime.Session.World,InventorySource.BodyId(npc.id)).Bounds.center;
+                var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules,cursor);
                 if(target.kind!=InteractionKind.Container || target.id!=InventorySource.BodyId(npc.id))
                     throw new InvalidOperationException($"У тела цеха E выбрал другой объект: kind={target.kind}, id={target.id}.");
-                opened=true;return new PlayerCommand {interact=true};
+                opened=true;return new PlayerCommand {interact=true,hasAim=true,aim=cursor};
             }
             return default;
         }

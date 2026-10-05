@@ -62,14 +62,24 @@ namespace Remains.Presentation
             name.text=actor.down?"Без сознания · нужна помощь":actor.character;
             health.fillAmount=Mathf.Clamp01(actor.health/100);mana.fillAmount=Mathf.Clamp01(actor.mana/100);
             healthText.text=$"Здоровье  {Mathf.CeilToInt(actor.health)} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";
+            bool ordinaryHeld=HeldItemSelection.HasSelection(actor);
+            var heldItem=HeldItemSelection.Selected(actor);
+            string activeItem=ordinaryHeld?heldItem?.id:WeaponInventory.Selected(actor)?.id;
             for(int i=0;i<weapons.Length;i++)
             {
                 var item=actor.weaponInventoryVersion==1?ItemShortcuts.Get(actor,ItemShortcuts.Keys[i]):null;
                 bool instances=actor.weaponInventoryVersion==1;
                 string legacy=i<ids.Length?ids[i]:null;
-                OriginalButtonStyle.SetSelected(weapons[i],instances?item!=null && item.id==actor.equippedWeaponItem:legacy!=null && legacy==actor.weapon);
+                OriginalButtonStyle.SetSelected(weapons[i],instances?item!=null && item.id==activeItem:legacy!=null && legacy==actor.weapon);
                 weapons[i].interactable=!actor.down && (instances?item!=null && InventoryAvailability.Count(actor,item)>0:legacy!=null);
                 artwork.Set(shortcutIcons[i],instances?item?.definition:legacy);
+            }
+            if(ordinaryHeld)
+            {
+                int available=heldItem==null?0:InventoryAvailability.Count(actor,heldItem);
+                ammunition.text=heldItem==null?"Предмет закончился · выберите другой":available==0?"Вещь зарезервирована для передачи…":
+                    $"В копытах: {available}\nЛКМ — бросить 1 · Shift+ЛКМ — стопку";
+                return;
             }
             if(string.IsNullOrEmpty(actor.weapon)) {ammunition.text="Оружие не выбрано";return;}
             var definition=WeaponCatalog.Get(actor.weapon);

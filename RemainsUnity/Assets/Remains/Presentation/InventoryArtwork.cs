@@ -32,6 +32,8 @@ namespace Remains.Presentation
             }
             image.sprite=sprite;image.enabled=true;
         }
+        public bool TryGet(string id,out Sprite sprite)
+        {sprite=null;return id!=null && sprites.TryGetValue(id,out sprite);}
         public Sprite Require(string id)=>id!=null && sprites.TryGetValue(id,out var sprite)?sprite:
             throw new InvalidOperationException("Нет графики брошенного предмета: definition="+id);
         public void PrepareWorldMaterials()

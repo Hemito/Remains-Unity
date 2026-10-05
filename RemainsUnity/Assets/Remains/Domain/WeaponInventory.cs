@@ -16,17 +16,18 @@ namespace Remains.Domain
             var reference=actor?.weaponShortcuts.Find(value=>value.slot==slot);
             return reference==null?null:Equippable(actor,reference.item);
         }
-        public static bool Available(ActorState actor,string definition)=>Selected(actor) is { } item &&
+        public static bool Available(ActorState actor,string definition)=>!HeldItemSelection.HasSelection(actor) && Selected(actor) is { } item &&
             item.definition==definition && InventoryAvailability.Count(actor,item)>0;
         public static bool Select(ActorState actor,string itemId,out string reason)
         {
             reason=null;
             if(actor==null || actor.weaponInventoryVersion!=1) {reason="Инвентарь оружия ещё не подготовлен.";return false;}
-            if(string.IsNullOrEmpty(itemId)) {actor.equippedWeaponItem=null;actor.weapon=null;actor.weaponSelectionRevision++;actor.revision++;return true;}
+            if(string.IsNullOrEmpty(itemId)) {HeldItemSelection.Clear(actor);actor.equippedWeaponItem=null;actor.weapon=null;actor.weaponSelectionRevision++;actor.revision++;return true;}
             var item=InventoryStacks.Find(actor,itemId);
             if(!IsEquippable(item)) {reason="Этот предмет нельзя взять в копыта.";return false;}
             if(InventoryAvailability.Count(actor,item)<=0) {reason="Предмет зарезервирован для передачи.";return false;}
             _=WeaponCatalog.Get(item.definition);
+            HeldItemSelection.Clear(actor);
             actor.equippedWeaponItem=item.id;actor.weapon=item.definition;actor.weaponSelectionRevision++;actor.revision++;return true;
         }
         public static bool Assign(ActorState actor,string slot,string itemId,out string reason)
@@ -38,7 +39,10 @@ namespace Remains.Domain
                 current.weaponSelectionRevision>incoming.weaponSelectionRevision)
             {
                 incoming.equippedWeaponItem=current.equippedWeaponItem;
+                incoming.heldItemId=current.heldItemId;
                 incoming.weaponSelectionRevision=current.weaponSelectionRevision;
+                HeldItemSelection.CopyPose(current,incoming);
+                incoming.weaponAngle=current.weaponAngle;incoming.weaponFlipY=current.weaponFlipY;
                 incoming.weaponShortcuts=Remains.Serialization.StateJson.Copy(current.weaponShortcuts);
             }
             incoming.weapon=Selected(incoming)?.definition;

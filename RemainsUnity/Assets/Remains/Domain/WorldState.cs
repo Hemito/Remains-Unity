@@ -87,6 +87,9 @@ namespace Remains.Domain
         public int weaponInventoryVersion;
         public long weaponSelectionRevision;
         public string equippedWeaponItem;
+        public string heldItemId;
+        public float heldItemPoseX,heldItemPoseY;
+        public bool heldItemPoseValid;
         public List<WeaponShortcut> weaponShortcuts=new();
         public List<WeaponMagazine> magazines = new();
         public List<InventoryUse> inventoryUses = new();

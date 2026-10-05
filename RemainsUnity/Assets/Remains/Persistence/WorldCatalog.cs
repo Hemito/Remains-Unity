@@ -44,17 +44,25 @@ namespace Remains.Persistence
         private readonly string directory,cachePath;
         private static readonly ConcurrentDictionary<string,object> Gates=new(StringComparer.OrdinalIgnoreCase);
         private readonly object gate;
-        public WorldCatalog(string directory,string cachePath=null)
+        private readonly Action<CancellationToken> prepare;
+        private readonly Func<IEnumerable<string>> diagnostics;
+        public WorldCatalog(string directory,string cachePath=null):this(directory,cachePath,null,null) {}
+        public WorldCatalog(string directory,string cachePath,Action<CancellationToken> prepare,Func<IEnumerable<string>> diagnostics)
         {
             this.directory=SavePath.Absolute(directory);
             this.cachePath=SavePath.Absolute(cachePath??Path.Combine(this.directory,"Library","world-catalog.json"));
             gate=Gates.GetOrAdd(this.cachePath,_=>new object());
+            this.prepare=prepare;
+            this.diagnostics=diagnostics;
         }
         public WorldCatalogResult Read(CancellationToken cancellation=default)
         {
+            prepare?.Invoke(cancellation);
             lock(gate)
             {
-                var result=new WorldCatalogResult();var prior=ReadCache(result);
+                var result=new WorldCatalogResult();
+                if(diagnostics!=null) result.warnings.AddRange(diagnostics());
+                var prior=ReadCache(result);
                 var records=new Records();var known=prior.entries.ToDictionary(e=>e.file,StringComparer.OrdinalIgnoreCase);
                 foreach(string path in Files())
                 {

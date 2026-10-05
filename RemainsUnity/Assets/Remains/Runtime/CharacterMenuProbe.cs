@@ -84,6 +84,11 @@ namespace Remains.Runtime
             yield return Wait(()=>runtime.Session.LocalActor!=null);
             if(runtime.Session.LocalActor.character!="Старый" || runtime.Session.LocalActor.health!=77 || runtime.Session.LocalActor.appearance!=null)
                 throw new InvalidOperationException("Выбор старого профиля изменил внешность/здоровье или создал нового персонажа.");
+            string sharedWorld=runtime.Session.World.worldId;
+            string worldDirectory=runtime.Session.Saves.WorldDirectoryPath;
+            var originalSelection=runtime.Session.Saves.SelectedSnapshot();
+            var alternative=new WorldState();runtime.Session.Saves.SaveWorld(alternative);
+            runtime.Session.Saves.SelectContinuation(originalSelection);
             yield return new WaitForSecondsRealtime(2);Capture("old-player");runtime.Session.StopHost();
             yield return Wait(()=>runtime.Session.LocalActor==null && !Mirror.NetworkClient.active && !Mirror.NetworkServer.active);
             var oldTime=CharacterTimeRecord.Read(library.ProfilePath("Старый"));
@@ -93,9 +98,12 @@ namespace Remains.Runtime
             yield return Wait(()=>runtime.Hud.Characters?.Ready==true);
             yield return Select("Роза");
             yield return Wait(()=>runtime.Hud.Characters==null && runtime.Hud.WorldDescriptionReady);
+            if(runtime.Session.Saves.WorldDirectoryPath!=worldDirectory || runtime.Session.Saves.SelectedSnapshot().WorldId!=sharedWorld ||
+                !runtime.Session.Saves.Continuations().Any(copy=>copy.WorldId==alternative.worldId))
+                throw new InvalidOperationException("Смена персонажа потеряла общий выбор мира или другой доступный мир.");
             yield return UiPointerProbe.Click(runtime.Hud.HostButtonRect);
             yield return Wait(()=>runtime.Session.LocalActor!=null);
-            if(runtime.Session.LocalActor.character!="Роза" || !PonyAppearance.Snapshot(runtime.Session.LocalActor).Equals(expected))
+            if(runtime.Session.LocalActor.character!="Роза" || !PonyAppearance.Snapshot(runtime.Session.LocalActor).Equals(expected) || runtime.Session.World.worldId!=sharedWorld)
                 throw new InvalidOperationException("Игра не использовала внешность созданного персонажа.");
             runtime.Hud.ToggleInventory();
             int crowbarRow=runtime.Session.LocalActor.inventory.FindIndex(item=>item.definition=="crowbar" && item.weaponState!=null);
@@ -107,6 +115,15 @@ namespace Remains.Runtime
             yield return Wait(()=>runtime.Session.LocalActor==null && !Mirror.NetworkClient.active && !Mirror.NetworkServer.active);
             var newTime=CharacterTimeRecord.Read(library.ProfilePath("Роза"));
             if(!newTime.completeHistory || newTime.seconds<1) throw new InvalidOperationException("Новое игровое время не сохранено.");
+            // Model progress made with this character in another world, then return to its hub record.
+            var advanced=new SaveStore(library.ProfilePath("Роза")).LoadCharacter();advanced.health=58;
+            advanced.appearance.fur=0xAB3412;new SaveStore(library.ProfilePath("Роза")).SaveCharacter(advanced);
+            yield return UiPointerProbe.Click(runtime.Hud.HostButtonRect);
+            yield return Wait(()=>runtime.Session.LocalActor!=null);
+            if(runtime.Session.World.worldId!=sharedWorld || runtime.Session.LocalActor.health!=58 || runtime.Session.LocalActor.appearance.fur!=0xAB3412 || runtime.Session.LocalActor.weapon!="crowbar")
+                throw new InvalidOperationException("Возвращение в хаб восстановило устаревший профиль из мира.");
+            runtime.Session.StopHost();
+            yield return Wait(()=>runtime.Session.LocalActor==null && !Mirror.NetworkClient.active && !Mirror.NetworkServer.active);
             yield return UiPointerProbe.Click(runtime.Hud.CharactersButtonRect);
             yield return Wait(()=>runtime.Hud.Characters?.Ready==true);
             list=runtime.Hud.Characters;

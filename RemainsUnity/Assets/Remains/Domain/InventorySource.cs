@@ -17,6 +17,19 @@ namespace Remains.Domain
         public float? Mass=>Body==null?container.mass:null;
         public bool IsLooseItem=>Body==null && container.presentationItem!=null;
         public Vector2 Position=>Body==null?container.Position:Body.Position;
+        public Rect Bounds
+        {
+            get
+            {
+                if(Body==null) return new Rect(container.x-container.width*.5f,container.y-container.anchorHeight,container.width,container.height);
+                return BodyBounds(Body);
+            }
+        }
+        public static Rect BodyBounds(ActorState actor)
+        {
+            var hull=Anatomy.Movement(actor);
+            return new Rect(actor.x-hull.width*.5f,actor.y,hull.width,hull.height);
+        }
         public List<ItemStack> items=>Body==null?container.items:Body.inventory;
         public Dictionary<string,string> Aliases=>Body==null?container.itemAliases:Body.inventoryAliases;
         public ItemStack Find(string item)=>InventoryStacks.Find(items,Aliases,item);

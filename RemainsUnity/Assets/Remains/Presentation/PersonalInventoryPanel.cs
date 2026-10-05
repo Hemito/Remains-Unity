@@ -93,7 +93,7 @@ namespace Remains.Presentation
                 if(WeaponInventory.IsEquippable(item))
                 {
                     if(this.equipItem==null) throw new InvalidOperationException("Не подключён выбор экземпляра оружия в инвентаре.");
-                    this.equipItem(actor.equippedWeaponItem==item.id?null:item.id);
+                    this.equipItem(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==item.id?null:item.id);
                 }
                 else if(item?.definition=="heal") session.RequestSelfHeal(item.id);
                 Refresh(container);
@@ -166,7 +166,7 @@ namespace Remains.Presentation
             }
             use.interactable=availableChosen>0 && !paused && actor is {down:false} &&
                 (weaponSelected || chosen?.definition=="heal" && HealingRules.CanApply(actor,actor,true));
-            use.GetComponentInChildren<Text>().text=weaponSelected?(actor.equippedWeaponItem==chosen.id?"Убрать оружие":"Взять в копыта"):"Использовать";
+            use.GetComponentInChildren<Text>().text=weaponSelected?(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==chosen.id?"Убрать оружие":"Взять в копыта"):"Использовать";
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
             detail.text=chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):Description(chosen.definition));
@@ -185,7 +185,7 @@ namespace Remains.Presentation
             if(!float.IsFinite(damage) || damage<0)
                 throw new InvalidOperationException($"Некорректный урон в описании оружия {item.definition}: {damage}.");
             return $"Урон без движения: {damage:0.##}\nИнтервал атак: {definition.cooldown:0.##} с\n"+
-                resource+$"Выбор: {(actor.equippedWeaponItem==item.id?"в копытах":"в инвентаре")}";
+                resource+$"Выбор: {(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==item.id?"в копытах":"в инвентаре")}";
         }
         private static string Description(string id)=>id switch
         {

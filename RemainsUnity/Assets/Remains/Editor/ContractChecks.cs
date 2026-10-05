@@ -66,6 +66,7 @@ namespace Remains.Editor
             WeaponShotChecks.Run();
             WeaponPrefabChecks.Run();
             WorldLibraryChecks.Run();
+            IndependentLibraryChecks.Run();
             WorldCatalogChecks.Run();
             CrouchChecks.Run();
             ProjectilePathChecks.Run();
@@ -114,7 +115,7 @@ namespace Remains.Editor
             MotionAudioChecks.Run();ReloadAudioChecks.Run();InventoryAudioChecks.Run();
             DamageFeedbackChecks.Run();
             OwnershipStabilityChecks.Run();
-            WeaponPoseChecks.Run();WeaponElevationChecks.Run();
+            WeaponPoseChecks.Run();WeaponElevationChecks.Run();HeldItemChecks.Run();
             MovableContainerChecks.Run();
             PropPlatformChecks.Run();
             PropStackChecks.Run();

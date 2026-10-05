@@ -7,17 +7,19 @@ namespace Remains.Networking
 {
     public static class GrenadeLaunchRequest
     {
-        public static ThrowRequest Capture(ActorState actor,Vector2 aim)
+        public static ThrowRequest Capture(ActorState actor,Vector2 aim,RoomLayout room=null)
         {
             var selected=WeaponInventory.Selected(actor);
-            bool held=selected?.definition=="grenade";
+            bool held=!HeldItemSelection.HasSelection(actor) && selected?.definition=="grenade";
             var stack=held?selected:actor.inventory.Find(item=>item.definition=="grenade" && InventoryAvailability.Count(actor,item)>0);
-            var origin=held?WeaponPose.Mount(actor):WeaponPose.Origin(actor);
-            var velocity=GrenadeLaunch.Velocity(origin,aim,actor.y,Remains.Content.WeaponCatalog.Get("grenade"));
+            HeldLaunch launch;
+            if(held) launch=HeldItemPose.Capture(actor,aim);
+            else if(!HeldItemPose.TryQuickLaunch(actor,aim,room,out launch)) return default;
+            var origin=launch.origin;var velocity=launch.velocity;
             return new ThrowRequest {transaction=Guid.NewGuid().ToString("N"),level=actor.level,item=stack?.id,
                 generation=actor.generation,lifecycle=actor.lifecycleSequence,
                 originX=origin.x,originY=origin.y,aimX=aim.x,aimY=aim.y,vx=velocity.x,vy=velocity.y,
-                angle=held?actor.weaponAngle:0,mirrored=held && WeaponPose.Flip(actor),
+                angle=launch.angle,mirrored=launch.mirrored,
                 angularVelocity=GrenadeLaunch.AngularVelocity(velocity,actor.facing,Remains.Content.WeaponCatalog.Get("grenade"))};
         }
         public static bool Matches(ActorState actor,ThrowRequest request)=>actor!=null && !actor.down &&

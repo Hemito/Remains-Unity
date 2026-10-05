@@ -45,7 +45,7 @@ namespace Remains.Presentation
                 foreach(string warning in catalog.warnings) Debug.LogWarning(warning);
                 Render();
             },error=>
-            {Loading("Не удалось прочитать список миров. Подробности — в журнале игры.");Debug.LogError("Список миров "+store.DirectoryPath+": "+error);});
+            {Loading("Не удалось прочитать список миров. Подробности — в журнале игры.");Debug.LogError("Список миров "+store.WorldDirectoryPath+": "+error);});
         }
         private void Render()
         {
@@ -75,7 +75,7 @@ namespace Remains.Presentation
         {
             if(operation.Busy) return;
             Loading("Проверка и выбор сохранения…");view.Close.interactable=false;
-            operation.Run(_=>{var copy=entry.Load(store.DirectoryPath);store.SelectContinuation(copy);return copy.Id;},_=>
+            operation.Run(_=>{var copy=entry.Load(store.WorldDirectoryPath);store.SelectContinuation(copy);return copy.Id;},_=>
             {changed();notice("");Destroy(gameObject);},error=>
             {
                 notice("Не удалось выбрать мир: сохранение недоступно или повреждено.\nПодробности — в журнале игры. Можно выбрать другой мир.");

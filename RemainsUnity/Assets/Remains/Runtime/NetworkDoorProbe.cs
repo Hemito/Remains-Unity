@@ -75,9 +75,10 @@ namespace Remains.Runtime
             var session=runtime.Session;
             if(finished || runtime.Options.Role=="host" || session.LocalActor==null ||
                 session.World.doors.Find(d=>d.id==DoorId)==null) return default;
-            if(!requestedOpen) {requestedOpen=true;return new Remains.Gameplay.PlayerCommand {interact=true};}
+            var cursor=session.World.doors.Find(d=>d.id==DoorId).Bounds.center;
+            if(!requestedOpen) {requestedOpen=true;return new Remains.Gameplay.PlayerCommand {interact=true,hasAim=true,aim=cursor};}
             if(opened && !requestedClose && !session.Doors.Pending && Time.unscaledTime-openedAt>.5f)
-            {requestedClose=true;return new Remains.Gameplay.PlayerCommand {interact=true};}
+            {requestedClose=true;return new Remains.Gameplay.PlayerCommand {interact=true,hasAim=true,aim=cursor};}
             return default;
         }
         private void Finish(bool success,string detail)

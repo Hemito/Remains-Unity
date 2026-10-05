@@ -110,16 +110,16 @@ namespace Remains.Runtime
                 if(actor.x>10.4f) return new PlayerCommand {movement=Vector2.left};
                 if(runtime.Options.Role=="host" && !doorRequested && !Door.open)
                 {
-                    var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules);
+                    var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules,Door.Bounds.center);
                     if(target.kind!=InteractionKind.Door || target.id!=Door.id) {Finish(false,"У двери E выбирает другой объект.");return default;}
-                    doorRequested=true;return new PlayerCommand {interact=true};
+                    doorRequested=true;return new PlayerCommand {interact=true,hasAim=true,aim=Door.Bounds.center};
                 }
             }
             if(phase==9)
             {
                 var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules);
                 if(target.kind==InteractionKind.Container && !containerRequested)
-                {containerRequested=true;return new PlayerCommand {interact=true};}
+                {containerRequested=true;return new PlayerCommand {interact=true,hasAim=true,aim=InventorySource.Resolve(runtime.Session.World,target.id).Bounds.center};}
                 if(!containerRequested) return new PlayerCommand {movement=Vector2.left};
             }
             return default;

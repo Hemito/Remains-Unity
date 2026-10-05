@@ -11,6 +11,7 @@ using System.Collections.Generic;
 
 namespace Remains.Presentation
 {
+    [DefaultExecutionOrder(100)]
     public sealed class PrototypeHud : MonoBehaviour
     {
         private CoopSession session;
@@ -46,7 +47,11 @@ namespace Remains.Presentation
         public Func<string,bool> SelectCharacter { get; set; }
         private InventoryArtwork inventoryArtwork;
         private InteractionHint containerHint;
-        public string ShownInventorySourceId=>containerPanel.Source?.id??ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit)?.id;
+        public Func<InteractionTarget> SelectedInteraction {get;set;}
+        public Func<bool> PickupPending {get;set;}
+        public InteractionTarget CurrentInteraction=>SelectedInteraction?.Invoke()??default;
+        public string ShownInventorySourceId=>containerPanel.Source?.id??
+            (CurrentInteraction.kind is InteractionKind.Container or InteractionKind.Pickup?CurrentInteraction.id:null);
         private Font font;
         private HudElements elements;
         public WorldLobbyPanel NetworkLobby {get;private set;}
@@ -118,9 +123,9 @@ namespace Remains.Presentation
             quickActions=sessionHud.gameObject;
             feedback=HudFeedbackView.Create(transform);message=feedback.Notice;revival=feedback.Revival;
             mainMenu=new MainMenuPanel(transform,
-                ()=>{if(SelectCharacter?.Invoke(character.text)==true) HostRequested?.Invoke();},
-                ()=>{if(SelectCharacter?.Invoke(character.text)==true) JoinRequested?.Invoke(address.text);},
-                ()=>{if(SelectCharacter?.Invoke(character.text)==true) ShowWorldPicker(0);},()=>AudioSettings.Open(),()=>
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) PrepareConnection(()=>HostRequested?.Invoke());},
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) PrepareConnection(()=>JoinRequested?.Invoke(address.text));},
+                ()=>ShowWorldPicker(0),()=>AudioSettings.Open(),()=>
                 {
                     if(SelectCharacter?.Invoke(character.text)!=true) return;
                     if(newGameOperation.Busy) return;
@@ -166,6 +171,18 @@ namespace Remains.Presentation
             if(hideUncreatedSelection && !System.IO.File.Exists(System.IO.Path.Combine(library.ProfilePath(session.CharacterId),"character.json")))
                 character.text="";
         }
+        private void PrepareConnection(Action start)
+        {
+            if(newGameOperation.Busy) return;
+            var store=session.Saves;mainMenu.SetActionsBusy(true);
+            selectedWorldPanel.SetPending("Подготовка общей библиотеки миров…");
+            newGameOperation.Run(_=>{store.EnsureWorldLibrary();return true;},_=>
+            {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();start();},error=>
+            {
+                mainMenu.SetActionsBusy(false);RefreshSelectedWorld();
+                ShowMessage("Не удалось подготовить библиотеку миров: "+error.Message);Debug.LogError(error);
+            });
+        }
         public void ShowCharacterLibrary()
         {
             if(characterLibrary==null) {ShowMessage("Библиотека персонажей ещё не подключена.");return;}
@@ -193,14 +210,15 @@ namespace Remains.Presentation
         {
             if(ContainerOpen) {CloseContainer();return;}
             if(AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
-            var source=ContainerAccess.Nearest(session.World,session.LocalActor,session.Rules.Loot,session.Rules.Deposit);
-            if(source==null) {ShowMessage("Рядом нет доступного контейнера.");return;}
-            OpenContainer(source.id);
+            var target=CurrentInteraction;
+            if(target.kind!=InteractionKind.Container) {ShowMessage("Курсор не выбрал доступный контейнер.");return;}
+            OpenContainer(target.id);
         }
         public void OpenContainer(string id)
         {
             if(AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var source=InventorySource.Resolve(session.World,id);
+            if(source?.IsLooseItem==true) {ShowMessage("Свободная вещь подбирается по E целиком.");return;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
             {ShowMessage("Контейнер больше недоступен.");return;}
             if(!containerPanel.Open(source.id)) return;
@@ -290,12 +308,16 @@ namespace Remains.Presentation
         private void RefreshInteractionHint()
         {
             bool show=session.LocalActor!=null && !ContainerOpen && !BlocksGameplayInput;
-            var interaction=InteractionSelection.Select(session.World,session.LocalActor,session.Rules,session.Travel.Points(session.LocalActor?.level));
+            var interaction=session.LocalActor==null?default:CurrentInteraction;
             if(interaction.kind is InteractionKind.Map or InteractionKind.Exit)
                 containerHint.Refresh(session.Travel.Find(interaction.id,session.LocalActor.level),show,session.LocalActor);
             else if(interaction.kind==InteractionKind.Door)
                 containerHint.Refresh(session.World.doors.Find(door=>door.id==interaction.id),show,session.LocalActor);
-            else containerHint.Refresh(interaction.kind==InteractionKind.Container?session.World?.containers.Find(c=>c.id==interaction.id):null,show,session.LocalActor);
+            else if(interaction.kind==InteractionKind.Revival)
+                containerHint.RefreshRevival(session.World.Find(interaction.id),show,session.LocalActor);
+            else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
+                InventorySource.Resolve(session.World,interaction.id):null,show,session.LocalActor,PickupPending?.Invoke()==true);
+            containerHint.Highlight(interaction,show);
         }
         private void Update()
         {

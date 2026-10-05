@@ -196,8 +196,8 @@ namespace Remains.Editor
             actor.crouched=true;
             var crouching=Remains.Networking.GrenadeLaunchRequest.Capture(actor,new Vector2(8,3));
             Require(crouching.originY<standing.originY,"Приседание должно снижать точку броска");
-            actor.x=-10;actor.y=0;
-            Require(Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching) && crouching.originX==5,
+            float capturedX=crouching.originX;actor.x=-10;actor.y=0;
+            Require(Remains.Networking.GrenadeLaunchRequest.Matches(actor,crouching) && crouching.originX==capturedX,
                 "Старая позиция координатора не должна подменять локальную точку броска");
             var capturedVelocity=new Vector2(crouching.vx,crouching.vy);
             Require(capturedVelocity.sqrMagnitude>0 && capturedVelocity!=new Vector2(standing.vx,standing.vy),

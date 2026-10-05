@@ -30,7 +30,7 @@ namespace Remains.Gameplay
         private int localGeneration,localLifecycle;
         public bool TryThrow(Vector2 aim)
         {
-            if(!throwCooldown.Ready || !adapter.ThrowGrenade(aim)) return false;
+            if(!throwCooldown.Ready || !adapter.ThrowGrenade(aim,session.LocalActor is { } actor?geometry.Get(actor.level):null)) return false;
             throwCooldown.Restart(Remains.Content.WeaponCatalog.Get("grenade").cooldown);
             return true;
         }

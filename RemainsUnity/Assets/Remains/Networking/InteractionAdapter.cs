@@ -126,12 +126,14 @@ namespace Remains.Networking
             prop.sequence++;
             NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy },Channels.Unreliable);
         }
-        public bool ThrowGrenade(Vector2 aim)
+        public bool ThrowGrenade(Vector2 aim,RoomLayout room=null)
         {
             var actor=session.LocalActor;
             if(actor==null || actor.down || session.Pause.IsPaused(actor.level) || InventoryJournal.Count(actor,"grenade")<=0 ||
-                WeaponInventory.Selected(actor)?.definition=="grenade" && !WeaponInventory.Available(actor,"grenade")) return false;
-            var request=GrenadeLaunchRequest.Capture(actor,aim);
+                !HeldItemSelection.HasSelection(actor) && WeaponInventory.Selected(actor)?.definition=="grenade" && !WeaponInventory.Available(actor,"grenade")) return false;
+            if(!HeldItemSelection.HasSelection(actor) && WeaponInventory.Selected(actor)?.definition=="grenade" && !actor.heldItemPoseValid)
+            {session.ShowNotice("Гранату нельзя бросить: точка удержания перекрыта. Измените положение или прицел.");return false;}
+            var request=GrenadeLaunchRequest.Capture(actor,aim,room);
             if(!GrenadeLaunchRequest.Matches(actor,request))
             {Debug.LogWarning($"Некорректная точка броска гранаты: actor={actor.id}, level={actor.level}, origin=({request.originX};{request.originY}), aim={aim}.");return false;}
             NetworkClient.Send(request);return true;

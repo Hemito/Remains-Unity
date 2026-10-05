@@ -41,6 +41,7 @@ namespace Remains.Presentation
         public bool Open(string id)
         {
             var source=InventorySource.Resolve(session.World,id);
+            if(source?.IsLooseItem==true) {session.ShowNotice("Свободная вещь подбирается по E целиком.");return false;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
             {session.ShowNotice("Контейнер больше недоступен.");return false;}
             sourceId=id;row=0;Refresh();changed?.Invoke();return true;
@@ -54,7 +55,7 @@ namespace Remains.Presentation
         {
             if(!IsOpen) return;
             Source=InventorySource.Resolve(session.World,sourceId);
-            if(session.Travel.Pending || !ContainerAccess.Accessible(session.LocalActor,Source,session.Rules.Loot,session.Rules.Deposit))
+            if(session.Travel.Pending || Source?.IsLooseItem==true || !ContainerAccess.Accessible(session.LocalActor,Source,session.Rules.Loot,session.Rules.Deposit))
             {Close();return;}
             row=Mathf.Clamp(row,0,RowCount-3);
             view.Scrollbar.gameObject.SetActive(RowCount>3);view.Scrollbar.size=3f/RowCount;
@@ -83,7 +84,7 @@ namespace Remains.Presentation
         {
             if(!IsOpen) return;
             var current=InventorySource.Resolve(session.World,sourceId);
-            if(session.Travel.Pending || !ContainerAccess.Accessible(session.LocalActor,current,session.Rules.Loot,session.Rules.Deposit))
+            if(session.Travel.Pending || current?.IsLooseItem==true || !ContainerAccess.Accessible(session.LocalActor,current,session.Rules.Loot,session.Rules.Deposit))
             {Close();return;}
             Source=current;obscured=cover;view.gameObject.SetActive(!cover);
             if(!cover)

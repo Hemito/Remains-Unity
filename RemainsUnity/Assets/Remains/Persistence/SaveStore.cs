@@ -10,18 +10,29 @@ namespace Remains.Persistence
 {
     public sealed class SaveStore
     {
-        public string DirectoryPath { get; }
+        // Kept for code mods using the original personal-profile contract.
+        public string DirectoryPath => CharacterDirectoryPath;
+        public string CharacterDirectoryPath { get; }
+        public string WorldDirectoryPath { get; }
         public WorldCatalog Catalog {get;}
-        public SaveStore(string directory)
+        private readonly WorldLibraryMigration migration;
+        public IReadOnlyList<string> LibraryWarnings=>migration?.Warnings??Array.Empty<string>();
+        public SaveStore(string directory):this(directory,directory) {}
+        public SaveStore(string characterDirectory,string worldDirectory,WorldLibraryMigration migration=null)
         {
-            DirectoryPath = SavePath.Absolute(directory);
-            Directory.CreateDirectory(DirectoryPath);
-            Catalog=new WorldCatalog(DirectoryPath);
+            CharacterDirectoryPath=SavePath.Absolute(characterDirectory);
+            WorldDirectoryPath=SavePath.Absolute(worldDirectory);
+            Directory.CreateDirectory(CharacterDirectoryPath);
+            Directory.CreateDirectory(WorldDirectoryPath);
+            this.migration=migration;
+            Catalog=new WorldCatalog(WorldDirectoryPath,null,EnsureWorldLibrary,()=>LibraryWarnings);
         }
+        public void EnsureWorldLibrary(System.Threading.CancellationToken cancellation=default)=>migration?.Ensure(cancellation);
 
         public WorldState LoadWorld(bool prepareForPlay=true)
         {
-            string path = Path.Combine(DirectoryPath, "world.json");
+            EnsureWorldLibrary();
+            string path = Path.Combine(WorldDirectoryPath, "world.json");
             if (!File.Exists(path)) return null;
             var world = JsonUtility.FromJson<WorldState>(File.ReadAllText(path));
             if (world == null || world.schema != 1) throw new InvalidDataException($"Неподдерживаемый сейв: {path}");
@@ -77,7 +88,8 @@ namespace Remains.Persistence
 
         public RecoverySnapshot SelectedSnapshot()
         {
-            string path=Path.Combine(DirectoryPath,"world.json");
+            EnsureWorldLibrary();
+            string path=Path.Combine(WorldDirectoryPath,"world.json");
             return File.Exists(path)?new RecoverySnapshot(File.ReadAllText(path)):null;
         }
 
@@ -88,7 +100,7 @@ namespace Remains.Persistence
             var copies=new List<RecoverySnapshot>();
             foreach(var entry in catalog.entries)
             {
-                try {copies.Add(entry.Load(DirectoryPath));}
+                try {copies.Add(entry.Load(WorldDirectoryPath));}
                 catch(Exception error) when(error is InvalidDataException || error is ArgumentException)
                 {Debug.LogWarning($"Полный снимок не прошёл проверку: файл={entry.file}, мир={entry.summary.worldId}; {error.Message}");}
             }
@@ -101,29 +113,30 @@ namespace Remains.Persistence
         {
             try {return SelectedSnapshot();}
             catch(InvalidDataException error)
-            {Debug.LogWarning($"Выбранное сохранение не показано в списке: {DirectoryPath}/world.json. {error.Message}");return null;}
+            {Debug.LogWarning($"Выбранное сохранение не показано в списке: {WorldDirectoryPath}/world.json. {error.Message}");return null;}
         }
 
         public void SaveRecovery(RecoverySnapshot snapshot)
         {
+            EnsureWorldLibrary();
             // Keep every distinct payload, including branches with identical revision numbers.
             string archive=Path.Combine("Worlds",snapshot.WorldId,"Snapshots",snapshot.Id+".json");
-            string path=Path.Combine(DirectoryPath,archive);
+            string path=Path.Combine(WorldDirectoryPath,archive);
             if(File.Exists(path))
             {
                 if(File.ReadAllText(path)!=snapshot.Json)
                     throw new InvalidDataException($"Повреждён архив снимка: {path}.");
             }
-            else AtomicWrite(archive,snapshot.Json);
+            else WriteWorld(archive,snapshot.Json);
             PreserveExistingWorld("world.json");
             PreserveExistingWorld(Path.Combine("Worlds",snapshot.WorldId+".json"));
-            AtomicWrite(Path.Combine("Worlds",snapshot.WorldId+".json"),snapshot.Json);
-            AtomicWrite("world.json",snapshot.Json);
+            WriteWorld(Path.Combine("Worlds",snapshot.WorldId+".json"),snapshot.Json);
+            WriteWorld("world.json",snapshot.Json);
         }
 
         private void PreserveExistingWorld(string filename)
         {
-            string path=Path.Combine(DirectoryPath,filename);
+            string path=Path.Combine(WorldDirectoryPath,filename);
             if(!File.Exists(path)) return;
             RecoverySnapshot previous;
             try {previous=new RecoverySnapshot(File.ReadAllText(path));}
@@ -134,21 +147,21 @@ namespace Remains.Persistence
                 return;
             }
             string archive=Path.Combine("Worlds",previous.WorldId,"Snapshots",previous.Id+".json");
-            if(!File.Exists(Path.Combine(DirectoryPath,archive))) AtomicWrite(archive,previous.Json);
+            if(!File.Exists(Path.Combine(WorldDirectoryPath,archive))) WriteWorld(archive,previous.Json);
         }
         public void SaveCharacter(ActorState actor)
         {
             Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
             var saved=actor.Copy();
             ContentProvenance.Record(ref saved.weaponContent,ref saved.weaponContentHistory);
-            AtomicWrite("character.json",JsonUtility.ToJson(saved,true));
+            WriteCharacter("character.json",JsonUtility.ToJson(saved,true));
         }
         public ActorState LoadCharacter()
             =>PrepareCharacter(ReadCharacterSource(),false);
 
         public string ReadCharacterSource()
         {
-            string path=Path.Combine(DirectoryPath,"character.json");
+            string path=Path.Combine(CharacterDirectoryPath,"character.json");
             return File.Exists(path)?File.ReadAllText(path):null;
         }
 
@@ -161,8 +174,8 @@ namespace Remains.Persistence
             if(preserve || actor.loadoutVersion==0 || actor.weaponInventoryVersion==0 || InventoryStackMigration.Needed(actor))
             {
                 backup=Path.Combine("Recovery","character-"+Guid.NewGuid().ToString("N")+".json");
-                AtomicWrite(backup,source);
-                backup=Path.Combine(DirectoryPath,backup);
+                WriteCharacter(backup,source);
+                backup=Path.Combine(CharacterDirectoryPath,backup);
             }
             actor.resolvedExplosions ??= new List<string>();actor.resolvedAttacks ??= new List<string>();
             if(actor.loadoutVersion==0) UpgradeLoadout(actor,backup);
@@ -185,6 +198,8 @@ namespace Remains.Persistence
 
         public string PreserveRecoverySource()
             => PreserveSource("world.json");
+        public string PreserveCharacterSource()
+            => PreserveSource("character.json",CharacterDirectoryPath);
 
         private static void UpgradeLoadout(ActorState actor,string backup)
         {
@@ -193,20 +208,18 @@ namespace Remains.Persistence
             Debug.LogWarning($"Миграция боезапаса v0→v1: actor={actor.id}, добавлено стартовое оснащение прототипа (магазины и резерв); здоровье и существующие предметы сохранены. Исходник: {backup}.");
         }
 
-        private string PreserveSource(string filename)
+        private string PreserveSource(string filename,string root=null)
         {
-            string source=Path.Combine(DirectoryPath,filename);
+            root??=WorldDirectoryPath;
+            string source=Path.Combine(root,filename);
             if(!File.Exists(source)) return null;
-            string directory=Path.Combine(DirectoryPath,"Recovery");Directory.CreateDirectory(directory);
+            string directory=Path.Combine(root,"Recovery");Directory.CreateDirectory(directory);
             string destination=Path.Combine(directory,Path.GetFileNameWithoutExtension(filename)+"-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff")+"-"+Guid.NewGuid().ToString("N")+".json");
             File.Copy(source,destination);
             return destination;
         }
 
-        private void AtomicWrite(string filename, string content)
-        {
-            string destination = Path.Combine(DirectoryPath, filename);
-            AtomicSaveFile.Write(destination,content);
-        }
+        private void WriteWorld(string filename,string content)=>AtomicSaveFile.Write(Path.Combine(WorldDirectoryPath,filename),content);
+        private void WriteCharacter(string filename,string content)=>AtomicSaveFile.Write(Path.Combine(CharacterDirectoryPath,filename),content);
     }
 }

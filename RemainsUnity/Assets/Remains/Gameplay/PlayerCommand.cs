@@ -12,5 +12,6 @@ namespace Remains.Gameplay
         public string weapon; // Legacy definition command for v0 actors.
         public string weaponItem,weaponShortcut;
         public bool shortcutWholeStack;
+        public bool throwWholeStack;
     }
 }

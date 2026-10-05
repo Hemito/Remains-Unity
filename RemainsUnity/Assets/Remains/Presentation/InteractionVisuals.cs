@@ -99,7 +99,7 @@ namespace Remains.Presentation
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;
-                if(string.IsNullOrEmpty(actor.weapon)) {view.SetVisible(false);continue;}
+                if(string.IsNullOrEmpty(actor.weapon) || HeldItemSelection.HasSelection(actor) || actor.weapon=="grenade" && !actor.heldItemPoseValid) {view.SetVisible(false);continue;}
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.SetVisible(false);continue; }
                 if(view.Id!=actor.weapon)

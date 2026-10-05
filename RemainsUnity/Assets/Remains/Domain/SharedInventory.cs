@@ -56,7 +56,7 @@ namespace Remains.Domain
             if (--item.count == 0)
             {
                 actor.inventory.Remove(item);
-                if(actor.weaponInventoryVersion==1 && InventoryStacks.ResolveId(actor.inventoryAliases,actor.equippedWeaponItem)==item.id)
+                if(actor.weaponInventoryVersion==1 && !HeldItemSelection.HasSelection(actor) && InventoryStacks.ResolveId(actor.inventoryAliases,actor.equippedWeaponItem)==item.id)
                     WeaponInventory.Select(actor,null,out _);
             }
             return true;

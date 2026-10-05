@@ -49,6 +49,7 @@ namespace Remains.Networking
         public event Action ClientReady;
         public event Action<ContentManifest> ModMismatch;
         public event Action<string,bool> HealingFinished;
+        public event Action<string,bool> ClaimPrepared;
         public event Action<string,long> RecoveryPrepared;
         public event Action<int,string,long> RecoveryAcknowledged;
         public event Action<int> RecoveryPeerLeft;
@@ -209,6 +210,7 @@ namespace Remains.Networking
             {TraceNpcHit("npc-hit-received",message);NpcHitReceived?.Invoke(message);});
             NetworkClient.RegisterHandler<FriendlyHitMessage>(message=>FriendlyHitReceived?.Invoke(message));
             NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
+            NetworkClient.RegisterHandler<ClaimReplyMessage>(message=>{ClaimPrepared?.Invoke(message.transaction,message.accepted);Notice?.Invoke(message.reason);});
             NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(JsonUtility.FromJson<ContentManifest>(System.Text.Encoding.UTF8.GetString(message.manifest))));
             NetworkClient.RegisterHandler<HealingReplyMessage>(message=>{HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);});
             ClientReady?.Invoke();
@@ -269,7 +271,22 @@ namespace Remains.Networking
                 return;
             }
             string owner = "connection:" + connection.connectionId;
-            owners[connection.connectionId] = owner;
+            string entryNotice=null;
+            if(actor!=null)
+            {
+                try
+                {
+                    var profile=string.IsNullOrEmpty(message.characterJson)?null:JsonUtility.FromJson<ActorState>(message.characterJson);
+                    PonyAppearance.ValidateSettings(profile?.appearance,message.character);
+                    var entered=PlayerWorldEntry.Reconcile(ServerWorld,actor,profile,out entryNotice);
+                    if(!ReferenceEquals(entered,actor)) {ServerWorld.actors[ServerWorld.actors.IndexOf(actor)]=entered;actor=entered;}
+                }
+                catch(Exception error) when(error is InvalidOperationException || error is System.IO.InvalidDataException)
+                {
+                    Debug.LogWarning($"Вход персонажа отменён: world={ServerWorld.worldId}, character={message.character}; {error.Message}");
+                    Admission.Reject(connection,error.Message);return;
+                }
+            }
             if (actor == null)
             {
                 actor=string.IsNullOrEmpty(message.characterJson)?null:JsonUtility.FromJson<ActorState>(message.characterJson);
@@ -288,11 +305,13 @@ namespace Remains.Networking
                 CharacterPlacement.SpawnInHub(actor,ServerWorld.actors.Count(a=>a.player));
                 ServerWorld.actors.Add(actor);
             }
+            owners[connection.connectionId] = owner;
             ActorSessionRules.Connect(actor,owner);
             playerIds[owner] = actor.id;
             ownership.Reassign(ServerWorld, owners.Values.ToArray());
             ServerWorld.revision++;
             WorldReplication.Send(connection,PrepareRecovery(),owner,actor.id);
+            if(entryNotice!=null) {Debug.LogWarning($"world={ServerWorld.worldId}, actor={actor.id}: {entryNotice}");connection.Send(new NoticeMessage {text=entryNotice});}
             if(recoveredActors.Contains(actor.id)) connection.Send(new NoticeMessage {text="Недопустимая позиция из старого сохранения восстановлена на свободной опоре. Здоровье и предметы сохранены; исходный сейв скопирован в Recovery."});
             BroadcastWorld();
         }
@@ -322,6 +341,11 @@ namespace Remains.Networking
             LocalOwner = message.owner;
             LocalActorId = message.actor;
             World = PersistCopy(message.worldJson);
+            if(LocalActor!=null && LocalActor.level!="hub")
+            {
+                string backup=Saves.PreserveCharacterSource();
+                if(backup!=null) Debug.LogWarning($"Личный профиль сохранён перед возвращением в тело: world={World.worldId}, actor={LocalActorId}, backup={backup}. Последствия оставленного тела принадлежат миру; независимые состояния персонажа не объединяются автоматически.");
+            }
             SaveLocalCharacter();
             Changed?.Invoke();
         }
@@ -382,7 +406,7 @@ namespace Remains.Networking
 
         public void SaveLocalCharacter()
         {
-            if(LocalActor!=null) {Saves.SaveCharacter(LocalActor);playTime.Checkpoint(Saves.DirectoryPath);}
+            if(LocalActor!=null) {Saves.SaveCharacter(LocalActor);playTime.Checkpoint(Saves.CharacterDirectoryPath);}
         }
 
         public event Action<string,double,int> RecoveryMeasured;
@@ -514,10 +538,16 @@ namespace Remains.Networking
             actor.climbing=message.climbing;
             actor.jumpSupportRemaining=message.jumpSupportRemaining;
             actor.crouched=message.crouched;
-            actor.weapon=message.weapon;actor.weaponAngle=message.weaponAngle;
-            actor.weaponTipX=message.weaponTipX;actor.weaponTipY=message.weaponTipY;
-            actor.weaponReach=message.weaponReach;actor.weaponLift=message.weaponLift;
-            actor.weaponFlipY=message.weaponFlipY;
+            // Selection travels reliably in ActorMessage. A delayed pose cannot change the active selection.
+            if(message.weaponSelectionRevision==actor.weaponSelectionRevision)
+            {
+                actor.weapon=message.weapon;actor.weaponAngle=message.weaponAngle;
+                actor.weaponTipX=message.weaponTipX;actor.weaponTipY=message.weaponTipY;
+                actor.weaponReach=message.weaponReach;actor.weaponLift=message.weaponLift;
+                actor.weaponFlipY=message.weaponFlipY;
+                actor.heldItemPoseX=message.heldItemPoseX;actor.heldItemPoseY=message.heldItemPoseY;
+                actor.heldItemPoseValid=message.heldItemPoseValid;
+            }
             if(!actor.player && message.perception!=null) {actor.target=message.target;actor.perception=message.perception.Copy();}
             if(actor.attackId==message.attackId && actor.attackBusy==message.attackBusy)
             {
@@ -536,6 +566,7 @@ namespace Remains.Networking
             actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = actor.motionSequence=unchecked(actor.motionSequence+1),
             x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,poseSequence=actor.poseSequence,climbing=actor.climbing,crouched=actor.crouched,jumpSupportRemaining=actor.jumpSupportRemaining,
             weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponLift=actor.weaponLift,weaponFlipY=actor.weaponFlipY,
+            weaponSelectionRevision=actor.weaponSelectionRevision,heldItemPoseX=actor.heldItemPoseX,heldItemPoseY=actor.heldItemPoseY,heldItemPoseValid=actor.heldItemPoseValid,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown,
             target=actor.player?null:actor.target,perception=actor.player?null:actor.perception.Copy()
         }, Channels.Unreliable);
@@ -616,7 +647,16 @@ namespace Remains.Networking
             npcHits.Accept(message,attack);
         }
 
-        public void RequestClaim(string container,string item,int quantity=0) => NetworkClient.Send(new ClaimMessage { transaction = Guid.NewGuid().ToString("N"),container=container, item = item,quantity=quantity });
+        public void RequestClaim(string container,string item,int quantity=0) => RequestTrackedClaim(container,item,quantity);
+        public string RequestTrackedClaim(string container,string item,int quantity=0)
+        {
+            var actor=LocalActor;
+            if(actor==null || !NetworkClient.isConnected) return null;
+            string transaction=Guid.NewGuid().ToString("N");
+            NetworkClient.Send(new ClaimMessage {transaction=transaction,container=container,item=item,quantity=quantity,
+                actorGeneration=actor.generation,actorLifecycle=actor.lifecycleSequence});
+            return transaction;
+        }
         public string RequestRevive(string target)=>RequestHealing(target,false);
         public void RequestSelfHeal()=>RequestSelfHeal(null);
         public void RequestSelfHeal(string itemId)=>RequestHealing(LocalActorId,true,itemId);
@@ -658,8 +698,15 @@ namespace Remains.Networking
         {
             if (!owners.TryGetValue(connection.connectionId, out string owner)) return;
             var actor = ServerWorld.Find(playerIds[owner]);
+            bool current=actor!=null && actor.generation==message.actorGeneration && actor.lifecycleSequence==message.actorLifecycle;
+            if(!current)
+            {connection.Send(new ClaimReplyMessage {transaction=message.transaction,accepted=false,reason="Подбор отменён: изменилось состояние персонажа."});return;}
+            if(!string.IsNullOrEmpty(message.transaction) &&
+                ServerWorld.pendingGrants.Any(grant=>grant.transaction==message.transaction && grant.recipient==actor.id && grant.containerId==message.container))
+            {connection.Send(new ClaimReplyMessage {transaction=message.transaction,accepted=true,reason="Запрос подбора уже принят. Состояние выдачи подтверждается снимком мира."});return;}
             bool success = inventory.PrepareClaim(message.transaction,message.container, message.item, actor,out string reason,message.quantity,Pause.IsServerPaused(actor.level));
-            connection.Send(new NoticeMessage { text = success ? "Подбор подтверждается копиями мира…" : reason });
+            connection.Send(new ClaimReplyMessage {transaction=message.transaction,accepted=success,
+                reason=success?"Подбор подтверждается копиями мира…":reason});
             if (success) { BroadcastWorld(); CompleteBackedUpGrants(); }
         }
 

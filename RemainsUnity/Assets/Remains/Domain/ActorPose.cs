@@ -12,10 +12,14 @@ namespace Remains.Domain
             destination.climbing=source.climbing;
             destination.crouched=source.crouched;
             destination.jumpSupportRemaining=source.jumpSupportRemaining;
-            destination.weapon=source.weapon;destination.weaponAngle=source.weaponAngle;
-            destination.weaponFlipY=source.weaponFlipY;
-            destination.weaponTipX=source.weaponTipX;destination.weaponTipY=source.weaponTipY;
-            destination.weaponReach=source.weaponReach;destination.weaponLift=source.weaponLift;
+            if(source.weaponSelectionRevision==destination.weaponSelectionRevision)
+            {
+                destination.weapon=source.weapon;destination.weaponAngle=source.weaponAngle;
+                destination.weaponFlipY=source.weaponFlipY;
+                destination.weaponTipX=source.weaponTipX;destination.weaponTipY=source.weaponTipY;
+                destination.weaponReach=source.weaponReach;destination.weaponLift=source.weaponLift;
+                HeldItemSelection.CopyPose(source,destination);
+            }
         }
         public static string Clip(ActorState actor)=>ActorSessionRules.IsPassive(actor)?"down":actor.pose;
         public static bool StationaryClimb(ActorState actor)=>actor.climbing && !ActorSessionRules.IsPassive(actor) && System.Math.Abs(actor.vy)<.001f;

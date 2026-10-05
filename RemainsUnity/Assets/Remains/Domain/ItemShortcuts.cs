@@ -35,7 +35,7 @@ namespace Remains.Domain
     public interface IItemActionRule {string Action(ItemStack item);}
     public sealed class StandardItemActions : IItemActionRule
     {
-        public const string Equip="equip",Heal="heal",Toss="toss";
-        public string Action(ItemStack item)=>item==null?null:WeaponInventory.IsEquippable(item)?Equip:item.definition=="heal"?Heal:Toss;
+        public const string Equip="equip",Heal="heal",Hold="hold",Toss="toss";
+        public string Action(ItemStack item)=>item==null?null:WeaponInventory.IsEquippable(item)?Equip:item.definition=="heal"?Heal:Hold;
     }
 }

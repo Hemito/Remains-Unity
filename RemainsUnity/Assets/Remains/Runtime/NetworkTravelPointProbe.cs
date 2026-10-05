@@ -88,7 +88,8 @@ namespace Remains.Runtime
                 if(Mathf.Abs(actor.x-Map.arrivalX)>.08f) return Move(Map.arrivalX);
                 if(!ActorTerrainMotion.Supported(runtime.Geometry.Get(actor.level),Anatomy.Movement(actor),actor.Position) || Map.Rejection(actor)!=null) return default;
                 if(!Host && !runtime.Session.World.actors.Any(a=>a.player && a.connected && a.id!=actor.id && a.level=="factory:0")) return default;
-                phase=1;return new PlayerCommand {interact=true};
+                if(runtime.Options.Smoke.Contains("-frames-")) NetworkSceneRecord.Save(runtime,20);
+                phase=1;return new PlayerCommand {interact=true,hasAim=true,aim=Map.Bounds.center};
             }
             if(phase==4) return Move(6);
             if(phase==5) return Move(runtime.Geometry.Get(actor.level).spawnX);
@@ -97,14 +98,14 @@ namespace Remains.Runtime
                 if(Host && !Solo && blockedPeers.Count<runtime.Options.ProbePeers-1) return default;
                 if(!interacted)
                 {
-                    var selected=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules,runtime.Session.Travel.Points(actor.level));
+                    var selected=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules,ExitPoint.Bounds.center,runtime.Session.Travel.Points(actor.level));
                     if(selected.kind!=InteractionKind.Exit) {Finish(false,"E у входа не выбирает выходную дверь: "+selected.kind);return default;}
                     interacted=true;pausedExit=runtime.Session.Pause.IsPaused(actor.level);
-                    return new PlayerCommand {interact=true};
+                    return new PlayerCommand {interact=true,hasAim=true,aim=ExitPoint.Bounds.center};
                 }
             }
-            if(phase==8 && !runtime.Hud.WorldMap.IsOpen) return new PlayerCommand {interact=true};
-            if(phase==11 && !interacted) {interacted=true;return new PlayerCommand {interact=true};}
+            if(phase==8 && !runtime.Hud.WorldMap.IsOpen) return new PlayerCommand {interact=true,hasAim=true,aim=Map.Bounds.center};
+            if(phase==11 && !interacted) {interacted=true;return new PlayerCommand {interact=true,hasAim=true,aim=ExitPoint.Bounds.center};}
             return default;
         }
         private PlayerCommand Move(float x)=>new() {movement=Vector2.right*(Mathf.Abs(Actor.x-x)>.06f?Mathf.Sign(x-Actor.x):0)};
