@@ -21,6 +21,12 @@ namespace Remains.Persistence
             var world = JsonUtility.FromJson<WorldState>(json);
             if (world == null || world.schema != 1 || !Guid.TryParseExact(world.worldId, "N", out _))
                 throw new System.IO.InvalidDataException("Некорректный восстановительный снимок мира.");
+            try {LevelTimeMigration.ValidateWorld(world);}
+            catch(InvalidOperationException error)
+            {
+                throw new System.IO.InvalidDataException(
+                    "Некорректные часы восстановительного снимка: мир="+world.worldId+". "+error.Message,error);
+            }
             Json = json;
             WorldId = world.worldId;
             Revision = world.revision;

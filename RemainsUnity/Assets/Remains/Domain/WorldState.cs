@@ -121,6 +121,8 @@ namespace Remains.Domain
         public List<ActorState> actors = new();
         public List<string> contentPatches = new();
         public List<WorldRoom> rooms = new();
+        public int levelTimeVersion;
+        public List<LevelSimulationTime> levelTimes = new();
         public List<ContainerState> containers = new();
         public List<ItemStack> container; // Legacy schema: read only by explicit migration.
         public List<string> completedTransactions = new();

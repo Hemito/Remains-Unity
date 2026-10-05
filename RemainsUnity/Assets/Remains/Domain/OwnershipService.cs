@@ -49,7 +49,8 @@ namespace Remains.Domain
             bool changed=GrenadeRules.ReassignAndReportChanges(world,activeOwners);
             changed|=ProjectileLifecycle.ReassignAndReportChanges(world,activeOwners);
             changed|=ActorHoldRules.Reconcile(world,activeOwners);
-            var active = world.actors.Where(a => a.player && a.connected && !a.down && activeOwners.Contains(a.owner)).ToArray();
+            var connected = world.actors.Where(a => a.player && a.connected && !string.IsNullOrEmpty(a.owner) && activeOwners.Contains(a.owner)).ToArray();
+            var active = connected.Where(a => !a.down).ToArray();
             foreach (var actor in world.actors.Where(a => !a.player || !a.connected))
             {
                 if (!ActorPresence.IsPresent(actor))
@@ -90,9 +91,12 @@ namespace Remains.Domain
             foreach(var prop in WorldProps.All(world))
             {
                 if(active.Any(a=>a.owner==prop.owner && a.level==prop.level)) continue;
-                var candidate=active.Where(a=>a.level==prop.level).OrderBy(a=>Vector2.Distance(a.Position,prop.Position)).FirstOrDefault();
-                string next=candidate?.owner??"host";
-                if(prop.owner==next) continue;
+                // An incapacitated connected player still runs a client and keeps
+                // this level active. Use its real connection ID when nobody stands.
+                var candidate=connected.Where(a=>a.level==prop.level).OrderBy(a=>a.down?1:0)
+                    .ThenBy(a=>Vector2.Distance(a.Position,prop.Position)).ThenBy(a=>a.id).FirstOrDefault();
+                string next=candidate?.owner;
+                if(prop.owner==next && !prop.held) continue;
                 prop.owner=next;prop.held=false;prop.generation++;
                 changed=true;
             }

@@ -101,14 +101,22 @@ namespace Remains.Runtime
                 runtime.Hud.PauseMenu.IsOpen==expectedMenu && runtime.Hud.InventoryOpen==expectedInventory &&
                 runtime.Session.Pause.PauseOnMenu && runtime.Session.Pause.PauseOnInventory;
             float time=actor?.poseTime ?? 0;
+            double canonicalTime=Host?runtime.Session.LevelTime.ReadServer("hub"):0;
             yield return new WaitForSecondsRealtime(.6f);
             actor=runtime.Session.LocalActor;
             valid &= actor!=null && runtime.Session.Pause.IsPaused("hub")==paused &&
                 (paused?actor.poseTime==time:actor.poseTime>time+.1f) && (!Host || step!=8 || sawOffline);
+            if(Host)
+            {
+                double after=runtime.Session.LevelTime.ReadServer("hub");
+                bool clocksValid=paused?after==canonicalTime:after>canonicalTime+.1;
+                valid &= clocksValid;if(clocksValid) clockPhases++;
+            }
             if(valid) checkedPhases++;
             NetworkClient.Send(new PauseGroupAck {phase=step,valid=valid,
                 detail=$"Композиция паузы не совпала: phase={step}, actor={actor?.id}, paused={runtime.Session.Pause.IsPaused("hub")}, menu={runtime.Hud.PauseMenu.IsOpen}, inventory={runtime.Hud.InventoryOpen}, offline={sawOffline}."});
         }
+        private int clockPhases;
         private void Update()
         {
             if(finished) return;
@@ -118,13 +126,14 @@ namespace Remains.Runtime
         private void Complete(bool success,string detail)=>NetworkServer.SendToAll(new PauseGroupFinish {success=success,detail=detail});
         private void Finish(bool success,string detail)
         {
-            if(finished) return;finished=true;success &= checkedPhases==10;
+            if(finished) return;finished=true;success &= checkedPhases==10 && (!Host || clockPhases==10);
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,
+                canonicalClockPhases=clockPhases,
                 detail=detail+$" Проверено фаз: {checkedPhases}; отключение при оставшейся причине: {sawOffline}."},true));
             exitCode=success?0:1;Invoke(nameof(Exit),1);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success;public string detail;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int canonicalClockPhases;}
     }
 }

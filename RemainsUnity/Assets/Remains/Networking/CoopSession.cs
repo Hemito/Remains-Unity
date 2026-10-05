@@ -77,6 +77,8 @@ namespace Remains.Networking
         public SessionActorHolds ActorHolds=>actorHolds ??= new SessionActorHolds(this);
         private SessionPause pause;
         public SessionPause Pause=>pause ??= new SessionPause(this);
+        private SessionLevelTime levelTime;
+        public SessionLevelTime LevelTime=>levelTime ??= new SessionLevelTime(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
         private readonly Dictionary<int,long> backupRevisions = new();
         private readonly RecoveryReceiptGate recoveryReceipts = new();
@@ -156,6 +158,9 @@ namespace Remains.Networking
             NpcWeaponInventoryMigration.Apply(ServerWorld,source==null?null:()=>Debug.Log("Сохранена копия мира перед преобразованием оружия NPC: "+Saves.PreserveRecoverySource()));
             NpcWeaponActions.ValidateWorld(ServerWorld);
             WorldHistory.BeginContinuation(ServerWorld);
+            LevelTimeMigration.Prepare(ServerWorld,contentLevels.Concat(ServerWorld.rooms.Select(room=>room.level)),source==null?null:
+                ()=>Debug.Log("Исходный мир сохранён перед установкой часов уровней: "+Saves.PreserveRecoverySource()));
+            LevelTime.BeginServer();
             GrenadeRules.BeginSession(ServerWorld);
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
@@ -173,7 +178,7 @@ namespace Remains.Networking
 
         internal void DiscardUnstartedWorld()
         {
-            CancelInvoke(nameof(CheckpointWorld));ServerWorld=null;inventory=null;recoveredActors.Clear();
+            CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
         }
 
         internal void AdmitLobbyPlayer(NetworkConnectionToClient connection,JoinMessage message)=>Join(connection,message);
@@ -787,6 +792,7 @@ namespace Remains.Networking
             Pause.ResetServer();
             CancelInvoke(nameof(CheckpointWorld));
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
+            LevelTime.ResetServer();
         }
         public override void OnStopClient()
         {

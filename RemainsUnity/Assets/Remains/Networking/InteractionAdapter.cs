@@ -47,7 +47,7 @@ namespace Remains.Networking
             {connection.Send(new NoticeMessage {text="Захват/отпускание отменено: уровень остановлен."});return;}
             if(message.release)
             {
-                if(prop.owner!=actor.owner) return;
+                if(prop.owner!=actor.owner || !prop.held) return;
                 prop.held=false;prop.generation++;
             }
             else
@@ -65,7 +65,7 @@ namespace Remains.Networking
         {
             var actor=session.ConnectedActor(connection);
             var prop=WorldProps.Find(session.ServerWorld,message.prop);
-            if(actor==null || prop==null || prop.owner!=actor.owner || actor.level!=prop.level ||
+            if(!PropPoseScope.CanPublish(session.ServerWorld,actor,prop,prop!=null && session.Pause.IsServerPaused(prop.level)) ||
                 !PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy)) return;
             NetworkServer.SendToAll(message,Channels.Unreliable);
         }

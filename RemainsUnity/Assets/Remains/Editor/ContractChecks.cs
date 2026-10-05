@@ -121,6 +121,8 @@ namespace Remains.Editor
             MovableContainerChecks.Run();
             PropPlatformChecks.Run();
             PropStackChecks.Run();
+            FreePropMotionChecks.Run();
+            PropPoseScopeChecks.Run();
             TelekinesisRuleChecks.Run();
             ActorHoldChecks.Run();
             MagicRecoveryChecks.Run();
@@ -131,6 +133,9 @@ namespace Remains.Editor
             CharacterContentChecks.Run();
             GameplayRuleChecks.Run();
             LevelPauseChecks.Run();
+            LevelTimeChecks.Run();
+            MovingPlatformChecks.Run();
+            ButtonRepairChecks.Run();
             AtomicSaveChecks.Run();
             DepositChecks.Run();
             BodyInventoryChecks.Run();

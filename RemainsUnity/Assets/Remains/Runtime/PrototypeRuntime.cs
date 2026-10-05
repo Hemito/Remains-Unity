@@ -47,6 +47,7 @@ namespace Remains.Runtime
         private MovementController movement;
         private MovementSettings passiveMovementSettings;
         private NpcController npcs;
+        private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
         private readonly RemoteActorMotion remoteMotion=new();
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
@@ -88,7 +89,7 @@ namespace Remains.Runtime
             Session.ConfigureRules(WeaponCatalog.Rules);
             Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby") || Options.Smoke.StartsWith("duplicate-lobby") || Options.Smoke.StartsWith("protocol") || Options.Smoke.StartsWith("grenade-resume-"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
             Session.CharacterId=Options.Character;
-            Session.DebugTravelAllowed=Options.Smoke!=null && !Options.Smoke.StartsWith("travel-points");
+            Session.DebugTravelAllowed=Options.Smoke!=null && !Options.Smoke.StartsWith("travel-points") && !Options.Smoke.StartsWith("prop-body");
             Session.networkAddress=Options.Address;
             bool characterLibraryProbe=Options.Smoke?.StartsWith("characters")==true;
             if(Options.SaveDirectory==null || characterLibraryProbe)
@@ -110,6 +111,7 @@ namespace Remains.Runtime
             Interactions=new InteractionAdapter(Session);
             Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);
             Telekinesis=new TelekinesisController(Session,Interactions,Geometry);
+            freeProps=new FreePropSimulation(Session,Geometry,Interactions);
             visualLayers=new ActorVisualLayers(transform);
             new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>().Initialize(Session,Interactions,Grenades,Geometry,visualLayers);
             HeldItems=new GameObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
@@ -137,7 +139,7 @@ namespace Remains.Runtime
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
             ItemActions=new ItemShortcutActions(Session,EquipWeaponItem);
-            if (!Application.isBatchMode || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
+            if (!Application.isBatchMode || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
                 hud.SelectedInteraction=()=>InteractionFocus.Target;
@@ -173,6 +175,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("appearance")) gameObject.AddComponent<NetworkAppearanceProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("contact-audio")) gameObject.AddComponent<NetworkContactAudioProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("prop-body")) gameObject.AddComponent<NetworkPropBodyProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("crawler")) gameObject.AddComponent<NetworkCrawlerProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("projectile-handoff")) gameObject.AddComponent<NetworkProjectileHandoffProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("factory-room")) gameObject.AddComponent<NetworkFactoryRoomProbe>().Initialize(this);
@@ -290,6 +293,7 @@ namespace Remains.Runtime
         private void Update()
         {
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
+            Session.LevelTime.Step(Time.deltaTime);
             var actor=Session.LocalActor;
             Pickup.Step();
             if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();InteractionFocus.Clear();return;}
@@ -308,13 +312,14 @@ namespace Remains.Runtime
                 if(LevelActivity.HasConnectedPlayer(Session.World,animated.level) && !Session.Pause.IsPaused(animated.level)) ActorPose.Advance(animated,Time.deltaTime);
             }
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 npcs.Step(Time.deltaTime);
                 var command=CommandSource?.Invoke() ?? ReadCommand();
                 if(CommandSource!=null && Options.Smoke!=null) command=ProbeWeaponSelection.Resolve(actor,command);
                 ApplyCommand(command,Time.deltaTime);
             }
+            freeProps.Step(Time.deltaTime);
             Combat.Step(Time.deltaTime);
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))
             {

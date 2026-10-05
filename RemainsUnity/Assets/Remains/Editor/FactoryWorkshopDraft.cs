@@ -67,7 +67,7 @@ namespace Remains.Editor
                         "platform2" or "knop3"=>"Нужна общая движущаяся платформа и связанные кнопки; исходные параметры сохранены как данные.",
                         "bigbox"=>"Нужно отдельное определение большого ящика, ресурс и масса.",
                         "vendor"=>"Торговля отложена пользователем; исходная запись сохранена.",
-                        "instr2"=>"Нужны ресурс и назначение инструкции; взаимодействие пока не подключено.",
+                        "instr2"=>"Настенный стенд для инструментов: нужны исходная графика, закрепление без физической опоры и общий контейнер; взаимодействие пока не подключено.",
                         _=>throw new InvalidOperationException("Неизвестный тип цеха: "+record.recordId+", type="+record.kind)};
                 }
                 var report=ScriptableObject.CreateInstance<RoomImportReportAsset>();report.Configure(source.sourceId,source.sourceHash,source.records);
