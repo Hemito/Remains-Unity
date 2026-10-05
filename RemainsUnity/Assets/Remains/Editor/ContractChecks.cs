@@ -38,6 +38,7 @@ namespace Remains.Editor
             HintPlacementChecks.Run();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
+            CharacterInterfaceChecks.Run();
             ActorControlChecks.Run();
             DoorCombatChecks.Run();
             FactoryRoomContentChecks.Run();

@@ -7,6 +7,7 @@ namespace Remains.Presentation
     {
         [InspectorName("Панель подключения")] public GameObject Controls;
         [InspectorName("Имя персонажа")] public InputField Character;
+        [InspectorName("Библиотека персонажей")] public Button Characters;
         [InspectorName("Адрес сервера")] public InputField Address;
         [InspectorName("Создать сессию")] public Button Host;
         [InspectorName("Сохранённые миры")] public Button Worlds;
@@ -18,7 +19,7 @@ namespace Remains.Presentation
         [InspectorName("Уведомление")] public Text Notice;
         public void Validate()
         {
-            if(Controls==null || Character==null || Address==null || Host==null || Worlds==null || Join==null || Settings==null ||
+            if(Controls==null || Character==null || Characters==null || Address==null || Host==null || Worlds==null || Join==null || Settings==null ||
                 NewGame==null || Exit==null || World==null || Notice==null)
                 throw new InvalidOperationException($"Главное меню {name}: отсутствуют ссылки на элементы интерфейса.");
         }

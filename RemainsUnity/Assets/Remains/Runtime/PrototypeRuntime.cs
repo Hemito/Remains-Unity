@@ -128,7 +128,7 @@ namespace Remains.Runtime
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
             ItemActions=new ItemShortcutActions(Session,EquipWeaponItem);
-            if (!Application.isBatchMode || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
+            if (!Application.isBatchMode || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
@@ -137,22 +137,29 @@ namespace Remains.Runtime
                 hud.UseItemShortcut=slot=>ItemActions.Activate(slot,lastGameplayAim,Application.isFocused &&
                     (Keyboard.current?.leftShiftKey.isPressed==true || Keyboard.current?.rightShiftKey.isPressed==true));
                 hud.EquipWeapon=weapon=>{if(Session.LocalActor is {down:false}) Combat.Weapon=weapon;};
+                bool characterProbe=Options.Smoke?.StartsWith("characters")==true;
+                var characterLibrary=new CharacterLibrary(characterProbe?Path.Combine(Options.SaveDirectory,"Profiles"):Path.Combine(Application.persistentDataPath,"Profiles"),characterProbe?null:Options.SaveDirectory);
                 hud.SelectCharacter=name=>
                 {
                     if(!System.Text.RegularExpressions.Regex.IsMatch(name??"",@"^[\p{L}\p{N}_ -]{1,32}$"))
-                    {hud.ShowMessage("Имя персонажа: от 1 до 32 букв, цифр, пробелов, дефисов или подчёркиваний.");return false;}
+                    {if(Options.Smoke==null) hud.ShowCharacterLibrary();else hud.ShowMessage("Имя персонажа: от 1 до 32 букв, цифр, пробелов, дефисов или подчёркиваний.");return false;}
+                    if((Options.Smoke==null || characterProbe) && !File.Exists(Path.Combine(characterLibrary.ProfilePath(name),"character.json")))
+                    {hud.ShowCharacterLibrary();return false;}
                     if(Session.CharacterId==name) return true;
                     Session.CharacterId=name;
-                    Session.Saves=new SaveStore(Options.SaveDirectory??Path.Combine(Application.persistentDataPath,"Profiles",name));
+                    Session.Saves=new SaveStore(characterLibrary.ProfilePath(name));
+                    Session.CharacterContent.Reset();
                     return true;
                 };
+                hud.ConfigureCharacters(characterLibrary,Options.Smoke==null && Options.Role==null);
                 hud.HostRequested+=()=>Session.StartHost();
                 hud.JoinRequested+=address=> { Session.networkAddress=address; Session.StartClient(); };
             }
             if(Options.Smoke?.Contains("-attacker-")==true) Session.ServerReady+=()=>Session.SetFriendlyFireDecision(FriendlyFireDecision.Attacker);
             if (Options.Smoke != null)
             {
-                if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);
+                if(Options.Smoke.StartsWith("characters")) gameObject.AddComponent<CharacterMenuProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("appearance")) gameObject.AddComponent<NetworkAppearanceProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("projectile-handoff")) gameObject.AddComponent<NetworkProjectileHandoffProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("factory-room")) gameObject.AddComponent<NetworkFactoryRoomProbe>().Initialize(this);
@@ -198,6 +205,7 @@ namespace Remains.Runtime
 
         private void Start()
         {
+            if(Options.Smoke?.StartsWith("characters")==true) return;
             LegacyPrototypeFixture.Prepare(this);
             if (Options.Role=="host") Session.StartHost();
             else if (Options.Role=="client") Session.StartClient();

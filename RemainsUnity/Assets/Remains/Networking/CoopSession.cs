@@ -18,6 +18,7 @@ namespace Remains.Networking
         public string LocalOwner { get; private set; }
         public string LocalActorId { get; private set; }
         public ActorState LocalActor => World?.Find(LocalActorId);
+        private readonly CharacterPlayTime playTime=new(()=>Time.unscaledTimeAsDouble);
         public SaveStore Saves { get; set; }
         public CharacterContentGate CharacterContent {get;}=new();
         private GameplayRuleSet rules;
@@ -276,10 +277,9 @@ namespace Remains.Networking
                 if(actor==null)
                 {
                     actor=new ActorState();
+                    actor.character=message.character;
                     actor.hair=PonyPaletteAsset.Load().ForNewCharacter(ServerWorld.actors);
-                    InventoryStacks.Add(actor,SharedInventory.Create("heal", 5));
-                    InventoryStacks.Add(actor,SharedInventory.Create("grenade", 5));
-                    WeaponAmmunition.Initialize(actor,true);
+                    PlayerStarterInventory.Give(actor);
                 }
                 actor.id="player:"+message.character;actor.character=message.character;actor.player=true;
                 actor=WeaponInventoryMigration.Prepare(actor);
@@ -379,7 +379,7 @@ namespace Remains.Networking
 
         public void SaveLocalCharacter()
         {
-            if(LocalActor!=null) Saves.SaveCharacter(LocalActor);
+            if(LocalActor!=null) {Saves.SaveCharacter(LocalActor);playTime.Checkpoint(Saves.DirectoryPath);}
         }
 
         public event Action<string,double,int> RecoveryMeasured;
@@ -729,6 +729,7 @@ namespace Remains.Networking
             Projectiles.ResetClient();
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
+            playTime.Stop();
             Doors.ResetClient();Pause.ResetClient();
             Changed?.Invoke();
         }

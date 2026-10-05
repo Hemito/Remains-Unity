@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using Remains.Content;
 namespace Remains.Presentation
 {
+    [RequireComponent(typeof(CanvasRenderer))]
     public sealed class PortraitPart : MaskableGraphic
     {
         [SerializeField] private Texture texture;
@@ -22,7 +23,7 @@ namespace Remains.Presentation
         public override Texture mainTexture=>texture;
         public void Validate()
         {
-            if(texture==null || points==null || points.Length!=4 || !float.IsFinite(minimum.x) || !float.IsFinite(minimum.y) ||
+            if(GetComponent<CanvasRenderer>()==null || texture==null || points==null || points.Length!=4 || !float.IsFinite(minimum.x) || !float.IsFinite(minimum.y) ||
                 !float.IsFinite(maximum.x) || !float.IsFinite(maximum.y) || maximum.x<=minimum.x || maximum.y<=minimum.y || string.IsNullOrEmpty(slot) || hairStyle<0 || eyeStyle<0)
                 throw new System.InvalidOperationException($"Часть портрета {name}: отсутствуют текстура, вершины, границы или цветовая область.");
             foreach(var point in points) if(!float.IsFinite(point.x) || !float.IsFinite(point.y) || !float.IsFinite(point.z))

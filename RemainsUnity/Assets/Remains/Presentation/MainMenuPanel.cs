@@ -15,15 +15,16 @@ namespace Remains.Presentation
         public Button Worlds=>view.Worlds;
         public Text World=>view.World;
         public Text Notice=>view.Notice;
+        public Button Characters=>view.Characters;
         public void SetActionsBusy(bool busy)
         {
-            foreach(var button in new[]{view.Host,view.Join,view.Worlds,view.NewGame}) button.interactable=!busy;
-            view.Character.interactable=!busy;view.Address.interactable=!busy;
+            foreach(var button in new[]{view.Host,view.Join,view.Worlds,view.NewGame,view.Characters}) button.interactable=!busy;
+            view.Address.interactable=!busy;
         }
         public static string DescribeWorld(string name,string branch,long revision)=>
             $"Выбран: {name}\nВетвь {branch.Substring(0,Math.Min(8,branch.Length))} · состояние №{revision}";
         public RectTransform SoundRect=>view.Settings.GetComponent<RectTransform>();
-        public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame)
+        public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame,Action characters=null)
         {
             var prefab=Resources.Load<MainMenuView>("Presentation/MainMenu");
             if(prefab==null) throw new InvalidOperationException("Нет префаба главного меню Presentation/MainMenu.");
@@ -31,6 +32,8 @@ namespace Remains.Presentation
             view.Host.onClick.AddListener(()=>host());view.Join.onClick.AddListener(()=>join());
             view.Worlds.onClick.AddListener(()=>worlds());view.Settings.onClick.AddListener(()=>settings());
             view.NewGame.onClick.AddListener(()=>newGame());view.Exit.onClick.AddListener(()=>Application.Quit());
+            view.Characters.interactable=characters!=null;
+            if(characters!=null) view.Characters.onClick.AddListener(()=>characters());
         }
     }
 }

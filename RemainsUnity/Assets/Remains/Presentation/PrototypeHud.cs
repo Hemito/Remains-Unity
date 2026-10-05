@@ -40,6 +40,9 @@ namespace Remains.Presentation
         public RectTransform WorldChoiceRect(string id)=>worldChoices[id];
         private InputField address;
         private InputField character;
+        private CharacterLibrary characterLibrary;
+        public CharacterLibraryPanel Characters {get;private set;}
+        public RectTransform CharactersButtonRect=>mainMenu.Characters.GetComponent<RectTransform>();
         public Func<string,bool> SelectCharacter { get; set; }
         private InventoryArtwork inventoryArtwork;
         private InteractionHint containerHint;
@@ -125,12 +128,11 @@ namespace Remains.Presentation
                     newGameOperation.Run(_=>{new WorldLibrary(store).PrepareNewGame();return true;},_=>
                     {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("");HostRequested?.Invoke();},error=>
                     {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("Не удалось создать новую игру: "+error.Message);Debug.LogError(error);});
-                });
+                },ShowCharacterLibrary);
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
             selectedWorldPanel=mainMenu.Root.AddComponent<SelectedWorldPanel>();selectedWorldPanel.Initialize(selectedWorld,hostButton);
             newGameOperation=mainMenu.Root.AddComponent<BackgroundSaveOperation>();
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
-            character.onEndEdit.AddListener(name=>{if(SelectCharacter?.Invoke(name)==true) RefreshSelectedWorld();});
             var inventoryView=InventoryWindowView.Create(transform);inventory=inventoryView.gameObject;
             containerWindow=ContainerWindowView.Create(transform);
             containerPanel=new FloatingContainerPanel(containerWindow,session,inventoryArtwork,worldCamera,()=>
@@ -158,8 +160,27 @@ namespace Remains.Presentation
             Refresh();
         }
 
+        public void ConfigureCharacters(CharacterLibrary library,bool hideUncreatedSelection)
+        {
+            characterLibrary=library;
+            if(hideUncreatedSelection && !System.IO.File.Exists(System.IO.Path.Combine(library.ProfilePath(session.CharacterId),"character.json")))
+                character.text="";
+        }
+        public void ShowCharacterLibrary()
+        {
+            if(characterLibrary==null) {ShowMessage("Библиотека персонажей ещё не подключена.");return;}
+            if(Characters!=null || session.LocalActor!=null) return;
+            mainMenu.SetActionsBusy(true);
+            Characters=CharacterLibraryPanel.Open(transform,characterLibrary,inventoryArtwork,session.CharacterId,name=>
+            {
+                if(SelectCharacter?.Invoke(name)!=true) return false;
+                character.text=name;RefreshSelectedWorld();return true;
+            },()=>{Characters=null;mainMenu.SetActionsBusy(false);RefreshSelectedWorld();});
+        }
+
         public void ToggleMenu()
         {
+            if(Characters!=null) {Characters.Close();return;}
             if(AudioSettings.IsOpen) {AudioSettings.Cancel();return;}
             if(WorldMap.IsOpen) {WorldMap.Close();return;}
             if(InventoryOpen) {ToggleInventory();CloseContainer();return;}
@@ -278,7 +299,11 @@ namespace Remains.Presentation
         }
         private void Update()
         {
-            if(session.LocalActor==null && AudioSettings.IsOpen && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true) AudioSettings.Cancel();
+            if(session.LocalActor==null && Application.isFocused && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true)
+            {
+                if(Characters!=null) ToggleMenu();
+                else if(AudioSettings.IsOpen) AudioSettings.Cancel();
+            }
             WorldMap.Refresh();
             bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen && !WorldMap.IsOpen;
             RefreshInteractionHint();
