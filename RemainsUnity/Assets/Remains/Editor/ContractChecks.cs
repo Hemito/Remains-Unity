@@ -71,6 +71,7 @@ namespace Remains.Editor
             WeaponAssetChecks.Run();
             EntityAssetChecks.Run();
             PropPrefabChecks.Run();
+            ContainerAppearanceChecks.Run();
             RoomAuthoringChecks.Run();
             HubRangeAuthoring.CheckPassage();
             RoomTextureChecks.Run();

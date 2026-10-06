@@ -12,7 +12,7 @@ namespace Remains.Runtime
     [Serializable] public sealed class NetworkPonyRecord
     {public ActorState actor;public Vector3 position,scale;public string clip,groupId;public int frame,groupOrder;public float time;public bool active;}
     [Serializable] public sealed class NetworkSpriteRecord
-    {public string name,resource,groupId;public Vector3 position,scale,euler;public float rectX,rectY,rectWidth,rectHeight;public Vector2 pivot;public float pixelsPerUnit;public int order,groupOrder;public Color color;public bool flipX,flipY,enabled;}
+    {public string name,resource,spriteName,textureName,groupId;public Vector3 position,scale,euler;public float rectX,rectY,rectWidth,rectHeight;public Vector2 pivot;public float pixelsPerUnit;public int order,groupOrder;public Color color;public bool flipX,flipY,enabled;}
     [Serializable] public sealed class NetworkSceneRecord
     {
         public int schema=2,phase,width,height;
@@ -42,7 +42,7 @@ namespace Remains.Runtime
             {
                 if(view.sprite==null) throw new InvalidOperationException($"Нет спрайта при записи: {view.name}.");
                 var sprite=view.sprite;
-                return new NetworkSpriteRecord {name=view.name,resource=Resource(view,world),
+                return new NetworkSpriteRecord {name=view.name,resource=Resource(view,world),spriteName=sprite.name,textureName=sprite.texture.name,
                     position=view.transform.position,scale=view.transform.localScale,euler=view.transform.eulerAngles,
                     rectX=sprite.rect.x,rectY=sprite.rect.y,rectWidth=sprite.rect.width,rectHeight=sprite.rect.height,
                     pivot=new Vector2(sprite.pivot.x/sprite.rect.width,sprite.pivot.y/sprite.rect.height),pixelsPerUnit=sprite.pixelsPerUnit,order=view.sortingOrder,

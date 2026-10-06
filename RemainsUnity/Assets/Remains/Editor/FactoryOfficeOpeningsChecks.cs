@@ -60,7 +60,7 @@ namespace Remains.Editor
             var batch=RoomContentBatch.Read(office,"factory:0");var report=office.GetComponent<RoomImportAudit>().Report;
             Require(report.Records.Count(r=>r.installed)==44 && report.Records.Where(r=>!r.installed).Select(r=>r.recordId).OrderBy(id=>id)
                 .SequenceEqual(new[]{"original:plant:53:record:66","original:plant:53:record:67"}),"Не сохранены ровно две pending lov категории.");
-            Require(batch.physical.props.Length==6 && batch.physical.containers.Length==21 && batch.physical.loot.Length==20 && batch.npcs.actors.Length==5,
+            Require(batch.physical.props.Length==6 && batch.physical.containers.Length==21 && batch.physical.loot.Length==21 && batch.npcs.actors.Length==5,
                 "Изменены прежние физические объекты/лут/NPC.");
             CheckPlacements(office,batch,data,0);CheckGeometry(office,batch,data);CheckPersistence(batch,RoomDoorContent.Read(office,"factory:6"),data);
         }
@@ -70,7 +70,7 @@ namespace Remains.Editor
                 .Single(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
             CheckOffice(office);var batch=RoomContentBatch.Read(room,"factory:0");Project(batch.doors,data);
             Require(batch.doors.patch=="factory:0:"+data.connectedPatch && batch.doors.doors.Length==15 && batch.physical.props.Length==12 &&
-                batch.physical.containers.Length==36 && batch.physical.loot.Length==33 && batch.npcs.actors.Length==13 &&
+                batch.physical.containers.Length==36 && batch.physical.loot.Length==34 && batch.npcs.actors.Length==13 &&
                 batch.mechanisms.movingPlatforms.Length==1 && batch.mechanisms.mechanismButtons.Length==2,"Изменено прежнее содержимое связного завода.");
             CheckPlacements(room,batch,data,76.8f);CheckGeometry(room,batch,data);CheckPersistence(batch,RoomDoorContent.Read(room,"factory:6"),data);
             Debug.Log("Проёмы офисов53: PASS — 6 SO/6 unique placements + reference28, прежние9 дверей сохранены; офис44/46,2 lov pending, root15 дверей; source registration/terrain unchanged, E отдельно, additive save/no resurrection/extensions. Нативный бой/занятый проём/обе реплики и исходная игра этим check не подтверждены.");

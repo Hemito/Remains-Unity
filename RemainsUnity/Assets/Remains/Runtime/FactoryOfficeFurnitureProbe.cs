@@ -44,16 +44,16 @@ namespace Remains.Runtime
         {public string source,firstItem;public ItemStack[] items;public PlayerBaseline[] players;public int firstCount;}
         [Serializable] private sealed class Report
         {
-            public bool success,explicitInitialFixture,opened,empty,reopened,policiesVerified,stableRecipientsVerified,durableVerified,savedReloadVerified,reinstallVerified,raceSkipped,pointerCaptureVerified;
+            public bool success,explicitInitialFixture,closedVerified,appearanceVerified,closedWindowVerified,opened,empty,reopened,policiesVerified,stableRecipientsVerified,durableVerified,savedReloadVerified,reinstallVerified,raceSkipped,pointerCaptureVerified;
             public string detail,type,source,snapshot,progress;public int phase,claimsAccepted,claimsDenied,uiRaceAttempts,combatShots,layoutCaptures;public PlayerBaseline[] players;
             public ItemStack[] initialItems;
         }
         private PrototypeRuntime runtime;private Expected expected;private Fixture fixture;private PlayerBaseline baseline;
         private readonly HashSet<string> accepted=new(StringComparer.Ordinal),denied=new(StringComparer.Ordinal);
         private readonly HashSet<string> barrier=new(StringComparer.Ordinal);
-        private int phase,serverPhase,combatShots,shotsAtOpen,roundsAtOpen,uiRaceAttempts,layoutCaptures;
-        private bool traveled,installed,finished,opened,reopened,empty,reported,clickDone,clicking,raceSkipped,edge,pointerCaptureVerified;
-        private float deadline,nextHeal,quietSince=-1;private double raceAt;
+        private int phase=-1,serverPhase=-1,combatShots,shotsAtOpen,roundsAtOpen,uiRaceAttempts,layoutCaptures;
+        private bool traveled,installed,finished,closedVerified,closedWindowVerified,opened,reopened,empty,reported,clickDone,clicking,raceSkipped,edge,pointerCaptureVerified;
+        private float deadline,nextHeal,fixtureAt,quietSince=-1;private double raceAt;
         private string capture,lastCapture,snapshot,aimedThreat;private RoomLayout initialRoom;private string[] actorIds;private int[][] initialCounts;
         private bool Host=>runtime.Options.Role=="host";
         private ActorState Actor=>runtime.Session.LocalActor;
@@ -85,7 +85,7 @@ namespace Remains.Runtime
                 {
                     fixture=JsonUtility.FromJson<Fixture>(message.json);
                     baseline=fixture.players.Single(p=>p.id==value.Session.LocalActorId);
-                    initialRoom=runtime.Geometry.Get(Level);CacheBaseline();phase=0;
+                    initialRoom=runtime.Geometry.Get(Level);CacheBaseline();phase=-1;fixtureAt=Time.unscaledTime;
                 });
                 NetworkClient.RegisterHandler<FurnitureProbeStep>(message=>
                 {
@@ -131,7 +131,7 @@ namespace Remains.Runtime
                 quietSince=-1;return command;
             }
             aimedThreat=null;if(quietSince<0) quietSince=Time.unscaledTime;
-            if((phase==0 || phase==5) && Time.unscaledTime-quietSince>.35f && !edge)
+            if((phase==0 || phase==5 && lastCapture=="ui-closed") && Time.unscaledTime-quietSince>.35f && !edge)
             {
                 var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules,command.aim);
                 if(target.kind!=InteractionKind.Container || target.id!=expected.Id)
@@ -164,11 +164,16 @@ namespace Remains.Runtime
                 session.Travel.Pending || !ReferenceEquals(initialRoom,runtime.Geometry.Get(Level))) throw new InvalidOperationException("Мебель потеряла игрока, владение, локацию или геометрию");
             if(actor.down || actor.health<=0) throw new InvalidOperationException("Игрок потерял сознание у мебели");
             ValidatePolicies(session.World,false);
+            if(opened) ContainerArtworkProbeEvidence.RequireState(Target,true);
             if(opened && phase!=5 && runtime.Hud.ContainerOpen && Magazine(actor)!=roundsAtOpen)
                 throw new InvalidOperationException("Клик окна мебели выстрелил или потратил патрон");
-            if(phase==0 && runtime.Hud.ContainerOpen)
+            // All observers record the closed frame before either player's E.
+            if(phase==-1 && Time.unscaledTime-fixtureAt>=3)
+            {ContainerArtworkProbeEvidence.RequireState(Target,false);capture="closed";phase=-10;}
+            if(phase==-10 && lastCapture=="closed" && !reported) SendObserved(0,true);
+            if(phase==0 && runtime.Hud.ContainerOpen && Target.appearance.opened)
             {
-                ValidateWindow();opened=true;shotsAtOpen=combatShots;roundsAtOpen=Magazine(actor);capture="open";phase=1;
+                ContainerArtworkProbeEvidence.RequireState(Target,true);ValidateWindow();opened=true;shotsAtOpen=combatShots;roundsAtOpen=Magazine(actor);capture="open";phase=1;
             }
             if(phase==1 && lastCapture=="open" && !reported) SendObserved(1,true);
             if(phase==2 && NetworkTime.time>=raceAt && !clickDone && !clicking) {clicking=true;StartCoroutine(Race());}
@@ -177,7 +182,7 @@ namespace Remains.Runtime
                 accepted.All(session.World.completedTransactions.Contains) && !clicking)
             {empty=true;capture="empty";phase=30;}
             if(phase==30 && lastCapture=="empty" && !reported) SendObserved(3,true);
-            if(phase==4 && !runtime.Hud.ContainerOpen) {phase=5;edge=false;quietSince=-1;}
+            if(phase==4 && !runtime.Hud.ContainerOpen) {ContainerArtworkProbeEvidence.RequireState(Target,true);capture="ui-closed";phase=5;edge=false;quietSince=-1;}
             if(phase==5 && runtime.Hud.ContainerOpen)
             {ValidateWindow();if(Target.items.Count!=0) throw new InvalidOperationException("E повторно наполнил мебель");shotsAtOpen=combatShots;roundsAtOpen=Magazine(actor);reopened=true;capture="reopened";phase=6;}
             if(phase==6 && lastCapture=="reopened" && !clicking && !clickDone) {clicking=true;StartCoroutine(EmptyClick());}
@@ -214,6 +219,7 @@ namespace Remains.Runtime
         {
             var session=runtime.Session;var world=session.ServerWorld;ValidatePolicies(world,true);
             var target=world.containers.Single(c=>c.id==expected.Id);var items=target.items.Select(i=>i.Copy()).ToArray();
+            ContainerArtworkProbeEvidence.RequireState(target,false);
             var required=expected.type=="table"?new[]{("caps",3),("pin",1)}:expected.type=="trash"?new[]{("metal_comp",1)}:new[]{("lbook",1)};
             if(items.Length!=required.Length || required.Any(r=>items.Count(i=>i.definition==r.Item1 && i.count==r.Item2)!=1))
                 throw new InvalidOperationException("У мебели нет согласованного authored содержимого: "+expected.Id);
@@ -330,17 +336,19 @@ namespace Remains.Runtime
             if(actor==null || actor.id!=message.actor || actor.generation!=message.generation || actor.level!=Level || message.source!=expected.Id || message.phase!=serverPhase+1) return;
             if(!message.valid) {NetworkServer.SendToAll(new FurnitureProbeFinish {detail="Наблюдение мебели разошлось: "+message.detail});return;}
             barrier.Add(actor.id);if(barrier.Count!=runtime.Options.ProbePeers) return;barrier.Clear();serverPhase++;
-            if(serverPhase<4) {NetworkServer.SendToAll(new FurnitureProbeStep {phase=serverPhase==1?2:serverPhase==2?3:4,at=NetworkTime.time+1.5});return;}
+            if(serverPhase<4) {NetworkServer.SendToAll(new FurnitureProbeStep {phase=serverPhase==0?0:serverPhase==1?2:serverPhase==2?3:4,at=NetworkTime.time+1.5});return;}
             try
             {
                 var world=session.ServerWorld;ValidatePolicies(world,false);
                 if(world.containers.Single(c=>c.id==expected.Id).items.Count!=0 || world.pendingGrants.Count!=0 || !AmountsValid(world,true))
                     throw new InvalidOperationException("Координатор не подтвердил пустую мебель/единую выдачу");
+                ContainerArtworkProbeEvidence.RequireState(world.containers.Single(c=>c.id==expected.Id),true);
                 session.CommitWorld();var saved=session.Saves.LoadWorld(false);ValidatePolicies(saved,false);
+                ContainerArtworkProbeEvidence.RequireState(saved.containers.Single(c=>c.id==expected.Id),true);
                 if(saved.containers.Single(c=>c.id==expected.Id).items.Count!=0 || !AmountsValid(saved,true) || !RoomContentProbePersistence.UnchangedOnReinstall(saved,Level))
                     throw new InvalidOperationException("Disk reload или повторная установка восстановили взятый лут мебели");
                 NetworkServer.SendToAll(new FurnitureProbeFinish {success=true,snapshot=session.Saves.SelectedSnapshot().Id,
-                    detail="Авторская мебель: E и плавающее окно, одновременные просмотры/UI попытки, единственные стабильные получатели, подтверждённый журнал, пустое повторное E, disk reload и отсутствие пополнения при повторной установке. Только начальная fixture игроков; полный путь/перезапуск процесса здесь не проверяются."});
+                    detail="Авторская мебель: закрытый кадр до E у всех наблюдателей; подтверждённое открытие/revision1; E и плавающее окно, одновременные просмотры/UI попытки, единственные стабильные получатели, подтверждённый журнал, пустое повторное E, закрытие UI сохраняет открытый рисунок, disk reload и отсутствие пополнения при повторной установке. Только начальная fixture игроков; полный путь/перезапуск процесса здесь не проверяются."});
             }
             catch(Exception error) {NetworkServer.SendToAll(new FurnitureProbeFinish {detail=error.Message});}
         }
@@ -352,10 +360,13 @@ namespace Remains.Runtime
             {
                 if(runtime.Options.Smoke.Contains("-frames-",StringComparison.Ordinal))
                 {
-                    ValidateLayout();
+                    if(runtime.Hud.ContainerOpen) ValidateLayout();
+                    ContainerArtworkProbeEvidence.Save(runtime,Target,capture,runtime.Options.Report+".furniture-"+expected.type+"-"+capture+".frame.json");
                     NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".furniture-"+expected.type+"-"+capture+".png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
-                    NetworkSceneRecord.Save(runtime,800+Array.IndexOf(declarations,expected)*10+phase);
+                    NetworkSceneRecord.Save(runtime,(capture=="closed"?700:capture=="ui-closed"?750:800+phase)+Array.IndexOf(declarations,expected)*10);
                 }
+                if(capture=="closed") closedVerified=true;
+                if(capture=="ui-closed") closedWindowVerified=true;
                 lastCapture=capture;capture=null;
             }
             catch(Exception error) {capture=null;Finish(false,error.Message+": "+Progress);}
@@ -370,17 +381,19 @@ namespace Remains.Runtime
                     var selected=runtime.Session.Saves.SelectedSnapshot();snapshot=selected?.Id;
                     if(snapshot!=durableSnapshot) throw new InvalidOperationException($"Реплика мебели не соответствует подтверждённому snapshot: actual={snapshot}, expected={durableSnapshot}.");
                     var saved=runtime.Session.Saves.LoadWorld(false);ValidatePolicies(saved,false);
+                    ContainerArtworkProbeEvidence.RequireState(saved.containers.Single(c=>c.id==expected.Id),true);
                     reload=saved.containers.Single(c=>c.id==expected.Id).items.Count==0 && AmountsValid(saved,true);
                     reinstall=RoomContentProbePersistence.UnchangedOnReinstall(saved,Level);
                     if(!reload || !reinstall || !accepted.All(saved.completedTransactions.Contains)) throw new InvalidOperationException("Реплика мебели потеряла выдачу/журнал или повторно создала лут");
                     if(runtime.Options.Smoke.Contains("-frames-",StringComparison.Ordinal))
-                    {NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".furniture-"+expected.type+"-saved.png",runtime.Hud.GetComponent<Canvas>(),1920,1080);NetworkSceneRecord.Save(runtime,900+Array.IndexOf(declarations,expected));}
+                    {ContainerArtworkProbeEvidence.Save(runtime,Target,"saved",runtime.Options.Report+".furniture-"+expected.type+"-saved.frame.json");NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".furniture-"+expected.type+"-saved.png",runtime.Hud.GetComponent<Canvas>(),1920,1080);NetworkSceneRecord.Save(runtime,900+Array.IndexOf(declarations,expected));}
                 }
             }
             catch(Exception error) {success=false;detail=error.Message;}
             finished=true;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,type=expected.type,source=expected.Id,phase=phase,
                 explicitInitialFixture=true,players=fixture?.players,initialItems=fixture?.items,opened=opened,empty=empty,reopened=reopened,
+                closedVerified=closedVerified,appearanceVerified=success && opened && closedVerified,closedWindowVerified=closedWindowVerified,
                 policiesVerified=success,stableRecipientsVerified=success,durableVerified=success,savedReloadVerified=reload,reinstallVerified=reinstall,
                 snapshot=snapshot,claimsAccepted=accepted.Count,claimsDenied=denied.Count,uiRaceAttempts=uiRaceAttempts,raceSkipped=raceSkipped,combatShots=combatShots,layoutCaptures=layoutCaptures,pointerCaptureVerified=pointerCaptureVerified,progress=Progress},true));
             StartCoroutine(Exit(success));
