@@ -43,7 +43,11 @@ namespace Remains.Presentation
 
         public override void Bind(ActorState actor)
         {
-            state = actor;appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;
+            // A replacement snapshot of the same actor has not changed the visible
+            // meshes yet. Keep their actual bounds/frame until the next DrawPose.
+            if(string.IsNullOrEmpty(actor?.id) || actor.id!=state?.id)
+            {appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;}
+            state = actor;
             int capacity = PonyRenderSelection.Capacity;
             if(capacity==0) throw new InvalidOperationException("Графика пони не подготовлена перед созданием экземпляра.");
             if(authoredStructure)

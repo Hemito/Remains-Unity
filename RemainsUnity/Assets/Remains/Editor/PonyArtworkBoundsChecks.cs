@@ -38,6 +38,7 @@ namespace Remains.Editor
                 visual.DrawPose(0,true);Require(visual.TryGetDrawnBounds(out var before),"Нет idle рисунка");
                 var hull=InventorySource.BodyBounds(actor);
                 Require(before.max.y>hull.yMax,"Fixture не воспроизводит выступающий над hull рисунок головы/рога");
+                CheckSnapshotRebind(visual,actor,before);
                 actor.x+=2;actor.y+=.5f;visual.DrawPose(0,true);
                 Require(visual.TryGetDrawnBounds(out var moved) && Near(moved.min,before.min+new Vector3(2,.5f,0)) && Near(moved.max,before.max+new Vector3(2,.5f,0)),
                     "Повторный кадр не обновил Transform bounds");
@@ -63,10 +64,33 @@ namespace Remains.Editor
                 visual.SetVisible(true);visual.DrawPose(0);VerifyVertices(visual);
                 visual.enabled=false;Require(visual.TryGetDrawnBounds(out _),"Отключение animation component потеряло всё ещё видимые Renderer");visual.enabled=true;
                 visual.Bind(new ActorState {id="reused-other-actor",pose="idle"});Require(!visual.TryGetDrawnBounds(out _),"Новый Bind сохранил footprint старого actor");
+                visual.DrawPose(0,true);Require(visual.TryGetDrawnBounds(out _),"Новый actor не получил actual footprint после DrawPose");
+                visual.Bind(null);Require(!visual.TryGetDrawnBounds(out _) && visual.DrawnPartCount==0,"Null Bind сохранил footprint старого actor");
                 CheckHeldSprite();
-                Debug.Log($"Границы рисунка пони: PASS — {samples} фактических sample разных поз/внешности/направлений, вершины готовых meshes, same-frame Transform/flip, лестница, disabled/hidden/forceRenderingOff, смена actor и отдельный удерживаемый Sprite. Проверка игрового окна/кадра выполняется отдельно.");
+                Debug.Log($"Границы рисунка пони: PASS — {samples} фактических sample разных поз/внешности/направлений, вершины готовых meshes, same-frame Transform/flip, same-ID snapshot до/после DrawPose, лестница, disabled/hidden/forceRenderingOff, смена/null actor и отдельный удерживаемый Sprite. Проверка игрового окна/кадра выполняется отдельно.");
             }
             finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
+        }
+        private static void CheckSnapshotRebind(PonyVisual visual,ActorState actor,Bounds before)
+        {
+            int parts=visual.DrawnPartCount,frame=visual.DrawnFrame;string clip=visual.DrawnClip;float time=visual.DrawnTime;
+            var position=visual.transform.position;var scale=visual.transform.localScale;
+            var snapshot=new ActorState {id=actor.id,actorType=actor.actorType,anatomy=actor.anatomy,x=actor.x+4,y=actor.y+3,facing=-1,
+                pose="climb",climbing=true,vy=1,poseTime=.1f,
+                appearance=new CharacterAppearance {version=1,hairStyle=PonyAnimationData.Library.hairStyles,eyeStyle=PonyAnimationData.Library.eyeStyles,secondaryHairEnabled=true}};
+            visual.Bind(snapshot);
+            Require(visual.TryGetDrawnBounds(out var pending) && pending==before && visual.DrawnPartCount==parts,
+                "Same-ID Bind потерял фактически видимые bounds до LateUpdate");
+            Require(visual.DrawnClip==clip && visual.DrawnFrame==frame && visual.DrawnTime==time && visual.transform.position==position && visual.transform.localScale==scale,
+                "Same-ID Bind изменил actual frame/Transform без DrawPose");VerifyVertices(visual);
+            visual.DrawPose(snapshot.poseTime,true);
+            Require(visual.TryGetDrawnBounds(out var after),"Следующий same-ID DrawPose не выдал actual bounds");
+            Require(visual.DrawnClip=="climb" && visual.transform.position==new Vector3(snapshot.x,snapshot.y,0) && visual.transform.localScale.x==-1 &&
+                after!=before,"Следующий DrawPose не применил новый same-ID snapshot");VerifyVertices(visual);
+            var selected=PonyRenderSelection.Frames(PonyAppearance.Snapshot(snapshot),visual.DrawnClip)[visual.DrawnFrame];
+            Require(visual.DrawnPartCount==selected.Length,"Same-ID DrawPose не применил новую внешность");
+            visual.Bind(actor);Require(visual.TryGetDrawnBounds(out var retained) && retained==after,"Повторный same-ID Bind потерял последние actual bounds");
+            visual.DrawPose(0,true);VerifyVertices(visual);
         }
         private static void VerifyVertices(PonyVisual visual)
         {
