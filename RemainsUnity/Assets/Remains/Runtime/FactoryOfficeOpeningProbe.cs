@@ -25,6 +25,7 @@ namespace Remains.Runtime
     public sealed class FactoryOfficeOpeningProbe : MonoBehaviour
     {
         private const string Level="factory:0",Prefix=Level+":original:plant:53:";
+        private const float CameraStartupSeconds=3;
         [Serializable] private sealed class Baseline {public string id,owner;public int generation,rounds;public Vector2 position;}
         [Serializable] private sealed class Fixture {public string kind,door,driver;public Baseline[] players;public string initialDoor;}
         [Serializable] private sealed class ResumeExpected
@@ -57,7 +58,7 @@ namespace Remains.Runtime
         private string expectedDoorJson,sourceArchive;
         private ActorState expectedResumePlayer;
         private bool externalReloadVerified,independentExpectedVerified,sourceArchiveVerified,windowVisibleVerified;
-        private float resumeReadyAt=-1;
+        private float resumeReadyAt=-1,freshReadyAt=-1;
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-",StringComparison.Ordinal);
         private readonly HashSet<string> witnesses=new(StringComparer.Ordinal);
         private readonly HashSet<string> closedWitnesses=new(StringComparer.Ordinal),ownAttacks=new(StringComparer.Ordinal);
@@ -66,7 +67,7 @@ namespace Remains.Runtime
         private bool Driver=>runtime.Options.ProbePeers==1 || !Host;
         private ActorState Actor=>runtime.Session.LocalActor;
         private DoorState Door=>runtime.Session.World?.doors.SingleOrDefault(d=>d.id==doorId);
-        private string Progress=>$"kind={kind}, door={doorId}, position={Actor?.Position}, HP={Actor?.health}, generation={Actor?.generation}/{baseline?.generation}, open={Door?.open}, destroyed={Door?.Destroyed}, shots={shots}, E={acceptedInteractions}, lastCapture={lastCapture}, witnesses={witnesses.Count}";
+        private string Progress=>$"kind={kind}, door={doorId}, position={Actor?.Position}, HP={Actor?.health}, generation={Actor?.generation}/{baseline?.generation}, open={Door?.open}, destroyed={Door?.Destroyed}, shots={shots}, E={acceptedInteractions}, lastCapture={lastCapture}, pendingCapture={capture}, fixtureActive={fixtureActivated}, closed={closedObserved}, closedWitnesses={closedWitnesses.Count}, begun={begun}, witnesses={witnesses.Count}";
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+(Resume?45:95);
@@ -137,7 +138,7 @@ namespace Remains.Runtime
         {
             try
             {
-                if(finished || !begun || fixture==null || Actor==null || Actor.generation!=baseline.generation || !Driver) return default;
+                if(finished || !begun || !closedObserved || fixture==null || Actor==null || Actor.generation!=baseline.generation || !Driver) return default;
                 var command=new PlayerCommand {hasAim=true,aim=Door.InteractionBounds.center};
                 if(kind=="window")
                 {
@@ -177,7 +178,7 @@ namespace Remains.Runtime
                     session.World.actors.Where(a=>a.player && a.connected).All(a=>a.level==Level)) Setup();
                 if(fixture==null || baseline==null) return;
                 if(!fixtureActivated && actor.generation!=baseline.generation) return;
-                fixtureActivated=true;
+                if(!fixtureActivated) {fixtureActivated=true;freshReadyAt=Time.unscaledTime;}
                 if(actor.generation!=baseline.generation) throw new InvalidOperationException("Поколение игрока изменилось после начальной fixture: "+Progress);
                 if(actor.down || actor.health<=0 || actor.owner!=baseline.owner || actor.level!=Level) throw new InvalidOperationException("Игрок потерял состояние во время проверки проёма");
                 var door=Door;door.Validate();
@@ -389,7 +390,7 @@ namespace Remains.Runtime
         }
         private void LateUpdate()
         {
-            if(finished || capture==null || Actor==null || !Resume && (fixture==null || baseline==null || Actor.generation!=baseline.generation)) return;
+            if(finished || capture==null || Actor==null || !Resume && (!fixtureActivated || fixture==null || baseline==null || Actor.generation!=baseline.generation)) return;
             try
             {
                 var view=runtime.DoorVisuals.Find(doorId);
@@ -407,7 +408,9 @@ namespace Remains.Runtime
                     if(!frame.fullyVisible)
                     {
                         // Give the existing camera its ordinary startup frames; never reposition it.
-                        if(Resume && Time.unscaledTime-resumeReadyAt<3) return;
+                        float startupAt=Resume?resumeReadyAt:freshReadyAt;
+                        bool initialCapture=Resume?capture=="reloaded":capture=="closed" && !closedObserved && !begun;
+                        if(initialCapture && startupAt>=0 && Time.unscaledTime-startupAt<CameraStartupSeconds) return;
                         File.WriteAllText(runtime.Options.Report+".opening-"+capture+".frame.json",StateJson.ToJson(frame,true));
                         throw new InvalidOperationException($"Окно вне полного кадра: viewport=({frame.minX},{frame.minY})..({frame.maxX},{frame.maxY}), depth={frame.minDepth}..{frame.maxDepth}, camera={frame.cameraPosition}, artwork={frame.artworkCenter}/{frame.artworkSize}.");
                     }
