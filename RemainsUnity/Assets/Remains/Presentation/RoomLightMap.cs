@@ -32,12 +32,18 @@ namespace Remains.Presentation
         internal static Vector2 Position(Rect bounds,int width,int height,int x,int y)
             =>new(bounds.x+(x+.5f)*bounds.width/width,bounds.y+(y+.5f)*bounds.height/height);
 
-        // All resource access and colour-space selection happen during preparation.
+        // Synchronous entry points share the same capture/decode path as initial workers.
         internal static PreparedProfile Prepare(string room,RoomLightProfile profile,MaskCache cache)
+        {
+            var captured=Capture(room,profile,cache);
+            return captured.Bind(DecodeMasks(cache.RawPixels(),default),default);
+        }
+        // All resource access and colour-space selection happen during capture.
+        internal static CapturedProfile Capture(string room,RoomLightProfile profile,MaskCache cache)
         {
             if(profile?.lights==null) throw new InvalidOperationException($"Нет источников света: room={room}.");
             var ids=new HashSet<string>(StringComparer.Ordinal);
-            var lights=new PreparedLight[profile.lights.Length];
+            var lights=new CapturedLight[profile.lights.Length];
             for(int i=0;i<lights.Length;i++)
             {
                 var light=profile.lights[i];
@@ -45,17 +51,24 @@ namespace Remains.Presentation
                     !float.IsFinite(light.radius) || light.radius<=0 || !float.IsFinite(light.intensity) || light.intensity<0 ||
                     light.shadow && (light.intensity>1 || string.IsNullOrEmpty(light.mask) && light.maskTexture==null))
                     throw new InvalidOperationException($"Некорректный источник света: room={room}, light={light?.id}.");
-                RoomLightMask mask=null;
+                int mask=-1;
                 var footprint=new Rect(light.x-light.radius,light.y-light.radius,light.radius*2,light.radius*2);
                 if(!string.IsNullOrEmpty(light.mask) || light.maskTexture!=null)
                 {
-                    var texture=cache.Texture(light);
                     footprint=new Rect(light.maskX,light.maskY,light.maskWidth,light.maskHeight);
-                    mask=new RoomLightMask(cache.Pixels(texture),footprint);
+                    RoomLightMask.ValidateBounds(footprint);
+                    mask=cache.Capture(light);
                 }
-                lights[i]=new PreparedLight(new Vector2(light.x,light.y),light.radius,light.intensity,light.color,light.shadow,mask,footprint);
+                lights[i]=new CapturedLight(new Vector2(light.x,light.y),light.radius,light.intensity,light.color,light.shadow,mask,footprint);
             }
-            return new PreparedProfile(profile.ambient,lights,QualitySettings.activeColorSpace==ColorSpace.Linear);
+            return new CapturedProfile(profile.ambient,lights,QualitySettings.activeColorSpace==ColorSpace.Linear);
+        }
+        internal static RoomLightMask.Pixels[] DecodeMasks(RoomLightMask.RawPixels[] raw,CancellationToken cancellation)
+        {
+            var result=new RoomLightMask.Pixels[raw.Length];
+            for(int i=0;i<result.Length;i++)
+            {cancellation.ThrowIfCancellationRequested();result[i]=new RoomLightMask.Pixels(raw[i],cancellation);}
+            return result;
         }
         // This evaluator is shared by full builds, public sampling and worker patches.
         internal static Color Evaluate(RoomLightMaps.Occlusion occlusion,PreparedProfile profile,Vector2 position,CancellationToken cancellation=default)
@@ -111,10 +124,13 @@ namespace Remains.Presentation
         internal sealed class MaskCache
         {
             private readonly Dictionary<string,Texture2D> resources=new(StringComparer.Ordinal);
-            private readonly Dictionary<Texture2D,RoomLightMask.Pixels> pixels=new();
+            private readonly Dictionary<Texture2D,int> indices=new();
+            private readonly List<RoomLightMask.RawPixels> pixels=new();
             internal int Count=>pixels.Count;
             internal long PixelCount {get;private set;}
-            internal Texture2D Texture(RoomLight light)
+            internal double GetPixelsMilliseconds {get;private set;}
+            internal RoomLightMask.RawPixels[] RawPixels()=>pixels.ToArray();
+            private Texture2D Texture(RoomLight light)
             {
                 if(light.maskTexture!=null) return light.maskTexture;
                 if(!resources.TryGetValue(light.mask,out var texture))
@@ -125,15 +141,46 @@ namespace Remains.Presentation
                 }
                 return texture;
             }
-            internal RoomLightMask.Pixels Pixels(Texture2D texture)
+            internal int Capture(RoomLight light)
             {
-                if(!pixels.TryGetValue(texture,out var result))
+                var texture=Texture(light);
+                if(!indices.TryGetValue(texture,out int index))
                 {
-                    result=new RoomLightMask.Pixels(texture);pixels.Add(texture,result);
-                    PixelCount+=(long)result.Width*result.Height;
+                    var raw=new RoomLightMask.RawPixels(texture);index=pixels.Count;
+                    pixels.Add(raw);indices.Add(texture,index);
+                    PixelCount+=(long)raw.Width*raw.Height;GetPixelsMilliseconds+=raw.GetPixelsMilliseconds;
                 }
-                return result;
+                return index;
             }
+        }
+        internal sealed class CapturedProfile
+        {
+            internal readonly Color Ambient;
+            internal readonly CapturedLight[] Lights;
+            internal readonly bool Linear;
+            internal CapturedProfile(Color ambient,CapturedLight[] lights,bool linear) {Ambient=ambient;Lights=lights;Linear=linear;}
+            internal PreparedProfile Bind(RoomLightMask.Pixels[] masks,CancellationToken cancellation)
+            {
+                var prepared=new PreparedLight[Lights.Length];
+                for(int i=0;i<prepared.Length;i++)
+                {
+                    cancellation.ThrowIfCancellationRequested();var light=Lights[i];
+                    var mask=light.MaskIndex<0?null:new RoomLightMask(masks[light.MaskIndex],light.Footprint);
+                    prepared[i]=new PreparedLight(light.Origin,light.Radius,light.Intensity,light.Color,light.Shadow,mask,light.Footprint);
+                }
+                return new PreparedProfile(Ambient,prepared,Linear);
+            }
+        }
+        internal readonly struct CapturedLight
+        {
+            internal readonly Vector2 Origin;
+            internal readonly float Radius,Intensity;
+            internal readonly Color Color;
+            internal readonly bool Shadow;
+            internal readonly int MaskIndex;
+            internal readonly Rect Footprint;
+            internal CapturedLight(Vector2 origin,float radius,float intensity,Color color,bool shadow,int maskIndex,Rect footprint)
+            {Origin=origin;Radius=radius;Intensity=intensity;Color=color;Shadow=shadow;MaskIndex=maskIndex;Footprint=footprint;}
         }
         internal sealed class PreparedProfile
         {

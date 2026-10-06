@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using UnityEngine;
 
 namespace Remains.Presentation
@@ -11,10 +12,15 @@ namespace Remains.Presentation
         public RoomLightMask(Texture2D texture,Rect bounds):this(new Pixels(texture),bounds) { }
         internal RoomLightMask(Pixels source,Rect bounds)
         {
-            if(source==null || !float.IsFinite(bounds.x) || !float.IsFinite(bounds.y) ||
-                !float.IsFinite(bounds.width) || !float.IsFinite(bounds.height) || bounds.width<=0 || bounds.height<=0)
-                throw new InvalidOperationException($"Некорректная привязка маски света: bounds={bounds}.");
+            if(source==null) throw new ArgumentNullException(nameof(source));
+            ValidateBounds(bounds);
             this.source=source;this.bounds=bounds;
+        }
+        internal static void ValidateBounds(Rect bounds)
+        {
+            if(!float.IsFinite(bounds.x) || !float.IsFinite(bounds.y) || !float.IsFinite(bounds.width) ||
+                !float.IsFinite(bounds.height) || bounds.width<=0 || bounds.height<=0)
+                throw new InvalidOperationException($"Некорректная привязка маски света: bounds={bounds}.");
         }
         public Color Sample(Vector2 point)
         {
@@ -26,23 +32,40 @@ namespace Remains.Presentation
             return Color.Lerp(Color.Lerp(pixels[bottom*width+left],pixels[bottom*width+right],x-left),
                 Color.Lerp(pixels[top*width+left],pixels[top*width+right],x-left),y-bottom);
         }
-        // One immutable decoded buffer can serve differently placed fixtures and both maps.
-        // Construction is main-thread-only; Sample reads scalar data and never touches Texture.
+        // Raw capture alone touches Unity objects. The single-use build owns this copy.
+        internal sealed class RawPixels
+        {
+            internal readonly Color[] Values;
+            internal readonly int Width,Height;
+            internal readonly bool Decode;
+            internal readonly double GetPixelsMilliseconds;
+            internal RawPixels(Texture2D texture)
+            {
+                if(texture==null || !texture.isReadable)
+                    throw new InvalidOperationException($"Некорректная маска света: texture={texture?.name}. Требуется читаемая текстура.");
+                Width=texture.width;Height=texture.height;
+                Decode=QualitySettings.activeColorSpace==ColorSpace.Linear &&
+                    UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsSRGBFormat(texture.graphicsFormat);
+                var timer=System.Diagnostics.Stopwatch.StartNew();Values=texture.GetPixels();
+                GetPixelsMilliseconds=timer.Elapsed.TotalMilliseconds;
+            }
+        }
+        // One immutable decoded buffer serves differently placed fixtures and both maps.
+        // Decoding transfers ownership of a private raw array; it never accesses Texture.
         internal sealed class Pixels
         {
             internal readonly Color[] Values;
             internal readonly int Width,Height;
-            internal Pixels(Texture2D texture)
+            internal Pixels(Texture2D texture):this(new RawPixels(texture),default) { }
+            internal Pixels(RawPixels raw,CancellationToken cancellation)
             {
-                if(texture==null || !texture.isReadable)
-                    throw new InvalidOperationException($"Некорректная маска света: texture={texture?.name}. Требуется читаемая текстура.");
-                Values=texture.GetPixels();Width=texture.width;Height=texture.height;
-                bool decode=QualitySettings.activeColorSpace==ColorSpace.Linear &&
-                    UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsSRGBFormat(texture.graphicsFormat);
+                cancellation.ThrowIfCancellationRequested();
+                Values=raw.Values;Width=raw.Width;Height=raw.Height;
                 for(int i=0;i<Values.Length;i++)
                 {
+                    cancellation.ThrowIfCancellationRequested();
                     var pixel=Values[i];
-                    if(decode) pixel=pixel.linear;
+                    if(raw.Decode) pixel=pixel.linear;
                     Values[i]=new Color(pixel.r*pixel.a,pixel.g*pixel.a,pixel.b*pixel.a,pixel.a);
                 }
             }

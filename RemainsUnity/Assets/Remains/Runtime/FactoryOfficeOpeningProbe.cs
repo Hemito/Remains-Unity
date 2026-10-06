@@ -69,7 +69,6 @@ namespace Remains.Runtime
             [NonSerialized] public RoomLightProfile sourceProfile;
             [NonSerialized] public Rect sourceBounds;
         }
-        private sealed class LightReadback {public bool done;public string error;public byte[] pixels;}
         private PrototypeRuntime runtime;private Fixture fixture;private Baseline baseline;
         private bool traveled,installed,finished,completed,begun,openViewsReady,requestedOpen,requestedClose,fired,reported,aimReady;
         private bool closedObserved,openedObserved,destroyedObserved,geometryVerified,traversalVerified,savedReloadVerified,reinstallVerified;
@@ -601,90 +600,50 @@ namespace Remains.Runtime
                 latencyMilliseconds=current.LastLatencyMilliseconds,candidatePixels=current.LastCandidatePixels,dirtyPixels=current.LastDirtyPixels,
                 uniqueDecodedTextures=current.UniqueDecodedTextures,decodedPixels=current.DecodedPixels,playerPosition=Actor.Position,
                 source=current,sourceRoom=room,sourceForeground=foreground,sourceBackground=background,sourceProfile=profile,sourceBounds=bounds};
-            Texture2D expectedForeground=null,expectedBackground=null;
-            try
+            RoomLightingGpuResult gpu=null;
+            bool CurrentSource()
+            {RequireLightingSource(current,room,revision,world,generation,doorRevision,foreground,background);return !finished;}
+            var compare=RoomLightingGpuEvidence.Compare(current,CurrentSource,result=>gpu=result,deadline);
+            try {while(compare.MoveNext()) yield return compare.Current;}
+            finally {(compare as IDisposable)?.Dispose();}
+            if(gpu==null) throw new InvalidOperationException("Нет результата GPU проверки света: "+phase);
+            observation.referenceMilliseconds=gpu.referenceMilliseconds;observation.readbackMilliseconds=gpu.readbackMilliseconds;
+            byte[] fg=gpu.foregroundPixels,bg=gpu.backgroundPixels;
+            observation.foreground=MapEvidence(gpu.foreground,fg,closedForeground,openForeground);
+            observation.background=MapEvidence(gpu.background,bg,closedBackground,openBackground);
+            if(phase=="reloaded")
             {
-                // Deliberately expensive full rebuild is an independent phase check of the incremental cache.
-                // It neither installs a profile nor binds shader globals or changes live geometry.
-                var referenceTimer=System.Diagnostics.Stopwatch.StartNew();
-                expectedForeground=RoomLightMap.Build(room,bounds,profile);
-                expectedBackground=RoomLightMap.Build(room,bounds,profile.ForBackground());
-                observation.referenceMilliseconds=referenceTimer.Elapsed.TotalMilliseconds;
-                RequireLightingSource(current,room,revision,world,generation,doorRevision,foreground,background);
-                var readbackTimer=System.Diagnostics.Stopwatch.StartNew();
-                var actualFg=BeginLightReadback(foreground);
-                var actualBg=BeginLightReadback(background);
-                var expectedFg=BeginLightReadback(expectedForeground);
-                var expectedBg=BeginLightReadback(expectedBackground);
-                while(!actualFg.done || !actualBg.done || !expectedFg.done || !expectedBg.done)
-                {
-                    if(Time.unscaledTime>deadline || finished) throw new InvalidOperationException("Таймаут GPU readback света: "+phase);
-                    yield return null;
-                }
-                if(actualFg.error!=null || actualBg.error!=null || expectedFg.error!=null || expectedBg.error!=null)
-                    throw new InvalidOperationException($"GPU readback света завершился ошибкой: phase={phase}, actualFG={actualFg.error}, actualBG={actualBg.error}, expectedFG={expectedFg.error}, expectedBG={expectedBg.error}.");
-                RequireLightingSource(current,room,revision,world,generation,doorRevision,foreground,background);
-                if(!ReferenceEquals(current.Profile,profile) || RecoverySnapshot.Fingerprint(StateJson.ToJson(current.Profile))!=observation.profile || current.Bounds!=bounds)
-                    throw new InvalidOperationException("Во время проверки изменился профиль/прямоугольник источника света: "+phase);
-                byte[] fg=actualFg.pixels,bg=actualBg.pixels;
-                byte[] expectedFgBytes=expectedFg.pixels,expectedBgBytes=expectedBg.pixels;
-                observation.readbackMilliseconds=readbackTimer.Elapsed.TotalMilliseconds;
-                observation.foreground=MapEvidence(foreground,expectedForeground,fg,expectedFgBytes,closedForeground,openForeground);
-                observation.background=MapEvidence(background,expectedBackground,bg,expectedBgBytes,closedBackground,openBackground);
-                if(phase=="reloaded")
-                {
-                    if(!Resume || observation.profile!=resumeExpected.profile ||
-                        !string.Equals(observation.foreground.sha256,resumeExpected.foreground,StringComparison.OrdinalIgnoreCase) ||
-                        !string.Equals(observation.background.sha256,resumeExpected.background,StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidOperationException("Загруженный свет отличается от независимого GPU свидетельства сохранённого открытого люка.");
-                }
-                else if(phase=="closed") {closedForeground=fg;closedBackground=bg;}
-                else
-                {
-                    int total=foreground.width*foreground.height;
-                    if(observation.candidatePixels<=0 || observation.candidatePixels>=total || observation.dirtyPixels<=0 || observation.dirtyPixels>observation.candidatePixels)
-                        throw new InvalidOperationException($"Изменение люка не дало ограниченный dirty patch: phase={phase}, candidate={observation.candidatePixels}, dirty={observation.dirtyPixels}, total={total}.");
-                    if(phase=="open")
-                    {
-                        if(observation.foreground.changedPixels<=0 || observation.background.changedPixels<=0)
-                            throw new InvalidOperationException("Открытие авторского люка не изменило пиксели обеих карт света.");
-                        openForeground=fg;openBackground=bg;lightingChangedVerified=true;
-                    }
-                    else if(phase=="closed-again")
-                    {
-                        if(observation.foreground.closedMaxError>1 || observation.background.closedMaxError>1)
-                            throw new InvalidOperationException("Закрытие люка не восстановило обе исходные карты света.");
-                        lightingCloseRestored=true;
-                    }
-                    else if(phase=="reopened" && (observation.foreground.openMaxError>1 || observation.background.openMaxError>1))
-                        throw new InvalidOperationException("Повторное открытие люка не восстановило обе открытые карты света.");
-                }
-                observation.sourceGuardVerified=observation.shaderBindingsVerified=true;observation.verifiedAt=Time.unscaledTimeAsDouble;
-                WriteLightMap(phase,"foreground",foreground.width,foreground.height,fg);
-                WriteLightMap(phase,"background",background.width,background.height,bg);
-                lighting.Add(observation);lightingPending=null;
-                File.WriteAllText(runtime.Options.Report+".opening-"+phase+".lighting.json",StateJson.ToJson(observation,true));
+                if(!Resume || observation.profile!=resumeExpected.profile ||
+                    !string.Equals(observation.foreground.sha256,resumeExpected.foreground,StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(observation.background.sha256,resumeExpected.background,StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Загруженный свет отличается от независимого GPU свидетельства сохранённого открытого люка.");
             }
-            finally
+            else if(phase=="closed") {closedForeground=fg;closedBackground=bg;}
+            else
             {
-                if(expectedForeground!=null) Destroy(expectedForeground);
-                if(expectedBackground!=null) Destroy(expectedBackground);
-            }
-        }
-        private static LightReadback BeginLightReadback(Texture texture)
-        {
-            var result=new LightReadback();
-            AsyncGPUReadback.Request(texture,0,TextureFormat.RGBA32,request=>
-            {
-                try
+                int total=foreground.width*foreground.height;
+                if(observation.candidatePixels<=0 || observation.candidatePixels>=total || observation.dirtyPixels<=0 || observation.dirtyPixels>observation.candidatePixels)
+                    throw new InvalidOperationException($"Изменение люка не дало ограниченный dirty patch: phase={phase}, candidate={observation.candidatePixels}, dirty={observation.dirtyPixels}, total={total}.");
+                if(phase=="open")
                 {
-                    if(request.hasError) result.error="GPU отказал в readback";
-                    else result.pixels=request.GetData<byte>().ToArray();
+                    if(observation.foreground.changedPixels<=0 || observation.background.changedPixels<=0)
+                        throw new InvalidOperationException("Открытие авторского люка не изменило пиксели обеих карт света.");
+                    openForeground=fg;openBackground=bg;lightingChangedVerified=true;
                 }
-                catch(Exception error) {result.error=error.Message;}
-                finally {result.done=true;}
-            });
-            return result;
+                else if(phase=="closed-again")
+                {
+                    if(observation.foreground.closedMaxError>1 || observation.background.closedMaxError>1)
+                        throw new InvalidOperationException("Закрытие люка не восстановило обе исходные карты света.");
+                    lightingCloseRestored=true;
+                }
+                else if(phase=="reopened" && (observation.foreground.openMaxError>1 || observation.background.openMaxError>1))
+                    throw new InvalidOperationException("Повторное открытие люка не восстановило обе открытые карты света.");
+            }
+            observation.sourceGuardVerified=observation.shaderBindingsVerified=true;observation.verifiedAt=Time.unscaledTimeAsDouble;
+            WriteLightMap(phase,"foreground",foreground.width,foreground.height,fg);
+            WriteLightMap(phase,"background",background.width,background.height,bg);
+            lighting.Add(observation);lightingPending=null;
+            File.WriteAllText(runtime.Options.Report+".opening-"+phase+".lighting.json",StateJson.ToJson(observation,true));
         }
         private void RequireLightingSource(RoomLighting current,RoomLayout room,long revision,string world,int generation,long doorRevision,Texture foreground,Texture background)
         {
@@ -693,42 +652,17 @@ namespace Remains.Runtime
                 runtime.Geometry.OcclusionRevision(Level)!=revision || current.IsUpdating || current.AppliedOcclusionRevision!=revision ||
                 foreground==null || background==null || current.ForegroundMap!=foreground || current.BackgroundMap!=background)
                 throw new InvalidOperationException($"Источник света сменился/устарел: room={room.id}, world={world}, revision={revision}, applied={current?.AppliedOcclusionRevision}.");
-            var bounds=current.Bounds;var shaderBounds=Shader.GetGlobalVector("_WorldLightBounds");
-            if(Shader.GetGlobalTexture("_WorldLightMap")!=foreground || Shader.GetGlobalTexture("_BackgroundLightMap")!=background ||
-                Shader.GetGlobalFloat("_WorldLightEnabled")!=1 || shaderBounds!=new Vector4(bounds.x,bounds.y,1/bounds.width,1/bounds.height))
-                throw new InvalidOperationException("Actual shader binding не совпал с опубликованной парой карт/границ света: "+room.id);
+            RoomLightingGpuEvidence.EnsurePublished(current,room,revision,foreground,background,current.Bounds);
         }
-        private static LightingMapEvidence MapEvidence(Texture actual,Texture expected,byte[] pixels,byte[] reference,byte[] closed,byte[] opened)
+        private static LightingMapEvidence MapEvidence(RoomLightingGpuMap map,byte[] pixels,byte[] closed,byte[] opened)=>new()
         {
-            if(actual.width!=expected.width || actual.height!=expected.height || pixels.Length!=actual.width*actual.height*4 || reference.Length!=pixels.Length)
-                throw new InvalidOperationException("GPU размеры/readback света отличаются от fresh reference.");
-            int maxError=MaximumError(pixels,reference);
-            if(maxError>1) throw new InvalidOperationException($"GPU карта {actual.name} не совпала с fresh build: maxByteError={maxError}.");
-            return new LightingMapEvidence {name=actual.name,width=actual.width,height=actual.height,bytes=pixels.Length,maxError=maxError,
-                sha256=ByteHash(pixels),expectedSha256=ByteHash(reference),changedPixels=closed==null?0:ChangedPixels(pixels,closed),
-                closedMaxError=closed==null?0:MaximumError(pixels,closed),openMaxError=opened==null?0:MaximumError(pixels,opened)};
-        }
-        private static int MaximumError(byte[] first,byte[] second)
-        {
-            if(first==null || second==null || first.Length!=second.Length) throw new InvalidOperationException("Не совпали размеры сравниваемых пикселей света.");
-            int maximum=0;for(int index=0;index<first.Length;index++) maximum=Math.Max(maximum,Math.Abs(first[index]-second[index]));return maximum;
-        }
-        private static int ChangedPixels(byte[] first,byte[] second)
-        {
-            if(first==null || second==null || first.Length!=second.Length || first.Length%4!=0) throw new InvalidOperationException("Некорректный RGBA readback для сравнения света.");
-            int changed=0;for(int index=0;index<first.Length;index+=4)
-                if(first[index]!=second[index] || first[index+1]!=second[index+1] || first[index+2]!=second[index+2]) changed++;
-            return changed;
-        }
-        private static string ByteHash(byte[] data)
-        {using var hash=System.Security.Cryptography.SHA256.Create();return BitConverter.ToString(hash.ComputeHash(data)).Replace("-","");}
-        private void WriteLightMap(string phase,string layer,int width,int height,byte[] pixels)
-        {
-            var texture=new Texture2D(width,height,TextureFormat.RGBA32,false,true);
-            try
-            {texture.LoadRawTextureData(pixels);texture.Apply(false,false);File.WriteAllBytes(runtime.Options.Report+".opening-"+phase+".lighting-"+layer+".png",texture.EncodeToPNG());}
-            finally {Destroy(texture);}
-        }
+            name=map.name,width=map.width,height=map.height,bytes=map.bytes,sha256=map.sha256,expectedSha256=map.expectedSha256,
+            maxError=map.maxError,changedPixels=closed==null?0:RoomLightingGpuEvidence.ChangedPixels(pixels,closed),
+            closedMaxError=closed==null?0:RoomLightingGpuEvidence.MaximumError(pixels,closed),
+            openMaxError=opened==null?0:RoomLightingGpuEvidence.MaximumError(pixels,opened)
+        };
+        private void WriteLightMap(string phase,string layer,int width,int height,byte[] pixels)=>
+            RoomLightingGpuEvidence.WriteMap(runtime.Options.Report+".opening-"+phase+".lighting-"+layer+".png",width,height,pixels);
         private WindowFrame WindowEvidence(SpriteRenderer artwork,Camera camera)
         {
             if(camera==null || artwork==null || artwork.sprite==null) throw new InvalidOperationException("Нет камеры или actual sprite окна для кадра.");

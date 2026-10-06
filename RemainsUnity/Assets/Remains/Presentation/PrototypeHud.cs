@@ -83,9 +83,15 @@ namespace Remains.Presentation
         public CharacterContentPanel CharacterContent {get;private set;}
         public SessionModPanel SessionMods {get;private set;}
         public PauseMenu PauseMenu {get;private set;}
+        private RoomLoadingView roomLoading;
+        private Transform pauseMenuLayer;
+        private bool roomPresentationPending;
+        public bool RoomPresentationPending=>roomPresentationPending && session?.LocalActor!=null;
+        public bool RoomLoadingVisible=>roomLoading!=null && roomLoading.IsVisible;
+        public RectTransform RoomLoadingRect=>roomLoading.Rect;
         public AudioSettingsPanel AudioSettings {get;private set;}
         public RectTransform MainMenuSoundRect=>mainMenu.SoundRect;
-        public bool BlocksGameplayInput=>inventory.activeSelf || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen;
+        public bool BlocksGameplayInput=>RoomPresentationPending || inventory.activeSelf || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen;
         public bool InventoryOpen=>inventory.activeSelf;
         public bool BlocksPointerGameplay(Vector2 screenPosition)=>BlocksGameplayInput || containerPanel.PointerBlocked(screenPosition);
         public void CloseContainerForSprint(bool sprint,Vector2 movement)
@@ -190,6 +196,7 @@ namespace Remains.Presentation
             inventory.SetActive(false);
             personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item),inventoryAudio.Page,itemText);
             var pauseView=PauseMenuView.Create(transform);
+            pauseMenuLayer=pauseView.transform;
             friendlyFire=pauseView.FriendlyFire;friendlyFire.onClick.AddListener(()=>session.SetFriendlyFire(!session.World.friendlyFire));
             friendlyDecision=pauseView.FriendlyDecision;friendlyDecision.onClick.AddListener(()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
@@ -209,7 +216,31 @@ namespace Remains.Presentation
             WorldMap.StateChanged+=PauseMenu.PublishIntent;
             sessionHud.Inventory.onClick.AddListener(ToggleInventory);
             sessionHud.Menu.onClick.AddListener(ToggleMenu);
+            roomLoading=RoomLoadingView.Create(transform,font,pauseMenuLayer);
             Refresh();
+        }
+
+        // Explicit presentation events own this flag; loading is not a pause request.
+        public void SetRoomPresentationPending(bool pending)
+        {
+            if(session==null || roomLoading==null)
+                throw new InvalidOperationException("Загрузка локации: HUD ещё не инициализирован.");
+            bool next=pending && session.LocalActor!=null;
+            if(roomPresentationPending==next) return;
+            roomPresentationPending=next;
+            if(next)
+            {
+                inventory.SetActive(false);CloseContainer();WorldMap.Close();
+                PauseMenu.PublishIntent();
+            }
+            Refresh();
+        }
+        private void RefreshRoomLoading()
+        {
+            if(session.LocalActor==null) roomPresentationPending=false;
+            bool visible=RoomPresentationPending;
+            if(roomLoading.IsVisible==visible) return;
+            roomLoading.SetVisible(visible);
         }
 
         public void ConfigureCharacters(CharacterLibrary library,bool hideUncreatedSelection)
@@ -252,19 +283,19 @@ namespace Remains.Presentation
             if(ContainerOpen) {CloseContainer();return;}
             PauseMenu.Toggle();
         }
-        public void ToggleInventory() {if(AudioSettings.IsOpen || PauseMenu.IsOpen) return;if(WorldMap.IsOpen) WorldMap.Close();inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent();}
+        public void ToggleInventory() {if(RoomPresentationPending || AudioSettings.IsOpen || PauseMenu.IsOpen) return;if(WorldMap.IsOpen) WorldMap.Close();inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent();}
         public void OpenContainer() {if(!ContainerOpen) ToggleContainer();}
         public void ToggleContainer()
         {
             if(ContainerOpen) {CloseContainer();return;}
-            if(AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
+            if(RoomPresentationPending || AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var target=CurrentInteraction;
             if(target.kind!=InteractionKind.Container) {ShowMessage("Курсор не выбрал доступный контейнер.");return;}
             OpenContainer(target.id);
         }
         public void OpenContainer(string id)
         {
-            if(AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
+            if(RoomPresentationPending || AudioSettings.IsOpen || PauseMenu.IsOpen || session.Travel.Pending || session.LocalActor is not {down:false}) return;
             var source=InventorySource.Resolve(session.World,id);
             if(source?.IsLooseItem==true) {ShowMessage("Свободная вещь подбирается по E целиком.");return;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
@@ -292,6 +323,7 @@ namespace Remains.Presentation
         private void Refresh()
         {
             var actor = session.LocalActor;
+            RefreshRoomLoading();
             mainMenu.Root.SetActive(actor==null);
             if(actor==null) mainMenu.SetActionsBusy(newGameOperation.Busy || session.CharacterSelectionLocked);
             if(inventoryActorId!=actor?.id || actor!=null && (inventoryActorGeneration!=actor.generation || inventoryActorLifecycle!=actor.lifecycleSequence))
@@ -300,7 +332,7 @@ namespace Remains.Presentation
                     Debug.Log($"Окна инвентаря закрыты при смене состояния персонажа: прежнее={inventoryActorId}:{inventoryActorGeneration}:{inventoryActorLifecycle}, текущее={actor?.id}:{actor?.generation}:{actor?.lifecycleSequence}, container={containerPanel.Source?.id}.");
                 inventoryActorId=actor?.id;inventoryActorGeneration=actor?.generation??0;inventoryActorLifecycle=actor?.lifecycleSequence??0;inventory.SetActive(false);containerPanel.Close();
             }
-            bool gameplayVisible=actor!=null && !inventory.activeSelf && !WorldMap.IsOpen;
+            bool gameplayVisible=actor!=null && !RoomPresentationPending && !inventory.activeSelf && !WorldMap.IsOpen;
             status.transform.parent.gameObject.SetActive(gameplayVisible);
             quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
             LayoutNotice();
@@ -309,7 +341,7 @@ namespace Remains.Presentation
             {statusLevel=null;statusPlayers=-1;containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld(false);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             worldDescriptionDirty=true;
             lobby.SetActive(false);
-            leave.gameObject.SetActive(gameplayVisible);friendlyFire.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
+            leave.gameObject.SetActive(actor!=null);friendlyFire.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if(displayedFriendlyFire!=session.World.friendlyFire)
             {displayedFriendlyFire=session.World.friendlyFire;friendlyFireText.text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");}
             friendlyDecision.interactable=session.World.friendlyFire;
@@ -384,23 +416,23 @@ namespace Remains.Presentation
                 else if(AudioSettings.IsOpen) AudioSettings.Cancel();
             }
             WorldMap.Refresh();
-            bool show=session.LocalActor!=null && !inventory.activeSelf && !PauseMenu.IsOpen && !WorldMap.IsOpen;
+            bool show=session.LocalActor!=null && !RoomPresentationPending && !inventory.activeSelf && !PauseMenu.IsOpen && !WorldMap.IsOpen;
             RefreshInteractionHint();
             combatHud.Refresh(session.LocalActor,show,ReloadRemaining?.Invoke());quickActions.SetActive(show);
             status.transform.parent.gameObject.SetActive(show);
-            message.transform.parent.gameObject.SetActive(session.LocalActor!=null && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));
+            message.transform.parent.gameObject.SetActive(session.LocalActor!=null && !RoomPresentationPending && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));
             if(revival==null) return;
             float progress=RevivalProgress?.Invoke() ?? 0;
             revival.text=RevivalPending?.Invoke()==true?"Ожидаем подтверждения поднятия…":
                 progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
-            revival.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(revival.text));
+            revival.transform.parent.gameObject.SetActive(!RoomPresentationPending && !string.IsNullOrEmpty(revival.text));
         }
         private void OnDestroy()
         {
             containerHint?.Dispose();
             if(session!=null) {session.Changed-=Refresh;session.SessionStopped-=RefreshAfterSessionStop;}
         }
-        private void LateUpdate()=>containerPanel?.Step(InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen);
+        private void LateUpdate()=>containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen);
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {
             var texture=Resources.Load<Texture2D>("Original/Hud/"+key);

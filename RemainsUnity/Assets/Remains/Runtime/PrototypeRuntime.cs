@@ -48,6 +48,12 @@ namespace Remains.Runtime
         public System.Func<PlayerCommand> CommandSource { get; set; }
         public PrototypeHud Hud => hud;
         public RoomLighting ActiveRoomLighting {get;private set;}
+        public bool LevelPresentationReady=>roomPresentation?.IsReady==true;
+        public bool IsLevelPreparing=>roomPresentation?.IsPreparing==true;
+        public Camera WorldCamera=>cameraView;
+        private RoomPresentationGate roomPresentation;
+        private bool roomFailurePending;
+        private bool automaticStartCancelled;
         private MovementController movement;
         private MovementSettings passiveMovementSettings;
         private NpcController npcs;
@@ -95,7 +101,7 @@ namespace Remains.Runtime
             Session.ConfigureRules(WeaponCatalog.Rules);
             Session.UseLobby=Options.Smoke==null || Options.Smoke.StartsWith("lobby") || Options.Smoke.StartsWith("duplicate-lobby") || Options.Smoke.StartsWith("protocol") || Options.Smoke.StartsWith("grenade-resume-"); Session.autoCreatePlayer=false; Session.maxConnections=Options.Capacity;
             Session.CharacterId=Options.Character;
-            Session.DebugTravelAllowed=Options.Smoke!=null && !Options.Smoke.StartsWith("travel-points") && !Options.Smoke.StartsWith("prop-body");
+            Session.DebugTravelAllowed=Options.Smoke!=null && !Options.Smoke.StartsWith("travel-points") && !Options.Smoke.StartsWith("prop-body") && !Options.Smoke.StartsWith("lighting-preparation");
             Session.networkAddress=Options.Address;
             bool characterLibraryProbe=Options.Smoke?.StartsWith("characters")==true;
             if(Options.SaveDirectory==null || characterLibraryProbe)
@@ -136,6 +142,8 @@ namespace Remains.Runtime
             ActiveRoomLighting=roomObject.GetComponent<RoomLighting>();
             travelPointVisuals.Bind(roomObject);
             cameraView=CameraFollower.RequireCamera(Camera.main);
+            roomPresentation=new RoomPresentationGate(cameraView);roomPresentation.Failed+=RoomPreparationFailed;
+            roomPresentation.Bind(ActiveRoomLighting);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
             DoorVisuals=new GameObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio,visualOrders);
@@ -156,9 +164,10 @@ namespace Remains.Runtime
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
             ItemActions=new ItemShortcutActions(Session,EquipWeaponItem);
-            if (!Application.isBatchMode || Options.Smoke=="performance-audit" || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
+            if (!Application.isBatchMode || Options.Smoke?.StartsWith("lighting-preparation")==true || Options.Smoke=="performance-audit" || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
+                roomPresentation.SetHud(hud);
                 hud.LocalActorVisual=()=>Session.LocalActor==null?null:FindActorVisual(Session.LocalActor.id);
                 hud.LocalWeaponArtwork=()=>Session.LocalActor==null?null:interactionVisuals.FindWeapon(Session.LocalActor.id)?.Artwork;
                 hud.LocalHeldItemArtwork=()=>Session.LocalActor==null?null:HeldItems.Find(Session.LocalActor.id);
@@ -212,6 +221,8 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("warehouse-seam")) gameObject.AddComponent<FactoryWarehouseSeamProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("office-furniture")) gameObject.AddComponent<FactoryOfficeFurnitureProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("office-opening")) gameObject.AddComponent<FactoryOfficeOpeningProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("lighting-preparation")) gameObject.AddComponent<RoomLightingPreparationProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("lighting-lifecycle")) gameObject.AddComponent<RoomLightingLifecycleProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("office-recovery")) gameObject.AddComponent<FactoryOfficeRecoveryProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet")) gameObject.AddComponent<NetworkToolStandProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("crawler")) gameObject.AddComponent<NetworkCrawlerProbe>().Initialize(this);
@@ -264,12 +275,13 @@ namespace Remains.Runtime
 
         private IEnumerator Start()
         {
+            if(automaticStartCancelled) yield break;
             if(Options.Smoke?.StartsWith("characters")==true && Options.Smoke!="characters-guest") yield break;
             LegacyPrototypeFixture.Prepare(this);
             if(saveLibraries!=null && Options.Role!=null)
             {
                 var preparation=System.Threading.Tasks.Task.Run(()=>Session.Saves.EnsureWorldLibrary());
-                while(!preparation.IsCompleted) yield return null;
+                while(!preparation.IsCompleted) {if(automaticStartCancelled) yield break;yield return null;}
                 if(preparation.IsFaulted)
                 {
                     Debug.LogError("Не удалось подготовить общую библиотеку миров: "+preparation.Exception);
@@ -277,6 +289,7 @@ namespace Remains.Runtime
                     yield break;
                 }
             }
+            if(automaticStartCancelled) yield break;
             if (Options.Role=="host") Session.StartHost();
             else if (Options.Role=="client") Session.StartClient();
         }
@@ -294,6 +307,7 @@ namespace Remains.Runtime
             passengers.Reconcile(Session.World,Session.LocalOwner);
             if (Session.World==null || Session.LocalActor==null)
             {
+                roomPresentation.SetContext(false,null);
                 ActiveRoomLighting?.Release();
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
                 visuals.Clear();visualLayers.Synchronize(Session.World,Session.LocalActor?.level);travelPointVisuals.Clear();return;
@@ -303,8 +317,10 @@ namespace Remains.Runtime
             {
                 shownLevel=Session.LocalActor.level;shownRoom=definition;
                 var room=Geometry.Get(shownLevel);
+                roomPresentation.Bind(null);ActiveRoomLighting?.Release();
                 Destroy(roomObject);roomObject=AuthoredRoomVisual.Create(shownLevel,room,Session.World);
                 ActiveRoomLighting=roomObject.GetComponent<RoomLighting>();
+                roomPresentation.Bind(ActiveRoomLighting);
                 movement=CreateMovement(room);
                 cameraFollower.Room=room;
                 releaseRequested=true;
@@ -314,6 +330,7 @@ namespace Remains.Runtime
             var activeRoom=Geometry.Get(Session.LocalActor.level);
             if(ActiveRoomLighting==null) throw new System.InvalidOperationException("Нет света видимой локации: "+Session.LocalActor.level);
             ActiveRoomLighting.Synchronize(activeRoom,Geometry.OcclusionRevision(Session.LocalActor.level));
+            roomPresentation.SetContext(true,activeRoom);
             if(!ReferenceEquals(movement.Room,activeRoom)) movement=CreateMovement(activeRoom);
             cameraFollower.Room=activeRoom;
             foreach (var actor in Session.World.actors)
@@ -356,6 +373,7 @@ namespace Remains.Runtime
         }
         private void Update()
         {
+            if(roomFailurePending) return;
             Session.PumpSaveWrites();
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             Session.LevelTime.Step(Time.deltaTime);
@@ -378,11 +396,13 @@ namespace Remains.Runtime
                     !remoteMotion.ControlsPosePhase(animated)) ActorPose.Advance(animated,Time.deltaTime);
             }
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("lighting-preparation") || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 npcs.Step(Time.deltaTime);
-                var command=CommandSource?.Invoke() ?? ReadCommand();
-                if(CommandSource!=null && Options.Smoke!=null) command=ProbeWeaponSelection.Resolve(actor,command);
+                // Do not consume a probe/input source's one-shot actions until its room is
+                // ready. Real Escape still passes through; physics/network continue below.
+                var command=IsLevelPreparing?ReadCommand():CommandSource?.Invoke() ?? ReadCommand();
+                if(!IsLevelPreparing && CommandSource!=null && Options.Smoke!=null) command=ProbeWeaponSelection.Resolve(actor,command);
                 ApplyCommand(command,Time.deltaTime);
             }
             freeProps.Step(Time.deltaTime);
@@ -451,18 +471,19 @@ namespace Remains.Runtime
         private void ApplyCommand(PlayerCommand command,float dt)
         {
             var actor=Session.LocalActor;
-            if(command.hasPointer && hud.BlocksPointerGameplay(command.pointer)) command.fire=false;
+            if(IsLevelPreparing) command=new PlayerCommand {menu=command.menu};
+            if(command.hasPointer && hud?.BlocksPointerGameplay(command.pointer)==true) command.fire=false;
             if(command.hasAim && hud?.BlocksGameplayInput!=true && (!command.hasPointer ||
                 hud?.BlocksPointerGameplay(command.pointer)!=true && (UnityEngine.EventSystems.EventSystem.current==null ||
                 !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()))) lastGameplayAim=command.aim;
             if(command.inventory) hud?.ToggleInventory();
             if(command.menu) hud?.ToggleMenu();
             InteractionFocus.Step(Session.World,actor,Session.Rules,command.hasAim?command.aim:(Vector2?)null,
-                Session.Travel.Pending || hud?.BlocksGameplayInput==true || command.hasPointer &&
+                IsLevelPreparing || Session.Travel.Pending || hud?.BlocksGameplayInput==true || command.hasPointer &&
                     (hud?.BlocksPointerGameplay(command.pointer)==true || UnityEngine.EventSystems.EventSystem.current?.IsPointerOverGameObject()==true),
                 Session.Travel.Points(actor.level),MechanismInteraction.Points);
             MechanismInteraction.Step(InteractionFocus.Target,command.interact,command.revive,
-                !Session.Travel.Pending && hud?.BlocksGameplayInput!=true && hud?.ContainerOpen!=true,dt);
+                !IsLevelPreparing && !Session.Travel.Pending && hud?.BlocksGameplayInput!=true && hud?.ContainerOpen!=true,dt);
             if(command.interact && !Session.Travel.Pending)
             {
                 if(hud.WorldMap.IsOpen) hud.WorldMap.Close();
@@ -481,7 +502,7 @@ namespace Remains.Runtime
                     else if(target.kind==InteractionKind.Exit) Session.Travel.RequestVia(target.id);
                 }
             }
-            if(hud?.BlocksGameplayInput==true) command=default;
+            if(IsLevelPreparing || hud?.BlocksGameplayInput==true) command=default;
             hud?.CloseContainerForSprint(command.sprint,command.movement);
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(InteractionFocus.Target,false,0);return;}
             if(Session.Travel.Pending) command=default;
@@ -522,6 +543,22 @@ namespace Remains.Runtime
             Session?.SaveLocalCharacter();
             Session?.FlushSaveWrites();
         }
-        private void OnDestroy() {Pickup?.Dispose();MechanismInteraction?.Dispose();Platforms?.Dispose();}
+        private void RoomPreparationFailed(RoomLighting source,System.Exception error)
+        {
+            if(roomFailurePending || source!=ActiveRoomLighting) return;
+            automaticStartCancelled=true;roomFailurePending=true;StartCoroutine(EndFailedRoom(source,error));
+        }
+        private IEnumerator EndFailedRoom(RoomLighting source,System.Exception error)
+        {
+            // Let the world/geometry notification that initiated this binding finish before
+            // Mirror releases it. The next frame cannot run a partially prepared simulation.
+            yield return null;
+            Debug.LogError($"Загрузка локации остановлена: room={source.Room?.id}, world={Session.World?.worldId}, reason={error}.",this);
+            if(NetworkServer.active) Session.StopHost();else if(NetworkClient.active) Session.StopClient();
+            roomPresentation.SetContext(false,null);source.Release();
+            Session.ShowNotice("Не удалось загрузить локацию. Сессия остановлена; подробности — в журнале ошибки.");
+            SessionLoadFailure.Show(error);roomFailurePending=false;
+        }
+        private void OnDestroy() {roomPresentation?.Dispose();Pickup?.Dispose();MechanismInteraction?.Dispose();Platforms?.Dispose();}
     }
 }

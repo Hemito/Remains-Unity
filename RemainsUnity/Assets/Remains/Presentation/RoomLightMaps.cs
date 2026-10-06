@@ -6,8 +6,8 @@ using UnityEngine;
 
 namespace Remains.Presentation
 {
-    // One visible-room binding. Construction prepares assets on the main thread;
-    // CreatePatch reads immutable CPU data and can run on a serialized worker.
+    // One visible-room binding. PrepareBuild alone captures Unity assets;
+    // single-use Build and CreatePatch consume only frozen CPU data on a worker.
     public sealed class RoomLightMaps
     {
         private readonly object gate=new();
@@ -21,28 +21,38 @@ namespace Remains.Presentation
         public int SourceCount {get;}
         public int UniqueDecodedTextures {get;}
         public long DecodedPixels {get;}
+        public double PrepareMilliseconds {get;}
+        public double GetPixelsMilliseconds {get;}
+        public double DecodeMilliseconds {get;}
+        public double EvaluateMilliseconds {get;}
         public long PublishedVersion {get {lock(gate) return version;}}
         public IReadOnlyList<Color> Foreground {get;}
         public IReadOnlyList<Color> Background {get;}
 
-        public RoomLightMaps(RoomLayout room,Rect bounds,RoomLightProfile profile)
+        public RoomLightMaps(RoomLayout room,Rect bounds,RoomLightProfile profile):this(PrepareBuild(room,bounds,profile).CreateData(default)) { }
+        private RoomLightMaps(BuildData data)
+        {
+            var plan=data.Plan;
+            Bounds=plan.Bounds;Width=plan.Width;Height=plan.Height;
+            SourceCount=plan.SourceCount;UniqueDecodedTextures=plan.UniqueDecodedTextures;DecodedPixels=plan.DecodedPixels;
+            PrepareMilliseconds=plan.PrepareMilliseconds;GetPixelsMilliseconds=plan.GetPixelsMilliseconds;
+            DecodeMilliseconds=data.DecodeMilliseconds;EvaluateMilliseconds=data.EvaluateMilliseconds;
+            foregroundProfile=data.ForegroundProfile;backgroundProfile=data.BackgroundProfile;published=plan.InitialOcclusion;
+            foreground=data.Foreground;background=data.Background;
+            Foreground=Array.AsReadOnly(foreground);Background=Array.AsReadOnly(background);
+        }
+        // Explicit main-thread boundary: no decode or full-map sampling is performed here.
+        public static BuildPlan PrepareBuild(RoomLayout room,Rect bounds,RoomLightProfile profile)
         {
             if(room==null) throw new ArgumentNullException(nameof(room));
+            var timer=System.Diagnostics.Stopwatch.StartNew();
             RoomLightMap.ValidateBounds(room.id,bounds);
-            Bounds=bounds;Width=Mathf.CeilToInt(bounds.width*8);Height=Mathf.CeilToInt(bounds.height*8);
             var cache=new RoomLightMap.MaskCache();
-            foregroundProfile=RoomLightMap.Prepare(room.id,profile,cache);
-            backgroundProfile=RoomLightMap.Prepare(room.id,profile.ForBackground(),cache);
-            SourceCount=foregroundProfile.Lights.Length;UniqueDecodedTextures=cache.Count;DecodedPixels=cache.PixelCount;
-            published=CaptureOcclusion(room.platforms);
-            foreground=new Color[Width*Height];background=new Color[foreground.Length];
-            for(int y=0;y<Height;y++) for(int x=0;x<Width;x++)
-            {
-                int index=y*Width+x;var point=RoomLightMap.Position(Bounds,Width,Height,x,y);
-                foreground[index]=RoomLightMap.Evaluate(published,foregroundProfile,point);
-                background[index]=RoomLightMap.Evaluate(published,backgroundProfile,point);
-            }
-            Foreground=Array.AsReadOnly(foreground);Background=Array.AsReadOnly(background);
+            var first=RoomLightMap.Capture(room.id,profile,cache);
+            var second=RoomLightMap.Capture(room.id,profile.ForBackground(),cache);
+            var occlusion=CaptureOcclusion(room.platforms);var raw=cache.RawPixels();
+            return new BuildPlan(room.id,bounds,first,second,occlusion,raw,cache.PixelCount,
+                timer.Elapsed.TotalMilliseconds,cache.GetPixelsMilliseconds);
         }
 
         public static Occlusion CaptureOcclusion(RoomSurface[] surfaces)
@@ -186,6 +196,67 @@ namespace Remains.Presentation
             internal Occlusion(Rect[] solids)=>this.solids=solids;
             public int Count=>solids.Length;
             public Rect this[int index]=>solids[index];
+        }
+        // Raw arrays and scalar inputs are private and frozen after capture. The only mutation
+        // is ownership transfer/decode during one Build attempt. Cancellation consumes the plan:
+        // partially decoded raw arrays must never be decoded or sampled by a second attempt.
+        public sealed class BuildPlan
+        {
+            private readonly string room;
+            private readonly RoomLightMap.CapturedProfile first,second;
+            private readonly RoomLightMask.RawPixels[] raw;
+            internal readonly Occlusion InitialOcclusion;
+            private int consumed;
+            public int Width {get;}
+            public int Height {get;}
+            public Rect Bounds {get;}
+            public int SourceCount {get;}
+            public int UniqueDecodedTextures=>raw.Length;
+            public long DecodedPixels {get;}
+            public double PrepareMilliseconds {get;}
+            public double GetPixelsMilliseconds {get;}
+            public bool IsConsumed=>Volatile.Read(ref consumed)!=0;
+            internal BuildPlan(string room,Rect bounds,RoomLightMap.CapturedProfile first,RoomLightMap.CapturedProfile second,
+                Occlusion occlusion,RoomLightMask.RawPixels[] raw,long pixelCount,double prepareMilliseconds,double getPixelsMilliseconds)
+            {
+                this.room=room;Bounds=bounds;Width=Mathf.CeilToInt(bounds.width*8);Height=Mathf.CeilToInt(bounds.height*8);
+                this.first=first;this.second=second;InitialOcclusion=occlusion;this.raw=raw;SourceCount=first.Lights.Length;
+                DecodedPixels=pixelCount;PrepareMilliseconds=prepareMilliseconds;GetPixelsMilliseconds=getPixelsMilliseconds;
+            }
+            public RoomLightMaps Build(CancellationToken cancellation=default)=>new(CreateData(cancellation));
+            internal BuildData CreateData(CancellationToken cancellation)
+            {
+                if(Interlocked.CompareExchange(ref consumed,1,0)!=0)
+                    throw new InvalidOperationException($"План света уже использован: room={room}, size={Width}×{Height}. После отмены или ошибки подготовьте новый план.");
+                cancellation.ThrowIfCancellationRequested();
+                var timer=System.Diagnostics.Stopwatch.StartNew();
+                var masks=RoomLightMap.DecodeMasks(raw,cancellation);
+                var foregroundProfile=first.Bind(masks,cancellation);var backgroundProfile=second.Bind(masks,cancellation);
+                double decodeMilliseconds=timer.Elapsed.TotalMilliseconds;timer.Restart();
+                var foreground=new Color[Width*Height];var background=new Color[foreground.Length];
+                for(int y=0;y<Height;y++) for(int x=0;x<Width;x++)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    int index=y*Width+x;var point=RoomLightMap.Position(Bounds,Width,Height,x,y);
+                    foreground[index]=RoomLightMap.Evaluate(InitialOcclusion,foregroundProfile,point,cancellation);
+                    background[index]=RoomLightMap.Evaluate(InitialOcclusion,backgroundProfile,point,cancellation);
+                }
+                cancellation.ThrowIfCancellationRequested();
+                return new BuildData(this,foregroundProfile,backgroundProfile,foreground,background,decodeMilliseconds,timer.Elapsed.TotalMilliseconds);
+            }
+        }
+        internal readonly struct BuildData
+        {
+            internal readonly BuildPlan Plan;
+            internal readonly RoomLightMap.PreparedProfile ForegroundProfile,BackgroundProfile;
+            internal readonly Color[] Foreground,Background;
+            internal readonly double DecodeMilliseconds,EvaluateMilliseconds;
+            internal BuildData(BuildPlan plan,RoomLightMap.PreparedProfile foregroundProfile,RoomLightMap.PreparedProfile backgroundProfile,
+                Color[] foreground,Color[] background,double decodeMilliseconds,double evaluateMilliseconds)
+            {
+                Plan=plan;ForegroundProfile=foregroundProfile;BackgroundProfile=backgroundProfile;Foreground=foreground;Background=background;
+                DecodeMilliseconds=decodeMilliseconds;EvaluateMilliseconds=evaluateMilliseconds;
+            }
         }
         public sealed class Patch
         {

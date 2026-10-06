@@ -25,7 +25,11 @@ namespace Remains.Presentation
                 if(lighting==null) throw new InvalidOperationException("Нет авторинга света: "+level);
                 var sorting=instance.GetComponent<SortingGroup>();if(sorting==null) sorting=instance.gameObject.AddComponent<SortingGroup>();
                 sorting.sortingLayerID=0;sorting.sortingOrder=WorldVisualOrderPolicy.SceneryRoomOrder;
-                instance.gameObject.AddComponent<RoomLighting>().Initialize(room,lighting.CreateProfile(instance));return instance.gameObject;
+                var runtimeLighting=instance.gameObject.AddComponent<RoomLighting>();
+                var profile=lighting.CreateProfile(instance);
+                if(Application.isPlaying) runtimeLighting.InitializeAsync(room,profile);
+                else runtimeLighting.Initialize(room,profile);
+                return instance.gameObject;
             }
             catch {UnityEngine.Object.Destroy(instance.gameObject);throw;}
         }
