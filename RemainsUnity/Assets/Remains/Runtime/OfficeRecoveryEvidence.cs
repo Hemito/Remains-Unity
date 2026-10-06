@@ -45,19 +45,47 @@ namespace Remains.Runtime
                 return "Отключённое тело потеряло исходную жизнь/инвентарь или не получило production lifecycle отключения.";
             return null;
         }
+        // Session authority owner/generation may rebind on shutdown/reload. Core body
+        // state must match an independently captured canonical live witness exactly;
+        // pose clocks/replication counters are not assertions about persisted gameplay.
+        public static string Body(ActorState expected,ActorState actual)
+        {
+            if(expected==null || actual==null || expected.connected || actual.connected ||
+                actual.id!=expected.id || actual.character!=expected.character || actual.player!=expected.player ||
+                actual.actorType!=expected.actorType || actual.anatomy!=expected.anatomy || actual.level!=expected.level)
+                return "Сохранение потеряло идентичность/уровень отключённого тела.";
+            if(actual.health!=expected.health || actual.mana!=expected.mana || actual.down!=expected.down ||
+                actual.lifecycleSequence!=expected.lifecycleSequence || actual.controlStateVersion!=expected.controlStateVersion ||
+                actual.damageSequence!=expected.damageSequence || actual.x!=expected.x || actual.y!=expected.y ||
+                actual.vx!=expected.vx || actual.vy!=expected.vy || actual.climbing!=expected.climbing || actual.crouched!=expected.crouched)
+                return "Сохранение изменило жизнь/control/lifecycle/damage/позицию отключённого тела.";
+            if(actual.loadoutVersion!=expected.loadoutVersion || actual.weaponInventoryVersion!=expected.weaponInventoryVersion ||
+                actual.equippedWeaponItem!=expected.equippedWeaponItem || actual.heldItemId!=expected.heldItemId ||
+                StateJson.ToJson(actual.inventory)!=StateJson.ToJson(expected.inventory) ||
+                StateJson.ToJson(actual.inventoryAliases)!=StateJson.ToJson(expected.inventoryAliases) ||
+                StateJson.ToJson(actual.inventoryUses)!=StateJson.ToJson(expected.inventoryUses) ||
+                StateJson.ToJson(actual.weaponShortcuts)!=StateJson.ToJson(expected.weaponShortcuts))
+                return "Сохранение изменило exact предметы/алиасы/журнал/назначения отключённого тела.";
+            if(StateJson.ToJson(actual.injuries)!=StateJson.ToJson(expected.injuries) ||
+                StateJson.ToJson(actual.resolvedAttacks)!=StateJson.ToJson(expected.resolvedAttacks) ||
+                StateJson.ToJson(actual.resolvedExplosions)!=StateJson.ToJson(expected.resolvedExplosions) ||
+                StateJson.ToJson(actual.appearance)!=StateJson.ToJson(expected.appearance) ||
+                StateJson.ToJson(actual.extensions)!=StateJson.ToJson(expected.extensions))
+                return "Сохранение изменило ранения/receipts/внешность/unknown данные отключённого тела.";
+            return null;
+        }
         public static string Loot(WorldState world,OfficeRecoveryWitness proof)
         {
             if(world==null || proof==null || proof.schema!=1 || world.worldId!=proof.worldId || proof.deadNpc==null ||
-                proof.hostBeforeLoot==null || proof.departedAfter==null || proof.corpseItems==null || proof.corpseItems.Length==0 || proof.claims==null)
+                proof.hostBeforeLoot==null || proof.departedAfter==null || proof.departedSaved==null || proof.corpseItems==null || proof.corpseItems.Length==0 || proof.claims==null)
                 return "Нет полного свидетельства мира/смерти/исходного инвентаря тела.";
             var npc=world.Find(proof.npcId);var host=world.Find(proof.hostId);var departed=world.Find(proof.departedId);
             if(npc==null || npc.player || !npc.down || npc.health>0 || npc.health!=proof.deadNpc.health || npc.actorType!=proof.deadNpc.actorType ||
                 npc.level!=proof.deadNpc.level || npc.inventory.Count!=0 || Vector2.Distance(npc.Position,proof.deadNpc.Position)>.001f)
                 return "Смерть, пустой инвентарь или стабильное тело NPC не сохранились.";
-            var savedBody=proof.departedSaved??proof.departedAfter;
-            if(host==null || departed==null || departed.connected || departed.level!=savedBody.level ||
-                departed.health!=savedBody.health || departed.down!=savedBody.down)
-                return "Сохранение потеряло игрока или состояние отключённого тела клиента.";
+            if(host==null) return "Сохранение потеряло получателя лута.";
+            string bodyError=Body(proof.departedSaved,departed);
+            if(bodyError!=null) return bodyError;
             if(world.pendingGrants.Any(g=>g.containerId==InventorySource.BodyId(proof.npcId)) || proof.claims.Length!=proof.corpseItems.Length ||
                 proof.claims.Distinct(StringComparer.Ordinal).Count()!=proof.claims.Length || !proof.claims.All(world.completedTransactions.Contains))
                 return "Резерв тела не завершён или журнал не содержит ровно по одной уникальной выдаче каждого предмета.";

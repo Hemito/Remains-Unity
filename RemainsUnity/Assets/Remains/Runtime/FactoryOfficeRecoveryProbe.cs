@@ -251,7 +251,7 @@ namespace Remains.Runtime
                 if(draining && Npc.inventory.Count==0 && session.World.pendingGrants.Count==0 && claims.Count==proof.corpseItems.Length &&
                     claims.All(session.World.completedTransactions.Contains) && !saving)
                 {
-                    proof.claims=claims.OrderBy(id=>id,StringComparer.Ordinal).ToArray();proof.departedSaved=session.World.Find(proof.departedId).Copy();
+                    proof.claims=claims.OrderBy(id=>id,StringComparer.Ordinal).ToArray();proof.departedSaved=session.ServerWorld.Find(proof.departedId).Copy();
                     Require(OfficeRecoveryEvidence.Loot(session.World,proof));phase=9;saving=true;capture="empty";StartCoroutine(SafeRoutine(SaveAndStop()));
                 }
             }
@@ -346,17 +346,26 @@ namespace Remains.Runtime
         {
             while(!finished && !captures.Contains("empty")) yield return null;
             if(finished) yield break;
+            // Freeze through the real pause API before the independent canonical witness.
+            runtime.Session.Pause.SetManual(true);
+            while(!finished && (!runtime.Session.Pause.IsServerPaused(Level) || !runtime.Session.Pause.IsPaused(Level))) yield return null;
+            if(finished) yield break;
+            proof.departedSaved=runtime.Session.ServerWorld.Find(proof.departedId).Copy();
             runtime.Session.CommitWorld();runtime.Session.SaveLocalCharacter();
-            var committed=runtime.Session.Saves.LoadWorld(false);proof.departedSaved=committed.Find(proof.departedId).Copy();
+            var committed=runtime.Session.Saves.LoadWorld(false);
             Require(OfficeRecoveryEvidence.Loot(committed,proof));
             reinstallVerified=RoomContentProbePersistence.UnchangedOnReinstall(runtime.Session.Saves.LoadWorld(false),Level);
             Require(reinstallVerified?null:"Production reinstall восстановил смерть или лут.");
             capture="saved";while(!finished && !captures.Contains("saved")) yield return null;
             if(finished) yield break;
+            // The frozen core must remain the same before the second live witness.
+            Require(OfficeRecoveryEvidence.Body(proof.departedSaved,runtime.Session.ServerWorld.Find(proof.departedId)));
+            // A second live expectation precedes the shutdown save; never derive it from disk.
+            proof.departedSaved=runtime.Session.ServerWorld.Find(proof.departedId).Copy();
             runtime.Session.StopHost();
             while(NetworkServer.active || NetworkClient.active) yield return null;
-            var saved=runtime.Session.Saves.LoadWorld(false);proof.departedSaved=saved.Find(proof.departedId).Copy();Require(OfficeRecoveryEvidence.Loot(saved,proof));
-            proof.hostSaved=saved.Find(proof.hostId).Copy();proof.departedSaved=saved.Find(proof.departedId).Copy();
+            var saved=runtime.Session.Saves.LoadWorld(false);Require(OfficeRecoveryEvidence.Loot(saved,proof));
+            proof.hostSaved=saved.Find(proof.hostId).Copy();
             proof.sourceSnapshot=runtime.Session.Saves.SelectedSnapshot().Id;
             File.WriteAllText(Path.Combine(runtime.Session.Saves.WorldDirectoryPath,WitnessFile),StateJson.ToJson(proof,true));
             stopped=true;Finish(true,"Офис: обе paused реплики, штатное отключение владельца, отмена exact attackID без расхода, новое поколение хоста и новая настоящая атака; обычный бой/E/UI, пустое тело и полный unique loot сохранены перед внешним restart.");

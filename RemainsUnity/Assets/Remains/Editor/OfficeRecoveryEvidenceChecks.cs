@@ -15,6 +15,10 @@ namespace Remains.Editor
             int count=0;
             void Check(bool valid,string reason) {count++;if(!valid) throw new InvalidOperationException("Office recovery evidence: "+reason);}
             var source=new ActorState {id="client",player=true,connected=true,owner="connection:2",level="factory:0",x=103.8f,y=11.2f,generation=4,lifecycleSequence=8};
+            source.inventory.Add(new ItemStack {id="starter-heal",definition="heal",count=4});
+            source.inventoryAliases["absorbed-heal"]="starter-heal";
+            source.inventoryUses.Add(new InventoryUse {id="past-heal",debits=new System.Collections.Generic.List<ItemDebit> {new() {item="absorbed-heal",count=1}}});
+            source.extensions=new System.Collections.Generic.Dictionary<string,Newtonsoft.Json.Linq.JToken> {{"mod:body",new Newtonsoft.Json.Linq.JObject {{"kept",1}}}};
             var host=new ActorState {id="host",player=true,connected=true,owner="connection:1",level="factory:0",x=106,y=11.2f};
             var before=new ActorState {id="npc",actorType="raider",level="factory:0",owner=source.owner,target=source.id,generation=4,health=140,x=104.8f,y=11.2f,
                 attackBusy=true,attackId="prepared-exact",attackTarget=source.id,attackRemaining=.4f,equippedWeaponItem="npc-pistol",
@@ -37,7 +41,7 @@ namespace Remains.Editor
             grantedHost.inventoryAliases["npc-caps"]="own-caps";grantedHost.inventory.Add(before.inventory[0].Copy());
             var baseline=host.Copy();baseline.inventory.Add(new ItemStack {id="own-caps",definition="caps",count=10});
             world.actors.AddRange(new[]{dead,grantedHost,disconnected.Copy()});world.completedTransactions.AddRange(new[]{"claim:pistol","claim:caps"});
-            var proof=new OfficeRecoveryWitness {worldId=world.worldId,npcId=dead.id,hostId=host.id,departedId=source.id,departedAfter=disconnected.Copy(),deadNpc=dead.Copy(),
+            var proof=new OfficeRecoveryWitness {worldId=world.worldId,npcId=dead.id,hostId=host.id,departedId=source.id,departedAfter=disconnected.Copy(),departedSaved=disconnected.Copy(),deadNpc=dead.Copy(),
                 hostBeforeLoot=baseline,corpseItems=before.inventory.Select(i=>i.Copy()).ToArray(),claims=world.completedTransactions.ToArray()};
             bool Loot(WorldState next)=>OfficeRecoveryEvidence.Loot(next,proof)==null;
             Check(Loot(world),"Merged aliases и ровно одна выдача полного тела должны пройти.");
@@ -46,10 +50,19 @@ namespace Remains.Editor
                 w=>w.completedTransactions.RemoveAt(0),w=>w.pendingGrants.Add(new PendingGrant {containerId="body:npc"}),
                 w=>w.Find("client").inventory.Add(before.inventory[0].Copy()),w=>w.worldId="another-world"})
             {var invalid=world.Copy();mutate(invalid);Check(!Loot(invalid),"Потеря/дубль/пополнение/другой мир должны отклоняться.");}
+            foreach(var mutate in new Action<WorldState>[] {w=>w.Find("client").inventory.Clear(),w=>w.Find("client").inventoryAliases.Clear(),
+                w=>w.Find("client").inventoryUses.Clear(),w=>w.Find("client").x+=.05f,w=>w.Find("client").y+=.05f,
+                w=>w.Find("client").lifecycleSequence++,w=>w.Find("client").controlStateVersion=0,w=>w.Find("client").damageSequence++,
+                w=>w.Find("client").extensions.Clear()})
+            {var invalid=world.Copy();mutate(invalid);Check(!Loot(invalid),"Независимый body witness обязан отвергать потерю inventory/aliases/uses/position/lifecycle/control/damage/unknown.");}
+            var rebound=world.Copy();rebound.Find("client").owner="connection:new-session";rebound.Find("client").generation+=2;
+            Check(Loot(rebound),"Owner/gen rebind не должен скрывать обязательность неизменных core body fields.");
             var serialized=StateJson.FromJson<WorldState>(StateJson.ToJson(world));Check(Loot(serialized),"Внешняя сериализация не должна терять IDs/алиасы/магазин/журнал.");
             var hurt=world.Copy();hurt.Find("client").health=73;proof.departedSaved=hurt.Find("client").Copy();
             Check(Loot(hurt),"Поздний фактический offline damage сохраняется без восстановленного HP.");
-            hurt.Find("client").health=100;Check(!Loot(hurt),"Restart не должен отбрасывать сохранённый offline damage.");
+            var restored=StateJson.FromJson<WorldState>(StateJson.ToJson(hurt));Check(Loot(restored),"Независимый canonical offline-damage expected переживает сериализацию диска.");
+            restored.Find("client").health=100;Check(!Loot(restored),"Restart не должен отбрасывать сохранённый offline damage.");
+            Check(proof.departedSaved.health==73,"Проверяемая disk-копия не имеет права менять независимый live expected.");
             if(log) Debug.Log($"Office recovery evidence: PASS {count} — самостоятельные before/after, отказ stale owner/gen/attack/ammo/death, активный хост, unique loot/aliases/magazine/journal и сериализация. Это checks доказательств; реальные процессы/контент/UI проверяет отдельный probe.");
         }
     }
