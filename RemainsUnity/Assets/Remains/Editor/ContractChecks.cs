@@ -82,6 +82,14 @@ namespace Remains.Editor
             WorldLibraryChecks.Run();
             IndependentLibraryChecks.Run();
             WorldCatalogChecks.Run();
+            WorldLibraryPerformanceChecks.Run();
+            CharacterJoinSelectionChecks.Run();
+            RecoveryCaptureChecks.Run();
+            OrderedSaveWriteChecks.Run();
+            RecoveryDurabilityChecks.Run();
+            LocalRecoveryPairChecks.Run();
+            InteractionHotPathChecks.Run();
+            CargoHotPathChecks.Run();
             CrouchChecks.Run();
             ProjectilePathChecks.Run();
             ShotArtworkChecks.Run();

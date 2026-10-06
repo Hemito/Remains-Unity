@@ -8,8 +8,14 @@ namespace Remains.Domain
         public static void Step(PropState prop,RoomLayout room,float dt,Vector2? target,IEnumerable<PropState> neighbours=null,PassengerMotionState passenger=null)
         {
             if(dt<=0 || !prop.movable || !prop.hasPhysicalBody) return;
+            Step(prop,room,dt,target,neighbours,passenger,new MovementHull());
+        }
+        // A simulation owner reuses this scratch hull; it never belongs to saved state.
+        public static void Step(PropState prop,RoomLayout room,float dt,Vector2? target,IEnumerable<PropState> neighbours,PassengerMotionState passenger,MovementHull hull)
+        {
+            if(dt<=0 || !prop.movable || !prop.hasPhysicalBody) return;
             var feet=prop.Position-Vector2.up*prop.anchorHeight;
-            var hull=new MovementHull {width=prop.width,height=prop.height};
+            hull.width=prop.width;hull.height=prop.height;
             feet=PassengerMotion.Carry(room,hull,feet,dt,passenger,!target.HasValue && !prop.held && prop.vy<=0);
             prop.Position=feet+Vector2.up*prop.anchorHeight;
             var origin=prop.Position; // Relative velocity excludes the support displacement; no feedback/drift.

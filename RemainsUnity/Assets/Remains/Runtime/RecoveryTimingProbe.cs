@@ -1,11 +1,14 @@
 using System;
 using System.IO;
 using Remains.Networking;
+using Remains.Persistence;
 using UnityEngine;
 
 namespace Remains.Runtime
 {
-    // Opt-in smoke diagnostics. All timestamps use the host's monotonic clock.
+    // Opt-in smoke diagnostics. Each process uses its own monotonic clock;
+    // cross-process absolute timestamps are not a shared timeline.
+    // Prepared means captured; persisted means its queued disk publication completed.
     // An acknowledged snapshot has already been persisted by the remote client.
     public sealed class RecoveryTimingProbe : MonoBehaviour
     {
@@ -23,10 +26,12 @@ namespace Remains.Runtime
             session=source;path=report+".recovery.jsonl";
             File.WriteAllText(path,"");
             session.RecoveryPrepared+=Prepared;
+            session.RecoveryPersisted+=Persisted;
             session.RecoveryAcknowledged+=Acknowledged;
             session.RecoveryPeerLeft+=Left;
         }
         private void Prepared(string snapshot,long revision)=>Write("prepared",-1,snapshot,revision);
+        private void Persisted(RecoverySnapshot snapshot)=>Write("persisted",-1,snapshot.Id,snapshot.Revision);
         private void Acknowledged(int peer,string snapshot,long revision)=>Write("ack",peer,snapshot,revision);
         private void Left(int peer)=>Write("left",peer,null,0);
         private void Write(string kind,int peer,string snapshot,long revision)
@@ -38,6 +43,7 @@ namespace Remains.Runtime
         {
             if(session==null) return;
             session.RecoveryPrepared-=Prepared;
+            session.RecoveryPersisted-=Persisted;
             session.RecoveryAcknowledged-=Acknowledged;
             session.RecoveryPeerLeft-=Left;
         }

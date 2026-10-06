@@ -16,6 +16,8 @@ namespace Remains.Gameplay
         private readonly MagicRecovery recovery=new();
         private bool statsDirty;
         private readonly BodyTelekinesisController bodies;
+        private readonly MovementHull hull=new();
+        private WorldPropView props;
         public TelekinesisController(CoopSession session,InteractionAdapter adapter,SimulationGeometry geometry)
         {this.session=session;this.adapter=adapter;this.geometry=geometry;bodies=new BodyTelekinesisController(session,geometry);}
         public void Step(bool held,Vector2 aim,float dt)
@@ -59,14 +61,15 @@ namespace Remains.Gameplay
             float bodyCost=bodies.Step(held,aim,dt,publish,out bool holding);
             if(holding)
             {actor.mana=Mathf.Max(0,actor.mana-bodyCost);actor.revision++;statsDirty=true;}
-            foreach(var prop in WorldProps.All(session.World))
+            if(held && selected!=null)
             {
-                if(!prop.hasPhysicalBody || !prop.movable || prop.owner!=session.LocalOwner || prop.level!=actor.level) continue;
-                if(prop.held && prop.id==selected && held)
+                var prop=WorldProps.Find(session.World,selected);
+                if(prop!=null && prop.hasPhysicalBody && prop.movable && prop.owner==session.LocalOwner && prop.level==actor.level && prop.held)
                 {
                     holding=true;
+                    if(props?.World!=session.World) props=new WorldPropView(session.World);
                     Vector2 target=rules.Target(actor,aim);
-                    PropMotion.Step(prop,geometry.Get(prop.level),dt,target,WorldProps.All(session.World));
+                    PropMotion.Step(prop,geometry.Get(prop.level),dt,target,props,null,hull);
                     actor.mana=Mathf.Max(0,actor.mana-rules.ManaPerSecond(actor,prop)*dt);
                     actor.revision++;
                     statsDirty=true;

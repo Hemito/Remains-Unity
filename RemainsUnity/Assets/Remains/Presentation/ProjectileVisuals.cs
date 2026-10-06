@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
@@ -13,6 +12,7 @@ namespace Remains.Presentation
         private CoopSession session;
         private ProjectileController controller;
         private readonly Dictionary<string,ProjectileVisual> views=new();
+        private readonly List<string> removed=new();
         public event Action<ProjectileVisual> TrailDrawn;
         public void Initialize(CoopSession session,ProjectileController controller)
         {
@@ -28,14 +28,17 @@ namespace Remains.Presentation
         private void Reconcile()
         {
             string level=session.LocalActor?.level;
-            foreach(var pair in views.ToArray())
+            removed.Clear();
+            foreach(var pair in views)
                 if(pair.Value==null || pair.Value.Level!=level || session.World==null)
+                    removed.Add(pair.Key);
+            foreach(var id in removed)
                 {
-                    views.Remove(pair.Key);
-                    if(pair.Value!=null)
+                    var view=views[id];views.Remove(id);
+                    if(view!=null)
                     {
-                        pair.Value.gameObject.SetActive(false);
-                        if(Application.isPlaying) Destroy(pair.Value.gameObject);else DestroyImmediate(pair.Value.gameObject);
+                        view.gameObject.SetActive(false);
+                        if(Application.isPlaying) Destroy(view.gameObject);else DestroyImmediate(view.gameObject);
                     }
                 }
             if(session.World==null) return;

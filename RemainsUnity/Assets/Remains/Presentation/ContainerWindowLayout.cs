@@ -16,11 +16,20 @@ namespace Remains.Presentation
                 !Nonnegative(anchorGap) || !Nonnegative(screenMargin) || !Nonnegative(clearance) ||
                 count<0 || count>(reserved?.Count??0))
                 throw new ArgumentException("Окно контейнера: неверные размеры, отступы или число препятствий.");
-            for(int i=0;i<count;i++) ValidateRect(reserved[i],"препятствие "+i,true);
+            for(int i=0;i<count;i++) ValidateRect(reserved[i],"препятствие",true,i);
             var area=new Rect(canvas.xMin+screenMargin,canvas.yMin+screenMargin,
                 canvas.width-2*screenMargin,canvas.height-2*screenMargin);
             if(size.x>area.width || size.y>area.height) return false;
             var preferred=new Vector2(source.center.x-size.x*.5f,source.yMax+anchorGap);
+            // The first clamped candidate is the closest possible point in the
+            // canvas. Preserve the above-source policy before using this shortcut.
+            var natural=new Rect(Mathf.Clamp(preferred.x,area.xMin,area.xMax-size.x),Mathf.Clamp(preferred.y,area.yMin,area.yMax-size.y),size.x,size.y);
+            if(natural.yMin>=preferred.y && !Blocked(natural,source,clearance))
+            {
+                bool clear=true;
+                for(int i=0;i<count;i++) if(Blocked(natural,reserved[i],clearance)) {clear=false;break;}
+                if(clear) {placement=natural;return true;}
+            }
             int candidates=3+2*(count+1);
             // Above the selected source is the first policy. Only when that area is
             // unavailable may the nearest free side/below placement be considered.
@@ -67,12 +76,12 @@ namespace Remains.Presentation
             window.yMin<obstacle.yMax+clearance && window.yMax>obstacle.yMin-clearance;
         private static bool Finite(float value)=>float.IsFinite(value);
         private static bool Nonnegative(float value)=>Finite(value) && value>=0;
-        private static void ValidateRect(Rect rect,string context,bool emptyAllowed)
+        private static void ValidateRect(Rect rect,string context,bool emptyAllowed,int index=-1)
         {
             if(!Finite(rect.x) || !Finite(rect.y) || !Finite(rect.width) || !Finite(rect.height) ||
                 rect.width<0 || rect.height<0 || !emptyAllowed && (rect.width==0 || rect.height==0) ||
                 !Finite(rect.xMax) || !Finite(rect.yMax))
-                throw new ArgumentException("Окно контейнера: некорректный прямоугольник "+context+"="+rect+".");
+                throw new ArgumentException("Окно контейнера: некорректный прямоугольник "+context+(index<0?"":" "+index)+"="+rect+".");
         }
     }
 }

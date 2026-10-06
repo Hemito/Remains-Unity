@@ -52,11 +52,14 @@ namespace Remains.Domain
                 if(HealingRules.CanApply(actor,other,false)) return new(InteractionKind.Revival,other.id,InventorySource.BodyBounds(other));
             InteractionTarget selected=default;float distance=float.PositiveInfinity,centerDistance=float.PositiveInfinity;
             foreach(var container in world.containers)
+            {
+                if(container.id.StartsWith(InventorySource.BodyPrefix,StringComparison.Ordinal))
+                    throw new InvalidOperationException($"ID контейнера использует префикс инвентарей тел: {container.id}.");
                 ConsiderSource(container);
+            }
             foreach(var other in world.actors)
             {
-                if(!Remains.Content.ActorTypes.Get(other.actorType).bodyInventory) continue;
-                ConsiderSource(InventorySource.Resolve(world,InventorySource.BodyId(other.id)));
+                ConsiderSource(InventorySource.FromBody(other));
             }
             foreach(var door in world.doors)
                 if(door.CanInteract && rules.DoorAccess.Rejection(actor,door)==null) Consider(InteractionKind.Door,door.id,door.InteractionBounds);

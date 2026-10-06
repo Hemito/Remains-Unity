@@ -3,18 +3,21 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using Remains.Domain;
 using UnityEngine;
 
 namespace Remains.Persistence
 {
-    // Immutable wire payload: never expose its deserialized state for prediction.
+    // Immutable wire payload. Its validated graph is transferred to one caller,
+    // never shared with subsequent live consumers.
     public sealed class RecoverySnapshot
     {
         public string Json { get; }
         public string Id { get; }
         public string WorldId { get; }
         public long Revision { get; }
+        private WorldState preparedLive;
 
         public RecoverySnapshot(string json)
         {
@@ -46,6 +49,17 @@ namespace Remains.Persistence
             WorldId = world.worldId;
             Revision = world.revision;
             Id = Fingerprint(json);
+            preparedLive = world;
+        }
+
+        // The caller owns live state until serialization finishes; later mutations cannot change Json.
+        // Keep the strict round-trip here: StateJson.FromJson additionally rejects unknown numeric
+        // extensions which the live domain validators and serializer callbacks do not validate.
+        // Removing this parse requires an equivalent serializer/extension validation contract.
+        public static RecoverySnapshot FromWorld(WorldState world)
+        {
+            if(world==null) throw new ArgumentNullException(nameof(world));
+            return new RecoverySnapshot(JsonUtility.ToJson(world));
         }
 
         public static string Fingerprint(string text)
@@ -54,7 +68,11 @@ namespace Remains.Persistence
             return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
         }
 
-        public WorldState CreateLiveWorld() => JsonUtility.FromJson<WorldState>(Json);
+        // Exactly one consumer takes ownership of the already validated parse.
+        // The snapshot retains no reference after transfer; concurrent/subsequent
+        // consumers independently parse immutable Json and cannot see live edits.
+        public WorldState CreateLiveWorld()
+            => Interlocked.Exchange(ref preparedLive, null) ?? JsonUtility.FromJson<WorldState>(Json);
     }
 
     // A revision alone cannot identify a snapshot: pose packets do not increment it.

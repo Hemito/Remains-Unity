@@ -14,6 +14,7 @@ namespace Remains.Gameplay
         private readonly Action<PropState> publish;
         private readonly ReplicationCadence cadence=new(.05);
         private readonly PassengerMotionRegistry passengers=new();
+        private readonly FreePropMotionContext motion=new();
         public FreePropSimulation(CoopSession session,SimulationGeometry geometry,InteractionAdapter interactions)
         {
             this.session=session??throw new ArgumentNullException(nameof(session));
@@ -27,7 +28,7 @@ namespace Remains.Gameplay
             // No simulation owner exists before welcome or after client shutdown.
             if(session.World==null || string.IsNullOrEmpty(session.LocalOwner)) return;
             FreePropMotion.Step(session.World,session.LocalOwner,delta,roomForLevel,isPaused,
-                cadence.TryAdvance(Time.unscaledTimeAsDouble)?publish:null,passengers);
+                cadence.TryAdvance(Time.unscaledTimeAsDouble)?publish:null,passengers,motion);
         }
     }
 }

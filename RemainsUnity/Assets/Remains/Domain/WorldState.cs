@@ -136,7 +136,11 @@ namespace Remains.Domain
         public List<GrenadeState> grenades = new();
         public List<ProjectileState> projectiles = new();
         public List<ExplosionState> explosions = new();
-        public ActorState Find(string id) => actors.Find(actor => actor.id == id);
+        public ActorState Find(string id)
+        {
+            for(int i=0;i<actors.Count;i++) if(actors[i].id==id) return actors[i];
+            return null;
+        }
         public WorldState Copy() => JsonUtility.FromJson<WorldState>(JsonUtility.ToJson(this));
     }
 

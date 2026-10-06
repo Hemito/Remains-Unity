@@ -6,6 +6,7 @@ using Mirror;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Presentation;
+using Remains.Persistence;
 using UnityEngine;
 
 namespace Remains.Runtime
@@ -27,7 +28,7 @@ namespace Remains.Runtime
         private bool Deposit=>runtime.Options.Smoke.Contains("-deposit-");
         private bool Body=>Loot || Deposit;
         private bool sawDepositPending,captured,loadedPending;
-        private string recoveryTransaction;
+        private string recoveryTransaction,pendingItemId,capturedSnapshot,capturedArchive;
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
         private bool Crash=>runtime.Options.Smoke.Contains("-crash-");
         private bool Loot=>runtime.Options.Smoke.Contains("-loot-");
@@ -37,6 +38,7 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+40;value.CommandSource=Command;
+            value.Session.RecoveryPersisted+=RecoveryPersisted;
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<ReceiptLossPhase>(m=>phase=m.phase);
@@ -79,7 +81,7 @@ namespace Remains.Runtime
         {
             if(finished) return;
             var session=runtime.Session;
-            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут результата: phase={phase}, retained={retained}, ready={ready}, stale={staleCount}.");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут результата: phase={phase}, retained={retained}, ready={ready}, stale={staleCount}, durablePending={captured}, transaction={recoveryTransaction}, snapshot={capturedSnapshot}.");return;}
             if(Resume)
             {
                 if(!Host || phase==2 || session.ServerWorld==null) return;
@@ -120,17 +122,16 @@ namespace Remains.Runtime
             var source=session.ServerWorld.Find("player:session-client-1");
             if(Deposit && source?.connected==true && session.ServerWorld.pendingDeposits.Count>0)
             {
-                sawDepositPending=true;
-                if(!captured)
-                {
-                    var saved=session.Saves.LoadWorld(false);
-                    if(saved.pendingDeposits.Count!=1) {Finish(false,"Резерв внесения не записан на диск.");return;}
-                    File.Copy(Path.Combine(session.Saves.DirectoryPath,"world.json"),runtime.Options.Report+".active-world.json",true);captured=true;
-                }
-                if(InventoryJournal.Count(source,"grenade")!=4 || session.ServerWorld.containers.SelectMany(c=>c.items).Where(i=>i.definition=="grenade").Sum(i=>i.count)!=3)
-                {Finish(false,"Неподтверждённый резерв внесения появился в контейнере либо не списан у отправителя.");return;}
-                if(Crash && !File.Exists(runtime.Options.Report+".crash-ready"))
-                    File.WriteAllText(runtime.Options.Report+".crash-ready",session.ServerWorld.pendingDeposits[0].transaction);
+                if(session.ServerWorld.pendingDeposits.Count!=1 || !MatchesPending(session.ServerWorld,session.ServerWorld.pendingDeposits[0]))
+                {Finish(false,"Неподтверждённый резерв внесения имеет неверные source/item/количества.");return;}
+                var pending=session.ServerWorld.pendingDeposits[0];
+                if(recoveryTransaction!=null && (recoveryTransaction!=pending.transaction || pendingItemId!=pending.item.id))
+                {Finish(false,"Текущий резерв внесения сменил transaction/item до подтверждения.");return;}
+                recoveryTransaction=pending.transaction;pendingItemId=pending.item.id;sawDepositPending=true;
+                // The crash marker must witness BOTH a completed exact archive write and
+                // the still-pending live transaction. Never create a fixture world here.
+                if(Crash && captured && !File.Exists(runtime.Options.Report+".crash-ready"))
+                    File.WriteAllText(runtime.Options.Report+".crash-ready",pending.transaction);
             }
             if(source!=null && !source.connected)
             {
@@ -146,8 +147,49 @@ namespace Remains.Runtime
                 session.ServerWorld.containers.SelectMany(c=>c.items).Where(i=>i.definition=="grenade").Sum(i=>i.count)!=4 ||
                 session.ServerWorld.actors.Sum(a=>InventoryJournal.Count(a,"grenade"))!=runtime.Options.ProbePeers*5-1))
             {Finish(false,"Внесение после обрыва потеряно, продублировано либо не наблюдалось ожидание копии.");return;}
+            if(Deposit && !captured) return; // Wait for the pending archive event, not the current selected head.
             phase=2;NetworkServer.SendToAll(new ReceiptLossFinish());
         }
+        private static bool MatchesPending(WorldState world,PendingDeposit pending)
+        {
+            var source=world.Find("player:session-client-1");
+            return source?.connected==true && pending!=null && !string.IsNullOrEmpty(pending.transaction) &&
+                pending.source==source.id && pending.containerId==ContainerState.PrototypeId &&
+                pending.item?.definition=="grenade" && pending.item.count==1 && !string.IsNullOrEmpty(pending.item.id) &&
+                InventoryJournal.Count(source,"grenade")==4 &&
+                world.containers.SelectMany(c=>c.items).Where(i=>i.definition=="grenade").Sum(i=>i.count)==3;
+        }
+        private void RecoveryPersisted(RecoverySnapshot snapshot)
+        {
+            if(finished || !Host || !Deposit || Resume || captured) return;
+            try
+            {
+                var current=runtime.Session.ServerWorld;
+                if(snapshot==null || current==null || snapshot.WorldId!=current.worldId) return;
+                if(recoveryTransaction==null)
+                {
+                    // This is an independent live witness before reading the completed file;
+                    // a late event can otherwise only match an already observed transaction.
+                    if(current.pendingDeposits.Count!=1 || !MatchesPending(current,current.pendingDeposits[0])) return;
+                    var live=current.pendingDeposits[0];recoveryTransaction=live.transaction;pendingItemId=live.item.id;sawDepositPending=true;
+                }
+                var saved=snapshot.CreateLiveWorld();
+                var pending=saved.pendingDeposits.Find(p=>p.transaction==recoveryTransaction);
+                if(pending==null) return; // An earlier queued capture need not contain this deposit.
+                if(saved.pendingDeposits.Count!=1 || pending.item?.id!=pendingItemId || !MatchesPending(saved,pending))
+                    throw new InvalidOperationException("Завершённый снимок содержит неверные transaction/item/количества резерва.");
+                string archive=Path.Combine("Worlds",snapshot.WorldId,"Snapshots",snapshot.Id+".json");
+                string path=Path.Combine(runtime.Session.Saves.WorldDirectoryPath,archive);
+                if(!File.Exists(path) || File.ReadAllText(path)!=snapshot.Json)
+                    throw new InvalidOperationException($"Точный архив внесения не совпал: snapshot={snapshot.Id}, path={path}.");
+                // Evidence copy of the real durable archive, never a write to the live save.
+                File.Copy(path,runtime.Options.Report+".active-world.json",true);
+                capturedSnapshot=snapshot.Id;capturedArchive=archive;captured=true;
+            }
+            catch(Exception error) {Finish(false,"Не подтверждён durable резерв внесения: "+error.Message);}
+        }
+        private void OnDestroy()
+        {if(runtime!=null) runtime.Session.RecoveryPersisted-=RecoveryPersisted;}
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
@@ -158,9 +200,9 @@ namespace Remains.Runtime
                     world.containers.SelectMany(c=>c.items).Where(i=>i.definition=="grenade").Sum(i=>i.count)==4;
                 if(!success) detail="Клиент не получил окончательный результат восстановленного резерва.";
             }
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,item=Item,staleItemCount=staleCount,sawDepositPending=sawDepositPending,loadedPending=loadedPending},true));StartCoroutine(Exit(success));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,item=Item,staleItemCount=staleCount,sawDepositPending=sawDepositPending,loadedPending=loadedPending,durablePendingCaptured=captured,pendingTransaction=recoveryTransaction,pendingSnapshot=capturedSnapshot,pendingArchive=capturedArchive},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        [Serializable] private sealed class Report {public bool success,sawDepositPending,loadedPending;public string detail,item;public int staleItemCount;}
+        [Serializable] private sealed class Report {public bool success,sawDepositPending,loadedPending,durablePendingCaptured;public string detail,item,pendingTransaction,pendingSnapshot,pendingArchive;public int staleItemCount;}
     }
 }

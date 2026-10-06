@@ -130,8 +130,12 @@ namespace Remains.Presentation
                 previousCanvas=bounds;previousSource=source;previousSize=size;previousCount=count;
                 Array.Copy(obstacles,previousObstacles,count);cached=true;
             }
-            gameObject.SetActive(PlacementAvailable);
-            if(PlacementAvailable) Rect.anchoredPosition=new Vector2(placement.center.x,placement.yMin)-parent.rect.center;
+            if(gameObject.activeSelf!=PlacementAvailable) gameObject.SetActive(PlacementAvailable);
+            if(PlacementAvailable)
+            {
+                var position=new Vector2(placement.center.x,placement.yMin)-parent.rect.center;
+                if(Rect.anchoredPosition!=position) Rect.anchoredPosition=position;
+            }
             else if(!packingWarning)
             {
                 packingWarning=true;

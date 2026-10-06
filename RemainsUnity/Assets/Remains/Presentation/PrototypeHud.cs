@@ -39,6 +39,9 @@ namespace Remains.Presentation
         public IReadOnlyList<RectTransform> ContainerLayoutReservations=>containerLayoutReservations??
             throw new InvalidOperationException("Окно контейнера: HUD ещё не собрал области интерфейса.");
         public bool ContainerOpen=>containerPanel?.IsOpen==true;
+        public int ContainerCellBindingCount=>containerPanel?.CellBindingCount??0;
+        public int InteractionHintTextRevisionCount=>containerHint?.TextRevisionCount??0;
+        public int InteractionHintPlacementEvaluationCount=>containerHint?.PlacementEvaluationCount??0;
         public RectTransform ContainerWindowRect=>containerPanel.WindowRect;
         public int FirstVisibleContainerItem=>containerPanel.FirstItem;
         public int ContainerRowCount=>containerPanel.RowCount;
@@ -84,7 +87,14 @@ namespace Remains.Presentation
         public bool BlocksPointerGameplay(Vector2 screenPosition)=>BlocksGameplayInput || containerPanel.PointerBlocked(screenPosition);
         public void CloseContainerForSprint(bool sprint,Vector2 movement)
         {if(sprint && movement.sqrMagnitude>0 && !BlocksGameplayInput) CloseContainer();}
-        private string inventoryActorVersion;
+        private string inventoryActorId;
+        private int inventoryActorGeneration,inventoryActorLifecycle;
+        private string statusLevel;
+        private int statusPlayers=-1;
+        private Text friendlyFireText,friendlyDecisionText;
+        private bool? displayedFriendlyFire;
+        private string displayedFriendlyDecision;
+        public int PersonalInventoryRefreshCount {get;private set;}
         private CombatHud combatHud;
         private HudFeedbackView feedback;
         private GameObject quickActions;
@@ -129,7 +139,7 @@ namespace Remains.Presentation
             scaler.referenceResolution = new Vector2(1280,720);
             scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             gameObject.AddComponent<GraphicRaycaster>();
-            containerHint=new InteractionHint(transform,elements);
+            containerHint=new InteractionHint(transform,elements,()=>LocalActorArtworkBounds);
             audioPreferences??=new AudioPreferences(null);
             inventoryAudio=gameObject.AddComponent<InventoryAudio>();inventoryAudio.Initialize(audioPreferences);
             AudioSettings=new AudioSettingsPanel(transform,audioPreferences);
@@ -149,19 +159,20 @@ namespace Remains.Presentation
                 {
                     if(SelectCharacter?.Invoke(character.text)!=true) return;
                     if(newGameOperation.Busy) return;
+                    session.BeginJoinSelection();
                     var store=session.Saves;mainMenu.SetActionsBusy(true);selectedWorldPanel.SetPending("Подготовка нового мира…");ShowMessage("Подготовка нового мира…");
-                    newGameOperation.Run(_=>{new WorldLibrary(store).PrepareNewGame();return true;},_=>
+                    newGameOperation.Run(_=>{store.RecoverPendingPair();new WorldLibrary(store).PrepareNewGame();return true;},_=>
                     {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("");HostRequested?.Invoke();},error=>
-                    {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("Не удалось создать новую игру: "+error.Message);Debug.LogError(error);});
+                    {session.CancelJoinSelection();mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("Не удалось создать новую игру: "+error.Message);Debug.LogError(error);});
                 },ShowCharacterLibrary);
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
-            selectedWorldPanel=mainMenu.Root.AddComponent<SelectedWorldPanel>();selectedWorldPanel.Initialize(selectedWorld,hostButton);
+            selectedWorldPanel=mainMenu.Root.AddComponent<SelectedWorldPanel>();selectedWorldPanel.Initialize(selectedWorld,hostButton,()=>!newGameOperation.Busy && !session.CharacterSelectionLocked);
             newGameOperation=mainMenu.Root.AddComponent<BackgroundSaveOperation>();
             character=mainMenu.Character;address=mainMenu.Address;character.text=session.CharacterId??"pony-one";
             var inventoryView=InventoryWindowView.Create(transform);inventory=inventoryView.gameObject;
             containerWindow=ContainerWindowView.Create(transform);
             containerPanel=new FloatingContainerPanel(containerWindow,session,inventoryArtwork,worldCamera,()=>
-            {personalItems?.Refresh(containerPanel?.Source);PauseMenu?.PublishIntent();});
+            {RefreshPersonalInventory();PauseMenu?.PublishIntent();});
             var reservedAreas=new List<RectTransform>(combatHud.LayoutReservations) {
                 (RectTransform)sessionHud.transform,(RectTransform)message.transform.parent,(RectTransform)revival.transform.parent};
             var containerReservations=reservedAreas.ToArray();
@@ -175,6 +186,7 @@ namespace Remains.Presentation
             friendlyDecision=pauseView.FriendlyDecision;friendlyDecision.onClick.AddListener(()=>
                 session.SetFriendlyFireDecision(session.World.friendlyFireDecision==FriendlyFireDecision.Victim?FriendlyFireDecision.Attacker:FriendlyFireDecision.Victim));
             friendlyDecision.gameObject.SetActive(false);
+            friendlyFireText=friendlyFire.GetComponentInChildren<Text>();friendlyDecisionText=friendlyDecision.GetComponentInChildren<Text>();
             leave=pauseView.Leave;leave.onClick.AddListener(()=>
             {if(Mirror.NetworkServer.active) session.StopHost();else session.StopClient();});
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
@@ -199,20 +211,21 @@ namespace Remains.Presentation
         }
         private void PrepareConnection(Action start)
         {
-            if(newGameOperation.Busy) return;
+            if(newGameOperation.Busy || Mirror.NetworkClient.active || Mirror.NetworkServer.active) return;
+            session.BeginJoinSelection();
             var store=session.Saves;mainMenu.SetActionsBusy(true);
             selectedWorldPanel.SetPending("Подготовка общей библиотеки миров…");
-            newGameOperation.Run(_=>{store.EnsureWorldLibrary();return true;},_=>
+            newGameOperation.Run(_=>{store.RecoverPendingPair();store.EnsureWorldLibrary();return true;},_=>
             {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();start();},error=>
             {
-                mainMenu.SetActionsBusy(false);RefreshSelectedWorld();
+                session.CancelJoinSelection();mainMenu.SetActionsBusy(false);RefreshSelectedWorld();
                 ShowMessage("Не удалось подготовить библиотеку миров: "+error.Message);Debug.LogError(error);
             });
         }
         public void ShowCharacterLibrary()
         {
             if(characterLibrary==null) {ShowMessage("Библиотека персонажей ещё не подключена.");return;}
-            if(Characters!=null || session.LocalActor!=null) return;
+            if(Characters!=null || session.LocalActor!=null || newGameOperation.Busy || session.CharacterSelectionLocked) return;
             mainMenu.SetActionsBusy(true);
             Characters=CharacterLibraryPanel.Open(transform,characterLibrary,inventoryArtwork,session.CharacterId,name=>
             {
@@ -271,31 +284,39 @@ namespace Remains.Presentation
         {
             var actor = session.LocalActor;
             mainMenu.Root.SetActive(actor==null);
-            string version=actor==null?null:$"{actor.id}:{actor.generation}:{actor.lifecycleSequence}";
-            if(inventoryActorVersion!=version)
+            if(actor==null) mainMenu.SetActionsBusy(newGameOperation.Busy || session.CharacterSelectionLocked);
+            if(inventoryActorId!=actor?.id || actor!=null && (inventoryActorGeneration!=actor.generation || inventoryActorLifecycle!=actor.lifecycleSequence))
             {
                 if(inventory.activeSelf || ContainerOpen)
-                    Debug.Log($"Окна инвентаря закрыты при смене состояния персонажа: прежнее={inventoryActorVersion}, текущее={version}, container={containerPanel.Source?.id}.");
-                inventoryActorVersion=version;inventory.SetActive(false);containerPanel.Close();
+                    Debug.Log($"Окна инвентаря закрыты при смене состояния персонажа: прежнее={inventoryActorId}:{inventoryActorGeneration}:{inventoryActorLifecycle}, текущее={actor?.id}:{actor?.generation}:{actor?.lifecycleSequence}, container={containerPanel.Source?.id}.");
+                inventoryActorId=actor?.id;inventoryActorGeneration=actor?.generation??0;inventoryActorLifecycle=actor?.lifecycleSequence??0;inventory.SetActive(false);containerPanel.Close();
             }
             bool gameplayVisible=actor!=null && !inventory.activeSelf && !WorldMap.IsOpen;
             status.transform.parent.gameObject.SetActive(gameplayVisible);
-            combatHud.Refresh(actor,gameplayVisible && !PauseMenu.IsOpen,ReloadRemaining?.Invoke());quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
+            quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
             LayoutNotice();
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
-            {containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld(false);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
+            {statusLevel=null;statusPlayers=-1;containerHint.Refresh(null,false);lobby.SetActive(!session.Lobby.ClientWaiting);RefreshSelectedWorld(false);inventory.SetActive(false);friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);status.text="Подключение не установлено";return;}
             worldDescriptionDirty=true;
             lobby.SetActive(false);
             leave.gameObject.SetActive(gameplayVisible);friendlyFire.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
-            friendlyFire.GetComponentInChildren<Text>().text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");
+            if(displayedFriendlyFire!=session.World.friendlyFire)
+            {displayedFriendlyFire=session.World.friendlyFire;friendlyFireText.text="Дружественный огонь: "+(session.World.friendlyFire?"включён":"выключен");}
             friendlyDecision.interactable=session.World.friendlyFire;
-            friendlyDecision.GetComponentInChildren<Text>().text="Прямое попадание:\nрешает "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");
-            status.text=$"{(actor.level=="hub"?"Хаб":"Завод 0")} · игроков: {session.World.actors.FindAll(a=>a.player && a.connected).Count}";
+            if(displayedFriendlyDecision!=session.World.friendlyFireDecision)
+            {displayedFriendlyDecision=session.World.friendlyFireDecision;friendlyDecisionText.text="Прямое попадание:\nрешает "+(session.World.friendlyFireDecision==FriendlyFireDecision.Attacker?"атакующий":"пострадавший");}
+            int players=0;foreach(var member in session.World.actors) if(member.player && member.connected) players++;
+            if(statusLevel!=actor.level || statusPlayers!=players)
+            {statusLevel=actor.level;statusPlayers=players;status.text=$"{(actor.level=="hub"?"Хаб":"Завод 0")} · игроков: {players}";}
 
             containerPanel.Refresh();
-            RefreshInteractionHint();
-            personalItems.Refresh(containerPanel.Source);
+            RefreshPersonalInventory();
+        }
+        private void RefreshPersonalInventory()
+        {
+            if(!inventory.activeSelf || personalItems==null) return;
+            PersonalInventoryRefreshCount++;personalItems.Refresh(containerPanel.Source);
         }
         private void RefreshSelectedWorld(bool force=true)
         {
@@ -318,19 +339,25 @@ namespace Remains.Presentation
 
         private void RefreshInteractionHint()
         {
-            bool show=session.LocalActor!=null && !ContainerOpen && !BlocksGameplayInput;
-            var interaction=session.LocalActor==null?default:CurrentInteraction;
+            var actor=session.LocalActor;
+            bool show=actor!=null && !ContainerOpen && !BlocksGameplayInput;
+            var interaction=actor==null?default:CurrentInteraction;
             if(interaction.kind is InteractionKind.Map or InteractionKind.Exit)
-                containerHint.Refresh(session.Travel.Find(interaction.id,session.LocalActor.level),show,session.LocalActor);
+                containerHint.Refresh(session.Travel.Find(interaction.id,actor.level),show,actor);
             else if(interaction.kind==InteractionKind.Door)
-                containerHint.Refresh(session.World.doors.Find(door=>door.id==interaction.id),show,session.LocalActor);
+            {
+                DoorState selected=null;foreach(var door in session.World.doors) if(door.id==interaction.id) {selected=door;break;}
+                containerHint.Refresh(selected,show,actor);
+            }
             else if(interaction.kind==InteractionKind.Revival)
-                containerHint.RefreshRevival(session.World.Find(interaction.id),show,session.LocalActor);
+                containerHint.RefreshRevival(session.World.Find(interaction.id),show,actor);
             else if(interaction.kind==InteractionKind.Mechanism)
-                containerHint.RefreshMechanism(session.World.mechanismButtons.Find(button=>button.id==interaction.id),interaction.bounds,
-                    show,session.LocalActor,MechanismProgress?.Invoke()??0,MechanismPending?.Invoke()==true);
+            {
+                MechanismButtonState selected=null;foreach(var button in session.World.mechanismButtons) if(button.id==interaction.id) {selected=button;break;}
+                containerHint.RefreshMechanism(selected,interaction.bounds,show,actor,MechanismProgress?.Invoke()??0,MechanismPending?.Invoke()==true);
+            }
             else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
-                InventorySource.Resolve(session.World,interaction.id):null,show,session.LocalActor,PickupPending?.Invoke()==true);
+                InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true);
             containerHint.Highlight(interaction,show);
         }
         private void Update()

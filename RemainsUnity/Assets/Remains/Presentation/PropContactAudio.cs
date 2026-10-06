@@ -20,6 +20,7 @@ namespace Remains.Presentation
         private SimulationGeometry geometry;
         private GameplayAudio playback;
         private Settings settings;
+        private WorldPropView props;
         public int Landings {get;private set;}
         public void Initialize(CoopSession value,SimulationGeometry geometry,GameplayAudio playback)
         {
@@ -42,23 +43,27 @@ namespace Remains.Presentation
         {
             active.Clear();
             var listener=session.LocalActor;
-            if(listener!=null)
-                foreach(var prop in WorldProps.All(session.World))
+            if(session.World!=null && props?.World!=session.World) props=new WorldPropView(session.World);
+            if(listener!=null && session.World!=null)
+                foreach(var prop in props)
                     if(prop.level==listener.level && prop.movable && prop.hasPhysicalBody)
                     {active.Add(prop.id);if(!tracks.ContainsKey(prop.id)) tracks.Add(prop.id,new PropContactObservation());}
             removed.Clear();
             foreach(string id in tracks.Keys) if(!active.Contains(id)) removed.Add(id);
             foreach(string id in removed) tracks.Remove(id);
+            // Shared changes can replace geometry or neighbours without moving this prop.
+            foreach(var track in tracks.Values) track.InvalidateSupport();
         }
         private void LateUpdate()
         {
             var listener=session.LocalActor;if(listener==null) return;
+            if(props?.World!=session.World) props=new WorldPropView(session.World);
             var room=geometry.Get(listener.level);
             bool paused=session.Pause.IsPaused(listener.level);
-            foreach(var prop in WorldProps.All(session.World))
+            foreach(var prop in props)
             {
                 if(prop.level!=listener.level || !tracks.TryGetValue(prop.id,out var track)) continue;
-                var contact=track.Sample(prop,room,WorldProps.All(session.World),paused,settings.teleportDistance);
+                var contact=track.Sample(prop,room,props,paused,settings.teleportDistance);
                 if(contact!=MotionContact.Landing) continue;
                 if(!clips.TryGetValue(prop.definition,out var clip))
                 {

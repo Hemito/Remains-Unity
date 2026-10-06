@@ -74,8 +74,7 @@ namespace Remains.Runtime
                 value.Session.Saves.SaveWorld(NewGameWorld.Create());
             }
             value.CommandSource=Command;
-            value.Session.RecoveryPrepared+=RecoveryPrepared;
-            value.Session.RecoveryMeasured+=RecoveryMeasured;
+            value.Session.RecoveryPersisted+=RecoveryPersisted;
             value.Session.LevelTime.EpochChanged+=ClockEpochChanged;
             value.Session.ClientReady+=()=>
             {
@@ -85,9 +84,6 @@ namespace Remains.Runtime
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<MechanismProbeObserved>(AcceptObserved);
         }
 
-        private void RecoveryPrepared(string id,long revision) {if(Host) ReadSelected(id);}
-        private void RecoveryMeasured(string label,double milliseconds,int characters)
-        {if(!Host && label=="recovery-received") ReadSelected(null);}
         private void ClockEpochChanged()
         {
             if(finished || !runtime.Session.LevelTime.HasLocal(Level)) return;
@@ -97,24 +93,31 @@ namespace Remains.Runtime
                 running=runtime.Session.LevelTime.RunsLocal(Level),paused=Paused,pauseRevision=runtime.Session.Pause.Revision});
             while(clockEpochs.Count>80) clockEpochs.Dequeue();
         }
-        private void ReadSelected(string expected)
+        private void RecoveryPersisted(RecoverySnapshot snapshot)
         {
-            // Explicit persistence event, never a per-frame disk read. Record that this was
-            // the selected durable file at observation, even if a later checkpoint replaces it.
-            var snapshot=runtime.Session.Saves.SelectedSnapshot();
-            if(snapshot==null || expected!=null && snapshot.Id!=expected)
-                throw new InvalidOperationException("Сохранённый снимок не совпал с опубликованной recovery identity: "+expected);
-            latestSnapshot=snapshot.Id;
-            var world=snapshot.CreateLiveWorld();
-            var button=world.mechanismButtons.Find(b=>b.id==ButtonId);
-            var platform=world.movingPlatforms.Find(p=>p.id==PlatformId);
-            if(button==null || platform==null) return;
-            snapshots[snapshot.Id]=new DurableProof {identityHash=snapshot.Id,world=snapshot.WorldId,worldRevision=snapshot.Revision,
-                button=button.id,platform=platform.id,repairState=button.repairState,buttonRevision=button.revision,pressed=button.pressed,
-                platformRevision=platform.revision,endpoint=platform.endpoint,segmentSequence=platform.segment?.sequence??0,
-                segmentFrom=platform.segment?.fromEndpoint??-1,segmentTo=platform.segment?.toEndpoint??-1,
-                mechanismTransactions=world.completedTransactions.Count(id=>id.StartsWith("mechanism:",StringComparison.Ordinal)),
-                observedSelected=true};
+            if(finished) return;
+            try
+            {
+                if(snapshot==null) throw new InvalidOperationException("Событие завершённой записи не содержит снимок.");
+                // Only the exact immutable archive proves this completed write. The selected
+                // world.json may already name a newer queued checkpoint on either replica.
+                string archive=Path.Combine("Worlds",snapshot.WorldId,"Snapshots",snapshot.Id+".json");
+                string path=Path.Combine(runtime.Session.Saves.WorldDirectoryPath,archive);
+                if(!File.Exists(path) || File.ReadAllText(path)!=snapshot.Json)
+                    throw new InvalidOperationException($"Архив завершённого снимка не совпал: world={snapshot.WorldId}, snapshot={snapshot.Id}, path={path}.");
+                latestSnapshot=snapshot.Id;
+                var world=snapshot.CreateLiveWorld();
+                var button=world.mechanismButtons.Find(b=>b.id==ButtonId);
+                var platform=world.movingPlatforms.Find(p=>p.id==PlatformId);
+                if(button==null || platform==null) return;
+                snapshots[snapshot.Id]=new DurableProof {identityHash=snapshot.Id,world=snapshot.WorldId,worldRevision=snapshot.Revision,
+                    button=button.id,platform=platform.id,repairState=button.repairState,buttonRevision=button.revision,pressed=button.pressed,
+                    platformRevision=platform.revision,endpoint=platform.endpoint,segmentSequence=platform.segment?.sequence??0,
+                    segmentFrom=platform.segment?.fromEndpoint??-1,segmentTo=platform.segment?.toEndpoint??-1,
+                    mechanismTransactions=world.completedTransactions.Count(id=>id.StartsWith("mechanism:",StringComparison.Ordinal)),
+                    observedArchive=true,archive=archive};
+            }
+            catch(Exception error) {Fail("Не подтверждён точный архив recovery: "+error.Message);}
         }
         private void Advance(Stage next,string snapshot=null,double progress=0)
         {
@@ -484,12 +487,12 @@ namespace Remains.Runtime
         private void OnDestroy()
         {
             if(runtime==null) return;
-            runtime.Session.RecoveryPrepared-=RecoveryPrepared;runtime.Session.RecoveryMeasured-=RecoveryMeasured;
+            runtime.Session.RecoveryPersisted-=RecoveryPersisted;
             runtime.Session.LevelTime.EpochChanged-=ClockEpochChanged;
         }
         [Serializable] private sealed class DurableProof
-        {public int stage,endpoint,segmentFrom,segmentTo,mechanismTransactions;public string identityHash,world,button,platform,repairState;
-            public long worldRevision,buttonRevision,platformRevision,segmentSequence;public bool pressed,observedSelected;}
+        {public int stage,endpoint,segmentFrom,segmentTo,mechanismTransactions;public string identityHash,world,button,platform,repairState,archive;
+            public long worldRevision,buttonRevision,platformRevision,segmentSequence;public bool pressed,observedArchive;}
         [Serializable] private sealed class MotionPoint
         {public int stage;public double realSeconds,levelSeconds;public Vector2 actor,platform;public float relativeError,heightError;public bool paused,frozenWindow;public long sequence;}
         [Serializable] private sealed class ClockEpoch

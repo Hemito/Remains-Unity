@@ -16,6 +16,11 @@ namespace Remains.Runtime
         public int ProbeFrameRate { get; private set; } = 60;
         public bool NetworkStress { get; private set; }
         public bool Diagnostics { get; private set; }
+        public void SetSelectedCharacter(string character)
+        {
+            if(string.IsNullOrWhiteSpace(character)) throw new ArgumentException("Не указан выбранный персонаж.");
+            Character=character;
+        }
         public static LaunchOptions Parse()
         {
             var options = new LaunchOptions();

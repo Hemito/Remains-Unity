@@ -12,8 +12,9 @@ namespace Remains.Presentation
         private Text description;
         private Button host;
         private int generation;
+        private Func<bool> canStart;
         public bool Busy {get;private set;}
-        public void Initialize(Text text,Button button) {description=text;host=button;}
+        public void Initialize(Text text,Button button,Func<bool> available=null) {description=text;host=button;canStart=available;}
         public void SetPending(string text)
         {
             // Invalidate an older read before a mutating operation begins.
@@ -33,7 +34,7 @@ namespace Remains.Presentation
                     return (summary,summary==null?null:new WorldLibrary(store).Name(summary.worldId),store.LibraryWarnings.Count>0);
                 });
                 if(this==null || request!=generation) return;
-                host.interactable=true;
+                host.interactable=canStart?.Invoke()??true;
                 host.GetComponentInChildren<Text>().text=result.Item1==null?"Начать в новом мире":"Продолжить выбранный мир";
                 description.text=result.Item1==null?"Сохранённый мир не выбран.\n«Миры и сохранения»: выбор, имя и удаление.":
                     MainMenuPanel.DescribeWorld(result.Item2,result.Item1.branchId??"",result.Item1.revision);

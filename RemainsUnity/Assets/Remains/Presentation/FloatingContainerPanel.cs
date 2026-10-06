@@ -15,6 +15,9 @@ namespace Remains.Presentation
         private readonly Action changed;
         private readonly UnityEngine.UI.Image[] cellImages=new UnityEngine.UI.Image[9];
         private readonly Color[] cellColors=new Color[9];
+        private readonly string[] cellDefinitions=new string[9],cellItems=new string[9];
+        private readonly bool[] cellInitialized=new bool[9];
+        public int CellBindingCount {get;private set;}
         private string sourceId;
         private int row;
         private bool obscured;
@@ -59,26 +62,33 @@ namespace Remains.Presentation
         public void Refresh()
         {
             if(!IsOpen) return;
+            var actor=session.LocalActor;
             Source=InventorySource.Resolve(session.World,sourceId);
-            if(session.Travel.Pending || Source?.IsLooseItem==true || !ContainerAccess.Accessible(session.LocalActor,Source,session.Rules.Loot,session.Rules.Deposit))
+            if(session.Travel.Pending || Source?.IsLooseItem==true || !ContainerAccess.Accessible(actor,Source,session.Rules.Loot,session.Rules.Deposit))
             {Close();return;}
-            row=Mathf.Clamp(row,0,RowCount-3);
-            view.Scrollbar.gameObject.SetActive(RowCount>3);view.Scrollbar.size=3f/RowCount;
-            view.Scrollbar.SetValueWithoutNotify(RowCount>3?row/(float)(RowCount-3):0);
+            int rows=RowCount;row=Mathf.Clamp(row,0,rows-3);
+            if(view.Scrollbar.gameObject.activeSelf!=(rows>3)) view.Scrollbar.gameObject.SetActive(rows>3);
+            float size=3f/rows;if(view.Scrollbar.size!=size) view.Scrollbar.size=size;
+            view.Scrollbar.SetValueWithoutNotify(rows>3?row/(float)(rows-3):0);
             for(int i=0;i<9;i++)
             {
                 int index=FirstItem+i;var item=index<Source.items.Count?Source.items[index]:null;
-                artwork.Set(view.Icons[i],item?.definition);
-                view.Intents[i].Bind(item?.id);
+                if(!cellInitialized[i] || cellDefinitions[i]!=item?.definition)
+                {artwork.Set(view.Icons[i],item?.definition);cellDefinitions[i]=item?.definition;CellBindingCount++;}
+                if(!cellInitialized[i] || cellItems[i]!=item?.id)
+                {view.Intents[i].Bind(item?.id);cellItems[i]=item?.id;}
+                cellInitialized[i]=true;
                 bool missing=item!=null && !view.Icons[i].enabled;
                 cellImages[i].color=missing?Color.magenta:cellColors[i];
                 if(missing && missingIcons.Add(item.definition))
                     Debug.LogWarning($"Контейнер {sourceId}: нет иконки, item={item.id}, definition={item.definition}. Ячейка выделена розовым как ошибка данных.",view);
-                view.Slots[i].interactable=item!=null && !session.Pause.IsPaused(session.LocalActor.level) &&
-                    ContainerAccess.ClaimRejection(session.LocalActor,Source,item,session.Rules.Loot)==null;
+                view.Slots[i].interactable=item!=null && !session.Pause.IsPaused(actor.level) &&
+                    ContainerAccess.ClaimRejection(actor,Source,item,session.Rules.Loot)==null;
             }
-            view.Pending.gameObject.SetActive(session.World.pendingGrants.Exists(g=>g.containerId==sourceId && g.recipient==session.LocalActor.id));
-            view.gameObject.SetActive(!obscured && view.PlacementAvailable);
+            bool pending=false;string actorId=actor.id;
+            foreach(var grant in session.World.pendingGrants) if(grant.containerId==sourceId && grant.recipient==actorId) {pending=true;break;}
+            if(view.Pending.gameObject.activeSelf!=pending) view.Pending.gameObject.SetActive(pending);
+            bool visible=!obscured && view.PlacementAvailable;if(view.gameObject.activeSelf!=visible) view.gameObject.SetActive(visible);
         }
         private void Claim(string item)
         {

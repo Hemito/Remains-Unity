@@ -20,6 +20,7 @@ namespace Remains.Presentation
         {
             foreach(var button in new[]{view.Host,view.Join,view.Worlds,view.NewGame,view.Characters}) button.interactable=!busy;
             view.Address.interactable=!busy;
+            view.Character.interactable=!busy;
         }
         public static string DescribeWorld(string name,string branch,long revision)=>
             $"Выбран: {name}\nВетвь {branch.Substring(0,Math.Min(8,branch.Length))} · состояние №{revision}";

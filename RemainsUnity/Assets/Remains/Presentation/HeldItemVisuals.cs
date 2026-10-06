@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
@@ -18,6 +17,8 @@ namespace Remains.Presentation
         private readonly Dictionary<string,SpriteRenderer> views=new();
         private readonly Dictionary<string,string> definitions=new();
         private readonly HashSet<string> missing=new();
+        private readonly HashSet<string> retained=new(StringComparer.Ordinal);
+        private readonly List<string> removed=new();
         public SpriteRenderer Find(string actorId)=>views.TryGetValue(actorId,out var view)?view:null;
         public void Initialize(CoopSession value,ActorVisualLayers visualLayers)
         {
@@ -29,7 +30,7 @@ namespace Remains.Presentation
         }
         private void Refresh()
         {
-            var retained=new HashSet<string>(StringComparer.Ordinal);
+            retained.Clear();
             if(session.World!=null)
             foreach(var actor in session.World.actors)
             {
@@ -56,7 +57,9 @@ namespace Remains.Presentation
                 }
                 view.enabled=actor.heldItemPoseValid;
             }
-            foreach(var id in views.Keys.Where(id=>!retained.Contains(id)).ToArray())
+            removed.Clear();
+            foreach(var id in views.Keys) if(!retained.Contains(id)) removed.Add(id);
+            foreach(var id in removed)
             {views[id].gameObject.SetActive(false);Destroy(views[id].gameObject);views.Remove(id);definitions.Remove(id);}
         }
         private void Update()

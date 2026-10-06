@@ -34,6 +34,7 @@ namespace Remains.Persistence
         public WorldSummary selected;
         public List<string> warnings=new();
         public int inspectedFiles,readPayloads;
+        public bool readIndex,wroteIndex;
     }
     // Disposable index. Its contents never replace a save or authorize a grant.
     // File stamps only avoid repeated reads; selection verifies the payload hash.
@@ -42,7 +43,10 @@ namespace Remains.Persistence
         [Serializable] private sealed class Cache {public int version=1;public string payload,hash;}
         [Serializable] private sealed class Records {public List<WorldCatalogEntry> entries=new();}
         private readonly string directory,cachePath;
-        private static readonly ConcurrentDictionary<string,object> Gates=new(StringComparer.OrdinalIgnoreCase);
+        private sealed class MemoryIndex
+        {public readonly object gate=new();public Records records;public long length,ticks;}
+        private static readonly ConcurrentDictionary<string,MemoryIndex> Indexes=new(StringComparer.OrdinalIgnoreCase);
+        private readonly MemoryIndex memory;
         private readonly object gate;
         private readonly Action<CancellationToken> prepare;
         private readonly Func<IEnumerable<string>> diagnostics;
@@ -51,7 +55,7 @@ namespace Remains.Persistence
         {
             this.directory=SavePath.Absolute(directory);
             this.cachePath=SavePath.Absolute(cachePath??Path.Combine(this.directory,"Library","world-catalog.json"));
-            gate=Gates.GetOrAdd(this.cachePath,_=>new object());
+            memory=Indexes.GetOrAdd(this.cachePath,_=>new MemoryIndex());gate=memory.gate;
             this.prepare=prepare;
             this.diagnostics=diagnostics;
         }
@@ -63,17 +67,17 @@ namespace Remains.Persistence
             {
                 var result=new WorldCatalogResult();
                 if(diagnostics!=null) result.warnings.AddRange(diagnostics());
-                var prior=ReadCache(result);
+                var prior=ReadCache(result,out bool validCache);bool changed=!validCache;
                 var records=new Records();var known=prior.entries.ToDictionary(e=>e.file,StringComparer.OrdinalIgnoreCase);
                 foreach(string path in Files())
                 {
                     cancellation.ThrowIfCancellationRequested();result.inspectedFiles++;
                     string relative=Path.GetRelativePath(directory,path);var info=new FileInfo(path);
                     WorldCatalogEntry entry;
-                    if(known.TryGetValue(relative,out var cached) && cached.length==info.Length && cached.ticks==info.LastWriteTimeUtc.Ticks) entry=cached;
+                    if(known.TryGetValue(relative,out var cached) && cached.length==info.Length && cached.ticks==info.LastWriteTimeUtc.Ticks) entry=CopyEntry(cached);
                     else
                     {
-                        result.readPayloads++;entry=new WorldCatalogEntry {file=relative,length=info.Length,ticks=info.LastWriteTimeUtc.Ticks};
+                        changed=true;result.readPayloads++;entry=new WorldCatalogEntry {file=relative,length=info.Length,ticks=info.LastWriteTimeUtc.Ticks};
                         try {entry.summary=WorldFileSummary.Read(path);}
                         catch(Exception error) when(error is InvalidDataException || error is JsonException || error is IOException || error is UnauthorizedAccessException)
                         {entry.error=$"Снимок пропущен: файл={path}; {error.Message}";}
@@ -84,8 +88,14 @@ namespace Remains.Persistence
                 }
                 cancellation.ThrowIfCancellationRequested();
                 result.files=records.entries;
-                string body=StateJson.ToJson(records);
-                AtomicSaveFile.Write(cachePath,StateJson.ToJson(new Cache {payload=body,hash=RecoverySnapshot.Fingerprint(body)}),uniqueTemporary:true,cancellation:cancellation);
+                // Keep the full stat scan: external save changes remain visible immediately.
+                // An unchanged index needs neither JSON parsing nor JSON publication.
+                if(changed || records.entries.Count!=prior.entries.Count)
+                {
+                    string body=StateJson.ToJson(records);
+                    AtomicSaveFile.Write(cachePath,StateJson.ToJson(new Cache {payload=body,hash=RecoverySnapshot.Fingerprint(body)}),uniqueTemporary:true,cancellation:cancellation);
+                    Remember(records);result.wroteIndex=true;
+                }
                 // Prefer the immutable archive over a mutable selected/flat file.
                 var copies=records.entries.Where(e=>e.summary!=null).GroupBy(e=>e.summary.snapshot)
                     .Select(g=>g.OrderByDescending(e=>e.file.Contains("Snapshots"+Path.DirectorySeparatorChar)).ThenBy(e=>e.file,StringComparer.Ordinal).First()).ToList();
@@ -100,11 +110,15 @@ namespace Remains.Persistence
                 return result;
             }
         }
-        private Records ReadCache(WorldCatalogResult result)
+        private Records ReadCache(WorldCatalogResult result,out bool valid)
         {
-            if(!File.Exists(cachePath)) return new Records();
+            valid=false;var info=new FileInfo(cachePath);
+            if(!info.Exists) {memory.records=null;return new Records();}
+            if(memory.records!=null && memory.length==info.Length && memory.ticks==info.LastWriteTimeUtc.Ticks)
+            {valid=true;return memory.records;}
             try
             {
+                result.readIndex=true;
                 var cache=StateJson.FromJson<Cache>(File.ReadAllText(cachePath));
                 if(cache==null || cache.version!=1 || cache.payload==null || cache.hash!=RecoverySnapshot.Fingerprint(cache.payload))
                     throw new InvalidDataException("Неверная версия или контрольная сумма индекса.");
@@ -119,12 +133,29 @@ namespace Remains.Persistence
                         throw new InvalidDataException("Неверная/повторная запись индекса.");
                     if(entry.summary!=null) WorldFileSummary.Validate(entry.summary,entry.file);
                 }
+                memory.records=records;memory.length=info.Length;memory.ticks=info.LastWriteTimeUtc.Ticks;valid=true;
                 return records;
             }
             catch(Exception error) when(error is InvalidDataException || error is IOException || error is ArgumentException)
             {
+                memory.records=null;
                 result.warnings.Add($"Индекс миров пересобран из сохранений: файл={cachePath}; {error.Message}");return new Records();
             }
+        }
+        private void Remember(Records records)
+        {
+            // Results are mutable mod-facing DTOs. Never expose the private cached index.
+            memory.records=new Records {entries=records.entries.Select(CopyEntry).ToList()};
+            var info=new FileInfo(cachePath);memory.length=info.Length;memory.ticks=info.LastWriteTimeUtc.Ticks;
+        }
+        private static WorldCatalogEntry CopyEntry(WorldCatalogEntry entry)
+        {
+            var source=entry.summary;
+            var summary=source==null?null:new WorldSummary {snapshot=source.snapshot,worldId=source.worldId,
+                branchId=source.branchId,historyVersion=source.historyVersion,sequence=source.sequence,revision=source.revision,
+                ancestors=source.ancestors?.Select(ancestor=>new WorldAncestor {branchId=ancestor.branchId,sequence=ancestor.sequence,
+                    extensions=ancestor.extensions?.ToDictionary(field=>field.Key,field=>field.Value?.DeepClone())}).ToList()};
+            return new WorldCatalogEntry {file=entry.file,length=entry.length,ticks=entry.ticks,summary=summary,error=entry.error};
         }
         private IEnumerable<string> Files()
         {

@@ -30,6 +30,31 @@ namespace Remains.Networking
             ownership=new OwnershipService(rules.ProximityOwnership);
         }
         public string CharacterId { get; set; }
+        private CharacterJoinSelection joinSelection;
+        private readonly OrderedSaveWrites saveWrites=new();
+        private bool savingFailed;
+        public bool CharacterSelectionLocked=>joinSelection!=null || NetworkClient.active || NetworkServer.active;
+        public void BeginJoinSelection()
+        {
+            if(joinSelection!=null) {joinSelection.RequireCurrent(CharacterId,Saves);return;}
+            joinSelection=new CharacterJoinSelection(CharacterId,Saves);
+            Debug.Log($"Персонаж зафиксирован для подключения: character={CharacterId}, profile={Saves.CharacterDirectoryPath}.");
+        }
+        public void CancelJoinSelection() {if(!NetworkClient.active && !NetworkServer.active) joinSelection=null;}
+        public void PumpSaveWrites()=>saveWrites.Pump();
+        public void FlushSaveWrites()
+        {
+            try {saveWrites.Flush();}
+            catch(Exception error) {Debug.LogError("Очередь сохранений не завершена: "+error);ShowNotice("Не удалось завершить запись сохранения. Подробности — в журнале игры.");}
+        }
+        private void SaveWriteFailed(Exception error)
+        {
+            Debug.LogError("Не удалось записать состояние сессии: "+error);
+            ShowNotice("Ошибка записи сохранения. Сессия остановлена; подробности — в журнале игры.");
+            if(savingFailed) return;
+            savingFailed=true;
+            if(NetworkServer.active) StopHost();else if(NetworkClient.active) StopClient();
+        }
         public event Action Changed;
         public event Action<string,string,float,float> RemotePoseCorrection;
         private void ObservePoseCorrection(string source,ActorState current,string nextPose,float nextTime)
@@ -53,6 +78,7 @@ namespace Remains.Networking
         private readonly SelfHealingReconciliation selfHealing=new(message=>Debug.LogWarning(message));
         public event Action<string,bool> ClaimPrepared;
         public event Action<string,long> RecoveryPrepared;
+        public event Action<RecoverySnapshot> RecoveryPersisted;
         public event Action<int,string,long> RecoveryAcknowledged;
         public event Action<int> RecoveryPeerLeft;
         private readonly Dictionary<int, string> owners = new();
@@ -89,6 +115,7 @@ namespace Remains.Networking
         public SessionMechanisms Mechanisms=>mechanisms ??= new SessionMechanisms(this);
         public void ShowNotice(string text) => Notice?.Invoke(text);
         private readonly Dictionary<int,long> backupRevisions = new();
+        private long canonicalPersistedRevision=-1;
         private readonly RecoveryReceiptGate recoveryReceipts = new();
         private readonly WorldReplication worldReplication=new();
         private OwnershipService ownership = new();
@@ -97,6 +124,9 @@ namespace Remains.Networking
 
         public override void OnStartServer()
         {
+            savingFailed=false;
+            BeginJoinSelection();
+            canonicalPersistedRevision=-1;
             npcHits=gameObject.AddComponent<NpcHitDelivery>();
             npcHits.Initialize(this,owner=>
             {
@@ -205,6 +235,8 @@ namespace Remains.Networking
 
         public override void OnStartClient()
         {
+            savingFailed=false;
+            BeginJoinSelection();
             CharacterContent.Reset();
             clientPoses.Clear();
             Admission.RegisterClient();
@@ -218,8 +250,8 @@ namespace Remains.Networking
             {
                 var received=worldReplication.Receive(message);
                 if(received==null) return;
-                if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor,worldJson=received.snapshot.Json});
-                else ReceiveWorld(new WorldMessage {json=received.snapshot.Json});
+                if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor,worldJson=received.snapshot.Json},received.snapshot);
+                else ReceiveWorld(new WorldMessage {json=received.snapshot.Json},received.snapshot);
             });
             NetworkClient.RegisterHandler<ActorMessage>(message =>
             {
@@ -260,9 +292,11 @@ namespace Remains.Networking
             if(!Admission.ClientApproved) {ShowNotice("Сначала необходимо согласовать сетевой протокол.");return;}
             try
             {
-                if(!CharacterContent.TryPrepare(Saves,CharacterId,acceptCharacter,out var character)) return;
+                BeginJoinSelection();
+                joinSelection.RequireCurrent(CharacterId,Saves);
+                if(!CharacterContent.TryPrepare(joinSelection.Saves,joinSelection.CharacterId,acceptCharacter,out var character)) return;
                 Lobby.PublishOffers();
-                NetworkClient.Send(new JoinMessage { character = CharacterId, displayName = CharacterId,
+                NetworkClient.Send(new JoinMessage { character = joinSelection.CharacterId, displayName = joinSelection.CharacterId,
                     characterJson=character==null?null:JsonUtility.ToJson(character),
                     modFingerprint=WeaponCatalog.ModFingerprint,acceptMismatch=acceptMismatch });
             }
@@ -363,23 +397,40 @@ namespace Remains.Networking
             base.OnServerDisconnect(connection);
         }
 
-        private void Welcome(WelcomeMessage message)
+        private void Welcome(WelcomeMessage message,RecoverySnapshot verified=null)
         {
+            var snapshot=verified??new RecoverySnapshot(message.worldJson);
+            var welcomed=snapshot.CreateLiveWorld();
+            try
+            {
+                BeginJoinSelection();
+                joinSelection.RequireCurrent(CharacterId,Saves);
+                joinSelection.RequireWelcome(welcomed,message.actor,message.owner);
+            }
+            catch(Exception error)
+            {
+                Debug.LogError("Ответ подключения отклонён до записи профиля: "+error);
+                ShowNotice("Сервер вернул другого персонажа. Подключение отменено; профиль сохранён.");
+                if(NetworkServer.active) StopHost();else StopClient();
+                return;
+            }
             LocalOwner = message.owner;
             LocalActorId = message.actor;
-            World = PersistCopy(message.worldJson);
+            World = PersistCopy(snapshot,welcomed);
+            Debug.Log($"Подключён выбранный персонаж: character={LocalActor.character}, actor={LocalActorId}, profile={Saves.CharacterDirectoryPath}.");
             if(LocalActor!=null && LocalActor.level!="hub")
             {
                 string backup=Saves.PreserveCharacterSource();
                 if(backup!=null) Debug.LogWarning($"Личный профиль сохранён перед возвращением в тело: world={World.worldId}, actor={LocalActorId}, backup={backup}. Последствия оставленного тела принадлежат миру; независимые состояния персонажа не объединяются автоматически.");
             }
-            SaveLocalCharacter();
+            QueueRecoveryReceipt(snapshot);
             Changed?.Invoke();
         }
 
-        private void ReceiveWorld(WorldMessage message)
+        private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null)
         {
-            var incoming = PersistCopy(message.json);
+            var snapshot=verified??new RecoverySnapshot(message.json);
+            var incoming = PersistCopy(snapshot);
             bool publishHealing=false;
             if (World != null && World.worldId == incoming.worldId)
             {
@@ -421,27 +472,51 @@ namespace Remains.Networking
             }
             if(World?.worldId!=incoming.worldId) selfHealing.Reset();
             World = incoming;
-            SaveLocalCharacter();
+            QueueRecoveryReceipt(snapshot);
             if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else Changed?.Invoke();
         }
 
-        private WorldState PersistCopy(string json)
+        private WorldState PersistCopy(RecoverySnapshot snapshot,WorldState parsed=null)
         {
             long started=BeginRecoveryMeasurement();
-            var snapshot=new RecoverySnapshot(json);
-            // The host already persisted this payload before sending it. Its local client
-            // must not overwrite newer canonical state while processing queued messages.
-            if(!NetworkServer.active) Saves.SaveRecovery(snapshot);
-            if(NetworkClient.isConnected) NetworkClient.Send(new BackupAckMessage {
-                world=snapshot.WorldId,revision=snapshot.Revision,snapshot=snapshot.Id });
-            var world=snapshot.CreateLiveWorld();
-            FinishRecoveryMeasurement("recovery-received",started,json.Length);
+            var world=parsed??snapshot.CreateLiveWorld();
+            FinishRecoveryMeasurement("recovery-received",started,snapshot.Json.Length);
             return world;
+        }
+
+        private void QueueRecoveryReceipt(RecoverySnapshot snapshot)
+        {
+            var actor=CaptureLocalCharacter();
+            if(actor==null) throw new InvalidOperationException($"Нет личного персонажа для подтверждения сохранения: world={snapshot.WorldId}, actor={LocalActorId}.");
+            var store=Saves;bool localHost=NetworkServer.active;
+            // One durable intent repairs either inter-file crash window. The host's
+            // canonical archive is queued first; its local replica must not rewind the head.
+            saveWrites.Enqueue(()=>store.SaveRecoveryWithCharacter(snapshot,actor,!localHost),()=>
+            {
+                if(!localHost) RecoveryPersisted?.Invoke(snapshot);
+                if(NetworkClient.isConnected && World?.worldId==snapshot.WorldId)
+                    NetworkClient.Send(new BackupAckMessage {world=snapshot.WorldId,revision=snapshot.Revision,snapshot=snapshot.Id});
+            },SaveWriteFailed);
+            playTime.Checkpoint(store.CharacterDirectoryPath);
+        }
+
+        private ActorState CaptureLocalCharacter()
+        {
+            var actor=LocalActor;if(actor==null) return null;
+            joinSelection?.RequireCurrent(CharacterId,Saves);
+            if(actor.character!=CharacterId) throw new InvalidOperationException($"Запись чужого персонажа запрещена: выбран={CharacterId}, actor={actor.id}, character={actor.character}, profile={Saves.CharacterDirectoryPath}.");
+            return actor.Copy();
         }
 
         public void SaveLocalCharacter()
         {
-            if(LocalActor!=null) {Saves.SaveCharacter(LocalActor);playTime.Checkpoint(Saves.CharacterDirectoryPath);}
+            var actor=CaptureLocalCharacter();
+            if(actor!=null)
+            {
+                var store=Saves;
+                saveWrites.Enqueue(()=>store.SaveCharacter(actor),null,SaveWriteFailed);
+                playTime.Checkpoint(store.CharacterDirectoryPath);
+            }
         }
 
         public event Action<string,double,int> RecoveryMeasured;
@@ -454,7 +529,14 @@ namespace Remains.Networking
         private RecoverySnapshot PrepareRecovery()
         {
             long started=BeginRecoveryMeasurement();
-            var snapshot=Saves.SaveWorld(ServerWorld);
+            var snapshot=Saves.CaptureWorldSnapshot(ServerWorld);
+            var store=Saves;
+            saveWrites.Enqueue(()=>store.SaveRecovery(snapshot),()=>
+            {
+                if(ServerWorld?.worldId==snapshot.WorldId) canonicalPersistedRevision=Math.Max(canonicalPersistedRevision,snapshot.Revision);
+                RecoveryPersisted?.Invoke(snapshot);
+                if(ServerWorld?.worldId==snapshot.WorldId) CompleteBackedUpGrants();
+            },SaveWriteFailed);
             recoveryReceipts.Register(snapshot);
             RecoveryPrepared?.Invoke(snapshot.Id,snapshot.Revision);
             FinishRecoveryMeasurement("recovery-prepared",started,snapshot.Json.Length);
@@ -773,7 +855,8 @@ namespace Remains.Networking
             if (success) { BroadcastWorld(); CompleteBackedUpGrants(); }
         }
 
-        internal bool HasInventoryBackups(long revision)=>!owners.Keys.Any(id=>!backupRevisions.TryGetValue(id,out long rev) || rev<revision);
+        internal bool HasInventoryBackups(long revision)=>canonicalPersistedRevision>=revision &&
+            !owners.Keys.Any(id=>!backupRevisions.TryGetValue(id,out long rev) || rev<revision);
         internal void CompleteInventoryTransactions()=>CompleteBackedUpGrants();
         private void CompleteBackedUpGrants()
         {
@@ -829,6 +912,7 @@ namespace Remains.Networking
 
         public override void OnStopServer()
         {
+            FlushSaveWrites();
             if(npcHits!=null) {Destroy(npcHits);npcHits=null;}
             Pause.ResetServer();
             CancelInvoke(nameof(CheckpointWorld));
@@ -844,6 +928,7 @@ namespace Remains.Networking
             Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
             Projectiles.ResetClient();
             SaveLocalCharacter();
+            FlushSaveWrites();joinSelection=null;
             World=null;LocalActorId=null;LocalOwner=null;
             playTime.Stop();
             ContainerInspection.ResetClient();DoorDamage.ResetClient();Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();

@@ -146,7 +146,7 @@ namespace Remains.Runtime
             PonyVisual.Prepare();
             Session.Changed+=RefreshVisuals;
             ItemActions=new ItemShortcutActions(Session,EquipWeaponItem);
-            if (!Application.isBatchMode || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
+            if (!Application.isBatchMode || Options.Smoke=="performance-audit" || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
                 hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
                 hud.LocalActorVisual=()=>Session.LocalActor==null?null:FindActorVisual(Session.LocalActor.id);
@@ -166,12 +166,15 @@ namespace Remains.Runtime
                 var characterLibrary=saveLibraries?.Characters??new CharacterLibrary(Path.Combine(ProjectStorage.RootDirectory,"Profiles"),Options.SaveDirectory);
                 hud.SelectCharacter=name=>
                 {
+                    if(Session.CharacterSelectionLocked && name!=Session.CharacterId)
+                    {hud.ShowMessage("Персонаж уже выбран для подключения. Сначала выйдите из сессии.");return false;}
                     if(!System.Text.RegularExpressions.Regex.IsMatch(name??"",@"^[\p{L}\p{N}_ -]{1,32}$"))
                     {if(Options.Smoke==null) hud.ShowCharacterLibrary();else hud.ShowMessage("Имя персонажа: от 1 до 32 букв, цифр, пробелов, дефисов или подчёркиваний.");return false;}
                     if((Options.Smoke==null || characterProbe) && !File.Exists(Path.Combine(characterLibrary.ProfilePath(name),"character.json")))
                     {hud.ShowCharacterLibrary();return false;}
                     if(Session.CharacterId==name) return true;
                     Session.CharacterId=name;
+                    Options.SetSelectedCharacter(name);
                     Session.Saves=saveLibraries?.ForCharacter(name)??new SaveStore(characterLibrary.ProfilePath(name));
                     Session.CharacterContent.Reset();
                     return true;
@@ -183,7 +186,8 @@ namespace Remains.Runtime
             if(Options.Smoke?.Contains("-attacker-")==true) Session.ServerReady+=()=>Session.SetFriendlyFireDecision(FriendlyFireDecision.Attacker);
             if (Options.Smoke != null)
             {
-                if(Options.Smoke.StartsWith("characters")) gameObject.AddComponent<CharacterMenuProbe>().Initialize(this);
+                if(Options.Smoke=="characters-selection") gameObject.AddComponent<CharacterSelectionProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("characters")) gameObject.AddComponent<CharacterMenuProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("appearance")) gameObject.AddComponent<NetworkAppearanceProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("contact-audio")) gameObject.AddComponent<NetworkContactAudioProbe>().Initialize(this);
@@ -228,6 +232,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("telekinesis")) gameObject.AddComponent<NetworkTelekinesisProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("actor-hold")) gameObject.AddComponent<NetworkActorHoldProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("melee")) gameObject.AddComponent<NetworkMeleeProbe>().Initialize(this);
+                else if(Options.Smoke=="performance-audit") gameObject.AddComponent<RuntimePerformanceProbe>().Initialize(this);
                 else if(Options.Smoke=="world-library-volume") gameObject.AddComponent<WorldLibraryVolumeProbe>().Initialize(this);
                 else if(Options.Smoke=="world-management") gameObject.AddComponent<WorldManagementProbe>().Initialize(this);
                 else if(Options.Smoke=="history") gameObject.AddComponent<WorldSelectionProbe>().Initialize(this);
@@ -323,6 +328,7 @@ namespace Remains.Runtime
         }
         private void Update()
         {
+            Session.PumpSaveWrites();
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             Session.LevelTime.Step(Time.deltaTime);
             Session.Mechanisms.Step();Platforms.Step(Time.deltaTime);
@@ -344,7 +350,7 @@ namespace Remains.Runtime
                     !remoteMotion.ControlsPosePhase(animated)) ActorPose.Advance(animated,Time.deltaTime);
             }
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
+            if (Options.Smoke==null || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 npcs.Step(Time.deltaTime);
                 var command=CommandSource?.Invoke() ?? ReadCommand();
@@ -486,6 +492,7 @@ namespace Remains.Runtime
         private void OnApplicationQuit()
         {
             Session?.SaveLocalCharacter();
+            Session?.FlushSaveWrites();
         }
         private void OnDestroy() {Pickup?.Dispose();MechanismInteraction?.Dispose();Platforms?.Dispose();}
     }

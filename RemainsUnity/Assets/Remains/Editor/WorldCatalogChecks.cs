@@ -27,7 +27,18 @@ namespace Remains.Editor
             }
             var current=store.SaveWorld(world);var branch=world.Copy();WorldHistory.BeginContinuation(branch);branch.revision=1;
             var alternative=store.SaveWorld(branch);store.SelectContinuation(current);
-            var cold=store.Catalog.Read();var warm=store.Catalog.Read();
+            var cold=store.Catalog.Read();
+            string index=Path.Combine(store.DirectoryPath,"Library","world-catalog.json");
+            byte[] indexBytes=File.ReadAllBytes(index);long indexTicks=File.GetLastWriteTimeUtc(index).Ticks;
+            var warm=store.Catalog.Read();
+            Require(!warm.readIndex && !warm.wroteIndex && File.GetLastWriteTimeUtc(index).Ticks==indexTicks && File.ReadAllBytes(index).SequenceEqual(indexBytes),
+                "Неизменный список перечитывает/переписывает JSON индекс");
+            // Returned DTOs cannot corrupt the private memory index.
+            warm.files[0].summary.worldId="modified-by-caller";
+            var detached=store.Catalog.Read();
+            Require(detached.files.All(entry=>entry.summary?.worldId!= "modified-by-caller") && !detached.readIndex && !detached.wroteIndex,
+                "Mod-facing DTO заменил внутренний индекс");
+            warm=detached;
             Require(cold.readPayloads==cold.inspectedFiles && cold.inspectedFiles>=83,"Первичная индексация не прочитала архив");
             Require(warm.readPayloads==0,"Повторный список перечитывает полные снимки");
             Require(warm.entries.Count==1 && warm.entries[0].summary.snapshot==alternative.Id,"Предок не скрыт по ancestry");
@@ -35,7 +46,7 @@ namespace Remains.Editor
             Require(warm.entries[0].Load(store.DirectoryPath).Json==alternative.Json,"Полный выбранный пакет изменился");
             var fork=world.Copy();WorldHistory.BeginContinuation(fork);fork.revision=900;
             var divergent=store.SaveWorld(fork);var changed=store.Catalog.Read();
-            Require(changed.readPayloads==3 && changed.entries.Count==2 &&
+            Require(changed.wroteIndex && changed.readPayloads==3 && changed.entries.Count==2 &&
                 changed.entries.Any(e=>e.summary.snapshot==divergent.Id) && changed.entries.Any(e=>e.summary.snapshot==alternative.Id),
                 "Изменённые файлы/независимые ветви не отражены или перечитан весь архив");
             string archive=Path.Combine(store.DirectoryPath,"Worlds",fork.worldId,"Snapshots",divergent.Id+".json");
@@ -45,7 +56,7 @@ namespace Remains.Editor
             Require(rejected,"Изменённый после открытия пакет не отклонён по хешу");File.WriteAllText(archive,preserved);
             string cache=Path.Combine(store.DirectoryPath,"Library","world-catalog.json");File.WriteAllText(cache,"broken-index");
             var rebuilt=store.Catalog.Read();
-            Require(rebuilt.warnings.Any(w=>w.Contains("Индекс миров пересобран")) && rebuilt.readPayloads==rebuilt.inspectedFiles &&
+            Require(rebuilt.readIndex && rebuilt.wroteIndex && rebuilt.warnings.Any(w=>w.Contains("Индекс миров пересобран")) && rebuilt.readPayloads==rebuilt.inspectedFiles &&
                 rebuilt.entries.Count==2,"Повреждённый индекс не восстановлен явно из исходников");
             Require(File.ReadAllText(archive)==preserved,"Восстановление индекса изменило снимок");
             string oversized=Path.Combine(store.DirectoryPath,"Worlds","invalid-number.json");
