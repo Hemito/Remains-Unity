@@ -63,9 +63,14 @@ namespace Remains.Editor
         }
         private static void RunHint()
         {
-            var root=new GameObject("Проверка hot hint",typeof(RectTransform),typeof(Canvas));InteractionHint hint=null;
+            var root=new GameObject("Проверка hot hint",typeof(RectTransform),typeof(Canvas));InteractionHint hint=null;GameObject checkCamera=null;
             try
             {
+                if(Camera.main==null)
+                {
+                    checkCamera=new GameObject("Камера проверки рамки",typeof(Camera));checkCamera.tag="MainCamera";
+                    checkCamera.transform.position=new Vector3(0,0,-10);checkCamera.GetComponent<Camera>().orthographic=true;
+                }
                 root.GetComponent<Canvas>().renderMode=RenderMode.ScreenSpaceOverlay;
                 var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));hint=new InteractionHint(root.transform,ui,()=>new Rect(-1,0,2,2));
                 var box=new ContainerState {id="hint-box",mass=25};InventorySource source=box;
@@ -76,8 +81,23 @@ namespace Remains.Editor
                 box.presentationItem="caps";hint.RefreshSource(source,true,null);texts=hint.TextRevisionCount;
                 hint.RefreshSource(source,true,null,true);Require(hint.TextRevisionCount==texts+1,"Pickup pending не обновил текст");
                 Canvas.ForceUpdateCanvases();Require(hint.PlacementEvaluationCount>places,"Финальный Canvas pass не выполняет placement");
+                foreach(float scale in new[]{1f,1.5f,2f,3f})
+                {
+                    root.GetComponent<Canvas>().scaleFactor=scale;Canvas.ForceUpdateCanvases();
+                    int visibleEdges=0;
+                    foreach(Transform child in root.transform)
+                    {
+                        if(child.name!="Выделение цели взаимодействия" || !child.gameObject.activeSelf) continue;
+                        var edge=(RectTransform)child;
+                        var corners=new Vector3[4];edge.GetWorldCorners(corners);
+                        float pixels=Mathf.Min(Vector3.Distance(corners[0],corners[1]),Vector3.Distance(corners[1],corners[2]));
+                        Require(Mathf.Abs(pixels-3)<.02f,$"Рамка масштабируется вместе с HUD: scale={scale}, pixels={pixels}");
+                        visibleEdges++;
+                    }
+                    Require(visibleEdges==4,$"Рамка не имеет четырёх видимых сторон: scale={scale}, count={visibleEdges}");
+                }
             }
-            finally {hint?.Dispose();UnityEngine.Object.DestroyImmediate(root);}
+            finally {hint?.Dispose();UnityEngine.Object.DestroyImmediate(root);if(checkCamera!=null) UnityEngine.Object.DestroyImmediate(checkCamera);}
         }
         private static void Require(bool value,string reason) {if(!value) throw new InvalidOperationException("Горячие пути взаимодействия: "+reason);}
     }

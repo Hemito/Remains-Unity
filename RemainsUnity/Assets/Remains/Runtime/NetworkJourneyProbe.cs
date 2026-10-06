@@ -78,7 +78,8 @@ namespace Remains.Runtime
             if((phase==2 || phase==7) && Host && Victim.down)
             {
                 float delta=Victim.x-self.x;
-                return new PlayerCommand {revive=Mathf.Abs(delta)<1.5f,movement=Vector2.right*(Mathf.Abs(delta)>1.2f?Mathf.Sign(delta):0)};
+                return new PlayerCommand {revive=Mathf.Abs(delta)<1.5f,hasAim=true,aim=InventorySource.BodyBounds(Victim).center,
+                    movement=Vector2.right*(Mathf.Abs(delta)>1.2f?Mathf.Sign(delta):0)};
             }
             if(phase==5 && !runtime.Hud.InventoryOpen) return new PlayerCommand {inventory=true};
             if(phase>=6 && runtime.Hud.InventoryOpen) return new PlayerCommand {inventory=true};

@@ -25,18 +25,22 @@ namespace Remains.Editor
             container.x=.5f;Require(InteractionSelection.Select(world,actor,rules).id==container.id,"Ближайший контейнер не выбран.");
             container.x=1;Require(InteractionSelection.Select(world,actor,rules).kind==InteractionKind.Container,"Равная дистанция не сохраняет выбор контейнера.");
             actor.inventory.Add(new ItemStack {id="heal",definition="heal",count=1});
-            var ally=new ActorState {id="ally",player=true,connected=true,down=true,x=1.8f,y=0};world.actors.Add(ally);
+            var ally=new ActorState {id="ally",player=true,connected=true,down=true,x=-1.8f,y=0};world.actors.Add(ally);
             Require(InteractionSelection.Select(world,actor,rules).kind==InteractionKind.Revival,"Окно или дверь перехватывает поднятие союзника.");
-            var revival=InteractionSelection.Select(world,actor,rules,((InventorySource)container).Bounds.center);
+            var revival=InteractionSelection.Select(world,actor,rules,InventorySource.BodyBounds(ally).center);
             Require(revival.kind==InteractionKind.Revival && revival.id==ally.id && revival.bounds==InventorySource.BodyBounds(ally),
-                "Курсор скрыл сохранённый приоритет поднятия союзника или его выделение.");
+                "Наведение на союзника не выбирает его поднятие или теряет габариты.");
+            Require(InteractionSelection.Select(world,actor,rules,((InventorySource)container).Bounds.center).id==container.id,
+                "Союзник вне курсора перехватывает взаимодействие с контейнером.");
+            Require(InteractionSelection.Select(world,actor,rules,new Vector2(0,4)).kind==InteractionKind.None,
+                "Доступный союзник или контейнер выбирается без наведения.");
             actor.inventory.Clear();Require(InteractionSelection.Select(world,actor,rules).kind!=InteractionKind.Revival,"Недоступное лечение блокирует E.");
             world.actors.Remove(ally);container.level="hub";door.level="hub";
             Require(InteractionSelection.Select(world,actor,rules).kind==InteractionKind.None,"Выбрана цель из другой локации.");
             door.level=actor.level;actor.down=true;
             Require(InteractionSelection.Select(world,actor,rules).kind==InteractionKind.None,"Тело может взаимодействовать.");
-            CursorSelection();LooseReservation();PendingClaims();
-            Debug.Log("Выбор E: PASS — совместимость, выбор курсором, габариты, движущиеся источники, тело, дальность, блокировка и целый подтверждаемый подбор.");
+            CursorSelection();PointerRequired();LooseReservation();PendingClaims();
+            Debug.Log("Выбор E: PASS — совместимость инструментов, только наведение в игре, союзник, габариты, движущиеся источники, тело, дальность, блокировка и целый подтверждаемый подбор.");
         }
         private static void CursorSelection()
         {
@@ -54,7 +58,7 @@ namespace Remains.Editor
             var extended=new GameplayRuleSet(rules.Damage,rules.Knockdown,rules.PartyDefeat,new ExtendedCursorAccess());
             Require(InteractionSelection.Select(world,actor,extended,((InventorySource)far).Bounds.center).id==far.id,"Курсор игнорирует заменённое модом правило доступа.");
             chosen.x=5;
-            Require(InteractionSelection.Select(world,actor,rules,cursor).id==near.id,"Движение источника не обновило доступность.");
+            Require(InteractionSelection.Select(world,actor,rules,cursor).kind==InteractionKind.None,"Ушедшую из-под курсора цель заменил соседний ящик.");
             chosen.x=1.6f;chosen.presentationItem="p10";chosen.items.Add(SharedInventory.Create("p10",7));
             Require(InteractionSelection.Select(world,actor,rules,cursor).kind==InteractionKind.Pickup &&
                 InteractionSelection.Select(world,actor,rules,((InventorySource)near).Bounds.center).kind==InteractionKind.Container,
@@ -63,6 +67,8 @@ namespace Remains.Editor
             Require(focus.Target.id==chosen.id && focus.Target.bounds==((InventorySource)chosen).Bounds,"Источник живой цели потерял ID или габариты.");
             focus.Step(world,actor,rules,cursor,true,null);Require(focus.Target.kind==InteractionKind.None,"UI не блокирует живую цель.");
             focus.Step(world,actor,rules,null,false,null);Require(focus.Target.kind==InteractionKind.None,"Отсутствующий указатель включает ближайшую цель.");
+            focus.Step(world,actor,rules,new Vector2(-.4f,.15f),false,null);
+            Require(focus.Target.kind==InteractionKind.None,"Увод указателя оставил прежнюю или ближайшую цель.");
             var body=new ActorState {id="cursor-body",player=true,connected=false,down=true,x=-.8f,y=0,level=actor.level};world.actors.Add(body);
             var source=InventorySource.Resolve(world,InventorySource.BodyId(body.id));
             Require(InteractionSelection.Select(world,actor,rules,source.Bounds.center).kind==InteractionKind.Container &&
@@ -71,6 +77,29 @@ namespace Remains.Editor
             Require(InteractionSelection.Select(world,actor,rules,source.Bounds.center).id!=source.id,"Активный персонаж доступен как тело.");
             chosen.level="hub";near.level="hub";
             Require(InteractionSelection.Select(world,actor,rules,cursor).kind==InteractionKind.None,"Курсор выбирает источник из другой локации.");
+        }
+        private static void PointerRequired()
+        {
+            var world=new WorldState();var rules=GameplayRuleSet.CreateDefault();
+            var actor=new ActorState {id="pointer-player",player=true,connected=true};world.actors.Add(actor);
+            var door=new DoorState {id="pointer-door",definition="check",level=actor.level,x=.5f,width=.2f,height=2,surfaceTexture="floor"};
+            world.doors.Add(door);
+            var map=new TravelPoint {id="pointer-map",level=actor.level,x=-1.5f,y=.5f,width=.4f,height=.5f,range=3,kind=TravelPointKind.Map};
+            var exit=new TravelPoint {id="pointer-exit",level=actor.level,x=1.5f,y=.5f,width=.4f,height=.5f,range=3,kind=TravelPointKind.Exit};
+            var points=new[]{map,exit};
+            var button=new MechanismButtonState {id="pointer-button",level=actor.level,x=0,y=1.5f,repairState=MechanismRepairStates.Ready};
+            var mechanisms=new[]{new MechanismInteractionPoint(button,new Rect(-.2f,1.3f,.4f,.4f),3)};
+            Require(InteractionSelection.Select(world,actor,rules,new Vector2(0,3),points,mechanisms).kind==InteractionKind.None,
+                "Карта, выход, дверь или кнопка выбраны при пустом месте под курсором.");
+            Require(InteractionSelection.Select(world,actor,rules,door.InteractionBounds.center,points,mechanisms).id==door.id,"Наведение не выбирает дверь.");
+            Require(InteractionSelection.Select(world,actor,rules,map.Bounds.center,points,mechanisms).kind==InteractionKind.Map,"Наведение не выбирает карту.");
+            Require(InteractionSelection.Select(world,actor,rules,exit.Bounds.center,points,mechanisms).kind==InteractionKind.Exit,"Наведение не выбирает выход.");
+            Require(InteractionSelection.Select(world,actor,rules,mechanisms[0].Bounds.center,points,mechanisms).id==button.id,"Наведение не выбирает кнопку.");
+            actor.x=10;
+            Require(InteractionSelection.Select(world,actor,rules,map.Bounds.center,points,mechanisms).kind==InteractionKind.None &&
+                InteractionSelection.Select(world,actor,rules,door.InteractionBounds.center,points,mechanisms).kind==InteractionKind.None &&
+                InteractionSelection.Select(world,actor,rules,mechanisms[0].Bounds.center,points,mechanisms).kind==InteractionKind.None,
+                "Наведение отменило дальность взаимодействия.");
         }
         private static void LooseReservation()
         {

@@ -64,6 +64,7 @@ namespace Remains.Runtime
                 command.revive=age>1.2f && !damageCancelled;
             }
             if(phase==6) command.revive=true;
+            if(command.revive) {command.hasAim=true;command.aim=InventorySource.BodyBounds(Victim).center;}
             return command;
         }
         private void Next()

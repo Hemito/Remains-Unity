@@ -33,7 +33,7 @@ namespace Remains.Runtime
             {
                 if(!Host) return default;
                 if(phase==3 && !opened) {opened=true;value.Hud.OpenContainer(InventorySource.BodyId(ActorId));}
-                if(phase==4) {value.Hud.CloseContainer();return new PlayerCommand {revive=true};}
+                if(phase==4) {value.Hud.CloseContainer();return new PlayerCommand {revive=true,hasAim=true,aim=InventorySource.BodyBounds(value.Session.World.Find(ActorId)).center};}
                 return default;
             };
             value.Session.Notice+=text=>{if(text=="Инвентарь этого персонажа недоступен.") rejected=true;};

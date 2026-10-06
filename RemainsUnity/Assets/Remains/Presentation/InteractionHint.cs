@@ -186,8 +186,11 @@ namespace Remains.Presentation
                     RectTransformUtility.ScreenPointToLocalPointInRectangle(canvas,upper,uiCamera,out var high);
                     var origin=canvas.rect.min;low-=origin;high-=origin;
                     float width=high.x-low.x,height=high.y-low.y;
-                    SetEdge(0,low,new Vector2(width,2));SetEdge(1,new Vector2(low.x,high.y-2),new Vector2(width,2));
-                    SetEdge(2,low,new Vector2(2,height));SetEdge(3,new Vector2(high.x-2,low.y),new Vector2(2,height));
+                    // CanvasScaler scales the HUD, but the interaction border stays
+                    // three physical screen pixels thick at every resolution.
+                    float thickness=3/root.scaleFactor;
+                    SetEdge(0,low,new Vector2(width,thickness));SetEdge(1,new Vector2(low.x,high.y-thickness),new Vector2(width,thickness));
+                    SetEdge(2,low,new Vector2(thickness,height));SetEdge(3,new Vector2(high.x-thickness,low.y),new Vector2(thickness,height));
                 }
             }
             foreach(var edge in edges) if(edge.gameObject.activeSelf!=show) edge.gameObject.SetActive(show);

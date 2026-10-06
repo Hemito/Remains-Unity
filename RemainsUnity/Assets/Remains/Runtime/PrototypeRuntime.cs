@@ -455,7 +455,7 @@ namespace Remains.Runtime
             }
             if(hud?.BlocksGameplayInput==true) command=default;
             hud?.CloseContainerForSprint(command.sprint,command.movement);
-            if(Session.Pause.IsPaused(actor.level)) {Revival.Step(false,0);return;}
+            if(Session.Pause.IsPaused(actor.level)) {Revival.Step(InteractionFocus.Target,false,0);return;}
             if(Session.Travel.Pending) command=default;
             if(!ActorHoldRules.Active(actor)) movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
             long selectionBefore=actor.weaponSelectionRevision;
@@ -476,7 +476,7 @@ namespace Remains.Runtime
                 else if(!Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim,Geometry.Get(actor.level));
             }
             if(command.reload && !HeldItemSelection.HasSelection(actor) && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
-            Revival.Step(command.revive,dt);
+            Revival.Step(InteractionFocus.Target,command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);
             if(command.grenade && !actor.down && command.hasAim) Grenades.TryThrow(command.aim);
             if(command.heal && !actor.down) Session.RequestSelfHeal();

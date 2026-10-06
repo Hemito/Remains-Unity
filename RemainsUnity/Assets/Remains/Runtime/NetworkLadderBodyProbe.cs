@@ -68,7 +68,7 @@ namespace Remains.Runtime
             if(phase==1) return Move(Axis+2.5f,self);
             if(phase==2) return new PlayerCommand {weapon="pistol",hasAim=true,aim=Victim.Position+Vector2.up*.65f,fire=!Victim.down};
             if(phase==3) return Move(Axis+1.1f,self);
-            if(phase==4) return new PlayerCommand {revive=true};
+            if(phase==4) return new PlayerCommand {revive=true,hasAim=true,aim=InventorySource.BodyBounds(Victim).center};
             return default;
         }
         private static PlayerCommand Move(float x,ActorState actor)=>new()

@@ -49,8 +49,9 @@ namespace Remains.Domain
         {
             if(world==null || actor==null || actor.down || !actor.connected || !float.IsFinite(cursor.x) || !float.IsFinite(cursor.y)) return default;
             foreach(var other in world.actors)
-                if(HealingRules.CanApply(actor,other,false)) return new(InteractionKind.Revival,other.id,InventorySource.BodyBounds(other));
-            InteractionTarget selected=default;float distance=float.PositiveInfinity,centerDistance=float.PositiveInfinity;
+                if(HealingRules.CanApply(actor,other,false) && InventorySource.BodyBounds(other).Contains(cursor))
+                    return new(InteractionKind.Revival,other.id,InventorySource.BodyBounds(other));
+            InteractionTarget selected=default;float centerDistance=float.PositiveInfinity;
             foreach(var container in world.containers)
             {
                 if(container.id.StartsWith(InventorySource.BodyPrefix,StringComparison.Ordinal))
@@ -77,11 +78,13 @@ namespace Remains.Domain
             }
             void Consider(InteractionKind kind,string id,Rect bounds)
             {
-                var closest=new Vector2(Mathf.Clamp(cursor.x,bounds.xMin,bounds.xMax),Mathf.Clamp(cursor.y,bounds.yMin,bounds.yMax));
-                float next=(cursor-closest).sqrMagnitude,center=(cursor-bounds.center).sqrMagnitude;
-                if(next>distance || next==distance && (center>centerDistance || center==centerDistance &&
-                    ((int)kind>(int)selected.kind || kind==selected.kind && StringComparer.Ordinal.Compare(id,selected.id)>=0))) return;
-                distance=next;centerDistance=center;selected=new InteractionTarget(kind,id,bounds);
+                // Access radius and pointer hit are independent requirements. A nearby
+                // object never becomes a target while the pointer is outside its bounds.
+                if(!bounds.Contains(cursor)) return;
+                float center=(cursor-bounds.center).sqrMagnitude;
+                if(center>centerDistance || center==centerDistance &&
+                    ((int)kind>(int)selected.kind || kind==selected.kind && StringComparer.Ordinal.Compare(id,selected.id)>=0)) return;
+                centerDistance=center;selected=new InteractionTarget(kind,id,bounds);
             }
         }
     }
