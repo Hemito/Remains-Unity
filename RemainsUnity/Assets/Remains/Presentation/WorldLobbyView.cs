@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Remains.Domain;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,11 +19,42 @@ namespace Remains.Presentation
         [InspectorName("Начать игру")] public Button StartGame;
         [InspectorName("Отключиться")] public Button Disconnect;
         public void ShowChoice(int index,string worldName,string holder,long revision,string relation,bool selected,bool interactable)
+            => ShowChoice(index,worldName,holder,revision,null,null,relation,selected,interactable);
+        public void ShowChoice(int index,string worldName,string holder,long revision,string branch,string snapshot,string relation,bool selected,bool interactable)
         {
             var button=Choices[index];
-            button.GetComponentInChildren<Text>().text=$"{worldName}\nКопия у {holder} · ревизия {revision}\n{relation}";
+            var label=button.GetComponentInChildren<Text>();
+            label.text=ChoiceText(worldName,holder,revision,branch,snapshot,relation);
             button.interactable=interactable;OriginalButtonStyle.SetSelected(button,selected);
         }
+        public static string ChoiceText(string worldName,string holder,long revision,string branch,string snapshot,string relation)
+            => $"{worldName}\nКопия у {holder} · состояние №{revision}\nВетвь {branch??"не указана"} · снимок {snapshot??"не указан"}\n{relation}";
+        // Abbreviations distinguish all advertised values, including deliberately shared prefixes.
+        // The panel calls this only when offers/selection change, never in an Update loop.
+        public static string IdentityLabel(string id,IReadOnlyList<string> advertised)
+        {
+            if(string.IsNullOrEmpty(id)) return "нет данных";
+            if(advertised==null) throw new ArgumentNullException(nameof(advertised));
+            int length=Math.Min(12,id.Length);
+            while(length<id.Length)
+            {
+                string prefix=id.Substring(0,length);
+                bool shared=false;
+                foreach(string other in advertised)
+                    if(other!=null && other!=id && other.StartsWith(prefix,StringComparison.Ordinal)) {shared=true;break;}
+                if(!shared) break;
+                length++;
+            }
+            return id.Substring(0,length);
+        }
+        public static string RelationText(WorldRelation relation,bool selected) => selected?"Выбрана для запуска":relation switch {
+            WorldRelation.Identical=>"Такой же снимок, как выбранный",
+            WorldRelation.Newer=>"Продолжение выбранной копии",
+            WorldRelation.Older=>"Предыдущая копия выбранного продолжения",
+            WorldRelation.Divergent=>"Разошедшаяся ветвь — прогресс не объединяется",
+            WorldRelation.DifferentWorld=>"Другой мир",
+            _=>"Связь копий не подтверждена"
+        };
         public void ShowWaiting(string instruction,string status)
         {
             Contents.SetActive(true);

@@ -25,8 +25,8 @@ namespace Remains.Editor
                 view.Choices=new Button[5];
                 for(int i=0;i<5;i++)
                 {
-                    view.Choices[i]=ui.Button(contents,"Название мира\nКопия у игрока · ревизия\nСостояние копии",new Vector2(20,-65-i*92),new Vector2(1100,90),()=>{});
-                    var label=view.Choices[i].GetComponentInChildren<Text>();label.alignment=TextAnchor.MiddleLeft;
+                    view.Choices[i]=ui.Button(contents,"Название мира\nКопия у игрока · состояние №0\nВетвь · снимок\nСвязь с выбранной копией",new Vector2(20,-65-i*92),new Vector2(1100,90),()=>{});
+                    var label=view.Choices[i].GetComponentInChildren<Text>();ConfigureIdentityLabel(label);
                     label.rectTransform.anchoredPosition=new Vector2(5,-3);label.rectTransform.sizeDelta=new Vector2(1090,84);
                 }
                 view.Previous=ui.Button(contents,"Назад",new Vector2(20,-535),new Vector2(150,35),()=>{});
@@ -41,6 +41,25 @@ namespace Remains.Editor
                 view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);AssetDatabase.SaveAssets();
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
+        }
+        // Explicit migration of existing saved UI; preserves buttons, callbacks and layout bindings.
+        public static void RefineIdentityLabels()
+        {
+            const string path="Assets/Remains/Resources/Presentation/WorldLobby.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var view=root.GetComponent<WorldLobbyView>();view.Validate();
+                foreach(var button in view.Choices) ConfigureIdentityLabel(button.GetComponentInChildren<Text>());
+                PrefabUtility.SaveAsPrefabAsset(root,path);AssetDatabase.SaveAssets();
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+        }
+        private static void ConfigureIdentityLabel(Text label)
+        {
+            label.fontSize=16;label.alignment=TextAnchor.MiddleLeft;
+            label.supportRichText=false;label.horizontalOverflow=HorizontalWrapMode.Wrap;
+            label.verticalOverflow=VerticalWrapMode.Truncate;label.resizeTextForBestFit=false;
         }
     }
 }

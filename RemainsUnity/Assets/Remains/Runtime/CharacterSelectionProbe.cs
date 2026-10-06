@@ -26,7 +26,7 @@ namespace Remains.Runtime
         private BackgroundSaveOperation preparation;
         private CharacterLibrary library;
         private ActorState expected;
-        private RecoverySnapshot selectedWorld,alternateWorld;
+        private RecoverySnapshot selectedWorld,alternateWorld,branchAlternative;
         private readonly List<FileProof> firstFiles=new();
         private readonly Evidence evidence=new();
         private string firstDirectory,secondDirectory,secondSource;
@@ -70,6 +70,7 @@ namespace Remains.Runtime
                 new CharacterLibrary(Path.Combine(root,"Profiles"),secondDirectory).Create(expected);
                 var world=NewGameWorld.Create();
                 WorldHistory.BeginContinuation(world);
+                if(compareCopies) world.branchId="11111111000000000000000000000000";
                 world.extensions=new Dictionary<string,JToken> {{"menuFlowCopy","selected-complete-copy"}};
                 var previous=first.Copy();CharacterPlacement.SpawnInHub(previous);
                 previous.connected=false;previous.owner=null;world.actors.Add(previous);
@@ -82,8 +83,15 @@ namespace Remains.Runtime
                 }
                 else selectedWorld=value.Session.Saves.SaveWorld(world);
                 var decoy=selectedWorld.CreateLiveWorld();WorldHistory.BeginContinuation(decoy);
+                if(compareCopies)
+                {
+                    // Explicit initial fixture: two siblings have the same holder/revision
+                    // and an eight-character prefix, with no inheritance from each other.
+                    decoy.branchId="11111111100000000000000000000000";
+                    decoy.ancestors=selectedWorld.CreateLiveWorld().ancestors;
+                }
                 decoy.extensions["menuFlowCopy"]="different-branch-same-world";
-                value.Session.Saves.SaveWorld(decoy);
+                branchAlternative=value.Session.Saves.SaveWorld(decoy);
                 alternateWorld=value.Session.Saves.SaveWorld(NewGameWorld.Create());
                 value.Session.Saves.SelectContinuation(selectedWorld);
                 evidence.worldId=selectedWorld.WorldId;evidence.selectedSnapshot=selectedWorld.Id;
@@ -177,6 +185,7 @@ namespace Remains.Runtime
                 Require(choice!=null,"Лобби не содержит независимо записанную копию исходного мира.");
                 yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.ChoiceRect(choice));
                 yield return Until(()=>runtime.Session.Lobby.ClientSelected==choice && !runtime.Session.Lobby.ClientBusy);
+                CheckCopyLabels();
                 evidence.lobbySelected=true;Capture("lobby");
                 yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.StartButtonRect);
             }
@@ -222,6 +231,12 @@ namespace Remains.Runtime
             runtime.Hud.ToggleMenu();yield return null;
             var pause=runtime.Hud.GetComponentInChildren<PauseMenuView>(true);
             Require(pause!=null && pause.Leave.gameObject.activeInHierarchy,"Нет доступной настоящей кнопки выхода из сессии.");
+            Canvas.ForceUpdateCanvases();
+            Require(pause.Controls!=null && pause.Controls.gameObject.activeInHierarchy &&
+                pause.Controls.preferredHeight<=pause.Controls.rectTransform.rect.height+.1f,
+                "Настоящее меню не показывает справку или обрезает её.");
+            evidence.controlsVisible=true;evidence.controlsHeight=pause.Controls.preferredHeight;
+            Capture("pause-menu");
             yield return UiPointerProbe.Click(Rect(pause.Leave));
             yield return Until(()=>!NetworkClient.active && !NetworkServer.active && runtime.Session.LocalActor==null &&
                 evidence.stopCallbacks>0 && runtime.Hud.WorldDescriptionReady);
@@ -263,6 +278,24 @@ namespace Remains.Runtime
             Require(menu.gameObject.activeInHierarchy && menu.Controls.activeInHierarchy,"После выхода главное меню скрыто.");
             foreach(var control in new Selectable[]{menu.Host,menu.Join,menu.Worlds,menu.NewGame,menu.Characters,menu.Character,menu.Address,menu.CompareCopies})
                 Require(control.IsInteractable(),"После выхода заблокировано управление меню: "+control.name);
+        }
+
+        private void CheckCopyLabels()
+        {
+            var selected=runtime.Session.Lobby.Copies.Find(copy=>copy.summary.snapshot==selectedWorld.Id);
+            var alternative=runtime.Session.Lobby.Copies.Find(copy=>copy.summary.snapshot==branchAlternative.Id);
+            Require(selected!=null && alternative!=null && selected.holder==alternative.holder &&
+                selected.summary.revision==alternative.summary.revision &&
+                alternative.summary.CompareTo(selected.summary)==WorldRelation.Divergent,
+                "Начальный fixture не содержит две разошедшиеся ветви у одного владельца с одинаковым состоянием.");
+            var selectedLabel=runtime.Hud.NetworkLobby.ChoiceRect(selected.key).GetComponentInChildren<Text>();
+            var alternativeLabel=runtime.Hud.NetworkLobby.ChoiceRect(alternative.key).GetComponentInChildren<Text>();
+            Require(selectedLabel.text!=alternativeLabel.text && selectedLabel.text.Contains("111111110") &&
+                alternativeLabel.text.Contains("111111111"),"Подписи не различают ветви с совпадающими короткими ID.");
+            Require(selectedLabel.preferredHeight<=selectedLabel.rectTransform.rect.height+.1f &&
+                alternativeLabel.preferredHeight<=alternativeLabel.rectTransform.rect.height+.1f,
+                "Нативный список обрезает сведения о двух ветвях.");
+            evidence.copyIdentityVisible=true;evidence.selectedCopyLabel=selectedLabel.text;evidence.alternativeCopyLabel=alternativeLabel.text;
         }
 
         private IEnumerator Until(Func<bool> ready)
@@ -379,9 +412,12 @@ namespace Remains.Runtime
         [Serializable] private sealed class Evidence
         {
             public bool success,cardSelected,characterConsent,lobbySelected,liveVerified,renderVerified,savedVerified,firstSourceUnchanged,
-                stoppedTooEarly,worldChangedAfterStop,characterChangedAfterStop,directContinued,worldConsent,worldSourceUnchanged,remoteJoinedSelected;
+                stoppedTooEarly,worldChangedAfterStop,characterChangedAfterStop,directContinued,worldConsent,worldSourceUnchanged,remoteJoinedSelected,
+                controlsVisible,copyIdentityVisible;
             public string detail,stage,libraryRoot,worldId,selectedSnapshot,sessionCharacter,profilePath,actorId,actorCharacter,actorOwner,appearance,drawnClip;
             public int queuedFrames,busyObservedFrames,hostCallbacks,drawnParts,drawnFrame,stopCallbacks;
+            public string selectedCopyLabel,alternativeCopyLabel;
+            public float controlsHeight;
             public FileProof[] firstSource;
         }
     }

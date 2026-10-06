@@ -49,6 +49,8 @@ namespace Remains.Presentation
             string instruction=NetworkServer.active?"Выберите целую копию и начните игру.":"Хост выбирает целую копию. Дождитесь начала игры.";
             view.Instruction.text=$"Участников: {lobby.ClientPlayers}. {instruction}\nДругие ветви сохранятся; объединения прогресса нет.";
             var selected=lobby.Copies.Find(c=>c.key==lobby.ClientSelected);
+            var branches=lobby.Copies.Select(copy=>copy.summary.branchId).ToArray();
+            var snapshots=lobby.Copies.Select(copy=>copy.summary.snapshot).ToArray();
             int capacity=view.Choices.Length;
             int pages=Math.Max(1,(lobby.Copies.Count+capacity-1)/capacity);page=Math.Clamp(page,0,pages-1);
             for(int index=0;index<capacity;index++)
@@ -56,9 +58,11 @@ namespace Remains.Presentation
                 bool visible=page*capacity+index<lobby.Copies.Count;view.Choices[index].gameObject.SetActive(visible);
                 if(!visible) continue;
                 var copy=lobby.Copies[page*capacity+index];
-                var relation=selected==null?"Другой сохранённый мир":WorldHistory.Description(copy.summary.CompareTo(selected.summary));
+                var relation=selected==null?"Выберите копию для сравнения":
+                    WorldLobbyView.RelationText(copy.summary.CompareTo(selected.summary),copy.key==lobby.ClientSelected);
                 var button=view.Choices[index];button.onClick.AddListener(()=>session.Lobby.Select(copy.key));
-                view.ShowChoice(index,new WorldLibrary(session.Saves).Name(copy.summary.worldId),copy.holder,copy.summary.revision,relation,
+                view.ShowChoice(index,new WorldLibrary(session.Saves).Name(copy.summary.worldId),copy.holder,copy.summary.revision,
+                    WorldLobbyView.IdentityLabel(copy.summary.branchId,branches),WorldLobbyView.IdentityLabel(copy.summary.snapshot,snapshots),relation,
                     copy.key==lobby.ClientSelected,NetworkServer.active && !lobby.ClientBusy);
                 choices[copy.key]=button.GetComponent<RectTransform>();
             }

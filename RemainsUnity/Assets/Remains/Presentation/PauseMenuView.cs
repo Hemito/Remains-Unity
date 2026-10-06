@@ -7,6 +7,7 @@ namespace Remains.Presentation
     {
         [InspectorName("Панель меню")] public GameObject Panel;
         [InspectorName("Состояние паузы")] public Text Status;
+        [InspectorName("Справка управления")] public Text Controls;
         [InspectorName("Остановить уровень")] public Button ManualPause;
         [InspectorName("Возобновить уровень")] public Button Resume;
         [InspectorName("Пауза при меню")] public Button MenuSetting;
@@ -18,8 +19,9 @@ namespace Remains.Presentation
         [InspectorName("Выход из сессии")] public Button Leave;
         public void Validate()
         {
-            if(Panel==null || Status==null || !Panel.transform.IsChildOf(transform) || !Status.transform.IsChildOf(transform))
-                throw new InvalidOperationException($"Меню паузы {name}: не назначены панель или индикатор.");
+            if(Panel==null || Status==null || Controls==null || !Panel.transform.IsChildOf(transform) ||
+                !Status.transform.IsChildOf(transform) || !Controls.transform.IsChildOf(Panel.transform))
+                throw new InvalidOperationException($"Меню паузы {name}: не назначены панель, индикатор или справка управления.");
             var buttons=new[]{ManualPause,Resume,MenuSetting,InventorySetting,Close,Sound,FriendlyFire,FriendlyDecision,Leave};
             var unique=new System.Collections.Generic.HashSet<Button>();
             foreach(var button in buttons)
