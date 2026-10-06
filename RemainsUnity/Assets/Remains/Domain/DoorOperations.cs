@@ -17,6 +17,7 @@ namespace Remains.Domain
         }
         public string Rejection(ActorState actor,DoorState door)
         {
+            if(door==null || !door.CanInteract) return "Этот проём недоступен для взаимодействия.";
             if(actor==null || actor.player && !actor.connected) return "Для взаимодействия нужен действующий персонаж.";
             if(!actor.player && (!Remains.Content.ActorTypes.Get(actor.actorType).canUseDoors || string.IsNullOrEmpty(actor.owner)))
                 return "Этот персонаж не может пользоваться дверями.";
@@ -38,6 +39,7 @@ namespace Remains.Domain
         {
             if(door==null) {reason="Дверь больше недоступна.";return DoorChange.Rejected;}
             door.Validate();
+            if(!door.CanInteract) {reason="Этот проём недоступен для взаимодействия.";return DoorChange.Rejected;}
             if(access==null) throw new ArgumentNullException(nameof(access));
             reason=access.Rejection(actor,door);
             if(reason!=null) return DoorChange.Rejected;

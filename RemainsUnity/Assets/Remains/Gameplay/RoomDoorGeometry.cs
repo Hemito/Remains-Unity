@@ -11,7 +11,7 @@ namespace Remains.Gameplay
     {
         public RoomLayout Room {get;}
         private readonly RoomSurface[] authored;
-        private (string id,bool open,float x,float y,float width,float height,string texture)[] previous;
+        private (string id,bool blocks,float x,float y,float width,float height,string texture)[] previous;
         public RoomDoorGeometry(RoomLayout room) {Room=room??throw new ArgumentNullException(nameof(room));authored=room.platforms??throw new ArgumentException("У комнаты нет поверхностей.");}
         public void Reconcile(IReadOnlyList<DoorState> doors,string level)
         {
@@ -24,7 +24,7 @@ namespace Remains.Gameplay
                 if(!ids.Add(door.id)) throw new InvalidOperationException("Повторный ID двери: "+door.id);
                 if(door.level==level) selected.Add(door);
             }
-            var shape=selected.Select(d=>(d.id,d.open,d.x,d.y,d.width,d.height,d.surfaceTexture)).ToArray();
+            var shape=selected.Select(d=>(d.id,d.Blocks,d.x,d.y,d.width,d.height,d.surfaceTexture)).ToArray();
             if(previous!=null && previous.SequenceEqual(shape)) return;
             Room.platforms=selected.Count==0?authored:DoorGeometry.Compose(authored,selected,level);
             previous=shape;

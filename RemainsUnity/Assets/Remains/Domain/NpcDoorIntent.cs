@@ -24,8 +24,7 @@ namespace Remains.Domain
             }
             if(obstacle==null) return null;
             foreach(var door in doors)
-                if(door.level==actor.level && !door.open && door.x==obstacle.x && door.y==obstacle.y &&
-                    door.width==obstacle.width && door.height==obstacle.height &&
+                if(door.level==actor.level && door.Blocks && door.CanInteract && obstacle.sourceDoorId==door.id &&
                     Mathf.Abs(destination.x-actor.x)>=Mathf.Abs(door.x+door.width*.5f-actor.x)) return door;
             return null;
         }

@@ -27,7 +27,7 @@ namespace Remains.Domain
             float distance=nearest==null?float.PositiveInfinity:Vector2.Distance(actor.Position,nearest.Position);
             foreach(var door in world.doors)
             {
-                if(rules.DoorAccess.Rejection(actor,door)!=null) continue;
+                if(!door.CanInteract || rules.DoorAccess.Rejection(actor,door)!=null) continue;
                 float next=door.DistanceTo(actor.Position);
                 if(next>distance || next==distance && (result.kind!=InteractionKind.Door ||
                     StringComparer.Ordinal.Compare(door.id,result.id)>=0)) continue;
@@ -59,7 +59,7 @@ namespace Remains.Domain
                 ConsiderSource(InventorySource.Resolve(world,InventorySource.BodyId(other.id)));
             }
             foreach(var door in world.doors)
-                if(rules.DoorAccess.Rejection(actor,door)==null) Consider(InteractionKind.Door,door.id,door.Bounds);
+                if(door.CanInteract && rules.DoorAccess.Rejection(actor,door)==null) Consider(InteractionKind.Door,door.id,door.InteractionBounds);
             if(travelPoints!=null) foreach(var point in travelPoints)
                 if(point.Rejection(actor)==null) Consider(point.kind==TravelPointKind.Map?InteractionKind.Map:InteractionKind.Exit,point.id,point.Bounds);
             if(mechanismPoints!=null) foreach(var point in mechanismPoints)

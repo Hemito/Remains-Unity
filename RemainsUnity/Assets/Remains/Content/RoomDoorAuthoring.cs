@@ -15,11 +15,19 @@ namespace Remains.Content
         public DoorState Read(RoomAuthoring room,string level)
         {
             var view=GetComponent<DoorView>();
-            if(view==null) throw new InvalidOperationException($"Размещение двери {name}: нет DoorView.");
-            var rect=RoomAuthoring.ReadRect(transform,room.transform);var size=view.Definition.Size;
+            if(view==null || view.Definition==null) throw new InvalidOperationException($"Размещение проёма {name}: нет DoorView или определения.");
+            var rect=RoomAuthoring.ReadRect(transform,room.transform);var size=view.Definition.Size;view.Definition.Validate();
             var result=new DoorState {id=stableId,definition=view.Definition.Id,level=level,
                 x=rect.x-size.x*rect.width*.5f,y=rect.y,width=size.x*rect.width,height=size.y*rect.height,
-                surfaceTexture=surfaceTexture,open=initiallyOpen};
+                surfaceTexture=surfaceTexture,open=initiallyOpen,interactive=view.Definition.Interactive};
+            if(view.Definition.MaxHealth>0)
+                result.integrity=new DoorIntegrity {maxHealth=view.Definition.MaxHealth,health=view.Definition.MaxHealth};
+            if(view.Definition.CapabilityVersion==1)
+            {
+                var interaction=view.Definition.InteractionSize;
+                float width=interaction.x*rect.width,height=interaction.y*rect.height;
+                result.interaction=new DoorInteractionVolume {offsetX=(result.width-width)*.5f,offsetY=0,width=width,height=height};
+            }
             result.Validate();return result;
         }
         private void OnValidate()

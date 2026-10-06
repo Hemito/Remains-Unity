@@ -17,8 +17,8 @@ namespace Remains.Domain
                 if(door==null) throw new InvalidOperationException("В списке дверей сохранена пустая запись.");
                 door.Validate();
                 if(!ids.Add(door.id)) throw new InvalidOperationException("Повторный ID двери: "+door.id);
-                if(door.level!=level || door.open) continue;
-                result.Add(new RoomSurface {x=door.x,y=door.y,width=door.width,height=door.height,texture=door.surfaceTexture});
+                if(door.level!=level || !door.Blocks) continue;
+                result.Add(new RoomSurface {x=door.x,y=door.y,width=door.width,height=door.height,texture=door.surfaceTexture,sourceDoorId=door.id});
             }
             return result.ToArray();
         }
