@@ -192,6 +192,7 @@ namespace Remains.Presentation
             friendlyFire.gameObject.SetActive(false);leave.gameObject.SetActive(false);
             WorldMap=new WorldMapPanel(transform,session);
             session.Changed += Refresh;
+            session.SessionStopped+=RefreshAfterSessionStop;
             session.Notice += ShowMessage;
             SessionMods=new SessionModPanel(transform,elements,session);
             NetworkLobby=new WorldLobbyPanel(transform,session,Refresh);
@@ -313,6 +314,13 @@ namespace Remains.Presentation
             containerPanel.Refresh();
             RefreshPersonalInventory();
         }
+        private void RefreshAfterSessionStop()
+        {
+            // The early state-clear event still hides gameplay. Refresh the menu
+            // again only after network shutdown and the final save writes are done.
+            worldDescriptionDirty=true;
+            Refresh();
+        }
         private void RefreshPersonalInventory()
         {
             if(!inventory.activeSelf || personalItems==null) return;
@@ -379,7 +387,11 @@ namespace Remains.Presentation
                 progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
             revival.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(revival.text));
         }
-        private void OnDestroy()=>containerHint?.Dispose();
+        private void OnDestroy()
+        {
+            containerHint?.Dispose();
+            if(session!=null) {session.Changed-=Refresh;session.SessionStopped-=RefreshAfterSessionStop;}
+        }
         private void LateUpdate()=>containerPanel?.Step(InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen);
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {

@@ -24,7 +24,7 @@ namespace Remains.Runtime
         private BackgroundSaveOperation preparation;
         private CharacterLibrary library;
         private ActorState expected;
-        private RecoverySnapshot selectedWorld;
+        private RecoverySnapshot selectedWorld,alternateWorld;
         private readonly List<FileProof> firstFiles=new();
         private readonly Evidence evidence=new();
         private string firstDirectory,secondDirectory,secondSource;
@@ -66,6 +66,8 @@ namespace Remains.Runtime
                 var previous=first.Copy();CharacterPlacement.SpawnInHub(previous);
                 previous.connected=false;previous.owner=null;world.actors.Add(previous);
                 selectedWorld=value.Session.Saves.SaveWorld(world);
+                alternateWorld=value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SelectContinuation(selectedWorld);
                 evidence.worldId=selectedWorld.WorldId;evidence.selectedSnapshot=selectedWorld.Id;
                 secondSource=File.ReadAllText(Path.Combine(secondDirectory,"character.json"));
                 foreach(string path in Directory.GetFiles(firstDirectory,"*",SearchOption.AllDirectories))
@@ -74,6 +76,7 @@ namespace Remains.Runtime
                 evidence.firstSource=firstFiles.ToArray();
                 value.Session.UseLobby=true;
                 value.Hud.HostRequested+=HostRequested;
+                value.Session.SessionStopped+=SessionStopped;
                 menu=value.Hud.GetComponentInChildren<MainMenuView>(true);
                 Require(menu!=null,"Не найден настоящий MainMenuView.");
                 Require(value.Session.CharacterId==First && menu.Character.text==First,"До карточки выбран не исходный pony-one.");
@@ -94,6 +97,12 @@ namespace Remains.Runtime
             PlayerStarterInventory.Give(actor);actor.weaponContent=WeaponCatalog.ManifestCopy();return actor;
         }
         private void HostRequested()=>evidence.hostCallbacks++;
+        private void SessionStopped()
+        {
+            evidence.stopCallbacks++;
+            if(NetworkClient.active || NetworkServer.active || runtime.Session.LocalActor!=null || runtime.Session.World!=null)
+                evidence.stoppedTooEarly=true;
+        }
         private IEnumerator Start()=>Drive(Run());
         private IEnumerator Run()
         {
@@ -162,14 +171,46 @@ namespace Remains.Runtime
             var pause=runtime.Hud.GetComponentInChildren<PauseMenuView>(true);
             Require(pause!=null && pause.Leave.gameObject.activeInHierarchy,"Нет доступной настоящей кнопки выхода из сессии.");
             yield return UiPointerProbe.Click(Rect(pause.Leave));
-            yield return Until(()=>!NetworkClient.active && !NetworkServer.active && runtime.Session.LocalActor==null);
+            yield return Until(()=>!NetworkClient.active && !NetworkServer.active && runtime.Session.LocalActor==null &&
+                evidence.stopCallbacks>0 && runtime.Hud.WorldDescriptionReady);
             CheckFirst();
             var saved=StateJson.FromJson<ActorState>(File.ReadAllText(Path.Combine(secondDirectory,"character.json")));
             Require(saved?.character==Second && saved.id=="player:"+Second && PonyAppearance.Snapshot(saved).Equals(PonyAppearance.Snapshot(expected)),
                 "Завершение сессии записало чужую идентичность/внешность во второй профиль.");
             Require(runtime.Session.Saves.SelectedSnapshot()?.WorldId==selectedWorld.WorldId,"Сессия потеряла выбранный мир.");
             Require(!runtime.Session.CharacterSelectionLocked,"Выход не освободил зафиксированный выбор персонажа.");
-            evidence.savedVerified=true;Finish(true,"Реальные карточка/Host/согласие/выбор мира/старт/выход использовали pony-two; очередь подготовки удерживала сеть до завершения, исходные файлы pony-one неизменны.");
+            evidence.savedVerified=true;
+            evidence.stage="menu-after-stop";
+            Require(evidence.stopCallbacks==1 && !evidence.stoppedTooEarly,"Полный выход уведомил меню до остановки сети или повторно.");
+            CheckMenuUnlocked();Capture("menu-after-stop");
+            yield return UiPointerProbe.Click(Rect(menu.Worlds));
+            yield return Until(()=>runtime.Hud.WorldPickerReady);
+            Require(runtime.Hud.GetComponentInChildren<WorldPickerView>(true)!=null,"Кнопка миров не открыла список после выхода.");
+            yield return UiPointerProbe.Click(runtime.Hud.WorldChoiceRect(alternateWorld.Id));
+            yield return Until(()=>runtime.Hud.WorldDescriptionReady &&
+                runtime.Session.Saves.SelectedSnapshot()?.WorldId==alternateWorld.WorldId);
+            Require(runtime.Session.LocalActor==null && !runtime.Session.CharacterSelectionLocked,"Выбор мира после выхода снова заблокировал сессию.");
+            evidence.worldChangedAfterStop=true;Capture("world-after-stop");
+            yield return UiPointerProbe.Click(Rect(menu.Characters));
+            yield return Until(()=>runtime.Hud.Characters?.Ready==true);
+            var returnedView=runtime.Hud.Characters.View;int returnedCard=-1;
+            for(int i=0;i<returnedView.Names.Length;i++)
+                if(returnedView.Names[i].gameObject.activeInHierarchy && returnedView.Names[i].text==First) returnedCard=i;
+            Require(returnedCard>=0,"Первый персонаж не представлен после выхода.");
+            yield return UiPointerProbe.Click(Rect(returnedView.Cards[returnedCard]));
+            yield return Until(()=>runtime.Hud.Characters==null && runtime.Hud.WorldDescriptionReady);
+            Require(runtime.Session.CharacterId==First && menu.Character.text==First && runtime.Options.Character==First,
+                "Кнопка персонажей после выхода не сменила профиль.");
+            Require(runtime.Session.Saves.SelectedSnapshot()?.WorldId==alternateWorld.WorldId,"Смена персонажа после выхода сменила независимый мир.");
+            CheckFirst();CheckMenuUnlocked();evidence.characterChangedAfterStop=true;Capture("character-after-stop");
+            Finish(true,"Карточка/Host/согласие/лобби/игра/выход использовали pony-two; после полной остановки сети реальные кнопки позволили выбрать другой мир и pony-one, исходные файлы pony-one неизменны.");
+        }
+
+        private void CheckMenuUnlocked()
+        {
+            Require(menu.gameObject.activeInHierarchy && menu.Controls.activeInHierarchy,"После выхода главное меню скрыто.");
+            foreach(var control in new Selectable[]{menu.Host,menu.Join,menu.Worlds,menu.NewGame,menu.Characters,menu.Character,menu.Address})
+                Require(control.IsInteractable(),"После выхода заблокировано управление меню: "+control.name);
         }
 
         private IEnumerator Until(Func<bool> ready)
@@ -267,7 +308,8 @@ namespace Remains.Runtime
             if(queueArmed && preparation!=null && preparation.Busy) evidence.busyObservedFrames++;
             if(Time.unscaledTime>deadline) Finish(false,$"Таймаут: stage={evidence.stage}, character={runtime.Session.CharacterId}, actor={runtime.Session.LocalActor?.id}, busy={preparation?.Busy}, lobby={runtime.Session.Lobby.ClientWaiting}/{runtime.Session.Lobby.ClientBusy}, error={runtime.Session.Lobby.ClientError}.");
         }
-        private void OnDestroy() {ReleaseQueue();if(runtime!=null) runtime.Hud.HostRequested-=HostRequested;}
+        private void OnDestroy()
+        {ReleaseQueue();if(runtime!=null) {runtime.Hud.HostRequested-=HostRequested;runtime.Session.SessionStopped-=SessionStopped;}}
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;ReleaseQueue();
@@ -279,9 +321,10 @@ namespace Remains.Runtime
         [Serializable] private sealed class FileProof {public string relativePath,sha256;}
         [Serializable] private sealed class Evidence
         {
-            public bool success,cardSelected,characterConsent,lobbySelected,liveVerified,renderVerified,savedVerified,firstSourceUnchanged;
+            public bool success,cardSelected,characterConsent,lobbySelected,liveVerified,renderVerified,savedVerified,firstSourceUnchanged,
+                stoppedTooEarly,worldChangedAfterStop,characterChangedAfterStop;
             public string detail,stage,libraryRoot,worldId,selectedSnapshot,sessionCharacter,profilePath,actorId,actorCharacter,actorOwner,appearance,drawnClip;
-            public int queuedFrames,busyObservedFrames,hostCallbacks,drawnParts,drawnFrame;
+            public int queuedFrames,busyObservedFrames,hostCallbacks,drawnParts,drawnFrame,stopCallbacks;
             public FileProof[] firstSource;
         }
     }

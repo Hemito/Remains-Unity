@@ -1,5 +1,6 @@
 using JsonUtility=Remains.Serialization.StateJson;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Mirror;
@@ -33,9 +34,11 @@ namespace Remains.Networking
         private CharacterJoinSelection joinSelection;
         private readonly OrderedSaveWrites saveWrites=new();
         private bool savingFailed;
+        private Coroutine stopNotification;
         public bool CharacterSelectionLocked=>joinSelection!=null || NetworkClient.active || NetworkServer.active;
         public void BeginJoinSelection()
         {
+            CancelStopNotification();
             if(joinSelection!=null) {joinSelection.RequireCurrent(CharacterId,Saves);return;}
             joinSelection=new CharacterJoinSelection(CharacterId,Saves);
             Debug.Log($"Персонаж зафиксирован для подключения: character={CharacterId}, profile={Saves.CharacterDirectoryPath}.");
@@ -56,6 +59,7 @@ namespace Remains.Networking
             if(NetworkServer.active) StopHost();else if(NetworkClient.active) StopClient();
         }
         public event Action Changed;
+        public event Action SessionStopped;
         public event Action<string,string,float,float> RemotePoseCorrection;
         private void ObservePoseCorrection(string source,ActorState current,string nextPose,float nextTime)
         {
@@ -124,6 +128,7 @@ namespace Remains.Networking
 
         public override void OnStartServer()
         {
+            CancelStopNotification();
             savingFailed=false;
             BeginJoinSelection();
             canonicalPersistedRevision=-1;
@@ -235,6 +240,7 @@ namespace Remains.Networking
 
         public override void OnStartClient()
         {
+            CancelStopNotification();
             savingFailed=false;
             BeginJoinSelection();
             CharacterContent.Reset();
@@ -919,6 +925,7 @@ namespace Remains.Networking
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
             LevelTime.ResetServer();
             Mechanisms.ResetServer();DoorDamage.ResetServer();
+            QueueStopNotification();
         }
         public override void OnStopClient()
         {
@@ -933,6 +940,25 @@ namespace Remains.Networking
             playTime.Stop();
             ContainerInspection.ResetClient();DoorDamage.ResetClient();Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
             Changed?.Invoke();
+            QueueStopNotification();
+        }
+        private void QueueStopNotification()
+        {
+            if(stopNotification==null) stopNotification=StartCoroutine(NotifyAfterShutdown());
+        }
+        private IEnumerator NotifyAfterShutdown()
+        {
+            // Mirror invokes OnStopClient/OnStopServer before their Shutdown.
+            // A host is fully stopped only after both sides have released the session.
+            yield return null;
+            while(NetworkClient.active || NetworkServer.active) yield return null;
+            stopNotification=null;
+            SessionStopped?.Invoke();
+        }
+        private void CancelStopNotification()
+        {
+            if(stopNotification==null) return;
+            StopCoroutine(stopNotification);stopNotification=null;
         }
         public void SetFriendlyFire(bool enabled)
         {
