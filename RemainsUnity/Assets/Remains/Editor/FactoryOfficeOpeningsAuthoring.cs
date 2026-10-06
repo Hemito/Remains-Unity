@@ -47,7 +47,8 @@ namespace Remains.Editor
             public Placement[] placements;
             public Reference reference;
         }
-        [Serializable] internal sealed class ResourcesManifest {public GraphicType[] types;}
+        [Serializable] internal sealed class ResourcesManifest {public GraphicType[] types;public SoundEntry[] sounds;}
+        [Serializable] internal sealed class SoundEntry {public string id,sourceFile,resource,sha256;public long bytes;}
         [Serializable] internal sealed class GraphicType {public string id;public GraphicState[] states;}
         [Serializable] internal sealed class GraphicState {public string label,resource,sha256;public int[] pixels;public float pixelsPerUnit;public float[] pngPivotPixels;}
         internal static string Research(string file)=>Path.GetFullPath(Path.Combine(Application.dataPath,"../../Tools/Research/OfficeOpeningsResources",file));
@@ -205,11 +206,14 @@ namespace Remains.Editor
         }
         internal static void InstallAssets(Data data)
         {
+            var manifest=ReadResources();ValidateSoundFiles(manifest,Path.GetDirectoryName(Application.dataPath));
+            // Explicit authoring command only; complete native import before requiring its AudioClip.
+            foreach(var entry in manifest.sounds) AssetDatabase.ImportAsset(SoundAssetPath(manifest,entry.id),ImportAssetOptions.ForceUpdate|ImportAssetOptions.ForceSynchronousImport);
             foreach(var definition in data.definitions)
             {
-                var states=StateJson.FromJson<ResourcesManifest>(File.ReadAllText(Research("manifest.json"))).types.Single(t=>t.id==definition.type).states;
+                var states=manifest.types.Single(t=>t.id==definition.type).states;
                 var closed=Sprite(states.Single(s=>s.label=="close"));var opened=Sprite(states.Single(s=>s.label=="open"));var destroyed=Sprite(states.Single(s=>s.label=="die"));
-                AudioClip Sound(string id)=>id==null?null:Asset<AudioClip>("Assets/Remains/Resources/Original/Room/OfficeOpenings/Audio/"+id+(id.StartsWith("break_",StringComparison.Ordinal)?".wav":".mp3"));
+                AudioClip Sound(string id)=>SoundAsset(manifest,id);
                 var asset=AssetDatabase.LoadAssetAtPath<DoorAsset>(AssetPath(definition.id));
                 if(asset==null)
                 {
@@ -218,7 +222,7 @@ namespace Remains.Editor
                     asset.ConfigureBarrier(definition.id,definition.Size,closed,opened,destroyed,Sound(definition.opening),Sound(definition.closing),Sound(definition.destruction),definition.interactive,definition.maxHealth,definition.InteractionSize);
                     AssetDatabase.CreateAsset(asset,AssetPath(definition.id));
                 }
-                CheckAsset(asset,definition,states);
+                CheckAsset(asset,definition,states,manifest);
                 string materialPath=Folder+"/"+definition.id+".mat";
                 var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
                 if(material==null)
@@ -246,8 +250,40 @@ namespace Remains.Editor
         }
         public static void CheckAssets()
         {
-            var data=ReadData();var manifest=StateJson.FromJson<ResourcesManifest>(File.ReadAllText(Research("manifest.json")));
-            foreach(var definition in data.definitions) {CheckAsset(Asset<DoorAsset>(AssetPath(definition.id)),definition,manifest.types.Single(t=>t.id==definition.type).states);CheckPrefab(definition);}
+            var data=ReadData();var manifest=ReadResources();ValidateSoundFiles(manifest,Path.GetDirectoryName(Application.dataPath));
+            foreach(var definition in data.definitions) {CheckAsset(Asset<DoorAsset>(AssetPath(definition.id)),definition,manifest.types.Single(t=>t.id==definition.type).states,manifest);CheckPrefab(definition);}
+        }
+        internal static ResourcesManifest ReadResources(string researchPath=null)=>StateJson.FromJson<ResourcesManifest>(File.ReadAllText(researchPath==null?Research("manifest.json"):Path.Combine(researchPath,"manifest.json")));
+        internal static string SoundAssetPath(ResourcesManifest manifest,string id)
+        {
+            if(id==null) return null; // Explicit noninteractive definition has no open/close sound.
+            Require(manifest?.sounds!=null && manifest.sounds.Count(s=>s.id==id)==1,"Нет единственного manifest audio entry: "+id);
+            var entry=manifest.sounds.Single(s=>s.id==id);string extension=Path.GetExtension(entry.sourceFile);
+            Require(entry.resource=="Original/Room/OfficeOpenings/Audio/"+id && (extension==".mp3" || extension==".wav") &&
+                Path.GetFileName(entry.sourceFile).EndsWith("_"+id+extension,StringComparison.Ordinal) && entry.sha256?.Length==64 && entry.bytes>0,
+                "Некорректный explicit audio path/hash: id="+id+", source="+entry.sourceFile+", resource="+entry.resource);
+            return "Assets/Remains/Resources/"+entry.resource+extension;
+        }
+        internal static void ValidateSoundFiles(ResourcesManifest manifest,string projectPath)
+        {
+            Require(manifest?.sounds?.Length==7 && manifest.sounds.Select(s=>s.id).Distinct(StringComparer.Ordinal).Count()==7,"Потерян exact семизвуковой source manifest.");
+            foreach(var entry in manifest.sounds)
+            {
+                string assetPath=SoundAssetPath(manifest,entry.id);string file=Path.Combine(projectPath,assetPath);
+                Require(File.Exists(file),"Нет manifest audio payload: id="+entry.id+", path="+assetPath+", sha256="+entry.sha256);
+                using var hash=System.Security.Cryptography.SHA256.Create();byte[] payload=File.ReadAllBytes(file);
+                string digest=BitConverter.ToString(hash.ComputeHash(payload)).Replace("-","").ToLowerInvariant();
+                Require(payload.LongLength==entry.bytes && digest==entry.sha256,"Audio payload отличается: id="+entry.id+", path="+assetPath+", actual="+digest+", expected="+entry.sha256);
+            }
+        }
+        private static AudioClip SoundAsset(ResourcesManifest manifest,string id)
+        {
+            string path=SoundAssetPath(manifest,id);if(path==null) return null;
+            var clip=AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            var entry=manifest.sounds.Single(s=>s.id==id);
+            Require(clip!=null,"Manifest audio payload существует/проверен, но AudioClip не импортирован: id="+id+", path="+path+
+                ", guid="+AssetDatabase.AssetPathToGUID(path)+", importer="+(AssetImporter.GetAtPath(path)?.GetType().Name??"<нет>")+
+                ", assetCount="+AssetDatabase.LoadAllAssetsAtPath(path).Length+", verifiedSha256="+entry.sha256+", bytes="+entry.bytes+". Проверьте native import; другой файл не подставлен.");return clip;
         }
         private static Sprite Sprite(GraphicState state)
         {
@@ -261,14 +297,14 @@ namespace Remains.Editor
                 importer.filterMode==(state.pixelsPerUnit==200?FilterMode.Bilinear:FilterMode.Point),"Исходный Sprite/hash/import/pivot отличается: "+path);
             return sprite;
         }
-        private static void CheckAsset(DoorAsset asset,Definition expected,GraphicState[] states)
+        private static void CheckAsset(DoorAsset asset,Definition expected,GraphicState[] states,ResourcesManifest manifest)
         {
             asset.Validate();
             Require(asset.Id==expected.id && asset.Size==expected.Size && asset.InteractionSize==expected.InteractionSize && asset.Interactive==expected.interactive &&
                 asset.MaxHealth==expected.maxHealth && asset.Closed==Sprite(states.Single(s=>s.label=="close")) && asset.Opened==Sprite(states.Single(s=>s.label=="open")) &&
                 asset.Destroyed==Sprite(states.Single(s=>s.label=="die")),"Авторский SO отличается, замена запрещена: "+expected.id);
             string SoundPath(AudioClip clip)=>clip==null?null:AssetDatabase.GetAssetPath(clip);
-            string Expected(string id)=>id==null?null:"Assets/Remains/Resources/Original/Room/OfficeOpenings/Audio/"+id+(id.StartsWith("break_",StringComparison.Ordinal)?".wav":".mp3");
+            string Expected(string id)=>SoundAssetPath(manifest,id);
             Require(SoundPath(asset.OpenSound)==Expected(expected.opening) && SoundPath(asset.CloseSound)==Expected(expected.closing) && SoundPath(asset.DestroySound)==Expected(expected.destruction),
                 "Авторские звуки отличаются, замена запрещена: "+expected.id);
         }

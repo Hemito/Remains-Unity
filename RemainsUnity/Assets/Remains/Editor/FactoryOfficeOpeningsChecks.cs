@@ -179,6 +179,14 @@ namespace Remains.Editor
         public static void RunPure(string researchPath)
         {
             var data=FactoryOfficeOpeningsAuthoring.ReadData(researchPath);
+            var sounds=FactoryOfficeOpeningsAuthoring.ReadResources(researchPath);
+            FactoryOfficeOpeningsAuthoring.ValidateSoundFiles(sounds,Path.GetFullPath(Path.Combine(researchPath,"../../../RemainsUnity")));
+            Require(sounds.sounds.Count(s=>FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,s.id).EndsWith(".mp3",StringComparison.Ordinal))==4 &&
+                sounds.sounds.Count(s=>FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,s.id).EndsWith(".wav",StringComparison.Ordinal))==3,"Смешанные source аудиоформаты заменены эвристикой.");
+            Require(FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,null)==null,"Неинтерактивная преграда получила выдуманный звук.");
+            var wrong=StateJson.Copy(sounds);wrong.sounds[0].sourceFile="unregistered";bool badPath=false;
+            try {FactoryOfficeOpeningsAuthoring.SoundAssetPath(wrong,wrong.sounds[0].id);} catch(InvalidOperationException) {badPath=true;}
+            Require(badPath,"Audio path guard принял незарегистрированный путь вместо отказа.");
             foreach(bool connected in new[]{false,true}) foreach(string level in new[]{"factory:0","factory:6","factory:-27"})
             {
                 var oldCodes=new[]{"NMeCLKXlWsv6CYYL","foMRNLiLOHCLfItd","ffoNKTl2qsZVBCG3"};
