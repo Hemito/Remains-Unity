@@ -45,11 +45,11 @@ namespace Remains.Editor
         {
             string prefix=source.level+":";bool connected=source.patch==prefix+FactoryOfficeFurnitureAuthoring.ConnectedPatch;
             bool office=source.patch==prefix+FactoryOfficeFurnitureAuthoring.OfficePatch;
-            if(!connected && !office) return source;
+            if(!connected && !office) return FactoryOfficeChestLootAuthoring.WithoutBinding(source);
             CheckNewRecords(source,connected?76.8f:0);
-            Require(source.props.Length==(connected?12:6) && source.containers.Length==(connected?36:21) && source.loot.Length==(connected?33:20),
+            Require(source.props.Length==(connected?12:6) && source.containers.Length==(connected?36:21) && source.loot.Length==(connected?33:20)+FactoryOfficeChestLootAuthoring.BindingCount(source),
                 "Неполное v6/v3 дополнение не скрывается predecessor fixture.");
-            var result=FactoryOfficeFurnitureAuthoring.RemoveNewRecords(source);
+            var result=FactoryOfficeChestLootAuthoring.WithoutBinding(FactoryOfficeFurnitureAuthoring.RemoveNewRecords(source));
             var steps=source.expansion?.earlierVersions;
             Require(steps!=null && steps.Length==(connected?4:1),"Потеряна прежняя cumulative chain мебели.");
             result.patch=prefix+(connected?FactoryOfficeLootAuthoring.ConnectedPatch:FactoryOfficeLootAuthoring.OfficePatch);
@@ -68,7 +68,7 @@ namespace Remains.Editor
             bool openings=FactoryOfficeOpeningsChecks.CheckOfficeStage(room);
             Require(room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==(openings?2:9) && batch.npcs.actors.Length==5 && batch.doors.doors.Length==(openings?9:3),
                 "Число pending/NPC/дверей не соответствует проверенной стадии проёмов.");
-            CheckPlacement(room,layout,0);CheckGeometry(room.CreateLayout(false),layout,batch.npcs.actors,batch.doors.doors);
+            FactoryOfficeChestLootAuthoring.Check(room);CheckChestAuthoringSnapshot(room.CreateLayout(),batch);CheckPlacement(room,layout,0);CheckGeometry(room.CreateLayout(false),layout,batch.npcs.actors,batch.doors.doors);
             CheckPersistence(batch,RoomPhysicalContent.Read(room,"factory:6"),false);
         }
         public static void Check(RoomAuthoring room)
@@ -195,7 +195,8 @@ namespace Remains.Editor
             var again=new WorldState {worldId=fresh.worldId,mechanismVersion=1};RoomContentInstaller.Apply(again,batch);
             Require(StateJson.ToJson(again.containers)==StateJson.ToJson(fresh.containers),"Начальный лут зависит от порядка входа/экземпляра.");
             var chest=fresh.containers.Single(c=>c.id==prefix+"original:plant:53:KGFzJ42eGXsViOgQ");
-            Require(chest.items.Count==0 && layout.loot.All(b=>b.container!=chest.id),"Сундук record32 наполнен без отдельной реализации.");
+            Require(StateJson.ToJson(chest.items)==StateJson.ToJson(FactoryOfficeChestLootAuthoring.CreateLoot().Generate(fresh.worldId,chest.id)),"Сундук record32 не получил единственную явную таблицу Unity.");
+            CheckChestPersistence(batch);
             foreach(var entry in FactoryOfficeFurnitureAuthoring.Records.Where(r=>r.container))
             {
                 var source=fresh.containers.Single(c=>c.id==prefix+entry.Id);var expected=FactoryOfficeFurnitureAuthoring.CreateLoot(entry.type).Generate(fresh.worldId,source.id);
@@ -242,6 +243,98 @@ namespace Remains.Editor
             var partial=StateJson.Copy(layout);partial.containers=partial.containers.Where(c=>c.id!=ids[0]).ToArray();
             bool rejected=false;try {BeforeFurniture(partial);} catch(InvalidOperationException) {rejected=true;}
             Require(rejected,"Predecessor fixture скрыла частичное дополнение восьми записей.");
+        }
+        public static void CheckChestAuthoringSnapshot(RoomLayout geometry,RoomContentBatch batch)
+        {
+            Require(geometry!=null && batch.doors?.doors.Length>0 && batch.physical.containers.Any(c=>c.id!=batch.physical.level+":"+FactoryOfficeChestLootAuthoring.SourceId),
+                "Snapshot regression требует настоящую геометрию, дверь и другой контейнер.");
+            string baseline=FactoryOfficeChestLootAuthoring.Snapshot(geometry,batch);
+            var fields=JObject.Parse(baseline);
+            Require(fields["geometry"] is JObject && fields["batch"] is JObject,"Snapshot стал пустым: сериализатор читает public fields, не anonymous properties.");
+            void Reject(RoomLayout nextGeometry,RoomContentBatch nextBatch,string context)
+            {
+                bool rejected=false;
+                try {FactoryOfficeChestLootAuthoring.AssertUnchanged(baseline,nextGeometry,nextBatch);} catch(InvalidOperationException) {rejected=true;}
+                Require(rejected,"Snapshot не обнаружил изменение "+context);
+            }
+            var otherGeometry=StateJson.Copy(geometry);otherGeometry.right+=.125f;Reject(otherGeometry,batch,"геометрии вне binding");
+            var otherDoor=StateJson.Copy(batch);otherDoor.doors.doors[0].x+=.125f;Reject(geometry,otherDoor,"двери вне binding");
+            var otherPhysical=StateJson.Copy(batch);otherPhysical.physical.containers.First(c=>c.id!=batch.physical.level+":"+FactoryOfficeChestLootAuthoring.SourceId).x+=.125f;
+            Reject(geometry,otherPhysical,"другого физического контейнера вне binding");
+            var old=StateJson.Copy(batch);old.physical=FactoryOfficeChestLootAuthoring.WithoutBinding(old.physical);
+            FactoryOfficeChestLootAuthoring.AssertUnchanged(baseline,geometry,old);
+        }
+        // Actual authored chest and normal installers/claims, including the absence of a legacy binding.
+        public static void CheckChestPersistence(RoomContentBatch batch)
+        {
+            var layout=batch.physical;string id=layout.level+":"+FactoryOfficeChestLootAuthoring.SourceId;
+            Require(FactoryOfficeChestLootAuthoring.BindingCount(layout)==1,"Не задан точный initial binding сундука32.");
+            string authored=StateJson.ToJson(batch);
+            var fresh=new WorldState {worldId="office-chest-check",mechanismVersion=1};
+            Require(RoomContentInstaller.Apply(fresh,batch),"Первое создание сундука32 пропущено.");
+            var chest=fresh.containers.Single(c=>c.id==id);var expected=FactoryOfficeChestLootAuthoring.CreateLoot().Generate(fresh.worldId,id);
+            Require(expected.Count==4 && expected.Select(i=>i.definition+":"+i.count).SequenceEqual(new[]{"caps:12","p10:12","pin:1","metal_comp:1"}) &&
+                StateJson.ToJson(chest.items)==StateJson.ToJson(expected) && StateJson.ToJson(batch)==authored,
+                "Свежий сундук32 получил иной лут либо генерация изменила авторские данные.");
+            string saved=StateJson.ToJson(fresh);
+            fresh=StateJson.Copy(fresh);
+            Require(!RoomContentInstaller.Apply(fresh,batch) && StateJson.ToJson(fresh)==saved,"Повторная загрузка продублировала initial loot.");
+            var oldBatch=StateJson.Copy(batch);oldBatch.physical=FactoryOfficeChestLootAuthoring.WithoutBinding(layout);
+            var legacy=new WorldState {worldId="office-chest-legacy",mechanismVersion=1};RoomContentInstaller.Apply(legacy,oldBatch);
+            Require(legacy.containers.Single(c=>c.id==id).items.Count==0,"Исторический сундук32 не был пустым.");
+            legacy=StateJson.Copy(legacy);saved=StateJson.ToJson(legacy);
+            Require(!RoomContentInstaller.Apply(legacy,batch) && StateJson.ToJson(legacy)==saved,"Текущий patch наполнил legacy-сундук без binding.");
+            // Existing ID also protects inventories when physical patch metadata is missing.
+            legacy.contentPatches.Remove(layout.patch);chest=legacy.containers.Single(c=>c.id==id);
+            string empty=StateJson.ToJson(chest);RoomContentInstaller.Apply(legacy,batch);
+            Require(ReferenceEquals(chest,legacy.containers.Single(c=>c.id==id)) && StateJson.ToJson(chest)==empty,"Установка наполнила/заменила существующий пустой сундук32.");
+            chest.items.Add(new ItemStack {id="saved-chest-deposit",definition="p10",count=2,extensions=Extensions("futureItem")});
+            chest.itemAliases["saved-chest-alias"]="saved-chest-deposit";
+            chest.Position+=new Vector2(.37f,.21f);chest.vx=.8f;chest.vy=-.2f;chest.held=true;chest.owner="saved-chest-owner";chest.generation=7;chest.sequence=19;
+            var raw=JObject.Parse(StateJson.ToJson(chest));raw["futureChestRecord"]=JObject.Parse("{\"nested\":[7,\"сохранённое поле\"]}");
+            int index=legacy.containers.IndexOf(chest);legacy.containers[index]=StateJson.FromJson<ContainerState>(raw.ToString());
+            legacy=StateJson.Copy(legacy);chest=legacy.containers[index];saved=StateJson.ToJson(chest);
+            legacy.contentPatches.Remove(layout.patch);RoomContentInstaller.Apply(legacy,batch);
+            Require(ReferenceEquals(chest,legacy.containers[index]) && StateJson.ToJson(chest)==saved && chest.extensions.ContainsKey("futureChestRecord"),
+                "Новый binding заменил deposit/alias/unknown field/pose/owner/held/velocity существующего сундука32.");
+            var steps=new[]{(ContentExpansionStep)layout.expansion}.Concat(layout.expansion.earlierVersions).ToArray();
+            foreach(var step in steps)
+            {
+                bool firstOffice=step.additions.Contains(id); // Existing historic office addition, not a new addition in this metadata update.
+                var world=StateJson.Copy(fresh);world.contentPatches.Remove(layout.patch);world.contentPatches.Add(step.previousPatch);
+                world.props.RemoveAll(p=>step.additions.Contains(p.id));world.containers.RemoveAll(c=>c.id!=id && step.additions.Contains(c.id));
+                var existing=world.containers.Single(c=>c.id==id);existing.items.Clear();existing.extensions=Extensions("legacy-empty");
+                string unchanged=StateJson.ToJson(existing);RoomContentInstaller.Apply(world,batch);
+                Require(ReferenceEquals(existing,world.containers.Single(c=>c.id==id)) && StateJson.ToJson(existing)==unchanged,
+                    "Predecessor upgrade наполнил существующий пустой сундук32: "+step.previousPatch);
+                world=StateJson.Copy(fresh);world.contentPatches.Remove(layout.patch);world.contentPatches.Add(step.previousPatch);
+                world.props.RemoveAll(p=>step.additions.Contains(p.id));world.containers.RemoveAll(c=>step.additions.Contains(c.id) || c.id==id);
+                RoomContentInstaller.Apply(world,batch);world=StateJson.Copy(world);saved=StateJson.ToJson(world);
+                if(firstOffice)
+                    Require(StateJson.ToJson(world.containers.Single(c=>c.id==id).items)==StateJson.ToJson(FactoryOfficeChestLootAuthoring.CreateLoot().Generate(world.worldId,id)),
+                        "Первое добавление офиса не создало сундук32 с единственной таблицей: "+step.previousPatch);
+                else Require(world.containers.All(c=>c.id!=id),"Upgrade восстановил удалённый прежний сундук32: "+step.previousPatch);
+                Require(!RoomContentInstaller.Apply(world,batch) && StateJson.ToJson(world)==saved,
+                    "Predecessor/reload повторно установил сундук32: "+step.previousPatch);
+            }
+            var a=new ActorState {id="chest-A",player=true,connected=true,level=layout.level,Position=fresh.containers.Single(c=>c.id==id).Position};
+            var b=new ActorState {id="chest-B",player=true,connected=true,level=layout.level,Position=a.Position};fresh.actors.Add(a);fresh.actors.Add(b);
+            foreach(var item in expected)
+            {
+                string tx="chest-claim:"+item.id;var shared=new SharedInventory(fresh);a=fresh.Find(a.id);b=fresh.Find(b.id);
+                int count=a.inventory.Sum(i=>i.count);
+                Require(shared.PrepareClaim(tx,id,item.id,a) && a.inventory.Sum(i=>i.count)==count &&
+                    !shared.PrepareClaim(tx,id,item.id,a) && !shared.PrepareClaim(tx+":competitor",id,item.id,b),
+                    "Сундук32 выдал предмет до подтверждения/повторно/второму получателю.");
+                fresh=StateJson.Copy(fresh);shared=new SharedInventory(fresh);var grant=fresh.pendingGrants.Single();shared.CommitGrant(grant);shared.CommitGrant(grant);
+                Require(fresh.Find(a.id).inventory.Sum(i=>i.count)==count+item.count && fresh.Find(b.id).inventory.Count==0,
+                    "Pending grant/reload/dedup удвоил содержимое сундука32.");
+            }
+            fresh=StateJson.Copy(fresh);saved=StateJson.ToJson(fresh);
+            Require(fresh.containers.Single(c=>c.id==id).items.Count==0 && !RoomContentInstaller.Apply(fresh,batch) && StateJson.ToJson(fresh)==saved &&
+                fresh.Find(a.id).inventory.Sum(i=>i.count)==26,"Повторная загрузка наполнила забранный сундук32.");
+            var removed=StateJson.Copy(fresh);removed.containers.RemoveAll(c=>c.id==id);saved=StateJson.ToJson(removed);
+            Require(!RoomContentInstaller.Apply(removed,batch) && StateJson.ToJson(removed)==saved,"Текущий patch восстановил отсутствующий сундук32.");
         }
         private static void CheckClaim(WorldState world,string containerId)
         {

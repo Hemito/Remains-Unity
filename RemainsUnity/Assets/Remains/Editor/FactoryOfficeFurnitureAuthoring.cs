@@ -128,7 +128,7 @@ namespace Remains.Editor
             try
             {
                 var room=connected.GetComponent<RoomAuthoring>();var actual=RoomContentBatch.Read(room,"factory:0");
-                if(actual.physical.props.Length!=12 || actual.physical.containers.Length!=36 || actual.physical.loot.Length!=33 ||
+                if(actual.physical.props.Length!=12 || actual.physical.containers.Length!=36 || actual.physical.loot.Length!=33+FactoryOfficeChestLootAuthoring.BindingCount(actual.physical) ||
                     retainedProps.Any(p=>actual.physical.props.All(q=>q.id!=p.id || StateJson.ToJson(q)!=p.json)) ||
                     retainedContainers.Any(p=>actual.physical.containers.All(q=>q.id!=p.id || StateJson.ToJson(q)!=p.json)) ||
                     retainedLoot.Any(p=>actual.physical.loot.All(q=>q.container!=p.container || StateJson.ToJson(q)!=p.json)) ||
@@ -174,9 +174,9 @@ namespace Remains.Editor
         {
             string prefix=prior.level+":";
             string expected=connected?FactoryOfficeLootAuthoring.ConnectedPatch:FactoryOfficeLootAuthoring.OfficePatch;
-            if(prior.patch!=prefix+expected || prior.props.Length!=(connected?9:3) || prior.containers.Length!=(connected?31:16) || prior.loot.Length!=(connected?28:15))
+            if(prior.patch!=prefix+expected || prior.props.Length!=(connected?9:3) || prior.containers.Length!=(connected?31:16) || prior.loot.Length!=(connected?28:15)+FactoryOfficeChestLootAuthoring.BindingCount(prior))
                 throw new InvalidOperationException("Мебель офисов53: неизвестный или неполный predecessor: "+prior.patch);
-            if(connected) FactoryContentCheckFixtures.BeforeOffice(prior);
+            if(connected) FactoryContentCheckFixtures.BeforeOffice(FactoryOfficeChestLootAuthoring.WithoutBinding(prior));
             else
             {
                 var oldIds=FactoryOfficeLootAuthoring.Containers.Select(c=>prefix+c.Id).ToArray();

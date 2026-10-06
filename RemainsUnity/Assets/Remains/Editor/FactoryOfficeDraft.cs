@@ -51,7 +51,7 @@ namespace Remains.Editor
                 {
                     bool prop=record.kind=="woodbox";
                     var definition=prop?Require<PropAsset>("Assets/Remains/RoomDrafts/woodbox.asset"):record.kind=="filecab"?filecab:Require<PropAsset>("Assets/Remains/RoomDrafts/Containers/"+record.kind+".asset");
-                    ContainerLootAsset loot=record.kind=="filecab"?filecabLoot:record.kind is "case" or "ammobox"?Require<ContainerLootAsset>("Assets/Remains/RoomDrafts/Containers/"+record.kind+"-loot.asset"):null;
+                    ContainerLootAsset loot=record.kind=="chest"?FactoryOfficeChestLootAuthoring.Asset():record.kind=="filecab"?filecabLoot:record.kind is "case" or "ammobox"?Require<ContainerLootAsset>("Assets/Remains/RoomDrafts/Containers/"+record.kind+"-loot.asset"):null;
                     float cells=record.kind=="chest"?2:1;
                     physical.Add(new FactoryModulePhysicalBinding {recordId=record.recordId,definition=definition,container=!prop,loot=loot,explicitlyEmpty=!prop&&loot==null,
                         anchor=FactorySourceCoordinates.Placement(record.sourceX,record.sourceY,cells)});
