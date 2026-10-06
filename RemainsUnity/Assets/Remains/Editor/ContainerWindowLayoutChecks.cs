@@ -30,7 +30,7 @@ namespace Remains.Editor
                 Reject(()=>view.ConfigureLayout(Array.Empty<RectTransform>()),"WorldSpace Canvas");
             }
             finally {UnityEngine.Object.DestroyImmediate(parent);UnityEngine.Object.DestroyImmediate(foreign);}
-            Debug.Log("Размещение контейнера: PASS — реальные сетка/Canvas, исходные bookcase/trash проекции, HUD/тело, края, малая область и явный отказ.");
+            Debug.Log("Размещение контейнера: PASS — реальные сетка/Canvas, исходное размещение, закрепление при наведении, изменение размера, края, малая область и явный отказ.");
         }
         private static void CheckUnavailable(ContainerWindowView view,RectTransform canvas)
         {
@@ -63,7 +63,9 @@ namespace Remains.Editor
                 var camera=cameraObject.GetComponent<Camera>();camera.transform.position=new Vector3(0,0,-10);
                 camera.orthographic=true;camera.orthographicSize=5;camera.pixelRect=new Rect(0,0,1280,720);canvas.sizeDelta=new Vector2(1280,720);
                 Rect? actor=null,weapon=new Rect(2,1,.5f,.2f),held=null;
-                view.ConfigureArtworkLayout(Array.Empty<RectTransform>(),()=>actor,()=>weapon,()=>held,()=>"actor=local-pony, type=pony");
+                var notice=new GameObject("Позднее уведомление",typeof(RectTransform));notice.transform.SetParent(canvas,false);notice.SetActive(false);
+                var noticeRect=(RectTransform)notice.transform;
+                view.ConfigureArtworkLayout(new[]{noticeRect},()=>actor,()=>weapon,()=>held,()=>"actor=local-pony, type=pony");
                 view.BeginSource("actual-trash");Application.logMessageReceived+=observe;
                 var source=new Rect(-.5f,0,.5f,.8f);view.Follow(camera,source);view.Follow(camera,source);
                 Require(!view.PlacementAvailable && !view.gameObject.activeSelf && warnings==1,"Нет обязательного рисунка: окно показано либо contextual warning отсутствует/повторяется");
@@ -76,9 +78,31 @@ namespace Remains.Editor
                 actor=new Rect(-2,0,3,3);held=new Rect(3,1,.25f,.25f);view.Follow(camera,source);
                 Require(view.PlacementDeferred && view.PlacementRect==stable && view.LayoutEvaluationCount==evaluations,"Смена рисунка нарушила pointer latch");
                 cell.OnPointerUp(pointer);view.Follow(camera,source);
-                Require(!view.PlacementDeferred && view.ReservationCount==3 && view.LayoutEvaluationCount==evaluations+1,"Release не обновил три отдельных рисунка");
+                Require(!view.PlacementDeferred && view.PlacementPinned && view.PlacementRect==stable && view.ReservationCount==2 && view.LayoutEvaluationCount==evaluations,
+                    "Release переставил уже открытое окно из-за наведения");
+                noticeRect.sizeDelta=stable.size;noticeRect.anchoredPosition=stable.center;notice.SetActive(true);view.Follow(camera,source);
+                Require(view.PlacementRect==stable && view.LayoutEvaluationCount==evaluations,"Уведомление передвинуло доступную ячейку");
+                notice.SetActive(false);
+                camera.transform.position+=new Vector3(1,.5f,0);var movedSource=source;movedSource.position+=new Vector2(2,1);
+                view.Follow(camera,movedSource);
+                Require(view.PlacementRect==stable && view.LayoutEvaluationCount==evaluations,"Камера/источник передвинули доступную ячейку");
+                view.gameObject.SetActive(false);view.Follow(camera,movedSource);
+                Require(view.gameObject.activeSelf && view.PlacementRect==stable,"Закрытие личного инвентаря не вернуло закреплённое окно");
+                cell.OnPointerDown(pointer);canvas.sizeDelta=new Vector2(1100,650);view.Follow(camera,movedSource);
+                Require(view.PlacementRect==stable && view.LayoutEvaluationCount==evaluations,"Изменение экрана прервало удержание ячейки");
+                cell.OnPointerUp(pointer);view.Follow(camera,movedSource);
+                Require(view.PlacementPinned && view.ReservationCount==3 && view.LayoutEvaluationCount==evaluations+1 && view.CanvasArea==canvas.rect,
+                    "Release после изменения размера не выбрал новое доступное место");
+                stable=view.PlacementRect;evaluations=view.LayoutEvaluationCount;
                 actor=null;view.Follow(camera,source);
-                Require(!view.PlacementAvailable && warnings==2,"Новый missing episode не скрыт/не диагностирован");
+                Require(view.PlacementRect==stable && view.PlacementAvailable && warnings==1,"Смена рисунка скрыла уже доступные ячейки");
+                var previousSource=view.SourceCanvasBounds;
+                view.BeginSource("next-container");view.Follow(camera,source);
+                Require(!view.PlacementAvailable && warnings==2,"Новое открытие без рисунка не скрыто/не диагностировано");
+                actor=new Rect(-1,0,1.5f,2.4f);view.Follow(camera,source);
+                Require(view.PlacementPinned && view.SourceCanvasBounds!=previousSource && view.LayoutEvaluationCount==evaluations+1,
+                    "Новое открытие не сбросило исходное размещение");
+                view.EndSource();Require(!view.PlacementPinned && !view.PlacementAvailable,"Закрытие сохранило закрепление окна");
                 view.ConfigureLayout(Array.Empty<RectTransform>());view.Follow(camera,source);
                 Require(view.PlacementAvailable && view.ReservationCount==0,"Прежний explicit compatibility контракт изменён");
             }

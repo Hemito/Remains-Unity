@@ -34,6 +34,7 @@ namespace Remains.Presentation
         private Rect previousCanvas,previousSource,placement;
         private Vector2 previousSize;
         public bool PlacementAvailable {get;private set;}
+        public bool PlacementPinned=>cached && PlacementAvailable;
         public Rect PlacementRect=>placement;
         public Rect SourceCanvasBounds=>previousSource;
         public Rect CanvasArea=>previousCanvas;
@@ -74,12 +75,12 @@ namespace Remains.Presentation
             reserved=(RectTransform[])protectedWidgets.Clone();worldActorBounds=actorBounds;
             worldWeaponBounds=weaponBounds;worldHeldItemBounds=heldItemBounds;actorContext=context;requireActorBounds=required;missingActorWarning=false;
             obstacles=new Rect[reserved.Length+3];previousObstacles=new Rect[obstacles.Length];
-            configured=true;cached=false;packingWarning=false;pointerCapture.Reset();
+            configured=true;cached=false;PlacementAvailable=false;packingWarning=false;pointerCapture.Reset();
         }
         public void BeginSource(string id)
         {
             if(string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Окно контейнера: пустой ID источника.",nameof(id));
-            sourceId=id;cached=false;packingWarning=false;missingActorWarning=false;pointerCapture?.Reset();
+            sourceId=id;cached=false;PlacementAvailable=false;packingWarning=false;missingActorWarning=false;pointerCapture?.Reset();
         }
         public void EndSource()
         {sourceId=null;cached=false;PlacementAvailable=false;pointerCapture?.Reset();}
@@ -98,7 +99,14 @@ namespace Remains.Presentation
                 Debug.LogWarning($"Окно контейнера {name}: ConfigureLayout не вызван; обязательные виджеты HUD не защищены. Canvas={canvas.name}.",this);
             }
             if(PlacementDeferred) return;
-            var parent=(RectTransform)transform.parent;var source=Project(camera,parent,worldSourceBounds,worldZ);
+            var parent=(RectTransform)transform.parent;
+            Vector2 size=Rect.rect.size;var bounds=parent.rect;
+            // Once opened, this is an interaction surface in screen space.
+            // Aiming changes weapon/actor bounds and camera framing: repacking
+            // from those bounds would move the target away from its cursor.
+            if(PlacementPinned && previousCanvas==bounds && previousSize==size)
+            {ApplyPlacement(parent);return;}
+            var source=Project(camera,parent,worldSourceBounds,worldZ);
             int count=0;
             foreach(var item in reserved)
             {
@@ -120,7 +128,6 @@ namespace Remains.Presentation
             if(actor.HasValue) obstacles[count++]=Project(camera,parent,actor.Value);
             var weapon=worldWeaponBounds?.Invoke();if(weapon.HasValue) obstacles[count++]=Project(camera,parent,weapon.Value);
             var heldItem=worldHeldItemBounds?.Invoke();if(heldItem.HasValue) obstacles[count++]=Project(camera,parent,heldItem.Value);
-            Vector2 size=Rect.rect.size;var bounds=parent.rect;
             bool changed=!cached || previousCanvas!=bounds || previousSource!=source || previousSize!=size || previousCount!=count;
             if(!changed) for(int i=0;i<count;i++) if(previousObstacles[i]!=obstacles[i]) {changed=true;break;}
             if(changed)
@@ -130,17 +137,23 @@ namespace Remains.Presentation
                 previousCanvas=bounds;previousSource=source;previousSize=size;previousCount=count;
                 Array.Copy(obstacles,previousObstacles,count);cached=true;
             }
-            if(gameObject.activeSelf!=PlacementAvailable) gameObject.SetActive(PlacementAvailable);
             if(PlacementAvailable)
+                ApplyPlacement(parent);
+            else
             {
-                var position=new Vector2(placement.center.x,placement.yMin)-parent.rect.center;
-                if(Rect.anchoredPosition!=position) Rect.anchoredPosition=position;
+                if(gameObject.activeSelf) gameObject.SetActive(false);
+                if(!packingWarning)
+                {
+                    packingWarning=true;
+                    Debug.LogWarning($"Окно контейнера {name}: сетка скрыта — нет свободного места без перекрытия HUD/источника/рисунка. sourceId={sourceId??"не назначен"}, sourceWorld={worldSourceBounds}, sourceCanvas={source}, Canvas={bounds}, grid={size}, obstacles={count}. Подбор и ожидание подтверждения сохраняются; освободите место или закройте окно по E/Escape.",this);
+                }
             }
-            else if(!packingWarning)
-            {
-                packingWarning=true;
-                Debug.LogWarning($"Окно контейнера {name}: сетка скрыта — нет свободного места без перекрытия HUD/источника/рисунка. sourceId={sourceId??"не назначен"}, sourceWorld={worldSourceBounds}, sourceCanvas={source}, Canvas={bounds}, grid={size}, obstacles={count}. Подбор и ожидание подтверждения сохраняются; освободите место или закройте окно по E/Escape.",this);
-            }
+        }
+        private void ApplyPlacement(RectTransform parent)
+        {
+            var position=new Vector2(placement.center.x,placement.yMin)-parent.rect.center;
+            if(Rect.anchoredPosition!=position) Rect.anchoredPosition=position;
+            if(!gameObject.activeSelf) gameObject.SetActive(true);
         }
         private void InitializePointerCapture()
         {

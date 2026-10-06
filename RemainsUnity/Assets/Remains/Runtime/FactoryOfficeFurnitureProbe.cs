@@ -56,6 +56,7 @@ namespace Remains.Runtime
         private bool traveled,installed,finished,closedVerified,closedWindowVerified,opened,reopened,empty,reported,clickDone,clicking,raceSkipped,edge,pointerCaptureVerified;
         private float deadline,nextHeal,fixtureAt,quietSince=-1;private double raceAt;
         private string capture,lastCapture,snapshot,aimedThreat;private RoomLayout initialRoom;private string[] actorIds;private int[][] initialCounts;
+        private Rect? pinnedWindow;
         private bool Host=>runtime.Options.Role=="host";
         private ActorState Actor=>runtime.Session.LocalActor;
         private ContainerState Target=>runtime.Session.World?.containers.SingleOrDefault(c=>c.id==expected.Id);
@@ -190,7 +191,11 @@ namespace Remains.Runtime
             if(phase==6 && clickDone && lastCapture=="reopened" && !reported) SendObserved(4,AmountsValid(session.World,true));
         }
         private void ValidateWindow()
-        {if(runtime.Hud.ShownInventorySourceId!=expected.Id || runtime.Hud.InventoryOpen || runtime.Hud.BlocksGameplayInput) throw new InvalidOperationException("E мебели открыл другой источник/заблокировал управление");}
+        {
+            if(runtime.Hud.ShownInventorySourceId!=expected.Id || runtime.Hud.InventoryOpen || runtime.Hud.BlocksGameplayInput)
+                throw new InvalidOperationException("E мебели открыл другой источник/заблокировал управление");
+            pinnedWindow=null;
+        }
         private void ValidateLayout()
         {
             var window=runtime.Hud.ContainerWindowRect;
@@ -198,31 +203,25 @@ namespace Remains.Runtime
             var bounds=UiPointerProbe.ScreenBounds(window);
             if(bounds.xMin<-.1f || bounds.yMin<-.1f || bounds.xMax>Screen.width+.1f || bounds.yMax>Screen.height+.1f)
                 throw new InvalidOperationException($"Окно мебели вышло за экран: source={expected.Id}, bounds={bounds}, screen={Screen.width}×{Screen.height}.");
-            foreach(var area in runtime.Hud.ContainerLayoutReservations)
-                if(area.gameObject.activeInHierarchy)
-                {
-                    var reserved=UiPointerProbe.ScreenBounds(area);
-                    if(OverlapsPixels(bounds,reserved))
-                        throw new InvalidOperationException($"Окно мебели перекрыло HUD: source={expected.Id}, area={area.name}, bounds={bounds}, reserved={reserved}.");
-                }
-            var visual=runtime.FindActorVisual(Actor.id);
-            if(visual==null || !visual.TryGetDrawnBounds(out var drawn))
-                throw new InvalidOperationException($"Нет фактических границ рисунка локального персонажа: source={expected.Id}, actor={Actor.id}, type={Actor.actorType}.");
-            var body=ActorArtworkBounds.WorldRect(drawn);
-            var lower=Camera.main.WorldToScreenPoint(new Vector3(body.xMin,body.yMin,0));
-            var upper=Camera.main.WorldToScreenPoint(new Vector3(body.xMax,body.yMax,0));
-            var actorBounds=Rect.MinMaxRect(lower.x,lower.y,upper.x,upper.y);
-            if(OverlapsPixels(bounds,actorBounds))
-                throw new InvalidOperationException($"Окно мебели перекрыло локального персонажа: source={expected.Id}, actor={Actor.id}, bounds={bounds}, actorBounds={actorBounds}.");
-            ValidateHeldArtwork(bounds,runtime.Hud.LocalWeaponArtworkBounds);ValidateHeldArtwork(bounds,runtime.Hud.LocalHeldItemArtworkBounds);
+            if(pinnedWindow.HasValue && Vector2.Distance(bounds.position,pinnedWindow.Value.position)>.1f)
+                throw new InvalidOperationException($"Окно мебели сдвинулось после открытия: source={expected.Id}, initial={pinnedWindow.Value}, current={bounds}.");
+            pinnedWindow=bounds;
+            var layout=window.GetComponent<ContainerWindowView>();
+            if(!layout.PlacementPinned) throw new InvalidOperationException("Окно мебели не закреплено: "+expected.Id);
+            // Reservations describe the moment of placement. Current artwork and
+            // transient notices may move, but must not move an accessible slot.
+            for(int i=0;i<layout.ReservationCount;i++)
+                if(OverlapsPixels(bounds,CanvasScreenBounds(window,layout.ReservedCanvasBounds(i))))
+                    throw new InvalidOperationException($"Исходное окно мебели перекрыло защищённую область: source={expected.Id}, index={i}, bounds={bounds}.");
+            if(OverlapsPixels(bounds,CanvasScreenBounds(window,layout.SourceCanvasBounds)))
+                throw new InvalidOperationException("Исходное окно мебели перекрыло источник: "+expected.Id);
             layoutCaptures++;
         }
-        private void ValidateHeldArtwork(Rect window,Rect? artwork)
+        private static Rect CanvasScreenBounds(RectTransform window,Rect area)
         {
-            if(!artwork.HasValue) return;
-            var area=artwork.Value;var lower=Camera.main.WorldToScreenPoint(new Vector3(area.xMin,area.yMin,0));var upper=Camera.main.WorldToScreenPoint(new Vector3(area.xMax,area.yMax,0));
-            if(OverlapsPixels(window,Rect.MinMaxRect(lower.x,lower.y,upper.x,upper.y)))
-                throw new InvalidOperationException($"Окно мебели перекрыло удерживаемый рисунок: source={expected.Id}, actor={Actor.id}, bounds={window}, artwork={area}.");
+            var lower=RectTransformUtility.WorldToScreenPoint(null,window.parent.TransformPoint(new Vector3(area.xMin,area.yMin,0)));
+            var upper=RectTransformUtility.WorldToScreenPoint(null,window.parent.TransformPoint(new Vector3(area.xMax,area.yMax,0)));
+            return Rect.MinMaxRect(lower.x,lower.y,upper.x,upper.y);
         }
         private static bool OverlapsPixels(Rect first,Rect second)=>
             Mathf.Min(first.xMax,second.xMax)-Mathf.Max(first.xMin,second.xMin)>.1f &&
@@ -355,7 +354,7 @@ namespace Remains.Runtime
                 if(world.containers.Single(c=>c.id==expected.Id).items.Count!=0 || world.pendingGrants.Count!=0 || !AmountsValid(world,true))
                     throw new InvalidOperationException("Координатор не подтвердил пустую мебель/единую выдачу");
                 ContainerArtworkProbeEvidence.RequireState(world.containers.Single(c=>c.id==expected.Id),true);
-                session.CommitWorld();var saved=session.Saves.LoadWorld(false);ValidatePolicies(saved,false);
+                session.CommitWorld();session.FlushSaveWrites();var saved=session.Saves.LoadWorld(false);ValidatePolicies(saved,false);
                 ContainerArtworkProbeEvidence.RequireState(saved.containers.Single(c=>c.id==expected.Id),true);
                 if(saved.containers.Single(c=>c.id==expected.Id).items.Count!=0 || !AmountsValid(saved,true) || !RoomContentProbePersistence.UnchangedOnReinstall(saved,Level))
                     throw new InvalidOperationException("Disk reload или повторная установка восстановили взятый лут мебели");
@@ -390,6 +389,9 @@ namespace Remains.Runtime
             {
                 if(success)
                 {
+                    // This opt-in disk check needs the completed recovery head,
+                    // not the previous head while its ordered write is pending.
+                    runtime.Session.FlushSaveWrites();
                     var selected=runtime.Session.Saves.SelectedSnapshot();snapshot=selected?.Id;
                     if(snapshot!=durableSnapshot) throw new InvalidOperationException($"Реплика мебели не соответствует подтверждённому snapshot: actual={snapshot}, expected={durableSnapshot}.");
                     var saved=runtime.Session.Saves.LoadWorld(false);ValidatePolicies(saved,false);
