@@ -14,6 +14,7 @@ namespace Remains.Gameplay
         private string worldId;
         private string roomDefinitions;
         public long TopologyVersion {get;private set;}
+        public event Action<string,RoomLayout,long> OcclusionChanged;
         public IEnumerable<string> LoadedLevels=>rooms.Keys;
         public SimulationGeometry(Func<string,RoomLayout> load)=>this.load=load??throw new ArgumentNullException(nameof(load));
         public SimulationGeometry(CoopSession session):this(level=>RoomLayout.Load(level,session.World))
@@ -28,10 +29,12 @@ namespace Remains.Gameplay
             foreach(string level in required)
             {
                 if(!rooms.TryGetValue(level,out var geometry)) {geometry=new RoomDoorGeometry(load(level));rooms.Add(level,geometry);TopologyVersion++;}
-                geometry.Reconcile(world.doors,level);
+                if(geometry.Reconcile(world.doors,level)) OcclusionChanged?.Invoke(level,geometry.Room,geometry.OcclusionRevision);
             }
         }
         public RoomLayout Get(string level)=>rooms.TryGetValue(level,out var room)?room.Room:
             throw new InvalidOperationException($"Не загружена геометрия активной локации: level={level}.");
+        public long OcclusionRevision(string level)=>rooms.TryGetValue(level,out var room)?room.OcclusionRevision:
+            throw new InvalidOperationException($"Не загружены препятствия активной локации: level={level}.");
     }
 }

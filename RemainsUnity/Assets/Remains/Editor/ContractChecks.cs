@@ -140,6 +140,7 @@ namespace Remains.Editor
             PersonalInventoryPrefabChecks.Run();
             _=new Remains.Presentation.InventoryArtwork();
             LightingChecks.Run();
+            RoomLightingUpdateChecks.Run();
             MotionAudioChecks.Run();ReloadAudioChecks.Run();InventoryAudioChecks.Run();
             DamageFeedbackChecks.Run();
             OwnershipStabilityChecks.Run();

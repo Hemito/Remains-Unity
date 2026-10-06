@@ -47,6 +47,7 @@ namespace Remains.Runtime
         public DamageNumbers DamageNumbers {get;private set;}
         public System.Func<PlayerCommand> CommandSource { get; set; }
         public PrototypeHud Hud => hud;
+        public RoomLighting ActiveRoomLighting {get;private set;}
         private MovementController movement;
         private MovementSettings passiveMovementSettings;
         private NpcController npcs;
@@ -110,6 +111,7 @@ namespace Remains.Runtime
             Session.Changed+=RefreshVisualOrders;
             RefreshVisualOrders();
             Geometry=new SimulationGeometry(Session);
+            Geometry.OcclusionChanged+=RefreshRoomOcclusion;
             Platforms=new PlatformSimulation(Session,Geometry);
             MechanismInteraction=new MechanismInteraction(Session);
             Combat=new CombatController(Session,Geometry);
@@ -131,6 +133,7 @@ namespace Remains.Runtime
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
+            ActiveRoomLighting=roomObject.GetComponent<RoomLighting>();
             travelPointVisuals.Bind(roomObject);
             cameraView=CameraFollower.RequireCamera(Camera.main);
             cameraFollower=new CameraFollower(cameraView,room);
@@ -280,11 +283,18 @@ namespace Remains.Runtime
 
         private void RefreshVisualOrders()=>visualOrders.Reconcile(Session.World,Session.LocalActor?.level);
 
+        private void RefreshRoomOcclusion(string level,RoomLayout room,long revision)
+        {
+            if(Session.LocalActor?.level==level && ActiveRoomLighting!=null && ReferenceEquals(ActiveRoomLighting.Room,room))
+                ActiveRoomLighting.RequestOcclusionUpdate(room,revision);
+        }
+
         private void RefreshVisuals()
         {
             passengers.Reconcile(Session.World,Session.LocalOwner);
             if (Session.World==null || Session.LocalActor==null)
             {
+                ActiveRoomLighting?.Release();
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
                 visuals.Clear();visualLayers.Synchronize(Session.World,Session.LocalActor?.level);travelPointVisuals.Clear();return;
             }
@@ -294,6 +304,7 @@ namespace Remains.Runtime
                 shownLevel=Session.LocalActor.level;shownRoom=definition;
                 var room=Geometry.Get(shownLevel);
                 Destroy(roomObject);roomObject=AuthoredRoomVisual.Create(shownLevel,room,Session.World);
+                ActiveRoomLighting=roomObject.GetComponent<RoomLighting>();
                 movement=CreateMovement(room);
                 cameraFollower.Room=room;
                 releaseRequested=true;
@@ -301,6 +312,8 @@ namespace Remains.Runtime
             }
             travelPointVisuals.Bind(roomObject);
             var activeRoom=Geometry.Get(Session.LocalActor.level);
+            if(ActiveRoomLighting==null) throw new System.InvalidOperationException("Нет света видимой локации: "+Session.LocalActor.level);
+            ActiveRoomLighting.Synchronize(activeRoom,Geometry.OcclusionRevision(Session.LocalActor.level));
             if(!ReferenceEquals(movement.Room,activeRoom)) movement=CreateMovement(activeRoom);
             cameraFollower.Room=activeRoom;
             foreach (var actor in Session.World.actors)
