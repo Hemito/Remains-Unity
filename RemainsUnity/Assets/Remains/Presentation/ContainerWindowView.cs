@@ -15,11 +15,14 @@ namespace Remains.Presentation
         [InspectorName("Ожидание подтверждения подбора")] public Image Pending;
         [SerializeField,Min(0),InspectorName("Отступ над объектом")] private float anchorGap=12;
         [SerializeField,Min(0),InspectorName("Отступ от края экрана")] private float screenMargin=8;
-        [SerializeField,Min(0),InspectorName("Отступ от интерфейса и тела")] private float clearance=6;
+        [SerializeField,Min(0),InspectorName("Отступ от интерфейса и рисунка")] private float clearance=6;
         private RectTransform[] reserved=Array.Empty<RectTransform>();
         private Rect[] obstacles=Array.Empty<Rect>(),previousObstacles=Array.Empty<Rect>();
         private readonly Vector3[] corners=new Vector3[4];
         private Func<Rect?> worldActorBounds;
+        private Func<Rect?> worldWeaponBounds,worldHeldItemBounds;
+        private Func<string> actorContext;
+        private bool requireActorBounds,missingActorWarning;
         private Canvas canvas;
         private RectTransform layoutParent;
         private string sourceId;
@@ -53,6 +56,13 @@ namespace Remains.Presentation
         public bool ContainsPointer(Vector2 position)=>gameObject.activeInHierarchy &&
             (PointerCaptured || RectTransformUtility.RectangleContainsScreenPoint(Rect,position,null));
         public void ConfigureLayout(RectTransform[] protectedWidgets,Func<Rect?> actorBounds=null)
+            =>Configure(protectedWidgets,actorBounds,null,null,null,false);
+        public void ConfigureArtworkLayout(RectTransform[] protectedWidgets,Func<Rect?> actorBounds,Func<Rect?> weaponBounds=null,Func<Rect?> heldItemBounds=null,Func<string> context=null)
+        {
+            if(actorBounds==null) throw new ArgumentNullException(nameof(actorBounds));
+            Configure(protectedWidgets,actorBounds,weaponBounds,heldItemBounds,context,true);
+        }
+        private void Configure(RectTransform[] protectedWidgets,Func<Rect?> actorBounds,Func<Rect?> weaponBounds,Func<Rect?> heldItemBounds,Func<string> context,bool required)
         {
             ValidateCanvas();InitializePointerCapture();
             if(protectedWidgets==null) throw new ArgumentNullException(nameof(protectedWidgets));
@@ -62,13 +72,14 @@ namespace Remains.Presentation
                     item.GetComponentInParent<Canvas>(true)?.rootCanvas!=canvas.rootCanvas)
                     throw new InvalidOperationException("Окно контейнера: препятствия должны быть уникальными виджетами того же Canvas, вне самого окна.");
             reserved=(RectTransform[])protectedWidgets.Clone();worldActorBounds=actorBounds;
-            obstacles=new Rect[reserved.Length+1];previousObstacles=new Rect[obstacles.Length];
+            worldWeaponBounds=weaponBounds;worldHeldItemBounds=heldItemBounds;actorContext=context;requireActorBounds=required;missingActorWarning=false;
+            obstacles=new Rect[reserved.Length+3];previousObstacles=new Rect[obstacles.Length];
             configured=true;cached=false;packingWarning=false;pointerCapture.Reset();
         }
         public void BeginSource(string id)
         {
             if(string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Окно контейнера: пустой ID источника.",nameof(id));
-            sourceId=id;cached=false;packingWarning=false;pointerCapture?.Reset();
+            sourceId=id;cached=false;packingWarning=false;missingActorWarning=false;pointerCapture?.Reset();
         }
         public void EndSource()
         {sourceId=null;cached=false;PlacementAvailable=false;pointerCapture?.Reset();}
@@ -95,7 +106,20 @@ namespace Remains.Presentation
                 if(item.gameObject.activeInHierarchy) obstacles[count++]=BoundsInParent(item,parent);
             }
             var actor=worldActorBounds?.Invoke();
+            if(requireActorBounds && !actor.HasValue)
+            {
+                cached=false;PlacementAvailable=false;gameObject.SetActive(false);
+                if(!missingActorWarning)
+                {
+                    missingActorWarning=true;
+                    Debug.LogWarning($"Окно контейнера {name}: сетка скрыта — нет границ фактически отрисованного персонажа; sourceId={sourceId??"не назначен"}, {actorContext?.Invoke()??"контекст актёра не подключён"}. Подключите ActorVisual.TryGetDrawnBounds после отрисовки; физическое тело не подставляется.",this);
+                }
+                return;
+            }
+            missingActorWarning=false;
             if(actor.HasValue) obstacles[count++]=Project(camera,parent,actor.Value);
+            var weapon=worldWeaponBounds?.Invoke();if(weapon.HasValue) obstacles[count++]=Project(camera,parent,weapon.Value);
+            var heldItem=worldHeldItemBounds?.Invoke();if(heldItem.HasValue) obstacles[count++]=Project(camera,parent,heldItem.Value);
             Vector2 size=Rect.rect.size;var bounds=parent.rect;
             bool changed=!cached || previousCanvas!=bounds || previousSource!=source || previousSize!=size || previousCount!=count;
             if(!changed) for(int i=0;i<count;i++) if(previousObstacles[i]!=obstacles[i]) {changed=true;break;}
@@ -111,7 +135,7 @@ namespace Remains.Presentation
             else if(!packingWarning)
             {
                 packingWarning=true;
-                Debug.LogWarning($"Окно контейнера {name}: сетка скрыта — нет свободного места без перекрытия HUD/источника/тела. sourceId={sourceId??"не назначен"}, sourceWorld={worldSourceBounds}, sourceCanvas={source}, Canvas={bounds}, grid={size}, obstacles={count}. Подбор и ожидание подтверждения сохраняются; освободите место или закройте окно по E/Escape.",this);
+                Debug.LogWarning($"Окно контейнера {name}: сетка скрыта — нет свободного места без перекрытия HUD/источника/рисунка. sourceId={sourceId??"не назначен"}, sourceWorld={worldSourceBounds}, sourceCanvas={source}, Canvas={bounds}, grid={size}, obstacles={count}. Подбор и ожидание подтверждения сохраняются; освободите место или закройте окно по E/Escape.",this);
             }
         }
         private void InitializePointerCapture()
@@ -147,7 +171,7 @@ namespace Remains.Presentation
             {
                 var screen=camera.WorldToScreenPoint(new Vector3(i%2==0?world.xMin:world.xMax,i<2?world.yMin:world.yMax,z));
                 if(screen.z<=0 || !RectTransformUtility.ScreenPointToLocalPointInRectangle(parent,screen,null,out var point))
-                    throw new InvalidOperationException("Окно контейнера: источник/тело не проецируется перед камерой: "+world+".");
+                    throw new InvalidOperationException("Окно контейнера: источник/рисунок не проецируется перед камерой: "+world+".");
                 minimum=Vector2.Min(minimum,point);maximum=Vector2.Max(maximum,point);
             }
             return UnityEngine.Rect.MinMaxRect(minimum.x,minimum.y,maximum.x,maximum.y);

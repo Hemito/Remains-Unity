@@ -23,6 +23,19 @@ namespace Remains.Presentation
         private ContainerWindowView containerWindow;
         private FloatingContainerPanel containerPanel;
         private IReadOnlyList<RectTransform> containerLayoutReservations;
+        public Func<ActorVisual> LocalActorVisual {get;set;}
+        public Func<SpriteRenderer> LocalWeaponArtwork {get;set;}
+        public Func<SpriteRenderer> LocalHeldItemArtwork {get;set;}
+        public Rect? LocalActorArtworkBounds
+        {
+            get
+            {
+                var actor=session?.LocalActor;var visual=LocalActorVisual?.Invoke();
+                return actor!=null && visual!=null && visual.ActorId==actor.id && visual.TryGetDrawnBounds(out var bounds)?ActorArtworkBounds.WorldRect(bounds):null;
+            }
+        }
+        public Rect? LocalWeaponArtworkBounds=>ActorArtworkBounds.VisibleSprite(LocalWeaponArtwork?.Invoke());
+        public Rect? LocalHeldItemArtworkBounds=>ActorArtworkBounds.VisibleSprite(LocalHeldItemArtwork?.Invoke());
         public IReadOnlyList<RectTransform> ContainerLayoutReservations=>containerLayoutReservations??
             throw new InvalidOperationException("Окно контейнера: HUD ещё не собрал области интерфейса.");
         public bool ContainerOpen=>containerPanel?.IsOpen==true;
@@ -153,7 +166,8 @@ namespace Remains.Presentation
                 (RectTransform)sessionHud.transform,(RectTransform)message.transform.parent,(RectTransform)revival.transform.parent};
             var containerReservations=reservedAreas.ToArray();
             containerLayoutReservations=Array.AsReadOnly(containerReservations);
-            containerPanel.ConfigureLayout(containerReservations,()=>session.LocalActor==null?(Rect?)null:InventorySource.BodyBounds(session.LocalActor));
+            containerPanel.ConfigureArtworkLayout(containerReservations,()=>LocalActorArtworkBounds,()=>LocalWeaponArtworkBounds,()=>LocalHeldItemArtworkBounds,
+                ()=>$"actor={session.LocalActor?.id??"не назначен"}, type={session.LocalActor?.actorType??"не назначен"}");
             inventory.SetActive(false);
             personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item),inventoryAudio.Page,itemText);
             var pauseView=PauseMenuView.Create(transform);

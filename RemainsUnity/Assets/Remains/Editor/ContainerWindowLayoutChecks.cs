@@ -21,7 +21,7 @@ namespace Remains.Editor
                 var widget=new GameObject("Защищённый HUD",typeof(RectTransform));widget.transform.SetParent(parent.transform,false);
                 var rect=(RectTransform)widget.transform;
                 var refs=new[] {rect};view.ConfigureLayout(refs);refs[0]=null;
-                CheckPointerCapture(view);CheckUnavailable(view,(RectTransform)parent.transform);
+                CheckPointerCapture(view);CheckUnavailable(view,(RectTransform)parent.transform);CheckArtworkReservations(view,(RectTransform)parent.transform);
                 Reject(()=>view.ConfigureLayout(new[]{rect,rect}),"дубликаты HUD");
                 Reject(()=>view.ConfigureLayout(new[]{view.Rect}),"само окно как HUD");
                 Reject(()=>view.ConfigureLayout(new[]{(RectTransform)foreign.transform}),"чужой Canvas");
@@ -50,6 +50,37 @@ namespace Remains.Editor
                 Require(view.LayoutEvaluationCount==evaluations+1,"Неизменные inputs повторили packing");
                 view.ConfigureLayout(Array.Empty<RectTransform>());view.Follow(camera,new Rect(-.2f,-.2f,.4f,.4f));
                 Require(view.PlacementAvailable && view.gameObject.activeSelf,"Освобождение места не вернуло сетку");
+            }
+            finally {Application.logMessageReceived-=observe;UnityEngine.Object.DestroyImmediate(cameraObject);}
+        }
+        private static void CheckArtworkReservations(ContainerWindowView view,RectTransform canvas)
+        {
+            var cameraObject=new GameObject("Камера проверки рисунка персонажа",typeof(Camera));int warnings=0;
+            Application.LogCallback observe=(message,stack,type)=>
+            {if(type==LogType.Warning && message.Contains("нет границ фактически отрисованного персонажа") && message.Contains("actor=local-pony, type=pony")) warnings++;};
+            try
+            {
+                var camera=cameraObject.GetComponent<Camera>();camera.transform.position=new Vector3(0,0,-10);
+                camera.orthographic=true;camera.orthographicSize=5;camera.pixelRect=new Rect(0,0,1280,720);canvas.sizeDelta=new Vector2(1280,720);
+                Rect? actor=null,weapon=new Rect(2,1,.5f,.2f),held=null;
+                view.ConfigureArtworkLayout(Array.Empty<RectTransform>(),()=>actor,()=>weapon,()=>held,()=>"actor=local-pony, type=pony");
+                view.BeginSource("actual-trash");Application.logMessageReceived+=observe;
+                var source=new Rect(-.5f,0,.5f,.8f);view.Follow(camera,source);view.Follow(camera,source);
+                Require(!view.PlacementAvailable && !view.gameObject.activeSelf && warnings==1,"Нет обязательного рисунка: окно показано либо contextual warning отсутствует/повторяется");
+                actor=new Rect(-1,0,1.5f,2.4f);view.Follow(camera,source);
+                Require(view.PlacementAvailable && view.ReservationCount==2,"Настоящий рисунок не восстановил окно/два раздельных препятствия");
+                int evaluations=view.LayoutEvaluationCount;view.Follow(camera,source);
+                Require(view.LayoutEvaluationCount==evaluations,"Неизменный рисунок пересчитал packing");
+                var stable=view.PlacementRect;var pointer=new PointerEventData(null) {button=PointerEventData.InputButton.Left,pointerId=31};
+                var cell=view.Slots[0].GetComponent<ContainerPointerCapture>();cell.OnPointerDown(pointer);
+                actor=new Rect(-2,0,3,3);held=new Rect(3,1,.25f,.25f);view.Follow(camera,source);
+                Require(view.PlacementDeferred && view.PlacementRect==stable && view.LayoutEvaluationCount==evaluations,"Смена рисунка нарушила pointer latch");
+                cell.OnPointerUp(pointer);view.Follow(camera,source);
+                Require(!view.PlacementDeferred && view.ReservationCount==3 && view.LayoutEvaluationCount==evaluations+1,"Release не обновил три отдельных рисунка");
+                actor=null;view.Follow(camera,source);
+                Require(!view.PlacementAvailable && warnings==2,"Новый missing episode не скрыт/не диагностирован");
+                view.ConfigureLayout(Array.Empty<RectTransform>());view.Follow(camera,source);
+                Require(view.PlacementAvailable && view.ReservationCount==0,"Прежний explicit compatibility контракт изменён");
             }
             finally {Application.logMessageReceived-=observe;UnityEngine.Object.DestroyImmediate(cameraObject);}
         }

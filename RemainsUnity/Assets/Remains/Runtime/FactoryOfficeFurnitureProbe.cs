@@ -7,6 +7,7 @@ using Mirror;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
+using Remains.Presentation;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -204,13 +205,24 @@ namespace Remains.Runtime
                     if(OverlapsPixels(bounds,reserved))
                         throw new InvalidOperationException($"Окно мебели перекрыло HUD: source={expected.Id}, area={area.name}, bounds={bounds}, reserved={reserved}.");
                 }
-            var body=InventorySource.BodyBounds(Actor);
+            var visual=runtime.FindActorVisual(Actor.id);
+            if(visual==null || !visual.TryGetDrawnBounds(out var drawn))
+                throw new InvalidOperationException($"Нет фактических границ рисунка локального персонажа: source={expected.Id}, actor={Actor.id}, type={Actor.actorType}.");
+            var body=ActorArtworkBounds.WorldRect(drawn);
             var lower=Camera.main.WorldToScreenPoint(new Vector3(body.xMin,body.yMin,0));
             var upper=Camera.main.WorldToScreenPoint(new Vector3(body.xMax,body.yMax,0));
             var actorBounds=Rect.MinMaxRect(lower.x,lower.y,upper.x,upper.y);
             if(OverlapsPixels(bounds,actorBounds))
                 throw new InvalidOperationException($"Окно мебели перекрыло локального персонажа: source={expected.Id}, actor={Actor.id}, bounds={bounds}, actorBounds={actorBounds}.");
+            ValidateHeldArtwork(bounds,runtime.Hud.LocalWeaponArtworkBounds);ValidateHeldArtwork(bounds,runtime.Hud.LocalHeldItemArtworkBounds);
             layoutCaptures++;
+        }
+        private void ValidateHeldArtwork(Rect window,Rect? artwork)
+        {
+            if(!artwork.HasValue) return;
+            var area=artwork.Value;var lower=Camera.main.WorldToScreenPoint(new Vector3(area.xMin,area.yMin,0));var upper=Camera.main.WorldToScreenPoint(new Vector3(area.xMax,area.yMax,0));
+            if(OverlapsPixels(window,Rect.MinMaxRect(lower.x,lower.y,upper.x,upper.y)))
+                throw new InvalidOperationException($"Окно мебели перекрыло удерживаемый рисунок: source={expected.Id}, actor={Actor.id}, bounds={window}, artwork={area}.");
         }
         private static bool OverlapsPixels(Rect first,Rect second)=>
             Mathf.Min(first.xMax,second.xMax)-Mathf.Max(first.xMin,second.xMin)>.1f &&

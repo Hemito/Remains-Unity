@@ -22,6 +22,11 @@ namespace Remains.Presentation
         private int frame = -1;
         private MaterialPropertyBlock properties;
         private PonyAppearanceKey? appearance;
+        private Bounds drawnBounds;
+        private bool hasDrawnBounds;
+        public int DrawnPartCount {get;private set;}
+        public override bool TryGetDrawnBounds(out Bounds bounds)
+        {bounds=drawnBounds;return hasDrawnBounds && gameObject.activeInHierarchy;}
         public override string ActorId=>state?.id;
         public string DrawnClip=>pose;
         public int DrawnFrame=>frame;
@@ -38,7 +43,7 @@ namespace Remains.Presentation
 
         public override void Bind(ActorState actor)
         {
-            state = actor;appearance=null;frame=-1;
+            state = actor;appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;
             int capacity = PonyRenderSelection.Capacity;
             if(capacity==0) throw new InvalidOperationException("Графика пони не подготовлена перед созданием экземпляра.");
             if(authoredStructure)
@@ -80,6 +85,7 @@ namespace Remains.Presentation
             string next = ActorPose.Clip(state);
             if (!PonyRenderSelection.HasClip(next))
             {
+                hasDrawnBounds=false;DrawnPartCount=0;
                 Debug.LogWarning($"Нет анимации {next} для {state.id}; отображение пропущено.", this);
                 gameObject.SetActive(false);
                 return;
@@ -89,7 +95,7 @@ namespace Remains.Presentation
             if (pose != next) { pose = next; frame = -1; }
             var frames = PonyRenderSelection.Frames(nextAppearance,pose);
             int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorSessionRules.IsPassive(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
-            if (nextFrame == frame) return;
+            if (nextFrame == frame) {RefreshDrawnBounds();return;}
             frame = nextFrame;
             var parts = frames[frame];
             for (int i = 0; i < renderers.Count; i++)
@@ -102,6 +108,22 @@ namespace Remains.Presentation
                 properties.SetColor("_Color", PonyAppearance.Tint(parts[i].slot,nextAppearance));
                 properties.SetFloat("_Emission",parts[i].slot=="magic"?1:0);
                 renderers[i].SetPropertyBlock(properties);
+            }
+            RefreshDrawnBounds();
+        }
+        private void RefreshDrawnBounds()
+        {
+            hasDrawnBounds=false;DrawnPartCount=0;
+            // These references were authored/captured at Bind. Renderer bounds read
+            // the final mesh and Transform, respecting disabled parts and facing.
+            for(int i=0;i<renderers.Count;i++)
+            {
+                var renderer=renderers[i];
+                if(!renderer.enabled || renderer.forceRenderingOff || !renderer.gameObject.activeInHierarchy || filters[i].sharedMesh==null) continue;
+                var bounds=renderer.bounds;
+                if(!hasDrawnBounds) {drawnBounds=bounds;hasDrawnBounds=true;}
+                else drawnBounds.Encapsulate(bounds);
+                DrawnPartCount++;
             }
         }
     }

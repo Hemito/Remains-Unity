@@ -39,6 +39,8 @@ namespace Remains.Presentation
             view.Scrollbar.onValueChanged.AddListener(value=>{row=Mathf.RoundToInt(value*(RowCount-3));Refresh();});
         }
         public void ConfigureLayout(RectTransform[] reserved,Func<Rect?> worldActorBounds=null)=>view.ConfigureLayout(reserved,worldActorBounds);
+        public void ConfigureArtworkLayout(RectTransform[] reserved,Func<Rect?> actor,Func<Rect?> weapon,Func<Rect?> heldItem,Func<string> context)=>
+            view.ConfigureArtworkLayout(reserved,actor,weapon,heldItem,context);
         public bool Open(string id)
         {
             var source=InventorySource.Resolve(session.World,id);
