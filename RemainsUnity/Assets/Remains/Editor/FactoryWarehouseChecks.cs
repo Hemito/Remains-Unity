@@ -103,8 +103,12 @@ namespace Remains.Editor
                 var record=input.records.Single(r=>r.recordId==binding.recordId);var door=layout.doors.Single(d=>d.id=="factory:0:"+FactoryWarehouseSource.SourceId+":"+record.code);
                 var definition=binding.prefab.GetComponent<DoorView>().Definition;
                 FactoryWarehouseSource.Require(door.definition=="office-door1" && !door.open && door.interactive && door.integrity?.health==definition.MaxHealth &&
-                    door.width==definition.Size.x && door.height==definition.Size.y && door.x==binding.anchor.x-door.width*.5f && door.y==binding.anchor.y &&
-                    door.surfaceTexture==binding.movementSound,"Door definition/source anchor/state изменены: "+door.id);
+                    door.width==definition.Size.x && door.height==definition.Size.y &&
+                    Mathf.Abs(door.x-(binding.anchor.x-door.width*.5f))<.00001f && Mathf.Abs(door.y-binding.anchor.y)<.00001f &&
+                    door.surfaceTexture==binding.movementSound,"Door definition/source anchor/state изменены: "+door.id+
+                    ", actual="+StateJson.ToJson(door)+", anchor="+binding.anchor.ToString("R")+", size="+definition.Size.ToString("R")+", health="+definition.MaxHealth+
+                    ", delta="+new Vector4(door.x-(binding.anchor.x-door.width*.5f),door.y-binding.anchor.y,door.width-definition.Size.x,door.height-definition.Size.y).ToString("R")+
+                    ", keys="+binding.movementSound+"/"+door.surfaceTexture);
                 FactoryWarehouseSource.Require(!terrain.platforms.Any(s=>!s.oneWay && Overlap(door.Bounds,new Rect(s.x,s.y,s.width,s.height))),"Дверь в retained source wall: "+door.id);
             }
         }

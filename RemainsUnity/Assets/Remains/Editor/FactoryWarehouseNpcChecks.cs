@@ -55,7 +55,11 @@ namespace Remains.Editor
                     "NPC заменён мишенью или другим Spawn SO: "+entry.RecordId);
                 var actor=layout.actors.Single(a=>a.id==layout.level+":"+entry.Id);
                 var expected=spawn.Create(new TrainingPlacement {id=entry.Id,type=entry.type,x=entry.Position.x,y=entry.Position.y,facing=-1},layout.level);
-                Require(StateJson.ToJson(actor)==StateJson.ToJson(expected) && StateJson.ToJson(marker.ReadInventory())==StateJson.ToJson(spawn.ReadInventory()),
+                Require(Vector2.Distance(actor.Position,expected.Position)<.0001f,"NPC source anchor изменён: "+entry.RecordId+", actual="+actor.Position.ToString("R")+", expected="+expected.Position.ToString("R"));
+                // A nested prefab's local matrix loses a few float bits at x=115.2.
+                // Verify the position separately, then compare every other state field exactly.
+                var comparable=StateJson.Copy(actor);comparable.Position=expected.Position;
+                Require(StateJson.ToJson(comparable)==StateJson.ToJson(expected) && StateJson.ToJson(marker.ReadInventory())==StateJson.ToJson(spawn.ReadInventory()),
                     "NPC/лут отличаются от выбранного существующего SO: "+entry.RecordId);
                 var type=ActorTypes.Get(entry.type);
                 Require(type.combatAi && type.bodyInventory && (entry.type=="raider"?type.hasWeapon && type.canUseDoors:!type.hasWeapon && type.naturalAttack!=null),

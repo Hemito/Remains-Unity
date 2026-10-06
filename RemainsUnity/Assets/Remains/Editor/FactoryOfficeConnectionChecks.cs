@@ -16,7 +16,7 @@ namespace Remains.Editor
             var modules=room.GetComponentsInChildren<RoomAuthoring>(true);
             var office=modules.Single(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
             var layout=room.CreateLayout();var local=office.CreateLayout();
-            Require(Mathf.Abs(layout.right-115.2f)<.001f && Vector2.Distance(office.transform.localPosition,new Vector2(76.8f,0))<.001f,
+            Require(Mathf.Abs(layout.right-(modules.Any(r=>r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:40")?FactoryWarehouseConnectionAuthoring.Right:115.2f))<.001f && Vector2.Distance(office.transform.localPosition,new Vector2(76.8f,0))<.001f,
                 "Модуль получил другую позицию или границы.");
             var report=office.GetComponent<RoomImportAudit>().Report;
             CheckOfficeLights(office);

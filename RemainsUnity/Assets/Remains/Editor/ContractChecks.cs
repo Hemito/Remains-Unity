@@ -54,6 +54,7 @@ namespace Remains.Editor
             FactoryStairArtworkAuthoring.RunChecks();
             FactoryLadderLandingChecks.Run();
             FactoryOfficeConnectionChecks.Run();
+            FactoryWarehouseChecks.Run();FactoryWarehouseNpcChecks.Run();FactoryWarehouseConnectionChecks.Run();FactoryWarehouseHistoryProjectionChecks.Run();
             FactoryOfficeNpcChecks.Run();
             FactoryFileCabinetChecks.Run();
             FactoryOfficeLootChecks.Run();

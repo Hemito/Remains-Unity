@@ -45,10 +45,12 @@ namespace Remains.Editor
             var source=FactoryLadderLandingSource.Load();var markers=room.GetComponentsInChildren<RoomLadderLandingAuthoring>(true);
             if(markers.Length==0 && allowAbsent) return 0;
             bool office=room.GetComponentsInChildren<RoomImportAudit>(true).Any(a=>a.Report.SourceId=="original:plant:53");
-            int expected=source.Room(46).Length+source.Room(18).Length+(office?source.Room(53).Length:0);
+            bool warehouse=room.GetComponentsInChildren<RoomImportAudit>(true).Any(a=>a.Report.SourceId=="original:plant:40");
+            var warehouseCaps=warehouse?FactoryWarehouseDraft.Landings():Array.Empty<FactoryLadderLandingRecord>();
+            int expected=source.Room(46).Length+source.Room(18).Length+(office?source.Room(53).Length:0)+warehouseCaps.Length;
             Require(markers.Length==expected && markers.Select(m=>m.StableId).Distinct(StringComparer.Ordinal).Count()==markers.Length,"Неполная установка или повтор ID в общем уровне.");
             return CheckInstalled(room,source.Room(46),0,false)+CheckInstalled(room,source.Room(18),38.4f,false)+
-                (office?CheckInstalled(room,source.Room(53),76.8f,false):0);
+                (office?CheckInstalled(room,source.Room(53),76.8f,false):0)+(warehouse?CheckInstalled(room,warehouseCaps,115.2f,false):0);
         }
         public static int CheckInstalled(RoomAuthoring room,FactoryLadderLandingRecord[] records,float offset,bool allowAbsent)
         {
