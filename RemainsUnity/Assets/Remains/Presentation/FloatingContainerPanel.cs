@@ -38,18 +38,19 @@ namespace Remains.Presentation
             view.ScrollRows+=delta=>{row+=delta;Refresh();};
             view.Scrollbar.onValueChanged.AddListener(value=>{row=Mathf.RoundToInt(value*(RowCount-3));Refresh();});
         }
+        public void ConfigureLayout(RectTransform[] reserved,Func<Rect?> worldActorBounds=null)=>view.ConfigureLayout(reserved,worldActorBounds);
         public bool Open(string id)
         {
             var source=InventorySource.Resolve(session.World,id);
             if(source?.IsLooseItem==true) {session.ShowNotice("Свободная вещь подбирается по E целиком.");return false;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
             {session.ShowNotice("Контейнер больше недоступен.");return false;}
-            sourceId=id;row=0;Refresh();changed?.Invoke();return true;
+            view.BeginSource(id);sourceId=id;row=0;Refresh();changed?.Invoke();return true;
         }
         public void Close()
         {
             if(!IsOpen) return;
-            sourceId=null;Source=null;view.gameObject.SetActive(false);changed?.Invoke();
+            sourceId=null;Source=null;view.EndSource();view.gameObject.SetActive(false);changed?.Invoke();
         }
         public void Refresh()
         {
@@ -73,7 +74,7 @@ namespace Remains.Presentation
                     ContainerAccess.ClaimRejection(session.LocalActor,Source,item,session.Rules.Loot)==null;
             }
             view.Pending.gameObject.SetActive(session.World.pendingGrants.Exists(g=>g.containerId==sourceId && g.recipient==session.LocalActor.id));
-            view.gameObject.SetActive(!obscured);
+            view.gameObject.SetActive(!obscured && view.PlacementAvailable);
         }
         private void Claim(string item)
         {
@@ -86,11 +87,11 @@ namespace Remains.Presentation
             var current=InventorySource.Resolve(session.World,sourceId);
             if(session.Travel.Pending || current?.IsLooseItem==true || !ContainerAccess.Accessible(session.LocalActor,current,session.Rules.Loot,session.Rules.Deposit))
             {Close();return;}
-            Source=current;obscured=cover;view.gameObject.SetActive(!cover);
-            if(!cover)
+            Source=current;obscured=cover;
+            if(cover) view.gameObject.SetActive(false);
+            else
             {
-                float height=current.Body==null?session.World.containers.Find(c=>c.id==sourceId).height:Anatomy.Movement(current.Body).height;
-                view.Follow(camera,current.Position+Vector2.up*height);
+                view.Follow(camera,current.Bounds);
             }
         }
     }
