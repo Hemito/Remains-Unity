@@ -59,6 +59,7 @@ namespace Remains.Editor
             FactoryOfficeLootChecks.Run();
             FactoryOfficeFurnitureChecks.Run();
             FactoryOfficeOpeningsChecks.Run();
+            FactoryOfficeWindowMaskChecks.Run();
             OfficeRecoveryEvidenceChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();
@@ -128,6 +129,7 @@ namespace Remains.Editor
             DamageFeedbackChecks.Run();
             OwnershipStabilityChecks.Run();
             WeaponPoseChecks.Run();WeaponElevationChecks.Run();HeldItemChecks.Run();
+            HoldingAreaChecks.Run();
             MovableContainerChecks.Run();
             PropPlatformChecks.Run();
             PropStackChecks.Run();

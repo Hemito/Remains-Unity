@@ -68,7 +68,9 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             if(Resume || phase!=1 || !Source || threw || runtime.Session.LocalActor==null) return default;
-            var actor=runtime.Session.LocalActor;var aim=actor.Position+(Held?Vector2.up:Vector2.down)*3;
+            // Keep the handoff/damage scenario above its support. A downward release
+            // can legitimately pass through the one-way floor and miss these players.
+            var actor=runtime.Session.LocalActor;var aim=actor.Position+Vector2.up*3;
             if(Held)
             {
                 if(actor.weapon!="grenade") return new PlayerCommand {weaponItem=actor.inventory.First(item=>item.definition=="grenade").id,hasAim=true,aim=aim};
@@ -137,7 +139,12 @@ namespace Remains.Runtime
             if(runtime.Explosions.Shown!=expectedSounds) success=false;
             detail+=$" Эффектов взрыва: {runtime.Explosions.Shown}, ожидалось {expectedSounds}, уведомление повторено для проверки дедупликации.";
             detail+=$" Звуков взрыва: {runtime.Audio.ExplosionSounds}, ожидалось {expectedSounds}; старое событие при возвращении не озвучивается.";
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail},true));StartCoroutine(Exit(success));
+            var world=runtime.Session.World;string attack=world?.explosions.FirstOrDefault()?.attack.id;
+            var evidence=new Report {success=success,detail=detail,held=Held,handoff=handoff,phase=phase,explosions=explosions,
+                activeGrenades=world?.grenades.Count??-1,attack=attack,explosionPosition=world?.explosions.FirstOrDefault()?.attack.Origin??Vector2.zero,
+                players=world?.actors.Where(a=>a.player).Select(a=>new PlayerEvidence {id=a.id,connected=a.connected,health=a.health,position=a.Position,
+                    grenades=a.inventory.Where(i=>i.definition=="grenade").Sum(i=>i.count),receipts=a.resolvedExplosions.Count(id=>id==attack)}).ToArray()};
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(evidence,true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
         private IEnumerator CaptureExplosion(Remains.Presentation.ExplosionVisual effect)
@@ -159,6 +166,7 @@ namespace Remains.Runtime
             if(actor?.weapon!="grenade") {Finish(false,"Перед броском не выбрана граната.");yield break;}
             NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".held.png",runtime.Hud.GetComponent<Canvas>());
         }
-        [Serializable] private sealed class Report {public bool success;public string detail;}
+        [Serializable] private sealed class PlayerEvidence {public string id;public bool connected;public float health;public Vector2 position;public int grenades,receipts;}
+        [Serializable] private sealed class Report {public bool success,held,handoff;public string detail,attack;public int phase,explosions,activeGrenades;public Vector2 explosionPosition;public PlayerEvidence[] players;}
     }
 }

@@ -15,6 +15,7 @@ namespace Remains.Presentation
             try
             {
                 foreach(var audit in instance.GetComponentsInChildren<RoomImportAudit>(true)) audit.WarnIncomplete();
+                foreach(var mask in instance.GetComponentsInChildren<RoomWindowMaskAuthoring>(true)) mask.Validate();
                 RoomTrainingContent.HidePreviews(instance);
                 foreach(var door in instance.GetComponentsInChildren<RoomDoorAuthoring>(true)) door.gameObject.SetActive(false);
                 foreach(var platform in instance.GetComponentsInChildren<RoomMovingPlatformPlacement>(true)) platform.gameObject.SetActive(false);
