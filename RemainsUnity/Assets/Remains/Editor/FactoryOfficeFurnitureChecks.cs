@@ -20,11 +20,24 @@ namespace Remains.Editor
         }
         public static bool CheckOfficeStage(RoomAuthoring room)
         {
-            var source=RoomPhysicalContent.Read(room,"factory:0");bool installed=source.patch=="factory:0:"+FactoryOfficeFurnitureAuthoring.OfficePatch;
-            var before=BeforeFurniture(source);
-            Require(before.patch=="factory:0:"+FactoryOfficeLootAuthoring.OfficePatch && before.props.Length==3 && before.containers.Length==16 && before.loot.Length==15,
-                "Неизвестная/частичная офисная версия мебели.");
+            bool installed=CheckOfficeStage(RoomPhysicalContent.Read(room,"factory:0"));
             FactoryOfficeFurnitureAuthoring.ValidateSource(room.GetComponent<RoomImportAudit>().Report,installed);
+            return installed;
+        }
+        // Fresh source import/NPC authoring still uses v1 before the four-container v2 milestone.
+        internal static bool CheckOfficeStage(PhysicalLayout source)
+        {
+            string prefix=source.level+":";bool installed=source.patch==prefix+FactoryOfficeFurnitureAuthoring.OfficePatch;
+            var before=BeforeFurniture(source);bool loot=before.patch==prefix+FactoryOfficeLootAuthoring.OfficePatch;
+            Require(loot || before.patch==prefix+FactoryOfficeDraft.PhysicalPatch,"Неизвестная офисная версия мебели.");
+            Require(before.props.Length==3 && before.containers.Length==(loot?16:12) && before.loot.Length==(loot?15:11),
+                "Неполная прежняя офисная версия мебели.");
+            if(!installed)
+            {
+                var ids=FactoryOfficeFurnitureAuthoring.Records.Select(r=>prefix+r.Id).ToArray();
+                Require(!source.props.Cast<PropState>().Concat(source.containers).Any(p=>ids.Contains(p.id)) && !source.loot.Any(b=>ids.Contains(b.container)),
+                    "Предыдущая версия скрывает частичную установку мебели.");
+            }
             return installed;
         }
         // Exact stage projection for historical checks; rejects partial additions and never edits a save.
@@ -164,6 +177,17 @@ namespace Remains.Editor
         {
             var layout=batch.physical;BeforeFurniture(layout);string prefix=layout.level+":";
             var ids=FactoryOfficeFurnitureAuthoring.Records.Select(r=>prefix+r.Id).ToArray();
+            if(!connected)
+            {
+                var predecessor=BeforeFurniture(layout);Require(!CheckOfficeStage(predecessor),"Office v2 ошибочно отмечен как furniture stage.");
+                var legacy=StateJson.Copy(predecessor);var oldIds=legacy.expansion.additions;
+                legacy.patch=legacy.expansion.previousPatch;legacy.expansion=null;
+                legacy.containers=legacy.containers.Where(c=>!oldIds.Contains(c.id)).ToArray();legacy.loot=legacy.loot.Where(b=>!oldIds.Contains(b.container)).ToArray();
+                Require(!CheckOfficeStage(legacy),"Office v1 Import→NPC workflow отвергнут новым stage query.");
+                var hidden=StateJson.Copy(legacy);hidden.containers[0]=StateJson.Copy(layout.containers.Single(c=>c.id==ids[0]));
+                bool legacyRejected=false;try {CheckOfficeStage(hidden);} catch(InvalidOperationException) {legacyRejected=true;}
+                Require(legacyRejected,"Прежний patch скрывает новый мебельный ID при прежнем count.");
+            }
             var fresh=new WorldState {worldId="office-furniture-check",mechanismVersion=1};Require(RoomContentInstaller.Apply(fresh,batch),"Свежий мир не установился.");
             Require(fresh.props.Count==(connected?12:6) && fresh.containers.Count==(connected?36:21),"Неверное количество физических объектов/контейнеров.");
             var again=new WorldState {worldId=fresh.worldId,mechanismVersion=1};RoomContentInstaller.Apply(again,batch);
