@@ -8,6 +8,7 @@ using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
+using Remains.Persistence;
 using UnityEngine;
 using StateJson=Remains.Serialization.StateJson;
 
@@ -26,11 +27,23 @@ namespace Remains.Runtime
         private const string Level="factory:0",Prefix=Level+":original:plant:53:";
         [Serializable] private sealed class Baseline {public string id,owner;public int generation,rounds;public Vector2 position;}
         [Serializable] private sealed class Fixture {public string kind,door,driver;public Baseline[] players;public string initialDoor;}
+        [Serializable] private sealed class ResumeExpected
+        {public int schema;public string world,snapshot,door;}
+        [Serializable] private sealed class WindowFrame
+        {
+            public string phase,door,definition,sprite;
+            public bool fullyVisible,rendererEnabled,orthographic;
+            public int width,height,cullingMask,artworkLayer;
+            public float orthographicSize,aspect,nearClip,farClip,minX,maxX,minY,maxY,minDepth,maxDepth;
+            public Vector3 cameraPosition,cameraForward,artworkCenter,artworkSize;
+            public Vector2 physicalMin,physicalMax;
+            public Vector3[] artworkViewport,physicalViewport,cameraWorldCorners;
+        }
         [Serializable] private sealed class Report
         {
             public bool success,explicitInitialPlayerFixture,closedObserved,openedObserved,destroyedObserved,geometryVerified,
-                traversalVerified,savedReloadVerified,reinstallVerified,duplicateDamageVerified;
-            public string detail,kind,door,snapshot,world;public int shots,acceptedInteractions,captures,rounds,damageReplies;
+                traversalVerified,savedReloadVerified,reinstallVerified,duplicateDamageVerified,externalReloadVerified,independentExpectedVerified,sourceArchiveVerified,windowVisibleVerified;
+            public string detail,kind,door,snapshot,world,mode,sourceSnapshot,expectedDoorJson,actualDoorJson;public int shots,acceptedInteractions,captures,rounds,damageReplies;
             public float health;public Vector2 position;public Baseline baseline;public DoorState result;
         }
         private PrototypeRuntime runtime;private Fixture fixture;private Baseline baseline;
@@ -40,6 +53,12 @@ namespace Remains.Runtime
         private string kind,doorId,capture,lastCapture,snapshot;
         private DoorDamageRequestData damageRequest;private bool replaySent,duplicateDamageVerified;private int damageReplies;
         private bool diskProofStarted,fixtureActivated;
+        private ResumeExpected resumeExpected;
+        private string expectedDoorJson,sourceArchive;
+        private ActorState expectedResumePlayer;
+        private bool externalReloadVerified,independentExpectedVerified,sourceArchiveVerified,windowVisibleVerified;
+        private float resumeReadyAt=-1;
+        private bool Resume=>runtime.Options.Smoke.Contains("-resume-",StringComparison.Ordinal);
         private readonly HashSet<string> witnesses=new(StringComparer.Ordinal);
         private readonly HashSet<string> closedWitnesses=new(StringComparer.Ordinal),ownAttacks=new(StringComparer.Ordinal);
         private readonly HashSet<string> openWitnesses=new(StringComparer.Ordinal);
@@ -50,12 +69,18 @@ namespace Remains.Runtime
         private string Progress=>$"kind={kind}, door={doorId}, position={Actor?.Position}, HP={Actor?.health}, generation={Actor?.generation}/{baseline?.generation}, open={Door?.open}, destroyed={Door?.Destroyed}, shots={shots}, E={acceptedInteractions}, lastCapture={lastCapture}, witnesses={witnesses.Count}";
         public void Initialize(PrototypeRuntime value)
         {
-            runtime=value;deadline=Time.unscaledTime+95;
+            runtime=value;deadline=Time.unscaledTime+(Resume?45:95);
             var parts=(value.Options.Smoke??"").Split('-');
             var kinds=parts.Where(p=>p is "hatch" or "window" or "entry").ToArray();
             if(kinds.Length!=1 || value.Options.ProbePeers is <1 or >2 || string.IsNullOrEmpty(value.Options.SaveDirectory) || string.IsNullOrEmpty(value.Options.Report))
                 throw new InvalidOperationException("Проверка проёма требует явный вид, новый каталог и 1–2 участников.");
             kind=kinds[0];doorId=Prefix+(kind=="hatch"?"cLSBzRkMe7e7pefR":kind=="window"?"cK9ZcCyQv8c4oTfH":"oYIjQIPJl0C4IamY");
+            if(Resume)
+            {
+                if(kind!="window" || !Host || value.Options.ProbePeers!=1)
+                    throw new InvalidOperationException("Resume проёма поддерживает только window host solo без fixture.");
+                PrepareResume();value.CommandSource=()=>default;return;
+            }
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка проёма не заменяет существующий мир.");
@@ -146,6 +171,7 @@ namespace Remains.Runtime
                 if(Time.unscaledTime>deadline) throw new InvalidOperationException("Таймаут проёма: "+Progress);
                 var session=runtime.Session;var actor=Actor;
                 if(actor==null || session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return;
+                if(Resume) {TickResume();return;}
                 if(!traveled) {traveled=true;session.Travel.RequestFactory();}
                 if(Host && !installed && !session.Travel.Pending && session.ServerWorld.actors.Where(a=>a.player && a.connected).All(a=>a.level==Level) &&
                     session.World.actors.Where(a=>a.player && a.connected).All(a=>a.level==Level)) Setup();
@@ -192,6 +218,63 @@ namespace Remains.Runtime
                     Complete();
             }
             catch(Exception error) {Finish(false,error.Message+": "+Progress,null);}
+        }
+        private void PrepareResume()
+        {
+            // Independent evidence files are copied/written by the wrapper BEFORE process launch.
+            // This reads neither expected state from the loaded world nor a just-written save.
+            string report=runtime.Options.Report;
+            resumeExpected=StateJson.FromJson<ResumeExpected>(File.ReadAllText(report+".opening-resume-expected.json"));
+            var expectedSnapshot=new RecoverySnapshot(File.ReadAllText(report+".opening-resume-world.json"));
+            if(resumeExpected.schema!=1 || resumeExpected.world!=expectedSnapshot.WorldId ||
+                resumeExpected.snapshot!=expectedSnapshot.Id || resumeExpected.door!=doorId)
+                throw new InvalidOperationException("Независимое pre-load свидетельство окна не совпало с исходным миром.");
+            var source=expectedSnapshot.CreateLiveWorld();var expected=source.doors.Single(d=>d.id==doorId);expected.Validate();
+            if(!expected.Destroyed || expected.open || expected.CanInteract || expected.integrity.health!=0 || expected.revision!=1 || expected.integrity.resolvedAttacks.Count!=1)
+                throw new InvalidOperationException("Pre-load свидетельство не содержит единственное сохранённое разрушение окна.");
+            expectedDoorJson=StateJson.ToJson(expected);
+            expectedResumePlayer=source.actors.Single(a=>a.player && a.character==runtime.Session.CharacterId);
+            if(expectedResumePlayer.level!=Level) throw new InvalidOperationException("Исходный игрок сохранён вне завода; resume не делает переход/телепорт.");
+            var selected=runtime.Session.Saves.SelectedSnapshot();
+            if(selected==null || selected.Id!=resumeExpected.snapshot || selected.WorldId!=resumeExpected.world)
+                throw new InvalidOperationException("Скопированное selected сохранение отличается от независимого pre-load expected.");
+            sourceArchive=Path.Combine(runtime.Session.Saves.WorldDirectoryPath,"Worlds",selected.WorldId,"Snapshots",selected.Id+".json");
+            VerifySourceArchive();independentExpectedVerified=true;
+        }
+        private void VerifySourceArchive()
+        {
+            if(!File.Exists(sourceArchive) || RecoverySnapshot.Fingerprint(File.ReadAllText(sourceArchive))!=resumeExpected.snapshot)
+                throw new InvalidOperationException("Исходный selected snapshot удалён или изменён в архиве resume копии.");
+            sourceArchiveVerified=true;
+        }
+        private void TickResume()
+        {
+            var session=runtime.Session;var actor=Actor;
+            if(session.ServerWorld==null) return;
+            if(session.World.worldId!=resumeExpected.world || session.ServerWorld.worldId!=resumeExpected.world || actor.id!=expectedResumePlayer.id ||
+                actor.level!=Level || !actor.connected || actor.down || actor.health<=0)
+                throw new InvalidOperationException("Resume не вернул того же активного игрока в сохранённый завод без fixture.");
+            if(resumeReadyAt>=0 && lastCapture!="reloaded") return;
+            var canonical=session.ServerWorld.doors.Single(d=>d.id==doorId);
+            if(StateJson.ToJson(Door)!=expectedDoorJson || StateJson.ToJson(canonical)!=expectedDoorJson)
+                throw new InvalidOperationException("После production загрузки/установки изменились сохранённые HP/revision/receipt/данные окна.");
+            var room=runtime.Geometry.Get(Level);var bounds=Door.Bounds;
+            if(RoomSurfaces.All(room).Any(surface=>surface.sourceDoorId==doorId) ||
+                ShotObstacles.FirstContact(room,new Vector2(bounds.xMin+.001f,bounds.center.y),new Vector2(bounds.xMax-.001f,bounds.center.y)).HasValue)
+                throw new InvalidOperationException("После resume физический проём окна снова перекрывает свой aperture.");
+            geometryVerified=true;destroyedObserved=true;
+            if(resumeReadyAt<0)
+            {
+                var saved=session.Saves.LoadWorld(false);
+                if(saved?.worldId!=resumeExpected.world || StateJson.ToJson(saved.doors.Single(d=>d.id==doorId))!=expectedDoorJson)
+                    throw new InvalidOperationException("Selected save после production Join потерял exact сохранённое окно.");
+                VerifySourceArchive();savedReloadVerified=true;externalReloadVerified=true;resumeReadyAt=Time.unscaledTime;capture="reloaded";
+            }
+            if(lastCapture=="reloaded")
+            {
+                VerifySourceArchive();
+                Finish(true,"Новый внешний процесс загрузил тот же selected мир без fixture/нового выстрела: exact окно HP0/revision1/receipt1, свободная геометрия, настоящий destroyed sprite полностью в кадре и исходный snapshot сохранён.",resumeExpected.snapshot);
+            }
         }
         private void Setup()
         {
@@ -306,7 +389,7 @@ namespace Remains.Runtime
         }
         private void LateUpdate()
         {
-            if(finished || fixture==null || baseline==null || capture==null || Actor==null || Actor.generation!=baseline.generation) return;
+            if(finished || capture==null || Actor==null || !Resume && (fixture==null || baseline==null || Actor.generation!=baseline.generation)) return;
             try
             {
                 var view=runtime.DoorVisuals.Find(doorId);
@@ -316,6 +399,21 @@ namespace Remains.Runtime
                 if(capture=="closed" && (Door.open || Door.Destroyed || StateJson.ToJson(Door)!=fixture.initialDoor) ||
                     capture=="open" && (!Door.open || Door.Destroyed) || capture=="closed-again" && (Door.open || Door.Destroyed) || capture=="destroyed" && !Door.Destroyed)
                     throw new InvalidOperationException("Кадр проёма не соответствует заявленной фазе: "+capture);
+                if(Resume && (capture!="reloaded" || StateJson.ToJson(Door)!=expectedDoorJson))
+                    throw new InvalidOperationException("Resume кадр потерял exact независимое состояние окна.");
+                if(kind=="window")
+                {
+                    var frame=WindowEvidence(view.Artwork,Camera.main);
+                    if(!frame.fullyVisible)
+                    {
+                        // Give the existing camera its ordinary startup frames; never reposition it.
+                        if(Resume && Time.unscaledTime-resumeReadyAt<3) return;
+                        File.WriteAllText(runtime.Options.Report+".opening-"+capture+".frame.json",StateJson.ToJson(frame,true));
+                        throw new InvalidOperationException($"Окно вне полного кадра: viewport=({frame.minX},{frame.minY})..({frame.maxX},{frame.maxY}), depth={frame.minDepth}..{frame.maxDepth}, camera={frame.cameraPosition}, artwork={frame.artworkCenter}/{frame.artworkSize}.");
+                    }
+                    File.WriteAllText(runtime.Options.Report+".opening-"+capture+".frame.json",StateJson.ToJson(frame,true));
+                    windowVisibleVerified=true;
+                }
                 NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".opening-"+capture+".png",runtime.Hud.GetComponent<Canvas>());
                 lastCapture=capture;
                 if(capture=="closed")
@@ -329,15 +427,37 @@ namespace Remains.Runtime
             }
             catch(Exception error) {Finish(false,error.Message,null);}
         }
+        private WindowFrame WindowEvidence(SpriteRenderer artwork,Camera camera)
+        {
+            if(camera==null || artwork==null || artwork.sprite==null) throw new InvalidOperationException("Нет камеры или actual sprite окна для кадра.");
+            var bounds=artwork.bounds;var physical=Door.Bounds;float plane=bounds.center.z;
+            var artCorners=new[] {new Vector3(bounds.min.x,bounds.min.y,plane),new Vector3(bounds.max.x,bounds.min.y,plane),
+                new Vector3(bounds.max.x,bounds.max.y,plane),new Vector3(bounds.min.x,bounds.max.y,plane)};
+            var physicalCorners=new[] {new Vector3(physical.xMin,physical.yMin,plane),new Vector3(physical.xMax,physical.yMin,plane),
+                new Vector3(physical.xMax,physical.yMax,plane),new Vector3(physical.xMin,physical.yMax,plane)};
+            var artViewport=artCorners.Select(camera.WorldToViewportPoint).ToArray();var physicalViewport=physicalCorners.Select(camera.WorldToViewportPoint).ToArray();
+            var all=artViewport.Concat(physicalViewport).ToArray();float depth=camera.WorldToViewportPoint(bounds.center).z;
+            bool enabled=artwork.enabled && artwork.gameObject.activeInHierarchy && artwork.color.a>0 && (camera.cullingMask & (1<<artwork.gameObject.layer))!=0;
+            return new WindowFrame {phase=capture,door=doorId,definition=Door.definition,sprite=artwork.sprite.name,width=Screen.width,height=Screen.height,
+                rendererEnabled=enabled,fullyVisible=enabled && bounds.size.x>0 && bounds.size.y>0 && all.All(point=>
+                    float.IsFinite(point.x) && float.IsFinite(point.y) && float.IsFinite(point.z) && point.x>=0 && point.x<=1 && point.y>=0 && point.y<=1 &&
+                    point.z>=camera.nearClipPlane && point.z<=camera.farClipPlane),
+                orthographic=camera.orthographic,orthographicSize=camera.orthographicSize,aspect=camera.aspect,nearClip=camera.nearClipPlane,farClip=camera.farClipPlane,
+                cameraPosition=camera.transform.position,cameraForward=camera.transform.forward,cullingMask=camera.cullingMask,artworkLayer=artwork.gameObject.layer,
+                artworkCenter=bounds.center,artworkSize=bounds.size,physicalMin=physical.min,physicalMax=physical.max,artworkViewport=artViewport,physicalViewport=physicalViewport,
+                minX=all.Min(point=>point.x),maxX=all.Max(point=>point.x),minY=all.Min(point=>point.y),maxY=all.Max(point=>point.y),minDepth=all.Min(point=>point.z),maxDepth=all.Max(point=>point.z),
+                cameraWorldCorners=new[] {camera.ViewportToWorldPoint(new Vector3(0,0,depth)),camera.ViewportToWorldPoint(new Vector3(1,0,depth)),
+                    camera.ViewportToWorldPoint(new Vector3(1,1,depth)),camera.ViewportToWorldPoint(new Vector3(0,1,depth))}};
+        }
         private void Finish(bool success,string detail,string hash)
         {
             if(finished) return;finished=true;snapshot=hash??snapshot;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail+": "+Progress,kind=kind,door=doorId,world=runtime.Session.World?.worldId,
-                snapshot=snapshot,explicitInitialPlayerFixture=fixture!=null,closedObserved=closedObserved,openedObserved=openedObserved,destroyedObserved=destroyedObserved,
+                snapshot=snapshot,mode=Resume?"resume":"fresh",sourceSnapshot=resumeExpected?.snapshot,expectedDoorJson=expectedDoorJson,actualDoorJson=Door==null?null:StateJson.ToJson(Door),explicitInitialPlayerFixture=fixture!=null,closedObserved=closedObserved,openedObserved=openedObserved,destroyedObserved=destroyedObserved,
                 geometryVerified=geometryVerified,traversalVerified=traversalVerified,savedReloadVerified=savedReloadVerified,reinstallVerified=reinstallVerified,
                 shots=shots,acceptedInteractions=acceptedInteractions,captures=captures,health=Actor?.health??0,position=Actor?.Position??default,baseline=baseline,result=Door,
                 rounds=Actor?.inventory.FirstOrDefault(i=>i.definition=="pistol" && i.weaponState!=null)?.weaponState.rounds??0,
-                damageReplies=damageReplies,duplicateDamageVerified=duplicateDamageVerified},true));
+                damageReplies=damageReplies,duplicateDamageVerified=duplicateDamageVerified,externalReloadVerified=externalReloadVerified,independentExpectedVerified=independentExpectedVerified,sourceArchiveVerified=sourceArchiveVerified,windowVisibleVerified=windowVisibleVerified},true));
             exitCode=success?0:1;Invoke(nameof(Exit),.5f);
         }
         private int exitCode;
