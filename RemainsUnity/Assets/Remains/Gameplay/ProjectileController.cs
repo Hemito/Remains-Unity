@@ -131,15 +131,20 @@ namespace Remains.Gameplay
                 Observe(flight,"actor:"+target.id,Vector2.Lerp(start,end,entry),target.id,actor.actorType,null);
             }
             if(terrain.HasValue && !stoppedAtActor)
-                Observe(flight,"terrain",Vector2.Lerp(start,end,terrain.Value),null,null,surface.texture);
+            {
+                var point=Vector2.Lerp(start,end,terrain.Value);
+                Observe(flight,"terrain",point,null,null,surface.texture,surface.sourceDoorId);
+                if(flight.state.owner==session.LocalOwner && !string.IsNullOrEmpty(surface.sourceDoorId))
+                    session.DoorDamage.Report(attack,surface.sourceDoorId,point,flight.state.generation);
+            }
             return stop;
         }
-        private void Observe(ProjectileFlight flight,string key,Vector2 position,string target,string targetType,string texture)
+        private void Observe(ProjectileFlight flight,string key,Vector2 position,string target,string targetType,string texture,string sourceDoorId=null)
         {
             // Keep observation receipts across ownership recovery; damage receipts remain separate.
             if(!flight.observedContacts.Add(key)) return;
             var launch=flight.state.launch;
-            ContactObserved?.Invoke(new ProjectileContact(launch.id,launch.weapon,launch.level,position,target,targetType,texture));
+            ContactObserved?.Invoke(new ProjectileContact(launch.id,launch.weapon,launch.level,position,target,targetType,texture,sourceDoorId));
         }
     }
 }

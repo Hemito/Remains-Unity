@@ -73,6 +73,8 @@ namespace Remains.Networking
         public SessionProjectiles Projectiles=>projectiles ??= new SessionProjectiles(this);
         private SessionReloadAudio reloadAudio;
         public SessionReloadAudio ReloadAudio=>reloadAudio ??= new SessionReloadAudio(this);
+        private SessionDoorDamage doorDamage;
+        public SessionDoorDamage DoorDamage=>doorDamage ??= new SessionDoorDamage(this);
         private SessionDoors doors;
         public SessionDoors Doors=>doors ??= new SessionDoors(this);
         private SessionActorHolds actorHolds;
@@ -105,7 +107,7 @@ namespace Remains.Networking
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
             Mechanisms.RegisterServer();
-            Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
+            DoorDamage.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
             Admission.RegisterServer();
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
@@ -147,6 +149,7 @@ namespace Remains.Networking
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
+            DoorDamage.ResetServer();
             ActorControlMigration.Prepare(ServerWorld,Rules.Knockdown,Saves.PreserveRecoverySource);
             MechanismPersistence.Prepare(ServerWorld,source==null?()=>{}:
                 ()=>Debug.Log("Исходный мир сохранён перед добавлением механизмов: "+Saves.PreserveRecoverySource()));
@@ -190,7 +193,7 @@ namespace Remains.Networking
 
         internal void DiscardUnstartedWorld()
         {
-            CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
+            DoorDamage.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
         }
 
         internal void AdmitLobbyPlayer(NetworkConnectionToClient connection,JoinMessage message)=>Join(connection,message);
@@ -203,7 +206,7 @@ namespace Remains.Networking
             Lobby.RegisterClient();
             Travel.RegisterClient();
             Mechanisms.RegisterClient();
-            Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
+            DoorDamage.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
@@ -651,6 +654,8 @@ namespace Remains.Networking
                 catch(Exception error) when(error is ArgumentException || error is InvalidOperationException)
                 {Reject("Некорректные параметры выстрела: "+error.Message);return;}
             }
+            string contactReason=DoorDamage.RecordAccepted(attack,ServerWorld.Find(attack.attacker));
+            if(contactReason!=null) {Reject(contactReason);return;}
             NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }
 
@@ -823,7 +828,7 @@ namespace Remains.Networking
             CancelInvoke(nameof(CheckpointWorld));
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
             LevelTime.ResetServer();
-            Mechanisms.ResetServer();
+            Mechanisms.ResetServer();DoorDamage.ResetServer();
         }
         public override void OnStopClient()
         {
@@ -835,7 +840,7 @@ namespace Remains.Networking
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
             playTime.Stop();
-            Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
+            DoorDamage.ResetClient();Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
             Changed?.Invoke();
         }
         public void SetFriendlyFire(bool enabled)

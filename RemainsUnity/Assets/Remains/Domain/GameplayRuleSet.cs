@@ -53,6 +53,7 @@ namespace Remains.Domain
     public sealed class GameplayRuleSet
     {
         public IDoorAccessRule DoorAccess {get;}
+        public IDoorDamageRule DoorDamage {get;}
         public IItemActionRule ItemActions {get;}
         public INpcWeaponTimingRule NpcWeaponTiming {get;}
         public IDamageRule Damage {get;}
@@ -80,7 +81,10 @@ namespace Remains.Domain
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess,IItemActionRule itemActions,INpcWeaponTimingRule npcWeaponTiming,INaturalAttackDamageRule naturalAttackDamage)
             :this(damage,knockdown,partyDefeat,loot,pause,deposit,telekinesis,proximityOwnership,doorAccess,itemActions,npcWeaponTiming,naturalAttackDamage,new HoldButtonRepairRule()) {}
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess,IItemActionRule itemActions,INpcWeaponTimingRule npcWeaponTiming,INaturalAttackDamageRule naturalAttackDamage,IButtonRepairRule buttonRepair)
+            :this(damage,knockdown,partyDefeat,loot,pause,deposit,telekinesis,proximityOwnership,doorAccess,itemActions,npcWeaponTiming,naturalAttackDamage,buttonRepair,new CatalogDoorImpactDamage()) {}
+        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess,IItemActionRule itemActions,INpcWeaponTimingRule npcWeaponTiming,INaturalAttackDamageRule naturalAttackDamage,IButtonRepairRule buttonRepair,IDoorDamageRule doorDamage)
         {
+            DoorDamage=doorDamage??throw new ArgumentNullException(nameof(doorDamage));
             ButtonRepair=buttonRepair??throw new ArgumentNullException(nameof(buttonRepair));
             NaturalAttackDamage=naturalAttackDamage??throw new ArgumentNullException(nameof(naturalAttackDamage));
             NpcWeaponTiming=npcWeaponTiming??throw new ArgumentNullException(nameof(npcWeaponTiming));

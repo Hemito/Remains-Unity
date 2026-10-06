@@ -171,8 +171,14 @@ namespace Remains.Gameplay
                 var position=Vector2.Lerp(attack.Origin,attack.End,terrain.Value);
                 position=new Vector2(Mathf.Clamp(position.x,surface.x,surface.x+surface.width),
                     Mathf.Clamp(position.y,surface.y,surface.y+surface.height));
-                if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>SurfaceContactObserved?.Invoke(attack,surface.texture,position));
-                else SurfaceContactObserved?.Invoke(attack,surface.texture,position);
+                void ObserveSurface()
+                {
+                    SurfaceContactObserved?.Invoke(attack,surface.texture,position);
+                    if(attack.sourceOwner==session.LocalOwner && !string.IsNullOrEmpty(surface.sourceDoorId))
+                        session.DoorDamage.Report(attack,surface.sourceDoorId,position);
+                }
+                if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,ObserveSurface);
+                else ObserveSurface();
             }
             float limit=definition.stopAtTerrain?terrain??1:1;
             foreach(var prop in WorldProps.All(session.World))
