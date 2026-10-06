@@ -58,6 +58,7 @@ namespace Remains.Editor
             FactoryFileCabinetChecks.Run();
             FactoryOfficeLootChecks.Run();
             FactoryOfficeFurnitureChecks.Run();
+            FactoryOfficeOpeningsChecks.Run();
             OfficeRecoveryEvidenceChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();
