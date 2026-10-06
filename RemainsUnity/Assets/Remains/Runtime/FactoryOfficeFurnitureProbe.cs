@@ -1,0 +1,345 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Mirror;
+using Remains.Content;
+using Remains.Domain;
+using Remains.Gameplay;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace Remains.Runtime
+{
+    public struct FurnitureProbeFixture : NetworkMessage {public string json;}
+    public struct FurnitureProbeStep : NetworkMessage {public int phase;public double at;}
+    public struct FurnitureProbeObserved : NetworkMessage {public string actor,source,detail;public int generation,phase;public bool valid;}
+    public struct FurnitureProbeFinish : NetworkMessage {public bool success;public string detail,snapshot;}
+
+    // Opt-in initial player fixture; authored furniture/NPCs and every subsequent
+    // movement, attack, E interaction and UI claim remain production operations.
+    [DefaultExecutionOrder(10000)]
+    public sealed class FactoryOfficeFurnitureProbe : MonoBehaviour
+    {
+        private const string Level="factory:0",Prefix=Level+":original:plant:53:";
+        private sealed class Expected
+        {
+            public readonly string code,type;public readonly float x,y,width,height,mass;public readonly bool container,body;
+            public Expected(string code,string type,float x,float y,float width,float height,float mass,bool container=true,bool body=true)
+            {this.code=code;this.type=type;this.x=x;this.y=y;this.width=width;this.height=height;this.mass=mass;this.container=container;this.body=body;}
+            public string Id=>Prefix+code;
+        }
+        private static readonly Expected[] declarations={
+            new("no27T8YFjTx8ZVz4","table",96.8f,7.2f,1.24f,.8f,9.92f),
+            new("Qyc8bJzHANJlny9s","table",111.2f,7.2f,1.24f,.8f,9.92f),
+            new("B37xGIBuhSjLOfSc","table",100.8f,11.2f,1.24f,.8f,9.92f),
+            new("HaoIW4PYZAYl0YKb","trash",92.4f,11.2f,.5f,.8f,4),
+            new("HLHr8wbz490ZTI9b","bookcase",113.6f,11.2f,1.6f,2.4f,0,true,false),
+            new("D08uoqM6f1EaCJfJ","table1",106.4f,7.2f,1.34f,.8f,10.72f,false),
+            new("TGISVy91GeyHglBk","table1",107.2f,11.2f,1.34f,.8f,10.72f,false),
+            new("mA7CG0NX9srOOsJv","table1",96.8f,11.2f,1.34f,.8f,10.72f,false)};
+        [Serializable] private sealed class PlayerBaseline {public string id,owner;public int generation;public int[] counts;public Vector2 fixturePosition;}
+        [Serializable] private sealed class Fixture
+        {public string source,firstItem;public ItemStack[] items;public PlayerBaseline[] players;public int firstCount;}
+        [Serializable] private sealed class Report
+        {
+            public bool success,explicitInitialFixture,opened,empty,reopened,policiesVerified,stableRecipientsVerified,durableVerified,savedReloadVerified,reinstallVerified,raceSkipped;
+            public string detail,type,source,snapshot,progress;public int phase,claimsAccepted,claimsDenied,uiRaceAttempts,combatShots;public PlayerBaseline[] players;
+            public ItemStack[] initialItems;
+        }
+        private PrototypeRuntime runtime;private Expected expected;private Fixture fixture;private PlayerBaseline baseline;
+        private readonly HashSet<string> accepted=new(StringComparer.Ordinal),denied=new(StringComparer.Ordinal);
+        private readonly HashSet<string> barrier=new(StringComparer.Ordinal);
+        private int phase,serverPhase,combatShots,shotsAtOpen,roundsAtOpen,uiRaceAttempts;
+        private bool traveled,installed,finished,opened,reopened,empty,reported,clickDone,clicking,raceSkipped,edge;
+        private float deadline,nextHeal,quietSince=-1;private double raceAt;
+        private string capture,lastCapture,snapshot,aimedThreat;private RoomLayout initialRoom;private string[] actorIds;private int[][] initialCounts;
+        private bool Host=>runtime.Options.Role=="host";
+        private ActorState Actor=>runtime.Session.LocalActor;
+        private ContainerState Target=>runtime.Session.World?.containers.SingleOrDefault(c=>c.id==expected.Id);
+        private string Progress=>$"phase={phase}/{serverPhase}, source={expected?.Id}, actor={Actor?.id}, position={Actor?.Position}, HP={Actor?.health}, down={Actor?.down}, life={Actor?.lifecycleSequence}, generation={Actor?.generation}/{baseline?.generation}, target={Target?.Position}, items={Target?.items.Count}, pending={runtime.Session.World?.pendingGrants.Count}, UI={runtime.Hud.ContainerOpen}/{runtime.Hud.ShownInventorySourceId}, claims={accepted.Count}/{denied.Count}, clicks={uiRaceAttempts}/{clickDone}/{raceSkipped}, barrier={barrier.Count}, shots={combatShots}";
+        public void Initialize(PrototypeRuntime value)
+        {
+            runtime=value;deadline=Time.unscaledTime+180;
+            string smoke=value.Options.Smoke??"";var parts=smoke.Split('-');
+            if(!smoke.StartsWith("office-furniture-",StringComparison.Ordinal) || parts.Count(p=>p is "table" or "trash" or "bookcase")!=1)
+                throw new InvalidOperationException("Неоднозначный/неподдерживаемый режим мебели: "+smoke);
+            expected=parts.Contains("table")?declarations[0]:
+                parts.Contains("trash")?declarations[3]:
+                parts.Contains("bookcase")?declarations[4]:
+                throw new InvalidOperationException("Не задан режим мебели: "+smoke);
+            if(value.Options.ProbePeers is <1 or >2 || (string.IsNullOrEmpty(value.Options.SaveDirectory) || string.IsNullOrEmpty(value.Options.Report)))
+                throw new InvalidOperationException("Мебель требует отдельный каталог сохранений и одного/двух участников.");
+            if(Host)
+            {
+                if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка мебели не заменяет существующий мир.");
+                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+            }
+            value.CommandSource=Command;
+            value.Session.AttackReceived+=attack=>{if(attack.attacker==value.Session.LocalActorId) combatShots++;};
+            value.Session.ClaimPrepared+=(transaction,valid)=>{if(fixture!=null) (valid?accepted:denied).Add(transaction);};
+            value.Session.ClientReady+=()=>
+            {
+                NetworkClient.RegisterHandler<FurnitureProbeFixture>(message=>
+                {
+                    fixture=JsonUtility.FromJson<Fixture>(message.json);
+                    baseline=fixture.players.Single(p=>p.id==value.Session.LocalActorId);
+                    initialRoom=runtime.Geometry.Get(Level);CacheBaseline();phase=0;
+                });
+                NetworkClient.RegisterHandler<FurnitureProbeStep>(message=>
+                {
+                    phase=message.phase;raceAt=message.at;reported=false;clickDone=false;edge=false;
+                    if(phase==3 && Host) StartCoroutine(Drain());
+                });
+                NetworkClient.RegisterHandler<FurnitureProbeFinish>(message=>Finish(message.success,message.detail,message.snapshot));
+            };
+            value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<FurnitureProbeObserved>(Observe);
+        }
+        private PlayerCommand Command()
+        {
+            try {return ChooseCommand();} catch(Exception error) {Finish(false,error.Message+": "+Progress);return default;}
+        }
+        private PlayerCommand ChooseCommand()
+        {
+            var actor=Actor;if(actor==null || finished || fixture==null || actor.generation!=baseline.generation || actor.level!=Level) return default;
+            var command=new PlayerCommand {hasAim=true,aim=((InventorySource)Target).Bounds.center};
+            if(runtime.Hud.ContainerOpen)
+            {
+                var mouse=Mouse.current;
+                if(mouse?.name=="SessionProbeMouse") {command.fire=mouse.leftButton.isPressed;command.hasPointer=true;command.pointer=mouse.position.ReadValue();}
+                if(phase==4 && !edge) {edge=true;command.interact=true;}
+                return command;
+            }
+            if(actor.health<75 && InventoryJournal.Count(actor,"heal")>0 && Time.unscaledTime>=nextHeal)
+            {nextHeal=Time.unscaledTime+1.5f;command.heal=true;}
+            // Fight only a real attack/target on this player; no broad proximity purge.
+            var threat=runtime.Session.World.actors.Where(a=>!a.player && !a.down && a.health>0 && a.level==Level &&
+                (a.target==actor.id || a.attackBusy && a.attackTarget==actor.id)).OrderBy(a=>(a.Position-actor.Position).sqrMagnitude).FirstOrDefault();
+            if(threat!=null)
+            {
+                var pistol=actor.inventory.FirstOrDefault(i=>i.definition=="pistol" && i.weaponState!=null);
+                if(pistol==null) throw new InvalidOperationException("У проверочного игрока нет настоящего пистолета: "+actor.id);
+                command.weaponItem=actor.equippedWeaponItem==pistol.id?null:pistol.id;
+                command.aim=threat.Position+Vector2.up*(Anatomy.Movement(threat).height*.5f);
+                command.reload=pistol.weaponState.rounds==0 && InventoryJournal.Count(actor,"p10")>0;
+                var muzzle=WeaponPose.Muzzle(actor);
+                bool ally=runtime.Session.World.actors.Any(a=>a.player && a.id!=actor.id && a.connected && a.level==Level &&
+                    SegmentIntersectsActor(muzzle,command.aim,a));
+                command.fire=aimedThreat==threat.id && actor.equippedWeaponItem==pistol.id && pistol.weaponState.rounds>0 && !ally;
+                aimedThreat=threat.id;
+                quietSince=-1;return command;
+            }
+            aimedThreat=null;if(quietSince<0) quietSince=Time.unscaledTime;
+            if((phase==0 || phase==5) && Time.unscaledTime-quietSince>.35f && !edge)
+            {
+                var target=InteractionSelection.Select(runtime.Session.World,actor,runtime.Session.Rules,command.aim);
+                if(target.kind!=InteractionKind.Container || target.id!=expected.Id)
+                    throw new InvalidOperationException($"Мебель: E выбрал {target.kind}/{target.id}, ожидался {expected.Id}, cursor={command.aim}.");
+                edge=true;command.interact=true;
+            }
+            return command;
+        }
+        private static bool SegmentIntersectsActor(Vector2 start,Vector2 end,ActorState ally)
+        {
+            var hull=Anatomy.Movement(ally);var middle=ally.Position+Vector2.up*(hull.height*.5f);
+            var direction=end-start;float t=direction.sqrMagnitude==0?0:Mathf.Clamp01(Vector2.Dot(middle-start,direction)/direction.sqrMagnitude);
+            return Vector2.Distance(start+direction*t,middle)<Mathf.Max(hull.width*.5f,hull.height*.5f)+.2f;
+        }
+        private void Update()
+        {
+            if(finished) return;
+            try {Tick();} catch(Exception error) {Finish(false,error.Message+": "+Progress);}
+        }
+        private void Tick()
+        {
+            if(Time.unscaledTime>deadline) throw new InvalidOperationException("Таймаут мебели: "+Progress);
+            var session=runtime.Session;var actor=Actor;
+            if(actor==null || session.World.actors.Count(a=>a.player && a.connected)!=runtime.Options.ProbePeers) return;
+            if(!traveled) {traveled=true;session.Travel.RequestFactory();}
+            if(Host && !installed && !session.Travel.Pending && session.ServerWorld.actors.Where(a=>a.player && a.connected).All(a=>a.level==Level) &&
+                session.World.actors.Where(a=>a.player && a.connected).All(a=>a.level==Level)) Setup();
+            if(fixture==null || actor.generation!=baseline.generation) return;
+            if(actor.id!=baseline.id || actor.owner!=baseline.owner || actor.owner!=session.LocalOwner || !actor.connected || actor.level!=Level ||
+                session.Travel.Pending || !ReferenceEquals(initialRoom,runtime.Geometry.Get(Level))) throw new InvalidOperationException("Мебель потеряла игрока, владение, локацию или геометрию");
+            if(actor.down || actor.health<=0) throw new InvalidOperationException("Игрок потерял сознание у мебели");
+            ValidatePolicies(session.World,false);
+            if(opened && phase!=5 && runtime.Hud.ContainerOpen && Magazine(actor)!=roundsAtOpen)
+                throw new InvalidOperationException("Клик окна мебели выстрелил или потратил патрон");
+            if(phase==0 && runtime.Hud.ContainerOpen)
+            {
+                ValidateWindow();opened=true;shotsAtOpen=combatShots;roundsAtOpen=Magazine(actor);capture="open";phase=1;
+            }
+            if(phase==1 && lastCapture=="open" && !reported) SendObserved(1,true);
+            if(phase==2 && NetworkTime.time>=raceAt && !clicking) {clicking=true;StartCoroutine(Race());}
+            if(phase==2 && clickDone && RaceValid(session.World) && lastCapture=="claimed" && !reported) SendObserved(2,true);
+            if(phase==3 && Target.items.Count==0 && session.World.pendingGrants.Count==0 && AmountsValid(session.World,true) &&
+                accepted.All(session.World.completedTransactions.Contains) && !clicking)
+            {empty=true;capture="empty";phase=30;}
+            if(phase==30 && lastCapture=="empty" && !reported) SendObserved(3,true);
+            if(phase==4 && !runtime.Hud.ContainerOpen) {phase=5;edge=false;quietSince=-1;}
+            if(phase==5 && runtime.Hud.ContainerOpen)
+            {ValidateWindow();if(Target.items.Count!=0) throw new InvalidOperationException("E повторно наполнил мебель");shotsAtOpen=combatShots;roundsAtOpen=Magazine(actor);reopened=true;capture="reopened";phase=6;}
+            if(phase==6 && lastCapture=="reopened" && !clicking && !clickDone) {clicking=true;StartCoroutine(EmptyClick());}
+            if(phase==6 && clickDone && lastCapture=="reopened" && !reported) SendObserved(4,AmountsValid(session.World,true));
+        }
+        private void ValidateWindow()
+        {if(runtime.Hud.ShownInventorySourceId!=expected.Id || runtime.Hud.InventoryOpen || runtime.Hud.BlocksGameplayInput) throw new InvalidOperationException("E мебели открыл другой источник/заблокировал управление");}
+        private void Setup()
+        {
+            var session=runtime.Session;var world=session.ServerWorld;ValidatePolicies(world,true);
+            var target=world.containers.Single(c=>c.id==expected.Id);var items=target.items.Select(i=>i.Copy()).ToArray();
+            var required=expected.type=="table"?new[]{("caps",3),("pin",1)}:expected.type=="trash"?new[]{("metal_comp",1)}:new[]{("lbook",1)};
+            if(items.Length!=required.Length || required.Any(r=>items.Count(i=>i.definition==r.Item1 && i.count==r.Item2)!=1))
+                throw new InvalidOperationException("У мебели нет согласованного authored содержимого: "+expected.Id);
+            var room=runtime.Geometry.Get(Level);var players=world.actors.Where(a=>a.player && a.connected).ToArray();var baselines=new List<PlayerBaseline>();
+            foreach(var player in players)
+            {
+                float x=expected.type=="table"?(player.character=="session-host"?95.1f:95.4f):
+                    expected.type=="trash"?(player.character=="session-host"?90.6f:90.9f):(player.character=="session-host"?112.2f:112.3f);
+                var position=new Vector2(x,expected.y);var hull=Anatomy.Movement(player);var bounds=new Rect(x-hull.width*.5f,position.y,hull.width,hull.height);
+                if(!ActorTerrainMotion.IsClear(room,hull,position) || !ActorTerrainMotion.Supported(room,hull,position))
+                    throw new InvalidOperationException("Начальная fixture мебели не имеет свободной опоры: "+position);
+                foreach(var prop in WorldProps.All(world)) if(prop.hasPhysicalBody && prop.level==Level && InteriorOverlap(bounds,PropBounds(prop)))
+                    throw new InvalidOperationException($"Начальная fixture пересекает тело мебели: actor={player.id}, position={position}, prop={prop.id}, bounds={PropBounds(prop)}.");
+                foreach(var npc in world.actors) if(!npc.player && npc.level==Level && InteriorOverlap(bounds,InventorySource.BodyBounds(npc)))
+                    throw new InvalidOperationException($"Начальная fixture пересекает NPC: actor={player.id}, npc={npc.id}, bounds={InventorySource.BodyBounds(npc)}.");
+                player.Position=position;player.Velocity=Vector2.zero;player.climbing=false;player.crouched=false;player.pose="idle";player.poseTime=0;player.generation++;player.revision++;
+                baselines.Add(new PlayerBaseline {id=player.id,owner=player.owner,generation=player.generation,fixturePosition=position,counts=items.Select(i=>InventoryJournal.Count(player,i.definition)).ToArray()});
+            }
+            fixture=new Fixture {source=expected.Id,items=items,firstItem=items[0].id,firstCount=items[0].count,players=baselines.ToArray()};
+            baseline=fixture.players.Single(p=>p.id==session.LocalActorId);CacheBaseline();initialRoom=room;installed=true;session.CommitWorld();NetworkServer.SendToAll(new FurnitureProbeFixture {json=JsonUtility.ToJson(fixture)});
+            Debug.Log($"Изолированная fixture мебели: source={expected.Id}, type={expected.type}; изменено только исходное положение игроков, далее настоящий E/UI/бой без подгонки мира.");
+        }
+        private static Rect PropBounds(PropState prop)=>new(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height);
+        private static bool InteriorOverlap(Rect a,Rect b)=>a.xMax>b.xMin+.0001f && a.xMin<b.xMax-.0001f && a.yMax>b.yMin+.0001f && a.yMin<b.yMax-.0001f;
+        private static void ValidatePolicies(WorldState world,bool initial)
+        {
+            foreach(var spec in declarations)
+            {
+                var found=WorldProps.All(world).Where(p=>p.id==spec.Id).ToArray();
+                if(found.Length!=1) throw new InvalidOperationException("Мебель отсутствует/продублирована: "+spec.Id);
+                var prop=found[0];bool container=world.containers.Contains(prop as ContainerState);
+                if(prop.definition!=spec.type || prop.level!=Level || container!=spec.container || prop.hasPhysicalBody!=spec.body || prop.movable!=spec.body ||
+                    Mathf.Abs(prop.width-spec.width)>.0001f || Mathf.Abs(prop.height-spec.height)>.0001f || Mathf.Abs(prop.mass-spec.mass)>.0001f ||
+                    (initial || !spec.body) && (Mathf.Abs(prop.x-spec.x)>.0001f || Mathf.Abs(prop.y-spec.y)>.0001f))
+                    throw new InvalidOperationException($"Разошёлся контракт мебели: id={spec.Id}, type={prop.definition}, position={prop.Position}, size={prop.width}x{prop.height}, body={prop.hasPhysicalBody}, movable={prop.movable}, mass={prop.mass}.");
+                if(!spec.container && InventorySource.Resolve(world,spec.Id)!=null) throw new InvalidOperationException("Обычный стол получил ложный контейнер E: "+spec.Id);
+            }
+        }
+        private bool RaceValid(WorldState world)=>!Target.items.Any(i=>i.id==fixture.firstItem) && world.pendingGrants.Count==0 && AmountsValid(world,false) && accepted.All(world.completedTransactions.Contains);
+        private void CacheBaseline()
+        {actorIds=fixture.players.Select(p=>p.id).ToArray();initialCounts=fixture.players.Select(p=>p.counts).ToArray();}
+        private bool AmountsValid(WorldState world,bool all)=>VerifyAmounts(world,fixture.items,fixture.firstItem,actorIds,initialCounts,all);
+        // Pure probe evidence, including merged-stack aliases. It does not grant loot.
+        internal static bool VerifyAmounts(WorldState world,ItemStack[] items,string firstItem,string[] players,int[][] counts,bool all)
+        {
+            for(int index=0;index<items.Length;index++)
+            {
+                var item=items[index];int expectedCount=all || item.id==firstItem?item.count:0,total=0,recipients=0;
+                for(int player=0;player<players.Length;player++)
+                {
+                    var actor=world.Find(players[player]);if(actor==null) return false;
+                    int delta=InventoryJournal.Count(actor,item.definition)-counts[player][index];if(delta<0 || delta>expectedCount) return false;total+=delta;
+                    if(InventoryStacks.Find(actor.inventory,actor.inventoryAliases,item.id)!=null) recipients++;
+                }
+                if(total!=expectedCount || recipients!=(expectedCount==0?0:1)) return false;
+            }
+            return true;
+        }
+        private IEnumerator SafeClick(RectTransform rect)
+        {
+            var click=UiPointerProbe.Click(rect,followTarget:true);
+            try
+            {
+                while(!finished)
+                {
+                    bool next;try {next=click.MoveNext();} catch(Exception error) {Finish(false,error.Message+": "+Progress);yield break;}
+                    if(!next) yield break;yield return click.Current;
+                }
+            }
+            finally {(click as IDisposable)?.Dispose();}
+        }
+        private IEnumerator Race()
+        {
+            uiRaceAttempts++;int index=Target.items.FindIndex(i=>i.id==fixture.firstItem);
+            if(index<0) raceSkipped=true;else yield return SafeClick(runtime.Hud.ContainerSlotRect(index));
+            clicking=false;clickDone=true;
+            while(!finished && !RaceValid(runtime.Session.World)) yield return null;
+            if(!finished) capture="claimed";
+        }
+        private IEnumerator Drain()
+        {
+            clicking=true;
+            while(!finished && Target.items.Count>0)
+            {
+                string id=Target.items[0].id;yield return SafeClick(runtime.Hud.ContainerSlotRect(0));
+                while(!finished && (Target.items.Any(i=>i.id==id) || runtime.Session.World.pendingGrants.Count>0)) yield return null;
+            }
+            clicking=false;
+        }
+        private IEnumerator EmptyClick()
+        {
+            yield return SafeClick(runtime.Hud.ContainerSlotRect(8));clicking=false;clickDone=true;
+        }
+        private void SendObserved(int observedPhase,bool valid)
+        {reported=true;NetworkClient.Send(new FurnitureProbeObserved {actor=Actor.id,source=expected.Id,generation=Actor.generation,phase=observedPhase,valid=valid,detail=Progress});}
+        private void Observe(NetworkConnectionToClient connection,FurnitureProbeObserved message)
+        {
+            if(finished) return;var session=runtime.Session;var actor=session.ConnectedActor(connection);
+            if(actor==null || actor.id!=message.actor || actor.generation!=message.generation || actor.level!=Level || message.source!=expected.Id || message.phase!=serverPhase+1) return;
+            if(!message.valid) {NetworkServer.SendToAll(new FurnitureProbeFinish {detail="Наблюдение мебели разошлось: "+message.detail});return;}
+            barrier.Add(actor.id);if(barrier.Count!=runtime.Options.ProbePeers) return;barrier.Clear();serverPhase++;
+            if(serverPhase<4) {NetworkServer.SendToAll(new FurnitureProbeStep {phase=serverPhase==1?2:serverPhase==2?3:4,at=NetworkTime.time+1.5});return;}
+            try
+            {
+                var world=session.ServerWorld;ValidatePolicies(world,false);
+                if(world.containers.Single(c=>c.id==expected.Id).items.Count!=0 || world.pendingGrants.Count!=0 || !AmountsValid(world,true))
+                    throw new InvalidOperationException("Координатор не подтвердил пустую мебель/единую выдачу");
+                session.CommitWorld();var saved=session.Saves.LoadWorld(false);ValidatePolicies(saved,false);
+                if(saved.containers.Single(c=>c.id==expected.Id).items.Count!=0 || !AmountsValid(saved,true) || !RoomContentProbePersistence.UnchangedOnReinstall(saved,Level))
+                    throw new InvalidOperationException("Disk reload или повторная установка восстановили взятый лут мебели");
+                NetworkServer.SendToAll(new FurnitureProbeFinish {success=true,snapshot=session.Saves.SelectedSnapshot().Id,
+                    detail="Авторская мебель: E и плавающее окно, одновременные просмотры/UI попытки, единственные стабильные получатели, подтверждённый журнал, пустое повторное E, disk reload и отсутствие пополнения при повторной установке. Только начальная fixture игроков; полный путь/перезапуск процесса здесь не проверяются."});
+            }
+            catch(Exception error) {NetworkServer.SendToAll(new FurnitureProbeFinish {detail=error.Message});}
+        }
+        private static int Magazine(ActorState actor)=>actor.inventory.FirstOrDefault(i=>i.definition=="pistol")?.weaponState?.rounds??-1;
+        private void LateUpdate()
+        {
+            if(capture==null) return;
+            if(runtime.Options.Smoke.Contains("-frames-",StringComparison.Ordinal))
+            {
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".furniture-"+expected.type+"-"+capture+".png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
+                NetworkSceneRecord.Save(runtime,800+Array.IndexOf(declarations,expected)*10+phase);
+            }
+            lastCapture=capture;capture=null;
+        }
+        private void Finish(bool success,string detail,string durableSnapshot=null)
+        {
+            if(finished) return;bool reload=false,reinstall=false;
+            try
+            {
+                if(success)
+                {
+                    var selected=runtime.Session.Saves.SelectedSnapshot();snapshot=selected?.Id;
+                    if(snapshot!=durableSnapshot) throw new InvalidOperationException($"Реплика мебели не соответствует подтверждённому snapshot: actual={snapshot}, expected={durableSnapshot}.");
+                    var saved=runtime.Session.Saves.LoadWorld(false);ValidatePolicies(saved,false);
+                    reload=saved.containers.Single(c=>c.id==expected.Id).items.Count==0 && AmountsValid(saved,true);
+                    reinstall=RoomContentProbePersistence.UnchangedOnReinstall(saved,Level);
+                    if(!reload || !reinstall || !accepted.All(saved.completedTransactions.Contains)) throw new InvalidOperationException("Реплика мебели потеряла выдачу/журнал или повторно создала лут");
+                    if(runtime.Options.Smoke.Contains("-frames-",StringComparison.Ordinal))
+                    {NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".furniture-"+expected.type+"-saved.png",runtime.Hud.GetComponent<Canvas>(),1920,1080);NetworkSceneRecord.Save(runtime,900+Array.IndexOf(declarations,expected));}
+                }
+            }
+            catch(Exception error) {success=false;detail=error.Message;}
+            finished=true;
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,type=expected.type,source=expected.Id,phase=phase,
+                explicitInitialFixture=true,players=fixture?.players,initialItems=fixture?.items,opened=opened,empty=empty,reopened=reopened,
+                policiesVerified=success,stableRecipientsVerified=success,durableVerified=success,savedReloadVerified=reload,reinstallVerified=reinstall,
+                snapshot=snapshot,claimsAccepted=accepted.Count,claimsDenied=denied.Count,uiRaceAttempts=uiRaceAttempts,raceSkipped=raceSkipped,combatShots=combatShots,progress=Progress},true));
+            StartCoroutine(Exit(success));
+        }
+        private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
+    }
+}
