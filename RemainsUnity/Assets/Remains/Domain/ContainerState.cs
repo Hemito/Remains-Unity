@@ -10,6 +10,7 @@ namespace Remains.Domain
         public const string PrototypeId="container:prototype";
         public ContainerState() {id=PrototypeId;definition="mcrate1";x=-1.5f;mass=25;width=height=1.2f;anchorHeight=0;}
         public List<ItemStack> items=new();
+        public ContainerAppearanceState appearance=new(); // Missing legacy JSON fields remain explicitly version 0.
         public float presentationAngle;
         public bool presentationMirrored;
         public string presentationItem; // Loose item: its actual icon, not a physical box definition.

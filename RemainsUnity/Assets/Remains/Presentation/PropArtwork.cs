@@ -22,7 +22,15 @@ namespace Remains.Presentation
             {
                 // Registered external definitions retain the resource contract; built-in assets use explicit references.
                 if(builtIn.TryGetPropPrefab(definition.id,definition.resource,out var prefab))
-                {prefabs.Add(definition.id,prefab);sprites.Add(definition.id,prefab.Artwork.sprite);continue;}
+                {
+                    if(prefab.ContainerArtwork!=null)
+                    {
+                        prefab.ContainerArtwork.Validate(definition.id);
+                        SpriteArtworkMaterial.Prepare(prefab.ContainerArtwork.Closed);
+                        if(prefab.ContainerArtwork.Mode==ContainerArtworkMode.ClosedOpened) SpriteArtworkMaterial.Prepare(prefab.ContainerArtwork.Opened);
+                    }
+                    prefabs.Add(definition.id,prefab);sprites.Add(definition.id,prefab.Artwork.sprite);continue;
+                }
                 var texture=Resources.Load<Texture2D>(definition.resource);
                 if(texture==null) throw new InvalidOperationException($"Нет графики объекта: type={definition.id}, resource={definition.resource}.");
                 var sprite=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,.5f),50);
@@ -32,7 +40,11 @@ namespace Remains.Presentation
         public Sprite Get(string id)=>sprites.TryGetValue(id,out var sprite)?sprite:throw new InvalidOperationException("Нет спрайта физического объекта: "+id);
         public PropView CreateContainerView(ContainerState state)
         {
-            if(state.presentationItem==null) return CreateView(state.definition,"Контейнер "+state.id,state.width);
+            if(state.presentationItem==null)
+            {
+                var containerView=CreateView(state.definition,"Контейнер "+state.id,state.width);
+                containerView.ApplyContainerAppearance(state);return containerView;
+            }
             var view=UnityEngine.Object.Instantiate(droppedPrefab);view.name="Брошенный предмет "+state.id;
             var renderer=view.Artwork;
             SpriteArtworkMaterial.Apply(renderer,items.Require(state.presentationItem));

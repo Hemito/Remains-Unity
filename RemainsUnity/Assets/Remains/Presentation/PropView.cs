@@ -10,6 +10,7 @@ namespace Remains.Presentation
         [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer artwork;
         [SerializeField,InspectorName("Привязка графики к состоянию")] private PropVisualAnchor visualAnchor;
         [SerializeField,InspectorName("Масштабировать по ширине тела")] private bool fitStateWidth=true;
+        [SerializeField,InspectorName("Явный профиль контейнера")] private Remains.Content.ContainerArtworkProfileAsset containerArtwork;
         [Header("Свечение при удержании")]
         [SerializeField,ColorUsage(false),InspectorName("Цвет магии")] private Color heldColor=new(.1f,1,.15f,1);
         [SerializeField,Range(.005f,.25f),InspectorName("Радиус в координатах спрайта")] private float heldRadius=.08f;
@@ -22,6 +23,19 @@ namespace Remains.Presentation
         public bool HeldGlowVisible=>glow!=null && glow.Visible;
         public bool FitsStateWidth=>fitStateWidth;
         public PropVisualAnchor VisualAnchor=>visualAnchor;
+        public Remains.Content.ContainerArtworkProfileAsset ContainerArtwork=>containerArtwork;
+        public void ConfigureContainerArtwork(Remains.Content.ContainerArtworkProfileAsset profile)=>containerArtwork=profile;
+        public void ApplyContainerAppearance(Remains.Domain.ContainerState state)
+        {
+            if(state.presentationItem!=null) return;
+            if(containerArtwork==null) throw new InvalidOperationException($"Нет явного профиля контейнера: id={state.id}, type={state.definition}, view={name}.");
+            if(state.appearance==null) throw new InvalidOperationException("Нет состояния вида контейнера: "+state.id);
+            state.appearance.Validate(state.id);containerArtwork.Validate(state.definition);
+            var sprite=containerArtwork.Select(state.appearance.opened);
+            if(artwork.sprite==sprite) return;
+            SpriteArtworkMaterial.Apply(artwork,sprite);glow?.SetFrame(sprite);
+            // Registration/scale is authored per frame. Never fit the alternate to the closed body.
+        }
         public void PrepareHeldGlow()
         {
             if(glow!=null) return;
@@ -37,7 +51,9 @@ namespace Remains.Presentation
             child.transform.SetParent(artwork.transform,false);
             glow=child.AddComponent<HeldPropGlow>();
             var color=heldColor;color.a=heldIntensity;
-            glow.Initialize(artwork,color,heldRadius);
+            var frames=containerArtwork==null?null:containerArtwork.Mode==Remains.Content.ContainerArtworkMode.ClosedOpened?
+                new[]{containerArtwork.Closed,containerArtwork.Opened}:new[]{containerArtwork.Closed};
+            glow.Initialize(artwork,color,heldRadius,frames);
         }
         private void OnValidate()
         {

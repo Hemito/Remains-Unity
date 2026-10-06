@@ -53,7 +53,7 @@ namespace Remains.Content
                 var container=new ContainerState {id=entry.id,definition=entry.type,level=layout.level,x=entry.x,y=entry.y,
                     mass=definition.mass,width=definition.width,height=definition.height,anchorHeight=0,
                     movable=definition.movable,hasPhysicalBody=definition.hasPhysicalBody};
-                PropBodyRules.Validate(container);containers.Add(container);
+                PropBodyRules.Validate(container);ContainerAppearancePersistence.InitializeNew(container);containers.Add(container);
             }
             foreach(var move in relocations)
             {move.actor.x=move.placement.x;move.actor.y=move.placement.y;move.actor.facing=move.placement.facing;move.actor.vx=move.actor.vy=0;}

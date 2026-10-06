@@ -72,6 +72,7 @@ namespace Remains.Content
                 {
                     var source=(ContainerState)entry;
                     InventoryStacks.Consolidate(source.items,source.itemAliases);
+                    ContainerAppearancePersistence.InitializeNew(source);
                     containers.Add(StateJson.Copy(source));
                 }
                 else props.Add(StateJson.Copy(entry));

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Remains.Presentation
@@ -6,11 +7,13 @@ namespace Remains.Presentation
     // Presentation only. The expanded quad lets the halo extend beyond the sprite mesh.
     public sealed class HeldPropGlow : MonoBehaviour
     {
-        private Sprite haloSprite;
-        private Material material;
+        private readonly Dictionary<Sprite,(Sprite halo,Material material,Bounds bounds)> frames=new();
+        private Sprite current;
         private SpriteRenderer halo;
         public bool Visible=>halo!=null && halo.enabled;
-        public void Initialize(SpriteRenderer artwork,Color color,float border)
+        public Sprite CurrentFrame=>current;
+        public int PreparedFrameCount=>frames.Count;
+        public void Initialize(SpriteRenderer artwork,Color color,float border,Sprite[] preparedFrames=null)
         {
             if(!float.IsFinite(border) || border<=0 || !float.IsFinite(color.r) || !float.IsFinite(color.g) || !float.IsFinite(color.b) || !float.IsFinite(color.a))
                 throw new InvalidOperationException("Некорректные настройки свечения предмета: "+artwork.name);
@@ -18,24 +21,36 @@ namespace Remains.Presentation
             if(sprite==null || sprite.packed) throw new InvalidOperationException("Свечение предмета требует отдельного непакованного спрайта: "+artwork.name);
             var shader=Resources.Load<Shader>("Presentation/HeldPropGlow");
             if(shader==null) throw new InvalidOperationException("Нет шейдера Presentation/HeldPropGlow.");
-            var bounds=sprite.bounds;
-            haloSprite=Sprite.Create(sprite.texture,sprite.rect,sprite.pivot/sprite.rect.size,sprite.pixelsPerUnit,0,SpriteMeshType.FullRect);
-            halo=gameObject.AddComponent<SpriteRenderer>();halo.sprite=haloSprite;
-            halo.localBounds=new Bounds(bounds.center,bounds.size+new Vector3(border*2,border*2,0));
-            material=new Material(shader) {name="Свечение "+artwork.name,mainTexture=sprite.texture};
-            var rect=sprite.textureRect;
-            material.SetVector("_SpriteRect",new Vector4(rect.x/sprite.texture.width,rect.y/sprite.texture.height,rect.width/sprite.texture.width,rect.height/sprite.texture.height));
-            material.SetVector("_Radius",new Vector4(border/bounds.size.x,border/bounds.size.y,0,0));
-            material.SetFloat("_Border",border);
-            material.SetColor("_Color",color);
-            halo.sharedMaterial=material;halo.sortingLayerID=artwork.sortingLayerID;halo.sortingOrder=artwork.sortingOrder+1;
+            foreach(var frame in preparedFrames??new[]{sprite})
+            {
+                if(frame==null || frame.packed) throw new InvalidOperationException("Не готов отдельный кадр свечения: "+artwork.name);
+                if(frames.ContainsKey(frame)) continue;
+                var bounds=frame.bounds;
+                var haloSprite=Sprite.Create(frame.texture,frame.rect,frame.pivot/frame.rect.size,frame.pixelsPerUnit,0,SpriteMeshType.FullRect);
+                var material=new Material(shader) {name="Свечение "+artwork.name+"/"+frame.name,mainTexture=frame.texture};
+                var rect=frame.textureRect;
+                material.SetVector("_SpriteRect",new Vector4(rect.x/frame.texture.width,rect.y/frame.texture.height,rect.width/frame.texture.width,rect.height/frame.texture.height));
+                material.SetVector("_Radius",new Vector4(border/bounds.size.x,border/bounds.size.y,0,0));
+                material.SetFloat("_Border",border);material.SetColor("_Color",color);
+                frames.Add(frame,(haloSprite,material,new Bounds(bounds.center,bounds.size+new Vector3(border*2,border*2,0))));
+            }
+            halo=gameObject.AddComponent<SpriteRenderer>();
+            halo.sortingLayerID=artwork.sortingLayerID;halo.sortingOrder=artwork.sortingOrder+1;SetFrame(sprite);
             halo.enabled=false;
+        }
+        public void SetFrame(Sprite sprite)
+        {
+            if(current==sprite) return;
+            if(sprite==null || !frames.TryGetValue(sprite,out var prepared)) throw new InvalidOperationException("Кадр свечения не подготовлен: "+sprite?.name);
+            halo.sprite=prepared.halo;halo.sharedMaterial=prepared.material;halo.localBounds=prepared.bounds;current=sprite;
         }
         public void Draw(bool held) {if(halo.enabled!=held) halo.enabled=held;}
         private void OnDestroy()
         {
-            if(Application.isPlaying) {Destroy(haloSprite);Destroy(material);}
-            else {DestroyImmediate(haloSprite);DestroyImmediate(material);}
+            foreach(var frame in frames.Values)
+                if(Application.isPlaying) {Destroy(frame.halo);Destroy(frame.material);}
+                else {DestroyImmediate(frame.halo);DestroyImmediate(frame.material);}
+            frames.Clear();
         }
     }
 }

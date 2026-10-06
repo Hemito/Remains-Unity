@@ -32,6 +32,11 @@ namespace Remains.Persistence
             {
                 throw new System.IO.InvalidDataException("Некорректные механизмы восстановительного снимка: мир="+world.worldId+". "+error.Message,error);
             }
+            try {ContainerAppearancePersistence.ValidateWorld(world);}
+            catch(InvalidOperationException error)
+            {
+                throw new System.IO.InvalidDataException("Некорректный вид контейнеров восстановительного снимка: мир="+world.worldId+". "+error.Message,error);
+            }
             try {PropBodyRules.ValidateWorld(world);}
             catch(InvalidOperationException error)
             {

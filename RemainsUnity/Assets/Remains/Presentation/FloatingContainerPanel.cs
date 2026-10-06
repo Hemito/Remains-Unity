@@ -45,7 +45,9 @@ namespace Remains.Presentation
             if(source?.IsLooseItem==true) {session.ShowNotice("Свободная вещь подбирается по E целиком.");return false;}
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
             {session.ShowNotice("Контейнер больше недоступен.");return false;}
-            view.BeginSource(id);sourceId=id;row=0;Refresh();changed?.Invoke();return true;
+            view.BeginSource(id);sourceId=id;row=0;Refresh();
+            if(source.Body==null) session.ContainerInspection.Request(id);
+            changed?.Invoke();return true;
         }
         public void Close()
         {

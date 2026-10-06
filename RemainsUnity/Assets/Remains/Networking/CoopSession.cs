@@ -77,6 +77,8 @@ namespace Remains.Networking
         public SessionDoorDamage DoorDamage=>doorDamage ??= new SessionDoorDamage(this);
         private SessionDoors doors;
         public SessionDoors Doors=>doors ??= new SessionDoors(this);
+        private SessionContainerInspection containerInspection;
+        public SessionContainerInspection ContainerInspection=>containerInspection ??= new SessionContainerInspection(this);
         private SessionActorHolds actorHolds;
         public SessionActorHolds ActorHolds=>actorHolds ??= new SessionActorHolds(this);
         private SessionPause pause;
@@ -106,6 +108,7 @@ namespace Remains.Networking
             serverPoses.Clear();
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
             Travel.RegisterServer();
+            ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();
             DoorDamage.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
             Admission.RegisterServer();
@@ -150,6 +153,8 @@ namespace Remains.Networking
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
             DoorDamage.ResetServer();
+            ContainerAppearancePersistence.Prepare(ServerWorld,source==null?()=>{}:
+                ()=>Debug.Log("Исходный мир сохранён перед миграцией вида контейнеров: "+Saves.PreserveRecoverySource()));
             ActorControlMigration.Prepare(ServerWorld,Rules.Knockdown,Saves.PreserveRecoverySource);
             MechanismPersistence.Prepare(ServerWorld,source==null?()=>{}:
                 ()=>Debug.Log("Исходный мир сохранён перед добавлением механизмов: "+Saves.PreserveRecoverySource()));
@@ -205,6 +210,7 @@ namespace Remains.Networking
             Admission.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
+            ContainerInspection.RegisterClient();
             Mechanisms.RegisterClient();
             DoorDamage.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
             worldReplication.Reset();
@@ -840,7 +846,7 @@ namespace Remains.Networking
             SaveLocalCharacter();
             World=null;LocalActorId=null;LocalOwner=null;
             playTime.Stop();
-            DoorDamage.ResetClient();Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
+            ContainerInspection.ResetClient();DoorDamage.ResetClient();Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
             Changed?.Invoke();
         }
         public void SetFriendlyFire(bool enabled)
