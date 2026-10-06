@@ -97,7 +97,7 @@ namespace Remains.Gameplay
             {
                 swingActor=attacker;swingWeapon=Weapon;swingItem=attacker.equippedWeaponItem;
                 swingLevel=attacker.level;swingGeneration=attacker.generation;swingLifecycle=attacker.lifecycleSequence;
-                swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker),direction,attacker.weaponReach);
+                swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker),direction,attacker.weaponReach,geometry.Get(attacker.level));
                 return true;
             }
             float range = definition.range;
@@ -123,7 +123,7 @@ namespace Remains.Gameplay
             var origin=WeaponPose.Origin(actor);
             swingSweep.Advance(origin,dt,segment=>session.Fire(new AttackEvent { id=swingId,attacker=actor.id,weapon=swingWeapon,level=swingLevel,
                 originX=segment.start.x,originY=segment.start.y,endX=segment.end.x,endY=segment.end.y,
-                speed=segment.speed,radius=0.08f }));
+                speed=segment.speed,radius=MeleeSweep.ContactRadius,meleeAnchor=segment.Anchor() }),geometry.Get(actor.level));
             var tip=swingSweep.Tip;
             actor.weaponTipX=tip.x;actor.weaponTipY=tip.y;
             actor.weaponReach=Vector2.Distance(tip,origin);
@@ -165,8 +165,12 @@ namespace Remains.Gameplay
             }
             var definition=WeaponCatalog.Get(attack.weapon);
             if(definition.projectileSpeed>0) return;
-            var terrain=ShotObstacles.FirstContact(geometry.Get(attack.level),attack.Origin,attack.End,out var surface,attack.radius);
-            if(terrain.HasValue)
+            bool melee=definition.meleeMotion!=null;
+            if(melee && !MeleeTerrainOcclusion.Validate(attack,out string reason)) {Debug.LogWarning(reason);return;}
+            var room=geometry.Get(attack.level);
+            bool Reachable(float fraction)=>!melee || MeleeTerrainOcclusion.IsReachable(room,attack,fraction,definition.stopAtTerrain);
+            var terrain=ShotObstacles.FirstContact(room,attack.Origin,attack.End,out var surface,attack.radius);
+            if(terrain.HasValue && Reachable(terrain.Value))
             {
                 var position=Vector2.Lerp(attack.Origin,attack.End,terrain.Value);
                 position=new Vector2(Mathf.Clamp(position.x,surface.x,surface.x+surface.width),
@@ -180,13 +184,13 @@ namespace Remains.Gameplay
                 if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,ObserveSurface);
                 else ObserveSurface();
             }
-            float limit=definition.stopAtTerrain?terrain??1:1;
+            float limit=melee?MeleeTerrainOcclusion.ContactLimit(room,attack,definition.stopAtTerrain):definition.stopAtTerrain?terrain??1:1;
             foreach(var prop in WorldProps.All(session.World))
             {
                 if(!prop.hasPhysicalBody || prop.level!=attack.level) continue;
                 var bounds=new Rect(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height);
                 var contact=SurfaceContact.Entry(bounds,attack.Origin,attack.End,attack.radius);
-                if(!contact.HasValue || contact.Value>limit) continue;
+                if(!contact.HasValue || contact.Value>limit || !Reachable(contact.Value)) continue;
                 var center=Vector2.Lerp(attack.Origin,attack.End,contact.Value);
                 var point=new Vector2(Mathf.Clamp(center.x,bounds.xMin,bounds.xMax),Mathf.Clamp(center.y,bounds.yMin,bounds.yMax));
                 string id=prop.id,type=prop.definition;
@@ -194,7 +198,7 @@ namespace Remains.Gameplay
                 else PropContactObserved?.Invoke(attack,id,type,point);
             }
             foreach(var target in AttackContacts.Capture(session.World.actors,attack,session.World.friendlyFire,
-                definition.stopAtFirstActor,limit))
+                definition.stopAtFirstActor,limit,melee?(_,entry)=>Reachable(entry):null))
             {
                 if(session.Pause.IsPaused(attack.level)) pending.Add(attack.level,()=>ApplyAttackTarget(attack,target));
                 else ApplyAttackTarget(attack,target);

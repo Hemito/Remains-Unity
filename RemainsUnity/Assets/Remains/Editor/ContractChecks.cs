@@ -100,6 +100,7 @@ namespace Remains.Editor
             ActorTypeChecks.Run();
             ProjectileAudioChecks.Run();
             MeleeImpactAudioChecks.Run();
+            ImpactAudioCoverageChecks.Run();
             RemotePropMotionChecks.Run();
             RaiderChecks.Run();
             AtlasAssetChecks.Run();
@@ -230,6 +231,7 @@ namespace Remains.Editor
             MovementChecks.Run();
             SessionChecks.Run();
             MeleeSweepChecks.Run();
+            MeleeTerrainOcclusionChecks.Run();
             AmmunitionChecks.Run(); RecoveryChecks.Run(); RevivalChecks.Run(); GrenadeChecks.Run(); NpcAttackChecks.Run(); NpcPerceptionIntegrationChecks.Run(); ContainerChecks.Run(); StateExtensionChecks.Run();
             actor.connected=true;actor.down=true;second.connected=false;second.down=false;
             actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});

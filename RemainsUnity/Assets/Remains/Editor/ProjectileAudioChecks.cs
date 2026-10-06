@@ -23,6 +23,8 @@ namespace Remains.Editor
             Check("floor","hit-metal",false);
             Check("Factory46/26_tConcrete","hit-concrete",false);
             Check("Factory18/26_tConcrete","hit-concrete",false);
+            foreach(var assignment in ImpactAudioCoverageChecks.AddedSurfaces)
+                Check(assignment.key,assignment.clip,false);
             Check("Hub/concrete","hit-metal",true,"training-armored-dummy");
             Check("Hub/concrete","hit-bullet",true);
             CheckAttackMix();

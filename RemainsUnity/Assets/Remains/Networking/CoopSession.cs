@@ -745,7 +745,10 @@ namespace Remains.Networking
                 try {NpcNaturalAttack.ValidateEvent(attack,ServerWorld.Find(attack.attacker));}
                 catch(InvalidOperationException error) {Reject(error.Message);return;}
             }
-            float projectileSpeed=NpcNaturalAttack.IsNatural(attack)?0:WeaponCatalog.Get(attack.weapon).projectileSpeed;
+            var definition=NpcNaturalAttack.IsNatural(attack)?null:WeaponCatalog.Get(attack.weapon);
+            if(definition?.meleeMotion!=null && !MeleeTerrainOcclusion.Validate(attack,out string meleeReason))
+            {Reject(meleeReason);return;}
+            float projectileSpeed=definition?.projectileSpeed??0;
             if(projectileSpeed>0)
             {
                 // An already-fired packet can arrive after pause. Retain its frozen flight;

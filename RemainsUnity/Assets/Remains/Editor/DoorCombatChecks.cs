@@ -29,7 +29,8 @@ namespace Remains.Editor
                 {
                     contacts=0;world.doors[0].open=false;world.doors[0].revision++;geometry.Reconcile(world);
                     var attack=new AttackEvent {id=weapon+"-closed",attacker=source.id,sourceOwner="remote",weapon=weapon,
-                        level="hub",originY=.7f,endX=4,endY=.7f,radius=.08f};
+                        level="hub",originY=.7f,endX=4,endY=.7f,radius=.08f,
+                        meleeAnchor=new MeleeAttackAnchor(new Vector2(0,.7f),new Vector2(0,.7f))};
                     receive.Invoke(combat,new object[]{attack});
                     Require(contacts==0,"Закрытая дверь пропустила удар "+weapon);
                     world.doors[0].open=true;world.doors[0].revision++;geometry.Reconcile(world);

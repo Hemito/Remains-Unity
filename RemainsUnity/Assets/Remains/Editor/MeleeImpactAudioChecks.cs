@@ -47,7 +47,7 @@ namespace Remains.Editor
                     target.actorType=type;
                     var attack=new AttackEvent {id=weapon+type,attacker=observer.id,sourceOwner="remote",sourcePlayer=true,
                         weapon=weapon,level="hub",originY=.7f,endX=4,endY=.7f,radius=.08f};
-                    receive.Invoke(combat,new object[]{attack});receive.Invoke(combat,new object[]{attack});
+                    ReceiveSynthetic(receive,combat,attack);ReceiveSynthetic(receive,combat,attack);
                     expected++;
                     Require(audio.Played==expected,"Контакт пропущен или повторён: "+attack.id);
                     var source=root.GetComponentsInChildren<AudioSource>().Last();
@@ -57,16 +57,16 @@ namespace Remains.Editor
                     Require(Mathf.Abs(source.volume-playback.Volume*gain*GameplayAudio.Attenuation(Vector2.Distance(attack.End,observer.Position)))<.00001f,"Неверная громкость: "+attack.id);
                     Require(!Application.isBatchMode || source.mute,"Фоновый звук не заглушен.");
                     target.id+="-next";
-                    receive.Invoke(combat,new object[]{attack});expected++;
+                    ReceiveSynthetic(receive,combat,attack);expected++;
                     Require(audio.Played==expected,"Вторая цель одного взмаха ошибочно заглушена.");
                 }
                 var miss=new AttackEvent {id="miss",attacker=observer.id,sourceOwner="remote",sourcePlayer=true,
                     weapon="crowbar",level="hub",originY=20,endX=4,endY=20};
-                receive.Invoke(combat,new object[]{miss});
+                ReceiveSynthetic(receive,combat,miss);
                 Require(audio.Played==expected,"Промах создал звук контакта.");
                 world.friendlyFire=false;target.player=true;target.connected=true;
                 miss.id="friendly-disabled";miss.originY=miss.endY=.7f;
-                receive.Invoke(combat,new object[]{miss});
+                ReceiveSynthetic(receive,combat,miss);
                 Require(audio.Played==expected,"Выключенный дружественный огонь создал контакт с союзником.");
                 target.x=100;
                 foreach(string weapon in new[]{"crowbar","spear"})
@@ -75,7 +75,7 @@ namespace Remains.Editor
                     geometry.Get("hub").platforms=new[]{new RoomSurface {x=1,y=0,width=.2f,height=2,texture=texture}};
                     var wall=new AttackEvent {id="wall-"+weapon+texture,attacker=observer.id,sourceOwner="remote",
                         weapon=weapon,level="hub",originY=.7f,endX=4,endY=.7f};
-                    receive.Invoke(combat,new object[]{wall});receive.Invoke(combat,new object[]{wall});expected++;
+                    ReceiveSynthetic(receive,combat,wall);ReceiveSynthetic(receive,combat,wall);expected++;
                     Require(audio.Played==expected,"Контакт стены потерян или повторён: "+wall.id);
                     var source=root.GetComponentsInChildren<AudioSource>().Last();
                     string clip=texture=="floor"?"hit-metal":"hit-concrete";
@@ -84,12 +84,12 @@ namespace Remains.Editor
                     float attenuation=GameplayAudio.Attenuation(Vector2.Distance(new Vector2(1,.7f),observer.Position));
                     Require(Mathf.Abs(source.volume-playback.Volume*gain*attenuation)<.00001f,"Звук стены использует конец взмаха вместо точки контакта.");
                     wall.id+="-miss";wall.originY=wall.endY=3;
-                    receive.Invoke(combat,new object[]{wall});Require(audio.Played==expected,"Промах над стеной озвучен как контакт.");
+                    ReceiveSynthetic(receive,combat,wall);Require(audio.Played==expected,"Промах над стеной озвучен как контакт.");
                     wall.id+="-edge";wall.originY=wall.endY=2.05f;wall.radius=.08f;
-                    receive.Invoke(combat,new object[]{wall});receive.Invoke(combat,new object[]{wall});expected++;
+                    ReceiveSynthetic(receive,combat,wall);ReceiveSynthetic(receive,combat,wall);expected++;
                     Require(audio.Played==expected,"Касание стены краем оружия пропущено или озвучено дважды.");
                     wall.id+="-outside";wall.originY=wall.endY=2.1f;
-                    receive.Invoke(combat,new object[]{wall});
+                    ReceiveSynthetic(receive,combat,wall);
                     Require(audio.Played==expected,"Радиус оружия создал звук за пределами досягаемости.");
                 }
                 geometry.Get("hub").platforms=Array.Empty<RoomSurface>();
@@ -102,18 +102,18 @@ namespace Remains.Editor
                     var strike=new AttackEvent {id="props-"+weapon,attacker=observer.id,sourceOwner="remote",
                         weapon=weapon,level="hub",originY=.7f,endX=4,endY=.7f,radius=.08f};
                     int beforePlayed=audio.PropPlayed;
-                    receive.Invoke(combat,new object[]{strike});receive.Invoke(combat,new object[]{strike});
+                    ReceiveSynthetic(receive,combat,strike);ReceiveSynthetic(receive,combat,strike);
                     Require(audio.PropPlayed==beforePlayed+2,"Объект/контейнер пропущен, повторён или озвучен в другом уровне.");
                     Require(root.GetComponentsInChildren<AudioSource>().Any(s=>s.clip==Resources.Load<AudioClip>("Original/Audio/hit-wood")),
                         "Деревянный ящик не использует исходный звук дерева.");
                     strike.id+="-miss";strike.originY=strike.endY=4;
-                    receive.Invoke(combat,new object[]{strike});
+                    ReceiveSynthetic(receive,combat,strike);
                     Require(audio.PropPlayed==beforePlayed+2,"Промах мимо объектов создал контакт.");
                 }
                 Require(Remains.Serialization.StateJson.ToJson(world)==beforeProps,"Косметический контакт изменил мир или содержимое контейнера.");
                 // Use registered factory dimensions and definitions, rather than legacy hub-only fixtures.
                 PropCatalog.Load();world.props.Clear();world.containers.Clear();
-                foreach(string definition in new[]{"woodbox","chest","ammobox","bigbox","mcrate4"})
+                foreach(string definition in new[]{"woodbox","chest","ammobox","bigbox","mcrate4","filecab","case"})
                 foreach(string weapon in new[]{"crowbar","spear"})
                 {
                     var prop=PropCatalog.Create("factory-contact",definition,"hub",new Vector2(2,1));
@@ -122,7 +122,7 @@ namespace Remains.Editor
                         weapon=weapon,level="hub",originY=1,endX=4,endY=1,radius=.08f};
                     int beforePlayed=audio.PropPlayed;
                     string before=Remains.Serialization.StateJson.ToJson(prop);
-                    receive.Invoke(combat,new object[]{strike});receive.Invoke(combat,new object[]{strike});
+                    ReceiveSynthetic(receive,combat,strike);ReceiveSynthetic(receive,combat,strike);
                     Require(audio.PropPlayed==beforePlayed+1,"Заводской объект пропущен или озвучен дважды: "+strike.id);
                     var source=root.GetComponentsInChildren<AudioSource>().Last();
                     bool wood=definition=="woodbox";
@@ -137,6 +137,48 @@ namespace Remains.Editor
                 Debug.Log("Контакты ближнего оружия: PASS — актёры, стены, край оружия, дерево/металл объектов и контейнеров, уровни, дедупликация и сохранность мира.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
+            CheckAdditionalSurfaces();
+        }
+        private static void CheckAdditionalSurfaces()
+        {
+            var root=new GameObject("Проверка новых назначений ударов по поверхностям");
+            try
+            {
+                var session=root.AddComponent<CoopSession>();var world=new WorldState();
+                var observer=new ActorState {id="source",owner="remote",player=true,connected=true,level="hub",x=-3};
+                world.actors.Add(observer);
+                typeof(CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,observer.id);
+                var geometry=new SimulationGeometry(_=>new RoomLayout {platforms=Array.Empty<RoomSurface>()});geometry.Reconcile(world);
+                var combat=new CombatController(session,geometry);
+                var playback=root.AddComponent<GameplayAudio>();playback.Initialize(session,combat.Reload,root.AddComponent<Camera>());
+                var audio=root.AddComponent<MeleeImpactAudio>();audio.Initialize(combat,playback);
+                var receive=typeof(CombatController).GetMethod("ReceiveAttack",Private);int expected=0;
+                foreach(string weapon in new[]{"crowbar","spear"})
+                foreach(var assignment in ImpactAudioCoverageChecks.AddedSurfaces)
+                {
+                    geometry.Get("hub").platforms=new[]{new RoomSurface {x=1,y=0,width=.2f,height=2,texture=assignment.key}};
+                    var attack=new AttackEvent {id="assignment-"+weapon+assignment.key,attacker=observer.id,sourceOwner="remote",
+                        weapon=weapon,level="hub",originY=.7f,endX=4,endY=.7f};
+                    ReceiveSynthetic(receive,combat,attack);ReceiveSynthetic(receive,combat,attack);expected++;
+                    Require(audio.SurfacePlayed==expected,"Новое назначение потеряло/повторило реальный контакт: "+attack.id);
+                    var source=root.GetComponentsInChildren<AudioSource>().Last();
+                    Require(source.clip==Resources.Load<AudioClip>("Original/Audio/"+assignment.clip),"Неверный WAV нового материала: "+assignment.key);
+                    float attenuation=GameplayAudio.Attenuation(Vector2.Distance(new Vector2(1,.7f),observer.Position));
+                    Require(Mathf.Abs(source.volume-playback.Volume*assignment.gain*attenuation)<.00001f,"Неверный уровень нового материала: "+assignment.key);
+                    Require(!Application.isBatchMode || source.mute,"Фоновый контакт не заглушен: "+attack.id);
+                    attack.id+="-miss";attack.originY=attack.endY=3;
+                    ReceiveSynthetic(receive,combat,attack);Require(audio.SurfacePlayed==expected,"Промах над новым материалом озвучен: "+assignment.key);
+                }
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
+        }
+        private static void ReceiveSynthetic(MethodInfo receive,CombatController combat,AttackEvent attack)
+        {
+            // This fixture declares a stationary weapon support at its sampled segment origin.
+            // Refresh it after every segment edit; a current actor/visual is not a past attack anchor.
+            attack.meleeAnchor=new MeleeAttackAnchor(attack.Origin,attack.Origin);
+            receive.Invoke(combat,new object[]{attack});
         }
         private static void Require(bool valid,string reason)
         {if(!valid) throw new InvalidOperationException("Проверка звука ближнего оружия: "+reason);}

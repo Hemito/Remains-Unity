@@ -184,6 +184,7 @@ namespace Remains.Domain
         public bool sourcePlayer;
         public string weapon;
         public float originX;
+        public MeleeAttackAnchor meleeAnchor;
         public string naturalAttackType;
         public string naturalAttackTarget;
         public float originY;
