@@ -14,14 +14,15 @@ using UnityEngine;
 namespace Remains.Runtime
 {
     // Evidence barriers only; movement and ladder release remain ordinary gameplay.
-    public struct LadderContactStage : NetworkMessage {public int stage;}
-    public struct LadderContactObserved : NetworkMessage {public int stage;public string observer,detail;public bool success;}
+    public struct LadderContactStage : NetworkMessage {public int stage,sequence;}
+    public struct LadderHoldingReady : NetworkMessage {public int stage,sequence,generation;public string source,item,definition;public long selection;}
+    public struct LadderContactObserved : NetworkMessage {public int stage,sequence,capturePhase;public string observer,detail,item;public long selection;public bool success;}
     public struct LadderContactFinish : NetworkMessage {public bool success;public string detail;}
 
     [DefaultExecutionOrder(10000)]
     public sealed class NetworkLadderContactProbe : MonoBehaviour
     {
-        private enum Stage {Waiting,Approach,LowerStart,MountStop,MountReverse,MountJump,AscendShort,DescendShort,AscendHigh,DescendHigh,Complete}
+        private enum Stage {Waiting,Approach,LowerStart,MountStop,MountReverse,MountJump,AscendShort,DescendShort,AscendHigh,DescendHigh,Complete,HoldingGrenadeUp,HoldingGrenadeDown,HoldingOrdinaryUp,HoldingOrdinaryDown}
         private PrototypeRuntime runtime;
         private RoomLayout room;
         private RoomLadder ladder;
@@ -44,6 +45,19 @@ namespace Remains.Runtime
         private readonly List<Capture> captures=new();
         private readonly List<Barrier> barriers=new();
         private ContactSource[] contactSources;
+        private bool HoldingEnabled=>runtime.Options.Smoke.Contains("-holding-");
+        private bool Holding=>stage is Stage.HoldingGrenadeUp or Stage.HoldingGrenadeDown or Stage.HoldingOrdinaryUp or Stage.HoldingOrdinaryDown;
+        private bool HoldingSource=>Actor?.id==holdingBaseline?.source;
+        private bool OrdinaryHolding=>stage is Stage.HoldingOrdinaryUp or Stage.HoldingOrdinaryDown;
+        private Vector2 HoldingOffset=>stage is Stage.HoldingGrenadeUp or Stage.HoldingOrdinaryUp?new Vector2(.55f,.55f):new Vector2(-.55f,-.55f);
+        private int HoldingPhase=>15+(int)stage-(int)Stage.HoldingGrenadeUp;
+        private int serverSequence,stageSequence,stageFrame,changedFrame,readyFrame,preflightSequence,observationPreflightSequence;
+        private bool holdingSetupStarted,holdingInventoryReady,holdingManifestSent;
+        private LadderHoldingReady? holdingReady,serverHoldingReady;
+        private HoldingBaseline holdingBaseline;
+        private Sprite ordinarySprite,grenadeSprite;
+        private InteractionVisuals interactionVisuals;
+        private readonly List<HoldingCapture> holdingCaptures=new();
         private string highRouteReason,failureCaptureError;
         private bool Host=>runtime.Options.Role=="host";
         private ActorState Actor=>runtime.Session.LocalActor;
@@ -66,24 +80,36 @@ namespace Remains.Runtime
                 value.Session.Saves.SaveWorld(NewGameWorld.Create());
             }
             value.CommandSource=Command;
-            value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<LadderContactObserved>(AcceptObserved);
+            value.Session.Changed+=VisualChanged;
+            value.Session.ServerReady+=()=>
+            {
+                NetworkServer.RegisterHandler<LadderContactObserved>(AcceptObserved);
+                if(HoldingEnabled) NetworkServer.RegisterHandler<LadderHoldingReady>(AcceptHoldingReady);
+            };
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<LadderContactStage>(Begin);
+                if(HoldingEnabled) NetworkClient.RegisterHandler<LadderHoldingReady>(message=>
+                {
+                    if(message.sequence!=stageSequence || message.stage!=(int)stage) return;
+                    holdingReady=message;readyFrame=Time.frameCount;
+                });
                 NetworkClient.RegisterHandler<LadderContactFinish>(message=>Finish(message.success,message.detail));
             };
         }
 
         private void Advance(Stage next)
         {
-            serverStage=next;observations.Clear();
+            serverStage=next;serverSequence++;serverHoldingReady=null;observations.Clear();
             Debug.Log($"Проверка контакта лестницы: server stage={next}, peers={runtime.Options.ProbePeers}.");
-            NetworkServer.SendToAll(new LadderContactStage {stage=(int)next});
+            NetworkServer.SendToAll(new LadderContactStage {stage=(int)next,sequence=serverSequence});
         }
         private void Begin(LadderContactStage message)
         {
-            if(message.stage<=(int)stage) return;
-            stage=(Stage)message.stage;stageAt=Time.unscaledTime;reported=false;
+            if(message.sequence<=stageSequence) return;
+            if(!Enum.IsDefined(typeof(Stage),message.stage)) {Fail("Неизвестный этап лестницы: "+message.stage);return;}
+            stage=(Stage)message.stage;stageSequence=message.sequence;stageFrame=Time.frameCount;
+            stageAt=Time.unscaledTime;reported=false;holdingReady=null;holdingManifestSent=false;
             mountCommands=0;mountSettleCommands=0;mountStoppedAt=0;mountCaptured=false;mountJumpIssued=false;
             if(stage==Stage.Approach) StartCoroutine(PrepareWhenReady());
         }
@@ -93,11 +119,21 @@ namespace Remains.Runtime
             if(sender==null || sender.id!=message.observer) return;
             if(!message.success)
             {NetworkServer.SendToAll(new LadderContactFinish {success=false,detail=message.detail});return;}
-            if(message.stage!=(int)serverStage || !observations.Add(connection.connectionId) || observations.Count!=runtime.Options.ProbePeers) return;
+            if(message.stage!=(int)serverStage || message.sequence!=serverSequence) return;
+            if(serverStage is Stage.HoldingGrenadeUp or Stage.HoldingGrenadeDown or Stage.HoldingOrdinaryUp or Stage.HoldingOrdinaryDown)
+            {
+                if(!serverHoldingReady.HasValue || message.item!=serverHoldingReady.Value.item ||
+                    message.selection!=serverHoldingReady.Value.selection || message.capturePhase!=15+(int)serverStage-(int)Stage.HoldingGrenadeUp)
+                {NetworkServer.SendToAll(new LadderContactFinish {success=false,detail="ACK удерживания не соответствует выбранной стопке/эпохе/кадру: "+message.observer});return;}
+            }
+            if(!observations.Add(connection.connectionId) || observations.Count!=runtime.Options.ProbePeers) return;
             Stage next=serverStage switch
             {
                 Stage.Approach=>Stage.LowerStart,Stage.LowerStart=>Stage.MountStop,Stage.MountStop=>Stage.MountReverse,
-                Stage.MountReverse=>Stage.MountJump,Stage.MountJump=>Stage.AscendShort,Stage.AscendShort=>Stage.DescendShort,
+                Stage.MountReverse=>Stage.MountJump,Stage.MountJump=>Stage.AscendShort,
+                Stage.AscendShort=>HoldingEnabled?Stage.HoldingGrenadeUp:Stage.DescendShort,
+                Stage.HoldingGrenadeUp=>Stage.HoldingGrenadeDown,Stage.HoldingGrenadeDown=>Stage.HoldingOrdinaryUp,
+                Stage.HoldingOrdinaryUp=>Stage.HoldingOrdinaryDown,Stage.HoldingOrdinaryDown=>Stage.DescendShort,
                 Stage.DescendShort=>Stage.AscendHigh,Stage.AscendHigh=>Stage.DescendHigh,Stage.DescendHigh=>Stage.Complete,
                 _=>throw new InvalidOperationException("Неожиданный барьер лестницы: "+serverStage)
             };
@@ -112,6 +148,11 @@ namespace Remains.Runtime
             lastCommand=default;
             lastJump=false;
             if(finished || !prepared || reported || Actor==null) return default;
+            if(Holding)
+            {
+                try {return HoldingCommand();}
+                catch(Exception error) {Fail(error.Message);return default;}
+            }
             if(!repeatNearTop && (stage is Stage.AscendHigh or Stage.DescendHigh)) return default;
             if(stage==Stage.Approach)
             {
@@ -201,6 +242,18 @@ namespace Remains.Runtime
                 return new ContactSource {anatomy=id,schema=definition.schema,alphaMinimum=definition.alphaMinimum,
                     renderSourceHash=definition.sourceHash,declaredShapes=definition.shapes};
             }).ToArray();
+            if(HoldingEnabled)
+            {
+                var source=runtime.Session.World.actors.Single(actor=>actor.player && actor.connected &&
+                    (runtime.Options.ProbePeers==1?actor.id==Actor.id:actor.character=="session-client-1"));
+                holdingBaseline=new HoldingBaseline {source=source.id,grenadeItem=source.inventory.Single(item=>item.definition=="grenade").id,
+                    ordinaryItem=source.inventory.Single(item=>item.definition=="p10").id,grenadeCount=InventoryJournal.Count(source,"grenade"),
+                    ordinaryCount=InventoryJournal.Count(source,"p10"),health=source.health,damageSequence=source.damageSequence,
+                    uses=source.inventoryUses.Count,drops=runtime.Session.World.containers.Count(item=>item.presentationItem!=null)};
+                ordinarySprite=new InventoryArtwork().Require("p10");grenadeSprite=WeaponRigs.Prefab("grenade").Artwork.sprite;
+                interactionVisuals=UnityEngine.Object.FindFirstObjectByType<InteractionVisuals>()
+                    ??throw new InvalidOperationException("Нет InteractionVisuals для наблюдения удерживаемой гранаты.");
+            }
             prepared=true;
         }
         private IEnumerator PrepareWhenReady()
@@ -251,7 +304,15 @@ namespace Remains.Runtime
                         {CaptureFrame(14,"approach-support");Observed();}
                         break;
                     case Stage.LowerStart:
-                        if(lower) {CaptureFrame(1,"lower-start");Observed();} break;
+                        if(lower)
+                        {
+                            if(HoldingEnabled && HoldingSource && !holdingInventoryReady)
+                            {
+                                if(!holdingSetupStarted) {holdingSetupStarted=true;StartCoroutine(GuardHoldingSetup());}
+                                break;
+                            }
+                            CaptureFrame(1,"lower-start");Observed();
+                        } break;
                     case Stage.MountStop:
                     case Stage.MountReverse:
                     case Stage.MountJump:
@@ -276,6 +337,11 @@ namespace Remains.Runtime
                     case Stage.AscendShort:
                         if(Actor.y>=shortY && Actor.climbing)
                         {shortAscended=true;CaptureFrame(2,"ascending-short");Observed();} break;
+                    case Stage.HoldingGrenadeUp:
+                    case Stage.HoldingGrenadeDown:
+                    case Stage.HoldingOrdinaryUp:
+                    case Stage.HoldingOrdinaryDown:
+                        ObserveHolding();break;
                     case Stage.DescendShort:
                         if(!shortDescendingCapture && ActiveDescending(Actor,views[Actor.id]) && Actor.y<=lowerY+1.5f)
                         {CaptureFrame(3,"descending-short");shortDescendingCapture=true;}
@@ -294,6 +360,165 @@ namespace Remains.Runtime
                 }
             }
             catch(Exception error) {Fail(error.Message);}
+        }
+
+        private void VisualChanged()=>changedFrame=Time.frameCount;
+        private IEnumerator GuardHoldingSetup()
+        {
+            var setup=SetupHoldingInventory();
+            while(!finished)
+            {
+                object current;
+                try {if(!setup.MoveNext()) yield break;current=setup.Current;}
+                catch(Exception error) {Fail("Назначение удерживаемой стопки через UI: "+error.Message);yield break;}
+                yield return current;
+            }
+        }
+        private IEnumerator SetupHoldingInventory()
+        {
+            runtime.Hud.ToggleInventory();
+            var category=UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Ammunition));
+            while(category.MoveNext()) yield return category.Current;
+            var actor=Actor;var filter=new InventoryItemFilter(WeaponCatalog.All);
+            int row=actor.inventory.Where(item=>filter.Includes(item,InventoryCategory.Ammunition)).ToList().FindIndex(item=>item.id==holdingBaseline.ordinaryItem);
+            if(row<0) throw new InvalidOperationException("Нет исходного p10 в реальной категории патронов: actor="+actor.id);
+            var select=UiPointerProbe.Click(runtime.Hud.DepositRowRect(row));
+            while(select.MoveNext()) yield return select.Current;
+            var assign=UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(11));
+            while(assign.MoveNext()) yield return assign.Current;
+            if(ItemShortcuts.Get(Actor,"=")?.id!=holdingBaseline.ordinaryItem)
+                throw new InvalidOperationException("Указатель не назначил исходный p10 на [=]: actor="+Actor.id);
+            runtime.Hud.ToggleInventory();holdingInventoryReady=true;
+        }
+        private PlayerCommand HoldingCommand()
+        {
+            if(!HoldingSource) return default;
+            if(!holdingInventoryReady || !Actor.climbing)
+                throw new InvalidOperationException("Источник не удерживает обычный хват после AscendShort: "+Context());
+            if(preflightSequence!=stageSequence)
+            {PreflightHolding(Actor);preflightSequence=stageSequence;}
+            var command=new PlayerCommand {hasAim=true,aim=HeldItemPose.Anchor(Actor)+HoldingOffset};
+            if(OrdinaryHolding)
+            {
+                if(HeldItemSelection.Selected(Actor)?.id!=holdingBaseline.ordinaryItem) command.weaponShortcut="=";
+            }
+            else if(HeldItemSelection.HasSelection(Actor) || Actor.equippedWeaponItem!=holdingBaseline.grenadeItem)
+                command.weaponItem=holdingBaseline.grenadeItem;
+            return command;
+        }
+        private HoldingArea HoldingProfile=>OrdinaryHolding?WeaponRigs.OrdinaryHoldingArea:WeaponCatalog.Get("grenade").holdingArea;
+        private void PreflightHolding(ActorState actor)
+        {
+            var anchor=HeldItemPose.Anchor(actor);float radius=HoldingProfile.RadiusFor(true);
+            foreach(var offset in new[]{new Vector2(.55f,.55f),new Vector2(-.55f,-.55f)})
+            {
+                if(offset.magnitude>radius)
+                    throw new InvalidOperationException($"Цель проверки вне объявленной области: actor={actor.id}, stage={stage}, radius={radius}, offset={offset}.");
+                int index=0;
+                foreach(var surface in RoomSurfaces.All(room))
+                {
+                    if(!surface.oneWay && SurfaceContact.Entry(surface,anchor,anchor+offset,HeldItemPose.ClearanceRadius).HasValue)
+                        throw new InvalidOperationException($"Нет реального clearance для цели удерживания: actor={actor.id}, stage={stage}, anchor={anchor}, offset={offset}, radius={HeldItemPose.ClearanceRadius}, surface={index}, bounds=({surface.x},{surface.y},{surface.width},{surface.height}), door={surface.sourceDoorId}.");
+                    index++;
+                }
+            }
+        }
+        private void CheckHoldingInventory(ActorState actor)
+        {
+            if(actor.health!=holdingBaseline.health || actor.damageSequence!=holdingBaseline.damageSequence ||
+                actor.inventoryUses.Count!=holdingBaseline.uses || InventoryJournal.Count(actor,"grenade")!=holdingBaseline.grenadeCount ||
+                InventoryJournal.Count(actor,"p10")!=holdingBaseline.ordinaryCount ||
+                runtime.Session.World.containers.Count(item=>item.presentationItem!=null)!=holdingBaseline.drops)
+                throw new InvalidOperationException("Удерживание изменило HP/расход/брошенные предметы: source="+actor.id+", stage="+stage);
+        }
+        private void AcceptHoldingReady(NetworkConnectionToClient connection,LadderHoldingReady message)
+        {
+            var source=runtime.Session.ConnectedActor(connection);
+            if(message.stage!=(int)serverStage || message.sequence!=serverSequence) return;
+            bool ordinary=serverStage is Stage.HoldingOrdinaryUp or Stage.HoldingOrdinaryDown;
+            string expected=ordinary?holdingBaseline.ordinaryItem:holdingBaseline.grenadeItem;
+            if(source==null || source.id!=holdingBaseline.source || message.source!=source.id || message.item!=expected ||
+                message.definition!=(ordinary?"p10":"grenade") || message.generation!=source.generation ||
+                message.selection!=source.weaponSelectionRevision ||
+                (ordinary?HeldItemSelection.Selected(source)?.id:source.equippedWeaponItem)!=expected)
+            {NetworkServer.SendToAll(new LadderContactFinish {success=false,detail="Недействительный источник/стопка/эпоха holding manifest."});return;}
+            if(serverHoldingReady.HasValue) return;
+            serverHoldingReady=message;NetworkServer.SendToAll(message);
+        }
+        private void ObserveHolding()
+        {
+            var actor=runtime.Session.World.Find(holdingBaseline.source);
+            if(actor==null) throw new InvalidOperationException("Исчез источник удерживаемой вещи: "+holdingBaseline.source);
+            CheckHoldingInventory(actor);
+            string expected=OrdinaryHolding?holdingBaseline.ordinaryItem:holdingBaseline.grenadeItem;
+            if(!float.IsFinite(actor.heldItemPoseX) || !float.IsFinite(actor.heldItemPoseY))
+                throw new InvalidOperationException("Неконечная поза удерживания: source="+actor.id+", stage="+stage);
+            if(!actor.climbing || !actor.heldItemPoseValid ||
+                (OrdinaryHolding?HeldItemSelection.Selected(actor)?.id:actor.equippedWeaponItem)!=expected ||
+                Vector2.Distance(new Vector2(actor.heldItemPoseX,actor.heldItemPoseY),HoldingOffset)>.005f) return;
+            if(HoldingSource && !holdingManifestSent)
+            {
+                holdingManifestSent=true;
+                NetworkClient.Send(new LadderHoldingReady {stage=(int)stage,sequence=stageSequence,source=actor.id,item=expected,
+                    definition=OrdinaryHolding?"p10":"grenade",generation=actor.generation,selection=actor.weaponSelectionRevision});
+            }
+            if(!holdingReady.HasValue || Time.frameCount<=Math.Max(Math.Max(stageFrame,changedFrame),readyFrame)) return;
+            var ready=holdingReady.Value;
+            if(ready.source!=actor.id || ready.item!=expected || ready.selection!=actor.weaponSelectionRevision || ready.generation!=actor.generation) return;
+            if(observationPreflightSequence!=stageSequence)
+            {PreflightHolding(actor);observationPreflightSequence=stageSequence;} // One explicit preflight per observation stage.
+            var weapon=interactionVisuals.FindWeapon(actor.id);
+            var renderer=OrdinaryHolding?runtime.HeldItems.Find(actor.id):weapon?.Artwork;
+            if(renderer==null || !renderer.enabled || !renderer.gameObject.activeInHierarchy || renderer.color.a<=0 || renderer.forceRenderingOff) return;
+            if(OrdinaryHolding && weapon!=null && weapon.gameObject.activeInHierarchy)
+                throw new InvalidOperationException("Оружейный рисунок не скрыт при удерживании p10: "+actor.id);
+            if(renderer.sprite!=(OrdinaryHolding?ordinarySprite:grenadeSprite) || !OrdinaryHolding && weapon.Id!="grenade")
+                throw new InvalidOperationException("Фактический спрайт не соответствует выбранному предмету: "+actor.id+", stage="+stage);
+            var origin=HeldItemPose.Mount(actor);var anchor=HeldItemPose.Anchor(actor);var radius=HeldItemPose.ReachLimit(actor);
+            if(!float.IsFinite(renderer.transform.position.x) || !float.IsFinite(renderer.transform.position.y) || !float.IsFinite(renderer.transform.position.z) || !float.IsFinite(radius))
+                throw new InvalidOperationException("Неконечный renderer/profile удерживания: source="+actor.id+", stage="+stage);
+            if(Vector2.Distance(renderer.transform.position,origin)>.005f) return;
+            if(Vector2.Distance(origin,anchor)>radius+.00001f)
+                throw new InvalidOperationException("Фактический origin вышел за holding profile: "+actor.id);
+            var camera=Camera.main??throw new InvalidOperationException("Нет камеры удерживания на лестнице.");
+            if((camera.cullingMask&(1<<renderer.gameObject.layer))==0)
+                throw new InvalidOperationException("Слой удерживаемого рисунка исключён камерой: "+actor.id);
+            var bounds=renderer.bounds;var corners=new Vector3[4];
+            float minX=float.PositiveInfinity,minY=float.PositiveInfinity,minDepth=float.PositiveInfinity;
+            float maxX=float.NegativeInfinity,maxY=float.NegativeInfinity,maxDepth=float.NegativeInfinity;
+            for(int i=0;i<4;i++)
+            {
+                corners[i]=camera.WorldToViewportPoint(new Vector3((i&1)==0?bounds.min.x:bounds.max.x,(i&2)==0?bounds.min.y:bounds.max.y,renderer.transform.position.z));
+                if(!float.IsFinite(corners[i].x) || !float.IsFinite(corners[i].y) || !float.IsFinite(corners[i].z))
+                    throw new InvalidOperationException("Неконечный viewport удерживания: source="+actor.id+", stage="+stage);
+                minX=Mathf.Min(minX,corners[i].x);maxX=Mathf.Max(maxX,corners[i].x);
+                minY=Mathf.Min(minY,corners[i].y);maxY=Mathf.Max(maxY,corners[i].y);
+                minDepth=Mathf.Min(minDepth,corners[i].z);maxDepth=Mathf.Max(maxDepth,corners[i].z);
+            }
+            if(minX<0 || maxX>1 || minY<0 || maxY>1 || maxX<=minX || maxY<=minY || minDepth<camera.nearClipPlane || maxDepth>camera.farClipPlane)
+                throw new InvalidOperationException($"Удерживаемый рисунок не помещается в настоящей камере: actor={actor.id}, stage={stage}, viewport=({minX},{minY})..({maxX},{maxY}), depth={minDepth}..{maxDepth}.");
+            var sample=new HoldingCapture {phase=HoldingPhase,stage=(int)stage,sequence=stageSequence,frame=Time.frameCount,observer=Actor.id,
+                source=actor.id,item=expected,definition=ready.definition,selection=ready.selection,generation=actor.generation,actor=actor.Copy(),
+                expectedOffset=HoldingOffset,actualOffset=new Vector2(actor.heldItemPoseX,actor.heldItemPoseY),anchor=anchor,poseOrigin=origin,
+                rendererOrigin=renderer.transform.position,rendererScale=renderer.transform.localScale,rendererAngle=renderer.transform.eulerAngles.z,
+                sprite=renderer.sprite.name,texture=renderer.sprite.texture.name,rendererName=renderer.name,profile=HoldingProfile,radius=radius,
+                rendererEnabled=true,fullyVisible=true,clearancePreflight=true,viewportCorners=corners,minX=minX,maxX=maxX,minY=minY,maxY=maxY,
+                minDepth=minDepth,maxDepth=maxDepth,health=actor.health,grenadeCount=InventoryJournal.Count(actor,"grenade"),ordinaryCount=InventoryJournal.Count(actor,"p10"),
+                uses=actor.inventoryUses.Count,drops=runtime.Session.World.containers.Count(item=>item.presentationItem!=null),width=Screen.width,height=Screen.height};
+            NetworkSceneRecord.Save(runtime,HoldingPhase);
+            File.WriteAllText(runtime.Options.Report+".phase-"+HoldingPhase+".holding.json",StateJson.ToJson(sample,true));
+            holdingCaptures.Add(sample);Observed(); // Reliable barrier advances only after real PNG + scene + DTO exist on every peer.
+        }
+        private void OnDestroy() {if(runtime!=null) runtime.Session.Changed-=VisualChanged;}
+        [Serializable] private sealed class HoldingBaseline
+        {public string source,grenadeItem,ordinaryItem;public int grenadeCount,ordinaryCount,damageSequence,uses,drops;public float health;}
+        [Serializable] private sealed class HoldingCapture
+        {
+            public int phase,stage,sequence,frame,generation,width,height,grenadeCount,ordinaryCount,uses,drops;
+            public string observer,source,item,definition,sprite,texture,rendererName;public long selection;public ActorState actor;
+            public HoldingArea profile;public Vector2 expectedOffset,actualOffset,anchor,poseOrigin;public Vector3 rendererOrigin,rendererScale;
+            public bool rendererEnabled,fullyVisible,clearancePreflight;public Vector3[] viewportCorners;
+            public float radius,rendererAngle,minX,maxX,minY,maxY,minDepth,maxDepth,health;
         }
 
         private static bool ActiveDescending(ActorState actor,PonyVisual view)
@@ -387,14 +612,15 @@ namespace Remains.Runtime
         private void Observed()
         {
             reported=true;barriers.Add(new Barrier {stage=(int)stage,position=Actor.Position,frame=Time.frameCount,seconds=Time.unscaledTime});
-            NetworkClient.Send(new LadderContactObserved {stage=(int)stage,observer=Actor.id,success=true,detail=Context()});
+            NetworkClient.Send(new LadderContactObserved {stage=(int)stage,sequence=stageSequence,observer=Actor.id,success=true,detail=Context(),
+                item=Holding?holdingReady?.item:null,selection=Holding?holdingReady?.selection??0:0,capturePhase=Holding?HoldingPhase:0});
         }
-        private string Context()=> $"stage={stage}, server={serverStage}, actor={Actor?.id}, body={Actor?.Position}, vy={Actor?.vy}, climbing={Actor?.climbing}, ladder={ladderId}, floor={lowerY}, targets={shortY}/{highY}, commands={movementCommands}/{upCommands}/{downCommands}, descSamples={shortDescendingSamples}/{highDescendingSamples}, captures={captures.Count}, deadline={deadline}";
+        private string Context()=> $"stage={stage}, server={serverStage}, actor={Actor?.id}, body={Actor?.Position}, vy={Actor?.vy}, climbing={Actor?.climbing}, ladder={ladderId}, floor={lowerY}, targets={shortY}/{highY}, commands={movementCommands}/{upCommands}/{downCommands}, descSamples={shortDescendingSamples}/{highDescendingSamples}, captures={captures.Count}, holdingSource={holdingBaseline?.source}, holdingReady={holdingReady?.item}@{holdingReady?.selection}, holdingCaptures={holdingCaptures.Count}, deadline={deadline}";
         private void Fail(string reason)
         {
             if(finished) return;
             string detail=reason+" "+Context();
-            if(NetworkClient.isConnected) NetworkClient.Send(new LadderContactObserved {stage=(int)stage,observer=Actor?.id,success=false,detail=detail});
+            if(NetworkClient.isConnected) NetworkClient.Send(new LadderContactObserved {stage=(int)stage,sequence=stageSequence,observer=Actor?.id,success=false,detail=detail});
             if(Host && NetworkServer.active) NetworkServer.SendToAll(new LadderContactFinish {success=false,detail=detail});
             Finish(false,detail);
         }
@@ -405,6 +631,12 @@ namespace Remains.Runtime
                 repeatNearTop && (!highAscended || !highLanded || !highDescendingCapture || highDescendingSamples==0) ||
                 witnesses.Count!=runtime.Options.ProbePeers || witnesses.Values.Any(value=>value.descendingSamples==0 || value.minimum==null || value.heldSamples==0 || value.heldMinimum==null)))
             {success=false;detail="Неполное независимое доказательство контакта лестницы. "+detail;}
+            if(success && HoldingEnabled && (holdingCaptures.Count!=4 || holdingCaptures.Select(value=>value.phase).Distinct().Count()!=4))
+            {success=false;detail="Нет четырёх независимых живых кадров двумерного удержания. "+detail;}
+            if(success && HoldingEnabled && (holdingCaptures[0].selection!=holdingCaptures[1].selection ||
+                holdingCaptures[2].selection!=holdingCaptures[3].selection || holdingCaptures[2].selection<=holdingCaptures[1].selection ||
+                holdingCaptures.Select(value=>value.generation).Distinct().Count()!=1))
+            {success=false;detail="Пары целей не сохранили одну эпоху выбора/поколение источника. "+detail;}
             finished=true;
             if(!success && prepared)
             {
@@ -417,8 +649,8 @@ namespace Remains.Runtime
                 ladderId=ladderId,ladder=ladder,lowerSupport=lowerSupport,lowerY=lowerY,shortY=shortY,highY=highY,
                 repeatNearTop=repeatNearTop,highRouteReason=highRouteReason,shortAscended=shortAscended,shortLanded=shortLanded,highAscended=highAscended,highLanded=highLanded,
                 movementCommands=movementCommands,upCommands=upCommands,downCommands=downCommands,shortDescendingSamples=shortDescendingSamples,highDescendingSamples=highDescendingSamples,mountSequences=mountedSequences.Count,
-                contactSources=contactSources,witnesses=witnesses.Values.ToArray(),captures=captures.ToArray(),barriers=barriers.ToArray(),trace=trace.ToArray(),failureCaptureError=failureCaptureError,
-                contactTolerance=RoomSupport.ContactTolerance,limit="Контакты — предсказанные минимумы видимых опорных частей из общего baked source; не анализ PNG каждого кадра. Idle не проверяется на все пиксели копыт. Камера записана с полным envelope, без утверждения идеального следования. Remote — отдельное локальное представление реплики. ActorState не хранит ID лестницы: наблюдаемый хват сопоставляется с authored hierarchy path и runtime geometry; это диагностический ID, не persistent gameplay ID."},true));
+                holdingEnabled=HoldingEnabled,holdingBaseline=holdingBaseline,holdingCaptures=holdingCaptures.ToArray(),contactSources=contactSources,witnesses=witnesses.Values.ToArray(),captures=captures.ToArray(),barriers=barriers.ToArray(),trace=trace.ToArray(),failureCaptureError=failureCaptureError,
+                contactTolerance=RoomSupport.ContactTolerance,limit="Контакты — предсказанные минимумы видимых опорных частей из общего baked source; не анализ PNG каждого кадра. Idle не проверяется на все пиксели копыт. Камера записана с полным envelope, без утверждения идеального следования. Remote — отдельное локальное представление реплики. ActorState не хранит ID лестницы: наблюдаемый хват сопоставляется с authored hierarchy path и runtime geometry; это диагностический ID, не persistent gameplay ID. Holding phases15–18 проверяют фактический origin, sprite binding и полный viewport bounds; это не сегментация видимых пикселей или доказательство отсутствия перекрытия другим рисунком. Original runtime удерживание на лестнице не проверено."},true));
             exitSuccess=success;Invoke(nameof(Exit),1.5f);
         }
         private bool exitSuccess;
@@ -437,7 +669,8 @@ namespace Remains.Runtime
         }
         [Serializable] private sealed class Report
         {
-            public bool success,repeatNearTop,shortAscended,shortLanded,highAscended,highLanded;
+            public bool success,repeatNearTop,shortAscended,shortLanded,highAscended,highLanded,holdingEnabled;
+            public HoldingBaseline holdingBaseline;public HoldingCapture[] holdingCaptures;
             public string detail,context,role,observer,world,level,ladderId,highRouteReason,limit,failureCaptureError;
             public int width,height,peers,movementCommands,upCommands,downCommands,shortDescendingSamples,highDescendingSamples,mountSequences;
             public float lowerY,shortY,highY,contactTolerance;public Vector2 start,authoredSpawn,end;public RoomLadder ladder;public RoomSurface lowerSupport;
