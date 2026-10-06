@@ -38,7 +38,7 @@ namespace Remains.Runtime
         private readonly HashSet<string> seenNpcShots=new(StringComparer.Ordinal);
         private readonly AttackEvent friendlyCorridor=new() {weapon="pistol"};
         private int phase,generation,shotsAfterHandoff,roundsAtOpen,candidateAttempt;
-        private float deadline,quietAt=-1,nextHeal,transferAt;
+        private float deadline,quietAt=-1,nextHeal,transferAt,postHandoffApproachDistance,postHandoffApproachStartX,postHandoffApproachTravel;
         private string owner,ownPistol,capture,aimedThreat,loadedSnapshot,archivePath;
         private bool traveled,installed,reported,negativeReported,finished,disconnecting,stopped,opened,draining,saving,edge,reinstallVerified,loadedVerified,postTargetObserved;
         private bool Host=>runtime.Options.Role=="host";
@@ -142,6 +142,9 @@ namespace Remains.Runtime
         {
             var actor=Actor??throw new InvalidOperationException("Fixture доставлена до подтверждённого игрока.");
             generation=actor.generation;owner=actor.owner;
+            var perception=ActorTypes.Get(Npc.actorType).perception;
+            if(perception==null || perception.closeDistance<=0) throw new InvalidOperationException("Recovery fixture требует положительную дальность близкого обнаружения NPC: "+NpcId);
+            postHandoffApproachDistance=perception.closeDistance*.75f;
             ownPistol=actor.inventory.Single(i=>i.definition=="pistol" && i.weaponState!=null).id;
         }
         private static void Require(string reason) {if(reason!=null) throw new InvalidOperationException(reason);}
@@ -176,7 +179,15 @@ namespace Remains.Runtime
             }
             if(actor.health<70 && InventoryJournal.Count(actor,"heal")>0 && Time.unscaledTime>=nextHeal)
             {command.heal=true;nextHeal=Time.unscaledTime+1.5f;}
-            if(shotsAfterHandoff==0) return command;
+            if(shotsAfterHandoff==0)
+            {
+                // Handoff preserves facing/memory. The host starts behind the saved
+                // raider and must approach through ordinary input to be perceived.
+                if(phase==6 && !postTargetObserved && Npc is {down:false,health:>0} npc && npc.owner==runtime.Session.LocalOwner &&
+                    Mathf.Abs(actor.x-npc.x)>postHandoffApproachDistance)
+                    command.movement=Vector2.right*Mathf.Sign(npc.x-actor.x);
+                return command;
+            }
             // The chosen saved raider, then actual threats on this player only.
             var threat=Npc is {down:false,health:>0}?Npc:runtime.Session.World.actors.Where(a=>!a.player && !a.down && a.health>0 && a.level==Level &&
                 (a.target==actor.id || a.attackBusy && a.attackTarget==actor.id)).OrderBy(a=>(a.Position-actor.Position).sqrMagnitude).FirstOrDefault();
@@ -275,9 +286,13 @@ namespace Remains.Runtime
                 if(!session.Pause.IsPaused(Level) || !session.Pause.IsServerPaused(Level) || Mathf.Abs(canonical.attackCooldown-proof.recoveredNpc.attackCooldown)>.001f)
                     throw new InvalidOperationException("Подтверждённая handoff пауза изменила cooldown или была снята до наблюдения.");
                 Require(OfficeRecoveryEvidence.Handoff(proof.preparedNpc,canonical,proof.departedBefore,departing,session.ServerWorld.Find(proof.hostId)));
-                phase=6;session.Pause.SetManual(false);
+                phase=6;postHandoffApproachStartX=actor.x;session.Pause.SetManual(false);
             }
-            if(phase==6 && Npc.owner==session.LocalOwner && Npc.attackBusy && Npc.attackTarget==actor.id) postTargetObserved=true;
+            if(phase==6)
+            {
+                postHandoffApproachTravel=Mathf.Max(postHandoffApproachTravel,Mathf.Abs(actor.x-postHandoffApproachStartX));
+                if(Npc.owner==session.LocalOwner && Npc.attackBusy && Npc.attackTarget==actor.id) postTargetObserved=true;
+            }
             if(phase==6 && Npc.down)
             {
                 if(Npc.health>0 || shotsAfterHandoff==0 || !postTargetObserved || !Npc.resolvedAttacks.Any(shots.Contains))
@@ -477,7 +492,7 @@ namespace Remains.Runtime
                 opened=opened,emptyVerified=proof?.corpseItems!=null && proof.claims!=null,savedVerified=proof?.sourceSnapshot!=null,reinstallVerified=reinstallVerified,
                 externalReloadVerified=loadedVerified && Reload,postTargetObserved=postTargetObserved,sourceSnapshot=proof?.sourceSnapshot,worldId=proof?.worldId,npc=NpcId,
                 captures=captures.OrderBy(c=>c,StringComparer.Ordinal).ToArray(),localPrepared=localPrepared,localBeforeDeparture=localBeforeDeparture,
-                candidateAttempt=candidateAttempt,candidateRetries=candidateRetries.ToArray(),confirmedAttackId=proof?.confirmedAttackId,witness=proof,npcShots=npcShots.ToArray(),postHandoffShots=shotsAfterHandoff,ownShotIds=shots.ToArray(),progress=Progress},true));
+                postHandoffApproachDistance=postHandoffApproachDistance,postHandoffApproachTravel=postHandoffApproachTravel,candidateAttempt=candidateAttempt,candidateRetries=candidateRetries.ToArray(),confirmedAttackId=proof?.confirmedAttackId,witness=proof,npcShots=npcShots.ToArray(),postHandoffShots=shotsAfterHandoff,ownShotIds=shots.ToArray(),progress=Progress},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(.5f);Application.Quit(success?0:1);}
@@ -485,6 +500,7 @@ namespace Remains.Runtime
         {
             public bool success,explicitInitialFixture,gracefulStopped,preparedObserved,handoffVerified,opened,emptyVerified,savedVerified,reinstallVerified,externalReloadVerified,postTargetObserved;
             public string detail,mode,sourceSnapshot,worldId,npc,progress,confirmedAttackId;public int phase,postHandoffShots,candidateAttempt;
+            public float postHandoffApproachDistance,postHandoffApproachTravel;
             public string[] captures,ownShotIds,candidateRetries;public ActorState localPrepared,localBeforeDeparture;public OfficeRecoveryWitness witness;public AttackEvent[] npcShots;
         }
     }
