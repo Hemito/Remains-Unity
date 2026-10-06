@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Remains.Domain;
 using Remains.Networking;
+using Remains.Diagnostics;
 
 namespace Remains.Gameplay
 {
@@ -21,6 +22,7 @@ namespace Remains.Gameplay
         {session.Changed+=()=>Reconcile(session.World);}
         public void Reconcile(WorldState world)
         {
+            using var timing=TransitionTiming.Measure("geometry.reconcile",world?.worldId);
             string definitions=Remains.Serialization.StateJson.ToJson(world?.rooms);
             if(worldId!=world?.worldId || roomDefinitions!=definitions)
             {rooms.Clear();worldId=world?.worldId;roomDefinitions=definitions;TopologyVersion++;}

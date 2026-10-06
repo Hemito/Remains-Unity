@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Remains.Domain;
 using Remains.Serialization;
+using Remains.Diagnostics;
 using UnityEngine;
 
 namespace Remains.Content
@@ -20,13 +21,21 @@ namespace Remains.Content
         }
         public RoomLayout CreateLayout(bool includeArtwork=true)
         {
+            string context=TransitionTiming.Enabled?name:null;
+            using var timing=TransitionTiming.Measure("room.layout",context);
             if(settings==null) throw new InvalidOperationException($"Комната {name}: отсутствуют настройки.");
-            var result=StateJson.FromJson<RoomLayout>(StateJson.ToJson(settings));
+            RoomLayout result;
+            using(TransitionTiming.Measure("room.layout-settings",context))
+                result=StateJson.FromJson<RoomLayout>(StateJson.ToJson(settings));
             // Rendering properties (including GPU-dependent material values) do not define simulation compatibility.
             if(!includeArtwork) result.artwork=null;
-            else if(authoredArtwork) result.artwork=GetComponentsInChildren<RoomArtworkAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
-            result.platforms=GetComponentsInChildren<RoomSurfaceAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
-            result.ladders=GetComponentsInChildren<RoomLadderAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
+            else if(authoredArtwork)
+                using(TransitionTiming.Measure("room.layout-artwork",context))
+                    result.artwork=GetComponentsInChildren<RoomArtworkAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
+            using(TransitionTiming.Measure("room.layout-surfaces",context))
+                result.platforms=GetComponentsInChildren<RoomSurfaceAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
+            using(TransitionTiming.Measure("room.layout-ladders",context))
+                result.ladders=GetComponentsInChildren<RoomLadderAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             if(result.platforms.Length==0 || result.left>=result.right) throw new InvalidOperationException($"Комната {name}: некорректные границы или нет поверхностей.");
             return result;
         }
@@ -41,7 +50,12 @@ namespace Remains.Content
         {
             return Load(level,null);
         }
-        public static RoomAuthoring Load(string level,WorldState world)=>RoomCatalogAsset.Load().Resolve(WorldRooms.Definition(world,level));
+        public static RoomAuthoring Load(string level,WorldState world)
+        {
+            RoomCatalogAsset catalog;
+            using(TransitionTiming.Measure("room.resolve-catalog",level)) catalog=RoomCatalogAsset.Load();
+            using(TransitionTiming.Measure("room.resolve-entry",level)) return catalog.Resolve(WorldRooms.Definition(world,level));
+        }
         public static Rect ReadRect(Transform part,Transform root)
         {
             var matrix=root.worldToLocalMatrix*part.localToWorldMatrix;

@@ -7,6 +7,7 @@ using System.Linq;
 using Mirror;
 using Remains.Content;
 using Remains.Domain;
+using Remains.Diagnostics;
 using Remains.Gameplay;
 using Remains.Persistence;
 using Remains.Presentation;
@@ -44,6 +45,7 @@ namespace Remains.Runtime
         {
             public bool success,noFixture,ordinaryMapEntry,ordinaryDoorExit;public string detail,world,actor,level;
             public int phase;public Vector2 position;public double synchronousBudgetMilliseconds;public Visit[] visits;
+            public TransitionTimingSample[] transitionTimings;
         }
         private PrototypeRuntime runtime;
         private readonly List<Visit> visits=new();
@@ -303,8 +305,21 @@ namespace Remains.Runtime
             if(finished) return;finished=true;
             success=success && returnReported && visits.Count==3 && ordinaryMapEntry && ordinaryDoorExit;
             foreach(var visit in visits) visit.frames??=visit.trace.ToArray();
+            TransitionTimingSample[] timings;
+            try
+            {
+                timings=TransitionTiming.ToArray();
+                if(success && timings.Length==0) throw new InvalidOperationException("Журнал actual переходов пуст или не включён.");
+            }
+            catch(Exception error)
+            {
+                success=false;timings=Array.Empty<TransitionTimingSample>();
+                detail+="; ошибка журнала перехода: "+error.Message;
+                Debug.LogError("Проба подготовки света: исходный результат сохранён; "+detail,this);
+            }
             File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,noFixture=true,ordinaryMapEntry=ordinaryMapEntry,ordinaryDoorExit=ordinaryDoorExit,
-                detail=detail+": "+Progress,world=world,actor=Actor?.id,level=Actor?.level,position=Actor?.Position??default,phase=phase,synchronousBudgetMilliseconds=syncBudget,visits=visits.ToArray()},true));
+                detail=detail+": "+Progress,world=world,actor=Actor?.id,level=Actor?.level,position=Actor?.Position??default,phase=phase,synchronousBudgetMilliseconds=syncBudget,
+                visits=visits.ToArray(),transitionTimings=timings},true));
             exitCode=success?0:1;Invoke(nameof(Exit),.5f);
         }
         private int exitCode;

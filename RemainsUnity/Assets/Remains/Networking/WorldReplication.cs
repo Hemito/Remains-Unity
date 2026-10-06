@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using Mirror;
 using Remains.Persistence;
+using Remains.Diagnostics;
 
 namespace Remains.Networking
 {
@@ -38,6 +39,7 @@ namespace Remains.Networking
         }
         public ReceivedWorld Receive(WorldPartMessage message)
         {
+            using var timing=TransitionTiming.Measure("snapshot.assemble",message.snapshot);
             if(incoming==null)
             {
                 if(message.offset!=0) throw new InvalidDataException("Снимок мира начался с неполного пакета.");

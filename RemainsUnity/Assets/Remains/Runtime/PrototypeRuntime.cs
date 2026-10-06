@@ -11,6 +11,7 @@ using Remains.Presentation;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Remains.Content;
+using Remains.Diagnostics;
 
 namespace Remains.Runtime
 {
@@ -85,6 +86,8 @@ namespace Remains.Runtime
         private void Initialize()
         {
             Options=LaunchOptions.Parse();
+            TransitionTiming.Enabled=Options.Smoke?.StartsWith("lighting-preparation")==true;
+            TransitionTiming.Reset();
             Anatomy.Load();
             passiveMovementSettings=MovementSettings.Load();
             WeaponCatalog.Load();
@@ -315,9 +318,11 @@ namespace Remains.Runtime
             string definition=WorldRooms.Definition(Session.World,Session.LocalActor.level);
             if(shownLevel!=Session.LocalActor.level || shownRoom!=definition)
             {
+                using var transition=TransitionTiming.Measure("runtime.room-transition",Session.LocalActor.level);
                 shownLevel=Session.LocalActor.level;shownRoom=definition;
                 var room=Geometry.Get(shownLevel);
-                roomPresentation.Bind(null);ActiveRoomLighting?.Release();
+                using(TransitionTiming.Measure("runtime.release-room",shownLevel))
+                {roomPresentation.Bind(null);ActiveRoomLighting?.Release();}
                 Destroy(roomObject);roomObject=AuthoredRoomVisual.Create(shownLevel,room,Session.World);
                 ActiveRoomLighting=roomObject.GetComponent<RoomLighting>();
                 roomPresentation.Bind(ActiveRoomLighting);
@@ -425,7 +430,12 @@ namespace Remains.Runtime
                 releaseRequested=false;
                 // Room objects destroy their owned meshes/materials at frame boundaries.
                 yield return null;yield return null;
-                yield return Resources.UnloadUnusedAssets();
+                // Measure the issuing call only: the asynchronous operation's wait must not
+                // become a nested main-thread timing scope spanning multiple frames.
+                AsyncOperation unloading;
+                using(TransitionTiming.Measure("runtime.unload-unused-call",shownLevel))
+                    unloading=Resources.UnloadUnusedAssets();
+                yield return unloading;
             } while(releaseRequested);
             ReleasingUnusedAssets=false;
         }

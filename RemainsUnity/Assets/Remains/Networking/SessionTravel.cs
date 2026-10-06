@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Mirror;
 using Remains.Domain;
 using Remains.Content;
+using Remains.Diagnostics;
 using UnityEngine;
 
 namespace Remains.Networking
@@ -91,6 +92,7 @@ namespace Remains.Networking
 
         private void ReceiveRequest(NetworkConnectionToClient connection, TravelRequest request)
         {
+            using var timing=TransitionTiming.Measure("travel.server-request",request.destination);
             var actor = session.ConnectedActor(connection);
             Debug.Log($"Переход получен: request={request.id}, connection={connection.connectionId}, actor={actor?.id}, time={Time.unscaledTime}.");
             string key = connection.connectionId + ":" + request.id;
@@ -105,27 +107,42 @@ namespace Remains.Networking
                 else if(point!=null) reason=point.destination!=request.destination?"Назначение точки перехода изменилось.":point.Rejection(actor);
             }
             TravelPoint arrival=null;
+            RoomLayout destination=null;
             if(reason==null && !string.IsNullOrEmpty(point?.arrivalPoint))
             {
                 arrival=Find(point.arrivalPoint,request.destination,true);
                 if(arrival==null) reason=$"Не найдена точка прибытия {point.arrivalPoint}.";
                 else
                 {
-                    var room=RoomLayout.Load(request.destination,session.ServerWorld);var hull=Anatomy.Movement(actor);
-                    if(!ActorTerrainMotion.IsClear(room,hull,arrival.Arrival) || !ActorTerrainMotion.Supported(room,hull,arrival.Arrival))
+                    using(TransitionTiming.Measure("travel.arrival-layout",request.destination))
+                        destination=RoomLayout.Load(request.destination,session.ServerWorld);
+                    var hull=Anatomy.Movement(actor);
+                    if(!ActorTerrainMotion.IsClear(destination,hull,arrival.Arrival) || !ActorTerrainMotion.Supported(destination,hull,arrival.Arrival))
                         reason=$"Точка прибытия {arrival.id} не имеет свободной физической опоры.";
                 }
             }
             var reply = new TravelReply { id = request.id, accepted = reason == null, reason = reason };
             if (reply.accepted)
             {
-                var content=RoomContentBatch.Read(RoomAuthoring.Load(request.destination,session.ServerWorld),request.destination);
-                RoomContentInstaller.Apply(session.ServerWorld,content);
+                RoomContentBatch content;
+                using(TransitionTiming.Measure("travel.content-read",request.destination))
+                    content=RoomContentBatch.Read(RoomAuthoring.Load(request.destination,session.ServerWorld),request.destination);
+                using(TransitionTiming.Measure("travel.content-install",request.destination))
+                    RoomContentInstaller.Apply(session.ServerWorld,content);
                 session.LevelTime.EnsureLevel(request.destination);
-                session.Mechanisms.ReconcileServer();
-                TravelRules.Apply(actor, request.destination, RoomLayout.Load(request.destination,session.ServerWorld));
-                if(arrival!=null) actor.Position=arrival.Arrival;
-                session.CommitWorld();
+                using(TransitionTiming.Measure("travel.mechanisms",request.destination))
+                    session.Mechanisms.ReconcileServer();
+                // Reuse this request's authored layout already validated for arrival.
+                // Content installation changes world entities, not the authored layout.
+                using(TransitionTiming.Measure("travel.apply-layout",request.destination))
+                    destination??=RoomLayout.Load(request.destination,session.ServerWorld);
+                using(TransitionTiming.Measure("travel.apply",request.destination))
+                {
+                    TravelRules.Apply(actor, request.destination, destination);
+                    if(arrival!=null) actor.Position=arrival.Arrival;
+                }
+                using(TransitionTiming.Measure("travel.commit",request.destination))
+                    session.CommitWorld();
                 Debug.Log($"Переход подтверждён: actor={actor.id}, request={request.id}, level={actor.level}, lifecycle={actor.lifecycleSequence}.");
             }
             else Debug.LogWarning($"Переход отклонён: actor={actor?.id}, request={request.id}, source={request.source}, destination={request.destination}, причина={reason}.");

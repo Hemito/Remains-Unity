@@ -71,6 +71,8 @@ namespace Remains.Editor
             InventoryPauseChecks.Run();
             RoomLoadingViewChecks.Run();
             RoomLightingPreparationChecks.Run();
+            TransitionTimingChecks.Run();
+            RoomContentPublicationChecks.Run();
             WeaponAssetChecks.Run();
             EntityAssetChecks.Run();
             PropPrefabChecks.Run();

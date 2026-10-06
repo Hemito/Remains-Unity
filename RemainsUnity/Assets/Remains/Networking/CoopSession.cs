@@ -8,6 +8,7 @@ using Remains.Domain;
 using Remains.Persistence;
 using UnityEngine;
 using Remains.Content;
+using Remains.Diagnostics;
 
 namespace Remains.Networking
 {
@@ -441,6 +442,7 @@ namespace Remains.Networking
 
         private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null)
         {
+            using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
             var snapshot=verified??new RecoverySnapshot(message.json);
             var incoming = PersistCopy(snapshot);
             bool publishHealing=false;
@@ -498,6 +500,7 @@ namespace Remains.Networking
 
         private void QueueRecoveryReceipt(RecoverySnapshot snapshot)
         {
+            using var timing=TransitionTiming.Measure("snapshot.receipt",snapshot.WorldId);
             var actor=CaptureLocalCharacter();
             if(actor==null) throw new InvalidOperationException($"Нет личного персонажа для подтверждения сохранения: world={snapshot.WorldId}, actor={LocalActorId}.");
             var store=Saves;bool localHost=NetworkServer.active;
@@ -540,6 +543,7 @@ namespace Remains.Networking
         }
         private RecoverySnapshot PrepareRecovery()
         {
+            using var timing=TransitionTiming.Measure("snapshot.prepare",ServerWorld?.worldId);
             long started=BeginRecoveryMeasurement();
             var snapshot=Saves.CaptureWorldSnapshot(ServerWorld);
             var store=Saves;
@@ -898,6 +902,7 @@ namespace Remains.Networking
 
         private void BroadcastWorld()
         {
+            using var timing=TransitionTiming.Measure("snapshot.broadcast",ServerWorld?.worldId);
             Pause.Publish();
             var snapshot=PrepareRecovery();
             foreach(int id in owners.Keys)

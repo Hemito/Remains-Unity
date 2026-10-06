@@ -1,5 +1,6 @@
 using System;
 using Remains.Domain;
+using Remains.Diagnostics;
 
 namespace Remains.Content
 {
@@ -38,19 +39,20 @@ namespace Remains.Content
             if(batch.mechanisms!=null) Check(batch.mechanisms.patch,batch.mechanisms.level);
             if(!NeedsInstall(world,batch)) return false;
             // Validate the whole batch on a detached world before touching any live objects.
-            // Individual installers are deterministic, have no callbacks and perform no I/O.
-            var staged=Remains.Serialization.StateJson.Copy(world);
-            Install(staged,batch);
+            // Individual installers are the sole rule source, have no callbacks and perform no I/O.
+            var publication=RoomContentPublication.Capture(world,level);
+            using(TransitionTiming.Measure("content.stage-validation",level)) Install(publication.Staged,batch);
+            using(TransitionTiming.Measure("content.stage-append-validation",level)) publication.Prepare();
             // Preserve references held by movement, travel and ownership consumers.
-            Install(world,batch);
+            using(TransitionTiming.Measure("content.publish",level)) publication.Publish(world);
             return true;
         }
         private static void Install(WorldState world,RoomContentBatch batch)
         {
-            if(batch.doors!=null) DoorContentInstaller.Apply(world,batch.doors);
-            if(batch.physical!=null) PhysicalContentInstaller.Apply(world,batch.physical);
-            if(batch.npcs!=null) NpcContentInstaller.Apply(world,batch.npcs);
-            if(batch.mechanisms!=null) MechanismContentInstaller.Apply(world,batch.mechanisms);
+            if(batch.doors!=null) using(TransitionTiming.Measure("content.doors",batch.doors.level)) DoorContentInstaller.Apply(world,batch.doors);
+            if(batch.physical!=null) using(TransitionTiming.Measure("content.physical",batch.physical.level)) PhysicalContentInstaller.Apply(world,batch.physical);
+            if(batch.npcs!=null) using(TransitionTiming.Measure("content.npcs",batch.npcs.level)) NpcContentInstaller.Apply(world,batch.npcs);
+            if(batch.mechanisms!=null) using(TransitionTiming.Measure("content.mechanisms",batch.mechanisms.level)) MechanismContentInstaller.Apply(world,batch.mechanisms);
         }
     }
 }
