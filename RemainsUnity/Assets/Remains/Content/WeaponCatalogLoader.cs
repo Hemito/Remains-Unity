@@ -108,6 +108,10 @@ namespace Remains.Content
         }
         internal static void Validate(WeaponDefinition weapon,string source)
         {
+            bool usesHoldingArea=weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar" or "grenade";
+            if(usesHoldingArea) weapon.holdingArea.Validate($"источник={source}, weapon={weapon.id}");
+            else if(!weapon.holdingArea.Inapplicable)
+                throw new InvalidDataException($"Двумерная область удержания неприменима к огнестрельному определению: источник={source}, weapon={weapon.id}.");
             if(weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar")
             {
                 var keys=weapon.meleeMotion;

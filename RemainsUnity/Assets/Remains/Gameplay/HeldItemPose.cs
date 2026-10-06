@@ -12,7 +12,8 @@ namespace Remains.Gameplay
         private static readonly Dictionary<string,string> diagnostics=new(StringComparer.Ordinal);
         public const float ClearanceRadius=.2f,SurfaceGap=.01f;
         public static Vector2 Anchor(ActorState actor)=>WeaponPose.Origin(actor);
-        public static float ReachLimit(ActorState actor)=>actor.climbing?WeaponRigs.ClimbingAimRadius:WeaponRigs.AimRadius;
+        public static float ReachLimit(ActorState actor)=>
+            (HeldItemSelection.HasSelection(actor)?WeaponRigs.OrdinaryHoldingArea:WeaponCatalog.Get("grenade").holdingArea).RadiusFor(actor.climbing);
         public static Vector2 Mount(ActorState actor)=>Anchor(actor)+new Vector2(actor.heldItemPoseX,actor.heldItemPoseY);
         public static bool Aim(ActorState actor,Vector2 target,RoomLayout room=null)
         {

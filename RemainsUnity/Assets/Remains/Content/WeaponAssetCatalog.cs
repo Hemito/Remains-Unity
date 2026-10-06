@@ -15,12 +15,19 @@ namespace Remains.Content
         public float AimRadius=>aimRadius;
         public float ClimbingAimRadius=>climbingAimRadius;
         public float AnchorHeight=>anchorHeight;
+        [SerializeField,InspectorName("Область удержания обычных вещей")]
+        private HoldingArea ordinaryHoldingArea;
+        public HoldingArea OrdinaryHoldingArea=>ordinaryHoldingArea;
+        public void SetOrdinaryHoldingArea(HoldingArea value)
+        {value.Validate("каталог "+name+", обычные вещи");ordinaryHoldingArea=value;}
         [SerializeField,Min(0),InspectorName("Подъём огнестрела при удержании вверх (м)")] private float raiseHeight=.8f;
         [SerializeField,Min(0),InspectorName("Задержка подъёма огнестрела (с)")] private float raiseDelay=.3666667f;
         public float RaiseHeight=>raiseHeight;
         public float RaiseDelay=>raiseDelay;
         private void OnValidate()
         {
+            try {ordinaryHoldingArea.Validate("каталог "+name+", обычные вещи");}
+            catch(System.IO.InvalidDataException error) {Debug.LogWarning(error.Message,this);}
             if(!float.IsFinite(raiseHeight) || !float.IsFinite(raiseDelay) || raiseHeight<0 || raiseDelay<0)
                 Debug.LogWarning($"Каталог {name}: высота и задержка подъёма должны быть конечными неотрицательными числами.",this);
             if(float.IsFinite(raiseHeight)) raiseHeight=Mathf.Max(0,raiseHeight);

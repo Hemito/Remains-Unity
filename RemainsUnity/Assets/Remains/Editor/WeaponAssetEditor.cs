@@ -39,6 +39,11 @@ namespace Remains.Editor
             }
             EditorGUILayout.LabelField("Ближний бой",EditorStyles.boldLabel);
             Field("meleeMotion","Ключи движения");
+            if(definition.FindPropertyRelative("id").stringValue=="grenade" || definition.FindPropertyRelative("meleeMotion").arraySize>0)
+            {
+                EditorGUILayout.LabelField("Независимая область удержания",EditorStyles.boldLabel);
+                Field("holdingArea","Радиусы удержания");
+            }
             using(new EditorGUI.DisabledScope(definition.FindPropertyRelative("meleeMotion").arraySize==0))
             {Field("meleeContactStart","Начало контакта, доля цикла");Field("meleeContactEnd","Конец контакта, доля цикла");Field("speedDamage","Урон от скорости");Field("maxSpeedDamage","Максимальная прибавка урона");}
             serializedObject.ApplyModifiedProperties();

@@ -236,7 +236,8 @@ namespace Remains.Editor
             Require(high.magnitude>low.magnitude && high.y>low.y,"Поднятие прицела должно увеличивать усилие до предела");
             var distant=Launch(new Vector2(100,50));
             Require(Mathf.Abs(distant.magnitude-definition.grenadeMaxLaunchSpeed)<.00001f,"Бросок не должен превышать заданную скорость");
-            Require(Launch(new Vector2(0,-3))==Vector2.zero,"Прицел прямо под опорой должен отпускать гранату без толчка вверх");
+            var down=Launch(new Vector2(0,-3));
+            Require(down.x==0 && down.y<0,"Оставшийся вертикальный прицел должен бросать вниз без добавочного подъёма");
             Require(Launch(origin)==Vector2.zero,"Прицел в точке выпуска не должен задавать произвольное направление");
             var left=Launch(new Vector2(-5,0));
             Require(Mathf.Abs(left.x+far.x)<.00001f && Mathf.Abs(left.y-far.y)<.00001f,"Направления броска должны быть симметричны");

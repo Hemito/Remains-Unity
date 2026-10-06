@@ -18,13 +18,18 @@ namespace Remains.Gameplay
             var offset=aim-origin;
             if(!float.IsFinite(offset.sqrMagnitude) || !float.IsFinite(feetY))
                 throw new ArgumentException("Бросок гранаты: неконечная позиция или точка прицеливания.");
-            double effort=Math.Abs((double)offset.x)+Math.Max(0,(double)aim.y-feetY);
-            if(effort==0 || offset==Vector2.zero) return Vector2.zero;
+            // Effort comes only from the remaining cursor vector after holding and clearance.
+            // Moving a cursor just beyond the hold boundary cannot create a finite launch jump.
+            double effort=Math.Sqrt((double)offset.x*offset.x+(double)offset.y*offset.y);
+            if(effort==0) return Vector2.zero;
             float fraction=(float)Math.Min(1,effort/definition.grenadeFullEffortDistance);
             float speed=definition.grenadeMaxLaunchSpeed*Mathf.Sqrt(fraction);
             // Horizontal throws arc upwards; a vertical aim retains its direction.
             var direction=new Vector2(offset.x,offset.y+Mathf.Abs(offset.x)*definition.grenadeAimLift);
-            return direction.normalized*speed;
+            // Vector2.normalized has a tiny-vector cutoff; explicit scaling preserves
+            // weak nonzero inputs as well as the continuous zero-impulse limit.
+            double length=Math.Sqrt((double)direction.x*direction.x+(double)direction.y*direction.y);
+            return direction*(float)(speed/length);
         }
     }
 }

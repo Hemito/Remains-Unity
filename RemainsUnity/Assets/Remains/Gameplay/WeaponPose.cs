@@ -61,16 +61,17 @@ namespace Remains.Gameplay
                 // Solve the barrel ray through the cursor, including its authored vertical offset.
                 angle-=Mathf.Asin(Mathf.Clamp(lateral/delta.magnitude,-1,1));
             }
-            else actor.weaponReach=Mathf.Min(delta.magnitude,WeaponCatalog.Get(actor.weapon).range);
+            else actor.weaponReach=Mathf.Min(delta.magnitude,MeleeReachLimit(actor));
             actor.weaponAngle=angle*Mathf.Rad2Deg;
         }
+        public static float MeleeReachLimit(ActorState actor)=>WeaponCatalog.Get(actor.weapon).holdingArea.RadiusFor(actor.climbing);
         public static Vector2 Origin(Vector2 actorPosition)=>actorPosition+new Vector2(0,.8f);
         public static Vector2 Origin(ActorState actor)=>actor.Position+new Vector2(0,.8f*Anatomy.StanceHeightRatio(actor));
         public static Vector2 Tip(string weapon,Vector2 origin,Vector2 direction,float progress,float? restReach=null)
         {
             var definition=WeaponCatalog.Get(weapon);
             var keys=definition.meleeMotion??throw new System.InvalidOperationException("Нет траектории оружия: "+weapon);
-            float rest=Mathf.Clamp(restReach??definition.range,0,definition.range);
+            float rest=Mathf.Clamp(restReach??definition.range,0,definition.holdingArea.radius);
             progress=Mathf.Clamp01(progress);
             int index=1;
             while(index<keys.Length-1 && keys[index].time<progress) index++;

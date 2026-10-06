@@ -21,6 +21,7 @@ namespace Remains.Content
         public float grenadeSpinRate,grenadeAngularRetention;
         public float meleeContactStart,meleeContactEnd=1;
         public MeleePoseKey[] meleeMotion;
+        public HoldingArea holdingArea;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
         public float FlightRange(float speed)=>projectileLifetime>0?speed*projectileLifetime:range;
         public bool stopAtFirstActor,stopAtTerrain;

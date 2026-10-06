@@ -14,20 +14,21 @@ namespace Remains.Content
     }
     public static class WeaponRigs
     {
-        [Serializable] private sealed class Library {public float pixelsPerUnit,aimRadius,climbingAimRadius,anchorHeight,raiseHeight,raiseDelay;public WeaponRig[] weapons;}
+        [Serializable] private sealed class Library {public float pixelsPerUnit,aimRadius,climbingAimRadius,anchorHeight,raiseHeight,raiseDelay;public HoldingArea ordinaryHoldingArea;public WeaponRig[] weapons;}
         private static readonly Dictionary<string,WeaponRig> rigs=new(StringComparer.Ordinal);
         private static readonly Dictionary<string,Remains.Presentation.WeaponView> prefabs=new(StringComparer.Ordinal);
         private static readonly Dictionary<string,string> attackPresentations=new(StringComparer.Ordinal);
         public static string PresentationId(string attack)=>attackPresentations.TryGetValue(attack,out var id)?id:
             throw new InvalidOperationException("Нет связи атаки с префабом оружия: "+attack);
         public static Remains.Presentation.WeaponView Prefab(string id)=>prefabs.TryGetValue(id,out var value)?value:throw new InvalidOperationException("Нет префаба оружия: "+id);
-        public static string ManifestJson()=>JsonUtility.ToJson(new Library {pixelsPerUnit=PixelsPerUnit,aimRadius=AimRadius,climbingAimRadius=ClimbingAimRadius,anchorHeight=AnchorHeight,raiseHeight=RaiseHeight,raiseDelay=RaiseDelay,weapons=rigs.Values.ToArray()});
+        public static string ManifestJson()=>JsonUtility.ToJson(new Library {pixelsPerUnit=PixelsPerUnit,aimRadius=AimRadius,climbingAimRadius=ClimbingAimRadius,anchorHeight=AnchorHeight,raiseHeight=RaiseHeight,raiseDelay=RaiseDelay,ordinaryHoldingArea=OrdinaryHoldingArea,weapons=rigs.Values.ToArray()});
         public static float PixelsPerUnit {get;private set;}
         public static float AimRadius {get;private set;}
         public static float ClimbingAimRadius {get;private set;}
         public static float AnchorHeight {get;private set;}
         public static float RaiseHeight {get;private set;}
         public static float RaiseDelay {get;private set;}
+        public static HoldingArea OrdinaryHoldingArea {get;private set;}
         public static IEnumerable<WeaponRig> All=>rigs.Values;
         public static WeaponRig Get(string id)=>rigs.TryGetValue(id,out var rig)?rig:
             throw new InvalidOperationException($"Нет графической позы оружия: {id}.");
@@ -35,6 +36,8 @@ namespace Remains.Content
         {
             var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(catalog==null) throw new InvalidOperationException("Нет Content/WeaponCatalog.");
+            catalog.OrdinaryHoldingArea.Validate("Content/WeaponCatalog, обычные вещи");
+            OrdinaryHoldingArea=catalog.OrdinaryHoldingArea;
             if(!float.IsFinite(catalog.ClimbingAimRadius) || catalog.ClimbingAimRadius<0 || catalog.ClimbingAimRadius>catalog.AimRadius)
                 throw new InvalidOperationException("Вынос оружия на лестнице должен быть от нуля до обычного радиуса.");
             if(!float.IsFinite(catalog.RaiseHeight) || catalog.RaiseHeight<0 || !float.IsFinite(catalog.RaiseDelay) || catalog.RaiseDelay<0)
