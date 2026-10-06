@@ -47,8 +47,13 @@ namespace Remains.Editor
             public Placement[] placements;
             public Reference reference;
         }
-        [Serializable] internal sealed class ResourcesManifest {public GraphicType[] types;public SoundEntry[] sounds;}
-        [Serializable] internal sealed class SoundEntry {public string id,sourceFile,resource,sha256;public long bytes;}
+        [Serializable] internal sealed class ResourcesManifest {public int schema;public GraphicType[] types;public SoundEntry[] sounds;}
+        [Serializable] internal sealed class SoundEntry {public string id,sourceFile,resource,sha256,rawAssetPath;public long bytes;public UnitySoundPayload unityPayload;}
+        [Serializable] internal class SoundPayload {public string path,sha256;public long bytes;}
+        [Serializable] internal sealed class UnitySoundPayload:SoundPayload {public int version;public string conversionManifest;}
+        [Serializable] internal sealed class PcmPayload:SoundPayload {public int channels,sampleRate,sampleBytes;public long frames;}
+        [Serializable] internal sealed class SoundConversion {public int schema;public SoundPayload source;public PcmPayload output;}
+        private const string ResearchPrefix="Tools/Research/OfficeOpeningsResources/";
         [Serializable] internal sealed class GraphicType {public string id;public GraphicState[] states;}
         [Serializable] internal sealed class GraphicState {public string label,resource,sha256;public int[] pixels;public float pixelsPerUnit;public float[] pngPivotPixels;}
         internal static string Research(string file)=>Path.GetFullPath(Path.Combine(Application.dataPath,"../../Tools/Research/OfficeOpeningsResources",file));
@@ -257,24 +262,88 @@ namespace Remains.Editor
         internal static string SoundAssetPath(ResourcesManifest manifest,string id)
         {
             if(id==null) return null; // Explicit noninteractive definition has no open/close sound.
-            Require(manifest?.sounds!=null && manifest.sounds.Count(s=>s.id==id)==1,"Нет единственного manifest audio entry: "+id);
+            Require(manifest?.sounds!=null && manifest.sounds.Count(s=>s?.id==id)==1,"Нет единственного manifest audio entry: "+id);
             var entry=manifest.sounds.Single(s=>s.id==id);string extension=Path.GetExtension(entry.sourceFile);
             Require(entry.resource=="Original/Room/OfficeOpenings/Audio/"+id && (extension==".mp3" || extension==".wav") &&
-                Path.GetFileName(entry.sourceFile).EndsWith("_"+id+extension,StringComparison.Ordinal) && entry.sha256?.Length==64 && entry.bytes>0,
+                Path.GetFileName(entry.sourceFile).EndsWith("_"+id+extension,StringComparison.Ordinal) && ValidHash(entry.sha256) && entry.bytes>0,
                 "Некорректный explicit audio path/hash: id="+id+", source="+entry.sourceFile+", resource="+entry.resource);
-            return "Assets/Remains/Resources/"+entry.resource+extension;
+            Require((entry.rawAssetPath!=null)==(entry.unityPayload!=null),"Неполная регистрация audio conversion: "+id);
+            if(entry.unityPayload==null) return "Assets/Remains/Resources/"+entry.resource+extension;
+            var converted=entry.unityPayload;
+            Require(converted.version==1 && extension==".mp3" && entry.rawAssetPath==ResearchPrefix+"SourceAudio/"+id+extension &&
+                converted.path=="RemainsUnity/Assets/Remains/Resources/"+entry.resource+".wav" && ValidHash(converted.sha256) && converted.bytes>0 &&
+                converted.conversionManifest!=null && converted.conversionManifest.StartsWith(ResearchPrefix,StringComparison.Ordinal) &&
+                converted.conversionManifest.EndsWith(".json",StringComparison.Ordinal) && SafeRelative(converted.conversionManifest),
+                "Некорректные версия/пути/hash explicit PCM conversion: id="+id+", path="+converted.path+", manifest="+converted.conversionManifest);
+            return converted.path.Substring("RemainsUnity/".Length);
         }
+        private static bool ValidHash(string value)=>value?.Length==64 && value.All(c=>(c>='0'&&c<='9')||(c>='a'&&c<='f'));
+        private static bool SafeRelative(string value)=>!string.IsNullOrWhiteSpace(value) && !value.Contains("\\") && !value.Contains(":") &&
+            value.Split('/').All(part=>part.Length>0 && part!="." && part!="..");
         internal static void ValidateSoundFiles(ResourcesManifest manifest,string projectPath)
         {
-            Require(manifest?.sounds?.Length==7 && manifest.sounds.Select(s=>s.id).Distinct(StringComparer.Ordinal).Count()==7,"Потерян exact семизвуковой source manifest.");
+            Require(manifest?.schema==1 && manifest.sounds?.Length==7 &&
+                manifest.sounds.Select(s=>s?.id).OrderBy(id=>id,StringComparer.Ordinal).SequenceEqual(new[]{"break_glass","break_metal","break_wood","metal_door_close","metal_door_open","wood_door_close","wood_door_open"}),
+                "Потерян exact семизвуковой source manifest/version.");
+            string repoPath=Path.GetFullPath(Path.Combine(projectPath,".."));
             foreach(var entry in manifest.sounds)
             {
-                string assetPath=SoundAssetPath(manifest,entry.id);string file=Path.Combine(projectPath,assetPath);
-                Require(File.Exists(file),"Нет manifest audio payload: id="+entry.id+", path="+assetPath+", sha256="+entry.sha256);
-                using var hash=System.Security.Cryptography.SHA256.Create();byte[] payload=File.ReadAllBytes(file);
-                string digest=BitConverter.ToString(hash.ComputeHash(payload)).Replace("-","").ToLowerInvariant();
-                Require(payload.LongLength==entry.bytes && digest==entry.sha256,"Audio payload отличается: id="+entry.id+", path="+assetPath+", actual="+digest+", expected="+entry.sha256);
+                string assetPath=SoundAssetPath(manifest,entry.id);
+                if(entry.unityPayload==null)
+                {
+                    ReadSoundPayload(Path.Combine(projectPath,assetPath),entry.sha256,entry.bytes,entry.id);continue;
+                }
+                ReadSoundPayload(Path.Combine(repoPath,entry.rawAssetPath),entry.sha256,entry.bytes,entry.id+" raw");
+                string conversionPath=Path.Combine(repoPath,entry.unityPayload.conversionManifest);
+                Require(File.Exists(conversionPath),"Нет зарегистрированного conversion manifest: "+entry.id+", path="+conversionPath);
+                var conversion=StateJson.FromJson<SoundConversion>(File.ReadAllText(conversionPath));ValidateConversion(entry,conversion);
+                byte[] pcm=ReadSoundPayload(Path.Combine(projectPath,assetPath),entry.unityPayload.sha256,entry.unityPayload.bytes,entry.id+" PCM");
+                ValidatePcmPayload(pcm,conversion.output,entry.id);
+                string stale=Path.Combine(projectPath,"Assets/Remains/Resources/"+entry.resource+Path.GetExtension(entry.sourceFile));
+                Require(!File.Exists(stale) && !File.Exists(stale+".meta"),"Исходный неимпортируемый MP3 остался в Unity Assets: id="+entry.id+", path="+stale);
             }
+        }
+        internal static void ValidateConversion(SoundEntry entry,SoundConversion conversion)
+        {
+            var target=entry.unityPayload;
+            Require(target!=null && conversion?.schema==1 && conversion.source!=null && conversion.output!=null &&
+                conversion.source.path==entry.rawAssetPath && conversion.source.sha256==entry.sha256 && conversion.source.bytes==entry.bytes &&
+                conversion.output.path==target.path && conversion.output.sha256==target.sha256 && conversion.output.bytes==target.bytes &&
+                conversion.output.channels>0 && conversion.output.sampleRate>0 && conversion.output.sampleBytes==2 && conversion.output.frames>0,
+                "Conversion manifest не соответствует исходному/Unity payload или PCM16: id="+entry.id);
+        }
+        private static byte[] ReadSoundPayload(string file,string expectedHash,long expectedBytes,string id)
+        {
+            Require(File.Exists(file),"Нет manifest audio payload: id="+id+", path="+file+", sha256="+expectedHash);
+            byte[] payload=File.ReadAllBytes(file);using var hash=System.Security.Cryptography.SHA256.Create();
+            string digest=BitConverter.ToString(hash.ComputeHash(payload)).Replace("-","").ToLowerInvariant();
+            Require(payload.LongLength==expectedBytes && digest==expectedHash,"Audio payload отличается: id="+id+", path="+file+", actual="+digest+", expected="+expectedHash);return payload;
+        }
+        internal static void ValidatePcmPayload(byte[] payload,PcmPayload expected,string id)
+        {
+            using var stream=new MemoryStream(payload,false);using var reader=new BinaryReader(stream);
+            string Tag()=>System.Text.Encoding.ASCII.GetString(reader.ReadBytes(4));
+            Require(payload.Length>=44 && Tag()=="RIFF" && reader.ReadUInt32()==payload.LongLength-8 && Tag()=="WAVE","Некорректный PCM RIFF header: "+id);
+            bool format=false,data=false;long dataBytes=0;
+            while(stream.Position<stream.Length)
+            {
+                Require(stream.Length-stream.Position>=8,"Неполный PCM chunk header: "+id);
+                string tag=Tag();uint length=reader.ReadUInt32();long end=stream.Position+length;
+                Require(end<=stream.Length,"PCM chunk выходит за payload: "+id+", chunk="+tag);
+                if(tag=="fmt ")
+                {
+                    Require(!format && length>=16,"Повторный/неполный PCM fmt chunk: "+id);
+                    ushort encoding=reader.ReadUInt16(),channels=reader.ReadUInt16();uint rate=reader.ReadUInt32(),byteRate=reader.ReadUInt32();
+                    ushort alignment=reader.ReadUInt16(),bits=reader.ReadUInt16();
+                    Require(encoding==1 && channels==expected.channels && rate==expected.sampleRate && bits==16 &&
+                        alignment==(long)expected.channels*expected.sampleBytes && byteRate==(long)expected.sampleRate*alignment,
+                        "PCM формат отличается от conversion manifest: "+id);format=true;
+                }
+                if(tag=="data") {Require(!data,"Повторный PCM data chunk: "+id);data=true;dataBytes=length;}
+                stream.Position=end+(length&1);
+                Require(stream.Position<=stream.Length,"Отсутствует padding PCM chunk: "+id);
+            }
+            Require(format && data && dataBytes%((long)expected.channels*expected.sampleBytes)==0 && dataBytes/((long)expected.channels*expected.sampleBytes)==expected.frames,"PCM frame count отличается от conversion manifest: "+id);
         }
         private static AudioClip SoundAsset(ResourcesManifest manifest,string id)
         {
@@ -283,7 +352,7 @@ namespace Remains.Editor
             var entry=manifest.sounds.Single(s=>s.id==id);
             Require(clip!=null,"Manifest audio payload существует/проверен, но AudioClip не импортирован: id="+id+", path="+path+
                 ", guid="+AssetDatabase.AssetPathToGUID(path)+", importer="+(AssetImporter.GetAtPath(path)?.GetType().Name??"<нет>")+
-                ", assetCount="+AssetDatabase.LoadAllAssetsAtPath(path).Length+", verifiedSha256="+entry.sha256+", bytes="+entry.bytes+". Проверьте native import; другой файл не подставлен.");return clip;
+                ", assetCount="+AssetDatabase.LoadAllAssetsAtPath(path).Length+", verifiedSha256="+(entry.unityPayload?.sha256??entry.sha256)+", bytes="+(entry.unityPayload?.bytes??entry.bytes)+". Проверьте native import; другой файл не подставлен.");return clip;
         }
         private static Sprite Sprite(GraphicState state)
         {

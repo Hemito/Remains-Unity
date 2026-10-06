@@ -180,9 +180,44 @@ namespace Remains.Editor
         {
             var data=FactoryOfficeOpeningsAuthoring.ReadData(researchPath);
             var sounds=FactoryOfficeOpeningsAuthoring.ReadResources(researchPath);
-            FactoryOfficeOpeningsAuthoring.ValidateSoundFiles(sounds,Path.GetFullPath(Path.Combine(researchPath,"../../../RemainsUnity")));
-            Require(sounds.sounds.Count(s=>FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,s.id).EndsWith(".mp3",StringComparison.Ordinal))==4 &&
-                sounds.sounds.Count(s=>FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,s.id).EndsWith(".wav",StringComparison.Ordinal))==3,"Смешанные source аудиоформаты заменены эвристикой.");
+            string projectPath=Path.GetFullPath(Path.Combine(researchPath,"../../../RemainsUnity"));
+            FactoryOfficeOpeningsAuthoring.ValidateSoundFiles(sounds,projectPath);
+            Require(sounds.sounds.Count(s=>Path.GetExtension(s.sourceFile)==".mp3")==4 && sounds.sounds.Count(s=>Path.GetExtension(s.sourceFile)==".wav")==3,
+                "Исходные четыре MP3 / три WAV подменены Unity conversion.");
+            int conversions=sounds.sounds.Count(s=>s.unityPayload!=null);
+            Require(sounds.sounds.Count(s=>FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,s.id).EndsWith(".mp3",StringComparison.Ordinal))==4-conversions &&
+                sounds.sounds.Count(s=>FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,s.id).EndsWith(".wav",StringComparison.Ordinal))==3+conversions,
+                "Unity audio paths не соответствуют explicit raw/conversion mapping.");
+            void Reject(Action action,string reason) {bool refused=false;try {action();} catch(InvalidOperationException) {refused=true;}Require(refused,reason);}
+            foreach(var mapped in sounds.sounds.Where(s=>s.unityPayload!=null))
+            {
+                FactoryOfficeOpeningsAuthoring.ResourcesManifest Changed(Action<FactoryOfficeOpeningsAuthoring.SoundEntry> change)
+                {var copy=StateJson.Copy(sounds);change(copy.sounds.Single(s=>s.id==mapped.id));return copy;}
+                void RejectPath(Action<FactoryOfficeOpeningsAuthoring.SoundEntry> change,string reason)
+                {var copy=Changed(change);Reject(()=>FactoryOfficeOpeningsAuthoring.SoundAssetPath(copy,mapped.id),reason);}
+                RejectPath(s=>s.unityPayload.version=2,"Будущая audio conversion version принята.");
+                RejectPath(s=>s.unityPayload=null,"Raw research path без conversion получил silent fallback.");
+                RejectPath(s=>s.rawAssetPath=null,"Conversion без отдельного raw payload принята.");
+                RejectPath(s=>s.rawAssetPath="Tools/Research/OfficeOpeningsResources/SourceAudio/other.mp3","Подставлен другой raw MP3.");
+                RejectPath(s=>s.unityPayload.path=s.unityPayload.path.Replace(".wav",".mp3"),"Conversion получила неявный MP3 fallback.");
+                RejectPath(s=>s.unityPayload.conversionManifest="Tools/Research/OfficeOpeningsResources/../other.json","Conversion manifest выходит за registered research.");
+                var badRaw=Changed(s=>s.sha256=new string('0',64));
+                Reject(()=>FactoryOfficeOpeningsAuthoring.ValidateSoundFiles(badRaw,projectPath),"Отличающийся raw hash принят при исправном Unity PCM.");
+                var badPcm=Changed(s=>s.unityPayload.sha256=new string('0',64));
+                Reject(()=>FactoryOfficeOpeningsAuthoring.ValidateSoundFiles(badPcm,projectPath),"Отличающийся PCM hash принят.");
+                var conversion=StateJson.FromJson<FactoryOfficeOpeningsAuthoring.SoundConversion>(File.ReadAllText(Path.Combine(projectPath,"..",mapped.unityPayload.conversionManifest)));
+                var badConversion=StateJson.Copy(conversion);badConversion.schema=2;
+                Reject(()=>FactoryOfficeOpeningsAuthoring.ValidateConversion(mapped,badConversion),"Будущая conversion manifest schema принята.");
+                badConversion=StateJson.Copy(conversion);badConversion.source.bytes++;
+                Reject(()=>FactoryOfficeOpeningsAuthoring.ValidateConversion(mapped,badConversion),"Conversion source bytes не совпадают, но приняты.");
+                badConversion=StateJson.Copy(conversion);badConversion.output.path="unregistered.wav";
+                Reject(()=>FactoryOfficeOpeningsAuthoring.ValidateConversion(mapped,badConversion),"Conversion output path не совпадает, но принят.");
+                byte[] payload=File.ReadAllBytes(Path.Combine(projectPath,"..",mapped.unityPayload.path));
+                var wrongFrames=StateJson.Copy(conversion.output);wrongFrames.frames++;
+                Reject(()=>FactoryOfficeOpeningsAuthoring.ValidatePcmPayload(payload,wrongFrames,mapped.id),"PCM header frame count не соответствует manifest, но принят.");
+                var wrongHeader=(byte[])payload.Clone();wrongHeader[0]=0;
+                Reject(()=>FactoryOfficeOpeningsAuthoring.ValidatePcmPayload(wrongHeader,conversion.output,mapped.id),"Неполный RIFF header принят.");
+            }
             Require(FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,null)==null,"Неинтерактивная преграда получила выдуманный звук.");
             var wrong=StateJson.Copy(sounds);wrong.sounds[0].sourceFile="unregistered";bool badPath=false;
             try {FactoryOfficeOpeningsAuthoring.SoundAssetPath(wrong,wrong.sounds[0].id);} catch(InvalidOperationException) {badPath=true;}
