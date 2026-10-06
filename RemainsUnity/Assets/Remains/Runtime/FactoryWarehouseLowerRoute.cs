@@ -29,7 +29,7 @@ namespace Remains.Runtime
     // Opt-in route over installed geometry. Never writes player, NPC, cargo or loot state.
     internal sealed class FactoryWarehouseLowerRoute
     {
-        private enum Stage { None,Approach,Open,Viewed,Claim,Granted,Loop,Returned,Complete }
+        private enum Stage { None,Approach,Open,Viewed,Claim,Granted,Loop,Returned,Complete,Exit }
         private const string Level="factory:0";
         public const string AmmoId=Level+":original:plant:40:bqLt39CNwjwI8aUX";
         private readonly PrototypeRuntime runtime;
@@ -109,7 +109,7 @@ namespace Remains.Runtime
             if(!Started || Complete || Failure!=null || runtime.Session.Pause.IsPaused(Level)) return default;
             try
             {
-                if(stage is Stage.Approach or Stage.Loop) return motion.Command(Actor);
+                if(stage is Stage.Approach or Stage.Loop or Stage.Exit) return motion.Command(Actor);
                 if(stage!=Stage.Open || openSent) return default;
                 var aim=((InventorySource)Target).Bounds.center;
                 var selected=InteractionSelection.Select(runtime.Session.World,Actor,runtime.Session.Rules,aim,
@@ -209,6 +209,11 @@ namespace Remains.Runtime
                         claims.Any(c=>!runtime.Session.World.completedTransactions.Contains(c.transaction)))
                         throw new InvalidOperationException("Склад: источник наполнился повторно или утратил подтверждённые транзакции.");
                     returnSent=true;SendObserved(2);
+                }
+                if(stage==Stage.Exit)
+                {
+                    motion.Tick(Actor);
+                    if(motion.OfficeReturned) {stage=Stage.Complete;Debug.Log("Нижний маршрут склада вернулся на опору офиса: "+Progress);}
                 }
             }
             catch(Exception error) {Failure=error.Message+": "+Progress;}
@@ -314,7 +319,7 @@ namespace Remains.Runtime
                         runtime.Hud.CloseContainer();motion.BeginLoop(Actor);stage=Stage.Loop;break;
                     case 3:
                         if(stage!=Stage.Returned || !returnSent) throw new InvalidOperationException("Склад: возврат подтверждён вне входной опоры.");
-                        stage=Stage.Complete;break;
+                        motion.BeginOfficeReturn(Actor);stage=Stage.Exit;break;
                     default:throw new InvalidOperationException("Склад: неизвестный сетевой этап: "+message.phase);
                 }
                 decisions.Add(message.phase,message.json);

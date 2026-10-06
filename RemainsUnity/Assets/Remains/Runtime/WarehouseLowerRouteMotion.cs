@@ -9,13 +9,15 @@ namespace Remains.Runtime
     // Probe intent sequence only. MovementController remains the sole mover.
     internal sealed class WarehouseLowerRouteMotion
     {
-        internal enum Phase { GapApproach,Gap,Entry,Arrived,L1Approach,L1Down,L2Approach,L2Down,L2Up,L1Return,L1Up,ReturnEntry,Complete }
+        internal enum Phase { GapApproach,Gap,Entry,Arrived,L1Approach,L1Down,L2Approach,L2Down,L2Up,L1Return,L1Up,ReturnEntry,Complete,
+            OfficeGapApproach,OfficeGap,OfficeReturn,OfficeComplete }
         private readonly RoomLayout room;
         private bool jumped;
         internal Phase Current {get;private set;}
-        internal bool Critical=>Current is Phase.Gap or Phase.L1Down or Phase.L2Down or Phase.L2Up or Phase.L1Up;
+        internal bool Critical=>Current is Phase.Gap or Phase.OfficeGap or Phase.L1Down or Phase.L2Down or Phase.L2Up or Phase.L1Up;
         internal bool Arrived=>Current==Phase.Arrived;
         internal bool Complete=>Current==Phase.Complete;
+        internal bool OfficeReturned=>Current==Phase.OfficeComplete;
         internal WarehouseLowerRouteMotion(RoomLayout geometry,ActorState actor)
         {
             room=geometry??throw new ArgumentNullException(nameof(geometry));
@@ -50,20 +52,28 @@ namespace Remains.Runtime
             if(!Arrived || !AtRest(actor,117.8f,7.2f)) throw new InvalidOperationException("Петля склада требует фактический покой на входной опоре.");
             Current=Phase.L1Approach;
         }
+        internal void BeginOfficeReturn(ActorState actor)
+        {
+            if(!Complete || !AtRest(actor,117.8f,7.2f))
+                throw new InvalidOperationException("Обратный маршрут офиса требует подтверждённый покой на входе склада (117,8;7,2).");
+            jumped=false;Current=Phase.OfficeGapApproach;
+        }
         internal PlayerCommand Command(ActorState actor)
         {
             switch(Current)
             {
                 // Continuous approach preserves walking speed at the jump edge.
                 case Phase.GapApproach:return new PlayerCommand {movement=Vector2.right};
-                case Phase.Gap:
+                case Phase.OfficeGapApproach:return new PlayerCommand {movement=Vector2.left};
+                case Phase.Gap:case Phase.OfficeGap:
                     bool edge=!jumped;jumped=true;
-                    return new PlayerCommand {movement=Vector2.right,jump=edge,jumpHeld=false};
+                    return new PlayerCommand {movement=Current==Phase.Gap?Vector2.right:Vector2.left,jump=edge,jumpHeld=false};
                 case Phase.Entry:case Phase.ReturnEntry:return Move(actor,117.8f);
                 case Phase.L1Approach:case Phase.L1Return:return Move(actor,122.98f);
                 case Phase.L2Approach:return Move(actor,125.38f);
                 case Phase.L1Down:case Phase.L2Down:return new PlayerCommand {movement=Vector2.down};
                 case Phase.L1Up:case Phase.L2Up:return new PlayerCommand {movement=Vector2.up};
+                case Phase.OfficeReturn:return Move(actor,90.62f);
                 default:return default;
             }
         }
@@ -82,6 +92,9 @@ namespace Remains.Runtime
                 case Phase.L1Return:if(AtRest(actor,122.98f,4)) Current=Phase.L1Up;break;
                 case Phase.L1Up:if(At(actor,122.98f,7.2f)) Current=Phase.ReturnEntry;break;
                 case Phase.ReturnEntry:if(AtRest(actor,117.8f,7.2f)) Current=Phase.Complete;break;
+                case Phase.OfficeGapApproach:if(actor.x<=104.7f && Landed(actor,7.2f)) Current=Phase.OfficeGap;break;
+                case Phase.OfficeGap:if(jumped && actor.x<=102.2f && Landed(actor,7.2f)) Current=Phase.OfficeReturn;break;
+                case Phase.OfficeReturn:if(AtRest(actor,90.62f,7.2f) && Mathf.Abs(actor.vx)<.001f) Current=Phase.OfficeComplete;break;
             }
         }
     }
