@@ -26,11 +26,15 @@ namespace Remains.Runtime
         private bool Host=>runtime.Options.Role=="host";
         private bool CaptureFrames=>runtime.Options.Smoke.Contains("-frames-");
         private bool capturedDown,capturedRevived;
+        private string grenadeId;
+        private bool failureCaptureRequested;
         private ActorState Victim=>runtime.Session.World?.Find("player:session-client-1");
         private ActorState Healer=>runtime.Session.World?.Find("player:session-host");
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+60;runtime.CommandSource=Command;
+            runtime.Grenades.Created+=flight=>
+            {if(phase==5 && flight.state.attacker==Healer?.id) grenadeId=flight.state.id;};
             if(PauseScenario) pauseWindow=new NetworkPauseWindow(this,value.Session,value.Options.ProbePeers,PauseSnapshot,
                 ()=>Victim!=null && Victim.down && InventoryJournal.Count(Healer,"heal")==5 &&
                     (!Host || runtime.Revival.Progress>0 && runtime.Revival.Progress<1 && !runtime.Revival.Pending),
@@ -60,7 +64,8 @@ namespace Remains.Runtime
             if(phase==4) command.movement=Mathf.Abs(self.x-25)>.05f?Vector2.right*Mathf.Sign(25-self.x):Vector2.zero;
             if(phase==5)
             {
-                command.grenade=!grenade;grenade=true;command.hasAim=true;command.aim=self.Position+Vector2.down*3;
+                // A downward hold starts below this one-way shelf; throw up so the real grenade returns to its top.
+                command.grenade=!grenade;grenade=true;command.hasAim=true;command.aim=self.Position+Vector2.up*3;
                 command.revive=age>1.2f && !damageCancelled;
             }
             if(phase==6) command.revive=true;
@@ -85,7 +90,7 @@ namespace Remains.Runtime
             }
             float age=Time.unscaledTime-since;
             if(phase>=2 && phase<=5 && (!Victim.down || InventoryJournal.Count(Healer,"heal")!=5))
-            {Finish(false,"Прерванное поднятие изменило цель или потратило предмет.");return;}
+            {Finish(false,$"Прерванное поднятие изменило цель или потратило предмет: phase={phase}, victimHP={Victim.health}, victimDown={Victim.down}, healerHP={Healer.health}, healerDamageSequence={Healer.damageSequence}, startDamage={startDamage}, healCount={InventoryJournal.Count(Healer,"heal")}, progress={runtime.Revival.Progress}, grenadeId={grenadeId ?? "не наблюдалась"}.");return;}
             if(phase==2 && runtime.Revival.Progress>0) releaseProgress=true;
             if(phase==3 && runtime.Revival.Progress>0) movementProgress=true;
             if(phase==5 && Healer.damageSequence==startDamage && runtime.Revival.Progress>.2f) healingBeforeDamage=true;
@@ -112,6 +117,12 @@ namespace Remains.Runtime
         }
         private void LateUpdate()
         {
+            if(failureCaptureRequested)
+            {
+                failureCaptureRequested=false;
+                try {NetworkSceneRecord.Save(runtime,100+phase);}
+                catch(Exception error) {Debug.LogWarning($"Не удалось сохранить кадр сбоя поднятия: phase={phase}, grenadeId={grenadeId ?? "не наблюдалась"}, reason={error.Message}.",this);}
+            }
             if(!CaptureFrames || finished || runtime.Session.LocalActor==null || Time.unscaledTime-since<.25f) return;
             if(phase==2 && !capturedDown && Victim.down)
             {if(!CheckWeaponVisible(false)) return;NetworkSceneRecord.Save(runtime,2);capturedDown=true;}
@@ -142,6 +153,7 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             if(PauseScenario) {success &= pauseWindow.Verified==1;detail+=$" Проверенные паузы поднятия: {pauseWindow.Verified}.";}
+            failureCaptureRequested=!success && CaptureFrames && runtime.Session.LocalActor!=null;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase},true));
             StartCoroutine(Exit(success));
         }

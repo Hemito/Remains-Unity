@@ -29,6 +29,10 @@ namespace Remains.Presentation
             prefab.Validate();var view=UnityEngine.Object.Instantiate(prefab,parent,false);
             vitals=view.Vitals;loadout=view.Loadout;name=view.CharacterName;healthText=view.HealthText;manaText=view.ManaText;
             ammunition=view.Ammunition;health=view.Health;mana=view.Mana;weapons=view.Weapons;ids=view.WeaponIds;
+            if(health.type!=Image.Type.Simple || mana.type!=Image.Type.Simple ||
+                health.rectTransform.anchorMin!=Vector2.zero || mana.rectTransform.anchorMin!=Vector2.zero ||
+                health.rectTransform.sizeDelta!=Vector2.zero || mana.rectTransform.sizeDelta!=Vector2.zero)
+                throw new InvalidOperationException("HUD: шкалы здоровья/маны должны иметь сохранённую растягиваемую заливку без обрезки градиента; проверьте CombatHud.prefab.");
             grenades=view.Grenades;grenadeIcon=view.GrenadeIcon;
             LayoutReservations=Array.AsReadOnly(new[] {(RectTransform)vitals.transform,(RectTransform)loadout.transform,
                 name.rectTransform,healthText.rectTransform,manaText.rectTransform});
@@ -65,8 +69,8 @@ namespace Remains.Presentation
             var grenadeColor=grenadeCount>0 && !actor.down?new Color(.65f,1,.75f):new Color(.4f,.5f,.44f);
             grenades.color=grenadeColor;grenadeIcon.color=grenadeCount>0 && !actor.down?Color.white:new Color(.5f,.5f,.5f);
             name.text=actor.down?"Без сознания · нужна помощь":actor.character;
-            health.fillAmount=Mathf.Clamp01(actor.health/100);mana.fillAmount=Mathf.Clamp01(actor.mana/100);
-            healthText.text=$"Здоровье  {Mathf.CeilToInt(actor.health)} / 100";manaText.text=$"Мана  {actor.mana:0} / 100";
+            RefreshBar(health,actor.health/100);RefreshBar(mana,actor.mana/100);
+            healthText.text=$"{Mathf.CeilToInt(actor.health)}/100";manaText.text=$"Мана  {actor.mana:0} / 100";
             bool ordinaryHeld=HeldItemSelection.HasSelection(actor);
             var heldItem=HeldItemSelection.Selected(actor);
             string activeItem=ordinaryHeld?heldItem?.id:WeaponInventory.Selected(actor)?.id;
@@ -105,6 +109,11 @@ namespace Remains.Presentation
                 magazine.rounds<definition.ammoPerShot?(reserve>0?"Магазин пуст · R":"Нет боеприпасов"):
                 magazine.rounds<definition.magazineSize && reserve>0?"R — перезарядить":"";
             ammunition.text=$"{magazine.rounds} / {definition.magazineSize}    Запас: {reserve}"+(action.Length>0?$"\n{action}":"");
+        }
+        private static void RefreshBar(Image image,float fraction)
+        {
+            image.fillAmount=Mathf.Clamp01(fraction);
+            image.rectTransform.anchorMax=new Vector2(image.fillAmount,1);
         }
     }
 }

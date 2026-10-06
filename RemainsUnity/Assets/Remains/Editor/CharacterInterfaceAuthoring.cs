@@ -180,9 +180,30 @@ namespace Remains.Editor
                     hint.color=new Color(.45f,.65f,.53f);view.Character.placeholder=hint;
                 }
                 if(view.Characters==null) view.Characters=Button(field.parent,"Персонажи",field.anchoredPosition+Vector2.right*254,new Vector2(146,45));
+                ApplyMenuButtonArtwork(view);
                 view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}
+        }
+        public static void RefineMenuButtonArtwork()
+        {
+            const string path="Assets/Remains/Resources/Presentation/MainMenu.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var view=root.GetComponent<MainMenuView>();view.Validate();
+                ApplyMenuButtonArtwork(view);PrefabUtility.SaveAsPrefabAsset(root,path);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            AssetDatabase.SaveAssets();
+        }
+        private static void ApplyMenuButtonArtwork(MainMenuView view)
+        {
+            var source=view.Host.GetComponent<Image>();var image=view.Characters.GetComponent<Image>();
+            if(source==null || source.sprite==null || image==null)
+                throw new System.InvalidOperationException("Меню персонажей: нет сохранённой оригинальной графики кнопки запуска или Image кнопки выбора.");
+            image.sprite=source.sprite;image.type=source.type;image.color=source.color;
+            image.pixelsPerUnitMultiplier=source.pixelsPerUnitMultiplier;
         }
     }
 }

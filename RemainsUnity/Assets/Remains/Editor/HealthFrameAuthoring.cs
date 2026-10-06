@@ -27,9 +27,9 @@ namespace Remains.Editor
             try
             {
                 var view=root.GetComponent<CombatHudView>();
-                var existing=view.Health.transform.Find("Рамка здоровья");
+                var existing=view.Health.transform.parent.Find("Рамка здоровья")??view.Health.transform.Find("Рамка здоровья");
                 var frame=existing!=null?existing.GetComponent<Image>():new GameObject("Рамка здоровья",typeof(RectTransform),typeof(Image)).GetComponent<Image>();
-                frame.transform.SetParent(view.Health.transform,false);frame.sprite=sprite;frame.type=Image.Type.Sliced;
+                frame.transform.SetParent(view.Health.transform.parent,false);frame.sprite=sprite;frame.type=Image.Type.Sliced;
                 frame.pixelsPerUnitMultiplier=4;frame.raycastTarget=false;
                 frame.rectTransform.anchorMin=Vector2.zero;frame.rectTransform.anchorMax=Vector2.one;
                 frame.rectTransform.offsetMin=-Vector2.one;frame.rectTransform.offsetMax=Vector2.one;

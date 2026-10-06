@@ -12,6 +12,7 @@ namespace Remains.Runtime
         private float started;
         public float PausedMana {get;private set;}
         public float RecoveredMana {get;private set;}
+        public bool ConfirmedPause=>stage==2;
         public bool Complete=>stage==4;
         public bool Step(CoopSession session,ActorState actor)
         {

@@ -17,27 +17,43 @@ namespace Remains.Editor
             {
                 var view=root.GetComponent<CombatHudView>();view.Validate();
                 view.Vitals.GetComponent<Image>().color=Color.clear;
-                float width=view.Health.rectTransform.sizeDelta.x;
-                void Bar(Image fill,Text label,float top,int fontSize)
+                var healthArea=view.Health.transform.parent as RectTransform;
+                if(healthArea==null || !float.IsFinite(healthArea.rect.width) || healthArea.rect.width<=0)
+                    throw new InvalidOperationException("HUD: у сохранённой области здоровья нет положительной полной ширины; проверьте CombatHud.prefab.");
+                float width=healthArea.rect.width;
+                void Bar(Image fill,float top,float height)
                 {
                     var bar=fill.transform.parent as RectTransform;
-                    if(bar==null || bar.parent!=view.Vitals.transform || label.transform.parent!=view.Vitals.transform)
+                    if(bar==null || bar.parent!=view.Vitals.transform)
                         throw new InvalidOperationException("HUD: изменилась структура шкалы "+fill.name);
-                    float height=width*fill.sprite.rect.height/fill.sprite.rect.width;
                     HudElements.Rect(bar,new Vector2(12,-top),new Vector2(width,height));
-                    HudElements.Rect(fill.rectTransform,Vector2.zero,new Vector2(width,height));
-                    HudElements.Rect(label.rectTransform,new Vector2(16,-top),new Vector2(width-8,height));
-                    label.fontSize=fontSize;label.alignment=TextAnchor.MiddleLeft;
+                    // Fit the complete gradient into its occupied portion instead of clipping its UVs.
+                    fill.type=Image.Type.Simple;
+                    fill.rectTransform.anchorMin=Vector2.zero;fill.rectTransform.anchorMax=Vector2.one;
+                    fill.rectTransform.offsetMin=fill.rectTransform.offsetMax=Vector2.zero;
                 }
-                Bar(view.Health,view.HealthText,32,16);
-                Bar(view.Mana,view.ManaText,70,12);
-                HudElements.Rect(view.ManaText.rectTransform,new Vector2(width+20,-67),new Vector2(150,24));
+                // Original artwork layout, independently specified in HUD_REFERENCE_SPEC.md.
+                // The mana export is 200x12 before its source vertical compression.
+                const float healthTop=32;
+                float healthHeight=width*view.Health.sprite.rect.height/view.Health.sprite.rect.width;
+                float manaHeight=width*view.Mana.sprite.rect.height/view.Mana.sprite.rect.width*.5833435f;
+                float manaTop=healthTop+healthHeight+healthHeight*.04098f;
+                Bar(view.Health,healthTop,healthHeight);Bar(view.Mana,manaTop,manaHeight);
+                var frame=view.Health.transform.Find("Рамка здоровья")??view.Health.transform.parent.Find("Рамка здоровья");
+                if(frame==null) throw new InvalidOperationException("HUD: нет сохранённой рамки здоровья.");
+                frame.SetParent(view.Health.transform.parent,false);frame.SetAsLastSibling();
+                HudElements.Rect(view.HealthText.rectTransform,new Vector2(12,-healthTop-healthHeight*.1001f),
+                    new Vector2(width,healthHeight*.7971f));
+                view.HealthText.fontSize=20;view.HealthText.alignment=TextAnchor.MiddleCenter;
+                view.HealthText.color=new Color(0,1,.6f);view.HealthText.text="100/100";
+                HudElements.Rect(view.ManaText.rectTransform,new Vector2(width+20,-manaTop-(manaHeight-24)*.5f),new Vector2(150,24));
                 view.ManaText.fontSize=16;
                 var manaOutline=view.ManaText.GetComponent<Outline>()??view.ManaText.gameObject.AddComponent<Outline>();
                 manaOutline.effectColor=new Color(0,0,0,.9f);manaOutline.effectDistance=new Vector2(1,-1);
                 HudElements.Rect(view.CharacterName.rectTransform,new Vector2(12,-5),new Vector2(width,24));
                 var outline=view.CharacterName.GetComponent<Outline>()??view.CharacterName.gameObject.AddComponent<Outline>();
                 outline.effectColor=new Color(0,0,0,.9f);outline.effectDistance=new Vector2(1,-1);
+                ((RectTransform)view.Vitals.transform).sizeDelta=new Vector2(310,90);
                 PrefabUtility.SaveAsPrefabAsset(root,path);
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}
@@ -77,7 +93,7 @@ namespace Remains.Editor
                     panel.transform.localScale=Vector3.one*.8f;
                     panel.GetComponent<Image>().color=new Color(.04f,.08f,.07f,.72f);
                 }
-                ((RectTransform)view.Loadout.transform).anchoredPosition=new Vector2(18,116.8f);
+                PlaceLoadout(view);
                 PrefabUtility.SaveAsPrefabAsset(combat,combatPath);
             }
             finally {PrefabUtility.UnloadPrefabContents(combat);}
@@ -88,6 +104,12 @@ namespace Remains.Editor
             var sprite=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Remains/Resources/Presentation/MainMenuArtwork/button-glow.asset");
             if(sprite==null) throw new InvalidOperationException("Нет сохранённого оригинального спрайта кнопки.");
             button.GetComponent<Image>().sprite=sprite;
+        }
+        private static void PlaceLoadout(CombatHudView view)
+        {
+            var rect=(RectTransform)view.Loadout.transform;
+            // Keep the authored panel above the lower margin when its height changes.
+            rect.anchoredPosition=new Vector2(18,16+rect.rect.height*rect.localScale.y);
         }
         public static void FinalizeLayout()
         {
@@ -105,11 +127,18 @@ namespace Remains.Editor
             root=PrefabUtility.LoadPrefabContents(combatPath);
             try
             {
-                ((RectTransform)root.GetComponent<CombatHudView>().Loadout.transform).anchoredPosition=new Vector2(18,116.8f);
+                PlaceLoadout(root.GetComponent<CombatHudView>());
                 PrefabUtility.SaveAsPrefabAsset(root,combatPath);
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}
             AssetDatabase.SaveAssets();PrototypeBuild.Build();
+        }
+        public static void RefineAndBuild()
+        {
+            RefineVitals();CharacterInterfaceAuthoring.RefineMenuButtonArtwork();
+            CombatHudPrefabChecks.RenderAndCheck();CombatHudRender.RenderReferenceSizes();
+            MainMenuPrefabChecks.Run();MainMenuRender.Render();MainMenuRender.RenderLongName();
+            PrototypeBuild.Build();
         }
     }
 }

@@ -26,6 +26,10 @@ namespace Remains.Runtime
         private bool rejected75,rejected120,observedLift;
         private float manaBeforeLift,minimumLiftMana=100;
         private readonly TrainingMagicRecoveryExercise magicRecovery=new();
+        private const int ManaPauseEvidencePhase=21;
+        private bool pausedManaCaptureRequested,pausedManaCaptured;
+        private float capturedPausedMana=-1;
+        private int pausedManaCaptureWidth,pausedManaCaptureHeight;
         private readonly TrainingSprintExercise sprinting=new();
         private float liftObservedAt=-1;
         private bool Host=>runtime.Options.Role=="host";
@@ -48,10 +52,27 @@ namespace Remains.Runtime
         private bool movingShotCaptured,raisedCaptured;
         private readonly HashSet<string> raisedWeapons=new();
         private bool MovingShotExercise=>runtime.Options.Smoke.Contains("-moving-");
+        private bool PausedManaCaptureRequired=>Host && !MovingShotExercise && runtime.Options.Smoke.Contains("-frames-");
         private InteractionVisuals interactionVisuals;
         private void LateUpdate()
         {
             if(finished || runtime?.Session.World==null) return;
+            if(pausedManaCaptureRequested && !pausedManaCaptured)
+            {
+                pausedManaCaptureRequested=false;
+                try
+                {
+                    var self=runtime.Session.LocalActor;
+                    if(!PausedManaCaptureRequired || !magicRecovery.ConfirmedPause || self==null || !runtime.Session.Pause.IsPaused(self.level) ||
+                        !float.IsFinite(self.mana) || self.mana<0 || self.mana>=100 || Mathf.Abs(self.mana-magicRecovery.PausedMana)>.0001f ||
+                        runtime.Hud==null || runtime.Hud.InventoryOpen || runtime.Hud.PauseMenu.IsOpen || runtime.Hud.WorldMap.IsOpen)
+                        throw new InvalidOperationException($"Нет подтверждённого HUD evidence до восстановления маны: actor={self?.id}, level={self?.level}, mana={self?.mana}, pausedMana={magicRecovery.PausedMana}, confirmed={magicRecovery.ConfirmedPause}.");
+                    NetworkSceneRecord.Save(runtime,ManaPauseEvidencePhase);
+                    capturedPausedMana=self.mana;pausedManaCaptureWidth=Screen.width;pausedManaCaptureHeight=Screen.height;pausedManaCaptured=true;
+                    Debug.Log($"HUD маны: сохранён реальный paused кадр phase={ManaPauseEvidencePhase}, actor={self.id}, mana={capturedPausedMana}, size={pausedManaCaptureWidth}x{pausedManaCaptureHeight}, report={runtime.Options.Report}.");
+                }
+                catch(Exception error) {Finish(false,error.Message);return;}
+            }
             foreach(var actor in runtime.Session.World.actors)
                 if(actor.player) animationTrace.Observe(actor,runtime.FindActorVisual(actor.id) as PonyVisual,actor.id==runtime.Session.LocalActorId,interactionVisuals.FindWeapon(actor.id));
             if(weaponTrace.Draw(runtime.Session.World,interactionVisuals) && !movingShotCaptured && runtime.Options.Smoke.Contains("-frames-"))
@@ -305,7 +326,12 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(done.Count<runtime.Options.ProbePeers-1) return;
-                try {if(!magicRecovery.Step(runtime.Session,self)) return;}
+                try
+                {
+                    bool recovered=magicRecovery.Step(runtime.Session,self);
+                    if(PausedManaCaptureRequired && magicRecovery.ConfirmedPause && !pausedManaCaptured) pausedManaCaptureRequested=true;
+                    if(!recovered) return;
+                }
                 catch(Exception error) {Finish(false,error.Message);return;}
             }
             var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
@@ -323,17 +349,21 @@ namespace Remains.Runtime
             {success=false;detail=$"Не подтверждён бесшовный тир: entered={rangeEntered}, returned={rangeReturned}, separated={rangeSeparated}.";}
             if(success && MovingShotExercise && movingShots!=3) {success=false;detail="Ожидалось три выстрела на бегу, получено "+movingShots;}
             if(success && MovingShotExercise && !weaponTrace.ValidateLocal(out var mismatch)) {success=false;detail=mismatch;}
+            if(success && PausedManaCaptureRequired && !pausedManaCaptured)
+            {success=false;detail=$"Отсутствует реальный HUD/scene evidence израсходованной маны на подтверждённой паузе: phase={ManaPauseEvidencePhase}, pausedMana={magicRecovery.PausedMana}, recoveredMana={magicRecovery.RecoveredMana}.";}
             string json=JsonUtility.ToJson(new Report {rangeEntered=rangeEntered,rangeReturned=rangeReturned,rangeSeparated=rangeSeparated,success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 raisedWeapons=raisedWeapons.Count,rejected75=rejected75,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 remoteRunRestarts=remoteRunRestarts,remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
                 sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,movingShots=movingShots,
                 recoveryChecked=magicRecovery.Complete,pausedMana=magicRecovery.PausedMana,recoveredMana=magicRecovery.RecoveredMana,
+                pausedManaCaptureRequired=PausedManaCaptureRequired,pausedManaCaptured=pausedManaCaptured,pausedManaCapturePhase=ManaPauseEvidencePhase,
+                capturedPausedMana=capturedPausedMana,pausedManaCaptureWidth=pausedManaCaptureWidth,pausedManaCaptureHeight=pausedManaCaptureHeight,
                 localContacts=runtime.MovementAudio.LocalContacts,remoteContacts=runtime.MovementAudio.RemoteContacts,landings=runtime.MovementAudio.Landings,landingVoices=runtime.MovementAudio.LandingVoices,ladderContacts=runtime.MovementAudio.LadderContacts,
                 remoteCrouches=observedCrouch.Count,remoteLower=observedLower.Count,remoteRise=observedRise.Count,remoteLandingPoses=observedLanding.Count,remoteFallPoses=observedFall.Count,propLandings=runtime.PropAudio.Landings,impactSounds=runtime.ImpactAudio.Played,independentStance=independentStance},true);
             animationTrace.Save(runtime.Options.Report+".animation.json");
             weaponTrace.Save(runtime.Options.Report+".weapons.json");
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool rangeEntered,rangeReturned,rangeSeparated;public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool success,rejected75,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        [Serializable] private sealed class Report {public bool rangeEntered,rangeReturned,rangeSeparated;public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool pausedManaCaptureRequired,pausedManaCaptured;public int pausedManaCapturePhase,pausedManaCaptureWidth,pausedManaCaptureHeight;public float capturedPausedMana;public bool success,rejected75,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }
