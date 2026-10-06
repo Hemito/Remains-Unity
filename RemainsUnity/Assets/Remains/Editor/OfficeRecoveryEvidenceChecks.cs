@@ -25,6 +25,50 @@ namespace Remains.Editor
                 npcWeaponAction=new NpcWeaponActionState {kind="shot",item="npc-pistol",weapon="pistol"}};
             before.inventory.Add(new ItemStack {id="npc-pistol",definition="pistol",count=1,weaponState=new WeaponItemState {rounds=5,revision=1}});
             before.inventory.Add(new ItemStack {id="npc-caps",definition="caps",count=6});
+            // Regression from real .034s canonical preparation: the owner has
+            // already fired before the two paused witnesses, so no cancellation exists.
+            var gate=new OfficeRecoveryPreparationGate();gate.Begin(before,host.id,source.id);int firstAttempt=gate.Attempt;
+            var consumed=before.Copy();consumed.attackBusy=false;consumed.attackRemaining=0;consumed.attackId=null;
+            consumed.npcWeaponAction=null;consumed.inventory[0].weaponState.rounds--;
+            var outcome=gate.Observe(firstAttempt,source.id,consumed,true,true,out string preparationError);
+            Check(outcome==OfficeRecoveryPreparationOutcome.Retry && preparationError!=null && !gate.Forbids(before.attackId),
+                "Владелец уже выстрелил до barrier: отрицательное наблюдение, не ложный cancelled-shot FAIL.");
+            Check(gate.Confirm(before,true,false)!=null && gate.ConfirmedAttackId==null,"Отклонённый кандидат не разрешает departure.");
+            outcome=gate.Observe(firstAttempt,host.id,before.Copy(),true,false,out preparationError);
+            Check(outcome==OfficeRecoveryPreparationOutcome.Waiting,"Canonical-like host witness недостаточен для consensus.");
+            Check(gate.Observe(firstAttempt,host.id,before.Copy(),true,false,out _)==OfficeRecoveryPreparationOutcome.Waiting && gate.Observers==1,
+                "Повтор одного peer witness не заменяет второго участника.");
+            var wrongAmmo=before.Copy();wrongAmmo.inventory[0].weaponState.rounds--;
+            Check(gate.Observe(firstAttempt,source.id,wrongAmmo,true,false,out _) == OfficeRecoveryPreparationOutcome.Retry && gate.Observers==1,
+                "Exact ammo mismatch никогда не считается положительным witness даже при busy/ID match.");
+            Check(gate.Observe(firstAttempt,source.id,before.Copy(),false,false,out _)==OfficeRecoveryPreparationOutcome.Retry,
+                "Неподтверждённая pause не разрешает departure.");
+            gate.Reset();var next=before.Copy();next.attackId="next-real-preparation";gate.Begin(next,host.id,source.id);
+            Check(gate.Attempt==firstAttempt+1 && gate.Observers==0,"Retry сбрасывает witnesses и меняет номер настоящего кандидата.");
+            Check(gate.Observe(firstAttempt,source.id,before.Copy(),true,false,out _)==OfficeRecoveryPreparationOutcome.Stale && gate.Observers==0,
+                "Запоздалый witness прежней атаки не завершает новый barrier.");
+            Check(gate.Observe(gate.Attempt,host.id,next.Copy(),true,false,out _)==OfficeRecoveryPreparationOutcome.Waiting,
+                "Новый candidate требует нового host witness.");
+            Check(gate.Confirm(next,true,false)!=null,"Даже актуальный canonical snapshot не заменяет второй peer.");
+            Check(gate.Observe(gate.Attempt,source.id,next.Copy(),true,false,out _)==OfficeRecoveryPreparationOutcome.Ready,
+                "Две разные paused replicas с exact weapon state готовы к final recheck.");
+            Check(gate.Confirm(next,true,true)!=null && !gate.Forbids(next.attackId),
+                "Выстрел, обнаруженный canonical recheck до consensus, требует retry без ложного запрета ID.");
+            var staleCanonical=next.Copy();staleCanonical.inventoryUses.Add(new InventoryUse {id="real-shot-use"});
+            Check(gate.Confirm(staleCanonical,true,false)!=null && gate.ConfirmedAttackId==null,
+                "Final canonical recheck сохраняет exact journal witness.");
+            Check(gate.Confirm(next,false,false)!=null,"Снятие pause между witness и final recheck не разрешает departure.");
+            Check(gate.Confirm(next,true,false)==null && gate.Forbids(next.attackId),
+                "Только consensus + final recheck запрещают exact attackID, включая позднюю доставку выстрела.");
+            Check(!gate.Forbids(before.attackId) && !gate.Forbids("new-owner-shot"),
+                "Реальный выстрел отвергнутой попытки и новая атака владельца не называются отменёнными.");
+            bool resetRejected=false;try {gate.Reset();} catch(InvalidOperationException) {resetRejected=true;}
+            Check(resetRejected && gate.Forbids(next.attackId),"После consensus нельзя спрятать запрещённый выстрел сбросом кандидата.");
+            foreach(var mutate in new Action<ActorState>[] {a=>a.owner="other-owner",a=>a.generation++,a=>a.lifecycleSequence++,a=>a.level="hub",
+                a=>a.attackTarget="other-target",a=>a.equippedWeaponItem="other-pistol",a=>a.inventoryAliases["new-alias"]="npc-pistol",
+                a=>a.npcWeaponAction.selectionRevision++,a=>a.attackRemaining=0})
+            {var invalid=next.Copy();mutate(invalid);Check(OfficeRecoveryEvidence.Preparation(next,invalid,true,false)!=null,
+                "Различная identity/owner/generation/life/level/target/weapon/aliases/action/completed preparation не проходит witness.");}
             var after=before.Copy();after.owner=host.owner;after.generation=5;after.attackBusy=false;after.attackId=null;after.attackTarget=null;
             after.attackRemaining=0;after.attackCooldown=2;after.npcWeaponAction=null;
             var disconnected=source.Copy();disconnected.connected=false;disconnected.controlStateVersion=1;disconnected.lifecycleSequence=9;disconnected.owner=host.owner;disconnected.generation=5;
@@ -63,7 +107,7 @@ namespace Remains.Editor
             var restored=StateJson.FromJson<WorldState>(StateJson.ToJson(hurt));Check(Loot(restored),"Независимый canonical offline-damage expected переживает сериализацию диска.");
             restored.Find("client").health=100;Check(!Loot(restored),"Restart не должен отбрасывать сохранённый offline damage.");
             Check(proof.departedSaved.health==73,"Проверяемая disk-копия не имеет права менять независимый live expected.");
-            if(log) Debug.Log($"Office recovery evidence: PASS {count} — самостоятельные before/after, отказ stale owner/gen/attack/ammo/death, активный хост, unique loot/aliases/magazine/journal и сериализация. Это checks доказательств; реальные процессы/контент/UI проверяет отдельный probe.");
+            if(log) Debug.Log($"Office recovery evidence: PASS {count} — preconsensus retry/nonce/две paused replicas/exact ammo/final recheck/strict confirmed ID, самостоятельные before/after, отказ stale owner/gen/attack/ammo/death, активный хост, unique loot/aliases/magazine/journal и сериализация. Это checks доказательств; реальные процессы/контент/UI проверяет отдельный probe.");
         }
     }
 }

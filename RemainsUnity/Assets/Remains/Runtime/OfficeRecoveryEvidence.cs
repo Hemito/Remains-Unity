@@ -10,13 +10,77 @@ namespace Remains.Runtime
     [Serializable] public sealed class OfficeRecoveryWitness
     {
         public int schema=1;
-        public string worldId,npcId,hostId,departedId,sourceSnapshot;
+        public int preparationAttempt;
+        public string worldId,npcId,hostId,departedId,sourceSnapshot,confirmedAttackId;
         public ActorState initialNpc,preparedNpc,recoveredNpc,departedBefore,departedAfter,deadNpc,hostBeforeLoot,hostSaved,departedSaved;
         public ItemStack[] corpseItems;
         public string[] claims;
     }
+    public enum OfficeRecoveryPreparationOutcome {Stale,Retry,Waiting,Ready}
+
+    // Probe-only consensus. A sampled candidate is not yet a cancelled attack.
+    public sealed class OfficeRecoveryPreparationGate
+    {
+        private readonly System.Collections.Generic.HashSet<string> observers=new(StringComparer.Ordinal);
+        private string first,second;
+        public int Attempt {get;private set;}
+        public ActorState Candidate {get;private set;}
+        public string ConfirmedAttackId {get;private set;}
+        public int Observers=>observers.Count;
+        public void Begin(ActorState npc,string host,string departing)
+        {
+            if(ConfirmedAttackId!=null) throw new InvalidOperationException("Нельзя заменить уже согласованную подготовку recovery.");
+            string error=OfficeRecoveryEvidence.Preparation(npc,npc,true,false);
+            if(error!=null || string.IsNullOrEmpty(host) || string.IsNullOrEmpty(departing) || host==departing)
+                throw new InvalidOperationException(error??"Нет двух разных участников barrier recovery.");
+            Candidate=npc.Copy();first=host;second=departing;Attempt++;observers.Clear();
+        }
+        public OfficeRecoveryPreparationOutcome Observe(int attempt,string actor,ActorState npc,bool paused,bool shotObserved,out string reason)
+        {
+            reason=null;
+            if(attempt!=Attempt || Candidate==null) return OfficeRecoveryPreparationOutcome.Stale;
+            if(actor!=first && actor!=second) reason="Свидетель не является участником recovery barrier.";
+            else reason=OfficeRecoveryEvidence.Preparation(Candidate,npc,paused,shotObserved);
+            if(reason!=null) return OfficeRecoveryPreparationOutcome.Retry;
+            observers.Add(actor);
+            return observers.Count==2?OfficeRecoveryPreparationOutcome.Ready:OfficeRecoveryPreparationOutcome.Waiting;
+        }
+        public string Confirm(ActorState canonical,bool paused,bool shotObserved)
+        {
+            if(Candidate==null || observers.Count!=2) return "Нет двух независимых положительных paused witness.";
+            string error=OfficeRecoveryEvidence.Preparation(Candidate,canonical,paused,shotObserved);
+            if(error!=null) return error;
+            ConfirmedAttackId=Candidate.attackId;return null;
+        }
+        public void Reset()
+        {
+            if(ConfirmedAttackId!=null) throw new InvalidOperationException("Нельзя сбросить согласованную подготовку recovery.");
+            Candidate=null;observers.Clear();
+        }
+        public bool Forbids(string attack)=>ConfirmedAttackId!=null && attack==ConfirmedAttackId;
+    }
     public static class OfficeRecoveryEvidence
     {
+        public static string Preparation(ActorState candidate,ActorState observed,bool paused,bool shotObserved)
+        {
+            if(candidate==null || candidate.player || candidate.down || candidate.health<=0 || !candidate.attackBusy ||
+                string.IsNullOrEmpty(candidate.attackId) || string.IsNullOrEmpty(candidate.attackTarget) ||
+                candidate.attackRemaining<=0 || candidate.npcWeaponAction?.kind!=NpcWeaponActions.Shot)
+                return "Кандидат не содержит настоящей незавершённой shot preparation.";
+            if(shotObserved) return "Выстрел кандидата уже наблюдался до consensus.";
+            if(!paused) return "Участник ещё не подтвердил pause уровня.";
+            if(observed==null || observed.id!=candidate.id || observed.owner!=candidate.owner || observed.generation!=candidate.generation ||
+                observed.lifecycleSequence!=candidate.lifecycleSequence || observed.level!=candidate.level || observed.down || observed.health<=0 ||
+                !observed.attackBusy || observed.attackId!=candidate.attackId || observed.attackTarget!=candidate.attackTarget ||
+                observed.attackRemaining<=0 || observed.npcWeaponAction?.kind!=NpcWeaponActions.Shot)
+                return "Независимая реплика уже завершила/заменила подготовку либо имеет другую identity/owner/generation/lifecycle.";
+            if(observed.equippedWeaponItem!=candidate.equippedWeaponItem || StateJson.ToJson(observed.npcWeaponAction)!=StateJson.ToJson(candidate.npcWeaponAction) ||
+                StateJson.ToJson(observed.inventory)!=StateJson.ToJson(candidate.inventory) ||
+                StateJson.ToJson(observed.inventoryUses)!=StateJson.ToJson(candidate.inventoryUses) ||
+                StateJson.ToJson(observed.inventoryAliases)!=StateJson.ToJson(candidate.inventoryAliases))
+                return "Подготовка replica/canonical разошлась по exact оружию/магазину/инвентарю/журналу NPC.";
+            return null;
+        }
         public static string Handoff(ActorState before,ActorState after,ActorState departedBefore,ActorState departed,ActorState host)
         {
             if(before==null || after==null || departedBefore==null || departed==null || host==null) return "Нет полного before/after свидетельства передачи.";

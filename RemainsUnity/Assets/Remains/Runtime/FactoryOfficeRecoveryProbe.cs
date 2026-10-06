@@ -15,8 +15,8 @@ using UnityEngine.InputSystem;
 namespace Remains.Runtime
 {
     public struct OfficeRecoveryFixture : NetworkMessage {public string json;}
-    public struct OfficeRecoveryPhase : NetworkMessage {public int phase;public string json;}
-    public struct OfficeRecoveryObserved : NetworkMessage {public string actor,npc,owner,attack,localJson;public int generation,phase;}
+    public struct OfficeRecoveryPhase : NetworkMessage {public int phase,attempt;public string json;}
+    public struct OfficeRecoveryObserved : NetworkMessage {public string actor,npc,owner,attack,localJson,reason;public int generation,phase,attempt,npcGeneration;public bool valid,paused,shotObserved;}
 
     // Separate fresh/reload processes. Only the explicitly reported initial player
     // fixture writes coordinates; every subsequent action uses production input/session APIs.
@@ -30,19 +30,22 @@ namespace Remains.Runtime
         private OfficeRecoveryWitness proof;
         private ActorState localPrepared,localBeforeDeparture;
         private RoomLayout fixtureRoom;
-        private readonly HashSet<string> captures=new(StringComparer.Ordinal),barrier=new(StringComparer.Ordinal),claims=new(StringComparer.Ordinal),shots=new(StringComparer.Ordinal);
+        private readonly HashSet<string> captures=new(StringComparer.Ordinal),claims=new(StringComparer.Ordinal),shots=new(StringComparer.Ordinal);
         private readonly List<AttackEvent> npcShots=new();
+        private readonly OfficeRecoveryPreparationGate preparation=new();
+        private readonly List<string> candidateRetries=new();
+        private readonly HashSet<string> rejectedAttacks=new(StringComparer.Ordinal);
         private readonly HashSet<string> seenNpcShots=new(StringComparer.Ordinal);
         private readonly AttackEvent friendlyCorridor=new() {weapon="pistol"};
-        private int phase,generation,shotsAfterHandoff,roundsAtOpen;
+        private int phase,generation,shotsAfterHandoff,roundsAtOpen,candidateAttempt;
         private float deadline,quietAt=-1,nextHeal,transferAt;
         private string owner,ownPistol,capture,aimedThreat,loadedSnapshot,archivePath;
-        private bool traveled,installed,reported,finished,disconnecting,stopped,opened,draining,saving,edge,reinstallVerified,loadedVerified,postTargetObserved;
+        private bool traveled,installed,reported,negativeReported,finished,disconnecting,stopped,opened,draining,saving,edge,reinstallVerified,loadedVerified,postTargetObserved;
         private bool Host=>runtime.Options.Role=="host";
         private bool Reload=>runtime.Options.Smoke.Contains("-reload-",StringComparison.Ordinal);
         private ActorState Actor=>runtime.Session.LocalActor;
         private ActorState Npc=>runtime.Session.World?.Find(NpcId);
-        private string Progress=>$"phase={phase}, reload={Reload}, actor={Actor?.id}/{Actor?.Position}/HP{Actor?.health}/down{Actor?.down}/gen{Actor?.generation}/life{Actor?.lifecycleSequence}/owner{Actor?.owner}, npc={Npc?.Position}/HP{Npc?.health}/owner{Npc?.owner}/gen{Npc?.generation}/target{Npc?.target}/busy{Npc?.attackBusy}/attack{Npc?.attackId}/remaining{Npc?.attackRemaining}/cooldown{Npc?.attackCooldown}, paused={runtime.Session.Pause.IsPaused(Level)}, items={Npc?.inventory.Count}, claims={claims.Count}, postShots={shotsAfterHandoff}, UI={runtime.Hud.ContainerOpen}/{runtime.Hud.ShownInventorySourceId}";
+        private string Progress=>$"phase={phase}, attempt={candidateAttempt}, confirmed={proof?.confirmedAttackId}, retries={candidateRetries.Count}, reload={Reload}, actor={Actor?.id}/{Actor?.Position}/HP{Actor?.health}/down{Actor?.down}/gen{Actor?.generation}/life{Actor?.lifecycleSequence}/owner{Actor?.owner}, npc={Npc?.Position}/HP{Npc?.health}/owner{Npc?.owner}/gen{Npc?.generation}/target{Npc?.target}/busy{Npc?.attackBusy}/attack{Npc?.attackId}/remaining{Npc?.attackRemaining}/cooldown{Npc?.attackCooldown}, paused={runtime.Session.Pause.IsPaused(Level)}, items={Npc?.inventory.Count}, claims={claims.Count}, postShots={shotsAfterHandoff}, UI={runtime.Hud.ContainerOpen}/{runtime.Hud.ShownInventorySourceId}";
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+(Reload?45:180);
@@ -88,15 +91,52 @@ namespace Remains.Runtime
                     proof=StateJson.FromJson<OfficeRecoveryWitness>(message.json);installed=true;phase=1;
                     CacheActor();fixtureRoom=runtime.Geometry.Get(Level);capture="fixture";
                 });
-                NetworkClient.RegisterHandler<OfficeRecoveryPhase>(message=>
-                {
-                    if(message.json!=null) proof=StateJson.FromJson<OfficeRecoveryWitness>(message.json);
-                    phase=message.phase;reported=false;
-                    if(phase==3) capture="prepared";
-                    if(phase==4 && !Host && !disconnecting) StartCoroutine(SafeRoutine(Depart()));
-                });
+                NetworkClient.RegisterHandler<OfficeRecoveryPhase>(ReceivePhase);
             };
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<OfficeRecoveryObserved>(Observe);
+        }
+        private void ResetLocalPreparation()
+        {
+            localPrepared=null;localBeforeDeparture=null;reported=false;negativeReported=false;captures.Remove("prepared");
+            if(capture=="prepared") capture=null;
+        }
+        private void ReceivePhase(OfficeRecoveryPhase message)
+        {
+            if(finished || message.attempt<candidateAttempt) return;
+            try
+            {
+                // Duplicate phase messages cannot erase an already captured witness.
+                if(message.attempt==candidateAttempt && (message.phase==phase || message.phase==3 && phase!=3)) return;
+                if(message.phase==3 || message.phase==1)
+                {
+                    if(proof?.confirmedAttackId!=null) throw new InvalidOperationException("Сброс подготовки после consensus recovery.");
+                    ResetLocalPreparation();
+                }
+                if(message.json!=null) proof=StateJson.FromJson<OfficeRecoveryWitness>(message.json);
+                candidateAttempt=message.attempt;phase=message.phase;reported=false;
+                if(phase==4)
+                {
+                    if(proof?.confirmedAttackId!=proof?.preparedNpc?.attackId || string.IsNullOrEmpty(proof?.confirmedAttackId) ||
+                        proof.preparationAttempt!=candidateAttempt || localPrepared==null)
+                        throw new InvalidOperationException("Departure без согласованного exact candidate/witness.");
+                    Require(OfficeRecoveryEvidence.Preparation(proof.preparedNpc,Npc,runtime.Session.Pause.IsPaused(Level),ShotObserved(proof.confirmedAttackId)));
+                    if(!Host && !disconnecting) StartCoroutine(SafeRoutine(Depart()));
+                }
+            }
+            catch(Exception error) {Fail(error.Message);}
+        }
+        private bool ShotObserved(string id)=>!string.IsNullOrEmpty(id) && (seenNpcShots.Contains(id) ||
+            runtime.Session.World.projectiles.Any(p=>p.launch?.id==id));
+        private void RetryPreparation(string reason)
+        {
+            if(!Host || proof?.confirmedAttackId!=null) throw new InvalidOperationException("Retry допустим только до consensus recovery.");
+            string attack=proof.preparedNpc?.attackId;
+            if(!string.IsNullOrEmpty(attack)) rejectedAttacks.Add(attack);
+            candidateRetries.Add($"attempt={candidateAttempt}, attack={attack}, reason={reason}; {Progress}");
+            Debug.LogWarning("Office recovery: кандидат отклонён до consensus; "+candidateRetries[^1]);
+            preparation.Reset();proof.preparedNpc=null;ResetLocalPreparation();phase=1;
+            runtime.Session.Pause.SetManual(false);
+            NetworkServer.SendToAll(new OfficeRecoveryPhase {phase=1,attempt=candidateAttempt,json=StateJson.ToJson(proof)});
         }
         private void CacheActor()
         {
@@ -110,9 +150,12 @@ namespace Remains.Runtime
             if(finished || proof==null) return;
             if(attack.attacker==proof.hostId) shots.Add(attack.id);
             if(attack.attacker!=NpcId) return;
+            // Only consensus establishes the exact forbidden ID; delayed duplicate
+            // deliveries of that ID are still failures after confirmation.
+            if(attack.id==proof.confirmedAttackId && !string.IsNullOrEmpty(proof.confirmedAttackId))
+                {Fail("Отменённая атака появилась после подтверждённой подготовки: "+attack.id);return;}
             if(!seenNpcShots.Add(attack.id)) return;
             npcShots.Add(StateJson.Copy(attack));
-            if(attack.id==proof.preparedNpc?.attackId) {Fail("Отменённая атака появилась после подтверждённой подготовки: "+attack.id);return;}
             if(Host && phase>=6 && attack.sourceOwner==runtime.Session.LocalOwner) shotsAfterHandoff++;
         }
         private PlayerCommand Command()
@@ -186,32 +229,39 @@ namespace Remains.Runtime
             if(actor.owner!=owner || actor.owner!=session.LocalOwner || actor.generation!=generation || !actor.connected ||
                 actor.level!=Level || actor.down || actor.health<=0 || session.Travel.Pending || !ReferenceEquals(fixtureRoom,runtime.Geometry.Get(Level)))
                 throw new InvalidOperationException("Fixture потеряла активного собственного игрока/уровень/геометрию.");
-            if(proof.preparedNpc!=null && session.World.projectiles.Any(p=>p.launch?.id==proof.preparedNpc.attackId))
-                throw new InvalidOperationException("В мире появился снаряд отменённого attackID.");
-            if(phase==3 && !reported)
+            if(ShotObserved(proof.confirmedAttackId))
+                throw new InvalidOperationException("В мире/AttackReceived появился снаряд отменённого confirmed attackID.");
+            if(phase==3 && (!reported || !negativeReported))
             {
-                var npc=Npc;
-                if(!session.Pause.IsPaused(Level) || npc?.owner!=proof.preparedNpc.owner || npc.generation!=proof.preparedNpc.generation ||
-                    !npc.attackBusy || npc.attackId!=proof.preparedNpc.attackId || npc.attackTarget!=proof.departedId)
-                    throw new InvalidOperationException("Локальная реплика не подтвердила ту же замороженную подготовку.");
-                if(localPrepared==null) {localPrepared=npc.Copy();localBeforeDeparture=actor.Copy();}
-                if(captures.Contains("prepared"))
-                {reported=true;NetworkClient.Send(new OfficeRecoveryObserved {actor=actor.id,generation=actor.generation,phase=3,npc=NpcId,owner=npc.owner,attack=npc.attackId,localJson=StateJson.ToJson(npc)});}
+                var npc=Npc;bool paused=session.Pause.IsPaused(Level),shotObserved=ShotObserved(proof.preparedNpc.attackId);
+                string reason=OfficeRecoveryEvidence.Preparation(proof.preparedNpc,npc,paused,shotObserved);
+                if(reason==null && localPrepared==null)
+                {localPrepared=npc.Copy();localBeforeDeparture=actor.Copy();capture="prepared";}
+                if(reason!=null && !negativeReported || reason==null && !reported && captures.Contains("prepared"))
+                {
+                    reported=true;negativeReported=reason!=null;
+                    if(reason!=null) candidateRetries.Add($"Отрицательный witness attempt={candidateAttempt}, attack={proof.preparedNpc.attackId}: {reason}; {Progress}");
+                    NetworkClient.Send(new OfficeRecoveryObserved {actor=actor.id,generation=actor.generation,phase=3,attempt=candidateAttempt,npc=NpcId,
+                        owner=proof.preparedNpc.owner,npcGeneration=proof.preparedNpc.generation,attack=proof.preparedNpc.attackId,
+                        valid=reason==null,paused=paused,shotObserved=shotObserved,reason=reason,localJson=StateJson.ToJson(npc)});
+                }
             }
             if(!Host) return;
             var canonical=session.ServerWorld.Find(NpcId);var departing=session.ServerWorld.Find(proof.departedId);
             if(phase==1 && !session.Pause.IsPaused(Level) && canonical.owner==departing.owner && canonical.target==departing.id &&
-                canonical.attackBusy && canonical.attackTarget==departing.id && canonical.npcWeaponAction?.kind==NpcWeaponActions.Shot)
+                canonical.attackBusy && canonical.attackTarget==departing.id && canonical.npcWeaponAction?.kind==NpcWeaponActions.Shot &&
+                !rejectedAttacks.Contains(canonical.attackId) && !ShotObserved(canonical.attackId))
             {phase=2;session.Pause.SetManual(true);}
             if(phase==2 && session.Pause.IsServerPaused(Level) && session.Pause.IsPaused(Level))
             {
                 // If confirmation arrived after the real shot, try the next real preparation.
                 if(!canonical.attackBusy || canonical.owner!=departing.owner || canonical.attackTarget!=departing.id ||
-                    canonical.npcWeaponAction?.kind!=NpcWeaponActions.Shot)
-                {phase=1;session.Pause.SetManual(false);return;}
-                proof.preparedNpc=canonical.Copy();proof.departedBefore=departing.Copy();
-                NetworkServer.SendToAll(new OfficeRecoveryPhase {phase=3,json=StateJson.ToJson(proof)});
-                phase=3;capture="prepared";
+                    canonical.npcWeaponAction?.kind!=NpcWeaponActions.Shot || ShotObserved(canonical.attackId))
+                {RetryPreparation("Canonical подготовка закончилась до первого paused barrier.");return;}
+                preparation.Begin(canonical,proof.hostId,proof.departedId);candidateAttempt=preparation.Attempt;
+                proof.preparationAttempt=candidateAttempt;proof.preparedNpc=preparation.Candidate.Copy();proof.departedBefore=departing.Copy();
+                ResetLocalPreparation();phase=3;
+                NetworkServer.SendToAll(new OfficeRecoveryPhase {phase=3,attempt=candidateAttempt,json=StateJson.ToJson(proof)});
             }
             if(phase==4 && !departing.connected)
             {
@@ -258,19 +308,26 @@ namespace Remains.Runtime
         }
         private void Observe(NetworkConnectionToClient connection,OfficeRecoveryObserved message)
         {
-            if(phase!=3 || proof?.preparedNpc==null) return;
-            var actor=runtime.Session.ConnectedActor(connection);var npc=runtime.Session.ServerWorld.Find(NpcId);
-            if(actor==null || actor.id!=message.actor || actor.generation!=message.generation || actor.level!=Level ||
-                message.phase!=3 || message.npc!=NpcId || message.owner!=npc.owner || message.attack!=npc.attackId)
-                {Fail("Наблюдение подготовки не соответствует участнику/канонической атаке.");return;}
-            var observed=StateJson.FromJson<ActorState>(message.localJson);
-            if(observed?.id!=npc.id || observed.owner!=npc.owner || observed.generation!=npc.generation || !observed.attackBusy || observed.attackId!=npc.attackId)
-                {Fail("Независимое наблюдение клиента не содержит той же подготовки.");return;}
-            if(StateJson.ToJson(observed.inventory)!=StateJson.ToJson(npc.inventory) || StateJson.ToJson(observed.inventoryUses)!=StateJson.ToJson(npc.inventoryUses) ||
-                StateJson.ToJson(observed.inventoryAliases)!=StateJson.ToJson(npc.inventoryAliases))
-                {Fail("Подготовка replica/canonical разошлась по exact магазину/инвентарю/журналу NPC.");return;}
-            barrier.Add(actor.id);
-            if(barrier.Count==2) {phase=4;NetworkServer.SendToAll(new OfficeRecoveryPhase {phase=4});}
+            if(phase!=3 || proof?.preparedNpc==null || message.attempt!=candidateAttempt) return;
+            try
+            {
+                var actor=runtime.Session.ConnectedActor(connection);var candidate=proof.preparedNpc;
+                if(actor==null || actor.id!=message.actor || actor.generation!=message.generation || actor.level!=Level || !actor.connected ||
+                    (actor.id!=proof.hostId && actor.id!=proof.departedId) || message.phase!=3 || message.npc!=NpcId ||
+                    message.owner!=candidate.owner || message.npcGeneration!=candidate.generation || message.attack!=candidate.attackId)
+                    throw new InvalidOperationException("Наблюдение подготовки не соответствует участнику/exact candidate.");
+                var observed=StateJson.FromJson<ActorState>(message.localJson);
+                var result=preparation.Observe(message.attempt,actor.id,observed,message.paused,message.shotObserved,out string reason);
+                if(!message.valid || result==OfficeRecoveryPreparationOutcome.Retry)
+                {RetryPreparation($"peer={actor.id}: {reason??message.reason??"Отрицательное наблюдение кандидата."}");return;}
+                if(result!=OfficeRecoveryPreparationOutcome.Ready) return;
+                var canonical=runtime.Session.ServerWorld.Find(NpcId);
+                string error=preparation.Confirm(canonical,runtime.Session.Pause.IsServerPaused(Level) && runtime.Session.Pause.IsPaused(Level),ShotObserved(candidate.attackId));
+                if(error!=null) {RetryPreparation("Canonical recheck: "+error);return;}
+                proof.confirmedAttackId=preparation.ConfirmedAttackId;phase=4;
+                NetworkServer.SendToAll(new OfficeRecoveryPhase {phase=4,attempt=candidateAttempt,json=StateJson.ToJson(proof)});
+            }
+            catch(Exception error) {Fail(error.Message);}
         }
         private void Setup()
         {
@@ -301,8 +358,10 @@ namespace Remains.Runtime
         private IEnumerator Depart()
         {
             disconnecting=true;
-            if(!captures.Contains("prepared") || localPrepared?.owner!=runtime.Session.LocalOwner || localPrepared.attackId!=proof.preparedNpc.attackId)
+            if(!captures.Contains("prepared") || localPrepared?.owner!=runtime.Session.LocalOwner || localPrepared.attackId!=proof.confirmedAttackId ||
+                proof.preparationAttempt!=candidateAttempt)
                 {Fail("Клиент не подтвердил собственную подготовку до StopClient.");yield break;}
+            Require(OfficeRecoveryEvidence.Preparation(proof.preparedNpc,Npc,runtime.Session.Pause.IsPaused(Level),ShotObserved(proof.confirmedAttackId)));
             runtime.Session.StopClient();
             float until=Time.unscaledTime+5;
             while(NetworkClient.active && Time.unscaledTime<until) yield return null;
@@ -394,6 +453,10 @@ namespace Remains.Runtime
             if(capture==null || finished) return;
             try
             {
+                // Do not capture a rejected preconsensus candidate as prepared proof.
+                if(capture=="prepared" && phase==3 && OfficeRecoveryEvidence.Preparation(proof.preparedNpc,Npc,
+                    runtime.Session.Pause.IsPaused(Level),ShotObserved(proof.preparedNpc.attackId))!=null)
+                {capture=null;return;}
                 NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".office-recovery-"+capture+".png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
                 NetworkSceneRecord.Save(runtime,1000+phase);captures.Add(capture);capture=null;
             }
@@ -414,15 +477,15 @@ namespace Remains.Runtime
                 opened=opened,emptyVerified=proof?.corpseItems!=null && proof.claims!=null,savedVerified=proof?.sourceSnapshot!=null,reinstallVerified=reinstallVerified,
                 externalReloadVerified=loadedVerified && Reload,postTargetObserved=postTargetObserved,sourceSnapshot=proof?.sourceSnapshot,worldId=proof?.worldId,npc=NpcId,
                 captures=captures.OrderBy(c=>c,StringComparer.Ordinal).ToArray(),localPrepared=localPrepared,localBeforeDeparture=localBeforeDeparture,
-                witness=proof,npcShots=npcShots.ToArray(),postHandoffShots=shotsAfterHandoff,ownShotIds=shots.ToArray(),progress=Progress},true));
+                candidateAttempt=candidateAttempt,candidateRetries=candidateRetries.ToArray(),confirmedAttackId=proof?.confirmedAttackId,witness=proof,npcShots=npcShots.ToArray(),postHandoffShots=shotsAfterHandoff,ownShotIds=shots.ToArray(),progress=Progress},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(.5f);Application.Quit(success?0:1);}
         [Serializable] private sealed class Report
         {
             public bool success,explicitInitialFixture,gracefulStopped,preparedObserved,handoffVerified,opened,emptyVerified,savedVerified,reinstallVerified,externalReloadVerified,postTargetObserved;
-            public string detail,mode,sourceSnapshot,worldId,npc,progress;public int phase,postHandoffShots;
-            public string[] captures,ownShotIds;public ActorState localPrepared,localBeforeDeparture;public OfficeRecoveryWitness witness;public AttackEvent[] npcShots;
+            public string detail,mode,sourceSnapshot,worldId,npc,progress,confirmedAttackId;public int phase,postHandoffShots,candidateAttempt;
+            public string[] captures,ownShotIds,candidateRetries;public ActorState localPrepared,localBeforeDeparture;public OfficeRecoveryWitness witness;public AttackEvent[] npcShots;
         }
     }
 }
