@@ -12,7 +12,7 @@ namespace Remains.Editor
             var root=new GameObject("Проверка представления двери");
             try
             {
-                var visuals=root.AddComponent<DoorVisuals>();var world=new WorldState();
+                var visuals=root.AddComponent<DoorVisuals>();visuals.SetOrders(new WorldVisualOrderTable());var world=new WorldState();
                 var door=new DoorState {id="visual-door",definition="door1",level="hub",x=2,y=1,width=.8f,height=1.6f,surfaceTexture="door:wood"};
                 world.doors.Add(door);visuals.Reconcile(world,"hub");var view=visuals.Find(door.id);
                 Require(view!=null && view.Artwork.sprite==view.Definition.Closed && visuals.SoundChanges==0,"Начальная загрузка не молчит или не рисует дверь.");

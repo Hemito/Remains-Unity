@@ -31,7 +31,8 @@ namespace Remains.Editor
             var controller=new ProjectileController(session,geometry,(_,_,_)=>{});
             ProjectileContact? lastContact=null;int contacts=0;
             controller.ContactObserved+=contact=>{lastContact=contact;contacts++;};
-            var effects=root.AddComponent<LaserImpactEffects>();effects.Initialize(session,controller);
+            var orders=new WorldVisualOrderTable();orders.Reconcile(world,actor.level);
+            var effects=root.AddComponent<LaserImpactEffects>();effects.Initialize(session,controller,orders);
             world.projectiles.Add(new ProjectileState {launch=new AttackEvent {id="laser-check",weapon="energy",level="hub",
                 attacker="source",sourceOwner="remote",sourcePlayer=true,originY=1,endX=6,endY=1},owner="remote",generation=1,flightSpeed=1200});
             typeof(ProjectileController).GetMethod("Reconcile",Private).Invoke(controller,null);

@@ -14,6 +14,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,DoorView> prefabs=new(StringComparer.Ordinal);
         private CoopSession session;
         private GameplayAudio playback;
+        private WorldVisualOrderTable orders;
         private string worldId,level;
         public int SoundChanges {get;private set;}
         public int PlayedSounds {get;private set;}
@@ -28,11 +29,17 @@ namespace Remains.Presentation
             if(prefabs.ContainsKey(prefab.Definition.Id)) throw new InvalidOperationException("Повторный префаб проёма: "+prefab.Definition.Id);
             prefabs.Add(prefab.Definition.Id,prefab);
         }
-        public void Initialize(CoopSession value,GameplayAudio audio)
-        {session=value;playback=audio;session.Changed+=Refresh;Refresh();}
+        public void Initialize(CoopSession value,GameplayAudio audio,WorldVisualOrderTable orderTable)
+        {session=value;playback=audio;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));session.Changed+=Refresh;Refresh();}
+        public void SetOrders(WorldVisualOrderTable value)=>orders=value??throw new ArgumentNullException(nameof(value));
         private void Refresh()=>Reconcile(session.World,session.LocalActor?.level);
         public void Reconcile(WorldState world,string visibleLevel)
         {
+            if(session==null)
+            {
+                if(orders==null) throw new InvalidOperationException("Изолированная проверка проёмов требует явную таблицу SetOrders.");
+                orders.Reconcile(world,visibleLevel);
+            }
             if(worldId!=world?.worldId || level!=visibleLevel)
             {Clear();worldId=world?.worldId;level=visibleLevel;}
             if(world==null || visibleLevel==null) {Clear();return;}
@@ -68,6 +75,8 @@ namespace Remains.Presentation
                         prefab.Definition.Validate();prefabs.Add(door.definition,prefab);
                     }
                     entry=new Entry {view=Instantiate(prefab,transform),revision=door.revision,open=door.open,destroyed=door.Destroyed};
+                    if(orders==null) throw new InvalidOperationException("Изображения проёмов требуют общую таблицу слоёв.");
+                    entry.view.BindOrder(orders,door.id);
                     entry.view.name="Дверь: "+door.id;views.Add(door.id,entry);
                 }
                 if(exists && door.revision==entry.revision && (entry.open!=door.open || entry.destroyed!=door.Destroyed))

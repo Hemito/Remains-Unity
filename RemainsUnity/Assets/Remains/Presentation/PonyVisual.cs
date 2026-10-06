@@ -70,7 +70,7 @@ namespace Remains.Presentation
         private void Awake()
         {
             properties = new MaterialPropertyBlock();
-            DrawOrder=20;
+            DrawOrder=WorldVisualOrderPolicy.ActorPartOrder;
         }
 
         // Draw only after the movement/pose contact decision for this frame.
@@ -108,7 +108,7 @@ namespace Remains.Presentation
                 if (i >= parts.Length) continue;
                 filters[i].sharedMesh = parts[i].mesh;
                 renderers[i].sharedMaterial = parts[i].material;
-                renderers[i].sortingOrder = i + 20;
+                renderers[i].sortingOrder = i + WorldVisualOrderPolicy.ActorPartOrder;
                 properties.SetColor("_Color", PonyAppearance.Tint(parts[i].slot,nextAppearance));
                 properties.SetFloat("_Emission",parts[i].slot=="magic"?1:0);
                 renderers[i].SetPropertyBlock(properties);

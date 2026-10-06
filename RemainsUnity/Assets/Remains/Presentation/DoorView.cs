@@ -2,6 +2,7 @@ using System;
 using Remains.Content;
 using Remains.Domain;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Remains.Presentation
 {
@@ -11,6 +12,14 @@ namespace Remains.Presentation
         [SerializeField,InspectorName("Изображение")] private SpriteRenderer artwork;
         public DoorAsset Definition=>definition;
         public SpriteRenderer Artwork=>artwork;
+        public SortingGroup Sorting {get;private set;}
+        public WorldVisualOrderBinding Depth {get;private set;}
+        public void BindOrder(WorldVisualOrderTable orders,string id)
+        {
+            Sorting=GetComponent<SortingGroup>();if(Sorting==null) Sorting=gameObject.AddComponent<SortingGroup>();
+            artwork.sortingOrder=0;
+            Depth=gameObject.AddComponent<WorldVisualOrderBinding>();Depth.Initialize(orders,WorldVisualKind.Door,id,Sorting);
+        }
         public void Configure(DoorAsset asset,SpriteRenderer renderer) {definition=asset;artwork=renderer;Show(false);}
         // No local toggle or pivot correction: every state keeps its authored registration.
         public void Show(bool open)=>Show(open,false);

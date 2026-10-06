@@ -16,15 +16,16 @@ namespace Remains.Editor
             PonyVisual.Prepare();
             var rear=new GameObject("Задний персонаж").AddComponent<PonyVisual>();
             var front=new GameObject("Передний персонаж").AddComponent<PonyVisual>();
-            var rearState=new ActorState {id="rear",hair=0};
-            var frontState=new ActorState {id="front",hair=1};
+            var rearState=new ActorState {id="a-rear",hair=0};
+            var frontState=new ActorState {id="b-front",hair=1};
             rear.Bind(rearState);front.Bind(frontState);
             var layers=new ActorVisualLayers();
+            var world=new WorldState();world.actors.Add(rearState);world.actors.Add(frontState);layers.Orders.Reconcile(world,rearState.level);
             var rearGroup=layers.Attach("a-rear",rear.transform);layers.Attach("b-front",front.transform);
             var weapon=new GameObject("Оружие заднего персонажа").AddComponent<SpriteRenderer>();
             var artwork=WeaponArtwork.Load();SpriteArtworkMaterial.Apply(weapon,artwork["pistol"]);
             weapon.sortingOrder=100;weapon.transform.position=new Vector3(0,1.2f,0);
-            layers.Attach("a-rear",weapon.transform);layers.Synchronize(new[]{"a-rear","b-front"});
+            layers.Attach("a-rear",weapon.transform);layers.Synchronize(world,rearState.level);
             var camera=new GameObject("Камера наложения").AddComponent<Camera>();
             camera.orthographic=true;camera.orthographicSize=1.8f;
             camera.transform.position=new Vector3(0,.8f,-10);
@@ -38,6 +39,7 @@ namespace Remains.Editor
                 foreach(int facing in new[]{1,-1})
                 {
                     rearState.pose=frontState.pose=pose;rearState.down=frontState.down=pose=="down";
+                    layers.Orders.Reconcile(world,rearState.level);
                     rearState.facing=frontState.facing=facing;
                     rear.DrawPose(.3f);front.DrawPose(.3f);
                     rearGroup.gameObject.SetActive(false);

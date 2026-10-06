@@ -29,6 +29,7 @@ namespace Remains.Editor
                 new ActorState {id="b",x=.1f,pose="crouch",crouched=true,hair=1,weapon="energy",facing=-1},
                 new ActorState {id="c",x=.7f,pose="run",hair=0,weapon="crowbar"}
             };
+            var world=new WorldState();world.actors.AddRange(actors);layers.Orders.Reconcile(world,actors[0].level);
             for(int i=0;i<actors.Length;i++)
             {
                 var actor=actors[i];
@@ -46,7 +47,7 @@ namespace Remains.Editor
                 weapon.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);weapon.SetMirrored(WeaponPose.Flip(actor));
                 layers.Attach(actor.id,weapon.transform);
             }
-            layers.Synchronize(new[]{"a","b","c"});
+            layers.Synchronize(world,actors[0].level);
             var camera=new GameObject("Пересечение составных персонажей").AddComponent<Camera>();
             camera.orthographic=true;camera.orthographicSize=1.5f;
             camera.transform.position=new Vector3(.2f,.8f,-10);camera.backgroundColor=Color.clear;

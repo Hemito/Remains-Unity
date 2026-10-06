@@ -28,7 +28,13 @@ namespace Remains.Networking
         private int source;
         private SnapshotTransfer transfer;
         private float deadline;
-        private bool published;
+        private bool published,clientStateReceived,offerPublicationRequested;
+        private SessionStartupIntent configuredStartup;
+        private SessionStartupIntent startup=SessionStartupIntent.ChooseCopies();
+        private bool startupRequested;
+        private string hostCharacterId;
+        public SessionStartupMode StartupMode=>startup.Mode;
+        public SessionStartupIntent Startup=>startup;
         private RecoverySnapshot contentPending;
         public List<ContentDifference> ContentDifferences {get;private set;}=new();
         private byte[] outgoing;
@@ -38,6 +44,8 @@ namespace Remains.Networking
         public bool Busy=>transfer!=null || contentPending!=null;
         public int ReceivedBytes=>transfer?.ReceivedBytes ?? 0;
         public bool ClientWaiting {get;private set;}
+        public bool ClientChoosingCopies {get;private set;}
+        public bool ClientContentPending {get;private set;}
         public bool ClientBusy {get;private set;}
         public string ClientSelected {get;private set;}
         public string ClientError {get;private set;}
@@ -46,11 +54,22 @@ namespace Remains.Networking
         public event Action Changed;
         public SessionLobby(CoopSession session) {this.session=session;}
 
+        public void ConfigureStartup(SessionStartupIntent intent)
+        {
+            if(NetworkServer.active || NetworkClient.active) throw new InvalidOperationException("Нельзя менять намерение запуска после начала подключения.");
+            configuredStartup=intent??throw new ArgumentNullException(nameof(intent));
+        }
+        internal void CancelConfiguredStartup()=>configuredStartup=null;
         public void RegisterServer(bool wait)
         {
+            startup=configuredStartup??SessionStartupIntent.ChooseCopies();configuredStartup=null;startupRequested=false;
+            hostCharacterId=startup.ChoosesCopies?null:session.CharacterId;
+            if(!wait && !startup.ChoosesCopies) throw new InvalidOperationException("Явное намерение запуска требует проверки контента через лобби.");
             pending.Clear();offers.Clear();selected="";error="";transfer=null;Waiting=wait;
             contentPending=null;ContentDifferences.Clear();
-            initialHash=session.Saves.SelectedSnapshot()?.Id;
+            var initial=startup.Mode==SessionStartupMode.ContinueSelected?startup.Selected:
+                startup.Mode==SessionStartupMode.NewWorld?null:session.Saves.SelectedSnapshot();
+            initialHash=initial?.Id;
             NetworkServer.RegisterHandler<SaveOfferMessage>(ReceiveOffer);
             NetworkServer.RegisterHandler<SaveChunkMessage>(ReceiveChunk);
             NetworkServer.RegisterHandler<SaveTransferErrorMessage>((connection,message)=>
@@ -62,7 +81,19 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<LobbyStateMessage>(message=>
             {
                 ClientWaiting=message.waiting;ClientBusy=message.busy;ClientSelected=message.selected;
+                ClientChoosingCopies=message.choosingCopies;ClientContentPending=message.contentPending;
                 ClientError=message.error;ClientPlayers=message.players;Copies.Clear();
+                clientStateReceived=true;
+                if(offerPublicationRequested)
+                {
+                    try {PublishOffers();}
+                    catch(Exception failure)
+                    {
+                        Debug.LogError("Не удалось опубликовать копии для совместной игры: "+failure);
+                        session.ShowNotice("Не удалось подготовить список копий: "+failure.Message);
+                        session.StopClient();
+                    }
+                }
             });
             NetworkClient.RegisterHandler<LobbyCopyMessage>(message=>Copies.Add(JsonUtility.FromJson<LobbyCopy>(message.json)));
             NetworkClient.RegisterHandler<LobbyStateEndMessage>(_=>Changed?.Invoke());
@@ -70,12 +101,24 @@ namespace Remains.Networking
         }
         public void ResetClient()
         {
-            outgoing=null;SentBytes=0;published=false;clientCopies.Clear();Copies.Clear();ClientWaiting=false;ClientBusy=false;
-            ClientSelected="";ClientError="";ClientPlayers=0;Changed?.Invoke();
+            configuredStartup=null;
+            outgoing=null;SentBytes=0;published=false;clientStateReceived=false;offerPublicationRequested=false;clientCopies.Clear();Copies.Clear();ClientWaiting=false;ClientBusy=false;
+            ClientSelected="";ClientError="";ClientPlayers=0;ClientChoosingCopies=false;ClientContentPending=false;Changed?.Invoke();
         }
         public void PublishOffers()
         {
             if(published) return;
+            if(!NetworkServer.active)
+            {
+                offerPublicationRequested=true;
+                // Join admission is not blocked by save enumeration. Wait for an
+                // explicit host state; default false is not a received decision.
+                if(!clientStateReceived) return;
+                if(!ClientWaiting || !ClientChoosingCopies) {published=true;return;}
+            }
+            // An ordinary local host already owns the exact configured payload.
+            // Do not scan its other worlds or send this payload to itself in chunks.
+            if(NetworkServer.active && !startup.ChoosesCopies) {published=true;return;}
             var copies=session.Saves.Continuations();
             var active=session.Saves.SelectedSnapshot();
             if(active!=null && copies.All(c=>c.Id!=active.Id)) copies.Add(active);
@@ -85,11 +128,18 @@ namespace Remains.Networking
                 clientCopies[copy.Id]=copy;
                 NetworkClient.Send(new SaveOfferMessage {json=JsonUtility.ToJson(WorldSummary.From(copy))});
             }
+            NetworkClient.Send(new SaveOfferMessage {complete=true});
             published=true;
         }
         private void ReceiveOffer(NetworkConnectionToClient connection,SaveOfferMessage message)
         {
-            if(!Waiting || !session.Admission.IsApproved(connection.connectionId)) return;
+            if(!Waiting || !startup.ChoosesCopies || !session.Admission.IsApproved(connection.connectionId)) return;
+            if(message.complete)
+            {
+                if(!string.IsNullOrEmpty(message.json)) throw new InvalidDataException("Завершение списка копий содержит лишний payload.");
+                if(pending.ContainsKey(connection.connectionId)) Broadcast();
+                return;
+            }
             var summary=JsonUtility.FromJson<WorldSummary>(message.json);
             if(summary==null || !Guid.TryParseExact(summary.worldId,"N",out _) ||
                 summary.snapshot==null || summary.snapshot.Length!=64 || summary.snapshot.Any(c=>!Uri.IsHexDigit(c)))
@@ -101,20 +151,35 @@ namespace Remains.Networking
         public bool HoldJoin(NetworkConnectionToClient connection,JoinMessage join)
         {
             if(!Waiting) return false;
+            bool localHost=connection==NetworkServer.localConnection;
+            if(!localHost && startup.ReservesHostCharacter(NetworkServer.localConnection!=null,hostCharacterId,join.character))
+            {
+                session.Admission.Reject(connection,$"Персонаж «{hostCharacterId}» уже выбран хостом для запуска. Выберите другого персонажа и подключитесь снова.");
+                return true;
+            }
             if(pending.Any(peer=>peer.Key!=connection.connectionId && peer.Value.character==join.character))
             {session.Admission.RejectDuplicateCharacter(connection,join.character);return true;}
             pending[connection.connectionId]=join;
-            if(connection==NetworkServer.localConnection && initialHash!=null)
-                selected=connection.connectionId+":"+initialHash;
+            if(localHost && initialHash!=null) selected=connection.connectionId+":"+initialHash;
+            if(startup.StartsOnJoin(localHost) && !startupRequested)
+            {
+                startupRequested=true;Start(startup.Selected);return true;
+            }
             Broadcast();return true;
         }
-        private List<LobbyCopy> ServerCopies() => pending.SelectMany(peer=>
-            offers.TryGetValue(peer.Key,out var copies)?copies.Values.Select(summary=>new LobbyCopy {
+        private List<LobbyCopy> ServerCopies()
+        {
+            // The direct path has a selected immutable payload, not copy offers.
+            // Its content dialog names that payload through Startup.Selected.WorldId.
+            if(!startup.ChoosesCopies) return new();
+            return pending.SelectMany(peer=>offers.TryGetValue(peer.Key,out var copies)?copies.Values.Select(summary=>new LobbyCopy {
                 key=peer.Key+":"+summary.snapshot,holder=peer.Value.displayName,connection=peer.Key,summary=summary}):Enumerable.Empty<LobbyCopy>()).ToList();
+        }
 
         public void Select(string key)
         {
             if(!NetworkServer.active || !Waiting || Busy) return;
+            if(!startup.ChoosesCopies) throw new InvalidOperationException("Продолжение выбранного мира не допускает повторного выбора копии.");
             if(key!="" && ServerCopies().All(copy=>copy.key!=key)) {Fail("Выбранная копия больше недоступна.");return;}
             selected=key;error="";Broadcast();
         }
@@ -122,6 +187,7 @@ namespace Remains.Networking
         {
             if(!NetworkServer.active || !Waiting || Busy) return;
             error="";
+            if(!startup.ChoosesCopies) {startupRequested=true;Start(startup.Selected);return;}
             if(selected=="") {Start(null);return;}
             var copy=ServerCopies().Find(c=>c.key==selected);
             if(copy==null || !NetworkServer.connections.TryGetValue(copy.connection,out var connection))
@@ -160,18 +226,27 @@ namespace Remains.Networking
         }
         private void Start(RecoverySnapshot snapshot,bool acceptContent=false)
         {
-            if(snapshot!=null && !acceptContent)
+            RecoverySnapshot previous=null;
+            try
             {
-                ContentDifferences=ContentComparison.Compare(snapshot.CreateLiveWorld().weaponContent,WeaponCatalog.ManifestCopy());
-                if(ContentDifferences.Count>0)
+                bool createNew=startup.ChoosesCopies?selected=="":startup.Mode==SessionStartupMode.NewWorld;
+                startup.RequireLoad(snapshot,createNew);
+                if(snapshot!=null && !acceptContent)
                 {
-                    ContentDifferences=ContentComparison.Compare(snapshot.CreateLiveWorld().weaponContent,WeaponCatalog.ManifestCopy(),true);
-                    contentPending=snapshot;transfer=null;error="Хост сравнивает контент сохранения с текущим набором.";Broadcast();return;
+                    var savedContent=snapshot.CreateLiveWorld().weaponContent;
+                    var current=WeaponCatalog.ManifestCopy();
+                    ContentDifferences=ContentComparison.Compare(savedContent,current);
+                    if(ContentDifferences.Count>0)
+                    {
+                        ContentDifferences=ContentComparison.Compare(savedContent,current,true);
+                        contentPending=snapshot;transfer=null;error="Хост сравнивает контент сохранения с текущим набором.";Broadcast();return;
+                    }
                 }
+                // Direct continuation uses its frozen local bytes; choose-copy uses
+                // the same strict/content gate after a complete verified transfer.
+                previous=session.Saves.SelectedSnapshot();
+                session.StartSelectedWorld(snapshot,createNew,acceptContent);
             }
-            // World loading happens only after a complete hash-verified transfer.
-            var previous=session.Saves.SelectedSnapshot();
-            try {session.StartSelectedWorld(snapshot,selected=="",acceptContent);}
             catch(Exception exception)
             {
                 session.DiscardUnstartedWorld();
@@ -188,7 +263,9 @@ namespace Remains.Networking
         {
             if(!NetworkServer.active || !Waiting || contentPending==null) return;
             var snapshot=contentPending;contentPending=null;ContentDifferences.Clear();error="";
-            if(accept) Start(snapshot,true);else Broadcast();
+            if(accept) Start(snapshot,true);
+            else if(startup.ChoosesCopies) Broadcast();
+            else CancelDirectStartup("Продолжение мира отменено. Исходная копия сохранена.");
         }
         public void Disconnected(int connection)
         {
@@ -211,14 +288,24 @@ namespace Remains.Networking
             if(NetworkServer.active && transfer!=null && Time.unscaledTime>deadline) Fail("Истекло время передачи сохранения. Выбор можно повторить.");
         }
         private void Fail(string reason)
-        {transfer=null;error=reason;Debug.LogWarning("Лобби сохранений: "+reason);Broadcast();}
+        {
+            transfer=null;error=reason;Debug.LogWarning("Лобби сохранений: "+reason);
+            if(startup.ChoosesCopies) Broadcast();else CancelDirectStartup(reason);
+        }
+        private void CancelDirectStartup(string reason)
+        {
+            Waiting=false;contentPending=null;ContentDifferences.Clear();Broadcast();pending.Clear();
+            if(NetworkServer.active) session.StopHost();
+            session.ShowNotice(reason);
+        }
         private void Broadcast()
         {
             var copies=ServerCopies();
             foreach(int id in pending.Keys)
             {
                 if(!NetworkServer.connections.TryGetValue(id,out var connection)) continue;
-                connection.Send(new LobbyStateMessage {waiting=Waiting,busy=Busy,selected=selected,error=error,players=pending.Count});
+                connection.Send(new LobbyStateMessage {waiting=Waiting,choosingCopies=startup.ChoosesCopies,contentPending=contentPending!=null,
+                    busy=Busy,selected=selected,error=error,players=pending.Count});
                 foreach(var copy in copies) connection.Send(new LobbyCopyMessage {json=JsonUtility.ToJson(copy)});
                 connection.Send(new LobbyStateEndMessage());
             }

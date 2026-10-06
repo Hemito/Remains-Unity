@@ -14,12 +14,14 @@ namespace Remains.Presentation
         private float distance,age;
         private bool contact;
         private string level;
-        public void Initialize(AttackEvent attack,float limit,ShotArtwork artwork,CoopSession session=null)
+        public void Initialize(AttackEvent attack,float limit,ShotArtwork artwork,CoopSession session=null,WorldVisualOrderTable orders=null)
         {
             this.artwork=artwork;this.session=session;level=attack.level;
             origin=attack.Origin;var delta=Vector2.Lerp(attack.Origin,attack.End,Mathf.Clamp01(limit))-origin;
             distance=delta.magnitude;direction=delta.normalized;contact=limit<1;
             view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=ActorVisualLayers.EffectOrder;
+            if(orders!=null) gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(orders,WorldVisualKind.Effect,"shot:"+attack.id,null,view,attack.level);
+            else if(session!=null) throw new System.InvalidOperationException("Выстрел без общей таблицы слоёв: "+attack.id);
             SpriteArtworkMaterial.SetSelfIlluminated(view);
             transform.rotation=Quaternion.Euler(0,0,Mathf.Atan2(direction.y,direction.x)*Mathf.Rad2Deg);
             Draw(0);

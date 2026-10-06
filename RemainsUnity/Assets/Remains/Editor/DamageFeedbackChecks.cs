@@ -71,12 +71,14 @@ namespace Remains.Editor
             Anatomy.Load();
             PonyVisual.Prepare();
             var layers=new ActorVisualLayers();
-            foreach(var actor in new[]{new ActorState {id="rear",hair=0,x=-.18f},new ActorState {id="front",hair=1,x=.18f}})
+            var world=new WorldState();world.actors.Add(new ActorState {id="rear",hair=0,x=-.18f});world.actors.Add(new ActorState {id="front",hair=1,x=.18f});
+            layers.Orders.Reconcile(world,world.actors[0].level);
+            foreach(var actor in world.actors)
             {
                 var visual=new GameObject(actor.id).AddComponent<PonyVisual>();visual.Bind(actor);visual.DrawPose(.12f);
                 layers.Attach(actor.id,visual.transform);
             }
-            layers.Synchronize(new[]{"rear","front"});
+            layers.Synchronize(world,world.actors[0].level);
             var explosion=UnityEngine.Object.Instantiate(Resources.Load<ExplosionVisual>("Presentation/Explosion"));
             explosion.Initialize(null,"hub",new Vector2(0,.8f));explosion.Draw(.1f);
             var numbers=CreateBurst();

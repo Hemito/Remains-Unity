@@ -11,12 +11,13 @@ namespace Remains.Presentation
     {
         private CoopSession session;
         private ProjectileController controller;
+        private WorldVisualOrderTable orders;
         private readonly Dictionary<string,ProjectileVisual> views=new();
         private readonly List<string> removed=new();
         public event Action<ProjectileVisual> TrailDrawn;
-        public void Initialize(CoopSession session,ProjectileController controller)
+        public void Initialize(CoopSession session,ProjectileController controller,WorldVisualOrderTable orderTable)
         {
-            this.session=session;this.controller=controller;controller.Created+=Created;
+            this.session=session;this.controller=controller;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));controller.Created+=Created;
             session.AttackReceived+=ObserveAttack;
             session.Changed+=Reconcile;Reconcile();
         }
@@ -53,6 +54,7 @@ namespace Remains.Presentation
             if(flight.state.launch.level!=session.LocalActor?.level || !ShotArtwork.TryGet(flight.state.launch.weapon,out var artwork)) return;
             var view=new GameObject("Полёт "+flight.state.launch.id).AddComponent<ProjectileVisual>();
             view.transform.SetParent(transform,false);view.Initialize(flight,artwork,session);views[id]=view;
+            view.gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(orders,WorldVisualKind.Effect,"projectile:"+id,null,view.Artwork,flight.state.launch.level);
             view.TrailDrawn+=value=>TrailDrawn?.Invoke(value);
             view.Ended+=ended=>{if(views.TryGetValue(id,out var current) && current==ended) views.Remove(id);};
         }
@@ -68,6 +70,7 @@ namespace Remains.Presentation
         private ProjectileFlight flight;
         private ShotArtwork artwork;
         private SpriteRenderer view;
+        public SpriteRenderer Artwork=>view;
         private CoopSession session;
         private ProjectileTrailJoin join;
         private int joinLifecycle,joinFlightGeneration;

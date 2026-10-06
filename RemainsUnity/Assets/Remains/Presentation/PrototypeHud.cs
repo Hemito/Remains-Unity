@@ -72,6 +72,9 @@ namespace Remains.Presentation
         public Func<double> MechanismProgress {get;set;}
         public Func<bool> MechanismPending {get;set;}
         public InteractionTarget CurrentInteraction=>SelectedInteraction?.Invoke()??default;
+        public WorldInteractionOutline InteractionOutline=>containerHint?.WorldOutline;
+        public void ConfigureWorldOutline(Camera camera,Func<InteractionTarget,WorldOutlineSource> resolve)=>
+            containerHint.ConfigureWorldOutline(camera,resolve);
         public string ShownInventorySourceId=>containerPanel.Source?.id??
             (CurrentInteraction.kind is InteractionKind.Container or InteractionKind.Pickup?CurrentInteraction.id:null);
         private Font font;
@@ -153,8 +156,9 @@ namespace Remains.Presentation
             quickActions=sessionHud.gameObject;
             feedback=HudFeedbackView.Create(transform);message=feedback.Notice;revival=feedback.Revival;
             mainMenu=new MainMenuPanel(transform,
-                ()=>{if(SelectCharacter?.Invoke(character.text)==true) PrepareConnection(()=>HostRequested?.Invoke());},
-                ()=>{if(SelectCharacter?.Invoke(character.text)==true) PrepareConnection(()=>JoinRequested?.Invoke(address.text));},
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) PrepareConnection(copy=>
+                {session.ConfigureHostStartup(copy==null?SessionStartupIntent.NewWorld():SessionStartupIntent.Continue(copy));HostRequested?.Invoke();},true);},
+                ()=>{if(SelectCharacter?.Invoke(character.text)==true) PrepareConnection(_=>JoinRequested?.Invoke(address.text));},
                 ()=>ShowWorldPicker(0),()=>AudioSettings.Open(),()=>
                 {
                     if(SelectCharacter?.Invoke(character.text)!=true) return;
@@ -162,9 +166,13 @@ namespace Remains.Presentation
                     session.BeginJoinSelection();
                     var store=session.Saves;mainMenu.SetActionsBusy(true);selectedWorldPanel.SetPending("Подготовка нового мира…");ShowMessage("Подготовка нового мира…");
                     newGameOperation.Run(_=>{store.RecoverPendingPair();new WorldLibrary(store).PrepareNewGame();return true;},_=>
-                    {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("");HostRequested?.Invoke();},error=>
+                    {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("");session.ConfigureHostStartup(SessionStartupIntent.NewWorld());HostRequested?.Invoke();},error=>
                     {session.CancelJoinSelection();mainMenu.SetActionsBusy(false);RefreshSelectedWorld();ShowMessage("Не удалось создать новую игру: "+error.Message);Debug.LogError(error);});
-                },ShowCharacterLibrary);
+                },ShowCharacterLibrary,()=>
+                {
+                    if(SelectCharacter?.Invoke(character.text)!=true) return;
+                    PrepareConnection(_=>{session.ConfigureHostStartup(SessionStartupIntent.ChooseCopies());HostRequested?.Invoke();});
+                });
             lobby=mainMenu.Controls;selectedWorld=mainMenu.World;worldPickerButton=mainMenu.Worlds;hostButton=mainMenu.Host;
             selectedWorldPanel=mainMenu.Root.AddComponent<SelectedWorldPanel>();selectedWorldPanel.Initialize(selectedWorld,hostButton,()=>!newGameOperation.Busy && !session.CharacterSelectionLocked);
             newGameOperation=mainMenu.Root.AddComponent<BackgroundSaveOperation>();
@@ -210,14 +218,14 @@ namespace Remains.Presentation
             if(hideUncreatedSelection && !System.IO.File.Exists(System.IO.Path.Combine(library.ProfilePath(session.CharacterId),"character.json")))
                 character.text="";
         }
-        private void PrepareConnection(Action start)
+        private void PrepareConnection(Action<RecoverySnapshot> start,bool readSelected=false)
         {
             if(newGameOperation.Busy || Mirror.NetworkClient.active || Mirror.NetworkServer.active) return;
             session.BeginJoinSelection();
             var store=session.Saves;mainMenu.SetActionsBusy(true);
             selectedWorldPanel.SetPending("Подготовка общей библиотеки миров…");
-            newGameOperation.Run(_=>{store.RecoverPendingPair();store.EnsureWorldLibrary();return true;},_=>
-            {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();start();},error=>
+            newGameOperation.Run(_=>{store.RecoverPendingPair();store.EnsureWorldLibrary();return readSelected?store.SelectedSnapshot():null;},copy=>
+            {mainMenu.SetActionsBusy(false);RefreshSelectedWorld();start(copy);},error=>
             {
                 session.CancelJoinSelection();mainMenu.SetActionsBusy(false);RefreshSelectedWorld();
                 ShowMessage("Не удалось подготовить библиотеку миров: "+error.Message);Debug.LogError(error);

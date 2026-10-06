@@ -186,9 +186,9 @@ namespace Remains.Editor
             Anatomy.Load();WeaponCatalog.Load();PonyAnimationData.Load();PonyVisual.Prepare();
             var layout=RoomLayout.Load("hub");AuthoredRoomVisual.Create("hub",layout);
             var world=new WorldState();HubTrainingContent.Install(world);
-            foreach(var actor in world.actors) ActorVisualFactory.Create(actor).Bind(actor);
-            var player=new ActorState {id="range-view",x=40,y=.8f,facing=1};
-            ActorVisualFactory.Create(player).Bind(player);
+            var player=new ActorState {id="range-view",x=40,y=.8f,facing=1,player=true,connected=true,level="hub"};world.actors.Add(player);
+            var layers=new ActorVisualLayers();layers.Orders.Reconcile(world,"hub");
+            foreach(var actor in world.actors) {var view=ActorVisualFactory.Create(actor);view.Bind(actor);layers.Attach(actor.id,view.transform);}
             var camera=new GameObject("Камера тира").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=4.8f;camera.backgroundColor=new Color(.07f,.08f,.09f);
             foreach(float x in new[]{36f,50f})
             {
@@ -207,9 +207,11 @@ namespace Remains.Editor
                 RenderReferenceHub(candidate);
                 Anatomy.Load();WeaponCatalog.Load();PonyVisual.Prepare();
                 var layers=new ActorVisualLayers();
+                var world=new WorldState();
                 foreach(var entry in new[]{(x:17f,y:.8f),(x:21f,y:7.2f),(x:29f,y:.8f)})
                 {
-                    var actor=new ActorState {id="light-check-"+entry.x,x=entry.x,y=entry.y,pose="idle",weapon="pistol",facing=1};
+                    var actor=new ActorState {id="light-check-"+entry.x,x=entry.x,y=entry.y,pose="idle",weapon="pistol",facing=1,player=true,connected=true,level="hub"};
+                    world.actors.Add(actor);layers.Orders.Reconcile(world,"hub");
                     Remains.Gameplay.WeaponPose.Aim(actor,actor.Position+new Vector2(3,1.1f));
                     var visual=(PonyVisual)ActorVisualFactory.Create(actor);visual.Bind(actor);visual.DrawPose(.12f);
                     layers.Attach(actor.id,visual.transform);
@@ -218,7 +220,7 @@ namespace Remains.Editor
                     weapon.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
                     weapon.SetMirrored(Remains.Gameplay.WeaponPose.Flip(actor));layers.Attach(actor.id,weapon.transform);
                 }
-                layers.Synchronize(new[]{"light-check-17","light-check-21","light-check-29"});
+                layers.Synchronize(world,"hub");
                 var camera=UnityEngine.Object.FindFirstObjectByType<Camera>();
                 camera.orthographicSize=5;camera.transform.position=new Vector3(21,4.4f,-10);
                 string path=System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../../.reference/tests/hub-occupied-"+(candidate?"candidate":"current")+".png"));

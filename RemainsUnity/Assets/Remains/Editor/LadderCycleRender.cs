@@ -33,14 +33,15 @@ namespace Remains.Editor
                             foreach(int direction in new[]{1,-1})
                             {
                                 var ladder=layout.ladders[index];
-                                var actor=new ActorState {id="ladder-cycle",x=ladder.x+ladder.movementOffset,
+                                var actor=new ActorState {id="ladder-cycle",level=level,x=ladder.x+ladder.movementOffset,
                                     y=ladder.bottom+(ladder.top-ladder.bottom)*(direction>0?.25f:.75f),facing=-(int)ladder.facing,weapon="pistol"};
                                 var motion=new MovementController(layout);
                                 var visual=new GameObject(actor.id).AddComponent<PonyVisual>();visual.Bind(actor);
                                 var weapon=UnityEngine.Object.Instantiate(WeaponRigs.Prefab(actor.weapon));
                                 var layers=new ActorVisualLayers();
+                                var world=new WorldState();world.actors.Add(actor);layers.Orders.Reconcile(world,level);
                                 layers.Attach(actor.id,visual.transform);layers.Attach(actor.id,weapon.transform);
-                                layers.Synchronize(new[]{actor.id});
+                                layers.Synchronize(world,level);
                                 const int sampleCount=25;
                                 const int rows=(sampleCount+3)/4;
                                 var sheet=new Texture2D(3840,rows*540,TextureFormat.RGB24,false);

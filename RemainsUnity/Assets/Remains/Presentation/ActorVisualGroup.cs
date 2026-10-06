@@ -7,7 +7,11 @@ namespace Remains.Presentation
     public sealed class ActorVisualGroup : MonoBehaviour
     {
         public string ActorId {get;private set;}
-        public int Order {get=>GetComponent<SortingGroup>().sortingOrder;set=>GetComponent<SortingGroup>().sortingOrder=value;}
-        public void Initialize(string actorId) {ActorId=actorId;Order=ActorVisualLayers.FirstActorOrder;}
+        public SortingGroup Sorting {get;private set;}
+        public WorldVisualOrderBinding Depth {get;private set;}
+        public int Order {get=>Sorting.sortingOrder;set=>Sorting.sortingOrder=value;}
+        private void Awake()=>Sorting=GetComponent<SortingGroup>();
+        public void Initialize(string actorId,WorldVisualOrderTable orders)
+        {ActorId=actorId;Sorting=GetComponent<SortingGroup>();Depth=gameObject.AddComponent<WorldVisualOrderBinding>();Depth.Initialize(orders,WorldVisualKind.Actor,actorId,Sorting);}
     }
 }

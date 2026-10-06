@@ -45,8 +45,9 @@ namespace Remains.Editor
                 ShotArtwork.Prepare();ShotArtwork.TryGet("pistol",out var artwork);
                 player.level="factory:0";
                 var manager=new GameObject("Представления полётов").AddComponent<ProjectileVisuals>();manager.transform.SetParent(root.transform);
-                manager.Initialize(session,controller);
-                void SyncViews()=>typeof(ProjectileVisuals).GetMethod("Reconcile",Private).Invoke(manager,null);
+                var orders=new WorldVisualOrderTable();orders.Reconcile(world,player.level);
+                manager.Initialize(session,controller,orders);
+                void SyncViews() {orders.Reconcile(world,player.level);typeof(ProjectileVisuals).GetMethod("Reconcile",Private).Invoke(manager,null);}
                 ProjectileVisual[] ActiveViews()=>manager.GetComponentsInChildren<ProjectileVisual>();
                 Require(ActiveViews().Length==0,"Снаряд другого уровня отображается");
                 player.level="hub";SyncViews();SyncViews();

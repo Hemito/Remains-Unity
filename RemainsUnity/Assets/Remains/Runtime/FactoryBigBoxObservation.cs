@@ -19,7 +19,7 @@ namespace Remains.Runtime
             foreach(var box in boxes)
             {
                 var view=visuals.FindProp(box.id);
-                if(view==null || !view.gameObject.activeInHierarchy || view.Order!=ActorVisualLayers.RestingObjectOrder)
+                if(view==null || !view.gameObject.activeInHierarchy || view.Depth?.Category!=WorldVisualCategory.OrdinaryObject)
                     throw new InvalidOperationException("Нет действующего игрового изображения большого ящика: "+box.id);
                 var bounds=view.Artwork.bounds;
                 if(Mathf.Abs(bounds.size.x-box.width)>.001f || Mathf.Abs(bounds.size.y-box.height)>.001f ||

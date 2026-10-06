@@ -35,6 +35,7 @@ namespace Remains.Editor
                     UnityEngine.Object.DestroyImmediate(root);
                 RoomVisual.Build(RoomLayout.Load(record.level));
                 var layers=new ActorVisualLayers();
+                layers.Orders.Reconcile(record.world,record.level);
                 foreach(var pony in record.ponies)
                 {
                     var actor=pony.actor.Copy();actor.Position=pony.position;actor.facing=(int)pony.scale.x;

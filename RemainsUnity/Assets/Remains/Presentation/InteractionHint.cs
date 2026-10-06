@@ -13,9 +13,10 @@ namespace Remains.Presentation
         private readonly Color normalColor;
         private readonly Camera camera;
         private readonly Canvas root;
-        private readonly RectTransform[] edges=new RectTransform[4];
-        private Rect targetBounds;
+        private WorldInteractionOutline worldOutline;
+        private InteractionTarget highlightedTarget;
         private bool highlightVisible;
+        private bool missingOutlineWarning;
         private Vector2 targetTop;
         private bool hasTarget;
         private bool allowed;
@@ -30,6 +31,7 @@ namespace Remains.Presentation
         private int displayedPercent;
         public int TextRevisionCount {get;private set;}
         public int PlacementEvaluationCount {get;private set;}
+        public WorldInteractionOutline WorldOutline=>worldOutline;
         public InteractionHint(Transform parent,HudElements ui):this(parent,ui,null) {}
         public InteractionHint(Transform parent,HudElements ui,Func<Rect?> drawnActorBounds)
         {
@@ -42,14 +44,12 @@ namespace Remains.Presentation
             panel=(RectTransform)label.transform.parent;
             panel.anchorMin=panel.anchorMax=panel.pivot=new Vector2(.5f,.5f);
             panel.gameObject.SetActive(false);
-            for(int i=0;i<edges.Length;i++)
-            {
-                var edge=ui.Panel(parent,"Выделение цели взаимодействия",Vector2.zero,Vector2.zero);
-                var image=edge.GetComponent<Image>();image.raycastTarget=false;image.color=new Color(1,.85f,.1f,.85f);
-                edges[i]=edge.GetComponent<RectTransform>();edges[i].anchorMin=edges[i].anchorMax=edges[i].pivot=Vector2.zero;
-                edge.SetActive(false);
-            }
             if(camera==null) Debug.LogWarning("Подсказка взаимодействия недоступна: не найдена камера MainCamera.");
+        }
+        public void ConfigureWorldOutline(Camera worldCamera,Func<InteractionTarget,WorldOutlineSource> resolve)
+        {
+            worldOutline?.Dispose();worldOutline=new WorldInteractionOutline(worldCamera,resolve);missingOutlineWarning=false;
+            UpdateOutline();
         }
         public void Refresh(ContainerState container,bool visible,ActorState localActor=null)
         {
@@ -58,6 +58,7 @@ namespace Remains.Presentation
         public void RefreshSource(InventorySource source,bool visible,ActorState localActor,bool pickupPending=false)
         {
             hasTarget=source!=null;allowed=visible;actor=localActor;
+            if(!hasTarget || !allowed) UpdateOutline();
             if(source!=null)
             {
                 var mass=source.Mass;
@@ -73,12 +74,14 @@ namespace Remains.Presentation
         }
         public void Highlight(InteractionTarget target,bool visible)
         {
-            targetBounds=target.bounds;
+            highlightedTarget=target;
             highlightVisible=visible && target.kind is InteractionKind.Container or InteractionKind.Pickup or InteractionKind.Door or InteractionKind.Map or InteractionKind.Exit or InteractionKind.Revival or InteractionKind.Mechanism;
+            UpdateOutline();
         }
         public void RefreshRevival(ActorState ally,bool visible,ActorState localActor)
         {
             hasTarget=ally!=null;allowed=visible;actor=localActor;
+            if(!hasTarget || !allowed) UpdateOutline();
             if(ally!=null)
             {
                 var bounds=InventorySource.BodyBounds(ally);
@@ -89,6 +92,7 @@ namespace Remains.Presentation
         public void Refresh(TravelPoint point,bool visible,ActorState localActor)
         {
             hasTarget=point!=null;allowed=visible;actor=localActor;
+            if(!hasTarget || !allowed) UpdateOutline();
             if(point!=null)
             {
                 if(content!=Content.Travel || displayedTitle!=point.title) {content=Content.Travel;displayedTitle=point.title;SetText("E · "+point.title,normalColor);}
@@ -98,6 +102,7 @@ namespace Remains.Presentation
         public void Refresh(DoorState door,bool visible,ActorState localActor)
         {
             hasTarget=door!=null;allowed=visible;actor=localActor;
+            if(!hasTarget || !allowed) UpdateOutline();
             if(door!=null)
             {
                 var next=door.open?Content.DoorOpen:Content.DoorClosed;
@@ -105,10 +110,11 @@ namespace Remains.Presentation
                 targetTop=new Vector2(door.x+door.width*.5f,door.y+door.height+.25f);
             }
         }
-        public void Dispose()=>Canvas.willRenderCanvases-=Place;
+        public void Dispose() {Canvas.willRenderCanvases-=Place;worldOutline?.Dispose();}
         public void RefreshMechanism(MechanismButtonState button,Rect bounds,bool visible,ActorState localActor,double progress,bool pending)
         {
             hasTarget=button!=null && !button.removed;allowed=visible;actor=localActor;
+            if(!hasTarget || !allowed) UpdateOutline();
             if(hasTarget)
             {
                 var next=pending?Content.MechanismPending:button.repairState==MechanismRepairStates.Ready?Content.MechanismReady:
@@ -131,10 +137,9 @@ namespace Remains.Presentation
         }
         private void Place()
         {
-            // Canvas final placement is shared by Refresh and Highlight. Neither
-            // performs an extra projection/pose lookup before the final UI pass.
+            // Only the E label belongs to the overlay. The world renderer prepares
+            // its rectangle after actual world poses, before either camera pipeline.
             PlacementEvaluationCount++;
-            PlaceHighlight();
             if(sizedText!=label.text)
             {
                 sizedText=label.text;
@@ -171,35 +176,16 @@ namespace Remains.Presentation
             if(!panel.gameObject.activeSelf) panel.gameObject.SetActive(true);
             if(panel.anchoredPosition!=point) panel.anchoredPosition=point;
         }
-        private void PlaceHighlight()
+        private void UpdateOutline()
         {
-            bool show=allowed && hasTarget && highlightVisible && camera!=null && targetBounds.width>0 && targetBounds.height>0;
-            if(show)
+            bool show=allowed && hasTarget && highlightVisible;
+            if(worldOutline!=null) {worldOutline.SetTarget(highlightedTarget,show);return;}
+            if(show && !missingOutlineWarning)
             {
-                var lower=camera.WorldToScreenPoint(new Vector3(targetBounds.xMin,targetBounds.yMin,0));
-                var upper=camera.WorldToScreenPoint(new Vector3(targetBounds.xMax,targetBounds.yMax,0));
-                show=lower.z>0 && upper.z>0;
-                if(show)
-                {
-                    var uiCamera=root.renderMode==RenderMode.ScreenSpaceOverlay?null:root.worldCamera;
-                    RectTransformUtility.ScreenPointToLocalPointInRectangle(canvas,lower,uiCamera,out var low);
-                    RectTransformUtility.ScreenPointToLocalPointInRectangle(canvas,upper,uiCamera,out var high);
-                    var origin=canvas.rect.min;low-=origin;high-=origin;
-                    float width=high.x-low.x,height=high.y-low.y;
-                    // CanvasScaler scales the HUD, but the interaction border stays
-                    // three physical screen pixels thick at every resolution.
-                    float thickness=3/root.scaleFactor;
-                    SetEdge(0,low,new Vector2(width,thickness));SetEdge(1,new Vector2(low.x,high.y-thickness),new Vector2(width,thickness));
-                    SetEdge(2,low,new Vector2(thickness,height));SetEdge(3,new Vector2(high.x-thickness,low.y),new Vector2(thickness,height));
-                }
+                missingOutlineWarning=true;
+                Debug.LogWarning($"Контур взаимодействия не настроен: target={highlightedTarget.kind}/{highlightedTarget.id}; требуется ConfigureWorldOutline с фактическим представлением объекта.");
             }
-            foreach(var edge in edges) if(edge.gameObject.activeSelf!=show) edge.gameObject.SetActive(show);
-        }
-        private void SetEdge(int index,Vector2 position,Vector2 size)
-        {
-            var edge=edges[index];
-            if(edge.anchoredPosition!=position) edge.anchoredPosition=position;
-            if(edge.sizeDelta!=size) edge.sizeDelta=size;
+            if(!show) missingOutlineWarning=false;
         }
     }
 }

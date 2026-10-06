@@ -156,7 +156,7 @@ namespace Remains.Editor
                 view.Configure(legacy,renderer);var oldPlacement=authoring.Read(room,"hub");
                 Require(oldPlacement.interactive && oldPlacement.integrity==null && oldPlacement.interaction==null,"Read мигрировал старую дверь в новый health/interaction контракт.");
                 view.Configure(asset,renderer);
-                var visuals=root.AddComponent<DoorVisuals>();visuals.RegisterPrefab(view);var world=new WorldState();state.id="visual";world.doors.Add(state);
+                var visuals=root.AddComponent<DoorVisuals>();visuals.SetOrders(new WorldVisualOrderTable());visuals.RegisterPrefab(view);var world=new WorldState();state.id="visual";world.doors.Add(state);
                 visuals.Reconcile(world,"hub");var actual=visuals.Find(state.id);var initialPosition=actual.transform.position;var initialScale=actual.transform.localScale;
                 Require(actual.Artwork.sprite==closed && visuals.SoundChanges==0,"Начальная закрытая загрузка не молчит.");
                 DoorDamageOperations.Apply(state,"hp-hit",10,out _);visuals.Reconcile(world,"hub");

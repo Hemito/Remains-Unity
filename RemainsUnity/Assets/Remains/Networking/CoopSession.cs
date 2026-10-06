@@ -43,7 +43,8 @@ namespace Remains.Networking
             joinSelection=new CharacterJoinSelection(CharacterId,Saves);
             Debug.Log($"Персонаж зафиксирован для подключения: character={CharacterId}, profile={Saves.CharacterDirectoryPath}.");
         }
-        public void CancelJoinSelection() {if(!NetworkClient.active && !NetworkServer.active) joinSelection=null;}
+        public void CancelJoinSelection()
+        {if(!NetworkClient.active && !NetworkServer.active) {joinSelection=null;Lobby.CancelConfiguredStartup();}}
         public void PumpSaveWrites()=>saveWrites.Pump();
         public void FlushSaveWrites()
         {
@@ -91,6 +92,11 @@ namespace Remains.Networking
         private readonly PoseSequenceGate clientPoses = new();
         private NpcHitDelivery npcHits;
         public bool UseLobby {get;set;}
+        public void ConfigureHostStartup(SessionStartupIntent intent)
+        {
+            Lobby.ConfigureStartup(intent);
+            UseLobby=true;
+        }
         private ProtocolAdmission admission;
         public ProtocolAdmission Admission=>admission ??= new ProtocolAdmission(this);
         private SessionLobby lobby;
@@ -181,7 +187,7 @@ namespace Remains.Networking
             {
                 var content=source.CreateLiveWorld().weaponContent;
                 if(!acceptContentMismatch && ContentComparison.Compare(content,WeaponCatalog.ManifestCopy()).Count>0)
-                    throw new InvalidOperationException("Состав контента сохранения отличается или неизвестен. Выберите мир в лобби и подтвердите сравнение перед загрузкой.");
+                    throw new InvalidOperationException("Состав контента сохранения отличается или неизвестен. Подтвердите сравнение перед загрузкой выбранного мира.");
                 if(content!=null && !content.IsSupported)
                     throw new InvalidOperationException($"Формат манифеста не поддерживается: schema={content.schema}, scope={content.scope}. Исходный мир сохранён.");
             }

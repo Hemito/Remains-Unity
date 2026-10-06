@@ -4,9 +4,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using Mirror;
+using Newtonsoft.Json.Linq;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Persistence;
+using Remains.Networking;
 using Remains.Presentation;
 using Remains.Serialization;
 using UnityEngine;
@@ -31,14 +33,18 @@ namespace Remains.Runtime
         private float deadline;
         private bool finished,queueArmed;
         private IDisposable queueLease;
+        private bool compareCopies,worldContent,cooperative;
 
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+110;
             try
             {
-                Require(value.Options.Smoke=="characters-selection" && value.Options.Role=="menu" && value.Options.Character==First,
-                    "Пробе нужны --smoke characters-selection --role menu --character pony-one.");
+                compareCopies=value.Options.Smoke=="characters-copies";
+                worldContent=value.Options.Smoke=="characters-world-content";
+                cooperative=value.Options.Smoke=="characters-coop";
+                Require((value.Options.Smoke=="characters-selection" || compareCopies || worldContent || cooperative) && value.Options.Role=="menu" && value.Options.Character==First,
+                    "Пробе нужны --smoke characters-selection/characters-copies/characters-world-content --role menu --character pony-one.");
                 Require(!string.IsNullOrEmpty(value.Options.SaveDirectory) && !string.IsNullOrEmpty(value.Options.Report),
                     "Нужны отдельные --save-dir библиотеки и --report.");
                 string root=Path.GetFullPath(value.Options.SaveDirectory);
@@ -63,9 +69,21 @@ namespace Remains.Runtime
                 new CharacterLibrary(Path.Combine(root,"Profiles"),firstDirectory).Create(first);
                 new CharacterLibrary(Path.Combine(root,"Profiles"),secondDirectory).Create(expected);
                 var world=NewGameWorld.Create();
+                WorldHistory.BeginContinuation(world);
+                world.extensions=new Dictionary<string,JToken> {{"menuFlowCopy","selected-complete-copy"}};
                 var previous=first.Copy();CharacterPlacement.SpawnInHub(previous);
                 previous.connected=false;previous.owner=null;world.actors.Add(previous);
-                selectedWorld=value.Session.Saves.SaveWorld(world);
+                if(worldContent)
+                {
+                    world.weaponContent=WeaponCatalog.ManifestCopy();
+                    world.weaponContent.packs[0].version="world-selection-fixture-old";
+                    world.weaponContent.fingerprint=new string('B',64);
+                    selectedWorld=new RecoverySnapshot(StateJson.ToJson(world));value.Session.Saves.SaveRecovery(selectedWorld);
+                }
+                else selectedWorld=value.Session.Saves.SaveWorld(world);
+                var decoy=selectedWorld.CreateLiveWorld();WorldHistory.BeginContinuation(decoy);
+                decoy.extensions["menuFlowCopy"]="different-branch-same-world";
+                value.Session.Saves.SaveWorld(decoy);
                 alternateWorld=value.Session.Saves.SaveWorld(NewGameWorld.Create());
                 value.Session.Saves.SelectContinuation(selectedWorld);
                 evidence.worldId=selectedWorld.WorldId;evidence.selectedSnapshot=selectedWorld.Id;
@@ -127,7 +145,7 @@ namespace Remains.Runtime
             evidence.stage="queued-host";
             queueLease=SaveAccess.Enter(runtime.Session.Saves.WorldDirectoryPath);
             queueArmed=true;
-            yield return UiPointerProbe.Click(runtime.Hud.HostButtonRect);
+            yield return UiPointerProbe.Click(compareCopies?Rect(menu.CompareCopies):runtime.Hud.HostButtonRect);
             for(int i=0;i<8;i++)
             {
                 CheckQueued();evidence.queuedFrames++;yield return null;
@@ -146,22 +164,56 @@ namespace Remains.Runtime
             Capture("content");yield return UiPointerProbe.Click(runtime.Hud.CharacterContent.ConfirmRect);
             evidence.characterConsent=true;
 
-            evidence.stage="lobby-selection";
-            yield return Until(()=>runtime.Session.Lobby.ClientPlayers==1 && runtime.Session.Lobby.Copies.Count>0 &&
-                runtime.Hud.NetworkLobby.StartButtonRect!=null);
-            Require(runtime.Session.LocalActor==null && runtime.Session.ServerWorld==null,"Мир начался до выбора в лобби.");
-            string choice=null;
-            foreach(var copy in runtime.Session.Lobby.Copies)
-                if(copy.summary.worldId==selectedWorld.WorldId && copy.summary.snapshot==selectedWorld.Id)
-                {Require(choice==null,"Лобби содержит повтор выбранной копии.");choice=copy.key;Require(copy.holder==Second,"Копия опубликована именем первого профиля.");}
-            Require(choice!=null,"Лобби не содержит независимо записанную копию исходного мира.");
-            yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.ChoiceRect(choice));
-            yield return Until(()=>runtime.Session.Lobby.ClientSelected==choice && !runtime.Session.Lobby.ClientBusy);
-            evidence.lobbySelected=true;Capture("lobby");
-            yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.StartButtonRect);
+            if(compareCopies)
+            {
+                evidence.stage="lobby-selection";
+                yield return Until(()=>runtime.Session.Lobby.ClientPlayers==1 && runtime.Session.Lobby.Copies.Count>0 &&
+                    runtime.Hud.NetworkLobby.StartButtonRect!=null);
+                Require(runtime.Session.LocalActor==null && runtime.Session.ServerWorld==null,"Мир начался до выбора в лобби.");
+                string choice=null;
+                foreach(var copy in runtime.Session.Lobby.Copies)
+                    if(copy.summary.worldId==selectedWorld.WorldId && copy.summary.snapshot==selectedWorld.Id)
+                    {Require(choice==null,"Лобби содержит повтор выбранной копии.");choice=copy.key;Require(copy.holder==Second,"Копия опубликована именем первого профиля.");}
+                Require(choice!=null,"Лобби не содержит независимо записанную копию исходного мира.");
+                yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.ChoiceRect(choice));
+                yield return Until(()=>runtime.Session.Lobby.ClientSelected==choice && !runtime.Session.Lobby.ClientBusy);
+                evidence.lobbySelected=true;Capture("lobby");
+                yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.StartButtonRect);
+            }
+            else
+            {
+                evidence.stage="continue-selected";
+                while(runtime.Session.LocalActor==null && runtime.Hud.NetworkLobby.ContentConfirmRect==null)
+                {
+                    Require(runtime.Hud.NetworkLobby.StartButtonRect==null,"Обычное продолжение показывает повторный выбор мира.");
+                    yield return null;
+                }
+                evidence.directContinued=true;
+                Require(runtime.Session.Lobby.Startup.Mode==SessionStartupMode.ContinueSelected &&
+                    runtime.Session.Lobby.Startup.Selected.Id==selectedWorld.Id,"Продолжение не зафиксировало выбранный полный снимок.");
+            }
             yield return Until(()=>runtime.Session.LocalActor!=null || runtime.Hud.NetworkLobby.ContentConfirmRect!=null);
-            Require(runtime.Hud.NetworkLobby.ContentConfirmRect==null,"Текущий fixture-мир неожиданно требует согласия с контентом.");
+            if(worldContent)
+            {
+                Require(runtime.Session.LocalActor==null && runtime.Hud.NetworkLobby.ContentConfirmRect!=null &&
+                    runtime.Hud.NetworkLobby.StartButtonRect==null && !runtime.Hud.NetworkLobby.CopyPickerVisible,
+                    "Сравнение контента мира пропущено или превратилось в повторный выбор.");
+                Require(runtime.Session.Saves.SelectedSnapshot()?.Id==selectedWorld.Id,"Сравнение изменило исходник до решения.");
+                Capture("world-content");yield return UiPointerProbe.Click(runtime.Hud.NetworkLobby.ContentConfirmRect);
+                yield return Until(()=>runtime.Session.LocalActor!=null);evidence.worldConsent=true;
+            }
+            else Require(runtime.Hud.NetworkLobby.ContentConfirmRect==null,"Текущий fixture-мир неожиданно требует согласия с контентом.");
+            string sourceArchive=Path.Combine(runtime.Session.Saves.WorldDirectoryPath,"Worlds",selectedWorld.WorldId,"Snapshots",selectedWorld.Id+".json");
+            Require(File.ReadAllText(sourceArchive)==selectedWorld.Json,"Запуск изменил исходную полную копию мира.");
+            evidence.worldSourceUnchanged=true;
             CheckLive();
+            if(cooperative) File.WriteAllText(runtime.Options.Report+".world-ready",runtime.Session.World.worldId);
+            if(cooperative)
+            {
+                evidence.stage="late-guest";
+                yield return Until(()=>runtime.Session.World.actors.Exists(actor=>actor.player && actor.connected && actor.character=="pony-guest"));
+                CheckLive();evidence.remoteJoinedSelected=true;
+            }
             yield return new WaitForSecondsRealtime(3);
             CheckLive();CheckFirst();CheckRender();Capture("live");
             evidence.liveVerified=true;
@@ -203,13 +255,13 @@ namespace Remains.Runtime
                 "Кнопка персонажей после выхода не сменила профиль.");
             Require(runtime.Session.Saves.SelectedSnapshot()?.WorldId==alternateWorld.WorldId,"Смена персонажа после выхода сменила независимый мир.");
             CheckFirst();CheckMenuUnlocked();evidence.characterChangedAfterStop=true;Capture("character-after-stop");
-            Finish(true,"Карточка/Host/согласие/лобби/игра/выход использовали pony-two; после полной остановки сети реальные кнопки позволили выбрать другой мир и pony-one, исходные файлы pony-one неизменны.");
+            Finish(true,(compareCopies?"Явное сравнение копий сохранило выбор и подтверждение лобби.":"Продолжение запустило выбранную копию без повторного выбора мира.")+" Согласие/игра/выход использовали pony-two; после остановки сети выбран другой мир и pony-one, исходный профиль неизменён.");
         }
 
         private void CheckMenuUnlocked()
         {
             Require(menu.gameObject.activeInHierarchy && menu.Controls.activeInHierarchy,"После выхода главное меню скрыто.");
-            foreach(var control in new Selectable[]{menu.Host,menu.Join,menu.Worlds,menu.NewGame,menu.Characters,menu.Character,menu.Address})
+            foreach(var control in new Selectable[]{menu.Host,menu.Join,menu.Worlds,menu.NewGame,menu.Characters,menu.Character,menu.Address,menu.CompareCopies})
                 Require(control.IsInteractable(),"После выхода заблокировано управление меню: "+control.name);
         }
 
@@ -257,6 +309,11 @@ namespace Remains.Runtime
                 $"Игровой актёр не выбранный профиль: id={actor?.id}, character={actor?.character}, owner={actor?.owner}.");
             Require(runtime.Session.World?.worldId==selectedWorld.WorldId && runtime.Session.ServerWorld?.worldId==selectedWorld.WorldId,
                 "Запущен другой мир вместо отдельно записанного.");
+            var source=selectedWorld.CreateLiveWorld();
+            foreach(var live in new[]{runtime.Session.World,runtime.Session.ServerWorld})
+                Require(live.ancestors.Exists(a=>a.branchId==source.branchId && a.sequence==source.checkpointSequence) &&
+                    live.extensions!=null && live.extensions.TryGetValue("menuFlowCopy",out var sentinel) && (string)sentinel=="selected-complete-copy",
+                    "Запущена другая полная копия того же мира: история или дополнительное поле не совпали с выбранным источником.");
             foreach(var candidate in runtime.Session.World.actors)
                 Require(!candidate.player || !candidate.connected || candidate.character!=First,"В мире подключён первый персонаж вместо второго.");
             evidence.actorId=actor.id;evidence.actorCharacter=actor.character;evidence.actorOwner=actor.owner;
@@ -322,7 +379,7 @@ namespace Remains.Runtime
         [Serializable] private sealed class Evidence
         {
             public bool success,cardSelected,characterConsent,lobbySelected,liveVerified,renderVerified,savedVerified,firstSourceUnchanged,
-                stoppedTooEarly,worldChangedAfterStop,characterChangedAfterStop;
+                stoppedTooEarly,worldChangedAfterStop,characterChangedAfterStop,directContinued,worldConsent,worldSourceUnchanged,remoteJoinedSelected;
             public string detail,stage,libraryRoot,worldId,selectedSnapshot,sessionCharacter,profilePath,actorId,actorCharacter,actorOwner,appearance,drawnClip;
             public int queuedFrames,busyObservedFrames,hostCallbacks,drawnParts,drawnFrame,stopCallbacks;
             public FileProof[] firstSource;

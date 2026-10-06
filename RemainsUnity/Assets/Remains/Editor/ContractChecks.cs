@@ -107,6 +107,9 @@ namespace Remains.Editor
             PonyRenderChecks.Run();
             PonyAppearanceChecks.Run();
             MainMenuPrefabChecks.Run();
+            SessionStartupChecks.Run();
+            WorldVisualOrderChecks.Run();
+            InteractionOutlineChecks.Run();
             var worldLobby=Resources.Load<Remains.Presentation.WorldLobbyView>("Presentation/WorldLobby");
             if(worldLobby==null) throw new InvalidOperationException("Нет префаба сетевого лобби.");
             worldLobby.Validate();

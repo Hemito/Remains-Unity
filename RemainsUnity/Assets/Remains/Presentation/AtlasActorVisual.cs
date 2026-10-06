@@ -40,7 +40,7 @@ namespace Remains.Presentation
         public override void Bind(ActorState actor)
         {
             state=actor;string key=ActorTypes.Get(actor.actorType).artwork;
-            if(view==null) {view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=20;generatedView=true;}
+            if(view==null) {view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=WorldVisualOrderPolicy.ActorPartOrder;generatedView=true;}
             if(artworkKey!=key)
             {
                 if(string.IsNullOrEmpty(key)) throw new InvalidOperationException($"Нет атласа актёра: {actor.id}, type={actor.actorType}.");

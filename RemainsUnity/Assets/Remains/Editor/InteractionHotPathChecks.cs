@@ -4,6 +4,7 @@ using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Presentation;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Remains.Editor
 {
@@ -63,20 +64,22 @@ namespace Remains.Editor
         }
         private static void RunHint()
         {
-            var root=new GameObject("Проверка hot hint",typeof(RectTransform),typeof(Canvas));InteractionHint hint=null;GameObject checkCamera=null;
+            var root=new GameObject("Проверка hot hint",typeof(RectTransform),typeof(Canvas));InteractionHint hint=null;
+            var checkCamera=new GameObject("Камера проверки рамки",typeof(Camera));var visual=new GameObject("Фактический источник hot hint",typeof(SortingGroup),typeof(SpriteRenderer));
+            var square=Sprite.Create(Texture2D.whiteTexture,new Rect(0,0,Texture2D.whiteTexture.width,Texture2D.whiteTexture.height),Vector2.one*.5f,Texture2D.whiteTexture.width);
             try
             {
-                if(Camera.main==null)
-                {
-                    checkCamera=new GameObject("Камера проверки рамки",typeof(Camera));checkCamera.tag="MainCamera";
-                    checkCamera.transform.position=new Vector3(0,0,-10);checkCamera.GetComponent<Camera>().orthographic=true;
-                }
+                if(Camera.main==null) checkCamera.tag="MainCamera";
+                checkCamera.transform.position=new Vector3(0,0,-10);var worldCamera=checkCamera.GetComponent<Camera>();worldCamera.orthographic=true;
+                visual.GetComponent<SpriteRenderer>().sprite=square;var outlineSource=WorldOutlineSource.ForRenderer(visual.GetComponent<SpriteRenderer>());
                 root.GetComponent<Canvas>().renderMode=RenderMode.ScreenSpaceOverlay;
                 var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));hint=new InteractionHint(root.transform,ui,()=>new Rect(-1,0,2,2));
+                hint.ConfigureWorldOutline(worldCamera,_=>outlineSource);
                 var box=new ContainerState {id="hint-box",mass=25};InventorySource source=box;
                 hint.RefreshSource(source,true,null);int texts=hint.TextRevisionCount,places=hint.PlacementEvaluationCount;
                 for(int i=0;i<1000;i++) {box.x=i*.001f;hint.RefreshSource(source,true,null);hint.Highlight(new InteractionTarget(InteractionKind.Container,box.id,source.Bounds),true);}
                 Require(hint.TextRevisionCount==texts && hint.PlacementEvaluationCount==places,"Неизменный текст или Refresh/Highlight повторяют Canvas placement");
+                Require(hint.WorldOutline.GeometryRevisionCount==0,"1000 target refresh перестраивают мировую геометрию до camera pass");
                 box.mass=12;hint.RefreshSource(source,true,null);Require(hint.TextRevisionCount==texts+1,"Изменение массы потеряло обновление hint");
                 box.presentationItem="caps";hint.RefreshSource(source,true,null);texts=hint.TextRevisionCount;
                 hint.RefreshSource(source,true,null,true);Require(hint.TextRevisionCount==texts+1,"Pickup pending не обновил текст");
@@ -84,20 +87,20 @@ namespace Remains.Editor
                 foreach(float scale in new[]{1f,1.5f,2f,3f})
                 {
                     root.GetComponent<Canvas>().scaleFactor=scale;Canvas.ForceUpdateCanvases();
-                    int visibleEdges=0;
-                    foreach(Transform child in root.transform)
+                    hint.WorldOutline.Prepare(worldCamera);var bars=hint.WorldOutline.Renderers;
+                    Require(hint.WorldOutline.Visible && bars.Count==4,
+                        $"Контур не является cached world rectangle внутри actual source: scale={scale}");
+                    for(int i=0;i<4;i++)
                     {
-                        if(child.name!="Выделение цели взаимодействия" || !child.gameObject.activeSelf) continue;
-                        var edge=(RectTransform)child;
-                        var corners=new Vector3[4];edge.GetWorldCorners(corners);
-                        float pixels=Mathf.Min(Vector3.Distance(corners[0],corners[1]),Vector3.Distance(corners[1],corners[2]));
-                        Require(Mathf.Abs(pixels-3)<.02f,$"Рамка масштабируется вместе с HUD: scale={scale}, pixels={pixels}");
-                        visibleEdges++;
+                        var bar=bars[i];Require(RenderSorting.FindOwner(bar)==visual.GetComponent<SortingGroup>(),"Сторона рамки не принадлежит actual source");
+                        var axis=i<2?Vector3.up:Vector3.right;
+                        float pixels=bar.transform.TransformVector(Vector3.Scale(axis,bar.sprite.bounds.size)).magnitude*worldCamera.pixelHeight/(2*worldCamera.orthographicSize);
+                        Require(Mathf.Abs(pixels-3)<.00001f,$"Рамка масштабируется вместе с HUD: scale={scale}, pixels={pixels}");
                     }
-                    Require(visibleEdges==4,$"Рамка не имеет четырёх видимых сторон: scale={scale}, count={visibleEdges}");
                 }
+                Require(hint.WorldOutline.GeometryRevisionCount==1,"Canvas scale перестраивает неизменные мировые границы");
             }
-            finally {hint?.Dispose();UnityEngine.Object.DestroyImmediate(root);if(checkCamera!=null) UnityEngine.Object.DestroyImmediate(checkCamera);}
+            finally {hint?.Dispose();UnityEngine.Object.DestroyImmediate(root);UnityEngine.Object.DestroyImmediate(checkCamera);UnityEngine.Object.DestroyImmediate(visual);UnityEngine.Object.DestroyImmediate(square);}
         }
         private static void Require(bool value,string reason) {if(!value) throw new InvalidOperationException("Горячие пути взаимодействия: "+reason);}
     }

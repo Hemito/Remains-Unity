@@ -2,6 +2,7 @@ using System;
 using Remains.Content;
 using Remains.Domain;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Remains.Presentation
 {
@@ -22,6 +23,8 @@ namespace Remains.Presentation
                 foreach(var button in instance.GetComponentsInChildren<RoomMechanismButtonPlacement>(true)) button.gameObject.SetActive(false);
                 var lighting=instance.GetComponent<RoomLightingAuthoring>();
                 if(lighting==null) throw new InvalidOperationException("Нет авторинга света: "+level);
+                var sorting=instance.GetComponent<SortingGroup>();if(sorting==null) sorting=instance.gameObject.AddComponent<SortingGroup>();
+                sorting.sortingLayerID=0;sorting.sortingOrder=WorldVisualOrderPolicy.SceneryRoomOrder;
                 instance.gameObject.AddComponent<RoomLighting>().Initialize(room,lighting.CreateProfile(instance));return instance.gameObject;
             }
             catch {UnityEngine.Object.Destroy(instance.gameObject);throw;}

@@ -79,7 +79,12 @@ namespace Remains.Runtime
             }
             if(!Host) yield break;
             var lobby=runtime.Session.Lobby;
-            while(lobby.ClientPlayers!=runtime.Options.ProbePeers && !finished) yield return null;
+            // Admission and asynchronous publication are separate events. Joining
+            // does not promise that each holder's complete offer batch has arrived.
+            while(!finished && (lobby.ClientPlayers!=runtime.Options.ProbePeers ||
+                !lobby.Copies.Any(copy=>copy.holder=="lobby-host" && runtime.Hud.NetworkLobby.HasChoice(copy.key)) ||
+                !Enumerable.Range(1,runtime.Options.ProbePeers-1).All(index=>lobby.Copies.Any(copy=>copy.holder=="lobby-client-"+index &&
+                    runtime.Hud.NetworkLobby.HasChoice(copy.key))))) yield return null;
             if(finished) yield break;
             if(runtime.Session.ServerWorld!=null || runtime.Session.LocalActor!=null)
             {Finish(false,"Мир запущен до выбора продолжения.");yield break;}

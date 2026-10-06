@@ -25,6 +25,7 @@ namespace Remains.Presentation
         private readonly List<string> removed=new();
         public WeaponView FindWeapon(string actorId)=>weapons.TryGetValue(actorId,out var view)?view:null;
         public PropView FindProp(string id)=>props.TryGetValue(id,out var view)?view:null;
+        public PropView FindContainer(string id)=>containers.TryGetValue(id,out var view)?view:null;
         public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers)
         {
             this.session=session;this.grenades=grenades;this.layers=layers;
@@ -46,7 +47,7 @@ namespace Remains.Presentation
                     limit=AttackContacts.VisualLimit(session.World.actors,attack,session.World.friendlyFire,limit);
                 if(!ShotArtwork.TryGet(attack.weapon,out var artwork)) return;
                 var shot=new GameObject("Выстрел "+attack.id).AddComponent<ShotVisual>();
-                shot.Initialize(attack,limit,artwork,session);
+                shot.Initialize(attack,limit,artwork,session,layers.Orders);
             };
         }
         private SpriteRenderer CreateGrenade(string name)
@@ -72,18 +73,25 @@ namespace Remains.Presentation
             foreach(var container in session.World.containers)
             {
                 if(container.level!=level) continue;
-                if(!containers.TryGetValue(container.id,out var view)) containers.Add(container.id,view=propArtwork.CreateContainerView(container));
+                if(!containers.TryGetValue(container.id,out var view))
+                {view=propArtwork.CreateContainerView(container);view.BindOrder(layers.Orders,WorldVisualKind.Container,container.id);containers.Add(container.id,view);}
                 view.ApplyContainerAppearance(container);
                 view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),0);view.SetVisible(container.level==session.LocalActor?.level);
             }
-            foreach(var prop in session.World.props) if(prop.level==level && !props.ContainsKey(prop.id)) props.Add(prop.id,propArtwork.CreateView(prop.definition,prop.id,prop.width));
+            foreach(var prop in session.World.props) if(prop.level==level && !props.ContainsKey(prop.id))
+            {var view=propArtwork.CreateView(prop.definition,prop.id,prop.width);view.BindOrder(layers.Orders,WorldVisualKind.Prop,prop.id);props.Add(prop.id,view);}
             foreach(var actor in session.World.actors)
                 if(ActorPresence.IsPresent(actor) && !string.IsNullOrEmpty(actor.weapon) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
                 {
                     weapons.Add(actor.id,CreateWeapon(actor));
                 }
             foreach(var flight in grenades.Flights)
-                if(flight.state.level==level && !flights.ContainsKey(flight.state.id)) flights.Add(flight.state.id,CreateGrenade("Граната "+flight.state.id));
+                if(flight.state.level==level && !flights.ContainsKey(flight.state.id))
+                {
+                    var view=CreateGrenade("Граната "+flight.state.id);
+                    view.gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(layers.Orders,WorldVisualKind.Grenade,flight.state.id,null,view,flight.state.level,true);
+                    flights.Add(flight.state.id,view);
+                }
         }
         private void Prune<T>(Dictionary<string,T> views,HashSet<string> retained) where T:Component
         {

@@ -21,7 +21,9 @@ namespace Remains.Presentation
         public RectTransform ContentConfirmRect {get;private set;}
         public RectTransform ContentCancelRect {get;private set;}
         private int contentPage;
+        public bool CopyPickerVisible {get;private set;}
         public RectTransform ChoiceRect(string key)=>choices[key];
+        public bool HasChoice(string key)=>choices.ContainsKey(key);
         public WorldLobbyPanel(Transform parent,CoopSession session,Action refresh)
         {
             this.parent=parent;this.session=session;
@@ -30,11 +32,20 @@ namespace Remains.Presentation
         private void Render()
         {
             if(root!=null) {root.SetActive(false);UnityEngine.Object.Destroy(root);}
-            choices.Clear();StartButtonRect=null;ContentConfirmRect=ContentCancelRect=null;
+            choices.Clear();StartButtonRect=null;ContentConfirmRect=ContentCancelRect=null;CopyPickerVisible=false;
             var lobby=session.Lobby;
             if(!lobby.ClientWaiting) return;
-            var view=WorldLobbyView.Create(parent);root=view.gameObject;
-            if(NetworkServer.active && lobby.ContentDifferences.Count>0) {view.Contents.SetActive(false);RenderContent();return;}
+            bool content=lobby.ClientContentPending && NetworkServer.active && lobby.ContentDifferences.Count>0;
+            var view=WorldLobbyView.Create(parent,lobby.ClientChoosingCopies && !content);root=view.gameObject;
+            if(content) {RenderContent();return;}
+            if(!lobby.ClientChoosingCopies)
+            {
+                view.ShowWaiting(lobby.ClientContentPending?"Хост сравнивает содержимое выбранного мира. Дождитесь его решения.":
+                    "Подготовка выбранного мира. Другие копии не заменяют выбранное продолжение.",lobby.ClientError);
+                view.Disconnect.onClick.AddListener(()=>{if(NetworkServer.active) session.StopHost();else session.StopClient();});
+                return;
+            }
+            CopyPickerVisible=true;
             string instruction=NetworkServer.active?"Выберите целую копию и начните игру.":"Хост выбирает целую копию. Дождитесь начала игры.";
             view.Instruction.text=$"Участников: {lobby.ClientPlayers}. {instruction}\nДругие ветви сохранятся; объединения прогресса нет.";
             var selected=lobby.Copies.Find(c=>c.key==lobby.ClientSelected);
@@ -66,7 +77,8 @@ namespace Remains.Presentation
         private void RenderContent()
         {
             var selected=session.Lobby.Copies.Find(copy=>copy.key==session.Lobby.ClientSelected);
-            string name=selected==null?"Выбранный мир":new WorldLibrary(session.Saves).Name(selected.summary.worldId);
+            string id=session.Lobby.Startup.ChoosesCopies?selected?.summary.worldId:session.Lobby.Startup.Selected?.WorldId;
+            string name=id==null?"Выбранный мир":new WorldLibrary(session.Saves).Name(id);
             (ContentConfirmRect,ContentCancelRect)=ContentComparisonView.Draw(root.transform,session.Lobby.ContentDifferences,
                 $"{name}: версия игры или набор модов изменились.",contentPage,
                 next=>{contentPage=next;Render();},accept=>session.Lobby.ConfirmContent(accept));

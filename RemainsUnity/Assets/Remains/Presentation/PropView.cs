@@ -19,7 +19,17 @@ namespace Remains.Presentation
         private readonly RemotePropMotion motion=new();
         private HeldPropGlow glow;
         private SortingGroup sorting;
+        private WorldVisualOrderBinding depth;
+        private bool? standaloneHeld;
+        public SortingGroup Sorting=>sorting;
+        public WorldVisualOrderBinding Depth=>depth;
         public int Order=>sorting!=null?sorting.sortingOrder:artwork.sortingOrder;
+        public void BindOrder(WorldVisualOrderTable orders,WorldVisualKind kind,string id)
+        {
+            PrepareHeldGlow();
+            if(depth!=null) throw new InvalidOperationException("Повторная привязка слоя предмета: "+id);
+            depth=gameObject.AddComponent<WorldVisualOrderBinding>();depth.Initialize(orders,kind,id,sorting);
+        }
         public bool HeldGlowVisible=>glow!=null && glow.Visible;
         public bool FitsStateWidth=>fitStateWidth;
         public PropVisualAnchor VisualAnchor=>visualAnchor;
@@ -69,7 +79,13 @@ namespace Remains.Presentation
             transform.position=position;
             if(state is Remains.Domain.ContainerState {presentationItem:not null} loose)
             {transform.rotation=Quaternion.Euler(0,0,loose.presentationAngle);artwork.flipY=loose.presentationMirrored;}
-            if(sorting!=null) sorting.sortingOrder=state.held?ActorVisualLayers.WorldObjectOrder:ActorVisualLayers.RestingObjectOrder;
+            // Standalone editor previews have no world/table. Runtime instances bind
+            // once at creation; their category changes only through table events.
+            if(depth==null && sorting!=null && standaloneHeld!=state.held)
+            {
+                if(Application.isPlaying) throw new InvalidOperationException("Предмет без общей таблицы слоёв: "+state.id);
+                standaloneHeld=state.held;sorting.sortingOrder=WorldVisualOrderPolicy.FirstOrder(WorldVisualOrderPolicy.Category(state));
+            }
             glow?.Draw(state.held);
         }
         public void SetArtwork(SpriteRenderer value)=>artwork=value;

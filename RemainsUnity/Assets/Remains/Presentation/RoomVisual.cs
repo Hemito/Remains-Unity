@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Remains.Domain;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Remains.Presentation
 {
@@ -10,6 +11,7 @@ namespace Remains.Presentation
         public static GameObject Build(RoomLayout room,RoomLightProfile lightingProfile=null)
         {
             var parent=new GameObject("Комната: "+room.id).transform;
+            var sorting=parent.gameObject.AddComponent<SortingGroup>();sorting.sortingOrder=WorldVisualOrderPolicy.SceneryRoomOrder;
             parent.gameObject.AddComponent<RoomMeshLifetime>();
             var lighting=parent.gameObject.AddComponent<RoomLighting>();
             if(lightingProfile==null) lighting.Initialize(room);else lighting.Initialize(room,lightingProfile);

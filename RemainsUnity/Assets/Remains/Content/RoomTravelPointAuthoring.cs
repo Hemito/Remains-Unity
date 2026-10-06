@@ -15,6 +15,7 @@ namespace Remains.Content
         [SerializeField,InspectorName("Размер области взаимодействия")] private Vector2 size;
         [SerializeField,Min(.1f),InspectorName("Дальность взаимодействия")] private float range=1.3f;
         [SerializeField,InspectorName("Место прибытия к этой точке")] private Vector2 arrival;
+        public string StableId=>stableId;
         public void Configure(string id,TravelPointKind role,string label,string target,string targetPoint,Vector2 bounds,Vector2 spawn)
         {stableId=id;kind=role;title=label;destination=target;arrivalPoint=targetPoint;size=bounds;arrival=spawn;}
         public TravelPoint Read(RoomAuthoring room,string level)

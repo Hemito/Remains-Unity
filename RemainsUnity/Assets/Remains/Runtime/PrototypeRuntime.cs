@@ -55,6 +55,8 @@ namespace Remains.Runtime
         private readonly RemoteActorMotion remoteMotion=new();
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
         private ActorVisualLayers visualLayers;
+        private readonly WorldVisualOrderTable visualOrders=new();
+        private readonly TravelPointVisuals travelPointVisuals=new();
         private PrototypeHud hud;
         private SaveLibraries saveLibraries;
         private Camera cameraView;
@@ -103,6 +105,10 @@ namespace Remains.Runtime
             // NetworkManager.Awake must see the final transport, including a test wrapper.
             networkObject.SetActive(true);
             DontDestroyOnLoad(gameObject);
+            // Publish the shared order before simulation Changed callbacks can
+            // create restored projectile, grenade or actor representations.
+            Session.Changed+=RefreshVisualOrders;
+            RefreshVisualOrders();
             Geometry=new SimulationGeometry(Session);
             Platforms=new PlatformSimulation(Session,Geometry);
             MechanismInteraction=new MechanismInteraction(Session);
@@ -117,7 +123,7 @@ namespace Remains.Runtime
             Grenades=new GrenadeController(Session,Interactions,Combat,Geometry);
             Telekinesis=new TelekinesisController(Session,Interactions,Geometry);
             freeProps=new FreePropSimulation(Session,Geometry,Interactions);
-            visualLayers=new ActorVisualLayers(transform);
+            visualLayers=new ActorVisualLayers(transform,visualOrders);
             var interactionVisuals=new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers);
             HeldItems=new GameObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
@@ -125,19 +131,20 @@ namespace Remains.Runtime
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
+            travelPointVisuals.Bind(roomObject);
             cameraView=CameraFollower.RequireCamera(Camera.main);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
-            DoorVisuals=new GameObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio);
-            new GameObject("Механизмы мира").AddComponent<MechanismVisuals>().Initialize(Session,Platforms);
+            DoorVisuals=new GameObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio,visualOrders);
+            var mechanismVisuals=new GameObject("Механизмы мира").AddComponent<MechanismVisuals>();mechanismVisuals.Initialize(Session,Platforms,visualOrders);
             GrenadeAudio=new GameObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
             MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=new GameObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
             ImpactAudio=new GameObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
             MeleeAudio=new GameObject("Звуки контактов ближнего оружия").AddComponent<MeleeImpactAudio>();MeleeAudio.Initialize(Combat,Audio);
-            new GameObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles);
-            new GameObject("Попадания лазера").AddComponent<LaserImpactEffects>().Initialize(Session,Combat.Projectiles);
-            Explosions=new GameObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session);
+            new GameObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles,visualOrders);
+            new GameObject("Попадания лазера").AddComponent<LaserImpactEffects>().Initialize(Session,Combat.Projectiles,visualOrders);
+            Explosions=new GameObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session,visualOrders);
             Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             if(Application.isBatchMode && Options.Smoke!=null && string.IsNullOrEmpty(Options.SaveDirectory))
                 throw new System.InvalidOperationException("Фоновая проверка требует отдельного каталога --save-dir для настроек.");
@@ -152,6 +159,8 @@ namespace Remains.Runtime
                 hud.LocalActorVisual=()=>Session.LocalActor==null?null:FindActorVisual(Session.LocalActor.id);
                 hud.LocalWeaponArtwork=()=>Session.LocalActor==null?null:interactionVisuals.FindWeapon(Session.LocalActor.id)?.Artwork;
                 hud.LocalHeldItemArtwork=()=>Session.LocalActor==null?null:HeldItems.Find(Session.LocalActor.id);
+                var outlineSources=new InteractionOutlineSources(visualLayers,interactionVisuals,DoorVisuals,travelPointVisuals,mechanismVisuals);
+                hud.ConfigureWorldOutline(cameraView,outlineSources.Resolve);
                 hud.SelectedInteraction=()=>InteractionFocus.Target;
                 hud.PickupPending=()=>Pickup.Pending;
                 hud.MechanismProgress=()=>MechanismInteraction.Progress;
@@ -186,7 +195,8 @@ namespace Remains.Runtime
             if(Options.Smoke?.Contains("-attacker-")==true) Session.ServerReady+=()=>Session.SetFriendlyFireDecision(FriendlyFireDecision.Attacker);
             if (Options.Smoke != null)
             {
-                if(Options.Smoke=="characters-selection") gameObject.AddComponent<CharacterSelectionProbe>().Initialize(this);
+                if(Options.Smoke=="characters-guest") gameObject.AddComponent<SelectedWorldGuestProbe>().Initialize(this);
+                else if(Options.Smoke is "characters-selection" or "characters-copies" or "characters-world-content" or "characters-coop") gameObject.AddComponent<CharacterSelectionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("characters")) gameObject.AddComponent<CharacterMenuProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("appearance")) gameObject.AddComponent<NetworkAppearanceProbe>().Initialize(this);
@@ -249,7 +259,7 @@ namespace Remains.Runtime
 
         private IEnumerator Start()
         {
-            if(Options.Smoke?.StartsWith("characters")==true) yield break;
+            if(Options.Smoke?.StartsWith("characters")==true && Options.Smoke!="characters-guest") yield break;
             LegacyPrototypeFixture.Prepare(this);
             if(saveLibraries!=null && Options.Role!=null)
             {
@@ -266,13 +276,15 @@ namespace Remains.Runtime
             else if (Options.Role=="client") Session.StartClient();
         }
 
+        private void RefreshVisualOrders()=>visualOrders.Reconcile(Session.World,Session.LocalActor?.level);
+
         private void RefreshVisuals()
         {
             passengers.Reconcile(Session.World,Session.LocalOwner);
             if (Session.World==null || Session.LocalActor==null)
             {
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
-                visuals.Clear();visualLayers.Synchronize(System.Array.Empty<string>());return;
+                visuals.Clear();visualLayers.Synchronize(Session.World,Session.LocalActor?.level);travelPointVisuals.Clear();return;
             }
             string definition=WorldRooms.Definition(Session.World,Session.LocalActor.level);
             if(shownLevel!=Session.LocalActor.level || shownRoom!=definition)
@@ -285,6 +297,7 @@ namespace Remains.Runtime
                 releaseRequested=true;
                 if(!ReleasingUnusedAssets) StartCoroutine(ReleaseUnusedAssets());
             }
+            travelPointVisuals.Bind(roomObject);
             var activeRoom=Geometry.Get(Session.LocalActor.level);
             if(!ReferenceEquals(movement.Room,activeRoom)) movement=CreateMovement(activeRoom);
             cameraFollower.Room=activeRoom;
@@ -307,7 +320,7 @@ namespace Remains.Runtime
                 {pair.Value.SetVisible(false);Destroy(pair.Value.gameObject);removed.Add(pair.Key);}
             }
             foreach (var id in removed) visuals.Remove(id);
-            visualLayers.Synchronize(visuals.Keys);
+            visualLayers.Synchronize(Session.World,Session.LocalActor?.level);
         }
 
         private MovementController CreateMovement(RoomLayout room)

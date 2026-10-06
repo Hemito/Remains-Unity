@@ -27,7 +27,7 @@ namespace Remains.Presentation
                     throw new InvalidOperationException($"Префаб {name}: отсутствует спрайт или не совпадает графика {key}.");
                 Resource=authoredResource;Draw();return;
             }
-            if(view==null) {view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=20;}
+            if(view==null) {view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=WorldVisualOrderPolicy.ActorPartOrder;}
             if(artwork!=key)
             {
                 if(string.IsNullOrEmpty(key)) throw new InvalidOperationException($"Не задана графика статического актёра: {actor.id}, type={actor.actorType}.");
