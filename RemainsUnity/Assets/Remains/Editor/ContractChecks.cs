@@ -16,7 +16,7 @@ namespace Remains.Editor
         {
             ProjectStorageChecks.Run();LevelTimeReplicaChecks.Run();MechanismOperationsChecks.Run();
             ItemShortcutChecks.Run();
-            DoorStateChecks.Run();DoorContentChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
+            DoorStateChecks.Run();DoorContentChecks.Run();DoorBarrierChecks.Run();DoorDamageRequestChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
             PonyAppearance.Prepare();PonyPaletteChecks.Run();
             var music=Resources.Load<MusicCatalogAsset>("Content/area-music");
             if(music==null) throw new InvalidOperationException("Нет каталога музыки локаций.");

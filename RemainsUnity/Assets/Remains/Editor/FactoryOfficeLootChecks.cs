@@ -41,7 +41,8 @@ namespace Remains.Editor
             var layout=RoomPhysicalContent.Read(room,"factory:0");CheckPlacement(room,layout,0);
             int npcCount=RoomNpcContent.Read(room,"factory:0")?.actors.Length??0;
             bool furniture=FactoryOfficeFurnitureChecks.CheckOfficeStage(room);
-            Require(npcCount==5 && room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==17-(furniture?8:0),
+            bool openings=FactoryOfficeOpeningsChecks.CheckOfficeStage(room);
+            Require(npcCount==5 && room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==17-(furniture?8:0)-(openings?7:0),
                 "Потеряна встреча из пяти NPC или скрыты другие неподключённые записи.");
             CheckPersistence(new RoomContentBatch {physical=layout},RoomPhysicalContent.Read(room,"factory:6"),false);
         }

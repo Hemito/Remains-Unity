@@ -45,6 +45,8 @@ namespace Remains.Domain
                 return "Некорректный сегмент контакта закреплённого объекта.";
             door=world.doors.Find(value=>value.id==request.door);
             if(door==null || door.integrity==null) return "Закреплённый объект не поддерживает разрушаемую целостность.";
+            try {door.Validate();}
+            catch(InvalidOperationException failure) {return "Некорректные данные закреплённого объекта: "+failure.Message;}
             if(door.level!=attack.level || participant.level!=attack.level) return "Контакт и отправитель находятся в разных локациях.";
             if(NpcNaturalAttack.IsNatural(attack) || attack.weapon=="grenade") return "Урон закреплённым объектам этой атакой пока не поддержан.";
             try {weapon=weapons?.Invoke(attack.weapon);}

@@ -10,6 +10,12 @@ namespace Remains.Editor
 {
     public static class FactoryOfficeMilestone
     {
+        public static void InstallOpeningsAndBuild()
+        {
+            FactoryOfficeOpeningsAuthoring.Install();
+            FactoryOfficeOpeningsAuthoring.IdempotentVerify();
+            PrototypeBuild.Build();
+        }
         public static void ImportAndBuild()
         {
             RoomAuthoringScenes.ValidateSavedOverrides();

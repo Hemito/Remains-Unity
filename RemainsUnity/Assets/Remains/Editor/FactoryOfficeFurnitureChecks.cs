@@ -65,8 +65,9 @@ namespace Remains.Editor
         {
             Require(CheckOfficeStage(room),"Восемь записей мебели ещё не установлены.");
             var layout=RoomPhysicalContent.Read(room,"factory:0");var batch=RoomContentBatch.Read(room,"factory:0");
-            Require(room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==9 && batch.npcs.actors.Length==5 && batch.doors.doors.Length==3,
-                "Скрыты девять pending записей или изменены пять NPC/три двери.");
+            bool openings=FactoryOfficeOpeningsChecks.CheckOfficeStage(room);
+            Require(room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==(openings?2:9) && batch.npcs.actors.Length==5 && batch.doors.doors.Length==(openings?9:3),
+                "Число pending/NPC/дверей не соответствует проверенной стадии проёмов.");
             CheckPlacement(room,layout,0);CheckGeometry(room.CreateLayout(false),layout,batch.npcs.actors,batch.doors.doors);
             CheckPersistence(batch,RoomPhysicalContent.Read(room,"factory:6"),false);
         }
@@ -74,7 +75,8 @@ namespace Remains.Editor
         {
             var office=room.GetComponentsInChildren<RoomAuthoring>(true).Single(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
             CheckOffice(office);var batch=RoomContentBatch.Read(room,"factory:0");BeforeFurniture(batch.physical);
-            Require(batch.physical.patch=="factory:0:"+FactoryOfficeFurnitureAuthoring.ConnectedPatch && batch.npcs.actors.Length==13 && batch.doors.doors.Length==9 &&
+            bool openings=FactoryOfficeOpeningsChecks.CheckOfficeStage(office);
+            Require(batch.physical.patch=="factory:0:"+FactoryOfficeFurnitureAuthoring.ConnectedPatch && batch.npcs.actors.Length==13 && batch.doors.doors.Length==(openings?15:9) &&
                 batch.mechanisms.movingPlatforms.Length==1 && batch.mechanisms.mechanismButtons.Length==2,"Мебель изменила прежние NPC/двери/механизмы.");
             CheckPlacement(room,batch.physical,76.8f);CheckGeometry(room.CreateLayout(false),batch.physical,batch.npcs.actors,batch.doors.doors);
             var catalog=EntityAssetCatalog.Load();var icons=new InventoryArtwork();
@@ -87,7 +89,7 @@ namespace Remains.Editor
                     Require(icons.Require(item.definition)!=null,"Нет точной иконки существующего предмета: "+item.definition);
             }
             CheckPersistence(batch,RoomPhysicalContent.Read(room,"factory:6"),true);
-            Debug.Log("Мебель офисов53: PASS — восемь точных source ID/anchors, 3 props + 5 общих контейнеров, 37/46 записей, 9 pending; source тела/графика/SO отдельно от E, цепочки office v1/v2→v3 и root v1/v2/v3/v4/v5→v6 без refill/resurrection; depleted/dead/cargo/midsegment/модовые поля, claims/reload/dedup. Native маршрут/исходные skills/locks/open sprite этой проверкой не подтверждаются.");
+            Debug.Log($"Мебель офисов53: PASS — восемь точных source ID/anchors, 3 props + 5 общих контейнеров, {(openings?44:37)}/46 записей, {(openings?2:9)} pending; source тела/графика/SO отдельно от E, цепочки office v1/v2→v3 и root v1/v2/v3/v4/v5→v6 без refill/resurrection; depleted/dead/cargo/midsegment/модовые поля, claims/reload/dedup. Native маршрут/исходные skills/locks/open sprite этой проверкой не подтверждаются.");
         }
         private static void CheckNewRecords(PhysicalLayout layout,float offset)
         {

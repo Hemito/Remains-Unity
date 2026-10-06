@@ -21,8 +21,11 @@ namespace Remains.Editor
             var report=office.GetComponent<RoomImportAudit>().Report;
             CheckOfficeLights(office);
             Require(report.Records.Length==46 && report.Records.All(r=>!string.IsNullOrWhiteSpace(r.reason)),"Потеряны исходные записи и причины решений.");
+            bool openings=FactoryOfficeOpeningsChecks.CheckOfficeStage(office);
             Require(report.Records.Single(r=>r.code=="NMeCLKXlWsv6CYYL").installed &&
-                !report.Records.Single(r=>r.code=="zlnR8eeCKCDkaJ8P").installed,"Совпадающая исходная дверь скрыта или установлена дважды.");
+                report.Records.Single(r=>r.code=="zlnR8eeCKCDkaJ8P").installed==openings &&
+                !RoomDoorContent.Read(office,"factory:0").doors.Any(d=>d.id.EndsWith(":zlnR8eeCKCDkaJ8P",StringComparison.Ordinal)),
+                "Совпадающая исходная дверь скрыта или установлена дважды.");
             var connector=room.transform.Find(FactoryOfficeConnectionAuthoring.Connector);
             var connection=FactoryOfficeConnectionData.Load();
             Require(connector!=null && connector.GetComponentsInChildren<RoomSurfaceAuthoring>().Length==1,"Нет единственной рамки прохода.");

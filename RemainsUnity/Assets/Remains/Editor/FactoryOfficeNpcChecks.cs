@@ -58,7 +58,8 @@ namespace Remains.Editor
             FactoryOfficeNpcAuthoring.ValidateSource(room.GetComponent<RoomImportAudit>().Report,installed);
             bool officeLoot=FactoryOfficeLootChecks.CheckOfficeStage(room);
             bool furniture=FactoryOfficeFurnitureChecks.CheckOfficeStage(room);
-            Require(room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==(installed?21:26)-(officeLoot?4:0)-(furniture?8:0),"Скрыты другие неподключённые объекты офиса.");
+            bool openings=FactoryOfficeOpeningsChecks.CheckOfficeStage(room);
+            Require(room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==(installed?21:26)-(officeLoot?4:0)-(furniture?8:0)-(openings?7:0),"Скрыты другие неподключённые объекты офиса.");
             var layout=RoomNpcContent.Read(room,"factory:0");var geometry=room.CreateLayout(false);
             var markers=room.GetComponentsInChildren<RoomActorPlacement>(true).Where(room.Included).ToArray();
             Require(layout?.patch=="factory:0:"+FactoryOfficeNpcAuthoring.OfficePatch && layout.actors.Length==5 && layout.loot.Length==5 &&

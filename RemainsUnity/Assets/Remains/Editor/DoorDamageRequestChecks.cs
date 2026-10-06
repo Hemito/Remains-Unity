@@ -51,6 +51,9 @@ namespace Remains.Editor
                 Check(before==StateJson.ToJson(f.door),"Отказ не меняет HP, revision, receipts или extensions.");
             }
             var melee=new Fixture();
+            Reject(f=>f.door.integrity.resolvedAttacks=null);
+            Reject(f=>f.door.integrity.version=2);
+            Reject(f=>f.door.integrity.health=-1);
             Check(melee.Apply(out _) == DoorChange.Changed && melee.door.integrity.health==86 && melee.door.revision==1,"Принятый crowbar contact меняет HP один раз.");
             Check(melee.Apply(out _,true)==DoorChange.Unchanged && melee.door.integrity.health==86 && melee.door.revision==1,"Durable повтор безопасен на паузе.");
             var secondSegment=StateJson.Copy(melee.request.attack);secondSegment.originX=1;
