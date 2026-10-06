@@ -23,6 +23,8 @@ namespace Remains.Runtime
         private bool jumped,opened,claiming,crossed,shared;
         public bool Complete=>phase==10 && crossed && shared && (office==null || office.Complete);
         public bool OfficeRouteVerified=>office?.Complete==true;
+        public bool WarehouseLowerRouteVerified=>office?.WarehouseLowerRouteVerified==true;
+        public WarehouseLowerClaim[] WarehouseClaims=>office?.WarehouseClaims??Array.Empty<WarehouseLowerClaim>();
         public bool OfficeLowerFloorVerified=>office?.LowerFloorVerified==true;
         public bool OfficeReturnVerified=>office?.ReturnedFromOfficeVerified==true;
         public string OfficeContainer=>office?.TargetId;

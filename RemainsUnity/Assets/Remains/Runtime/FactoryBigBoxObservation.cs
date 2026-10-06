@@ -11,9 +11,10 @@ namespace Remains.Runtime
     {
         public static void Verify(PrototypeRuntime runtime)
         {
-            var boxes=runtime.Session.World.props.Where(p=>p.level=="factory:0" && p.definition=="bigbox").ToArray();
+            var boxes=runtime.Session.World.props.Where(p=>p.level=="factory:0" && p.definition=="bigbox" &&
+                p.id.StartsWith("factory:0:original:plant:18:",StringComparison.Ordinal)).ToArray();
             if(boxes.Length!=2 || boxes.Any(p=>p.mass!=175 || p.width!=2 || p.height!=1.6f || p.anchorHeight!=0 || p.held))
-                throw new InvalidOperationException("Игровой завод потерял два больших ящика или их физические параметры.");
+                throw new InvalidOperationException($"Цех18 потерял два исходных больших ящика или их физические параметры: count={boxes.Length}, ids={string.Join(",",boxes.Select(p=>p.id))}.");
             var visuals=UnityEngine.Object.FindFirstObjectByType<InteractionVisuals>();
             foreach(var box in boxes)
             {

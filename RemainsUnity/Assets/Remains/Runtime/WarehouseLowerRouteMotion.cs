@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Remains.Domain;
 using Remains.Gameplay;
@@ -13,6 +14,7 @@ namespace Remains.Runtime
             OfficeGapApproach,OfficeGap,OfficeReturn,OfficeComplete }
         private readonly RoomLayout room;
         private bool jumped;
+        private readonly HashSet<Phase> climbed=new();
         internal Phase Current {get;private set;}
         internal bool Critical=>Current is Phase.Gap or Phase.OfficeGap or Phase.L1Down or Phase.L2Down or Phase.L2Up or Phase.L1Up;
         internal bool Arrived=>Current==Phase.Arrived;
@@ -39,6 +41,19 @@ namespace Remains.Runtime
             !actor.climbing && ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
         internal bool At(ActorState actor,float x,float y)=>Mathf.Abs(actor.x-x)<.08f && Landed(actor,y);
         private bool AtRest(ActorState actor,float x,float y)=>At(actor,x,y) && Mathf.Abs(actor.vx)<.1f;
+        // A normal S/W press catches the ladder within its entry corridor; do not
+        // insist on parking on the narrow cap with a second horizontal tap.
+        private bool AtLadderEntry(ActorState actor,float x,float y)=>Mathf.Abs(actor.x-x)<=.3f && Landed(actor,y);
+        private void ObserveClimb(ActorState actor,float x,float bottom,float top,bool up)
+        {
+            float margin=(top-bottom)*.25f;
+            if(actor.climbing && Mathf.Abs(actor.x-x)<.01f && actor.y>bottom+margin && actor.y<top-margin &&
+                (up?actor.vy>0:actor.vy<0)) climbed.Add(Current);
+        }
+        private void RequireClimb(ActorState actor)
+        {
+            if(!climbed.Contains(Current)) throw new InvalidOperationException($"Нижний маршрут склада: площадка достигнута без наблюдаемого лазания; actor={actor.id}, phase={Current}, position={actor.Position}, velocity={actor.Velocity}.");
+        }
         private static PlayerCommand Move(ActorState actor,float x)
         {
             float distance=x-actor.x;
@@ -84,13 +99,21 @@ namespace Remains.Runtime
                 case Phase.GapApproach:if(actor.x>=101.7f && Landed(actor,7.2f)) Current=Phase.Gap;break;
                 case Phase.Gap:if(jumped && actor.x>=104.5f && Landed(actor,7.2f)) Current=Phase.Entry;break;
                 case Phase.Entry:if(AtRest(actor,117.8f,7.2f)) Current=Phase.Arrived;break;
-                case Phase.L1Approach:if(AtRest(actor,122.98f,7.2f)) Current=Phase.L1Down;break;
-                case Phase.L1Down:if(At(actor,122.98f,4)) Current=Phase.L2Approach;break;
-                case Phase.L2Approach:if(AtRest(actor,125.38f,4)) Current=Phase.L2Down;break;
-                case Phase.L2Down:if(At(actor,125.38f,.8f)) Current=Phase.L2Up;break;
-                case Phase.L2Up:if(At(actor,125.38f,4)) Current=Phase.L1Return;break;
-                case Phase.L1Return:if(AtRest(actor,122.98f,4)) Current=Phase.L1Up;break;
-                case Phase.L1Up:if(At(actor,122.98f,7.2f)) Current=Phase.ReturnEntry;break;
+                case Phase.L1Approach:if(AtLadderEntry(actor,122.98f,7.2f)) Current=Phase.L1Down;break;
+                case Phase.L1Down:
+                    ObserveClimb(actor,122.98f,4,7.2f,false);
+                    if(At(actor,122.98f,4)) {RequireClimb(actor);Current=Phase.L2Approach;}break;
+                case Phase.L2Approach:if(AtLadderEntry(actor,125.38f,4)) Current=Phase.L2Down;break;
+                case Phase.L2Down:
+                    ObserveClimb(actor,125.38f,.8f,4,false);
+                    if(At(actor,125.38f,.8f)) {RequireClimb(actor);Current=Phase.L2Up;}break;
+                case Phase.L2Up:
+                    ObserveClimb(actor,125.38f,.8f,4,true);
+                    if(At(actor,125.38f,4)) {RequireClimb(actor);Current=Phase.L1Return;}break;
+                case Phase.L1Return:if(AtLadderEntry(actor,122.98f,4)) Current=Phase.L1Up;break;
+                case Phase.L1Up:
+                    ObserveClimb(actor,122.98f,4,7.2f,true);
+                    if(At(actor,122.98f,7.2f)) {RequireClimb(actor);Current=Phase.ReturnEntry;}break;
                 case Phase.ReturnEntry:if(AtRest(actor,117.8f,7.2f)) Current=Phase.Complete;break;
                 case Phase.OfficeGapApproach:if(actor.x<=104.7f && Landed(actor,7.2f)) Current=Phase.OfficeGap;break;
                 case Phase.OfficeGap:if(jumped && actor.x<=102.2f && Landed(actor,7.2f)) Current=Phase.OfficeReturn;break;

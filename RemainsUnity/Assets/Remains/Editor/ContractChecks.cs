@@ -109,6 +109,7 @@ namespace Remains.Editor
             InventoryWindowChecks.Run();
             FloatingContainerChecks.Run();
             ContainerWindowLayoutChecks.Run();
+            PonyArtworkBoundsChecks.Run();
             var pauseMenu=Resources.Load<Remains.Presentation.PauseMenuView>("Presentation/PauseMenu");
             if(pauseMenu==null) throw new InvalidOperationException("Нет префаба меню паузы.");
             pauseMenu.Validate();

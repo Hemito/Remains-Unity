@@ -40,6 +40,7 @@ namespace Remains.Runtime
             runtime=value;deadline=Time.unscaledTime+110;
             if(value.Options.Smoke.Contains("-seam-")) {seam=new FactorySeamRoute(value);deadline+=70;}
             if(value.Options.Smoke.Contains("-office-",StringComparison.Ordinal)) deadline+=240;
+            if(value.Options.Smoke.Contains("-warehouse-",StringComparison.Ordinal)) deadline+=200;
             if(value.Session.DebugTravelAllowed || string.IsNullOrEmpty(value.Options.SaveDirectory))
                 throw new InvalidOperationException("Маршрут требует обычных правил перехода и отдельного сохранения.");
             if(Host)
@@ -209,6 +210,7 @@ namespace Remains.Runtime
                 NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".route-failure.png",runtime.Hud.GetComponent<Canvas>());
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved,seamVerified=seam?.Complete==true,bigBoxesVerified=seam?.BigBoxesVerified==true,workshopNpcsVerified=seam?.WorkshopNpcsVerified==true,ladderLandingVerified=seam?.LadderLandingVerified==true,
                 officeRouteVerified=seam?.OfficeRouteVerified==true,officeLowerFloorVerified=seam?.OfficeLowerFloorVerified==true,officeReturnVerified=seam?.OfficeReturnVerified==true,
+                warehouseLowerRouteVerified=seam?.WarehouseLowerRouteVerified==true,warehouseClaims=seam?.WarehouseClaims,
                 officeContainer=seam?.OfficeContainer,officeClaimedItem=seam?.OfficeClaimedItem,officeClaimedDefinition=seam?.OfficeClaimedDefinition,officeClaimedCount=seam?.OfficeClaimedCount??0,
                 officePlatformRepairReady=seam?.OfficePlatformRepairReady==true,officePlatformCarryVerified=seam?.OfficePlatformCarryVerified==true,
                 officePlatformCarryDistance=seam?.OfficePlatformCarryDistance??0,officePlatformCarryMaximumRelativeError=seam?.OfficePlatformCarryMaximumRelativeError??0},true));
@@ -218,6 +220,7 @@ namespace Remains.Runtime
         private void Exit()=>Application.Quit(exitCode);
         [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public bool separated,blocked,farRejected,pausedExit,preserved,seamVerified,bigBoxesVerified,workshopNpcsVerified,ladderLandingVerified;
             public bool officeRouteVerified,officeLowerFloorVerified,officeReturnVerified,officePlatformRepairReady,officePlatformCarryVerified;
+            public bool warehouseLowerRouteVerified;public WarehouseLowerClaim[] warehouseClaims;
             public string officeContainer,officeClaimedItem,officeClaimedDefinition;public int officeClaimedCount;
             public float officePlatformCarryDistance,officePlatformCarryMaximumRelativeError;}
     }

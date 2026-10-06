@@ -24,7 +24,7 @@ namespace Remains.Runtime
             None,WorkshopLeftApproach,WorkshopLeftUp,
             WorkshopLeaveShelf,WorkshopBottom,WorkshopRightUp,EastGapApproach,EastGap,
             OfficeEntry,OfficeDrop,OfficeLadderApproach,OfficeDown,OfficeTarget,Open,Viewed,Claim,
-            OfficeReturnBottom,OfficeUp,OfficeUnderShelf,OfficeJump,ReturnSeam,
+            OfficeReturnBottom,OfficeUp,Warehouse,OfficeUnderShelf,OfficeJump,ReturnSeam,
             WestGapApproach,WestGap,WorkshopRightApproach,RightBank,RightRepair,CallPlatform,WaitPlatform,
             BoardPlatform,BoardBarrier,ReturnPlatform,RidePlatform,LeftGapApproach,LeftGap,ReturnStart,ReturnBarrier,Complete
         }
@@ -34,6 +34,9 @@ namespace Remains.Runtime
         private const float CarryTolerance=.3f;
         public string TargetId=>Level+":original:plant:53:Bf6ZE9xBKE8ABZ5b";
         private readonly PrototypeRuntime runtime;
+        private readonly FactoryWarehouseLowerRoute warehouse;
+        public bool WarehouseLowerRouteVerified=>warehouse?.Complete==true;
+        public WarehouseLowerClaim[] WarehouseClaims=>warehouse?.ClaimedStacks.ToArray()??Array.Empty<WarehouseLowerClaim>();
         private readonly HashSet<string> viewers=new(StringComparer.Ordinal),returners=new(StringComparer.Ordinal),shots=new(StringComparer.Ordinal);
         private readonly HashSet<string> defeated=new(StringComparer.Ordinal),fought=new(StringComparer.Ordinal);
         private readonly HashSet<string> bankWaiters=new(StringComparer.Ordinal),boarders=new(StringComparer.Ordinal);
@@ -49,6 +52,7 @@ namespace Remains.Runtime
         private int healingLifecycle,healingInventory,projectileContacts;
         private string healingRequest,healingReply,lastProjectileContact;
         private float healingDeadline;
+        private float nextBarrierSend;
         private readonly List<DepartureFrame> firstDepartureFrames=new();
         private readonly Queue<DepartureFrame> recentDepartureFrames=new();
         private RoomSurface[] boardingFloorCandidates=Array.Empty<RoomSurface>();
@@ -68,7 +72,7 @@ namespace Remains.Runtime
         public int ConfirmedHealingCount=>healedTransactions.Count;
         public bool Complete=>stage==Stage.Complete;
         public string Failure {get;private set;}
-        public string Progress=>$"officePhase={stage}, actor={Actor?.id}, owner={Actor?.owner}/{owner}, generation={Actor?.generation}/{generation}, lifecycle={Actor?.lifecycleSequence}/{lifecycle}, level={Actor?.level}/{Level}, geometrySame={GeometrySame}, position={Actor?.Position}, velocity={Actor?.Velocity}, climbing={Actor?.climbing}, crouched={Actor?.crouched}, HP={Actor?.health}, lower={LowerFloorVerified}, returned={ReturnedFromOfficeVerified}, source={TargetId}, item={ClaimedItem}, views={viewers.Count}, returns={returners.Count}, bank={bankWaiters.Count}, board={boarders.Count}, platform={PlatformId}/{Platform?.endpoint}/{Platform?.segment?.sequence}, repair={RightButton?.repairState}/{runtime.MechanismInteraction.Progress}/{runtime.MechanismInteraction.Pending}, carry={PlatformCarryDistance}/{PlatformCarryMaximumRelativeError}/{PlatformCarryVerified}, combat={combatTarget}/{runtime.Session.World?.Find(combatTarget)?.health}, combatMoves={combatMoves}, ammunition={MagazineRounds}/{ReserveRounds}, door={requestedDoor}, shots={CombatShots}, contacts={projectileContacts}/{lastProjectileContact}, defeats={CombatDefeats}, healing={healingPending}/{healingReply}/{ConfirmedHealingCount}";
+        public string Progress=>$"officePhase={stage}, actor={Actor?.id}, owner={Actor?.owner}/{owner}, generation={Actor?.generation}/{generation}, lifecycle={Actor?.lifecycleSequence}/{lifecycle}, level={Actor?.level}/{Level}, geometrySame={GeometrySame}, position={Actor?.Position}, velocity={Actor?.Velocity}, climbing={Actor?.climbing}, crouched={Actor?.crouched}, HP={Actor?.health}, lower={LowerFloorVerified}, returned={ReturnedFromOfficeVerified}, source={TargetId}, item={ClaimedItem}, views={viewers.Count}, returns={returners.Count}, bank={bankWaiters.Count}, board={boarders.Count}, platform={PlatformId}/{Platform?.endpoint}/{Platform?.segment?.sequence}, repair={RightButton?.repairState}/{runtime.MechanismInteraction.Progress}/{runtime.MechanismInteraction.Pending}, carry={PlatformCarryDistance}/{PlatformCarryMaximumRelativeError}/{PlatformCarryVerified}, combat={combatTarget}/{runtime.Session.World?.Find(combatTarget)?.health}, combatMoves={combatMoves}, ammunition={MagazineRounds}/{ReserveRounds}, door={requestedDoor}, shots={CombatShots}, contacts={projectileContacts}/{lastProjectileContact}, defeats={CombatDefeats}, healing={healingPending}/{healingReply}/{ConfirmedHealingCount}, warehouse={warehouse?.Progress}";
         private int MagazineRounds=>Actor?.inventory.FirstOrDefault(i=>i.definition=="pistol")?.weaponState?.rounds??-1;
         private int ReserveRounds=>Actor==null?-1:InventoryJournal.Count(Actor,"p10");
         private bool GeometrySame=>room!=null && runtime.Geometry.LoadedLevels.Contains(Level) && ReferenceEquals(room,runtime.Geometry.Get(Level));
@@ -83,6 +87,8 @@ namespace Remains.Runtime
         public FactoryOfficeRoute(PrototypeRuntime value)
         {
             runtime=value;
+            if(value.Options.Smoke.Contains("-warehouse-",StringComparison.Ordinal))
+                warehouse=new FactoryWarehouseLowerRoute(value);
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<OfficeRouteViewed>((connection,message)=>
             {
                 var actor=runtime.Session.ConnectedActor(connection);
@@ -168,8 +174,8 @@ namespace Remains.Runtime
                 PlayerCommand command;
                 // Do not cut the short jump's hold or double-S gesture to fight. The
                 // normal controller completes those motions; combat resumes on landing.
-                bool critical=stage is Stage.EastGap or Stage.WestGap or Stage.LeftGap or
-                    Stage.OfficeJump or Stage.OfficeDrop or Stage.CallPlatform or Stage.WaitPlatform or
+                bool critical=stage==Stage.Warehouse && warehouse.CriticalMotion || stage is Stage.EastGap or Stage.WestGap or Stage.LeftGap or
+                    Stage.OfficeJump or Stage.OfficeDrop or Stage.RightBank or Stage.RightRepair or Stage.CallPlatform or Stage.WaitPlatform or
                     Stage.BoardPlatform or Stage.BoardBarrier or Stage.ReturnPlatform or Stage.RidePlatform;
                 if(!critical && stage is not (Stage.Viewed or Stage.Claim or Stage.ReturnBarrier) &&
                     FindThreat() is { } npc)
@@ -206,7 +212,7 @@ namespace Remains.Runtime
                 }
                 else {combatTarget=null;combatMoves=false;command=RouteCommand();}
                 if(combatTarget==null) command=DoorIntent(command);
-                if(!healingPending && !command.interact && !command.inventory && !command.menu &&
+                if(!critical && !healingPending && !command.interact && !command.inventory && !command.menu &&
                     !runtime.Hud.BlocksGameplayInput && !runtime.Hud.ContainerOpen &&
                     Actor.health<75 && InventoryJournal.Count(Actor,"heal")>0 && Time.unscaledTime>=nextHeal)
                 {
@@ -220,7 +226,7 @@ namespace Remains.Runtime
             catch(Exception error) {Failure=error.Message;return default;}
         }
 
-        private bool MovingCombatStage()=>stage is Stage.WorkshopLeftApproach or Stage.WorkshopLeftUp or
+        private bool MovingCombatStage()=>stage==Stage.Warehouse && !warehouse.CriticalMotion || stage is Stage.WorkshopLeftApproach or Stage.WorkshopLeftUp or
             Stage.WorkshopLeaveShelf or Stage.WorkshopBottom or Stage.WorkshopRightUp or Stage.EastGapApproach or
             Stage.OfficeEntry or Stage.OfficeLadderApproach or Stage.OfficeDown or Stage.OfficeTarget or
             Stage.OfficeReturnBottom or Stage.OfficeUp or Stage.OfficeUnderShelf or Stage.ReturnSeam or
@@ -256,6 +262,7 @@ namespace Remains.Runtime
                 int prior=lifecycle;lifecycle=Actor.lifecycleSequence;
                 healedTransactions.Add(healingReply);healingPending=false;
                 SelfHealingConfirmed?.Invoke(prior,lifecycle,healingReply);
+                warehouse?.SynchronizeLifecycle(prior,lifecycle);
                 Debug.Log($"Обычный маршрут офиса: подтверждено самолечение transaction={healingReply}, actor={actorId}, lifecycle={prior}->{lifecycle}, heal={healingInventory}->{healingInventory-1}, HP={Actor.health}.");
                 return false;
             }
@@ -267,7 +274,8 @@ namespace Remains.Runtime
             var origin=Actor.Position+Vector2.up*.65f;
             return runtime.Session.World.actors.Where(a=>!a.player && !a.down && a.health>0 && a.level==Level &&
                 (a.id.StartsWith(Level+":original:plant:18:",StringComparison.Ordinal) ||
-                 a.id.StartsWith(Level+":original:plant:53:",StringComparison.Ordinal)) && ActorTypes.Get(a.actorType).combatAi &&
+                 a.id.StartsWith(Level+":original:plant:53:",StringComparison.Ordinal) ||
+                 warehouse!=null && a.id.StartsWith(Level+":original:plant:40:",StringComparison.Ordinal)) && ActorTypes.Get(a.actorType).combatAi &&
                 Vector2.Distance(a.Position,Actor.Position)<12 &&
                 (a.target==Actor.id || a.attackBusy && a.attackTarget==Actor.id ||
                  Vector2.Distance(a.Position,Actor.Position)<4 && Mathf.Abs(a.y-Actor.y)<1) &&
@@ -313,6 +321,7 @@ namespace Remains.Runtime
         {
             switch(stage)
             {
+                case Stage.Warehouse:return warehouse.Command();
                 case Stage.WorkshopLeftApproach:return Move(43.42f);
                 case Stage.WorkshopLeftUp:case Stage.WorkshopRightUp:case Stage.OfficeUp:return new PlayerCommand {movement=Vector2.up};
                 case Stage.OfficeDown:return new PlayerCommand {movement=Vector2.down};
@@ -416,16 +425,24 @@ namespace Remains.Runtime
                             NetworkServer.SendToAll(Loot(false));runtime.Hud.CloseContainer();Set(Stage.OfficeReturnBottom,"office-granted");
                         }break;
                     case Stage.OfficeReturnBottom:if(At(90.62f,.8f)) Set(Stage.OfficeUp);break;
-                    case Stage.OfficeUp:if(Landed(7.2f)) Set(Stage.OfficeUnderShelf);break;
-                    case Stage.OfficeUnderShelf:if(At(84,7.2f) && Mathf.Abs(Actor.vx)<.1f) Set(Stage.OfficeJump);break;
+                    case Stage.OfficeUp:if(Landed(7.2f))
+                        {if(warehouse==null) Set(Stage.OfficeUnderShelf);else {warehouse.Begin();Set(Stage.Warehouse);}}break;
+                    case Stage.Warehouse:
+                        warehouse.Tick();
+                        if(warehouse.Failure!=null) throw new InvalidOperationException(warehouse.Failure);
+                        if(warehouse.Complete) Set(Stage.OfficeUnderShelf);break;
+                    case Stage.OfficeUnderShelf:
+                        if(Landed(.8f)) throw new InvalidOperationException("Обратный маршрут потерял этаж7,2; проверьте обычный прыжок через разрыв офиса: "+Progress);
+                        if(At(84,7.2f) && Mathf.Abs(Actor.vx)<.1f) Set(Stage.OfficeJump);break;
                     case Stage.OfficeJump:if(jumped && Landed(10.4f)) Set(Stage.ReturnSeam,"office-return-shelf");break;
                     case Stage.ReturnSeam:if(At(74.4f,10.4f)) Set(Stage.WestGapApproach);break;
                     case Stage.WestGapApproach:if(Actor.x<=74 && Landed(10.4f)) Set(Stage.WestGap);break;
                     case Stage.WestGap:if(Actor.x<=71.5f && Landed(10.4f)) Set(Stage.WorkshopRightApproach);break;
                     case Stage.WorkshopRightApproach:if(!healingPending && At(67.42f,10.4f)) {SendViewed(false,1);Set(Stage.RightBank);}break;
                     case Stage.RightBank:
+                        if(!bankAcknowledged) ResendBarrier(1);
                         if(Host && bankWaiters.Count==runtime.Options.ProbePeers && !bankBroadcast)
-                        {bankBroadcast=true;NetworkServer.SendToAll(Loot(false,1));}
+                        {bankBroadcast=true;Debug.Log($"Обычный маршрут офиса: оба игрока на правом берегу, подтверждение={bankWaiters.Count}, actor={actorId}, HP={Actor.health}.");NetworkServer.SendToAll(Loot(false,1));}
                         if(bankAcknowledged) Set(Stage.RightRepair,"workshop-right-button");break;
                     case Stage.RightRepair:
                         if(RightButton.repairState==MechanismRepairStates.Ready && !runtime.MechanismInteraction.Pending)
@@ -479,6 +496,7 @@ namespace Remains.Runtime
                     case Stage.ReturnStart:if(!healingPending && At(40.4f,10.4f))
                         {ReturnedFromOfficeVerified=true;SendViewed(true);returnSent=true;Set(Stage.ReturnBarrier,"office-return");}break;
                     case Stage.ReturnBarrier:
+                        if(!returnAcknowledged) ResendBarrier(0,true);
                         if(Host && returners.Count==runtime.Options.ProbePeers && !returnBroadcast)
                         {returnBroadcast=true;NetworkServer.SendToAll(Loot(true));}
                         if(returnSent && returnAcknowledged) Set(Stage.Complete);break;
@@ -570,6 +588,11 @@ namespace Remains.Runtime
             return Platform.endpoint==endpoint && Platform.segment==null &&
                 Vector2.Distance(sample.Anchor,endpoint==0?Platform.Start:Platform.End)<.005f;
         }
+        private void ResendBarrier(int barrier,bool returned=false)
+        {
+            if(healingPending || Time.unscaledTime<nextBarrierSend) return;
+            nextBarrierSend=Time.unscaledTime+1;SendViewed(returned,barrier);
+        }
         private void SendViewed(bool returned,int barrier=0)=>NetworkClient.Send(new OfficeRouteViewed
             {actor=actorId,source=TargetId,generation=generation,lifecycle=lifecycle,returned=returned,barrier=barrier});
         private OfficeRouteLoot Loot(bool returned,int barrier=0)=>new() {source=TargetId,item=ClaimedItem,definition=ClaimedDefinition,
@@ -588,6 +611,7 @@ namespace Remains.Runtime
         }
         public void Capture()
         {
+            warehouse?.Capture();
             if(capture==null) return;
             if(runtime.Options.Smoke.Contains("-frames-"))
             {

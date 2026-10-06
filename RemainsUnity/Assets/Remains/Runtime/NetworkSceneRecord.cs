@@ -32,7 +32,8 @@ namespace Remains.Runtime
             var world=runtime.Session.World;
             var record=new NetworkSceneRecord {phase=phase,width=Screen.width,height=Screen.height,observer=runtime.Session.LocalActorId,
                 level=runtime.Session.LocalActor.level,cameraPosition=camera.transform.position,cameraSize=camera.orthographicSize,background=camera.backgroundColor,world=world.Copy()};
-            var localBounds=PonyVisual.WorldBounds(runtime.Session.LocalActor);
+            if(runtime.FindActorVisual(runtime.Session.LocalActor.id) is not {} localVisual || !localVisual.TryGetDrawnBounds(out var localBounds))
+                throw new InvalidOperationException("Нет фактически отрисованных границ игрока для записи: "+runtime.Session.LocalActor.id);
             record.localVisualMinimum=localBounds.min;record.localVisualMaximum=localBounds.max;
             record.ponies=UnityEngine.Object.FindObjectsByType<PonyVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(view=>
                 new NetworkPonyRecord {actor=world.Find(view.ActorId).Copy(),position=view.transform.position,scale=view.transform.localScale,
