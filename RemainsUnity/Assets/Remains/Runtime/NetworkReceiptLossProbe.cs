@@ -29,6 +29,9 @@ namespace Remains.Runtime
         private bool Body=>Loot || Deposit;
         private bool sawDepositPending,captured,loadedPending;
         private string recoveryTransaction,pendingItemId,capturedSnapshot,capturedArchive;
+        private bool operationReady,operationObserved,observedDebit;
+        private int operationBeforeCount=-1,canonicalAfterCount=-1,reconnectItemCount=-1,operationGeneration;
+        private string operationActor,operationLevel,observedTransaction,waitingFor="Фаза операции ещё не началась.";
         private bool Resume=>runtime.Options.Smoke.Contains("-resume-");
         private bool Crash=>runtime.Options.Smoke.Contains("-crash-");
         private bool Loot=>runtime.Options.Smoke.Contains("-loot-");
@@ -59,7 +62,14 @@ namespace Remains.Runtime
         private PlayerCommand Command()
         {
             var session=runtime.Session;
-            if(!Source || phase!=1 || threw || session.LocalActor==null) return default;
+            if(finished || !Source || phase!=1 || threw || session.LocalActor==null) return default;
+            if(!SettledReady(Body?"factory:0":"hub")) return default;
+            var actor=session.LocalActor;
+            operationBeforeCount=InventoryJournal.Count(actor,Item);
+            if(operationBeforeCount!=Before)
+            {Finish(false,$"Неверное исходное количество: actor={actor.id}, level={actor.level}, item={Item}, expected={Before}, actual={operationBeforeCount}.");return default;}
+            operationReady=true;operationActor=actor.id;operationLevel=actor.level;operationGeneration=actor.generation;
+            Debug.Log($"Потеря приёма: действие подготовлено, actor={operationActor}, generation={operationGeneration}, level={operationLevel}, phase={phase}, item={Item}, count={operationBeforeCount}; локация готова, интерфейс свободен, перехода и паузы нет, тело на опоре.");
             threw=true;blockedTransport=session.transport is LatencySimulation latency?latency.wrap:session.transport;
             receive=blockedTransport.OnClientDataReceived;
             blockedTransport.OnClientDataReceived=(_,_)=>{};
@@ -77,11 +87,29 @@ namespace Remains.Runtime
             }
             return new PlayerCommand {grenade=true,hasAim=true,aim=session.LocalActor.Position+Vector2.down*3};
         }
+        private bool SettledReady(string level)
+        {
+            var session=runtime.Session;var actor=session.LocalActor;
+            if(actor==null || !NetworkClient.isConnected || !actor.connected || actor.owner!=session.LocalOwner)
+            {waitingFor="Нет своего подключённого персонажа.";return false;}
+            if(!runtime.LevelPresentationReady || runtime.IsLevelPreparing)
+            {waitingFor="Локация ещё готовится.";return false;}
+            if(runtime.Hud?.BlocksGameplayInput==true)
+            {waitingFor="Интерфейс блокирует игровой ввод.";return false;}
+            if(session.Travel.Pending || actor.level!=level)
+            {waitingFor=$"Переход не завершён: expected={level}, actual={actor.level}, pending={session.Travel.Pending}.";return false;}
+            if(actor.down || session.Pause.IsPaused(actor.level))
+            {waitingFor=$"Персонаж или уровень не готовы: down={actor.down}, paused={session.Pause.IsPaused(actor.level)}.";return false;}
+            if(actor.climbing || Mathf.Abs(actor.vx)>.001f || Mathf.Abs(actor.vy)>.001f ||
+                !ActorTerrainMotion.Supported(runtime.Geometry.Get(actor.level),Anatomy.Movement(actor),actor.Position))
+            {waitingFor=$"Нет неподвижной опоры: body={actor.Position}, velocity=({actor.vx};{actor.vy}), climbing={actor.climbing}.";return false;}
+            waitingFor=null;return true;
+        }
         private void Update()
         {
             if(finished) return;
             var session=runtime.Session;
-            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут результата: phase={phase}, retained={retained}, ready={ready}, stale={staleCount}, durablePending={captured}, transaction={recoveryTransaction}, snapshot={capturedSnapshot}.");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут результата: phase={phase}, retained={retained}, ready={ready}, stale={staleCount}, operationReady={operationReady}, canonicalAfter={canonicalAfterCount}, observed={operationObserved}, waiting={waitingFor}, durablePending={captured}, transaction={recoveryTransaction}, snapshot={capturedSnapshot}.");return;}
             if(Resume)
             {
                 if(!Host || phase==2 || session.ServerWorld==null) return;
@@ -107,11 +135,12 @@ namespace Remains.Runtime
             if(Source && returned && !acknowledged && session.LocalActor!=null)
             {
                 acknowledged=true;int count=InventoryJournal.Count(session.LocalActor,Item);
-                if(count!=After) {Finish(false,"Устаревший профиль потерял результат операции.");return;}
+                reconnectItemCount=count;
+                if(count!=After) {Finish(false,$"Устаревший профиль потерял результат операции: actor={session.LocalActor.id}, generation={session.LocalActor.generation}, item={Item}, expected={After}, actual={count}, before={operationBeforeCount}, operationReady={operationReady}.");return;}
                 NetworkClient.Send(new ReceiptLossReady {before=staleCount,after=count});
             }
-            if(Body && (Host || Source) && !traveled && session.LocalActor!=null)
-            {traveled=true;session.Travel.RequestFactory();}
+            if(Body && (Host || Source) && !traveled && session.LocalActor!=null && SettledReady("hub"))
+            {session.Travel.RequestFactory();traveled=session.Travel.Pending;if(!traveled) Finish(false,"Переход проверки в завод не отправлен.");}
             if(!Host || session.World==null) return;
             if(phase==0 && session.ServerWorld.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers)
             {
@@ -120,6 +149,17 @@ namespace Remains.Runtime
             }
             if(phase!=1) return;
             var source=session.ServerWorld.Find("player:session-client-1");
+            if(!operationObserved && source!=null && InventoryJournal.Count(source,Item)==After)
+            {
+                operationObserved=true;canonicalAfterCount=InventoryJournal.Count(source,Item);
+                if(!Body)
+                {
+                    var grenade=session.ServerWorld.grenades.Find(value=>value.attacker==source.id);
+                    observedTransaction=grenade?.id;
+                    observedDebit=observedTransaction!=null && source.inventoryUses.Any(use=>use.id==observedTransaction);
+                }
+                Debug.Log($"Потеря приёма: подтверждён расход/выдача в мире, actor={source.id}, generation={source.generation}, level={source.level}, item={Item}, count={canonicalAfterCount}, transaction={observedTransaction}, journal={observedDebit}.");
+            }
             if(Deposit && source?.connected==true && session.ServerWorld.pendingDeposits.Count>0)
             {
                 if(session.ServerWorld.pendingDeposits.Count!=1 || !MatchesPending(session.ServerWorld,session.ServerWorld.pendingDeposits[0]))
@@ -137,10 +177,11 @@ namespace Remains.Runtime
             {
                 if(Loot && session.ServerWorld.pendingGrants.Count>0 || Deposit && session.ServerWorld.pendingDeposits.Count>0) return;
                 if(ActorPresence.IsPresent(source)!=Body || (!Body && source.owner!=null) || InventoryJournal.Count(source,Item)!=After || ActorSessionRules.IsDisconnectedBody(source)!=Body)
-                {Finish(false,"Отключённая запись хаба потеряла расход или осталась телом с владельцем.");return;}
+                {Finish(false,$"Отключённая запись потеряла результат или состояние тела: actor={source.id}, generation={source.generation}, item={Item}, expected={After}, actual={InventoryJournal.Count(source,Item)}, earlierCanonical={canonicalAfterCount}, transaction={observedTransaction}, journal={observedDebit}.");return;}
                 retained=true;
             }
             if(!retained || !ready || source?.connected!=true || session.World.grenades.Count!=0) return;
+            if(!operationObserved) {Finish(false,"Мир не подтвердил реальное изменение количества до итогового барьера.");return;}
             if(Loot && (session.ServerWorld.actors.Sum(a=>InventoryJournal.Count(a,"caps"))!=20 || session.ServerWorld.containers.Any(c=>c.items.Any(i=>i.definition=="caps"))))
             {Finish(false,"Выдача после обрыва потеряна или продублирована.");return;}
             if(Deposit && (!sawDepositPending || session.ServerWorld.pendingDeposits.Count!=0 ||
@@ -200,9 +241,16 @@ namespace Remains.Runtime
                     world.containers.SelectMany(c=>c.items).Where(i=>i.definition=="grenade").Sum(i=>i.count)==4;
                 if(!success) detail="Клиент не получил окончательный результат восстановленного резерва.";
             }
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,item=Item,staleItemCount=staleCount,sawDepositPending=sawDepositPending,loadedPending=loadedPending,durablePendingCaptured=captured,pendingTransaction=recoveryTransaction,pendingSnapshot=capturedSnapshot,pendingArchive=capturedArchive},true));StartCoroutine(Exit(success));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,item=Item,staleItemCount=staleCount,sawDepositPending=sawDepositPending,loadedPending=loadedPending,durablePendingCaptured=captured,pendingTransaction=recoveryTransaction,pendingSnapshot=capturedSnapshot,pendingArchive=capturedArchive,
+                operationReady=operationReady,operationObserved=operationObserved,observedDebit=observedDebit,operationBeforeCount=operationBeforeCount,canonicalAfterCount=canonicalAfterCount,reconnectItemCount=reconnectItemCount,
+                operationActor=operationActor,operationLevel=operationLevel,operationGeneration=operationGeneration,observedTransaction=observedTransaction,waitingFor=waitingFor,phase=phase},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        [Serializable] private sealed class Report {public bool success,sawDepositPending,loadedPending,durablePendingCaptured;public string detail,item,pendingTransaction,pendingSnapshot,pendingArchive;public int staleItemCount;}
+        [Serializable] private sealed class Report
+        {
+            public bool success,sawDepositPending,loadedPending,durablePendingCaptured,operationReady,operationObserved,observedDebit;
+            public string detail,item,pendingTransaction,pendingSnapshot,pendingArchive,operationActor,operationLevel,observedTransaction,waitingFor;
+            public int staleItemCount,operationBeforeCount,canonicalAfterCount,reconnectItemCount,operationGeneration,phase;
+        }
     }
 }

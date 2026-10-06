@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Remains.Domain;
 using Remains.Persistence;
+using Remains.Serialization;
 using UnityEngine;
 
 namespace Remains.Editor
@@ -26,6 +27,7 @@ namespace Remains.Editor
             CheckTerrain();
             CheckSettings();
             CheckLaunch();
+            CheckRecordedConsume();
             CheckAimStrength();
             CheckFlightTime();
             CheckFreeFlight();
@@ -62,6 +64,94 @@ namespace Remains.Editor
                 Debug.Log("GrenadeChecks PASS: передача, пустой уровень, сохранение полёта, однократный взрыв и решения.");
             }
             finally {if(Directory.Exists(path)) Directory.Delete(path,true);}
+        }
+        public static void CheckRecordedConsume()
+        {
+            const string transaction="grenade-consume:recovery-check";
+            var source=new ActorState {id="player:grenade-journal",character="grenade-journal",player=true,level="hub",generation=7,lifecycleSequence=3};
+            source.inventory.Add(new ItemStack {id="grenade-current",definition="grenade",count=5});
+            source.inventoryAliases.Add("grenade-old","grenade-current");
+            var stale=StateJson.FromJson<ActorState>(StateJson.ToJson(source));
+            var world=new WorldState();world.actors.Add(source);
+            Require(SharedInventory.Consume(source,"grenade","grenade-old",transaction) && InventoryJournal.Count(source,"grenade")==4,
+                "Подтверждённый бросок не списал выбранную стопку");
+            Require(source.inventoryUses.Count==1 && source.inventoryUses[0].id==transaction && source.inventoryUses[0].debits.Count==1 &&
+                InventoryStacks.ResolveId(source.inventoryAliases,source.inventoryUses[0].debits[0].item)=="grenade-current" && source.inventoryUses[0].debits[0].count==1,
+                "Расход гранаты отсутствует в журнале согласованной операции/aliases");
+            world.completedTransactions.Add(transaction);
+            string after=StateJson.ToJson(source);
+            Require(!SharedInventory.Consume(source,"grenade","grenade-old",transaction) && StateJson.ToJson(source)==after,
+                "Дубликат броска повторил расход или изменил журнал");
+            var loadedWorld=StateJson.FromJson<WorldState>(StateJson.ToJson(world));
+            var loadedStale=StateJson.FromJson<ActorState>(StateJson.ToJson(stale));
+            var saved=loadedWorld.Find(source.id);
+            var resumed=PlayerWorldEntry.Reconcile(loadedWorld,saved,loadedStale,out _);
+            Require(InventoryJournal.Count(resumed,"grenade")==4 && resumed.inventoryUses.Count==1 && resumed.inventoryAliases["grenade-old"]=="grenade-current" &&
+                InventoryJournal.Count(loadedStale,"grenade")==5 && InventoryJournal.Count(saved,"grenade")==4,
+                "Устаревший профиль хаба вернул пятую гранату или изменил исходные состояния");
+            var persistedProfile=StateJson.FromJson<ActorState>(StateJson.ToJson(resumed));
+            var again=PlayerWorldEntry.Reconcile(loadedWorld,saved,persistedProfile,out _);
+            Require(InventoryJournal.Count(again,"grenade")==4 && again.inventoryUses.Count==1 &&
+                !SharedInventory.Consume(again,"grenade","grenade-old",transaction) && InventoryJournal.Count(again,"grenade")==4,
+                "Повторный вход/serialized профиль/receipt дубликат повторил списание гранаты");
+
+            const string selectedTransaction="grenade-consume:last-selected-recovery";
+            var lastSelected=new ActorState {id="player:last-selected-grenade",character="last-selected-grenade",player=true,level="hub",
+                weaponInventoryVersion=1,equippedWeaponItem="selected-old",weapon="grenade",weaponSelectionRevision=7};
+            lastSelected.inventory.Add(new ItemStack {id="selected-current",definition="grenade",count=1});
+            lastSelected.inventoryAliases.Add("selected-old","selected-current");
+            var staleSelected=StateJson.Copy(lastSelected);
+            Require(SharedInventory.Consume(lastSelected,"grenade","selected-old",selectedTransaction) &&
+                InventoryJournal.Count(lastSelected,"grenade")==0 && lastSelected.equippedWeaponItem==null && lastSelected.weapon==null &&
+                lastSelected.weaponSelectionRevision==8,"Расход последней выбранной гранаты не очистил выбор ровно один раз");
+            var selectedWorld=new WorldState();selectedWorld.actors.Add(lastSelected);selectedWorld.completedTransactions.Add(selectedTransaction);
+            selectedWorld=StateJson.FromJson<WorldState>(StateJson.ToJson(selectedWorld));
+            staleSelected=StateJson.FromJson<ActorState>(StateJson.ToJson(staleSelected));
+            var selectedSaved=selectedWorld.Find(lastSelected.id);
+            var selectedResumed=PlayerWorldEntry.Reconcile(selectedWorld,selectedSaved,staleSelected,out _);
+            Require(InventoryJournal.Count(selectedResumed,"grenade")==0 && selectedResumed.equippedWeaponItem==null && selectedResumed.weapon==null &&
+                selectedResumed.weaponSelectionRevision==8 && selectedResumed.inventoryUses.Count==1 &&
+                selectedResumed.inventoryAliases["selected-old"]=="selected-current" && InventoryJournal.Count(staleSelected,"grenade")==1 &&
+                staleSelected.equippedWeaponItem=="selected-old" && staleSelected.weaponSelectionRevision==7,
+                "Serialized устаревший профиль вернул последнюю гранату/выбор или изменил исходник");
+            var selectedRepeated=PlayerWorldEntry.Reconcile(selectedWorld,selectedSaved,StateJson.Copy(selectedResumed),out _);
+            Require(InventoryJournal.Count(selectedRepeated,"grenade")==0 && selectedRepeated.equippedWeaponItem==null && selectedRepeated.weapon==null &&
+                selectedRepeated.weaponSelectionRevision==8 && selectedRepeated.inventoryUses.Count==1 &&
+                !SharedInventory.Consume(selectedRepeated,"grenade","selected-old",selectedTransaction) && selectedRepeated.weaponSelectionRevision==8,
+                "Повторный вход/дубликат последней гранаты повторил дебит или эпоху выбора");
+
+            var final=new ActorState {weaponInventoryVersion=1,equippedWeaponItem="final-alias",weapon="grenade",weaponSelectionRevision=7};
+            final.inventory.Add(new ItemStack {id="final-current",definition="grenade",count=1});
+            final.inventory.Add(new ItemStack {id="other-grenades",definition="grenade",count=2});
+            final.inventoryAliases.Add("final-alias","final-current");
+            Require(SharedInventory.Consume(final,"grenade","final-alias","grenade-consume:final") && InventoryStacks.Find(final,"final-alias")==null &&
+                final.equippedWeaponItem==null && final.weapon==null && final.weaponSelectionRevision==8 && final.inventory[0].count==2 && final.inventoryUses.Count==1,
+                "Последняя выбранная граната/alias не сохранила прежний cleanup или потратила другую стопку");
+            var holding=new ActorState {id="player:holding-grenade",character="holding-grenade",player=true,level="hub",
+                weaponInventoryVersion=1,equippedWeaponItem="final-current",weapon="grenade",heldItemId="held-caps",heldItemPoseValid=true};
+            holding.inventory.Add(new ItemStack {id="final-current",definition="grenade",count=1});
+            holding.inventory.Add(new ItemStack {id="held-caps",definition="caps",count=3});
+            var staleHolding=StateJson.Copy(holding);
+            Require(SharedInventory.Consume(holding,"grenade","final-current","grenade-consume:while-held") &&
+                holding.heldItemId=="held-caps" && holding.heldItemPoseValid && holding.inventoryUses.Count==1,
+                "Cleanup последней гранаты сбросил другую удерживаемую вещь");
+            var holdingWorld=new WorldState();holdingWorld.actors.Add(holding);holdingWorld.completedTransactions.Add("grenade-consume:while-held");
+            holdingWorld=StateJson.FromJson<WorldState>(StateJson.ToJson(holdingWorld));
+            var resumedHolding=PlayerWorldEntry.Reconcile(holdingWorld,holdingWorld.Find(holding.id),StateJson.Copy(staleHolding),out _);
+            Require(InventoryJournal.Count(resumedHolding,"grenade")==0 && resumedHolding.inventoryUses.Count==1 &&
+                resumedHolding.heldItemId=="held-caps" && resumedHolding.heldItemPoseValid && InventoryStacks.Find(resumedHolding,"held-caps").count==3 &&
+                resumedHolding.weaponSelectionRevision==staleHolding.weaponSelectionRevision,
+                "Вход с расходом последней гранаты сбросил другую held вещь/позу или изменил её эпоху");
+
+            var reserved=new ActorState();reserved.inventory.Add(new ItemStack {id="reserved",definition="grenade",count=5});
+            reserved.inventory.Add(new ItemStack {id="free",definition="grenade",count=2});reserved.inventoryReservations.Add("reserved",5);
+            string reservedBefore=StateJson.ToJson(reserved);
+            Require(!SharedInventory.Consume(reserved,"grenade","reserved","grenade-consume:reserved") && StateJson.ToJson(reserved)==reservedBefore,
+                "Зарезервированный бросок обошёл резерв другой стопкой или оставил журнал");
+            var wrong=new ActorState();wrong.inventory.Add(new ItemStack {id="chosen",definition="grenade",count=5});
+            wrong.inventory.Add(new ItemStack {id="heal",definition="heal",count=2});string wrongBefore=StateJson.ToJson(wrong);
+            Require(!SharedInventory.Consume(wrong,"heal","chosen","grenade-consume:wrong") && StateJson.ToJson(wrong)==wrongBefore,
+                "Неверное definition выбранного ID списало предмет или записало журнал");
         }
         private static void CheckRotation()
         {

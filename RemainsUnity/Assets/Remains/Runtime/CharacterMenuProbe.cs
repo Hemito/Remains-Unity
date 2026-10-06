@@ -17,6 +17,9 @@ namespace Remains.Runtime
         private bool finished;
         private float deadline;
         private CharacterLibrary library;
+        private double legacySeconds,newSecondsBeforeReturn,newSecondsAfterReturn;
+        private bool playTimePersisted;
+        private int readyVisits,pendingPresentationFrames;
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+60;
@@ -35,6 +38,13 @@ namespace Remains.Runtime
         private RectTransform Rect(UnityEngine.UI.Selectable element)=>element.GetComponent<RectTransform>();
         private IEnumerator Wait(Func<bool> condition)
         {while(!finished && !condition()) yield return null;yield return null;}
+        private IEnumerator WaitForLevel()
+        {
+            while(!finished && (runtime.Session.LocalActor==null || !runtime.LevelPresentationReady))
+            {if(runtime.Session.LocalActor!=null) pendingPresentationFrames++;yield return null;}
+            if(!finished) readyVisits++;
+            yield return null;
+        }
         private IEnumerator Start()
         {
             yield return UiPointerProbe.Click(runtime.Hud.CharactersButtonRect);
@@ -81,7 +91,7 @@ namespace Remains.Runtime
             yield return Select("Старый");
             yield return Wait(()=>runtime.Hud.Characters==null && runtime.Hud.WorldDescriptionReady);
             yield return UiPointerProbe.Click(runtime.Hud.HostButtonRect);
-            yield return Wait(()=>runtime.Session.LocalActor!=null);
+            yield return WaitForLevel();
             if(runtime.Session.LocalActor.character!="Старый" || runtime.Session.LocalActor.health!=77 || runtime.Session.LocalActor.appearance!=null)
                 throw new InvalidOperationException("Выбор старого профиля изменил внешность/здоровье или создал нового персонажа.");
             string sharedWorld=runtime.Session.World.worldId;
@@ -94,6 +104,7 @@ namespace Remains.Runtime
             var oldTime=CharacterTimeRecord.Read(library.ProfilePath("Старый"));
             if(oldTime.completeHistory || oldTime.seconds<1 || File.ReadAllText(newPath)!=newSource)
                 throw new InvalidOperationException("Учёт старого времени неверен или игра другим персонажем переписала новый профиль.");
+            legacySeconds=oldTime.seconds;
             yield return UiPointerProbe.Click(runtime.Hud.CharactersButtonRect);
             yield return Wait(()=>runtime.Hud.Characters?.Ready==true);
             yield return Select("Роза");
@@ -102,7 +113,7 @@ namespace Remains.Runtime
                 !runtime.Session.Saves.Continuations().Any(copy=>copy.WorldId==alternative.worldId))
                 throw new InvalidOperationException("Смена персонажа потеряла общий выбор мира или другой доступный мир.");
             yield return UiPointerProbe.Click(runtime.Hud.HostButtonRect);
-            yield return Wait(()=>runtime.Session.LocalActor!=null);
+            yield return WaitForLevel();
             if(runtime.Session.LocalActor.character!="Роза" || !PonyAppearance.Snapshot(runtime.Session.LocalActor).Equals(expected) || runtime.Session.World.worldId!=sharedWorld)
                 throw new InvalidOperationException("Игра не использовала внешность созданного персонажа.");
             runtime.Hud.ToggleInventory();
@@ -115,15 +126,20 @@ namespace Remains.Runtime
             yield return Wait(()=>runtime.Session.LocalActor==null && !Mirror.NetworkClient.active && !Mirror.NetworkServer.active);
             var newTime=CharacterTimeRecord.Read(library.ProfilePath("Роза"));
             if(!newTime.completeHistory || newTime.seconds<1) throw new InvalidOperationException("Новое игровое время не сохранено.");
+            newSecondsBeforeReturn=newTime.seconds;
             // Model progress made with this character in another world, then return to its hub record.
             var advanced=new SaveStore(library.ProfilePath("Роза")).LoadCharacter();advanced.health=58;
             advanced.appearance.fur=0xAB3412;new SaveStore(library.ProfilePath("Роза")).SaveCharacter(advanced);
             yield return UiPointerProbe.Click(runtime.Hud.HostButtonRect);
-            yield return Wait(()=>runtime.Session.LocalActor!=null);
+            yield return WaitForLevel();
             if(runtime.Session.World.worldId!=sharedWorld || runtime.Session.LocalActor.health!=58 || runtime.Session.LocalActor.appearance.fur!=0xAB3412 || runtime.Session.LocalActor.weapon!="crowbar")
                 throw new InvalidOperationException("Возвращение в хаб восстановило устаревший профиль из мира.");
             runtime.Session.StopHost();
             yield return Wait(()=>runtime.Session.LocalActor==null && !Mirror.NetworkClient.active && !Mirror.NetworkServer.active);
+            var returnedTime=CharacterTimeRecord.Read(library.ProfilePath("Роза"));
+            if(returnedTime==null || !returnedTime.completeHistory || returnedTime.seconds<newSecondsBeforeReturn || returnedTime.trackedFrom!=newTime.trackedFrom)
+                throw new InvalidOperationException("Повторный вход сбросил время или исходную дату учёта персонажа.");
+            newSecondsAfterReturn=returnedTime.seconds;playTimePersisted=true;
             yield return UiPointerProbe.Click(runtime.Hud.CharactersButtonRect);
             yield return Wait(()=>runtime.Hud.Characters?.Ready==true);
             list=runtime.Hud.Characters;
@@ -163,8 +179,10 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail},true));Application.Quit(success?0:1);
+            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,legacySeconds=legacySeconds,
+                newSecondsBeforeReturn=newSecondsBeforeReturn,newSecondsAfterReturn=newSecondsAfterReturn,playTimePersisted=playTimePersisted,
+                readyVisits=readyVisits,pendingPresentationFrames=pendingPresentationFrames},true));Application.Quit(success?0:1);
         }
-        [Serializable] private sealed class Report {public bool success;public string detail;}
+        [Serializable] private sealed class Report {public bool success,playTimePersisted;public string detail;public double legacySeconds,newSecondsBeforeReturn,newSecondsAfterReturn;public int readyVisits,pendingPresentationFrames;}
     }
 }

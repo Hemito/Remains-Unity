@@ -90,6 +90,7 @@ namespace Remains.Editor
             CharacterJoinSelectionChecks.Run();
             RecoveryCaptureChecks.Run();
             OrderedSaveWriteChecks.Run();
+            CharacterPlayTimeChecks.Run();
             RecoveryDurabilityChecks.Run();
             LocalRecoveryPairChecks.Run();
             InteractionHotPathChecks.Run();

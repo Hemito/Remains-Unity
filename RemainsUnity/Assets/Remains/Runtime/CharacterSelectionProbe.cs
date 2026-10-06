@@ -68,6 +68,8 @@ namespace Remains.Runtime
                 // creation contract accepts an empty directory while retaining no-overwrite publication.
                 new CharacterLibrary(Path.Combine(root,"Profiles"),firstDirectory).Create(first);
                 new CharacterLibrary(Path.Combine(root,"Profiles"),secondDirectory).Create(expected);
+                var initialTime=CharacterTimeRecord.Read(secondDirectory);
+                evidence.playTimeBefore=initialTime.seconds;evidence.playTimeTrackedFrom=initialTime.trackedFrom;
                 var world=NewGameWorld.Create();
                 WorldHistory.BeginContinuation(world);
                 if(compareCopies) world.branchId="11111111000000000000000000000000";
@@ -246,6 +248,11 @@ namespace Remains.Runtime
                 "Завершение сессии записало чужую идентичность/внешность во второй профиль.");
             Require(runtime.Session.Saves.SelectedSnapshot()?.WorldId==selectedWorld.WorldId,"Сессия потеряла выбранный мир.");
             Require(!runtime.Session.CharacterSelectionLocked,"Выход не освободил зафиксированный выбор персонажа.");
+            var savedTime=CharacterTimeRecord.Read(secondDirectory);
+            Require(savedTime!=null && savedTime.completeHistory && savedTime.trackedFrom==evidence.playTimeTrackedFrom &&
+                savedTime.seconds-evidence.playTimeBefore>=2,
+                "Полный выход не сохранил время выбранного персонажа до разблокировки меню.");
+            evidence.playTimeAfterStop=savedTime.seconds;evidence.playTimePersisted=true;
             evidence.savedVerified=true;
             evidence.stage="menu-after-stop";
             Require(evidence.stopCallbacks==1 && !evidence.stoppedTooEarly,"Полный выход уведомил меню до остановки сети или повторно.");
@@ -413,11 +420,13 @@ namespace Remains.Runtime
         {
             public bool success,cardSelected,characterConsent,lobbySelected,liveVerified,renderVerified,savedVerified,firstSourceUnchanged,
                 stoppedTooEarly,worldChangedAfterStop,characterChangedAfterStop,directContinued,worldConsent,worldSourceUnchanged,remoteJoinedSelected,
-                controlsVisible,copyIdentityVisible;
+                controlsVisible,copyIdentityVisible,playTimePersisted;
             public string detail,stage,libraryRoot,worldId,selectedSnapshot,sessionCharacter,profilePath,actorId,actorCharacter,actorOwner,appearance,drawnClip;
             public int queuedFrames,busyObservedFrames,hostCallbacks,drawnParts,drawnFrame,stopCallbacks;
             public string selectedCopyLabel,alternativeCopyLabel;
             public float controlsHeight;
+            public double playTimeBefore,playTimeAfterStop;
+            public string playTimeTrackedFrom;
             public FileProof[] firstSource;
         }
     }

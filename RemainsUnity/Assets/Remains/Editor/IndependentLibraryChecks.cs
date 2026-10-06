@@ -39,7 +39,7 @@ namespace Remains.Editor
             Require(File.ReadAllText(Path.Combine(libraries.WorldsDirectory,"world-names.json")).Contains("Имя Беты"),"Различающиеся подписи не сохранены");
             var a=Profile("Альфа",71,"alpha-item",3);var b=Profile("Бета",86,"beta-item",5);
             selected.SaveCharacter(a);other.SaveCharacter(b);
-            double clock=10;var timer=new CharacterPlayTime(()=>clock);timer.Checkpoint(selected.CharacterDirectoryPath);clock=25;timer.Checkpoint(selected.CharacterDirectoryPath);timer.Stop();
+            double clock=10;var timer=new CharacterPlayTime(()=>clock);timer.CaptureCheckpoint(selected.CharacterDirectoryPath).Persist();clock=25;timer.CaptureCheckpoint(selected.CharacterDirectoryPath).Persist();timer.Stop();
             string alphaSource=selected.ReadCharacterSource(),alphaTime=File.ReadAllText(Path.Combine(selected.CharacterDirectoryPath,"playtime.json"));
             string personalBackup=selected.PreserveCharacterSource();
             Require(File.ReadAllText(personalBackup)==alphaSource && personalBackup.StartsWith(selected.CharacterDirectoryPath,StringComparison.OrdinalIgnoreCase),"Резервная копия личного профиля записана в мир или потеряла данные");

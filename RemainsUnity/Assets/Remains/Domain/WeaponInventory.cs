@@ -18,6 +18,13 @@ namespace Remains.Domain
         }
         public static bool Available(ActorState actor,string definition)=>!HeldItemSelection.HasSelection(actor) && Selected(actor) is { } item &&
             item.definition==definition && InventoryAvailability.Count(actor,item)>0;
+        public static void ClearConsumedSelection(ActorState actor,string itemId)
+        {
+            if(actor==null || actor.weaponInventoryVersion!=1 || HeldItemSelection.HasSelection(actor) || string.IsNullOrEmpty(itemId)) return;
+            string consumed=InventoryStacks.ResolveId(actor.inventoryAliases,itemId);
+            if(consumed==InventoryStacks.ResolveId(actor.inventoryAliases,actor.equippedWeaponItem) && InventoryStacks.Find(actor,consumed)==null)
+                Select(actor,null,out _);
+        }
         public static bool Select(ActorState actor,string itemId,out string reason)
         {
             reason=null;

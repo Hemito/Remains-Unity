@@ -19,6 +19,8 @@ namespace Remains.Runtime
         private string joinedWorld;
         private float deadline;
         private bool finished,stopped;
+        private double playTimeSeconds;
+        private bool playTimePersisted;
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+100;
@@ -57,6 +59,10 @@ namespace Remains.Runtime
                 var menu=runtime.Hud.GetComponentInChildren<MainMenuView>(true);
                 Require(!runtime.Session.CharacterSelectionLocked && menu.Controls.activeInHierarchy && menu.Characters.IsInteractable() &&
                     menu.Worlds.IsInteractable() && menu.CompareCopies.IsInteractable(),"Полный выход клиента оставил меню заблокированным.");
+                var time=CharacterTimeRecord.Read(runtime.Session.Saves.CharacterDirectoryPath);
+                Require(time!=null && time.completeHistory && time.seconds>=1,
+                    "Полный выход клиента не завершил запись его личного игрового времени.");
+                playTimeSeconds=time.seconds;playTimePersisted=true;
                 Finish(true,"Поздний KCP-клиент вошёл в выбранный мир хоста со своим профилем; своя копия сохранена, передачи/повторного выбора нет, после выхода клиента меню доступно.");
             }
             catch(Exception error) {Finish(false,error.Message);}
@@ -67,9 +73,10 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
-            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Evidence {success=success,detail=detail,worldId=joinedWorld,originalWorldId=original?.WorldId},true));
+            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Evidence {success=success,detail=detail,worldId=joinedWorld,originalWorldId=original?.WorldId,
+                playTimeSeconds=playTimeSeconds,playTimePersisted=playTimePersisted},true));
             Debug.Log((success?"PASS ":"FAIL ")+"selected-world-guest: "+detail);Application.Quit(success?0:1);
         }
-        [Serializable] private sealed class Evidence {public bool success;public string detail,worldId,originalWorldId;}
+        [Serializable] private sealed class Evidence {public bool success,playTimePersisted;public double playTimeSeconds;public string detail,worldId,originalWorldId;}
     }
 }

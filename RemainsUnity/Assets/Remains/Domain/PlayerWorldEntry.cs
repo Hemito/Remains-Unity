@@ -41,6 +41,8 @@ namespace Remains.Domain
             if(!InventoryJournal.Merge(result,debitJournal,out var inventory,out var uses))
                 throw new InvalidOperationException($"Личный профиль не согласуется с подтверждённым расходом: world={world.worldId}, actor={saved.id}. Вход отменён, копии сохранены; требуется восстановление согласованной пары мира и персонажа.");
             result.inventory=inventory;result.inventoryUses=uses;
+            foreach(var use in coordinated)
+                foreach(var debit in use.debits) WeaponInventory.ClearConsumedSelection(result,debit.item);
             result.id=saved.id;result.character=saved.character;result.player=true;
             result.level=saved.level;result.x=saved.x;result.y=saved.y;result.facing=saved.facing;
             result.generation=saved.generation;result.lifecycleSequence=saved.lifecycleSequence;

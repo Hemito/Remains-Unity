@@ -85,6 +85,7 @@ namespace Remains.Networking
         public event Action<string,bool> ClaimPrepared;
         public event Action<string,long> RecoveryPrepared;
         public event Action<RecoverySnapshot> RecoveryPersisted;
+        public event Action<CharacterPlayTime.CapturedCheckpoint> PlayTimePersisted;
         public event Action<int,string,long> RecoveryAcknowledged;
         public event Action<int> RecoveryPeerLeft;
         private readonly Dictionary<int, string> owners = new();
@@ -504,19 +505,21 @@ namespace Remains.Networking
             var actor=CaptureLocalCharacter();
             if(actor==null) throw new InvalidOperationException($"Нет личного персонажа для подтверждения сохранения: world={snapshot.WorldId}, actor={LocalActorId}.");
             var store=Saves;bool localHost=NetworkServer.active;
+            var timeCheckpoint=playTime.CaptureCheckpoint(store.CharacterDirectoryPath);
             // One durable intent repairs either inter-file crash window. The host's
             // canonical archive is queued first; its local replica must not rewind the head.
-            saveWrites.Enqueue(()=>store.SaveRecoveryWithCharacter(snapshot,actor,!localHost),()=>
+            saveWrites.Enqueue(()=>{store.SaveRecoveryWithCharacter(snapshot,actor,!localHost);timeCheckpoint.Persist();},()=>
             {
+                PlayTimePersisted?.Invoke(timeCheckpoint);
                 if(!localHost) RecoveryPersisted?.Invoke(snapshot);
                 if(NetworkClient.isConnected && World?.worldId==snapshot.WorldId)
                     NetworkClient.Send(new BackupAckMessage {world=snapshot.WorldId,revision=snapshot.Revision,snapshot=snapshot.Id});
             },SaveWriteFailed);
-            playTime.Checkpoint(store.CharacterDirectoryPath);
         }
 
         private ActorState CaptureLocalCharacter()
         {
+            using var timing=TransitionTiming.Measure("character.capture",CharacterId);
             var actor=LocalActor;if(actor==null) return null;
             joinSelection?.RequireCurrent(CharacterId,Saves);
             if(actor.character!=CharacterId) throw new InvalidOperationException($"Запись чужого персонажа запрещена: выбран={CharacterId}, actor={actor.id}, character={actor.character}, profile={Saves.CharacterDirectoryPath}.");
@@ -529,8 +532,9 @@ namespace Remains.Networking
             if(actor!=null)
             {
                 var store=Saves;
-                saveWrites.Enqueue(()=>store.SaveCharacter(actor),null,SaveWriteFailed);
-                playTime.Checkpoint(store.CharacterDirectoryPath);
+                var timeCheckpoint=playTime.CaptureCheckpoint(store.CharacterDirectoryPath);
+                saveWrites.Enqueue(()=>{store.SaveCharacter(actor);timeCheckpoint.Persist();},
+                    ()=>PlayTimePersisted?.Invoke(timeCheckpoint),SaveWriteFailed);
             }
         }
 

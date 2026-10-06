@@ -48,16 +48,22 @@ namespace Remains.Domain
             world.revision++;
         }
 
-        public static bool Consume(ActorState actor, string definition,string itemId=null)
+        public static bool Consume(ActorState actor, string definition,string itemId=null,string transaction=null)
         {
             string current=InventoryStacks.ResolveId(actor.inventoryAliases,itemId);
             var item = actor.inventory.Find(candidate => candidate.definition == definition && (itemId==null || candidate.id==current) && InventoryAvailability.Count(actor,candidate)>0);
             if (item == null) return false;
-            if (--item.count == 0)
+            // Coordinated consumption must leave the same transaction in the personal
+            // debit journal so a stale profile can resume without restoring spent items.
+            if(transaction!=null)
+            {
+                if(!InventoryJournal.Debit(actor,transaction,item.id,1)) return false;
+            }
+            else item.count--;
+            if (item.count == 0)
             {
                 actor.inventory.Remove(item);
-                if(actor.weaponInventoryVersion==1 && !HeldItemSelection.HasSelection(actor) && InventoryStacks.ResolveId(actor.inventoryAliases,actor.equippedWeaponItem)==item.id)
-                    WeaponInventory.Select(actor,null,out _);
+                WeaponInventory.ClearConsumedSelection(actor,item.id);
             }
             return true;
         }

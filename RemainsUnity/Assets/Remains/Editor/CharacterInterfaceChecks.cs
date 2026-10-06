@@ -32,11 +32,11 @@ namespace Remains.Editor
             var saved=new SaveStore(entry.directory).LoadCharacter();
             if(saved.weaponInventoryVersion!=1 || saved.inventory.Find(item=>item.id==saved.equippedWeaponItem)?.definition!="pistol")
                 throw new InvalidOperationException("Новый персонаж требует миграции или не имеет экипированного оружия.");
-            double clock=10;var time=new CharacterPlayTime(()=>clock);time.Checkpoint(entry.directory);clock=70;time.Checkpoint(entry.directory);time.Stop();
-            clock=1000;time.Checkpoint(entry.directory);clock=1060;time.Checkpoint(entry.directory);time.Stop();
+            double clock=10;var time=new CharacterPlayTime(()=>clock);time.CaptureCheckpoint(entry.directory).Persist();clock=70;time.CaptureCheckpoint(entry.directory).Persist();time.Stop();
+            clock=1000;time.CaptureCheckpoint(entry.directory).Persist();clock=1060;time.CaptureCheckpoint(entry.directory).Persist();time.Stop();
             var record=CharacterTimeRecord.Read(entry.directory);
             if(record.seconds!=120 || !record.completeHistory) throw new InvalidOperationException("Время повторено, сброшено или считает отключённую сессию.");
-            string old=Path.Combine(root,"Старый");Directory.CreateDirectory(old);clock=2000;time.Checkpoint(old);clock=2010;time.Checkpoint(old);time.Stop();
+            string old=Path.Combine(root,"Старый");Directory.CreateDirectory(old);clock=2000;time.CaptureCheckpoint(old).Persist();clock=2010;time.CaptureCheckpoint(old).Persist();time.Stop();
             if(CharacterTimeRecord.Read(old).completeHistory || CharacterTimeRecord.Read(old).seconds!=10)
                 throw new InvalidOperationException("Выдумано историческое время старого профиля.");
             var parent=new GameObject("Проверка редактора",typeof(RectTransform));

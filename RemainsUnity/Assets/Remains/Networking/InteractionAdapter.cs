@@ -78,7 +78,7 @@ namespace Remains.Networking
             if(actor!=null && session.Pause.IsServerPaused(actor.level))
             {connection.Send(new NoticeMessage {text="Бросок отменён: уровень остановлен. Граната не потрачена."});return;}
             if(!GrenadeLaunchRequest.Matches(actor,message) || session.ServerWorld.completedTransactions.Contains(message.transaction) ||
-                !SharedInventory.Consume(actor,"grenade",message.item)) return;
+                !SharedInventory.Consume(actor,"grenade",message.item,message.transaction)) return;
             session.ServerWorld.completedTransactions.Add(message.transaction);
             Vector2 origin=new(message.originX,message.originY);
             // The throwing client captures launch motion with its local pose and aim.

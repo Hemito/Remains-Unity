@@ -46,9 +46,17 @@ namespace Remains.Runtime
             public bool success,noFixture,ordinaryMapEntry,ordinaryDoorExit;public string detail,world,actor,level;
             public int phase;public Vector2 position;public double synchronousBudgetMilliseconds;public Visit[] visits;
             public TransitionTimingSample[] transitionTimings;
+            public PlayTimeWrite[] playTimeWrites;
+        }
+        [Serializable] private sealed class PlayTimeWrite
+        {
+            public string profileDirectory;
+            public double elapsedSeconds,loadMilliseconds,writeMilliseconds,persistMilliseconds;
+            public bool persisted;
         }
         private PrototypeRuntime runtime;
         private readonly List<Visit> visits=new();
+        private readonly List<PlayTimeWrite> playTimeWrites=new();
         private readonly HashSet<string> factoryWitnesses=new(StringComparer.Ordinal),returnWitnesses=new(StringComparer.Ordinal);
         private Visit current;
         private TravelPoint map,exit;
@@ -74,6 +82,7 @@ namespace Remains.Runtime
                 value.Session.Saves.SaveWorld(NewGameWorld.Create());
             }
             value.CommandSource=Command;
+            value.Session.PlayTimePersisted+=ObservePlayTime;
             value.Session.ClientReady+=()=>NetworkClient.RegisterHandler<LightingPreparationRelease>(message=>
             {if(message.phase==1) factoryReleased=true;else if(message.phase==2) Finish(phase==10,"Обычная карта/дверь и три актуальные пары света проверены обеими репликами.");else Finish(false,"Неизвестный барьер света: "+message.phase);});
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<LightingPreparationObserved>((connection,message)=>
@@ -300,6 +309,15 @@ namespace Remains.Runtime
         }
         private void SendObserved(int observedPhase)=>NetworkClient.Send(new LightingPreparationObserved {actor=Actor.id,world=world,level=Actor.level,
             generation=Actor.generation,phase=observedPhase,foreground=current.gpu.foreground.sha256,background=current.gpu.background.sha256});
+        private void ObservePlayTime(CharacterPlayTime.CapturedCheckpoint checkpoint)
+        {
+            if(finished) return;
+            if(playTimeWrites.Count>=8192) throw new InvalidOperationException("Переполнен журнал фоновой записи игрового времени.");
+            playTimeWrites.Add(new PlayTimeWrite {profileDirectory=checkpoint.ProfileDirectory,elapsedSeconds=checkpoint.ElapsedSeconds,
+                loadMilliseconds=checkpoint.LoadMilliseconds,writeMilliseconds=checkpoint.WriteMilliseconds,
+                persistMilliseconds=checkpoint.PersistMilliseconds,persisted=checkpoint.IsPersisted});
+        }
+        private void OnDestroy() {if(runtime!=null) runtime.Session.PlayTimePersisted-=ObservePlayTime;}
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
@@ -319,7 +337,7 @@ namespace Remains.Runtime
             }
             File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,noFixture=true,ordinaryMapEntry=ordinaryMapEntry,ordinaryDoorExit=ordinaryDoorExit,
                 detail=detail+": "+Progress,world=world,actor=Actor?.id,level=Actor?.level,position=Actor?.Position??default,phase=phase,synchronousBudgetMilliseconds=syncBudget,
-                visits=visits.ToArray(),transitionTimings=timings},true));
+                visits=visits.ToArray(),transitionTimings=timings,playTimeWrites=playTimeWrites.ToArray()},true));
             exitCode=success?0:1;Invoke(nameof(Exit),.5f);
         }
         private int exitCode;
