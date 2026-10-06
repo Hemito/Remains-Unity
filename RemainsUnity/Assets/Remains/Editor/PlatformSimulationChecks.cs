@@ -18,10 +18,10 @@ namespace Remains.Editor
                 InterleavedPassengers(fps,false);InterleavedPassengers(fps,true);
                 AcceleratedPlayback(fps);EarlyCompletion(fps);
             }
-            CommonFrameAndNewSegment();ClockRecovery();UnconfirmedEpoch();FinalDelta();GeometryLifecycle();
+            CommonFrameAndNewSegment();ReplacedMovingSegment();PendingDepartureReplacement();LateDepartureContacts();ClockRecovery();UnconfirmedEpoch();FinalDelta();GeometryLifecycle();
             CheckDepartures(Type(),Platform("departure",49.2f,9.62f,false),Room(),Hull());
             InPlaceCompletion();RouteAndDefinitionRebind();PassengerIdentityRebind();
-            if(log) Debug.Log("Адаптер платформы: PASS — carry A/Changed/carry B при 30/60/144, accelerated playback с обычным dt, ранний canonical completion без скачка, snapshot rebind, первый departure/reverse уже стоящего пассажира и груза, future start внутри кадра, in-place completion, type/route/owner rebind, общие часы двух опор, поздний segment/clock rebase без исторического переноса, неподтверждённый epoch, финальный delta, reload/add level на том же World. Сетевой runtime не проверен.");
+            if(log) Debug.Log("Адаптер платформы: PASS — carry A/Changed/carry B при 30/60/144, accelerated playback с обычным dt, ранний canonical completion без скачка, snapshot rebind, первый departure/reverse уже стоящего пассажира и груза, future start внутри кадра, позднее подтверждение известной неподвижной опоры с однократным sweep и frozen-time defer, in-place completion, type/route/owner rebind, общие часы двух опор, moving predecessor/clock rebase без исторического переноса, неподтверждённый epoch, финальный delta, reload/add level на том же World. Сетевой runtime не проверен.");
         }
         private sealed class Fixture : IDisposable
         {
@@ -157,13 +157,55 @@ namespace Remains.Editor
                 {sequence=3,fromEndpoint=0,toEndpoint=1,startElapsedSeconds=0,durationSeconds=6});
             f.Advance(.1);
             var first=f.Frame.Pose(0);var second=f.Frame.Pose(1);
-            Require(!first.Continuous && second.Continuous && Bounds(first.Previous)==Bounds(first.Current),"Новый segment сохранил исторический delta.");
+            Require(first.Continuous && second.Continuous && Bounds(first.Previous)!=Bounds(first.Current),"Подтверждение известного endpoint потеряло прежнюю опору.");
             Require(first.Sequence==second.Sequence && first.PreviousElapsedSeconds==second.PreviousElapsedSeconds && first.ElapsedSeconds==second.ElapsedSeconds,
                 "Две опоры одного кадра получили разные timestamps/sequence.");
-            Require(Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feetA,.1f,a),feetA) && Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feetB,.1f,b),feetB),
-                "Snapshot нового segment телепортировал прежнего пассажира.");
+            Require(Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feetA,.1f,a),f.Feet(0)) && Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feetB,.1f,b),feetB),
+                "Подтверждение endpoint потеряло известного пассажира или передвинуло другую опору.");
             feetA=f.Feet(0);f.Advance(.1);
             Require(f.Frame.Pose(0).Continuous && Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feetA,.1f,a),f.Feet(0)),"После segment rebase не возобновился текущий carry.");
+        }
+        private static void ReplacedMovingSegment()
+        {
+            using var f=new Fixture(3);var feet=f.Feet();var state=State("moving-predecessor");
+            PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,.1f,state);
+            f.Snapshot(world=>world.movingPlatforms[0].segment=new MovingPlatformSegment
+                {sequence=3,fromEndpoint=0,toEndpoint=1,startElapsedSeconds=1,durationSeconds=6});
+            f.Advance(.1);var pose=f.Frame.Pose(0);
+            Require(!pose.Continuous && Bounds(pose.Previous)==Bounds(pose.Current) &&
+                Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,.1f,state),feet),"Замена движущейся траектории выдала произвольную историю за endpoint departure.");
+        }
+        private static void LateDepartureContacts()
+        {
+            using var f=new Fixture(1,false);var feet=f.Feet();var rider=State("late-rider");
+            var adjacent=feet+Vector2.right*2;var adjacentState=State("late-adjacent");
+            var jumpingState=State("late-jump");
+            PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,1f/60,rider);
+            PassengerMotion.Carry(f.RoomGeometry,Hull(),adjacent,1f/60,adjacentState);
+            PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,1f/60,jumpingState);
+            f.RoomGeometry.platforms=new[]{new RoomSurface {x=49.8f,y=feet.y,width=.2f,height=2,texture="floor",movementSound="metal"}};
+            StartSegment(f,f.Now-.39016828377543,false);f.Advance(1f/60);
+            var moved=PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,1f/60,rider);
+            Require(rider.Blocked && rider.SupportId==null && Near(moved,new Vector2(49.4f,feet.y)) && ActorTerrainMotion.IsClear(f.RoomGeometry,Hull(),moved),
+                "Поздний departure протащил пассажира сквозь стену.");
+            Require(Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),adjacent,1f/60,adjacentState),adjacent) &&
+                Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,1f/60,jumpingState,false),feet) &&
+                Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,1f/60,State("late-new-owner")),feet),
+                "Поздний departure подхватил соседа, прыжок или новую owner binding.");
+            f.Advance(1f/60);
+            Require(Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),moved,1f/60,rider),moved),"Заблокированный пассажир снова протащен той же опорой.");
+        }
+        private static void PendingDepartureReplacement()
+        {
+            using var f=new Fixture(10,false);var feet=f.Feet();var state=State("pending-trajectory-replacement");
+            PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,1f/60,state);
+            StartSegment(f,10,false);
+            f.Snapshot(world=>{world.movingPlatforms[0].endpoint=1;world.movingPlatforms[0].segment=null;world.movingPlatforms[0].revision++;});
+            StartSegment(f,16,false);f.Advance(1f/60);
+            var pose=f.Frame.Pose(0);
+            Require(!pose.Continuous && Bounds(pose.Previous)==Bounds(pose.Current) &&
+                Near(PassengerMotion.Carry(f.RoomGeometry,Hull(),feet,1f/60,state),feet),
+                "Pending departure другого segment перенёс ненаблюдавшийся endpoint при нескольких snapshots до Step.");
         }
         private static void ClockRecovery()
         {
@@ -221,8 +263,10 @@ namespace Remains.Editor
         // actual player hull. The standalone suite uses the same workshop dimensions above.
         public static void CheckDepartures(MovingPlatformDefinition type,MovingPlatformState source,RoomLayout room,MovementHull hull)
         {
+            ObservedLateDeparture(type,source,room,hull);
             foreach(int endpoint in new[]{0,1})
-            foreach(bool inPlace in new[]{false,true}) LateDeparture(type,source,room,hull,endpoint,inPlace);
+            foreach(bool inPlace in new[]{false,true})
+            foreach(double delay in new[]{1d/60,.39016828377543,.8}) LateDeparture(type,source,room,hull,endpoint,inPlace,delay);
             foreach(int fps in new[]{30,60,144})
             foreach(int endpoint in new[]{0,1})
             foreach(bool inPlace in new[]{false,true})
@@ -231,6 +275,22 @@ namespace Remains.Editor
                 ConfirmedDeparture(type,source,room,hull,fps,endpoint,inPlace,firstDelta,0);
                 ConfirmedDeparture(type,source,room,hull,fps,endpoint,inPlace,firstDelta,.5);
             }
+        }
+
+        private static void ObservedLateDeparture(MovingPlatformDefinition type,MovingPlatformState source,RoomLayout room,MovementHull hull)
+        {
+            var stationary=StateJson.Copy(source);stationary.endpoint=1;stationary.segment=null;
+            using var f=new Fixture(64.85479426541177,false,definition:type,platform:stationary,room:room);
+            var offset=new Vector2(.32101440429688f,0);var actor=f.Feet()+offset;var state=State("observed-late-rider");
+            var cargo=Cargo(f.Feet());var cargoState=State(cargo.id);
+            PassengerMotion.Carry(f.RoomGeometry,hull,actor,1f/60,state);PropMotion.Step(cargo,f.RoomGeometry,1f/60,null,passenger:cargoState);
+            StartSegment(f,64.48545922525227,false);f.Now=64.8756275090277;f.Simulation.Step(1f/60);
+            var pose=f.Frame.Pose(0);actor=PassengerMotion.Carry(f.RoomGeometry,hull,actor,1f/60,state);
+            PropMotion.Step(cargo,f.RoomGeometry,1f/60,null,passenger:cargoState);
+            Require(pose.Continuous && Mathf.Abs(pose.Delta.x+1.09246826171875f)<.00002f &&
+                Near(actor,f.Feet()+offset) && Near(cargo.Position,f.Feet()) && !state.Blocked && !cargoState.Blocked &&
+                Near(PassengerMotion.Carry(f.RoomGeometry,hull,actor,1f/60,state),actor),
+                "Точные часы/offset позднего frame3583 не перенесли actor/cargo однократно.");
         }
         private static void ConfirmedDeparture(MovingPlatformDefinition type,MovingPlatformState source,RoomLayout room,MovementHull hull,
             int fps,int endpoint,bool inPlace,float firstDelta,double startFraction)
@@ -275,17 +335,33 @@ namespace Remains.Editor
             Require(f.Frame.Pose(0).Continuous && Near(actor,f.Feet()+offset) && Near(cargo.Position,f.Feet()),"Следующий interval потерял relative position: "+context);
         }
 
-        private static void LateDeparture(MovingPlatformDefinition type,MovingPlatformState source,RoomLayout room,MovementHull hull,int endpoint,bool inPlace)
+        private static void LateDeparture(MovingPlatformDefinition type,MovingPlatformState source,RoomLayout room,MovementHull hull,int endpoint,bool inPlace,double delay)
         {
             var stationary=StateJson.Copy(source);stationary.endpoint=endpoint;stationary.segment=null;
             using var f=new Fixture(53.75664048,false,definition:type,platform:stationary,room:room);
             var actor=f.Feet()+new Vector2(.32378f,0);var state=State("late-departure");
+            var cargo=Cargo(f.Feet());var cargoState=State(cargo.id);string contents=StateJson.ToJson(cargo.items),aliases=StateJson.ToJson(cargo.itemAliases);
             PassengerMotion.Carry(f.RoomGeometry,hull,actor,1f/60,state);
-            StartSegment(f,f.Now-1d/60,inPlace);f.Advance(1f/60);
+            PropMotion.Step(cargo,f.RoomGeometry,1f/60,null,passenger:cargoState);
+            StartSegment(f,f.Now-delay,inPlace);f.Snapshot();string canonical=StateJson.ToJson(f.World);
+            f.Simulation.Step(0);
+            Require(Near(f.Feet()+new Vector2(.32378f,0),actor) && Near(PassengerMotion.Carry(f.RoomGeometry,hull,actor,0,state),actor),
+                "Нулевой шаг/пауза потребил подтверждённый departure correction.");
+            PropMotion.Step(cargo,f.RoomGeometry,0,null,passenger:cargoState);
+            f.Advance(1f/60);
             var pose=f.Frame.Pose(0);
-            Require(!pose.Continuous && Bounds(pose.Previous).Equals(Bounds(pose.Current)) &&
-                Near(PassengerMotion.Carry(f.RoomGeometry,hull,actor,1f/60,state),actor),
-                "Даже небольшой past gap нельзя выдавать за текущий interval: endpoint="+endpoint+", inplace="+inPlace);
+            actor=PassengerMotion.Carry(f.RoomGeometry,hull,actor,1f/60,state);
+            Require(StateJson.ToJson(f.World)==canonical,"Поздний correction изменил canonical state до snapshot.");
+            f.Snapshot();PropMotion.Step(cargo,f.RoomGeometry,1f/60,null,passenger:cargoState);
+            // The explicit test round-trip normalizes decimal doubles; it is not
+            // a simulation write. Check immutability on each side of that boundary.
+            canonical=StateJson.ToJson(f.World);
+            Require(pose.Continuous && Near(actor,f.Feet()+new Vector2(.32378f,0)) && Near(cargo.Position,f.Feet()) &&
+                !state.Blocked && !cargoState.Blocked && Near(state.LastAppliedDelta,pose.Delta) && Near(cargoState.LastAppliedDelta,pose.Delta),
+                "Позднее подтверждение известного endpoint потеряло actor/cargo: endpoint="+endpoint+", inplace="+inPlace+", delay="+delay);
+            Require(Near(PassengerMotion.Carry(f.RoomGeometry,hull,actor,1f/60,state),actor),"Поздний correction повторился.");
+            Require(StateJson.ToJson(f.World)==canonical,"Поздний correction изменил canonical state после snapshot.");
+            Require(StateJson.ToJson(cargo.items)==contents && StateJson.ToJson(cargo.itemAliases)==aliases,"Поздний correction изменил cargo inventory/aliases.");
         }
 
         private static void StartSegment(Fixture f,double start,bool inPlace)

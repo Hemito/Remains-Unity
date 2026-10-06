@@ -171,7 +171,7 @@ namespace Remains.Runtime
                 ValidateWindow();opened=true;shotsAtOpen=combatShots;roundsAtOpen=Magazine(actor);capture="open";phase=1;
             }
             if(phase==1 && lastCapture=="open" && !reported) SendObserved(1,true);
-            if(phase==2 && NetworkTime.time>=raceAt && !clicking) {clicking=true;StartCoroutine(Race());}
+            if(phase==2 && NetworkTime.time>=raceAt && !clickDone && !clicking) {clicking=true;StartCoroutine(Race());}
             if(phase==2 && clickDone && RaceValid(session.World) && lastCapture=="claimed" && !reported) SendObserved(2,true);
             if(phase==3 && Target.items.Count==0 && session.World.pendingGrants.Count==0 && AmountsValid(session.World,true) &&
                 accepted.All(session.World.completedTransactions.Contains) && !clicking)

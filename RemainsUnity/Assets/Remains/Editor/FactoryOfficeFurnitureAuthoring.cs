@@ -67,6 +67,7 @@ namespace Remains.Editor
             var retainedProps=prior.physical.props.Where(p=>!newIds.Contains(p.id)).Select(p=>(p.id,json:StateJson.ToJson(p))).ToArray();
             var retainedContainers=prior.physical.containers.Where(p=>!newIds.Contains(p.id)).Select(p=>(p.id,json:StateJson.ToJson(p))).ToArray();
             var retainedLoot=prior.physical.loot.Where(p=>!newIds.Contains(p.container)).Select(p=>(p.container,json:StateJson.ToJson(p))).ToArray();
+            OfficeValuableIconAuthoring.Run();
             var definitions=FactoryOfficeFurnitureArtworkAuthoring.Install();
             if(definitions.Length!=4 || !definitions.Select(d=>d.CreateDefinition().id).OrderBy(id=>id).SequenceEqual(new[]{"bookcase","table","table1","trash"}))
                 throw new InvalidOperationException("Мебель офисов53: ресурсный контракт не вернул четыре явных типа.");

@@ -25,6 +25,8 @@ namespace Remains.Editor
                 if(importer.assetPath.Contains("/Original/Room/WorkshopToolStand/") ||
                     importer.assetPath.Contains("/Original/Room/FactoryObjects/") ||
                     importer.assetPath.Contains("/Original/Containers/OfficeLoot/") ||
+                    importer.assetPath.Contains("/Original/Containers/OfficeFurniture/") ||
+                    importer.assetPath.Contains("/Original/Inventory/office-valuables/") ||
                     importer.assetPath.Contains("/Original/Inventory/tool-components/")) continue;
                 importer.textureType=TextureImporterType.Default;
                 importer.alphaIsTransparency=true;

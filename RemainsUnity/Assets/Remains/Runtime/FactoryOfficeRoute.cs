@@ -146,7 +146,10 @@ namespace Remains.Runtime
         }
         private bool AtX(float x)=>Mathf.Abs(Actor.x-x)<.08f;
         private bool At(float x,float y)=>AtX(x) && Landed(y);
-        private bool Landed(float y)=>Mathf.Abs(Actor.y-y)<.02f && !Actor.climbing &&
+        // Contact tolerance is also true while rising through a one-way shelf.
+        // Advance the route only after the controller actually settles on it;
+        // releasing jump at a merely nearby height can cancel the ascent.
+        private bool Landed(float y)=>Mathf.Abs(Actor.y-y)<.0002f && Mathf.Abs(Actor.vy)<.001f && !Actor.climbing &&
             ActorTerrainMotion.Supported(room,Anatomy.Movement(Actor),Actor.Position);
         private PlayerCommand Move(float x)=>new() {movement=Vector2.right*(Mathf.Abs(Actor.x-x)>.06f?Mathf.Sign(x-Actor.x):0)};
         private PlayerCommand Jump(Vector2 movement,bool hold)

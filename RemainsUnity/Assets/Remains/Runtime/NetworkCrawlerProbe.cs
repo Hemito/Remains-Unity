@@ -10,6 +10,14 @@ using UnityEngine;
 
 namespace Remains.Runtime
 {
+    // One source for the isolated probe's placement; neither the creature nor furniture is moved.
+    public static class OfficeCrawlerProbePlacement
+    {
+        public const string FurnitureId="factory:0:original:plant:53:Qyc8bJzHANJlny9s";
+        public static Vector2 Offset(bool furniture)=>Vector2.left*(furniture ? .8f : 1.1f);
+        // In the restored corridor only .17m of approach remains before the ordinary attack range.
+        public static float MinimumApproach(bool furniture)=>furniture ? .1f : .25f;
+    }
     public struct CrawlerFixture : NetworkMessage {public string player,item;public int generation,initialCaps,loot;public float initialHealth;}
     public struct CrawlerObserved : NetworkMessage {public bool paused;public int contacts;}
     public struct CrawlerFinish : NetworkMessage {public bool success;public string detail;}
@@ -31,6 +39,8 @@ namespace Remains.Runtime
         private bool traveled,installed,pauseSent,resumed,paused,claimed,sent,finished,approached;
         private bool Host=>runtime.Options.Role=="host";
         private bool Source=>runtime.Options.ProbePeers==1 || runtime.Options.Character=="session-client-1";
+        private bool Office=>runtime.Options.Smoke.Contains("-office-",StringComparison.Ordinal);
+        private bool Furniture=>Office && runtime.Session.World.containers.Any(c=>c.id==OfficeCrawlerProbePlacement.FurnitureId);
         private ActorState Npc=>runtime.Session.World?.Find(NpcId);
         public void Initialize(PrototypeRuntime value)
         {
@@ -97,7 +107,7 @@ namespace Remains.Runtime
                 if(source?.level=="factory:0" && !session.Travel.Pending && session.World.Find(source.id)?.level==source.level) Setup(source);
             }
             if(!Source || actor.id!=fixture.player || actor.generation!=fixture.generation || Npc is not { } npc) return;
-            approached |= Mathf.Abs(npc.x-initialNpcX)>.25f;
+            approached |= Mathf.Abs(npc.x-initialNpcX)>OfficeCrawlerProbePlacement.MinimumApproach(Furniture);
             if(npc.attackBusy && npc.owner==session.LocalOwner && !pauseSent)
             {pauseSent=true;session.Pause.SetManual(true);}
             if(pauseSent && session.Pause.IsPaused(npc.level) && !resumed)
@@ -134,9 +144,14 @@ namespace Remains.Runtime
             // Enter the creature's ordinary close-detection radius from behind, leaving room for its approach.
             // The office's first crawler now shares its shelf with the restored tool container.
             // Use the second authored crawler and its clear left side; never move the creature or its props.
-            var position=npc.Position+Vector2.right*(runtime.Options.Smoke.Contains("-office-",StringComparison.Ordinal)?-1.1f:1.1f);var hull=Anatomy.Movement(player);
+            bool furniture=Office && session.ServerWorld.containers.Any(c=>c.id==OfficeCrawlerProbePlacement.FurnitureId);
+            var position=npc.Position+(Office?OfficeCrawlerProbePlacement.Offset(furniture):Vector2.right*1.1f);var hull=Anatomy.Movement(player);
             if(!ActorTerrainMotion.IsClear(room,hull,position) || !ActorTerrainMotion.Supported(room,hull,position))
                 throw new InvalidOperationException("Нет безопасной опоры проверочного игрока у исходного радтаракана: "+position);
+            var body=new Rect(position.x-hull.width*.5f,position.y,hull.width,hull.height);
+            foreach(var prop in session.ServerWorld.props.Cast<PropState>().Concat(session.ServerWorld.containers))
+                if(prop.level==npc.level && prop.hasPhysicalBody && body.Overlaps(new Rect(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height)))
+                    throw new InvalidOperationException($"Проверочный игрок пересекает авторский объект: actor={player.id}, prop={prop.id}, position={position}.");
             player.Position=position;player.Velocity=Vector2.zero;player.climbing=false;player.pose="idle";player.poseTime=0;player.generation++;player.revision++;
             fixture=new CrawlerFixture {player=player.id,generation=player.generation,item=npc.inventory[0].id,loot=npc.inventory[0].count,
                 initialCaps=InventoryJournal.Count(player,"caps"),initialHealth=player.health};

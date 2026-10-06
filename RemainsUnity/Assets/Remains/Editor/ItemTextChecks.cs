@@ -22,24 +22,25 @@ namespace Remains.Editor
         {
             var text=Resources.Load<TextAsset>(ItemTextCatalog.Resource);
             if(text==null) throw new InvalidOperationException("Нет данных проверки текстов предметов.");
-            CheckText(text.text);ToolStandIconAuthoring.CheckAuthored();
+            CheckText(text.text);ToolStandIconAuthoring.CheckAuthored();OfficeValuableIconAuthoring.CheckAuthored();
             var manifest=ToolStandIconAuthoring.ReadManifest();var catalog=ItemTextCatalog.Load();
             Require(manifest.items.Length==60 && manifest.items.All(entry=>catalog.Contains(entry.id)),"Не согласованы явные ID текстов и иконок стенда.");
-            Debug.Log("Тексты и иконки предметов: PASS — 69 текстов, 60 связей иконок, явная регистрация модов, стопки/назначения/бросок/восстановление.");
+            Require(OfficeValuableIconAuthoring.ReadManifest().items.Length==1 && catalog.Contains("lbook"),"Не согласованы текст и исходная иконка довоенной книги.");
+            Debug.Log("Тексты и иконки предметов: PASS — 70 текстов, 60 связей иконок стенда и довоенная книга, явная регистрация модов, стопки/назначения/бросок/восстановление.");
         }
         // Pure checks: also executable without running Unity or importing assets.
         public static void CheckText(string json)
         {
             var warnings=new List<string>();var catalog=new ItemTextCatalog(json,warnings.Add);
-            Require(catalog.Count==69,"Изменён заявленный набор нынешних предметов и обычных компонентов стенда.");
+            Require(catalog.Count==70,"Изменён заявленный набор нынешних предметов, обычных компонентов и довоенной книги.");
             var expected=new Dictionary<string,string> {{"spear","Копьё"},{"crowbar","Лом"},{"pistol","10-мм пистолет"},{"energy","Лазерный пистолет"},
                 {"caps","Крышки"},{"heal","Аптечка"},{"grenade","Граната"},{"p10","10-мм патроны"},{"batt","Энергобатареи"},
-                {"pin","Заколка"},{"rep","Ремонтный набор оружейника"},{"metal_comp","Металлическая пластина"}};
+                {"pin","Заколка"},{"rep","Ремонтный набор оружейника"},{"metal_comp","Металлическая пластина"},{"lbook","Довоенная книга"}};
             foreach(var pair in expected) Require(catalog.Name(pair.Key,"fixture")==pair.Value,"Изменено русское имя "+pair.Key);
             foreach(var entry in StateJson.FromJson<ItemTextManifest>(json).items)
             {
                 Require(catalog.Name(entry.id,"fixture")==entry.name && catalog.Description(entry.id,"fixture")==entry.description,"Данные разных читателей разошлись: "+entry.id);
-                if(!expected.ContainsKey(entry.id) || entry.id is "pin" or "rep" or "metal_comp") CheckOrdinaryItem(entry.id);
+                if(!expected.ContainsKey(entry.id) || entry.id is "pin" or "rep" or "metal_comp" or "lbook") CheckOrdinaryItem(entry.id);
             }
             Require(warnings.Count==0,"Известный предмет вызывает предупреждение.");
             Reject(()=>new ItemTextCatalog("{\"schema\":2,\"items\":[]}"),"другая схема");

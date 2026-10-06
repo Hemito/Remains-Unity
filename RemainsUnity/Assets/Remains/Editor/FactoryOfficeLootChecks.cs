@@ -22,7 +22,7 @@ namespace Remains.Editor
         // Strict stage discriminator also used by earlier checks: partial four-record installs are rejected.
         internal static bool CheckOfficeStage(RoomAuthoring room)
         {
-            var layout=RoomPhysicalContent.Read(room,"factory:0");
+            var layout=FactoryOfficeFurnitureChecks.BeforeFurniture(RoomPhysicalContent.Read(room,"factory:0"));
             bool installed=layout?.patch=="factory:0:"+FactoryOfficeLootAuthoring.OfficePatch;
             Require(installed || layout?.patch=="factory:0:"+FactoryOfficeDraft.PhysicalPatch,"Неизвестная физическая версия офиса.");
             var ids=FactoryOfficeLootAuthoring.Containers.Select(c=>"factory:0:"+c.Id).ToArray();
@@ -40,8 +40,9 @@ namespace Remains.Editor
             Require(CheckOfficeStage(room),"Четыре контейнера офиса ещё не установлены.");
             var layout=RoomPhysicalContent.Read(room,"factory:0");CheckPlacement(room,layout,0);
             int npcCount=RoomNpcContent.Read(room,"factory:0")?.actors.Length??0;
-            Require(npcCount==5 && room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==17,
-                "Потеряна встреча из пяти NPC или скрыты другие 17 неподключённых записей.");
+            bool furniture=FactoryOfficeFurnitureChecks.CheckOfficeStage(room);
+            Require(npcCount==5 && room.GetComponent<RoomImportAudit>().Report.Records.Count(r=>!r.installed)==17-(furniture?8:0),
+                "Потеряна встреча из пяти NPC или скрыты другие неподключённые записи.");
             CheckPersistence(new RoomContentBatch {physical=layout},RoomPhysicalContent.Read(room,"factory:6"),false);
         }
         public static void Check(RoomAuthoring room)
@@ -49,6 +50,7 @@ namespace Remains.Editor
             var office=room.GetComponentsInChildren<RoomAuthoring>(true).Single(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
             CheckOffice(office);
             var batch=RoomContentBatch.Read(room,"factory:0");
+            batch.physical=FactoryOfficeFurnitureChecks.BeforeFurniture(batch.physical);
             Require(batch.physical.patch=="factory:0:"+FactoryOfficeLootAuthoring.ConnectedPatch && batch.physical.props.Length==9 &&
                 batch.physical.containers.Length==31 && batch.physical.loot.Length==28,"Связный завод потерял точные 9 props/31 containers/28 loot bindings v5.");
             var additions=FactoryOfficeLootAuthoring.Containers.Select(c=>"factory:0:"+c.Id).ToArray();
@@ -128,6 +130,8 @@ namespace Remains.Editor
         // Pure content/persistence consumers: also callable with explicit layouts in a CLI harness.
         public static void CheckPersistence(RoomContentBatch batch,PhysicalLayout other,bool connected)
         {
+            batch=StateJson.Copy(batch);batch.physical=FactoryOfficeFurnitureChecks.BeforeFurniture(batch.physical);
+            other=FactoryOfficeFurnitureChecks.BeforeFurniture(other);
             var layout=batch.physical;string prefix=layout.level+":";
             var ids=FactoryOfficeLootAuthoring.Containers.Select(c=>prefix+c.Id).ToArray();
             Require(ids.All(id=>layout.containers.Count(c=>c.id==id)==1 && layout.loot.Count(b=>b.container==id)==1),"Четыре ID/таблицы подключены частично.");

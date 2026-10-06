@@ -30,6 +30,7 @@ namespace Remains.Editor
         }
         public static PhysicalLayout BeforeOffice(PhysicalLayout source)
         {
+            source=FactoryOfficeFurnitureChecks.BeforeFurniture(source);
             string level=source.level+":";
             if(source.patch!=level+FactoryOfficeConnectionAuthoring.PhysicalPatch && source.patch!=level+FactoryOfficeLootAuthoring.ConnectedPatch) return source;
             var result=StateJson.Copy(source);string prefix=level+"original:plant:53:";

@@ -21,6 +21,7 @@ namespace Remains.Gameplay
             public double elapsed;
             public bool initialized;
             public bool needsRebase;
+            public bool confirmedDeparture;
         }
         private sealed class Level
         {public RoomLayout room;public Entry[] entries;}
@@ -92,9 +93,19 @@ namespace Remains.Gameplay
                     if(topologyChanged || !hadFrame) entry.initialized=false;
                     entry.motion=motion;
                     var previousSampleState=entry.samplingState??entry.state;
+                    // Delayed confirmation may move an already published stationary
+                    // endpoint. Retain that observed support as the start of one
+                    // correction, rather than abandoning its existing passengers.
+                    // A route/type change, new binding or moving predecessor has
+                    // no such endpoint witness and still starts from a baseline.
                     bool finishLocally=previousSampleState?.segment!=null && state.segment==null &&
                         state.endpoint==previousSampleState.segment.toEndpoint && !changedRoute;
                     entry.samplingState=finishLocally?previousSampleState:state;
+                    entry.confirmedDeparture=entry.initialized && !topologyChanged && hadFrame && !changedRoute &&
+                        (entry.confirmedDeparture && SameSegment(previousSampleState?.segment,entry.samplingState.segment) ||
+                         previousSampleState!=null && previousSampleState.segment==null && state.segment!=null &&
+                         state.segment.fromEndpoint==previousSampleState.endpoint &&
+                         motion.Evaluate(state,state.segment.startElapsedSeconds).SupportBounds.Equals(entry.sample.SupportBounds));
                     entry.state=state;selected[i]=entry;
                     if(!entry.initialized)
                     {
@@ -126,14 +137,19 @@ namespace Remains.Gameplay
                 foreach(var entry in level.entries)
                 {
                     var next=entry.motion.Evaluate(entry.samplingState,now);
+                    bool deferredDeparture=entry.confirmedDeparture && continuous && now==entry.elapsed &&
+                        !next.SupportBounds.Equals(entry.sample.SupportBounds);
+                    if(deferredDeparture) next=entry.sample; // Frozen time cannot consume a correction.
                     // A newly confirmed segment can begin inside this unconsumed interval.
-                    // Carry it only when its trajectory agrees with the actual last
-                    // published support; a delayed past trajectory becomes a baseline.
+                    // Carry an ordinary interval, or one confirmed departure from
+                    // the same previously observed endpoint. PassengerMotion sweeps
+                    // this whole displacement and consumes it once per owner.
                     bool carryInterval=continuous && !entry.needsRebase &&
-                        entry.motion.Evaluate(entry.samplingState,entry.elapsed).SupportBounds.Equals(entry.sample.SupportBounds);
+                        (entry.confirmedDeparture || entry.motion.Evaluate(entry.samplingState,entry.elapsed).SupportBounds.Equals(entry.sample.SupportBounds));
                     level.room.dynamicSurfaces.SetPose(entry.state.id,carryInterval?entry.sample.SupportBounds:next.SupportBounds,next.SupportBounds,
                         continuous?previous:now,now,frameSequence,carryInterval);
                     entry.needsRebase=false;
+                    entry.confirmedDeparture=deferredDeparture;
                     entry.sample=next;entry.elapsed=now;entry.initialized=true;
                     if(next.Completed && entry.state.segment==null) entry.samplingState=entry.state;
                 }
@@ -154,6 +170,9 @@ namespace Remains.Gameplay
         }
         private static double SavedTime(WorldState world,string level)
             =>world.levelTimes.Find(clock=>clock.level==level)?.elapsedSeconds??throw new InvalidOperationException("Нет сохранённых часов платформы: "+level);
+        private static bool SameSegment(MovingPlatformSegment a,MovingPlatformSegment b)
+            =>a!=null && b!=null && a.sequence==b.sequence && a.fromEndpoint==b.fromEndpoint && a.toEndpoint==b.toEndpoint &&
+                a.startElapsedSeconds==b.startElapsedSeconds && a.durationSeconds==b.durationSeconds;
         private static DynamicSurfaceSpec CreateSpec(MovingPlatformState state,MovingPlatformDefinition type)
         {
             return new DynamicSurfaceSpec(state.id,type.oneWay,type.shotsPassThrough,type.surfaceTexture,type.movementSound);
