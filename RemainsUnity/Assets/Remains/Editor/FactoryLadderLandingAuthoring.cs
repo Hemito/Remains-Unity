@@ -33,11 +33,15 @@ namespace Remains.Editor
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}
         }
-        public static void InstallOn(GameObject root,int sourceRoom)
+        public static void InstallOn(GameObject root,int sourceRoom)=>InstallOn(root,sourceRoom,FactoryLadderLandingSource.Load().Room(sourceRoom));
+        public static void InstallOn(GameObject root,int sourceRoom,FactoryLadderLandingRecord[] reviewedRecords)
         {
+            var source=new FactoryLadderLandingSource {schema=1,records=reviewedRecords};source.Validate();
+            if(reviewedRecords.Any(r=>r.sourceRoom!=sourceRoom))
+                throw new InvalidOperationException("Верхние посадки: явные записи принадлежат другой комнате, sourceRoom="+sourceRoom);
+            var records=StateJson.Copy(reviewedRecords);
             var room=root.GetComponent<RoomAuthoring>();
             if(room==null || !room.HasAuthoredArtwork) throw new InvalidOperationException("Верхние посадки: нужно сохранённое оформление комнаты "+root.name);
-            var records=FactoryLadderLandingSource.Load().Room(sourceRoom);
             if(records.Length==0) throw new InvalidOperationException("Нет явных посадок исходной комнаты "+sourceRoom);
             var markers=root.GetComponentsInChildren<RoomLadderLandingAuthoring>(true);
             if(markers.Length>0)

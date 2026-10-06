@@ -42,5 +42,6 @@ namespace Remains.Editor
         public FactoryModulePhysicalBinding[] physical;
         public FactoryModuleDoorBinding[] doors;
         public bool installLadderLandings;
+        public FactoryLadderLandingRecord[] landingRecords; // Null retains the canonical existing-room contract.
     }
 }

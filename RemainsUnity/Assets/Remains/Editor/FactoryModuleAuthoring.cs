@@ -57,7 +57,11 @@ namespace Remains.Editor
             var graphics=root.transform.Find(GraphicsName)?.gameObject;
             if(graphics==null || graphics.GetComponent<RoomMeshLifetime>()==null) throw Error(input,"нет несохранённого оформления для первого импорта");
             RoomArtworkAssets.Save(graphics,System.IO.Path.GetDirectoryName(input.artworkFolder).Replace('\\','/'),System.IO.Path.GetFileName(input.artworkFolder));
-            if(input.installLadderLandings) FactoryLadderLandingAuthoring.InstallOn(root,input.sourceIndex);
+            if(input.installLadderLandings)
+            {
+                if(input.landingRecords==null) FactoryLadderLandingAuthoring.InstallOn(root,input.sourceIndex);
+                else FactoryLadderLandingAuthoring.InstallOn(root,input.sourceIndex,input.landingRecords);
+            }
             var report=ScriptableObject.CreateInstance<RoomImportReportAsset>();report.Configure(input.sourceId,input.sourceHash,StateJson.Copy(input.records));
             AssetDatabase.CreateAsset(report,input.reportPath);root.AddComponent<RoomImportAudit>().Configure(report);
             var saved=PrefabUtility.SaveAsPrefabAsset(root,input.prefabPath);
@@ -73,6 +77,12 @@ namespace Remains.Editor
             foreach(string path in new[]{input.prefabPath,input.artworkFolder,input.reportPath})
                 if(string.IsNullOrWhiteSpace(path) || !path.StartsWith("Assets/Remains/RoomDrafts/",StringComparison.Ordinal) || path.Contains("..") || AssetDatabase.LoadMainAssetAtPath(path)!=null || AssetDatabase.IsValidFolder(path))
                     throw Error(input,"путь существует или не относится к новому модулю: "+path);
+            if(input.landingRecords!=null)
+            {
+                if(!input.installLadderLandings) throw Error(input,"явные посадки заданы при выключенной установке");
+                new FactoryLadderLandingSource {schema=1,records=input.landingRecords}.Validate();
+                if(input.landingRecords.Any(r=>r.sourceRoom!=input.sourceIndex)) throw Error(input,"посадки принадлежат другому источнику");
+            }
             ValidateLayout(input.geometry,input);ValidateLayout(input.decor,input);
             if(input.decor.platforms.Length!=0 || input.decor.ladders.Length!=0 || input.geometry.left!=input.decor.left || input.geometry.right!=input.decor.right || input.geometry.bottom!=input.decor.bottom || input.geometry.top!=input.decor.top)
                 throw Error(input,"декор меняет физическую геометрию или границы");

@@ -158,8 +158,10 @@ namespace Remains.Editor
                 var texture=Resources.Load<Texture2D>(mask);
                 if(texture==null || !texture.isReadable) throw new InvalidOperationException("Офисы53: нет читаемой исходной маски, record="+record.recordId+", mask="+mask);
                 var node=new GameObject("Светильник · "+record.recordId);node.transform.SetParent(root.GetComponentInChildren<RoomMeshLifetime>().transform,false);
-                node.AddComponent<RoomLightAuthoring>().Configure(new RoomLight {id=record.recordId,x=lamp.x+shift.x,y=lamp.y+shift.y,radius=lamp.radius,intensity=lamp.intensity,color=lamp.color,mask=mask,
-                    maskX=lamp.maskX+shift.x,maskY=lamp.maskY+shift.y,maskWidth=lamp.maskWidth,maskHeight=lamp.maskHeight},texture);
+                // Keep the previous Office field selection, including RoomLight defaults.
+                var seed=new RoomLight {x=lamp.x,y=lamp.y,radius=lamp.radius,intensity=lamp.intensity,color=lamp.color,mask=mask,
+                    maskX=lamp.maskX,maskY=lamp.maskY,maskWidth=lamp.maskWidth,maskHeight=lamp.maskHeight};
+                node.AddComponent<RoomLightAuthoring>().Configure(FactoryModuleLightTemplate.Translate(seed,Vector2.zero,shift,record.recordId),texture);
                 actual.transform.SetParent(node.transform,true);
             }
             foreach(var item in art)
