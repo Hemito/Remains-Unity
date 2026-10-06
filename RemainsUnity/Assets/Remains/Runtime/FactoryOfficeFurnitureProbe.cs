@@ -44,15 +44,15 @@ namespace Remains.Runtime
         {public string source,firstItem;public ItemStack[] items;public PlayerBaseline[] players;public int firstCount;}
         [Serializable] private sealed class Report
         {
-            public bool success,explicitInitialFixture,opened,empty,reopened,policiesVerified,stableRecipientsVerified,durableVerified,savedReloadVerified,reinstallVerified,raceSkipped;
-            public string detail,type,source,snapshot,progress;public int phase,claimsAccepted,claimsDenied,uiRaceAttempts,combatShots;public PlayerBaseline[] players;
+            public bool success,explicitInitialFixture,opened,empty,reopened,policiesVerified,stableRecipientsVerified,durableVerified,savedReloadVerified,reinstallVerified,raceSkipped,pointerCaptureVerified;
+            public string detail,type,source,snapshot,progress;public int phase,claimsAccepted,claimsDenied,uiRaceAttempts,combatShots,layoutCaptures;public PlayerBaseline[] players;
             public ItemStack[] initialItems;
         }
         private PrototypeRuntime runtime;private Expected expected;private Fixture fixture;private PlayerBaseline baseline;
         private readonly HashSet<string> accepted=new(StringComparer.Ordinal),denied=new(StringComparer.Ordinal);
         private readonly HashSet<string> barrier=new(StringComparer.Ordinal);
-        private int phase,serverPhase,combatShots,shotsAtOpen,roundsAtOpen,uiRaceAttempts;
-        private bool traveled,installed,finished,opened,reopened,empty,reported,clickDone,clicking,raceSkipped,edge;
+        private int phase,serverPhase,combatShots,shotsAtOpen,roundsAtOpen,uiRaceAttempts,layoutCaptures;
+        private bool traveled,installed,finished,opened,reopened,empty,reported,clickDone,clicking,raceSkipped,edge,pointerCaptureVerified;
         private float deadline,nextHeal,quietSince=-1;private double raceAt;
         private string capture,lastCapture,snapshot,aimedThreat;private RoomLayout initialRoom;private string[] actorIds;private int[][] initialCounts;
         private bool Host=>runtime.Options.Role=="host";
@@ -185,6 +185,31 @@ namespace Remains.Runtime
         }
         private void ValidateWindow()
         {if(runtime.Hud.ShownInventorySourceId!=expected.Id || runtime.Hud.InventoryOpen || runtime.Hud.BlocksGameplayInput) throw new InvalidOperationException("E мебели открыл другой источник/заблокировал управление");}
+        private void ValidateLayout()
+        {
+            var window=runtime.Hud.ContainerWindowRect;
+            if(!window.gameObject.activeInHierarchy) throw new InvalidOperationException("В проверочном разрешении окно мебели не показано: "+expected.Id);
+            var bounds=UiPointerProbe.ScreenBounds(window);
+            if(bounds.xMin<-.1f || bounds.yMin<-.1f || bounds.xMax>Screen.width+.1f || bounds.yMax>Screen.height+.1f)
+                throw new InvalidOperationException($"Окно мебели вышло за экран: source={expected.Id}, bounds={bounds}, screen={Screen.width}×{Screen.height}.");
+            foreach(var area in runtime.Hud.ContainerLayoutReservations)
+                if(area.gameObject.activeInHierarchy)
+                {
+                    var reserved=UiPointerProbe.ScreenBounds(area);
+                    if(OverlapsPixels(bounds,reserved))
+                        throw new InvalidOperationException($"Окно мебели перекрыло HUD: source={expected.Id}, area={area.name}, bounds={bounds}, reserved={reserved}.");
+                }
+            var body=InventorySource.BodyBounds(Actor);
+            var lower=Camera.main.WorldToScreenPoint(new Vector3(body.xMin,body.yMin,0));
+            var upper=Camera.main.WorldToScreenPoint(new Vector3(body.xMax,body.yMax,0));
+            var actorBounds=Rect.MinMaxRect(lower.x,lower.y,upper.x,upper.y);
+            if(OverlapsPixels(bounds,actorBounds))
+                throw new InvalidOperationException($"Окно мебели перекрыло локального персонажа: source={expected.Id}, actor={Actor.id}, bounds={bounds}, actorBounds={actorBounds}.");
+            layoutCaptures++;
+        }
+        private static bool OverlapsPixels(Rect first,Rect second)=>
+            Mathf.Min(first.xMax,second.xMax)-Mathf.Max(first.xMin,second.xMin)>.1f &&
+            Mathf.Min(first.yMax,second.yMax)-Mathf.Max(first.yMin,second.yMin)>.1f;
         private void Setup()
         {
             var session=runtime.Session;var world=session.ServerWorld;ValidatePolicies(world,true);
@@ -247,9 +272,9 @@ namespace Remains.Runtime
             }
             return true;
         }
-        private IEnumerator SafeClick(RectTransform rect)
+        private IEnumerator SafeClick(RectTransform rect)=>SafePointer(UiPointerProbe.Click(rect,followTarget:true));
+        private IEnumerator SafePointer(IEnumerator click)
         {
-            var click=UiPointerProbe.Click(rect,followTarget:true);
             try
             {
                 while(!finished)
@@ -280,7 +305,22 @@ namespace Remains.Runtime
         }
         private IEnumerator EmptyClick()
         {
-            yield return SafeClick(runtime.Hud.ContainerSlotRect(8));clicking=false;clickDone=true;
+            yield return SafeClick(runtime.Hud.ContainerSlotRect(8));
+            Rect heldBounds=default;
+            yield return SafePointer(UiPointerProbe.HoldOutside(runtime.Hud.ContainerSlotRect(8),()=>
+            {
+                heldBounds=UiPointerProbe.ScreenBounds(runtime.Hud.ContainerWindowRect);
+                runtime.Session.ShowNotice("Проверка удерживаемого клика контейнера");
+            },point=>
+            {
+                if(!runtime.Hud.BlocksPointerGameplay(point) || UiPointerProbe.ScreenBounds(runtime.Hud.ContainerWindowRect)!=heldBounds || Magazine(Actor)!=roundsAtOpen)
+                    throw new InvalidOperationException("Удерживаемая ЛКМ вне сетки потеряла захват, сдвинула окно или потратила патрон.");
+            },point=>
+            {
+                if(runtime.Hud.BlocksPointerGameplay(point)) throw new InvalidOperationException("Отпускание ЛКМ оставило устаревшую блокировку вне окна.");
+                pointerCaptureVerified=true;
+            }));
+            clicking=false;clickDone=true;
         }
         private void SendObserved(int observedPhase,bool valid)
         {reported=true;NetworkClient.Send(new FurnitureProbeObserved {actor=Actor.id,source=expected.Id,generation=Actor.generation,phase=observedPhase,valid=valid,detail=Progress});}
@@ -308,12 +348,17 @@ namespace Remains.Runtime
         private void LateUpdate()
         {
             if(capture==null) return;
-            if(runtime.Options.Smoke.Contains("-frames-",StringComparison.Ordinal))
+            try
             {
-                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".furniture-"+expected.type+"-"+capture+".png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
-                NetworkSceneRecord.Save(runtime,800+Array.IndexOf(declarations,expected)*10+phase);
+                if(runtime.Options.Smoke.Contains("-frames-",StringComparison.Ordinal))
+                {
+                    ValidateLayout();
+                    NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".furniture-"+expected.type+"-"+capture+".png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
+                    NetworkSceneRecord.Save(runtime,800+Array.IndexOf(declarations,expected)*10+phase);
+                }
+                lastCapture=capture;capture=null;
             }
-            lastCapture=capture;capture=null;
+            catch(Exception error) {capture=null;Finish(false,error.Message+": "+Progress);}
         }
         private void Finish(bool success,string detail,string durableSnapshot=null)
         {
@@ -337,7 +382,7 @@ namespace Remains.Runtime
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,type=expected.type,source=expected.Id,phase=phase,
                 explicitInitialFixture=true,players=fixture?.players,initialItems=fixture?.items,opened=opened,empty=empty,reopened=reopened,
                 policiesVerified=success,stableRecipientsVerified=success,durableVerified=success,savedReloadVerified=reload,reinstallVerified=reinstall,
-                snapshot=snapshot,claimsAccepted=accepted.Count,claimsDenied=denied.Count,uiRaceAttempts=uiRaceAttempts,raceSkipped=raceSkipped,combatShots=combatShots,progress=Progress},true));
+                snapshot=snapshot,claimsAccepted=accepted.Count,claimsDenied=denied.Count,uiRaceAttempts=uiRaceAttempts,raceSkipped=raceSkipped,combatShots=combatShots,layoutCaptures=layoutCaptures,pointerCaptureVerified=pointerCaptureVerified,progress=Progress},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}

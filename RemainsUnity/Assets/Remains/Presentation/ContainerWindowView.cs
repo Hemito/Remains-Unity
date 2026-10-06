@@ -59,7 +59,7 @@ namespace Remains.Presentation
             var unique=new HashSet<RectTransform>();
             foreach(var item in protectedWidgets)
                 if(item==null || item==Rect || item.IsChildOf(transform) || !unique.Add(item) ||
-                    item.GetComponentInParent<Canvas>()?.rootCanvas!=canvas.rootCanvas)
+                    item.GetComponentInParent<Canvas>(true)?.rootCanvas!=canvas.rootCanvas)
                     throw new InvalidOperationException("Окно контейнера: препятствия должны быть уникальными виджетами того же Canvas, вне самого окна.");
             reserved=(RectTransform[])protectedWidgets.Clone();worldActorBounds=actorBounds;
             obstacles=new Rect[reserved.Length+1];previousObstacles=new Rect[obstacles.Length];
@@ -125,9 +125,9 @@ namespace Remains.Presentation
         }
         private void ValidateCanvas()
         {
-            if((layoutParent=transform.parent as RectTransform)==null || (canvas=GetComponentInParent<Canvas>())==null ||
+            if((layoutParent=transform.parent as RectTransform)==null || (canvas=GetComponentInParent<Canvas>(true))==null ||
                 canvas.rootCanvas.renderMode!=RenderMode.ScreenSpaceOverlay)
-                throw new InvalidOperationException("Окно контейнера: нужен RectTransform-родитель в ScreenSpaceOverlay Canvas.");
+                throw new InvalidOperationException($"Окно контейнера {name}: нужен RectTransform-родитель в ScreenSpaceOverlay Canvas; parent={transform.parent?.name}, Canvas={canvas?.name}, mode={canvas?.rootCanvas.renderMode}, active={gameObject.activeInHierarchy}.");
         }
         private Rect BoundsInParent(RectTransform item,RectTransform parent)
         {

@@ -15,6 +15,7 @@ namespace Remains.Editor
         public static void Run()
         {
             var root=new GameObject("Проверка плавающего окна",typeof(RectTransform),typeof(Canvas));
+            root.GetComponent<Canvas>().renderMode=RenderMode.ScreenSpaceOverlay;
             try
             {
                 var session=root.AddComponent<CoopSession>();session.ConfigureRules(WeaponCatalog.Rules);
@@ -28,8 +29,15 @@ namespace Remains.Editor
                 intent.Bind("pressed-item");intent.OnPointerDown(new PointerEventData(null) {button=PointerEventData.InputButton.Left});
                 intent.Bind("replacement-item");intent.OnPointerClick(new PointerEventData(null) {button=PointerEventData.InputButton.Left});
                 Require(submitted=="pressed-item","Изменение сетки подменило предмет между нажатием и кликом");
-                var panel=new FloatingContainerPanel(view,session,new InventoryArtwork(),null,()=>changes++);
+                var cameraObject=new GameObject("Камера плавающего окна",typeof(Camera));cameraObject.transform.SetParent(root.transform,false);
+                var camera=cameraObject.GetComponent<Camera>();camera.transform.position=new Vector3(0,0,-10);
+                camera.orthographic=true;camera.orthographicSize=5;camera.pixelRect=new Rect(0,0,1280,720);
+                ((RectTransform)root.transform).sizeDelta=new Vector2(1280,720);
+                var panel=new FloatingContainerPanel(view,session,new InventoryArtwork(),camera,()=>changes++);
+                panel.ConfigureLayout(Array.Empty<RectTransform>());
                 Require(panel.Open(box.id) && panel.RowCount==6 && panel.FirstItem==0 && view.Icons[8].enabled,"Нет первых девяти иконок");
+                panel.Step(false);
+                Require(view.gameObject.activeInHierarchy,"Настоящее размещение не показало сетку перед прокруткой");
                 view.OnScroll(new PointerEventData(null) {scrollDelta=Vector2.down});
                 Require(panel.FirstItem==3,"Колесо не прокрутило один ряд");
                 view.Scrollbar.value=1;

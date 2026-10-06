@@ -58,6 +58,7 @@ namespace Remains.Editor
             FactoryFileCabinetChecks.Run();
             FactoryOfficeLootChecks.Run();
             FactoryOfficeFurnitureChecks.Run();
+            OfficeRecoveryEvidenceChecks.Run();
             WorldRoomChecks.Run();
             SurfaceSoundChecks.Run();
             WeaponInventoryChecks.Run();
@@ -103,6 +104,7 @@ namespace Remains.Editor
             feedback.Validate();
             InventoryWindowChecks.Run();
             FloatingContainerChecks.Run();
+            ContainerWindowLayoutChecks.Run();
             var pauseMenu=Resources.Load<Remains.Presentation.PauseMenuView>("Presentation/PauseMenu");
             if(pauseMenu==null) throw new InvalidOperationException("Нет префаба меню паузы.");
             pauseMenu.Validate();

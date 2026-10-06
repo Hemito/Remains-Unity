@@ -19,6 +19,9 @@ namespace Remains.Presentation
         private ActorState displayedActor;
         private readonly InventoryArtwork artwork=new();
         private readonly Image[] shortcutIcons;
+        // Explicit presentation bounds; consumers must not reserve the stretched
+        // CombatHud root or search the scene for its visible children every frame.
+        public IReadOnlyList<RectTransform> LayoutReservations {get;}
         public CombatHud(Transform parent,Action<string> equip,Action<string> equipItem=null,Action<string> activateShortcut=null)
         {
             var prefab=Resources.Load<CombatHudView>("Presentation/CombatHud");
@@ -27,6 +30,8 @@ namespace Remains.Presentation
             vitals=view.Vitals;loadout=view.Loadout;name=view.CharacterName;healthText=view.HealthText;manaText=view.ManaText;
             ammunition=view.Ammunition;health=view.Health;mana=view.Mana;weapons=view.Weapons;ids=view.WeaponIds;
             grenades=view.Grenades;grenadeIcon=view.GrenadeIcon;
+            LayoutReservations=Array.AsReadOnly(new[] {(RectTransform)vitals.transform,(RectTransform)loadout.transform,
+                name.rectTransform,healthText.rectTransform,manaText.rectTransform});
             healthWarning=new HealthBarWarning(health.sprite,view.HealthWarningFrames);
             shortcutIcons=new Image[weapons.Length];
             for(int i=0;i<weapons.Length;i++)

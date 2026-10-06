@@ -12,6 +12,8 @@ namespace Remains.Editor
             RunPure();
             var parent=new GameObject("Проверка размещения контейнера",typeof(RectTransform),typeof(Canvas));
             var foreign=new GameObject("Чужой Canvas",typeof(RectTransform),typeof(Canvas));
+            parent.GetComponent<Canvas>().renderMode=RenderMode.ScreenSpaceOverlay;
+            foreign.GetComponent<Canvas>().renderMode=RenderMode.ScreenSpaceOverlay;
             try
             {
                 var view=ContainerWindowView.Create(parent.transform);view.Validate();
@@ -70,13 +72,21 @@ namespace Remains.Editor
             cell.OnPointerUp(left);intent.OnPointerClick(left);
             Require(submitted=="pressed-item" && !view.PointerCaptured,"PointerUp доClick подменил стабильный предмет");
             cell.OnPointerDown(left);view.Scrollbar.gameObject.SetActive(false);
+            // Normal MonoBehaviour lifecycle messages are not dispatched by
+            // SetActive in Edit Mode. Invoke the production callbacks explicitly;
+            // the runtime probe covers actual player activation/event delivery.
+            InvokeDisable(rail);
             Require(view.PointerCaptured,"Скрытие чужого scrollbar прервало удержание ячейки");
-            view.Slots[0].gameObject.SetActive(false);Require(!view.PointerCaptured,"Скрытая ячейка сохранила pointer ID");
+            view.Slots[0].gameObject.SetActive(false);InvokeDisable(cell);
+            Require(!view.PointerCaptured,"Скрытая ячейка сохранила pointer ID");
             view.Slots[0].gameObject.SetActive(true);view.Scrollbar.gameObject.SetActive(true);
             background.OnPointerDown(left);background.OnCancel(new BaseEventData(null));Require(!view.PointerCaptured,"Cancel сохранил capture");
-            rail.OnPointerDown(other);view.gameObject.SetActive(false);Require(!view.PointerCaptured,"Закрытие сохранило capture");
+            rail.OnPointerDown(other);view.gameObject.SetActive(false);InvokeDisable(background);
+            Require(!view.PointerCaptured,"Закрытие сохранило capture");
             view.gameObject.SetActive(true);Require(!view.PointerCaptured,"Повторное открытие восстановило устаревший pointer ID");
         }
+        private static void InvokeDisable(ContainerPointerCapture target)=>
+            typeof(ContainerPointerCapture).GetMethod("OnDisable",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(target,null);
         // Uses only managed Rect/Vector operations; can run outside Unity.
         public static void RunPure()
         {

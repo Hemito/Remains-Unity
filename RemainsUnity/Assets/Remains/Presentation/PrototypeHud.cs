@@ -22,6 +22,9 @@ namespace Remains.Presentation
         private GameObject inventory;
         private ContainerWindowView containerWindow;
         private FloatingContainerPanel containerPanel;
+        private IReadOnlyList<RectTransform> containerLayoutReservations;
+        public IReadOnlyList<RectTransform> ContainerLayoutReservations=>containerLayoutReservations??
+            throw new InvalidOperationException("Окно контейнера: HUD ещё не собрал области интерфейса.");
         public bool ContainerOpen=>containerPanel?.IsOpen==true;
         public RectTransform ContainerWindowRect=>containerPanel.WindowRect;
         public int FirstVisibleContainerItem=>containerPanel.FirstItem;
@@ -146,6 +149,11 @@ namespace Remains.Presentation
             containerWindow=ContainerWindowView.Create(transform);
             containerPanel=new FloatingContainerPanel(containerWindow,session,inventoryArtwork,worldCamera,()=>
             {personalItems?.Refresh(containerPanel?.Source);PauseMenu?.PublishIntent();});
+            var reservedAreas=new List<RectTransform>(combatHud.LayoutReservations) {
+                (RectTransform)sessionHud.transform,(RectTransform)message.transform.parent,(RectTransform)revival.transform.parent};
+            var containerReservations=reservedAreas.ToArray();
+            containerLayoutReservations=Array.AsReadOnly(containerReservations);
+            containerPanel.ConfigureLayout(containerReservations,()=>session.LocalActor==null?(Rect?)null:InventorySource.BodyBounds(session.LocalActor));
             inventory.SetActive(false);
             personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item),inventoryAudio.Page,itemText);
             var pauseView=PauseMenuView.Create(transform);
