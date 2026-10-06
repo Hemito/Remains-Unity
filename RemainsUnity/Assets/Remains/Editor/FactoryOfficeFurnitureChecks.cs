@@ -43,6 +43,7 @@ namespace Remains.Editor
         // Exact stage projection for historical checks; rejects partial additions and never edits a save.
         public static PhysicalLayout BeforeFurniture(PhysicalLayout source)
         {
+            source=FactoryWarehouseHistoryProjection.BeforeWarehouse(source);
             string prefix=source.level+":";bool connected=source.patch==prefix+FactoryOfficeFurnitureAuthoring.ConnectedPatch;
             bool office=source.patch==prefix+FactoryOfficeFurnitureAuthoring.OfficePatch;
             if(!connected && !office) return FactoryOfficeChestLootAuthoring.WithoutBinding(source);
@@ -74,7 +75,7 @@ namespace Remains.Editor
         public static void Check(RoomAuthoring room)
         {
             var office=room.GetComponentsInChildren<RoomAuthoring>(true).Single(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
-            CheckOffice(office);var batch=RoomContentBatch.Read(room,"factory:0");BeforeFurniture(batch.physical);
+            CheckOffice(office);var batch=FactoryWarehouseHistoryProjection.BeforeWarehouse(RoomContentBatch.Read(room,"factory:0"));BeforeFurniture(batch.physical);
             bool openings=FactoryOfficeOpeningsChecks.CheckOfficeStage(office);
             Require(batch.physical.patch=="factory:0:"+FactoryOfficeFurnitureAuthoring.ConnectedPatch && batch.npcs.actors.Length==13 && batch.doors.doors.Length==(openings?15:9) &&
                 batch.mechanisms.movingPlatforms.Length==1 && batch.mechanisms.mechanismButtons.Length==2,"Мебель изменила прежние NPC/двери/механизмы.");
@@ -177,6 +178,7 @@ namespace Remains.Editor
         }
         public static void CheckPersistence(RoomContentBatch batch,PhysicalLayout other,bool connected)
         {
+            batch=FactoryWarehouseHistoryProjection.BeforeWarehouse(batch);other=FactoryWarehouseHistoryProjection.BeforeWarehouse(other);
             var layout=batch.physical;BeforeFurniture(layout);string prefix=layout.level+":";
             var ids=FactoryOfficeFurnitureAuthoring.Records.Select(r=>prefix+r.Id).ToArray();
             if(!connected)

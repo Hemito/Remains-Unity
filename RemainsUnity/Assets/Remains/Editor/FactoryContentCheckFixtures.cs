@@ -10,6 +10,7 @@ namespace Remains.Editor
     {
         public static NpcLayout BeforeOffice(NpcLayout source)
         {
+            source=FactoryWarehouseHistoryProjection.BeforeWarehouse(source);
             if(source.patch!=source.level+":"+FactoryOfficeNpcAuthoring.ConnectedPatch) return source;
             var result=StateJson.Copy(source);string prefix=source.level+":original:plant:53:";
             var expected=FactoryOfficeNpcAuthoring.Spawns.Select(s=>source.level+":"+s.Id).OrderBy(id=>id).ToArray();
@@ -30,6 +31,7 @@ namespace Remains.Editor
         }
         public static PhysicalLayout BeforeOffice(PhysicalLayout source)
         {
+            source=FactoryWarehouseHistoryProjection.BeforeWarehouse(source);
             source=FactoryOfficeFurnitureChecks.BeforeFurniture(source);
             string level=source.level+":";
             if(source.patch!=level+FactoryOfficeConnectionAuthoring.PhysicalPatch && source.patch!=level+FactoryOfficeLootAuthoring.ConnectedPatch) return source;

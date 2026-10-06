@@ -38,6 +38,7 @@ namespace Remains.Editor
         }
         private static DoorLayout Project(DoorLayout source,FactoryOfficeOpeningsAuthoring.Data data)
         {
+            source=FactoryWarehouseHistoryProjection.BeforeWarehouse(source);
             string prefix=source.level+":";bool connected=source.patch==prefix+data.connectedPatch,office=source.patch==prefix+data.officePatch;
             if(!connected && !office) return source;
             ValidateNew(source,data,connected?76.8f:0);Require(source.doors.Length==(connected?15:9),"Неполное дополнение скрыто predecessor projection.");
@@ -68,7 +69,7 @@ namespace Remains.Editor
         {
             var data=FactoryOfficeOpeningsAuthoring.ReadData();var office=room.GetComponentsInChildren<RoomAuthoring>(true)
                 .Single(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
-            CheckOffice(office);var batch=RoomContentBatch.Read(room,"factory:0");Project(batch.doors,data);
+            CheckOffice(office);var batch=FactoryWarehouseHistoryProjection.BeforeWarehouse(RoomContentBatch.Read(room,"factory:0"));Project(batch.doors,data);
             Require(batch.doors.patch=="factory:0:"+data.connectedPatch && batch.doors.doors.Length==15 && batch.physical.props.Length==12 &&
                 batch.physical.containers.Length==36 && batch.physical.loot.Length==34 && batch.npcs.actors.Length==13 &&
                 batch.mechanisms.movingPlatforms.Length==1 && batch.mechanisms.mechanismButtons.Length==2,"Изменено прежнее содержимое связного завода.");
@@ -141,6 +142,7 @@ namespace Remains.Editor
         private static bool InteriorOverlap(Rect a,Rect b)=>a.xMin<b.xMax-.0001f&&a.xMax>b.xMin+.0001f&&a.yMin<b.yMax-.0001f&&a.yMax>b.yMin+.0001f;
         private static void CheckPersistence(RoomContentBatch batch,DoorLayout other,FactoryOfficeOpeningsAuthoring.Data data)
         {
+            batch=FactoryWarehouseHistoryProjection.BeforeWarehouse(batch);other=FactoryWarehouseHistoryProjection.BeforeWarehouse(other);
             var fresh=new WorldState {worldId="office-openings-check",mechanismVersion=1};RoomContentInstaller.Apply(fresh,batch);VerifyDoorPersistence(fresh,batch.doors,data);
             var separate=StateJson.Copy(fresh);DoorContentInstaller.Apply(separate,other);
             Require(separate.doors.Select(d=>d.id).Distinct(StringComparer.Ordinal).Count()==separate.doors.Count && separate.doors.Count==batch.doors.doors.Length*2,"Фабрики0 и6 разделяют ID проёмов.");

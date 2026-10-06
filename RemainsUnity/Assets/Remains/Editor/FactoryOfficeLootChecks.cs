@@ -50,7 +50,7 @@ namespace Remains.Editor
         {
             var office=room.GetComponentsInChildren<RoomAuthoring>(true).Single(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
             CheckOffice(office);
-            var batch=RoomContentBatch.Read(room,"factory:0");
+            var batch=FactoryWarehouseHistoryProjection.BeforeWarehouse(RoomContentBatch.Read(room,"factory:0"));
             batch.physical=FactoryOfficeFurnitureChecks.BeforeFurniture(batch.physical);
             Require(batch.physical.patch=="factory:0:"+FactoryOfficeLootAuthoring.ConnectedPatch && batch.physical.props.Length==9 &&
                 batch.physical.containers.Length==31 && batch.physical.loot.Length==28,"Связный завод потерял точные 9 props/31 containers/28 loot bindings v5.");
@@ -131,7 +131,7 @@ namespace Remains.Editor
         // Pure content/persistence consumers: also callable with explicit layouts in a CLI harness.
         public static void CheckPersistence(RoomContentBatch batch,PhysicalLayout other,bool connected)
         {
-            batch=StateJson.Copy(batch);batch.physical=FactoryOfficeFurnitureChecks.BeforeFurniture(batch.physical);
+            batch=FactoryWarehouseHistoryProjection.BeforeWarehouse(batch);batch.physical=FactoryOfficeFurnitureChecks.BeforeFurniture(batch.physical);
             other=FactoryOfficeFurnitureChecks.BeforeFurniture(other);
             var layout=batch.physical;string prefix=layout.level+":";
             var ids=FactoryOfficeLootAuthoring.Containers.Select(c=>prefix+c.Id).ToArray();

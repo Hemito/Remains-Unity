@@ -21,7 +21,7 @@ namespace Remains.Editor
         {
             var office=room.GetComponentsInChildren<RoomAuthoring>(true).Single(r=>r!=room && r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:53");
             CheckOffice(office,true);
-            var layout=RoomNpcContent.Read(room,"factory:0");var geometry=room.CreateLayout(false);
+            var layout=FactoryWarehouseHistoryProjection.BeforeWarehouse(RoomNpcContent.Read(room,"factory:0"));var geometry=room.CreateLayout(false);
             geometry.platforms=DoorGeometry.Compose(geometry.platforms,RoomDoorContent.Read(room,"factory:0").doors,"factory:0");
             Require(layout.patch=="factory:0:"+FactoryOfficeNpcAuthoring.ConnectedPatch && layout.actors.Length==13 && layout.loot.Length==13,
                 "Связный завод не содержит ровно 13 NPC/инвентарей в версии v4.");
@@ -95,6 +95,7 @@ namespace Remains.Editor
         // Pure persistence checks are also runnable with explicit layouts outside the Unity editor.
         public static void CheckPersistence(NpcLayout layout,NpcLayout other)
         {
+            layout=FactoryWarehouseHistoryProjection.BeforeWarehouse(layout);other=FactoryWarehouseHistoryProjection.BeforeWarehouse(other);
             string prefix=layout.level+":";
             var officeIds=FactoryOfficeNpcAuthoring.Spawns.Select(s=>prefix+s.Id).ToArray();
             Require(layout.patch==prefix+FactoryOfficeNpcAuthoring.ConnectedPatch && layout.actors.Length==13 && layout.loot.Length==13 &&
