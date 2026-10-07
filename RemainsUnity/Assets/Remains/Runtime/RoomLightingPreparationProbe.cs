@@ -38,6 +38,8 @@ namespace Remains.Runtime
             public bool loadingCaptured,gatesVerified,inventoryGateAttempted,inventoryGateRejected;
             public RoomLightingGpuBounds loadingRect;
             public FrameObservation[] frames;public RoomLightingGpuResult gpu;
+            public RoomResourceMemoryEvidence.Sample memory;
+            public bool loadingCapturedBeforeMemory;
             [NonSerialized] public RoomLighting source;
             [NonSerialized] public readonly List<FrameObservation> trace=new();
         }
@@ -247,6 +249,18 @@ namespace Remains.Runtime
             {Finish(false,"Нет нескольких настоящих кадров подготовки завода/loading PNG и input gate.");yield break;}
             bool Current()=>!finished && world==runtime.Session.World?.worldId && Actor?.id==visit.actor && Actor.level==visit.level && Actor.generation==visit.generation &&
                 runtime.ActiveRoomLighting==source && ReferenceEquals(source.Room,runtime.Geometry.Get(visit.level)) && source.AppliedOcclusionRevision==runtime.Geometry.OcclusionRevision(visit.level);
+            // The opt-in resource census must not include this visit's GPU readback/map
+            // or settled frame capture allocations. Preserve the earlier loading gate PNG.
+            while(runtime.ReleasingUnusedAssets)
+            {
+                if(!Current() || Time.unscaledTime>deadline)
+                {Finish(false,"Замер памяти: посещение сменилось или истёк срок выгрузки ресурсов "+visit.name);yield break;}
+                yield return null;
+            }
+            if(!Current() || !Settled())
+            {Finish(false,"Замер памяти: локация потеряла готовность до выборки "+visit.name);yield break;}
+            visit.loadingCapturedBeforeMemory=visit.loadingCaptured;
+            visit.memory=RoomResourceMemoryEvidence.Capture(visit.name,visit.room);
             var iterator=RoomLightingGpuEvidence.Compare(source,Current,result=>visit.gpu=result,deadline);
             try
             {
@@ -322,6 +336,7 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             success=success && returnReported && visits.Count==3 && ordinaryMapEntry && ordinaryDoorExit;
+            if(success && visits.Any(visit=>visit.memory==null)) {success=false;detail+="; отсутствует замер памяти одного из трёх посещений";}
             foreach(var visit in visits) visit.frames??=visit.trace.ToArray();
             TransitionTimingSample[] timings;
             try

@@ -33,7 +33,31 @@ namespace Remains.Content
         {
             try {Validate();} catch(Exception error) {Debug.LogWarning(error.Message,this);}
         }
-        public static RoomCatalogAsset Load()=>Resources.Load<RoomCatalogAsset>("Content/RoomCatalog")??
-            throw new InvalidOperationException("Не найден каталог Content/RoomCatalog.");
+        private const string ResourceKey="Content/RoomCatalog";
+        private static RoomCatalogLifetime runtimeLifetime;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetRuntimeLifetime()=>runtimeLifetime=null;
+        public static IDisposable AcquireRuntime(string context)
+        {
+            if(!Application.isPlaying)
+                throw new InvalidOperationException("Runtime-владелец каталога комнат доступен только в Play: "+context);
+            runtimeLifetime??=new RoomCatalogLifetime(LoadResource,ResourceKey);
+            return runtimeLifetime.Acquire(context);
+        }
+        public static RoomCatalogAsset Load()
+        {
+            // Authoring always reads current native data; Play requires an explicit
+            // owner prepared before consumers. Never cache mutable room layouts.
+            if(!Application.isPlaying) return LoadResource();
+            if(runtimeLifetime==null)
+                throw new InvalidOperationException("Не подготовлен runtime-каталог комнат: resource="+ResourceKey+". Сначала приобретите владельца.");
+            return runtimeLifetime.Require();
+        }
+        private static RoomCatalogAsset LoadResource()
+        {
+            var catalog=Resources.Load<RoomCatalogAsset>(ResourceKey);
+            if(catalog==null) throw new InvalidOperationException("Не найден каталог "+ResourceKey+".");
+            return catalog;
+        }
     }
 }

@@ -8,10 +8,11 @@ using Remains.Diagnostics;
 namespace Remains.Gameplay
 {
     // Rebuilt on world changes, never while stepping physics.
-    public sealed class SimulationGeometry
+    public sealed class SimulationGeometry : IDisposable
     {
         private readonly Dictionary<string,RoomDoorGeometry> rooms=new();
         private readonly Func<string,RoomLayout> load;
+        private readonly CoopSession session;
         private string worldId;
         private string roomDefinitions;
         public long TopologyVersion {get;private set;}
@@ -19,7 +20,13 @@ namespace Remains.Gameplay
         public IEnumerable<string> LoadedLevels=>rooms.Keys;
         public SimulationGeometry(Func<string,RoomLayout> load)=>this.load=load??throw new ArgumentNullException(nameof(load));
         public SimulationGeometry(CoopSession session):this(level=>RoomLayout.Load(level,session.World))
-        {session.Changed+=()=>Reconcile(session.World);}
+        {this.session=session??throw new ArgumentNullException(nameof(session));session.Changed+=OnSessionChanged;}
+        private void OnSessionChanged()=>Reconcile(session.World);
+        public void Dispose()
+        {
+            if(session!=null) session.Changed-=OnSessionChanged;
+            rooms.Clear();OcclusionChanged=null;
+        }
         public void Reconcile(WorldState world)
         {
             using var timing=TransitionTiming.Measure("geometry.reconcile",world?.worldId);

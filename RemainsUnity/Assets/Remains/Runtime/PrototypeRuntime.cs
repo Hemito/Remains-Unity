@@ -75,25 +75,43 @@ namespace Remains.Runtime
         private string shownRoom="base:hub";
         private CameraFollower cameraFollower;
         private bool releaseRequested;
+        private System.IDisposable roomCatalogLease;
+        private readonly List<GameObject> ownedObjects=new();
+        private GameObject networkObject;
+        private bool disposed;
         public bool ReleasingUnusedAssets {get;private set;}
 
         private void Awake()
         {
             try { Initialize(); }
-            catch(System.Exception failure) { enabled=false;StartupFailure.Show(failure); }
+            catch(System.Exception failure)
+            {
+                enabled=false;
+                try {DisposeRuntime();}
+                catch(System.Exception cleanup) {Debug.LogError("Не удалось завершить частичную загрузку игры: "+cleanup,this);}
+                StartupFailure.Show(failure);
+            }
         }
 
         private void Initialize()
         {
             Options=LaunchOptions.Parse();
+            if(Options.Smoke=="catalog-lifetime")
+            {
+                enabled=false;
+                gameObject.AddComponent<RoomCatalogLifetimeProbe>().Initialize(Options);
+                return;
+            }
             TransitionTiming.Enabled=Options.Smoke?.StartsWith("lighting-preparation")==true;
             TransitionTiming.Reset();
+            using(TransitionTiming.Measure("runtime.catalog-prepare",GetInstanceID().ToString()))
+                roomCatalogLease=RoomCatalogAsset.AcquireRuntime("PrototypeRuntime:"+GetInstanceID());
             Anatomy.Load();
             passiveMovementSettings=MovementSettings.Load();
             WeaponCatalog.Load();
             Application.runInBackground=true;
             Application.targetFrameRate=Options.Smoke==null?60:Options.ProbeFrameRate;
-            var networkObject=new GameObject("Сетевая сессия");
+            networkObject=new GameObject("Сетевая сессия");
             networkObject.SetActive(false);
             var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
             Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;
@@ -125,7 +143,7 @@ namespace Remains.Runtime
             MechanismInteraction=new MechanismInteraction(Session);
             Combat=new CombatController(Session,Geometry);
             DamageFeedback=new DamageFeedback(Session);
-            DamageNumbers=new GameObject("Числа урона").AddComponent<DamageNumbers>();DamageNumbers.Initialize(Session,DamageFeedback);
+            DamageNumbers=CreateOwnedObject("Числа урона").AddComponent<DamageNumbers>();DamageNumbers.Initialize(Session,DamageFeedback);
             if(Options.Diagnostics || Options.Smoke!=null)
                 gameObject.AddComponent<SessionTimingDiagnostics>().Initialize(this);
             Combat.DamageApplied+=DamageFeedback.Publish;
@@ -135,9 +153,9 @@ namespace Remains.Runtime
             Telekinesis=new TelekinesisController(Session,Interactions,Geometry);
             freeProps=new FreePropSimulation(Session,Geometry,Interactions);
             visualLayers=new ActorVisualLayers(transform,visualOrders);
-            var interactionVisuals=new GameObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
+            var interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers);
-            HeldItems=new GameObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
+            HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
             var room=RoomLayout.Load(shownLevel);
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry);
@@ -148,18 +166,18 @@ namespace Remains.Runtime
             roomPresentation=new RoomPresentationGate(cameraView);roomPresentation.Failed+=RoomPreparationFailed;
             roomPresentation.Bind(ActiveRoomLighting);
             cameraFollower=new CameraFollower(cameraView,room);
-            Audio=new GameObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
-            DoorVisuals=new GameObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio,visualOrders);
-            var mechanismVisuals=new GameObject("Механизмы мира").AddComponent<MechanismVisuals>();mechanismVisuals.Initialize(Session,Platforms,visualOrders);
-            GrenadeAudio=new GameObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
-            MovementAudio=new GameObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
-            PropAudio=new GameObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
-            ImpactAudio=new GameObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
-            MeleeAudio=new GameObject("Звуки контактов ближнего оружия").AddComponent<MeleeImpactAudio>();MeleeAudio.Initialize(Combat,Audio);
-            new GameObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles,visualOrders);
-            new GameObject("Попадания лазера").AddComponent<LaserImpactEffects>().Initialize(Session,Combat.Projectiles,visualOrders);
-            Explosions=new GameObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session,visualOrders);
-            Music=new GameObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
+            Audio=CreateOwnedObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
+            DoorVisuals=CreateOwnedObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio,visualOrders);
+            var mechanismVisuals=CreateOwnedObject("Механизмы мира").AddComponent<MechanismVisuals>();mechanismVisuals.Initialize(Session,Platforms,visualOrders);
+            GrenadeAudio=CreateOwnedObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
+            MovementAudio=CreateOwnedObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
+            PropAudio=CreateOwnedObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
+            ImpactAudio=CreateOwnedObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
+            MeleeAudio=CreateOwnedObject("Звуки контактов ближнего оружия").AddComponent<MeleeImpactAudio>();MeleeAudio.Initialize(Combat,Audio);
+            CreateOwnedObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles,visualOrders);
+            CreateOwnedObject("Попадания лазера").AddComponent<LaserImpactEffects>().Initialize(Session,Combat.Projectiles,visualOrders);
+            Explosions=CreateOwnedObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session,visualOrders);
+            Music=CreateOwnedObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             if(Application.isBatchMode && Options.Smoke!=null && string.IsNullOrEmpty(Options.SaveDirectory))
                 throw new System.InvalidOperationException("Фоновая проверка требует отдельного каталога --save-dir для настроек.");
             AudioPreferences=new AudioPreferences(Path.Combine(Options.SaveDirectory??ProjectStorage.RootDirectory,"Settings","audio.json"));
@@ -169,7 +187,7 @@ namespace Remains.Runtime
             ItemActions=new ItemShortcutActions(Session,EquipWeaponItem);
             if (!Application.isBatchMode || Options.Smoke?.StartsWith("lighting-preparation")==true || Options.Smoke=="performance-audit" || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
-                hud=new GameObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
+                hud=CreateOwnedObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
                 roomPresentation.SetHud(hud);
                 hud.LocalActorVisual=()=>Session.LocalActor==null?null:FindActorVisual(Session.LocalActor.id);
                 hud.LocalWeaponArtwork=()=>Session.LocalActor==null?null:interactionVisuals.FindWeapon(Session.LocalActor.id)?.Artwork;
@@ -210,7 +228,8 @@ namespace Remains.Runtime
             if(Options.Smoke?.Contains("-attacker-")==true) Session.ServerReady+=()=>Session.SetFriendlyFireDecision(FriendlyFireDecision.Attacker);
             if (Options.Smoke != null)
             {
-                if(Options.Smoke=="characters-guest") gameObject.AddComponent<SelectedWorldGuestProbe>().Initialize(this);
+                if(Options.Smoke=="runtime-catalog-release") new GameObject("Проверка завершения runtime").AddComponent<RuntimeCatalogReleaseProbe>().Initialize(this);
+                else if(Options.Smoke=="characters-guest") gameObject.AddComponent<SelectedWorldGuestProbe>().Initialize(this);
                 else if(Options.Smoke is "characters-selection" or "characters-copies" or "characters-world-content" or "characters-coop") gameObject.AddComponent<CharacterSelectionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("characters")) gameObject.AddComponent<CharacterMenuProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);
@@ -569,6 +588,41 @@ namespace Remains.Runtime
             Session.ShowNotice("Не удалось загрузить локацию. Сессия остановлена; подробности — в журнале ошибки.");
             SessionLoadFailure.Show(error);roomFailurePending=false;
         }
-        private void OnDestroy() {roomPresentation?.Dispose();Pickup?.Dispose();MechanismInteraction?.Dispose();Platforms?.Dispose();}
+        private GameObject CreateOwnedObject(string name)
+        {
+            var value=new GameObject(name);ownedObjects.Add(value);return value;
+        }
+        private void DisposeRuntime()
+        {
+            if(disposed) return;
+            automaticStartCancelled=true;enabled=false;StopAllCoroutines();
+            if(Session!=null) {Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;}
+            if(Geometry!=null) Geometry.OcclusionChanged-=RefreshRoomOcclusion;
+            if(AudioPreferences!=null) AudioPreferences.Changed-=ApplyAudioPreferences;
+            // Keep content and presentation consumers alive until stop callbacks have
+            // saved the character/world and published World=null to their views.
+            if(Session!=null)
+            {
+                if(NetworkManager.singleton==Session)
+                {
+                    if(NetworkServer.active) Session.StopHost();else if(NetworkClient.active) Session.StopClient();
+                    if(NetworkServer.active || NetworkClient.active)
+                        throw new System.InvalidOperationException("Runtime нельзя уничтожить до полного отключения транспорта. Каталог комнат удерживается до завершения consumers.");
+                }
+                Session.FlushSaveWrites();
+            }
+            roomPresentation?.Dispose();ActiveRoomLighting?.Release();
+            Pickup?.Dispose();MechanismInteraction?.Dispose();Platforms?.Dispose();Geometry?.Dispose();
+            if(roomObject!=null) {roomObject.SetActive(false);Destroy(roomObject);roomObject=null;}
+            foreach(var value in ownedObjects) if(value!=null) {value.SetActive(false);Destroy(value);}
+            ownedObjects.Clear();
+            if(networkObject!=null) {networkObject.SetActive(false);Destroy(networkObject);networkObject=null;}
+            roomCatalogLease?.Dispose();roomCatalogLease=null;disposed=true;
+        }
+        private void OnDestroy()
+        {
+            try {DisposeRuntime();}
+            catch(System.Exception failure) {Debug.LogError("Ошибка завершения runtime: "+failure,this);}
+        }
     }
 }
