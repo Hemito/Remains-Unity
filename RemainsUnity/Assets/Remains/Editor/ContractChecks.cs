@@ -81,7 +81,7 @@ namespace Remains.Editor
             CosmeticEquipmentChecks.Run();CosmeticContentModChecks.Run();
             CosmeticInventoryUiChecks.Run();WearablePresentationChecks.Run();
             InventoryPauseChecks.Run();
-            RoomLoadingViewChecks.Run();
+            RoomLoadingViewChecks.Run();HudReadyChecks.Run();
             RoomLightingPreparationChecks.Run();
             TransitionTimingChecks.Run();
             RoomContentPublicationChecks.Run();

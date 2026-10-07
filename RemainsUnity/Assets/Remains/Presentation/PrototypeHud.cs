@@ -13,9 +13,10 @@ using System.Collections.Generic;
 namespace Remains.Presentation
 {
     [DefaultExecutionOrder(100)]
-    public sealed class PrototypeHud : MonoBehaviour
+    public sealed class PrototypeHud : MonoBehaviour, IDisposable
     {
         private CoopSession session;
+        private bool disposed;
         private Text status;
         private Text message;
         private GameObject lobby;
@@ -146,6 +147,7 @@ namespace Remains.Presentation
 
         public void Initialize(CoopSession value,AudioPreferences audioPreferences=null,Camera worldCamera=null)
         {
+            if(disposed) throw new ObjectDisposedException(nameof(PrototypeHud),"Завершённый HUD нельзя инициализировать повторно.");
             session = value;
             itemText=ItemTextCatalog.Load();
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -341,9 +343,7 @@ namespace Remains.Presentation
                     Debug.Log($"Окна инвентаря закрыты при смене состояния персонажа: прежнее={inventoryActorId}:{inventoryActorGeneration}:{inventoryActorLifecycle}, текущее={actor?.id}:{actor?.generation}:{actor?.lifecycleSequence}, container={containerPanel.Source?.id}.");
                 inventoryActorId=actor?.id;inventoryActorGeneration=actor?.generation??0;inventoryActorLifecycle=actor?.lifecycleSequence??0;inventory.SetActive(false);containerPanel.Close();
             }
-            bool gameplayVisible=actor!=null && !RoomPresentationPending && !inventory.activeSelf && !WorldMap.IsOpen;
-            status.transform.parent.gameObject.SetActive(gameplayVisible);
-            quickActions.SetActive(gameplayVisible && !PauseMenu.IsOpen);
+            bool gameplayVisible=RefreshGameplayHud(actor);
             LayoutNotice();
             friendlyDecision.gameObject.SetActive(gameplayVisible && Mirror.NetworkServer.active);
             if (actor == null)
@@ -417,6 +417,16 @@ namespace Remains.Presentation
                 InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true);
             containerHint.Highlight(interaction,show);
         }
+        // Readiness may change after Update, before the first ready camera frame.
+        // Events and frame updates must publish the same complete personal/session HUD.
+        private bool RefreshGameplayHud(ActorState actor)
+        {
+            bool show=actor!=null && !RoomPresentationPending && !inventory.activeSelf && !PauseMenu.IsOpen && !WorldMap.IsOpen;
+            combatHud.Refresh(actor,show,ReloadRemaining?.Invoke());
+            quickActions.SetActive(show);
+            status.transform.parent.gameObject.SetActive(show);
+            return show;
+        }
         private void Update()
         {
             if(session.LocalActor==null && Application.isFocused && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true)
@@ -425,10 +435,8 @@ namespace Remains.Presentation
                 else if(AudioSettings.IsOpen) AudioSettings.Cancel();
             }
             WorldMap.Refresh();
-            bool show=session.LocalActor!=null && !RoomPresentationPending && !inventory.activeSelf && !PauseMenu.IsOpen && !WorldMap.IsOpen;
             RefreshInteractionHint();
-            combatHud.Refresh(session.LocalActor,show,ReloadRemaining?.Invoke());quickActions.SetActive(show);
-            status.transform.parent.gameObject.SetActive(show);
+            RefreshGameplayHud(session.LocalActor);
             message.transform.parent.gameObject.SetActive(session.LocalActor!=null && !RoomPresentationPending && Time.unscaledTime<noticeUntil && !string.IsNullOrEmpty(message.text));
             if(revival==null) return;
             float progress=RevivalProgress?.Invoke() ?? 0;
@@ -436,11 +444,18 @@ namespace Remains.Presentation
                 progress>0?$"Поднимаем союзника: {progress:P0} · удерживайте E":"";
             revival.transform.parent.gameObject.SetActive(!RoomPresentationPending && !string.IsNullOrEmpty(revival.text));
         }
-        private void OnDestroy()
+        // Runtime destruction and detached Editor owners share one teardown path.
+        // EditMode DestroyImmediate does not promise MonoBehaviour.OnDestroy.
+        public void Dispose()
         {
+            if(disposed) return;
+            disposed=true;enabled=false;
             containerHint?.Dispose();
-            if(session!=null) {session.Changed-=Refresh;session.SessionStopped-=RefreshAfterSessionStop;}
+            if(session is not null)
+            {session.Changed-=Refresh;session.SessionStopped-=RefreshAfterSessionStop;session.Notice-=ShowMessage;}
+            if(WorldMap!=null && PauseMenu!=null) WorldMap.StateChanged-=PauseMenu.PublishIntent;
         }
+        private void OnDestroy()=>Dispose();
         private void LateUpdate()=>containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen);
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {

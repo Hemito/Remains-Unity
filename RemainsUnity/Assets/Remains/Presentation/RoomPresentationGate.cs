@@ -41,8 +41,11 @@ namespace Remains.Presentation
         {
             // Camera.Render used by captures follows this same production visibility policy.
             bool visible=!entryPending && lighting!=null && lighting.IsReady && (!actorPresent || IsReady);
-            if(camera!=null) camera.cullingMask=visible?visibleLayers:0;
+            // A failed HUD publication must leave the world hidden. Publish the complete
+            // interface before opening the camera, including readiness between Updates.
+            if(camera!=null) camera.cullingMask=0;
             if(hud!=null) hud.SetRoomPresentationPending(IsPreparing);
+            if(camera!=null && visible) camera.cullingMask=visibleLayers;
         }
         public void Dispose()
         {

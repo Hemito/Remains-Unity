@@ -27,59 +27,65 @@ namespace Remains.Runtime
     [DefaultExecutionOrder(10000)]
     public sealed class FactoryWarehouseFurnitureProbe : MonoBehaviour
     {
-        private const string Level="factory:0",Prefix=Level+":original:plant:40:";
-        private sealed class Spec
-        {
-            public readonly string key,code,definition;public readonly float x,y,width,height,mass;public readonly bool container,body;
-            public Spec(string key,string code,string definition,float x,float y,float width,float height,float mass,bool container,bool body)
-            {this.key=key;this.code=code;this.definition=definition;this.x=x;this.y=y;this.width=width;this.height=height;this.mass=mass;this.container=container;this.body=body;}
-            public string Id=>Prefix+code;
-        }
-        private static readonly Spec[] specs={
-            new("safe","detVw68Tuzey1MqU","safe",151.2f,10.4f,1.2f,1.2f,64.8f,true,true),
-            new("locker-upper","EHzteZ0u3qpHCu8Q","locker",147.2f,13.6f,1.6f,2.38f,0,true,false),
-            new("locker-entry","WLoJrSYbx2hxtRHc","locker",120.8f,7.2f,1.6f,2.38f,0,true,false),
-            new("couch","Z9yOwJPvLO0MySmN","couch",147.2f,.8f,1.6f,.4f,25.6f,false,true)};
+        private const string Level="factory:0";
+        private static readonly FurnitureActionSpec[] specs=FurnitureActionSpec.Warehouse();
         [Serializable] public sealed class PlayerFixture
         {public string id,owner;public int generation,lifecycle,incomingRays,blockedRays;public float x,y,health;public bool exposed;}
         [Serializable] public sealed class Fixture
         {public string target,world,driver;public bool reload;public PlayerFixture[] players;public ItemStack[] items;public FurnitureResult initial;public ReloadEvidence reloadEvidence;}
         [Serializable] public sealed class ReloadPlayerTransition
-        {public ActorState finished,persisted,connected;}
+        {public ActorState canonicalFinished,finished,persisted,connected;}
         [Serializable] public sealed class ReloadEvidence
         {public int schema=1,negativeChecks;public string world,persistedSnapshot;public ReloadPlayerTransition[] players;}
         [Serializable] public sealed class Claim
         {public string transaction,source,item,definition,recipient,canonicalItem;public int count,beforeCount,afterCount;public bool accepted,completed;}
         [Serializable] public sealed class FurnitureResult
-        {public ContainerState safe,upper,entry;public PropState couch;public Claim[] claims;}
+        {public ContainerState safe,upper,entry,cup,wallcab;public PropState couch;public Claim[] claims;}
         [Serializable] public sealed class FinishEvidence
         {public string snapshot,world;public FurnitureResult result;public ActorState[] players;}
         [Serializable] public sealed class Frame
-        {public int phase,nativeFrame,width=1920,height=1080;public string path,scene,state,source,sprite,texture;public bool visible,windowOpen,held;public Vector3 minimum,maximum;public Vector3[] viewport;public float actorX,actorY,propX,propY;}
+        {public int phase,nativeFrame,width=1920,height=1080,generation;public string path,scene,state,source,sprite,texture,owner;public bool visible,windowOpen,held;public Vector3 minimum,maximum;public Vector3[] viewport;public float actorX,actorY,propX,propY,mana;}
         [Serializable] public sealed class Voice
         {public string source,definition,kind,clip;public int nativeId,samples,frame;public float volume,listenerVolume;public float? bankGain,expectedVolume;public bool playing,muted;}
         [Serializable] public sealed class CameraWait
         {public int phase,frames;public float seconds;public bool completed;public Vector3 cameraPosition,minimum,maximum;public Vector3[] viewport;}
+        [Serializable] public sealed class ReceiptEvidence
+        {public string world,snapshot,expectedProfileJson,persistedProfileJson;public long revision;public double capturedAt,persistedAt;public ActorState player;}
+        [Serializable] public sealed class DamageWitness
+        {public DamageResult result;public AttackEvent attack;public ActorState source,after;public int frame;public double at;}
+        [Serializable] public sealed class PlayerTransition
+        {public string context;public ActorState before,after;public DamageWitness[] damage;public double checkedAt;}
+        [Serializable] public sealed class TelekinesisRejectionEvidence
+        {public string actor,source,kind,rule,expected,actual,displayedNotice;public int beforeFrame,noticeFrame;public float maximumMass,manaBefore,manaAtNotice,minimumMana;public PropState before,after;public bool noticeVisible;public Vector3[] noticeViewport;}
         [Serializable] public sealed class Report
         {
             public int schema=1,participants,frameRate,phase,captures,openings,landings,shots,heals;
             public bool success,reload,explicitInitialPositionFixture,stockOverrides,originalRuntimeVerified,geometryVerified,
-                claimsVerified,motionVerified,replicaVerified,durableVerified,characterVerified,reinstallVerified,cameraReady;
+                claimsVerified,motionVerified,replicaVerified,durableVerified,characterVerified,reinstallVerified,cameraReady,telekinesisVerified,fixedRejectionVerified;
             public string detail,target,source,actor,world,snapshot,snapshotArchive,saveDirectory,characterDirectory,worldDirectory;
-            public float health,x,y,movementDistance;public Fixture fixture;public FinishEvidence finish;public Frame[] frames;public Voice[] voices;public CameraWait[] cameraWaits;
+            public float health,x,y,movementDistance,approachDistance,liftDistance;public int qCommands;public string fixedRejection;public Fixture fixture;public FinishEvidence finish;public Frame[] frames;public Voice[] voices;public CameraWait[] cameraWaits;
+            public ReceiptEvidence receipt;public ActorState finishReceivedPlayer,verifiedPlayer,terminalPlayer;public string verificationProfileJson;
+            public PlayerTransition[] playerTransitions;
+            public TelekinesisRejectionEvidence telekinesisRejection;
             public string limitation="Четыре отдельные исходные позиции, не общий маршрут между ярусами. Только начальная позиция игроков — fixture. Верхний шкаф может быть открыт огню NPC; защита/лечение используют обычный стартовый запас. Замки/ловушки сейфа пока не реализованы: установлен явно выбранный unlocked/untrapped Unity вариант. Muted AudioSource доказывает ресурс/событие, не слышимый микс оригинала.";
         }
-        private PrototypeRuntime runtime;private InteractionVisuals visuals;private Spec selected;private Fixture fixture;private PlayerFixture baseline;
+        private PrototypeRuntime runtime;private InteractionVisuals visuals;private FurnitureActionSpec selected;private Fixture fixture;private PlayerFixture baseline;
         private Report reloadPrevious;private ReloadEvidence reloadEvidence;
         private FinishEvidence finish;private string archive;private int phase=-1,serverPhase=-1,captured=-1,reported=-1,commandFrame;
         private bool traveled,installed,active,done,subscriptionsDetached,edge,clicking,drained,finishPending,finishValidationStarted,durable,exitSent,reload;
-        private float deadline,phaseAt,quietAt=-1,nextHeal,moveDistance;private string aimedThreat,notice;
+        private float deadline,phaseAt,quietAt=-1,nextHeal,moveDistance,approachDistance,liftDistance;private string aimedThreat,notice,fixedRejection;
+        private int qCommands;private bool fixedRejectionVerified,telekinesisVerified;
+        private float maximumTkMass;private TelekinesisRejectionEvidence telekinesisRejection;
         private readonly HashSet<string> witnesses=new(StringComparer.Ordinal),durablePeers=new(StringComparer.Ordinal),accepted=new(StringComparer.Ordinal);
         private readonly Dictionary<string,PendingGrant> reservations=new(StringComparer.Ordinal);
         private readonly List<Claim> claims=new();private readonly List<Frame> frames=new();private readonly List<Voice> voices=new();
         private readonly List<CameraWait> cameraWaits=new();private readonly Vector3[] framingCorners=new Vector3[4];private CameraWait cameraWait;private float cameraWaitAt;
         private readonly HashSet<int> voiceIds=new();private int shots,heals,openings,landings;
         private bool geometryVerified,claimsVerified,motionVerified,replicaVerified,characterVerified,reinstallVerified;
+        private readonly Dictionary<string,ReceiptEvidence> receipts=new(StringComparer.Ordinal);
+        private readonly List<DamageWitness> ownerDamage=new();private readonly List<PlayerTransition> playerTransitions=new();
+        private readonly Dictionary<string,(AttackEvent attack,ActorState source)> npcAttacks=new(StringComparer.Ordinal);
+        private FurnitureResult finishReceivedResult;private ActorState finishReceivedPlayer,verifiedPlayer,terminalPlayer;private string verificationProfileJson;
         private bool Host=>runtime.Options.Role=="host";
         private ActorState Actor=>runtime.Session.LocalActor;
         private ActorState Driver=>fixture==null?null:runtime.Session.World.Find(fixture.driver);
@@ -95,7 +101,8 @@ namespace Remains.Runtime
             string prefix=reload?"warehouse-furniture-reload-":"warehouse-furniture-";
             Require(smoke.StartsWith(prefix,StringComparison.Ordinal) && smoke.EndsWith("-frames-"+value.Options.Role,StringComparison.Ordinal),"Не задан точный opt-in режим мебели склада.");
             string key=smoke.Substring(prefix.Length,smoke.Length-prefix.Length-("-frames-"+value.Options.Role).Length);
-            selected=specs.Single(s=>s.key==key);
+            selected=FurnitureActionSpec.Find(key);
+            if(selected.Continuation)maximumTkMass=TelekinesisSettings.Load().maximumMass;
             Require(value.Options.ProbePeers is 1 or 2 && value.Hud!=null && !string.IsNullOrEmpty(value.Options.SaveDirectory) && !string.IsNullOrEmpty(value.Options.Report),"Проверка требует HUD, 1–2 участника и отдельные сохранения.");
             visuals=FindFirstObjectByType<InteractionVisuals>();Require(visuals!=null,"Нет настоящих представлений предметов.");
             AudioListener.volume=0; // Device output only. Each real voice still has its own positive gain.
@@ -109,6 +116,7 @@ namespace Remains.Runtime
             value.CommandSource=Command;value.Session.ClientReady+=RegisterClient;value.Session.ServerReady+=RegisterServer;
             value.Session.Changed+=ObserveReservations;value.Session.ClaimPrepared+=OnClaim;value.Session.AttackReceived+=OnAttack;value.Session.Notice+=OnNotice;
             value.Session.SelfHealingRequested+=OnHeal;value.ContainerAudio.Opened+=OnOpening;value.PropAudio.LandingPlayed+=OnLanding;
+            if(selected.Continuation){value.Session.RecoveryReceiptPrepared+=OnReceiptPrepared;value.Session.RecoveryReceiptPersisted+=OnReceiptPersisted;value.Combat.DamageApplied+=OnOwnerDamage;}
         }
         private string ReloadPath=>Path.Combine(runtime.Options.SaveDirectory,"warehouse-furniture-reload.json");
         private void CaptureReloadBaseline()
@@ -120,18 +128,28 @@ namespace Remains.Runtime
                 reloadPrevious.finish.players?.Length==runtime.Options.ProbePeers,"Чужое/неполное свидетельство persisted reload.");
             var persisted=source.CreateLiveWorld();
             var transitions=new List<ReloadPlayerTransition>();
-            foreach(var finished in reloadPrevious.finish.players)
+            foreach(var canonical in reloadPrevious.finish.players)
             {
+                ActorState finished=canonical;
+                if(selected.Continuation)
+                {
+                    Require(canonical.id is "player:session-host" or "player:session-client-1","Чужое имя participant report reload.");
+                    string path=Path.Combine(runtime.Options.SaveDirectory,"warehouse-furniture-reload-players",canonical.id.Substring("player:".Length)+"-report.json");
+                    var previous=StateJson.FromJson<Report>(File.ReadAllText(path));ValidateCapturedProgress(previous,canonical,reloadPrevious);
+                    finished=previous.terminalPlayer;
+                }
                 Require(transitions.All(p=>p.finished.id!=finished.id),"Повтор игрока в свидетельстве reload: "+finished.id);
                 var body=persisted.actors.SingleOrDefault(a=>a.id==finished.id);
                 VerifyReloadDisconnect(finished,body);
-                transitions.Add(new ReloadPlayerTransition {finished=finished.Copy(),persisted=body.Copy()});
+                transitions.Add(new ReloadPlayerTransition {canonicalFinished=selected.Continuation?canonical.Copy():null,finished=finished.Copy(),persisted=body.Copy()});
             }
             reloadEvidence=new ReloadEvidence {world=source.WorldId,persistedSnapshot=source.Id,players=transitions.ToArray(),
                 negativeChecks=CheckReloadTransitionValidation()};
         }
         private void RegisterClient()
         {
+            if(selected.Continuation)Require(runtime.Session.Rules.Telekinesis is MassLimitedTelekinesisRule,
+                "Проверка default TK refusal требует actual MassLimitedTelekinesisRule.");
             NetworkClient.RegisterHandler<WarehouseFurnitureFixtureMessage>(m=>Guard(()=>
             {
                 Require(fixture==null,"Повтор исходной fixture.");fixture=StateJson.FromJson<Fixture>(m.json);
@@ -141,7 +159,13 @@ namespace Remains.Runtime
             NetworkClient.RegisterHandler<WarehouseFurniturePhaseMessage>(m=>Guard(()=>
             {Require(m.phase==phase+1,"Нарушен последовательный барьер мебели.");phase=m.phase;phaseAt=Time.unscaledTime;edge=false;quietAt=-1;commandFrame=0;}));
             NetworkClient.RegisterHandler<WarehouseFurnitureFinishMessage>(m=>Guard(()=>
-            {if(!m.success){Finish(false,m.reason);return;}finish=StateJson.FromJson<FinishEvidence>(m.json);finishPending=true;}));
+            {
+                if(!m.success){Finish(false,m.reason);return;}finish=StateJson.FromJson<FinishEvidence>(m.json);
+                if(selected.Continuation)
+                {finishReceivedPlayer=Actor.Copy();finishReceivedResult=CaptureResult(runtime.Session.World);CompareResult(finish.result,finishReceivedResult);
+                    VerifyPlayerTransition(finish.players.Single(p=>p.id==Actor.id),finishReceivedPlayer,"canonical → Finish receive");}
+                finishPending=true;
+            }));
             NetworkClient.RegisterHandler<WarehouseFurnitureExitMessage>(_=>Guard(()=>
             {Require(durable,"Выход до собственного durable witness.");Finish(true,"Обычные действия, actual frames/voices и собственный immutable archive подтверждены.");}));
         }
@@ -159,9 +183,83 @@ namespace Remains.Runtime
             NetworkServer.RegisterHandler<WarehouseFurnitureDurableMessage>((connection,m)=>Guard(()=>
             {var actor=runtime.Session.ConnectedActor(connection);Require(actor!=null && actor.id==m.actor && actor.generation==m.generation,"Durable барьер другого игрока.");durablePeers.Add(actor.id);}));
         }
-        private void OnNotice(string value){if(!done) notice=value;}
+        private void OnNotice(string value)
+        {
+            if(done)return;notice=value;
+            if(phase!=5 || telekinesisRejection==null || value!=telekinesisRejection.expected)return;
+            Require(Actor.id==telekinesisRejection.actor && !Target.held && Actor.mana==telekinesisRejection.manaBefore,"Отказ TK изменил удержание/ману до actual Notice.");
+            telekinesisRejection.actual=value;telekinesisRejection.noticeFrame=Time.frameCount;telekinesisRejection.manaAtNotice=Actor.mana;
+            telekinesisRejection.after=StateJson.Copy(Target);
+            if(selected.FixedRejection)fixedRejectionVerified=true;
+        }
         private void OnHeal(string _){if(!done && active) heals++;}
-        private void OnAttack(AttackEvent attack){if(!done && active && attack.attacker==runtime.Session.LocalActorId) shots++;}
+        private void OnAttack(AttackEvent attack)=>Guard(()=>
+        {
+            if(done)return;if(active && attack.attacker==runtime.Session.LocalActorId)shots++;
+            if(!selected.Continuation)return;var source=runtime.Session.World?.Find(attack.attacker);
+            if(source==null || source.player)return;
+            Require(npcAttacks.Count<512 || npcAttacks.ContainsKey(attack.id),"Переполнен ограниченный кэш actual NPC attacks мебели.");
+            var observation=(StateJson.Copy(attack),source.Copy());npcAttacks[attack.id]=observation;
+            foreach(var witness in ownerDamage)if(witness.result.attack==attack.id && witness.attack==null){witness.attack=observation.Item1;witness.source=observation.Item2;}
+        });
+        private void OnReceiptPrepared(RecoverySnapshot snapshot,ActorState player)=>Guard(()=>
+        {
+            Require(snapshot!=null && player!=null && player.id==runtime.Session.LocalActorId && receipts.Count<128 && !receipts.ContainsKey(snapshot.Id),"Нет уникального ограниченного receipt capture мебели.");
+            receipts.Add(snapshot.Id,new ReceiptEvidence {world=snapshot.WorldId,snapshot=snapshot.Id,revision=snapshot.Revision,
+                capturedAt=Time.realtimeSinceStartupAsDouble,player=player.Copy(),expectedProfileJson=ExpectedProfile(player)});
+        });
+        private void OnReceiptPersisted(RecoverySnapshot snapshot,string json)=>Guard(()=>
+        {
+            Require(snapshot!=null && receipts.TryGetValue(snapshot.Id,out var receipt) && receipt.world==snapshot.WorldId && receipt.revision==snapshot.Revision && receipt.persistedProfileJson==null && json!=null,"Receipt запись не связана с capture мебели.");
+            var value=receipts[snapshot.Id];Require(value.expectedProfileJson==json,"Профиль completed FIFO операции не равен независимому frozen actor capture: "+snapshot.Id);
+            value.persistedProfileJson=json;value.persistedAt=Time.realtimeSinceStartupAsDouble;
+        });
+        private static string ExpectedProfile(ActorState player)
+        {var copy=player.Copy();ContentProvenance.Record(ref copy.weaponContent,ref copy.weaponContentHistory);return StateJson.ToJson(copy,true);}
+        private void OnOwnerDamage(DamageResult result)=>Guard(()=>
+        {
+            if(result.actor!=Actor?.id)return;
+            Require(ownerDamage.Count<128 && !ownerDamage.Any(d=>d.result.attack==result.attack) && result.level==Actor.level && result.generation==Actor.generation && float.IsFinite(result.amount) && result.amount>0,"Нет уникального actual owner DamageApplied мебели: "+result.attack);
+            npcAttacks.TryGetValue(result.attack,out var origin);
+            ownerDamage.Add(new DamageWitness {result=result,attack=origin.attack,source=origin.source,after=Actor.Copy(),frame=Time.frameCount,at=Time.realtimeSinceStartupAsDouble});
+        });
+        private void VerifyPlayerTransition(ActorState before,ActorState after,string context)
+            =>playerTransitions.Add(CheckPlayerTransition(before,after,ownerDamage,context));
+        private static PlayerTransition CheckPlayerTransition(ActorState before,ActorState after,IEnumerable<DamageWitness> observations,string context)
+        {
+            Require(before!=null && after!=null && before.id==after.id && before.character==after.character && before.owner==after.owner &&
+                before.generation==after.generation && before.lifecycleSequence==after.lifecycleSequence && before.connected && after.connected &&
+                before.level==Level && after.level==Level && !before.down && !after.down && before.health>0 && after.health>0,"Изменился действующий контекст frozen player transition: "+context);
+            var expected=before.Copy();var changes=new List<DamageWitness>();
+            Require(after.resolvedAttacks.Take(before.resolvedAttacks.Count).SequenceEqual(before.resolvedAttacks),"Удалён/переставлен исторический attack receipt: "+context);
+            foreach(var id in after.resolvedAttacks.Skip(before.resolvedAttacks.Count))
+            {
+                var witness=observations.SingleOrDefault(d=>d.result.attack==id);
+                Require(witness!=null && witness.attack!=null && witness.attack.id==id && witness.attack.level==after.level && !witness.attack.sourcePlayer &&
+                    witness.source!=null && !witness.source.player && witness.source.id==witness.attack.attacker && witness.source.level==after.level &&
+                    witness.result.actor==after.id && witness.result.level==after.level && witness.result.generation==after.generation &&
+                    witness.after.damageSequence==expected.damageSequence+1 && witness.after.health==Mathf.Max(0,expected.health-witness.result.amount) && !witness.after.down,
+                    "Поздний receipt не подтверждён настоящим owner damage/точным HP и sequence: "+context+"/"+id);
+                expected.resolvedAttacks.Add(id);expected.health=witness.after.health;expected.damageSequence=witness.after.damageSequence;
+                ComparePlayer(expected,witness.after,context+" / actual DamageApplied");changes.Add(witness);
+            }
+            ComparePlayer(expected,after,context);
+            return new PlayerTransition {context=context,before=before.Copy(),after=after.Copy(),damage=changes.ToArray(),checkedAt=Time.realtimeSinceStartupAsDouble};
+        }
+        private static void ValidateCapturedProgress(Report previous,ActorState canonical,Report authority)
+        {
+            Require(previous?.success==true && previous.actor==canonical.id && previous.world==authority.world && previous.snapshot==authority.snapshot &&
+                previous.target==authority.target && StateJson.ToJson(previous.finish)==StateJson.ToJson(authority.finish) && previous.receipt!=null &&
+                previous.receipt.world==previous.world && previous.receipt.snapshot==previous.snapshot && previous.receipt.expectedProfileJson==previous.receipt.persistedProfileJson &&
+                previous.verifiedPlayer!=null && previous.verificationProfileJson==ExpectedProfile(previous.verifiedPlayer) && previous.terminalPlayer!=null && previous.playerTransitions?.Length==4,"Нет независимого complete participant progress для reload: "+canonical.id);
+            var before=new[]{canonical,canonical,previous.receipt.player,previous.verifiedPlayer};
+            var after=new[]{previous.finishReceivedPlayer,previous.receipt.player,previous.verifiedPlayer,previous.terminalPlayer};
+            for(int i=0;i<4;i++)
+            {
+                var transition=previous.playerTransitions[i];ComparePlayer(before[i],transition.before,"reload progress before");ComparePlayer(after[i],transition.after,"reload progress after");
+                CheckPlayerTransition(before[i],after[i],transition.damage,"reload / "+transition.context);
+            }
+        }
         private void ObserveReservations()
         {
             if(done || fixture==null || !selected.container || runtime.Session.World==null) return;
@@ -173,7 +271,7 @@ namespace Remains.Runtime
         private void OnOpening(string source,string definition,AudioClip clip)
         {if(active && source==selected.Id) Guard(()=>{Require(runtime.ContainerAudio.TryGet(definition,out var expected,out float gain) && clip==expected,"Неверный кэш исходного звука открывания.");RecordVoice(source,definition,"open",clip,gain);openings++;});}
         private void OnLanding(string source,string definition,AudioClip clip)
-        {if(active && !selected.container && phase==3 && source==selected.Id) Guard(()=>{Require(runtime.PropAudio.TryGetLandingClip(Target,out var expected,out _) && clip==expected,"Неверный кэш звука падения дивана.");RecordVoice(source,definition,"landing",clip);landings++;});}
+        {if(active && selected.Transport && phase==selected.LandingPhase && source==selected.Id) Guard(()=>{Require(runtime.PropAudio.TryGetLandingClip(Target,out var expected,out _) && clip==expected,"Неверный кэш звука фактического падения: "+selected.Id);RecordVoice(source,definition,"landing",clip);landings++;});}
         private void RecordVoice(string source,string definition,string kind,AudioClip clip,float? gain=null)
         {
             var matches=runtime.Audio.GetComponentsInChildren<AudioSource>().Where(v=>v.clip==clip && !voiceIds.Contains(v.GetInstanceID())).ToArray();
@@ -190,6 +288,7 @@ namespace Remains.Runtime
             {
                 var command=new PlayerCommand {hasAim=true,aim=Target.Center};commandFrame=Time.frameCount;
                 if(reload) return command;
+                if(selected.Continuation && phase>=5) return ContinuationAction(command);
                 if(selected.container)
                 {
                     if(runtime.Hud.ContainerOpen)
@@ -204,7 +303,13 @@ namespace Remains.Runtime
                         Require(target.kind==InteractionKind.Container && target.id==selected.Id,"Обычный E выбрал другой источник: "+target.kind+"/"+target.id);
                         edge=true;command.interact=true;return command;
                     }
-                    if(phase==0 || phase==3) return Defense(command);
+                    if(phase==0 || phase==3)
+                    {
+                        command=Defense(command);
+                        if(selected.Continuation && phase==0)
+                        {float delta=selected.ApproachX(IsDriver)-Actor.x;if(Mathf.Abs(delta)>.012f)command.movement=Vector2.right*(Math.Sign(delta)*.15f);}
+                        return command;
+                    }
                 }
                 else if(IsDriver)
                 {
@@ -226,6 +331,27 @@ namespace Remains.Runtime
             }
             catch(Exception error){Fail(error.Message);return default;}
         }
+        private PlayerCommand ContinuationAction(PlayerCommand command)
+        {
+            // The ordinary E consumer first closes the reopened source. No UI
+            // state is assigned, and no Q begins through a still-open grid.
+            if(runtime.Hud.ContainerOpen)
+            {if(!edge){edge=true;command.interact=true;}return command;}
+            if(telekinesisRejection==null)
+            {
+                var nearest=TelekinesisTarget.Nearest(runtime.Session.World,Actor,command.aim);
+                Require(nearest.HasValue && nearest.Value.Id==selected.Id,"Обычный Q выбрал иной объект вместо cup/wallcab.");
+                string expected=runtime.Session.Rules.Telekinesis.Rejection(Actor,Target,false);
+                Require(!string.IsNullOrEmpty(expected),"Правило разрешило TK вместо ожидаемого штатного отказа: "+selected.Id);
+                Require(selected.FixedRejection?!Target.movable&&!Target.hasPhysicalBody:Target.movable&&Target.hasPhysicalBody&&Target.mass>maximumTkMass,
+                    "Нет фактической причины default TK rejection: "+selected.Id);
+                telekinesisRejection=new TelekinesisRejectionEvidence {actor=Actor.id,source=selected.Id,kind=selected.FixedRejection?"fixed":"too-heavy",
+                    rule=runtime.Session.Rules.Telekinesis.GetType().FullName,expected=expected,before=StateJson.Copy(Target),beforeFrame=Time.frameCount,
+                    maximumMass=maximumTkMass,manaBefore=Actor.mana,minimumMana=Actor.mana};
+                if(selected.FixedRejection)fixedRejection=expected;
+            }
+            command.telekinesis=true;qCommands++;return command;
+        }
         private PlayerCommand Defense(PlayerCommand command)
         {
             // Only a real NPC targeting this player can trigger defensive input.
@@ -237,7 +363,8 @@ namespace Remains.Runtime
                 {float current=(actor.Position-Actor.Position).sqrMagnitude;if(current<distance){threat=actor;distance=current;}}
             if(threat==null){aimedThreat=null;if(quietAt<0) quietAt=Time.unscaledTime;return command;}
             var pistol=Actor.inventory.Single(i=>i.definition=="pistol" && i.weaponState!=null);
-            command.weaponItem=Actor.equippedWeaponItem==pistol.id?null:pistol.id;command.aim=threat.BodyPosition+Vector2.up*.7f;
+            command.weaponItem=Actor.equippedWeaponItem==pistol.id?null:pistol.id;
+            command.aim=threat.BodyPosition+Vector2.up*(selected.Continuation?Anatomy.Movement(threat).height*.5f:.7f);
             command.reload=pistol.weaponState.rounds==0 && InventoryJournal.Count(Actor,"p10")>0;
             bool ally=false;var ray=command.aim-WeaponPose.Muzzle(Actor);
             foreach(var player in runtime.Session.World.actors) if(player.player && player.id!=Actor.id && player.connected && player.level==Level)
@@ -272,7 +399,7 @@ namespace Remains.Runtime
             if(Host && witnesses.Count==runtime.Options.ProbePeers)
             {
                 witnesses.Clear();
-                if(reload || phase==4) CompleteServer();
+                if(reload || phase==selected.FinalPhase) CompleteServer();
                 else {serverPhase=phase+1;NetworkServer.SendToAll(new WarehouseFurniturePhaseMessage {phase=serverPhase});}
             }
         }
@@ -282,6 +409,13 @@ namespace Remains.Runtime
             if(reload) return true;
             if(selected.container)
             {
+                if(selected.Continuation)
+                {
+                    if(phase==0)
+                    {approachDistance=Mathf.Abs(Actor.x-baseline.x);return !runtime.Hud.ContainerOpen && Mathf.Abs(Actor.x-selected.ApproachX(IsDriver))<.035f && approachDistance>.065f && quietAt>=0 && Time.unscaledTime-quietAt>.75f;}
+                    if(phase==3)return !runtime.Hud.ContainerOpen && quietAt>=0 && Time.unscaledTime-quietAt>.75f;
+                    if(phase>=5)return ContinuationReady();
+                }
                 if(phase==0) return !runtime.Hud.ContainerOpen;
                 if(phase==1 || phase==4) return runtime.Hud.ContainerOpen && runtime.Hud.ShownInventorySourceId==selected.Id && Container.appearance is {opened:true} && (phase==1 || Container.items.Count==0);
                 if(phase==2) return Container.items.Count==0 && runtime.Session.World.pendingGrants.Count==0 && (!IsDriver || drained);
@@ -296,11 +430,30 @@ namespace Remains.Runtime
             if(phase==3) return released && landings>=1;
             return released && Mathf.Abs(source.x-start)<.09f && Mathf.Abs(source.vx)+Mathf.Abs(source.vy)<.01f;
         }
+        private bool ContinuationReady()
+        {
+            if(runtime.Hud.ContainerOpen)return false;
+            if(telekinesisRejection==null)return false;
+            telekinesisRejection.minimumMana=Mathf.Min(telekinesisRejection.minimumMana,Actor.mana);
+            Require(!Target.held && Vector2.Distance(Target.Position,telekinesisRejection.before.Position)<.0001f &&
+                Target.generation==telekinesisRejection.before.generation && telekinesisRejection.minimumMana>=telekinesisRejection.manaBefore,
+                "Обычный отказ TK изменил предмет/ману: "+selected.Id);
+            return qCommands>=2 && telekinesisRejection.actual==telekinesisRejection.expected &&
+                telekinesisRejection.noticeFrame>=telekinesisRejection.beforeFrame && Time.unscaledTime-phaseAt>.25f;
+        }
         private void Setup()
         {
             var world=runtime.Session.ServerWorld;Require(WorldRooms.Definition(world,Level)==NewGameWorld.FactoryDefinitionId,"Вместо обычного мира установлена legacy fixture.");
             ValidateDefinitions(world,!reload);var room=runtime.Geometry.Get(Level);var players=world.actors.Where(a=>a.player && a.connected).ToArray();
+            if(selected.Continuation)
+            {
+                Require(runtime.Session.Rules.Telekinesis is MassLimitedTelekinesisRule,"Проверка default TK rejection требует текущий MassLimitedTelekinesisRule, без подмены mod правил.");
+                Require(selected.FixedRejection || selected.mass>maximumTkMass,"Cup не превышает фактический предел TK: изменён acceptance context.");
+            }
             var result=CaptureResult(world);var baselines=new List<PlayerFixture>();Report previous=null;
+            // Validate EVERY initial player before changing any epoch/position.
+            // Actual authored terrain, cargo, NPC and access remain the authority.
+            if(!reload)foreach(var player in players)CheckPlacement(world,room,player,selected.Start(player.id==runtime.Session.LocalActorId));
             if(reload)
             {
                 previous=reloadPrevious;
@@ -315,9 +468,7 @@ namespace Remains.Runtime
                 if(!reload)
                 {
                     bool driver=actor.id==runtime.Session.LocalActorId;
-                    position=selected.key switch {"safe"=>new Vector2(driver?149.5f:149.3f,10.4f),"locker-upper"=>new Vector2(driver?147.8f:148f,13.6f),
-                        "locker-entry"=>new Vector2(driver?119.5f:119.7f,7.2f),"couch"=>new Vector2(driver?145.55f:149.4f,.8f),_=>throw new InvalidOperationException("Неизвестная fixture.")};
-                    CheckPlacement(world,room,actor,position);
+                    position=selected.Start(driver);
                     actor.Position=position;actor.Velocity=Vector2.zero;actor.climbing=actor.crouched=false;actor.pose="idle";actor.poseTime=0;actor.generation++;actor.revision++;
                 }
                 else
@@ -327,29 +478,31 @@ namespace Remains.Runtime
                     VerifyReloadConnect(transition.persisted,actor);transition.connected=actor.Copy();
                 }
                 CountCover(world,room,actor,out int rays,out int blocked);
-                Require(selected.key=="locker-upper" || rays==blocked,"Исходная позиция потеряла actual solid incoming cover.");
+                Require(selected.Continuation || selected.key=="locker-upper" || rays==blocked,"Исходная позиция потеряла actual solid incoming cover.");
                 baselines.Add(new PlayerFixture {id=actor.id,owner=actor.owner,generation=actor.generation,lifecycle=actor.lifecycleSequence,x=position.x,y=position.y,health=actor.health,incomingRays=rays,blockedRays=blocked,exposed=rays!=blocked});
             }
             var target=WorldProps.Find(world,selected.Id);var items=selected.container?((ContainerState)target).items.Select(i=>i.Copy()).ToArray():Array.Empty<ItemStack>();
             if(!reload && selected.container)
             {
-                var expected=selected.key=="safe"?new[]{("caps",12),("heal",1),("p10",12)}:new[]{("caps",3),("metal_comp",1)};
+                var expected=selected.Loot();
                 Require(items.Length==expected.Length && expected.All(pair=>items.Count(i=>i.definition==pair.Item1 && i.count==pair.Item2)==1),"Неверный обычный initial loot новой мебели.");
             }
             installed=true;serverPhase=0;runtime.Session.CommitWorld();
             NetworkServer.SendToAll(new WarehouseFurnitureFixtureMessage {json=StateJson.ToJson(new Fixture {target=selected.key,world=world.worldId,driver=runtime.Session.LocalActorId,reload=reload,players=baselines.ToArray(),items=items,initial=result,reloadEvidence=reloadEvidence})});
-            Debug.Log("Мебель склада: проверены actual floor/hull/props/NPC и incoming rays; fixture меняет только начальные позиции игроков. Верхний шкаф exposed, AI/HP/запасы не подменяются.");
+            Debug.Log("Действия мебели: проверены actual floor/hull/props/NPC и incoming rays; fixture меняет только начальные позиции игроков. AI/HP/запасы не подменяются; это отдельный action proof, не полный маршрут комнаты.");
         }
         private void CheckPlacement(WorldState world,RoomLayout room,ActorState actor,Vector2 position)
         {
             var hull=Anatomy.Movement(actor);var body=new Rect(position.x-hull.width*.5f,position.y,hull.width,hull.height);
-            Require(ActorTerrainMotion.IsClear(room,hull,position) && ActorTerrainMotion.Supported(room,hull,position),"Нет настоящей свободной опоры: "+actor.id+"/"+position);
+            bool clear=ActorTerrainMotion.IsClear(room,hull,position),supported=ActorTerrainMotion.Supported(room,hull,position);
+            Require(clear && supported,$"Нет настоящей свободной опоры: actor={actor.id}, source={selected.Id}, position={position}, hull={body}, clear={clear}, supported={supported}, room={room.id}.");
             foreach(var prop in WorldProps.All(world)) if(prop.level==Level && prop.hasPhysicalBody)
                 Require(!Interior(body,new Rect(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height)),"Fixture пересекает authored prop: "+prop.id);
             foreach(var npc in world.actors) if(!npc.player && npc.level==Level)
                 Require(!Interior(body,InventorySource.BodyBounds(npc)),"Fixture пересекает настоящий NPC: "+npc.id);
             var sample=actor.Copy();sample.Position=position;
-            if(selected.container){var target=InteractionSelection.Select(world,sample,runtime.Session.Rules,((InventorySource)(ContainerState)WorldProps.Find(world,selected.Id)).Bounds.center);Require(target.kind==InteractionKind.Container && target.id==selected.Id,"E недоступен из начальной позиции.");}
+            if(selected.container){var target=InteractionSelection.Select(world,sample,runtime.Session.Rules,((InventorySource)(ContainerState)WorldProps.Find(world,selected.Id)).Bounds.center);Require(target.kind==InteractionKind.Container && target.id==selected.Id,"E недоступен из начальной позиции.");
+                if(selected.Continuation)Require(runtime.Session.Rules.Telekinesis.Rejection(sample,WorldProps.Find(world,selected.Id),false)!=null,"Не подтверждён исходный штатный отказ TK cup/wallcab до fixture.");}
             else {var prop=WorldProps.Find(world,selected.Id);Require(runtime.Session.Rules.Telekinesis.Rejection(sample,prop,false)==null,"Диван недоступен обычному TK.");if(runtime.Session.Rules.Telekinesis is ITelekinesisSightRule sight) Require(sight.SightRejection(sample,prop,room)==null,"Нет настоящей TK линии видимости.");}
         }
         private static bool Interior(Rect a,Rect b)=>a.xMax>b.xMin+.0001f && a.xMin<b.xMax-.0001f && a.yMax>b.yMin+.0001f && a.yMin<b.yMax-.0001f;
@@ -430,19 +583,42 @@ namespace Remains.Runtime
         }
         private void Capture(PropView view,Camera camera,Bounds bounds,Vector3[] corners)
         {
+            if(selected.Continuation && !reload && phase==5)
+            {
+                // Explicit evidence capture only: do not turn UI hierarchy lookup
+                // into the command/Update path or infer visibility from Notice alone.
+                var matches=runtime.Hud.GetComponentsInChildren<UnityEngine.UI.Text>(false)
+                    .Where(candidate=>candidate.enabled && candidate.color.a>0 && candidate.text==telekinesisRejection.expected).ToArray();
+                Require(matches.Length==1,"Нет единственного actual visible HUD текста штатного отказа TK: "+selected.Id);
+                var text=matches[0];Require(text.GetComponentsInParent<CanvasGroup>(false).All(group=>group.alpha>0),"HUD отказ TK скрыт прозрачной группой.");
+                var canvas=text.GetComponentInParent<Canvas>();var points=new Vector3[4];text.rectTransform.GetWorldCorners(points);
+                Camera uiCamera=canvas.renderMode==RenderMode.ScreenSpaceOverlay?null:canvas.worldCamera;
+                Require(canvas.enabled && (canvas.renderMode==RenderMode.ScreenSpaceOverlay || uiCamera!=null),"Нет actual Canvas/camera HUD отказа TK.");
+                for(int i=0;i<points.Length;i++)
+                {
+                    var pixel=RectTransformUtility.WorldToScreenPoint(uiCamera,points[i]);
+                    points[i]=new Vector3(pixel.x/Screen.width,pixel.y/Screen.height,0);
+                    Require(float.IsFinite(points[i].x) && float.IsFinite(points[i].y) && points[i].x>=0 && points[i].x<=1 && points[i].y>=0 && points[i].y<=1,
+                        "HUD текст штатного отказа TK вне actual экрана: "+selected.Id);
+                }
+                telekinesisRejection.displayedNotice=text.text;telekinesisRejection.noticeViewport=points;telekinesisRejection.noticeVisible=true;
+            }
             if(selected.container) ContainerArtworkProbeEvidence.Save(runtime,Container,phase.ToString(),runtime.Options.Report+".furniture-"+phase+".art.json");
             var renderer=view.Artwork;
             Require(renderer.enabled && renderer.gameObject.activeInHierarchy && renderer.color.a>0 && (camera.cullingMask&(1<<renderer.gameObject.layer))!=0 && ProjectFrame(camera,bounds,corners),"Actual мебель обрезана/скрыта штатной камерой.");
             if(selected.container && phase is 1 or 2 or 4)
                 Require(runtime.Hud.ContainerWindowRect.gameObject.activeInHierarchy && runtime.Hud.ShownInventorySourceId==selected.Id,"Нет actual UI выбранного источника.");
             string path=runtime.Options.Report+".furniture-"+phase+".png";NetworkFrameCapture.Save(camera,path,runtime.Hud.GetComponent<Canvas>(),1920,1080);NetworkSceneRecord.Save(runtime,600+phase);
-            frames.Add(new Frame {phase=phase,nativeFrame=Time.frameCount,path=path,scene=runtime.Options.Report+".phase-"+(600+phase)+".scene.json",state=reload?"reloaded":selected.container?new[]{"closed","open","empty","ui-closed","reopened"}[phase]:new[]{"grounded","held","moved","released","returned"}[phase],source=selected.Id,sprite=renderer.sprite.name,texture=renderer.sprite.texture.name,visible=true,windowOpen=runtime.Hud.ContainerOpen,held=Target.held,minimum=bounds.min,maximum=bounds.max,viewport=corners,actorX=Actor.x,actorY=Actor.y,propX=Target.x,propY=Target.y});
+            frames.Add(new Frame {phase=phase,nativeFrame=Time.frameCount,path=path,scene=runtime.Options.Report+".phase-"+(600+phase)+".scene.json",state=reload?"reloaded":selected.States[phase],source=selected.Id,sprite=renderer.sprite.name,texture=renderer.sprite.texture.name,visible=true,windowOpen=runtime.Hud.ContainerOpen,held=Target.held,owner=Target.owner,generation=Target.generation,minimum=bounds.min,maximum=bounds.max,viewport=corners,actorX=Actor.x,actorY=Actor.y,propX=Target.x,propY=Target.y,mana=Actor.mana});
         }
-        private static FurnitureResult CaptureResult(WorldState world)=>new() {safe=StateJson.Copy(world.containers.Single(c=>c.id==specs[0].Id)),upper=StateJson.Copy(world.containers.Single(c=>c.id==specs[1].Id)),entry=StateJson.Copy(world.containers.Single(c=>c.id==specs[2].Id)),couch=StateJson.Copy(world.props.Single(p=>p.id==specs[3].Id))};
-        private static PropState[] Parts(FurnitureResult value)=>new PropState[]{value.safe,value.upper,value.entry,value.couch};
+        private FurnitureResult CaptureResult(WorldState world)=>new() {safe=StateJson.Copy(world.containers.Single(c=>c.id==specs[0].Id)),upper=StateJson.Copy(world.containers.Single(c=>c.id==specs[1].Id)),entry=StateJson.Copy(world.containers.Single(c=>c.id==specs[2].Id)),couch=StateJson.Copy(world.props.Single(p=>p.id==specs[3].Id)),
+            cup=selected.Continuation?StateJson.Copy(world.containers.Single(c=>c.id==FurnitureActionSpec.Find("cup").Id)):null,
+            wallcab=selected.Continuation?StateJson.Copy(world.containers.Single(c=>c.id==FurnitureActionSpec.Find("wallcab").Id)):null};
+        private static PropState[] Parts(FurnitureResult value)=>new PropState[]{value.safe,value.upper,value.entry,value.couch}.Concat(
+            value.cup==null && value.wallcab==null?Array.Empty<PropState>():new PropState[]{value.cup,value.wallcab}).ToArray();
         private static void CompareResult(FurnitureResult expected,FurnitureResult actual)
         {
-            var left=Parts(expected);var right=Parts(actual);
+            var left=Parts(expected);var right=Parts(actual);Require(left.Length==right.Length && left.All(p=>p!=null) && right.All(p=>p!=null),"Разошёлся exact набор проверяемой мебели.");
             for(int i=0;i<left.Length;i++)
             {
                 var a=left[i];var b=right[i];Require(a.id==b.id && a.definition==b.definition && a.level==b.level && a.mass==b.mass && a.width==b.width && a.height==b.height && a.anchorHeight==b.anchorHeight && a.movable==b.movable && a.hasPhysicalBody==b.hasPhysicalBody && a.held==b.held && Vector2.Distance(a.Position,b.Position)<.0001f && Mathf.Abs(a.vx-b.vx)+Mathf.Abs(a.vy-b.vy)<.0001f,"Реплика/disk изменила физическое состояние мебели: "+a.id);
@@ -450,9 +626,9 @@ namespace Remains.Runtime
                 Require(StateJson.ToJson(a.extensions)==StateJson.ToJson(b.extensions),"Потеря неизвестных полей мебели: "+a.id);
             }
         }
-        private static void ValidateDefinitions(WorldState world,bool initial)
+        private void ValidateDefinitions(WorldState world,bool initial)
         {
-            foreach(var spec in specs)
+            foreach(var spec in selected.Continuation?specs.Concat(FurnitureActionSpec.ContinuationSources()):specs)
             {
                 var prop=WorldProps.Find(world,spec.Id);Require(prop!=null && prop.definition==spec.definition && prop.level==Level && prop.hasPhysicalBody==spec.body && prop.movable==spec.body && prop.mass==spec.mass && prop.width==spec.width && prop.height==spec.height && prop.anchorHeight==0,"Разошёлся exact authored контракт мебели: "+spec.Id);
                 Require((prop is ContainerState)==spec.container,"Мебель ошибочно заменена декором/контейнером.");
@@ -475,6 +651,8 @@ namespace Remains.Runtime
             var world=runtime.Session.ServerWorld;ValidateDefinitions(world,false);ValidateClaims(world,claims);
             if(selected.container && !reload) Require(claims.Count==fixture.items.Length && world.containers.Single(c=>c.id==selected.Id).items.Count==0,"Подобраны не все реальные стопки.");
             if(!selected.container && !reload) Require(world.props.Single(p=>p.id==selected.Id).x-selected.x>.4f,"Диван не перенесён обычным TK.");
+            if(selected.Continuation && !reload)Require(telekinesisRejection?.actual==telekinesisRejection?.expected && telekinesisRejection!=null && !Target.held,
+                "Нет штатного actual TK отказа cup/wallcab.");
             runtime.Session.CommitWorld();runtime.Session.FlushSaveWrites();var snapshot=runtime.Session.Saves.SelectedSnapshot();
             var result=CaptureResult(world);result.claims=claims.ToArray();var saved=snapshot.CreateLiveWorld();CompareResult(result,CaptureResult(saved));ValidateClaims(saved,claims);
             finish=new FinishEvidence {world=world.worldId,snapshot=snapshot.Id,result=result,players=world.actors.Where(a=>a.player && a.connected).Select(a=>a.Copy()).ToArray()};
@@ -486,26 +664,42 @@ namespace Remains.Runtime
             {
                 Require(finish.world==fixture.world && finish.snapshot?.Length==64 && finish.snapshot.All(Uri.IsHexDigit),"Некорректный финальный снимок.");
                 archive=Path.Combine(runtime.Session.Saves.WorldDirectoryPath,"Worlds",fixture.world,"Snapshots",finish.snapshot+".json");
-                runtime.Session.FlushSaveWrites();
+                // Flush is a shutdown barrier: it deliberately discards callbacks.
+                // Continuation evidence needs this exact receipt's normal FIFO Pump
+                // completion, not merely an archive that already exists on disk.
+                if(!selected.Continuation)runtime.Session.FlushSaveWrites();
             });
             if(done) yield break;
             // Poll only the explicit final archive milestone, at a bounded cadence.
             // No profile writes, JSON parsing or content reads occur while waiting.
-            while(!done && !File.Exists(archive)) yield return new WaitForSecondsRealtime(.1f);
+            while(!done && (!File.Exists(archive) || selected.Continuation && (!receipts.TryGetValue(finish.snapshot,out var receipt) || receipt.persistedProfileJson==null))) yield return new WaitForSecondsRealtime(.1f);
             if(!done) Guard(VerifyDurableArchive);
         }
         private void VerifyDurableArchive()
         {
-            CompareResult(finish.result,CaptureResult(runtime.Session.World));ValidateClaims(runtime.Session.World,finish.result.claims);replicaVerified=true;
-            var canonical=finish.players.Single(p=>p.id==Actor.id);ComparePlayer(canonical,Actor,"final replica");
+            CompareResult(finish.result,selected.Continuation?finishReceivedResult:CaptureResult(runtime.Session.World));ValidateClaims(runtime.Session.World,finish.result.claims);replicaVerified=true;
+            var canonical=finish.players.Single(p=>p.id==Actor.id);
+            if(selected.Continuation)
+            {
+                var receipt=receipts[finish.snapshot];Require(receipt.world==fixture.world && receipt.snapshot==finish.snapshot && receipt.persistedProfileJson!=null,"Чужой frozen final receipt.");
+                VerifyPlayerTransition(canonical,receipt.player,"canonical → receipt capture");
+                ComparePlayer(receipt.player,StateJson.FromJson<ActorState>(receipt.persistedProfileJson),"frozen receipt → exact completed FIFO profile");
+                verifiedPlayer=Actor.Copy();VerifyPlayerTransition(receipt.player,verifiedPlayer,"receipt capture → verification capture");
+            }
+            else ComparePlayer(canonical,Actor,"final replica");
             runtime.Session.SaveLocalCharacter();runtime.Session.FlushSaveWrites();
             var snapshot=new RecoverySnapshot(File.ReadAllText(archive));Require(snapshot.Id==finish.snapshot && snapshot.WorldId==fixture.world,"Собственный архив содержит другой immutable снимок.");
             var saved=snapshot.CreateLiveWorld();CompareResult(finish.result,CaptureResult(saved));ValidateClaims(saved,finish.result.claims);
             ComparePlayer(canonical,saved.Find(Actor.id),"immutable archive");
-            ComparePlayer(Actor,runtime.Session.Saves.LoadCharacter(),"own character disk");characterVerified=true;
+            ComparePlayer(selected.Continuation?verifiedPlayer:Actor,runtime.Session.Saves.LoadCharacter(),"own character disk / same synchronous capture");
+            if(selected.Continuation){verificationProfileJson=runtime.Session.Saves.ReadCharacterSource();Require(verificationProfileJson==ExpectedProfile(verifiedPlayer),"Последний captured profile не записан точно после Flush.");}characterVerified=true;
             string before=StateJson.ToJson(saved);Require(!RoomContentInstaller.Apply(saved,RoomContentBatch.Read(RoomAuthoring.Load(Level,saved),Level)) && StateJson.ToJson(saved)==before,"Reinstall наполнил/воскресил или заменил сохранённые данные.");reinstallVerified=true;
-            Require(frames.Count==(reload?1:5) && (reload || (selected.container?openings==2:landings>=1)),"Нет полного actual frame/audio evidence.");
-            motionVerified=reload || selected.container || moveDistance>.25f;claimsVerified=reload || !selected.container || finish.result.claims.Length==fixture.items.Length;
+            Require(frames.Count==(reload?1:selected.States.Length) && (reload || (selected.container?openings==2:landings>=1)),"Нет полного actual frame/audio evidence.");
+            if(selected.Continuation && !reload)Require(telekinesisRejection!=null && telekinesisRejection.actual==telekinesisRejection.expected && qCommands>=2 && !frames.Single(f=>f.phase==5).held && landings==0,
+                "Нет actual Notice/неподвижного предмета после обычного отказа TK.");
+            if(selected.FixedRejection && !reload)Require(fixedRejectionVerified && qCommands>=2,"Нет реального обычного Q rejection закреплённого шкафчика.");
+            telekinesisVerified=!selected.Continuation;
+            motionVerified=reload || selected.container && !selected.Transport || moveDistance>.25f;claimsVerified=reload || !selected.container || finish.result.claims.Length==fixture.items.Length;
             durable=true;NetworkClient.Send(new WarehouseFurnitureDurableMessage {actor=Actor.id,generation=Actor.generation});
         }
         private static void VerifyReloadDisconnect(ActorState finished,ActorState persisted)
@@ -573,8 +767,14 @@ namespace Remains.Runtime
         private void Fail(string reason){if(done)return;if(Host && NetworkServer.active)NetworkServer.SendToAll(new WarehouseFurnitureFinishMessage {reason=reason+": "+Progress});Finish(false,reason);}
         private void Finish(bool success,string reason)
         {
-            if(done)return;done=true;DetachSubscriptions();
-            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=reason+": "+Progress,participants=runtime.Options.ProbePeers,frameRate=runtime.Options.ProbeFrameRate,phase=phase,target=selected.key,source=selected.Id,actor=Actor?.id,world=runtime.Session.World?.worldId,snapshot=finish?.snapshot,snapshotArchive=archive,saveDirectory=runtime.Options.SaveDirectory,characterDirectory=runtime.Session.Saves.CharacterDirectoryPath,worldDirectory=runtime.Session.Saves.WorldDirectoryPath,reload=reload,explicitInitialPositionFixture=!reload && fixture!=null,stockOverrides=false,originalRuntimeVerified=false,geometryVerified=geometryVerified,claimsVerified=claimsVerified,motionVerified=motionVerified,replicaVerified=replicaVerified,durableVerified=durable,characterVerified=characterVerified,reinstallVerified=reinstallVerified,cameraReady=runtime.LevelPresentationReady,captures=frames.Count,openings=openings,landings=landings,shots=shots,heals=heals,health=Actor?.health??0,x=Actor?.x??0,y=Actor?.y??0,movementDistance=moveDistance,fixture=fixture,finish=finish,frames=frames.ToArray(),voices=voices.ToArray(),cameraWaits=cameraWaits.ToArray()},true));exitCode=success?0:1;Invoke(nameof(Exit),.75f);
+            if(done)return;
+            if(success && selected.Continuation){terminalPlayer=Actor.Copy();VerifyPlayerTransition(verifiedPlayer,terminalPlayer,"verification capture → terminal capture");}
+            done=true;DetachSubscriptions();
+            var report=new Report {success=success,detail=reason+": "+Progress,participants=runtime.Options.ProbePeers,frameRate=runtime.Options.ProbeFrameRate,phase=phase,target=selected.key,source=selected.Id,actor=Actor?.id,world=runtime.Session.World?.worldId,snapshot=finish?.snapshot,snapshotArchive=archive,saveDirectory=runtime.Options.SaveDirectory,characterDirectory=runtime.Session.Saves.CharacterDirectoryPath,worldDirectory=runtime.Session.Saves.WorldDirectoryPath,reload=reload,explicitInitialPositionFixture=!reload && fixture!=null,stockOverrides=false,originalRuntimeVerified=false,geometryVerified=geometryVerified,claimsVerified=claimsVerified,motionVerified=motionVerified,replicaVerified=replicaVerified,durableVerified=durable,characterVerified=characterVerified,reinstallVerified=reinstallVerified,cameraReady=runtime.LevelPresentationReady,telekinesisVerified=telekinesisVerified,fixedRejectionVerified=fixedRejectionVerified,qCommands=qCommands,fixedRejection=fixedRejection,captures=frames.Count,openings=openings,landings=landings,shots=shots,heals=heals,health=Actor?.health??0,x=Actor?.x??0,y=Actor?.y??0,movementDistance=moveDistance,approachDistance=approachDistance,liftDistance=liftDistance,fixture=fixture,finish=finish,frames=frames.ToArray(),voices=voices.ToArray(),cameraWaits=cameraWaits.ToArray()};
+            if(selected.Continuation)
+            {receipts.TryGetValue(finish?.snapshot??"",out report.receipt);report.finishReceivedPlayer=finishReceivedPlayer;report.verifiedPlayer=verifiedPlayer;report.terminalPlayer=terminalPlayer;report.verificationProfileJson=verificationProfileJson;report.playerTransitions=playerTransitions.ToArray();report.telekinesisRejection=telekinesisRejection;
+                report.limitation="Cup29/wallcab44: отдельные initial позиции на настоящем нижнем полу4, затем короткий ordinary подход/E/whole-stack UI/Q. Cup movable60.16кг превышает текущий TK предел30кг: подтверждён видимый отказ, без подъёма/landing. Wallcab закреплённый NoBody. Не полный маршрут комнаты27. NPC/HP/stock/terrain/лимит TK не подменяются. Profile доказан frozen capture/exact completed FIFO receipt; поздний actual damage записан отдельно. Reload сохраняет strict finished → Disconnect guard, последующий непоказанный урон не игнорируется. Muted voice не доказывает слышимый mix/original runtime.";}
+            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(report,true));exitCode=success?0:1;Invoke(nameof(Exit),.75f);
         }
         private int exitCode;private void Exit()=>Application.Quit(exitCode);
         private void OnDestroy()=>DetachSubscriptions();
@@ -583,6 +783,8 @@ namespace Remains.Runtime
             if(subscriptionsDetached || runtime?.Session==null)return;subscriptionsDetached=true;
             runtime.Session.ClientReady-=RegisterClient;runtime.Session.ServerReady-=RegisterServer;runtime.Session.Changed-=ObserveReservations;runtime.Session.ClaimPrepared-=OnClaim;runtime.Session.AttackReceived-=OnAttack;runtime.Session.Notice-=OnNotice;runtime.Session.SelfHealingRequested-=OnHeal;
             if(runtime.ContainerAudio!=null)runtime.ContainerAudio.Opened-=OnOpening;if(runtime.PropAudio!=null)runtime.PropAudio.LandingPlayed-=OnLanding;
+            runtime.Session.RecoveryReceiptPrepared-=OnReceiptPrepared;runtime.Session.RecoveryReceiptPersisted-=OnReceiptPersisted;
+            if(runtime.Combat!=null)runtime.Combat.DamageApplied-=OnOwnerDamage;
         }
     }
 }
