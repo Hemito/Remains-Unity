@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Remains.Domain;
 using Remains.Networking;
 using Remains.Content;
+using Remains.Gameplay;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,7 +12,7 @@ namespace Remains.Presentation
     public sealed class PersonalInventoryPanel
     {
         private readonly CoopSession session;
-        private readonly Action<string> equipItem;
+        private readonly Func<ItemShortcutActions> itemActions;
         private readonly Func<string,string> itemName;
         private readonly Func<int> quantity;
         private readonly Button[] rows;
@@ -41,6 +42,7 @@ namespace Remains.Presentation
         public int Page=>firstVisibleRow/rows.Length;
         public int FirstVisibleRow=>firstVisibleRow;
         public InventoryCategory Category=>category;
+        public string SelectedItemId=>selected;
         public RectTransform CategoryRect(InventoryCategory value)=>categories[(int)value].GetComponent<RectTransform>();
         public int PageSize=>rows.Length;
         public RectTransform NextRect=>next.GetComponent<RectTransform>();
@@ -48,9 +50,9 @@ namespace Remains.Presentation
         public RectTransform DepositRect=>deposit.GetComponent<RectTransform>();
         public RectTransform UseRect=>use.GetComponent<RectTransform>();
         public RectTransform WeaponRect(int index)=>weaponButtons[index].GetComponent<RectTransform>();
-        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork,Action<string> equipItem=null,Action pageSound=null,ItemTextCatalog itemText=null)
+        public PersonalInventoryPanel(PersonalInventoryView view,CoopSession session,Func<string,string> itemName,Func<int> quantity,Action<string> equip,InventoryArtwork artwork,Action<string> equipItem=null,Action pageSound=null,ItemTextCatalog itemText=null,Func<ItemShortcutActions> itemActions=null)
         {
-            this.equipItem=equipItem;
+            this.itemActions=itemActions;
             this.itemText=itemText??ItemTextCatalog.Load();
             this.session=session;this.itemName=itemName;this.quantity=quantity;this.artwork=artwork;
             if(view==null) throw new InvalidOperationException("Не назначено содержимое личной страницы инвентаря.");
@@ -91,13 +93,7 @@ namespace Remains.Presentation
             view.ScrollRows+=Scroll;
             use.onClick.AddListener(()=>
             {
-                var actor=session.LocalActor;var item=InventoryStacks.Find(actor,selected);
-                if(WeaponInventory.IsEquippable(item))
-                {
-                    if(this.equipItem==null) throw new InvalidOperationException("Не подключён выбор экземпляра оружия в инвентаре.");
-                    this.equipItem(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==item.id?null:item.id);
-                }
-                else if(item?.definition=="heal") session.RequestSelfHeal(item.id);
+                if(selected!=null) Actions().ActivateItem(selected,toggleEquipped:true);
                 Refresh(container);
             });
             deposit.onClick.AddListener(()=>{if(container!=null && selected!=null) session.Deposits.Request(container.id,selected,quantity());Refresh(container);});
@@ -166,18 +162,18 @@ namespace Remains.Presentation
                 artwork.Set(weaponPreview,chosen.definition);
                 weaponDetail.text=itemName(chosen.definition)+"\n"+WeaponDescription(actor,chosen);
             }
-            use.interactable=availableChosen>0 && !paused && actor is {down:false} &&
-                (weaponSelected || chosen?.definition=="heal" && HealingRules.CanApply(actor,actor,true));
-            use.GetComponentInChildren<Text>().text=weaponSelected?(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==chosen.id?"Убрать оружие":"Взять в копыта"):"Использовать";
+            var availability=chosen==null?default:Actions().GetAvailability(chosen.id,toggleEquipped:true);
+            use.interactable=availability.Enabled;
+            use.GetComponentInChildren<Text>().text=availability.Caption??"Использовать";
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
             detail.text=chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):itemText.Description(chosen.definition,"PersonalInventoryPanel: actor="+actor.id+", item="+chosen.id));
-            string useRejection=chosen?.definition=="heal"?HealingRules.Rejection(actor,actor,true):null;
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen==null?"":
-                paused?"Область на паузе. Действия временно недоступны.":
-                useRejection??(container==null?"":rejection??"");
+                availability.Rejection??(container==null?"":rejection??"");
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
         }
+        private ItemShortcutActions Actions()=>itemActions?.Invoke()??throw new InvalidOperationException(
+            $"Личный инвентарь: не подключён общий обработчик действий, actor={session.LocalActor?.id}, item={selected}. Настройте PrototypeHud.ConfigureItemActions.");
         private string WeaponDescription(ActorState actor,ItemStack item)
         {
             var definition=WeaponCatalog.Get(item.definition);

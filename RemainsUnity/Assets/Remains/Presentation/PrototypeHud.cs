@@ -7,6 +7,7 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using Remains.Content;
 using Remains.Domain;
+using Remains.Gameplay;
 using System.Collections.Generic;
 
 namespace Remains.Presentation
@@ -109,6 +110,13 @@ namespace Remains.Presentation
         private GameObject quickActions;
         private float noticeUntil;
         private PersonalInventoryPanel personalItems;
+        private ItemShortcutActions itemActions;
+        public string PersonalSelectedItemId=>personalItems.SelectedItemId;
+        public void ConfigureItemActions(ItemShortcutActions actions)
+        {
+            itemActions=actions??throw new ArgumentNullException(nameof(actions));
+            if(personalItems!=null) RefreshPersonalInventory();
+        }
         public InventoryCategory PersonalCategory=>personalItems.Category;
         public RectTransform PersonalCategoryRect(InventoryCategory category)=>personalItems.CategoryRect(category);
         private InventoryAudio inventoryAudio;
@@ -194,7 +202,7 @@ namespace Remains.Presentation
             containerPanel.ConfigureArtworkLayout(containerReservations,()=>LocalActorArtworkBounds,()=>LocalWeaponArtworkBounds,()=>LocalHeldItemArtworkBounds,
                 ()=>$"actor={session.LocalActor?.id??"не назначен"}, type={session.LocalActor?.actorType??"не назначен"}");
             inventory.SetActive(false);
-            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item),inventoryAudio.Page,itemText);
+            personalItems=new PersonalInventoryPanel(inventoryView.PersonalContents,session,ItemName,()=>0,weapon=>EquipWeapon?.Invoke(weapon),inventoryArtwork,item=>EquipWeaponItem?.Invoke(item),inventoryAudio.Page,itemText,()=>itemActions);
             var pauseView=PauseMenuView.Create(transform);
             pauseMenuLayer=pauseView.transform;
             friendlyFire=pauseView.FriendlyFire;friendlyFire.onClick.AddListener(()=>session.SetFriendlyFire(!session.World.friendlyFire));

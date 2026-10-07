@@ -8,6 +8,8 @@ using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Presentation;
+using Remains.Serialization;
+using UnityEngine.UI;
 using UnityEngine;
 
 namespace Remains.Runtime
@@ -29,6 +31,15 @@ namespace Remains.Runtime
         private int visualChangedFrame,phaseStartedFrame;
         private PropView observedDropView;
         private float heldAt;
+        private bool directSelected,healedByUi,healingClosedForLifecycle;
+        private int directSelections,commandSamples;
+        private readonly Dictionary<string,LandingWitness> landings=new();
+        private readonly HashSet<int> voicesBeforeThrow=new();
+        private AudioClip landingClip;
+        private Vector2 initialPosition,fixturePosition;
+        private bool Direct=>runtime.Options.Smoke.StartsWith("direct-items");
+        [Serializable] private sealed class LandingWitness
+        {public string prop,item,clip;public int phase,count,voice;public float volume,at,quietSeconds;public bool muted,captured;public int width,height;}
         private int selectedCountBefore,selectedUsesBefore,selectedDropsBefore;
         private readonly HashSet<string> initialUses=new();
         private readonly HashSet<int> captures=new();
@@ -39,6 +50,19 @@ namespace Remains.Runtime
         {
             if(value.Hud==null) throw new InvalidOperationException("Проверка быстрых клавиш требует игровой интерфейс: запустите сценарий с CaptureFrames.");
             runtime=value;deadline=Time.unscaledTime+90;value.CommandSource=Command;value.Session.Changed+=VisualChanged;
+            if(Direct)
+            {
+                if(value.Options.Smoke.Contains("-frames-")==false || Screen.width!=1920 || Screen.height!=1080 || string.IsNullOrEmpty(value.Options.SaveDirectory))
+                    throw new InvalidOperationException("Прямое действие требует кадров 1920×1080 и отдельных сохранений.");
+                if(value.Options.Role=="host")
+                {
+                    if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Прямое действие требует новый мир; существующий сейв не заменяется.");
+                    value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                }
+                if(!value.PropAudio.ItemSounds.TryGet("p10",out landingClip,out var reason))
+                    throw new InvalidOperationException("Не разрешён WAV приземления p10: "+reason);
+                value.PropAudio.LandingPlayed+=ObserveLanding;
+            }
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<ItemShortcutStep>(step=>
@@ -51,7 +75,9 @@ namespace Remains.Runtime
                         targetBefore=InventoryJournal.Count(value.Session.World.Find(recipient),"p10");
                     }
                     phase=step.stage+1;tossIssued=claimIssued=ready=selectionIssued=false;dropId=null;
-                    heldObserved=dropObserved=heldReleased=dropReleased=false;phaseStartedFrame=Time.frameCount;observedDropView=null;
+                    voicesBeforeThrow.Clear();
+                    foreach(var voice in runtime.Audio.GetComponentsInChildren<AudioSource>()) voicesBeforeThrow.Add(voice.GetInstanceID());
+                    heldObserved=dropObserved=heldReleased=dropReleased=directSelected=false;phaseStartedFrame=Time.frameCount;observedDropView=null;
                 });
                 NetworkClient.RegisterHandler<ItemShortcutBarrier>(barrier=>
                 {
@@ -59,7 +85,7 @@ namespace Remains.Runtime
                     if(barrier.held && barrier.source==sender) heldReleased=true;
                     else if(!barrier.held && barrier.source==dropId) dropReleased=true;
                 });
-                NetworkClient.RegisterHandler<ItemShortcutDone>(_=>Finish(true,"UI-назначения аптечки/патронов, лечение, выбор без расхода и отдельный одиночный/полный бросок ЛКМ, общий подбор и резервные копии проверены."));
+                NetworkClient.RegisterHandler<ItemShortcutDone>(_=>Finish(true,Direct?"Прямые действия настоящего UI в обычном хабе: лечение, выбор без расхода, одиночный/полный бросок ЛКМ, WAV приземления и E-подбор на всех участниках.":"UI-назначения аптечки/патронов, лечение, выбор без расхода и отдельный одиночный/полный бросок ЛКМ, общий подбор и резервные копии проверены."));
             };
             value.Session.ServerReady+=()=>
             {
@@ -88,8 +114,14 @@ namespace Remains.Runtime
         }
         private PlayerCommand Command()
         {
+            commandSamples++;
             var actor=runtime.Session.LocalActor;if(actor==null) return default;
-            if(phase==2 && !healIssued) {healIssued=true;return new PlayerCommand {weaponShortcut="5"};}
+            if(phase==2 && !healIssued)
+            {
+                healIssued=true;
+                if(Direct) {StartCoroutine(HealDirect());return default;}
+                return new PlayerCommand {weaponShortcut="5"};
+            }
             if(phase is 3 or 4)
             {
                 if(actor.id==sender && !tossIssued)
@@ -100,9 +132,10 @@ namespace Remains.Runtime
                         selectionIssued=true;heldAt=Time.unscaledTime;
                         selectedCountBefore=InventoryJournal.Count(actor,"p10");selectedUsesBefore=actor.inventoryUses.Count;
                         selectedDropsBefore=runtime.Session.World.containers.Count(container=>container.presentationItem!=null);
+                        if(Direct) {StartCoroutine(SelectDirectItem());return default;}
                         return new PlayerCommand {weaponShortcut=phase==3?"=":"-",shortcutWholeStack=phase==4,hasAim=true,aim=holdAim};
                     }
-                    if(Time.unscaledTime-heldAt<.4f) return new PlayerCommand {hasAim=true,aim=holdAim};
+                    if(Direct && !directSelected || Time.unscaledTime-heldAt<.4f) return new PlayerCommand {hasAim=true,aim=holdAim};
                     var held=HeldItemSelection.Selected(actor);var view=runtime.HeldItems.Find(actor.id);
                     if(held?.definition!="p10" || InventoryJournal.Count(actor,"p10")!=selectedCountBefore || actor.inventoryUses.Count!=selectedUsesBefore ||
                         runtime.Session.Deposits.Pending || runtime.Session.World.containers.Count(container=>container.presentationItem!=null)!=selectedDropsBefore ||
@@ -112,7 +145,9 @@ namespace Remains.Runtime
                     // Every peer captures the still-held source before its separate LMB release.
                     if(!heldReleased) return new PlayerCommand {hasAim=true,aim=holdAim};
                     tossIssued=true;
-                    return new PlayerCommand {fire=true,throwWholeStack=phase==4,hasAim=true,aim=actor.Position+new Vector2(.6f,.05f)};
+                    voicesBeforeThrow.Clear();
+                    foreach(var voice in runtime.Audio.GetComponentsInChildren<AudioSource>()) voicesBeforeThrow.Add(voice.GetInstanceID());
+                    return new PlayerCommand {fire=true,throwWholeStack=phase==4,hasAim=true,aim=actor.Position+new Vector2(.6f,Direct ? .8f : .05f)};
                 }
                 if(actor.id==recipient && dropId!=null && !claimIssued)
                 {
@@ -132,14 +167,23 @@ namespace Remains.Runtime
         private void Update()
         {
             if(finished) return;
-            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут назначений: phase={phase}, drop={dropId}, actor={runtime.Session.LocalActor?.x}, heldObserved={heldObserved}, heldReleased={heldReleased}, dropObserved={dropObserved}, dropReleased={dropReleased}.");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут назначений: phase={phase}, commands={commandSamples}, inventoryOpen={runtime.Hud.InventoryOpen}, levelPreparing={runtime.IsLevelPreparing}, healIssued={healIssued}, healedByUi={healedByUi}, drop={dropId}, actor={runtime.Session.LocalActor?.x}, heldObserved={heldObserved}, heldReleased={heldReleased}, dropObserved={dropObserved}, dropReleased={dropReleased}.");return;}
             var actor=runtime.Session.LocalActor;if(actor==null) return;
             var world=runtime.Session.World;
             if(!traveled && world.actors.Count(value=>value.player && value.connected)==runtime.Options.ProbePeers)
-            {traveled=true;runtime.Session.Travel.RequestFactory();phase=1;}
-            if(phase==1 && actor.level=="factory:0" && !runtime.Session.Travel.Pending && !setup)
+            {
+                traveled=true;
+                if(Direct)
+                {
+                    if(WorldRooms.Definition(world,"factory:0")!=NewGameWorld.FactoryDefinitionId || actor.level!="hub")
+                        {Finish(false,"Прямое действие получило старый проверочный мир вместо обычного хаба.");return;}
+                }
+                else runtime.Session.Travel.RequestFactory();
+                phase=1;
+            }
+            if(phase==1 && actor.level==(Direct?"hub":"factory:0") && !runtime.Session.Travel.Pending && !runtime.Hud.RoomPresentationPending && !setup)
             {setup=true;StartCoroutine(SetupInventory());}
-            if(phase==2 && actor.health>60 && InventoryJournal.Count(actor,"heal")==healBefore-1 && !ready)
+            if(phase==2 && (!Direct || healedByUi) && actor.health>60 && InventoryJournal.Count(actor,"heal")==healBefore-1 && !ready)
             {ready=true;NetworkClient.Send(new ItemShortcutReady {stage=1});}
             if(phase is 3 or 4)
             {
@@ -180,7 +224,7 @@ namespace Remains.Runtime
         }
         private void ObserveHeldEvidence()
         {
-            if(heldObserved || sender==null || !VisualsSettled) return;
+            if(heldObserved || sender==null || !VisualsSettled || Direct && runtime.Session.LocalActorId==sender && !directSelected) return;
             var actor=runtime.Session.World.Find(sender);var view=runtime.HeldItems.Find(sender);
             if(actor==null || HeldItemSelection.Selected(actor)?.definition!="p10" || !actor.heldItemPoseValid ||
                 actor.heldItemPoseY<=.1f || !Visible(view) || Vector2.Distance(view.transform.position,HeldItemPose.Mount(actor))>.005f) return;
@@ -196,43 +240,131 @@ namespace Remains.Runtime
             if(observedDropView==null) observedDropView=UnityEngine.Object.FindObjectsByType<PropView>(FindObjectsInactive.Exclude,FindObjectsSortMode.None)
                 .FirstOrDefault(value=>value.name=="Брошенный предмет "+drop.id);
             if(observedDropView==null || !Visible(observedDropView.Artwork)) return;
+            if(Direct)
+            {
+                if(!landings.TryGetValue(drop.id,out var landing) || Time.unscaledTime-landing.at<.75f) return;
+                if(landing.count!=1) {Finish(false,"Повторный WAV приземления одного броска: "+drop.id);return;}
+                if(drop.held || Mathf.Abs(drop.vx)>.03f || Mathf.Abs(drop.vy)>.03f) return;
+                landing.quietSeconds=Time.unscaledTime-landing.at;landing.captured=true;landing.width=Screen.width;landing.height=Screen.height;
+                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+$".phase-{phase}.landing.png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
+                File.WriteAllText(runtime.Options.Report+$".phase-{phase}.landing.json",StateJson.ToJson(landing,true));
+            }
             if(runtime.Options.Smoke.Contains("-frames-")) NetworkSceneRecord.Save(runtime,phase);
             captures.Add(phase);dropObserved=true;
             NetworkClient.Send(new ItemShortcutObserved {phase=phase,held=false,source=drop.id});
         }
         private IEnumerator SetupInventory()
         {
+            if(Direct)
+            {
+                // Explicit initial player fixture on the real lower hub floor. No items,
+                // props or surfaces are injected; the route downstairs is outside this probe.
+                var owner=runtime.Session.LocalActor;initialPosition=owner.Position;
+                fixturePosition=new Vector2(owner.x,.8f);
+                var room=runtime.Geometry.Get(owner.level);
+                if(!ActorTerrainMotion.IsClear(room,Anatomy.Movement(owner),fixturePosition) ||
+                    !ActorTerrainMotion.Supported(room,Anatomy.Movement(owner),fixturePosition))
+                    {Finish(false,"Начальная нижняя площадка не свободна или не поддерживает персонажа: "+fixturePosition);yield break;}
+                owner.Position=fixturePosition;owner.vx=owner.vy=0;owner.revision++;runtime.Session.PublishActor(owner);
+                yield return null;yield return null;
+            }
             runtime.Hud.ToggleInventory();
             var actor=runtime.Session.LocalActor;var filter=new InventoryItemFilter(WeaponCatalog.All);
             var heal=actor.inventory.First(item=>item.definition=="heal");healBefore=InventoryJournal.Count(actor,"heal");
-            yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Items));
-            int row=actor.inventory.Where(item=>filter.Includes(item,InventoryCategory.Items)).ToList().FindIndex(item=>item.id==heal.id);
-            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(row));yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(4));
-            yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Ammunition));
-            actor=runtime.Session.LocalActor;var ammo=actor.inventory.First(item=>item.definition=="p10");
-            row=actor.inventory.Where(item=>filter.Includes(item,InventoryCategory.Ammunition)).ToList().FindIndex(item=>item.id==ammo.id);
-            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(row));
-            yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(10));yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(11));
-            actor=runtime.Session.LocalActor;
-            if(ItemShortcuts.Get(actor,"5")?.definition!="heal" || ItemShortcuts.Get(actor,"-")?.id!=ammo.id || ItemShortcuts.Get(actor,"=")?.id!=ammo.id)
-            {Finish(false,"Указатель не назначил реальные стопки на [5], [-] и [=].");yield break;}
+            if(!Direct)
+            {
+                yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Items));
+                int row=actor.inventory.Where(item=>filter.Includes(item,InventoryCategory.Items)).ToList().FindIndex(item=>item.id==heal.id);
+                yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(row));
+                yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(4));
+                yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Ammunition));
+                actor=runtime.Session.LocalActor;var ammo=actor.inventory.First(item=>item.definition=="p10");
+                row=actor.inventory.Where(item=>filter.Includes(item,InventoryCategory.Ammunition)).ToList().FindIndex(item=>item.id==ammo.id);
+                yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(row));
+                yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(10));yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(11));
+                actor=runtime.Session.LocalActor;
+                if(ItemShortcuts.Get(actor,"5")?.definition!="heal" || ItemShortcuts.Get(actor,"-")?.id!=ammo.id || ItemShortcuts.Get(actor,"=")?.id!=ammo.id)
+                {Finish(false,"Указатель не назначил реальные стопки на [5], [-] и [=].");yield break;}
+            }
             if(runtime.Options.Smoke.Contains("-frames-")) NetworkSceneRecord.Save(runtime,1);
             // Fixture damage must advance the state revision, just like a real damage result.
             runtime.Hud.ToggleInventory();actor.health=60;actor.damageSequence++;actor.revision++;
             runtime.Session.PublishActor(actor);phase=2;
+        }
+        private IEnumerator HealDirect()
+        {
+            runtime.Hud.ToggleInventory();
+            yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Items));
+            var actor=runtime.Session.LocalActor;
+            var rows=actor.inventory.Where(i=>new InventoryItemFilter(WeaponCatalog.All).Includes(i,InventoryCategory.Items)).ToList();
+            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(rows.FindIndex(i=>i.definition=="heal")));
+            long lifecycleBefore=runtime.Session.LocalActor.lifecycleSequence;
+            yield return UiPointerProbe.Click(runtime.Hud.UseItemRect);
+            healedByUi=true;
+            // Existing HealingRules advances combat lifecycle. HUD closes old actor-context
+            // windows on that transition; holding an ordinary item must keep its window open.
+            healingClosedForLifecycle=!runtime.Hud.InventoryOpen && runtime.Session.LocalActor.lifecycleSequence!=lifecycleBefore;
+            if(!runtime.Hud.InventoryOpen && !healingClosedForLifecycle)
+                {Finish(false,"Окно лечения закрылось без перехода lifecycle.");yield break;}
+            if(runtime.Hud.InventoryOpen) runtime.Hud.ToggleInventory();
+        }
+        private IEnumerator SelectDirectItem()
+        {
+            runtime.Hud.ToggleInventory();
+            yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Ammunition));
+            var actor=runtime.Session.LocalActor;
+            var rows=actor.inventory.Where(i=>new InventoryItemFilter(WeaponCatalog.All).Includes(i,InventoryCategory.Ammunition)).ToList();
+            var ammo=rows.Single(i=>i.definition=="p10");
+            string selectedBefore=HeldItemSelection.Selected(actor)?.id;
+            yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(rows.IndexOf(ammo)));
+            actor=runtime.Session.LocalActor;
+            if(HeldItemSelection.Selected(actor)?.id!=selectedBefore || InventoryJournal.Count(actor,"p10")!=selectedCountBefore || actor.inventoryUses.Count!=selectedUsesBefore)
+                {Finish(false,"Один выбор строки уже использовал предмет.");yield break;}
+            var use=runtime.Hud.UseItemRect.GetComponent<Button>();
+            if(!use.interactable || use.GetComponentInChildren<Text>().text!="Взять в копыта")
+                {Finish(false,"UI не показывает доступное действие удерживания патронов.");yield break;}
+            yield return UiPointerProbe.Click(runtime.Hud.UseItemRect);
+            actor=runtime.Session.LocalActor;
+            if(!runtime.Hud.InventoryOpen || HeldItemSelection.Selected(actor)?.id!=ammo.id ||
+                InventoryJournal.Count(actor,"p10")!=selectedCountBefore || actor.inventoryUses.Count!=selectedUsesBefore ||
+                ItemShortcuts.Keys.Any(slot=>ItemShortcuts.Get(actor,slot)?.definition=="p10"))
+                {Finish(false,"Прямое действие требует shortcut, расходует предмет или закрывает UI.");yield break;}
+            directSelections++;
+            NetworkSceneRecord.Save(runtime,20+phase);
+            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+$".phase-{phase}.inventory.png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
+            runtime.Hud.ToggleInventory();directSelected=true;heldAt=Time.unscaledTime;
+        }
+        private void ObserveLanding(string id,string item,AudioClip clip)
+        {
+            if(finished || phase is not (3 or 4) || item!="p10") return;
+            if(!landings.TryGetValue(id,out var landing))
+            {
+                var prop=runtime.Session.World.containers.FirstOrDefault(c=>c.id==id);
+                var voice=runtime.Audio.GetComponentsInChildren<AudioSource>().LastOrDefault(v=>v.clip==clip && v.volume>0 && !voicesBeforeThrow.Contains(v.GetInstanceID()));
+                if(prop?.presentationItem!="p10" || clip!=landingClip || clip.samples<=0 || voice==null)
+                    {Finish(false,"WAV приземления не соответствует реальному предмету/голосу: "+id);return;}
+                landing=new LandingWitness {phase=phase,prop=id,item=item,clip=clip.name,voice=voice.GetInstanceID(),volume=voice.volume,muted=voice.mute,at=Time.unscaledTime};
+                landings.Add(id,landing);
+            }
+            landing.count++;
         }
         private void Finish(bool success,string detail)
         {
             if(finished) return;
             if(success && new[]{3,4,13,14}.Any(evidence=>!captures.Contains(evidence)))
             {success=false;detail="Не все этапы удержания/броска действительно наблюдались до подбора: "+string.Join(",",captures.OrderBy(value=>value));}
+            if(success && Direct && (!healedByUi || landings.Count!=2 || landings.Values.Any(l=>!l.captured || l.count!=1 || l.quietSeconds<.75f) ||
+                runtime.Session.LocalActorId==sender && directSelections!=2))
+            {success=false;detail="Недостаточно прямых UI/audio доказательств.";}
             finished=true;
             runtime.Session.SaveLocalCharacter();
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,total=total,observedStages=captures.OrderBy(value=>value).ToArray()},true));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,total=total,observedStages=captures.OrderBy(value=>value).ToArray(),directInventory=Direct,ordinaryHub=Direct,healedByUi=healedByUi,directSelections=directSelections,
+                commandSamples=commandSamples,healingClosedForLifecycle=healingClosedForLifecycle,startingPositionFixture=Direct,
+                initialPosition=initialPosition,fixturePosition=fixturePosition,landings=landings.Values.OrderBy(l=>l.phase).ToArray()},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        private void OnDestroy() {if(runtime!=null) runtime.Session.Changed-=VisualChanged;}
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase,total;public int[] observedStages;}
+        private void OnDestroy() {if(runtime!=null) {runtime.Session.Changed-=VisualChanged;runtime.PropAudio.LandingPlayed-=ObserveLanding;}}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase,total;public int[] observedStages;public bool directInventory,ordinaryHub,healedByUi,healingClosedForLifecycle,startingPositionFixture;public Vector2 initialPosition,fixturePosition;public int directSelections,commandSamples;public LandingWitness[] landings;}
     }
 }

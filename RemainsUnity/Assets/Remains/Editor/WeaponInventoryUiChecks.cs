@@ -3,6 +3,7 @@ using System.IO;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Networking;
+using Remains.Gameplay;
 using Remains.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
@@ -40,8 +41,9 @@ namespace Remains.Editor
                 var rect=window.GetComponent<RectTransform>();rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);rect.anchoredPosition=Vector2.zero;
                 var view=window.PersonalContents;
                 Action<string> select=id=>{if(!WeaponInventory.Select(actor,id,out var reason)) throw new InvalidOperationException(reason);};
+                var itemActions=new ItemShortcutActions(session,select);
                 var panel=new PersonalInventoryPanel(view,session,id=>id switch {"pistol"=>"10-мм пистолет","spear"=>"Копьё","crowbar"=>"Лом","grenade"=>"Граната",_=>"Аптечка"},()=>0,
-                    _=>throw new InvalidOperationException("UI экземпляра вызвал старый выбор определения."),new InventoryArtwork(),select);
+                    _=>throw new InvalidOperationException("UI экземпляра вызвал старый выбор определения."),new InventoryArtwork(),select,itemActions:()=>itemActions);
                 panel.Refresh(null);view.Rows[1].onClick.Invoke();
                 Require(view.Rows[1].colors.normalColor!=view.Rows[0].colors.normalColor,"Выбранная строка не отличается от соседней");
                 Require(view.Rows[0].GetComponentInChildren<Text>().text.Contains("7/12") &&

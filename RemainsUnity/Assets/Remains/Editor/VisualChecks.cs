@@ -9,6 +9,7 @@ using Remains.Persistence;
 using kcp2k;
 using UnityEngine.UI;
 using Remains.Content;
+using Remains.Gameplay;
 using System.Collections.Generic;
 
 namespace Remains.Editor
@@ -49,7 +50,10 @@ namespace Remains.Editor
             world.Find("ui-player").inventory.Add(SharedInventory.Create("heal",5));
             typeof(CoopSession).GetProperty(nameof(CoopSession.World)).SetValue(session,world);
             typeof(CoopSession).GetProperty(nameof(CoopSession.LocalActorId)).SetValue(session,"ui-player");
-            var hud=new GameObject("Интерфейс проверки").AddComponent<PrototypeHud>();hud.Initialize(session);hud.ToggleInventory();
+            var hud=new GameObject("Интерфейс проверки").AddComponent<PrototypeHud>();hud.Initialize(session);
+            hud.ConfigureItemActions(new ItemShortcutActions(session,id=>
+            {if(!WeaponInventory.Select(uiActor,id,out var reason)) throw new InvalidOperationException(reason);}));
+            hud.ToggleInventory();
             hud.DepositRowRect(2).GetComponent<Button>().onClick.Invoke();
             var canvas=hud.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=camera;canvas.planeDistance=1;canvas.sortingOrder=32767;
             Canvas.ForceUpdateCanvases();camera.Render();RenderTexture.active=target;
