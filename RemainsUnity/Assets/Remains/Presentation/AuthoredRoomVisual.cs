@@ -25,6 +25,7 @@ namespace Remains.Presentation
                     foreach(var audit in instance.GetComponentsInChildren<RoomImportAudit>(true)) audit.WarnIncomplete();
                 using(TransitionTiming.Measure("authored-room.window-validation",level))
                     foreach(var mask in instance.GetComponentsInChildren<RoomWindowMaskAuthoring>(true)) mask.Validate();
+                foreach(var composition in instance.GetComponentsInChildren<RoomBackdropCompositionAuthoring>(true)) composition.Validate();
                 using(TransitionTiming.Measure("authored-room.previews",level))
                 {
                     RoomTrainingContent.HidePreviews(instance);

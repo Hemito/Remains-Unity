@@ -20,7 +20,9 @@ namespace Remains.Editor
         {
             FactoryWarehouseSource.Require(room!=null && room.HasAuthoredArtwork,"Нет сохранённого authored модуля.");
             var data=FactoryWarehouseSource.Load();var input=FactoryWarehouseDraft.CreateInput(data,false);var actual=room.CreateLayout();
-            FactoryWarehouseSource.Require(actual.platforms.Length==52 && actual.ladders.Length==3 && actual.artwork.Length==97,"Изменён полный набор geometry/artwork.");
+            bool composition=room.GetComponent<RoomBackdropCompositionAuthoring>()!=null;
+            FactoryWarehouseSource.Require(actual.platforms.Length==52 && actual.ladders.Length==3 && actual.artwork.Length==(composition?98:97),"Изменён полный набор geometry/artwork (97 historical/98 с единственной chole-композицией).");
+            if(composition) FactoryBackdropComposition.ValidateModule(room,FactoryBackdropComposition.Read(),"FactoryWarehouse40");
             CheckProjection(actual,input);CheckResources(room,input);
             FactoryLadderLandingChecks.CheckInstalled(room,data.landings,0,false);
             var report=room.GetComponent<RoomImportAudit>()?.Report;

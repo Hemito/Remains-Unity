@@ -23,10 +23,11 @@ namespace Remains.Editor
             var source=AssetDatabase.LoadAssetAtPath<GameObject>(FactoryOfficeDraft.Path);
             var mask=source.GetComponent<RoomWindowMaskAuthoring>()??throw new InvalidOperationException("Офис: сохранённые маски окон ещё не установлены.");
             mask.Validate();FactoryOfficeWindowMasks.VerifyPixels(mask);
-            Require(mask.Regions.Length==7 && mask.Layers.Length==38 && mask.Visibility.width==1920 && mask.Visibility.height==1000,"Сохранены семь окон/38 слоёв/нативный atlas");
+            bool composition=source.GetComponent<RoomBackdropCompositionAuthoring>()!=null;
+            Require(mask.Regions.Length==(composition?8:7) && mask.Layers.Length==(composition?39:38) && mask.Visibility.width==1920 && mask.Visibility.height==1000,"Сохранены семь окон и явное дополнение chole/нативный atlas");
             var room=source.GetComponent<RoomAuthoring>();
             Require(mask.Layers.Count(l=>l.GetComponent<RoomArtworkAuthoring>().Read(room).order==-29)==31,"Только31 фоновая геометрия и7 окон имеют маску");
-            Require(source.GetComponentsInChildren<RoomArtworkAuthoring>().Where(a=>!mask.Layers.Contains(a.GetComponent<MeshRenderer>())).All(a=>a.GetComponent<MeshRenderer>().sharedMaterial.GetFloat("_ArtworkVisibilityEnabled")==0),"Фронт/общий задник/прочий декор не вырезаются");
+            Require(source.GetComponentsInChildren<RoomArtworkAuthoring>().Where(a=>!mask.Layers.Contains(a.GetComponent<MeshRenderer>())).All(a=>{var material=a.GetComponent<MeshRenderer>().sharedMaterial;return !material.HasProperty("_ArtworkVisibilityEnabled") || material.GetFloat("_ArtworkVisibilityEnabled")==0;}),"Фронт/общий задник/прочий декор не вырезаются");
             var clone=UnityEngine.Object.Instantiate(source);
             try
             {
@@ -37,7 +38,7 @@ namespace Remains.Editor
                 Reject(copy.Validate,"Перемещение поверхности выявляет устаревший второй UV");background.localPosition-=Vector3.up*.1f;copy.Validate();
             }
             finally {UnityEngine.Object.DestroyImmediate(clone);}
-            Debug.Log("Маски окон: PASS, exact resource/importer, saved atlas/38 bindings, nested translation, stale window/geometry negatives; физика и обычные material не менялись.");
+            Debug.Log("Маски окон: PASS, exact resource/importer, saved atlas/"+mask.Layers.Length+" bindings, семь окон сохранены отдельно от chole, nested translation, stale window/geometry negatives.");
         }
         public static void RenderScreenshots()
         {
@@ -73,7 +74,7 @@ namespace Remains.Editor
                 }
                 File.WriteAllText(Path.Combine(folder,"render-report.json"),StateJson.ToJson(new RenderEvidence {pixels=new[]{1920,1080},changedPixels=changed,outsideWindowPixels=outside,camera=new RectEvidence(envelope),
                     windows=mask.Regions.Select(r=>new WindowEvidence {sourceRecord=r.sourceRecord,bounds=new RectEvidence(r.bakedBounds)}).ToArray(),evidence="native Unity comparison; original runtime unverified"},true));
-                Require(changed>1000 && outside==0,"GPU-композиция меняет только области семи окон");
+                Require(changed>1000 && outside==0,"GPU-композиция меняет только сохранённые области семи окон/явного chole");
                 Debug.Log("Маски окон: actual Unity1920×1080 кадры сохранены; changedPixels="+changed+", outsideWindowPixels="+outside+". Это проверка новой композиции, не pixel-equivalence оригиналу.");
             }
             finally

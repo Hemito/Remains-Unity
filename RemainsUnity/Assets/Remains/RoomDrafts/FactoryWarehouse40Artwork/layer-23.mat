@@ -12,7 +12,8 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _BACKGROUNDLIGHTING_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -24,7 +25,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _ArtworkVisibility:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: d2d1129a72cfff3479fc66f6918f0260, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -33,7 +34,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ArtworkVisibilityEnabled: 0
+    - _ArtworkVisibilityEnabled: 1
     - _BackgroundLighting: 1
     - _Emission: 0
     m_Colors:

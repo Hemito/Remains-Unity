@@ -298,6 +298,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("movement")) gameObject.AddComponent<NetworkMovementProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("contracts")) gameObject.AddComponent<NetworkContracts>().Initialize(this);
                 else gameObject.AddComponent<NetworkSmoke>().Initialize(this);
+                if(Options.Smoke.Contains("-backdrop-",System.StringComparison.Ordinal)) gameObject.AddComponent<FactoryBackdropFrameProbe>().Initialize(this);
             }
         }
 
