@@ -53,7 +53,7 @@ namespace Remains.Editor
                     CheckAssignment(melee,weapon+":surface:"+assignment.key,assignment.clip,assignment.gain);
             }
             var restoredCounts=AddedSurfaces.ToDictionary(a=>a.key,_=>0,StringComparer.Ordinal);
-            int solids=0,passing=0;
+            int solids=0,passing=0,doors=0;
             var paths=new HashSet<string>(ModulePaths,StringComparer.Ordinal);
             paths.Add("Assets/Remains/RoomDrafts/ConnectedTrainingHub.prefab");
             foreach(var entry in RoomCatalogAsset.Load().Entries)
@@ -78,6 +78,13 @@ namespace Remains.Editor
                     if(surface.shotsPassThrough) {passing++;continue;}
                     solids++;
                     if(ModulePaths.Contains(path) && restoredCounts.ContainsKey(surface.texture)) restoredCounts[surface.texture]++;
+                }
+                var doorLayout=RoomDoorContent.Read(room,"impact-audio-coverage");
+                if(doorLayout!=null) foreach(var door in doorLayout.doors)
+                {
+                    CheckSurface(new RoomSurface {texture=door.surfaceTexture},
+                        path+"/дверь="+door.id+", definition="+door.definition,projectile,melee);
+                    doors++;
                 }
             }
             foreach(var assignment in AddedSurfaces)
@@ -104,7 +111,7 @@ namespace Remains.Editor
                 CheckAssignment(melee,weapon+":prop:case","hit-metal",.4f);
             }
             CheckMissingKey(projectile,melee);
-            Debug.Log($"Назначения ударных звуков: PASS — {paths.Count} сохранённых комнат, {solids} ударяемых/{passing} проходимых поверхностей, 197 восстановленных declarations, {props} физических типов/{withoutBody} без тела; отрицательные missing-key и policy checks.");
+            Debug.Log($"Назначения ударных звуков: PASS — {paths.Count} сохранённых комнат, {solids} ударяемых/{passing} проходимых поверхностей, {doors} дверей, 197 восстановленных declarations, {props} физических типов/{withoutBody} без тела; отрицательные missing-key и policy checks.");
         }
         private static Dictionary<string,Sound> ReadProjectile()
         {

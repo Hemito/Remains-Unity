@@ -217,7 +217,7 @@ namespace Remains.Editor
                         var center=camera.WorldToViewportPoint(root.GetComponent<RectTransform>().TransformPoint(root.GetComponent<RectTransform>().rect.center));
                         Require(Mathf.Abs(center.x-.5f)<.001f && Mathf.Abs(center.y-.5f)<.001f && Mathf.Abs(center.z-canvas.planeDistance)<.001f,"камера Canvas не подготовлена native renderer");
                         foreach(var rect in new[]{fixture.Panel.RowRect(0),fixture.Panel.UseRect,fixture.Panel.DepositRect,
-                            fixture.View.Detail.rectTransform,fixture.View.ActionStatus.rectTransform,fixture.Panel.WeaponRect(11),fixture.Panel.CategoryRect(InventoryCategory.Armor)})
+                            fixture.View.Description.Rect,fixture.View.ActionStatus.rectTransform,fixture.Panel.WeaponRect(11),fixture.Panel.CategoryRect(InventoryCategory.Armor)})
                             CheckCorners(rect,camera,size);
                         foreach(var label in fixture.View.GetComponentsInChildren<Text>())
                             Require(label.preferredHeight<=label.rectTransform.rect.height+.1f,$"текст обрезается: {size}, {label.name}, текст={label.text}");

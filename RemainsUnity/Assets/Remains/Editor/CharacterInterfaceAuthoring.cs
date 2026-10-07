@@ -72,6 +72,32 @@ namespace Remains.Editor
             }
             AssetDatabase.SaveAssets();
         }
+        [MenuItem("Remains/Обновить выбор формы головы в редакторе")]
+        public static void RefreshHeadSelector()
+        {
+            ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+            const string path="Assets/Remains/Resources/Presentation/CharacterEditor.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var view=root.GetComponent<CharacterEditorView>();
+                PrepareHeadSelector(view);view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            AssetDatabase.SaveAssets();
+        }
+        private static void PrepareHeadSelector(CharacterEditorView view)
+        {
+            Content.PonyHeadCatalog.Load();
+            HudElements.Rect(view.Portrait.GetComponent<RectTransform>(),new Vector2(24,-116),new Vector2(360,300));
+            HudElements.Rect((RectTransform)view.Portrait.Pony.transform,Vector2.zero,new Vector2(360,300));
+            if(view.HeadPrevious==null) view.HeadPrevious=Button(view.transform,"←",new Vector2(24,-432),new Vector2(60,36));
+            if(view.HeadNext==null) view.HeadNext=Button(view.transform,"→",new Vector2(324,-432),new Vector2(60,36));
+            if(view.HeadLabel==null) view.HeadLabel=Label(view.transform,"Форма головы","",new Vector2(90,-429),new Vector2(220,42),16);
+            view.HeadPrevious.name="Предыдущая форма головы";view.HeadNext.name="Следующая форма головы";
+            view.HeadLabel.text="Форма головы\n"+Content.PonyHeadCatalog.Get(Domain.CharacterAppearance.OriginalHeadStyleId).label;
+            view.HeadLabel.alignment=TextAnchor.MiddleCenter;
+        }
         private static InputField Input(Transform parent,string name,Vector2 point,Vector2 size,int limit)
         {
             var root=ui.Panel(parent,name,point,size);root.GetComponent<Image>().color=new Color(.08f,.15f,.12f,1);
@@ -128,6 +154,7 @@ namespace Remains.Editor
                 Label(root.transform,"Подпись имени","Имя",new Vector2(24,-70),new Vector2(66,32));
                 view.Name=Input(root.transform,"Имя персонажа",new Vector2(90,-66),new Vector2(294,40),32);
                 view.Portrait=Portrait(root.transform,new Vector2(24,-116),new Vector2(360,346),false);
+                PrepareHeadSelector(view);
                 view.HairPrevious=Button(root.transform,"←",new Vector2(24,-478),new Vector2(60,36));
                 view.HairLabel=Label(root.transform,"Форма гривы","Причёска 1 / 5",new Vector2(90,-481),new Vector2(220,30));view.HairLabel.alignment=TextAnchor.MiddleCenter;
                 view.HairNext=Button(root.transform,"→",new Vector2(324,-478),new Vector2(60,36));

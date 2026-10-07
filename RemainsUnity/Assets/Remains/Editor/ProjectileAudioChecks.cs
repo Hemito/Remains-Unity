@@ -21,6 +21,7 @@ namespace Remains.Editor
             Require(Mathf.Abs(mix.Pan(-10,0)+mix.Pan(10,0))<.00001f,"Панорама несимметрична.");
             Check("Hub/concrete","hit-concrete",false);
             Check("floor","hit-metal",false);
+            Check("door:metal","hit-metal",false);
             Check("Factory46/26_tConcrete","hit-concrete",false);
             Check("Factory18/26_tConcrete","hit-concrete",false);
             foreach(var assignment in ImpactAudioCoverageChecks.AddedSurfaces)

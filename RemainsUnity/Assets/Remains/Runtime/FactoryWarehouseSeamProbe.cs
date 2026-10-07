@@ -64,7 +64,7 @@ namespace Remains.Runtime
                 session.CommitWorld();var saved=session.Saves.LoadWorld(false);
                 bool valid=RoomContentProbePersistence.UnchangedOnReinstall(saved,"factory:0") &&
                     saved.props.Count(p=>p.level=="factory:0")==29 && saved.containers.Count(p=>p.level=="factory:0")==52 &&
-                    saved.doors.Count(p=>p.level=="factory:0")==17 && saved.actors.Count(a=>!a.player && a.level=="factory:0")==22;
+                    saved.doors.Count(p=>p.level=="factory:0")==19 && saved.actors.Count(a=>!a.player && a.level=="factory:0")==22;
                 result=new WarehouseSeamFinish {success=valid,snapshot=RecoverySnapshot.Fingerprint(StateJson.ToJson(saved)),detail=valid?
                     "Стык офис→склад пройден в обе стороны обычным движением; актёр/владелец/уровень/опора сохранены, обычный мир записан без повторной генерации содержимого.":
                     "Сохранённый склад потерял объекты или изменился при повторной установке."};

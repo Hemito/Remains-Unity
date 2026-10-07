@@ -109,10 +109,11 @@ namespace Remains.Presentation
             if(!appearance.HasValue || !appearance.Value.Equals(nextAppearance)) {appearance=nextAppearance;frame=-1;}
             if (pose != next) { pose = next; frame = -1; }
             if(drawPlan==null) throw new InvalidOperationException("Нет подготовленного плана пони: actor="+state.id+".");
-            if(drawPlan.HasEquipment && !drawPlan.MatchesShape(nextAppearance))
-                throw new InvalidOperationException($"Внешность снаряжения изменена без подготовки: actor={state.id}, hair={nextAppearance.HairStyle}, eyes={nextAppearance.EyeStyle}, secondary={nextAppearance.SecondaryEnabled}. Вызовите Bind при событии смены формы.");
-            // Bare selections retain the existing precompiled style-change contract.
-            // Equipment/style events prepare their composite plan in Bind.
+            if((drawPlan.HasEquipment || drawPlan.HeadStyleId!=CharacterAppearance.OriginalHeadStyleId || nextAppearance.HeadStyleId!=CharacterAppearance.OriginalHeadStyleId) &&
+                !drawPlan.MatchesShape(nextAppearance))
+                throw new InvalidOperationException($"Внешность снаряжения изменена без подготовки: actor={state.id}, head={nextAppearance.HeadStyleId}, hair={nextAppearance.HairStyle}, eyes={nextAppearance.EyeStyle}, secondary={nextAppearance.SecondaryEnabled}. Вызовите Bind при событии смены формы.");
+            // Original-head bare selections retain all 60 precompiled choices.
+            // Custom head/style and equipment events prepare their plans in Bind.
             var frames = drawPlan.HasEquipment?drawPlan.Frames(pose):PonyRenderSelection.Frames(nextAppearance,pose);
             int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorSessionRules.IsPassive(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
             if (nextFrame == frame && !drawPlanDirty) {RefreshDrawnBounds();return;}

@@ -32,7 +32,15 @@ namespace Remains.Runtime
                     Canvas.ForceUpdateCanvases();
                 }
                 SortingGroup.UpdateAllSortingGroups();
-                camera.Render();RenderTexture.active=target;
+                if(GraphicsSettings.currentRenderPipeline==null) camera.Render();
+                else
+                {
+                    var request=new RenderPipeline.StandardRequest {destination=target};
+                    if(!RenderPipeline.SupportsRenderRequest(camera,request))
+                        throw new InvalidOperationException($"Активный рендерер не поддерживает съёмку камеры: camera={camera.name}, pipeline={GraphicsSettings.currentRenderPipeline.name}, path={path}.");
+                    RenderPipeline.SubmitRenderRequest(camera,request);
+                }
+                RenderTexture.active=target;
                 image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
                 File.WriteAllBytes(path,image.EncodeToPNG());
             }

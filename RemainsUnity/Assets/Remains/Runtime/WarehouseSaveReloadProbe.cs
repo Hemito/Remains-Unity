@@ -58,11 +58,11 @@ namespace Remains.Runtime
             };
         }
         private static bool Counts(WorldState world)=>world.props.Count(p=>p.level==Level)==29 &&
-            world.containers.Count(c=>c.level==Level)==52 && world.doors.Count(d=>d.level==Level)==17 &&
+            world.containers.Count(c=>c.level==Level)==52 && world.doors.Count(d=>d.level==Level)==19 &&
             world.actors.Count(a=>!a.player && a.level==Level)==22 &&
             world.props.Count(p=>p.id.StartsWith(Prefix,StringComparison.Ordinal))==17 &&
             world.containers.Count(c=>c.id.StartsWith(Prefix,StringComparison.Ordinal))==16 &&
-            world.doors.Count(d=>d.id.StartsWith(Prefix,StringComparison.Ordinal))==2 &&
+            world.doors.Count(d=>d.id.StartsWith(Prefix,StringComparison.Ordinal))==4 &&
             world.actors.Count(a=>a.id.StartsWith(Prefix,StringComparison.Ordinal))==9;
         private static bool Preserved(WorldState before,WorldState after)
         {

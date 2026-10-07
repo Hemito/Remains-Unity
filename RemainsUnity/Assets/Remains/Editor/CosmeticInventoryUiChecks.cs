@@ -158,6 +158,7 @@ namespace Remains.Editor
                                 var rect=label.rectTransform.rect;float preferred=label.preferredHeight;
                                 Require(preferred<=rect.height+.1f,$"текст одежды обрезан: screen={size}, stage={stage}, label={label.name}, font={label.fontSize}, rect={rect}, preferredHeight={preferred}, preferredWidth={label.preferredWidth}, text={label.text}");
                             }
+                            InventoryDescriptionChecks.CheckVisibleContent(f.View.Description,$"одежда {size}/{stage}");
                             CheckRowLabels(f,size);
                             image=new Texture2D(size.x,size.y,TextureFormat.RGBA32,false);RenderTexture.active=target;
                             image.ReadPixels(new Rect(0,0,size.x,size.y),0,0);image.Apply();

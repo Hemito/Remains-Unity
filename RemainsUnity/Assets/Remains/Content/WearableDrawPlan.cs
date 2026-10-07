@@ -8,22 +8,25 @@ namespace Remains.Content
         private readonly Dictionary<string,PonyRenderPart[][]> frames;
         private readonly Dictionary<string,Bounds[]> bounds;
         private readonly int hairStyle,eyeStyle;
+        private readonly string headStyleId;
         private readonly bool secondaryEnabled;
         public Bounds CameraEnvelope {get;}
         public int Capacity {get;}
+        public string HeadStyleId=>headStyleId;
         public bool HasEquipment {get;}
         public IReadOnlyList<string> VisualIds {get;}
         public PonyRenderPart[] PortraitFrame=>Frames("idle")[0];
         private WearableDrawPlan(Dictionary<string,PonyRenderPart[][]> values,Dictionary<string,Bounds[]> frameBounds,Bounds envelope,int capacity,string[] ids,PonyAppearanceKey appearance)
         {frames=values;bounds=frameBounds;CameraEnvelope=envelope;Capacity=capacity;HasEquipment=ids.Length!=0;VisualIds=Array.AsReadOnly(ids);
-            hairStyle=appearance.HairStyle;eyeStyle=appearance.EyeStyle;secondaryEnabled=appearance.SecondaryEnabled;}
-        public bool MatchesShape(PonyAppearanceKey appearance)=>hairStyle==appearance.HairStyle && eyeStyle==appearance.EyeStyle && secondaryEnabled==appearance.SecondaryEnabled;
+            hairStyle=appearance.HairStyle;eyeStyle=appearance.EyeStyle;secondaryEnabled=appearance.SecondaryEnabled;headStyleId=appearance.HeadStyleId;}
+        public bool MatchesShape(PonyAppearanceKey appearance)=>hairStyle==appearance.HairStyle && eyeStyle==appearance.EyeStyle && secondaryEnabled==appearance.SecondaryEnabled && headStyleId==appearance.HeadStyleId;
         public PonyRenderPart[][] Frames(string clip)=>frames.TryGetValue(clip,out var value)?value:
             throw new InvalidOperationException("Нет подготовленного кадра визуального снаряжения: clip="+clip+".");
         public Bounds FrameBounds(string clip,int frame)=>bounds[clip][frame];
-        public static WearableDrawPlan Create(PonyRenderAsset baseline,PonyAppearanceKey appearance,IReadOnlyList<WearableRenderAsset> equipment,Bounds bareCameraEnvelope)
+        public static WearableDrawPlan Create(PonyRenderAsset baseline,PonyAppearanceKey appearance,IReadOnlyList<WearableRenderAsset> equipment,Bounds bareCameraEnvelope,PonyHeadRenderResolver headResolver=null)
         {
             if(baseline==null || equipment==null) throw new ArgumentNullException("Для плана нужны базовая графика и выбранные рисунки.");
+            headResolver??=new PonyHeadRenderResolver(baseline);
             var values=new Dictionary<string,PonyRenderPart[][]>(StringComparer.Ordinal);var allBounds=new Dictionary<string,Bounds[]>(StringComparer.Ordinal);
             bool hasEnvelope=false;Bounds envelope=default;int capacity=0;
             foreach(var clip in baseline.Clips)
@@ -44,9 +47,12 @@ namespace Remains.Content
                             throw new InvalidOperationException($"Несовместимый порядок базовых частей: clip={clip.id}, frame={f}, part={p}.");
                     }
                     var list=new List<(PonyRenderPart part,int[] order)>();
-                    foreach(var part in clip.frames[f].parts)
+                    foreach(var source in clip.frames[f].parts)
+                    {
+                        var part=headResolver.Resolve(appearance.HeadStyleId,clip.id,f,source);
                         if(part.visible && !hidden.Contains(part.sourceIndex) && PonyAppearance.Matches(part.hairStyle,part.eyeStyle,part.slot,appearance.HairStyle,appearance.EyeStyle,appearance.SecondaryEnabled))
                             list.Add((part,baseOrder==null?new[]{part.drawOrder}:baseOrder[part.sourceIndex].path));
+                    }
                     foreach(var equipped in equippedClips) foreach(var part in equipped.frames[f].parts)
                         if(part.visible && PonyAppearance.Matches(part.hairStyle,part.eyeStyle,part.slot,appearance.HairStyle,appearance.EyeStyle,appearance.SecondaryEnabled)) list.Add((part,part.orderPath));
                     list.Sort((a,b)=>ComparePath(a.order,b.order));

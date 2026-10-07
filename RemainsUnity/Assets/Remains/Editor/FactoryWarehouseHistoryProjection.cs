@@ -63,6 +63,7 @@ namespace Remains.Editor
         public static DoorLayout BeforeWarehouse(DoorLayout source,string projectRoot=null)
         {
             if(source==null) return null;Require(source.doors!=null,"Нет массива дверей.");
+            source=FactoryWarehouseMetalDoorsPlacement.BeforeMetalDoors(source,projectRoot);
             var all=source.doors.Select(d=>d?.id).ToArray();
             if(!Current(source.level,source.patch,FactoryWarehouseConnectionAuthoring.DoorPatch,all)) return StateJson.Copy(source);
             var added=Ids(Load(projectRoot),"planned-existing-door",source.level,2);Unique(all,"ID дверей");

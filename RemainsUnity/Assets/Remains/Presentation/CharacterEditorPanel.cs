@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Remains.Content;
 using Remains.Domain;
@@ -16,6 +17,7 @@ namespace Remains.Presentation
         private Action<CharacterLibraryEntry> created;
         private Action cancelled;
         private ActorState preview;
+        private IReadOnlyList<PonyHeadStyleDefinition> headStyles;
         private int slot=1;
         private bool saving;
         public CharacterEditorView View=>view;
@@ -29,9 +31,11 @@ namespace Remains.Presentation
         public void Initialize(CharacterEditorView value,CharacterLibrary saves,InventoryArtwork graphics,Action<CharacterLibraryEntry> accepted,Action cancel)
         {
             view=value;library=saves;artwork=graphics;created=accepted;cancelled=cancel;
+            PonyHeadCatalog.Load();headStyles=PonyHeadCatalog.Styles;
             operation=gameObject.AddComponent<BackgroundSaveOperation>();
             view.Name.onValueChanged.AddListener(_=>{if(!saving) view.Status.text="";});
-            preview=new ActorState {appearance=new CharacterAppearance {version=1},weaponInventoryVersion=1,weapon=null};
+            preview=new ActorState {appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion},weaponInventoryVersion=1,weapon=null};
+            view.HeadPrevious.onClick.AddListener(()=>HeadForm(-1));view.HeadNext.onClick.AddListener(()=>HeadForm(1));
             view.HairPrevious.onClick.AddListener(()=>Form(true,-1));view.HairNext.onClick.AddListener(()=>Form(true,1));
             view.EyePrevious.onClick.AddListener(()=>Form(false,-1));view.EyeNext.onClick.AddListener(()=>Form(false,1));
             for(int i=0;i<5;i++) {int index=i;view.Colors[i].onClick.AddListener(()=>{slot=index;Refresh();});}
@@ -43,7 +47,7 @@ namespace Remains.Presentation
                 else {view.Status.text="Цвет: шесть цифр RGB, например 2382BA.";Refresh();}
             });
             view.SecondaryEnabled.onValueChanged.AddListener(value=>{preview.appearance.secondaryHairEnabled=value;Refresh();});
-            view.Reset.onClick.AddListener(()=>{preview.appearance=new CharacterAppearance {version=1};slot=1;view.Status.text="";Refresh();});
+            view.Reset.onClick.AddListener(()=>{preview.appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion};slot=1;view.Status.text="";Refresh();});
             view.Create.onClick.AddListener(Create);view.Cancel.onClick.AddListener(Cancel);Refresh();
         }
         private int Color()=>slot switch {0=>preview.appearance.fur,1=>preview.appearance.hair,2=>preview.appearance.secondaryHair,3=>preview.appearance.eyes,4=>preview.appearance.magic,_=>throw new InvalidOperationException("Неизвестная область цвета.")};
@@ -61,9 +65,17 @@ namespace Remains.Presentation
             else preview.appearance.eyeStyle=(preview.appearance.eyeStyle-1+change+count)%count+1;
             Refresh();
         }
+        private void HeadForm(int change)
+        {
+            for(int i=0;i<headStyles.Count;i++)
+                if(headStyles[i].id==preview.appearance.headStyleId)
+                {preview.appearance.headStyleId=headStyles[(i+change+headStyles.Count)%headStyles.Count].id;Refresh();return;}
+            throw new InvalidOperationException("Редактор персонажа: форма головы отсутствует в каталоге, id="+preview.appearance.headStyleId+".");
+        }
         private void Refresh()
         {
             view.Portrait.Show(preview,artwork);
+            view.HeadLabel.text="Форма головы\n"+PonyHeadCatalog.Get(preview.appearance.headStyleId).label;
             view.HairLabel.text=$"Причёска {preview.appearance.hairStyle} / {PonyAnimationData.Library.hairStyles}";
             view.EyeLabel.text=$"Глаза {preview.appearance.eyeStyle} / {PonyAnimationData.Library.eyeStyles}";
             string[] names={"Шерсть","Грива","Второй цвет гривы","Глаза","Магия"};view.ColorLabel.text=names[slot];

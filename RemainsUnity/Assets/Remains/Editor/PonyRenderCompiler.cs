@@ -60,8 +60,10 @@ namespace Remains.Editor
                 }
                 clips.Add(result);
             }
-            asset.Configure(clips.ToArray());EditorUtility.SetDirty(asset);AssetDatabase.SaveAssets();asset.Validate();
-            Debug.Log($"Графика пони сохранена: мешей {meshCount}, материалов {materials.Count}, поз {clips.Count}.");
+            PonyHeadCatalog.Reset();
+            var heads=PonyHeadRenderCompiler.Compile(library,mesh=>Save(mesh),material=>Save(material));
+            asset.Configure(clips.ToArray(),heads);EditorUtility.SetDirty(asset);AssetDatabase.SaveAssets();asset.Validate();
+            Debug.Log($"Графика пони сохранена: базовых мешей {meshCount}, материалов {materials.Count}, поз {clips.Count}, дополнительных форм головы {heads.Length}.");
         }
     }
 }

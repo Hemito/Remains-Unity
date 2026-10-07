@@ -14,7 +14,7 @@ namespace Remains.Editor
         public static void Run()
         {
             PropCatalog.Load();Check(FactoryWarehouseSource.Asset<GameObject>(FactoryWarehouseDraft.Path).GetComponent<RoomAuthoring>());
-            Debug.Log("Склад40: PASS native source projection, named definitions/loot, 33 физических объекта, 2 двери, 3 посадки, 4 маски, сохранённые artwork anchors и повторный вход без refill/resurrection.");
+            Debug.Log("Склад40: PASS native source projection, named definitions/loot, 33 физических объекта, точная стадия2/4 дверей, 3 посадки, 4 маски, сохранённые artwork anchors и повторный вход без refill/resurrection.");
         }
         public static void Check(RoomAuthoring room)
         {
@@ -26,6 +26,7 @@ namespace Remains.Editor
             CheckProjection(actual,input);CheckResources(room,input);
             FactoryLadderLandingChecks.CheckInstalled(room,data.landings,0,false);
             var report=room.GetComponent<RoomImportAudit>()?.Report;
+            bool metal=FactoryWarehouseMetalDoorsPlacement.IsInstalled(room);
             FactoryWarehouseSource.Require(report?.SourceId==FactoryWarehouseSource.SourceId && report.Records.Length==57,"Потерян полный source audit.");
             var spawns=room.GetComponentsInChildren<RoomActorPlacement>(true).Where(room.Included).ToArray();
             var npcs=input.records.Where(r=>r.kind is "enl1" or "enl2").ToArray();
@@ -33,11 +34,12 @@ namespace Remains.Editor
             foreach(var expected in input.records)
             {
                 var record=report.Records.Single(r=>r.recordId==expected.recordId);
-                bool npc=npcs.Any(n=>n.recordId==record.recordId),installed=expected.installed || npc && spawns.Length==9;
+                bool npc=npcs.Any(n=>n.recordId==record.recordId),installed=expected.installed || npc && spawns.Length==9 ||
+                    metal && FactoryWarehouseMetalDoorsPlacement.Records.Any(r=>r.RecordId==record.recordId);
                 FactoryWarehouseSource.Require(record.code==expected.code && record.kind==expected.kind && record.sourceData==expected.sourceData && record.sourceX==expected.sourceX && record.sourceY==expected.sourceY &&
                     record.installed==installed && !string.IsNullOrWhiteSpace(record.reason),"Source ID/XML/flags изменены: "+expected.recordId);
             }
-            FactoryWarehouseSource.Require(report.Records.Count(r=>r.installed)==38+spawns.Length,"Изменены source counts/stage.");
+            FactoryWarehouseSource.Require(report.Records.Count(r=>r.installed)==38+spawns.Length+(metal?2:0),"Изменены source counts/stage.");
             CheckPhysical(room,input);CheckDoors(room,input);CheckLights(room,data);CheckSharedContracts();
             CheckPersistence(RoomPhysicalContent.Read(room,"factory:0"),RoomDoorContent.Read(room,"factory:0"));
             FactoryModuleAuthoringChecks.Run(room.gameObject);
@@ -98,7 +100,9 @@ namespace Remains.Editor
         }
         private static void CheckDoors(RoomAuthoring room,FactoryModuleAuthoringInput input)
         {
-            var layout=RoomDoorContent.Read(room,"factory:0");FactoryWarehouseSource.Require(layout.patch=="factory:0:"+FactoryWarehouseDraft.DoorPatch && layout.doors.Length==2,"Нет двух named дверей/версии.");
+            var layout=RoomDoorContent.Read(room,"factory:0");bool metal=layout.patch=="factory:0:"+FactoryWarehouseMetalDoorsPlacement.LocalPatch;
+            FactoryWarehouseSource.Require(layout.patch=="factory:0:"+(metal?FactoryWarehouseMetalDoorsPlacement.LocalPatch:FactoryWarehouseDraft.DoorPatch) && layout.doors.Length==(metal?4:2),"Нет точной стадии двух/четырёх named дверей/версии.");
+            if(metal) FactoryWarehouseMetalDoorsPlacement.CheckLocal(room);
             var terrain=room.CreateLayout();
             foreach(var binding in input.doors)
             {
@@ -145,7 +149,9 @@ namespace Remains.Editor
                 p.level=level;p.patch=level+":"+FactoryWarehouseDraft.PhysicalPatch;
                 foreach(var entry in p.props.Cast<PropState>().Concat(p.containers)) {entry.id=level+entry.id.Substring(old.Length);entry.level=level;}
                 foreach(var binding in p.loot)binding.container=level+binding.container.Substring(old.Length);
-                d.level=level;d.patch=level+":"+FactoryWarehouseDraft.DoorPatch;foreach(var door in d.doors){door.id=level+door.id.Substring(old.Length);door.level=level;}
+                d.level=level;d.patch=level+d.patch.Substring(old.Length);foreach(var door in d.doors){door.id=level+door.id.Substring(old.Length);door.level=level;}
+                if(d.expansion!=null) foreach(var step in new[]{(ContentExpansionStep)d.expansion}.Concat(d.expansion.earlierVersions))
+                {step.previousPatch=level+step.previousPatch.Substring(old.Length);step.additions=step.additions.Select(id=>level+id.Substring(old.Length)).ToArray();}
                 var existing=new WorldState {worldId="warehouse-existing-"+level};
                 var retainedCargo=StateJson.Copy(p.props[0]);retainedCargo.x+=.1f;retainedCargo.owner="prior-owner";retainedCargo.generation=4;
                 var retainedEmpty=StateJson.Copy(p.containers[0]);retainedEmpty.items.Clear();retainedEmpty.extensions=new System.Collections.Generic.Dictionary<string,JToken>{["depleted-before-install"]=JToken.FromObject(true)};
@@ -156,7 +162,7 @@ namespace Remains.Editor
                 FactoryWarehouseSource.Require(kept==StateJson.ToJson(new[]{StateJson.ToJson(existing.props.Single(a=>a.id==retainedCargo.id)),StateJson.ToJson(existing.containers.Single(a=>a.id==retainedEmpty.id)),StateJson.ToJson(existing.doors.Single(a=>a.id==retainedDoor.id))}),
                     "Первое добавление модуля заменило уже имеющийся cargo/depleted/open door state.");
                 var world=new WorldState {worldId="warehouse-persistence-"+level};PhysicalContentInstaller.Apply(world,p);DoorContentInstaller.Apply(world,d);
-                FactoryWarehouseSource.Require(world.props.Count==17 && world.containers.Count==16 && world.doors.Count==2 && world.containers.SelectMany(c=>c.items).Select(i=>i.id).Distinct().Count()==world.containers.Sum(c=>c.items.Count),"Fresh warehouse ID/loot counts не согласованы.");
+                FactoryWarehouseSource.Require(world.props.Count==17 && world.containers.Count==16 && world.doors.Count==d.doors.Length && world.containers.SelectMany(c=>c.items).Select(i=>i.id).Distinct().Count()==world.containers.Sum(c=>c.items.Count),"Fresh warehouse ID/loot counts не согласованы с проверенной стадией.");
                 world.props.RemoveAt(0);world.containers.RemoveAt(0);world.doors.RemoveAt(0);
                 var cargo=world.props[0];cargo.x+=.2f;cargo.owner="saved-owner";cargo.generation=7;cargo.extensions=new System.Collections.Generic.Dictionary<string,JToken>{["cargo-progress"]=JToken.Parse("{\"nested\":[17,\"груз\"]}")};
                 foreach(var c in world.containers){c.items.Clear();c.extensions=new System.Collections.Generic.Dictionary<string,JToken>{["empty-progress"]=JToken.Parse("{\"claimed\":true}")};}

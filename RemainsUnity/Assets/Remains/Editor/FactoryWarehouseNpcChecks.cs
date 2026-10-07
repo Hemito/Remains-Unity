@@ -22,7 +22,7 @@ namespace Remains.Editor
             CheckPersistence(layout,RoomNpcContent.Read(room,"factory:6"));
             CheckGeometryFailures(room.CreateLayout(false),RoomPhysicalContent.Read(room,"factory:0"),RoomDoorContent.Read(room,"factory:0").doors,layout);
             CheckSnapshotFields(room.CreateLayout(),RoomContentBatch.Read(room,"factory:0"),room.GetComponent<RoomImportAudit>().Report.Records);
-            Debug.Log("NPC склада40: PASS — 9 source ID без offset, 7 рейдеров/2 радтаракана из существующих SO; actual anatomy + terrain/33 bodies/2 doors; начальный лут один раз, сохранение владельца/смерти/движения/оружия/модовых полей, разные фабрики и подтверждённый единый лут тела.");
+            Debug.Log("NPC склада40: PASS — 9 source ID без offset, 7 рейдеров/2 радтаракана из существующих SO; actual anatomy + terrain/33 bodies/точная стадия2/4 дверей; начальный лут один раз, сохранение владельца/смерти/движения/оружия/модовых полей, разные фабрики и подтверждённый единый лут тела.");
         }
         // False is only the wholly absent stage. Partial or disabled content is a visible error.
         public static bool IsInstalled(RoomAuthoring room)
@@ -88,8 +88,10 @@ namespace Remains.Editor
         // Reads the actual hull and authored physical dimensions. No debug output or helper floor is used.
         public static void CheckGeometry(RoomLayout geometry,PhysicalLayout physical,DoorState[] doors,NpcLayout layout)
         {
-            Require(geometry!=null && physical?.props?.Length==17 && physical.containers?.Length==16 && doors?.Length==2 && layout?.actors?.Length==9,
-                "Для геометрической проверки нужны terrain, 33 физических объекта, 2 двери и 9 NPC склада40.");
+            bool metal=doors?.Length==4;
+            Require(geometry!=null && physical?.props?.Length==17 && physical.containers?.Length==16 && doors?.Length==(metal?4:2) && layout?.actors?.Length==9,
+                "Для геометрической проверки нужны terrain, 33 физических объекта, точная стадия2/4 дверей и9NPC склада40.");
+            if(metal) FactoryWarehouseMetalDoorsPlacement.CheckNewDoors(new DoorLayout {level=physical.level,doors=doors},0);
             var room=StateJson.Copy(geometry);room.platforms=DoorGeometry.Compose(room.platforms,doors,physical.level);
             foreach(var actor in layout.actors)
             {

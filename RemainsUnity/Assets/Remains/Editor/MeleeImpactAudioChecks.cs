@@ -70,7 +70,7 @@ namespace Remains.Editor
                 Require(audio.Played==expected,"Выключенный дружественный огонь создал контакт с союзником.");
                 target.x=100;
                 foreach(string weapon in new[]{"crowbar","spear"})
-                foreach(string texture in new[]{"floor","Hub/concrete","Factory46/26_tConcrete","Factory18/26_tConcrete"})
+                foreach(string texture in new[]{"floor","door:metal","Hub/concrete","Factory46/26_tConcrete","Factory18/26_tConcrete"})
                 {
                     geometry.Get("hub").platforms=new[]{new RoomSurface {x=1,y=0,width=.2f,height=2,texture=texture}};
                     var wall=new AttackEvent {id="wall-"+weapon+texture,attacker=observer.id,sourceOwner="remote",
@@ -78,8 +78,9 @@ namespace Remains.Editor
                     ReceiveSynthetic(receive,combat,wall);ReceiveSynthetic(receive,combat,wall);expected++;
                     Require(audio.Played==expected,"Контакт стены потерян или повторён: "+wall.id);
                     var source=root.GetComponentsInChildren<AudioSource>().Last();
-                    string clip=texture=="floor"?"hit-metal":"hit-concrete";
-                    float gain=texture=="floor"?.4f:.5f;
+                    bool metal=texture is "floor" or "door:metal";
+                    string clip=metal?"hit-metal":"hit-concrete";
+                    float gain=metal?.4f:.5f;
                     Require(source.clip==Resources.Load<AudioClip>("Original/Audio/"+clip),"Неверный материал звука стены.");
                     float attenuation=GameplayAudio.Attenuation(Vector2.Distance(new Vector2(1,.7f),observer.Position));
                     Require(Mathf.Abs(source.volume-playback.Volume*gain*attenuation)<.00001f,"Звук стены использует конец взмаха вместо точки контакта.");

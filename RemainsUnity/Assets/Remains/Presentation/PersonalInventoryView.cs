@@ -21,6 +21,7 @@ namespace Remains.Presentation
         [InspectorName("Передать в контейнер")] public Button Deposit;
         [InspectorName("Использовать")] public Button Use;
         [InspectorName("Описание предмета")] public Text Detail;
+        [InspectorName("Область полного описания")] public InventoryDescriptionView Description;
         [InspectorName("Состояние действия")] public Text ActionStatus;
         public event Action<int> ScrollRows;
         [InspectorName("Прокрутка списка")] public Scrollbar Scrollbar;
@@ -32,6 +33,9 @@ namespace Remains.Presentation
         }
         public void Validate()
         {
+            if(Description==null || Description.Content!=Detail || !Description.transform.IsChildOf(transform))
+                throw new InvalidOperationException("Личный инвентарь: не назначена сохранённая прокручиваемая область полного описания.");
+            Description.Validate();
             if(Scrollbar==null || Scrollbar.handleRect==null || Scrollbar.direction!=UnityEngine.UI.Scrollbar.Direction.TopToBottom)
                 throw new InvalidOperationException("Личный инвентарь: нужна вертикальная полоса прокрутки сверху вниз с ползунком.");
             if(Categories==null || Categories.Length!=Enum.GetValues(typeof(InventoryCategory)).Length || Array.Exists(Categories,x=>x==null))

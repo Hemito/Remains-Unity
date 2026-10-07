@@ -17,7 +17,7 @@ namespace Remains.Editor
             RoomCatalogLifetimeChecks.Run();
             ProjectStorageChecks.Run();LevelTimeReplicaChecks.Run();MechanismOperationsChecks.Run();
             ItemShortcutChecks.Run();
-            InventoryItemActionChecks.Run();ItemLandingAudioChecks.Run();
+            InventoryItemActionChecks.Run();InventoryDescriptionChecks.Run();ItemLandingAudioChecks.Run();
             DoorStateChecks.Run();DoorContentChecks.Run();DoorBarrierChecks.Run();DoorDamageRequestChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
             PonyAppearance.Prepare();PonyPaletteChecks.Run();
             var music=Resources.Load<MusicCatalogAsset>("Content/area-music");
@@ -60,6 +60,7 @@ namespace Remains.Editor
             FactoryLadderLandingChecks.Run();
             FactoryOfficeConnectionChecks.Run();
             FactoryWarehouseChecks.Run();FactoryWarehouseNpcChecks.Run();FactoryWarehouseConnectionChecks.Run();FactoryWarehouseHistoryProjectionChecks.Run();
+            FactoryWarehouseMetalDoorChecks.Run();FactoryWarehouseMetalDoorsPlacement.Verify();
             FactoryOfficeNpcChecks.Run();
             FactoryFileCabinetChecks.Run();
             FactoryOfficeLootChecks.Run();

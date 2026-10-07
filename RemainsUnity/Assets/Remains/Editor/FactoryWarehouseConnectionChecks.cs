@@ -43,8 +43,11 @@ namespace Remains.Editor
                 Require(direction>0?p.x>117.9f:p.x<113.9f,"Тело не пересекло стык в обе стороны.");
             }
             var batch=RoomContentBatch.Read(room,"factory:0");
+            bool metal=batch.doors.patch=="factory:0:"+FactoryWarehouseMetalDoorsPlacement.ConnectedPatch;
+            Require(batch.doors.patch=="factory:0:"+(metal?FactoryWarehouseMetalDoorsPlacement.ConnectedPatch:FactoryWarehouseConnectionAuthoring.DoorPatch),"Неизвестная стадия дверей связного склада.");
+            if(metal) FactoryWarehouseMetalDoorsPlacement.VerifyRoom(room);
             Require(batch.physical.props.Length==29 && batch.physical.containers.Length==52 && batch.physical.loot.Length==50 &&
-                batch.doors.doors.Length==17 && batch.npcs.actors.Length==22 && batch.npcs.loot.Length==22 && batch.travelPoints.Length==1 &&
+                batch.doors.doors.Length==(metal?19:17) && batch.npcs.actors.Length==22 && batch.npcs.loot.Length==22 && batch.travelPoints.Length==1 &&
                 batch.mechanisms.movingPlatforms.Length==1 && batch.mechanisms.mechanismButtons.Length==2,"Потерян точный полный контент четырёх модулей.");
             FactoryWarehouseHistoryProjection.BeforeWarehouse(batch.physical);FactoryWarehouseHistoryProjection.BeforeWarehouse(batch.doors);
             FactoryWarehouseHistoryProjection.BeforeWarehouse(batch.npcs);
@@ -52,8 +55,8 @@ namespace Remains.Editor
             var separate=new WorldState {worldId="warehouse-signed-instances",mechanismVersion=1};
             foreach(string level in new[]{"factory:0","factory:6","factory:-27"}) RoomContentInstaller.Apply(separate,RoomContentBatch.Read(room,level));
             var ids=separate.props.Select(p=>p.id).Concat(separate.containers.Select(c=>c.id)).Concat(separate.doors.Select(d=>d.id)).Concat(separate.actors.Select(a=>a.id)).ToArray();
-            Require(ids.Length==360 && ids.Distinct(StringComparer.Ordinal).Count()==360 && separate.containers.Count==156 && separate.actors.Count==66,"Фабрики0/6/−27 разделяют ID или не получают полный набор.");
-            Debug.Log("Склад40: PASS — четыре модуля, стык в обе стороны, замкнутый контур, 29 props/52 containers/17 doors/22 NPC; исторические версии без сброса и три независимых индекса.");
+            Require(ids.Length==(metal?366:360) && ids.Distinct(StringComparer.Ordinal).Count()==(metal?366:360) && separate.containers.Count==156 && separate.actors.Count==66,"Фабрики0/6/−27 разделяют ID или не получают точный полный набор.");
+            Debug.Log($"Склад40: PASS — четыре модуля, стык в обе стороны, замкнутый контур, 29 props/52 containers/{(metal?19:17)} doors/22 NPC; исторические версии без сброса и три независимых индекса.");
         }
         private static void CheckPreservation(RoomContentBatch batch)
         {

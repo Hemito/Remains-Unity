@@ -37,7 +37,8 @@ namespace Remains.Presentation
         private readonly string[] ids;
         private readonly Button previous,next,deposit,use;
         private readonly Scrollbar scrollbar;
-        private readonly Text detail,actionStatus;
+        private readonly Text actionStatus;
+        private readonly InventoryDescriptionView description;
         private InventorySource container;
         private string selected;
         private int firstVisibleRow;
@@ -90,7 +91,7 @@ namespace Remains.Presentation
             scrollbar.onValueChanged.AddListener(value=>
             {firstVisibleRow=Mathf.RoundToInt(value*Math.Max(0,visible.Count-rows.Length));Refresh(container);});
             weaponPreview=view.WeaponPreview;weaponDetail=view.WeaponDetail;
-            detail=view.Detail;actionStatus=view.ActionStatus;
+            description=view.Description;actionStatus=view.ActionStatus;
             portrait=new InventoryPortrait(view.Portrait,view.PortraitParts);
             view.PortraitParts=portrait.Parts;
             weaponIcons=new Image[weaponButtons.Length];
@@ -174,7 +175,7 @@ namespace Remains.Presentation
             bool paused=actor!=null && session.Pause.IsPaused(actor.level);
             deposit.interactable=chosen!=null && availableChosen>=amount && amount>0 && rejection==null && !paused;
             bool weaponSelected=WeaponInventory.IsEquippable(chosen) && actor.weaponInventoryVersion==1;
-            detail.gameObject.SetActive(!weaponSelected);detailIcon.gameObject.SetActive(!weaponSelected);
+            detailIcon.gameObject.SetActive(!weaponSelected);
             weaponPreview.gameObject.SetActive(weaponSelected);weaponDetail.gameObject.SetActive(weaponSelected);
             portrait.Refresh(weaponSelected?null:actor);
             foreach(var control in new[]{use,deposit,previous,next}) control.gameObject.SetActive(true);
@@ -189,7 +190,7 @@ namespace Remains.Presentation
             use.GetComponentInChildren<Text>().text=availability.Caption??"Использовать";
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
-            detail.text=chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):itemText.Description(chosen.definition,"PersonalInventoryPanel: actor="+actor.id+", item="+chosen.id));
+            description.SetText(chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):itemText.Description(chosen.definition,"PersonalInventoryPanel: actor="+actor.id+", item="+chosen.id)),actor?.id,chosen?.id,!weaponSelected);
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen==null?"":
                 availability.Rejection??(container==null?"":rejection??"");
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";

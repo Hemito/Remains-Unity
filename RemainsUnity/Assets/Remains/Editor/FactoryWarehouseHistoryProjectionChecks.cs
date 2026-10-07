@@ -15,7 +15,7 @@ namespace Remains.Editor
             var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);int checks=0;
             foreach(string level in new[]{"factory:0","factory:6","factory:-27"})
                 checks+=Check(RoomContentBatch.Read(room,level));
-            Debug.Log($"Исторические проверки склада40: PASS — {checks} проверок точных ID, v7/v4/v5→v6/v3/v4, полных cumulative chains, независимых копий и отрицательных случаев. Нативный маршрут и новые игровые события этим сообщением не подтверждаются.");
+            Debug.Log($"Исторические проверки склада40: PASS — {checks} проверок точных ID, doors-v5→v4 только exact2metal, затем v7/v4/v5→v6/v3/v4, полных cumulative chains, независимых копий и отрицательных случаев. Нативный маршрут и новые игровые события этим сообщением не подтверждаются.");
         }
         // Explicit layouts make the same negatives runnable without Unity import or game processes.
         public static int Check(RoomContentBatch source,string projectRoot=null)
@@ -24,6 +24,26 @@ namespace Remains.Editor
             void Require(bool value,string reason) {checks++;if(!value) throw new InvalidOperationException("Проекция склада40: "+reason);}
             void Reject(Action action,string reason)
             {bool rejected=false;try {action();} catch(InvalidOperationException) {rejected=true;}Require(rejected,"Не отклонено: "+reason);}
+            if(source.doors.patch==source.doors.level+":"+FactoryWarehouseMetalDoorsPlacement.ConnectedPatch)
+            {
+                string input=StateJson.ToJson(source);var normalized=FactoryWarehouseMetalDoorsPlacement.BeforeMetalDoors(source.doors);
+                var added=FactoryWarehouseMetalDoorsPlacement.NewIds(source.doors.level);
+                Require(normalized.doors.Length==17 && StateJson.ToJson(normalized.doors)==StateJson.ToJson(source.doors.doors.Where(d=>!added.Contains(d.id)).ToArray()),
+                    "Metal projection изменила одну из прежних17дверей.");
+                Require(StateJson.ToJson(source)==input,"Новая проекция изменила входной пакет.");
+                var invalid=StateJson.Copy(source.doors);invalid.doors=invalid.doors.Where(d=>d.id!=added[0]).ToArray();
+                Reject(()=>FactoryWarehouseHistoryProjection.BeforeWarehouse(invalid,projectRoot),"неполная metal группа");
+                invalid=StateJson.Copy(source.doors);invalid.doors.Single(d=>d.id==added[0]).id=source.doors.level+":unknown-metal";
+                Reject(()=>FactoryWarehouseHistoryProjection.BeforeWarehouse(invalid,projectRoot),"подменённый metal ID при19дверях");
+                invalid=StateJson.Copy(source.doors);invalid.doors.Single(d=>d.id==added[0]).definition="door2";
+                Reject(()=>FactoryWarehouseHistoryProjection.BeforeWarehouse(invalid,projectRoot),"legacy профиль вместо нового metal");
+                invalid=StateJson.Copy(source.doors);invalid.expansion.earlierVersions[0].additions=invalid.expansion.earlierVersions[0].additions.Where(id=>id!=added[0]).ToArray();
+                Reject(()=>FactoryWarehouseHistoryProjection.BeforeWarehouse(invalid,projectRoot),"metal ID потерян в cumulative history");
+                invalid=StateJson.Copy(source.doors);invalid.patch=invalid.level+":"+FactoryWarehouseConnectionAuthoring.DoorPatch;
+                Reject(()=>FactoryWarehouseHistoryProjection.BeforeWarehouse(invalid,projectRoot),"metal ID скрыт в прежнем root patch");
+                source=StateJson.Copy(source);source.doors=normalized;
+                Require(StateJson.ToJson(FactoryWarehouseMetalDoorsPlacement.BeforeMetalDoors(normalized))==StateJson.ToJson(normalized),"Повтор metal projection изменила v4.");
+            }
             string before=StateJson.ToJson(source);
             var result=FactoryWarehouseHistoryProjection.BeforeWarehouse(source,projectRoot);
             string prefix=source.physical.level+":original:plant:40:";

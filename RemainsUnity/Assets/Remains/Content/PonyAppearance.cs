@@ -7,14 +7,14 @@ namespace Remains.Content
     public static class PonyAppearance
     {
         private static PonyPaletteAsset palette;
-        public static void Prepare() {palette=PonyPaletteAsset.Load();PonyAnimationData.Load();}
+        public static void Prepare() {palette=PonyPaletteAsset.Load();PonyAnimationData.Load();PonyHeadCatalog.Load();}
         public static PonyAppearanceKey Snapshot(ActorState actor)
         {
             if(actor==null) throw new ArgumentNullException(nameof(actor));
             var value=actor.appearance;
             if(value==null) return new PonyAppearanceKey(1,1,false,0xA3A3A3,0,0xFFFFFF,0x16F343,0x00FF00,actor.hair);
             ValidateSettings(value,actor.id??actor.character??"предпросмотр");
-            return new PonyAppearanceKey(value.hairStyle,value.eyeStyle,value.secondaryHairEnabled,value.fur,value.hair,value.secondaryHair,value.eyes,value.magic);
+            return new PonyAppearanceKey(value.hairStyle,value.eyeStyle,value.secondaryHairEnabled,value.fur,value.hair,value.secondaryHair,value.eyes,value.magic,headStyleId:value.headStyleId);
         }
         // Counts come from the prepared content catalogue, never from a save enum.
         // No Unity asset access; safe for a background profile read after preparation.
@@ -25,6 +25,8 @@ namespace Remains.Content
             var library=PonyAnimationData.Library??throw new InvalidOperationException("Каталог внешности не подготовлен.");
             if(value.hairStyle>library.hairStyles || value.eyeStyle>library.eyeStyles)
                 throw new InvalidOperationException($"Внешность {context}: формы отсутствуют в каталоге, hair={value.hairStyle}/{library.hairStyles}, eyes={value.eyeStyle}/{library.eyeStyles}.");
+            if(!PonyHeadCatalog.TryGet(value.headStyleId,out _))
+                throw new InvalidOperationException($"Внешность {context}: форма головы отсутствует в каталоге, head={value.headStyleId}, source={PonyHeadCatalog.Resource}.");
         }
         public static Color Tint(string slot,PonyAppearanceKey value)=>value.Legacy?Tint(slot,value.LegacyHair):slot switch
         {
@@ -57,11 +59,12 @@ namespace Remains.Content
         public readonly bool SecondaryEnabled;
         public readonly bool Legacy;
         public readonly int LegacyHair;
-        public PonyAppearanceKey(int hairStyle,int eyeStyle,bool secondary,int fur,int hair,int secondaryHair,int eyes,int magic,int? legacyHair=null)
-        {HairStyle=hairStyle;EyeStyle=eyeStyle;SecondaryEnabled=secondary;Fur=fur;Hair=hair;SecondaryHair=secondaryHair;Eyes=eyes;Magic=magic;Legacy=legacyHair.HasValue;LegacyHair=legacyHair??0;}
+        public readonly string HeadStyleId;
+        public PonyAppearanceKey(int hairStyle,int eyeStyle,bool secondary,int fur,int hair,int secondaryHair,int eyes,int magic,int? legacyHair=null,string headStyleId=CharacterAppearance.OriginalHeadStyleId)
+        {HairStyle=hairStyle;EyeStyle=eyeStyle;SecondaryEnabled=secondary;Fur=fur;Hair=hair;SecondaryHair=secondaryHair;Eyes=eyes;Magic=magic;Legacy=legacyHair.HasValue;LegacyHair=legacyHair??0;HeadStyleId=headStyleId;}
         public bool Equals(PonyAppearanceKey other)=>Legacy==other.Legacy && LegacyHair==other.LegacyHair && HairStyle==other.HairStyle && EyeStyle==other.EyeStyle && SecondaryEnabled==other.SecondaryEnabled &&
-            Fur==other.Fur && Hair==other.Hair && SecondaryHair==other.SecondaryHair && Eyes==other.Eyes && Magic==other.Magic;
+            Fur==other.Fur && Hair==other.Hair && SecondaryHair==other.SecondaryHair && Eyes==other.Eyes && Magic==other.Magic && HeadStyleId==other.HeadStyleId;
         public override bool Equals(object other)=>other is PonyAppearanceKey value && Equals(value);
-        public override int GetHashCode()=>HashCode.Combine(HashCode.Combine(HairStyle,EyeStyle,SecondaryEnabled,Fur,Hair,SecondaryHair,Eyes,Magic),Legacy,LegacyHair);
+        public override int GetHashCode()=>HashCode.Combine(HashCode.Combine(HairStyle,EyeStyle,SecondaryEnabled,Fur,Hair,SecondaryHair,Eyes,Magic),Legacy,LegacyHair,HeadStyleId);
     }
 }

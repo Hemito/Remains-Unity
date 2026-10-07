@@ -25,7 +25,7 @@ namespace Remains.Editor
             var actor=new ActorState {id="appearance-first",pose="idle",appearance=new CharacterAppearance {version=1,hairStyle=5,eyeStyle=6,fur=0xCCBB88,hair=0x551188,secondaryHair=0xEE2288,eyes=0x2288FF,magic=0xFFAA00,secondaryHairEnabled=true}};
             var copy=actor.Copy();copy.appearance.hair=0x00AABB;
             Require(actor.appearance.hair==0x551188 && copy.appearance.hair==0x00AABB,"копии внешности разделяют изменяемое состояние");
-            CheckInvalid(new CharacterAppearance());CheckInvalid(new CharacterAppearance {version=2});CheckInvalid(new CharacterAppearance {version=1,hairStyle=6});
+            CheckInvalid(new CharacterAppearance());CheckInvalid(new CharacterAppearance {version=3});CheckInvalid(new CharacterAppearance {version=1,hairStyle=6});
             CheckInvalid(new CharacterAppearance {version=1,eyeStyle=0});CheckInvalid(new CharacterAppearance {version=1,fur=-1});CheckInvalid(new CharacterAppearance {version=1,magic=0x1000000});
             var first=(PonyVisual)ActorVisualFactory.Create(actor);copy.id="appearance-second";
             var second=(PonyVisual)ActorVisualFactory.Create(copy);

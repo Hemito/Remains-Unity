@@ -8,6 +8,9 @@ namespace Remains.Presentation
         [Header("Имя и внешний вид")]
         [InspectorName("Имя персонажа")] public InputField Name;
         [InspectorName("Превью персонажа")] public CharacterPortraitView Portrait;
+        [InspectorName("Предыдущая форма головы")] public Button HeadPrevious;
+        [InspectorName("Следующая форма головы")] public Button HeadNext;
+        [InspectorName("Выбранная форма головы")] public Text HeadLabel;
         [InspectorName("Предыдущая причёска")] public Button HairPrevious;
         [InspectorName("Следующая причёска")] public Button HairNext;
         [InspectorName("Предыдущие глаза")] public Button EyePrevious;
@@ -30,8 +33,8 @@ namespace Remains.Presentation
         [InspectorName("Состояние создания")] public Text Status;
         public void Validate()
         {
-            if(Name==null || Hex==null || Portrait==null || HairLabel==null || EyeLabel==null || ColorLabel==null || Status==null ||
-                HairPrevious==null || HairNext==null || EyePrevious==null || EyeNext==null || Create==null || Cancel==null || Reset==null ||
+            if(Name==null || Hex==null || Portrait==null || HeadLabel==null || HairLabel==null || EyeLabel==null || ColorLabel==null || Status==null ||
+                HeadPrevious==null || HeadNext==null || HairPrevious==null || HairNext==null || EyePrevious==null || EyeNext==null || Create==null || Cancel==null || Reset==null ||
                 Colors?.Length!=5 || ColorSamples?.Length!=5 || Swatches?.Length!=12 || Channels?.Length!=3 || ChannelValues?.Length!=3 || SecondaryEnabled==null)
                 throw new InvalidOperationException("Редактор персонажа: не заполнены элементы интерфейса.");
             for(int i=0;i<5;i++) if(Colors[i]==null || ColorSamples[i]==null) throw new InvalidOperationException("Нет выбора цвета: "+i);

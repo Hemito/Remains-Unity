@@ -15,9 +15,11 @@ namespace Remains.Editor
         public static void Run()
         {
             WeaponCatalog.Load();PonyAppearance.Prepare();
+            PonyHeadPersistenceChecks.Run();
             string root=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/character-contract-"+Guid.NewGuid().ToString("N")));
             var library=new CharacterLibrary(root);
-            var actor=new ActorState {id="player:Литлпип",character="Литлпип",player=true,appearance=new CharacterAppearance {version=1,hairStyle=5,eyeStyle=6,secondaryHairEnabled=true},level="hub"};
+            var actor=new ActorState {id="player:Литлпип",character="Литлпип",player=true,appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion,
+                headStyleId=PonyHeadCatalog.Styles[PonyHeadCatalog.Styles.Count-1].id,hairStyle=5,eyeStyle=6,secondaryHairEnabled=true},level="hub"};
             PlayerStarterInventory.Give(actor);actor.weaponContent=WeaponCatalog.ManifestCopy();
             var entry=library.Create(actor);string source=File.ReadAllText(Path.Combine(entry.directory,"character.json"));
             Reject(()=>library.Create(actor),"Повторное создание");var duplicate=actor.Copy();duplicate.character="литлпип";duplicate.id="player:"+duplicate.character;
@@ -27,7 +29,8 @@ namespace Remains.Editor
             File.WriteAllText(Path.Combine(entry.directory,"world.json"),"Недоступное для парсинга содержимое мира");
             Directory.CreateDirectory(Path.Combine(root,"Ошибочный"));File.WriteAllText(Path.Combine(root,"Ошибочный","character.json"),"{}");
             var list=library.Read();
-            if(list.Count!=2 || list.Find(value=>value.name==actor.character)?.actor?.appearance?.hairStyle!=5 || list.Find(value=>value.name=="Ошибочный")?.error==null)
+            if(list.Count!=2 || list.Find(value=>value.name==actor.character)?.actor?.appearance?.hairStyle!=5 ||
+                list.Find(value=>value.name==actor.character)?.actor?.appearance?.headStyleId!=actor.appearance.headStyleId || list.Find(value=>value.name=="Ошибочный")?.error==null)
                 throw new InvalidOperationException("Список персонажей потерял профиль, внешность или ошибку.");
             var saved=new SaveStore(entry.directory).LoadCharacter();
             if(saved.weaponInventoryVersion!=1 || saved.inventory.Find(item=>item.id==saved.equippedWeaponItem)?.definition!="pistol")
@@ -44,15 +47,36 @@ namespace Remains.Editor
             {
                 var view=CharacterEditorView.CreateView(parent.transform);view.Validate();
                 var panel=view.gameObject.AddComponent<CharacterEditorPanel>();panel.Initialize(view,library,new InventoryArtwork(),_=>{},()=>{});
+                var styles=PonyHeadCatalog.Styles;
+                int originalIndex=0;while(styles[originalIndex].id!=CharacterAppearance.OriginalHeadStyleId) originalIndex++;
+                if(panel.Preview.appearance.version!=CharacterAppearance.CurrentVersion || panel.Preview.appearance.headStyleId!=CharacterAppearance.OriginalHeadStyleId)
+                    throw new InvalidOperationException("Редактор не начинает с исходной головы и текущей версии внешности.");
+                for(int i=0;i<styles.Count;i++)
+                {
+                    var style=styles[(originalIndex+i)%styles.Count];
+                    if(panel.Preview.appearance.headStyleId!=style.id || !view.HeadLabel.text.EndsWith(style.label,StringComparison.Ordinal) ||
+                        view.HeadLabel.preferredHeight>view.HeadLabel.rectTransform.rect.height+.1f)
+                        throw new InvalidOperationException("Выбор головы или подпись редактора не соответствует каталогу: "+style.id);
+                    view.HeadNext.onClick.Invoke();
+                }
+                if(panel.Preview.appearance.headStyleId!=CharacterAppearance.OriginalHeadStyleId)
+                    throw new InvalidOperationException("Перебор голов не вернулся к исходной форме.");
+                view.HeadPrevious.onClick.Invoke();string selectedHead=panel.Preview.appearance.headStyleId;
                 view.HairPrevious.onClick.Invoke();view.EyePrevious.onClick.Invoke();view.SecondaryEnabled.isOn=true;
                 view.Colors[2].onClick.Invoke();view.Hex.text="BEEF12";view.Hex.onEndEdit.Invoke(view.Hex.text);
-                if(panel.Preview.appearance.hairStyle!=5 || panel.Preview.appearance.eyeStyle!=6 || panel.Preview.appearance.secondaryHair!=0xBEEF12)
+                if(panel.Preview.appearance.hairStyle!=5 || panel.Preview.appearance.eyeStyle!=6 || panel.Preview.appearance.secondaryHair!=0xBEEF12 ||
+                    selectedHead!=styles[(originalIndex+styles.Count-1)%styles.Count].id || panel.Preview.appearance.headStyleId!=selectedHead)
                     throw new InvalidOperationException("Настройки редактора не применились к превью.");
+                view.HeadNext.onClick.Invoke();
+                if(panel.Preview.appearance.hairStyle!=5 || panel.Preview.appearance.eyeStyle!=6 || panel.Preview.appearance.secondaryHair!=0xBEEF12)
+                    throw new InvalidOperationException("Выбор головы заменил независимые настройки гривы, глаз или цветов.");
+                CheckHeadLayout(view);
                 view.SecondaryEnabled.isOn=false;
                 if(view.Colors[2].interactable || view.Hex.interactable || Array.Exists(view.Channels,channel=>channel.interactable))
                     throw new InvalidOperationException("Выключенный второй цвет оставил активные зависимые настройки.");
                 view.Reset.onClick.Invoke();
-                if(panel.Preview.appearance.hairStyle!=1 || panel.Preview.appearance.secondaryHairEnabled)
+                if(panel.Preview.appearance.hairStyle!=1 || panel.Preview.appearance.secondaryHairEnabled ||
+                    panel.Preview.appearance.version!=CharacterAppearance.CurrentVersion || panel.Preview.appearance.headStyleId!=CharacterAppearance.OriginalHeadStyleId)
                     throw new InvalidOperationException("Сброс редактора не восстановил исходную внешность.");
                 var cards=CharacterLibraryView.CreateView(parent.transform);cards.Validate();
                 cards.Portraits[0].Show(actor,new InventoryArtwork());
@@ -61,7 +85,21 @@ namespace Remains.Editor
                 MainMenuPrefabChecks.Run();
             }
             finally {UnityEngine.Object.DestroyImmediate(parent);}
-            Debug.Log("Редактор и персонажи: PASS — формы/цвета/зависимости, точное сохранение, занятое имя без замены, видимые ошибки, список без чтения миров, стартовое оснащение и время без учёта отключения.");
+            Debug.Log("Редактор и персонажи: PASS — каталог форм головы, независимые формы/цвета/зависимости, точное сохранение, занятое имя без замены, видимые ошибки, список без чтения миров, стартовое оснащение и время без учёта отключения.");
+        }
+        private static void CheckHeadLayout(CharacterEditorView view)
+        {
+            var window=(RectTransform)view.transform;
+            foreach(var rect in new[]{view.HeadPrevious.GetComponent<RectTransform>(),view.HeadNext.GetComponent<RectTransform>(),view.HeadLabel.rectTransform})
+            {
+                var position=rect.anchoredPosition;var size=rect.rect.size;
+                if(position.x<0 || position.x+size.x>window.rect.width || position.y>0 || position.y-size.y<-window.rect.height)
+                    throw new InvalidOperationException("Выбор головы выходит за границы редактора: "+rect.name);
+            }
+            var portrait=view.Portrait.GetComponent<RectTransform>();
+            var head=view.HeadPrevious.GetComponent<RectTransform>();var hair=view.HairPrevious.GetComponent<RectTransform>();
+            if(portrait.anchoredPosition.y-portrait.rect.height<head.anchoredPosition.y || head.anchoredPosition.y-head.rect.height<hair.anchoredPosition.y)
+                throw new InvalidOperationException("Выбор головы перекрывает портрет или выбор гривы.");
         }
         private static void Reject(Action action,string context)
         {
@@ -82,13 +120,14 @@ namespace Remains.Editor
             var graphics=new InventoryArtwork();
             var editor=CharacterEditorView.CreateView(canvas.transform);
             var panel=editor.gameObject.AddComponent<CharacterEditorPanel>();panel.Initialize(editor,new CharacterLibrary(Path.Combine(Application.dataPath,"../../.reference/tests/character-render")),graphics,_=>{},()=>{});
-            editor.Name.text="Литлпип";editor.HairPrevious.onClick.Invoke();editor.EyePrevious.onClick.Invoke();editor.SecondaryEnabled.isOn=true;
+            editor.Name.text="Литлпип";editor.HeadPrevious.onClick.Invoke();editor.HairPrevious.onClick.Invoke();editor.EyePrevious.onClick.Invoke();editor.SecondaryEnabled.isOn=true;
             editor.Colors[2].onClick.Invoke();editor.Swatches[6].onClick.Invoke();
             Capture(camera,target,"character-editor");editor.gameObject.SetActive(false);
             var cards=CharacterLibraryView.CreateView(canvas.transform);cards.Status.text="Выберите персонажа для своей игры или подключения к другу.";
             for(int i=0;i<6;i++)
             {
-                var actor=new ActorState {character=i==0?new string('Ш',32):"Персонаж "+(i+1),player=true,appearance=new CharacterAppearance {version=1,hairStyle=i%5+1,eyeStyle=i+1,hair=CharacterEditorPanel.Palette[i+3],secondaryHairEnabled=i%2==0}};
+                var actor=new ActorState {character=i==0?new string('Ш',32):"Персонаж "+(i+1),player=true,appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion,
+                    headStyleId=PonyHeadCatalog.Styles[i%PonyHeadCatalog.Styles.Count].id,hairStyle=i%5+1,eyeStyle=i+1,hair=CharacterEditorPanel.Palette[i+3],secondaryHairEnabled=i%2==0}};
                 PlayerStarterInventory.Give(actor);cards.Portraits[i].Show(actor,graphics);cards.Names[i].text=actor.character;cards.Times[i].text=i==0?"Время ещё не учтено":"В игре: 12 ч 34 мин";
                 if(cards.Names[i].preferredHeight>cards.Names[i].rectTransform.rect.height) throw new InvalidOperationException("Имя обрезано в карточке.");
             }
