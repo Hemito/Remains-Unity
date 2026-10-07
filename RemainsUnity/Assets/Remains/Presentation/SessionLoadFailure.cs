@@ -9,6 +9,8 @@ namespace Remains.Presentation
         // The caller first ends the partial session. Keep the main menu usable after closing
         // this log; do not claim an active session's saves were never written.
         public static void Show(Exception error)
+            =>Show(error,"Не удалось загрузить локацию. Сессия остановлена.");
+        public static void Show(Exception error,string explanation)
         {
             if(Application.isBatchMode) {Application.Quit(3);return;}
             var root=new GameObject("Журнал ошибки локации",typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));
@@ -23,7 +25,7 @@ namespace Remains.Presentation
             var labelRect=(RectTransform)label.transform;labelRect.anchorMin=Vector2.zero;labelRect.anchorMax=Vector2.one;
             labelRect.offsetMin=new Vector2(24,84);labelRect.offsetMax=new Vector2(-24,-24);
             var text=label.GetComponent<Text>();text.font=font;text.fontSize=18;text.color=new Color(1,.65f,.55f);text.raycastTarget=false;
-            text.text="Не удалось загрузить локацию. Сессия остановлена. Подробности ошибки:\n\n"+error;
+            text.text=explanation+" Подробности ошибки:\n\n"+error;
             var close=new GameObject("Вернуться в главное меню",typeof(RectTransform),typeof(Image),typeof(Button));close.transform.SetParent(panel.transform,false);
             var closeRect=(RectTransform)close.transform;closeRect.anchorMin=new Vector2(.25f,0);closeRect.anchorMax=new Vector2(.75f,0);closeRect.offsetMin=new Vector2(0,20);closeRect.offsetMax=new Vector2(0,64);
             close.GetComponent<Image>().color=new Color(.08f,.2f,.13f,1);

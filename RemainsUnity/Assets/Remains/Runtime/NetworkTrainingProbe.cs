@@ -20,6 +20,8 @@ namespace Remains.Runtime
         private int stage,shots,results;
         private readonly int[] targetResults=new int[3];
         private bool sent,finished,configured;
+        private bool baseReadySent,baseCompleted;
+        private TrainingArmoredExercise armored;
         private string rangeOwner,rangeWorld;
         private int rangeGeneration;
         private bool rangeEntered,rangeReturned,rangeSeparated;
@@ -57,6 +59,8 @@ namespace Remains.Runtime
         private void LateUpdate()
         {
             if(finished || runtime?.Session.World==null) return;
+            armored?.LateUpdate();
+            if(finished) return;
             if(pausedManaCaptureRequested && !pausedManaCaptured)
             {
                 pausedManaCaptureRequested=false;
@@ -120,8 +124,10 @@ namespace Remains.Runtime
             var hub=RoomLayout.Load("hub");
             var ladder=hub.ladders.Where(l=>l.x<38 && l.bottom<1 && l.top>7.2f).OrderByDescending(l=>l.x).First();
             hubLadderX=ladder.x+ladder.movementOffset;
-            var placements=HubTrainingContent.ReadLayout().containers;
+            var trainingLayout=HubTrainingContent.ReadLayout();
+            var placements=trainingLayout.containers;
             for(int i=1;i<=3;i++) {var entry=placements.Single(p=>p.type=="mcrate"+i);crateStarts.Add(i,new Vector2(entry.x,entry.y));}
+            if(!MovingShotExercise) armored=new TrainingArmoredExercise(value,trainingLayout.actors.Single(a=>a.id==TrainingArmoredExercise.TargetId),detail=>Finish(false,detail));
             value.CommandSource=Command;
             value.Session.Notice+=notice=>
             {
@@ -135,6 +141,7 @@ namespace Remains.Runtime
             {
                 weaponTrace.Observe(attack,value.Session.World?.Find(attack.attacker),attack.attacker==value.Session.LocalActorId);
                 if(attack.attacker!=value.Session.LocalActorId || attack.weapon!="pistol") return;
+                if(armored?.Started==true) return;
                 if(MovingShotExercise) movingShots++;else shots++;
             };
             value.DamageFeedback.Received+=result=>
@@ -149,11 +156,13 @@ namespace Remains.Runtime
         {
             yield return new WaitForSecondsRealtime(1);
             Finish(true,MovingShotExercise?"Собственный выстрел на бегу: три запуска без сетевого ожидания, дуло совпало с точкой запуска; удалённое расхождение записано отдельно.":
-                (runtime.Options.ProbePeers==1?"Одиночная игра. ":"Кооператив; стойки и прыжки видны другим клиентам. ")+"Приседание, короткий/длинный прыжок, балка и двойное S. Три мишени, по три выстрела на игрока; отказ 75/120 кг и подъём/падение 25 кг.");
+                (runtime.Options.ProbePeers==1?"Одиночная игра. ":"Кооператив; стойки и прыжки видны другим клиентам. ")+"Приседание, короткий/длинный прыжок, балка и двойное S. Три мишени, по три выстрела на игрока; отказ 75/120 кг и подъём/падение 25 кг. Обычный подъём к верхней броневой мишени: поглощённый пистолет и один moving-spear hit с восстановлением500.");
         }
         private PlayerCommand Command()
         {
             var self=runtime.Session.LocalActor;if(self==null || finished) return default;
+            if(armored?.Started==true) return armored.Command();
+            if(baseReadySent) return default;
             if(rangeOwner!=null)
             {
                 if(self.owner!=rangeOwner || self.generation!=rangeGeneration || self.level!="hub" || runtime.Session.World.worldId!=rangeWorld || runtime.Session.Travel.Pending)
@@ -264,8 +273,14 @@ namespace Remains.Runtime
         private void Update()
         {
             if(finished) return;
-            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут мишеней: stage={stage}, shots={shots}, results={results}, position={runtime.Session.LocalActor?.Position}.");return;}
+            if(Time.unscaledTime>deadline) {Finish(false,$"Таймаут мишеней: stage={stage}, shots={shots}, results={results}, position={runtime.Session.LocalActor?.Position}, {armored?.Context}.");return;}
             var self=runtime.Session.LocalActor;if(self==null) return;
+            if(armored?.Started==true)
+            {
+                armored.Tick();
+                if(!finished && armored.Complete && !sent) {sent=true;NetworkClient.Send(new TrainingDoneMessage());}
+                return;
+            }
             if(MovingShotExercise && stage==3 && movingShots==3)
             {
                 if(!sent) {sent=true;NetworkClient.Send(new TrainingDoneMessage());}
@@ -323,9 +338,10 @@ namespace Remains.Runtime
             if(runtime.MovementAudio.LandingVoices!=runtime.MovementAudio.Landings*2)
             {Finish(false,"Приземление не создало два звуковых контакта.");return;}
             if(Host && minimumLiftMana>=manaBeforeLift) {Finish(false,"Подъём 25 кг не расходует ману.");return;}
+            if(!baseReadySent) {baseReadySent=true;NetworkClient.Send(new TrainingBaseReadyMessage());}
             if(Host)
             {
-                if(done.Count<runtime.Options.ProbePeers-1) return;
+                if(!armored.BasePeersReady) return;
                 try
                 {
                     bool recovered=magicRecovery.Step(runtime.Session,self);
@@ -334,13 +350,17 @@ namespace Remains.Runtime
                 }
                 catch(Exception error) {Finish(false,error.Message);return;}
             }
-            var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
-            if(views.Length!=5 || views.Select(v=>v.ActorId).Distinct().Count()!=5) {Finish(false,"Неверное количество моделей мишеней.");return;}
-            foreach(var view in views)
-                if(view.GetComponentsInParent<ActorVisualGroup>().Length!=1) {Finish(false,"Мишень не включена в целую группу отрисовки.");return;}
-            if(runtime.Options.Smoke.Contains("-frames-"))
-                NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".training.png",runtime.Hud.GetComponent<Canvas>());
-            sent=true;NetworkClient.Send(new TrainingDoneMessage());
+            if(!baseCompleted)
+            {
+                var views=FindObjectsByType<StaticActorVisual>(FindObjectsSortMode.None);
+                if(views.Length!=5 || views.Select(v=>v.ActorId).Distinct().Count()!=5) {Finish(false,"Неверное количество моделей мишеней.");return;}
+                foreach(var view in views)
+                    if(view.GetComponentsInParent<ActorVisualGroup>().Length!=1) {Finish(false,"Мишень не включена в целую группу отрисовки.");return;}
+                if(runtime.Options.Smoke.Contains("-frames-"))
+                    NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".training.png",runtime.Hud.GetComponent<Canvas>());
+                baseCompleted=true;
+            }
+            if(Host) armored.BeginForAll();
         }
         private void Finish(bool success,string detail)
         {
@@ -351,7 +371,8 @@ namespace Remains.Runtime
             if(success && MovingShotExercise && !weaponTrace.ValidateLocal(out var mismatch)) {success=false;detail=mismatch;}
             if(success && PausedManaCaptureRequired && !pausedManaCaptured)
             {success=false;detail=$"Отсутствует реальный HUD/scene evidence израсходованной маны на подтверждённой паузе: phase={ManaPauseEvidencePhase}, pausedMana={magicRecovery.PausedMana}, recoveredMana={magicRecovery.RecoveredMana}.";}
-            string json=JsonUtility.ToJson(new Report {rangeEntered=rangeEntered,rangeReturned=rangeReturned,rangeSeparated=rangeSeparated,success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
+            if(success && !MovingShotExercise && armored?.Complete!=true) {success=false;detail="Не завершено независимое наблюдение верхней броневой мишени.";}
+            string json=JsonUtility.ToJson(new Report {armored=armored?.Evidence,rangeEntered=rangeEntered,rangeReturned=rangeReturned,rangeSeparated=rangeSeparated,success=success,participants=runtime.Options.ProbePeers,detail=detail,shots=shots,results=results,
                 raisedWeapons=raisedWeapons.Count,rejected75=rejected75,rejected120=rejected120,observedLift=observedLift,shortJump=jumping.ShortHeight,longJump=jumping.LongHeight,remoteJumps=observedJumpSupport.Count,
                 remoteRunRestarts=remoteRunRestarts,remoteRunSamples=remoteRunSamples,remoteRunRewinds=remoteRunRewinds,remoteRunFrameRewinds=remoteRunFrameRewinds,maximumRemoteRunRewind=maximumRemoteRunRewind,
                 sprintSamples=sprinting.Samples,sprintBackwardSteps=sprinting.BackwardSteps,longestRun=sprinting.LongestContinuousRun,movingShots=movingShots,
@@ -364,6 +385,7 @@ namespace Remains.Runtime
             weaponTrace.Save(runtime.Options.Report+".weapons.json");
             File.WriteAllText(runtime.Options.Report,json);Debug.Log(json);Application.Quit(success?0:2);
         }
-        [Serializable] private sealed class Report {public bool rangeEntered,rangeReturned,rangeSeparated;public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool pausedManaCaptureRequired,pausedManaCaptured;public int pausedManaCapturePhase,pausedManaCaptureWidth,pausedManaCaptureHeight;public float capturedPausedMana;public bool success,rejected75,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
+        private void OnDestroy()=>armored?.Dispose();
+        [Serializable] private sealed class Report {public TrainingArmoredEvidence armored;public bool rangeEntered,rangeReturned,rangeSeparated;public int raisedWeapons;public int remoteRunRestarts;public int remoteRunSamples,remoteRunRewinds,remoteRunFrameRewinds;public float maximumRemoteRunRewind;public bool recoveryChecked;public float pausedMana,recoveredMana;public bool pausedManaCaptureRequired,pausedManaCaptured;public int pausedManaCapturePhase,pausedManaCaptureWidth,pausedManaCaptureHeight;public float capturedPausedMana;public bool success,rejected75,rejected120,observedLift,independentStance;public string detail;public int sprintSamples,sprintBackwardSteps;public float longestRun;public int movingShots;public int participants,shots,results,remoteJumps,localContacts,remoteContacts,landings,landingVoices,ladderContacts,remoteCrouches,remoteLower,remoteRise,remoteLandingPoses,remoteFallPoses,propLandings,impactSounds;public float shortJump,longJump;}
     }
 }

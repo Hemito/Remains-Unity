@@ -17,6 +17,7 @@ namespace Remains.Runtime
     {
         private PrototypeRuntime runtime;
         private readonly HashSet<string> shots=new();
+        private readonly List<LaunchEvidence> launches=new();
         private float deadline,pausedAt,pausedRemaining,emptyAt;
         private string pausedAction,item,capture;
         private bool traveled,alerted,pauseSent,pausedVerified,resumed,reloaded,sent,finished;
@@ -49,6 +50,19 @@ namespace Remains.Runtime
             {
                 if(attack.attacker!="npc:training-guard") return;
                 if(attack.weapon!="pistol" || !shots.Add(attack.id)) {Finish(false,"Неверное оружие или повтор NPC-выстрела.");return;}
+                var evidence=new LaunchEvidence {id=attack.id,sourceOwner=attack.sourceOwner,originX=attack.originX,originY=attack.originY,endX=attack.endX,endY=attack.endY,speed=attack.speed};
+                if(Source)
+                {
+                    var npc=Npc;var target=value.Session.World.Find(npc?.target);
+                    if(npc?.owner!=value.Session.LocalOwner || target==null) {Finish(false,"Нет локального владельца/цели выстрела NPC для проверки направления.");return;}
+                    var aim=target.Position+Vector2.up*.55f-attack.Origin;
+                    evidence.ownerMeasured=true;evidence.signedDegrees=Vector2.SignedAngle(aim,attack.End-attack.Origin);
+                    evidence.muzzleGap=Vector2.Distance(WeaponPose.Muzzle(npc),attack.Origin);
+                    float bound=Remains.Content.WeaponCatalog.Get(attack.weapon).shotSpreadHalfAngleDegrees;
+                    if(!float.IsFinite(evidence.signedDegrees) || Mathf.Abs(evidence.signedDegrees)>bound+.001f || evidence.muzzleGap>.001f)
+                    {Finish(false,$"Направление NPC вышло за профиль: shot={attack.id}, degrees={evidence.signedDegrees}, bound={bound}, muzzleGap={evidence.muzzleGap}.");return;}
+                }
+                launches.Add(evidence);
                 if(shots.Count==1 && Source) capture="first-shot";
                 if(shots.Count>3) Finish(false,"NPC стреляет после исчерпания всего боезапаса.");
             };
@@ -104,11 +118,12 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,source=Source,shots=shots.Count,
-                paused=pausedVerified,reloaded=reloaded,item=item,owner=Npc?.owner,rounds=WeaponInventory.Selected(Npc)?.weaponState?.rounds ?? -1},true));
+                paused=pausedVerified,reloaded=reloaded,item=item,owner=Npc?.owner,rounds=WeaponInventory.Selected(Npc)?.weaponState?.rounds ?? -1,launches=launches.ToArray()},true));
             exitCode=success?0:1;Invoke(nameof(Exit),2);
         }
         private int exitCode;
         private void Exit()=>Application.Quit(exitCode);
-        [Serializable] private sealed class Report {public bool success,source,paused,reloaded;public int shots,rounds;public string detail,item,owner;}
+        [Serializable] private sealed class LaunchEvidence {public string id,sourceOwner;public bool ownerMeasured;public float originX,originY,endX,endY,speed,signedDegrees,muzzleGap;}
+        [Serializable] private sealed class Report {public bool success,source,paused,reloaded;public int shots,rounds;public string detail,item,owner;public LaunchEvidence[] launches;}
     }
 }

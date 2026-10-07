@@ -19,7 +19,7 @@ namespace Remains.Editor
             {Field("magazineSize","Ёмкость магазина");Field("ammoPerShot","Расход за выстрел");Field("reloadSeconds","Перезарядка, с");}
             EditorGUILayout.LabelField("Снаряд",EditorStyles.boldLabel);Field("projectileSpeed","Скорость, м/с");
             using(new EditorGUI.DisabledScope(definition.FindPropertyRelative("projectileSpeed").floatValue<=0))
-            {Field("projectileSpeedVariation","Разброс скорости, доля");Field("projectileLifetime","Время жизни, с");}
+            {Field("projectileSpeedVariation","Разброс скорости, доля");Field("projectileLifetime","Время жизни, с");Field("shotSpreadHalfAngleDegrees","Полуширина разброса, °");}
             Field("stopAtFirstActor","Остановка на первом актёре");Field("stopAtTerrain","Остановка на геометрии");
             if(definition.FindPropertyRelative("id").stringValue=="grenade")
             {

@@ -136,6 +136,7 @@ namespace Remains.Runtime
             // Publish the shared order before simulation Changed callbacks can
             // create restored projectile, grenade or actor representations.
             Session.Changed+=RefreshVisualOrders;
+            Session.GameplayPreparationFailed+=GameplayPreparationFailed;
             RefreshVisualOrders();
             Geometry=new SimulationGeometry(Session);
             Geometry.OcclusionChanged+=RefreshRoomOcclusion;
@@ -253,6 +254,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("travel-points")) gameObject.AddComponent<NetworkTravelPointProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("raid-reload")) gameObject.AddComponent<NetworkRaidReloadProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("door")) gameObject.AddComponent<NetworkDoorProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("shot-spread")) gameObject.AddComponent<NetworkShotSpreadProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("training")) gameObject.AddComponent<NetworkTrainingProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("ladder-body")) gameObject.AddComponent<NetworkLadderBodyProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("obstacle")) gameObject.AddComponent<NetworkObstacleProbe>().Initialize(this);
@@ -420,7 +422,7 @@ namespace Remains.Runtime
                     !remoteMotion.ControlsPosePhase(animated)) ActorPose.Advance(animated,Time.deltaTime);
             }
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("lighting-preparation") || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("lighting-preparation") || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("shot-spread") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 npcs.Step(Time.deltaTime);
                 // Do not consume a probe/input source's one-shot actions until its room is
@@ -575,18 +577,25 @@ namespace Remains.Runtime
         private void RoomPreparationFailed(RoomLighting source,System.Exception error)
         {
             if(roomFailurePending || source!=ActiveRoomLighting) return;
-            automaticStartCancelled=true;roomFailurePending=true;StartCoroutine(EndFailedRoom(source,error));
+            automaticStartCancelled=true;roomFailurePending=true;StartCoroutine(EndFailedSession(source,error,"Не удалось загрузить локацию. Сессия остановлена; подробности — в журнале ошибки."));
         }
-        private IEnumerator EndFailedRoom(RoomLighting source,System.Exception error)
+        private void GameplayPreparationFailed(System.Exception error)
+        {
+            if(roomFailurePending) return;
+            automaticStartCancelled=true;roomFailurePending=true;
+            StartCoroutine(EndFailedSession(ActiveRoomLighting,error,"Ошибка игрового правила. Сессия остановлена; подробности — в журнале ошибки."));
+        }
+        private IEnumerator EndFailedSession(RoomLighting source,System.Exception error,string notice)
         {
             // Let the world/geometry notification that initiated this binding finish before
             // Mirror releases it. The next frame cannot run a partially prepared simulation.
             yield return null;
-            Debug.LogError($"Загрузка локации остановлена: room={source.Room?.id}, world={Session.World?.worldId}, reason={error}.",this);
+            Debug.LogError($"Сессия остановлена: room={source?.Room?.id}, world={Session.World?.worldId}, reason={error}.",this);
             if(NetworkServer.active) Session.StopHost();else if(NetworkClient.active) Session.StopClient();
-            roomPresentation.SetContext(false,null);source.Release();
-            Session.ShowNotice("Не удалось загрузить локацию. Сессия остановлена; подробности — в журнале ошибки.");
-            SessionLoadFailure.Show(error);roomFailurePending=false;
+            Debug.Log($"Завершение после ошибки игрового правила: server={NetworkServer.active}, client={NetworkClient.active}, connected={NetworkClient.isConnected}.",this);
+            roomPresentation.SetContext(false,null);source?.Release();
+            Session.ShowNotice(notice);
+            SessionLoadFailure.Show(error,notice);roomFailurePending=false;
         }
         private GameObject CreateOwnedObject(string name)
         {
@@ -596,7 +605,7 @@ namespace Remains.Runtime
         {
             if(disposed) return;
             automaticStartCancelled=true;enabled=false;StopAllCoroutines();
-            if(Session!=null) {Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;}
+            if(Session!=null) {Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;Session.GameplayPreparationFailed-=GameplayPreparationFailed;}
             if(Geometry!=null) Geometry.OcclusionChanged-=RefreshRoomOcclusion;
             if(AudioPreferences!=null) AudioPreferences.Changed-=ApplyAudioPreferences;
             // Keep content and presentation consumers alive until stop callbacks have

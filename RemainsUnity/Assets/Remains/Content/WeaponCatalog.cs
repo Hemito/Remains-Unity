@@ -16,6 +16,7 @@ namespace Remains.Content
         public string ammo;
         public int magazineSize,ammoPerShot;
         public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
+        public float shotSpreadHalfAngleDegrees;
         public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention,grenadeGravity;
         public float grenadeMaxLaunchSpeed,grenadeFullEffortDistance,grenadeAimLift;
         public float grenadeSpinRate,grenadeAngularRetention;

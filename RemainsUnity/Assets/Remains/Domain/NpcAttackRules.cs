@@ -22,6 +22,8 @@ namespace Remains.Domain
         }
         public static AttackEvent Complete(ActorState actor,ActorState target,RoomLayout room=null)=>Complete(actor,target,room,standardTiming);
         public static AttackEvent Complete(ActorState actor,ActorState target,RoomLayout room,INpcWeaponTimingRule timing)
+            =>Complete(actor,target,room,timing,null);
+        public static AttackEvent Complete(ActorState actor,ActorState target,RoomLayout room,INpcWeaponTimingRule timing,Func<AttackEvent,bool> prepareShot)
         {
             if(actor.down) {Cancel(actor);return null;}
             if(!actor.attackBusy || actor.attackRemaining>0) return null;
@@ -43,10 +45,13 @@ namespace Remains.Domain
                 var end=target.Position+new Vector2(0,.55f);
                 Remains.Gameplay.NpcWeaponAim.Apply(actor,end,room);
                 var origin=Remains.Gameplay.WeaponPose.Muzzle(actor);
-                if((room==null || !ShotObstacles.FirstContact(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),origin).HasValue) &&
-                    WeaponAmmunition.SpendShot(actor,weapon,out _))
-                    result=new AttackEvent {id=actor.attackId,attacker=actor.id,weapon=action.weapon,level=actor.level,
-                    originX=origin.x,originY=origin.y,endX=end.x,endY=end.y};
+                if(room==null || !ShotObstacles.FirstContact(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),origin).HasValue)
+                {
+                    var candidate=new AttackEvent {id=actor.attackId,attacker=actor.id,weapon=action.weapon,level=actor.level,
+                        originX=origin.x,originY=origin.y,endX=end.x,endY=end.y};
+                    if(WeaponAmmunition.CanSpendShot(actor,weapon,out _) && (prepareShot==null || prepareShot(candidate)) &&
+                        WeaponAmmunition.SpendShot(actor,weapon,out _)) result=candidate;
+                }
             }
             actor.attackBusy=false;actor.attackRemaining=0;actor.attackCooldown=cooldown;
             actor.attackTarget=null;actor.revision++;return result;

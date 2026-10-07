@@ -43,6 +43,7 @@ namespace Remains.Editor
             HintPlacementChecks.Run();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
+            RangedShotDirectionChecks.Run();
             RaiderWeaponSocketChecks.Run();
             NpcAmmunitionChecks.Run();
             CharacterInterfaceChecks.Run();

@@ -84,6 +84,20 @@ namespace Remains.Gameplay
                 {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice("Ствол перекрыт препятствием.");}
                 return false;
             }
+            if(!WeaponAmmunition.CanSpendShot(attacker,definition,out string unavailable))
+            {
+                if(Time.unscaledTime>=nextResourceNotice)
+                {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice(unavailable);}
+                return false;
+            }
+            AttackEvent ranged=null;
+            if(!melee)
+            {
+                var end=origin+direction*definition.range;
+                ranged=new AttackEvent {id=Guid.NewGuid().ToString("N"),attacker=attacker.id,weapon=Weapon,level=attacker.level,
+                    originX=origin.x,originY=origin.y,endX=end.x,endY=end.y};
+                if(!session.PrepareProjectile(ranged)) return false;
+            }
             if(!WeaponAmmunition.SpendShot(attacker,definition,out string reason))
             {
                 if(Time.unscaledTime>=nextResourceNotice)
@@ -100,10 +114,7 @@ namespace Remains.Gameplay
                 swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker),direction,attacker.weaponReach,geometry.Get(attacker.level));
                 return true;
             }
-            float range = definition.range;
-            session.Fire(new AttackEvent { id = Guid.NewGuid().ToString("N"), attacker = attacker.id, weapon = Weapon,level=attacker.level,
-                originX = origin.x, originY = origin.y, endX = origin.x + direction.x * range,
-                endY = origin.y + direction.y * range, speed = attacker.Velocity.magnitude + range / 0.15f });
+            session.FirePrepared(ranged);
             return true;
         }
 

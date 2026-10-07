@@ -23,6 +23,20 @@ namespace Remains.Domain
             attack.endX=end.x;attack.endY=end.y;
             Create(attack,definition);
         }
+        public static void PrepareOwnerLaunch(AttackEvent attack,WeaponDefinition definition,float speedSample,float directionSample)
+        {
+            PrepareDirection(attack,definition,RangedShotDirection.Select(attack.End-attack.Origin,definition.shotSpreadHalfAngleDegrees,directionSample),speedSample);
+        }
+        public static void PrepareOwnerLaunch(AttackEvent attack,WeaponDefinition definition,float speedSample,float directionSample,IRangedShotDirectionRule rule)
+        {
+            PrepareDirection(attack,definition,RangedShotDirection.Select(attack.End-attack.Origin,definition.shotSpreadHalfAngleDegrees,directionSample,rule),speedSample);
+        }
+        private static void PrepareDirection(AttackEvent attack,WeaponDefinition definition,Vector2 direction,float speedSample)
+        {
+            var end=attack.Origin+direction*definition.range;
+            attack.endX=end.x;attack.endY=end.y;
+            Prepare(attack,definition,SelectSpeed(definition,speedSample));
+        }
         public static ProjectileState Create(AttackEvent attack,WeaponDefinition definition)
         {
             var speeds=definition.ProjectileSpeedRange;

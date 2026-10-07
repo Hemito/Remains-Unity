@@ -63,8 +63,8 @@ namespace Remains.Gameplay
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
-                        var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level),session.Rules.NpcWeaponTiming);
-                        if(attack!=null) session.Fire(attack);
+                        var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level),session.Rules.NpcWeaponTiming,session.PrepareProjectile);
+                        if(attack!=null) session.FirePrepared(attack);
                         session.PublishActor(actor);
                     }
                     continue;

@@ -25,10 +25,13 @@ namespace Remains.Networking
         public CharacterContentGate CharacterContent {get;}=new();
         private GameplayRuleSet rules;
         public GameplayRuleSet Rules=>rules??throw new InvalidOperationException("Правила сессии ещё не настроены.");
+        public event Action<Exception> GameplayPreparationFailed;
+        public bool GameplayFailurePending {get;private set;}
         public void ConfigureRules(GameplayRuleSet rules)
         {
             if(NetworkServer.active || NetworkClient.active) throw new InvalidOperationException("Нельзя менять правила во время подключения или игры.");
             this.rules=rules??throw new ArgumentNullException(nameof(rules));
+            GameplayFailurePending=false;
             ownership=new OwnershipService(rules.ProximityOwnership);
         }
         public string CharacterId { get; set; }
@@ -248,6 +251,7 @@ namespace Remains.Networking
 
         public override void OnStartClient()
         {
+            GameplayFailurePending=false;
             CancelStopNotification();
             savingFailed=false;
             BeginJoinSelection();
@@ -716,6 +720,32 @@ namespace Remains.Networking
 
         public void Fire(AttackEvent attack)
         {
+            if(PrepareProjectile(attack)) FirePrepared(attack);
+        }
+        // Gameplay callers prepare before spending ammunition/mana. Receivers never call this.
+        public bool PrepareProjectile(AttackEvent attack)
+        {
+            if(GameplayFailurePending) return false;
+            if(NpcNaturalAttack.IsNatural(attack) || WeaponCatalog.Get(attack.weapon).projectileSpeed<=0) return true;
+            var actor=World?.Find(attack.attacker);
+            if(actor==null || actor.owner!=LocalOwner || actor.level!=attack.level || Pause.IsPaused(attack.level)) return false;
+            attack.sourceOwner=LocalOwner;attack.sourcePlayer=actor.player;attack.friendlyFireDecision=World.friendlyFireDecision;
+            try
+            {
+                var definition=WeaponCatalog.Get(attack.weapon);
+                ProjectileLaunch.PrepareOwnerLaunch(attack,definition,UnityEngine.Random.value,UnityEngine.Random.value,Rules.ShotDirection);
+                return true;
+            }
+            catch(Exception error)
+            {
+                GameplayFailurePending=true;
+                var failure=new InvalidOperationException($"Ошибка подготовки выстрела: actor={actor.id}, shot={attack.id}, weapon={attack.weapon}, rule={Rules.ShotDirection.GetType().FullName}. Боеприпасы не расходуются до успешной подготовки.",error);
+                Debug.LogError(failure);GameplayPreparationFailed?.Invoke(failure);return false;
+            }
+        }
+        public void FirePrepared(AttackEvent attack)
+        {
+            if(GameplayFailurePending) return;
             if(NpcNaturalAttack.IsNatural(attack))
             {
                 var source=World?.Find(attack.attacker);
@@ -728,7 +758,7 @@ namespace Remains.Networking
             var actor=World?.Find(attack.attacker);
             if(actor==null || actor.owner!=LocalOwner || actor.level!=attack.level || Pause.IsPaused(attack.level)) return;
             attack.sourceOwner=LocalOwner;attack.sourcePlayer=actor.player;attack.friendlyFireDecision=World.friendlyFireDecision;
-            ProjectileLaunch.Prepare(attack,definition,ProjectileLaunch.SelectSpeed(definition,UnityEngine.Random.value));
+            ProjectileLaunch.Create(attack,definition);
             // Reliable launch precedes progress and contact messages from its local simulation.
             NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});
             Projectiles.BeginLocal(attack);AttackReceived?.Invoke(attack);

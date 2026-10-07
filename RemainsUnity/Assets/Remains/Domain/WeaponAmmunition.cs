@@ -30,7 +30,7 @@ namespace Remains.Domain
             actor.loadoutVersion=1;
         }
 
-        public static bool SpendShot(ActorState actor,WeaponDefinition definition,out string reason)
+        public static bool CanSpendShot(ActorState actor,WeaponDefinition definition,out string reason)
         {
             reason=null;
             if(actor.weaponInventoryVersion!=0 && !WeaponInventory.Available(actor,definition.id))
@@ -42,6 +42,15 @@ namespace Remains.Domain
                 if(magazine==null) {reason=$"Нет магазина оружия {definition.id}. Проверьте сохранение и набор модов.";return false;}
                 if(magazine.rounds<definition.ammoPerShot) {reason="Магазин пуст. Нажмите R для перезарядки.";return false;}
                 if(magazine.revision==long.MaxValue) throw new InvalidOperationException("Исчерпан номер состояния магазина.");
+            }
+            return true;
+        }
+        public static bool SpendShot(ActorState actor,WeaponDefinition definition,out string reason)
+        {
+            if(!CanSpendShot(actor,definition,out reason)) return false;
+            if(!string.IsNullOrEmpty(definition.ammo))
+            {
+                var magazine=Magazine(actor,definition.id);
                 magazine.rounds-=definition.ammoPerShot;magazine.revision++;
             }
             actor.mana-=definition.manaCost;
