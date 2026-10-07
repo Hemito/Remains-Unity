@@ -39,9 +39,10 @@ namespace Remains.Presentation
                 ResetMotion();hasContext=true;actorId=actor.id;actorLevel=actor.level;actorGeneration=actor.generation;
                 actorLifecycle=actor.lifecycleSequence;previousHalfWidth=halfWidth;previousHalfHeight=camera.orthographicSize;
             }
-            float x=Room.right-Room.left<=halfWidth*2?(Room.left+Room.right)/2:Mathf.Clamp(actor.x,Room.left+halfWidth,Room.right-halfWidth);
+            var body=actor.BodyPosition;
+            float x=Room.right-Room.left<=halfWidth*2?(Room.left+Room.right)/2:Mathf.Clamp(body.x,Room.left+halfWidth,Room.right-halfWidth);
             float y=Room.top-Room.bottom<=camera.orthographicSize*2?(Room.top+Room.bottom)/2:
-                Mathf.Clamp(actor.y+1,Room.bottom+camera.orthographicSize,Room.top-camera.orthographicSize);
+                Mathf.Clamp(body.y+1,Room.bottom+camera.orthographicSize,Room.top-camera.orthographicSize);
             var target=new Vector3(x,y,-10);
             var position=motion.Step(camera.transform.position,target,dt);
             var bounds=PonyVisual.CameraBounds(actor);

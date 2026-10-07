@@ -52,6 +52,7 @@ namespace Remains.Runtime
         public bool LevelPresentationReady=>roomPresentation?.IsReady==true;
         public bool IsLevelPreparing=>roomPresentation?.IsPreparing==true;
         public Camera WorldCamera=>cameraView;
+        public long TerrainPairSnaps=>remoteMotion.TerrainPairSnaps;
         private RoomPresentationGate roomPresentation;
         private bool roomFailurePending;
         private bool automaticStartCancelled;
@@ -79,6 +80,7 @@ namespace Remains.Runtime
         private readonly List<GameObject> ownedObjects=new();
         private GameObject networkObject;
         private bool disposed;
+        private string bodyWorld;
         public bool ReleasingUnusedAssets {get;private set;}
 
         private void Awake()
@@ -107,6 +109,7 @@ namespace Remains.Runtime
             using(TransitionTiming.Measure("runtime.catalog-prepare",GetInstanceID().ToString()))
                 roomCatalogLease=RoomCatalogAsset.AcquireRuntime("PrototypeRuntime:"+GetInstanceID());
             Anatomy.Load();
+            FootSupportCatalog.Load();
             passiveMovementSettings=MovementSettings.Load();
             WeaponCatalog.Load();
             Application.runInBackground=true;
@@ -141,6 +144,9 @@ namespace Remains.Runtime
             Geometry=new SimulationGeometry(Session);
             Geometry.OcclusionChanged+=RefreshRoomOcclusion;
             Platforms=new PlatformSimulation(Session,Geometry);
+            Platforms.TopologyChanged+=ActorBodySupport.InvalidateRoom;
+            Session.Changed+=RefreshBodyBindings;
+            Geometry.OcclusionChanged+=RefreshBodyGeometry;
             MechanismInteraction=new MechanismInteraction(Session);
             Combat=new CombatController(Session,Geometry);
             DamageFeedback=new DamageFeedback(Session);
@@ -406,6 +412,25 @@ namespace Remains.Runtime
             Audio.Volume=Audio.BaseVolume*value.master*value.effects;
             Music.Volume=musicMixVolume*value.master*value.music;
         }
+        // Geometry is prepared on session changes, before actor consumers bind.
+        // Per-frame body samples then read only this prepared room and scalar state.
+        private void RefreshBodyBindings()
+        {
+            try
+            {
+                var world=Session.World;
+                if(bodyWorld!=world?.worldId) {ActorBodySupport.Clear();bodyWorld=world?.worldId;}
+                if(world==null) return;
+                var loaded=new HashSet<string>(Geometry.LoadedLevels,System.StringComparer.Ordinal);
+                foreach(var actor in world.actors)
+                    if(ActorPresence.IsPresent(actor) && loaded.Contains(actor.level)) ActorBodySupport.Bind(actor,Geometry.Get(actor.level));
+                    else ActorBodySupport.Unbind(actor);
+            }
+            catch(System.Exception failure) {Session.ReportGameplayPreparationFailure(failure);}
+        }
+        private void RefreshBodyGeometry(string level,RoomLayout changed,long revision)
+            =>ActorBodySupport.InvalidateRoom(changed);
+
         private void Update()
         {
             if(roomFailurePending) return;
@@ -416,7 +441,7 @@ namespace Remains.Runtime
             var actor=Session.LocalActor;
             Pickup.Step();
             if (actor==null || !NetworkClient.isConnected) {remoteMotion.Clear();InteractionFocus.Clear();return;}
-            remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble);
+            remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true);
             foreach(var body in Session.World.actors)
                 if(body.owner==Session.LocalOwner &&
                     LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
@@ -615,8 +640,8 @@ namespace Remains.Runtime
         {
             if(disposed) return;
             automaticStartCancelled=true;enabled=false;StopAllCoroutines();
-            if(Session!=null) {Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;Session.GameplayPreparationFailed-=GameplayPreparationFailed;}
-            if(Geometry!=null) Geometry.OcclusionChanged-=RefreshRoomOcclusion;
+            if(Session!=null) {Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;Session.Changed-=RefreshBodyBindings;Session.GameplayPreparationFailed-=GameplayPreparationFailed;}
+            if(Geometry!=null) {Geometry.OcclusionChanged-=RefreshRoomOcclusion;Geometry.OcclusionChanged-=RefreshBodyGeometry;}
             if(AudioPreferences!=null) AudioPreferences.Changed-=ApplyAudioPreferences;
             // Keep content and presentation consumers alive until stop callbacks have
             // saved the character/world and published World=null to their views.
@@ -631,7 +656,10 @@ namespace Remains.Runtime
                 Session.FlushSaveWrites();
             }
             roomPresentation?.Dispose();ActiveRoomLighting?.Release();
-            Pickup?.Dispose();MechanismInteraction?.Dispose();Platforms?.Dispose();Geometry?.Dispose();
+            Pickup?.Dispose();MechanismInteraction?.Dispose();
+            if(Platforms!=null) {Platforms.TopologyChanged-=ActorBodySupport.InvalidateRoom;Platforms.Dispose();}
+            Geometry?.Dispose();
+            ActorBodySupport.Clear();bodyWorld=null;
             if(roomObject!=null) {roomObject.SetActive(false);Destroy(roomObject);roomObject=null;}
             foreach(var value in ownedObjects) if(value!=null) {value.SetActive(false);Destroy(value);}
             ownedObjects.Clear();

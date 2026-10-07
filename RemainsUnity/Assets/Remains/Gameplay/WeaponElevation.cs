@@ -13,9 +13,10 @@ namespace Remains.Gameplay
         {
             if(actorId!=actor.id || level!=actor.level) heldSeconds=0;
             actorId=actor.id;level=actor.level;
+            var support=ActorBodySupport.Sample(actor);
             bool eligible=upHeld && !HeldItemSelection.HasSelection(actor) && !actor.down && !actor.climbing && !actor.crouched &&
                 !string.IsNullOrEmpty(actor.weapon) && WeaponRigs.Get(actor.weapon).HasMuzzle &&
-                ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
+                (support.IsBound?support.Grounded:ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position));
             heldSeconds=eligible?Mathf.Min(heldSeconds+Mathf.Max(0,dt),WeaponRigs.RaiseDelay):0;
             actor.weaponLift=eligible && heldSeconds>=WeaponRigs.RaiseDelay?WeaponRigs.RaiseHeight:0;
         }

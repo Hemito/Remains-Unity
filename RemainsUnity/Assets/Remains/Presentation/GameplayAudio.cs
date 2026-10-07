@@ -74,7 +74,7 @@ namespace Remains.Presentation
         public bool PlayContact(AudioClip clip,string level,Vector2 position,float gain)
         {
             if(session.LocalActor?.level!=level || session.Pause.IsPaused(level) ||
-                Attenuation(Vector2.Distance(position,session.LocalActor.Position))<=0) return false;
+                Attenuation(Vector2.Distance(position,session.LocalActor.BodyPosition))<=0) return false;
             return Play(clip,level,position,gain)!=null;
         }
         private Voice Play(AudioClip clip,string level,Vector2 position,float gain=1)
@@ -84,7 +84,7 @@ namespace Remains.Presentation
             source.playOnAwake=false;source.spatialBlend=0;source.clip=clip;
             // Background verification must not make sound on the user's desktop.
             source.mute=Application.isBatchMode;
-            source.volume=Mathf.Clamp01(Volume)*gain*Attenuation(Vector2.Distance(position,session.LocalActor.Position));
+            source.volume=Mathf.Clamp01(Volume)*gain*Attenuation(Vector2.Distance(position,session.LocalActor.BodyPosition));
             source.panStereo=mix.Pan(position.x,view.transform.position.x);
             var voice=new Voice {source=source,level=level,position=position,remaining=clip.length,gain=gain};voices.Add(voice);
             source.Play();
@@ -106,7 +106,7 @@ namespace Remains.Presentation
             recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
             // A one-shot outside hearing range must not consume the voice budget.
             // Remember its ID first so a late duplicate cannot sound after approaching.
-            if(Attenuation(Vector2.Distance(attack.Origin,session.LocalActor.Position))<=0) return;
+            if(Attenuation(Vector2.Distance(attack.Origin,session.LocalActor.BodyPosition))<=0) return;
             float gain=Mathf.Lerp(entry.minGain,entry.maxGain,(float)gainRandom.NextDouble());
             if(Play(entry.audio,attack.level,attack.Origin,gain)==null) return;
             if(entry.kind=="melee") MeleeSounds++;
@@ -128,7 +128,7 @@ namespace Remains.Presentation
             {Debug.LogWarning($"Нет звука перезарядки: actor={message.actor}, weapon={message.weapon}.",this);return false;}
             if(actor==null || session.LocalActor?.level!=message.level || actor.down || !actor.connected ||
                 !SessionReloadAudio.Matches(actor,message)) return false;
-            var voice=Play(reloadClip,message.level,actor.Position);
+            var voice=Play(reloadClip,message.level,actor.BodyPosition);
             if(voice==null) return false;
             voice.reload=message;return true;
         }
@@ -165,14 +165,14 @@ namespace Remains.Presentation
                 {
                     var actor=session.World?.Find(message.actor);
                     invalidReload=actor==null || actor.down || !actor.connected || !SessionReloadAudio.Matches(actor,message);
-                    if(!invalidReload) voice.position=actor.Position;
+                    if(!invalidReload) voice.position=actor.BodyPosition;
                 }
                 if(listener==null || listener.level!=voice.level || voice.remaining<=0 || invalidReload)
                 {RemoveVoice(i);continue;}
                 bool pause=session.Pause.IsPaused(voice.level);
                 if(pause!=voice.paused) {if(pause) voice.source.Pause();else voice.source.UnPause();voice.paused=pause;}
                 if(!pause) voice.remaining-=Time.deltaTime;
-                voice.source.volume=Mathf.Clamp01(Volume)*voice.gain*Attenuation(Vector2.Distance(voice.position,listener.Position));
+                voice.source.volume=Mathf.Clamp01(Volume)*voice.gain*Attenuation(Vector2.Distance(voice.position,listener.BodyPosition));
                 voice.source.panStereo=mix.Pan(voice.position.x,view.transform.position.x);
             }
         }

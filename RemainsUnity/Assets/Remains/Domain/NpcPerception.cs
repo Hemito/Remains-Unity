@@ -59,8 +59,8 @@ namespace Remains.Domain
         public bool CanSee(ActorState observer,ActorState subject,Func<Vector2,Vector2,bool> clearSight)
         {
             if(!Eligible(observer,subject)) return false;
-            var start=observer.Position+Vector2.up*eyeHeight;
-            var end=subject.Position+Vector2.up*targetHeight;
+            var start=observer.BodyPosition+Vector2.up*eyeHeight;
+            var end=subject.BodyPosition+Vector2.up*targetHeight;
             var delta=end-start;float distance=delta.sqrMagnitude;
             if(distance>sightSquared || delta.x*observer.facing<0 && distance>closeSquared) return false;
             return clearSight(start,end);

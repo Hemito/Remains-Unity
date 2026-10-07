@@ -98,6 +98,8 @@ namespace Remains.Domain
         [NonSerialized] public Dictionary<string,int> inventoryReservations = new();
         public List<InjuryState> injuries = new();
         public Vector2 Position { get => new(x, y); set { x = value.x; y = value.y; } }
+        // Derived body registration is transient; saves and motion packets retain the movement anchor.
+        public Vector2 BodyPosition => ActorBodySupport.Position(this);
         public Vector2 Velocity { get => new(vx, vy); set { vx = value.x; vy = value.y; } }
         public ActorState Copy() => JsonUtility.FromJson<ActorState>(JsonUtility.ToJson(this));
     }

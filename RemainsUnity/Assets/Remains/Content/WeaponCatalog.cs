@@ -52,8 +52,11 @@ namespace Remains.Content
             var asset=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
             CasingEffectCatalog.Load();
+            FootSupportCatalog.Load();
             var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
+            inputs.Add(FootSupportCatalog.Resource,FootSupportCatalog.Fingerprint);
+            inputs.Add("Rules/actor-body-support","sampled-centres-v1");
             foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/standing-edge-poses",SlopePoseCatalog.Resource,"Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
             {
                 var data=Resources.Load<TextAsset>(path);

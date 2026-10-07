@@ -14,7 +14,9 @@ namespace Remains.Domain
         public string Id=>Prop?.id??Body.id;
         public string Level=>Prop?.level??Body.level;
         public Vector2 Position=>Prop?.Position??Body.Position;
-        public Vector2 Center=>Prop?.Center??Body.Position+Vector2.up*(Anatomy.Movement(Body).height*.5f);
+        public Vector2 Center=>Prop?.Center??Body.BodyPosition+Vector2.up*(Anatomy.Movement(Body).height*.5f);
+        // Initial hold targets the physical hull. Cursor/LOS use the resolved body above.
+        public Vector2 PhysicalCenter=>Prop?.Center??Body.Position+Vector2.up*(Anatomy.Movement(Body).height*.5f);
         public float Mass=>Prop?.mass??bodyType.bodyMassKg;
         public bool Movable=>Prop!=null?Prop.movable && Prop.hasPhysicalBody:bodyType.telekinesisMovable;
         public static TelekinesisTarget? Nearest(WorldState world,ActorState holder,Vector2 cursor)

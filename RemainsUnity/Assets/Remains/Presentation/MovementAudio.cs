@@ -83,7 +83,11 @@ namespace Remains.Presentation
             foreach(var actor in session.World.actors)
             {
                 if(actor.level!=listener.level || !tracks.TryGetValue(actor.id,out var track)) continue;
-                bool grounded=ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
+                var support=ActorBodySupport.Sample(actor);
+                // Motion history keeps the conservative movement anchor; drawing
+                // bob/foot fit cannot manufacture a physical landing or teleport.
+                bool grounded=support.IsBound?(support.HasFootProfile?support.HasContact:support.Grounded):
+                    ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
                 var contact=track.contacts.Sample(actor.Position,actor.level,actor.generation,grounded,actor.climbing,
                     paused || ActorSessionRules.IsPassive(actor),float.PositiveInfinity,float.PositiveInfinity,settings.teleportDistance);
                 rhythms.TryGetValue(actor.pose,out var rhythm);
@@ -92,7 +96,8 @@ namespace Remains.Presentation
                 int beats=track.rhythm.Sample(actor,rhythm,grounded,paused || ActorSessionRules.IsPassive(actor),settings.teleportDistance);
                 if(contact!=MotionContact.Landing && beats>0) contact=actor.climbing?MotionContact.Ladder:MotionContact.Step;
                 if(contact==MotionContact.None) continue;
-                string bank=contact==MotionContact.Ladder?"ladder":SurfaceContactSound.Resolve(room,Anatomy.Movement(actor),actor.Position);
+                string bank=contact==MotionContact.Ladder?"ladder":support.IsBound?support.MovementSound:
+                    SurfaceContactSound.Resolve(room,Anatomy.Movement(actor),actor.Position);
                 if(string.IsNullOrEmpty(bank) || !banks.TryGetValue(bank,out var clips))
                 {
                     if(missing.Add(room.id+":"+bank)) Debug.LogWarning($"Нет звуков поверхности: room={room.id}, bank={bank}, actor={actor.id}.",this);
@@ -100,9 +105,10 @@ namespace Remains.Presentation
                 }
                 float gain=settings.volume*(contact==MotionContact.Landing?settings.landingGain:contact==MotionContact.Ladder?settings.ladderGain:1);
                 int layers=contact==MotionContact.Landing?settings.landingLayers:beats;
+                var voicePosition=support.HasContact?support.ContactPoint:support.BodyPosition;
                 int played=0;
                 for(int layer=0;layer<layers;layer++)
-                    if(audio.PlayContact(clips[track.sample++%clips.Length],actor.level,actor.Position,gain)) played++;
+                    if(audio.PlayContact(clips[track.sample++%clips.Length],actor.level,voicePosition,gain)) played++;
                 if(played==0) continue;
                 if(actor.id==listener.id) LocalContacts++;else RemoteContacts++;
                 if(contact==MotionContact.Landing) {Landings++;LandingVoices+=played;}

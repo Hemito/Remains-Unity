@@ -62,13 +62,15 @@ namespace Remains.Content
         public static Bounds CameraBounds(ActorState actor)
         {
             if(selections.Count==0) throw new InvalidOperationException("Графика пони не подготовлена перед расчётом камеры.");
-            var bounds=cameraEnvelope;bounds.center+=new Vector3(actor.x,actor.y,0);return bounds;
+            var body=actor.BodyPosition;
+            var bounds=cameraEnvelope;bounds.center+=new Vector3(body.x,body.y,0);return bounds;
         }
         public static Bounds WorldBounds(ActorState actor)
         {
             var clip=Get(PonyAppearance.Snapshot(actor),ActorPose.Clip(actor));
             var bounds=clip.bounds[PonyMotionFrames.Sample(actor,actor.poseTime)];
-            bounds.center=new Vector3(actor.x+bounds.center.x*actor.facing,actor.y+bounds.center.y,bounds.center.z);return bounds;
+            var body=actor.BodyPosition;
+            bounds.center=new Vector3(body.x+bounds.center.x*actor.facing,body.y+bounds.center.y,bounds.center.z);return bounds;
         }
     }
 }

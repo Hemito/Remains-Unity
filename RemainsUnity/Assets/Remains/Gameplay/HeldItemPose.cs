@@ -16,8 +16,10 @@ namespace Remains.Gameplay
             (HeldItemSelection.HasSelection(actor)?WeaponRigs.OrdinaryHoldingArea:WeaponCatalog.Get("grenade").holdingArea).RadiusFor(actor.climbing);
         public static Vector2 Mount(ActorState actor)=>Anchor(actor)+new Vector2(actor.heldItemPoseX,actor.heldItemPoseY);
         public static bool Aim(ActorState actor,Vector2 target,RoomLayout room=null)
+            =>AimAtAnchor(actor,Anchor(actor),target,room);
+        private static bool AimAtAnchor(ActorState actor,Vector2 anchor,Vector2 target,RoomLayout room)
         {
-            var anchor=Anchor(actor);var delta=target-anchor;
+            var delta=target-anchor;
             if(!float.IsFinite(delta.sqrMagnitude))
             {
                 actor.heldItemPoseValid=false;
@@ -57,17 +59,21 @@ namespace Remains.Gameplay
         public static bool TryQuickLaunch(ActorState actor,Vector2 aim,RoomLayout room,out HeldLaunch launch)
         {
             // A grenade-specific local sample leaves the ordinary active selection and its pose untouched.
+            // Resolve the real body before creating a detached selection. An alias
+            // clone must never acquire a different support sample under the same ID.
+            var body=actor.BodyPosition;var anchor=Anchor(actor);
             var grenadePose=new ActorState {id=actor.id,level=actor.level,anatomy=actor.anatomy,crouched=actor.crouched,
                 climbing=actor.climbing,facing=actor.facing,x=actor.x,y=actor.y,equippedWeaponItem="grenade:quick"};
-            if(!Aim(grenadePose,aim,room)) {launch=default;return false;}
-            launch=Capture(grenadePose,aim);return true;
+            if(!AimAtAnchor(grenadePose,anchor,aim,room)) {launch=default;return false;}
+            launch=CaptureAt(grenadePose,anchor+new Vector2(grenadePose.heldItemPoseX,grenadePose.heldItemPoseY),aim,body.y);return true;
         }
         public static HeldLaunch Capture(ActorState actor,Vector2 aim)
+            =>CaptureAt(actor,Mount(actor),aim,actor.BodyPosition.y);
+        private static HeldLaunch CaptureAt(ActorState actor,Vector2 origin,Vector2 aim,float bodyY)
         {
             if(!actor.heldItemPoseValid || !float.IsFinite(actor.weaponAngle) || !float.IsFinite(actor.heldItemPoseX) || !float.IsFinite(actor.heldItemPoseY))
                 throw new InvalidOperationException($"Нет готовой позы удерживаемого предмета: actor={actor.id}, item={actor.heldItemId ?? actor.equippedWeaponItem}, selection={actor.weaponSelectionRevision}.");
-            var origin=Mount(actor);
-            return new HeldLaunch(origin,GrenadeLaunch.Velocity(origin,aim,actor.y,WeaponCatalog.Get("grenade")),actor.weaponAngle,actor.weaponFlipY);
+            return new HeldLaunch(origin,GrenadeLaunch.Velocity(origin,aim,bodyY,WeaponCatalog.Get("grenade")),actor.weaponAngle,actor.weaponFlipY);
         }
     }
     public readonly struct HeldLaunch

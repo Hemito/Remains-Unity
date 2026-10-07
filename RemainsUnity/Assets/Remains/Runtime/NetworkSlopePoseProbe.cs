@@ -30,6 +30,8 @@ namespace Remains.Runtime
             public int frame,facing,generation;
             public uint sequence;
             public float x,y,vx,vy,time,muzzleError;
+            public Vector2 bodyPosition,contactPoint;public NetworkFootSurfaceRecord surface;
+            public int footPart,footPixelX,footPixelY;public float rootError,contactError;
         }
         [Serializable] private sealed class Report
         {
@@ -41,6 +43,9 @@ namespace Remains.Runtime
             public List<Observation> observations=new();
             public List<MovingEvidence> moving=new();
             public List<int> captures=new();
+            public int sampledGroundedFrames;public float maximumRootError,maximumContactError;
+            public int unsupportedSlopeFrames;public List<string> unsupportedExamples=new();
+            public long terrainPairSnaps;
             public string limitation="Стартовая позиция на нижней опоре склада задана явно. Дальше штатное движение по существующему заводу. Original runtime, слышимый микс и два физических ПК не проверены.";
         }
         [Serializable] private sealed class MovingEvidence {public string actor,pose;public int[] frames;}
@@ -145,6 +150,29 @@ namespace Remains.Runtime
                         !view.gameObject.activeInHierarchy || view.DrawnPartCount==0 ||
                         view.DrawnClip!=actor.pose || view.DrawnFrame!=PonyMotionFrames.Sample(actor,view.DrawnTime)) continue;
                     Require(Anatomy.TrySupportContacts(actor,out var contacts) && contacts.Count==4,"Новая поза не имеет четырёх фактических контактов ног.");
+                    var support=ActorBodySupport.Sample(actor);
+                    Require(view.DrawnClip==support.Pose && view.DrawnFrame==support.Frame && Mathf.Abs(view.DrawnTime-actor.poseTime)<=.00001f,
+                        $"Фаза рисунка отличается от общей опоры: actor={actor.id}, drawn={view.DrawnClip}/{view.DrawnFrame}/{view.DrawnTime:R}, body={support.Pose}/{support.Frame}/{actor.poseTime:R}.");
+                    float rootError=Vector2.Distance(view.transform.position,support.BodyPosition),contactError=0;
+                    Require(support.IsBound && support.HasFootProfile && rootError<=.0001f,
+                        $"Составной рисунок не совпадает с общей опорой тела: actor={actor.id}, rootError={rootError:R}, outcome={support.Outcome}.");
+                    report.maximumRootError=Mathf.Max(report.maximumRootError,rootError);
+                    if(support.Grounded)
+                    {
+                        Require(support.HasContact,$"На установленном уклоне отсутствует sampled contact: actor={actor.id}, pose={actor.pose}, outcome={support.Outcome}.");
+                        var bounds=support.SurfaceBounds;float fraction=(support.ContactPoint.x-bounds.xMin)/bounds.width;
+                        float top=bounds.yMin+bounds.height*(support.SlopeDirection>0?fraction:1-fraction);
+                        if(support.SlopeDirection==0) top=bounds.yMax;
+                        contactError=Mathf.Abs(support.ContactPoint.y-top);
+                        Require(support.ContactPoint.x>=bounds.xMin-.0001f && support.ContactPoint.x<=bounds.xMax+.0001f && contactError<=.0002f,
+                            $"Контакт копыта выходит из конечной опоры: actor={actor.id}, point={support.ContactPoint}, surface={bounds}, error={contactError:R}.");
+                        report.sampledGroundedFrames++;report.maximumContactError=Mathf.Max(report.maximumContactError,contactError);
+                    }
+                    else
+                    {
+                        report.unsupportedSlopeFrames++;
+                        if(report.unsupportedExamples.Count<16) report.unsupportedExamples.Add($"actor={actor.id}, pose={actor.pose}, frame={support.Frame}, anchor={actor.Position}, phase={actor.poseTime:R}, outcome={support.Outcome}");
+                    }
                     var weapon=visuals.FindWeapon(actor.id);
                     if(weapon?.Muzzle==null || actor.weapon!="pistol") continue;
                     float muzzleError=Vector2.Distance(weapon.Muzzle.position,WeaponPose.Muzzle(actor));
@@ -160,7 +188,9 @@ namespace Remains.Runtime
                     }
                     if(observed.Add(key)) report.observations.Add(new Observation {actor=actor.id,pose=actor.pose,level=actor.level,
                         local=actor.id==local.id,frame=view.DrawnFrame,facing=actor.facing,generation=actor.generation,sequence=actor.poseSequence,
-                        x=actor.x,y=actor.y,vx=actor.vx,vy=actor.vy,time=view.DrawnTime,muzzleError=muzzleError});
+                        x=actor.x,y=actor.y,vx=actor.vx,vy=actor.vy,time=view.DrawnTime,muzzleError=muzzleError,
+                        bodyPosition=support.BodyPosition,contactPoint=support.ContactPoint,surface=NetworkFootSurfaceRecord.Capture(support),
+                        footPart=support.PartIndex,footPixelX=support.PixelX,footPixelY=support.PixelY,rootError=rootError,contactError=contactError});
                 }
                 if(ready || phase<1) return;
                 string expected=Expected(phase);
@@ -192,10 +222,10 @@ namespace Remains.Runtime
             if(finished) return;finished=true;
             string[] poses={"slopeWalkUp","slopeStandUp","slopeWalkDown","slopeStandDown"};
             var players=runtime.Session.World?.actors.Where(a=>a.player && a.connected).ToArray()??Array.Empty<ActorState>();
-            if(success && (report.captures.Count!=7 || players.Any(a=>poses.Any(p=>!observed.Contains(a.id+":"+p))) ||
+            if(success && (report.sampledGroundedFrames<20 || report.captures.Count!=7 || players.Any(a=>poses.Any(p=>!observed.Contains(a.id+":"+p))) ||
                 players.Any(a=>new[]{"slopeWalkUp","slopeWalkDown"}.Any(p=>!movingFrames.TryGetValue(a.id+":"+p,out var frames) || frames.Count<2))))
             {success=false;detail="Не все реальные локальные/удалённые наклонные кадры наблюдались до завершения маршрута.";}
-            report.success=success;report.detail=detail;runtime.Session.SaveLocalCharacter();
+            report.success=success;report.detail=detail;report.terrainPairSnaps=runtime.TerrainPairSnaps;runtime.Session.SaveLocalCharacter();
             report.actor=runtime.Session.LocalActorId;report.finalPosition=runtime.Session.LocalActor?.Position??Vector2.zero;
             report.moving=movingFrames.Select(pair=>new MovingEvidence {actor=pair.Key.Substring(0,pair.Key.LastIndexOf(':')),
                 pose=pair.Key.Substring(pair.Key.LastIndexOf(':')+1),frames=pair.Value.OrderBy(frame=>frame).ToArray()}).ToList();

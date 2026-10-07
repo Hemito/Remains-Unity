@@ -9,8 +9,21 @@ using UnityEngine;
 
 namespace Remains.Runtime
 {
+    // StateJson persists fields; Unity Rect exposes its geometry as properties.
+    [Serializable] public struct NetworkFootSurfaceRecord
+    {
+        public float x,y,width,height;
+        public int slopeDirection;
+        public static NetworkFootSurfaceRecord Capture(ActorBodySupportSample sample)
+            =>new() {x=sample.SurfaceBounds.x,y=sample.SurfaceBounds.y,width=sample.SurfaceBounds.width,
+                height=sample.SurfaceBounds.height,slopeDirection=sample.SlopeDirection};
+    }
     [Serializable] public sealed class NetworkPonyRecord
-    {public ActorState actor;public Vector3 position,scale;public string clip,groupId;public int frame,groupOrder;public float time;public bool active;}
+    {
+        public ActorState actor;public Vector3 position,scale;public string clip,groupId;public int frame,groupOrder;public float time;public bool active;
+        public Vector2 bodyPosition,footContact;public NetworkFootSurfaceRecord footSurface;public bool footProfile,footGrounded,hasFootContact;
+        public string footOutcome;public int footPart,footPixelX,footPixelY;
+    }
     [Serializable] public sealed class NetworkSpriteRecord
     {public string name,resource,spriteName,textureName,groupId;public Vector3 position,scale,euler;public float rectX,rectY,rectWidth,rectHeight;public Vector2 pivot;public float pixelsPerUnit;public int order,groupOrder;public Color color;public bool flipX,flipY,enabled;}
     [Serializable] public sealed class NetworkSceneRecord
@@ -36,9 +49,15 @@ namespace Remains.Runtime
                 throw new InvalidOperationException("Нет фактически отрисованных границ игрока для записи: "+runtime.Session.LocalActor.id);
             record.localVisualMinimum=localBounds.min;record.localVisualMaximum=localBounds.max;
             record.ponies=UnityEngine.Object.FindObjectsByType<PonyVisual>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(view=>
-                new NetworkPonyRecord {actor=world.Find(view.ActorId).Copy(),position=view.transform.position,scale=view.transform.localScale,
+            {
+                var actor=world.Find(view.ActorId);var support=ActorBodySupport.Sample(actor);
+                return new NetworkPonyRecord {actor=actor.Copy(),position=view.transform.position,scale=view.transform.localScale,
                     clip=view.DrawnClip,frame=view.DrawnFrame,time=view.DrawnTime,active=view.gameObject.activeInHierarchy,
-                    groupId=view.GetComponentInParent<ActorVisualGroup>()?.ActorId,groupOrder=view.GetComponentInParent<ActorVisualGroup>()?.Order??0}).ToArray();
+                    groupId=view.GetComponentInParent<ActorVisualGroup>()?.ActorId,groupOrder=view.GetComponentInParent<ActorVisualGroup>()?.Order??0,
+                    bodyPosition=support.BodyPosition,footContact=support.ContactPoint,footSurface=NetworkFootSurfaceRecord.Capture(support),
+                    footProfile=support.HasFootProfile,footGrounded=support.Grounded,hasFootContact=support.HasContact,
+                    footOutcome=support.Outcome.ToString(),footPart=support.PartIndex,footPixelX=support.PixelX,footPixelY=support.PixelY};
+            }).ToArray();
             record.sprites=UnityEngine.Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None)
                 .Where(view=>view.GetComponentInParent<CasingEffects>()?.IsUnusedRenderer(view)!=true).Select(view=>
             {

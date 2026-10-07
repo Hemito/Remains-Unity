@@ -54,12 +54,12 @@ namespace Remains.Gameplay
                 senses.Step(actor,dt);
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
                 bool visible=target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
-                    natural?NpcNaturalAttack.Origin(actor):WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*(natural?type.perception.targetHeight:.55f));
+                    natural?NpcNaturalAttack.Origin(actor):WeaponPose.RangedAnchor(actor),target.BodyPosition+Vector2.up*(natural?type.perception.targetHeight:.55f));
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {
                     controller.Step(actor,Vector2.zero,false,dt,lookAtX:!natural && visible?target.x:(float?)null);
-                    if(!natural) NpcWeaponAim.Apply(actor,visible?target.Position+Vector2.up*.55f:null,controller.Room);
+                    if(!natural) NpcWeaponAim.Apply(actor,visible?target.BodyPosition+Vector2.up*.55f:null,controller.Room);
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
@@ -95,7 +95,7 @@ namespace Remains.Gameplay
                 }
                 float distance=target.x-actor.x;
                 controller.Step(actor,new Vector2(Mathf.Abs(distance)>5?Mathf.Sign(distance)*0.5f:0,0),false,dt,lookAtX:target.x);
-                NpcWeaponAim.Apply(actor,target.Position+Vector2.up*.55f,controller.Room);
+                NpcWeaponAim.Apply(actor,target.BodyPosition+Vector2.up*.55f,controller.Room);
                 if(visible && Mathf.Abs(distance)<7 && actor.attackCooldown<=0)
                 {
                     if(NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming)) session.PublishActor(actor);

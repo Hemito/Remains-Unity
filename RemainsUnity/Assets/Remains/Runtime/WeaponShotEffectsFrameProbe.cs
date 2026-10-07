@@ -37,6 +37,7 @@ namespace Remains.Runtime
             public bool visible,casingObserved,casingVisible,reloadVisible,ownReloadActive,paused;
             public float rootX,rootY,angle,muzzleX,muzzleY,expectedMuzzleX,expectedMuzzleY,muzzleError,
                 neutralRootX,neutralRootY,neutralMuzzleX,neutralMuzzleY,renderOffset,renderAngle,
+                bodyX,bodyY,bodyDeltaX,bodyDeltaY,
                 casingSocketX,casingSocketY,casingX,casingY,casingAge,casingSocketError;
             public Rectangle weaponBounds,casingBounds;
         }
@@ -208,7 +209,11 @@ namespace Remains.Runtime
         {
             var actor=runtime.Session.World?.Find(shot.attack.attacker);var view=visuals.FindWeapon(shot.attack.attacker);
             Require(actor!=null && view?.Muzzle!=null && view.Artwork?.sprite!=null,"Нет actual drawn weapon/actor: "+shot.attack.id);
-            var expected=WeaponPose.SampleRanged(actor);var neutralActor=actor.Copy();neutralActor.weaponRecoil=WeaponRecoilPose.Neutral(runtime.Session.Pause.Revision);
+            var body=actor.BodyPosition;var bodyDelta=body-actor.Position;
+            var expected=WeaponPose.SampleRanged(actor);var neutralActor=actor.Copy();
+            // Keep the sampled pose/phase/facing/velocity, but supply its already
+            // resolved body as the detached root. Never bind an alias to live fit.
+            neutralActor.Position=body;neutralActor.weaponRecoil=WeaponRecoilPose.Neutral(runtime.Session.Pause.Revision);
             var neutral=WeaponPose.SampleRanged(neutralActor);Vector2 root=view.transform.position,muzzle=view.Muzzle.position;
             var draw=new Draw
             {
@@ -217,6 +222,7 @@ namespace Remains.Runtime
                 rootX=root.x,rootY=root.y,angle=view.transform.eulerAngles.z,muzzleX=muzzle.x,muzzleY=muzzle.y,
                 expectedMuzzleX=expected.Muzzle.x,expectedMuzzleY=expected.Muzzle.y,muzzleError=Vector2.Distance(muzzle,expected.Muzzle),
                 neutralRootX=neutral.Root.x,neutralRootY=neutral.Root.y,neutralMuzzleX=neutral.Muzzle.x,neutralMuzzleY=neutral.Muzzle.y,
+                bodyX=body.x,bodyY=body.y,bodyDeltaX=bodyDelta.x,bodyDeltaY=bodyDelta.y,
                 renderOffset=Vector2.Distance(root,neutral.Root),renderAngle=Mathf.Abs(Mathf.DeltaAngle(neutral.Angle,view.transform.eulerAngles.z)),
                 weaponBounds=new Rectangle(view.Artwork.bounds),ownReloadActive=actor.id==runtime.Session.LocalActorId && runtime.Combat.Reload.Active,
                 reloadVisible=visuals.ReloadAnimation.TryGet(actor,out _),paused=runtime.Session.Pause.IsPaused(actor.level)

@@ -27,7 +27,7 @@ namespace Remains.Gameplay
     {
         public static float AimRadius=>WeaponRigs.AimRadius;
         public static float RangedReachLimit(ActorState actor)=>AtlasWeaponSockets.Enabled(actor)?0:actor.climbing?WeaponRigs.ClimbingAimRadius:AimRadius;
-        public static Vector2 RangedAnchor(ActorState actor)=>AtlasWeaponSockets.Enabled(actor)?AtlasWeaponSockets.Anchor(actor):actor.Position+new Vector2(0,WeaponRigs.AnchorHeight*Anatomy.StanceHeightRatio(actor)+
+        public static Vector2 RangedAnchor(ActorState actor)=>AtlasWeaponSockets.Enabled(actor)?AtlasWeaponSockets.Anchor(actor):actor.BodyPosition+new Vector2(0,WeaponRigs.AnchorHeight*Anatomy.StanceHeightRatio(actor)+
             (ActorSessionRules.IsPassive(actor) || actor.climbing || actor.crouched?0:Mathf.Clamp(actor.weaponLift,0,WeaponRigs.RaiseHeight)));
         private static Vector2 BaseDirection(ActorState actor)=>new(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
         public static Vector2 Direction(ActorState actor)=>!string.IsNullOrEmpty(actor.weapon) && WeaponRigs.Get(actor.weapon).HasMuzzle?SampleRanged(actor).Direction:BaseDirection(actor);
@@ -94,7 +94,7 @@ namespace Remains.Gameplay
         private static Vector2 BaseMuzzle(ActorState actor)=>new RangedWeaponPose(BaseMount(actor),actor.weaponAngle,Flip(actor),WeaponRigs.Get(actor.weapon)).Muzzle;
         public static float MeleeReachLimit(ActorState actor)=>WeaponCatalog.Get(actor.weapon).holdingArea.RadiusFor(actor.climbing);
         public static Vector2 Origin(Vector2 actorPosition)=>actorPosition+new Vector2(0,.8f);
-        public static Vector2 Origin(ActorState actor)=>actor.Position+new Vector2(0,.8f*Anatomy.StanceHeightRatio(actor));
+        public static Vector2 Origin(ActorState actor)=>actor.BodyPosition+new Vector2(0,.8f*Anatomy.StanceHeightRatio(actor));
         public static Vector2 Tip(string weapon,Vector2 origin,Vector2 direction,float progress,float? restReach=null)
         {
             var definition=WeaponCatalog.Get(weapon);

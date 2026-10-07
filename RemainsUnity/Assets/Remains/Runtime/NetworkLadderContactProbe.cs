@@ -532,10 +532,13 @@ namespace Remains.Runtime
                 var view=pair.Value;
                 if(actor==null || !view.gameObject.activeInHierarchy) throw new InvalidOperationException("Исчез участник/визуал лестницы: "+pair.Key);
                 if(view.DrawnFrame<0) continue;
+                var bodySupport=ActorBodySupport.Sample(actor);var bodyPosition=bodySupport.BodyPosition;
                 if(view.DrawnClip!=ActorPose.Clip(actor) || view.DrawnFrame!=PonyMotionFrames.Sample(actor,view.DrawnTime) ||
                     Mathf.Abs(view.DrawnTime-actor.poseTime)>.00001f ||
-                    Vector2.Distance(view.transform.position,actor.Position)>.00001f)
-                    throw new InvalidOperationException($"Контакт не соответствует фактическому кадру: actor={actor.id}, clip={view.DrawnClip}/{ActorPose.Clip(actor)}, frame={view.DrawnFrame}, time={view.DrawnTime}/{actor.poseTime}.");
+                    !bodySupport.IsBound || !bodySupport.HasFootProfile || bodySupport.Pose!=view.DrawnClip || bodySupport.Frame!=view.DrawnFrame ||
+                    view.transform.localScale.x!=actor.facing || view.transform.localScale.y!=1 ||
+                    Vector2.Distance(view.transform.position,bodyPosition)>.00001f)
+                    throw new InvalidOperationException($"Контакт не соответствует фактическому кадру: actor={actor.id}, clip={view.DrawnClip}/{ActorPose.Clip(actor)}, frame={view.DrawnFrame}/{bodySupport.Frame}, time={view.DrawnTime}/{actor.poseTime}, movementAnchor={actor.Position}, body={bodyPosition}, visual={view.transform.position}, facing={actor.facing}, scale={view.transform.localScale}, bound={bodySupport.IsBound}, footProfile={bodySupport.HasFootProfile}, bodyOutcome={bodySupport.Outcome}, geometryRevision={bodySupport.GeometryRevision}.");
                 if(!Anatomy.TrySupportContacts(actor,out var points) || points.Count==0)
                     throw new InvalidOperationException("Нет контактов анатомии фактически нарисованного кадра: "+actor.id);
                 float footMinimum=float.PositiveInfinity,clearance=float.PositiveInfinity;
@@ -543,6 +546,9 @@ namespace Remains.Runtime
                 var feet=new Vector2[points.Count];
                 for(int index=0;index<points.Count;index++)
                 {
+                    // The raw baked frame remains the independent local oracle.
+                    // Transform it by the actual renderer after its root was checked
+                    // against the shared body; movement anchor is not a graphic root.
                     var point=(Vector2)view.transform.position+new Vector2(points[index].x*view.transform.localScale.x,points[index].y*view.transform.localScale.y);
                     feet[index]=point;footMinimum=Mathf.Min(footMinimum,point.y);
                     for(int floor=0;floor<room.platforms.Length;floor++)
@@ -561,10 +567,11 @@ namespace Remains.Runtime
                 var cameraMinimum=camera.transform.position-new Vector3(camera.orthographicSize*camera.aspect,camera.orthographicSize,0);
                 var cameraMaximum=camera.transform.position+new Vector3(camera.orthographicSize*camera.aspect,camera.orthographicSize,0);
                 var sample=new Sample {stage=(int)stage,frame=Time.frameCount,seconds=Time.unscaledTime,deltaTime=Time.deltaTime,actor=actor.id,local=actor.id==Actor.id,
-                    body=actor.Position,visual=view.transform.position,velocity=new Vector2(actor.vx,actor.vy),command=actor.id==Actor.id?lastCommand:default,commandJump=actor.id==Actor.id && lastJump,
+                    movementAnchor=actor.Position,body=bodyPosition,visual=view.transform.position,bodyOutcome=bodySupport.Outcome.ToString(),bodyGeometryRevision=bodySupport.GeometryRevision,
+                    velocity=new Vector2(actor.vx,actor.vy),command=actor.id==Actor.id?lastCommand:default,commandJump=actor.id==Actor.id && lastJump,
                     anatomy=actor.anatomy,logicalPose=actor.pose,poseTime=actor.poseTime,drawnClip=view.DrawnClip,drawnFrame=view.DrawnFrame,drawnTime=view.DrawnTime,
                     climbing=actor.climbing,activeDescending=descending,ladder=actor.climbing?CurrentLadderId(actor):null,
-                    predictedFeet=feet,predictedFootMinimum=footMinimum,hasSolidFloor=!float.IsPositiveInfinity(clearance),
+                    rawLocalFeet=points.ToArray(),predictedFeet=feet,predictedFootMinimum=footMinimum,hasSolidFloor=!float.IsPositiveInfinity(clearance),
                     minimumSolidClearance=float.IsPositiveInfinity(clearance)?0:clearance,solidFloor=supportId,solidTop=supportTop,
                     cameraCenter=camera.transform.position,cameraMinimum=cameraMinimum,cameraMaximum=cameraMaximum,
                     fullEnvelopeMinimum=envelope.min,fullEnvelopeMaximum=envelope.max,
@@ -580,7 +587,7 @@ namespace Remains.Runtime
                     witness.heldSamples++;
                     if(sample.hasSolidFloor && (witness.heldMinimum==null || clearance<witness.heldMinimum.minimumSolidClearance)) witness.heldMinimum=sample;
                     if(sample.hasSolidFloor && clearance< -RoomSupport.ContactTolerance-.00001f)
-                        throw new InvalidOperationException($"Нарисованный хват пересёк твёрдый пол: actor={actor.id}, local={sample.local}, stage={stage}, ladder={sample.ladder}, drawn={view.DrawnClip}/{view.DrawnFrame}@{view.DrawnTime}, bodyY={actor.y}, footY={footMinimum}, floor={supportId}@{supportTop}, clearance={clearance}, tolerance={RoomSupport.ContactTolerance}.");
+                        throw new InvalidOperationException($"Нарисованный хват пересёк твёрдый пол: actor={actor.id}, local={sample.local}, stage={stage}, ladder={sample.ladder}, drawn={view.DrawnClip}/{view.DrawnFrame}@{view.DrawnTime}, anchorY={actor.y}, bodyY={bodyPosition.y}, footY={footMinimum}, floor={supportId}@{supportTop}, clearance={clearance}, tolerance={RoomSupport.ContactTolerance}.");
                 }
                 if(descending)
                 {
@@ -589,7 +596,7 @@ namespace Remains.Runtime
                     if(actor.id==Actor.id && Descending)
                     {if(stage==Stage.DescendShort) shortDescendingSamples++;else highDescendingSamples++;}
                     if(sample.hasSolidFloor && clearance< -RoomSupport.ContactTolerance-.00001f)
-                        throw new InvalidOperationException($"Нарисованный спуск пересёк твёрдый пол: actor={actor.id}, local={sample.local}, ladder={sample.ladder}, drawn={view.DrawnClip}/{view.DrawnFrame}@{view.DrawnTime}, bodyY={actor.y}, footY={footMinimum}, floor={supportId}@{supportTop}, clearance={clearance}, tolerance={RoomSupport.ContactTolerance}.");
+                        throw new InvalidOperationException($"Нарисованный спуск пересёк твёрдый пол: actor={actor.id}, local={sample.local}, ladder={sample.ladder}, drawn={view.DrawnClip}/{view.DrawnFrame}@{view.DrawnTime}, anchorY={actor.y}, bodyY={bodyPosition.y}, footY={footMinimum}, floor={supportId}@{supportTop}, clearance={clearance}, tolerance={RoomSupport.ContactTolerance}.");
                 }
             }
         }
@@ -615,7 +622,7 @@ namespace Remains.Runtime
             NetworkClient.Send(new LadderContactObserved {stage=(int)stage,sequence=stageSequence,observer=Actor.id,success=true,detail=Context(),
                 item=Holding?holdingReady?.item:null,selection=Holding?holdingReady?.selection??0:0,capturePhase=Holding?HoldingPhase:0});
         }
-        private string Context()=> $"stage={stage}, server={serverStage}, actor={Actor?.id}, body={Actor?.Position}, vy={Actor?.vy}, climbing={Actor?.climbing}, ladder={ladderId}, floor={lowerY}, targets={shortY}/{highY}, commands={movementCommands}/{upCommands}/{downCommands}, descSamples={shortDescendingSamples}/{highDescendingSamples}, captures={captures.Count}, holdingSource={holdingBaseline?.source}, holdingReady={holdingReady?.item}@{holdingReady?.selection}, holdingCaptures={holdingCaptures.Count}, deadline={deadline}";
+        private string Context()=> $"stage={stage}, server={serverStage}, actor={Actor?.id}, movementAnchor={Actor?.Position}, body={Actor?.BodyPosition}, vy={Actor?.vy}, climbing={Actor?.climbing}, ladder={ladderId}, floor={lowerY}, targets={shortY}/{highY}, commands={movementCommands}/{upCommands}/{downCommands}, descSamples={shortDescendingSamples}/{highDescendingSamples}, captures={captures.Count}, holdingSource={holdingBaseline?.source}, holdingReady={holdingReady?.item}@{holdingReady?.selection}, holdingCaptures={holdingCaptures.Count}, deadline={deadline}";
         private void Fail(string reason)
         {
             if(finished) return;
@@ -650,7 +657,7 @@ namespace Remains.Runtime
                 repeatNearTop=repeatNearTop,highRouteReason=highRouteReason,shortAscended=shortAscended,shortLanded=shortLanded,highAscended=highAscended,highLanded=highLanded,
                 movementCommands=movementCommands,upCommands=upCommands,downCommands=downCommands,shortDescendingSamples=shortDescendingSamples,highDescendingSamples=highDescendingSamples,mountSequences=mountedSequences.Count,
                 holdingEnabled=HoldingEnabled,holdingBaseline=holdingBaseline,holdingCaptures=holdingCaptures.ToArray(),contactSources=contactSources,witnesses=witnesses.Values.ToArray(),captures=captures.ToArray(),barriers=barriers.ToArray(),trace=trace.ToArray(),failureCaptureError=failureCaptureError,
-                contactTolerance=RoomSupport.ContactTolerance,limit="Контакты — предсказанные минимумы видимых опорных частей из общего baked source; не анализ PNG каждого кадра. Idle не проверяется на все пиксели копыт. Камера записана с полным envelope, без утверждения идеального следования. Remote — отдельное локальное представление реплики. ActorState не хранит ID лестницы: наблюдаемый хват сопоставляется с authored hierarchy path и runtime geometry; это диагностический ID, не persistent gameplay ID. Holding phases15–18 проверяют фактический origin, sprite binding и полный viewport bounds; это не сегментация видимых пикселей или доказательство отсутствия перекрытия другим рисунком. Original runtime удерживание на лестнице не проверено."},true));
+                contactTolerance=RoomSupport.ContactTolerance,limit="Контакты — предсказанные минимумы видимых опорных частей из общего baked source; не анализ PNG каждого кадра. Raw local feet проверенного DrawnClip/Frame преобразуются actual renderer root, совпадающим с shared BodyPosition; movementAnchor записан отдельно. Idle не проверяется на все пиксели копыт. Камера записана с полным envelope, без утверждения идеального следования. Remote — отдельное локальное представление реплики. ActorState не хранит ID лестницы: наблюдаемый хват сопоставляется с authored hierarchy path и runtime geometry; это диагностический ID, не persistent gameplay ID. Holding phases15–18 проверяют фактический origin, sprite binding и полный viewport bounds; это не сегментация видимых пикселей или доказательство отсутствия перекрытия другим рисунком. Original runtime удерживание на лестнице не проверено."},true));
             exitSuccess=success;Invoke(nameof(Exit),1.5f);
         }
         private bool exitSuccess;
@@ -663,8 +670,9 @@ namespace Remains.Runtime
         [Serializable] private sealed class Sample
         {
             public int stage,frame,drawnFrame;public float seconds,deltaTime,poseTime,drawnTime,predictedFootMinimum,minimumSolidClearance,solidTop;
-            public string actor,anatomy,logicalPose,drawnClip,ladder,solidFloor;public bool local,climbing,activeDescending,hasSolidFloor,commandJump;
-            public Vector2 body,velocity,command;public Vector2[] predictedFeet;public Vector3 visual,cameraCenter,cameraMinimum,cameraMaximum,fullEnvelopeMinimum,fullEnvelopeMaximum;
+            public string actor,anatomy,logicalPose,drawnClip,ladder,solidFloor,bodyOutcome;public bool local,climbing,activeDescending,hasSolidFloor,commandJump;
+            public long bodyGeometryRevision;
+            public Vector2 movementAnchor,body,velocity,command;public Vector2[] rawLocalFeet,predictedFeet;public Vector3 visual,cameraCenter,cameraMinimum,cameraMaximum,fullEnvelopeMinimum,fullEnvelopeMaximum;
             public float envelopeLeft,envelopeRight,envelopeBottom,envelopeTop;
         }
         [Serializable] private sealed class Report

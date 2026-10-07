@@ -46,7 +46,7 @@ namespace Remains.Domain
             =>SightRejection(actor,new TelekinesisTarget(prop),room);
         public string SightRejection(ActorState actor,TelekinesisTarget prop,RoomLayout room)
         {
-            var origin=actor.Position+Vector2.up*(Anatomy.Movement(actor).height*.75f);
+            var origin=actor.BodyPosition+Vector2.up*(Anatomy.Movement(actor).height*.75f);
             return ShotObstacles.FirstContact(room,origin,prop.Center).HasValue?
                 "Объект не виден: между вами препятствие.":null;
         }

@@ -41,7 +41,7 @@ namespace Remains.Domain
             return result; // ActorTypes.Register validates content once before simulation.
         }
         public static Vector2 Origin(ActorState actor)
-        {var data=Definition(actor.actorType);return actor.Position+new Vector2(data.originX*actor.facing,data.originY);}
+        {var data=Definition(actor.actorType);return actor.BodyPosition+new Vector2(data.originX*actor.facing,data.originY);}
         public static bool InRange(ActorState actor,ActorState target)
         {
             if(target==null || !ActorPresence.IsPresent(target) || target.level!=actor.level) return false;

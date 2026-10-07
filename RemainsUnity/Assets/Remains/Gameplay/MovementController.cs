@@ -31,6 +31,7 @@ namespace Remains.Gameplay
             bool dropPressed=downTap.Step(input.y<-.1f,dt);
             float accelerationTime=sprintPreparation.AccelerationTime(actor,input.x,sprint,dt,settings.sprintPreparationSeconds);
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
+            ActorBodySupport.SetDropping(actor,droppedSurface.HasValue);
             if(room.dynamicSurfaces?.Count>0) passenger??=passengers.ForActor(actor);
             if (ActorSessionRules.IsPassive(actor)) { PassiveActorMotion.Step(actor,room,dt,settings,passenger);return; }
             var previous=actor.Position;
@@ -53,7 +54,7 @@ namespace Remains.Gameplay
                 !ladder && !drop && !(jump && (grounded || wasClimbing)) && actor.vy<=0 && !ActorHoldRules.Active(actor));
             previous=actor.Position;
             if(grounded || drop || ladder) actor.jumpSupportRemaining=0;
-            if(drop) { droppedSurface=actor.y;actor.vy=-settings.dropSpeed;ladder=false; }
+            if(drop) { droppedSurface=actor.y;ActorBodySupport.SetDropping(actor,true);actor.vy=-settings.dropSpeed;ladder=false; }
             actor.vx = HorizontalMotion.Step(actor.vx,input.x,grounded || ladder,sprint,dt,settings,actor.crouched,actor.crouched?dt:accelerationTime);
             if (input.x != 0 && !ladder) actor.facing = input.x > 0 ? 1 : -1;
             bool launched=jump && (grounded || wasClimbing) && !drop && !ladder;

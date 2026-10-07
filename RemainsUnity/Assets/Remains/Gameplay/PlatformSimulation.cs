@@ -39,6 +39,7 @@ namespace Remains.Gameplay
         private readonly Dictionary<string,Level> levels=new(StringComparer.Ordinal);
         private string worldId;
         private long sequence;
+        public event Action<RoomLayout> TopologyChanged;
         public PlatformSimulation(CoopSession session,SimulationGeometry geometry)
             :this(geometry,()=>session.World,session.LevelTime.HasLocal,session.LevelTime.ReadLocal,
                 id=>MechanismCatalogAsset.Load().Platform(id).CreateDefinition())
@@ -119,6 +120,7 @@ namespace Remains.Gameplay
                     }
                 }
                 levels[level]=new Level {room=room,entries=selected};
+                if(topologyChanged) TopologyChanged?.Invoke(room);
             }
             foreach(string id in entries.Keys.Where(id=>!retained.Contains(id)).ToArray()) entries.Remove(id);
         }

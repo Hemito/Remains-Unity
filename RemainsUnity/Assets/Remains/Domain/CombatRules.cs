@@ -33,6 +33,9 @@ namespace Remains.Domain
         public bool Apply(ActorState actor, AttackEvent attack, bool contact)
         {
             if (!AttackScope.Includes(attack,actor) || !contact || actor.health <= 0 || actor.resolvedAttacks.Contains(attack.id)) return false;
+            // Cosmetic receipt keeps the body at contact time, even when applying
+            // damage immediately replaces the living pose with knockdown.
+            var bodyPosition=actor.BodyPosition;
             float previousHealth=actor.health;
             if(NpcNaturalAttack.IsNatural(attack)) NpcNaturalAttack.ValidateEvent(attack);
             if(NpcNaturalAttack.IsNatural(attack) && actor.id!=attack.naturalAttackTarget) return false;
@@ -60,7 +63,7 @@ namespace Remains.Domain
                 }
             }
             if(lost>0) Applied?.Invoke(new DamageResult {attack=attack.id,actor=actor.id,level=actor.level,
-                generation=actor.generation,amount=lost,x=actor.x,y=actor.y});
+                generation=actor.generation,amount=lost,x=bodyPosition.x,y=bodyPosition.y});
             return true;
         }
     }

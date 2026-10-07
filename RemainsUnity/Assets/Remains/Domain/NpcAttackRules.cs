@@ -40,9 +40,9 @@ namespace Remains.Domain
             AttackEvent result=null;
             if(action.kind==NpcWeaponActions.Reload) WeaponAmmunition.CompleteReload(actor,weapon);
             else if(target!=null && target.id==actor.attackTarget && ActorPresence.IsPresent(target) && target.level==actor.level &&
-                (room==null || RoomVisibility.Clear(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),target.Position+Vector2.up*.55f)))
+                (room==null || RoomVisibility.Clear(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),target.BodyPosition+Vector2.up*.55f)))
             {
-                var end=target.Position+new Vector2(0,.55f);
+                var end=target.BodyPosition+new Vector2(0,.55f);
                 Remains.Gameplay.NpcWeaponAim.Apply(actor,end,room);
                 var pose=Remains.Gameplay.WeaponPose.SampleRanged(actor);
                 var origin=pose.Muzzle;

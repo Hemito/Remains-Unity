@@ -36,7 +36,7 @@ namespace Remains.Domain
         public static void Begin(ActorState holder,ActorState body,string token)
         {
             if(string.IsNullOrEmpty(token)) throw new ArgumentException("Не задан ID захвата тела.",nameof(token));
-            var center=new TelekinesisTarget(body).Center;
+            var center=new TelekinesisTarget(body).PhysicalCenter;
             body.hold=new ActorHoldState {holder=holder.id,token=token,targetX=center.x,targetY=center.y,
                 pendingAttack=body.attackBusy};
             body.holdEpoch++;body.revision++;

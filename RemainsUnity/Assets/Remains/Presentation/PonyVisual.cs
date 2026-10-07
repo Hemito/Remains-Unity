@@ -84,7 +84,8 @@ namespace Remains.Presentation
             if (state == null) return;
             DrawnTime=sampleTime;
             properties ??=new MaterialPropertyBlock();
-            transform.position = new Vector3(state.x, state.y, 0);
+            var body=state.BodyPosition;
+            transform.position = new Vector3(body.x, body.y, 0);
             transform.localScale = new Vector3(state.facing, 1, 1);
             string next = ActorPose.Clip(state);
             if (!PonyRenderSelection.HasClip(next))

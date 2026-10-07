@@ -13,7 +13,7 @@ namespace Remains.Gameplay
             public string owner,level;
             public int generation,lifecycle,seen;
             public uint sequence;
-            public bool down,climbing;
+            public bool down,climbing,pairedBody;
             public string pose;
             public uint poseSequence;
             public Vector2 position,velocity,correction,received;
@@ -25,15 +25,17 @@ namespace Remains.Gameplay
         private readonly List<string> removed=new();
         private int tick;
         private string worldId;
+        // Lifetime diagnostic: count explicit confirmed-pair choices, never hidden floor fits.
+        public long TerrainPairSnaps {get;private set;}
 
         // The caller must not independently advance a phase belonging to this
-        // confirmed pair. Running/falling animation retains its existing clock.
-        public bool ControlsPosePhase(ActorState actor)=>actor!=null && actor.climbing && !ActorSessionRules.IsPassive(actor) &&
-            samples.TryGetValue(actor.id,out var sample) && sample.climbing && sample.owner==actor.owner &&
+        // confirmed pair. Detached adapters retain their existing animation clock.
+        public bool ControlsPosePhase(ActorState actor)=>actor!=null && !ActorSessionRules.IsPassive(actor) &&
+            samples.TryGetValue(actor.id,out var sample) && (sample.climbing || sample.pairedBody) && sample.owner==actor.owner &&
             sample.level==actor.level && sample.generation==actor.generation && sample.lifecycle==actor.lifecycleSequence &&
             sample.pose==actor.pose && sample.poseSequence==actor.poseSequence;
 
-        public void Step(WorldState world,string localOwner,float dt,System.Func<string,bool> paused,double now)
+        public void Step(WorldState world,string localOwner,float dt,System.Func<string,bool> paused,double now,bool pairBoundBodyPhase=false)
         {
             if(worldId!=world.worldId) {Clear();worldId=world.worldId;}
             tick++;dt=Mathf.Max(0,dt);
@@ -41,14 +43,15 @@ namespace Remains.Gameplay
             {
                 if(actor.owner==localOwner || !ActorPresence.IsPresent(actor)) {samples.Remove(actor.id);continue;}
                 bool climbing=actor.climbing && !ActorSessionRules.IsPassive(actor);
+                bool pairedBody=pairBoundBodyPhase && !ActorSessionRules.IsPassive(actor) && ActorBodySupport.Sample(actor).HasFootProfile;
                 bool reset=!samples.TryGetValue(actor.id,out var sample) || sample.owner!=actor.owner || sample.level!=actor.level ||
                     sample.generation!=actor.generation || sample.lifecycle!=actor.lifecycleSequence || sample.down!=ActorSessionRules.IsPassive(actor) ||
-                    !ActorMotionReplication.IsNewer(actor.motionSequence,sample.sequence) && sample.climbing!=climbing;
+                    !ActorMotionReplication.IsNewer(actor.motionSequence,sample.sequence) && (sample.climbing!=climbing || sample.pairedBody!=pairedBody);
                 if(reset)
                 {
                     sample=new Sample {owner=actor.owner,level=actor.level,generation=actor.generation,lifecycle=actor.lifecycleSequence,
                         sequence=actor.motionSequence,down=ActorSessionRules.IsPassive(actor),position=actor.Position,received=actor.Position,velocity=actor.Velocity,
-                        climbing=climbing,pose=actor.pose,poseSequence=actor.poseSequence,phase=actor.poseTime,receivedPhase=actor.poseTime};
+                        climbing=climbing,pairedBody=pairedBody,pose=actor.pose,poseSequence=actor.poseSequence,phase=actor.poseTime,receivedPhase=actor.poseTime};
                     samples[actor.id]=sample;
                     ObserveClock(actor,sample,now);
                 }
@@ -56,15 +59,15 @@ namespace Remains.Gameplay
                 {
                     var received=actor.Position;
                     float age=ObserveClock(actor,sample,now);
-                    var projected=ActorSessionRules.IsPassive(actor) || climbing?received:received+actor.Velocity*age;
+                    var projected=ActorSessionRules.IsPassive(actor) || climbing || pairedBody?received:received+actor.Velocity*age;
                     // Teleports must not be traversed as motion. Normal envelopes include the last observed speed.
                     float discontinuity=Mathf.Max(3,(sample.velocity.magnitude+actor.Velocity.magnitude)*PredictionSeconds*2);
                     bool teleport=Vector2.Distance(received,sample.received)>discontinuity;
-                    if(climbing)
+                    if(climbing || pairedBody)
                     {
                         // A hold resets phase; a direction/rate or pose change is
                         // a different path. Never traverse that reset as an animation.
-                        bool changedPath=!sample.climbing || sample.pose!=actor.pose || sample.poseSequence!=actor.poseSequence ||
+                        bool changedPath=sample.climbing!=climbing || sample.pairedBody!=pairedBody || sample.pose!=actor.pose || sample.poseSequence!=actor.poseSequence ||
                             (sample.velocity-actor.Velocity).sqrMagnitude>.000001f ||
                             (actor.poseTime-sample.receivedPhase)*actor.vy<-.000001f;
                         if(teleport || changedPath)
@@ -72,34 +75,62 @@ namespace Remains.Gameplay
                         else
                         {sample.correction=received-sample.position;sample.phaseCorrection=actor.poseTime-sample.phase;}
                     }
-                    else if(teleport || sample.climbing)
+                    else if(teleport || sample.climbing || sample.pairedBody)
                     {sample.position=projected;sample.correction=Vector2.zero;sample.phaseCorrection=0;}
                     else sample.correction=projected-sample.position;
                     sample.received=received;sample.sequence=actor.motionSequence;sample.velocity=actor.Velocity;sample.age=age;
-                    sample.climbing=climbing;sample.pose=actor.pose;sample.poseSequence=actor.poseSequence;sample.receivedPhase=actor.poseTime;
+                    sample.climbing=climbing;sample.pairedBody=pairedBody;sample.pose=actor.pose;sample.poseSequence=actor.poseSequence;sample.receivedPhase=actor.poseTime;
                 }
                 sample.seen=tick;
-                if(sample.clockReady && !paused(actor.level) && LevelActivity.HasConnectedPlayer(world,actor.level))
+                bool running=sample.clockReady && !paused(actor.level) && LevelActivity.HasConnectedPlayer(world,actor.level);
+                if(running)
                 {
                     // Bodies interpolate toward confirmed positions only: predicting their
                     // last falling velocity would carry them through an unseen landing.
-                    float predict=ActorSessionRules.IsPassive(actor) || sample.climbing?0:Mathf.Min(dt,Mathf.Max(0,PredictionSeconds-sample.age));
+                    float predict=ActorSessionRules.IsPassive(actor) || sample.climbing || sample.pairedBody?0:Mathf.Min(dt,Mathf.Max(0,PredictionSeconds-sample.age));
                     sample.age+=dt;
                     float fraction=1-Mathf.Exp(-dt/CorrectionSeconds);
                     var correction=sample.correction*fraction;
                     sample.correction-=correction;
                     sample.position+=sample.velocity*predict+correction;
-                    if(sample.climbing)
+                    if(sample.climbing || sample.pairedBody)
                     {
                         float phaseCorrection=sample.phaseCorrection*fraction;
                         sample.phaseCorrection-=phaseCorrection;sample.phase+=phaseCorrection;
                     }
                 }
                 actor.Position=sample.position;
-                if(sample.climbing) actor.poseTime=sample.phase;
+                if(sample.climbing || sample.pairedBody) actor.poseTime=sample.phase;
+                if(running) ResolveTerrainPair(actor,sample);
             }
             removed.Clear();foreach(var pair in samples) if(pair.Value.seen!=tick) removed.Add(pair.Key);
             foreach(string id in removed) samples.Remove(id);
+        }
+        private void ResolveTerrainPair(ActorState actor,Sample sample)
+        {
+            if(!sample.pairedBody || actor.vy!=0 || actor.climbing || ActorSessionRules.IsPassive(actor) ||
+                sample.owner!=actor.owner || sample.level!=actor.level || sample.generation!=actor.generation ||
+                sample.lifecycle!=actor.lifecycleSequence || sample.sequence!=actor.motionSequence ||
+                sample.pose!=actor.pose || sample.poseSequence!=actor.poseSequence) return;
+            var intermediate=ActorBodySupport.Sample(actor);
+            if(intermediate.Outcome!=ActorBodySupportOutcome.Unsupported) return;
+            var position=actor.Position;float phase=actor.poseTime;bool accepted=false;
+            try
+            {
+                // Probe the same actor/binding synchronously, before publishing it to any
+                // consumer. A real endpoint must fit; no contact is projected onto a chord.
+                actor.Position=sample.received;actor.poseTime=sample.receivedPhase;
+                var confirmed=ActorBodySupport.Sample(actor);
+                if(!confirmed.IsBound || !confirmed.Grounded || !confirmed.HasContact ||
+                    confirmed.GeometryRevision!=intermediate.GeometryRevision) return;
+                sample.position=sample.received;sample.phase=sample.receivedPhase;
+                sample.correction=Vector2.zero;sample.phaseCorrection=0;
+                TerrainPairSnaps++;accepted=true;
+            }
+            finally
+            {
+                if(!accepted) {actor.Position=position;actor.poseTime=phase;}
+            }
         }
         private static float ObserveClock(ActorState actor,Sample sample,double now)
         {

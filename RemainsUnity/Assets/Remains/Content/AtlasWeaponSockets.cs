@@ -36,7 +36,7 @@ namespace Remains.Content
             var offset=new Vector2((point.x-data.cellWidth*data.pivotX)/data.pixelsPerUnit,
                 (data.cellHeight*(1-data.pivotY)-point.y)/data.pixelsPerUnit);
             if((actor.facing<0)!=data.facesLeft) offset.x=-offset.x;
-            return actor.Position+offset;
+            return actor.BodyPosition+offset;
         }
     }
 }

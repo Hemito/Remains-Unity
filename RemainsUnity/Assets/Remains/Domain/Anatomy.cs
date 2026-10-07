@@ -136,7 +136,7 @@ namespace Remains.Domain
                 {Debug.LogWarning($"Нет графической привязки области {region.id}: actor={actor.id}, pose={actor.pose}, frame={frame}.");return false;}
                 offset=centers[frame].Value;
             }
-            center=actor.Position+new Vector2(offset.x*actor.facing,offset.y);
+            center=actor.BodyPosition+new Vector2(offset.x*actor.facing,offset.y);
             return true;
         }
 

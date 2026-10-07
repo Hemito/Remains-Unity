@@ -55,7 +55,7 @@ namespace Remains.Runtime
         {
             public int phase,baseline,after,initialRounds,finalRounds,width,height;
             public string source,observer,level,texture,weapon,receipt,clipResource,geometry;
-            public Vector2 fixture,aim,contact;public Rect targetBounds;
+            public Vector2 fixture,aim,contact,listenerAnchor,listenerBody;public Rect targetBounds;
             public bool captured;public float quietSeconds;public Voice[] voices;
         }
         [Serializable] private sealed class Report
@@ -256,10 +256,12 @@ namespace Remains.Runtime
                     "Контакт с другим authored solid: receipt="+receipt+", texture="+texture+", position="+position);
                 if(!receipts.Add(receipt)){Require(delta==0 && fresh.Length==0,"Повтор контакта создал новый голос: "+receipt);return;}
                 Require(receipts.Count==1 && delta==1 && fresh.Length==1,"Контакт не создал единственный нужный AudioSource: receipt="+receipt+", delta="+delta+", voices="+fresh.Length);
-                float expected=Mathf.Clamp01(runtime.Audio.Volume)*current.Gain*Remains.Presentation.GameplayAudio.Attenuation(Vector2.Distance(position,runtime.Session.LocalActor.Position));
+                var listener=runtime.Session.LocalActor;var listenerBody=listener.BodyPosition;
+                float expected=Mathf.Clamp01(runtime.Audio.Volume)*current.Gain*Remains.Presentation.GameplayAudio.Attenuation(Vector2.Distance(position,listenerBody));
                 var voice=fresh[0];
                 Require(voice.volume>0 && Mathf.Abs(voice.volume-expected)<.0001f && voice.clip.samples>0,"Реальная громкость/импорт не соответствуют contact mapping: "+receipt);
-                witness.receipt=receipt;witness.contact=position;witness.voices=new[]{new Voice {id=voice.GetInstanceID(),clip=voice.clip.name,
+                witness.receipt=receipt;witness.contact=position;witness.listenerAnchor=listener.Position;witness.listenerBody=listenerBody;
+                witness.voices=new[]{new Voice {id=voice.GetInstanceID(),clip=voice.clip.name,
                     samples=voice.clip.samples,channels=voice.clip.channels,frequency=voice.clip.frequency,volume=voice.volume,expectedVolume=expected,muted=voice.mute,playing=voice.isPlaying}};
                 evidenceAt=Time.unscaledTime;capturePending=true;
             }
