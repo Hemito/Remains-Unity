@@ -10,9 +10,13 @@ namespace Remains.Presentation
         private readonly Dictionary<Sprite,(Sprite halo,Material material,Bounds bounds)> frames=new();
         private Sprite current;
         private SpriteRenderer halo;
+        private MaterialPropertyBlock properties;
+        private Color currentColor;
         public bool Visible=>halo!=null && halo.enabled;
         public Sprite CurrentFrame=>current;
         public int PreparedFrameCount=>frames.Count;
+        public SpriteRenderer Renderer=>halo;
+        public Color CurrentColor=>currentColor;
         public void Initialize(SpriteRenderer artwork,Color color,float border,Sprite[] preparedFrames=null)
         {
             if(!float.IsFinite(border) || border<=0 || !float.IsFinite(color.r) || !float.IsFinite(color.g) || !float.IsFinite(color.b) || !float.IsFinite(color.a))
@@ -35,8 +39,21 @@ namespace Remains.Presentation
                 frames.Add(frame,(haloSprite,material,new Bounds(bounds.center,bounds.size+new Vector3(border*2,border*2,0))));
             }
             halo=gameObject.AddComponent<SpriteRenderer>();
+            properties=new MaterialPropertyBlock();
             halo.sortingLayerID=artwork.sortingLayerID;halo.sortingOrder=artwork.sortingOrder+1;SetFrame(sprite);
+            SetColor(color);
             halo.enabled=false;
+        }
+        // All frame materials/geometry are prepared once. A holder/color change
+        // changes this renderer's property block, including after SetFrame.
+        public void SetColor(Color color)
+        {
+            if(!float.IsFinite(color.r) || !float.IsFinite(color.g) || !float.IsFinite(color.b) || !float.IsFinite(color.a) ||
+                color.r<0 || color.r>1 || color.g<0 || color.g>1 || color.b<0 || color.b>1 || color.a<0 || color.a>1)
+                throw new InvalidOperationException("Некорректный цвет магии удерживаемого предмета: "+name);
+            if(halo==null || properties==null) throw new InvalidOperationException("Свечение не подготовлено: "+name);
+            if(currentColor==color && properties.HasColor("_Color")) return;
+            currentColor=color;properties.SetColor("_Color",color);halo.SetPropertyBlock(properties);
         }
         public void SetFrame(Sprite sprite)
         {

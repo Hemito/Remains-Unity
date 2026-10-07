@@ -37,7 +37,7 @@ namespace Remains.Presentation
                 host.interactable=canStart?.Invoke()??true;
                 host.GetComponentInChildren<Text>().text=result.Item1==null?"Начать в новом мире":"Продолжить выбранный мир";
                 description.text=result.Item1==null?"Сохранённый мир не выбран.\n«Миры и сохранения»: выбор, имя и удаление.":
-                    MainMenuPanel.DescribeWorld(result.Item2,result.Item1.branchId??"",result.Item1.revision);
+                    MainMenuPanel.DescribeWorld(result.Item2,result.Item1.branchId??"",result.Item1.revision,result.Item1.snapshot);
                 if(result.Item3) description.text+="\nВ библиотеке есть предупреждения; подробности — в списке миров и журнале.";
             }
             catch(Exception error)

@@ -22,6 +22,7 @@ namespace Remains.Editor
         {
             var world=new WorldState();
             world.actors.Add(new ActorState {id="z-target",actorType="training-dummy",level="hub"});
+            world.actors.Add(new ActorState {id="a-armored-target",actorType="training-armored-dummy",health=500,level="hub"});
             world.actors.Add(new ActorState {id="z-body",down=true,level="hub"});
             world.actors.Add(new ActorState {id="a-npc",level="hub"});
             world.actors.Add(new ActorState {id="0-player",player=true,connected=true,level="hub"});
@@ -39,6 +40,9 @@ namespace Remains.Editor
                 table.GetOrder(WorldVisualKind.Prop,"000-held"),table.GetOrder(WorldVisualKind.Effect,"000-effect")};
             for(int i=1;i<ordered.Length;i++) Require(ordered[i]>ordered[i-1],"ID или позиция отменили категорию / общий tie-breaker предметов и дверей");
             Require(!table.TryGet(WorldVisualKind.Actor,"other-level",out _,out _),"Другой уровень попал в видимую таблицу");
+            Require(table.GetCategory(WorldVisualKind.Actor,"a-armored-target")==WorldVisualCategory.Scenery &&
+                table.GetOrder(WorldVisualKind.Actor,"a-armored-target")<table.GetOrder(WorldVisualKind.Actor,"z-body"),
+                "Настоящий тип броневой мишени закрывает лежащего персонажа как живой NPC");
             int rebuilds=table.Rebuilds;string before=StateJson.ToJson(world);
             world.actors.Reverse();world.props.Reverse();world.containers.Reverse();world.doors.Reverse();
             table.Reconcile(world.Copy(),"hub");Require(table.Rebuilds==rebuilds,"Перестановка снимка пересобрала одинаковые категории");
@@ -48,7 +52,7 @@ namespace Remains.Editor
             Require(StateJson.ToJson(world)==before,"Таблица изменила сериализованное состояние");
             for(int i=0;i<400;i++)
             {
-                var actor=world.actors[2];actor.x+=.01f;actor.facing=-actor.facing;actor.weaponAngle++;
+                var actor=world.Find("a-npc");actor.x+=.01f;actor.facing=-actor.facing;actor.weaponAngle++;
                 actor.owner="handoff-owner";actor.generation++;table.Reconcile(world,"hub");
             }
             Require(table.Rebuilds==rebuilds,"Движение/наведение/смена владельца требуют пересортировки");

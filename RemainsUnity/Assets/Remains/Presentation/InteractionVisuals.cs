@@ -16,6 +16,9 @@ namespace Remains.Presentation
         private ActorVisualLayers layers;
         private PropArtwork propArtwork;
         private WeaponShotAnimation shotAnimation;
+        private WeaponReloadAnimation reloadAnimation;
+        private HeldPropColorSource heldColors;
+        public WeaponReloadAnimation ReloadAnimation=>reloadAnimation;
         private readonly Dictionary<string,Sprite> sprites=new();
         private readonly Dictionary<string,PropView> props=new();
         private readonly Dictionary<string,PropView> containers=new();
@@ -27,13 +30,24 @@ namespace Remains.Presentation
         public WeaponView FindWeapon(string actorId)=>weapons.TryGetValue(actorId,out var view)?view:null;
         public PropView FindProp(string id)=>props.TryGetValue(id,out var view)?view:null;
         public PropView FindContainer(string id)=>containers.TryGetValue(id,out var view)?view:null;
+        // Install once before a world is presented. This source is rebuilt in
+        // the same event as view binding, before any first draw of a new epoch.
+        public void ConfigureHeldAppearance(HeldPropColorSource source)
+        {
+            if(session==null) throw new InvalidOperationException("Цвет удержания подключён до инициализации представлений.");
+            if(heldColors!=null) throw new InvalidOperationException("Повторный источник цветов удержания в представлениях.");
+            heldColors=source??throw new ArgumentNullException(nameof(source));Refresh();
+        }
         public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers)
+            =>Initialize(session,adapter,grenades,geometry,layers,null);
+        public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers,WeaponReloadController reload)
         {
             this.session=session;this.grenades=grenades;this.layers=layers;this.geometry=geometry;
             propArtwork=new PropArtwork();
             grenadePrefab=GrenadeArtwork.LoadPrefab();
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
             shotAnimation=gameObject.AddComponent<WeaponShotAnimation>();shotAnimation.Initialize(session);
+            reloadAnimation=gameObject.AddComponent<WeaponReloadAnimation>();reloadAnimation.Initialize(session,reload);
             ShotArtwork.Prepare();
             session.Changed+=Refresh;
             grenades.Created+=OnGrenadeCreated;
@@ -67,6 +81,9 @@ namespace Remains.Presentation
         private void Refresh()
         {
             string level=session.LocalActor?.level;
+            if(session.World!=null && level!=null && heldColors==null)
+                throw new InvalidOperationException("Не подключён источник цвета удержания: world="+session.World.worldId+", level="+level+".");
+            heldColors?.Rebuild(session.World);
             retainedProps.Clear();retainedContainers.Clear();retainedWeapons.Clear();retainedFlights.Clear();
             if(session.World==null || level==null)
             {
@@ -85,10 +102,15 @@ namespace Remains.Presentation
                 if(!containers.TryGetValue(container.id,out var view))
                 {view=propArtwork.CreateContainerView(container);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Container,container.id);containers.Add(container.id,view);}
                 view.ApplyContainerAppearance(container);
+                view.ApplyHeldAppearance(container,heldColors);
                 view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),0);view.SetVisible(container.level==session.LocalActor?.level);
             }
-            foreach(var prop in session.World.props) if(prop.level==level && !props.ContainsKey(prop.id))
-            {var view=propArtwork.CreateView(prop.definition,prop.id,prop.width);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Prop,prop.id);props.Add(prop.id,view);}
+            foreach(var prop in session.World.props) if(prop.level==level)
+            {
+                if(!props.TryGetValue(prop.id,out var view))
+                {view=propArtwork.CreateView(prop.definition,prop.id,prop.width);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Prop,prop.id);props.Add(prop.id,view);}
+                view.ApplyHeldAppearance(prop,heldColors);
+            }
             foreach(var actor in session.World.actors)
                 if(ActorPresence.IsPresent(actor) && !string.IsNullOrEmpty(actor.weapon) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
                 {
@@ -132,6 +154,7 @@ namespace Remains.Presentation
                 {view.gameObject.SetActive(false);Destroy(view.gameObject);view=CreateWeapon(actor);weapons[actor.id]=view;}
                 view.SetVisible(ActorPresence.IsPresent(actor) && !ActorSessionRules.IsPassive(actor) && actor.level==session.LocalActor?.level);
                 sprite=shotAnimation.Select(actor,sprite);
+                sprite=reloadAnimation.Select(actor,sprite);
                 view.SetFrame(sprite);
                 var direction=WeaponPose.Direction(actor);
                 view.transform.position=actor.weapon is "spear" or "crowbar"?
@@ -146,6 +169,7 @@ namespace Remains.Presentation
                 view.transform.rotation=Quaternion.Euler(0,0,flight.state.angle);view.flipY=flight.state.mirrored;
             }
             shotAnimation.Step(Time.deltaTime);
+            reloadAnimation.Step(Time.deltaTime);
         }
     }
 

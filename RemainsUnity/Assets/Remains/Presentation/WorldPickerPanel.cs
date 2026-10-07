@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Remains.Domain;
 using Remains.Persistence;
 using UnityEngine;
@@ -13,6 +14,7 @@ namespace Remains.Presentation
         private SaveStore store;
         private WorldCatalogResult catalog;
         private Dictionary<string,string> names;
+        private WorldCopyLabels labels;
         private Dictionary<string,RectTransform> choices;
         private Action changed;
         private Action<string> notice;
@@ -42,6 +44,8 @@ namespace Remains.Presentation
             operation.Run(token=>(store.Catalog.Read(token),new WorldLibrary(store).Names()),result=>
             {
                 catalog=result.Item1;names=result.Item2;
+                labels=new WorldCopyLabels(catalog.entries.Select(entry=>entry.summary.branchId).Append(catalog.selected?.branchId),
+                    catalog.entries.Select(entry=>entry.summary.snapshot).Append(catalog.selected?.snapshot));
                 foreach(string warning in catalog.warnings) Debug.LogWarning(warning);
                 Render();
             },error=>
@@ -60,7 +64,8 @@ namespace Remains.Presentation
                 if(!visible) continue;
                 var entry=catalog.entries[index];var summary=entry.summary;
                 string relation=catalog.selected==null?"Сохранённая копия":WorldHistory.Description(summary.CompareTo(catalog.selected));
-                view.ShowChoice(row,WorldLibrary.DisplayName(names,summary.worldId),summary.branchId??"",summary.revision,relation,catalog.selected?.snapshot==summary.snapshot);
+                view.ShowChoice(row,WorldLibrary.DisplayName(names,summary.worldId),labels.Branch(summary.branchId),labels.Snapshot(summary.snapshot),
+                    summary.revision,relation,catalog.selected?.snapshot==summary.snapshot);
                 choice.interactable=true;manage.interactable=true;choices[summary.snapshot]=choice.GetComponent<RectTransform>();
                 choice.onClick.AddListener(()=>Select(entry));
                 manage.onClick.AddListener(()=>WorldManagementPanel.Open(transform.parent,store,summary.worldId,()=>{Reload();changed();},WorldLibrary.DisplayName(names,summary.worldId)));

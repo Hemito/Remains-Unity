@@ -12,11 +12,14 @@ namespace Remains.Content
         public Remains.Presentation.WeaponView Presentation=>presentation;
         [SerializeField,InspectorName("Анимация выстрела (необязательно)")] private WeaponShotClip shotAnimation;
         public WeaponShotClip ShotAnimation=>shotAnimation;
+        [SerializeField,InspectorName("Анимация перезарядки (необязательно)")] private WeaponReloadClip reloadAnimation;
+        public WeaponReloadClip ReloadAnimation=>reloadAnimation;
         [SerializeField,InspectorName("Префаб летящей гранаты")] private SpriteRenderer grenadeFlight;
         public SpriteRenderer GrenadeFlight=>grenadeFlight;
         public void SetGrenadeFlight(SpriteRenderer value)=>grenadeFlight=value;
         public string Id=>definition.id;
         public void SetShotAnimation(WeaponShotClip value)=>shotAnimation=value;
+        public void SetReloadAnimation(WeaponReloadClip value)=>reloadAnimation=value;
         public void SetPresentation(Remains.Presentation.WeaponView value)=>presentation=value;
         public WeaponDefinition CreateDefinition()
         {
@@ -32,6 +35,16 @@ namespace Remains.Content
             {Debug.LogWarning($"Оружие {name}: задайте стабильный ID определения.",this);return;}
             try {WeaponCatalogLoader.Validate(CreateDefinition(),"ассет "+name);}
             catch(System.IO.InvalidDataException error) {Debug.LogWarning(error.Message,this);}
+            if(reloadAnimation!=null)
+            {
+                try
+                {
+                    if(string.IsNullOrEmpty(definition.ammo) || definition.reloadSeconds<=0)
+                        throw new System.InvalidOperationException($"Оружие {definition.id}: анимация перезарядки задана без боеприпаса/положительного времени.");
+                    reloadAnimation.ValidateAgainst(presentation==null?null:presentation.Artwork.sprite);
+                }
+                catch(System.InvalidOperationException error) {Debug.LogWarning(error.Message,this);}
+            }
         }
     }
 }

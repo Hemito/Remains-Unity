@@ -26,12 +26,27 @@ MonoBehaviour:
     reloadSeconds: 1.5
     projectileSpeed: 1200
     projectileSpeedVariation: 0.2
-    shotSpreadHalfAngleDegrees: 2.5
     projectileLifetime: 3.3333333
+    shotSpreadHalfAngleDegrees: 2.5
+    grenadeFuseSeconds: 0
+    grenadeRestitution: 0
+    grenadeGroundRetention: 0
+    grenadeGravity: 0
+    grenadeMaxLaunchSpeed: 0
+    grenadeFullEffortDistance: 0
+    grenadeAimLift: 0
+    grenadeSpinRate: 0
+    grenadeAngularRetention: 0
     meleeContactStart: 0
     meleeContactEnd: 1
     meleeMotion: []
+    holdingArea:
+      version: 0
+      radius: 0
+      climbingRadius: 0
     stopAtFirstActor: 1
     stopAtTerrain: 1
   presentation: {fileID: 3058403632260883455, guid: 8b1dc954b82116b43b3fbb803dc9e739, type: 3}
   shotAnimation: {fileID: 11400000, guid: c372e1e4f5ad41449a359db341bbb591, type: 2}
+  reloadAnimation: {fileID: 11400000, guid: ec253bd666f7671449d2a81b8a8f5f4e, type: 2}
+  grenadeFlight: {fileID: 0}

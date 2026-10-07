@@ -49,6 +49,19 @@ namespace Remains.Content
                 yield return asset;
             }
         }
+        public System.Collections.Generic.IEnumerable<WeaponAsset> ReloadAnimatedWeapons()
+        {
+            foreach(var asset in weapons)
+            {
+                if(asset==null) throw new InvalidOperationException("Нет ссылки на оружие в "+name);
+                if(asset.ReloadAnimation==null) continue;
+                var definition=asset.CreateDefinition();
+                if(asset.Presentation==null || string.IsNullOrEmpty(definition.ammo) || definition.reloadSeconds<=0)
+                    throw new InvalidOperationException("Нет префаба/правила перезарядки у анимированного оружия: "+asset.Id);
+                asset.ReloadAnimation.ValidateAgainst(asset.Presentation.Artwork.sprite);
+                yield return asset;
+            }
+        }
         public System.Collections.Generic.IEnumerable<Remains.Presentation.WeaponView> Presentations()
         {
             var ids=new System.Collections.Generic.Dictionary<string,Remains.Presentation.WeaponView>(StringComparer.Ordinal);

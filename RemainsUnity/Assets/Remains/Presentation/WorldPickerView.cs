@@ -15,9 +15,12 @@ namespace Remains.Presentation
         [InspectorName("Следующая страница")] public Button Next;
         [InspectorName("Закрыть")] public Button Close;
         public void ShowChoice(int row,string worldName,string branchId,long revision,string relation,bool selected)
+            =>ShowChoice(row,worldName,WorldLobbyView.IdentityLabel(branchId,new[]{branchId}),"нет данных",revision,relation,selected);
+        public void ShowChoice(int row,string worldName,string branchLabel,string snapshotLabel,long revision,string relation,bool selected)
         {
-            string branch=branchId.Substring(0,Math.Min(8,branchId.Length));
-            Choices[row].GetComponentInChildren<Text>().text=$"{worldName}\nВетвь {branch} · ревизия {revision}\n{relation}";
+            var text=Choices[row].GetComponentInChildren<Text>();
+            text.supportRichText=false;
+            text.text=WorldCopyLabels.ChoiceText(worldName,branchLabel,snapshotLabel,revision,relation,selected);
             OriginalButtonStyle.SetSelected(Choices[row],selected);
         }
         public void Validate()

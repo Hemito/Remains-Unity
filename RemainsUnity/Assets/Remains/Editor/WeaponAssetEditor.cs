@@ -15,6 +15,8 @@ namespace Remains.Editor
             void Field(string id,string label)=>EditorGUILayout.PropertyField(definition.FindPropertyRelative(id),new GUIContent(label),true);
             Field("id","Стабильный ID");Field("damage","Базовый урон");Field("range","Дальность, м");Field("cooldown","Интервал атак, с");Field("manaCost","Расход маны");
             EditorGUILayout.LabelField("Боеприпасы",EditorStyles.boldLabel);Field("ammo","ID боеприпаса");
+            using(new EditorGUI.DisabledScope(string.IsNullOrEmpty(definition.FindPropertyRelative("ammo").stringValue) || definition.FindPropertyRelative("reloadSeconds").floatValue<=0))
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("reloadAnimation"),new GUIContent("Анимация перезарядки (необязательно)"));
             using(new EditorGUI.DisabledScope(string.IsNullOrEmpty(definition.FindPropertyRelative("ammo").stringValue)))
             {Field("magazineSize","Ёмкость магазина");Field("ammoPerShot","Расход за выстрел");Field("reloadSeconds","Перезарядка, с");}
             EditorGUILayout.LabelField("Снаряд",EditorStyles.boldLabel);Field("projectileSpeed","Скорость, м/с");

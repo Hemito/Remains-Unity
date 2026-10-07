@@ -7,7 +7,8 @@ namespace Remains.Gameplay
     public sealed class WeaponReloadController
     {
         private readonly CoopSession session;
-        private string actorId,weapon,weaponItem;
+        private string actorId,weapon,weaponItem,world,level;
+        private long selectionRevision;
         private int generation,lifecycle;
         private float remaining;
         public bool Active => actorId!=null;
@@ -24,6 +25,7 @@ namespace Remains.Gameplay
             { session.ShowNotice("Перезарядка не нужна или нет подходящих патронов в запасе.");return false; }
             actorId=actor.id;weapon=selected;generation=actor.generation;lifecycle=actor.lifecycleSequence;
             weaponItem=actor.equippedWeaponItem;
+            world=session.World?.worldId;level=actor.level;selectionRevision=actor.weaponSelectionRevision;
             remaining=definition.reloadSeconds;
             session.ShowNotice("Перезарядка…");
             Started?.Invoke(actor,selected);
@@ -35,6 +37,7 @@ namespace Remains.Gameplay
             if(!Active) return;
             var actor=session.World?.Find(actorId);
             if(actor==null || actor.down || actor.owner!=session.LocalOwner || selected!=weapon ||
+                session.World.worldId!=world || actor.level!=level || actor.weaponSelectionRevision!=selectionRevision ||
                 actor.generation!=generation || actor.lifecycleSequence!=lifecycle ||
                 actor.weaponInventoryVersion!=0 && (actor.equippedWeaponItem!=weaponItem || !WeaponInventory.Available(actor,weapon)))
             {actorId=null;remaining=0;Finished?.Invoke();session.ShowNotice("Перезарядка прервана.");return;}

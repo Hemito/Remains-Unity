@@ -12,7 +12,7 @@ namespace Remains.Presentation
         [SerializeField,InspectorName("Масштабировать по ширине тела")] private bool fitStateWidth=true;
         [SerializeField,InspectorName("Явный профиль контейнера")] private Remains.Content.ContainerArtworkProfileAsset containerArtwork;
         [Header("Свечение при удержании")]
-        [SerializeField,ColorUsage(false),InspectorName("Цвет магии")] private Color heldColor=new(.1f,1,.15f,1);
+        [SerializeField,ColorUsage(false),InspectorName("Цвет автономной редакторской диагностики")] private Color heldColor=new(.1f,1,.15f,1);
         [SerializeField,Range(.005f,.25f),InspectorName("Радиус в координатах спрайта")] private float heldRadius=.08f;
         [SerializeField,Range(0,1),InspectorName("Интенсивность")] private float heldIntensity=.7f;
         public SpriteRenderer Artwork=>artwork;
@@ -21,6 +21,9 @@ namespace Remains.Presentation
         private SortingGroup sorting;
         private WorldVisualOrderBinding depth;
         private bool? standaloneHeld;
+        private HeldPropColor heldAppearance;
+        private bool hasHeldAppearance,previewWarning;
+        private (string world,string id,string owner,string level,int generation)? missingColor;
         public SortingGroup Sorting=>sorting;
         public WorldVisualOrderBinding Depth=>depth;
         public int Order=>sorting!=null?sorting.sortingOrder:artwork.sortingOrder;
@@ -31,10 +34,34 @@ namespace Remains.Presentation
             depth=gameObject.AddComponent<WorldVisualOrderBinding>();depth.Initialize(orders,kind,id,sorting);
         }
         public bool HeldGlowVisible=>glow!=null && glow.Visible;
+        public SpriteRenderer HeldGlowRenderer=>glow?.Renderer;
+        public string HeldGlowHolder=>hasHeldAppearance?heldAppearance.HolderId:null;
+        public int? HeldGlowMagic=>hasHeldAppearance?heldAppearance.Magic:null;
+        public int HeldGlowPreparedFrameCount=>glow?.PreparedFrameCount??0;
         public bool FitsStateWidth=>fitStateWidth;
         public PropVisualAnchor VisualAnchor=>visualAnchor;
         public Remains.Content.ContainerArtworkProfileAsset ContainerArtwork=>containerArtwork;
         public void ConfigureContainerArtwork(Remains.Content.ContainerArtworkProfileAsset profile)=>containerArtwork=profile;
+        public void ApplyHeldAppearance(Remains.Domain.PropState state,HeldPropColorSource source)
+        {
+            if(source==null) throw new ArgumentNullException(nameof(source));
+            PrepareHeldGlow();
+            hasHeldAppearance=source.TryResolve(state,out heldAppearance,out string reason);
+            if(hasHeldAppearance)
+            {
+                var color=heldAppearance.Color;color.a=heldIntensity;glow.SetColor(color);missingColor=null;
+            }
+            else if(state.held) WarnMissingColor(source.WorldId,state,reason);
+            else missingColor=null;
+            glow.Draw(state.held && hasHeldAppearance);
+        }
+        private void WarnMissingColor(string world,Remains.Domain.PropState state,string reason)
+        {
+            var context=(world,state.id,state.owner,state.level,state.generation);
+            if(missingColor.HasValue && missingColor.Value==context) return;
+            missingColor=context;
+            Debug.LogWarning($"Свечение предмета скрыто: world={world}, prop={state.id}, owner={state.owner}, level={state.level}, generation={state.generation}; {reason}",this);
+        }
         public void ApplyContainerAppearance(Remains.Domain.ContainerState state)
         {
             if(state.presentationItem!=null) return;
@@ -86,7 +113,20 @@ namespace Remains.Presentation
                 if(Application.isPlaying) throw new InvalidOperationException("Предмет без общей таблицы слоёв: "+state.id);
                 standaloneHeld=state.held;sorting.sortingOrder=WorldVisualOrderPolicy.FirstOrder(WorldVisualOrderPolicy.Category(state));
             }
-            glow?.Draw(state.held);
+            bool show=state.held;
+            if(show && (!hasHeldAppearance || !heldAppearance.Matches(depth?.Orders.WorldId,state)))
+            {
+                if(depth!=null || Application.isPlaying)
+                {show=false;WarnMissingColor(depth?.Orders.WorldId,state,"Нет цвета подтверждённого текущего держателя для этой версии предмета.");}
+                else
+                {
+                    if(!previewWarning)
+                    {previewWarning=true;Debug.LogWarning($"Автономная редакторская диагностика свечения: prop={state.id}, view={name}; мира/держателя нет, использован явно заданный диагностический цвет. Это не игровой вид удержания.",this);}
+                    var color=heldColor;color.a=heldIntensity;glow?.SetColor(color);
+                }
+            }
+            if(!state.held) missingColor=null;
+            glow?.Draw(show);
         }
         public void SetArtwork(SpriteRenderer value)=>artwork=value;
         public void ConfigurePlacementArtwork() {visualAnchor=PropVisualAnchor.PlacementAnchor;fitStateWidth=false;}

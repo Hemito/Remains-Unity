@@ -22,8 +22,9 @@ namespace Remains.Presentation
             view.Address.interactable=!busy;
             view.Character.interactable=!busy;
         }
-        public static string DescribeWorld(string name,string branch,long revision)=>
-            $"Выбран: {name}\nВетвь {branch.Substring(0,Math.Min(8,branch.Length))} · состояние №{revision}";
+        public static string DescribeWorld(string name,string branch,long revision)=>DescribeWorld(name,branch,revision,null);
+        public static string DescribeWorld(string name,string branch,long revision,string snapshot)=>
+            WorldCopyLabels.SelectedText(name,branch,revision,snapshot);
         public RectTransform SoundRect=>view.Settings.GetComponent<RectTransform>();
         public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame,Action characters=null,Action compareCopies=null)
         {

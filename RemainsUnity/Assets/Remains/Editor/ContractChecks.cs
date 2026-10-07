@@ -148,7 +148,8 @@ namespace Remains.Editor
             _=new Remains.Presentation.InventoryArtwork();
             LightingChecks.Run();
             RoomLightingUpdateChecks.Run();
-            MotionAudioChecks.Run();ReloadAudioChecks.Run();InventoryAudioChecks.Run();
+            MotionAudioChecks.Run();ReloadAudioChecks.Run();WeaponReloadChecks.Run();InventoryAudioChecks.Run();
+            HeldPropColorChecks.Run();WorldLibraryIdentityChecks.Run();
             DamageFeedbackChecks.Run();
             OwnershipStabilityChecks.Run();
             WeaponPoseChecks.Run();WeaponElevationChecks.Run();HeldItemChecks.Run();

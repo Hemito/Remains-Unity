@@ -12,7 +12,7 @@ namespace Remains.Presentation
     {
         public const int SceneryRoomOrder=0,ActorPartOrder=20,WeaponPartOrder=100,OutlineLocalOrder=short.MaxValue;
         private static readonly Dictionary<string,WorldVisualCategory> actorCategories=new(StringComparer.Ordinal)
-        {{"training-dummy",WorldVisualCategory.Scenery}};
+        {{"training-dummy",WorldVisualCategory.Scenery},{"training-armored-dummy",WorldVisualCategory.Scenery}};
         public static void RegisterActorCategory(string actorType,WorldVisualCategory category,bool replace=false)
         {
             if(string.IsNullOrWhiteSpace(actorType) || category is not (WorldVisualCategory.Scenery or WorldVisualCategory.Npc))

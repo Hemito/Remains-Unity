@@ -117,6 +117,7 @@ namespace Remains.Presentation
         {
             ReloadFinished();
             var message=new ReloadSoundMessage {actor=actor.id,token=Guid.NewGuid().ToString("N"),weapon=weapon,
+                weaponItem=actor.equippedWeaponItem,selectionRevision=actor.weaponSelectionRevision,
                 level=actor.level,generation=actor.generation,lifecycle=actor.lifecycleSequence,started=true};
             localReload=message;session.ReloadAudio.Send(message);
             if(PlayReload(message,actor)) ReloadStarts++;
