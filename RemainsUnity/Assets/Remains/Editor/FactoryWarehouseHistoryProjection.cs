@@ -28,6 +28,7 @@ namespace Remains.Editor
         {
             if(source==null) return null;
             Require(source.props!=null && source.containers!=null && source.loot!=null,"Нет физических массивов.");
+            source=FactoryWarehouseFurnitureAuthoring.BeforeFurniture(source,projectRoot);
             string[] all=source.props.Cast<PropState>().Concat(source.containers).Select(p=>p?.id).ToArray();
             if(!Current(source.level,source.patch,FactoryWarehouseConnectionAuthoring.PhysicalPatch,all.Concat(source.loot.Select(b=>b?.container))))
                 return StateJson.Copy(source);

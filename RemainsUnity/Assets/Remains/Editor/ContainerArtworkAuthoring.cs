@@ -103,7 +103,7 @@ namespace Remains.Editor
         public static void Check()
         {
             var catalog=EntityAssetCatalog.Load();foreach(var entry in entries) CheckEntry(catalog,entry,true);
-            Debug.Log("Профили контейнеров: PASS — 8 исходных close/open пар и 13 явных статических рисунков; closed Sprite/GUID и тела сохранены.");
+            Debug.Log("Базовые профили контейнеров: PASS — 8 исходных close/open пар и 13 явных статических рисунков; closed Sprite/GUID и тела сохранены. Новая мебель проверяется своим ресурсным авторингом.");
         }
     }
 }

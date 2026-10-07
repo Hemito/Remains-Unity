@@ -57,11 +57,11 @@ namespace Remains.Runtime
                 catch(Exception error) {Finish(false,error.Message);}
             };
         }
-        private static bool Counts(WorldState world)=>world.props.Count(p=>p.level==Level)==29 &&
-            world.containers.Count(c=>c.level==Level)==52 && world.doors.Count(d=>d.level==Level)==19 &&
+        private static bool Counts(WorldState world)=>world.props.Count(p=>p.level==Level)==30 &&
+            world.containers.Count(c=>c.level==Level)==55 && world.doors.Count(d=>d.level==Level)==19 &&
             world.actors.Count(a=>!a.player && a.level==Level)==22 &&
-            world.props.Count(p=>p.id.StartsWith(Prefix,StringComparison.Ordinal))==17 &&
-            world.containers.Count(c=>c.id.StartsWith(Prefix,StringComparison.Ordinal))==16 &&
+            world.props.Count(p=>p.id.StartsWith(Prefix,StringComparison.Ordinal))==18 &&
+            world.containers.Count(c=>c.id.StartsWith(Prefix,StringComparison.Ordinal))==19 &&
             world.doors.Count(d=>d.id.StartsWith(Prefix,StringComparison.Ordinal))==4 &&
             world.actors.Count(a=>a.id.StartsWith(Prefix,StringComparison.Ordinal))==9;
         private static bool Preserved(WorldState before,WorldState after)

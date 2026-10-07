@@ -109,6 +109,8 @@ namespace Remains.Editor
             {
                 CheckAssignment(melee,weapon+":prop:filecab","hit-metal",.4f);
                 CheckAssignment(melee,weapon+":prop:case","hit-metal",.4f);
+                CheckAssignment(melee,weapon+":prop:safe","hit-metal",.4f);
+                CheckAssignment(melee,weapon+":prop:couch","hit-wood",.5f);
             }
             CheckMissingKey(projectile,melee);
             Debug.Log($"Назначения ударных звуков: PASS — {paths.Count} сохранённых комнат, {solids} ударяемых/{passing} проходимых поверхностей, {doors} дверей, 197 восстановленных declarations, {props} физических типов/{withoutBody} без тела; отрицательные missing-key и policy checks.");

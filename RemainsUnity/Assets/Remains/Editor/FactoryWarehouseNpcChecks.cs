@@ -89,7 +89,8 @@ namespace Remains.Editor
         public static void CheckGeometry(RoomLayout geometry,PhysicalLayout physical,DoorState[] doors,NpcLayout layout)
         {
             bool metal=doors?.Length==4;
-            Require(geometry!=null && physical?.props?.Length==17 && physical.containers?.Length==16 && doors?.Length==(metal?4:2) && layout?.actors?.Length==9,
+            var prior=FactoryWarehouseFurnitureAuthoring.BeforeFurniture(physical);
+            Require(geometry!=null && prior?.props?.Length==17 && prior.containers?.Length==16 && doors?.Length==(metal?4:2) && layout?.actors?.Length==9,
                 "Для геометрической проверки нужны terrain, 33 физических объекта, точная стадия2/4 дверей и9NPC склада40.");
             if(metal) FactoryWarehouseMetalDoorsPlacement.CheckNewDoors(new DoorLayout {level=physical.level,doors=doors},0);
             var room=StateJson.Copy(geometry);room.platforms=DoorGeometry.Compose(room.platforms,doors,physical.level);

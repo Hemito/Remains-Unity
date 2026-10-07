@@ -141,6 +141,7 @@ namespace Remains.Presentation
         private Button leave;
         public WorldMapPanel WorldMap {get;private set;}
         public event Action HostRequested;
+        public event Action<InventorySource> ContainerOpened;
         public event Action<string> JoinRequested;
 
         public void Initialize(CoopSession value,AudioPreferences audioPreferences=null,Camera worldCamera=null)
@@ -309,7 +310,7 @@ namespace Remains.Presentation
             if(!ContainerAccess.Accessible(session.LocalActor,source,session.Rules.Loot,session.Rules.Deposit))
             {ShowMessage("Контейнер больше недоступен.");return;}
             if(!containerPanel.Open(source.id)) return;
-            inventoryAudio.Toggle();Refresh();PauseMenu.PublishIntent();
+            inventoryAudio.Toggle();ContainerOpened?.Invoke(source);Refresh();PauseMenu.PublishIntent();
         }
         public void CloseContainer()
         {

@@ -40,6 +40,7 @@ namespace Remains.Runtime
         public AreaMusic Music {get;private set;}
         public MovementAudio MovementAudio {get;private set;}
         public PropContactAudio PropAudio {get;private set;}
+        public ContainerOpenAudio ContainerAudio {get;private set;}
         public ExplosionEffects Explosions {get;private set;}
         public AudioPreferences AudioPreferences {get;private set;}
         public DoorVisuals DoorVisuals {get;private set;}
@@ -180,6 +181,7 @@ namespace Remains.Runtime
             GrenadeAudio=CreateOwnedObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
             MovementAudio=CreateOwnedObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=CreateOwnedObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
+            ContainerAudio=CreateOwnedObject("Звуки контейнеров").AddComponent<ContainerOpenAudio>();ContainerAudio.Initialize(Audio);
             ImpactAudio=CreateOwnedObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
             MeleeAudio=CreateOwnedObject("Звуки контактов ближнего оружия").AddComponent<MeleeImpactAudio>();MeleeAudio.Initialize(Combat,Audio);
             CreateOwnedObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles,visualOrders);
@@ -203,6 +205,7 @@ namespace Remains.Runtime
                 var outlineSources=new InteractionOutlineSources(visualLayers,interactionVisuals,DoorVisuals,travelPointVisuals,mechanismVisuals);
                 hud.ConfigureWorldOutline(cameraView,outlineSources.Resolve);
                 hud.SelectedInteraction=()=>InteractionFocus.Target;
+                hud.ContainerOpened+=ContainerAudio.Play;
                 hud.PickupPending=()=>Pickup.Pending;
                 hud.MechanismProgress=()=>MechanismInteraction.Progress;
                 hud.MechanismPending=()=>MechanismInteraction.Pending;
@@ -249,6 +252,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("prop-body")) gameObject.AddComponent<NetworkPropBodyProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("ladder-contact")) gameObject.AddComponent<NetworkLadderContactProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("mechanism")) gameObject.AddComponent<NetworkMechanismProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("warehouse-furniture")) gameObject.AddComponent<FactoryWarehouseFurnitureProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("warehouse-metal-doors")) gameObject.AddComponent<FactoryWarehouseMetalDoorProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("warehouse-reload")) gameObject.AddComponent<WarehouseSaveReloadProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("warehouse-seam")) gameObject.AddComponent<FactoryWarehouseSeamProbe>().Initialize(this);
@@ -459,7 +463,7 @@ namespace Remains.Runtime
             }
             Session.Recoil.Step(Time.deltaTime);
             Grenades.Step(Time.deltaTime);
-            if (Options.Smoke==null || Options.Smoke.StartsWith("cosmetics") || Options.Smoke.StartsWith("lighting-preparation") || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-metal-doors") || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("shot-spread") || Options.Smoke.StartsWith("weapon-reload") || Options.Smoke.StartsWith("held-prop-color") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("direct-items") || Options.Smoke.StartsWith("slope-poses") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
+            if (Options.Smoke==null || Options.Smoke.StartsWith("cosmetics") || Options.Smoke.StartsWith("lighting-preparation") || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-furniture") || Options.Smoke.StartsWith("warehouse-metal-doors") || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("shot-spread") || Options.Smoke.StartsWith("weapon-reload") || Options.Smoke.StartsWith("held-prop-color") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("direct-items") || Options.Smoke.StartsWith("slope-poses") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 npcs.Step(Time.deltaTime);
                 // Do not consume a probe/input source's one-shot actions until its room is

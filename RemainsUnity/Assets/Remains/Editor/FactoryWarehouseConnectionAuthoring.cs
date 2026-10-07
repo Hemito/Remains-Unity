@@ -32,7 +32,8 @@ namespace Remains.Editor
             {
                 var room=root.GetComponent<RoomAuthoring>();var before=room.CreateLayout(false);
                 var prior=RoomContentBatch.Read(room,"factory:0");
-                if(prior.physical.patch=="factory:0:"+PhysicalPatch)
+                if(prior.physical.patch=="factory:0:"+PhysicalPatch ||
+                    prior.physical.patch=="factory:0:"+FactoryWarehouseFurnitureAuthoring.ConnectedPatch)
                 {FactoryWarehouseConnectionChecks.Check(room);Debug.Log("Склад40 уже подключён; авторские данные проверены и сохранены.");return;}
                 if(Mathf.Abs(before.right-Offset)>.001f || root.transform.Find(Connector)!=null ||
                     root.GetComponentsInChildren<RoomAuthoring>(true).Length!=4 ||

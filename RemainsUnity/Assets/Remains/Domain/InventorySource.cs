@@ -30,6 +30,7 @@ namespace Remains.Domain
             }
         }
         public string level=>Body==null?container.level:Body.level;
+        public string Definition=>Body==null?container.definition:null;
         public float? Mass=>Body==null && container.hasPhysicalBody?container.mass:null;
         public bool IsLooseItem=>Body==null && container.presentationItem!=null;
         public Vector2 Position=>Body==null?container.Position:Body.Position;

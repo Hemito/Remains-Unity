@@ -21,6 +21,7 @@ namespace Remains.Editor
         public static int Check(RoomContentBatch source,string projectRoot=null)
         {
             int checks=0;
+            source=FactoryWarehouseFurnitureAuthoring.BeforeFurniture(source,projectRoot);
             void Require(bool value,string reason) {checks++;if(!value) throw new InvalidOperationException("Проекция склада40: "+reason);}
             void Reject(Action action,string reason)
             {bool rejected=false;try {action();} catch(InvalidOperationException) {rejected=true;}Require(rejected,"Не отклонено: "+reason);}

@@ -27,6 +27,7 @@ namespace Remains.Editor
             FactoryLadderLandingChecks.CheckInstalled(room,data.landings,0,false);
             var report=room.GetComponent<RoomImportAudit>()?.Report;
             bool metal=FactoryWarehouseMetalDoorsPlacement.IsInstalled(room);
+            bool furniture=FactoryWarehouseFurnitureAuthoring.IsInstalled(room);
             FactoryWarehouseSource.Require(report?.SourceId==FactoryWarehouseSource.SourceId && report.Records.Length==57,"Потерян полный source audit.");
             var spawns=room.GetComponentsInChildren<RoomActorPlacement>(true).Where(room.Included).ToArray();
             var npcs=input.records.Where(r=>r.kind is "enl1" or "enl2").ToArray();
@@ -35,11 +36,12 @@ namespace Remains.Editor
             {
                 var record=report.Records.Single(r=>r.recordId==expected.recordId);
                 bool npc=npcs.Any(n=>n.recordId==record.recordId),installed=expected.installed || npc && spawns.Length==9 ||
-                    metal && FactoryWarehouseMetalDoorsPlacement.Records.Any(r=>r.RecordId==record.recordId);
+                    metal && FactoryWarehouseMetalDoorsPlacement.Records.Any(r=>r.RecordId==record.recordId) ||
+                    furniture && FactoryWarehouseFurnitureAuthoring.Records.Any(r=>r.RecordId==record.recordId);
                 FactoryWarehouseSource.Require(record.code==expected.code && record.kind==expected.kind && record.sourceData==expected.sourceData && record.sourceX==expected.sourceX && record.sourceY==expected.sourceY &&
                     record.installed==installed && !string.IsNullOrWhiteSpace(record.reason),"Source ID/XML/flags изменены: "+expected.recordId);
             }
-            FactoryWarehouseSource.Require(report.Records.Count(r=>r.installed)==38+spawns.Length+(metal?2:0),"Изменены source counts/stage.");
+            FactoryWarehouseSource.Require(report.Records.Count(r=>r.installed)==38+spawns.Length+(metal?2:0)+(furniture?4:0),"Изменены source counts/stage.");
             CheckPhysical(room,input);CheckDoors(room,input);CheckLights(room,data);CheckSharedContracts();
             CheckPersistence(RoomPhysicalContent.Read(room,"factory:0"),RoomDoorContent.Read(room,"factory:0"));
             FactoryModuleAuthoringChecks.Run(room.gameObject);
@@ -72,7 +74,7 @@ namespace Remains.Editor
         }
         private static void CheckPhysical(RoomAuthoring room,FactoryModuleAuthoringInput input)
         {
-            var layout=RoomPhysicalContent.Read(room,"factory:0");var all=layout.props.Cast<PropState>().Concat(layout.containers).ToArray();
+            var layout=FactoryWarehouseFurnitureAuthoring.BeforeFurniture(RoomPhysicalContent.Read(room,"factory:0"));var all=layout.props.Cast<PropState>().Concat(layout.containers).ToArray();
             FactoryWarehouseSource.Require(layout.patch=="factory:0:"+FactoryWarehouseDraft.PhysicalPatch && layout.props.Length==17 && layout.containers.Length==16 && layout.loot.Length==16,"Нет точных 33physical/16loot/версии.");
             foreach(var binding in input.physical)
             {
@@ -143,6 +145,7 @@ namespace Remains.Editor
         }
         public static void CheckPersistence(PhysicalLayout physical,DoorLayout doors)
         {
+            physical=FactoryWarehouseFurnitureAuthoring.BeforeFurniture(physical);
             foreach(string level in new[]{"factory:0","factory:6","factory:-27"})
             {
                 var p=StateJson.Copy(physical);var d=StateJson.Copy(doors);string old=p.level;

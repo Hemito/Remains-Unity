@@ -61,6 +61,7 @@ namespace Remains.Editor
             FactoryOfficeConnectionChecks.Run();
             FactoryWarehouseChecks.Run();FactoryWarehouseNpcChecks.Run();FactoryWarehouseConnectionChecks.Run();FactoryWarehouseHistoryProjectionChecks.Run();
             FactoryWarehouseMetalDoorChecks.Run();FactoryWarehouseMetalDoorsPlacement.Verify();
+            FactoryWarehouseFurnitureChecks.Run();ContainerOpenAudioChecks.Run();
             FactoryOfficeNpcChecks.Run();
             FactoryFileCabinetChecks.Run();
             FactoryOfficeLootChecks.Run();
