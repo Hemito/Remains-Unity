@@ -22,6 +22,9 @@ namespace Remains.Presentation
         private int frame = -1;
         private MaterialPropertyBlock properties;
         private PonyAppearanceKey? appearance;
+        private WearableDrawPlan drawPlan;
+        private bool drawPlanDirty;
+        public WearableDrawPlan CurrentDrawPlan=>drawPlan;
         private Bounds drawnBounds;
         private bool hasDrawnBounds;
         public int DrawnPartCount {get;private set;}
@@ -48,22 +51,29 @@ namespace Remains.Presentation
             if(string.IsNullOrEmpty(actor?.id) || actor.id!=state?.id)
             {appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;}
             state = actor;
-            int capacity = PonyRenderSelection.Capacity;
-            if(capacity==0) throw new InvalidOperationException("Графика пони не подготовлена перед созданием экземпляра.");
+            var prepared=actor==null?null:PonyRenderSelection.PrepareEquipment(actor);
+            // Preparing a different wardrobe does not draw it. Keep the published
+            // frame/mesh metadata truthful until the next actual DrawPose, while
+            // ensuring a stationary pose still applies the new plan then.
+            if(!ReferenceEquals(drawPlan,prepared)) {drawPlan=prepared;drawPlanDirty=true;}
+            int capacity = drawPlan?.Capacity??0;
+            if(actor!=null && capacity==0) throw new InvalidOperationException("Графика пони не подготовлена перед созданием экземпляра.");
             if(authoredStructure)
             {
-                if(filters.Count<capacity || filters.Count!=renderers.Count)
-                    throw new InvalidOperationException($"Префаб пони {name}: нужно частей {capacity}, сохранено {filters.Count}. Пересоберите структуру.");
+                if(filters.Count==0 || filters.Count!=renderers.Count)
+                    throw new InvalidOperationException($"Префаб пони {name}: повреждён сохранённый пул частей filters={filters.Count}, renderers={renderers.Count}.");
                 for(int i=0;i<filters.Count;i++)
                     if(filters[i]==null || renderers[i]==null || filters[i].transform!=renderers[i].transform || !filters[i].transform.IsChildOf(transform))
                         throw new InvalidOperationException($"Префаб пони {name}: повреждена ссылка на часть {i}.");
-                return;
             }
+            // A valid compiled mod may exceed the stock authored pool. Provision
+            // on the explicit Bind event, after validating every authored link.
+            // Unselected registered profiles never affect this actor's capacity.
             while (filters.Count < capacity)
             {
                 var child = new GameObject("Часть пони"); child.transform.SetParent(transform, false);
                 filters.Add(child.AddComponent<MeshFilter>());
-                renderers.Add(child.AddComponent<MeshRenderer>());
+                var renderer=child.AddComponent<MeshRenderer>();renderer.enabled=false;renderers.Add(renderer);
             }
         }
         public override void SetVisible(bool visible) => gameObject.SetActive(visible);
@@ -98,9 +108,14 @@ namespace Remains.Presentation
             var nextAppearance=PonyAppearance.Snapshot(state);
             if(!appearance.HasValue || !appearance.Value.Equals(nextAppearance)) {appearance=nextAppearance;frame=-1;}
             if (pose != next) { pose = next; frame = -1; }
-            var frames = PonyRenderSelection.Frames(nextAppearance,pose);
+            if(drawPlan==null) throw new InvalidOperationException("Нет подготовленного плана пони: actor="+state.id+".");
+            if(drawPlan.HasEquipment && !drawPlan.MatchesShape(nextAppearance))
+                throw new InvalidOperationException($"Внешность снаряжения изменена без подготовки: actor={state.id}, hair={nextAppearance.HairStyle}, eyes={nextAppearance.EyeStyle}, secondary={nextAppearance.SecondaryEnabled}. Вызовите Bind при событии смены формы.");
+            // Bare selections retain the existing precompiled style-change contract.
+            // Equipment/style events prepare their composite plan in Bind.
+            var frames = drawPlan.HasEquipment?drawPlan.Frames(pose):PonyRenderSelection.Frames(nextAppearance,pose);
             int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorSessionRules.IsPassive(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
-            if (nextFrame == frame) {RefreshDrawnBounds();return;}
+            if (nextFrame == frame && !drawPlanDirty) {RefreshDrawnBounds();return;}
             frame = nextFrame;
             var parts = frames[frame];
             for (int i = 0; i < renderers.Count; i++)
@@ -114,6 +129,7 @@ namespace Remains.Presentation
                 properties.SetFloat("_Emission",parts[i].slot=="magic"?1:0);
                 renderers[i].SetPropertyBlock(properties);
             }
+            drawPlanDirty=false;
             RefreshDrawnBounds();
         }
         private void RefreshDrawnBounds()

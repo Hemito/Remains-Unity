@@ -89,6 +89,7 @@ namespace Remains.Persistence
                 throw new InvalidDataException("Не совпадает личность персонажа в намерении записи пары.");
             Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
             InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);
+            CosmeticEquipment.Validate(actor);
             var world=snapshot.CreateLiveWorld();int identities=0;
             foreach(var saved in world.actors)
                 if(saved.id==actor.id) {if(!saved.player || saved.character!=actor.character) throw new InvalidDataException("Мир содержит другую личность для ID персонажа.");identities++;}

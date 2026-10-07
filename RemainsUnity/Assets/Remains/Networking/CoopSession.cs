@@ -437,6 +437,7 @@ namespace Remains.Networking
             }
             LocalOwner = message.owner;
             LocalActorId = message.actor;
+            foreach(var actor in welcomed.actors) CosmeticEquipment.ReconcileInventory(actor);
             WeaponRecoilReplication.NeutralizeWorld(welcomed,Pause.Revision);
             World = PersistCopy(snapshot,welcomed);
             Debug.Log($"Подключён выбранный персонаж: character={LocalActor.character}, actor={LocalActorId}, profile={Saves.CharacterDirectoryPath}.");
@@ -499,8 +500,11 @@ namespace Remains.Networking
                 }
             }
             foreach(var actor in incoming.actors)
+            {
+                CosmeticEquipment.Reconcile(sameWorld?World.Find(actor.id):null,actor);
                 WeaponRecoilReplication.Reconcile(sameWorld?World.Find(actor.id):null,actor,LocalOwner,Pause.Revision,
                     Pause.IsPaused(actor.level),"снимок мира / публикация");
+            }
             if(World?.worldId!=incoming.worldId) selfHealing.Reset();
             World = incoming;
             QueueRecoveryReceipt(snapshot);
@@ -601,6 +605,7 @@ namespace Remains.Networking
             if(!selfHealTransition) ActorMotionReplication.PreserveNewerMotion(current,actor);
             if(actor.owner!=LocalOwner) RemotePosePhase.Reconcile(current,actor);
             if(current?.owner==LocalOwner) WeaponInventory.PreserveSelection(current,actor);
+            CosmeticEquipment.Reconcile(current,actor);
             WeaponRecoilReplication.Reconcile(current,actor,LocalOwner,Pause.Revision,Pause.IsPaused(actor.level),"состояние актёра / публикация");
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
@@ -613,14 +618,28 @@ namespace Remains.Networking
             if(!InventoryJournal.Merge(incoming,current,out var inventory,out var uses))
                 throw new InvalidOperationException($"Не удалось согласовать расход инвентаря: actor={incoming.id}, revision={incoming.revision}.");
             incoming.inventory=inventory;incoming.inventoryUses=uses;
+            CosmeticEquipment.Reconcile(current,incoming);
         }
 
         private void UpdateActor(NetworkConnectionToClient connection, ActorMessage message)
         {
             var incoming = JsonUtility.FromJson<ActorState>(message.json);
             var actor = ServerWorld.Find(incoming.id);
-            if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner ||
-                !ActorVersion.CanPublishOwnerState(incoming,actor)) return;
+            if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner) return;
+            if(!ActorVersion.CanPublishOwnerState(incoming,actor))
+            {
+                try
+                {
+                    if(CosmeticEquipment.TryApplyOwnerSelection(actor,incoming))
+                    {
+                        ServerWorld.revision++;
+                        NetworkServer.SendToAll(new ActorMessage {json=JsonUtility.ToJson(actor)});
+                    }
+                }
+                catch(InvalidOperationException error)
+                {Debug.LogWarning($"Отклонён отдельный выбор визуального снаряжения: actor={actor.id}. {error.Message}");}
+                return;
+            }
             // Shared inventory is host-coordinated; movement/combat/stat decisions remain client-owned.
             if(!InventoryJournal.Merge(actor,incoming,out var inventoryCopy,out var uses))
             {
@@ -630,6 +649,12 @@ namespace Remains.Networking
             }
             incoming.inventory=inventoryCopy;incoming.inventoryUses=uses;
             incoming.inventoryAliases=Remains.Serialization.StateJson.Copy(actor.inventoryAliases);
+            try {CosmeticEquipment.Reconcile(actor,incoming);CosmeticEquipment.Validate(incoming,CosmeticCatalog.Current);}
+            catch(InvalidOperationException error)
+            {
+                Debug.LogWarning($"Отклонено визуальное снаряжение владельца: actor={actor.id}. {error.Message}");
+                connection.Send(new NoticeMessage {text="Визуальное снаряжение не подтверждено. Проверьте журнал ошибок."});return;
+            }
             incoming.owner = actor.owner;
             // Hold grants belong to the shared coordinator; pose/health still belong to this client.
             incoming.hold=actor.hold;incoming.holdEpoch=actor.holdEpoch;

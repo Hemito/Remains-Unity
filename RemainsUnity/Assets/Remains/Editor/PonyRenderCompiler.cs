@@ -46,11 +46,13 @@ namespace Remains.Editor
                             material=WorldArtworkMaterial.Create(texture);material.name="material:"+part.texture;material=Save(material);materials.Add(part.texture,material);
                         }
                         var tint=new Color(part.color[0],part.color[1],part.color[2],part.color[3]);
-                        var mesh=new Mesh {name=$"mesh:{clip.id}:{f}:{p}",vertices=PonyAnimationData.Quad(part),
+                        var points=PonyAnimationData.Quad(part);
+                        var mesh=new Mesh {name=$"mesh:{clip.id}:{f}:{p}",vertices=points,
                             uv=new[]{Vector2.zero,Vector2.right,Vector2.up,Vector2.one},triangles=new[]{0,2,1,2,3,1},colors=new[]{tint,tint,tint,tint}};
                         mesh.RecalculateBounds();mesh=Save(mesh);meshCount++;
                         bool visible=!part.path.StartsWith("pip2/");frame.parts[p]=new PonyRenderPart {mesh=mesh,material=material,slot=part.slot,visible=visible,
-                            hairStyle=part.hairStyle,eyeStyle=part.eyeStyle,drawOrder=part.drawOrder};
+                            hairStyle=part.hairStyle,eyeStyle=part.eyeStyle,drawOrder=part.drawOrder,sourceIndex=p,
+                            sourcePath=part.path,sourceShape=part.shape,points=points,baseColor=tint};
                         if(visible) {if(!hasBounds){frame.bounds=mesh.bounds;hasBounds=true;}else frame.bounds.Encapsulate(mesh.bounds);}
                     }
                     if(!hasBounds) throw new InvalidOperationException($"Нет видимых частей: {clip.id}:{f}.");

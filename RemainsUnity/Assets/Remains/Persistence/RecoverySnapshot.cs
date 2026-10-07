@@ -45,6 +45,11 @@ namespace Remains.Persistence
             {
                 throw new System.IO.InvalidDataException("Некорректные физические тела восстановительного снимка: мир="+world.worldId+". "+error.Message,error);
             }
+            try {CosmeticEquipment.ValidateWorld(world);}
+            catch(InvalidOperationException error)
+            {
+                throw new System.IO.InvalidDataException("Некорректное визуальное снаряжение восстановительного снимка: мир="+world.worldId+". "+error.Message,error);
+            }
             Json = json;
             WorldId = world.worldId;
             Revision = world.revision;

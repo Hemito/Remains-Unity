@@ -75,16 +75,12 @@ namespace Remains.Editor
                 string inventoryBefore=Remains.Serialization.StateJson.ToJson(actor.inventory);
                 string actorBeforeArmor=Remains.Serialization.StateJson.ToJson(actor);
                 view.Categories[(int)InventoryCategory.Armor].onClick.Invoke();
-                Require(!view.Rows[0].gameObject.activeSelf && !view.Detail.gameObject.activeSelf && !view.ActionStatus.gameObject.activeSelf &&
-                    !view.Use.gameObject.activeSelf && !view.Deposit.gameObject.activeSelf && !view.Portrait.activeSelf &&
+                Require(!view.Rows[0].gameObject.activeSelf && view.Detail.gameObject.activeSelf && view.ActionStatus.gameObject.activeSelf &&
+                    view.Use.gameObject.activeSelf && !view.Use.interactable && view.Deposit.gameObject.activeSelf && view.Portrait.activeSelf &&
                     !view.WeaponPreview.gameObject.activeSelf && !view.WeaponDetail.gameObject.activeSelf &&
-                    !view.Weapons[0].gameObject.activeSelf && !view.Previous.gameObject.activeSelf && !view.Next.gameObject.activeSelf,
-                    "Вкладка брони должна быть пустой, без заглушек и работающих механик");
+                    view.Weapons[0].gameObject.activeSelf && !view.Weapons[0].interactable && view.Previous.gameObject.activeSelf && view.Next.gameObject.activeSelf,
+                    "Пустая вкладка брони должна показывать текущий портрет, без доступного действия отсутствующего предмета");
                 Require(Remains.Serialization.StateJson.ToJson(actor)==actorBeforeArmor,"Вкладка брони изменила персонажа");
-                var armorTexts=view.GetComponentsInChildren<Text>();
-                Require(armorTexts.Length==view.Categories.Length && Array.TrueForAll(armorTexts,text=>
-                    Array.Exists(view.Categories,tab=>text.transform.IsChildOf(tab.transform))),
-                    "На пустой вкладке брони остались подсказки или другие надписи помимо вкладок");
                 view.Categories[(int)InventoryCategory.Items].onClick.Invoke();
                 Require(view.Rows[0].GetComponentInChildren<Text>().text.Contains("Аптечка") && !view.Rows[1].interactable && !view.Use.interactable,
                     "Фильтр предметов оставил оружие или скрытое действие");

@@ -163,7 +163,7 @@ namespace Remains.Runtime
             runtime.Hud.ToggleInventory();
             yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Armor));
             if(!runtime.Hud.InventoryOpen || !runtime.Hud.BlocksGameplayInput || runtime.Hud.PersonalCategory!=InventoryCategory.Armor)
-            {Finish(false,"Указатель не открыл пустую вкладку брони или разблокировал игровое управление.");yield break;}
+            {Finish(false,"Указатель не открыл вкладку брони или разблокировал игровое управление.");yield break;}
             if(runtime.Options.Smoke.Contains("-frames-")) NetworkSceneRecord.Save(runtime,20);
             yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.All));
             actor=runtime.Session.LocalActor;

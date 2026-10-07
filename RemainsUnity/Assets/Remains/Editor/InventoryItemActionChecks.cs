@@ -122,7 +122,7 @@ namespace Remains.Editor
                 Require(!view.Use.interactable && view.ActionStatus.text=="Ограничение мода." && modHeal==1,
                     "модовое условие доступности не используется UI и activation");
                 view.Categories[(int)InventoryCategory.Armor].onClick.Invoke();
-                Require(!view.Use.gameObject.activeInHierarchy && !view.Rows[0].gameObject.activeInHierarchy,"броня получила действие или предметы");
+                Require(!view.Use.interactable && !view.Rows[0].gameObject.activeInHierarchy,"пустая категория брони разрешила действие отсутствующего предмета");
 
                 var rule=new FixedAction {Id="mod:direct-use"};fixture.Session.ConfigureRules(WithAction(fixture.Session.Rules,rule));
                 int custom=0;bool toggled=false,whole=false;Vector2? aim=null;

@@ -30,7 +30,7 @@ namespace Remains.Content
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }
-    [Serializable] public sealed class ModManifest { public string id,version; public string[] dependencies; public WeaponOverride[] weaponOverrides; public CodeModEntry code; }
+    [Serializable] public sealed class ModManifest { public string id,version; public string[] dependencies; public WeaponOverride[] weaponOverrides; public CodeModEntry code; public CosmeticPackEntry cosmetics; }
     [Serializable] public sealed class WeaponOverride { public string id,source; }
 
     public static class WeaponCatalog
@@ -54,7 +54,12 @@ namespace Remains.Content
             CasingEffectCatalog.Load();
             FootSupportCatalog.Load();
             var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
+            CosmeticContentMods.Prepare(loaded);
+            // Code mods may register additional visuals/definitions during Configure, before first queries freeze the registries.
+            var rules=Rules??GameplayCodeMods.Compose(loaded.codeMods);
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
+            inputs.Add(CosmeticCatalog.Resource,CosmeticCatalog.Current.Fingerprint);
+            inputs.Add("Presentation/visual-equipment",WearableRenderCatalog.ContentFingerprint);
             inputs.Add(FootSupportCatalog.Resource,FootSupportCatalog.Fingerprint);
             inputs.Add("Rules/actor-body-support","sampled-centres-v1");
             foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/standing-edge-poses",SlopePoseCatalog.Resource,"Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
@@ -86,7 +91,6 @@ namespace Remains.Content
             foreach(string key in entities.CreateActors().Where(a=>a.presentation=="atlas").Select(a=>a.artwork).Distinct(StringComparer.Ordinal))
                 inputs.Add(key,JsonUtility.ToJson(AtlasAnimationData.Get(key)));
             var complete=GameplayContentManifest.Compose(loaded.manifest,inputs);
-            var rules=GameplayCodeMods.Compose(loaded.codeMods);
             definitions=loaded.definitions;
             manifest=complete;Rules=rules;
             ModFingerprint=complete.fingerprint;ModDescription=loaded.description+"\nГеометрия, анатомия и позы: "+inputs.Count+" набора данных";

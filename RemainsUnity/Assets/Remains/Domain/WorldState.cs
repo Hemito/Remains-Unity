@@ -84,6 +84,7 @@ namespace Remains.Domain
         public NpcWeaponActionState npcWeaponAction;
         public float attackCooldown;
         public List<ItemStack> inventory = new();
+        public CosmeticEquipmentState cosmeticEquipment; // Null is the known legacy absence of visual equipment.
         public int loadoutVersion;
         public int weaponInventoryVersion;
         public long weaponSelectionRevision;

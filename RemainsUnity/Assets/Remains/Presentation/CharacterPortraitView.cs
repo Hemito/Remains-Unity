@@ -17,7 +17,8 @@ namespace Remains.Presentation
         }
         public void Show(ActorState actor,InventoryArtwork artwork)
         {
-            portrait??=new InventoryPortrait(Pony,Parts);portrait.Refresh(actor);
+            if(portrait==null) {portrait=new InventoryPortrait(Pony,Parts);Parts=portrait.Parts;}
+            portrait.Refresh(actor);
             string weapon=actor==null?null:actor.weaponInventoryVersion==1?WeaponInventory.Selected(actor)?.definition:actor.weapon;
             artwork.Set(Weapon,weapon);
         }

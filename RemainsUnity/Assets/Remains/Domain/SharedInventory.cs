@@ -50,6 +50,7 @@ namespace Remains.Domain
 
         public static bool Consume(ActorState actor, string definition,string itemId=null,string transaction=null)
         {
+            CosmeticEquipment.Validate(actor);
             string current=InventoryStacks.ResolveId(actor.inventoryAliases,itemId);
             var item = actor.inventory.Find(candidate => candidate.definition == definition && (itemId==null || candidate.id==current) && InventoryAvailability.Count(actor,candidate)>0);
             if (item == null) return false;
@@ -65,6 +66,7 @@ namespace Remains.Domain
                 actor.inventory.Remove(item);
                 WeaponInventory.ClearConsumedSelection(actor,item.id);
             }
+            CosmeticEquipment.ReconcileInventory(actor);
             return true;
         }
 

@@ -11,6 +11,8 @@ namespace Remains.Editor
     public static class PrototypeBuild
     {
         public static void Build()
+            =>BuildTo("Builds/Windows/Remains.exe");
+        public static void BuildTo(string outputPath)
         {
             foreach(string guid in AssetDatabase.FindAssets("t:Texture2D",new[]{"Assets/Remains/Resources/Original/Pony","Assets/Remains/Resources/Original/Room","Assets/Remains/Resources/Original/Shots","Assets/Remains/Resources/Original/Menu","Assets/Remains/Resources/Original/Hud","Assets/Remains/Resources/Original/Inventory","Assets/Remains/Resources/Original/Training","Assets/Remains/Resources/Original/Props","Assets/Remains/Resources/Original/Raider"}))
             {
@@ -23,6 +25,7 @@ namespace Remains.Editor
                 }
                 // These resources have explicit, validated native import policies. Preserve their Sprite IDs and RGBA pixels.
                 if(importer.assetPath.Contains("/Original/Room/WorkshopToolStand/") ||
+                    importer.assetPath.Contains("/Original/Pony/Wearables/") ||
                     importer.assetPath.Contains("/Original/Room/BackdropComposition/") ||
                     importer.assetPath.Contains("/Original/Room/FactoryObjects/") ||
                     importer.assetPath.Contains("/Original/Room/OfficeOpenings/") ||
@@ -62,7 +65,12 @@ namespace Remains.Editor
             if(cameras.Length!=1) throw new InvalidOperationException("Стартовая сцена должна содержать ровно одну активную MainCamera.");
             Remains.Presentation.CameraFollower.RequireCamera(cameras[0]);
             AssetDatabase.SaveAssets();
-            var options=new BuildPlayerOptions { scenes=new[]{path}, locationPathName="Builds/Windows/Remains.exe",
+            string projectRoot=Path.GetFullPath(Path.Combine(Application.dataPath,".."));
+            string absoluteOutput=Path.GetFullPath(Path.Combine(projectRoot,outputPath));
+            if(!absoluteOutput.StartsWith(projectRoot+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) ||
+                Path.GetFileName(absoluteOutput)!="Remains.exe")
+                throw new InvalidOperationException("Путь сборки должен находиться внутри проекта и завершаться Remains.exe: "+outputPath);
+            var options=new BuildPlayerOptions { scenes=new[]{path}, locationPathName=absoluteOutput,
                 target=BuildTarget.StandaloneWindows64, options=BuildOptions.Development };
             var report=BuildPipeline.BuildPlayer(options);
             if(report.summary.result!=BuildResult.Succeeded) throw new InvalidOperationException($"Сборка не завершена: {report.summary.result}, ошибок: {report.summary.totalErrors}.");

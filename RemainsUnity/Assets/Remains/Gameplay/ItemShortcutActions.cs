@@ -43,6 +43,13 @@ namespace Remains.Gameplay
                 caption:(item,context)=>IsEquipped(item,context)?"Убрать оружие":"Взять в копыта");
             Register(StandardItemActions.Heal,(item,_)=>session.RequestSelfHeal(item.id),
                 rejection:(item,_)=>HealingRules.Rejection(session.LocalActor,session.LocalActor,true));
+            Register(StandardItemActions.Wear,(item,context)=>
+            {
+                if(!CosmeticEquipment.TryEquip(session.LocalActor,item.id,context.ToggleEquipped,out var reason))
+                {session.ShowNotice(reason);return;}
+                session.PublishActor(session.LocalActor);
+            },rejection:(item,_)=>CosmeticEquipment.IsWearable(item)?null:"Для предмета не подключён внешний вид.",
+                caption:(item,context)=>context.ToggleEquipped && CosmeticEquipment.IsEquipped(session.LocalActor,item.id)?"Снять":"Надеть");
             Action<ItemStack,ItemActionContext> hold=(item,_)=>
             {
                 if(!HeldItemSelection.Select(session.LocalActor,item.id,out var reason)) {session.ShowNotice(reason);return;}

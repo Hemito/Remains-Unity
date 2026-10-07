@@ -74,6 +74,8 @@ namespace Remains.Editor
             InventoryStackChecks.Run();
             WeaponInventoryMigrationChecks.Run();
             WeaponInventoryUiChecks.Run();
+            CosmeticEquipmentChecks.Run();CosmeticContentModChecks.Run();
+            CosmeticInventoryUiChecks.Run();WearablePresentationChecks.Run();
             InventoryPauseChecks.Run();
             RoomLoadingViewChecks.Run();
             RoomLightingPreparationChecks.Run();

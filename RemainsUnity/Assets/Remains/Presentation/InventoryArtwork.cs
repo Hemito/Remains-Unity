@@ -21,6 +21,7 @@ namespace Remains.Presentation
                 // A stack throwable can have both a WeaponView and its own inventory icon.
                 sprites[entry.Key]=entry.Value;
             }
+            CosmeticItemArtwork.ApplyTo(sprites);
         }
         public void Set(Image image,string id)
         {

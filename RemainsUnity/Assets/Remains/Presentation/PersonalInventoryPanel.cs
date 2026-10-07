@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Remains.Domain;
 using Remains.Networking;
 using Remains.Content;
@@ -16,6 +17,13 @@ namespace Remains.Presentation
         private readonly Func<string,string> itemName;
         private readonly Func<int> quantity;
         private readonly Button[] rows;
+        private readonly Text[] rowLabels;
+        private readonly int[] rowFontSizes;
+        private readonly string[] rowText;
+        private readonly Vector2[] rowLabelSizes;
+        private readonly float[] rowPixelUnits;
+        private readonly HashSet<string> shortenedRows=new(StringComparer.Ordinal);
+        private const int MinimumRowFontSize=16;
         private readonly string[] weapons;
         private readonly Button[] weaponButtons;
         private readonly Image[] weaponIcons;
@@ -64,6 +72,19 @@ namespace Remains.Presentation
                 categories[i].onClick.AddListener(()=>{category=choice;firstVisibleRow=0;Refresh(container);pageSound?.Invoke();});
             }
             rows=view.Rows;icons=view.Icons;weapons=view.WeaponIds;weaponButtons=view.Weapons;ids=new string[rows.Length];
+            rowLabels=new Text[rows.Length];rowFontSizes=new int[rows.Length];rowText=new string[rows.Length];
+            rowLabelSizes=new Vector2[rows.Length];rowPixelUnits=new float[rows.Length];
+            for(int i=0;i<rows.Length;i++)
+            {
+                rowLabels[i]=rows[i].GetComponentInChildren<Text>(true);
+                if(rowLabels[i]==null || rowLabels[i].font==null || rowLabels[i].fontSize<MinimumRowFontSize)
+                    throw new InvalidOperationException($"Личный инвентарь: строка {rows[i].name} требует назначенный шрифт размером не меньше {MinimumRowFontSize}.");
+                rowFontSizes[i]=rowLabels[i].fontSize;
+                rowLabels[i].resizeTextForBestFit=false;
+                rowLabels[i].supportRichText=false;
+                rowLabels[i].horizontalOverflow=HorizontalWrapMode.Overflow;
+                rowLabels[i].verticalOverflow=VerticalWrapMode.Truncate;
+            }
             detailIcon=view.DetailIcon;previous=view.Previous;next=view.Next;deposit=view.Deposit;use=view.Use;
             scrollbar=view.Scrollbar;
             scrollbar.onValueChanged.AddListener(value=>
@@ -71,6 +92,7 @@ namespace Remains.Presentation
             weaponPreview=view.WeaponPreview;weaponDetail=view.WeaponDetail;
             detail=view.Detail;actionStatus=view.ActionStatus;
             portrait=new InventoryPortrait(view.Portrait,view.PortraitParts);
+            view.PortraitParts=portrait.Parts;
             weaponIcons=new Image[weaponButtons.Length];
             for(int i=0;i<weaponButtons.Length;i++)
             {
@@ -105,7 +127,6 @@ namespace Remains.Presentation
             container=destination;var actor=session.LocalActor;
             if(actor!=null && actor.weaponInventoryVersion!=1 && legacyActors.Add(actor.id))
                 Debug.LogWarning($"Личный инвентарь показывает диагностические определения: actor={actor.id}, inventoryVersion={actor.weaponInventoryVersion}. Для назначений любых предметов требуется миграция экземпляров.");
-            bool armor=category==InventoryCategory.Armor;
             visible.Clear();
             if(actor!=null) foreach(var item in actor.inventory) if(filter.Includes(item,category)) visible.Add(item);
             int count=visible.Count;
@@ -114,7 +135,7 @@ namespace Remains.Presentation
             if(actor==null) container=null;
             for(int i=0;i<weaponButtons.Length;i++)
             {
-                weaponButtons[i].gameObject.SetActive(!armor);
+                weaponButtons[i].gameObject.SetActive(true);
                 bool instances=actor?.weaponInventoryVersion==1;
                 var chosenItem=InventoryStacks.Find(actor,selected);
                 string legacy=i<weapons.Length?weapons[i]:null;
@@ -139,7 +160,8 @@ namespace Remains.Presentation
                 artwork.Set(icons[i],item?.definition);
                 string quantityText=item?.weaponState==null?$" × {item?.count}":WeaponCatalog.Get(item.definition).magazineSize>0?
                     $" · {item.weaponState.rounds}/{WeaponCatalog.Get(item.definition).magazineSize}":"";
-                rows[i].GetComponentInChildren<Text>().text=item==null?"":$"{(item.id==selected?"› ":"")}{itemName(item.definition)}{quantityText}"+(available<item.count?$" (доступно {available})":"");
+                SetRowLabel(i,item?.id==selected && item!=null?"› ":"",item==null?"":itemName(item.definition),item==null?"":quantityText+
+                    (CosmeticEquipment.IsEquipped(actor,item.id)?" · надето":"")+(available<item.count?$" (доступно {available})":""),item?.id);
                 rows[i].interactable=item!=null;
                 OriginalButtonStyle.SetSelected(rows[i],item!=null && item.id==selected);
             }
@@ -152,11 +174,11 @@ namespace Remains.Presentation
             bool paused=actor!=null && session.Pause.IsPaused(actor.level);
             deposit.interactable=chosen!=null && availableChosen>=amount && amount>0 && rejection==null && !paused;
             bool weaponSelected=WeaponInventory.IsEquippable(chosen) && actor.weaponInventoryVersion==1;
-            detail.gameObject.SetActive(!armor && !weaponSelected);detailIcon.gameObject.SetActive(!armor && !weaponSelected);
-            weaponPreview.gameObject.SetActive(!armor && weaponSelected);weaponDetail.gameObject.SetActive(!armor && weaponSelected);
-            portrait.Refresh(armor || weaponSelected?null:actor);
-            foreach(var control in new[]{use,deposit,previous,next}) control.gameObject.SetActive(!armor);
-            actionStatus.gameObject.SetActive(!armor);
+            detail.gameObject.SetActive(!weaponSelected);detailIcon.gameObject.SetActive(!weaponSelected);
+            weaponPreview.gameObject.SetActive(weaponSelected);weaponDetail.gameObject.SetActive(weaponSelected);
+            portrait.Refresh(weaponSelected?null:actor);
+            foreach(var control in new[]{use,deposit,previous,next}) control.gameObject.SetActive(true);
+            actionStatus.gameObject.SetActive(true);
             if(weaponSelected)
             {
                 artwork.Set(weaponPreview,chosen.definition);
@@ -171,6 +193,48 @@ namespace Remains.Presentation
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen==null?"":
                 availability.Rejection??(container==null?"":rejection??"");
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
+        }
+        // Fit only changed row text/layout. Refresh itself never repeats font generation
+        // for an unchanged row; quantity and equipped status remain visible if a mod name is shortened.
+        private void SetRowLabel(int index,string prefix,string name,string suffix,string item)
+        {
+            if(name==null || item!=null && string.IsNullOrWhiteSpace(name))
+                throw new InvalidOperationException($"Личный инвентарь: отсутствует название строки {rows[index].name}, actor={session.LocalActor?.id}, item={item}.");
+            name=name.Replace('\r',' ').Replace('\n',' ').Replace('\t',' ');
+            var label=rowLabels[index];var size=label.rectTransform.rect.size;float units=label.pixelsPerUnit;
+            string full=prefix+name+suffix;
+            if(rowText[index]==full && rowLabelSizes[index]==size && rowPixelUnits[index]==units) return;
+            if(!float.IsFinite(size.x) || !float.IsFinite(size.y) || size.x<=0 || size.y<=0 || !float.IsFinite(units) || units<=0)
+                throw new InvalidOperationException($"Личный инвентарь: неверные размеры строки {rows[index].name}, actor={session.LocalActor?.id}, item={item}, size={size}, pixelsPerUnit={units}.");
+            int font=rowFontSizes[index];
+            while(font>MinimumRowFontSize && !Fits(full,font)) font--;
+            string display=full;
+            if(!Fits(full,font))
+            {
+                if(!Fits(prefix+"…"+suffix,font))
+                    throw new InvalidOperationException($"Личный инвентарь: количество и состояние не помещаются в строку {rows[index].name}, actor={session.LocalActor?.id}, item={item}, size={size}, font={font}.");
+                var elements=StringInfo.ParseCombiningCharacters(name);int low=0,high=elements.Length;
+                while(low<high)
+                {
+                    int middle=(low+high+1)/2;int length=middle==elements.Length?name.Length:elements[middle];
+                    if(Fits(prefix+name.Substring(0,length)+"…"+suffix,font)) low=middle;else high=middle-1;
+                }
+                int keep=low==elements.Length?name.Length:elements[low];
+                display=prefix+name.Substring(0,keep)+"…"+suffix;
+                string key=session.LocalActor?.id+"/"+item+"/"+full+"/"+size;
+                if(shortenedRows.Add(key)) Debug.LogWarning($"Длинное название сокращено только в строке инвентаря: actor={session.LocalActor?.id}, item={item}, row={rows[index].name}, size={size}, font={font}, name={name}. Полное название доступно в описании справа.");
+            }
+            label.fontSize=font;label.text=display;
+            rowText[index]=full;rowLabelSizes[index]=size;rowPixelUnits[index]=label.pixelsPerUnit;
+            bool Fits(string text,int fontSize)
+            {
+                float candidateUnits=label.canvas==null || label.font.dynamic?units:
+                    label.font.fontSize>0?label.font.fontSize/(float)fontSize:1;
+                var settings=label.GetGenerationSettings(Vector2.zero);
+                settings.fontSize=label.font.dynamic?fontSize:0;settings.scaleFactor=candidateUnits;
+                return label.cachedTextGeneratorForLayout.GetPreferredWidth(text,settings)/candidateUnits<=size.x-.5f &&
+                    label.cachedTextGeneratorForLayout.GetPreferredHeight(text,settings)/candidateUnits<=size.y;
+            }
         }
         private ItemShortcutActions Actions()=>itemActions?.Invoke()??throw new InvalidOperationException(
             $"Личный инвентарь: не подключён общий обработчик действий, actor={session.LocalActor?.id}, item={selected}. Настройте PrototypeHud.ConfigureItemActions.");

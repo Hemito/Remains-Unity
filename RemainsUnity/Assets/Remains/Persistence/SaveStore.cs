@@ -77,6 +77,7 @@ namespace Remains.Persistence
                 Debug.LogWarning($"Стопки мира объединены: world={world.worldId}, убрано отдельных записей={removed}, старые ID сохранены как ссылки. Исходник: {backup}.");
             }
             foreach(var actor in world.actors) {Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);}
+            foreach(var actor in world.actors) CosmeticEquipment.ReconcileInventory(actor);
             foreach(var container in world.containers) InventoryStacks.Validate(container.items,container.itemAliases);
             try {PropBodyRules.ValidateWorld(world);}
             catch(InvalidOperationException error)
@@ -190,6 +191,7 @@ namespace Remains.Persistence
             if(actor==null) throw new ArgumentNullException(nameof(actor));
             Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
             var saved=actor.Copy();
+            CosmeticEquipment.Validate(saved);
             ContentProvenance.Record(ref saved.weaponContent,ref saved.weaponContentHistory);
             string json=JsonUtility.ToJson(saved,true);
             // Unknown extension numbers/colliding fields must pass the same strict parser.
@@ -235,6 +237,7 @@ namespace Remains.Persistence
                 Debug.LogWarning($"Стопки персонажа объединены: actor={actor.id}, убрано отдельных записей={removed}, старые ID сохранены как ссылки. Исходник: {backup}.");
             }
             InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);
+            CosmeticEquipment.ReconcileInventory(actor);
             return actor;
         }
 

@@ -12,6 +12,7 @@ namespace Remains.Content
         public readonly Dictionary<string,WeaponDefinition> definitions=new();
         public string fingerprint,description;
         public readonly List<LoadedCodeMod> codeMods=new();
+        public readonly List<LoadedCosmeticPack> cosmetics=new();
         public readonly ContentManifest manifest=new();
     }
     public static class WeaponCatalogLoader
@@ -50,6 +51,23 @@ namespace Remains.Content
                         string data=File.Exists(path)?File.ReadAllText(path):"{\"weapons\":[]}";
                         Apply(result,sources,data,source,manifest.weaponOverrides??Array.Empty<WeaponOverride>());
                         string codeHash="";
+                        string cosmeticSignature="";
+                        if(manifest.cosmetics!=null)
+                        {
+                            var declaration=manifest.cosmetics;
+                            string cosmeticData=File.ReadAllText(PackFile(directory,declaration.definitions,"cosmetics.definitions"));
+                            // Pure validation; applying the pack to the startup registry happens after all manifests are read.
+                            var cosmeticShape=StateJson.FromJson<CosmeticPackShape>(cosmeticData);
+                            if(cosmeticShape==null || cosmeticShape.schema!=1 || cosmeticShape.slots==null || cosmeticShape.items==null)
+                                throw new InvalidDataException("Некорректные данные cosmetics.definitions: нужны schema=1, slots, items.");
+                            byte[] visualBytes=declaration.visuals==null?null:File.ReadAllBytes(PackFile(directory,declaration.visuals,"cosmetics.visuals"));
+                            string texts=declaration.texts==null?null:File.ReadAllText(PackFile(directory,declaration.texts,"cosmetics.texts"));
+                            if(texts!=null) _=new ItemTextCatalog(texts); // Pure validation before touching the live presentation catalogs.
+                            cosmeticSignature="\ncosmetics-definitions:\n"+cosmeticData;
+                            if(texts!=null) cosmeticSignature+="\ncosmetics-texts:\n"+texts;
+                            if(visualBytes!=null) cosmeticSignature+="\ncosmetics-visuals-sha256:"+Hash(visualBytes);
+                            result.cosmetics.Add(new LoadedCosmeticPack {id=source,position=index+1,data=cosmeticData,texts=texts,visuals=visualBytes});
+                        }
                         if(manifest.code!=null)
                         {
                             var code=manifest.code;
@@ -63,14 +81,16 @@ namespace Remains.Content
                             result.codeMods.Add(new LoadedCodeMod {id=source,position=index+1,entry=code,assembly=bytes});
                         }
                         loaded.Add(source);signature.Append('\n').Append(manifestJson).Append('\n').Append(data);
+                        signature.Append(cosmeticSignature);
                         if(manifest.code!=null) signature.Append("\ncode-sha256:").Append(codeHash);
                         result.manifest.packs.Add(new ContentPackRecord {id=source,version=manifest.version,
-                            fingerprint=Hash(manifestJson+"\n"+data+(manifest.code==null?"":"\ncode-sha256:"+codeHash)),dependencies=manifest.dependencies??Array.Empty<string>()});
+                            fingerprint=Hash(manifestJson+"\n"+data+cosmeticSignature+(manifest.code==null?"":"\ncode-sha256:"+codeHash)),dependencies=manifest.dependencies??Array.Empty<string>()});
                         description.Append('\n').Append(index+1).Append(". ").Append(source).Append(" · ").Append(manifest.version);
                         foreach(var replacement in manifest.weaponOverrides??Array.Empty<WeaponOverride>())
                             description.Append("; замена ").Append(replacement.id).Append(" из ").Append(replacement.source);
                     }
-                    catch(Exception failure) when(failure is IOException || failure is InvalidDataException || failure is ArgumentException)
+                    catch(Exception failure) when(failure is IOException || failure is InvalidDataException || failure is ArgumentException ||
+                        failure is InvalidOperationException || failure is Newtonsoft.Json.JsonException)
                     {throw new InvalidDataException($"Ошибка загрузки мода: позиция={index+1}, папка={folder}, id={source}. {failure.Message}",failure);}
                 }
             }
@@ -81,6 +101,17 @@ namespace Remains.Content
         }
         private static string Hash(string text)
         {using var hash=SHA256.Create();return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-","");}
+        private static string Hash(byte[] bytes)
+        {using var hash=SHA256.Create();return BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-","");}
+        [Serializable] private sealed class CosmeticPackShape {public int schema;public string[] slots;public object[] items;}
+        private static string PackFile(string directory,string path,string field)
+        {
+            if(string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path)) throw new InvalidDataException("Не задан относительный файл "+field+".");
+            string absolute=Path.GetFullPath(Path.Combine(directory,path));
+            if(!absolute.StartsWith(directory+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Файл "+field+" находится вне папки мода: "+path);
+            return absolute;
+        }
         private static void Apply(LoadedWeaponCatalog result,Dictionary<string,string> sources,string json,string source,WeaponOverride[] declarations)
         {
             var overrides=new Dictionary<string,string>();

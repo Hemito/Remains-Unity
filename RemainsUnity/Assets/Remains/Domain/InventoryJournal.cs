@@ -13,6 +13,7 @@ namespace Remains.Domain
 
         public static bool Consume(ActorState actor,string definition,int count)
         {
+            CosmeticEquipment.Validate(actor);
             if(count<=0 || Count(actor,definition)<count) return false;
             var use=new InventoryUse {id=Guid.NewGuid().ToString("N")};
             int remaining=count;
@@ -25,17 +26,19 @@ namespace Remains.Domain
             }
             if(!Apply(actor.inventory,actor.inventoryAliases,use)) return false;
             actor.inventoryUses.Add(use);
+            CosmeticEquipment.ReconcileInventory(actor);
             return true;
         }
 
         public static bool Debit(ActorState actor,string transaction,string item,int count)
         {
+            CosmeticEquipment.Validate(actor);
             if(string.IsNullOrEmpty(transaction) || actor.inventoryUses.Exists(use=>use.id==transaction)) return false;
             var source=InventoryStacks.Find(actor,item);
             if(source==null || InventoryAvailability.Count(actor,source)<count) return false;
             var use=new InventoryUse {id=transaction,debits=new List<ItemDebit> {new() {item=item,count=count}}};
             if(!Apply(actor.inventory,actor.inventoryAliases,use)) return false;
-            actor.inventoryUses.Add(use);return true;
+            actor.inventoryUses.Add(use);CosmeticEquipment.ReconcileInventory(actor);return true;
         }
 
         // Rebase owner debits on the authoritative inventory, preserving concurrent grants.

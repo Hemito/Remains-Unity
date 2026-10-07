@@ -20,8 +20,8 @@ namespace Remains.Presentation
             InventoryCategory.All=>true,
             InventoryCategory.Weapons=>WeaponInventory.IsEquippable(item),
             InventoryCategory.Ammunition=>!WeaponInventory.IsEquippable(item) && ammunition.Contains(item.definition),
-            InventoryCategory.Items=>!WeaponInventory.IsEquippable(item) && !ammunition.Contains(item.definition),
-            InventoryCategory.Armor=>false, // Reserved presentation tab; armor rules are not implemented.
+            InventoryCategory.Items=>!WeaponInventory.IsEquippable(item) && !ammunition.Contains(item.definition) && !CosmeticEquipment.IsWearable(item),
+            InventoryCategory.Armor=>CosmeticEquipment.IsWearable(item),
             _=>throw new ArgumentOutOfRangeException(nameof(category),category,"Неизвестная категория инвентаря.")
         };
     }

@@ -12,7 +12,11 @@ namespace Remains.Editor
         [MenuItem("Remains/Подготовить варианты внешности")]
         public static void Build()
         {
-            PonyRenderCompiler.Build();PonyVisual.Prepare();ActorTypes.Load();
+            PonyRenderCompiler.Build();PrepareCompiled();
+        }
+        public static void PrepareCompiled()
+        {
+            WeaponCatalog.Load();PonyRenderSelection.ResetPrepared();PonyVisual.Prepare();ActorTypes.Load();
             PrepareActor();PreparePortrait();
             AssetDatabase.SaveAssets();PonyAppearanceChecks.Run();
             Debug.Log("Варианты внешности подготовлены: сохранённые кадры, структура пони и UI-портрет.");
@@ -46,32 +50,31 @@ namespace Remains.Editor
             try
             {
                 var view=root.GetComponent<PersonalInventoryView>();
-                var parts=Array.Find(PonyAnimationData.Library.clips,clip=>clip.id=="idle").frames[0].parts.Where(part=>!part.path.StartsWith("pip2/")).OrderBy(part=>part.drawOrder).ToArray();
-                Vector2 minimum=new(float.PositiveInfinity,float.PositiveInfinity),maximum=new(float.NegativeInfinity,float.NegativeInfinity);
-                foreach(var part in parts) foreach(var point in PonyAnimationData.Quad(part)) {minimum=Vector2.Min(minimum,point);maximum=Vector2.Max(maximum,point);}
-                var saved=view.Portrait.GetComponentsInChildren<PortraitPart>(true).ToList();
-                for(int i=0;i<parts.Length;i++)
+                view.PortraitParts=PreparePortraitRoot(view.Portrait);view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+        }
+        public static PortraitPart[] PreparePortraitRoot(GameObject portrait)
+        {
+                var actor=new Domain.ActorState();var plan=PonyRenderSelection.PrepareEquipment(actor);
+                var parts=plan.PortraitFrame;var bounds=plan.FrameBounds("idle",0);var appearance=PonyAppearance.Snapshot(actor);
+                var saved=portrait.GetComponentsInChildren<PortraitPart>(true).ToList();
+                int capacity=Math.Max(saved.Count,PonyRenderSelection.Capacity);
+                for(int i=0;i<capacity;i++)
                 {
-                    var part=parts[i];PortraitPart graphic;
+                    var part=parts[i<parts.Length?i:0];PortraitPart graphic;
                     if(i<saved.Count) graphic=saved[i];
                     else
                     {
-                        var child=new GameObject("Часть портрета "+i,typeof(RectTransform));child.transform.SetParent(view.Portrait.transform,false);
+                        var child=new GameObject("Часть портрета "+i,typeof(RectTransform));child.transform.SetParent(portrait.transform,false);
                         graphic=child.AddComponent<PortraitPart>();saved.Add(graphic);
                     }
-                    graphic.name="Портрет · "+part.path+" · "+part.hairStyle+"/"+part.eyeStyle;
+                    graphic.name="Часть портрета "+i;
                     graphic.transform.SetSiblingIndex(i);
                     var rect=graphic.rectTransform;rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=Vector2.zero;rect.offsetMax=Vector2.zero;
-                    var texture=Resources.Load<Texture2D>("Original/Pony/"+part.texture);
-                    if(texture==null) throw new InvalidOperationException("Нет графики портрета: "+part.texture);
-                    graphic.Configure(texture,PonyAnimationData.Quad(part),minimum,maximum);
-                    graphic.SetAppearance(part.slot,new Color(part.color[0],part.color[1],part.color[2],part.color[3]));
-                    graphic.ConfigureSelection(part.hairStyle,part.eyeStyle);graphic.ApplyAppearance(PonyAppearance.Snapshot(new Domain.ActorState()));
+                    graphic.ConfigurePrepared(part,appearance,bounds);if(i>=parts.Length) graphic.gameObject.SetActive(false);
                 }
-                for(int i=saved.Count-1;i>=parts.Length;i--) {UnityEngine.Object.DestroyImmediate(saved[i].gameObject);saved.RemoveAt(i);}
-                view.PortraitParts=saved.ToArray();view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
-            }
-            finally {PrefabUtility.UnloadPrefabContents(root);}
+                return saved.ToArray();
         }
     }
 }

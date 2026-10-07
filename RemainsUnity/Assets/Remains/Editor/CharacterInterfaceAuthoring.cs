@@ -57,6 +57,21 @@ namespace Remains.Editor
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}
         }
+        public static void RefreshSavedPortraits()
+        {
+            foreach(string path in new[]{"Assets/Remains/Resources/Presentation/CharacterLibrary.prefab","Assets/Remains/Resources/Presentation/CharacterEditor.prefab"})
+            {
+                var root=PrefabUtility.LoadPrefabContents(path);
+                try
+                {
+                    foreach(var view in root.GetComponentsInChildren<CharacterPortraitView>(true))
+                    {view.Parts=PonyAppearanceAuthoring.PreparePortraitRoot(view.Pony);view.Validate();}
+                    PrefabUtility.SaveAsPrefabAsset(root,path);
+                }
+                finally {PrefabUtility.UnloadPrefabContents(root);}
+            }
+            AssetDatabase.SaveAssets();
+        }
         private static InputField Input(Transform parent,string name,Vector2 point,Vector2 size,int limit)
         {
             var root=ui.Panel(parent,name,point,size);root.GetComponent<Image>().color=new Color(.08f,.15f,.12f,1);

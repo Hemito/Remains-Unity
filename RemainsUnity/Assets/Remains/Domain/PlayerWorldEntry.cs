@@ -19,7 +19,7 @@ namespace Remains.Domain
                 if(profile!=null && (StateJson.ToJson(profile.inventory)!=StateJson.ToJson(saved.inventory) ||
                     StateJson.ToJson(profile.appearance)!=StateJson.ToJson(saved.appearance) || profile.health!=saved.health))
                     notice=$"Персонаж {saved.character} возвращается в оставленное тело: его здоровье, вещи и последствия в этом мире сохранены. Отличающийся личный профиль не объединяется с телом автоматически.";
-                return saved;
+                CosmeticEquipment.ReconcileInventory(saved);return saved;
             }
             if(profile==null)
                 throw new InvalidOperationException($"Для входа из хаба нужен личный профиль: world={world.worldId}, actor={saved.id}, character={saved.character}. Сохранённая копия мира не заменяет библиотеку персонажей.");
@@ -41,6 +41,7 @@ namespace Remains.Domain
             if(!InventoryJournal.Merge(result,debitJournal,out var inventory,out var uses))
                 throw new InvalidOperationException($"Личный профиль не согласуется с подтверждённым расходом: world={world.worldId}, actor={saved.id}. Вход отменён, копии сохранены; требуется восстановление согласованной пары мира и персонажа.");
             result.inventory=inventory;result.inventoryUses=uses;
+            CosmeticEquipment.ReconcileInventory(result);
             foreach(var use in coordinated)
                 foreach(var debit in use.debits) WeaponInventory.ClearConsumedSelection(result,debit.item);
             result.id=saved.id;result.character=saved.character;result.player=true;

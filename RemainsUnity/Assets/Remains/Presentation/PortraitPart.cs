@@ -21,6 +21,7 @@ namespace Remains.Presentation
             gameObject.SetActive(PonyAppearance.Matches(hairStyle,eyeStyle,slot,appearance.HairStyle,appearance.EyeStyle,appearance.SecondaryEnabled));
         }
         public override Texture mainTexture=>texture;
+        public Vector3 PreparedPoint(int index)=>points[index];
         public void Validate()
         {
             if(GetComponent<CanvasRenderer>()==null || texture==null || points==null || points.Length!=4 || !float.IsFinite(minimum.x) || !float.IsFinite(minimum.y) ||
@@ -31,6 +32,15 @@ namespace Remains.Presentation
         }
         public void Configure(Texture texture,Vector3[] points,Vector2 minimum,Vector2 maximum)
         {this.texture=texture;this.points=points;this.minimum=minimum;this.maximum=maximum;raycastTarget=false;SetAllDirty();}
+        // A prepared quad is shared with the world renderer, never sampled again by UI.
+        public void ConfigurePrepared(PonyRenderPart part,PonyAppearanceKey appearance,Bounds envelope)
+        {
+            if(part==null || part.points==null || part.points.Length!=4 || part.material==null || part.material.mainTexture==null)
+                throw new System.InvalidOperationException("Нет подготовленной части портрета: "+name+".");
+            Configure(part.material.mainTexture,part.points,new Vector2(envelope.min.x,envelope.min.y),new Vector2(envelope.max.x,envelope.max.y));
+            slot=part.slot;baseColor=part.baseColor;hairStyle=eyeStyle=0;
+            color=baseColor*PonyAppearance.Tint(slot,appearance);gameObject.SetActive(part.visible);
+        }
         protected override void OnPopulateMesh(VertexHelper vertices)
         {
             vertices.Clear();if(points==null) return;

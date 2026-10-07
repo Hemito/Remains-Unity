@@ -35,7 +35,7 @@ namespace Remains.Presentation
             if(Scrollbar==null || Scrollbar.handleRect==null || Scrollbar.direction!=UnityEngine.UI.Scrollbar.Direction.TopToBottom)
                 throw new InvalidOperationException("Личный инвентарь: нужна вертикальная полоса прокрутки сверху вниз с ползунком.");
             if(Categories==null || Categories.Length!=Enum.GetValues(typeof(InventoryCategory)).Length || Array.Exists(Categories,x=>x==null))
-                throw new InvalidOperationException("Личный инвентарь: не назначены все вкладки, включая пустую вкладку брони.");
+                throw new InvalidOperationException("Личный инвентарь: не назначены все вкладки, включая вкладку брони.");
             if(Rows==null || Icons==null || Rows.Length==0 || Rows.Length!=Icons.Length || Weapons==null || Weapons.Length!=Remains.Domain.ItemShortcuts.Keys.Count || WeaponIds==null || WeaponIds.Length!=4 ||
                 DetailIcon==null || WeaponPreview==null || WeaponDetail==null || Portrait==null || PortraitParts==null || PortraitParts.Length==0 || Previous==null || Next==null || Deposit==null || Use==null || Detail==null || ActionStatus==null)
                 throw new InvalidOperationException("Личный инвентарь: не заполнены ссылки или не совпадают массивы элементов.");
