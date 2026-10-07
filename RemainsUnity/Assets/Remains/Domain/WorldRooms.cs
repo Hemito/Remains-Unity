@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Remains.Serialization;
 
 namespace Remains.Domain
 {
-    [Serializable] public sealed class WorldRoom
+    [Serializable] public sealed class WorldRoom : ExtensibleState
     {
         public string level;
         public string definition;

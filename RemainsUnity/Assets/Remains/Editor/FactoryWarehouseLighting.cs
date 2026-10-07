@@ -14,15 +14,10 @@ namespace Remains.Editor
         {
             string kind=FactoryWarehouseSource.Value(record,"id");
             FactoryWarehouseSource.Require(kind is "light2" or "light4","Не назначен explicit fixture kind="+kind+", record="+record.recordId);
-            var fixture=template.CreateLayout().artwork.Where(a=>a.texture=="Factory46/decor-"+kind+"-1").OrderBy(a=>a.x).ThenBy(a=>a.y).FirstOrDefault();
-            FactoryWarehouseSource.Require(fixture!=null,"Нет явно выбранного leftmost вход46 fixture, kind="+kind);
-            string mask="Original/Room/Factory46/light-mask-"+kind+"-1";
-            var candidates=TemplateProfile(template).lights.Where(l=>l.mask==mask && Mathf.Abs(l.x-fixture.x-fixture.width*.5f)<.001f && Mathf.Abs(l.y-fixture.y-fixture.height*.5f)<.001f).ToArray();
-            FactoryWarehouseSource.Require(candidates.Length==1,"Не найден единственный authored lamp/mask у template fixture, kind="+kind);
             var anchor=new Vector2(FactoryWarehouseSource.Number(record,"x")*.8f,(25-FactoryWarehouseSource.Number(record,"y"))*.8f);
             // Existing entry46 calibrated masks were authored relative to source left/top,
             // not the padded canvas corner of our newly exported diffuse light2.
-            return FactoryModuleLightTemplate.Translate(candidates[0],new Vector2(fixture.x,fixture.y+fixture.height),anchor,record.recordId);
+            return FactoryModuleLightTemplate.FromAuthoredFixture(template,kind,anchor,record.recordId);
         }
         internal static void Install(GameObject root,FactoryWarehouseSource.Data data,FactoryModuleAuthoringInput input)
         {

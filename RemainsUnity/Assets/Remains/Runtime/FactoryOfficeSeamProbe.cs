@@ -11,6 +11,17 @@ namespace Remains.Runtime
     public struct OfficeSeamFixture : NetworkMessage {public int hostGeneration,clientGeneration;}
     public struct OfficeSeamObserved : NetworkMessage {}
     public struct OfficeSeamReady : NetworkMessage {}
+    internal sealed class FactorySeamProbeSettings
+    {
+        public readonly float ground,startHost,startClient,inX,outX;
+        public readonly string label,frameSuffix;
+        public FactorySeamProbeSettings(float ground,float startHost,float startClient,float inX,float outX,string label,string frameSuffix)
+        {
+            if(!float.IsFinite(ground+startHost+startClient+inX+outX) || inX<=startHost || inX<=startClient || outX>=inX ||
+                string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(frameSuffix)) throw new ArgumentException("Некорректная явная проверочная регистрация стыка.");
+            this.ground=ground;this.startHost=startHost;this.startClient=startClient;this.inX=inX;this.outX=outX;this.label=label;this.frameSuffix=frameSuffix;
+        }
+    }
     // Shared diagnostic for the two reviewed seams. Initial placement is explicit; crossing and returning use normal movement.
     internal sealed class FactoryOfficeSeamProbe
     {
@@ -22,12 +33,12 @@ namespace Remains.Runtime
         private float readyAt=-1;
         private string actorId,owner,capture;
         private RoomLayout geometry;
-        private readonly bool warehouse;
+        private readonly FactorySeamProbeSettings settings;
         private float fixtureAt=-1;
-        private float Ground=>warehouse?7.2f:10.4f;
-        private float InX=>warehouse?117.8f:78.65f;
-        private float OutX=>warehouse?114:75.55f;
-        private string Label=>warehouse?"Стык офис→склад":"Стык цех→офисы";
+        private float Ground=>settings.ground;
+        private float InX=>settings.inX;
+        private float OutX=>settings.outX;
+        private string Label=>settings.label;
         public bool ContainerReady {get;private set;}
         public bool Verified=>phase==3;
         public string Failure {get;private set;}
@@ -35,8 +46,11 @@ namespace Remains.Runtime
         private bool Host=>runtime.Options.Role=="host";
         private int ExpectedGeneration=>Host?fixture.hostGeneration:fixture.clientGeneration;
         public FactoryOfficeSeamProbe(PrototypeRuntime value,bool warehouse=false)
+            :this(value,warehouse?new FactorySeamProbeSettings(7.2f,113.8f,114,117.8f,114,"Стык офис→склад","warehouse-seam"):
+                new FactorySeamProbeSettings(10.4f,75.4f,75.6f,78.65f,75.55f,"Стык цех→офисы","office-seam")) {}
+        public FactoryOfficeSeamProbe(PrototypeRuntime value,FactorySeamProbeSettings settings)
         {
-            runtime=value;this.warehouse=warehouse;
+            runtime=value;this.settings=settings??throw new ArgumentNullException(nameof(settings));
             value.Session.ClientReady+=()=>
             {
                 NetworkClient.RegisterHandler<OfficeSeamFixture>(message=>fixture=message);
@@ -58,7 +72,7 @@ namespace Remains.Runtime
                 geometry=runtime.Geometry.Get("factory:0");
                 foreach(var player in session.ServerWorld.actors.Where(a=>a.player && a.connected))
                 {
-                    var position=new Vector2(warehouse?(player.character=="session-host"?113.8f:114):(player.character=="session-host"?75.4f:75.6f),Ground);
+                    var position=new Vector2(player.character=="session-host"?settings.startHost:settings.startClient,Ground);
                     if(!ActorTerrainMotion.IsClear(geometry,Anatomy.Movement(player),position) || !ActorTerrainMotion.Supported(geometry,Anatomy.Movement(player),position))
                     {Failure="Начальное положение у нового стыка не имеет свободной опоры: "+position;return;}
                     player.Position=position;player.Velocity=Vector2.zero;player.climbing=false;player.pose="idle";player.poseTime=0;
@@ -78,18 +92,22 @@ namespace Remains.Runtime
                 !ReferenceEquals(geometry,runtime.Geometry.Get("factory:0")) || Actor.down || Mathf.Abs(Actor.y-Ground)>.03f)
             {Failure="Проход офисного стыка изменил актёра/уровень/владельца/опору или запустил переход.";return;}
             if(phase==1 && Actor.x>=InX) {phase=2;capture="in";}
-            else if(phase==2 && Actor.x<=OutX)
-            {phase=3;capture="out";NetworkClient.Send(new OfficeSeamObserved());}
+            else if(phase==2 && Actor.x<=OutX && Mathf.Abs(Actor.vx)<.01f && Mathf.Abs(Actor.vy)<.01f)
+            {phase=3;capture="out";session.PublishActor(Actor);NetworkClient.Send(new OfficeSeamObserved());}
         }
         public PlayerCommand Command()
         {
             if(Failure!=null || Actor==null || Actor.generation!=ExpectedGeneration || fixtureAt<0 || Time.unscaledTime-fixtureAt<3) return default;
-            return new PlayerCommand {movement=phase==1?Vector2.right:phase==2?Vector2.left:Vector2.zero};
+            if(capture=="start" && runtime.Options.Smoke.Contains("-frames-")) return default;
+            return new PlayerCommand {movement=phase==1?Vector2.right:phase==2 && Actor.x>OutX?Vector2.left:Vector2.zero};
         }
         public void Capture()
         {
-            if(capture==null || !runtime.Options.Smoke.Contains("-frames-") || capture=="start" && Time.unscaledTime-fixtureAt<2.8f) return;
-            NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+(warehouse?".warehouse-seam-":".office-seam-")+capture+".png",runtime.Hud.GetComponent<Canvas>());capture=null;
+            if(capture==null || !runtime.Options.Smoke.Contains("-frames-") || !runtime.LevelPresentationReady ||
+                capture=="start" && Time.unscaledTime-fixtureAt<2.8f) return;
+            var camera=runtime.WorldCamera;
+            if(camera==null || !camera.enabled || camera.cullingMask==0) return;
+            NetworkFrameCapture.Save(camera,runtime.Options.Report+"."+settings.frameSuffix+"-"+capture+".png",runtime.Hud.GetComponent<Canvas>());capture=null;
         }
     }
 }

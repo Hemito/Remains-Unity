@@ -112,7 +112,7 @@ namespace Remains.Editor
         }
         public static void VerifyRoom(RoomAuthoring room)
         {
-            var doors=RoomDoorContent.Read(room,"factory:0");Require(doors.patch=="factory:0:"+ConnectedPatch,"Нет root doors-v5.");
+            var doors=FactoryWarehouseHistoryProjection.BeforeContinuation(RoomDoorContent.Read(room,"factory:0"));Require(doors.patch=="factory:0:"+ConnectedPatch,"Нет root doors-v5.");
             BeforeMetalDoors(doors);
         }
         public static void CheckLocal(RoomAuthoring room)

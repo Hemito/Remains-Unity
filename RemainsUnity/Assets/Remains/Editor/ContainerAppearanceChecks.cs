@@ -15,7 +15,7 @@ namespace Remains.Editor
         public static void Run()
         {
             int conditions=RunDomain();ContainerArtworkAuthoring.Check();RunNative();
-            Debug.Log($"Вид контейнеров: PASS — {conditions} доменных условий, первый общий просмотр, миграция/backup/unknowns, дубликаты/отказы, сохранённый opened, 24 профиля и кэш свечения.");
+            Debug.Log($"Вид контейнеров: PASS — {conditions} доменных условий, первый общий просмотр, миграция/backup/unknowns, дубликаты/отказы, сохранённый opened, 26 профилей и кэш свечения.");
         }
         public static int RunDomain()
         {
@@ -122,7 +122,7 @@ namespace Remains.Editor
                 }
                 finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
             }
-            if(pairs!=10 || statics!=14) throw new InvalidOperationException($"Неверное покрытие каталога после установки мебели склада: pair={pairs}, static={statics}.");
+            if(pairs!=12 || statics!=14) throw new InvalidOperationException($"Неверное покрытие каталога после установки шкафов комнаты27: pair={pairs}, static={statics}.");
         }
     }
 }

@@ -93,19 +93,7 @@ namespace Remains.Editor
             Require(geometry!=null && prior?.props?.Length==17 && prior.containers?.Length==16 && doors?.Length==(metal?4:2) && layout?.actors?.Length==9,
                 "Для геометрической проверки нужны terrain, 33 физических объекта, точная стадия2/4 дверей и9NPC склада40.");
             if(metal) FactoryWarehouseMetalDoorsPlacement.CheckNewDoors(new DoorLayout {level=physical.level,doors=doors},0);
-            var room=StateJson.Copy(geometry);room.platforms=DoorGeometry.Compose(room.platforms,doors,physical.level);
-            foreach(var actor in layout.actors)
-            {
-                var hull=Anatomy.Movement(actor);var body=new Rect(actor.x-hull.width*.5f,actor.y,hull.width,hull.height);
-                Require(ActorTerrainMotion.IsClear(room,hull,actor.Position) && ActorTerrainMotion.Supported(room,hull,actor.Position),
-                    "Нет свободного тела/настоящей опоры: actor="+actor.id+", anatomy="+actor.anatomy+", bounds="+body);
-                foreach(var prop in physical.props.Cast<PropState>().Concat(physical.containers))
-                {
-                    PropBodyRules.Validate(prop);
-                    Require(!prop.hasPhysicalBody || !body.Overlaps(new Rect(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height)),
-                        "NPC пересекает authored physical body: actor="+actor.id+", prop="+prop.id+", bounds="+body);
-                }
-            }
+            FixedEncounterGeometryChecks.Validate(geometry,physical,doors,layout.actors,"склад40");
         }
         public static void CheckGeometryFailures(RoomLayout geometry,PhysicalLayout physical,DoorState[] doors,NpcLayout layout)
         {

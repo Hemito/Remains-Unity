@@ -17,16 +17,14 @@ namespace Remains.Content
             layout=StateJson.Copy(layout);
             var selected=ContentExpansionRules.SelectedIds(world,layout.patch,layout.level,layout.expansion,layout.doors.Select(d=>d?.id));
             if(selected!=null) layout.doors=layout.doors.Where(d=>selected.Contains(d.id)).ToArray();
-            var ids=new HashSet<string>(StringComparer.Ordinal);var additions=new List<DoorState>();
+            ContentEntityIds.Preflight(world,layout.doors.Select(d=>new ContentEntityIdentity(ContentEntityKind.Door,d?.id)),layout.patch);
+            var additions=new List<DoorState>();
             foreach(var door in layout.doors)
             {
                 if(door==null) throw new InvalidOperationException("Пустая дверь в расстановке "+layout.patch);
                 door.Validate();
-                if(door.level!=layout.level || !ids.Add(door.id)) throw new InvalidOperationException("Неверный уровень или повтор ID двери: "+door.id);
-                if(world.actors.Exists(a=>a.id==door.id) || world.props.Exists(p=>p.id==door.id) || world.containers.Exists(c=>c.id==door.id))
-                    throw new InvalidOperationException("ID двери занят другим объектом: "+door.id);
+                if(door.level!=layout.level) throw new InvalidOperationException("Неверный уровень двери: "+door.id);
                 var existing=world.doors.FindAll(d=>d.id==door.id);
-                if(existing.Count>1) throw new InvalidOperationException("Повтор двери в сохранении: "+door.id);
                 if(existing.Count==1)
                 {
                     var saved=existing[0];saved.Validate();

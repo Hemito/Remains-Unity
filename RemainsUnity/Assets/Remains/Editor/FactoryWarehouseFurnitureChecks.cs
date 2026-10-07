@@ -22,7 +22,7 @@ namespace Remains.Editor
             var connected=FactoryWarehouseSource.Asset<GameObject>(ConnectedFactoryAuthoring.Path).GetComponent<RoomAuthoring>();
             CheckPersistence(RoomContentBatch.Read(local,"factory:0"),false);
             CheckPersistence(RoomContentBatch.Read(connected,"factory:0"),true);
-            CheckNegatives(RoomContentBatch.Read(connected,"factory:0"),connected.CreateLayout());
+            CheckNegatives(FactoryWarehouseHistoryProjection.BeforeContinuation(RoomContentBatch.Read(connected,"factory:0")),connected.CreateLayout());
             Debug.Log("Мебель склада40: PASS четыре source ID/anchors,18props/19containers/19loot,53/57 records, исходная геометрия, fresh/repeated/cumulative installs без refill/resurrection и точные исторические проекции.");
         }
         public static void CheckLocal(RoomAuthoring room)=>CheckRoom(room,false);
@@ -30,7 +30,7 @@ namespace Remains.Editor
         private static void CheckRoom(RoomAuthoring room,bool connected)
         {
             Require(room!=null,"Нет авторской комнаты.");
-            var batch=RoomContentBatch.Read(room,"factory:0");var physical=batch.physical;
+            var batch=RoomContentBatch.Read(room,"factory:0");if(connected)batch=FactoryWarehouseHistoryProjection.BeforeContinuation(batch);var physical=batch.physical;
             Require(physical.patch==physical.level+":"+(connected?FactoryWarehouseFurnitureAuthoring.ConnectedPatch:FactoryWarehouseFurnitureAuthoring.LocalPatch),"Неверная текущая физическая версия.");
             var prior=FactoryWarehouseFurnitureAuthoring.BeforeFurniture(physical);
             CheckPredecessor(prior,connected);CheckNewRecords(physical,connected?115.2f:0);
@@ -128,6 +128,7 @@ namespace Remains.Editor
         }
         public static void CheckPersistence(RoomContentBatch batch,bool connected)
         {
+            if(connected)batch=FactoryWarehouseHistoryProjection.BeforeContinuation(batch);
             var layout=batch.physical;FactoryWarehouseFurnitureAuthoring.BeforeFurniture(layout);var ids=FactoryWarehouseFurnitureAuthoring.NewIds(layout.level);
             var fresh=new WorldState {worldId="warehouse-furniture-fresh",mechanismVersion=1};
             Require(RoomContentInstaller.Apply(fresh,batch),"Fresh мир не устанавливается.");

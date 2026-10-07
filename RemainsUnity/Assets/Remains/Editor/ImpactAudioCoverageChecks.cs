@@ -23,13 +23,16 @@ namespace Remains.Editor
             ("Factory53/26_tConcrete","hit-concrete",.5f,46),
             ("Factory40/24_tConcreteD","hit-concrete",.5f,5),
             ("Factory40/26_tConcrete","hit-concrete",.5f,31),
-            ("Factory40/8_tWood","hit-wood",.5f,3)};
+            ("Factory40/8_tWood","hit-wood",.5f,3),
+            ("Factory27R60/26_tConcrete","hit-concrete",.5f,10),
+            ("Factory27R60/23_tCracked","hit-concrete",.5f,9)};
         private static readonly string[] ModulePaths={
             "Assets/Remains/Resources/Levels/hub.prefab",
             "Assets/Remains/RoomDrafts/FactoryEntry46.prefab",
             "Assets/Remains/RoomDrafts/FactoryWorkshop18.prefab",
             "Assets/Remains/RoomDrafts/FactoryOffice53.prefab",
-            "Assets/Remains/RoomDrafts/FactoryWarehouse40.prefab"};
+            "Assets/Remains/RoomDrafts/FactoryWarehouse40.prefab",
+            "Assets/Remains/RoomDrafts/FactoryContinuation27.prefab"};
         private static readonly string[] MeleeWeapons={"crowbar","spear"};
         private readonly struct Sound
         {
@@ -90,7 +93,7 @@ namespace Remains.Editor
             foreach(var assignment in AddedSurfaces)
                 Require(restoredCounts[assignment.key]==assignment.count,
                     $"Изменилось проверяемое source-размещение {assignment.key}: {restoredCounts[assignment.key]}, ожидалось {assignment.count}.");
-            Require(restoredCounts.Values.Sum()==197,"Не проверены все 197 ранее пропущенных solid declarations.");
+            Require(restoredCounts.Values.Sum()==216,"Не проверены все 216 явных solid declarations, включая комнату27.");
             foreach(var asset in MechanismCatalogAsset.Load().Platforms)
             {
                 var type=asset.CreateDefinition();
@@ -113,7 +116,7 @@ namespace Remains.Editor
                 CheckAssignment(melee,weapon+":prop:couch","hit-wood",.5f);
             }
             CheckMissingKey(projectile,melee);
-            Debug.Log($"Назначения ударных звуков: PASS — {paths.Count} сохранённых комнат, {solids} ударяемых/{passing} проходимых поверхностей, {doors} дверей, 197 восстановленных declarations, {props} физических типов/{withoutBody} без тела; отрицательные missing-key и policy checks.");
+            Debug.Log($"Назначения ударных звуков: PASS — {paths.Count} сохранённых комнат, {solids} ударяемых/{passing} проходимых поверхностей, {doors} дверей, {AddedSurfaces.Sum(a=>a.count)} восстановленных declarations, {props} физических типов/{withoutBody} без тела; отрицательные missing-key и policy checks.");
         }
         private static Dictionary<string,Sound> ReadProjectile()
         {

@@ -5,7 +5,8 @@ using Remains.Serialization;
 
 namespace Remains.Editor
 {
-    // Earlier content regressions retain their original fixture; the new module has separate full-state checks.
+    // Earlier regressions use the exact detached pre-continuation/pre-warehouse
+    // stages; each projection verifies IDs and retires one cumulative step.
     internal static class FactoryContentCheckFixtures
     {
         public static NpcLayout BeforeOffice(NpcLayout source)

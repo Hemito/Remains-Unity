@@ -15,12 +15,13 @@ namespace Remains.Editor
             var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);int checks=0;
             foreach(string level in new[]{"factory:0","factory:6","factory:-27"})
                 checks+=Check(RoomContentBatch.Read(room,level));
-            Debug.Log($"Исторические проверки склада40: PASS — {checks} проверок точных ID, doors-v5→v4 только exact2metal, затем v7/v4/v5→v6/v3/v4, полных cumulative chains, независимых копий и отрицательных случаев. Нативный маршрут и новые игровые события этим сообщением не подтверждаются.");
+            Debug.Log($"Исторические проверки склада40: PASS — {checks} проверок; source27 v9/v6/v6→v8/v5/v5 только точные новые ID, затем прежние мебель/metal/склад цепочки, независимые копии, неизвестные поля и отрицательные случаи. Нативный маршрут этим сообщением не подтверждается.");
         }
         // Explicit layouts make the same negatives runnable without Unity import or game processes.
         public static int Check(RoomContentBatch source,string projectRoot=null)
         {
-            int checks=0;
+            int checks=CheckContinuation(source,projectRoot);
+            source=FactoryWarehouseHistoryProjection.BeforeContinuation(source,projectRoot);
             source=FactoryWarehouseFurnitureAuthoring.BeforeFurniture(source,projectRoot);
             void Require(bool value,string reason) {checks++;if(!value) throw new InvalidOperationException("Проекция склада40: "+reason);}
             void Reject(Action action,string reason)
@@ -112,5 +113,69 @@ namespace Remains.Editor
                 StateJson.ToJson(projected.npcs.actors.Single(a=>a.id==body.id))==savedBody,"Проекция пополнила/закрыла/переместила/воскресила сохранённый объект или потеряла unknown fields.");
             return checks;
         }
+        private static int CheckContinuation(RoomContentBatch source,string projectRoot)
+        {
+            if(source.physical.patch!=source.physical.level+":"+FactoryContinuationConnectionAuthoring.PhysicalPatch)
+            {FactoryWarehouseHistoryProjection.BeforeContinuation(source,projectRoot);return 0;}
+            int checks=0;string before=StateJson.ToJson(source),prefix=source.physical.level+":original:plant:27:";
+            bool Retained(string id)=>!id.StartsWith(prefix,StringComparison.Ordinal);
+            void Require(bool value,string reason) {checks++;if(!value)throw new InvalidOperationException("Проекция27: "+reason);}
+            void Reject(Action action,string reason)
+            {bool rejected=false;try{action();}catch(InvalidOperationException){rejected=true;}Require(rejected,"Не отклонено: "+reason);}
+            var result=FactoryWarehouseHistoryProjection.BeforeContinuation(source,projectRoot);
+            Require(StateJson.ToJson(source)==before,"Проекция изменила исходный полный пакет.");
+            Require(result.physical.props.Length==30 && result.physical.containers.Length==55 && result.physical.loot.Length==53 &&
+                result.doors.doors.Length==19 && result.npcs.actors.Length==22 && result.npcs.loot.Length==22,"Не восстановлена точная прежняя стадия r58.");
+            Require(StateJson.ToJson(result.physical.props)==StateJson.ToJson(source.physical.props.Where(p=>Retained(p.id)).ToArray()) &&
+                StateJson.ToJson(result.physical.containers)==StateJson.ToJson(source.physical.containers.Where(c=>Retained(c.id)).ToArray()) &&
+                StateJson.ToJson(result.physical.loot)==StateJson.ToJson(source.physical.loot.Where(b=>Retained(b.container)).ToArray()) &&
+                StateJson.ToJson(result.doors.doors)==StateJson.ToJson(source.doors.doors.Where(d=>Retained(d.id)).ToArray()) &&
+                StateJson.ToJson(result.npcs.actors)==StateJson.ToJson(source.npcs.actors.Where(a=>Retained(a.id)).ToArray()) &&
+                StateJson.ToJson(result.npcs.loot)==StateJson.ToJson(source.npcs.loot.Where(b=>Retained(b.actor)).ToArray()),"Удаление source27 изменило прежние объекты/таблицы/порядок.");
+            Require(StateJson.ToJson(result.mechanisms)==StateJson.ToJson(source.mechanisms) && StateJson.ToJson(result.travelPoints)==StateJson.ToJson(source.travelPoints),"Проекция27 изменила механизм/выход.");
+            Require(StateJson.ToJson(FactoryWarehouseHistoryProjection.BeforeContinuation(result,projectRoot))==StateJson.ToJson(result),"Повторная проекция27 изменила predecessor.");
+            result.physical.props[0].x+=.1f;result.physical.containers[0].items.Add(new ItemStack {id="projection27-copy",definition="caps",count=1});
+            result.doors.doors[0].revision++;result.npcs.actors[0].generation++;
+            Require(StateJson.ToJson(source)==before,"Source27 projection оставила общие изменяемые ссылки.");
+            var invalid=StateJson.Copy(source);invalid.physical.props=invalid.physical.props.Where(p=>Retained(p.id)).Concat(invalid.physical.props.Where(p=>!Retained(p.id)).Skip(1)).ToArray();
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"неполная source27 группа");
+            invalid=StateJson.Copy(source);invalid.doors.doors.First(d=>!Retained(d.id)).id=prefix+"unknown";
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"чужой door ID при24дверях");
+            invalid=StateJson.Copy(source);invalid.npcs.actors.First(a=>!Retained(a.id)).id=prefix+"unknown";
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"чужой NPC ID при35телах");
+            invalid=StateJson.Copy(source);var replaced=invalid.npcs.actors.First(a=>!Retained(a.id));string originalId=replaced.id;
+            replaced.id=prefix+"icyxG67X0pCmenkm";invalid.npcs.loot.Single(b=>b.actor==originalId).actor=replaced.id;
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"source64 скрыт вместо одного из13разрешённыхNPC при прежнем count");
+            invalid=StateJson.Copy(source);var prop=invalid.physical.props.First(p=>!Retained(p.id));var container=invalid.physical.containers.First(c=>!Retained(c.id));
+            string id=prop.id;prop.id=container.id;container.id=id;
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"подмена prop/container при прежних counts");
+            invalid=StateJson.Copy(source);invalid.physical.loot[0]=StateJson.Copy(invalid.physical.loot[1]);
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"повтор loot binding");
+            invalid=StateJson.Copy(source);invalid.physical.expansion.additions[0]=invalid.physical.props.First(p=>Retained(p.id)).id;
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"чужой latest addition вместо source27");
+            invalid=StateJson.Copy(source);invalid.npcs.expansion.earlierVersions[0].additions=invalid.npcs.expansion.earlierVersions[0].additions.Where(a=>a!=source.npcs.actors.First(a=>!Retained(a.id)).id).ToArray();
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"утерян source27 в cumulative шагах");
+            invalid=StateJson.Copy(source);invalid.doors.expansion.earlierVersions.Last().previousPatch=invalid.doors.expansion.earlierVersions[0].previousPatch;
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"повтор старой версии после retire27");
+            invalid=StateJson.Copy(source);invalid.physical.patch=result.physical.patch;
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"полная source27 группа под старой версией");
+            invalid=StateJson.Copy(source);invalid.doors=null;
+            Reject(()=>FactoryWarehouseHistoryProjection.BeforeContinuation(invalid,projectRoot),"частичный полный набор без семейства дверей");
+            var progressed=StateJson.Copy(source);
+            var cargo=progressed.physical.props.First(p=>Retained(p.id));cargo.x+=.27f;cargo.held=true;cargo.owner="saved-owner";cargo.generation=9;cargo.extensions=Extensions("cargo");
+            var box=progressed.physical.containers.First(c=>Retained(c.id));box.items.Clear();box.appearance=new ContainerAppearanceState {version=1,opened=true,revision=8};box.extensions=Extensions("empty");
+            box.items.Add(new ItemStack {id="mod:deposit27",definition="caps",count=2,extensions=Extensions("item")});box.itemAliases["old:deposit27"]="mod:deposit27";
+            var door=progressed.doors.doors.First(d=>Retained(d.id));door.open=true;door.revision=19;door.extensions=Extensions("door");
+            var body=progressed.npcs.actors.First(a=>Retained(a.id));body.health=0;body.down=true;body.lifecycleSequence=7;body.generation=11;body.owner="saved-owner";body.inventory.Clear();body.extensions=Extensions("body");
+            var saved=new[]{StateJson.ToJson(cargo),StateJson.ToJson(box),StateJson.ToJson(door),StateJson.ToJson(body)};
+            var projected=FactoryWarehouseHistoryProjection.BeforeContinuation(progressed,projectRoot);
+            Require(StateJson.ToJson(projected.physical.props.Single(p=>p.id==cargo.id))==saved[0] &&
+                StateJson.ToJson(projected.physical.containers.Single(c=>c.id==box.id))==saved[1] &&
+                StateJson.ToJson(projected.doors.doors.Single(d=>d.id==door.id))==saved[2] && StateJson.ToJson(projected.npcs.actors.Single(a=>a.id==body.id))==saved[3],
+                "Проекция27 изменила saved cargo/empty/deposit/alias/open/dead/ownership/lifecycle/unknown.");
+            return checks;
+        }
+        private static System.Collections.Generic.Dictionary<string,JToken> Extensions(string tag)=>new()
+            {{"mod:projection27",JObject.Parse("{\"tag\":\""+tag+"\",\"nested\":[17,true,1.2345678901234567890123456789]}")}};
     }
 }

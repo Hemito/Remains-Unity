@@ -24,6 +24,8 @@ namespace Remains.Content
                 layout.containers=layout.containers.Where(c=>selected.Contains(c.id)).ToArray();
                 layout.loot=layout.loot?.Where(b=>selected.Contains(b?.container)).ToArray();
             }
+            ContentEntityIds.Preflight(world,layout.props.Select(p=>new ContentEntityIdentity(ContentEntityKind.Prop,p?.id))
+                .Concat(layout.containers.Select(c=>new ContentEntityIdentity(ContentEntityKind.Container,c?.id))),layout.patch);
             var bound=new HashSet<string>(StringComparer.Ordinal);
             if(layout.loot==null) throw new InvalidOperationException("Нет списка таблиц лута расстановки.");
             foreach(var binding in layout.loot)
@@ -36,11 +38,11 @@ namespace Remains.Content
                 if(!world.containers.Exists(c=>c.id==binding.container))
                     targets[0].items.AddRange(binding.table.Generate(world.worldId,binding.container));
             }
-            var ids=new HashSet<string>(StringComparer.Ordinal);var itemIds=new HashSet<string>(StringComparer.Ordinal);
+            var itemIds=new HashSet<string>(StringComparer.Ordinal);
             var props=new List<PropState>();var containers=new List<ContainerState>();
             foreach(var entry in layout.props.Cast<PropState>().Concat(layout.containers))
             {
-                if(entry==null || string.IsNullOrWhiteSpace(entry.id) || !ids.Add(entry.id) || entry.level!=layout.level ||
+                if(entry==null || entry.level!=layout.level ||
                     string.IsNullOrWhiteSpace(entry.definition) || !float.IsFinite(entry.x) || !float.IsFinite(entry.y) ||
                     !float.IsFinite(entry.width) || entry.width<=0 ||
                     !float.IsFinite(entry.height) || entry.height<=0 || entry.anchorHeight!=0 || entry.held || entry.owner!=null)
@@ -48,9 +50,6 @@ namespace Remains.Content
                 PropBodyRules.Validate(entry);
                 bool container=entry is ContainerState;
                 if(!container && entry.GetType()!=typeof(PropState)) throw new InvalidOperationException("Неизвестный тип расстановки: "+entry.id);
-                if(world.actors.Exists(a=>a.id==entry.id) || world.doors.Exists(d=>d.id==entry.id) ||
-                    (container?world.props.Exists(p=>p.id==entry.id):world.containers.Exists(c=>c.id==entry.id)))
-                    throw new InvalidOperationException("ID расстановки занят другим типом объекта: "+entry.id);
                 if(container)
                 {
                     var source=(ContainerState)entry;
@@ -61,7 +60,7 @@ namespace Remains.Content
                             throw new InvalidOperationException("Некорректный начальный предмет: container="+entry.id+", item="+item?.id);
                 }
                 var saved=(container?world.containers.Cast<PropState>():world.props).Where(p=>p.id==entry.id).ToArray();
-                if(saved.Length>1 || saved.Length==1 && (saved[0].definition!=entry.definition || saved[0].level!=entry.level))
+                if(saved.Length==1 && (saved[0].definition!=entry.definition || saved[0].level!=entry.level))
                     throw new InvalidOperationException("Конфликт сохранённого физического объекта: "+entry.id);
                 if(saved.Length==1) continue; // Keep moved position, held state, inventory and extensions.
                 if(container)

@@ -89,6 +89,10 @@ namespace Remains.Networking
         public event Action<string,bool> ClaimPrepared;
         public event Action<string,long> RecoveryPrepared;
         public event Action<RecoverySnapshot> RecoveryPersisted;
+        // Optional diagnostics: detached capture and the exact profile from that
+        // completed FIFO operation, rather than a later mutable profile head.
+        public event Action<RecoverySnapshot,ActorState> RecoveryReceiptPrepared;
+        public event Action<RecoverySnapshot,string> RecoveryReceiptPersisted;
         public event Action<CharacterPlayTime.CapturedCheckpoint> PlayTimePersisted;
         public event Action<int,string,long> RecoveryAcknowledged;
         public event Action<int> RecoveryPeerLeft;
@@ -524,12 +528,19 @@ namespace Remains.Networking
             using var timing=TransitionTiming.Measure("snapshot.receipt",snapshot.WorldId);
             var actor=CaptureLocalCharacter();
             if(actor==null) throw new InvalidOperationException($"Нет личного персонажа для подтверждения сохранения: world={snapshot.WorldId}, actor={LocalActorId}.");
+            RecoveryReceiptPrepared?.Invoke(snapshot,actor.Copy());
             var store=Saves;bool localHost=NetworkServer.active;
             var timeCheckpoint=playTime.CaptureCheckpoint(store.CharacterDirectoryPath);
+            bool captureReceipt=RecoveryReceiptPersisted!=null;string characterJson=null;
             // One durable intent repairs either inter-file crash window. The host's
             // canonical archive is queued first; its local replica must not rewind the head.
-            saveWrites.Enqueue(()=>{store.SaveRecoveryWithCharacter(snapshot,actor,!localHost);timeCheckpoint.Persist();},()=>
+            saveWrites.Enqueue(()=>
             {
+                store.SaveRecoveryWithCharacter(snapshot,actor,!localHost);timeCheckpoint.Persist();
+                if(captureReceipt) characterJson=store.ReadCharacterSource();
+            },()=>
+            {
+                if(captureReceipt) RecoveryReceiptPersisted?.Invoke(snapshot,characterJson);
                 PlayTimePersisted?.Invoke(timeCheckpoint);
                 if(!localHost) RecoveryPersisted?.Invoke(snapshot);
                 if(NetworkClient.isConnected && World?.worldId==snapshot.WorldId)

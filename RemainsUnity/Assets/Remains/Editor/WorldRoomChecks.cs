@@ -37,7 +37,7 @@ namespace Remains.Editor
             Require(room==RoomCatalogAsset.Load().Resolve("base:factory-entry-46"),"Снимок потерял выбор комнаты.");
             var layout=RoomLayout.Load("factory:0",restored);var old=RoomLayout.Load("factory:0",legacy);
             Require(layout.right==38.4f && layout.top==20 && old.left==-10 && old.right==12,"Смешаны геометрии старого и нового заводов.");
-            Require(RoomLayout.Load("factory:0",fresh).right==FactoryWarehouseConnectionAuthoring.Right,"Новая игра не использует связный завод со складом.");
+            Require(RoomLayout.Load("factory:0",fresh).right==FactoryContinuationConnectionAuthoring.Right,"Новая игра не использует связный завод с комнатой27.");
             var falling=new ActorState {x=19,y=5.6f,vx=4.2f,vy=-2};
             Require(!ActorPositionRecovery.Repair(falling,layout,"спуск у лестницы") && falling.y==5.6f && falling.vy==-2,
                 "Допустимое падение под перекрытием запустило восстановление.");

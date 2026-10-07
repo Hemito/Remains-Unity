@@ -18,6 +18,7 @@ namespace Remains.Content
             var selected=ContentExpansionRules.SelectedIds(world,layout.patch,layout.level,layout.expansion,layout.actors.Select(a=>a?.id));
             if(selected!=null)
             {layout.actors=layout.actors.Where(a=>selected.Contains(a.id)).ToArray();layout.loot=layout.loot?.Where(b=>selected.Contains(b?.actor)).ToArray();}
+            ContentEntityIds.Preflight(world,layout.actors.Select(a=>new ContentEntityIdentity(ContentEntityKind.Actor,a?.id)),layout.patch);
             if(layout.loot==null) throw new InvalidOperationException("Нет списка начальных инвентарей NPC.");
             var bound=new HashSet<string>(StringComparer.Ordinal);
             foreach(var binding in layout.loot)
@@ -38,19 +39,17 @@ namespace Remains.Content
                     if(!WeaponInventory.Select(target,weapons[0].id,out string reason)) throw new InvalidOperationException($"Не выбрано оружие NPC {target.id}: {reason}");
                 }
             }
-            var ids=new HashSet<string>(StringComparer.Ordinal);var additions=new List<ActorState>();
+            var additions=new List<ActorState>();
             var itemIds=new HashSet<string>(StringComparer.Ordinal);
             foreach(var actor in layout.actors)
             {
-                if(actor==null || string.IsNullOrWhiteSpace(actor.id) || !ids.Add(actor.id) || actor.level!=layout.level || actor.player || actor.connected ||
+                if(actor==null || actor.level!=layout.level || actor.player || actor.connected ||
                     actor.owner!=null || actor.target!=null || actor.down || actor.attackBusy || string.IsNullOrWhiteSpace(actor.actorType) ||
                     string.IsNullOrWhiteSpace(actor.anatomy) || actor.inventory==null || !float.IsFinite(actor.x) || !float.IsFinite(actor.y) ||
                     !float.IsFinite(actor.health) || actor.health<=0 || Math.Abs(actor.facing)!=1)
                     throw new InvalidOperationException("Некорректный NPC расстановки: "+actor?.id);
-                if(world.props.Exists(p=>p.id==actor.id) || world.containers.Exists(c=>c.id==actor.id) || world.doors.Exists(d=>d.id==actor.id))
-                    throw new InvalidOperationException("ID NPC занят другим объектом: "+actor.id);
                 var existing=world.actors.FindAll(a=>a.id==actor.id);
-                if(existing.Count>1 || existing.Count==1 && (existing[0].player || existing[0].actorType!=actor.actorType || existing[0].level!=actor.level))
+                if(existing.Count==1 && (existing[0].player || existing[0].actorType!=actor.actorType || existing[0].level!=actor.level))
                     throw new InvalidOperationException("Конфликт сохранённого NPC: "+actor.id);
                 if(existing.Count==0)
                 {

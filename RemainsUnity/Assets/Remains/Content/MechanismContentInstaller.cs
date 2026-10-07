@@ -29,10 +29,11 @@ namespace Remains.Content
             }
             var types=layout.platformDefinitions.ToDictionary(d=>d.id,StringComparer.Ordinal);
             var controls=layout.buttonDefinitions.ToDictionary(d=>d.id,StringComparer.Ordinal);
-            var ids=new HashSet<string>(StringComparer.Ordinal);
+            ContentEntityIds.ValidateCandidates(layout.movingPlatforms.Select(p=>new ContentEntityIdentity(ContentEntityKind.MovingPlatform,p?.id))
+                .Concat(layout.mechanismButtons.Select(b=>new ContentEntityIdentity(ContentEntityKind.MechanismButton,b?.id))),layout.patch);
             foreach(var platform in layout.movingPlatforms)
             {
-                if(platform==null || !ids.Add(platform.id) || platform.level!=layout.level || platform.removed || platform.segment!=null ||
+                if(platform==null || platform.level!=layout.level || platform.removed || platform.segment!=null ||
                     platform.revision!=0 || platform.endpoint!=0 || !types.TryGetValue(platform.definition,out var type))
                     throw new InvalidOperationException("Некорректная начальная платформа: patch="+layout.patch+", id="+platform?.id);
                 platform.Validate(type);
@@ -40,7 +41,7 @@ namespace Remains.Content
             var platforms=layout.movingPlatforms.ToDictionary(p=>p.id,StringComparer.Ordinal);
             foreach(var button in layout.mechanismButtons)
             {
-                if(button==null || !ids.Add(button.id) || button.level!=layout.level || button.removed || button.pressed ||
+                if(button==null || button.level!=layout.level || button.removed || button.pressed ||
                     button.revision!=0 || !controls.ContainsKey(button.definition) || !platforms.TryGetValue(button.platformId,out var platform))
                     throw new InvalidOperationException("Некорректная начальная кнопка: patch="+layout.patch+", id="+button?.id);
                 button.ValidateLink(platform);
@@ -56,25 +57,22 @@ namespace Remains.Content
             if(!NeedsInstall(world,layout)) return false;
             var selected=ContentExpansionRules.SelectedIds(world,layout.patch,layout.level,layout.expansion,
                 layout.movingPlatforms.Select(p=>p.id).Concat(layout.mechanismButtons.Select(b=>b.id)));
-            var foreignIds=world.actors.Select(a=>a.id).Concat(world.doors.Select(d=>d.id)).Concat(world.props.Select(p=>p.id))
-                .Concat(world.containers.Select(c=>c.id)).ToHashSet(StringComparer.Ordinal);
-            var savedIds=new HashSet<string>(StringComparer.Ordinal);
+            ContentEntityIds.Preflight(world,layout.movingPlatforms.Where(p=>selected==null || selected.Contains(p.id))
+                .Select(p=>new ContentEntityIdentity(ContentEntityKind.MovingPlatform,p.id))
+                .Concat(layout.mechanismButtons.Where(b=>selected==null || selected.Contains(b.id))
+                    .Select(b=>new ContentEntityIdentity(ContentEntityKind.MechanismButton,b.id))),layout.patch);
             foreach(var platform in world.movingPlatforms)
             {
-                if(platform==null || !savedIds.Add(platform.id)) throw new InvalidOperationException("Пустая/повторная сохранённая платформа: "+world.worldId);
                 platform.Validate();
             }
             foreach(var button in world.mechanismButtons)
             {
-                if(button==null || !savedIds.Add(button.id)) throw new InvalidOperationException("Пустая/повторная сохранённая кнопка: "+world.worldId);
                 button.Validate(supportedRepairState);
             }
             var additions=new List<MovingPlatformState>();
             var controls=new List<MechanismButtonState>();
             foreach(var initial in layout.movingPlatforms.Where(p=>selected==null || selected.Contains(p.id)))
             {
-                if(foreignIds.Contains(initial.id) || world.mechanismButtons.Any(b=>b.id==initial.id))
-                    throw new InvalidOperationException("ID платформы занят другим объектом: "+initial.id);
                 var saved=world.movingPlatforms.SingleOrDefault(p=>p.id==initial.id);
                 if(saved!=null)
                 {
@@ -88,8 +86,6 @@ namespace Remains.Content
             }
             foreach(var initial in layout.mechanismButtons.Where(b=>selected==null || selected.Contains(b.id)))
             {
-                if(foreignIds.Contains(initial.id) || world.movingPlatforms.Any(p=>p.id==initial.id))
-                    throw new InvalidOperationException("ID кнопки занят другим объектом: "+initial.id);
                 var platform=world.movingPlatforms.Concat(additions).SingleOrDefault(p=>p.id==initial.platformId);
                 initial.ValidateLink(platform);
                 var saved=world.mechanismButtons.SingleOrDefault(b=>b.id==initial.id);

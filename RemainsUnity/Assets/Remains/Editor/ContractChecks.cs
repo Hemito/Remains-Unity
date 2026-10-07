@@ -19,6 +19,7 @@ namespace Remains.Editor
             ItemShortcutChecks.Run();
             InventoryItemActionChecks.Run();InventoryDescriptionChecks.Run();ItemLandingAudioChecks.Run();
             DoorStateChecks.Run();DoorContentChecks.Run();DoorBarrierChecks.Run();DoorDamageRequestChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
+            ContentEntityIdentityChecks.Run();
             PonyAppearance.Prepare();PonyPaletteChecks.Run();
             var music=Resources.Load<MusicCatalogAsset>("Content/area-music");
             if(music==null) throw new InvalidOperationException("Нет каталога музыки локаций.");
@@ -62,6 +63,7 @@ namespace Remains.Editor
             FactoryWarehouseChecks.Run();FactoryWarehouseNpcChecks.Run();FactoryWarehouseConnectionChecks.Run();FactoryWarehouseHistoryProjectionChecks.Run();
             FactoryWarehouseMetalDoorChecks.Run();FactoryWarehouseMetalDoorsPlacement.Verify();
             FactoryWarehouseFurnitureChecks.Run();ContainerOpenAudioChecks.Run();
+            FactoryContinuationChecks.Run();FactoryContinuationObjectsChecks.Run();FactoryContinuationNpcChecks.Run();FactoryContinuationConnectionChecks.Run();
             FactoryOfficeNpcChecks.Run();
             FactoryFileCabinetChecks.Run();
             FactoryOfficeLootChecks.Run();
