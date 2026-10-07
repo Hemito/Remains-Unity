@@ -13,7 +13,7 @@ namespace Remains.Editor
         {
             UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,UnityEditor.SceneManagement.NewSceneMode.Single);
             var root=new GameObject("Кадры оружия");var session=root.AddComponent<CoopSession>();var world=new WorldState();
-            var actor=new ActorState {id="render",owner="local",player=true,connected=true,level="hub",weapon="pistol"};world.actors.Add(actor);
+            var actor=new ActorState {id="render",owner="local",player=true,connected=true,level="hub",weapon="pistol",equippedWeaponItem="render-item"};world.actors.Add(actor);
             typeof(CoopSession).GetProperty("World").SetValue(session,world);
             typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
             var animation=root.AddComponent<WeaponShotAnimation>();animation.Initialize(session);var artwork=WeaponArtwork.Load();
@@ -21,7 +21,7 @@ namespace Remains.Editor
             foreach(string weapon in new[]{"pistol","energy"})
             {
                 actor.weapon=weapon;var rest=artwork[weapon];
-                animation.Observe(new AttackEvent {id=weapon,attacker=actor.id,weapon=weapon,level="hub"});
+                animation.Observe(Shot(world,actor,weapon));
                 int count=weapon=="pistol"?1:4;
                 for(int i=0;i<=count;i++)
                 {
@@ -53,12 +53,12 @@ namespace Remains.Editor
                 try
                 {
                     var session=root.AddComponent<CoopSession>();var world=new WorldState();
-                    var actor=new ActorState {id="shot-view",owner="local",player=true,connected=true,level="hub",weapon=weapon};world.actors.Add(actor);
+                    var actor=new ActorState {id="shot-view",owner="local",player=true,connected=true,level="hub",weapon=weapon,equippedWeaponItem="shot-item"};world.actors.Add(actor);
                     typeof(CoopSession).GetProperty("World").SetValue(session,world);
                     typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
                     var animation=root.AddComponent<WeaponShotAnimation>();animation.Initialize(session);
                     var rest=WeaponArtwork.Load()[weapon];
-                    var attack=new AttackEvent {id="shot",attacker=actor.id,weapon=weapon,level="hub"};
+                    var attack=Shot(world,actor,"shot");
                     Require(animation.Select(actor,rest)==rest,"Покой заменён до выстрела");
                     animation.Observe(attack);var frame=animation.Select(actor,rest);
                     Require(frame!=rest,"Нет исходного кадра выстрела");
@@ -77,6 +77,9 @@ namespace Remains.Editor
             }
             Debug.Log("Кадры выстрела: PASS — привязка, длительность, дубли, уровень и поколение.");
         }
+        private static AttackEvent Shot(WorldState world,ActorState actor,string id)
+            =>new() {id=id,attacker=actor.id,sourceOwner=actor.owner,weapon=actor.weapon,level=actor.level,
+                rangedPose=Remains.Gameplay.WeaponPose.SampleRanged(actor).Capture(actor,world.worldId)};
         private static void CheckAssets()
         {
             var pistol=Resources.Load<WeaponAsset>("Content/weapons/pistol");

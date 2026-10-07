@@ -108,6 +108,7 @@ namespace Remains.Content
         }
         internal static void Validate(WeaponDefinition weapon,string source)
         {
+            WeaponRecoilProfile.ValidateForWeapon(weapon,$"источник={source}");
             bool usesHoldingArea=weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar" or "grenade";
             if(usesHoldingArea) weapon.holdingArea.Validate($"источник={source}, weapon={weapon.id}");
             else if(!weapon.holdingArea.Inapplicable)

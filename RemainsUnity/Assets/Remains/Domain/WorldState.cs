@@ -77,6 +77,7 @@ namespace Remains.Domain
         public float weaponTipX,weaponTipY;
         public float weaponReach=1.4f;
         public float weaponLift;
+        public WeaponRecoilPose weaponRecoil;
         public bool attackBusy;
         public float attackRemaining;
         public string attackId,attackTarget;
@@ -183,6 +184,7 @@ namespace Remains.Domain
         public string sourceOwner;
         public bool sourcePlayer;
         public string weapon;
+        public RangedShotPose rangedPose;
         public float originX;
         public MeleeAttackAnchor meleeAnchor;
         public string naturalAttackType;

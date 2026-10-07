@@ -17,6 +17,7 @@ namespace Remains.Content
         public int magazineSize,ammoPerShot;
         public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
         public float shotSpreadHalfAngleDegrees;
+        public WeaponRecoilProfile recoil;
         public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention,grenadeGravity;
         public float grenadeMaxLaunchSpeed,grenadeFullEffortDistance,grenadeAimLift;
         public float grenadeSpinRate,grenadeAngularRetention;
@@ -50,6 +51,7 @@ namespace Remains.Content
             ActorTypes.Load();PropCatalog.Load();
             var asset=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
+            CasingEffectCatalog.Load();
             var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
             foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/standing-edge-poses","Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})

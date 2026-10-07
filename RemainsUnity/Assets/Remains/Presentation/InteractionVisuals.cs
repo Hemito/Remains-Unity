@@ -17,6 +17,8 @@ namespace Remains.Presentation
         private PropArtwork propArtwork;
         private WeaponShotAnimation shotAnimation;
         private WeaponReloadAnimation reloadAnimation;
+        private CasingEffects casingEffects;
+        public CasingEffects Casing=>casingEffects;
         private HeldPropColorSource heldColors;
         public WeaponReloadAnimation ReloadAnimation=>reloadAnimation;
         private readonly Dictionary<string,Sprite> sprites=new();
@@ -48,6 +50,7 @@ namespace Remains.Presentation
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
             shotAnimation=gameObject.AddComponent<WeaponShotAnimation>();shotAnimation.Initialize(session);
             reloadAnimation=gameObject.AddComponent<WeaponReloadAnimation>();reloadAnimation.Initialize(session,reload);
+            casingEffects=gameObject.AddComponent<CasingEffects>();casingEffects.Initialize(session,layers.Orders);
             ShotArtwork.Prepare();
             session.Changed+=Refresh;
             grenades.Created+=OnGrenadeCreated;
@@ -157,9 +160,10 @@ namespace Remains.Presentation
                 sprite=reloadAnimation.Select(actor,sprite);
                 view.SetFrame(sprite);
                 var direction=WeaponPose.Direction(actor);
+                var pose=WeaponPose.SampleRanged(actor);
                 view.transform.position=actor.weapon is "spear" or "crowbar"?
-                    WeaponPose.Origin(actor)+direction*(actor.weaponReach-sprite.bounds.max.x):WeaponPose.Mount(actor);
-                view.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);
+                    WeaponPose.Origin(actor)+direction*(actor.weaponReach-sprite.bounds.max.x):pose.Root;
+                view.transform.rotation=Quaternion.Euler(0,0,pose.Angle);
                 view.SetMirrored(WeaponPose.Flip(actor));
             }
             foreach(var pair in flights) pair.Value.enabled=false;
@@ -170,6 +174,7 @@ namespace Remains.Presentation
             }
             shotAnimation.Step(Time.deltaTime);
             reloadAnimation.Step(Time.deltaTime);
+            casingEffects.Step(Time.deltaTime);
         }
     }
 

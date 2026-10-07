@@ -14,10 +14,13 @@ namespace Remains.Domain
             destination.jumpSupportRemaining=source.jumpSupportRemaining;
             if(source.weaponSelectionRevision==destination.weaponSelectionRevision)
             {
+                bool copyRecoil=WeaponRecoilReplication.SameSelection(source,destination);
                 destination.weapon=source.weapon;destination.weaponAngle=source.weaponAngle;
                 destination.weaponFlipY=source.weaponFlipY;
                 destination.weaponTipX=source.weaponTipX;destination.weaponTipY=source.weaponTipY;
                 destination.weaponReach=source.weaponReach;destination.weaponLift=source.weaponLift;
+                if(copyRecoil)
+                    destination.weaponRecoil=source.weaponRecoil?.Copy()??WeaponRecoilPose.Neutral(-1);
                 HeldItemSelection.CopyPose(source,destination);
             }
         }

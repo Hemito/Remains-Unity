@@ -32,6 +32,7 @@ namespace Remains.Networking
             if(NetworkServer.active || NetworkClient.active) throw new InvalidOperationException("Нельзя менять правила во время подключения или игры.");
             this.rules=rules??throw new ArgumentNullException(nameof(rules));
             GameplayFailurePending=false;
+            if(recoil==null) recoil=new SessionWeaponRecoil(this);else recoil.Configure();
             ownership=new OwnershipService(rules.ProximityOwnership);
         }
         public string CharacterId { get; set; }
@@ -112,6 +113,8 @@ namespace Remains.Networking
         public SessionDeposits Deposits=>deposits ??= new SessionDeposits(this);
         private SessionProjectiles projectiles;
         public SessionProjectiles Projectiles=>projectiles ??= new SessionProjectiles(this);
+        private SessionWeaponRecoil recoil;
+        public SessionWeaponRecoil Recoil=>recoil??=new SessionWeaponRecoil(this);
         private SessionReloadAudio reloadAudio;
         public SessionReloadAudio ReloadAudio=>reloadAudio ??= new SessionReloadAudio(this);
         private SessionDoorDamage doorDamage;
@@ -434,6 +437,7 @@ namespace Remains.Networking
             }
             LocalOwner = message.owner;
             LocalActorId = message.actor;
+            WeaponRecoilReplication.NeutralizeWorld(welcomed,Pause.Revision);
             World = PersistCopy(snapshot,welcomed);
             Debug.Log($"Подключён выбранный персонаж: character={LocalActor.character}, actor={LocalActorId}, profile={Saves.CharacterDirectoryPath}.");
             if(LocalActor!=null && LocalActor.level!="hub")
@@ -450,6 +454,11 @@ namespace Remains.Networking
             using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
             var snapshot=verified??new RecoverySnapshot(message.json);
             var incoming = PersistCopy(snapshot);
+            bool sameWorld=World!=null && World.worldId==incoming.worldId;
+            // Validate before motion/selection helpers can replace an incoming sample.
+            foreach(var actor in incoming.actors)
+                WeaponRecoilReplication.Normalize(actor,Pause.Revision,Pause.IsPaused(actor.level),"снимок мира / входящий");
+            if(!sameWorld) WeaponRecoilReplication.NeutralizeWorld(incoming,Pause.Revision);
             bool publishHealing=false;
             if (World != null && World.worldId == incoming.worldId)
             {
@@ -489,6 +498,9 @@ namespace Remains.Networking
                     WeaponInventory.PreserveSelection(local,actor);
                 }
             }
+            foreach(var actor in incoming.actors)
+                WeaponRecoilReplication.Reconcile(sameWorld?World.Find(actor.id):null,actor,LocalOwner,Pause.Revision,
+                    Pause.IsPaused(actor.level),"снимок мира / публикация");
             if(World?.worldId!=incoming.worldId) selfHealing.Reset();
             World = incoming;
             QueueRecoveryReceipt(snapshot);
@@ -571,6 +583,7 @@ namespace Remains.Networking
         {
             if (World == null) return;
             var current = World.Find(actor.id);
+            WeaponRecoilReplication.Normalize(actor,Pause.Revision,Pause.IsPaused(actor.level),"состояние актёра / входящий");
             ActorHoldRules.PreserveNewerTarget(current,actor);
             if (current != null && ActorVersion.IsOlder(actor,current)) return;
             selfHealing.Observe(World.worldId,current);
@@ -588,6 +601,7 @@ namespace Remains.Networking
             if(!selfHealTransition) ActorMotionReplication.PreserveNewerMotion(current,actor);
             if(actor.owner!=LocalOwner) RemotePosePhase.Reconcile(current,actor);
             if(current?.owner==LocalOwner) WeaponInventory.PreserveSelection(current,actor);
+            WeaponRecoilReplication.Reconcile(current,actor,LocalOwner,Pause.Revision,Pause.IsPaused(actor.level),"состояние актёра / публикация");
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
@@ -626,7 +640,9 @@ namespace Remains.Networking
                 connection.Send(new NoticeMessage { text="Смена локации требует подтверждённого перехода." });
                 return;
             }
+            WeaponRecoilReplication.Normalize(incoming,Pause.ServerRevision,Pause.IsServerPaused(incoming.level),"сервер / входящий актёр");
             ActorMotionReplication.PreserveNewerMotion(actor,incoming);
+            WeaponRecoilReplication.Reconcile(actor,incoming,null,Pause.ServerRevision,Pause.IsServerPaused(incoming.level),"сервер / состояние актёра");
             ServerWorld.actors[ServerWorld.actors.IndexOf(actor)] = incoming;
             // Ordinary NPC deltas need not save and transmit the whole world.
             // Reassignment still runs at the same point, and all shared changes
@@ -673,8 +689,12 @@ namespace Remains.Networking
             PoseReceived?.Invoke(actor);
         }
 
-        private static void ApplyPose(ActorState actor, PoseMessage message,bool remote=false)
+        private void ApplyPose(ActorState actor, PoseMessage message,bool remote=false)
         {
+            // Inspect the reliable selection before applying the ordinary weapon pose.
+            WeaponRecoilReplication.ApplyPoseSample(actor,message.weaponRecoil,message.weaponSelectionRevision,message.weapon,
+                remote?Pause.Revision:Pause.ServerRevision,remote?Pause.IsPaused(actor.level):Pause.IsServerPaused(actor.level),
+                remote?"поза / клиент":"поза / сервер");
             actor.motionSentAt=message.sentAt;actor.motionClockGeneration=message.generation;
             actor.x = message.x; actor.y = message.y; actor.vx = message.vx; actor.vy = message.vy;
             actor.facing = message.facing;
@@ -705,6 +725,7 @@ namespace Remains.Networking
         {actor.motionSentAt=Time.unscaledTimeAsDouble;actor.motionClockGeneration=actor.generation;}
         public void PublishPose(ActorState actor)
         {
+            WeaponRecoilReplication.Normalize(actor,Pause.Revision,Pause.IsPaused(actor.level),"публикация позы");
             StampMotion(actor);
             NetworkClient.Send(new PoseMessage
         {
@@ -712,7 +733,7 @@ namespace Remains.Networking
             actor = actor.id, generation = actor.generation,lifecycleSequence=actor.lifecycleSequence, sequence = actor.motionSequence=unchecked(actor.motionSequence+1),
             x = actor.x, y = actor.y, vx = actor.vx, vy = actor.vy, facing = actor.facing, pose = actor.pose,poseTime=actor.poseTime,poseSequence=actor.poseSequence,climbing=actor.climbing,crouched=actor.crouched,jumpSupportRemaining=actor.jumpSupportRemaining,
             weapon=actor.weapon,weaponAngle=actor.weaponAngle,weaponTipX=actor.weaponTipX,weaponTipY=actor.weaponTipY,weaponReach=actor.weaponReach,weaponLift=actor.weaponLift,weaponFlipY=actor.weaponFlipY,
-            weaponSelectionRevision=actor.weaponSelectionRevision,heldItemPoseX=actor.heldItemPoseX,heldItemPoseY=actor.heldItemPoseY,heldItemPoseValid=actor.heldItemPoseValid,
+            weaponSelectionRevision=actor.weaponSelectionRevision,weaponRecoil=actor.weaponRecoil.Copy(),heldItemPoseX=actor.heldItemPoseX,heldItemPoseY=actor.heldItemPoseY,heldItemPoseValid=actor.heldItemPoseValid,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown,
             target=actor.player?null:actor.target,perception=actor.player?null:actor.perception.Copy()
         }, Channels.Unreliable);
@@ -733,15 +754,20 @@ namespace Remains.Networking
             try
             {
                 var definition=WeaponCatalog.Get(attack.weapon);
+                Remains.Gameplay.RangedShotPreparation.ValidateOwner(attack,actor,World.worldId,definition,Rules.WeaponRecoil);
                 ProjectileLaunch.PrepareOwnerLaunch(attack,definition,UnityEngine.Random.value,UnityEngine.Random.value,Rules.ShotDirection);
                 return true;
             }
             catch(Exception error)
             {
-                GameplayFailurePending=true;
                 var failure=new InvalidOperationException($"Ошибка подготовки выстрела: actor={actor.id}, shot={attack.id}, weapon={attack.weapon}, rule={Rules.ShotDirection.GetType().FullName}. Боеприпасы не расходуются до успешной подготовки.",error);
-                Debug.LogError(failure);GameplayPreparationFailed?.Invoke(failure);return false;
+                ReportGameplayPreparationFailure(failure);return false;
             }
+        }
+        public void ReportGameplayPreparationFailure(Exception error)
+        {
+            if(GameplayFailurePending) return;
+            GameplayFailurePending=true;Debug.LogError(error);GameplayPreparationFailed?.Invoke(error);
         }
         public void FirePrepared(AttackEvent attack)
         {
@@ -761,7 +787,8 @@ namespace Remains.Networking
             ProjectileLaunch.Create(attack,definition);
             // Reliable launch precedes progress and contact messages from its local simulation.
             NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});
-            Projectiles.BeginLocal(attack);AttackReceived?.Invoke(attack);
+            Projectiles.BeginLocal(attack);Recoil.Commit(actor,attack);
+            if(!GameplayFailurePending) AttackReceived?.Invoke(attack);
         }
         private void RelayAttack(NetworkConnectionToClient connection, AttackMessage message)
         {
@@ -791,7 +818,7 @@ namespace Remains.Networking
             {
                 // An already-fired packet can arrive after pause. Retain its frozen flight;
                 // new local input is blocked by the firing client, not discarded in transit.
-                try {if(!Projectiles.Launch(attack)) return;}
+                try {Remains.Gameplay.RangedShotPreparation.ValidateReceived(attack,ServerWorld.worldId);if(!Projectiles.Launch(attack)) return;}
                 catch(Exception error) when(error is ArgumentException || error is InvalidOperationException)
                 {Reject("Некорректные параметры выстрела: "+error.Message);return;}
             }
@@ -977,6 +1004,7 @@ namespace Remains.Networking
         }
         public override void OnStopClient()
         {
+            recoil?.Clear();
             selfHealing.Reset();
             CharacterContent.Reset();ModMismatch?.Invoke(null);
             Admission.EndClient();

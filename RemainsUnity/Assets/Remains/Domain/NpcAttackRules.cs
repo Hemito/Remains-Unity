@@ -44,11 +44,13 @@ namespace Remains.Domain
             {
                 var end=target.Position+new Vector2(0,.55f);
                 Remains.Gameplay.NpcWeaponAim.Apply(actor,end,room);
-                var origin=Remains.Gameplay.WeaponPose.Muzzle(actor);
+                var pose=Remains.Gameplay.WeaponPose.SampleRanged(actor);
+                var origin=pose.Muzzle;
+                end=origin+pose.Direction*weapon.range;
                 if(room==null || !ShotObstacles.FirstContact(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),origin).HasValue)
                 {
                     var candidate=new AttackEvent {id=actor.attackId,attacker=actor.id,weapon=action.weapon,level=actor.level,
-                        originX=origin.x,originY=origin.y,endX=end.x,endY=end.y};
+                        originX=origin.x,originY=origin.y,endX=end.x,endY=end.y,rangedPose=pose.Capture(actor)};
                     if(WeaponAmmunition.CanSpendShot(actor,weapon,out _) && (prepareShot==null || prepareShot(candidate)) &&
                         WeaponAmmunition.SpendShot(actor,weapon,out _)) result=candidate;
                 }

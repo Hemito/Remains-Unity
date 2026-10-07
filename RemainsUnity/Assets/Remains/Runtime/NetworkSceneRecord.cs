@@ -39,7 +39,8 @@ namespace Remains.Runtime
                 new NetworkPonyRecord {actor=world.Find(view.ActorId).Copy(),position=view.transform.position,scale=view.transform.localScale,
                     clip=view.DrawnClip,frame=view.DrawnFrame,time=view.DrawnTime,active=view.gameObject.activeInHierarchy,
                     groupId=view.GetComponentInParent<ActorVisualGroup>()?.ActorId,groupOrder=view.GetComponentInParent<ActorVisualGroup>()?.Order??0}).ToArray();
-            record.sprites=UnityEngine.Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).Select(view=>
+            record.sprites=UnityEngine.Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None)
+                .Where(view=>view.GetComponentInParent<CasingEffects>()?.IsUnusedRenderer(view)!=true).Select(view=>
             {
                 if(view.sprite==null) throw new InvalidOperationException($"Нет спрайта при записи: {view.name}.");
                 var sprite=view.sprite;

@@ -47,6 +47,8 @@ namespace Remains.Gameplay
             this.geometry=geometry;
             session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown,null,session.Rules.NaturalAttackDamage);damage.Applied+=result=>DamageApplied?.Invoke(result);AttackerDecidedHits=VictimDecidedHits=0;};
             Reload=new WeaponReloadController(session);
+            Reload.Started+=(actor,_)=>session.Recoil.BeginReload(actor);
+            Reload.Finished+=()=>session.Recoil.EndReload();
             Projectiles=new ProjectileController(session,geometry,ApplyAttackTarget);
             session.AttackReceived += ReceiveAttack;
             session.NpcHitReceived += ReceiveNpcHit;
@@ -73,6 +75,7 @@ namespace Remains.Gameplay
             if(Weapon=="grenade") return false; // Throws use their own inventory transaction and flight.
             if (string.IsNullOrEmpty(Weapon) || attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready) return false;
             var definition=WeaponCatalog.Get(Weapon);
+            session.Recoil.Reconcile();
             attacker.weapon=Weapon;
             WeaponPose.Aim(attacker,aim,geometry.Get(attacker.level));
             bool melee=Weapon is "spear" or "crowbar";
@@ -93,9 +96,10 @@ namespace Remains.Gameplay
             AttackEvent ranged=null;
             if(!melee)
             {
+                var pose=WeaponPose.SampleRanged(attacker);
                 var end=origin+direction*definition.range;
                 ranged=new AttackEvent {id=Guid.NewGuid().ToString("N"),attacker=attacker.id,weapon=Weapon,level=attacker.level,
-                    originX=origin.x,originY=origin.y,endX=end.x,endY=end.y};
+                    originX=origin.x,originY=origin.y,endX=end.x,endY=end.y,rangedPose=pose.Capture(attacker,session.World.worldId)};
                 if(!session.PrepareProjectile(ranged)) return false;
             }
             if(!WeaponAmmunition.SpendShot(attacker,definition,out string reason))

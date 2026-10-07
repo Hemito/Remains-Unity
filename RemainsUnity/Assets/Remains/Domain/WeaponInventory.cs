@@ -42,9 +42,11 @@ namespace Remains.Domain
         public static void PreserveSelection(ActorState current,ActorState incoming)
         {
             if(incoming.weaponInventoryVersion!=1) return;
+            bool preserved=false;
             if(ActorMotionReplication.SameLifetime(current,incoming) && current.weaponInventoryVersion==1 &&
                 current.weaponSelectionRevision>incoming.weaponSelectionRevision)
             {
+                preserved=true;
                 incoming.equippedWeaponItem=current.equippedWeaponItem;
                 incoming.heldItemId=current.heldItemId;
                 incoming.weaponSelectionRevision=current.weaponSelectionRevision;
@@ -53,6 +55,8 @@ namespace Remains.Domain
                 incoming.weaponShortcuts=Remains.Serialization.StateJson.Copy(current.weaponShortcuts);
             }
             incoming.weapon=Selected(incoming)?.definition;
+            if(preserved && WeaponRecoilReplication.SameSelection(current,incoming))
+                incoming.weaponRecoil=current.weaponRecoil?.Copy()??WeaponRecoilPose.Neutral(-1);
         }
         public static bool SelectShortcut(ActorState actor,string slot,out string reason)
         {

@@ -28,6 +28,7 @@ namespace Remains.Networking
         public void Step()=>pending.Drain(IsServerPaused);
         private readonly HashSet<string> pausedLevels=new(StringComparer.Ordinal);
         public long Revision {get;private set;}=-1;
+        public long ServerRevision=>published.revision;
         public bool PauseOnMenu {get;private set;}
         public bool PauseOnInventory {get;private set;}
         public event Action Changed;

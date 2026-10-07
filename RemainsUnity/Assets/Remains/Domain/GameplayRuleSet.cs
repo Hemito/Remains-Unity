@@ -55,6 +55,7 @@ namespace Remains.Domain
         public IDoorAccessRule DoorAccess {get;}
         public IDoorDamageRule DoorDamage {get;}
         public IRangedShotDirectionRule ShotDirection {get;}
+        public IWeaponRecoilRule WeaponRecoil {get;}
         public IItemActionRule ItemActions {get;}
         public INpcWeaponTimingRule NpcWeaponTiming {get;}
         public IDamageRule Damage {get;}
@@ -86,7 +87,10 @@ namespace Remains.Domain
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess,IItemActionRule itemActions,INpcWeaponTimingRule npcWeaponTiming,INaturalAttackDamageRule naturalAttackDamage,IButtonRepairRule buttonRepair,IDoorDamageRule doorDamage)
             :this(damage,knockdown,partyDefeat,loot,pause,deposit,telekinesis,proximityOwnership,doorAccess,itemActions,npcWeaponTiming,naturalAttackDamage,buttonRepair,doorDamage,new UniformAngularShotDirectionRule()) {}
         public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess,IItemActionRule itemActions,INpcWeaponTimingRule npcWeaponTiming,INaturalAttackDamageRule naturalAttackDamage,IButtonRepairRule buttonRepair,IDoorDamageRule doorDamage,IRangedShotDirectionRule shotDirection)
+            :this(damage,knockdown,partyDefeat,loot,pause,deposit,telekinesis,proximityOwnership,doorAccess,itemActions,npcWeaponTiming,naturalAttackDamage,buttonRepair,doorDamage,shotDirection,new SmoothWeaponRecoilRule()) {}
+        public GameplayRuleSet(IDamageRule damage,IKnockdownRule knockdown,IPartyDefeatRule partyDefeat,ILootRule loot,ILevelPauseRule pause,IDepositRule deposit,ITelekinesisRule telekinesis,IProximityOwnershipRule proximityOwnership,IDoorAccessRule doorAccess,IItemActionRule itemActions,INpcWeaponTimingRule npcWeaponTiming,INaturalAttackDamageRule naturalAttackDamage,IButtonRepairRule buttonRepair,IDoorDamageRule doorDamage,IRangedShotDirectionRule shotDirection,IWeaponRecoilRule weaponRecoil)
         {
+            WeaponRecoil=weaponRecoil??throw new ArgumentNullException(nameof(weaponRecoil));
             ShotDirection=shotDirection??throw new ArgumentNullException(nameof(shotDirection));
             DoorDamage=doorDamage??throw new ArgumentNullException(nameof(doorDamage));
             ButtonRepair=buttonRepair??throw new ArgumentNullException(nameof(buttonRepair));

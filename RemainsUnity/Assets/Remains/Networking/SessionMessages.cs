@@ -28,6 +28,7 @@ namespace Remains.Networking
         public float weaponReach,weaponLift;
         public bool weaponFlipY;
         public long weaponSelectionRevision;
+        public Remains.Domain.WeaponRecoilPose weaponRecoil;
         public float heldItemPoseX,heldItemPoseY;
         public bool heldItemPoseValid;
         public string attackId;

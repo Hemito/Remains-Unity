@@ -41,6 +41,7 @@ namespace Remains.Runtime
             public int generation,lifecycle,frame,renderFrame,roundsAfter;
             public long selection;
             public float aimX,aimY,deviationDegrees,halfAngleDegrees,muzzleX,muzzleY,muzzleError;
+            public float baseAimX,baseAimY,renderPoseMuzzleX,renderPoseMuzzleY;
             public float rendererMuzzleX,rendererMuzzleY,rendererMuzzleError;
             public bool rendererObserved;
         }
@@ -194,11 +195,15 @@ namespace Remains.Runtime
                 var launch=Copy(attack);Require(!received.ContainsKey(launch.id),"Повтор AttackReceived: "+launch.id);
                 Require(received.Count<2*ShotsPerWeapon,"Источник создал лишний выстрел.");received.Add(launch.id,launch);
                 if(!Source) return;
-                var aim=WeaponPose.Direction(Actor);var direction=(attack.End-attack.Origin).normalized;var muzzle=WeaponPose.Muzzle(Actor);
+                RangedShotPreparation.ValidateReceived(attack,runtime.Session.World.worldId);
+                var captured=attack.rangedPose;
+                var historic=new RangedWeaponPose(new Vector2(captured.rootX,captured.rootY),captured.angleDegrees,captured.mirrored,WeaponRigs.Get(attack.weapon));
+                var aim=historic.Direction;var direction=(attack.End-attack.Origin).normalized;var muzzle=historic.Muzzle;
                 var sample=new Sample {launch=launch,item=Actor.equippedWeaponItem,generation=Actor.generation,lifecycle=Actor.lifecycleSequence,
                     selection=Actor.weaponSelectionRevision,frame=Time.frameCount,roundsAfter=Item(Actor,attack.weapon).weaponState.rounds,
                     aimX=aim.x,aimY=aim.y,deviationDegrees=Signed(aim,direction),halfAngleDegrees=WeaponCatalog.Get(attack.weapon).shotSpreadHalfAngleDegrees,
-                    muzzleX=muzzle.x,muzzleY=muzzle.y,muzzleError=Vector2.Distance(muzzle,attack.Origin)};
+                    muzzleX=muzzle.x,muzzleY=muzzle.y,muzzleError=Vector2.Distance(muzzle,attack.Origin),
+                    baseAimX=Mathf.Cos(Actor.weaponAngle*Mathf.Deg2Rad),baseAimY=Mathf.Sin(Actor.weaponAngle*Mathf.Deg2Rad)};
                 Require(Finite(sample.deviationDegrees) && Mathf.Abs(sample.deviationDegrees)<=sample.halfAngleDegrees+AngleTolerance && sample.muzzleError<=MuzzleTolerance,
                     $"Неверный угол/дуло: shot={attack.id}, angle={sample.deviationDegrees:R}, gap={sample.muzzleError:R}.");
                 samples.Add(sample);pendingRenderer.Add(sample);
@@ -259,7 +264,8 @@ namespace Remains.Runtime
                     view.Id==sample.launch.weapon && view.gameObject.activeInHierarchy && view.Artwork.enabled && view.Muzzle!=null,
                     "Не наблюдается рисунок того же выбранного оружия: "+sample.launch.id);
                 Vector2 muzzle=view.Muzzle.position;sample.renderFrame=Time.frameCount;sample.rendererMuzzleX=muzzle.x;sample.rendererMuzzleY=muzzle.y;
-                sample.rendererMuzzleError=Vector2.Distance(muzzle,new Vector2(sample.launch.originX,sample.launch.originY));
+                var currentPose=WeaponPose.SampleRanged(Actor);sample.renderPoseMuzzleX=currentPose.Muzzle.x;sample.renderPoseMuzzleY=currentPose.Muzzle.y;
+                sample.rendererMuzzleError=Vector2.Distance(muzzle,currentPose.Muzzle);
                 Require(sample.renderFrame==sample.frame && sample.rendererMuzzleError<=MuzzleTolerance,
                     $"Нарисованное дуло отличается: shot={sample.launch.id}, frame={sample.frame}/{sample.renderFrame}, gap={sample.rendererMuzzleError:R}.");
                 sample.rendererObserved=true;
@@ -299,12 +305,12 @@ namespace Remains.Runtime
                     var origin=new Vector2(shot.originX,shot.originY);var definition=WeaponCatalog.Get(weapon);
                     Require(shot.attacker==sourceActor && shot.owner==sourceOwner && shot.level=="hub" && Finite(shot.speed) && shot.speed>0 &&
                         sample.generation==generation && sample.halfAngleDegrees==WeaponCatalog.Get(weapon).shotSpreadHalfAngleDegrees && sample.halfAngleDegrees==2.5f &&
-                        aim.x>.99999f && Mathf.Abs(aim.y)<.00001f && sample.roundsAfter==balance.initialRounds-index-1 &&
+                        sample.baseAimX>.99999f && Mathf.Abs(sample.baseAimY)<.00001f && sample.roundsAfter==balance.initialRounds-index-1 &&
                         Mathf.Abs(Vector2.Distance(origin,new Vector2(shot.endX,shot.endY))-definition.FlightRange(shot.speed))<=Mathf.Max(.001f,definition.FlightRange(shot.speed)*.00001f) &&
                         Finite(actual) && Mathf.Abs(actual-sample.deviationDegrees)<=AngleTolerance && Mathf.Abs(actual)<=sample.halfAngleDegrees+AngleTolerance &&
                         sample.muzzleError<=MuzzleTolerance && Vector2.Distance(origin,new Vector2(sample.muzzleX,sample.muzzleY))<=MuzzleTolerance &&
                         sample.rendererObserved && sample.rendererMuzzleError<=MuzzleTolerance &&
-                        Vector2.Distance(origin,new Vector2(sample.rendererMuzzleX,sample.rendererMuzzleY))<=MuzzleTolerance && sample.frame==sample.renderFrame,
+                        Vector2.Distance(new Vector2(sample.renderPoseMuzzleX,sample.renderPoseMuzzleY),new Vector2(sample.rendererMuzzleX,sample.rendererMuzzleY))<=MuzzleTolerance && sample.frame==sample.renderFrame,
                         "Не подтверждён actual sampled angle/renderer: "+shot.id);
                 }
             }

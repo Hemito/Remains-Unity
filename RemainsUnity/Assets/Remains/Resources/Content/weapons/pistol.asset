@@ -28,6 +28,16 @@ MonoBehaviour:
     projectileSpeedVariation: 0.2
     projectileLifetime: 3.3333333
     shotSpreadHalfAngleDegrees: 2.5
+    recoil:
+      version: 1
+      enabled: 1
+      horizontalPeak: 0.08
+      anglePeakDegrees: 4
+      riseSeconds: 0.035
+      positionReturnSeconds: 0.22
+      angleReturnSeconds: 0.55
+      maxHorizontal: 0.16
+      maxAngleDegrees: 12
     grenadeFuseSeconds: 0
     grenadeRestitution: 0
     grenadeGroundRetention: 0
@@ -49,4 +59,5 @@ MonoBehaviour:
   presentation: {fileID: 3354666289972670447, guid: 489c3238f519052489b31eafe1c07d92, type: 3}
   shotAnimation: {fileID: 11400000, guid: ed1ea7eac49107d4fa19fd8d9bb3e813, type: 2}
   reloadAnimation: {fileID: 11400000, guid: a3897be2509a7f64ba4f0e69ddc116f9, type: 2}
+  casingProfile: {fileID: 11400000, guid: 98099cbf67140bf41ac9c3a17361ef7a, type: 2}
   grenadeFlight: {fileID: 0}

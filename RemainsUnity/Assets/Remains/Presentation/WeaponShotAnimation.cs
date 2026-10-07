@@ -11,59 +11,87 @@ namespace Remains.Presentation
     public sealed class WeaponShotAnimation : MonoBehaviour
     {
         private sealed class Clip {public string weapon;public float fps;public Sprite[] sprites;}
-        private sealed class Playing {public Clip clip;public string level;public int generation,lifecycle;public float elapsed;}
+        private sealed class Playing {public Clip clip;public string shot,world,level,owner,item;public long selection;public int generation,lifecycle;public float elapsed;}
         private CoopSession session;
+        private string world,level;
         private readonly Dictionary<string,Clip> byAttack=new();
         private readonly Dictionary<string,Playing> playing=new();
         private readonly HashSet<string> seen=new();
-        private readonly Queue<string> recent=new();
         private readonly List<string> expired=new();
+        private readonly HashSet<string> warnings=new();
         public void Initialize(CoopSession value)
         {
-            session=value;WeaponRigs.Load();
+            if(session!=null)throw new InvalidOperationException("Кадры выстрела уже инициализированы.");
+            session=value??throw new ArgumentNullException(nameof(value));WeaponRigs.Load();
             var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(catalog==null) throw new InvalidOperationException("Нет Content/WeaponCatalog для анимаций оружия.");
             foreach(var weapon in catalog.AnimatedWeapons())
             {
                 var animation=weapon.ShotAnimation;
-                var clip=new Clip {weapon=weapon.Presentation.Id,fps=animation.FramesPerSecond,sprites=animation.CopyFrames()};
+                var clip=new Clip {weapon=weapon.Id,fps=animation.FramesPerSecond,sprites=animation.CopyFrames()};
                 byAttack.Add(weapon.Id,clip);
             }
-            session.AttackReceived+=Observe;
+            session.AttackReceived+=Observe;session.Projectiles.Rejected+=Rejected;session.Changed+=Reconcile;session.SessionStopped+=Stopped;Reconcile();
         }
         public void Observe(AttackEvent attack)
         {
-            if(NpcNaturalAttack.IsNatural(attack)) return;
+            if(attack==null || NpcNaturalAttack.IsNatural(attack)) return;
+            Reconcile();
             if(attack.level!=session.LocalActor?.level || !byAttack.TryGetValue(attack.weapon,out var clip)) return;
+            if(attack.rangedPose==null)
+            {
+                if(warnings.Add(attack.weapon))Debug.LogWarning($"Кадры выстрела пропущены: нет captured pose, shot={attack.id}, actor={attack.attacker}, weapon={attack.weapon}, level={attack.level}. Legacy synthetic fixture должна явно задать исторический контекст.",this);
+                return;
+            }
+            attack.rangedPose.Validate("кадры выстрела "+attack.id);
             var actor=session.World?.Find(attack.attacker);
-            if(actor==null || ActorSessionRules.IsPassive(actor) || actor.weapon!=clip.weapon || actor.level!=attack.level || !ActorPresence.IsPresent(actor)) return;
+            var pose=attack.rangedPose;
+            var effect=new Playing {clip=clip,shot=attack.id,world=pose.worldId,level=attack.level,owner=attack.sourceOwner,item=pose.weaponItem,
+                selection=pose.selectionRevision,generation=pose.actorGeneration,lifecycle=pose.actorLifecycle};
+            if(string.IsNullOrWhiteSpace(attack.id) || string.IsNullOrWhiteSpace(attack.sourceOwner) || actor==null || !Matches(actor,effect))return;
             if(!seen.Add(attack.id)) return;
-            recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
-            playing[actor.id]=new Playing {clip=clip,level=actor.level,generation=actor.generation,lifecycle=actor.lifecycleSequence};
+            playing[actor.id]=effect;
         }
         public Sprite Select(ActorState actor,Sprite rest)
         {
-            if(!playing.TryGetValue(actor.id,out var effect) || !Matches(actor,effect)) return rest;
+            if(actor==null || !playing.TryGetValue(actor.id,out var effect) || !Matches(actor,effect)) return rest;
             int frame=Mathf.FloorToInt(effect.elapsed*effect.clip.fps);
             return frame<effect.clip.sprites.Length?effect.clip.sprites[frame]:rest;
         }
         private bool Matches(ActorState actor,Playing effect)=>!ActorSessionRules.IsPassive(actor) && ActorPresence.IsPresent(actor) && actor.level==session.LocalActor?.level &&
-            actor.level==effect.level && actor.weapon==effect.clip.weapon && actor.generation==effect.generation && actor.lifecycleSequence==effect.lifecycle;
+            !HeldItemSelection.HasSelection(actor) && session.World?.worldId==effect.world && actor.level==effect.level && actor.weapon==effect.clip.weapon &&
+            actor.owner==effect.owner && actor.equippedWeaponItem==effect.item && actor.weaponSelectionRevision==effect.selection &&
+            actor.generation==effect.generation && actor.lifecycleSequence==effect.lifecycle;
         public void Step(float dt)
         {
+            if(!float.IsFinite(dt) || dt<0)throw new ArgumentOutOfRangeException(nameof(dt),"Некорректный шаг кадров выстрела.");
+            Reconcile();
             expired.Clear();
             foreach(var pair in playing)
             {
                 var actor=session.World?.Find(pair.Key);var effect=pair.Value;
                 if(actor==null || !Matches(actor,effect)) {expired.Add(pair.Key);continue;}
-                if(!session.Pause.IsPaused(effect.level)) effect.elapsed+=Mathf.Max(0,dt);
+                if(!session.Pause.IsPaused(effect.level)) effect.elapsed+=dt;
                 if(effect.elapsed>=effect.clip.sprites.Length/effect.clip.fps) expired.Add(pair.Key);
             }
             foreach(string id in expired) playing.Remove(id);
         }
+        private void Reconcile()
+        {
+            string nextWorld=session.World?.worldId,nextLevel=session.LocalActor?.level;
+            if(world==nextWorld && level==nextLevel)return;
+            playing.Clear();if(world!=nextWorld){seen.Clear();warnings.Clear();}world=nextWorld;level=nextLevel;
+        }
+        private void Stopped(){playing.Clear();seen.Clear();warnings.Clear();world=level=null;}
+        private void Rejected(string id)
+        {
+            if(string.IsNullOrWhiteSpace(id))return;seen.Add(id);expired.Clear();
+            foreach(var pair in playing)if(pair.Value.shot==id)expired.Add(pair.Key);
+            foreach(string actor in expired)playing.Remove(actor);
+        }
         private void OnDestroy()
         {
-            if(session!=null) session.AttackReceived-=Observe;
+            if(session!=null){session.AttackReceived-=Observe;session.Projectiles.Rejected-=Rejected;session.Changed-=Reconcile;session.SessionStopped-=Stopped;}
         }
     }
 }

@@ -138,16 +138,22 @@ namespace Remains.Editor
         private static void CheckNetworkEpoch(ActorState actor)
         {
             float previousAngle=actor.weaponAngle;bool previousValid=actor.heldItemPoseValid;
-            var apply=typeof(CoopSession).GetMethod("ApplyPose",BindingFlags.Static|BindingFlags.NonPublic);
+            var apply=typeof(CoopSession).GetMethod("ApplyPose",BindingFlags.Instance|BindingFlags.NonPublic);
             Require(apply!=null,"Не найден фактический обработчик сетевой позы");
-            apply.Invoke(null,new object[]{actor,new PoseMessage {weaponSelectionRevision=actor.weaponSelectionRevision-1,
+            var root=new GameObject("Проверка текущей сетевой эпохи удержания");
+            try
+            {
+            var session=root.AddComponent<CoopSession>();
+            apply.Invoke(session,new object[]{actor,new PoseMessage {weaponSelectionRevision=actor.weaponSelectionRevision-1,
                 weapon="pistol",weaponAngle=123,heldItemPoseX=10,heldItemPoseY=20,heldItemPoseValid=true},false});
             Require(actor.weapon=="grenade" && actor.weaponAngle==previousAngle && actor.heldItemPoseValid==previousValid,
                 "Отложенный пакет позы применён к другому выбору");
-            apply.Invoke(null,new object[]{actor,new PoseMessage {weaponSelectionRevision=actor.weaponSelectionRevision,
+            apply.Invoke(session,new object[]{actor,new PoseMessage {weaponSelectionRevision=actor.weaponSelectionRevision,
                 weapon="grenade",weaponAngle=45,heldItemPoseX=.3f,heldItemPoseY=.4f,heldItemPoseValid=true},false});
             Require(actor.weaponAngle==45 && actor.heldItemPoseX==.3f && actor.heldItemPoseY==.4f && actor.heldItemPoseValid,
                 "Пакет текущей эпохи потерял удерживаемую позу");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
         }
         private static void Require(bool value,string reason) {if(!value) throw new InvalidOperationException("Удерживаемые предметы: "+reason);}
     }

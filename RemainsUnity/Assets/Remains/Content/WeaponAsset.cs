@@ -14,6 +14,9 @@ namespace Remains.Content
         public WeaponShotClip ShotAnimation=>shotAnimation;
         [SerializeField,InspectorName("Анимация перезарядки (необязательно)")] private WeaponReloadClip reloadAnimation;
         public WeaponReloadClip ReloadAnimation=>reloadAnimation;
+        [SerializeField,InspectorName("Эффект гильзы (пусто — намеренно отсутствует)")] private CasingEffectProfile casingProfile;
+        public CasingEffectProfile CasingProfile=>casingProfile;
+        public void SetCasingProfile(CasingEffectProfile value)=>casingProfile=value;
         [SerializeField,InspectorName("Префаб летящей гранаты")] private SpriteRenderer grenadeFlight;
         public SpriteRenderer GrenadeFlight=>grenadeFlight;
         public void SetGrenadeFlight(SpriteRenderer value)=>grenadeFlight=value;
@@ -35,6 +38,15 @@ namespace Remains.Content
             {Debug.LogWarning($"Оружие {name}: задайте стабильный ID определения.",this);return;}
             try {WeaponCatalogLoader.Validate(CreateDefinition(),"ассет "+name);}
             catch(System.IO.InvalidDataException error) {Debug.LogWarning(error.Message,this);}
+            if(!ReferenceEquals(casingProfile,null))
+            {
+                try
+                {
+                    casingProfile.Validate("оружие "+definition.id);
+                    if(definition.projectileSpeed<=0)throw new System.InvalidOperationException("Гильза задана не для дальнего выстрела: weapon="+definition.id);
+                }
+                catch(System.InvalidOperationException error){Debug.LogWarning(error.Message,this);}
+            }
             if(reloadAnimation!=null)
             {
                 try

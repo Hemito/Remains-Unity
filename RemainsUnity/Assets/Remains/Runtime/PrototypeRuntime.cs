@@ -298,6 +298,8 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("movement")) gameObject.AddComponent<NetworkMovementProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("contracts")) gameObject.AddComponent<NetworkContracts>().Initialize(this);
                 else gameObject.AddComponent<NetworkSmoke>().Initialize(this);
+                if(Options.Smoke.StartsWith("shot-spread-frames-",System.StringComparison.Ordinal))
+                    gameObject.AddComponent<WeaponShotEffectsFrameProbe>().Initialize(this,interactionVisuals);
                 if(Options.Smoke.Contains("-backdrop-",System.StringComparison.Ordinal)) gameObject.AddComponent<FactoryBackdropFrameProbe>().Initialize(this);
             }
         }
@@ -426,6 +428,7 @@ namespace Remains.Runtime
                 if(LevelActivity.HasConnectedPlayer(Session.World,animated.level) && !Session.Pause.IsPaused(animated.level) &&
                     !remoteMotion.ControlsPosePhase(animated)) ActorPose.Advance(animated,Time.deltaTime);
             }
+            Session.Recoil.Step(Time.deltaTime);
             Grenades.Step(Time.deltaTime);
             if (Options.Smoke==null || Options.Smoke.StartsWith("lighting-preparation") || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("shot-spread") || Options.Smoke.StartsWith("weapon-reload") || Options.Smoke.StartsWith("held-prop-color") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {

@@ -24,6 +24,21 @@ namespace Remains.Content
         [SerializeField,Min(0),InspectorName("Задержка подъёма огнестрела (с)")] private float raiseDelay=.3666667f;
         public float RaiseHeight=>raiseHeight;
         public float RaiseDelay=>raiseDelay;
+        public System.Collections.Generic.IEnumerable<WeaponAsset> AllAssets()
+        {
+            foreach(var weapon in weapons)
+            {if(weapon==null)throw new InvalidOperationException("Нет ссылки на оружие в "+name);yield return weapon;}
+        }
+        public System.Collections.Generic.IEnumerable<WeaponAsset> CasingWeapons()
+        {
+            foreach(var weapon in AllAssets())
+            {
+                if(ReferenceEquals(weapon.CasingProfile,null))continue;
+                weapon.CasingProfile.Validate("каталог "+name+", оружие "+weapon.Id);
+                if(weapon.CreateDefinition().projectileSpeed<=0)throw new InvalidOperationException("Гильза задана не для дальнего выстрела: weapon="+weapon.Id);
+                yield return weapon;
+            }
+        }
         private void OnValidate()
         {
             try {ordinaryHoldingArea.Validate("каталог "+name+", обычные вещи");}
