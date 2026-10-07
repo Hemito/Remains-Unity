@@ -11,6 +11,11 @@ namespace Remains.Editor
         [Serializable] private sealed class Export {public float pixelsPerUnit;public WeaponRig[] weapons;}
         public static void Run()
         {
+            // This entry point describes the historical four-weapon4x migration.
+            // Refuse before touching assets when the current reserve is installed.
+            if(VectorArtworkReserveManifest.Hash("Assets/Remains/Resources/Original/Weapons/spear.png")!=
+                VectorArtworkReserveManifest.Hash("../.reference/original/weapons-4x/DefineSprite_1366_visspear/1.png"))
+                throw new InvalidOperationException("Этот вход предназначен для исторической миграции4×. Текущие векторные рисунки устанавливаются через VectorArtworkReserveAuthoring.InstallAndBuild; уменьшение запрещено.");
             var data=JsonUtility.FromJson<Export>(File.ReadAllText("../.reference/migration/weapon-artwork-4x.json"));
             if(data.pixelsPerUnit!=200 || data.weapons.Length!=4) throw new InvalidOperationException("Неверный экспорт графики оружия 4×.");
             foreach(var rig in data.weapons)

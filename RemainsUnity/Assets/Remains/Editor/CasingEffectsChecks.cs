@@ -1,8 +1,6 @@
 using System;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Networking;
@@ -16,7 +14,6 @@ namespace Remains.Editor
     public static class CasingEffectsChecks
     {
         public const string SpritePath="Assets/Remains/Resources/Original/Weapons/ShotEffects/casing.png";
-        private const string SourceHash="f44fef1687d155ef119503e9d049c80717af9ea84cfefdc6e27b9d91566624eb";
         public static void Run()
         {
             CheckNativeSprite();CasingEffectCatalog.Load();
@@ -27,18 +24,11 @@ namespace Remains.Editor
             CheckInvalidProfile(profile.Sprite);
             foreach(int fps in new[]{30,60,144})CheckDetached(profile,fps);
             CheckPool();CheckContexts();
-            Debug.Log("Гильзы и captured shot PASS: source34×11/PPU200/fractional pivot, pool64, duplicate/rejected/energy, detached30/60/144, paused, same-world replacement, world/level teardown, item/selection/owner/generation/lifecycle guards. Original runtime не сравнивался.");
+            Debug.Log("Гильзы и captured shot PASS: исходный вектор8×/сохранённая регистрация, pool64, duplicate/rejected/energy, detached30/60/144, paused, same-world replacement, world/level teardown, item/selection/owner/generation/lifecycle guards. Original runtime не сравнивался.");
         }
         private static void CheckNativeSprite()
         {
-            using var sha=SHA256.Create();string hash=BitConverter.ToString(sha.ComputeHash(File.ReadAllBytes(SpritePath))).Replace("-","").ToLowerInvariant();
-            Require(hash==SourceHash,"Production PNG отличается от исходного 4× экспорта");
-            var sprite=AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);var importer=AssetImporter.GetAtPath(SpritePath) as TextureImporter;
-            Require(sprite!=null && sprite.texture.width==34 && sprite.texture.height==11 && sprite.rect==new Rect(0,0,34,11) &&
-                Mathf.Abs(sprite.pixelsPerUnit-200)<.0001f && Vector2.Distance(sprite.pivot,new Vector2(16.6f,6.2f))<.0001f,"Нативный размер/масштаб/registration гильзы изменён");
-            Require(importer!=null && importer.textureType==TextureImporterType.Sprite && importer.spriteImportMode==SpriteImportMode.Single &&
-                importer.npotScale==TextureImporterNPOTScale.None && !importer.mipmapEnabled && importer.textureCompression==TextureImporterCompression.Uncompressed,
-                "Импортёр уменьшает/сжимает исходную гильзу");
+            VectorArtworkReserveChecks.VerifyEntry("casing");
         }
         private static void CheckInvalidProfile(Sprite sprite)
         {

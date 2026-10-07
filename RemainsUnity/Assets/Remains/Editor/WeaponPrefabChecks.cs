@@ -15,6 +15,12 @@ namespace Remains.Editor
             foreach(var rig in WeaponRigs.All)
             {
                 var source=WeaponRigs.Prefab(rig.id);
+                var sprite=source.Artwork.sprite;
+                var minimum=new Vector2(-rig.width*rig.pivotX,-rig.height*rig.pivotY)/rig.pixelsPerUnit;
+                var maximum=minimum+new Vector2(rig.width,rig.height)/rig.pixelsPerUnit;
+                if(rig.pixelsPerUnit!=sprite.pixelsPerUnit || Vector2.Distance(minimum,sprite.bounds.min)>.00001f ||
+                    Vector2.Distance(maximum,sprite.bounds.max)>.00001f)
+                    throw new InvalidOperationException("Каталог изменил плотность пикселей или размеры оружия в мире: "+rig.id);
                 var view=UnityEngine.Object.Instantiate(source);
                 try
                 {
@@ -42,7 +48,7 @@ namespace Remains.Editor
                 finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
             }
             CheckGrenadeRelease();
-            Debug.Log("Префабы оружия: PASS — точка дула, отражение, независимость экземпляров и непрерывность изображения гранаты при выпуске.");
+            Debug.Log("Префабы оружия: PASS — индивидуальная плотность пикселей, размеры в мире, точка дула, отражение, независимость экземпляров и непрерывность изображения гранаты при выпуске.");
         }
         private static void CheckGrenadeRelease()
         {

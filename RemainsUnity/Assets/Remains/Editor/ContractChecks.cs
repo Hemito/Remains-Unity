@@ -130,6 +130,7 @@ namespace Remains.Editor
             if(worldLobby==null) throw new InvalidOperationException("Нет префаба сетевого лобби.");
             worldLobby.Validate();
             CombatHudPrefabChecks.Run();
+            VectorArtworkReserveChecks.Run();
             var feedback=Resources.Load<Remains.Presentation.HudFeedbackView>("Presentation/HudFeedback");
             if(feedback==null) throw new InvalidOperationException("Нет префаба обратной связи HUD.");
             feedback.Validate();

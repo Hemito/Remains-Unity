@@ -1,8 +1,11 @@
 using System.IO;
 using Remains.Domain;
 using Remains.Presentation;
+using Remains.Serialization;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 namespace Remains.Editor
@@ -12,9 +15,18 @@ namespace Remains.Editor
         public static void Render()=>Render(false);
         public static void RenderHealth()=>Render(true);
         public static void RenderReferenceSizes()
+            =>RenderReferenceSizes(new[]{new Vector2Int(1024,768),new Vector2Int(1280,720),new Vector2Int(1920,1080)},null);
+        public static void RenderVectorReserve()
+        {
+            HudVectorReserveAuthoring.Check();
+            string folder=VectorArtworkReserveManifest.RepositoryPath(".reference/tests/vector-artwork-r59/render");
+            Directory.CreateDirectory(folder);
+            RenderReferenceSizes(new[]{new Vector2Int(1920,1080),new Vector2Int(3840,2160)},folder);
+        }
+        private static void RenderReferenceSizes(Vector2Int[] sizes,string reserveFolder)
         {
             Remains.Content.WeaponCatalog.Load();
-            foreach(var size in new[]{new Vector2Int(1024,768),new Vector2Int(1280,720),new Vector2Int(1920,1080)})
+            foreach(var size in sizes)
             {
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
                 var camera=new GameObject("Камера HUD").AddComponent<Camera>();camera.transform.position=new Vector3(0,0,-10);
@@ -25,8 +37,10 @@ namespace Remains.Editor
                 scaler.referenceResolution=new Vector2(1280,720);scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
                 var hud=new CombatHud(canvas.transform,_=>{});
                 var actor=new ActorState {id="hud-reference-render",character="Литлпип",weapon="pistol",health=100,mana=100};
-                WeaponAmmunition.Initialize(actor,true);
+                if(reserveFolder==null) WeaponAmmunition.Initialize(actor,true);
+                else PlayerStarterInventory.Give(actor);
                 var image=new Texture2D(size.x,size.y,TextureFormat.RGBA32,false);
+                var previous=RenderTexture.active;
                 try
                 {
                     for(int sample=0;sample<3;sample++)
@@ -47,13 +61,90 @@ namespace Remains.Editor
                         if(view.HealthText.preferredHeight>view.HealthText.rectTransform.rect.height ||
                             view.HealthText.preferredWidth>view.HealthText.rectTransform.rect.width)
                             throw new System.InvalidOperationException($"Числа здоровья не помещаются в поле HUD {size}.");
-                        camera.Render();RenderTexture.active=target;image.ReadPixels(new Rect(0,0,size.x,size.y),0,0);image.Apply();
-                        string path=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests",$"hud-reference-{size.x}x{size.y}-{sample}.png"));
+                        if(reserveFolder==null) camera.Render();else RenderReserveCamera(camera,target);
+                        RenderTexture.active=target;image.ReadPixels(new Rect(0,0,size.x,size.y),0,0);image.Apply();
+                        string path=reserveFolder==null?
+                            Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests",$"hud-reference-{size.x}x{size.y}-{sample}.png")):
+                            Path.Combine(reserveFolder,$"hud-{size.x}x{size.y}-{sample}.png");
+                        Directory.CreateDirectory(Path.GetDirectoryName(path));
                         File.WriteAllBytes(path,image.EncodeToPNG());
+                        if(reserveFolder!=null) WriteReserveEvidence(path,size,sample,actor,view,camera,canvas);
                         Debug.Log($"HUD reference: {size}, HP={actor.health}, mana={actor.mana}, числа={view.HealthText.text}, кадр={path}.");
                     }
                 }
-                finally {RenderTexture.active=null;camera.targetTexture=null;target.Release();Object.DestroyImmediate(target);Object.DestroyImmediate(image);}
+                finally {RenderTexture.active=previous;camera.targetTexture=null;target.Release();Object.DestroyImmediate(target);Object.DestroyImmediate(image);}
+            }
+        }
+        [System.Serializable] private sealed class ReserveHudFrame
+        {
+            public int schema=1,width,height,sample;
+            public bool explicitDiagnosticFixture=true,originalRuntimeVerified=false;
+            public float health,mana,healthFraction,manaFraction,canvasScale;
+            public string healthText,pngSha256;
+            public ReserveSpriteFrame healthSprite,manaSprite,frameSprite;
+            public float[] healthScreenBounds,manaScreenBounds,frameScreenBounds;
+        }
+        [System.Serializable] public sealed class ReserveSpriteFrame
+        {
+            public string assetPath,guid,texturePath,textureSha256;
+            public long localId;
+            public float pixelsPerUnit;
+            public float[] rect,pivotPixels,border,worldBounds;
+            public int textureWidth,textureHeight;
+        }
+        public static ReserveSpriteFrame DescribeReserveSprite(Sprite sprite)
+        {
+            if(sprite==null || sprite.texture==null || !AssetDatabase.TryGetGUIDAndLocalFileIdentifier(sprite,out string guid,out long id))
+                throw new System.InvalidOperationException("Рендер векторного резерва: нет действительного saved Sprite с GUID/localID.");
+            var bounds=sprite.bounds;
+            string texturePath=AssetDatabase.GetAssetPath(sprite.texture);
+            return new ReserveSpriteFrame {assetPath=AssetDatabase.GetAssetPath(sprite),guid=guid,localId=id,texturePath=texturePath,
+                textureSha256=VectorArtworkReserveManifest.Hash(VectorArtworkReserveManifest.RepositoryPath("RemainsUnity/"+texturePath)),
+                pixelsPerUnit=sprite.pixelsPerUnit,textureWidth=sprite.texture.width,textureHeight=sprite.texture.height,
+                rect=new[]{sprite.rect.x,sprite.rect.y,sprite.rect.width,sprite.rect.height},pivotPixels=new[]{sprite.pivot.x,sprite.pivot.y},
+                border=new[]{sprite.border.x,sprite.border.y,sprite.border.z,sprite.border.w},
+                worldBounds=new[]{bounds.min.x,bounds.min.y,bounds.max.x,bounds.max.y}};
+        }
+        private static void WriteReserveEvidence(string path,Vector2Int size,int sample,ActorState actor,CombatHudView view,Camera camera,Canvas canvas)
+        {
+            var saved=Resources.Load<CombatHudView>("Presentation/CombatHud");
+            bool healthMatches=sample==1?System.Array.Exists(saved.HealthWarningFrames,s=>s==view.Health.sprite):view.Health.sprite==saved.Health.sprite;
+            if(!healthMatches || view.Mana.sprite!=saved.Mana.sprite || Mathf.Abs(view.Health.fillAmount-actor.health/100)>1e-7f ||
+                Mathf.Abs(view.Mana.fillAmount-actor.mana/100)>1e-7f)
+                throw new System.InvalidOperationException("Рендер векторного HUD: фактические Sprite/заполнение не совпали с сохранёнными данными/HP.");
+            var frame=view.Health.transform.parent.Find("Рамка здоровья")?.GetComponent<Image>();
+            if(frame==null || frame.sprite==null || frame.type!=Image.Type.Sliced || frame.pixelsPerUnitMultiplier!=4)
+                throw new System.InvalidOperationException("Рендер векторного HUD: отсутствует действительная сохранённая рамка здоровья.");
+            var evidence=new ReserveHudFrame {width=size.x,height=size.y,sample=sample,health=actor.health,mana=actor.mana,
+                healthText=view.HealthText.text,healthFraction=view.Health.fillAmount,manaFraction=view.Mana.fillAmount,canvasScale=canvas.scaleFactor,
+                healthSprite=DescribeReserveSprite(view.Health.sprite),manaSprite=DescribeReserveSprite(view.Mana.sprite),frameSprite=DescribeReserveSprite(frame.sprite),
+                healthScreenBounds=ScreenBounds(view.Health.rectTransform,camera),manaScreenBounds=ScreenBounds(view.Mana.rectTransform,camera),
+                frameScreenBounds=ScreenBounds(frame.rectTransform,camera),pngSha256=VectorArtworkReserveManifest.Hash(path)};
+            File.WriteAllText(Path.ChangeExtension(path,".json"),StateJson.ToJson(evidence,true));
+        }
+        private static float[] ScreenBounds(RectTransform rect,Camera camera)
+        {
+            var corners=new Vector3[4];rect.GetWorldCorners(corners);
+            float minX=float.PositiveInfinity,minY=float.PositiveInfinity,maxX=float.NegativeInfinity,maxY=float.NegativeInfinity;
+            foreach(var corner in corners)
+            {
+                var screen=camera.WorldToScreenPoint(corner);minX=Mathf.Min(minX,screen.x);minY=Mathf.Min(minY,screen.y);
+                maxX=Mathf.Max(maxX,screen.x);maxY=Mathf.Max(maxY,screen.y);
+            }
+            return new[]{minX,minY,maxX,maxY};
+        }
+        // Both new visual proofs use the configured pipeline, never a substitute
+        // built-in rasterizer when the project is running an SRP.
+        internal static void RenderReserveCamera(Camera camera,RenderTexture texture)
+        {
+            SortingGroup.UpdateAllSortingGroups();
+            if(GraphicsSettings.currentRenderPipeline==null) camera.Render();
+            else
+            {
+                var request=new RenderPipeline.StandardRequest {destination=texture};
+                if(!RenderPipeline.SupportsRenderRequest(camera,request))
+                    throw new System.InvalidOperationException("Рендер векторного резерва: активный SRP не поддерживает StandardRequest.");
+                RenderPipeline.SubmitRenderRequest(camera,request);
             }
         }
         private static void Render(bool healthSamples)

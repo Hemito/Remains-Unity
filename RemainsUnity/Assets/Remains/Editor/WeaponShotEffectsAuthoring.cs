@@ -1,6 +1,4 @@
 using System;
-using System.IO;
-using System.Security.Cryptography;
 using Remains.Content;
 using UnityEditor;
 using UnityEngine;
@@ -13,23 +11,8 @@ namespace Remains.Editor
         public const string ProfilePath="Assets/Remains/Prefabs/Weapons/ShotEffects/pistol-casing.asset";
         public static void Install()
         {
-            using(var sha=SHA256.Create())
-                if(BitConverter.ToString(sha.ComputeHash(File.ReadAllBytes(SpritePath))).Replace("-","").ToLowerInvariant()!=
-                    "f44fef1687d155ef119503e9d049c80717af9ea84cfefdc6e27b9d91566624eb")
-                    throw new InvalidOperationException("Исходная гильза изменилась: "+SpritePath);
-            var importer=AssetImporter.GetAtPath(SpritePath) as TextureImporter;
-            if(importer==null) throw new InvalidOperationException("Нет импортёра гильзы: "+SpritePath);
-            importer.textureType=TextureImporterType.Sprite;importer.spriteImportMode=SpriteImportMode.Single;
-            importer.spritePixelsPerUnit=200;importer.spritePivot=new Vector2(16.6f/34,6.2f/11);
-            var settings=new TextureImporterSettings();importer.ReadTextureSettings(settings);
-            settings.spriteAlignment=(int)SpriteAlignment.Custom;settings.spritePivot=importer.spritePivot;
-            settings.spriteMeshType=SpriteMeshType.FullRect;importer.SetTextureSettings(settings);
-            importer.textureCompression=TextureImporterCompression.Uncompressed;importer.npotScale=TextureImporterNPOTScale.None;
-            importer.mipmapEnabled=false;importer.sRGBTexture=true;importer.alphaIsTransparency=false;
-            importer.filterMode=FilterMode.Bilinear;importer.wrapMode=TextureWrapMode.Clamp;importer.SaveAndReimport();
+            VectorArtworkReserveChecks.VerifyEntry("casing");
             var sprite=AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
-            if(sprite==null || sprite.texture.width!=34 || sprite.texture.height!=11 || Vector2.Distance(sprite.pivot,new Vector2(16.6f,6.2f))>.0001f)
-                throw new InvalidOperationException("Нарушен размер или registration гильзы.");
             EnsureFolder("Assets/Remains/Prefabs/Weapons/ShotEffects");
             var profile=AssetDatabase.LoadAssetAtPath<CasingEffectProfile>(ProfilePath);
             if(profile==null)
@@ -64,7 +47,7 @@ namespace Remains.Editor
                 EditorUtility.SetDirty(weapon);
             }
             AssetDatabase.SaveAssets();WeaponCatalog.Load();
-            Debug.Log("Отдача и гильза установлены: независимые профили pistol/energy; исходный ресурс 34×11, PPU200. Параметры Unity не являются исходными единицами recoil5/2.");
+            Debug.Log("Отдача и гильза установлены: независимые профили pistol/energy; исходный вектор гильзы8× с прежней мировой регистрацией. Параметры Unity не являются исходными единицами recoil5/2.");
         }
         public static void InstallAndBuild() {Install();PrototypeBuild.Build();}
         private static void EnsureFolder(string path)
