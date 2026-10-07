@@ -13,6 +13,7 @@ namespace Remains.Gameplay
         private readonly MovementSettings settings;
         private readonly LadderEntryPose ladderEntry;
         private readonly StandingSupportPose standingPose=new();
+        private readonly SlopeLocomotionPose slopePose=new();
         private readonly SprintPreparation sprintPreparation=new();
         private readonly PassengerMotionRegistry passengers=new();
         private float? droppedSurface;
@@ -22,8 +23,10 @@ namespace Remains.Gameplay
             this.ladderEntry=ladderEntry??new LadderEntryPose();
             downTap=new ReleasedTapGesture(this.settings.doubleTapSeconds);
         }
-        public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false,bool jumpHeld=false,PassengerMotionState passenger=null)
+        public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false,bool jumpHeld=false,PassengerMotionState passenger=null,float? lookAtX=null)
         {
+            if(lookAtX.HasValue && !float.IsFinite(lookAtX.Value))
+                throw new System.InvalidOperationException($"Некорректная цель взгляда: actor={actor?.id}, room={room.id}, lookAtX={lookAtX.Value}.");
             if(ActorPositionRecovery.Repair(actor,room,"движение")) PositionRecovered?.Invoke(actor);
             bool dropPressed=downTap.Step(input.y<-.1f,dt);
             float accelerationTime=sprintPreparation.AccelerationTime(actor,input.x,sprint,dt,settings.sprintPreparationSeconds);
@@ -97,7 +100,8 @@ namespace Remains.Gameplay
                 if(supported) actor.vy=0;
             }
             actor.climbing=ladder;
-            StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? ladderEntry.Select(actor,room) : !supported ? AirbornePose.Select(actor,launched,grounded || wasClimbing || drop) : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched,standingPose,room);
+            if(!ladder && lookAtX.HasValue) actor.facing=lookAtX.Value>=actor.x?1:-1;
+            StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? ladderEntry.Select(actor,room) : !supported ? AirbornePose.Select(actor,launched,grounded || wasClimbing || drop) : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched,standingPose,room,slopePose);
         }
     }
 }

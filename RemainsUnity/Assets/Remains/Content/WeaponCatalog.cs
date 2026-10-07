@@ -54,7 +54,7 @@ namespace Remains.Content
             CasingEffectCatalog.Load();
             var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
-            foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/standing-edge-poses","Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
+            foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/standing-edge-poses",SlopePoseCatalog.Resource,"Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
             {
                 var data=Resources.Load<TextAsset>(path);
                 if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");

@@ -31,7 +31,7 @@ namespace Remains.Editor
             DynamicSupportChecks.Run();PlatformSimulationChecks.Run();FactoryWorkshopMechanismChecks.Run();PlatformIntegrationChecks.Run();
             NpcDoorChecks.Run();
             ActorStepChecks.Run();
-            SlopedSupportChecks.Run();
+            SlopedSupportChecks.Run();SlopeAnimationAssetChecks.Run();SlopeLocomotionPoseChecks.Run();SlopeAnimationAudioChecks.Run();
             DoorVisualChecks.Run();DoorGeometryChecks.Run();DoorRequestChecks.Run();DoorClosureMotionChecks.Run();InteractionSelectionChecks.Run();TravelPointChecks.Run();
             PassiveActorMotionChecks.Run();
             JumpPoseChecks.Run();

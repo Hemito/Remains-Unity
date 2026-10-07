@@ -58,7 +58,7 @@ namespace Remains.Gameplay
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 if(actor.attackBusy)
                 {
-                    controller.Step(actor,Vector2.zero,false,dt);
+                    controller.Step(actor,Vector2.zero,false,dt,lookAtX:!natural && visible?target.x:(float?)null);
                     if(!natural) NpcWeaponAim.Apply(actor,visible?target.Position+Vector2.up*.55f:null,controller.Room);
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
@@ -73,8 +73,8 @@ namespace Remains.Gameplay
                     actor.perception.hasKnownPosition?actor.perception.KnownPosition:null;
                 if(natural)
                 {
-                    controller.Step(actor,new Vector2(NpcNaturalAttack.Approach(actor,destination,type.naturalAttack.approachSpeed),0),false,dt);
-                    if(destination.HasValue && Mathf.Abs(destination.Value.x-actor.x)>.01f) actor.facing=destination.Value.x>=actor.x?1:-1;
+                    controller.Step(actor,new Vector2(NpcNaturalAttack.Approach(actor,destination,type.naturalAttack.approachSpeed),0),false,dt,
+                        lookAtX:destination.HasValue && Mathf.Abs(destination.Value.x-actor.x)>.01f?destination.Value.x:(float?)null);
                     if(visible && target.connected && !target.down && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
                         session.PublishActor(actor);
                     continue;
@@ -88,14 +88,13 @@ namespace Remains.Gameplay
                 {
                     var memory=actor.perception;
                     float search=memory.hasKnownPosition?memory.knownX-actor.x:0;
-                    controller.Step(actor,new Vector2(Mathf.Abs(search)>.25f?Mathf.Sign(search)*.5f:0,0),false,dt);
-                    if(Mathf.Abs(search)>.01f) actor.facing=search>=0?1:-1;
+                    controller.Step(actor,new Vector2(Mathf.Abs(search)>.25f?Mathf.Sign(search)*.5f:0,0),false,dt,
+                        lookAtX:memory.hasKnownPosition && Mathf.Abs(search)>.01f?memory.knownX:(float?)null);
                     NpcWeaponAim.Apply(actor,memory.hasKnownPosition?memory.KnownPosition+Vector2.up*.55f:null,controller.Room);
                     continue;
                 }
                 float distance=target.x-actor.x;
-                controller.Step(actor,new Vector2(Mathf.Abs(distance)>5?Mathf.Sign(distance)*0.5f:0,0),false,dt);
-                actor.facing=distance>=0?1:-1;
+                controller.Step(actor,new Vector2(Mathf.Abs(distance)>5?Mathf.Sign(distance)*0.5f:0,0),false,dt,lookAtX:target.x);
                 NpcWeaponAim.Apply(actor,target.Position+Vector2.up*.55f,controller.Room);
                 if(visible && Mathf.Abs(distance)<7 && actor.attackCooldown<=0)
                 {

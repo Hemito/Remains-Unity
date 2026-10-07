@@ -101,6 +101,8 @@ namespace Remains.Editor
             int count=0,edgeCount=0,legacyPoses=0;
             foreach(var clip in PonyAnimationData.Library.clips)
             {
+                // The new slope contact set has its own asset/controller verification.
+                if(clip.id is "slopeStandUp" or "slopeStandDown" or "slopeWalkUp" or "slopeWalkDown") continue;
                 bool edge=clip.id.StartsWith("edgeStand",StringComparison.Ordinal) || clip.id.StartsWith("edgeCrouch",StringComparison.Ordinal);
                 if(edge) Require(clip.frames.Length==1,"Краевая поза перестала быть одно-кадровой: "+clip.id);
                 else legacyPoses++;
