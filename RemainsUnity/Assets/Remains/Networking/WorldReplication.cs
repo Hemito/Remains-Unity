@@ -24,6 +24,8 @@ namespace Remains.Networking
         private string incomingId,owner,actor;
         public void Reset() {incoming=null;incomingId=null;owner=null;actor=null;}
         public static void Send(NetworkConnectionToClient connection,RecoverySnapshot snapshot,string owner=null,string actor=null)
+            =>SendParts(snapshot,part=> {part.owner=part.offset==0?owner:null;part.actor=part.offset==0?actor:null;connection.Send(part);});
+        internal static void SendParts(RecoverySnapshot snapshot,Action<WorldPartMessage> send)
         {
             byte[] bytes=Encoding.UTF8.GetBytes(snapshot.Json);
             if(bytes.Length>SnapshotTransfer.MaximumBytes) throw new InvalidDataException("Снимок мира превышает текущий предел 32 МиБ.");
@@ -33,8 +35,7 @@ namespace Remains.Networking
             {
                 var data=new byte[Math.Min(SnapshotTransfer.ChunkSize,bytes.Length-offset)];
                 Buffer.BlockCopy(bytes,offset,data,0,data.Length);
-                connection.Send(new WorldPartMessage {snapshot=snapshot.Id,total=bytes.Length,offset=offset,data=data,
-                    owner=offset==0?owner:null,actor=offset==0?actor:null});
+                send(new WorldPartMessage {snapshot=snapshot.Id,total=bytes.Length,offset=offset,data=data});
             }
         }
         public ReceivedWorld Receive(WorldPartMessage message)

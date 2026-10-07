@@ -87,7 +87,7 @@ namespace Remains.Presentation
         private RoomLoadingView roomLoading;
         private Transform pauseMenuLayer;
         private bool roomPresentationPending;
-        public bool RoomPresentationPending=>roomPresentationPending && session?.LocalActor!=null;
+        public bool RoomPresentationPending=>roomPresentationPending && (session?.LocalActor!=null || session?.EntryPreparation.ClientPending==true);
         public bool RoomLoadingVisible=>roomLoading!=null && roomLoading.IsVisible;
         public RectTransform RoomLoadingRect=>roomLoading.Rect;
         public AudioSettingsPanel AudioSettings {get;private set;}
@@ -234,7 +234,7 @@ namespace Remains.Presentation
         {
             if(session==null || roomLoading==null)
                 throw new InvalidOperationException("Загрузка локации: HUD ещё не инициализирован.");
-            bool next=pending && session.LocalActor!=null;
+            bool next=pending && (session.LocalActor!=null || session.EntryPreparation.ClientPending);
             if(roomPresentationPending==next) return;
             roomPresentationPending=next;
             if(next)
@@ -246,7 +246,7 @@ namespace Remains.Presentation
         }
         private void RefreshRoomLoading()
         {
-            if(session.LocalActor==null) roomPresentationPending=false;
+            if(session.LocalActor==null && !session.EntryPreparation.ClientPending) roomPresentationPending=false;
             bool visible=RoomPresentationPending;
             if(roomLoading.IsVisible==visible) return;
             roomLoading.SetVisible(visible);

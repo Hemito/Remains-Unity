@@ -100,6 +100,7 @@ namespace Remains.Editor
             WorldCatalogChecks.Run();
             WorldLibraryPerformanceChecks.Run();
             CharacterJoinSelectionChecks.Run();
+            EntryPreparationChecks.Run();EntryGeometryChecks.Run();
             RecoveryCaptureChecks.Run();
             OrderedSaveWriteChecks.Run();
             CharacterPlayTimeChecks.Run();

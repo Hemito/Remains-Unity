@@ -160,8 +160,10 @@ namespace Remains.Gameplay
         public static void RestoreSupport(WorldState world,RoomLayout room,string level,double elapsed)
         {
             var states=world.movingPlatforms.Where(p=>p.level==level && !p.removed).ToArray();
-            if(states.Length==0) return;
-            var frame=room.dynamicSurfaces??=new DynamicSurfaceFrame();
+            // Restoring a detached snapshot starts a new transient support frame.
+            // A repeated preparation keeps RoomLayout/light identity, but cannot
+            // republish sequence 1 into a frame from the previous snapshot.
+            var frame=new DynamicSurfaceFrame();
             frame.ReconcileIds(states.Select(state=>CreateSpec(state,MechanismCatalogAsset.Load().Platform(state.definition).CreateDefinition())).ToArray());
             for(int i=0;i<states.Length;i++)
             {
@@ -169,6 +171,7 @@ namespace Remains.Gameplay
                 var sample=motion.Evaluate(states[i],elapsed);
                 frame.SetPose(i,sample.SupportBounds,sample.SupportBounds,elapsed,elapsed,1,false);
             }
+            frame.RequirePublished();room.dynamicSurfaces=frame;
         }
         private static double SavedTime(WorldState world,string level)
             =>world.levelTimes.Find(clock=>clock.level==level)?.elapsedSeconds??throw new InvalidOperationException("Нет сохранённых часов платформы: "+level);

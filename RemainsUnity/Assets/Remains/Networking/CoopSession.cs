@@ -111,6 +111,8 @@ namespace Remains.Networking
         public ProtocolAdmission Admission=>admission ??= new ProtocolAdmission(this);
         private SessionLobby lobby;
         public SessionLobby Lobby=>lobby ??= new SessionLobby(this);
+        private SessionEntryPreparation entryPreparation;
+        public SessionEntryPreparation EntryPreparation=>entryPreparation ??= new SessionEntryPreparation(this);
         private SessionTravel travel;
         public SessionTravel Travel => travel ??= new SessionTravel(this);
         private SessionDeposits deposits;
@@ -164,7 +166,8 @@ namespace Remains.Networking
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();
             DoorDamage.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
-            Admission.RegisterServer();
+            Admission.RegisterServer();EntryPreparation.RegisterServer();
+            InvokeRepeating(nameof(ExpireEntryPreparation),1,1);
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
             if(!UseLobby) StartSelectedWorld(null,false);
@@ -264,7 +267,7 @@ namespace Remains.Networking
             BeginJoinSelection();
             CharacterContent.Reset();
             clientPoses.Clear();
-            Admission.RegisterClient();
+            Admission.RegisterClient();EntryPreparation.RegisterClient();
             Lobby.RegisterClient();
             Travel.RegisterClient();
             ContainerInspection.RegisterClient();
@@ -350,62 +353,74 @@ namespace Remains.Networking
                 return;
             }
             if(Lobby.HoldJoin(connection,message)) return;
-            var actor = ServerWorld.actors.Find(a => a.character == message.character);
-            if (actor?.connected == true)
-            {
-                Admission.RejectDuplicateCharacter(connection,message.character);
-                return;
-            }
-            string owner = "connection:" + connection.connectionId;
-            string entryNotice=null;
+            EntryPreparation.Begin(connection,message);
+        }
+
+        // This is the single entry rule used on a detached preview and again on the
+        // current canonical body. Preview state is never copied back into the world.
+        private static ActorState PrepareEntryActor(WorldState world,JoinMessage message,out string entryNotice)
+        {
+            entryNotice=null;
+            var matching=world.actors.Where(value=>value.character==message.character).ToArray();
+            if(matching.Length>1) throw new InvalidOperationException($"В мире {world.worldId} несколько тел персонажа {message.character}. Вход отменён без выбора произвольного тела.");
+            var actor=matching.FirstOrDefault();
+            if(actor?.connected==true) throw new InvalidOperationException("Персонаж уже подключён: "+message.character);
+            var profile=string.IsNullOrEmpty(message.characterJson)?null:JsonUtility.FromJson<ActorState>(message.characterJson);
+            if(profile!=null && profile.character!=message.character)
+                throw new InvalidOperationException($"Персонаж в пакете не соответствует ID: {profile.character}, ожидается {message.character}.");
+            PonyAppearance.ValidateSettings(profile?.appearance,message.character);
             if(actor!=null)
             {
-                try
-                {
-                    var profile=string.IsNullOrEmpty(message.characterJson)?null:JsonUtility.FromJson<ActorState>(message.characterJson);
-                    PonyAppearance.ValidateSettings(profile?.appearance,message.character);
-                    var entered=PlayerWorldEntry.Reconcile(ServerWorld,actor,profile,out entryNotice);
-                    if(!ReferenceEquals(entered,actor)) {ServerWorld.actors[ServerWorld.actors.IndexOf(actor)]=entered;actor=entered;}
-                }
-                catch(Exception error) when(error is InvalidOperationException || error is System.IO.InvalidDataException)
-                {
-                    Debug.LogWarning($"Вход персонажа отменён: world={ServerWorld.worldId}, character={message.character}; {error.Message}");
-                    Admission.Reject(connection,error.Message);return;
-                }
+                var entered=PlayerWorldEntry.Reconcile(world,actor,profile,out entryNotice);
+                if(!ReferenceEquals(entered,actor)) {world.actors[world.actors.IndexOf(actor)]=entered;actor=entered;}
             }
-            if (actor == null)
+            else
             {
-                actor=string.IsNullOrEmpty(message.characterJson)?null:JsonUtility.FromJson<ActorState>(message.characterJson);
-                if(actor!=null && actor.character!=message.character)
-                    throw new InvalidOperationException($"Персонаж в пакете не соответствует ID: {actor.character}, ожидается {message.character}.");
-                PonyAppearance.ValidateSettings(actor?.appearance,message.character);
+                actor=profile;
                 if(actor==null)
                 {
-                    actor=new ActorState();
-                    actor.character=message.character;
-                    actor.hair=PonyPaletteAsset.Load().ForNewCharacter(ServerWorld.actors);
+                    actor=new ActorState {character=message.character};
+                    actor.hair=PonyPaletteAsset.Load().ForNewCharacter(world.actors);
                     PlayerStarterInventory.Give(actor);
                 }
                 actor.id="player:"+message.character;actor.character=message.character;actor.player=true;
                 actor=WeaponInventoryMigration.Prepare(actor);
-                CharacterPlacement.SpawnInHub(actor,ServerWorld.actors.Count(a=>a.player));
-                ServerWorld.actors.Add(actor);
+                CharacterPlacement.SpawnInHub(actor,world.actors.Count(value=>value.player));
+                world.actors.Add(actor);
             }
-            owners[connection.connectionId] = owner;
+            return actor;
+        }
+        internal WorldState CreateEntryView(JoinMessage message,out ActorState actor)
+        {
+            if(ServerWorld==null) throw new InvalidOperationException("Нет выбранного мира для подготовки входа.");
+            var view=RecoverySnapshot.FromWorld(ServerWorld).CreateLiveWorld();
+            actor=PrepareEntryActor(view,message,out _);
+            actor.connected=false;
+            return EntryPreparationContext.NarrowView(view,actor.id,actor.level);
+        }
+        internal void AdmitPreparedEntry(NetworkConnectionToClient connection,JoinMessage message,EntryPreparationContext context)
+        {
+            if(owners.ContainsKey(connection.connectionId)) throw new InvalidOperationException("Повторный вход уже подключённого клиента.");
+            var actor=PrepareEntryActor(ServerWorld,message,out string entryNotice);
+            if(!context.Matches(ServerWorld,actor.id,actor.level))
+                throw new InvalidOperationException("Локация персонажа изменилась при подтверждении входа.");
+            string owner="connection:"+connection.connectionId;
+            owners[connection.connectionId]=owner;
             ActorSessionRules.Connect(actor,owner);
-            playerIds[owner] = actor.id;
-            ownership.Reassign(ServerWorld, owners.Values.ToArray());
+            playerIds[owner]=actor.id;
+            ownership.Reassign(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
             WorldReplication.Send(connection,PrepareRecovery(),owner,actor.id);
             if(entryNotice!=null) {Debug.LogWarning($"world={ServerWorld.worldId}, actor={actor.id}: {entryNotice}");connection.Send(new NoticeMessage {text=entryNotice});}
             if(recoveredActors.Contains(actor.id)) connection.Send(new NoticeMessage {text="Недопустимая позиция из старого сохранения восстановлена на свободной опоре. Здоровье и предметы сохранены; исходный сейв скопирован в Recovery."});
             BroadcastWorld();
         }
+        private void ExpireEntryPreparation()=>entryPreparation?.Expire(Time.realtimeSinceStartupAsDouble);
 
         public override void OnServerDisconnect(NetworkConnectionToClient connection)
         {
             Admission.Disconnected(connection.connectionId);
-            Lobby.Disconnected(connection.connectionId);
+            Lobby.Disconnected(connection.connectionId);EntryPreparation.Disconnected(connection.connectionId);
             if (owners.Remove(connection.connectionId, out string owner))
             {
                 backupRevisions.Remove(connection.connectionId);
@@ -431,11 +446,12 @@ namespace Remains.Networking
                 BeginJoinSelection();
                 joinSelection.RequireCurrent(CharacterId,Saves);
                 joinSelection.RequireWelcome(welcomed,message.actor,message.owner);
+                EntryPreparation.Take(welcomed,message.actor);
             }
             catch(Exception error)
             {
                 Debug.LogError("Ответ подключения отклонён до записи профиля: "+error);
-                ShowNotice("Сервер вернул другого персонажа. Подключение отменено; профиль сохранён.");
+                ShowNotice("Ответ хоста не соответствует выбранному персонажу или подготовленной локации. Подключение отменено; профиль сохранён.");
                 if(NetworkServer.active) StopHost();else StopClient();
                 return;
             }
@@ -452,10 +468,12 @@ namespace Remains.Networking
             }
             QueueRecoveryReceipt(snapshot);
             Changed?.Invoke();
+            if(ReferenceEquals(World,welcomed) && !GameplayFailurePending) EntryPreparation.CompleteAdmission();
         }
 
         private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null)
         {
+            if(World==null || LocalActorId==null) throw new InvalidOperationException("Получен игровой снимок до фактического входа в мир.");
             using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
             var snapshot=verified??new RecoverySnapshot(message.json);
             var incoming = PersistCopy(snapshot);
@@ -1032,7 +1050,7 @@ namespace Remains.Networking
             FlushSaveWrites();
             if(npcHits!=null) {Destroy(npcHits);npcHits=null;}
             Pause.ResetServer();
-            CancelInvoke(nameof(CheckpointWorld));
+            CancelInvoke(nameof(CheckpointWorld));CancelInvoke(nameof(ExpireEntryPreparation));EntryPreparation.ResetServer();
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
             LevelTime.ResetServer();
             Mechanisms.ResetServer();DoorDamage.ResetServer();
@@ -1044,7 +1062,7 @@ namespace Remains.Networking
             selfHealing.Reset();
             CharacterContent.Reset();ModMismatch?.Invoke(null);
             Admission.EndClient();
-            Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
+            EntryPreparation.ResetClient();Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
             Projectiles.ResetClient();
             SaveLocalCharacter();
             FlushSaveWrites();joinSelection=null;

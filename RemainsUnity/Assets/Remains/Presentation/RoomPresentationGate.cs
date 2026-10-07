@@ -14,14 +14,16 @@ namespace Remains.Presentation
         private RoomLayout expected;
         private PrototypeHud hud;
         private bool actorPresent;
-        public bool IsReady=>actorPresent && lighting!=null && lighting.IsReady && ReferenceEquals(lighting.Room,expected);
-        public bool IsPreparing=>actorPresent && !IsReady;
+        private bool entryPending;
+        public bool IsReady=>!entryPending && actorPresent && lighting!=null && lighting.IsReady && ReferenceEquals(lighting.Room,expected);
+        public bool IsPreparing=>entryPending || actorPresent && !IsReady;
         public event Action<RoomLighting,Exception> Failed;
         public RoomPresentationGate(Camera camera)
         {
             this.camera=camera??throw new ArgumentNullException(nameof(camera));visibleLayers=camera.cullingMask;
         }
         public void SetHud(PrototypeHud value) {hud=value;Refresh();}
+        public void SetEntryPending(bool value) {entryPending=value;Refresh();}
         public void SetContext(bool hasActor,RoomLayout room)
         {actorPresent=hasActor;expected=room;Refresh();}
         public void Bind(RoomLighting value)
@@ -38,7 +40,7 @@ namespace Remains.Presentation
         private void Refresh()
         {
             // Camera.Render used by captures follows this same production visibility policy.
-            bool visible=lighting!=null && lighting.IsReady && (!actorPresent || IsReady);
+            bool visible=!entryPending && lighting!=null && lighting.IsReady && (!actorPresent || IsReady);
             if(camera!=null) camera.cullingMask=visible?visibleLayers:0;
             if(hud!=null) hud.SetRoomPresentationPending(IsPreparing);
         }
@@ -47,7 +49,7 @@ namespace Remains.Presentation
             // Unity may already have destroyed the HUD or its children during application
             // shutdown. Unsubscribe directly; teardown must not refresh a dying interface.
             if(lighting!=null) {lighting.ReadinessChanged-=OnReady;lighting.Failed-=OnFailure;}
-            lighting=null;expected=null;actorPresent=false;hud=null;
+            lighting=null;expected=null;actorPresent=false;entryPending=false;hud=null;
             if(camera!=null) camera.cullingMask=visibleLayers;
         }
     }

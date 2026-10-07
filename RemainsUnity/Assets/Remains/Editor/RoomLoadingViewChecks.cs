@@ -1,5 +1,8 @@
 using System;
+using Remains.Content;
 using Remains.Domain;
+using Remains.Gameplay;
+using Remains.Networking;
 using Remains.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
@@ -43,7 +46,43 @@ namespace Remains.Editor
             }
             finally {UnityEngine.Object.DestroyImmediate(root);UnityEngine.Object.DestroyImmediate(foreign);}
             CheckPresentationGate();
-            Debug.Log("Экран загрузки: PASS — непрозрачный Overlay, назначенный шрифт, Escape выше загрузки, повторный pending без новых объектов, ошибки Canvas/ссылок видимы; камера принимает только готовую пару своей комнаты, старый binding и Dispose не оставляют блокировку.");
+            CheckEntryPreparationTeardown();
+            Debug.Log("Экран загрузки: PASS — непрозрачный Overlay, назначенный шрифт, Escape выше загрузки, повторный pending без новых объектов, ошибки Canvas/ссылок видимы; камера принимает только готовую пару своей комнаты, старый binding и Dispose не оставляют блокировку; teardown входа очищает staged geometry без callback уничтоженному UI.");
+        }
+        private static void CheckEntryPreparationTeardown()
+        {
+            var owner=new GameObject("Проверка завершения подготовки входа");owner.SetActive(false);
+            var ui=new GameObject("Уничтожаемый интерфейс входа",typeof(RectTransform),typeof(Image));
+            SimulationGeometry geometry=null;EntryRoomPreparation preparation=null;
+            int callbacks=0;
+            try
+            {
+                // Inactive real session: no sockets, admission, world or profile writes.
+                var session=owner.AddComponent<CoopSession>();geometry=new SimulationGeometry(session);
+                var staged=geometry.PrepareEntry(NewGameWorld.Create(),"hub");
+                geometry.MarkEntryPrepared(staged);
+                var image=ui.GetComponent<Image>();
+                preparation=new EntryRoomPreparation(session,session,geometry,(light,room,pending)=>
+                {
+                    callbacks++;
+                    if(image==null) throw new InvalidOperationException("Teardown обратился к уже уничтоженному интерфейсу входа.");
+                    image.enabled=pending;
+                });
+                UnityEngine.Object.DestroyImmediate(ui);ui=null;
+                Require(image==null,"fixture не уничтожила настоящий UI перед владельцем подготовки");
+                preparation.Dispose();
+                Require(callbacks==0 && preparation.Room==null && preparation.Lighting==null && !preparation.HasRoom && !preparation.IsPrepared,
+                    "Dispose обновил уничтоженный UI или оставил ресурсы подготовки");
+                Reject(()=>geometry.EntryOcclusionRevision(staged),"Dispose сохранил staged geometry для следующего admission");
+                preparation.Dispose();session.EntryPreparation.ResetClient();
+                Require(callbacks==0,"повторный Dispose/reset обратился к уничтоженному интерфейсу");
+            }
+            finally
+            {
+                preparation?.Dispose();geometry?.Dispose();
+                if(ui!=null) UnityEngine.Object.DestroyImmediate(ui);
+                UnityEngine.Object.DestroyImmediate(owner);
+            }
         }
         private static void CheckPresentationGate()
         {
@@ -70,6 +109,12 @@ namespace Remains.Editor
                 Require(!gate.IsReady && camera.cullingMask==0,"Bind неприготовленного света показал старую пару");
                 next.Initialize(other,profile);
                 Require(gate.IsReady && camera.cullingMask==visibleLayers,"новая готовая пара не открыла камеру");
+                gate.SetEntryPending(true);gate.SetContext(false,null);
+                Require(gate.IsPreparing && !gate.IsReady && camera.cullingMask==0,
+                    "подготовка входа без LocalActor открыла камеру или скрыла pending");
+                gate.SetContext(true,other);gate.SetEntryPending(false);
+                Require(gate.IsReady && camera.cullingMask==visibleLayers,
+                    "admission не принял уже готовый свет без повторного initial build");
                 first.Release();
                 Require(gate.IsReady && camera.cullingMask==visibleLayers && Shader.GetGlobalFloat("_WorldLightEnabled")==1,
                     "Release прежнего света изменил текущий binding или выключил shader");

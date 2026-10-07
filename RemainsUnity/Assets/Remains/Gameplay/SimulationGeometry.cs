@@ -15,6 +15,9 @@ namespace Remains.Gameplay
         private readonly CoopSession session;
         private string worldId;
         private string roomDefinitions;
+        private string stagedWorld,stagedDefinitions,stagedLevel;
+        private RoomDoorGeometry stagedEntry;
+        private bool stagedReady;
         public long TopologyVersion {get;private set;}
         public event Action<string,RoomLayout,long> OcclusionChanged;
         public IEnumerable<string> LoadedLevels=>rooms.Keys;
@@ -25,8 +28,35 @@ namespace Remains.Gameplay
         public void Dispose()
         {
             if(session!=null) session.Changed-=OnSessionChanged;
-            rooms.Clear();OcclusionChanged=null;
+            rooms.Clear();ClearEntryPreparation();OcclusionChanged=null;
         }
+        // Preparation has no live world or simulation owner. The same reviewed geometry
+        // is adopted only after the ordinary Welcome publishes the matching world.
+        public RoomLayout PrepareEntry(WorldState viewWorld,string level)
+        {
+            if(viewWorld==null || string.IsNullOrWhiteSpace(viewWorld.worldId) || string.IsNullOrWhiteSpace(level))
+                throw new ArgumentException("Подготовка входа: не указаны мир или локация.");
+            string definitions=Remains.Serialization.StateJson.ToJson(viewWorld.rooms);
+            if(stagedEntry==null || stagedWorld!=viewWorld.worldId || stagedDefinitions!=definitions || stagedLevel!=level)
+            {
+                stagedEntry=new RoomDoorGeometry(RoomLayout.Load(level,viewWorld));
+                stagedWorld=viewWorld.worldId;stagedDefinitions=definitions;stagedLevel=level;
+            }
+            stagedReady=false;stagedEntry.Reconcile(viewWorld.doors,level);
+            return stagedEntry.Room;
+        }
+        public long EntryOcclusionRevision(RoomLayout expected)
+        {
+            RequireEntry(expected);return stagedEntry.OcclusionRevision;
+        }
+        public void MarkEntryPrepared(RoomLayout expected) {RequireEntry(expected);stagedReady=true;}
+        private void RequireEntry(RoomLayout expected)
+        {
+            if(stagedEntry==null || !ReferenceEquals(stagedEntry.Room,expected))
+                throw new InvalidOperationException("Подготовка входа ссылается на другую геометрию локации.");
+        }
+        public void ClearEntryPreparation()
+        {stagedEntry=null;stagedWorld=stagedDefinitions=stagedLevel=null;stagedReady=false;}
         public void Reconcile(WorldState world)
         {
             using var timing=TransitionTiming.Measure("geometry.reconcile",world?.worldId);
@@ -34,6 +64,12 @@ namespace Remains.Gameplay
             if(worldId!=world?.worldId || roomDefinitions!=definitions)
             {rooms.Clear();worldId=world?.worldId;roomDefinitions=definitions;TopologyVersion++;}
             var required=world==null?new HashSet<string>():new HashSet<string>(world.actors.Where(a=>a.player && a.connected).Select(a=>a.level));
+            if(stagedEntry!=null && world!=null && required.Contains(stagedLevel))
+            {
+                if(!stagedReady || stagedWorld!=world.worldId || stagedDefinitions!=definitions)
+                    throw new InvalidOperationException($"Вход завершён до готовности согласованной геометрии: world={world.worldId}, level={stagedLevel}, ready={stagedReady}.");
+                rooms[stagedLevel]=stagedEntry;ClearEntryPreparation();TopologyVersion++;
+            }
             foreach(string level in rooms.Keys.Where(level=>!required.Contains(level)).ToArray()) {rooms.Remove(level);TopologyVersion++;}
             foreach(string level in required)
             {
