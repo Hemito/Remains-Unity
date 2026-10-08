@@ -94,12 +94,35 @@ namespace Remains.Editor
                     view.ManaText.text=="Мана  19 / 100" && view.Ammunition.text.StartsWith("15 / 15    Запас: 45",StringComparison.Ordinal),
                     "повторная готовность не прочитала новый выбор/HP без следующего Update");
 
-                // A failed event-driven UI refresh must not open the world camera.
-                light.Release();actor.weapon="hud-ready-invalid-weapon";
-                bool rejected=false;
-                try {light.Initialize(room,profile);} catch(InvalidOperationException) {rejected=true;}
-                Require(rejected && camera.cullingMask==0,"ошибка данных HUD открыла готовую камеру");
-                actor.weapon="energy";
+                var energySprite=view.SelectedItem.Icon.sprite;var energyAmmoSprite=view.SelectedItem.AmmoIcon.sprite;
+                string energyName=view.SelectedItem.ItemName.text,energyCounter=view.SelectedItem.Counter.text;
+                string previousWeapon=actor.weapon,previousDefinition=energy.definition;
+                const string invalidWeapon="hud-ready-invalid-weapon";
+                try
+                {
+                    // A stale legacy definition cannot replace the actual selected inventory instance.
+                    light.Release();actor.weapon=invalidWeapon;
+                    string before=Remains.Serialization.StateJson.ToJson(actor);
+                    light.Initialize(room,profile);
+                    Require(gate.IsReady && camera.cullingMask==visibleLayers && view.SelectedItem.Icon.sprite==energySprite &&
+                        view.SelectedItem.AmmoIcon.sprite==energyAmmoSprite && view.SelectedItem.ItemName.text==energyName &&
+                        view.SelectedItem.Counter.text==energyCounter && actor.equippedWeaponItem==energy.id &&
+                        Remains.Serialization.StateJson.ToJson(actor)==before,
+                        "устаревший actor.weapon подменил реальный экземпляр energy или Refresh изменил ActorState");
+
+                    // A failed event-driven UI refresh must not open the world camera.
+                    // Corrupt the actual selected instance, rather than its obsolete legacy mirror.
+                    light.Release();energy.definition=invalidWeapon;
+                    bool rejected=false;
+                    try {light.Initialize(room,profile);}
+                    catch(InvalidOperationException error) {rejected=error.Message.Contains("Отсутствует определение оружия: "+invalidWeapon);}
+                    Require(rejected && camera.cullingMask==0,"ошибка actual selected definition HUD открыла готовую камеру или не дала contextual rejection");
+                }
+                finally {actor.weapon=previousWeapon;energy.definition=previousDefinition;}
+                light.Release();light.Initialize(room,profile);
+                Require(gate.IsReady && camera.cullingMask==visibleLayers && view.SelectedItem.Icon.sprite==energySprite &&
+                    view.SelectedItem.AmmoIcon.sprite==energyAmmoSprite && view.SelectedItem.ItemName.text==energyName &&
+                    view.SelectedItem.Counter.text==energyCounter,"восстановленный настоящий экземпляр energy не вернул согласованные HUD/камеру");
                 Require(hudObject.GetComponentsInChildren<Transform>(true).Length==nodes,"повторные readiness events пересоздали интерфейс");
 
                 // The owner must release its global Canvas/camera subscriptions,

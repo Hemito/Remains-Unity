@@ -134,6 +134,7 @@ namespace Remains.Editor
             if(worldLobby==null) throw new InvalidOperationException("Нет префаба сетевого лобби.");
             worldLobby.Validate();
             CombatHudPrefabChecks.Run();
+            SelectedItemHudChecks.Run();
             VectorArtworkReserveChecks.Run();
             PonyVectorReserveAuthoring.Run();
             var feedback=Resources.Load<Remains.Presentation.HudFeedbackView>("Presentation/HudFeedback");

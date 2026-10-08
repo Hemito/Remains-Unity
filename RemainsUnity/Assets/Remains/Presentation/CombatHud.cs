@@ -9,7 +9,8 @@ namespace Remains.Presentation
     public sealed class CombatHud
     {
         private readonly GameObject vitals,loadout;
-        private readonly Text name,healthText,manaText,ammunition,grenades;
+        private readonly Text name,healthText,manaText,grenades;
+        private readonly SelectedItemHudPresentation selectedItem;
         private readonly Image grenadeIcon;
         private readonly Image health,mana;
         private readonly HealthBarWarning healthWarning;
@@ -28,7 +29,8 @@ namespace Remains.Presentation
             if(prefab==null) throw new InvalidOperationException("Нет префаба HUD Presentation/CombatHud.");
             prefab.Validate();var view=UnityEngine.Object.Instantiate(prefab,parent,false);
             vitals=view.Vitals;loadout=view.Loadout;name=view.CharacterName;healthText=view.HealthText;manaText=view.ManaText;
-            ammunition=view.Ammunition;health=view.Health;mana=view.Mana;weapons=view.Weapons;ids=view.WeaponIds;
+            selectedItem=new SelectedItemHudPresentation(view.SelectedItem,artwork,ItemTextCatalog.Load());
+            health=view.Health;mana=view.Mana;weapons=view.Weapons;ids=view.WeaponIds;
             if(health.type!=Image.Type.Simple || mana.type!=Image.Type.Simple ||
                 health.rectTransform.anchorMin!=Vector2.zero || mana.rectTransform.anchorMin!=Vector2.zero ||
                 health.rectTransform.sizeDelta!=Vector2.zero || mana.rectTransform.sizeDelta!=Vector2.zero)
@@ -45,7 +47,8 @@ namespace Remains.Presentation
                     throw new InvalidOperationException($"Нет иконки быстрого слота {slot}.");
                 weapons[i].onClick.AddListener(()=>
                 {
-                    if(displayedActor?.weaponInventoryVersion!=1) {if(id!=null) equip(id);return;}
+                    if(displayedActor==null || displayedActor.weaponInventoryVersion!=0 && displayedActor.weaponInventoryVersion!=1) return;
+                    if(displayedActor.weaponInventoryVersion==0) {if(id!=null) equip(id);return;}
                     var item=ItemShortcuts.Get(displayedActor,slot);
                     if(item==null) return;
                     if(activateShortcut!=null) {activateShortcut(slot);return;}
@@ -61,8 +64,9 @@ namespace Remains.Presentation
             displayedActor=actor;
             vitals.SetActive(visible);loadout.SetActive(visible);
             healthWarning.Refresh(health,actor==null?0:Mathf.Clamp01(actor.health/100),visible,Time.unscaledTime);
+            selectedItem.Refresh(actor,visible,reloadRemaining);
             if(actor==null) return;
-            if(actor.weaponInventoryVersion!=1 && missing.Add("legacy:"+actor.id))
+            if(actor.weaponInventoryVersion==0 && missing.Add("legacy:"+actor.id))
                 Debug.LogWarning($"HUD показывает диагностические определения старого инвентаря: actor={actor.id}, inventoryVersion={actor.weaponInventoryVersion}. Для игры требуется миграция экземпляров.");
             int grenadeCount=InventoryJournal.Count(actor,"grenade");
             grenades.text=$"G · Гранаты: {grenadeCount}";
@@ -78,37 +82,11 @@ namespace Remains.Presentation
             {
                 var item=actor.weaponInventoryVersion==1?ItemShortcuts.Get(actor,ItemShortcuts.Keys[i]):null;
                 bool instances=actor.weaponInventoryVersion==1;
-                string legacy=i<ids.Length?ids[i]:null;
+                string legacy=actor.weaponInventoryVersion==0 && i<ids.Length?ids[i]:null;
                 OriginalButtonStyle.SetSelected(weapons[i],instances?item!=null && item.id==activeItem:legacy!=null && legacy==actor.weapon);
                 weapons[i].interactable=!actor.down && (instances?item!=null && InventoryAvailability.Count(actor,item)>0:legacy!=null);
                 artwork.Set(shortcutIcons[i],instances?item?.definition:legacy);
             }
-            if(ordinaryHeld)
-            {
-                int available=heldItem==null?0:InventoryAvailability.Count(actor,heldItem);
-                ammunition.text=heldItem==null?"Предмет закончился · выберите другой":available==0?"Вещь зарезервирована для передачи…":
-                    $"В копытах: {available}\nЛКМ — бросить 1 · Shift+ЛКМ — стопку";
-                return;
-            }
-            if(string.IsNullOrEmpty(actor.weapon)) {ammunition.text="Оружие не выбрано";return;}
-            var definition=WeaponCatalog.Get(actor.weapon);
-            if(actor.weapon=="grenade")
-            {
-                var stack=WeaponInventory.Selected(actor);
-                ammunition.text=$"В стопке: {(stack==null?0:InventoryAvailability.Count(actor,stack))} · ЛКМ — бросить";return;
-            }
-            if(string.IsNullOrEmpty(definition.ammo)) {ammunition.text=actor.weapon=="spear"?"Копьё · урон зависит от скорости":"Лом · ближний бой";return;}
-            var magazine=WeaponAmmunition.Magazine(actor,actor.weapon);
-            if(magazine==null)
-            {
-                if(missing.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Нет магазина: actor={actor.id}, weapon={actor.weapon}.");
-                ammunition.text="Ошибка данных магазина — см. журнал.";return;
-            }
-            int reserve=InventoryJournal.Count(actor,definition.ammo);
-            string action=reloadRemaining.HasValue?$"Перезарядка · {Mathf.Max(0,reloadRemaining.Value):0.0} с":
-                magazine.rounds<definition.ammoPerShot?(reserve>0?"Магазин пуст · R":"Нет боеприпасов"):
-                magazine.rounds<definition.magazineSize && reserve>0?"R — перезарядить":"";
-            ammunition.text=$"{magazine.rounds} / {definition.magazineSize}    Запас: {reserve}"+(action.Length>0?$"\n{action}":"");
         }
         private static void RefreshBar(Image image,float fraction)
         {

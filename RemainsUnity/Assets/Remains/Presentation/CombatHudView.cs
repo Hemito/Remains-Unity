@@ -12,6 +12,7 @@ namespace Remains.Presentation
         [InspectorName("Текст здоровья")] public Text HealthText;
         [InspectorName("Текст маны")] public Text ManaText;
         [InspectorName("Боезапас")] public Text Ammunition;
+        [InspectorName("Выбранная вещь и боезапас")] public SelectedItemHudView SelectedItem;
         [InspectorName("Запас гранат")] public Text Grenades;
         [InspectorName("Иконка гранаты")] public Image GrenadeIcon;
         [InspectorName("Шкала здоровья")] public Image Health;
@@ -30,6 +31,10 @@ namespace Remains.Presentation
             if(Array.Exists(WeaponIds,string.IsNullOrWhiteSpace)) throw new InvalidOperationException("HUD: не заполнены старые диагностические определения оружия.");
             if(HealthWarningFrames==null || HealthWarningFrames.Length==0 || Array.Exists(HealthWarningFrames,frame=>frame==null))
                 throw new InvalidOperationException("HUD: отсутствуют кадры предупреждения здоровья.");
+            if(SelectedItem==null) throw new InvalidOperationException("HUD: отсутствует сохранённый блок выбранной вещи.");
+            SelectedItem.Validate();
+            if(SelectedItem.Counter!=Ammunition || !SelectedItem.transform.IsChildOf(Loadout.transform))
+                throw new InvalidOperationException("HUD: Counter выбранной вещи должен быть прежним Ammunition внутри Loadout; проверьте сохранённые ссылки и границы панели.");
         }
     }
 }

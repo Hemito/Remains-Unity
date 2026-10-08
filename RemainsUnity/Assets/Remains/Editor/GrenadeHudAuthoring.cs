@@ -28,13 +28,10 @@ namespace Remains.Editor
                     view.GrenadeIcon=icon.AddComponent<Image>();view.GrenadeIcon.preserveAspect=true;view.GrenadeIcon.raycastTarget=false;
                     new InventoryArtwork().Set(view.GrenadeIcon,"grenade");
                 }
-                var panel=(RectTransform)view.Loadout.transform;
-                panel.sizeDelta=new Vector2(panel.sizeDelta.x,156);
-                panel.anchoredPosition=new Vector2(panel.anchoredPosition.x,140.8f);
-                view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
+                PrefabUtility.SaveAsPrefabAsset(root,path);
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}
-            AssetDatabase.SaveAssets();
+            SelectedItemHudAuthoring.Apply();AssetDatabase.SaveAssets();
         }
     }
 }

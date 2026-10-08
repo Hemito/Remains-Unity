@@ -32,11 +32,9 @@ namespace Remains.Editor
             Edit("Assets/Remains/Resources/Presentation/CombatHud.prefab",root=>
             {
                 var view=root.GetComponent<CombatHudView>();
-                view.Weapons=Configure(view.Weapons,view.Loadout.transform,new Vector2(14,-12));
-                view.Loadout.GetComponent<RectTransform>().sizeDelta=new Vector2(800,156);
-                view.Ammunition.rectTransform.sizeDelta=new Vector2(772,view.Ammunition.rectTransform.sizeDelta.y);
-                view.Validate();
+                view.Weapons=Configure(view.Weapons,view.Loadout.transform,new Vector2(14,-6));
             });
+            SelectedItemHudAuthoring.Apply();
             AssetDatabase.SaveAssets();WeaponInventoryUiChecks.BuildAndRender();
         }
         private static void Edit(string path,Action<GameObject> change)
