@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Remains.Runtime
 {
-    public struct HeldColorReady : NetworkMessage {public string actor,world;public int generation,lifecycle;public bool prepared;}
+    public struct HeldColorReady : NetworkMessage {public string actor,world;public int generation,lifecycle;public bool prepared;public long selectionRevision;}
     public struct HeldColorPrepare : NetworkMessage {}
     public struct HeldColorPhase : NetworkMessage
     {public int phase,startGeneration,magic;public string world,source,owner;}
@@ -40,6 +40,15 @@ namespace Remains.Runtime
         private bool fixture,readySent,reported,capturePending,finished,started,prepareAllowed,handlersReady,onlineSent;
         private int phase=-1,serverPhase=-1;
         private HeldColorPhase manifest;
+        private bool magicMode,preludeCommandSent,preludeCapturePending,pairFixtureObserved;
+        private int preludeStage,ordinarySelectionCommands;
+        private long initialSelectionRevision,preludeCommandRevision;
+        private string initialSelectionItem;
+        private string fixturePeer;
+        private Vector2 otherInitialFeet;
+        private int fixturePeerGeneration,fixturePeerLifecycle;
+        private readonly NativePonyMagicWitness magicWitness=new();
+        private readonly List<MagicPrelude> magicPrelude=new();
         private readonly Dictionary<string,HeldColorReady> ready=new(StringComparer.Ordinal);
         private readonly HashSet<string> online=new(StringComparer.Ordinal);
         private readonly Dictionary<int,Dictionary<string,HeldColorObserved>> observed=new();
@@ -53,6 +62,7 @@ namespace Remains.Runtime
         public void Initialize(PrototypeRuntime value,InteractionVisuals views)
         {
             runtime=value;visuals=views??throw new ArgumentNullException(nameof(views));deadline=Time.unscaledTime+100;
+            magicMode=value.Options.Smoke?.StartsWith("held-prop-color-magic-",StringComparison.Ordinal)==true;
             if(value.Options.ProbePeers!=2 || !value.Options.Smoke.Contains("-frames-") || string.IsNullOrWhiteSpace(value.Options.SaveDirectory) ||
                 string.IsNullOrWhiteSpace(value.Options.Report) || value.Hud==null || Screen.width!=1920 || Screen.height!=1080)
                 throw new InvalidOperationException("Цвет удержания требует двух участников, -frames-, HUD, отдельные новые сохранения и1920×1080.");
@@ -159,6 +169,20 @@ namespace Remains.Runtime
             world=session.World.worldId;contents=StateJson.ToJson(cargo.items);inventory=StateJson.ToJson(actor.inventory);
             owner=actor.owner;character=actor.character;generation=actor.generation;lifecycle=actor.lifecycleSequence;
             originalMagic=PonyAppearance.Snapshot(actor).Magic;
+            if(magicMode)
+            {
+                var selected=WeaponInventory.Selected(actor);
+                Require(actor.weaponInventoryVersion==1 && !HeldItemSelection.HasSelection(actor) && selected!=null && WeaponInventory.Available(actor,selected.definition),
+                    "Нет существующего доступного стартового оружия для ordinary deselect/select.");
+                initialSelectionItem=selected.id;initialSelectionRevision=actor.weaponSelectionRevision;
+                ActorState other=null;
+                foreach(var participant in session.World.actors) if(participant.player && participant.connected && participant.id!=actor.id)
+                {Require(other==null,"Неоднозначный peer начальной fixture.");other=participant;}
+                Require(other!=null,"Нет actual peer начальной fixture.");
+                fixturePeer=other.id;fixturePeerGeneration=other.generation;fixturePeerLifecycle=other.lifecycleSequence;
+                var otherHull=Anatomy.Movement(other);
+                otherInitialFeet=FindInitialFeet(room,otherHull,cargo.x+(Host?1.3f:-1.3f),cargoFloor-otherHull.height,out _);
+            }
             actor.appearance??=new CharacterAppearance {version=1};actor.appearance.magic=Host?HostMagic:ClientMagic;
             actor.Position=initialFeet;actor.vx=actor.vy=0;actor.revision++;session.PublishActor(actor);fixture=true;phaseAt=Time.unscaledTime;
             Debug.Log($"Цвет удержания INITIAL fixture: world={world}, actor={actor.id}, feet={initialFeet}, originalMagic={originalMagic:X6}, magic={actor.appearance.magic:X6}; actual prop={TargetId}, pos={cargo.Position}. Объект/HP/запас/геометрия не изменены; полный путь до ящика не проверяется.");
@@ -182,7 +206,15 @@ namespace Remains.Runtime
         }
         private PlayerCommand Command()
         {
-            if(finished || !fixture || phase<0) return default;
+            if(finished || !fixture) return default;
+            if(magicMode && preludeStage<3)
+            {
+                if(!pairFixtureObserved) return default;
+                if(preludeCommandSent) return default;
+                preludeCommandSent=true;preludeCommandRevision=runtime.Session.LocalActor.weaponSelectionRevision;ordinarySelectionCommands++;
+                return new PlayerCommand {weaponItem=preludeStage==1?initialSelectionItem:string.Empty,hasAim=true,aim=Cargo.Center};
+            }
+            if(phase<0) return default;
             return new PlayerCommand {hasAim=true,aim=Held && Source?lift:Cargo.Center,telekinesis=Held && Source};
         }
         private void Update()
@@ -205,8 +237,25 @@ namespace Remains.Runtime
                 Require(session.World.worldId==world && actor.owner==owner && actor.generation==generation && actor.lifecycleSequence==lifecycle &&
                     actor.character==character && actor.level=="hub" && !actor.down && actor.health>0 && !session.Pause.IsPaused("hub"),"Изменилась identity/управление наблюдателя: "+Context());
                 Require(PonyAppearance.Snapshot(actor).Magic==(Host?HostMagic:ClientMagic),"Изменился первоначально объявленный цвет собственного профиля.");
+                if(magicMode && preludeStage<3)
+                {
+                    if(!pairFixtureObserved)
+                    {
+                        var other=session.World.Find(fixturePeer);
+                        Require(other!=null && other.generation==fixturePeerGeneration && other.lifecycleSequence==fixturePeerLifecycle,
+                            "Изменилась эпоха peer до начального actual fixture barrier: peer="+fixturePeer);
+                        pairFixtureObserved=magicWitness.FixtureVisible(runtime,actor,initialFeet,Host?HostMagic:ClientMagic) &&
+                            magicWitness.FixtureVisible(runtime,other,otherInitialFeet,Host?ClientMagic:HostMagic);
+                        if(!pairFixtureObserved) return;
+                    }
+                    if(preludeCommandSent && actor.weaponSelectionRevision>preludeCommandRevision &&
+                        !HeldItemSelection.HasSelection(actor) && (preludeStage==1?actor.equippedWeaponItem==initialSelectionItem:
+                            string.IsNullOrEmpty(actor.equippedWeaponItem) && string.IsNullOrEmpty(actor.weapon))) preludeCapturePending=true;
+                    return;
+                }
                 if(!readySent && Time.unscaledTime-phaseAt>2)
-                {readySent=true;NetworkClient.Send(new HeldColorReady {actor=actor.id,world=world,generation=generation,lifecycle=lifecycle,prepared=true});}
+                {readySent=true;NetworkClient.Send(new HeldColorReady {actor=actor.id,world=world,generation=generation,lifecycle=lifecycle,
+                    selectionRevision=actor.weaponSelectionRevision,prepared=true});}
                 if(Host && !started && ready.Count==2 && CanonicalReady()) {started=true;Advance(0);}
                 if(phase<0 || reported || capturePending) return;
                 var cargo=Cargo;var view=visuals.FindContainer(TargetId);
@@ -229,11 +278,19 @@ namespace Remains.Runtime
             {
                 if(!ready.TryGetValue(actor.id,out var message) || actor.generation!=message.generation || actor.lifecycleSequence!=message.lifecycle || actor.level!="hub" ||
                     PonyAppearance.Snapshot(actor).Magic!=(actor.id==runtime.Session.LocalActorId?HostMagic:ClientMagic)) return false;
+                if(magicMode && (actor.weaponSelectionRevision<message.selectionRevision || !string.IsNullOrEmpty(actor.equippedWeaponItem) ||
+                    !string.IsNullOrEmpty(actor.weapon) || HeldItemSelection.HasSelection(actor))) return false;
             }
             return true;
         }
         private void LateUpdate()
         {
+            if(!finished && preludeCapturePending)
+            {
+                try {CaptureMagicPrelude();}
+                catch(Exception error) {Fail(error.Message);}
+                return;
+            }
             if(finished || !capturePending) return;
             try
             {
@@ -261,7 +318,8 @@ namespace Remains.Runtime
                     renderer=haloId,material=materialId,sprite=spriteId,frameCount=view.HeldGlowPreparedFrameCount,
                     propPosition=cargo.Position,actorPosition=runtime.Session.LocalActor.Position,cameraPosition=runtime.WorldCamera.transform.position,
                     minimum=bounds.min,maximum=bounds.max,viewportMinimum=runtime.WorldCamera.WorldToViewportPoint(bounds.min),
-                    viewportMaximum=runtime.WorldCamera.WorldToViewportPoint(bounds.max),level=room.id,capture=path};
+                    viewportMaximum=runtime.WorldCamera.WorldToViewportPoint(bounds.max),level=room.id,capture=path,
+                    horns=magicMode?CaptureHorns(false):null};
                 NetworkFrameCapture.Save(runtime.WorldCamera,path,runtime.Hud.GetComponent<Canvas>(),1920,1080);
                 File.WriteAllText(Path.ChangeExtension(path,".json"),StateJson.ToJson(observation,true));
                 NetworkSceneRecord.Save(runtime,80+phase);observations.Add(observation);reported=true;
@@ -270,6 +328,53 @@ namespace Remains.Runtime
                     generation=actor.generation,lifecycle=actor.lifecycleSequence,success=true,detail=Label});
             }
             catch(Exception error) {Fail(error.Message);}
+        }
+        private void CaptureMagicPrelude()
+        {
+            preludeCapturePending=false;
+            var actor=runtime.Session.LocalActor;
+            Require(StateJson.ToJson(actor.inventory)==inventory && StateJson.ToJson(Cargo.items)==contents && !Cargo.held,
+                "Ordinary select/deselect изменил inventory/contents/хват ящика.");
+            Require(ordinarySelectionCommands==preludeStage+1 && actor.weaponSelectionRevision==preludeCommandRevision+1,
+                "Одна обычная команда не дала ровно один selection revision: stage="+preludeStage+", before="+preludeCommandRevision+", actual="+actor.weaponSelectionRevision);
+            string label=preludeStage switch {0=>"empty-before",1=>"selected",2=>"empty-after",_=>throw new InvalidOperationException("Неизвестная prelude фаза рога.")};
+            string path=runtime.Options.Report+".pony-magic-"+label+".png";
+            var observation=new MagicPrelude {stage=preludeStage,label=label,observer=actor.id,world=world,
+                commandItem=preludeStage==1?initialSelectionItem:string.Empty,selectionRevisionBefore=preludeCommandRevision,
+                selectionRevisionAfter=actor.weaponSelectionRevision,horns=CaptureHorns(true),capture=path};
+            NetworkFrameCapture.Save(runtime.WorldCamera,path,runtime.Hud.GetComponent<Canvas>(),1920,1080);
+            File.WriteAllText(Path.ChangeExtension(path,".json"),StateJson.ToJson(observation,true));
+            NetworkSceneRecord.Save(runtime,90+preludeStage);magicPrelude.Add(observation);
+            preludeStage++;preludeCommandSent=false;
+        }
+        private NativePonyMagicWitness.Record[] CaptureHorns(bool preparing)
+        {
+            var result=new List<NativePonyMagicWitness.Record>();
+            foreach(var actor in runtime.Session.World.actors) if(actor.player && actor.connected)
+            {
+                Require(actor.level=="hub",
+                    "Участник actual horn сменил контекст: actor="+actor.id);
+                float opacity=0,mass=0;string source=null;var action=PonyMagicAction.None;
+                if(preparing)
+                {
+                    Require(!HeldItemSelection.HasSelection(actor),"В prelude появилась другая удерживаемая вещь: actor="+actor.id);
+                    var selected=WeaponInventory.Selected(actor);
+                    if(selected!=null && WeaponInventory.Available(actor,selected.definition))
+                    {opacity=.5f;action=PonyMagicAction.SelectedItem;source=selected.id;}
+                    if(actor.id==runtime.Session.LocalActorId)
+                        Require((preludeStage==1 && source==initialSelectionItem) || (preludeStage!=1 && source==null),
+                            "Prelude не выполнила обычный select/deselect: stage="+preludeStage+", actor="+actor.id);
+                }
+                else
+                {
+                    Require(!HeldItemSelection.HasSelection(actor) && string.IsNullOrEmpty(actor.equippedWeaponItem) && string.IsNullOrEmpty(actor.weapon),
+                        "Выбор вещи не снят до all-peer Q barrier: actor="+actor.id);
+                    if(Held && actor.id==manifest.source) {opacity=.5f;action=PonyMagicAction.Telekinesis;source=TargetId;mass=25;}
+                }
+                result.Add(magicWitness.Capture(runtime,actor,opacity,action,source,mass));
+            }
+            Require(result.Count==2,"Нет обоих connected actual horn renderers: "+result.Count);
+            result.Sort((a,b)=>StringComparer.Ordinal.Compare(a.actor,b.actor));return result.ToArray();
         }
         private bool Visible(Bounds bounds)
         {var min=runtime.WorldCamera.WorldToViewportPoint(bounds.min);var max=runtime.WorldCamera.WorldToViewportPoint(bounds.max);return min.z>0 && min.x>=0 && min.y>=0 && max.x<=1 && max.y<=1;}
@@ -294,10 +399,14 @@ namespace Remains.Runtime
         {
             if(finished) return;finished=true;
             if(success && observations.Count!=5) {success=false;detail="Нет пяти независимых кадров/наблюдений: "+observations.Count;}
+            if(success && magicMode && (magicPrelude.Count!=3 || ordinarySelectionCommands!=3))
+            {success=false;detail="Нет трёх ordinary select/deselect actual horn кадров: "+magicPrelude.Count+"/"+ordinarySelectionCommands;}
             File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,initialFixture=fixture,inputOnlyAfterFixture=fixture,
                 fixtureReason="Только собственные начальные feet на проверенной настоящей опоре ниже полки существующего ящика и разные magic двух профилей; не полный маршрут до ящика.",
                 originalMagic=originalMagic,preparedMagic=Host?HostMagic:ClientMagic,initialFeet=initialFeet,initialSupport=initialSupport,initialTargetPosition=initialTargetPosition,lift=lift,target=TargetId,world=world,
-                observations=observations.ToArray()},true));StartCoroutine(Exit(success));
+                observations=observations.ToArray(),ponyMagic=magicMode,ordinarySelectionCommands=ordinarySelectionCommands,
+                initialSelectionItem=initialSelectionItem,initialSelectionRevision=initialSelectionRevision,magicPrelude=magicPrelude.ToArray(),
+                pairFixtureObserved=pairFixtureObserved,fixturePeer=fixturePeer,otherInitialFeet=otherInitialFeet},true));StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:2);}
         private void OnDestroy()
@@ -309,9 +418,14 @@ namespace Remains.Runtime
             public string label,world,observer,target,source,owner,holder,level,capture;
             public bool held,haloVisible;public Color actualColor;public Vector2 propPosition,actorPosition;
             public Vector3 cameraPosition,minimum,maximum,viewportMinimum,viewportMaximum;
+            public NativePonyMagicWitness.Record[] horns;
         }
+        [Serializable] private sealed class MagicPrelude
+        {public int stage;public string label,observer,world,commandItem,capture;public long selectionRevisionBefore,selectionRevisionAfter;public NativePonyMagicWitness.Record[] horns;}
         [Serializable] private sealed class Report
         {public bool success,initialFixture,inputOnlyAfterFixture;public string detail,fixtureReason,target,world;public int originalMagic,preparedMagic;
-            public Vector2 initialFeet,initialTargetPosition,lift;public RoomSurface initialSupport;public Observation[] observations;}
+            public Vector2 initialFeet,initialTargetPosition,lift;public RoomSurface initialSupport;public Observation[] observations;
+            public bool ponyMagic,pairFixtureObserved;public int ordinarySelectionCommands;public string initialSelectionItem,fixturePeer;public long initialSelectionRevision;
+            public Vector2 otherInitialFeet;public MagicPrelude[] magicPrelude;}
     }
 }

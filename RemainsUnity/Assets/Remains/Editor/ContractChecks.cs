@@ -79,7 +79,7 @@ namespace Remains.Editor
             WeaponInventoryMigrationChecks.Run();
             WeaponInventoryUiChecks.Run();
             CosmeticEquipmentChecks.Run();CosmeticContentModChecks.Run();
-            CosmeticInventoryUiChecks.Run();WearablePresentationChecks.Run();
+            CosmeticInventoryUiChecks.Run();WearablePresentationChecks.Run();PonyMagicActivityChecks.Run();
             InventoryPauseChecks.Run();
             RoomLoadingViewChecks.Run();HudReadyChecks.Run();
             RoomLightingPreparationChecks.Run();

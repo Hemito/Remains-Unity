@@ -11,11 +11,13 @@ namespace Remains.Presentation
         private bool initialized;
         private readonly HeldPropColorSource colors=new();
         public void Initialize(CoopSession value,InteractionVisuals views)
+            =>Initialize(value,views,null);
+        public void Initialize(CoopSession value,InteractionVisuals views,PonyMagicActivitySource magic)
         {
             if(initialized) throw new InvalidOperationException("Цвета удержания уже подключены.");
             if(value==null) throw new ArgumentNullException(nameof(value));
             if(views==null) throw new ArgumentNullException(nameof(views));
-            views.ConfigureHeldAppearance(colors);initialized=true;
+            views.ConfigureHeldAppearance(colors,magic);initialized=true;
         }
     }
 }

@@ -23,6 +23,7 @@ namespace Remains.Runtime
         public ActorState actor;public Vector3 position,scale;public string clip,groupId;public int frame,groupOrder;public float time;public bool active;
         public Vector2 bodyPosition,footContact;public NetworkFootSurfaceRecord footSurface;public bool footProfile,footGrounded,hasFootContact;
         public string footOutcome;public int footPart,footPixelX,footPixelY;
+        public bool hasMagicActivity;public float magicOpacity,magicMassKg;public string magicSource;public PonyMagicAction magicAction;
     }
     [Serializable] public sealed class NetworkSpriteRecord
     {public string name,resource,spriteName,textureName,groupId;public Vector3 position,scale,euler;public float rectX,rectY,rectWidth,rectHeight;public Vector2 pivot;public float pixelsPerUnit;public int order,groupOrder;public Color color;public bool flipX,flipY,enabled;}
@@ -56,7 +57,9 @@ namespace Remains.Runtime
                     groupId=view.GetComponentInParent<ActorVisualGroup>()?.ActorId,groupOrder=view.GetComponentInParent<ActorVisualGroup>()?.Order??0,
                     bodyPosition=support.BodyPosition,footContact=support.ContactPoint,footSurface=NetworkFootSurfaceRecord.Capture(support),
                     footProfile=support.HasFootProfile,footGrounded=support.Grounded,hasFootContact=support.HasContact,
-                    footOutcome=support.Outcome.ToString(),footPart=support.PartIndex,footPixelX=support.PixelX,footPixelY=support.PixelY};
+                    footOutcome=support.Outcome.ToString(),footPart=support.PartIndex,footPixelX=support.PixelX,footPixelY=support.PixelY,
+                    hasMagicActivity=!view.UsesMagicPreview,magicOpacity=view.DrawnMagicActivity.Opacity,magicMassKg=view.DrawnMagicActivity.MassKg,
+                    magicSource=view.DrawnMagicActivity.SourceId,magicAction=view.DrawnMagicActivity.Action};
             }).ToArray();
             record.sprites=UnityEngine.Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None)
                 .Where(view=>view.GetComponentInParent<CasingEffects>()?.IsUnusedRenderer(view)!=true).Select(view=>

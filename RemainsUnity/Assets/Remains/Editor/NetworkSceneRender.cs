@@ -40,7 +40,12 @@ namespace Remains.Editor
                 {
                     var actor=pony.actor.Copy();actor.Position=pony.position;actor.facing=(int)pony.scale.x;
                     actor.pose=pony.clip;actor.down=pony.clip=="down";
-                    var visual=new GameObject(actor.id).AddComponent<PonyVisual>();visual.Bind(actor);visual.DrawPose(pony.time);
+                    var visual=new GameObject(actor.id).AddComponent<PonyVisual>();
+                    // Replay the completed renderer state, not a newly inferred
+                    // hold from a later snapshot. Historical records predate activity.
+                    visual.ConfigureMagicPreview(pony.hasMagicActivity?pony.magicOpacity:1);
+                    if(!pony.hasMagicActivity) Debug.LogWarning("Историческая запись не содержит активности рога; полный рисунок в preview: actor="+actor.id+", file="+file);
+                    visual.Bind(actor);visual.DrawPose(pony.time);
                     if(!string.IsNullOrEmpty(pony.groupId)) layers.Attach(pony.groupId,visual.transform).Order=pony.groupOrder;
                     if(visual.DrawnFrame!=pony.frame) throw new InvalidOperationException($"Не воспроизведён кадр {pony.frame}: {actor.id}, {file}.");
                     var parts=visual.GetComponentsInChildren<MeshRenderer>().Where(p=>p.enabled).ToArray();

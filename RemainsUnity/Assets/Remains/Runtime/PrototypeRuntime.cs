@@ -67,6 +67,7 @@ namespace Remains.Runtime
         private NpcController npcs;
         private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
+        private readonly PonyMagicActivitySource ponyMagic=new();
         private readonly RemoteActorMotion remoteMotion=new();
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
         private ActorVisualLayers visualLayers;
@@ -168,7 +169,7 @@ namespace Remains.Runtime
             visualLayers=new ActorVisualLayers(transform,visualOrders);
             var interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers,Combat.Reload);
-            CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals);
+            CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals,ponyMagic);
             HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
             var room=RoomLayout.Load(shownLevel);
             movement=CreateMovement(room);
@@ -398,6 +399,7 @@ namespace Remains.Runtime
                     visual=ActorVisualFactory.Create(actor); visuals.Add(actor.id,visual);
                     visualLayers.Attach(actor.id,visual.transform);
                 }
+                if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);
                 visual.Bind(actor);
                 visual.SetVisible(actor.level==Session.LocalActor?.level);
             }

@@ -20,6 +20,7 @@ namespace Remains.Presentation
         private CasingEffects casingEffects;
         public CasingEffects Casing=>casingEffects;
         private HeldPropColorSource heldColors;
+        private PonyMagicActivitySource ponyMagic;
         public WeaponReloadAnimation ReloadAnimation=>reloadAnimation;
         private readonly Dictionary<string,Sprite> sprites=new();
         private readonly Dictionary<string,PropView> props=new();
@@ -35,10 +36,12 @@ namespace Remains.Presentation
         // Install once before a world is presented. This source is rebuilt in
         // the same event as view binding, before any first draw of a new epoch.
         public void ConfigureHeldAppearance(HeldPropColorSource source)
+            =>ConfigureHeldAppearance(source,null);
+        public void ConfigureHeldAppearance(HeldPropColorSource source,PonyMagicActivitySource magic)
         {
             if(session==null) throw new InvalidOperationException("Цвет удержания подключён до инициализации представлений.");
             if(heldColors!=null) throw new InvalidOperationException("Повторный источник цветов удержания в представлениях.");
-            heldColors=source??throw new ArgumentNullException(nameof(source));Refresh();
+            heldColors=source??throw new ArgumentNullException(nameof(source));ponyMagic=magic;Refresh();
         }
         public void Initialize(CoopSession session,InteractionAdapter adapter,GrenadeController grenades,SimulationGeometry geometry,ActorVisualLayers layers)
             =>Initialize(session,adapter,grenades,geometry,layers,null);
@@ -53,6 +56,7 @@ namespace Remains.Presentation
             casingEffects=gameObject.AddComponent<CasingEffects>();casingEffects.Initialize(session,layers.Orders);
             ShotArtwork.Prepare();
             session.Changed+=Refresh;
+            session.Deposits.Reconciled+=Refresh;
             grenades.Created+=OnGrenadeCreated;
             session.AttackReceived+=OnAttackReceived;
         }
@@ -73,7 +77,7 @@ namespace Remains.Presentation
         }
         private void OnDestroy()
         {
-            if(session!=null) {session.Changed-=Refresh;session.AttackReceived-=OnAttackReceived;}
+            if(session!=null) {session.Changed-=Refresh;session.Deposits.Reconciled-=Refresh;session.AttackReceived-=OnAttackReceived;}
             if(grenades!=null) grenades.Created-=OnGrenadeCreated;
         }
         private SpriteRenderer CreateGrenade(string name)
@@ -87,6 +91,7 @@ namespace Remains.Presentation
             if(session.World!=null && level!=null && heldColors==null)
                 throw new InvalidOperationException("Не подключён источник цвета удержания: world="+session.World.worldId+", level="+level+".");
             heldColors?.Rebuild(session.World);
+            ponyMagic?.Rebuild(session.World,heldColors);
             retainedProps.Clear();retainedContainers.Clear();retainedWeapons.Clear();retainedFlights.Clear();
             if(session.World==null || level==null)
             {

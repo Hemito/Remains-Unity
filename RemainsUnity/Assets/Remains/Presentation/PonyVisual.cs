@@ -27,6 +27,28 @@ namespace Remains.Presentation
         public WearableDrawPlan CurrentDrawPlan=>drawPlan;
         private Bounds drawnBounds;
         private bool hasDrawnBounds;
+        private IPonyMagicActivitySource magicSource;
+        // Detached asset previews intentionally show the complete authored glow.
+        // A live world always installs its confirmed source before Bind/Draw.
+        private float previewMagicOpacity=1;
+        private bool magicDirty=true;
+        private int magicRoleVersion=-1;
+        private PonyRenderPart[] drawnParts;
+        public bool UsesMagicPreview=>magicSource==null;
+        public PonyMagicActivity DrawnMagicActivity {get;private set;}
+        public void ConfigureMagicSource(IPonyMagicActivitySource source)
+        {magicSource=source??throw new ArgumentNullException(nameof(source));magicDirty=true;}
+        public void ConfigureMagicPreview(float opacity)
+        {
+            if(!float.IsFinite(opacity) || opacity<0 || opacity>1) throw new ArgumentOutOfRangeException(nameof(opacity));
+            magicSource=null;previewMagicOpacity=opacity;magicDirty=true;
+        }
+        public bool TryGetMagicRenderer(out MeshRenderer renderer)
+        {
+            if(drawnParts!=null) for(int i=0;i<drawnParts.Length;i++)
+                if(PonyMagicRenderRoles.Contains(drawnParts[i])) {renderer=renderers[i];return true;}
+            renderer=null;return false;
+        }
         public int DrawnPartCount {get;private set;}
         public override bool TryGetDrawnBounds(out Bounds bounds)
         {bounds=drawnBounds;return hasDrawnBounds && gameObject.activeInHierarchy;}
@@ -49,7 +71,7 @@ namespace Remains.Presentation
             // A replacement snapshot of the same actor has not changed the visible
             // meshes yet. Keep their actual bounds/frame until the next DrawPose.
             if(string.IsNullOrEmpty(actor?.id) || actor.id!=state?.id)
-            {appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;}
+            {appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;drawnParts=null;magicDirty=true;}
             state = actor;
             var prepared=actor==null?null:PonyRenderSelection.PrepareEquipment(actor);
             // Preparing a different wardrobe does not draw it. Keep the published
@@ -116,9 +138,10 @@ namespace Remains.Presentation
             // Custom head/style and equipment events prepare their plans in Bind.
             var frames = drawPlan.HasEquipment?drawPlan.Frames(pose):PonyRenderSelection.Frames(nextAppearance,pose);
             int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorSessionRules.IsPassive(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
-            if (nextFrame == frame && !drawPlanDirty) {RefreshDrawnBounds();return;}
+            if (nextFrame == frame && !drawPlanDirty && magicRoleVersion==PonyMagicRenderRoles.Version) {RefreshMagic(nextAppearance);RefreshDrawnBounds();return;}
             frame = nextFrame;
             var parts = frames[frame];
+            drawnParts=parts;
             for (int i = 0; i < renderers.Count; i++)
             {
                 renderers[i].enabled = i < parts.Length && parts[i].visible;
@@ -131,7 +154,23 @@ namespace Remains.Presentation
                 renderers[i].SetPropertyBlock(properties);
             }
             drawPlanDirty=false;
+            magicDirty=true;RefreshMagic(nextAppearance);
             RefreshDrawnBounds();
+        }
+        private void RefreshMagic(PonyAppearanceKey tint)
+        {
+            var activity=magicSource==null?new PonyMagicActivity(previewMagicOpacity,PonyMagicAction.None):magicSource.Get(state);
+            float previous=DrawnMagicActivity.Opacity;DrawnMagicActivity=activity;
+            if(!magicDirty && magicRoleVersion==PonyMagicRenderRoles.Version && activity.Opacity==previous) return;
+            magicDirty=false;magicRoleVersion=PonyMagicRenderRoles.Version;
+            if(drawnParts==null) return;
+            for(int i=0;i<drawnParts.Length;i++)
+            {
+                var part=drawnParts[i];if(!PonyMagicRenderRoles.Contains(part)) continue;
+                var color=PonyAppearance.Tint(part.slot,tint);color.a*=activity.Opacity;
+                properties.SetColor("_Color",color);properties.SetFloat("_Emission",1);
+                renderers[i].enabled=part.visible && activity.Opacity>0;renderers[i].SetPropertyBlock(properties);
+            }
         }
         private void RefreshDrawnBounds()
         {
