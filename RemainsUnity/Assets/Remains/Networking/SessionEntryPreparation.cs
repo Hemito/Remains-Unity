@@ -17,6 +17,18 @@ namespace Remains.Networking
     }
     public struct EntryPreparedMessage : NetworkMessage {public string token,fingerprint;}
 
+    // Scalar observation of the actual reservation. It never exposes the detached
+    // preview as a playable world and cannot complete or delay admission.
+    public readonly struct EntryPreparationIdentity
+    {
+        public readonly string Token,World,Actor,Character,Level,Fingerprint;
+        public readonly int Connection;
+        public readonly double BeganAt;
+        internal EntryPreparationIdentity(int connection,EntryPreparationContext context,double beganAt)
+        {Connection=connection;Token=context.Token;World=context.WorldId;Actor=context.ActorId;
+            Character=context.CharacterId;Level=context.Level;Fingerprint=context.GeometryFingerprint;BeganAt=beganAt;}
+    }
+
     // A pending transport connection has no simulation ownership and no recovery receipt.
     // Only the explicit Ready transition may hand it a current playable world.
     public sealed class SessionEntryPreparation
@@ -79,6 +91,14 @@ namespace Remains.Networking
         public event Action<EntryPreparationContext> Requested;
         public event Action Cancelled;
         public event Action<EntryPreparationContext,WorldState> ClientAdmitted;
+        public event Action<EntryPreparationIdentity> ServerAdmitting;
+        public bool TryGetServerPending(string character,out EntryPreparationIdentity identity)
+        {
+            foreach(var pair in pending)
+                if(pair.Value.Join.character==character && pair.Value.Ticket is {} ticket)
+                {identity=new EntryPreparationIdentity(pair.Key,ticket.Context,pair.Value.BeganAt);return true;}
+            identity=default;return false;
+        }
         public SessionEntryPreparation(CoopSession session) {this.session=session??throw new ArgumentNullException(nameof(session));}
         public void RegisterServer()
         {ResetServer();NetworkServer.RegisterHandler<EntryPreparedMessage>(Ready);}
@@ -139,6 +159,7 @@ namespace Remains.Networking
                 }
                 if(session.Pause.IsServerPaused(level))
                     throw new InvalidDataException("Вход в приостановленную локацию запрещён. Дождитесь возобновления: "+level);
+                ServerAdmitting?.Invoke(new EntryPreparationIdentity(connection.connectionId,ticket.Context,value.BeganAt));
                 ticket.Consume(message.token,message.fingerprint,Time.realtimeSinceStartupAsDouble);
                 pending.Remove(connection.connectionId);
                 session.AdmitPreparedEntry(connection,value.Join,ticket.Context);

@@ -40,7 +40,13 @@ namespace Remains.Editor
                 Require(rejected && StateJson.ToJson(target)==before,"Некорректное правило защиты изменило состояние цели.");
                 Require(asset.TryGetPrefab(definition,out var prefab),"Нет префаба броневой мишени.");
                 var visual=UnityEngine.Object.Instantiate(prefab);
-                try {visual.Bind(target);Require(visual.GetComponent<SpriteRenderer>().sprite.texture.width==251,"Потеряна исходная графика мишени.");}
+                try
+                {
+                    visual.Bind(target);var sprite=visual.GetComponent<SpriteRenderer>().sprite;
+                    Require(sprite.texture.width==502 && sprite.texture.height==708 && sprite.pixelsPerUnit==400,
+                        "Потеряны исходная графика мишени8× или явно сохранённый canvas/world size.");
+                    ItemHubVectorReserveAuthoring.Check();
+                }
                 finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
                 Debug.Log("Броневая мишень PASS: 11→0, 20→0, 35→15; обычная 35→35, восстановление HP, дедупликация нулевого урона и сохранённый префаб.");
             }

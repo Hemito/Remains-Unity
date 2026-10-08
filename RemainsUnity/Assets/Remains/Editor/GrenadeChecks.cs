@@ -189,7 +189,9 @@ namespace Remains.Editor
             var first=UnityEngine.Object.Instantiate(prefab);var second=UnityEngine.Object.Instantiate(prefab);
             try
             {
-                Require(Mathf.Approximately(prefab.sprite.pixelsPerUnit,200),"Потерян масштаб исходной графики гранаты 4×");
+                Require(Mathf.Approximately(prefab.sprite.pixelsPerUnit,400) && prefab.sprite.texture.width==304 && prefab.sprite.texture.height==304,
+                    "Потеряна исходная графика гранаты8× с прежним world canvas.");
+                ItemHubVectorReserveAuthoring.Check();
                 var tint=prefab.color;first.color=Color.magenta;first.transform.position=Vector3.one;
                 Require(second.color==tint && prefab.color==tint && first.sprite==prefab.sprite &&
                     first.sharedMaterial==prefab.sharedMaterial && second.transform.position==prefab.transform.position,

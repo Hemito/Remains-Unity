@@ -262,6 +262,7 @@ namespace Remains.Runtime
                 else if(Options.Smoke.StartsWith("mechanism")) gameObject.AddComponent<NetworkMechanismProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("warehouse-furniture")) gameObject.AddComponent<FactoryWarehouseFurnitureProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("warehouse-metal-doors")) gameObject.AddComponent<FactoryWarehouseMetalDoorProbe>().Initialize(this);
+                else if(Options.Smoke.StartsWith("raid-entry-pending-")) gameObject.AddComponent<PendingBodyDamageProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("raid-entry")) gameObject.AddComponent<RaidEntryReadinessProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("warehouse-reload")) gameObject.AddComponent<WarehouseSaveReloadProbe>().Initialize(this);
                 else if((Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("continuation-seam"))) gameObject.AddComponent<FactoryWarehouseSeamProbe>().Initialize(this);
