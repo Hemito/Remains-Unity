@@ -36,6 +36,8 @@ namespace Remains.Runtime
         private readonly PrototypeRuntime runtime;
         private readonly FactoryWarehouseLowerRoute warehouse;
         public bool WarehouseLowerRouteVerified=>warehouse?.Complete==true;
+        public bool ContinuationRouteVerified=>warehouse?.Continuation?.Complete==true;
+        public FactoryContinuationRouteEvidence ContinuationEvidence=>warehouse?.Continuation?.ExportEvidence();
         public WarehouseLowerClaim[] WarehouseClaims=>warehouse?.ClaimedStacks.ToArray()??Array.Empty<WarehouseLowerClaim>();
         private readonly HashSet<string> viewers=new(StringComparer.Ordinal),returners=new(StringComparer.Ordinal),shots=new(StringComparer.Ordinal);
         private readonly HashSet<string> defeated=new(StringComparer.Ordinal),fought=new(StringComparer.Ordinal);
@@ -75,6 +77,7 @@ namespace Remains.Runtime
         public string Progress=>$"officePhase={stage}, actor={Actor?.id}, owner={Actor?.owner}/{owner}, generation={Actor?.generation}/{generation}, lifecycle={Actor?.lifecycleSequence}/{lifecycle}, level={Actor?.level}/{Level}, geometrySame={GeometrySame}, position={Actor?.Position}, velocity={Actor?.Velocity}, climbing={Actor?.climbing}, crouched={Actor?.crouched}, HP={Actor?.health}, lower={LowerFloorVerified}, returned={ReturnedFromOfficeVerified}, source={TargetId}, item={ClaimedItem}, views={viewers.Count}, returns={returners.Count}, bank={bankWaiters.Count}, board={boarders.Count}, platform={PlatformId}/{Platform?.endpoint}/{Platform?.segment?.sequence}, repair={RightButton?.repairState}/{runtime.MechanismInteraction.Progress}/{runtime.MechanismInteraction.Pending}, carry={PlatformCarryDistance}/{PlatformCarryMaximumRelativeError}/{PlatformCarryVerified}, combat={combatTarget}/{runtime.Session.World?.Find(combatTarget)?.health}, combatMoves={combatMoves}, ammunition={MagazineRounds}/{ReserveRounds}, door={requestedDoor}, shots={CombatShots}, contacts={projectileContacts}/{lastProjectileContact}, defeats={CombatDefeats}, healing={healingPending}/{healingReply}/{ConfirmedHealingCount}, warehouse={warehouse?.Progress}";
         private int MagazineRounds=>Actor?.inventory.FirstOrDefault(i=>i.definition=="pistol")?.weaponState?.rounds??-1;
         private int ReserveRounds=>Actor==null?-1:InventoryJournal.Count(Actor,"p10");
+        private bool NeedsSelfHealing=>Actor!=null && Actor.health<75 && InventoryJournal.Count(Actor,"heal")>0;
         private bool GeometrySame=>room!=null && runtime.Geometry.LoadedLevels.Contains(Level) && ReferenceEquals(room,runtime.Geometry.Get(Level));
         private ActorState Actor=>runtime.Session.LocalActor;
         private bool Host=>runtime.Options.Role=="host";
@@ -88,7 +91,7 @@ namespace Remains.Runtime
         {
             runtime=value;
             if(value.Options.Smoke.Contains("-warehouse-",StringComparison.Ordinal))
-                warehouse=new FactoryWarehouseLowerRoute(value);
+                warehouse=new FactoryWarehouseLowerRoute(value,()=>!healingPending && !NeedsSelfHealing);
             value.Session.ServerReady+=()=>NetworkServer.RegisterHandler<OfficeRouteViewed>((connection,message)=>
             {
                 var actor=runtime.Session.ConnectedActor(connection);
@@ -212,9 +215,9 @@ namespace Remains.Runtime
                 }
                 else {combatTarget=null;combatMoves=false;command=RouteCommand();}
                 if(combatTarget==null) command=DoorIntent(command);
-                if(!critical && !healingPending && !command.interact && !command.inventory && !command.menu &&
+                if((!critical || warehouse?.Continuation?.WaitingForHealing==true) && !healingPending && !command.interact && !command.inventory && !command.menu &&
                     !runtime.Hud.BlocksGameplayInput && !runtime.Hud.ContainerOpen &&
-                    Actor.health<75 && InventoryJournal.Count(Actor,"heal")>0 && Time.unscaledTime>=nextHeal)
+                    NeedsSelfHealing && Time.unscaledTime>=nextHeal)
                 {
                     healingPending=true;healingLifecycle=lifecycle;healingInventory=InventoryJournal.Count(Actor,"heal");
                     healingRequest=null;healingReply=null;healingSuccess=false;healingDeadline=Time.unscaledTime+8;
@@ -275,7 +278,8 @@ namespace Remains.Runtime
             return runtime.Session.World.actors.Where(a=>!a.player && !a.down && a.health>0 && a.level==Level &&
                 (a.id.StartsWith(Level+":original:plant:18:",StringComparison.Ordinal) ||
                  a.id.StartsWith(Level+":original:plant:53:",StringComparison.Ordinal) ||
-                 warehouse!=null && a.id.StartsWith(Level+":original:plant:40:",StringComparison.Ordinal)) && ActorTypes.Get(a.actorType).combatAi &&
+                 warehouse!=null && a.id.StartsWith(Level+":original:plant:40:",StringComparison.Ordinal) ||
+                 warehouse?.Continuation!=null && a.id.StartsWith(Level+":original:plant:27:",StringComparison.Ordinal)) && ActorTypes.Get(a.actorType).combatAi &&
                 Vector2.Distance(a.Position,Actor.Position)<12 &&
                 (a.target==Actor.id || a.attackBusy && a.attackTarget==Actor.id ||
                  Vector2.Distance(a.Position,Actor.Position)<4 && Mathf.Abs(a.y-Actor.y)<1) &&
@@ -285,13 +289,7 @@ namespace Remains.Runtime
 
         private bool ShotClearOfPlayers(Vector2 aim)
         {
-            var muzzle=WeaponPose.Muzzle(Actor);var delta=aim-muzzle;
-            if(delta.sqrMagnitude<.0001f || Vector2.Dot(WeaponPose.Direction(Actor),delta.normalized)<.9999f) return false;
-            if(ShotObstacles.FirstContact(room,muzzle,aim).HasValue) return false;
-            foreach(var other in runtime.Session.World.actors)
-                if(other.player && other.id!=actorId && other.level==Level &&
-                    SurfaceContact.Entry(InventorySource.BodyBounds(other),muzzle,aim,.2f).HasValue) return false;
-            return true;
+            return FactoryRouteShotSafety.Clear(runtime.Session.World,Actor,room,aim);
         }
 
         private PlayerCommand DoorIntent(PlayerCommand command)

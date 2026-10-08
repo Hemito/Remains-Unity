@@ -41,6 +41,7 @@ namespace Remains.Runtime
             if(value.Options.Smoke.Contains("-seam-")) {seam=new FactorySeamRoute(value);deadline+=70;}
             if(value.Options.Smoke.Contains("-office-",StringComparison.Ordinal)) deadline+=240;
             if(value.Options.Smoke.Contains("-warehouse-",StringComparison.Ordinal)) deadline+=200;
+            if(value.Options.Smoke.Contains("-continuation-",StringComparison.Ordinal)) deadline+=120;
             if(value.Session.DebugTravelAllowed || string.IsNullOrEmpty(value.Options.SaveDirectory))
                 throw new InvalidOperationException("Маршрут требует обычных правил перехода и отдельного сохранения.");
             if(Host)
@@ -198,7 +199,13 @@ namespace Remains.Runtime
             .Select(c=>c.id+":"+string.Join(",",c.items.Select(i=>i.id+":"+i.definition+":"+i.count))))+
             ";"+string.Join("|",world.props.Where(p=>p.level=="factory:0").Select(p=>p.id).OrderBy(id=>id))+
             ";"+StateJson.ToJson(world.mechanismButtons.Where(p=>p.level=="factory:0").OrderBy(p=>p.id).ToArray())+
-            ";"+StateJson.ToJson(world.movingPlatforms.Where(p=>p.level=="factory:0").OrderBy(p=>p.id).ToArray());
+            ";"+StateJson.ToJson(world.movingPlatforms.Where(p=>p.level=="factory:0").OrderBy(p=>p.id).ToArray())+
+            ";"+StateJson.ToJson(world.containers.Where(p=>p.level=="factory:0").OrderBy(p=>p.id)
+                .Select(p=>new ContainerContent {id=p.id,appearance=p.appearance,items=p.items.ToArray()}).ToArray())+
+            ";"+StateJson.ToJson(world.doors.Where(p=>p.level=="factory:0").OrderBy(p=>p.id)
+                .Select(p=>new DoorContent {id=p.id,integrity=p.integrity}).ToArray());
+        [Serializable] private sealed class ContainerContent {public string id;public ContainerAppearanceState appearance;public ItemStack[] items;}
+        [Serializable] private sealed class DoorContent {public string id;public DoorIntegrity integrity;}
         private void Capture(string name)
         {if(runtime.Options.Smoke.Contains("-frames-")) capture=name;}
         private void LateUpdate()
@@ -208,9 +215,10 @@ namespace Remains.Runtime
             if(finished) return;finished=true;
             if(!success && runtime.Options.Smoke.Contains("-frames-",StringComparison.Ordinal) && Camera.main!=null)
                 NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+".route-failure.png",runtime.Hud.GetComponent<Canvas>());
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved,seamVerified=seam?.Complete==true,bigBoxesVerified=seam?.BigBoxesVerified==true,workshopNpcsVerified=seam?.WorkshopNpcsVerified==true,ladderLandingVerified=seam?.LadderLandingVerified==true,
+            File.WriteAllText(runtime.Options.Report,StateJson.ToJson(new Report {success=success,detail=detail,phase=phase,separated=separated,blocked=blocked,farRejected=farRejected,pausedExit=pausedExit,preserved=preserved,seamVerified=seam?.Complete==true,bigBoxesVerified=seam?.BigBoxesVerified==true,workshopNpcsVerified=seam?.WorkshopNpcsVerified==true,ladderLandingVerified=seam?.LadderLandingVerified==true,
                 officeRouteVerified=seam?.OfficeRouteVerified==true,officeLowerFloorVerified=seam?.OfficeLowerFloorVerified==true,officeReturnVerified=seam?.OfficeReturnVerified==true,
                 warehouseLowerRouteVerified=seam?.WarehouseLowerRouteVerified==true,warehouseClaims=seam?.WarehouseClaims,
+                continuationRouteVerified=seam?.ContinuationRouteVerified==true,continuation=seam?.ContinuationEvidence,
                 officeContainer=seam?.OfficeContainer,officeClaimedItem=seam?.OfficeClaimedItem,officeClaimedDefinition=seam?.OfficeClaimedDefinition,officeClaimedCount=seam?.OfficeClaimedCount??0,
                 officePlatformRepairReady=seam?.OfficePlatformRepairReady==true,officePlatformCarryVerified=seam?.OfficePlatformCarryVerified==true,
                 officePlatformCarryDistance=seam?.OfficePlatformCarryDistance??0,officePlatformCarryMaximumRelativeError=seam?.OfficePlatformCarryMaximumRelativeError??0},true));
@@ -221,6 +229,7 @@ namespace Remains.Runtime
         [Serializable] private sealed class Report {public bool success;public string detail;public int phase;public bool separated,blocked,farRejected,pausedExit,preserved,seamVerified,bigBoxesVerified,workshopNpcsVerified,ladderLandingVerified;
             public bool officeRouteVerified,officeLowerFloorVerified,officeReturnVerified,officePlatformRepairReady,officePlatformCarryVerified;
             public bool warehouseLowerRouteVerified;public WarehouseLowerClaim[] warehouseClaims;
+            public bool continuationRouteVerified;public FactoryContinuationRouteEvidence continuation;
             public string officeContainer,officeClaimedItem,officeClaimedDefinition;public int officeClaimedCount;
             public float officePlatformCarryDistance,officePlatformCarryMaximumRelativeError;}
     }

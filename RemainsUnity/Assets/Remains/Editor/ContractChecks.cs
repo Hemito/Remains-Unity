@@ -89,6 +89,7 @@ namespace Remains.Editor
             EntityAssetChecks.Run();
             PropPrefabChecks.Run();
             ContainerAppearanceChecks.Run();
+            FactoryRouteLootProofChecks.Run();FactoryContinuationRouteChecks.Run();FactoryContinuationStairMotionChecks.Run();
             RoomAuthoringChecks.Run();
             HubRangeAuthoring.CheckPassage();
             RoomTextureChecks.Run();

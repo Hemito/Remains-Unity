@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Remains.Domain;
 using Remains.Gameplay;
 using UnityEngine;
@@ -12,7 +11,7 @@ namespace Remains.Runtime
     {
         internal enum Phase { GapApproach,Gap,Entry,Arrived,L1Approach,L1Down,L2Approach,L2Down,L2Up,L1Return,L1Up,ReturnEntry,Complete,
             OfficeGapApproach,OfficeGap,OfficeReturn,OfficeComplete }
-        private readonly RoomLayout room;
+        private readonly FactoryRouteMovement movement;
         private bool jumped;
         private readonly HashSet<Phase> climbed=new();
         internal Phase Current {get;private set;}
@@ -22,45 +21,30 @@ namespace Remains.Runtime
         internal bool OfficeReturned=>Current==Phase.OfficeComplete;
         internal WarehouseLowerRouteMotion(RoomLayout geometry,ActorState actor)
         {
-            room=geometry??throw new ArgumentNullException(nameof(geometry));
-            RequireLadder(122.98f,4,7.2f);RequireLadder(125.38f,.8f,4);
+            movement=new FactoryRouteMovement(geometry,"Нижний маршрут склада");
+            movement.RequireLadder(122.98f,4,7.2f);movement.RequireLadder(125.38f,.8f,4);
             foreach(var p in new[]{new Vector2(90.62f,7.2f),new Vector2(101.7f,7.2f),new Vector2(104.7f,7.2f),
                 new Vector2(117.8f,7.2f),new Vector2(122.98f,7.2f),new Vector2(122.98f,4),new Vector2(125.38f,4),new Vector2(125.38f,.8f)})
-                if(!ActorTerrainMotion.IsClear(room,Anatomy.Movement(actor),p) ||
-                    !ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),p))
-                    throw new InvalidOperationException($"Нижний маршрут склада: нет объявленной свободной опоры: room={room.id}, point={p}.");
+                movement.RequireSupportedClear(actor,p);
             if(!At(actor,90.62f,7.2f)) throw new InvalidOperationException("Нижний маршрут склада начинается на верхушке лестницы офиса (90,62;7,2).");
         }
-        private void RequireLadder(float x,float bottom,float top)
-        {
-            if(room.ladders.Count(l=>Mathf.Abs(l.x+l.movementOffset-x)<.001f &&
-                Mathf.Abs(l.bottom-bottom)<.001f && Mathf.Abs(l.top-top)<.001f)!=1)
-                throw new InvalidOperationException($"Нижний маршрут склада: лестница не однозначна: room={room.id}, actorX={x}, bottom={bottom}, top={top}.");
-        }
-        internal bool Landed(ActorState actor,float y)=>Mathf.Abs(actor.y-y)<.0002f && Mathf.Abs(actor.vy)<.001f &&
-            !actor.climbing && ActorTerrainMotion.Supported(room,Anatomy.Movement(actor),actor.Position);
-        internal bool At(ActorState actor,float x,float y)=>Mathf.Abs(actor.x-x)<.08f && Landed(actor,y);
-        private bool AtRest(ActorState actor,float x,float y)=>At(actor,x,y) && Mathf.Abs(actor.vx)<.1f;
+        internal bool Landed(ActorState actor,float y)=>movement.Landed(actor,y);
+        internal bool At(ActorState actor,float x,float y)=>movement.At(actor,x,y);
+        private bool AtRest(ActorState actor,float x,float y)=>movement.AtRest(actor,x,y);
         // A normal S/W press catches the ladder within its entry corridor; do not
         // insist on parking on the narrow cap with a second horizontal tap.
-        private bool AtLadderEntry(ActorState actor,float x,float y)=>Mathf.Abs(actor.x-x)<=.3f && Landed(actor,y);
+        private bool AtLadderEntry(ActorState actor,float x,float y)=>movement.AtLadderEntry(actor,x,y);
         private void ObserveClimb(ActorState actor,float x,float bottom,float top,bool up)
         {
-            float margin=(top-bottom)*.25f;
-            if(actor.climbing && Mathf.Abs(actor.x-x)<.01f && actor.y>bottom+margin && actor.y<top-margin &&
-                (up?actor.vy>0:actor.vy<0)) climbed.Add(Current);
+            if(FactoryRouteMovement.MiddleClimb(actor,x,bottom,top,up)) climbed.Add(Current);
         }
         private void RequireClimb(ActorState actor)
         {
-            if(!climbed.Contains(Current)) throw new InvalidOperationException($"Нижний маршрут склада: площадка достигнута без наблюдаемого лазания; actor={actor.id}, phase={Current}, position={actor.Position}, velocity={actor.Velocity}.");
+            movement.RequireClimb(climbed.Contains(Current),actor,Current.ToString());
         }
         private static PlayerCommand Move(ActorState actor,float x)
         {
-            float distance=x-actor.x;
-            // Release before the target, observe actual braking, then use short
-            // ordinary direction taps. No velocity/position replacement or timer.
-            if(Mathf.Abs(distance)<=.4f && Mathf.Abs(actor.vx)>.1f) return default;
-            return new PlayerCommand {movement=Vector2.right*(Mathf.Abs(distance)>.06f?Mathf.Sign(distance):0)};
+            return FactoryRouteMovement.Move(actor,x);
         }
         internal void BeginLoop(ActorState actor)
         {
