@@ -38,6 +38,7 @@ namespace Remains.Networking
         }
         public void Publish(DamageResult result)
         {
+            result.world=session.World?.worldId;
             // Health was already decided by this target's owner. Its own presentation
             // need not wait for a server echo; the shared receipt suppresses that echo.
             var target=session.World?.Find(result.actor);
@@ -57,6 +58,12 @@ namespace Remains.Networking
             var target=session.ServerWorld?.Find(result.actor);
             string rejection=sender==null?"sender":target==null?"target":sender.owner!=target.owner?"owner":
                 target.generation!=result.generation?"generation":target.level!=result.level?"level":!Valid(result)?"invalid":null;
+            // Ownership decides health. The host's copied HP/damage sequence may
+            // still be behind the cosmetic receipt; immutable identity and the
+            // life scope are sufficient here and do not introduce hit validation.
+            if(rejection==null && result.confirmedNpcDeath)
+                rejection=result.world!=session.ServerWorld.worldId?"world":target.player?"player-death":
+                    target.actorType!=result.actorType?"actor-type":target.lifecycleSequence!=result.lifecycleSequence?"lifecycle":null;
             if(rejection!=null)
             {
                 DeliveryMeasured?.Invoke("damage-number-rejected-"+rejection,result);
@@ -68,7 +75,9 @@ namespace Remains.Networking
             NetworkServer.SendToAll(message);
         }
         public static bool Valid(DamageResult result)=>!string.IsNullOrEmpty(result.attack) && !string.IsNullOrEmpty(result.actor) &&
-            !string.IsNullOrEmpty(result.level) && result.amount>0 && float.IsFinite(result.amount) && float.IsFinite(result.x) && float.IsFinite(result.y);
+            !string.IsNullOrEmpty(result.level) && result.amount>0 && float.IsFinite(result.amount) && float.IsFinite(result.x) && float.IsFinite(result.y) &&
+            (!result.confirmedNpcDeath || !string.IsNullOrWhiteSpace(result.world) && !string.IsNullOrWhiteSpace(result.actorType) &&
+                result.generation>=0 && result.lifecycleSequence>=0 && result.damageSequence>0);
         private void Receive(DamageResult result)
         {
             if(!Valid(result) || !Remember(seen,recent,result.Key)) return;

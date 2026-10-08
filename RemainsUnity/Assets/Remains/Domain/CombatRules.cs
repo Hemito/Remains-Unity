@@ -37,6 +37,7 @@ namespace Remains.Domain
             // damage immediately replaces the living pose with knockdown.
             var bodyPosition=actor.BodyPosition;
             float previousHealth=actor.health;
+            bool previouslyDown=actor.down;
             if(NpcNaturalAttack.IsNatural(attack)) NpcNaturalAttack.ValidateEvent(attack);
             if(NpcNaturalAttack.IsNatural(attack) && actor.id!=attack.naturalAttackTarget) return false;
             float amount=NpcNaturalAttack.IsNatural(attack)?natural.Calculate(attack.naturalAttackType):rules.Calculate(attack.weapon,attack.speed);
@@ -63,7 +64,10 @@ namespace Remains.Domain
                 }
             }
             if(lost>0) Applied?.Invoke(new DamageResult {attack=attack.id,actor=actor.id,level=actor.level,
-                generation=actor.generation,amount=lost,x=bodyPosition.x,y=bodyPosition.y});
+                generation=actor.generation,actorType=actor.actorType,lifecycleSequence=actor.lifecycleSequence,
+                damageSequence=actor.damageSequence,
+                confirmedNpcDeath=!actor.player && !previouslyDown && previousHealth>0 && actor.health==0 && actor.down,
+                amount=lost,x=bodyPosition.x,y=bodyPosition.y});
             return true;
         }
     }

@@ -39,9 +39,12 @@ namespace Remains.Runtime
         private readonly HashSet<int> hoverPeers=new();
         private readonly HashSet<int> peers=new();
         private readonly HashSet<int> captured=new();
+        [Serializable] private sealed class OpeningWitness {public string source,definition,clip;public int voice,channels,frequency,samples;public float volume;public bool playing,muted;}
+        private readonly List<OpeningWitness> openings=new();
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+45;value.CommandSource=Command;
+            value.ContainerAudio.Opened+=ObserveOpening;
             value.Session.AttackReceived+=attack=>{if(attack.attacker==value.Session.LocalActorId) localAttacks++;};
             value.Session.ClientReady+=()=>
             {
@@ -271,19 +274,31 @@ namespace Remains.Runtime
             if(runtime.Options.Smoke.Contains("-frames-") && phase==2 && !captured.Contains(phase))
             {captured.Add(phase);NetworkSceneRecord.Save(runtime,phase);}
         }
+        private void ObserveOpening(string source,string definition,AudioClip clip)
+        {
+            var voice=runtime.Audio.GetComponentsInChildren<AudioSource>().LastOrDefault(v=>v.clip==clip && v.volume>0);
+            if(source!=ContainerState.PrototypeId || !runtime.ContainerAudio.TryGet(definition,out var expected,out _) ||
+                clip!=expected || voice==null || !voice.isPlaying)
+            {Finish(false,"Открывание не создало настоящий голос назначенного банка: "+source);return;}
+            openings.Add(new OpeningWitness {source=source,definition=definition,clip=clip.name,voice=voice.GetInstanceID(),
+                channels=clip.channels,frequency=clip.frequency,samples=clip.samples,volume=voice.volume,playing=voice.isPlaying,muted=voice.mute});
+        }
         private void Finish(bool success,string detail)
         {
+            if(success && (openings.Count!=3 || runtime.ContainerAudio.Openings!=3))
+            {success=false;detail="Три обычных E-открывания не дали ровно три звука: "+openings.Count;}
             if(finished) return;finished=true;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,approachVerified=approachVerified,
                 aimCommands=aimCommands,stackClicks=stackClicks,originalItem=originalItem,originalWindow=originalWindow,originalSlot=originalSlot,
-                maxWindowDrift=maxWindowDrift,maxSlotDrift=maxSlotDrift,maxAimTurn=maxAimTurn,approach=approach.ToArray()},true));
+                maxWindowDrift=maxWindowDrift,maxSlotDrift=maxSlotDrift,maxAimTurn=maxAimTurn,approach=approach.ToArray(),openings=openings.ToArray()},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
+        private void OnDestroy() {if(runtime!=null) runtime.ContainerAudio.Opened-=ObserveOpening;}
         [Serializable] private sealed class ApproachSample
         {public string stage;public float time,weaponAngle;public Vector2 pointer,aim;public Rect window,slot;public bool weaponFlip;public Vector3 camera;}
         [Serializable] private sealed class Report
         {public bool success,approachVerified;public string detail,originalItem;public int phase,aimCommands,stackClicks;public Rect originalWindow,originalSlot;
-            public float maxWindowDrift,maxSlotDrift,maxAimTurn;public ApproachSample[] approach;}
+            public float maxWindowDrift,maxSlotDrift,maxAimTurn;public ApproachSample[] approach;public OpeningWitness[] openings;}
     }
 }

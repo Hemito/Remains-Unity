@@ -125,6 +125,8 @@ namespace Remains.Networking
         public SessionReloadAudio ReloadAudio=>reloadAudio ??= new SessionReloadAudio(this);
         private SessionDoorDamage doorDamage;
         public SessionDoorDamage DoorDamage=>doorDamage ??= new SessionDoorDamage(this);
+        private SessionHealingAudio healingAudio;
+        public SessionHealingAudio HealingAudio=>healingAudio??=new SessionHealingAudio(this);
         private SessionDoors doors;
         public SessionDoors Doors=>doors ??= new SessionDoors(this);
         private SessionContainerInspection containerInspection;
@@ -165,7 +167,7 @@ namespace Remains.Networking
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();
-            DoorDamage.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();
+            DoorDamage.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();HealingAudio.RegisterServer();
             Admission.RegisterServer();EntryPreparation.RegisterServer();
             InvokeRepeating(nameof(ExpireEntryPreparation),1,1);
             ServerWorld=null;
@@ -228,6 +230,9 @@ namespace Remains.Networking
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             NpcWeaponInventoryMigration.Apply(ServerWorld,source==null?null:()=>Debug.Log("Сохранена копия мира перед преобразованием оружия NPC: "+Saves.PreserveRecoverySource()));
             NpcWeaponActions.ValidateWorld(ServerWorld);
+            DoorCapabilityMigration.Prepare(ServerWorld,
+                contentLevels.SelectMany(level=>RoomDoorCapabilityContent.Read(RoomAuthoring.Load(level,ServerWorld),level)),
+                source==null?()=>{}:()=>Debug.Log("Исходный мир сохранён перед добавлением прочности дверей: "+Saves.PreserveRecoverySource()));
             WorldHistory.BeginContinuation(ServerWorld);
             LevelTimeMigration.Prepare(ServerWorld,contentLevels.Concat(ServerWorld.rooms.Select(room=>room.level)),source==null?null:
                 ()=>Debug.Log("Исходный мир сохранён перед установкой часов уровней: "+Saves.PreserveRecoverySource()));
@@ -254,7 +259,7 @@ namespace Remains.Networking
 
         internal void DiscardUnstartedWorld()
         {
-            DoorDamage.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
+            DoorDamage.ResetServer();HealingAudio.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
         }
 
         internal void AdmitLobbyPlayer(NetworkConnectionToClient connection,JoinMessage message)=>Join(connection,message);
@@ -272,7 +277,7 @@ namespace Remains.Networking
             Travel.RegisterClient();
             ContainerInspection.RegisterClient();
             Mechanisms.RegisterClient();
-            DoorDamage.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();
+            DoorDamage.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
@@ -971,6 +976,7 @@ namespace Remains.Networking
             BroadcastWorld();
             connection.Send(new HealingReplyMessage {transaction=message.transaction,success=true,
                 reason=message.selfHeal?"Лечебный предмет использован.":"Союзник поднят. Лечебный предмет использован."});
+            HealingAudio.Publish(healer,message.transaction,"heal");
         }
 
         private void Claim(NetworkConnectionToClient connection, ClaimMessage message)

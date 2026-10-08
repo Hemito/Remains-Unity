@@ -93,7 +93,8 @@ namespace Remains.Editor
             foreach(string code in new[]{"NMeCLKXlWsv6CYYL","foMRNLiLOHCLfItd","ffoNKTl2qsZVBCG3"})
             {
                 var old=source.doors.Single(d=>d.id==source.level+":"+FactoryOfficeOpeningsAuthoring.Prefix+code);
-                Require(old.definition=="door1" && old.integrity==null && old.interaction==null && old.interactive,"Прежняя дверь получила новые capabilities: "+old.id);
+                Require(old.definition=="door1","Прежняя дверь сменила определение: "+old.id);
+                FactoryLegacyDoorAuthoring.ValidateDeclaredCapability(old);
             }
         }
         private static void CheckPlacements(RoomAuthoring room,RoomContentBatch batch,FactoryOfficeOpeningsAuthoring.Data data,float offset)

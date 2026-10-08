@@ -7,6 +7,7 @@ using Mirror;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
+using Remains.Networking;
 using Remains.Presentation;
 using Remains.Serialization;
 using UnityEngine.UI;
@@ -36,6 +37,10 @@ namespace Remains.Runtime
         private readonly Dictionary<string,LandingWitness> landings=new();
         private readonly HashSet<int> voicesBeforeThrow=new();
         private AudioClip landingClip;
+        private AudioClip healingClip;
+        private readonly Dictionary<string,HealingWitness> healing=new(StringComparer.Ordinal);
+        [Serializable] private sealed class HealingWitness
+        {public string transaction,actor,world,clip;public int voice,samples,channels,frequency;public float volume;public bool muted,playing;}
         private Vector2 initialPosition,fixturePosition;
         private bool Direct=>runtime.Options.Smoke.StartsWith("direct-items");
         [Serializable] private sealed class LandingWitness
@@ -62,6 +67,9 @@ namespace Remains.Runtime
                 if(!value.PropAudio.ItemSounds.TryGet("p10",out landingClip,out var reason))
                     throw new InvalidOperationException("Не разрешён WAV приземления p10: "+reason);
                 value.PropAudio.LandingPlayed+=ObserveLanding;
+                if(!value.HealingAudio.TryGet("heal",out healingClip,out _))
+                    throw new InvalidOperationException("Нет подготовленного звука успешного лечения.");
+                value.HealingAudio.HealingPlayed+=ObserveHealing;
             }
             value.Session.ClientReady+=()=>
             {
@@ -183,7 +191,7 @@ namespace Remains.Runtime
             }
             if(phase==1 && actor.level==(Direct?"hub":"factory:0") && !runtime.Session.Travel.Pending && !runtime.Hud.RoomPresentationPending && !setup)
             {setup=true;StartCoroutine(SetupInventory());}
-            if(phase==2 && (!Direct || healedByUi) && actor.health>60 && InventoryJournal.Count(actor,"heal")==healBefore-1 && !ready)
+            if(phase==2 && (!Direct || healedByUi && healing.Count==runtime.Options.ProbePeers) && actor.health>60 && InventoryJournal.Count(actor,"heal")==healBefore-1 && !ready)
             {ready=true;NetworkClient.Send(new ItemShortcutReady {stage=1});}
             if(phase is 3 or 4)
             {
@@ -334,6 +342,16 @@ namespace Remains.Runtime
             NetworkFrameCapture.Save(Camera.main,runtime.Options.Report+$".phase-{phase}.inventory.png",runtime.Hud.GetComponent<Canvas>(),1920,1080);
             runtime.Hud.ToggleInventory();directSelected=true;heldAt=Time.unscaledTime;
         }
+        private void ObserveHealing(HealingSoundCue cue,AudioClip clip)
+        {
+            var voice=runtime.Audio.GetComponentsInChildren<AudioSource>().LastOrDefault(v=>v.clip==clip && v.volume>0);
+            if(clip!=healingClip || cue.definition!="heal" || voice==null || !voice.isPlaying ||
+                healing.ContainsKey(cue.transaction) || clip.channels!=1 || clip.frequency!=44100 || clip.samples!=31936)
+            {Finish(false,"Звук лечения повторён или не создал ожидаемый native PCM голос: "+cue.transaction);return;}
+            healing.Add(cue.transaction,new HealingWitness {transaction=cue.transaction,actor=cue.actor,world=cue.world,
+                clip=clip.name,voice=voice.GetInstanceID(),volume=voice.volume,muted=voice.mute,playing=voice.isPlaying,
+                channels=clip.channels,frequency=clip.frequency,samples=clip.samples});
+        }
         private void ObserveLanding(string id,string item,AudioClip clip)
         {
             if(finished || phase is not (3 or 4) || item!="p10") return;
@@ -353,18 +371,22 @@ namespace Remains.Runtime
             if(finished) return;
             if(success && new[]{3,4,13,14}.Any(evidence=>!captures.Contains(evidence)))
             {success=false;detail="Не все этапы удержания/броска действительно наблюдались до подбора: "+string.Join(",",captures.OrderBy(value=>value));}
-            if(success && Direct && (!healedByUi || landings.Count!=2 || landings.Values.Any(l=>!l.captured || l.count!=1 || l.quietSeconds<.75f) ||
+            if(success && Direct && (!healedByUi || healing.Count!=runtime.Options.ProbePeers ||
+                runtime.HealingAudio.Accepted!=runtime.Options.ProbePeers || runtime.HealingAudio.Played!=runtime.Options.ProbePeers ||
+                landings.Count!=2 || landings.Values.Any(l=>!l.captured || l.count!=1 || l.quietSeconds<.75f) ||
                 runtime.Session.LocalActorId==sender && directSelections!=2))
             {success=false;detail="Недостаточно прямых UI/audio доказательств.";}
             finished=true;
             runtime.Session.SaveLocalCharacter();
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,total=total,observedStages=captures.OrderBy(value=>value).ToArray(),directInventory=Direct,ordinaryHub=Direct,healedByUi=healedByUi,directSelections=directSelections,
                 commandSamples=commandSamples,healingClosedForLifecycle=healingClosedForLifecycle,startingPositionFixture=Direct,
-                initialPosition=initialPosition,fixturePosition=fixturePosition,landings=landings.Values.OrderBy(l=>l.phase).ToArray()},true));
+                initialPosition=initialPosition,fixturePosition=fixturePosition,landings=landings.Values.OrderBy(l=>l.phase).ToArray(),
+                healing=healing.Values.OrderBy(v=>v.actor,StringComparer.Ordinal).ToArray(),
+                healingAccepted=runtime.HealingAudio.Accepted,healingPlayed=runtime.HealingAudio.Played},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        private void OnDestroy() {if(runtime!=null) {runtime.Session.Changed-=VisualChanged;runtime.PropAudio.LandingPlayed-=ObserveLanding;}}
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase,total;public int[] observedStages;public bool directInventory,ordinaryHub,healedByUi,healingClosedForLifecycle,startingPositionFixture;public Vector2 initialPosition,fixturePosition;public int directSelections,commandSamples;public LandingWitness[] landings;}
+        private void OnDestroy() {if(runtime!=null) {runtime.Session.Changed-=VisualChanged;runtime.PropAudio.LandingPlayed-=ObserveLanding;runtime.HealingAudio.HealingPlayed-=ObserveHealing;}}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase,total;public int[] observedStages;public bool directInventory,ordinaryHub,healedByUi,healingClosedForLifecycle,startingPositionFixture;public Vector2 initialPosition,fixturePosition;public int directSelections,commandSamples,healingAccepted,healingPlayed;public LandingWitness[] landings;public HealingWitness[] healing;}
     }
 }

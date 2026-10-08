@@ -19,6 +19,7 @@ namespace Remains.Editor
             ItemShortcutChecks.Run();
             InventoryItemActionChecks.Run();InventoryDescriptionChecks.Run();ItemLandingAudioChecks.Run();
             DoorStateChecks.Run();DoorContentChecks.Run();DoorBarrierChecks.Run();DoorDamageRequestChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
+            FactoryLegacyDoorChecks.Run();ActorDeathAudioChecks.Run();HealingItemAudioChecks.Run();
             ContentEntityIdentityChecks.Run();
             PonyAppearance.Prepare();PonyPaletteChecks.Run();
             var music=Resources.Load<MusicCatalogAsset>("Content/area-music");

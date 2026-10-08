@@ -5,6 +5,7 @@ using System.Linq;
 using Mirror;
 using Remains.Domain;
 using Remains.Gameplay;
+using Remains.Networking;
 using UnityEngine;
 
 namespace Remains.Runtime
@@ -28,11 +29,16 @@ namespace Remains.Runtime
         private bool capturedDown,capturedRevived;
         private string grenadeId;
         private bool failureCaptureRequested;
+        private int healingVoices,healingVoice;
+        private bool healingPlaying,healingMuted;
+        private float healingVolume;
+        private string healingTransaction,healingClip;
         private ActorState Victim=>runtime.Session.World?.Find("player:session-client-1");
         private ActorState Healer=>runtime.Session.World?.Find("player:session-host");
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;deadline=Time.unscaledTime+60;runtime.CommandSource=Command;
+            value.HealingAudio.HealingPlayed+=ObserveHealing;
             runtime.Grenades.Created+=flight=>
             {if(phase==5 && flight.state.attacker==Healer?.id) grenadeId=flight.state.id;};
             if(PauseScenario) pauseWindow=new NetworkPauseWindow(this,value.Session,value.Options.ProbePeers,PauseSnapshot,
@@ -112,7 +118,8 @@ namespace Remains.Runtime
         private bool Validate()
         {
             var saved=runtime.Session.Saves.LoadCharacter();var self=runtime.Session.LocalActor;
-            return (!CaptureFrames || capturedDown && capturedRevived) && Victim!=null && !Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4 &&
+            return healingVoices==(Resume?0:1) && runtime.HealingAudio.Accepted==(Resume?0:1) && runtime.HealingAudio.Played==(Resume?0:1) &&
+                (!CaptureFrames || capturedDown && capturedRevived) && Victim!=null && !Victim.down && Victim.health==35 && InventoryJournal.Count(Healer,"heal")==4 &&
                 saved!=null && saved.id==self.id && saved.health==self.health && InventoryJournal.Count(saved,"heal")==InventoryJournal.Count(self,"heal");
         }
         private void LateUpdate()
@@ -149,15 +156,26 @@ namespace Remains.Runtime
             Host?runtime.Revival.Progress:0,Host && runtime.Revival.Pending?1:0};
         private IEnumerator PauseRevival()
         {yield return pauseWindow.Run("поднятие союзника");pauseRunning=false;}
+        private void ObserveHealing(HealingSoundCue cue,AudioClip clip)
+        {
+            var voice=runtime.Audio.GetComponentsInChildren<AudioSource>().LastOrDefault(v=>v.clip==clip && v.volume>0);
+            if(Resume || cue.actor!=Healer?.id || cue.definition!="heal" || clip.name!="healing-item-use" || voice==null || !voice.isPlaying || healingVoices!=0)
+            {Finish(false,"Прерванное/повторное поднятие создало звук либо подтверждённое поднятие потеряло настоящий голос.");return;}
+            healingVoices++;healingVoice=voice.GetInstanceID();healingVolume=voice.volume;healingPlaying=voice.isPlaying;healingMuted=voice.mute;
+            healingTransaction=cue.transaction;healingClip=clip.name;
+        }
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;
             if(PauseScenario) {success &= pauseWindow.Verified==1;detail+=$" Проверенные паузы поднятия: {pauseWindow.Verified}.";}
             failureCaptureRequested=!success && CaptureFrames && runtime.Session.LocalActor!=null;
-            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase},true));
+            File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,
+                healingVoices=healingVoices,healingVoice=healingVoice,healingVolume=healingVolume,healingPlaying=healingPlaying,
+                healingMuted=healingMuted,healingTransaction=healingTransaction,healingClip=healingClip},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
-        [Serializable] private sealed class Report {public bool success;public string detail;public int phase;}
+        private void OnDestroy() {if(runtime!=null) runtime.HealingAudio.HealingPlayed-=ObserveHealing;}
+        [Serializable] private sealed class Report {public bool success;public string detail;public int phase,healingVoices,healingVoice;public float healingVolume;public bool healingPlaying,healingMuted;public string healingTransaction,healingClip;}
     }
 }

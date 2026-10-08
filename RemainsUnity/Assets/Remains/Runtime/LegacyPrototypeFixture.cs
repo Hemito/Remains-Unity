@@ -12,6 +12,7 @@ namespace Remains.Runtime
         public static void Prepare(PrototypeRuntime runtime)
         {
             var options=runtime.Options;
+            if(options.Smoke?.StartsWith("actor-death")==true || options.Smoke?.StartsWith("legacy-doors")==true) return;
             if(options.Smoke is "performance-audit" or "runtime-catalog-release" || options.Smoke?.StartsWith("office-opening")==true ||
                 options.Smoke?.StartsWith("training")==true || options.Smoke?.StartsWith("shot-spread")==true ||
                 options.Smoke?.StartsWith("cosmetics")==true || options.Smoke?.StartsWith("held-prop-color")==true || options.Smoke?.StartsWith("weapon-reload")==true || options.Smoke?.StartsWith("direct-items")==true || options.Smoke?.StartsWith("slope-poses")==true) return;

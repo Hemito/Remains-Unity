@@ -11,7 +11,7 @@ namespace Remains.Presentation
     {
         [Serializable] public sealed class Entry {public string definition,clip;public float gain;}
         [Serializable] public sealed class Catalog {public int version;public Entry[] entries;}
-        private readonly Dictionary<string,(AudioClip clip,float gain)> clips=new();
+        private readonly Dictionary<string,(AudioClip clip,float gain)> clips=new(StringComparer.Ordinal);
         private readonly HashSet<string> reported=new();
         private GameplayAudio playback;
         public int Openings {get;private set;}
@@ -35,14 +35,23 @@ namespace Remains.Presentation
         }
         public void Initialize(GameplayAudio playback)
         {
-            this.playback=playback??throw new ArgumentNullException(nameof(playback));
+            if(this.playback!=null) throw new InvalidOperationException("Звуки контейнеров уже подготовлены.");
+            if(playback==null) throw new ArgumentNullException(nameof(playback));
+            var prepared=new Dictionary<string,(AudioClip clip,float gain)>(StringComparer.Ordinal);
+            var banks=new Dictionary<string,AudioClip>(StringComparer.Ordinal);
             foreach(var entry in Load().entries)
             {
-                var clip=Resources.Load<AudioClip>(entry.clip);
-                if(clip==null || clip.samples<=0 || clip.frequency<=0 || clip.channels<=0)
-                    throw new InvalidOperationException("Нет звука открывания: definition="+entry.definition+", clip="+entry.clip);
-                clips.Add(entry.definition,(clip,entry.gain));
+                if(!banks.TryGetValue(entry.clip,out var clip))
+                {
+                    clip=Resources.Load<AudioClip>(entry.clip);
+                    if(clip==null || clip.samples<=0 || clip.frequency<=0 || clip.channels<=0)
+                        throw new InvalidOperationException("Нет звука открывания: definition="+entry.definition+", action=open, clip="+entry.clip);
+                    banks.Add(entry.clip,clip);
+                }
+                prepared.Add(entry.definition,(clip,entry.gain));
             }
+            foreach(var entry in prepared) clips.Add(entry.Key,entry.Value);
+            this.playback=playback;
         }
         public bool TryGet(string definition,out AudioClip clip,out float gain)
         {
@@ -56,7 +65,7 @@ namespace Remains.Presentation
             if(!TryGet(source.Definition,out var clip,out float gain))
             {
                 if(reported.Add(source.Definition??"<нет типа>"))
-                    Debug.LogWarning($"Открывание контейнера {source.id}, type={source.Definition}, level={source.level}: исходный банк не объявлен в Presentation/container-open-audio; звук мира пропущен. Обычный отклик интерфейса остаётся независимым.",this);
+                    Debug.LogWarning($"Открывание контейнера {source.id}, type={source.Definition}, action=open, level={source.level}: исходный банк не объявлен в Presentation/container-open-audio; звук мира пропущен. Обычный отклик интерфейса остаётся независимым.",this);
                 return;
             }
             if(playback.PlayContact(clip,source.level,source.Position,gain))

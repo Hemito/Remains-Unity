@@ -88,8 +88,8 @@ namespace Remains.Editor
                 prefab.GetComponentsInChildren<RoomPhysicalPlacement>(true).Length==0 && prefab.GetComponentsInChildren<RoomDoorAuthoring>(true).Length==0,
                 "Изменена регистрация prefab либо добавлена независимая физика/TK/placement: "+PrefabPath);
             var legacy=Load<DoorAsset>(Folder+"/door2.asset");legacy.Validate();
-            Require(legacy.Id=="door2" && legacy.CapabilityVersion==0 && legacy.MaxHealth==0 && legacy.Destroyed==null,
-                "Прежняя door2 получила новую прочность/разрушение вместо отдельного профиля.");
+            Require(legacy.Id=="door2","Прежний door2 ID изменён.");
+            FactoryLegacyDoorAuthoring.ValidateLegacyOrUpgraded(legacy);
             return asset;
         }
         internal static Manifest ReadManifest()
