@@ -33,7 +33,7 @@ Texture2D<float4> _FluenceRaw;
 Texture2D<float4> _Bounce;          // wall radiance from the previous update (one bounce per update)
 RWTexture2D<float4> _BounceOut;
 float _Albedo;
-float _EdgeTexels;   // shadows.edge in light texels: how deep light enters an object's body
+float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
 int2 _Size;
 int _Step;
 int _Level;
@@ -156,17 +156,28 @@ void Fill(uint3 id : SV_DispatchThreadID)
     if (own <= 0.004) { _Fluence[p] = _FluenceRaw[p]; return; }   // open
     if (own < 0.99)
     {
-        // Partly absorbing object: lit like a wall edge — the light of nearby open texels enters its
-        // body and fades over _EdgeTexels (its own texels are dimmed by its own absorption).
-        float4 lit = _FluenceRaw[p];
-        int r = (int)ceil(_EdgeTexels);
+        // Partly absorbing object (unlike walls): its body takes the light fully on the lit side and
+        // the gradient runs through its whole thickness — for each nearby open texel q, the share of
+        // the way from q's edge to the far edge (measured along q → p) dims q's light linearly.
+        float4 lit = 0;
+        const int r = 16;
         for (int dy = -r; dy <= r; dy++)
             for (int dx = -r; dx <= r; dx++)
             {
                 int2 q = p + int2(dx, dy);
                 if (!Inside(q) || _Scene[q].a > 0.004) continue;
-                float t = saturate(length(float2(dx, dy)) / _EdgeTexels);
-                lit = max(lit, _FluenceRaw[q] * (1 - t * t * (3 - 2 * t)));
+                float d = length(float2(dx, dy));
+                if (d > r) continue;
+                float2 step = -float2(dx, dy) / d;
+                float rest = 0;
+                for (int k = 1; k <= 32; k++)
+                {
+                    int2 s = int2(round(float2(p) + step * k));
+                    if (!Inside(s) || _Scene[s].a <= 0.004) break;
+                    rest = k;
+                }
+                float t = (d - 0.5) / max(d - 0.5 + rest + 0.5, 1);
+                lit = max(lit, _FluenceRaw[q] * saturate(1 - t));
             }
         _Fluence[p] = lit;
         return;
