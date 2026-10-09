@@ -15,8 +15,11 @@ namespace Remains.Presentation
     // Flash filters (bevel, glow, drips) are not reproduced yet (stage B4).
     public static class RoomTerrainView
     {
-        // Draw order inside the room's SortingGroup (same scale as RoomVisual).
-        public const int BackdropOrder=-30,BackOrder=-29,RearOrder=-6,FrontOrder=-4,BorderOrder=-3,FloorOrder=-2,RearSpriteOrder=-5,FrontSpriteOrder=1;
+        // Draw order inside the room's SortingGroup, original display list bottom-up: backdrop, back
+        // walls, decor of layers ≤ 0 (backBmp), rear materials, decor of layers > 0 (backBmp2), objects,
+        // front terrain. Gaps leave room for the decor layers and objects (RoomDecorView).
+        public const int BackdropOrder=-300,BackOrder=-290,DecorBackOrder=-280,RearOrder=-60,DecorFrontOrder=-55,RearSpriteOrder=-50,ObjectOrder=-45,
+            FrontOrder=-40,BorderOrder=-30,FloorOrder=-20,FrontSpriteOrder=10;
         private const string ShaderResource="Presentation/WorldTerrain",SpriteShaderResource="Presentation/WorldSprite";
 
         // litEdge: how deep (m, up to one cell) lamp light enters a wall from its open edge (lighting table shadows.edge), 0 = walls lit evenly.
@@ -234,6 +237,8 @@ namespace Remains.Presentation
                 string key=edged?textureId+"|кромка":textureId;
                 if(lifetime.Materials.TryGetValue(key,out var material)) return material;
                 material=new Material(shader){name="Terrain:"+key};
+                // Backdrop and back walls are drawn before the original's background erase (windows).
+                if(!wall) material.SetFloat("_EraseAffected",1);
                 if(edged)
                 {
                     material.SetTexture("_EdgeTex",edges);

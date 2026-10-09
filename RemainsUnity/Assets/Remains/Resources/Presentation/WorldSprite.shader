@@ -3,15 +3,22 @@ Shader "Remains/WorldSprite"
     // World sprites (ladders, stair sprites; later actors and items) lit like the terrain:
     // ambient (URP blend style 0) plus lamp light read at the pixel's world position from the
     // radiance field, or URP "Lamps" lights without it (RemainsLight2D.hlsl, one implementation).
+    // Original decor blend modes: multiply (DstColor·Zero, colour faded to white by alpha) and overlay
+    // (approximated as 2× multiply: DstColor·SrcColor, colour faded to grey 0.5); both modulate the
+    // lit surface below, so they are not lit themselves. Blend factors are set by RoomDecorView.
     Properties
     {
         [PerRendererData] _MainTex ("Спрайт", 2D) = "white" {}
         _Color ("Tint", Color) = (1,1,1,1)
+        [Enum(Normal,0,Multiply,1,Overlay,2)] _BlendMode ("Смешивание (оригинал blend)", Float) = 0
+        [HideInInspector] _SrcBlend ("", Float) = 5
+        [HideInInspector] _DstBlend ("", Float) = 10
+        [Toggle] _EraseAffected ("Стирается окнами (рисуется до стирания)", Float) = 0
     }
     SubShader
     {
         Tags { "Queue"="Transparent" "RenderType"="Transparent" "RenderPipeline"="UniversalPipeline" }
-        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
+        Blend [_SrcBlend] [_DstBlend], One OneMinusSrcAlpha
         Cull Off ZWrite Off ZTest Off
 
         Pass
@@ -46,6 +53,8 @@ Shader "Remains/WorldSprite"
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             CBUFFER_START(UnityPerMaterial)
                 half4 _Color;
+                float _BlendMode;
+                float _EraseAffected;
             CBUFFER_END
 
             #if USE_SHAPE_LIGHT_TYPE_0
@@ -61,6 +70,7 @@ Shader "Remains/WorldSprite"
             SHAPE_LIGHT(3)
             #endif
             #include "RemainsLight2D.hlsl"
+            #include "RemainsErase.hlsl"
 
             Varyings Vert(Attributes v)
             {
@@ -78,7 +88,10 @@ Shader "Remains/WorldSprite"
             half4 Frag(Varyings i) : SV_Target
             {
                 half4 main=SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv)*i.color;
+                main.a*=RemainsEraseKeep(i.world,_EraseAffected);
                 if(main.a<=0) discard;
+                if(_BlendMode>1.5) return half4(lerp(half3(0.5,0.5,0.5),main.rgb,main.a),main.a);
+                if(_BlendMode>0.5) return half4(lerp(half3(1,1,1),main.rgb,main.a),main.a);
                 half4 lamp=RemainsLampsAvailable()?RemainsSampleLamp(i.world):0;
                 return RemainsCombineLight(main.rgb,main.a,i.lightingUV,lamp);
             }

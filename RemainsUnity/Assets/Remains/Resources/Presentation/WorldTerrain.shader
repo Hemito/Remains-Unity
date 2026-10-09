@@ -17,6 +17,7 @@ Shader "Remains/WorldTerrain"
         _EdgeWidth ("Ширина освещённой кромки (м), 0 — без кромки", Float) = 0
         _EdgeCell ("Размер клетки (м)", Float) = 0.8
         _EdgeOrigin ("Левый низ комнаты (м)", Vector) = (0,0,0,0)
+        [Toggle] _EraseAffected ("Стирается окнами (фон, задние стены)", Float) = 0
     }
     SubShader
     {
@@ -65,6 +66,7 @@ Shader "Remains/WorldTerrain"
                 float _EdgeWidth;
                 float _EdgeCell;
                 float4 _EdgeOrigin;
+                float _EraseAffected;
             CBUFFER_END
 
             #if USE_SHAPE_LIGHT_TYPE_0
@@ -80,6 +82,7 @@ Shader "Remains/WorldTerrain"
             SHAPE_LIGHT(3)
             #endif
             #include "RemainsLight2D.hlsl"
+            #include "RemainsErase.hlsl"
 
             half EdgeFade(float d)
             {
@@ -138,7 +141,7 @@ Shader "Remains/WorldTerrain"
                 // Bitmap rows run down from the origin; Unity v runs up: v = (y - top) * density / height.
                 float2 texel=(i.world-_MaterialOrigin.xy)*_TexelsPerMeter;
                 half4 main=SAMPLE_TEXTURE2D(_MaterialTex,sampler_MaterialTex,texel*_MaterialTex_TexelSize.xy)*i.color;
-                main.a*=mask;
+                main.a*=mask*RemainsEraseKeep(i.world,_EraseAffected);
                 if(main.a<=0) discard;
                 return RemainsCombineLight(main.rgb,main.a,i.lightingUV,LampLight(i.world));
             }

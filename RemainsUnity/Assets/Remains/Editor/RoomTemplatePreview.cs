@@ -94,6 +94,8 @@ namespace Remains.Editor
             var lightingAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lighting)??throw new InvalidOperationException("Нет таблицы света "+Lighting);
             var table=RoomLightingTable.Read(lightingAsset.text,Lighting);
             var view=RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,table.ShadowEdge);
+            Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
+            RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,view.transform);
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
             if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,!radiance);
             if(radiance) MeasureRadiance(RoomRadianceField.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent),room.Template);
