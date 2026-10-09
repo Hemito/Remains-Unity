@@ -23,11 +23,9 @@ Shader "Remains/WorldLit"
             #pragma fragment Frag
             #pragma multi_compile_instancing
             #include "UnitySprites.cginc"
-            sampler2D _WorldLightMap;
-            sampler2D _BackgroundLightMap;
+            #include "WorldLighting.cginc"
             float _BackgroundLighting;
-            float4 _WorldLightBounds;
-            float _WorldLightEnabled, _Emission;
+            float _Emission;
             sampler2D _ArtworkVisibility;
             float _ArtworkVisibilityEnabled;
             struct lit_appdata
@@ -55,7 +53,7 @@ Shader "Remains/WorldLit"
                 float4 local=UnityFlipSprite(input.vertex,_Flip);
                 output.vertex=UnityObjectToClipPos(local);
                 float2 world=mul(unity_ObjectToWorld,local).xy;
-                output.lightUV=(world-_WorldLightBounds.xy)*_WorldLightBounds.zw;
+                output.lightUV=RemainsWorldLightUV(world);
                 output.uv=input.texcoord;
                 output.maskUV=input.maskUV;
                 output.color=input.color*_Color*_RendererColor;
@@ -65,9 +63,7 @@ Shader "Remains/WorldLit"
             {
                 fixed4 color=SampleSpriteTexture(input.uv)*input.color;
                 color.a*=lerp(1,tex2D(_ArtworkVisibility,input.maskUV).r,_ArtworkVisibilityEnabled);
-                fixed3 sampled=lerp(tex2D(_WorldLightMap,input.lightUV).rgb,tex2D(_BackgroundLightMap,input.lightUV).rgb,_BackgroundLighting);
-                fixed3 light=lerp(fixed3(1,1,1),sampled,_WorldLightEnabled);
-                color.rgb*=lerp(light,fixed3(1,1,1),_Emission)*color.a;
+                color.rgb*=RemainsWorldLight(input.lightUV,_BackgroundLighting,_Emission)*color.a;
                 return color;
             }
             ENDCG
