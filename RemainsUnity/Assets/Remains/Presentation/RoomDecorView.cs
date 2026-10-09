@@ -31,7 +31,8 @@ namespace Remains.Presentation
         private const string SpriteShaderResource="Presentation/WorldSprite",EraseShaderResource="Presentation/EraseMask";
         private const float SourcePixelsPerMeter=50;
 
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,Transform terrainRoot,List<RoomSpritePlacement> placements=null)
+        // glowThresholds: definition -> luminance threshold of self-lit pixels (screens; lighting table "glow").
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,Transform terrainRoot,List<RoomSpritePlacement> placements=null,IReadOnlyDictionary<string,double> glowThresholds=null)
         {
             if(room==null || definitions==null || lands==null || art==null || terrainRoot==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):art==null?nameof(art):nameof(terrainRoot));
             var spriteShader=Resources.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
@@ -39,9 +40,10 @@ namespace Remains.Presentation
             root.transform.SetParent(terrainRoot,false);   // inside the room's SortingGroup
             var holder=root.AddComponent<RoomDecorResources>();
             var materials=new Dictionary<string,Material>(StringComparer.Ordinal);
-            Material MaterialFor(string blend,bool erase)
+            Material MaterialFor(string blend,bool erase,string definition)
             {
-                string key=(blend??"normal")+(erase?"|стирается":"");
+                double glow=glowThresholds!=null && definition!=null && glowThresholds.TryGetValue(definition,out double g)?g:2;
+                string key=(blend??"normal")+(erase?"|стирается":"")+(glow<2?"|свечение "+glow.ToString(CultureInfo.InvariantCulture):"");
                 if(materials.TryGetValue(key,out var m)) return m;
                 m=new Material(spriteShader){name="Декор:"+key};
                 switch(blend)
@@ -52,6 +54,7 @@ namespace Remains.Presentation
                     default: throw new InvalidOperationException($"{room.Template}: режим смешивания декора \"{blend}\" не поддержан.");
                 }
                 if(erase) m.SetFloat("_EraseAffected",1);
+                m.SetFloat("_GlowThreshold",(float)glow);
                 materials.Add(key,m);holder.Materials.Add(m);
                 return m;
             }
@@ -99,7 +102,7 @@ namespace Remains.Presentation
                 obj.transform.localScale=new Vector3(scaleX,scaleY,1);
                 var renderer=obj.AddComponent<SpriteRenderer>();
                 renderer.sprite=art.Tile(TileManifest.DecorFrameId(d.Art,frame)).sprite;
-                renderer.sharedMaterial=MaterialFor(d.Blend,d.EraseFirst);
+                renderer.sharedMaterial=MaterialFor(d.Blend,d.EraseFirst,d.Id);
                 renderer.color=new Color(1,1,1,alpha);
                 renderer.sortingOrder=d.EraseFirst?RoomTerrainView.DecorBackOrder-5:d.DecorLayer<=0?RoomTerrainView.DecorBackOrder+d.DecorLayer:RoomTerrainView.DecorFrontOrder+d.DecorLayer;
                 decorCount++;
@@ -120,7 +123,7 @@ namespace Remains.Presentation
                 obj.transform.localPosition=new Vector3((placement.X+size/2f)*cell,placement.Y*cell+1/SourcePixelsPerMeter,0);
                 var renderer=obj.AddComponent<SpriteRenderer>();
                 renderer.sprite=art.Tile(TileManifest.ObjectFrameId(d.Art,1)).sprite;
-                renderer.sharedMaterial=MaterialFor(null,false);
+                renderer.sharedMaterial=MaterialFor(null,false,d.Id);
                 renderer.sortingOrder=RoomTerrainView.ObjectOrder;
                 objectCount++;
                 placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,LocalToWorld=obj.transform.localToWorldMatrix});

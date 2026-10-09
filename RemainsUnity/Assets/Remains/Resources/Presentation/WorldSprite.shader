@@ -14,6 +14,7 @@ Shader "Remains/WorldSprite"
         [HideInInspector] _SrcBlend ("", Float) = 5
         [HideInInspector] _DstBlend ("", Float) = 10
         [Toggle] _EraseAffected ("Стирается окнами (рисуется до стирания)", Float) = 0
+        _GlowThreshold ("Порог яркости самосвечения (>1 — нет)", Float) = 2
     }
     SubShader
     {
@@ -55,6 +56,7 @@ Shader "Remains/WorldSprite"
                 half4 _Color;
                 float _BlendMode;
                 float _EraseAffected;
+                float _GlowThreshold;
             CBUFFER_END
 
             #if USE_SHAPE_LIGHT_TYPE_0
@@ -93,7 +95,10 @@ Shader "Remains/WorldSprite"
                 if(_BlendMode>1.5) return half4(lerp(half3(0.5,0.5,0.5),main.rgb,main.a),main.a);
                 if(_BlendMode>0.5) return half4(lerp(half3(1,1,1),main.rgb,main.a),main.a);
                 half4 lamp=RemainsLampsAvailable()?RemainsSampleLamp(i.world):0;
-                return RemainsCombineLight(main.rgb,main.a,i.lightingUV,lamp);
+                half4 lit=RemainsCombineLight(main.rgb,main.a,i.lightingUV,lamp);
+                // Screens: bright pixels (text, indicators) shine by themselves, also in the dark.
+                half glow=smoothstep(_GlowThreshold,_GlowThreshold+0.15,dot(main.rgb,half3(0.2126,0.7152,0.0722)));
+                return half4(max(lit.rgb,main.rgb*glow),lit.a);
             }
             ENDHLSL
         }

@@ -96,7 +96,9 @@ namespace Remains.Editor
             var view=RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,table.ShadowEdge);
             Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
             var sprites=new List<RoomSpritePlacement>();
-            RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,view.transform,sprites);
+            var glow=new Dictionary<string,double>();
+            foreach(var e in table.Glow) glow.Add(e.Key,e.Value.Threshold);
+            RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,view.transform,sprites,glow);
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
             if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,!radiance);
             if(radiance) MeasureRadiance(RoomRadianceField.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,sprites),room.Template);
