@@ -17,7 +17,9 @@ namespace Remains.Editor
     // scene. Batch (graphics device required, no window): renders the plant templates next to
     // the shipped prefabs of the same rooms, plus optional external *.room.json files (not
     // imported into the project), with the land's far background:
-    //   -executeMethod Remains.Editor.RoomTemplatePreview.RenderBatch -roomPreviewOut <dir> [-roomPreviewFiles <a;b>]
+    //   -executeMethod Remains.Editor.RoomTemplatePreview.RenderBatch -roomPreviewOut <dir> [-roomPreviewFiles <a;b>] [-roomPreviewUnlit]
+    // -roomPreviewUnlit: templates only, no lights at all (plain colours, "<name>-albedo.png") — input
+    // for the reference light tracer (RoomConvert trace --albedo-image).
     public static class RoomTemplatePreview
     {
         private const string Definitions="Assets/Remains/Rooms/Original/definitions.json";
@@ -28,6 +30,8 @@ namespace Remains.Editor
             ("Assets/Remains/Rooms/Original/plant/tsekh1.room.json","Assets/Remains/RoomDrafts/FactoryWorkshop18.prefab"),
             ("Assets/Remains/Rooms/Original/plant/vkhod2.room.json","Assets/Remains/RoomDrafts/FactoryEntry46.prefab"),
         };
+
+        private static bool unlit;
 
         [MenuItem("Remains/Комнаты/Предпросмотр выбранного шаблона")]
         public static void PreviewSelected()
@@ -47,11 +51,13 @@ namespace Remains.Editor
                 string outDir=Argument("-roomPreviewOut")??throw new ArgumentException("Нет аргумента -roomPreviewOut <папка>.");
                 Directory.CreateDirectory(outDir);
                 RoomTileArtAuthoring.Build();
+                unlit=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewUnlit")>=0;
                 foreach(var (templatePath,prefabPath) in Rooms)
                 {
                     var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(templatePath)??throw new InvalidOperationException("Нет шаблона "+templatePath);
                     string name=Path.GetFileName(templatePath).Replace(".room.json","");
-                    RenderRoom(template.Room,Path.Combine(outDir,name+"-template.png"));
+                    RenderRoom(template.Room,Path.Combine(outDir,name+(unlit?"-albedo.png":"-template.png")));
+                    if(unlit) continue;
 
                     EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
                     var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)??throw new InvalidOperationException("Нет префаба "+prefabPath);
@@ -85,7 +91,7 @@ namespace Remains.Editor
             var lightingAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lighting)??throw new InvalidOperationException("Нет таблицы света "+Lighting);
             var table=RoomLightingTable.Read(lightingAsset.text,Lighting);
             var view=RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,table.ShadowEdge);
-            RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent);
+            if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent);
             return view;
         }
 
