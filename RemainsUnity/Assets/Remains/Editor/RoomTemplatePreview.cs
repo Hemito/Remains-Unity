@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Remains.Content;
 using Remains.Presentation;
 using Remains.RoomFormat;
@@ -9,10 +11,11 @@ using UnityEngine;
 
 namespace Remains.Editor
 {
-    // Preview of a room template's terrain (stage B3). Menu: builds it into the open scene.
-    // Batch (graphics device required, no window): renders templates and the shipped prefabs
-    // of the same rooms to PNG for side-by-side comparison:
-    //   -executeMethod Remains.Editor.RoomTemplatePreview.RenderBatch -roomPreviewOut <dir>
+    // Preview of room templates (stage B). Menu: builds the selected template into the open
+    // scene. Batch (graphics device required, no window): renders the plant templates next to
+    // the shipped prefabs of the same rooms, plus optional external *.room.json files (not
+    // imported into the project), with the land's far background:
+    //   -executeMethod Remains.Editor.RoomTemplatePreview.RenderBatch -roomPreviewOut <dir> [-roomPreviewFiles <a;b>]
     public static class RoomTemplatePreview
     {
         private const string Definitions="Assets/Remains/Rooms/Original/definitions.json";
@@ -28,7 +31,7 @@ namespace Remains.Editor
         {
             var template=Selection.activeObject as RoomTemplateAsset;
             if(template==null) {Debug.LogWarning("Выберите ассет шаблона комнаты (*.room.json) в окне Project.");return;}
-            var view=Build(template,Vector2.zero);
+            var view=Build(template.Room,Vector2.zero);
             Undo.RegisterCreatedObjectUndo(view,"Предпросмотр комнаты");
             Selection.activeObject=view;
         }
@@ -43,45 +46,82 @@ namespace Remains.Editor
                 RoomTileArtAuthoring.Build();
                 foreach(var (templatePath,prefabPath) in Rooms)
                 {
-                    EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
                     var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(templatePath)??throw new InvalidOperationException("Нет шаблона "+templatePath);
-                    var room=template.Room;
-                    var size=new Vector2((float)(room.Width*room.Cell),(float)(room.Height*room.Cell));
-                    Build(template,Vector2.zero);
                     string name=Path.GetFileName(templatePath).Replace(".room.json","");
-                    Render(size,Vector2.zero,Path.Combine(outDir,name+"-template.png"));
+                    RenderRoom(template.Room,Path.Combine(outDir,name+"-template.png"));
 
                     EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
                     var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)??throw new InvalidOperationException("Нет префаба "+prefabPath);
                     UnityEngine.Object.Instantiate(prefab);
-                    Render(size,Vector2.zero,Path.Combine(outDir,name+"-prefab.png"));
-                    Debug.Log($"Предпросмотр {name}: {outDir}");
+                    Render(Size(template.Room),Path.Combine(outDir,name+"-prefab.png"),null);
                 }
+                string files=Argument("-roomPreviewFiles");
+                if(!string.IsNullOrEmpty(files))
+                    foreach(string file in files.Split(';'))
+                    {
+                        var room=RoomSerializer.Read(File.ReadAllText(file,Encoding.UTF8),file);
+                        RenderRoom(room,Path.Combine(outDir,room.Template.Replace(':','_')+".png"));
+                    }
+                Debug.Log("Предпросмотр комнат: "+outDir);
             }
             catch(Exception error) {Debug.LogError("Предпросмотр комнат прерван: "+error);code=1;}
             EditorApplication.Exit(code);
         }
 
-        private static GameObject Build(RoomTemplateAsset template,Vector2 origin)
+        private static void RenderRoom(RoomFile room,string file)
         {
-            var definitionsAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Definitions)??throw new InvalidOperationException("Нет каталога "+Definitions);
-            var art=AssetDatabase.LoadAssetAtPath<RoomTileArtAsset>(RoomTileArtAuthoring.AssetPath)
-                ??throw new InvalidOperationException("Нет набора графики клеток: выполните «Remains/Комнаты/Обновить набор графики клеток».");
-            var landsAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lands)??throw new InvalidOperationException("Нет каталога земель "+Lands);
-            return RoomTerrainView.Build(template.Room,RoomDefinitionCatalog.Read(definitionsAsset.text,Definitions),RoomLandCatalog.Read(landsAsset.text,Lands),art,origin);
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+            Build(room,Vector2.zero);
+            Render(Size(room),file,camera=>FarBackground(room,camera));
         }
 
-        private static void Render(Vector2 size,Vector2 origin,string file)
+        private static Vector2 Size(RoomFile room)=>new Vector2((float)(room.Width*room.Cell),(float)(room.Height*room.Cell));
+
+        private static GameObject Build(RoomFile room,Vector2 origin)
+        {
+            return RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin);
+        }
+
+        // Original: the land's fon, "fonDefault" when the land names none.
+        private static void FarBackground(RoomFile room,Camera camera)
+        {
+            var issues=new List<string>();
+            string fon=LoadLands().Option(room,"fon",issues);
+            foreach(string issue in issues) Debug.LogWarning(issue);
+            if(string.IsNullOrEmpty(fon)) fon="fonDefault";
+            var texture=LoadArt().Texture(TileManifest.TextureId(fon));
+            var material=WorldArtworkMaterial.Create(texture);
+            material.SetFloat("_Emission",1);
+            FarBackgroundView.Create(camera,texture,material);
+        }
+
+        private static RoomDefinitionCatalog LoadDefinitions()
+        {
+            var asset=AssetDatabase.LoadAssetAtPath<TextAsset>(Definitions)??throw new InvalidOperationException("Нет каталога "+Definitions);
+            return RoomDefinitionCatalog.Read(asset.text,Definitions);
+        }
+
+        private static RoomLandCatalog LoadLands()
+        {
+            var asset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lands)??throw new InvalidOperationException("Нет каталога земель "+Lands);
+            return RoomLandCatalog.Read(asset.text,Lands);
+        }
+
+        private static RoomTileArtAsset LoadArt()=>AssetDatabase.LoadAssetAtPath<RoomTileArtAsset>(RoomTileArtAuthoring.AssetPath)
+            ??throw new InvalidOperationException("Нет набора графики клеток: выполните «Remains/Комнаты/Обновить набор графики клеток».");
+
+        private static void Render(Vector2 size,string file,Action<Camera> setup)
         {
             const int pixelsPerMeter=50;
             int width=Mathf.RoundToInt(size.x*pixelsPerMeter),height=Mathf.RoundToInt(size.y*pixelsPerMeter);
             var cameraObject=new GameObject("Камера предпросмотра");
             var camera=cameraObject.AddComponent<Camera>();
             camera.orthographic=true;camera.orthographicSize=size.y/2;
-            camera.transform.position=new Vector3(origin.x+size.x/2,origin.y+size.y/2,-10);
+            camera.transform.position=new Vector3(size.x/2,size.y/2,-10);
             camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.12f,.12f,.14f,1);
             var target=new RenderTexture(width,height,24,RenderTextureFormat.ARGB32);
             camera.targetTexture=target;camera.aspect=(float)width/height;
+            setup?.Invoke(camera);
             camera.Render();
             var previous=RenderTexture.active;RenderTexture.active=target;
             var image=new Texture2D(width,height,TextureFormat.RGBA32,false);
