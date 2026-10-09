@@ -12,7 +12,7 @@ namespace Remains.Presentation
     // the previous update's light once (multi-bounce settles over a few updates; lamps off → it fades).
     // Scene texture: the wall raster (RoomLightScene) plus, when the room's sprites are given
     // (RoomDecorView), lamp decor emitting over its silhouette (an "off" frame emits nothing) and
-    // objects absorbing by RoomLightingTable.ObjectAbsorption; without sprites, lamp disks at the decor
+    // objects absorbing by RoomLightingTable.ObjectTransmittance; without sprites, lamp disks at the decor
     // positions (as the reference tracer). Render() recomputes on
     // demand (scene change), not per frame. The result is a world-space fluence texture read by
     // WorldTerrain instead of URP lamp lights (_RemainsRadiance*, one room at a time for now).
@@ -26,7 +26,8 @@ namespace Remains.Presentation
         private Material sceneMaterial;
         private Mesh quad;
         private RenderTexture seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB;
-        private float albedo,edgeTexels;
+        private float albedo,edgeTexels,rimTexels;
+        private bool objectGradient;
         private int width,height,levels;
         private Vector4 rect;
         private float texel;
@@ -68,7 +69,7 @@ namespace Remains.Presentation
             field.compute=compute;
             field.wallsTexture=sceneTexture;
             field.scene=sceneTexture;
-            field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;field.edgeTexels=(float)(table.ShadowEdge/t);
+            field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;field.edgeTexels=(float)(table.ShadowEdge/t);field.rimTexels=(float)(table.ObjectRimWidth/t);field.objectGradient=table.ObjectLightMode=="gradient";
             int emitters=0,absorbers=0,glowing=0,dark=0;
             if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers,ref glowing,ref dark);
             field.rect=new Vector4(origin.x,origin.y,w*t,h*t);
@@ -123,7 +124,13 @@ namespace Remains.Presentation
                 else
                 {
                     // Decor hangs on the back wall (no absorption); objects by the table rule.
-                    double absorption=d.Kind==RoomDefinitionKind.Object?table.ObjectAbsorption(d):0;
+                    double absorption=0;
+                    if(d.Kind==RoomDefinitionKind.Object)
+                    {
+                        var objectScale=placement.LocalToWorld.lossyScale;
+                        double silhouette=SilhouetteArea(placement.Sprite)*Math.Abs(objectScale.x*objectScale.y);
+                        absorption=1-table.ObjectTransmittance(d,silhouette);
+                    }
                     if(absorption<=0 && !glows) continue;
                     // The table gives what the whole object stops; per texel so that crossing its
                     // thickness (smaller side) stops that much: 1 - (1 - A)^(1 / thickness).
@@ -145,7 +152,7 @@ namespace Remains.Presentation
 
         private readonly Dictionary<Sprite,double> silhouettes=new();
 
-        // Area (m²) a lamp sprite actually emits from in the light grid: the sprite drawn alone with
+        // Area (m²) a sprite's silhouette (alpha > 0.4) covers in the light grid (lamp emission, object size): the sprite drawn alone with
         // the scene shader into a grid-sized target, lit texels counted (once per sprite, at build).
         private double SilhouetteArea(Sprite sprite)
         {
@@ -239,6 +246,8 @@ namespace Remains.Presentation
             compute.Dispatch(flu,gx,gy,1);
             compute.SetTexture(fill,"_Scene",scene);
             compute.SetFloat("_EdgeTexels",Mathf.Max(1,edgeTexels));
+            compute.SetFloat("_RimTexels",Mathf.Max(1,rimTexels));
+            compute.SetInt("_ObjectGradient",objectGradient?1:0);
             compute.SetTexture(fill,"_FluenceRaw",fluenceRaw);
             compute.SetTexture(fill,"_Fluence",fluence);
             compute.Dispatch(fill,gx,gy,1);

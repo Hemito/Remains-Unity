@@ -34,6 +34,8 @@ Texture2D<float4> _Bounce;          // wall radiance from the previous update (o
 RWTexture2D<float4> _BounceOut;
 float _Albedo;
 float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
+float _RimTexels;    // objects, rim mode: width of the dimming at the dark edge
+int _ObjectGradient; // objects: 1 gradient through the body, 0 rim
 int2 _Size;
 int _Step;
 int _Level;
@@ -156,28 +158,56 @@ void Fill(uint3 id : SV_DispatchThreadID)
     if (own <= 0.004) { _Fluence[p] = _FluenceRaw[p]; return; }   // open
     if (own < 0.99)
     {
-        // Partly absorbing object (unlike walls): its body takes the light fully on the lit side and
-        // the gradient runs through its whole thickness — for each nearby open texel q, the share of
-        // the way from q's edge to the far edge (measured along q → p) dims q's light linearly.
-        float4 lit = 0;
+        // Partly absorbing object (unlike walls; its own texels are dimmed by its own absorption).
         const int r = 16;
-        for (int dy = -r; dy <= r; dy++)
-            for (int dx = -r; dx <= r; dx++)
+        float4 lit = _FluenceRaw[p];
+        if (_ObjectGradient == 0)
+        {
+            // Rim: the body takes the brightest light around it fully; it dims only within _RimTexels
+            // of an open texel that is dark (the shadow side), for volume.
+            for (int dy = -r; dy <= r; dy += 2)
+                for (int dx = -r; dx <= r; dx += 2)
+                {
+                    int2 q = p + int2(dx, dy);
+                    if (Inside(q) && _Scene[q].a <= 0.004 && dx * dx + dy * dy <= r * r) lit = max(lit, _FluenceRaw[q]);
+                }
+            float bright = max(lit.r, max(lit.g, lit.b));
+            float dark = 1e4;
+            int rr = (int)ceil(_RimTexels) + 1;
+            for (int dy2 = -rr; dy2 <= rr; dy2++)
+                for (int dx2 = -rr; dx2 <= rr; dx2++)
+                {
+                    int2 q = p + int2(dx2, dy2);
+                    if (!Inside(q) || _Scene[q].a > 0.004) continue;
+                    float4 f = _FluenceRaw[q];
+                    if (max(f.r, max(f.g, f.b)) < 0.5 * bright) dark = min(dark, length(float2(dx2, dy2)));
+                }
+            float t = saturate((dark - 0.5) / _RimTexels);
+            _Fluence[p] = lit * (t * t * (3 - 2 * t));
+            return;
+        }
+        // Gradient: for each nearby open texel q (every second), its light dimmed linearly by the share
+        // of the way from q's edge to the far edge (thickness measured along q → p); rays that cannot
+        // beat the current light are skipped before measuring.
+        for (int gy = -r; gy <= r; gy += 2)
+            for (int gx = -r; gx <= r; gx += 2)
             {
-                int2 q = p + int2(dx, dy);
+                int2 q = p + int2(gx, gy);
                 if (!Inside(q) || _Scene[q].a > 0.004) continue;
-                float d = length(float2(dx, dy));
-                if (d > r) continue;
-                float2 step = -float2(dx, dy) / d;
+                float d = length(float2(gx, gy));
+                if (d > r || d < 0.5) continue;
+                float4 f = _FluenceRaw[q];
+                if (all(f <= lit)) continue;
+                float2 dir = -float2(gx, gy) / d;
                 float rest = 0;
                 for (int k = 1; k <= 32; k++)
                 {
-                    int2 s = int2(round(float2(p) + step * k));
-                    if (!Inside(s) || _Scene[s].a <= 0.004) break;
+                    int2 s2 = int2(round(float2(p) + dir * k));
+                    if (!Inside(s2) || _Scene[s2].a <= 0.004) break;
                     rest = k;
                 }
-                float t = (d - 0.5) / max(d - 0.5 + rest + 0.5, 1);
-                lit = max(lit, _FluenceRaw[q] * saturate(1 - t));
+                float t = (d - 0.5) / max(d + rest, 1);
+                lit = max(lit, f * saturate(1 - t));
             }
         _Fluence[p] = lit;
         return;

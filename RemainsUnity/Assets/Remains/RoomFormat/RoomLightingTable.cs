@@ -33,24 +33,36 @@ namespace Remains.RoomFormat
         }   // lamp fluence 1 m away = power × intensity; disk = lampSize × half decor width   // lit wall edge width (m) and lamp shadow softness 0..1
         public readonly SortedDictionary<string, double[]> Tints = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, RoomLamp> Lamps = new SortedDictionary<string, RoomLamp>(StringComparer.Ordinal);
-        // Light absorbed by free-standing objects by size class, and per-definition overrides.
-        public readonly SortedDictionary<int, double> AbsorptionBySize = new SortedDictionary<int, double>();
-        public readonly SortedDictionary<string, double> AbsorptionByObject = new SortedDictionary<string, double>(StringComparer.Ordinal);
+        // Objects: share of light passing through (transmittance), the visible range is the last
+        // percents. By size class for furniture, actors (units) separately; anything with a silhouette
+        // larger than LargeArea m² (bigger than a pony: large furniture, alicorns, raiders) at most Large.
+        public readonly SortedDictionary<int, double> TransmittanceBySize = new SortedDictionary<int, double>();
+        public readonly SortedDictionary<string, double> TransmittanceById = new SortedDictionary<string, double>(StringComparer.Ordinal);
+        public double ActorTransmittance, LargeTransmittance, LargeArea;
+        public string ObjectLightMode;   // "rim": lit fully, dims only near the dark edge; "gradient": through the whole body
+        public double ObjectRimWidth;    // m, rim mode
+
+        // Light an object lets through (0..1). Closed doors: none. Original placement depth: wall = 1 hangs
+        // on the back wall (not in the light's plane) → all; wall = 2 stands across the corridor (grates,
+        // windows) → 1 − its original "opac"; actors and free-standing furniture by the table.
+        public double ObjectTransmittance(RoomDefinition definition, double silhouetteArea)
+        {
+            if (TransmittanceById.TryGetValue(definition.Id, out double value)) return value;
+            if (definition.ObjectType == "door") return 0;   // closed (open state: later, by object state)
+            if (definition.Wall == 1) return 1;
+            if (definition.Wall >= 2) return definition.Opacity > 0 ? 1 - definition.Opacity : 0;
+            if (definition.ObjectType == "unit") value = ActorTransmittance;
+            else if (!TransmittanceBySize.TryGetValue(Math.Max(1, definition.ObjectSize), out value))
+                throw new InvalidOperationException($"Таблица света: нет пропускания для размера {definition.ObjectSize} ({definition.Id}).");
+            return silhouetteArea > LargeArea ? Math.Min(value, LargeTransmittance) : value;
+        }
+
         // Screens and panels glowing by their bright pixels: definition -> (gain, luminance threshold).
         public readonly SortedDictionary<string, (double Gain, double Threshold)> Glow = new SortedDictionary<string, (double, double)>(StringComparer.Ordinal);
 
         // Share of light an object stops (0..1). Closed doors: all. Original placement depth: wall = 1 hangs on the back
         // wall (not in the light's plane) → 0; wall = 2 stands across the corridor (doors, grates,
         // windows) → its original "opac", else 1; free-standing → by size class (table), unless overridden.
-        public double ObjectAbsorption(RoomDefinition definition)
-        {
-            if (AbsorptionByObject.TryGetValue(definition.Id, out double value)) return value;
-            if (definition.ObjectType == "door") return 1;   // a closed door stops light (open state: later, by object state)
-            if (definition.Wall == 1) return 0;
-            if (definition.Wall >= 2) return definition.Opacity > 0 ? definition.Opacity : 1;
-            if (AbsorptionBySize.TryGetValue(Math.Max(1, definition.ObjectSize), out value)) return value;
-            throw new InvalidOperationException($"Таблица света: нет поглощения для размера {definition.ObjectSize} ({definition.Id}).");
-        }
 
         public double Ambient(double darkness) => Math.Max(AmbientMin, Math.Min(AmbientMax, AmbientBase - darkness * DarknessScale));
 
@@ -78,9 +90,17 @@ namespace Remains.RoomFormat
             table.LampOtherFrame = radiance.Get("lampOtherFrame").AsDouble(source + ".radiance.lampOtherFrame");
             if (table.RadianceAlbedo < 0 || table.RadianceAlbedo >= 1) throw new FormatException(source + ".radiance.albedo: доля отражённого света в [0, 1).");
             if (table.RadianceResolution < 1 || table.RadiancePower < 0 || table.RadianceLampSize <= 0) throw new FormatException(source + ".radiance: resolution ≥ 1, power ≥ 0, lampSize > 0.");
-            var absorption = root.Get("absorption") ?? throw new FormatException(source + ": нет раздела absorption.");
-            foreach (var e in absorption.Get("bySize").Fields) table.AbsorptionBySize.Add(int.Parse(e.Key, System.Globalization.CultureInfo.InvariantCulture), e.Value.AsDouble(source + ".absorption.bySize." + e.Key));
-            foreach (var e in absorption.Get("objects").Fields) table.AbsorptionByObject.Add(e.Key, e.Value.AsDouble(source + ".absorption.objects." + e.Key));
+            var objects = root.Get("objects") ?? throw new FormatException(source + ": нет раздела objects.");
+            var transmittance = objects.Get("transmittance");
+            foreach (var e in transmittance.Get("bySize").Fields) table.TransmittanceBySize.Add(int.Parse(e.Key, System.Globalization.CultureInfo.InvariantCulture), e.Value.AsDouble(source + ".objects.transmittance.bySize." + e.Key));
+            foreach (var e in transmittance.Get("byId").Fields) table.TransmittanceById.Add(e.Key, e.Value.AsDouble(source + ".objects.transmittance.byId." + e.Key));
+            table.ActorTransmittance = transmittance.Get("actor").AsDouble(source + ".objects.transmittance.actor");
+            table.LargeTransmittance = transmittance.Get("large").AsDouble(source + ".objects.transmittance.large");
+            table.LargeArea = transmittance.Get("largeArea").AsDouble(source + ".objects.transmittance.largeArea");
+            var objectLight = objects.Get("lighting");
+            table.ObjectLightMode = objectLight.Get("mode").AsString(source + ".objects.lighting.mode");
+            if (table.ObjectLightMode != "rim" && table.ObjectLightMode != "gradient") throw new FormatException(source + ".objects.lighting.mode: rim или gradient.");
+            table.ObjectRimWidth = objectLight.Get("rimWidth").AsDouble(source + ".objects.lighting.rimWidth");
             foreach (var e in (root.Get("glow") ?? throw new FormatException(source + ": нет раздела glow.")).Fields)
                 table.Glow.Add(e.Key, (e.Value.Get("gain").AsDouble(source + ".glow." + e.Key + ".gain"), e.Value.Get("threshold").AsDouble(source + ".glow." + e.Key + ".threshold")));
             if (table.ShadowEdge < 0) throw new FormatException(source + ".shadows.edge: ширина кромки не может быть отрицательной.");

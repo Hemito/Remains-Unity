@@ -117,13 +117,13 @@ namespace Remains.Editor
             return view;
         }
 
-        // Test: training dummy sprites as free-standing objects (size class 2 in the absorption table).
+        // Test: training dummy sprites as actors ("unit": actor transmittance in the lighting table).
         private static void PlaceDummies(RoomFile room,Transform parent,List<RoomSpritePlacement> sprites)
         {
             if(!DummySpots.TryGetValue(room.Template,out var spots)) {Debug.LogWarning($"Манекен: нет тестовых мест для {room.Template}.");return;}
             var source=AssetDatabase.LoadAssetAtPath<GameObject>(DummyPrefab)?.GetComponent<SpriteRenderer>()??throw new InvalidOperationException("Нет спрайта манекена в "+DummyPrefab);
             var material=new Material(Resources.Load<Shader>("Presentation/WorldSprite")){name="Манекен"};
-            var definition=new RoomDefinition{Id="remains:test:training-dummy",Kind=RoomDefinitionKind.Object,ObjectType="test",ObjectSize=2};
+            var definition=new RoomDefinition{Id="remains:test:training-dummy",Kind=RoomDefinitionKind.Object,ObjectType="unit",ObjectSize=2};
             foreach(var spot in spots)
             {
                 var obj=new GameObject("Манекен (тест)");
