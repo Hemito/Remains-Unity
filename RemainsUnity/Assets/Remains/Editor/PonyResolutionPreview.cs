@@ -12,9 +12,17 @@ namespace Remains.Editor
     // Diagnostic only (no asset writes): one pony frame drawn from the compiled render asset with
     // (A) the current textures, (B) a candidate texture folder as is (mipmaps on), (C) the same
     // compressed in memory (BC7), at a game-like and a close-up scale, side by side.
-    //   -executeMethod Remains.Editor.PonyResolutionPreview.RenderBatch -ponyTextures <folder of <name>.png> -ponyPreviewOut <file.png> [-ponyClip idle] [-ponyFrame 0]
+    //   -executeMethod Remains.Editor.PonyResolutionPreview.RenderBatch -ponyTextures <folder of <name>.png> -ponyPreviewOut <file.png> [-ponyClip idle] [-ponyFrame 0] [-ponySupersample N]
+    // -ponySupersample N: each panel is composed N× larger and box-filtered down (seam check).
+    // -ponyParts: instead of the comparison, a grid with each visible part highlighted in red over the
+    //   pony (current textures), labelled by index, shape path and texture (find which part draws a seam).
+    // -ponyFixUv Z: candidate textures were exported at zoom Z with the canvas rounded up to whole
+    // pixels; map only the shape's exact span (span·Z / canvas) instead of stretching the whole canvas.
     public static class PonyResolutionPreview
     {
+        private static int supersample=1;
+        private static float fixUvZoom;
+        private static Dictionary<string,float[]> shapeBounds;
         public static void RenderBatch()
         {
             int code=0;
@@ -24,12 +32,21 @@ namespace Remains.Editor
                 string output=Argument("-ponyPreviewOut")??throw new ArgumentException("Нет аргумента -ponyPreviewOut <файл.png>.");
                 string clipId=Argument("-ponyClip")??"idle";
                 int frameIndex=int.Parse(Argument("-ponyFrame")??"0");
+                supersample=Math.Max(1,int.Parse(Argument("-ponySupersample")??"1"));
+                fixUvZoom=float.Parse(Argument("-ponyFixUv")??"0",System.Globalization.CultureInfo.InvariantCulture);
+                if(fixUvZoom>0)
+                {
+                    shapeBounds=new Dictionary<string,float[]>();
+                    var library=JsonUtility.FromJson<PonyLibrary>(Resources.Load<TextAsset>("Original/Pony/pony").text);
+                    foreach(var c in library.clips) foreach(var f in c.frames) foreach(var p in f.parts) shapeBounds[p.texture]=p.bounds;
+                }
                 PonyAppearance.Prepare();
                 var asset=Resources.Load<PonyRenderAsset>("Original/Pony/render")??throw new InvalidOperationException("Нет Original/Pony/render.");
                 var clip=asset.Clips.FirstOrDefault(c=>c.id==clipId)??throw new InvalidOperationException("Нет позы "+clipId);
                 var frame=clip.frames[frameIndex];
                 var parts=frame.parts.Where(p=>p.visible && PonyAppearance.Matches(p.hairStyle,p.eyeStyle,p.slot,1,1,false)).OrderBy(p=>p.drawOrder).ToArray();
 
+                if(Array.IndexOf(Environment.GetCommandLineArgs(),"-ponyParts")>=0) {PartsGrid(parts,frame.bounds,output);EditorApplication.Exit(0);return;}
                 var candidates=new Dictionary<Texture,Texture2D>();var compressed=new Dictionary<Texture,Texture2D>();
                 long bytesNow=0,bytesCandidate=0,bytesCompressed=0;
                 foreach(var part in parts)
@@ -72,6 +89,24 @@ namespace Remains.Editor
 
         private static Texture2D Draw(PonyRenderPart[] parts,Bounds bounds,float pixelsPerMeter,Func<PonyRenderPart,Texture> texture)
         {
+            if(supersample>1)
+            {
+                var big=DrawOnce(parts,bounds,pixelsPerMeter*supersample,texture);
+                int w=big.width/supersample,h=big.height/supersample;var src=big.GetPixels();var dst=new Color[w*h];
+                for(int y=0;y<h;y++) for(int x=0;x<w;x++)
+                {
+                    Color sum=default;
+                    for(int j=0;j<supersample;j++) for(int i=0;i<supersample;i++) sum+=src[(y*supersample+j)*big.width+x*supersample+i];
+                    dst[y*w+x]=sum/(supersample*supersample);
+                }
+                var small=new Texture2D(w,h,TextureFormat.RGBA32,false);small.SetPixels(dst);small.Apply();
+                return small;
+            }
+            return DrawOnce(parts,bounds,pixelsPerMeter,texture);
+        }
+
+        private static Texture2D DrawOnce(PonyRenderPart[] parts,Bounds bounds,float pixelsPerMeter,Func<PonyRenderPart,Texture> texture,Action<int,MaterialPropertyBlock> modify=null)
+        {
             int width=Mathf.CeilToInt(bounds.size.x*pixelsPerMeter),height=Mathf.CeilToInt(bounds.size.y*pixelsPerMeter);
             var target=new RenderTexture(width,height,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.sRGB);
             var cmd=new CommandBuffer{name="Пони"};
@@ -79,19 +114,51 @@ namespace Remains.Editor
             cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(bounds.min.x,bounds.max.x,bounds.min.y,bounds.max.y,-10,10),false));
             Shader.SetGlobalFloat("_WorldLightEnabled",0);
             var block=new MaterialPropertyBlock();
-            foreach(var part in parts)
+            for(int index=0;index<parts.Length;index++)
             {
+                var part=parts[index];
                 block.Clear();
                 block.SetTexture("_MainTex",texture(part));
                 block.SetColor("_Color",PonyAppearance.Tint(part.slot,1));
                 block.SetFloat("_Emission",part.slot=="magic"?1:0);
-                cmd.DrawMesh(part.mesh,Matrix4x4.identity,part.material,0,0,block);
+                modify?.Invoke(index,block);
+                var tex=texture(part);
+                cmd.DrawMesh(fixUvZoom>0 && tex!=part.material.mainTexture?FixedUv(part.mesh,shapeBounds[part.material.mainTexture.name],tex):part.mesh,Matrix4x4.identity,part.material,0,0,block);
             }
             Graphics.ExecuteCommandBuffer(cmd);cmd.Release();
             var previous=RenderTexture.active;RenderTexture.active=target;
             var image=new Texture2D(width,height,TextureFormat.RGBA32,false);image.ReadPixels(new Rect(0,0,width,height),0,0);image.Apply();
             RenderTexture.active=previous;target.Release();UnityEngine.Object.DestroyImmediate(target);
             return image;
+        }
+
+        private static void PartsGrid(PonyRenderPart[] parts,Bounds bounds,string output)
+        {
+            bounds.Expand(0.1f);
+            const float ppm=260f;const int columns=6;
+            var tiles=new List<Texture2D>();
+            for(int i=0;i<parts.Length;i++)
+            {
+                int highlight=i;
+                tiles.Add(DrawOnce(parts,bounds,ppm,p=>p.material.mainTexture,(index,block)=>{if(index==highlight) block.SetColor("_Color",new Color(1,0,0,1));}));
+            }
+            int tw=tiles[0].width,th=tiles[0].height,rows=(tiles.Count+columns-1)/columns;
+            var sheet=new Texture2D(columns*tw,rows*th,TextureFormat.RGBA32,false);
+            for(int i=0;i<tiles.Count;i++) sheet.SetPixels((i%columns)*tw,(rows-1-i/columns)*th,tw,th,tiles[i].GetPixels());
+            File.WriteAllBytes(output,sheet.EncodeToPNG());
+            for(int i=0;i<parts.Length;i++) Debug.Log($"Часть {i}: {parts[i].sourcePath} текстура {parts[i].material.mainTexture.name} область {parts[i].slot} порядок {parts[i].drawOrder}");
+        }
+
+        private static readonly Dictionary<(Mesh,Texture),Mesh> fixedMeshes=new();
+        private static Mesh FixedUv(Mesh mesh,float[] bounds,Texture texture)
+        {
+            if(fixedMeshes.TryGetValue((mesh,texture),out var cached)) return cached;
+            float sx=(bounds[2]-bounds[0])/20f*fixUvZoom/texture.width,sy=(bounds[3]-bounds[1])/20f*fixUvZoom/texture.height;
+            var copy=UnityEngine.Object.Instantiate(mesh);
+            // Vertex order (Quad): (xmin,ymax),(xmax,ymax),(xmin,ymin),(xmax,ymin) in Flash Y-down; canvas top-left = (xmin,ymin).
+            copy.uv=new[]{new Vector2(0,1-sy),new Vector2(sx,1-sy),new Vector2(0,1),new Vector2(sx,1)};
+            fixedMeshes[(mesh,texture)]=copy;
+            return copy;
         }
 
         private static Texture2D Enlarge(Texture2D source,int factor)
