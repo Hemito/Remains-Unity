@@ -18,6 +18,7 @@ namespace Remains.Presentation
     // WorldTerrain instead of URP lamp lights (_RemainsRadiance*, one room at a time for now).
     public sealed class RoomRadianceField : MonoBehaviour
     {
+        private const double MaxObjectTexelAbsorption=0.985;
         private const string ComputeResource="Presentation/RadianceCascades",SceneShaderResource="Presentation/LightScene";
         private ComputeShader compute;
         private Texture scene;
@@ -128,7 +129,9 @@ namespace Remains.Presentation
                     // thickness (smaller side) stops that much: 1 - (1 - A)^(1 / thickness).
                     var scale=placement.LocalToWorld.lossyScale;
                     double thickness=Math.Max(1,Math.Min(Math.Abs(bounds.size.x*scale.x),Math.Abs(bounds.size.y*scale.y))/texel);
-                    double perTexel=absorption<=0?0:absorption>=1?1:1-Math.Pow(1-absorption,1/thickness);
+                    // Capped below the wall threshold (0.99): an object stays an object (lit through its
+                    // body, no wall bounce) even when it stops all light across its thickness.
+                    double perTexel=absorption<=0?0:Math.Min(MaxObjectTexelAbsorption,1-Math.Pow(1-Math.Min(absorption,0.9999),1/thickness));
                     block.SetColor("_Emission",Color.clear);
                     block.SetFloat("_Absorption",(float)perTexel);
                     if(absorption>0) absorbers++;
