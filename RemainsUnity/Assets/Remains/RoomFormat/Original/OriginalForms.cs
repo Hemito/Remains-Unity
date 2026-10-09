@@ -37,12 +37,41 @@ namespace Remains.RoomFormat.Original
             {
                 var attrs = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (Match a in Attribute.Matches(tag.Groups[1].Value)) attrs[a.Groups[1].Value] = a.Groups[2].Success ? a.Groups[2].Value : a.Groups[3].Value;
-                if (!attrs.TryGetValue("id", out string id) || !seen.Add(id)) continue;
+                if (!attrs.TryGetValue("id", out string id) || id.Length == 0 || !seen.Add(id)) continue;   // empty id: a category header
                 int width = Int(attrs, "x2", source, id), height = Int(attrs, "y2", source, id);
                 result.Add(new RoomDefinition
                 {
                     Id = "remains:decor:" + id, Kind = RoomDefinitionKind.Decor, Name = Get(attrs, "n"), Source = "AllData back id=" + id,
                     DecorWidth = width > 0 ? width : 1, DecorHeight = height > 0 ? height : 1, DecorLayer = Int(attrs, "s", source, id),
+                    Art = Get(attrs, "tid") ?? id,
+                    DecorFrame = Int(attrs, "fr", source, id), DecorFrameOn = Int(attrs, "lon", source, id), DecorFrameOff = Int(attrs, "loff", source, id),
+                    Mirror = Int(attrs, "mirr", source, id), Blend = Get(attrs, "blend"),
+                    Alpha = attrs.ContainsKey("alpha") ? Number(attrs, "alpha", source, id) : 1,
+                    EraseFirst = attrs.ContainsKey("er"),
+                });
+            }
+            return result;
+        }
+
+        private static readonly Regex ObjTag = new Regex(@"<obj\s([^>]*?)/?>", RegexOptions.CultureInvariant);
+
+        // Original <obj> as room object definitions: visual and placement data only (type, footprint,
+        // art); gameplay (locks, contents, durability) belongs to the object systems, not the room format.
+        public static List<RoomDefinition> ParseObjects(string allDataText, string source)
+        {
+            var result = new List<RoomDefinition>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Match tag in ObjTag.Matches(allDataText))
+            {
+                var attrs = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (Match a in Attribute.Matches(tag.Groups[1].Value)) attrs[a.Groups[1].Value] = a.Groups[2].Success ? a.Groups[2].Value : a.Groups[3].Value;
+                if (!attrs.TryGetValue("id", out string id) || id.Length == 0 || !seen.Add(id)) continue;   // empty id: a category header
+                result.Add(new RoomDefinition
+                {
+                    Id = "remains:obj:" + id, Kind = RoomDefinitionKind.Object, Name = Get(attrs, "n"), Source = "AllData obj id=" + id,
+                    Art = id, ObjectType = Get(attrs, "tip"),
+                    ObjectWidth = Int(attrs, "wid", source, id), ObjectSize = Int(attrs, "size", source, id), Wall = Int(attrs, "wall", source, id),
+                    Opacity = attrs.ContainsKey("opac") ? Number(attrs, "opac", source, id) : 0,
                 });
             }
             return result;
@@ -103,6 +132,14 @@ namespace Remains.RoomFormat.Original
             if (!attrs.TryGetValue(key, out string v) || v.Length == 0) return 0;
             if (!int.TryParse(v, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int result))
                 throw new FormatException($"{source}: форма {id}: атрибут {key}=\"{v}\" не целое число.");
+            return result;
+        }
+
+        private static double Number(Dictionary<string, string> attrs, string key, string source, string id)
+        {
+            string v = attrs[key];
+            if (!double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double result))
+                throw new FormatException($"{source}: {id}: атрибут {key}=\"{v}\" не число.");
             return result;
         }
     }

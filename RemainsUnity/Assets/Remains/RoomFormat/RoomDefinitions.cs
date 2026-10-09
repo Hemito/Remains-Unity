@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Remains.RoomFormat
 {
-    public enum RoomDefinitionKind { Solid, Backwall, Ladder, Platform, Stairs, Decor }
+    public enum RoomDefinitionKind { Solid, Backwall, Ladder, Platform, Stairs, Decor, Object }
 
     // Properties of one palette ID (spec §5). Visual data (textures, draw order) is added
     // with the tile catalogue; this is what geometry and terrain damage need.
@@ -22,6 +22,20 @@ namespace Remains.RoomFormat
         public bool Rear;
         // Decor: footprint in cells from the placement cell (x right, rows down), drawing layer.
         public int DecorWidth, DecorHeight, DecorLayer;
+        // Decor/object art: clip name in the art manifest (decor:<Art>:<frame>, object:<Art>:<frame>).
+        public string Art;
+        // Decor frames (original BackObj): fixed frame, frame with room lights on / off; 0 = not set
+        // (then a frame is chosen per placement). Blend mode ("normal" when null), opacity, mirroring
+        // (0 mirrors position only, 1 flips with a mirrored room, 2 random flip), drawn before others.
+        public int DecorFrame, DecorFrameOn, DecorFrameOff, Mirror;
+        public string Blend;
+        public double Alpha = 1;
+        public bool EraseFirst;
+        // Objects (original <obj>): type (box, door, ...), footprint width in cells (placement: bottom
+        // centre of it), size class, opacity of a door to light (0 = not set), wall mounting.
+        public string ObjectType;
+        public int ObjectWidth, ObjectSize, Wall;
+        public double Opacity;
     }
 
     public sealed class RoomDefinitionCatalog
@@ -63,6 +77,23 @@ namespace Remains.RoomFormat
                 if (d.Rear) v.Set("rear", JsonValue.Of(true));
                 if (d.Kind == RoomDefinitionKind.Decor)
                     v.Set("decorWidth", JsonValue.Of(d.DecorWidth)).Set("decorHeight", JsonValue.Of(d.DecorHeight)).Set("decorLayer", JsonValue.Of(d.DecorLayer));
+                SetIf(v, "art", d.Art);
+                if (d.Kind == RoomDefinitionKind.Decor)
+                {
+                    if (d.DecorFrame != 0) v.Set("frame", JsonValue.Of(d.DecorFrame));
+                    if (d.DecorFrameOn != 0) v.Set("frameOn", JsonValue.Of(d.DecorFrameOn));
+                    if (d.DecorFrameOff != 0) v.Set("frameOff", JsonValue.Of(d.DecorFrameOff));
+                    if (d.Mirror != 0) v.Set("mirror", JsonValue.Of(d.Mirror));
+                    SetIf(v, "blend", d.Blend);
+                    if (d.Alpha != 1) v.Set("alpha", JsonValue.Of(d.Alpha));
+                    if (d.EraseFirst) v.Set("eraseFirst", JsonValue.Of(true));
+                }
+                if (d.Kind == RoomDefinitionKind.Object)
+                {
+                    v.Set("objectType", JsonValue.Of(d.ObjectType)).Set("objectWidth", JsonValue.Of(d.ObjectWidth)).Set("objectSize", JsonValue.Of(d.ObjectSize));
+                    if (d.Wall != 0) v.Set("wall", JsonValue.Of(d.Wall));
+                    if (d.Opacity != 0) v.Set("opacity", JsonValue.Of(d.Opacity));
+                }
                 if (d.Kind == RoomDefinitionKind.Ladder)
                     v.Set("facing", JsonValue.Of(d.Facing)).Set("ladderFraction", JsonValue.Of(d.LadderFraction))
                      .Set("movementOffset", JsonValue.Of(d.MovementOffset)).Set("artworkOffset", JsonValue.Of(d.ArtworkOffset));
@@ -114,6 +145,19 @@ namespace Remains.RoomFormat
                     DecorWidth = (int)(v.Get("decorWidth")?.AsLong(ctx + ".decorWidth") ?? 0),
                     DecorHeight = (int)(v.Get("decorHeight")?.AsLong(ctx + ".decorHeight") ?? 0),
                     DecorLayer = (int)(v.Get("decorLayer")?.AsLong(ctx + ".decorLayer") ?? 0),
+                    Art = Str(v, "art", ctx),
+                    DecorFrame = (int)(v.Get("frame")?.AsLong(ctx + ".frame") ?? 0),
+                    DecorFrameOn = (int)(v.Get("frameOn")?.AsLong(ctx + ".frameOn") ?? 0),
+                    DecorFrameOff = (int)(v.Get("frameOff")?.AsLong(ctx + ".frameOff") ?? 0),
+                    Mirror = (int)(v.Get("mirror")?.AsLong(ctx + ".mirror") ?? 0),
+                    Blend = Str(v, "blend", ctx),
+                    Alpha = v.Get("alpha")?.AsDouble(ctx + ".alpha") ?? 1,
+                    EraseFirst = v.Get("eraseFirst")?.Bool ?? false,
+                    ObjectType = Str(v, "objectType", ctx),
+                    ObjectWidth = (int)(v.Get("objectWidth")?.AsLong(ctx + ".objectWidth") ?? 0),
+                    ObjectSize = (int)(v.Get("objectSize")?.AsLong(ctx + ".objectSize") ?? 0),
+                    Wall = (int)(v.Get("wall")?.AsLong(ctx + ".wall") ?? 0),
+                    Opacity = v.Get("opacity")?.AsDouble(ctx + ".opacity") ?? 0,
                 });
             }
             return catalog;
