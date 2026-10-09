@@ -41,6 +41,7 @@ namespace Remains.Editor
         {
             ["remains:plant:vkhod2"]=new[]{new Vector2(25.6f,0.8f),new Vector2(31f,0.8f)},
             ["remains:plant:tsekh1"]=new[]{new Vector2(5.2f,0.8f)},
+            ["remains:plant:lighttest"]=new[]{new Vector2(9.6f,0.8f)},
         };
         private const int RadianceSettleUpdates=8;
 

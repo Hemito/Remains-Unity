@@ -25,7 +25,7 @@ namespace Remains.Presentation
         private Material sceneMaterial;
         private Mesh quad;
         private RenderTexture seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB;
-        private float albedo;
+        private float albedo,edgeTexels;
         private int width,height,levels;
         private Vector4 rect;
         private float texel;
@@ -67,7 +67,7 @@ namespace Remains.Presentation
             field.compute=compute;
             field.wallsTexture=sceneTexture;
             field.scene=sceneTexture;
-            field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;
+            field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;field.edgeTexels=(float)(table.ShadowEdge/t);
             int emitters=0,absorbers=0,glowing=0,dark=0;
             if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers,ref glowing,ref dark);
             field.rect=new Vector4(origin.x,origin.y,w*t,h*t);
@@ -235,6 +235,7 @@ namespace Remains.Presentation
             compute.SetTexture(flu,"_Fluence",fluenceRaw);
             compute.Dispatch(flu,gx,gy,1);
             compute.SetTexture(fill,"_Scene",scene);
+            compute.SetFloat("_EdgeTexels",Mathf.Max(1,edgeTexels));
             compute.SetTexture(fill,"_FluenceRaw",fluenceRaw);
             compute.SetTexture(fill,"_Fluence",fluence);
             compute.Dispatch(fill,gx,gy,1);
