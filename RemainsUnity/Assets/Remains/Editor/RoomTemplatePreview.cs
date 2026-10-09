@@ -82,9 +82,10 @@ namespace Remains.Editor
 
         private static GameObject Build(RoomFile room,Vector2 origin)
         {
-            var view=RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin);
             var lightingAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lighting)??throw new InvalidOperationException("Нет таблицы света "+Lighting);
-            RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),RoomLightingTable.Read(lightingAsset.text,Lighting),origin,view.transform.parent);
+            var table=RoomLightingTable.Read(lightingAsset.text,Lighting);
+            var view=RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,table.ShadowEdge);
+            RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent);
             return view;
         }
 
@@ -129,6 +130,9 @@ namespace Remains.Editor
             camera.targetTexture=target;camera.aspect=(float)width/height;
             setup?.Invoke(camera);
             TickLighting();
+            // 2D shadow culling compares casters with each light's position cached by the previous
+            // frame (new lights sit at the origin until then): a warm-up frame first.
+            camera.Render();
             camera.Render();
             var previous=RenderTexture.active;RenderTexture.active=target;
             var image=new Texture2D(width,height,TextureFormat.RGBA32,false);

@@ -10,12 +10,14 @@ namespace Remains.RoomFormat
     }
 
     // Lighting parameters per room (Rooms/Original/room-lighting.json): ambient level from the
-    // room/land darkness, tint from the room/land color, lamps keyed by decor definition.
+    // room/land darkness, tint from the room/land color, lamps keyed by decor definition, shadow
+    // shape (lit wall edge) and softness.
     public sealed class RoomLightingTable
     {
         public const string FormatName = "remains-room-lighting";
         public const int CurrentVersion = 1;
         public double AmbientBase, DarknessScale, AmbientMin, AmbientMax;
+        public double ShadowEdge, ShadowSoftness;   // lit wall edge width (m) and lamp shadow softness 0..1
         public readonly SortedDictionary<string, double[]> Tints = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, RoomLamp> Lamps = new SortedDictionary<string, RoomLamp>(StringComparer.Ordinal);
 
@@ -34,6 +36,9 @@ namespace Remains.RoomFormat
                 AmbientMin = ambient.Get("min").AsDouble(source + ".ambient.min"),
                 AmbientMax = ambient.Get("max").AsDouble(source + ".ambient.max"),
             };
+            var shadows = root.Get("shadows") ?? throw new FormatException(source + ": нет раздела shadows.");
+            table.ShadowEdge = shadows.Get("edge").AsDouble(source + ".shadows.edge");
+            table.ShadowSoftness = shadows.Get("softness").AsDouble(source + ".shadows.softness");
             foreach (var t in root.Get("tints").Fields) table.Tints.Add(t.Key, Rgb(t.Value, source + ".tints." + t.Key));
             foreach (var l in root.Get("lamps").Fields)
             {

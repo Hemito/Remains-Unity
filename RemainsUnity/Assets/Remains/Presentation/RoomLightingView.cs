@@ -9,10 +9,13 @@ namespace Remains.Presentation
 {
     // Room lighting with URP 2D lights (stage L1, preview only): global light from the
     // room/land darkness and color tint, a point light with real-time shadows per lamp decor,
-    // and shadow casters generated from the grid geometry (solid cells and beams): scaled unit
-    // squares, no Physics2D colliders.
+    // and shadow casters from the grid geometry (RoomShadowShapes: walls with a lit edge, beams):
+    // scaled unit squares, no Physics2D colliders.
     public static class RoomLightingView
     {
+        // Renderer2D blend styles: 0 ambient (global), 1 lamps (multiply). WorldTerrain fades style 1 on wall bodies.
+        public const int LampBlendStyle=1;
+
         public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent=null)
         {
             if(room==null || definitions==null || lands==null || table==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):nameof(table));
@@ -53,34 +56,33 @@ namespace Remains.Presentation
                     light.transform.SetParent(root.transform,false);
                     light.transform.localPosition=new Vector3(cx,cy,0);
                     light.lightType=Light2D.LightType.Point;
+                    light.blendStyleIndex=LampBlendStyle;
                     light.pointLightOuterRadius=(float)lamp.Radius;
                     light.pointLightInnerRadius=(float)lamp.Radius*.15f;
                     light.intensity=(float)lamp.Intensity;
                     light.color=new Color((float)lamp.Color[0],(float)lamp.Color[1],(float)lamp.Color[2])*tint;
                     light.shadowsEnabled=true;
                     light.shadowIntensity=1f;
-                    light.shadowSoftness=.3f;
+                    light.shadowSoftness=(float)table.ShadowSoftness;
                     lamps++;
                 }
 
-            // Shadow casters from derived geometry: one box per solid/beam rectangle.
-            var geometry=RoomGeometryBuilder.Build(room,definitions);
+            // Shadow casters: wall rectangles with the open sides moved inward (lit edge), beams.
             var casters=new GameObject("Тени стен");
             casters.transform.SetParent(root.transform,false);
-            foreach(var surface in geometry.Surfaces)
+            foreach(var rect in RoomShadowShapes.Build(RoomGeometryBuilder.Build(room,definitions),table.ShadowEdge))
             {
-                if(surface.Slope!=0) continue;   // stairs are drawn as sprites; their thin treads cast no useful shadow
                 var obj=new GameObject("Тень");
                 obj.transform.SetParent(casters.transform,false);
-                obj.transform.localPosition=new Vector3((float)(surface.X+surface.Width/2),(float)(surface.Y+surface.Height/2),0);
+                obj.transform.localPosition=new Vector3((float)(rect.X+rect.Width/2),(float)(rect.Y+rect.Height/2),0);
                 // Without a Renderer the caster's Awake (runs inside AddComponent) builds a unit square in
                 // local space; the scale applied afterwards stretches it to the rectangle. Public API only,
                 // works in player builds; no collider / shape provider (that one builds only in the editor loop).
                 var caster=obj.AddComponent<ShadowCaster2D>();
-                caster.castingOption=ShadowCaster2D.ShadowCastingOptions.CastShadow;
-                obj.transform.localScale=new Vector3((float)surface.Width,(float)surface.Height,1);
+                caster.castingOption=rect.SelfShadow?ShadowCaster2D.ShadowCastingOptions.CastAndSelfShadow:ShadowCaster2D.ShadowCastingOptions.CastShadow;
+                obj.transform.localScale=new Vector3((float)rect.Width,(float)rect.Height,1);
                 if(caster.mesh==null || caster.mesh.vertexCount==0)
-                    issues.Add($"{room.Template}: тенеотбрасыватель {surface.X:0.##},{surface.Y:0.##} {surface.Width:0.##}×{surface.Height:0.##} без сетки — тени от него не будет.");
+                    issues.Add($"{room.Template}: тенеотбрасыватель {rect.X:0.##},{rect.Y:0.##} {rect.Width:0.##}×{rect.Height:0.##} без сетки — тени от него не будет.");
             }
             foreach(string issue in issues) Debug.LogWarning(issue);
             Debug.Log($"Свет {room.Template}: общий {global.intensity:0.##}, тон {(string.IsNullOrEmpty(colorName)?"нет":colorName)}, ламп {lamps}{(lampsOn?"":" (выключены комнатой)")}, теней {casters.transform.childCount}.");

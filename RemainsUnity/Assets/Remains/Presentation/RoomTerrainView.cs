@@ -19,7 +19,8 @@ namespace Remains.Presentation
         public const int BackdropOrder=-30,BackOrder=-29,RearOrder=-6,FrontOrder=-4,BorderOrder=-3,FloorOrder=-2,RearSpriteOrder=-5,FrontSpriteOrder=1;
         private const string ShaderResource="Presentation/WorldTerrain";
 
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,Transform parent=null)
+        // litEdge: width (m) of the lamp-lit wall edge (lighting table shadows.edge), 0 = walls lit evenly.
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,double litEdge,Transform parent=null)
         {
             if(room==null || definitions==null || lands==null || art==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):nameof(art));
             var shader=Resources.Load<Shader>(ShaderResource)??throw new InvalidOperationException("Нет шейдера "+ShaderResource);
@@ -32,7 +33,8 @@ namespace Remains.Presentation
             float quarter=(float)room.Cell/2;
             grid.cellSize=new Vector3(quarter,quarter,0);
             var shapes=RoomTerrainShapes.Compute(room);
-            var builder=new Builder(room,definitions,art,shader,root.transform,lifetime,quarter,origin);
+            var edges=litEdge>0?EdgeMap(RoomShadowShapes.Edges(RoomGeometryBuilder.Build(room,definitions)),room.Cell,lifetime):null;
+            var builder=new Builder(room,definitions,art,shader,root.transform,lifetime,quarter,origin,edges,(float)litEdge);
             builder.Backdrop(lands);
 
             for(int x=0;x<room.Width;x++)
@@ -54,6 +56,24 @@ namespace Remains.Presentation
             return root;
         }
 
+        // Edge map for the WorldTerrain shader, one texel per cell: r = WallOpen bits, g = wall, b = top/cell.
+        private static Texture2D EdgeMap(WallEdge[,] edges,double cell,RoomMeshLifetime lifetime)
+        {
+            int width=edges.GetLength(0),height=edges.GetLength(1);
+            var texture=new Texture2D(width,height,TextureFormat.RGBA32,false,true){name="Кромки стен",filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
+            var pixels=new Color32[width*height];
+            for(int y=0;y<height;y++)
+                for(int x=0;x<width;x++)
+                {
+                    var e=edges[x,y];
+                    pixels[y*width+x]=e.Wall?new Color32((byte)e.Open,255,(byte)Math.Round(255*e.Height/cell),0):new Color32(0,0,0,0);
+                }
+            texture.SetPixels32(pixels);
+            texture.Apply(false,true);
+            lifetime.Textures.Add(texture);
+            return texture;
+        }
+
         private sealed class Builder
         {
             private readonly RoomFile room;
@@ -64,10 +84,12 @@ namespace Remains.Presentation
             private readonly RoomMeshLifetime lifetime;
             private readonly float quarter;
             private readonly Vector2 origin;
+            private readonly Texture2D edges;
+            private readonly float litEdge;
             private readonly Dictionary<string,Tilemap> maps=new(StringComparer.Ordinal);
 
-            public Builder(RoomFile room,RoomDefinitionCatalog definitions,RoomTileArtAsset art,Shader shader,Transform root,RoomMeshLifetime lifetime,float quarter,Vector2 origin)
-            {this.room=room;this.definitions=definitions;this.art=art;this.shader=shader;this.root=root;this.lifetime=lifetime;this.quarter=quarter;this.origin=origin;}
+            public Builder(RoomFile room,RoomDefinitionCatalog definitions,RoomTileArtAsset art,Shader shader,Transform root,RoomMeshLifetime lifetime,float quarter,Vector2 origin,Texture2D edges,float litEdge)
+            {this.room=room;this.definitions=definitions;this.art=art;this.shader=shader;this.root=root;this.lifetime=lifetime;this.quarter=quarter;this.origin=origin;this.edges=edges;this.litEdge=litEdge;}
 
             public RoomDefinition Definition(string layer,int x,int y)
             {
@@ -118,7 +140,7 @@ namespace Remains.Presentation
                 obj.transform.localScale=new Vector3(width,height,1);
                 obj.AddComponent<MeshFilter>().sharedMesh=Resources.GetBuiltinResource<Mesh>("Quad.fbx");
                 var renderer=obj.AddComponent<MeshRenderer>();
-                renderer.sharedMaterial=TerrainMaterial(textureId);
+                renderer.sharedMaterial=TerrainMaterial(textureId,false);
                 renderer.sortingOrder=BackdropOrder;
             }
 
@@ -146,7 +168,7 @@ namespace Remains.Presentation
             {
                 var manifest=art.Manifest;
                 if(!manifest.Masks.TryGetValue(maskName,out var mask)) throw new InvalidOperationException($"{room.Template}: маска {maskName} не экспортирована ({name}).");
-                var map=Map(name+"|"+textureId,name,textureId,order);
+                var map=Map(name+"|"+textureId,name,textureId,order,order!=BackOrder);
                 float cell=(float)room.Cell;
                 float scale=floor?1:(4-height)/4f;          // partial height squashes the shape onto the lowered top
                 float drop=floor?cell*height/4f:0;           // the floor strip moves down with the lowered top
@@ -192,19 +214,29 @@ namespace Remains.Presentation
                 renderer.sortingOrder=definition.Rear?RearSpriteOrder:FrontSpriteOrder;
             }
 
-            private Material TerrainMaterial(string textureId)
+            // Walls (solid layers) fade lamp light from their open edges; backdrop and back walls do not.
+            private Material TerrainMaterial(string textureId,bool wall)
             {
-                if(lifetime.Materials.TryGetValue(textureId,out var material)) return material;
-                material=new Material(shader){name="Terrain:"+textureId};
+                bool edged=wall && edges!=null;
+                string key=edged?textureId+"|кромка":textureId;
+                if(lifetime.Materials.TryGetValue(key,out var material)) return material;
+                material=new Material(shader){name="Terrain:"+key};
+                if(edged)
+                {
+                    material.SetTexture("_EdgeTex",edges);
+                    material.SetFloat("_EdgeWidth",litEdge);
+                    material.SetFloat("_EdgeCell",(float)room.Cell);
+                    material.SetVector("_EdgeOrigin",new Vector4(origin.x,origin.y,0,0));
+                }
                 material.SetTexture("_MaterialTex",art.Texture(textureId));
                 // Original bitmap fill starts at the room's top-left corner.
                 material.SetVector("_MaterialOrigin",new Vector4(origin.x,origin.y+room.Height*(float)room.Cell,0,0));
                 material.SetFloat("_TexelsPerMeter",(float)(art.Manifest.CellPixels/room.Cell));
-                lifetime.Materials.Add(textureId,material);
+                lifetime.Materials.Add(key,material);
                 return material;
             }
 
-            private Tilemap Map(string key,string name,string textureId,int order)
+            private Tilemap Map(string key,string name,string textureId,int order,bool wall)
             {
                 if(maps.TryGetValue(key,out var map)) return map;
                 var obj=new GameObject("Слой: "+name);
@@ -214,7 +246,7 @@ namespace Remains.Presentation
                 var renderer=obj.AddComponent<TilemapRenderer>();
                 renderer.sortingOrder=order;
                 renderer.mode=TilemapRenderer.Mode.Chunk;
-                renderer.sharedMaterial=TerrainMaterial(textureId);
+                renderer.sharedMaterial=TerrainMaterial(textureId,wall);
                 maps.Add(key,map);
                 return map;
             }
