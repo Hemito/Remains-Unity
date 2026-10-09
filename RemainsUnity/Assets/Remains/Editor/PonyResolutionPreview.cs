@@ -16,6 +16,8 @@ namespace Remains.Editor
     // -ponySupersample N: each panel is composed N× larger and box-filtered down (seam check).
     // -ponyParts: instead of the comparison, a grid with each visible part highlighted in red over the
     //   pony (current textures), labelled by index, shape path and texture (find which part draws a seam).
+    // -ponyFeather name:fraction[,name:fraction]: candidate texture <name> gets its top <fraction> of
+    //   height faded to transparent (mock-up of softening a straight joint edge).
     // -ponyNoTint: original colours (no appearance tint), to compare with the SWF render.
     // -ponyFixUv Z: candidate textures were exported at zoom Z with the canvas rounded up to whole
     // pixels; map only the shape's exact span (span·Z / canvas) instead of stretching the whole canvas.
@@ -61,10 +63,12 @@ namespace Remains.Editor
                     var tex=new Texture2D(2,2,TextureFormat.RGBA32,true,false){name=current.name,filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
                     tex.LoadImage(File.ReadAllBytes(file),false);
                     Dilate(tex);
+                    Feather(tex);
                     candidates.Add(current,tex);
                     var bc=new Texture2D(2,2,TextureFormat.RGBA32,true,false){name=current.name+" BC7",filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
                     bc.LoadImage(File.ReadAllBytes(file),false);
                     Dilate(bc);
+                    Feather(bc);
                     EditorUtility.CompressTexture(bc,TextureFormat.BC7,TextureCompressionQuality.Best);
                     compressed.Add(current,bc);
                     bytesNow+=UnityEngine.Profiling.Profiler.GetRuntimeMemorySizeLong(current);
@@ -152,6 +156,24 @@ namespace Remains.Editor
             for(int i=0;i<tiles.Count;i++) sheet.SetPixels((i%columns)*tw,(rows-1-i/columns)*th,tw,th,tiles[i].GetPixels());
             File.WriteAllBytes(output,sheet.EncodeToPNG());
             for(int i=0;i<parts.Length;i++) Debug.Log($"Часть {i}: {parts[i].sourcePath} текстура {parts[i].material.mainTexture.name} область {parts[i].slot} порядок {parts[i].drawOrder}");
+        }
+
+        private static void Feather(Texture2D texture)
+        {
+            string spec=Argument("-ponyFeather");if(spec==null) return;
+            foreach(string item in spec.Split(','))
+            {
+                var pair=item.Split(':');
+                if(pair[0]!=texture.name.Replace(" BC7","")) continue;
+                float fraction=float.Parse(pair[1],System.Globalization.CultureInfo.InvariantCulture);
+                var px=texture.GetPixels32();int w=texture.width,h=texture.height;int band=Mathf.Max(1,Mathf.RoundToInt(h*fraction));
+                for(int y=h-band;y<h;y++)   // Unity rows go up: the top of the picture is the last rows
+                {
+                    float keep=Mathf.SmoothStep(1,0,(y-(h-band)+0.5f)/band);
+                    for(int x=0;x<w;x++) {int i=y*w+x;px[i].a=(byte)(px[i].a*keep);}
+                }
+                texture.SetPixels32(px);texture.Apply(true,false);
+            }
         }
 
         // Like the importer's alphaIsTransparency: transparent pixels take the colour of the nearest
