@@ -8,11 +8,17 @@ using System.Xml.Linq;
 
 namespace Remains.RoomFormat.Original
 {
-    // Explicit mapping of original structural forms to our IDs and palette keys.
+    // Explicit mapping of an original structural form to a semantic layer, ID and palette key.
+    public sealed class OriginalStructuralForm
+    {
+        public string Id, Layer;
+        public char Key;
+    }
+
     public sealed class OriginalFormMap
     {
         public string SolidPrefix, BackPrefix;
-        public readonly Dictionary<string, KeyValuePair<string, char>> Over = new Dictionary<string, KeyValuePair<string, char>>(StringComparer.Ordinal);
+        public readonly Dictionary<string, OriginalStructuralForm> Structural = new Dictionary<string, OriginalStructuralForm>(StringComparer.Ordinal);
 
         public static OriginalFormMap Parse(string json, string source)
         {
@@ -24,14 +30,23 @@ namespace Remains.RoomFormat.Original
                 SolidPrefix = root.Get("solidPrefix").AsString(source + ".solidPrefix"),
                 BackPrefix = root.Get("backPrefix").AsString(source + ".backPrefix"),
             };
-            var keys = new HashSet<char>();
-            foreach (var entry in root.Get("over").Fields)
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            var structural = root.Get("structural") ?? throw new FormatException(source + ": нет раздела structural.");
+            foreach (var entry in structural.Fields)
             {
-                string id = entry.Value.Get("id").AsString(source + ".over." + entry.Key + ".id");
-                string key = entry.Value.Get("key").AsString(source + ".over." + entry.Key + ".key");
-                if (key.Length != 1 || key[0] == RoomFile.Empty || !keys.Add(key[0]))
-                    throw new FormatException($"{source}: ключ \"{key}\" формы {entry.Key} не одиночный, зарезервирован или повторён.");
-                map.Over.Add(entry.Key, new KeyValuePair<string, char>(id, key[0]));
+                string ctx = source + ".structural." + entry.Key;
+                var form = new OriginalStructuralForm
+                {
+                    Id = entry.Value.Get("id").AsString(ctx + ".id"),
+                    Layer = entry.Value.Get("layer").AsString(ctx + ".layer"),
+                };
+                string key = entry.Value.Get("key").AsString(ctx + ".key");
+                if (Array.IndexOf(RoomLayers.Structural, form.Layer) < 0)
+                    throw new FormatException($"{ctx}: слой \"{form.Layer}\" не структурный ({string.Join(", ", RoomLayers.Structural)}).");
+                if (key.Length != 1 || key[0] == RoomFile.Empty || !keys.Add(form.Layer + key))
+                    throw new FormatException($"{ctx}: ключ \"{key}\" не одиночный, зарезервирован или повторён в слое {form.Layer}.");
+                form.Key = key[0];
+                map.Structural.Add(entry.Key, form);
             }
             return map;
         }
@@ -49,7 +64,9 @@ namespace Remains.RoomFormat.Original
         public readonly SortedDictionary<string, int> UnmappedOver = new SortedDictionary<string, int>(StringComparer.Ordinal);
         public readonly int[] OverlayCount = new int[4];          // cells with 0,1,2,3+ overlays
         public readonly List<string> OverlayExamples = new List<string>();
-        public int ZadApplied, ZadUnknown, PartialHeight, PartialWithoutSolid, Water;
+        public int ZadApplied, ZadUnknown, PartialHeight, PartialWithoutSolid, Water, MaterialOrderExceptions;
+        public readonly SortedDictionary<string, int> SameLayerTwice = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        public readonly SortedDictionary<string, int> LayerCombinations = new SortedDictionary<string, int>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, int> SolidUse = new SortedDictionary<string, int>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, int> BackUse = new SortedDictionary<string, int>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, int> OverUse = new SortedDictionary<string, int>(StringComparer.Ordinal);
@@ -174,8 +191,8 @@ namespace Remains.RoomFormat.Original
         {
             var solid = RoomLayers.NewGrid(room.Width, room.Height);
             var back = RoomLayers.NewGrid(room.Width, room.Height);
-            var over1 = RoomLayers.NewGrid(room.Width, room.Height);
-            var over2 = RoomLayers.NewGrid(room.Width, room.Height);
+            var structural = new Dictionary<string, char[][]>(StringComparer.Ordinal);
+            foreach (string layer in RoomLayers.Structural) structural.Add(layer, RoomLayers.NewGrid(room.Width, room.Height));
             var height = RoomLayers.NewGrid(room.Width, room.Height);
             var water = RoomLayers.NewGrid(room.Width, room.Height);
             var cellExtra = JsonValue.NewArray();
@@ -192,7 +209,7 @@ namespace Remains.RoomFormat.Original
                     if (cell.Solid != null)
                     {
                         solid[r][x] = cell.Solid[0];
-                        room.Palette(RoomLayers.SolidGroup)[cell.Solid[0]] = map.SolidPrefix + cell.Solid;
+                        room.Palette(RoomLayers.Solid)[cell.Solid[0]] = map.SolidPrefix + cell.Solid;
                         ConversionReport.Count(Report.SolidUse, cell.Solid);
                     }
                     if (cell.Back != null)
@@ -200,7 +217,7 @@ namespace Remains.RoomFormat.Original
                         if (forms.Other.TryGetValue(cell.Back, out var backForm) && backForm.Ed == 2 && cell.Back.Length == 1)
                         {
                             back[r][x] = cell.Back[0];
-                            room.Palette(RoomLayers.BackGroup)[cell.Back[0]] = map.BackPrefix + cell.Back;
+                            room.Palette(RoomLayers.Back)[cell.Back[0]] = map.BackPrefix + cell.Back;
                             ConversionReport.Count(Report.BackUse, cell.Back);
                         }
                         else { Report.ZadUnknown++; lossy = true; }
@@ -216,14 +233,20 @@ namespace Remains.RoomFormat.Original
 
                     Report.OverlayCount[Math.Min(cell.Overlays.Count, 3)]++;
                     if (cell.Overlays.Count >= 2 && Report.OverlayExamples.Count < 12) Report.OverlayExamples.Add(token);
-                    for (int i = 0; i < cell.Overlays.Count; i++)
+                    string previousLayer = null;
+                    foreach (string id in cell.Overlays)
                     {
-                        string id = cell.Overlays[i];
-                        if (!map.Over.TryGetValue(id, out var target)) { ConversionReport.Count(Report.UnmappedOver, id); lossy = true; continue; }
-                        if (i >= 2) { lossy = true; continue; }
-                        (i == 0 ? over1 : over2)[r][x] = target.Value;
-                        room.Palette(RoomLayers.OverGroup)[target.Value] = target.Key;
+                        if (!map.Structural.TryGetValue(id, out var target)) { ConversionReport.Count(Report.UnmappedOver, id); lossy = true; continue; }
+                        var grid = structural[target.Layer];
+                        if (grid[r][x] != RoomFile.Empty) { ConversionReport.Count(Report.SameLayerTwice, target.Layer); lossy = true; continue; }
+                        // Original: the last applied form with a material decides the cell material.
+                        // Our rule: platform/stairs material over ladder; a ladder applied after them would break it.
+                        if (target.Layer == RoomLayers.Ladder && previousLayer != null && previousLayer != RoomLayers.Ladder) { Report.MaterialOrderExceptions++; lossy = true; }
+                        grid[r][x] = target.Key;
+                        room.Palette(target.Layer)[target.Key] = target.Id;
                         ConversionReport.Count(Report.OverUse, id);
+                        if (previousLayer != null) ConversionReport.Count(Report.LayerCombinations, previousLayer + "+" + target.Layer);
+                        previousLayer = target.Layer;
                     }
 
                     if (cell.IgnoredFirst != '\0') { ConversionReport.Count(Report.IgnoredFirst, cell.IgnoredFirst.ToString()); lossy = true; }
@@ -240,8 +263,7 @@ namespace Remains.RoomFormat.Original
 
             Store(room, RoomLayers.Solid, solid);
             Store(room, RoomLayers.Back, back);
-            Store(room, RoomLayers.Over1, over1);
-            Store(room, RoomLayers.Over2, over2);
+            foreach (var layer in structural) Store(room, layer.Key, layer.Value);
             Store(room, RoomLayers.Height, height);
             Store(room, RoomLayers.Water, water);
             return cellExtra;

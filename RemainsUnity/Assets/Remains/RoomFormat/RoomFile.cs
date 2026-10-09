@@ -56,20 +56,20 @@ namespace Remains.RoomFormat
     }
 
     // Layer catalogue: which palette group a layer uses, or which fixed alphabet.
+    // Structural layers are semantic (one ladder, one platform, one stairs per cell);
+    // there is no slot limit inherited from the original renderer.
     public static class RoomLayers
     {
-        public const string Solid = "solid", Back = "back", Over1 = "over1", Over2 = "over2", Height = "height", Water = "water";
-        public const string SolidGroup = "solid", BackGroup = "back", OverGroup = "over";
-        public static readonly string[] All = { Solid, Back, Over1, Over2, Height, Water };
+        public const string Solid = "solid", Back = "back", Ladder = "ladder", Platform = "platform", Stairs = "stairs", Height = "height", Water = "water";
+        public static readonly string[] All = { Solid, Back, Ladder, Platform, Stairs, Height, Water };
+        public static readonly string[] Structural = { Ladder, Platform, Stairs };
 
-        // Palette group of a layer, or null for fixed-alphabet layers.
+        // Palette group of a layer (same name), or null for fixed-alphabet layers.
         public static string GroupOf(string layer)
         {
             switch (layer)
             {
-                case Solid: return SolidGroup;
-                case Back: return BackGroup;
-                case Over1: case Over2: return OverGroup;
+                case Solid: case Back: case Ladder: case Platform: case Stairs: return layer;
                 case Height: case Water: return null;
                 default: throw new ArgumentException("Неизвестный слой комнаты: " + layer);
             }
