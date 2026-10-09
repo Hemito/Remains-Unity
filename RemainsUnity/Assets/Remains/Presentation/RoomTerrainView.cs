@@ -17,7 +17,7 @@ namespace Remains.Presentation
     {
         // Draw order inside the room's SortingGroup (same scale as RoomVisual).
         public const int BackdropOrder=-30,BackOrder=-29,RearOrder=-6,FrontOrder=-4,BorderOrder=-3,FloorOrder=-2,RearSpriteOrder=-5,FrontSpriteOrder=1;
-        private const string ShaderResource="Presentation/WorldTerrain";
+        private const string ShaderResource="Presentation/WorldTerrain",SpriteShaderResource="Presentation/WorldSprite";
 
         // litEdge: how deep (m, up to one cell) lamp light enters a wall from its open edge (lighting table shadows.edge), 0 = walls lit evenly.
         public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,double litEdge,Transform parent=null)
@@ -212,7 +212,19 @@ namespace Remains.Presentation
                 obj.transform.localPosition=new Vector3(x*cell,(y+1)*cell,0);   // original: tile top-left is the registration point
                 var renderer=obj.AddComponent<SpriteRenderer>();
                 renderer.sprite=entry.sprite;
+                renderer.sharedMaterial=SpriteMaterial();
                 renderer.sortingOrder=definition.Rear?RearSpriteOrder:FrontSpriteOrder;
+            }
+
+            // Sprites (ladders, stair sprites) share the world lighting of the terrain (WorldSprite).
+            private Material SpriteMaterial()
+            {
+                const string key="спрайты";
+                if(lifetime.Materials.TryGetValue(key,out var material)) return material;
+                var spriteShader=Resources.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
+                material=new Material(spriteShader){name="Sprites:"+room.Template};
+                lifetime.Materials.Add(key,material);
+                return material;
             }
 
             // Walls (solid layers) fade lamp light from their open edges; backdrop and back walls do not.
