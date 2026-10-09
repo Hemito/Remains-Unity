@@ -70,12 +70,20 @@ namespace Remains.Editor
                     Require(AssetDatabase.AssetPathToGUID(destination.texturePath)==destination.textureGuid,"GUID текстуры изменён: "+destination.texturePath);
                     if(preserveOriginalMetadata) Require(Hash(AssetFile(destination.texturePath)+".meta")==destination.metaBeforeSha256,"Регистрация/importer изменены до миграции: "+destination.texturePath);
                     var importer=AssetImporter.GetAtPath(destination.texturePath) as TextureImporter;
-                    Require(importer!=null && importer.textureType==TextureImporterType.Default && importer.npotScale==TextureImporterNPOTScale.None &&
-                        !importer.mipmapEnabled && importer.textureCompression==TextureImporterCompression.Uncompressed && importer.maxTextureSize>=Math.Max(entry.pixelWidth,entry.pixelHeight),
-                        "Импорт изменит плотность или тип текстуры: "+destination.texturePath);
-                    var standalone=importer.GetPlatformTextureSettings("Standalone");
-                    Require(!standalone.overridden || standalone.maxTextureSize>=Math.Max(entry.pixelWidth,entry.pixelHeight) && standalone.textureCompression==TextureImporterCompression.Uncompressed,
-                        "Standalone уменьшит/сожмёт рисунок: "+destination.texturePath);
+                    int size=Math.Max(entry.pixelWidth,entry.pixelHeight);
+                    // Base pony textures follow the shared pony import policy (mipmaps, edge dilation,
+                    // compression — 2026-10-10, seams); wearable aliases keep the r63 rule.
+                    if(PonyTextureImportPolicy.Applies(destination.texturePath))
+                        Require(PonyTextureImportPolicy.Complies(importer,size),"Импорт не по правилу текстур пони: "+destination.texturePath);
+                    else
+                    {
+                        Require(importer!=null && importer.textureType==TextureImporterType.Default && importer.npotScale==TextureImporterNPOTScale.None &&
+                            !importer.mipmapEnabled && importer.textureCompression==TextureImporterCompression.Uncompressed && importer.maxTextureSize>=size,
+                            "Импорт изменит плотность или тип текстуры: "+destination.texturePath);
+                        var standalone=importer.GetPlatformTextureSettings("Standalone");
+                        Require(!standalone.overridden || standalone.maxTextureSize>=size && standalone.textureCompression==TextureImporterCompression.Uncompressed,
+                            "Standalone уменьшит/сожмёт рисунок: "+destination.texturePath);
+                    }
                 }
             }
             return manifest;
