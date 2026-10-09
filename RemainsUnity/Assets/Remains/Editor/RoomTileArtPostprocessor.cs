@@ -42,7 +42,9 @@ namespace Remains.Editor
             importer.textureType=TextureImporterType.Sprite;
             importer.spriteImportMode=SpriteImportMode.Single;
             importer.wrapMode=TextureWrapMode.Clamp;
-            importer.textureCompression=TextureImporterCompression.Uncompressed;
+            // Cell masks stay exact (shapes); decor and object art (hundreds of frames) is compressed.
+            bool worldArt=art.Id.StartsWith("decor",StringComparison.Ordinal) || art.Id.StartsWith("object:",StringComparison.Ordinal);
+            importer.textureCompression=worldArt?TextureImporterCompression.CompressedHQ:TextureImporterCompression.Uncompressed;
             importer.spritePixelsPerUnit=(float)(SourcePixelsPerMeter*art.Zoom);
             var settings=new TextureImporterSettings();
             importer.ReadTextureSettings(settings);

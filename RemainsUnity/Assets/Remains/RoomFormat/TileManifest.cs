@@ -41,6 +41,10 @@ namespace Remains.RoomFormat
         public static string MaskFrameId(int clip, int frame) => $"mask:{clip}:{frame}";
         public static string FrontFrameId(int frame) => $"front:{frame}";
         public static string TextureId(string name) => "texture:" + name;
+        // Original decor <back>: drawing clip back_<name>_t and background-erase clip back_<name>_e; objects <obj>: clip vis<name>.
+        public static string DecorFrameId(string name, int frame) => $"decor:{name}:{frame}";
+        public static string DecorEraseFrameId(string name, int frame) => $"decor-erase:{name}:{frame}";
+        public static string ObjectFrameId(string name, int frame) => $"object:{name}:{frame}";
 
         public string Write()
         {
