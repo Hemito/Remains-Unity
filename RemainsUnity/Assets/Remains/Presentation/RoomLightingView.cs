@@ -9,8 +9,8 @@ namespace Remains.Presentation
 {
     // Room lighting with URP 2D lights (stage L1, preview only): global light from the
     // room/land darkness and color tint, a point light with real-time shadows per lamp decor,
-    // and shadow casters generated from the grid geometry (solid cells and beams). Casters are
-    // shape providers only: game physics does not use Physics2D.
+    // and shadow casters generated from the grid geometry (solid cells and beams): scaled unit
+    // squares, no Physics2D colliders.
     public static class RoomLightingView
     {
         public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent=null)
@@ -73,11 +73,14 @@ namespace Remains.Presentation
                 var obj=new GameObject("Тень");
                 obj.transform.SetParent(casters.transform,false);
                 obj.transform.localPosition=new Vector3((float)(surface.X+surface.Width/2),(float)(surface.Y+surface.Height/2),0);
-                var box=obj.AddComponent<BoxCollider2D>();
-                box.size=new Vector2((float)surface.Width,(float)surface.Height);
-                box.isTrigger=true;
+                // Without a Renderer the caster's Awake (runs inside AddComponent) builds a unit square in
+                // local space; the scale applied afterwards stretches it to the rectangle. Public API only,
+                // works in player builds; no collider / shape provider (that one builds only in the editor loop).
                 var caster=obj.AddComponent<ShadowCaster2D>();
                 caster.castingOption=ShadowCaster2D.ShadowCastingOptions.CastShadow;
+                obj.transform.localScale=new Vector3((float)surface.Width,(float)surface.Height,1);
+                if(caster.mesh==null || caster.mesh.vertexCount==0)
+                    issues.Add($"{room.Template}: тенеотбрасыватель {surface.X:0.##},{surface.Y:0.##} {surface.Width:0.##}×{surface.Height:0.##} без сетки — тени от него не будет.");
             }
             foreach(string issue in issues) Debug.LogWarning(issue);
             Debug.Log($"Свет {room.Template}: общий {global.intensity:0.##}, тон {(string.IsNullOrEmpty(colorName)?"нет":colorName)}, ламп {lamps}{(lampsOn?"":" (выключены комнатой)")}, теней {casters.transform.childCount}.");
