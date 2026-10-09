@@ -192,7 +192,7 @@ namespace Remains.Presentation
             var cmd=new CommandBuffer{name="Стирание фона комнаты"};
             cmd.SetRenderTarget(erase);
             cmd.ClearRenderTarget(false,true,Color.black);
-            cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(origin.x,origin.x+size.x,origin.y,origin.y+size.y,-1,1),true));
+            cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(origin.x,origin.x+size.x,origin.y,origin.y+size.y,-1,1),false));
             var block=new MaterialPropertyBlock();
             foreach(var (sprite,matrix) in clips)
             {

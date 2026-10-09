@@ -1,6 +1,6 @@
 // Radiance cascades (flatland light transport, prototype). Grid = room light texels.
-// Scene: rgb emitted radiance, a = absorption (1 walls and lamps; objects partly: a ray crossing the
-// texel keeps 1 - a of its light). Rays gather emission × transmittance until it runs out (an
+// Scene: rgb emitted radiance (lamps, glowing screens), a = absorption (1 walls and lamps; objects
+// partly: a ray crossing the texel keeps 1 - a of its light). Rays gather emission × transmittance until it runs out (an
 // opaque texel ends the ray); rays leaving the room are lost (as in the reference tracer).
 // Cascade c: probes every 2^c texels, 4^(c+1) directions, ray interval [(4^c-1)/3, (4^(c+1)-1)/3]
 // texels (a hit takes the scene emission plus the wall's bounce radiance); each probe stores its directions as a 2^(c+1) square block. Computed from the top
@@ -44,7 +44,8 @@ bool Inside(int2 p) { return all(p >= 0) && all(p < _Size); }
 void Seed(uint3 id : SV_DispatchThreadID)
 {
     if (!Inside(int2(id.xy))) return;
-    _SeedsOut[id.xy] = _Scene[id.xy].a > 0.004 ? float2(id.xy) : float2(-FAR, -FAR);
+    float4 scene = _Scene[id.xy];
+    _SeedsOut[id.xy] = scene.a > 0.004 || any(scene.rgb > 0) ? float2(id.xy) : float2(-FAR, -FAR);
 }
 
 // Jump flood: nearest opaque texel among the 3×3 neighbours at distance _Step.
@@ -101,10 +102,10 @@ void Cascade(uint3 id : SV_DispatchThreadID)
         float sd = _Distance[texel];
         if (sd < 0.5)
         {
-            // Absorbing texel: its emission (and wall bounce) weighted by what it absorbs, then the
-            // light behind it is dimmed. One step per texel inside absorbers.
+            // Emitting or absorbing texel: its emission (lamps, glowing screens; walls' bounce by
+            // their absorption), then the light behind it is dimmed. One step per texel inside.
             float4 scene = _Scene[texel];
-            result.rgb += result.a * (scene.rgb + _Bounce[texel].rgb) * scene.a;
+            result.rgb += result.a * (scene.rgb + _Bounce[texel].rgb * scene.a);
             result.a *= 1 - scene.a;
             t += 1.0;
         }

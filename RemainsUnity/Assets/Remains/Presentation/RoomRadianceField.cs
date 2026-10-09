@@ -68,20 +68,20 @@ namespace Remains.Presentation
             field.wallsTexture=sceneTexture;
             field.scene=sceneTexture;
             field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;
-            int emitters=0,absorbers=0;
-            if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers);
+            int emitters=0,absorbers=0,glowing=0;
+            if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers,ref glowing);
             field.rect=new Vector4(origin.x,origin.y,w*t,h*t);
             // Top cascade: the ray interval reaches the room diagonal, (4^(levels) - 1) / 3 ≥ diagonal.
             float diagonal=Mathf.Sqrt(w*w+h*h);
             field.levels=1;
             while((Mathf.Pow(4,field.levels)-1)/3<diagonal) field.levels++;
             field.Allocate();
-            Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters}, поглощающих объектов {absorbers}."));
+            Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters}, поглощающих объектов {absorbers}, светящихся экранов {glowing}."));
             return field;
         }
 
         // Walls + sprites into one scene target at the light grid resolution (max blend: walls stay).
-        private RenderTexture DrawSprites(Texture2D walls,IReadOnlyList<RoomSpritePlacement> sprites,RoomLightingTable table,RoomLightScene light,Vector4 worldRect,ref int emitters,ref int absorbers)
+        private RenderTexture DrawSprites(Texture2D walls,IReadOnlyList<RoomSpritePlacement> sprites,RoomLightingTable table,RoomLightScene light,Vector4 worldRect,ref int emitters,ref int absorbers,ref int glowing)
         {
             var shader=Resources.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource);
             var target=Target(walls.width,walls.height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света");
@@ -101,12 +101,16 @@ namespace Remains.Presentation
                 var bounds=placement.Sprite.bounds;
                 block.Clear();
                 block.SetTexture("_MainTex",placement.Sprite.texture);
-                if(d.Kind==RoomDefinitionKind.Decor)
+                bool glows=table.Glow.TryGetValue(d.Id,out var glow);
+                block.SetFloat("_Glow",glows?(float)glow.Gain:0);
+                block.SetFloat("_GlowThreshold",glows?(float)glow.Threshold:1);
+                if(glows) glowing++;
+                if(d.Kind==RoomDefinitionKind.Decor && table.Lamps.TryGetValue(d.Id,out var lamp))
                 {
-                    if(!table.Lamps.TryGetValue(d.Id,out var lamp)) continue;   // other decor hangs on the back wall
-                    // Flatland: fluence 1 m away ≈ radiance × apparent width; width = equal-area disk diameter.
+                    // Flatland: fluence 1 m away ≈ radiance × apparent width; width = diameter of the disk
+                    // with the silhouette's area, so every lamp sends the table's power whatever its shape.
                     var scale=placement.LocalToWorld.lossyScale;
-                    double area=Math.Abs(bounds.size.x*scale.x*bounds.size.y*scale.y);
+                    double area=SilhouetteArea(placement.Sprite)*Math.Abs(scale.x*scale.y);
                     double width=Math.Max(texel,2*Math.Sqrt(area/Math.PI));
                     double l=table.RadiancePower*lamp.Intensity/width;
                     block.SetColor("_Emission",new Color((float)(l*lamp.Color[0]*light.Tint[0]),(float)(l*lamp.Color[1]*light.Tint[1]),(float)(l*lamp.Color[2]*light.Tint[2]),1));
@@ -115,22 +119,55 @@ namespace Remains.Presentation
                 }
                 else
                 {
-                    double absorption=table.ObjectAbsorption(d);
-                    if(absorption<=0) continue;
+                    // Decor hangs on the back wall (no absorption); objects by the table rule.
+                    double absorption=d.Kind==RoomDefinitionKind.Object?table.ObjectAbsorption(d):0;
+                    if(absorption<=0 && !glows) continue;
                     // The table gives what the whole object stops; per texel so that crossing its
                     // thickness (smaller side) stops that much: 1 - (1 - A)^(1 / thickness).
                     var scale=placement.LocalToWorld.lossyScale;
                     double thickness=Math.Max(1,Math.Min(Math.Abs(bounds.size.x*scale.x),Math.Abs(bounds.size.y*scale.y))/texel);
-                    double perTexel=absorption>=1?1:1-Math.Pow(1-absorption,1/thickness);
+                    double perTexel=absorption<=0?0:absorption>=1?1:1-Math.Pow(1-absorption,1/thickness);
                     block.SetColor("_Emission",Color.clear);
                     block.SetFloat("_Absorption",(float)perTexel);
-                    absorbers++;
+                    if(absorption>0) absorbers++;
                 }
                 cmd.DrawMesh(quad,placement.LocalToWorld*Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),sceneMaterial,0,0,block);
             }
             Graphics.ExecuteCommandBuffer(cmd);
             cmd.Release();
             return target;
+        }
+
+        private readonly Dictionary<Sprite,double> silhouettes=new();
+
+        // Area (m²) a lamp sprite actually emits from in the light grid: the sprite drawn alone with
+        // the scene shader into a grid-sized target, lit texels counted (once per sprite, at build).
+        private double SilhouetteArea(Sprite sprite)
+        {
+            if(silhouettes.TryGetValue(sprite,out double cached)) return cached;
+            var bounds=sprite.bounds;
+            int w=Mathf.CeilToInt(bounds.size.x/texel)+2,h=Mathf.CeilToInt(bounds.size.y/texel)+2;
+            var target=RenderTexture.GetTemporary(w,h,0,RenderTextureFormat.ARGBHalf,RenderTextureReadWrite.Linear);
+            var cmd=new CommandBuffer{name="Площадь лампы"};
+            cmd.SetRenderTarget(target);
+            cmd.ClearRenderTarget(false,true,Color.clear);
+            cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(bounds.min.x-texel,bounds.min.x-texel+w*texel,bounds.min.y-texel,bounds.min.y-texel+h*texel,-1,1),false));
+            var block=new MaterialPropertyBlock();
+            block.SetTexture("_MainTex",sprite.texture);
+            block.SetColor("_Emission",Color.white);
+            cmd.DrawMesh(quad,Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),sceneMaterial,0,0,block);
+            Graphics.ExecuteCommandBuffer(cmd);
+            cmd.Release();
+            var previous=RenderTexture.active;RenderTexture.active=target;
+            var copy=new Texture2D(w,h,TextureFormat.RGBAHalf,false,true);
+            copy.ReadPixels(new Rect(0,0,w,h),0,0);
+            RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);
+            int count=0;
+            foreach(var pixel in copy.GetPixels()) if(pixel.r>0.5f) count++;
+            UnityEngine.Object.DestroyImmediate(copy);
+            double area=Math.Max(1,count)*texel*texel;
+            silhouettes[sprite]=area;
+            return area;
         }
 
         private void Allocate()

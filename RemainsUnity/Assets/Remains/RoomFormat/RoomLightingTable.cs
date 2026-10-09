@@ -25,13 +25,16 @@ namespace Remains.RoomFormat
         // Light absorbed by free-standing objects by size class, and per-definition overrides.
         public readonly SortedDictionary<int, double> AbsorptionBySize = new SortedDictionary<int, double>();
         public readonly SortedDictionary<string, double> AbsorptionByObject = new SortedDictionary<string, double>(StringComparer.Ordinal);
+        // Screens and panels glowing by their bright pixels: definition -> (gain, luminance threshold).
+        public readonly SortedDictionary<string, (double Gain, double Threshold)> Glow = new SortedDictionary<string, (double, double)>(StringComparer.Ordinal);
 
-        // Share of light an object stops (0..1). Original placement depth: wall = 1 hangs on the back
+        // Share of light an object stops (0..1). Closed doors: all. Original placement depth: wall = 1 hangs on the back
         // wall (not in the light's plane) → 0; wall = 2 stands across the corridor (doors, grates,
         // windows) → its original "opac", else 1; free-standing → by size class (table), unless overridden.
         public double ObjectAbsorption(RoomDefinition definition)
         {
             if (AbsorptionByObject.TryGetValue(definition.Id, out double value)) return value;
+            if (definition.ObjectType == "door") return 1;   // a closed door stops light (open state: later, by object state)
             if (definition.Wall == 1) return 0;
             if (definition.Wall >= 2) return definition.Opacity > 0 ? definition.Opacity : 1;
             if (AbsorptionBySize.TryGetValue(Math.Max(1, definition.ObjectSize), out value)) return value;
@@ -66,6 +69,8 @@ namespace Remains.RoomFormat
             var absorption = root.Get("absorption") ?? throw new FormatException(source + ": нет раздела absorption.");
             foreach (var e in absorption.Get("bySize").Fields) table.AbsorptionBySize.Add(int.Parse(e.Key, System.Globalization.CultureInfo.InvariantCulture), e.Value.AsDouble(source + ".absorption.bySize." + e.Key));
             foreach (var e in absorption.Get("objects").Fields) table.AbsorptionByObject.Add(e.Key, e.Value.AsDouble(source + ".absorption.objects." + e.Key));
+            foreach (var e in (root.Get("glow") ?? throw new FormatException(source + ": нет раздела glow.")).Fields)
+                table.Glow.Add(e.Key, (e.Value.Get("gain").AsDouble(source + ".glow." + e.Key + ".gain"), e.Value.Get("threshold").AsDouble(source + ".glow." + e.Key + ".threshold")));
             if (table.ShadowEdge < 0) throw new FormatException(source + ".shadows.edge: ширина кромки не может быть отрицательной.");
             foreach (var t in root.Get("tints").Fields) table.Tints.Add(t.Key, Rgb(t.Value, source + ".tints." + t.Key));
             foreach (var l in root.Get("lamps").Fields)
