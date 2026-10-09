@@ -8,6 +8,8 @@ using Remains.RoomFormat;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
+using UnityEngine.SceneManagement;
 
 namespace Remains.Editor
 {
@@ -20,6 +22,7 @@ namespace Remains.Editor
     {
         private const string Definitions="Assets/Remains/Rooms/Original/definitions.json";
         private const string Lands="Assets/Remains/Rooms/Original/lands.json";
+        private const string Lighting="Assets/Remains/Rooms/Original/room-lighting.json";
         private static readonly (string template,string prefab)[] Rooms=
         {
             ("Assets/Remains/Rooms/Original/plant/tsekh1.room.json","Assets/Remains/RoomDrafts/FactoryWorkshop18.prefab"),
@@ -79,7 +82,10 @@ namespace Remains.Editor
 
         private static GameObject Build(RoomFile room,Vector2 origin)
         {
-            return RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin);
+            var view=RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin);
+            var lightingAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lighting)??throw new InvalidOperationException("Нет таблицы света "+Lighting);
+            RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),RoomLightingTable.Read(lightingAsset.text,Lighting),origin,view.transform.parent);
+            return view;
         }
 
         // Original: the land's fon, "fonDefault" when the land names none.
@@ -122,6 +128,7 @@ namespace Remains.Editor
             var target=new RenderTexture(width,height,24,RenderTextureFormat.ARGB32);
             camera.targetTexture=target;camera.aspect=(float)width/height;
             setup?.Invoke(camera);
+            TickLighting();
             camera.Render();
             var previous=RenderTexture.active;RenderTexture.active=target;
             var image=new Texture2D(width,height,TextureFormat.RGBA32,false);
@@ -130,6 +137,17 @@ namespace Remains.Editor
             File.WriteAllBytes(file,image.EncodeToPNG());
             camera.targetTexture=null;
             UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(target);UnityEngine.Object.DestroyImmediate(cameraObject);
+        }
+
+        // Preview-only: a batch render has no player loop, so 2D lights (mesh in LateUpdate) and
+        // shadow casters (shape in Update) are ticked once by hand before the single frame.
+        private static void TickLighting()
+        {
+            foreach(var root in SceneManager.GetActiveScene().GetRootGameObjects())
+            {
+                foreach(var caster in root.GetComponentsInChildren<ShadowCaster2D>(true)) caster.Update();
+                foreach(var light in root.GetComponentsInChildren<Light2D>(true)) light.SendMessage("LateUpdate",SendMessageOptions.DontRequireReceiver);
+            }
         }
 
         private static string Argument(string name)

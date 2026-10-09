@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Remains.RoomFormat
 {
-    public enum RoomDefinitionKind { Solid, Backwall, Ladder, Platform, Stairs }
+    public enum RoomDefinitionKind { Solid, Backwall, Ladder, Platform, Stairs, Decor }
 
     // Properties of one palette ID (spec §5). Visual data (textures, draw order) is added
     // with the tile catalogue; this is what geometry and terrain damage need.
@@ -20,6 +20,8 @@ namespace Remains.RoomFormat
         // Visual layers (TileManifest IDs / mask names). Draw order relative to actors: Rear.
         public string MainTexture, MainMask, AltTexture, BorderTexture, BorderMask, FloorTexture, FloorMask, Filter, FrontSprite;
         public bool Rear;
+        // Decor: footprint in cells from the placement cell (x right, rows down), drawing layer.
+        public int DecorWidth, DecorHeight, DecorLayer;
     }
 
     public sealed class RoomDefinitionCatalog
@@ -59,6 +61,8 @@ namespace Remains.RoomFormat
                 SetIf(v, "floorTexture", d.FloorTexture); SetIf(v, "floorMask", d.FloorMask);
                 SetIf(v, "filter", d.Filter); SetIf(v, "frontSprite", d.FrontSprite);
                 if (d.Rear) v.Set("rear", JsonValue.Of(true));
+                if (d.Kind == RoomDefinitionKind.Decor)
+                    v.Set("decorWidth", JsonValue.Of(d.DecorWidth)).Set("decorHeight", JsonValue.Of(d.DecorHeight)).Set("decorLayer", JsonValue.Of(d.DecorLayer));
                 if (d.Kind == RoomDefinitionKind.Ladder)
                     v.Set("facing", JsonValue.Of(d.Facing)).Set("ladderFraction", JsonValue.Of(d.LadderFraction))
                      .Set("movementOffset", JsonValue.Of(d.MovementOffset)).Set("artworkOffset", JsonValue.Of(d.ArtworkOffset));
@@ -69,7 +73,12 @@ namespace Remains.RoomFormat
         }
 
         private static void SetIf(JsonValue v, string key, string value) { if (!string.IsNullOrEmpty(value)) v.Set(key, JsonValue.Of(value)); }
-        private static string Str(JsonValue v, string key, string ctx) => v.Get(key)?.AsString(ctx + "." + key);
+        // Absent and JSON null both mean "not set" (e.g. original decor without a name).
+        private static string Str(JsonValue v, string key, string ctx)
+        {
+            var value = v.Get(key);
+            return value == null || value.Kind == JsonKind.Null ? null : value.AsString(ctx + "." + key);
+        }
 
         public static RoomDefinitionCatalog Read(string text, string source)
         {
@@ -86,9 +95,9 @@ namespace Remains.RoomFormat
                 catalog.Add(new RoomDefinition
                 {
                     Id = id, Kind = kind,
-                    Name = v.Get("name")?.AsString(ctx + ".name"),
-                    Source = v.Get("source")?.AsString(ctx + ".source"),
-                    MovementSound = v.Get("movementSound")?.AsString(ctx + ".movementSound"),
+                    Name = Str(v, "name", ctx),
+                    Source = Str(v, "source", ctx),
+                    MovementSound = Str(v, "movementSound", ctx),
                     Hp = (int)(v.Get("hp")?.AsLong(ctx + ".hp") ?? 0),
                     Threshold = (int)(v.Get("threshold")?.AsLong(ctx + ".threshold") ?? 0),
                     Indestructible = v.Get("indestructible")?.Bool ?? false,
@@ -102,6 +111,9 @@ namespace Remains.RoomFormat
                     FloorTexture = Str(v, "floorTexture", ctx), FloorMask = Str(v, "floorMask", ctx),
                     Filter = Str(v, "filter", ctx), FrontSprite = Str(v, "frontSprite", ctx),
                     Rear = v.Get("rear")?.Bool ?? false,
+                    DecorWidth = (int)(v.Get("decorWidth")?.AsLong(ctx + ".decorWidth") ?? 0),
+                    DecorHeight = (int)(v.Get("decorHeight")?.AsLong(ctx + ".decorHeight") ?? 0),
+                    DecorLayer = (int)(v.Get("decorLayer")?.AsLong(ctx + ".decorLayer") ?? 0),
                 });
             }
             return catalog;

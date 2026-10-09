@@ -26,6 +26,28 @@ namespace Remains.RoomFormat.Original
         public readonly Dictionary<string, OriginalForm> Front = new Dictionary<string, OriginalForm>(StringComparer.Ordinal);
         public readonly Dictionary<string, OriginalForm> Other = new Dictionary<string, OriginalForm>(StringComparer.Ordinal);
 
+        private static readonly Regex BackTag = new Regex(@"<back\s([^>]*?)/?>", RegexOptions.CultureInvariant);
+
+        // Decor definitions (<back id s x2 y2 .../>): size in cells (default 1) and drawing layer.
+        public static List<RoomDefinition> ParseDecor(string allDataText, string source)
+        {
+            var result = new List<RoomDefinition>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Match tag in BackTag.Matches(allDataText))
+            {
+                var attrs = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (Match a in Attribute.Matches(tag.Groups[1].Value)) attrs[a.Groups[1].Value] = a.Groups[2].Success ? a.Groups[2].Value : a.Groups[3].Value;
+                if (!attrs.TryGetValue("id", out string id) || !seen.Add(id)) continue;
+                int width = Int(attrs, "x2", source, id), height = Int(attrs, "y2", source, id);
+                result.Add(new RoomDefinition
+                {
+                    Id = "remains:decor:" + id, Kind = RoomDefinitionKind.Decor, Name = Get(attrs, "n"), Source = "AllData back id=" + id,
+                    DecorWidth = width > 0 ? width : 1, DecorHeight = height > 0 ? height : 1, DecorLayer = Int(attrs, "s", source, id),
+                });
+            }
+            return result;
+        }
+
         public static OriginalForms Parse(string allDataText, string source)
         {
             var result = new OriginalForms();

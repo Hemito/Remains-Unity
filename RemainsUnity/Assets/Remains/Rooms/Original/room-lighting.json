@@ -1,0 +1,36 @@
+{
+  "format": "remains-room-lighting",
+  "version": 1,
+  "note": "Свет комнат (L1, 2026-10-09). tints — множители цвета земли/комнаты (options.color) из Location.colorFilter оригинала (параметры, разрешено переносить). ambient и lamps — дизайн Remains: Unity, не копия оригинала (пользователь: «пока не смотрим на оригинал — есть шанс сделать лучше»). darkness комнаты/земли сдвигает общий свет: ambient = base − darkness × darknessScale, в пределах [min, max]. Лампы — декор, у которого в оригинале есть рисунок ореола (texture1.swf back_<id>_l).",
+  "ambient": { "base": 0.2, "darknessScale": 0.004, "min": 0.06, "max": 1.0 },
+  "tints": {
+    "green": [0.8, 1.16, 0.8],
+    "red": [1.1, 0.9, 0.7],
+    "fire": [1.1, 0.7, 0.5],
+    "lab": [0.9, 1.1, 0.7],
+    "black": [0.5, 0.6, 0.7],
+    "blue": [0.8, 0.8, 1.16],
+    "sky": [0.85, 1.12, 1.12],
+    "yellow": [1.25, 1.2, 0.9],
+    "purple": [1.08, 0.8, 1.12],
+    "pink": [1.1, 0.9, 1.0],
+    "blood": [1.08, 0.6, 0.6],
+    "blood2": [1.0, 0.1, 0.1],
+    "dark": [0.0, 0.0, 0.0],
+    "mf": [0.5, 0.5, 1.08]
+  },
+  "lamps": {
+    "remains:decor:light1": { "radius": 3.9, "intensity": 0.94, "color": [1.0, 0.93, 0.8], "offsetY": -0.2 },
+    "remains:decor:light2": { "radius": 4.9, "intensity": 1.02, "color": [0.95, 0.98, 1.0], "offsetY": -0.2 },
+    "remains:decor:light3": { "radius": 4.5, "intensity": 0.94, "color": [1.0, 0.95, 0.85], "offsetY": -0.2 },
+    "remains:decor:light4": { "radius": 5.9, "intensity": 1.10, "color": [0.95, 0.97, 1.0], "offsetY": -0.3 },
+    "remains:decor:light5": { "radius": 2.3, "intensity": 0.85, "color": [1.0, 0.25, 0.2], "offsetY": 0.0 },
+    "remains:decor:light6": { "radius": 3.9, "intensity": 0.94, "color": [1.0, 0.9, 0.75], "offsetY": -0.2 },
+    "remains:decor:light7": { "radius": 3.9, "intensity": 0.94, "color": [0.8, 0.95, 1.0], "offsetY": -0.2 },
+    "remains:decor:stlight1": { "radius": 3.9, "intensity": 0.94, "color": [1.0, 0.95, 0.85], "offsetY": -0.2 },
+    "remains:decor:stlight3": { "radius": 4.5, "intensity": 0.94, "color": [1.0, 0.95, 0.85], "offsetY": -0.2 },
+    "remains:decor:stlight4": { "radius": 5.9, "intensity": 1.10, "color": [1.0, 0.97, 0.9], "offsetY": -0.3 },
+    "remains:decor:bar": { "radius": 3.9, "intensity": 0.85, "color": [1.0, 0.6, 0.85], "offsetY": 0.0 },
+    "remains:decor:exit_light": { "radius": 6.5, "intensity": 0.77, "color": [0.85, 1.0, 0.85], "offsetY": 0.0 }
+  }
+}
