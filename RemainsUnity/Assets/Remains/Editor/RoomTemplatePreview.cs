@@ -16,6 +16,7 @@ namespace Remains.Editor
     public static class RoomTemplatePreview
     {
         private const string Definitions="Assets/Remains/Rooms/Original/definitions.json";
+        private const string Lands="Assets/Remains/Rooms/Original/lands.json";
         private static readonly (string template,string prefab)[] Rooms=
         {
             ("Assets/Remains/Rooms/Original/plant/tsekh1.room.json","Assets/Remains/RoomDrafts/FactoryWorkshop18.prefab"),
@@ -66,7 +67,8 @@ namespace Remains.Editor
             var definitionsAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Definitions)??throw new InvalidOperationException("Нет каталога "+Definitions);
             var art=AssetDatabase.LoadAssetAtPath<RoomTileArtAsset>(RoomTileArtAuthoring.AssetPath)
                 ??throw new InvalidOperationException("Нет набора графики клеток: выполните «Remains/Комнаты/Обновить набор графики клеток».");
-            return RoomTerrainView.Build(template.Room,RoomDefinitionCatalog.Read(definitionsAsset.text,Definitions),art,origin);
+            var landsAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lands)??throw new InvalidOperationException("Нет каталога земель "+Lands);
+            return RoomTerrainView.Build(template.Room,RoomDefinitionCatalog.Read(definitionsAsset.text,Definitions),RoomLandCatalog.Read(landsAsset.text,Lands),art,origin);
         }
 
         private static void Render(Vector2 size,Vector2 origin,string file)

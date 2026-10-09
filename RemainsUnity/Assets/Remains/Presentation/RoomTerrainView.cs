@@ -16,12 +16,12 @@ namespace Remains.Presentation
     public static class RoomTerrainView
     {
         // Draw order inside the room's SortingGroup (same scale as RoomVisual).
-        public const int BackOrder=-29,RearOrder=-6,FrontOrder=-4,BorderOrder=-3,FloorOrder=-2,RearSpriteOrder=-5,FrontSpriteOrder=1;
+        public const int BackdropOrder=-30,BackOrder=-29,RearOrder=-6,FrontOrder=-4,BorderOrder=-3,FloorOrder=-2,RearSpriteOrder=-5,FrontSpriteOrder=1;
         private const string ShaderResource="Presentation/WorldTerrain";
 
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomTileArtAsset art,Vector2 origin,Transform parent=null)
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,Transform parent=null)
         {
-            if(room==null || definitions==null || art==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):nameof(art));
+            if(room==null || definitions==null || lands==null || art==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):nameof(art));
             var shader=Resources.Load<Shader>(ShaderResource)??throw new InvalidOperationException("Нет шейдера "+ShaderResource);
             var root=new GameObject("Оформление комнаты: "+room.Template);
             if(parent!=null) root.transform.SetParent(parent,false);
@@ -33,6 +33,7 @@ namespace Remains.Presentation
             grid.cellSize=new Vector3(quarter,quarter,0);
             var shapes=RoomTerrainShapes.Compute(room);
             var builder=new Builder(room,definitions,art,shader,root.transform,lifetime,quarter,origin);
+            builder.Backdrop(lands);
 
             for(int x=0;x<room.Width;x++)
                 for(int y=0;y<room.Height;y++)
@@ -74,6 +75,51 @@ namespace Remains.Presentation
                 char key=rows[room.Height-1-y][x];
                 if(key==RoomFile.Empty) return null;
                 return definitions.Require(room.Palettes[layer][key],$"{room.Template} {layer} {x},{y}");
+            }
+
+            // Room backdrop (original drawBackWall): the room's own backwall or its land default;
+            // "sky" = no backdrop (far background is a separate layer, not drawn yet). backform
+            // keeps only parts of the room: 1 side strips, 2 lower part from row 16, 3 from row 24.
+            public void Backdrop(RoomLandCatalog lands)
+            {
+                var issues=new List<string>();
+                string name=lands.Option(room,"backwall",issues);
+                foreach(string issue in issues) Debug.LogWarning(issue);
+                if(name==null) {Debug.LogWarning($"{room.Template}: нет фона комнаты ни в комнате, ни у земли.");return;}
+                if(name=="sky") return;
+                // Original rule: a present but empty backwall overrides the land default and draws tBackWall.
+                string textureId=TileManifest.TextureId(name.Length==0?"tBackWall":name);
+                if(!art.Manifest.Art.ContainsKey(textureId))
+                {
+                    // The original substitutes tBackWall; we keep its look but say so.
+                    Debug.LogWarning($"{room.Template}: фон {name} не экспортирован, нарисован tBackWall (как в оригинале при отсутствии текстуры).");
+                    textureId=TileManifest.TextureId("tBackWall");
+                }
+                int form=room.Options.TryGetValue("backform",out string value) && int.TryParse(value,out int parsed)?parsed:0;
+                float pixels=art.Manifest.CellPixels;            // source pixels per cell
+                float cell=(float)room.Cell,width=room.Width*cell,height=room.Height*cell;
+                float Px(float sourcePixels)=>sourcePixels/pixels*cell;
+                switch(form)
+                {
+                    case 0: BackdropRect(textureId,0,0,width,height);break;
+                    case 1: BackdropRect(textureId,0,0,Px(11*pixels-10),height);BackdropRect(textureId,Px(37*pixels+10),0,width-Px(37*pixels+10),height);break;
+                    case 2: BackdropRect(textureId,0,0,width,height-Px(16*pixels+10));break;
+                    case 3: BackdropRect(textureId,0,0,width,height-Px(24*pixels+10));break;
+                    default: Debug.LogWarning($"{room.Template}: неизвестная форма фона backform={form}, фон не нарисован.");break;
+                }
+            }
+
+            private void BackdropRect(string textureId,float x,float y,float width,float height)
+            {
+                if(width<=0 || height<=0) return;
+                var obj=new GameObject("Фон комнаты");
+                obj.transform.SetParent(root,false);
+                obj.transform.localPosition=new Vector3(x+width/2,y+height/2,0);
+                obj.transform.localScale=new Vector3(width,height,1);
+                obj.AddComponent<MeshFilter>().sharedMesh=Resources.GetBuiltinResource<Mesh>("Quad.fbx");
+                var renderer=obj.AddComponent<MeshRenderer>();
+                renderer.sharedMaterial=TerrainMaterial(textureId);
+                renderer.sortingOrder=BackdropOrder;
             }
 
             public int Height(int x,int y)=>room.Layers.TryGetValue(RoomLayers.Height,out var rows) && rows[room.Height-1-y][x]!=RoomFile.Empty?rows[room.Height-1-y][x]-'0':0;
@@ -146,6 +192,18 @@ namespace Remains.Presentation
                 renderer.sortingOrder=definition.Rear?RearSpriteOrder:FrontSpriteOrder;
             }
 
+            private Material TerrainMaterial(string textureId)
+            {
+                if(lifetime.Materials.TryGetValue(textureId,out var material)) return material;
+                material=new Material(shader){name="Terrain:"+textureId};
+                material.SetTexture("_MaterialTex",art.Texture(textureId));
+                // Original bitmap fill starts at the room's top-left corner.
+                material.SetVector("_MaterialOrigin",new Vector4(origin.x,origin.y+room.Height*(float)room.Cell,0,0));
+                material.SetFloat("_TexelsPerMeter",(float)(art.Manifest.CellPixels/room.Cell));
+                lifetime.Materials.Add(textureId,material);
+                return material;
+            }
+
             private Tilemap Map(string key,string name,string textureId,int order)
             {
                 if(maps.TryGetValue(key,out var map)) return map;
@@ -156,16 +214,7 @@ namespace Remains.Presentation
                 var renderer=obj.AddComponent<TilemapRenderer>();
                 renderer.sortingOrder=order;
                 renderer.mode=TilemapRenderer.Mode.Chunk;
-                if(!lifetime.Materials.TryGetValue(textureId,out var material))
-                {
-                    material=new Material(shader){name="Terrain:"+textureId};
-                    material.SetTexture("_MaterialTex",art.Texture(textureId));
-                    // Original bitmap fill starts at the room's top-left corner.
-                    material.SetVector("_MaterialOrigin",new Vector4(origin.x,origin.y+room.Height*(float)room.Cell,0,0));
-                    material.SetFloat("_TexelsPerMeter",(float)(art.Manifest.CellPixels/room.Cell));
-                    lifetime.Materials.Add(textureId,material);
-                }
-                renderer.sharedMaterial=material;
+                renderer.sharedMaterial=TerrainMaterial(textureId);
                 maps.Add(key,map);
                 return map;
             }
