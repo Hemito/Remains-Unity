@@ -178,7 +178,7 @@ namespace Remains.Editor
             // Wide camera limits isolate the target from legitimate room-edge clamps.
             var follower=new CameraFollower(camera,new RoomLayout {id="body-camera-limit",left=-100,right=100,bottom=-100,top=100});
             camera.transform.position=new Vector3(actor.x,actor.y+1,-10);follower.Step(actor,10);
-            Near((Vector2)camera.transform.position,actor.BodyPosition+Vector2.up,"Camera target остался на anchor");
+            Near((Vector2)camera.transform.position,actor.Position+Vector2.up,"Цель камеры должна следовать movement anchor, а не покадровой опоре тела");
         }
         private static void CheckWeaponsAndQuickThrow(ActorState actor)
         {

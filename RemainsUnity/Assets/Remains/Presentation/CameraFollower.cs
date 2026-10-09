@@ -39,10 +39,12 @@ namespace Remains.Presentation
                 ResetMotion();hasContext=true;actorId=actor.id;actorLevel=actor.level;actorGeneration=actor.generation;
                 actorLifecycle=actor.lifecycleSequence;previousHalfWidth=halfWidth;previousHalfHeight=camera.orthographicSize;
             }
-            var body=actor.BodyPosition;
-            float x=Room.right-Room.left<=halfWidth*2?(Room.left+Room.right)/2:Mathf.Clamp(body.x,Room.left+halfWidth,Room.right-halfWidth);
+            // Follow the movement anchor, not the sampled body: foot-fitted BodyPosition
+            // steps with every walk frame and would shake the whole view on flat floor.
+            // The visible pose stays framed by the body-placed envelope below.
+            float x=Room.right-Room.left<=halfWidth*2?(Room.left+Room.right)/2:Mathf.Clamp(actor.x,Room.left+halfWidth,Room.right-halfWidth);
             float y=Room.top-Room.bottom<=camera.orthographicSize*2?(Room.top+Room.bottom)/2:
-                Mathf.Clamp(body.y+1,Room.bottom+camera.orthographicSize,Room.top-camera.orthographicSize);
+                Mathf.Clamp(actor.y+1,Room.bottom+camera.orthographicSize,Room.top-camera.orthographicSize);
             var target=new Vector3(x,y,-10);
             var position=motion.Step(camera.transform.position,target,dt);
             var bounds=PonyVisual.CameraBounds(actor);
