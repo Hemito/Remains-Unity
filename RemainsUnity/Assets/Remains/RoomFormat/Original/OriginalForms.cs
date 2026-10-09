@@ -8,8 +8,8 @@ namespace Remains.RoomFormat.Original
     public sealed class OriginalForm
     {
         public string Id, Name, Back, Mirror;
-        public int Ed, Vid, Diagon, Stair;
-        public bool Shelf, Rear, Solid;
+        public int Ed, Vid, Diagon, Stair, Hp, Threshold, Mat;
+        public bool Shelf, Rear, Solid, Indestructible;
         // Form.as: a form without vid draws itself as the tile front.
         public string Front => Vid > 0 ? null : Id;
     }
@@ -46,6 +46,10 @@ namespace Remains.RoomFormat.Original
                     Shelf = attrs.ContainsKey("shelf"),
                     Rear = attrs.ContainsKey("rear"),
                     Solid = Int(attrs, "phis", source, id) > 0,
+                    Hp = Int(attrs, "hp", source, id),
+                    Threshold = Int(attrs, "thre", source, id),
+                    Mat = Int(attrs, "mat", source, id),
+                    Indestructible = Int(attrs, "indestruct", source, id) > 0,
                 };
                 var table = form.Ed == 1 ? result.Front : result.Other;
                 if (table.ContainsKey(id)) throw new FormatException($"{source}: повтор формы ed={form.Ed} id={id}.");

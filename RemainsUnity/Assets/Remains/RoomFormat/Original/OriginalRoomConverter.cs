@@ -13,12 +13,59 @@ namespace Remains.RoomFormat.Original
     {
         public string Id, Layer;
         public char Key;
+        public double LadderFraction, MovementOffset, ArtworkOffset;
     }
 
     public sealed class OriginalFormMap
     {
         public string SolidPrefix, BackPrefix;
         public readonly Dictionary<string, OriginalStructuralForm> Structural = new Dictionary<string, OriginalStructuralForm>(StringComparer.Ordinal);
+        public readonly Dictionary<int, string> MovementSoundByMat = new Dictionary<int, string>();
+
+        // Definition catalogue for every form the converter can emit (spec §5). Batch data:
+        // durability and slope come from AllData; only sounds and ladder placement are tabled.
+        public RoomDefinitionCatalog BuildDefinitions(OriginalForms forms, List<string> issues)
+        {
+            var catalog = new RoomDefinitionCatalog();
+            string Sound(OriginalForm form)
+            {
+                if (form.Mat == 0) return null;
+                if (MovementSoundByMat.TryGetValue(form.Mat, out string sound)) return sound;
+                issues.Add($"mat={form.Mat} формы {form.Id} ({form.Name}) не сопоставлен набору звуков шагов.");
+                return null;
+            }
+            foreach (var form in forms.Front.Values)
+                catalog.Add(new RoomDefinition
+                {
+                    Id = SolidPrefix + form.Id, Kind = RoomDefinitionKind.Solid, Name = form.Name, Source = $"AllData mat ed=1 id={form.Id}",
+                    MovementSound = Sound(form), Hp = form.Hp, Threshold = form.Threshold, Indestructible = form.Indestructible,
+                });
+            foreach (var form in forms.Other.Values)
+            {
+                if (form.Ed == 2)
+                    catalog.Add(new RoomDefinition { Id = BackPrefix + form.Id, Kind = RoomDefinitionKind.Backwall, Name = form.Name, Source = $"AllData mat ed=2 id={form.Id}" });
+                else if (Structural.TryGetValue(form.Id, out var mapped))
+                {
+                    var kind = mapped.Layer == RoomLayers.Ladder ? RoomDefinitionKind.Ladder : mapped.Layer == RoomLayers.Platform ? RoomDefinitionKind.Platform : RoomDefinitionKind.Stairs;
+                    var definition = new RoomDefinition
+                    {
+                        Id = mapped.Id, Kind = kind, Name = form.Name, Source = $"AllData mat ed={form.Ed} id={form.Id}",
+                        MovementSound = Sound(form), Hp = form.Hp, Threshold = form.Threshold, Indestructible = form.Indestructible,
+                        Slope = kind == RoomDefinitionKind.Stairs ? form.Diagon : 0,
+                    };
+                    if (kind == RoomDefinitionKind.Ladder)
+                    {
+                        if (form.Stair != 1 && form.Stair != -1) throw new FormatException($"Лестница {form.Id}: stair={form.Stair}, ожидалось ±1.");
+                        definition.Facing = form.Stair;
+                        definition.LadderFraction = mapped.LadderFraction; definition.MovementOffset = mapped.MovementOffset; definition.ArtworkOffset = mapped.ArtworkOffset;
+                    }
+                    if (kind == RoomDefinitionKind.Stairs && definition.Slope == 0) throw new FormatException($"Ступени {form.Id}: diagon=0.");
+                    catalog.Add(definition);
+                }
+                else issues.Add($"Форма ed={form.Ed} id={form.Id} ({form.Name}) не входит в каталог: нет сопоставления.");
+            }
+            return catalog;
+        }
 
         public static OriginalFormMap Parse(string json, string source)
         {
@@ -46,7 +93,20 @@ namespace Remains.RoomFormat.Original
                 if (key.Length != 1 || key[0] == RoomFile.Empty || !keys.Add(form.Layer + key))
                     throw new FormatException($"{ctx}: ключ \"{key}\" не одиночный, зарезервирован или повторён в слое {form.Layer}.");
                 form.Key = key[0];
+                if (form.Layer == RoomLayers.Ladder)
+                {
+                    form.LadderFraction = (entry.Value.Get("ladderFraction") ?? throw new FormatException(ctx + ": у лестницы нет ladderFraction.")).AsDouble(ctx + ".ladderFraction");
+                    form.MovementOffset = (entry.Value.Get("movementOffset") ?? throw new FormatException(ctx + ": у лестницы нет movementOffset.")).AsDouble(ctx + ".movementOffset");
+                    form.ArtworkOffset = (entry.Value.Get("artworkOffset") ?? throw new FormatException(ctx + ": у лестницы нет artworkOffset.")).AsDouble(ctx + ".artworkOffset");
+                }
                 map.Structural.Add(entry.Key, form);
+            }
+            var sounds = root.Get("movementSoundByMat") ?? throw new FormatException(source + ": нет movementSoundByMat.");
+            foreach (var entry in sounds.Fields)
+            {
+                if (entry.Key == "note") continue;
+                if (!int.TryParse(entry.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out int mat)) throw new FormatException($"{source}: ключ movementSoundByMat \"{entry.Key}\" не число.");
+                map.MovementSoundByMat.Add(mat, entry.Value.AsString(source + ".movementSoundByMat." + entry.Key));
             }
             return map;
         }
@@ -124,6 +184,28 @@ namespace Remains.RoomFormat.Original
             return result;
         }
 
+        private static readonly string[] Translit =
+        {
+            "a","b","v","g","d","e","zh","z","i","y","k","l","m","n","o","p","r","s","t","u","f","kh","ts","ch","sh","shch","","y","","e","yu","ya",
+        };
+
+        // Deterministic ASCII slug for template IDs and file names (project rule: Latin
+        // identifiers). The original name is kept verbatim in source.room.
+        public static string Slug(string name)
+        {
+            var b = new StringBuilder();
+            foreach (char raw in name.ToLowerInvariant())
+            {
+                char c = raw == 'ё' ? 'е' : raw;
+                if (c >= 'а' && c <= 'я') b.Append(Translit[c - 'а']);
+                else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') b.Append(c);
+                else if (b.Length > 0 && b[b.Length - 1] != '-') b.Append('-');
+            }
+            string slug = b.ToString().Trim('-');
+            if (slug.Length == 0) throw new FormatException($"имя \"{name}\" не даёт ASCII-идентификатора");
+            return slug;
+        }
+
         public static string LandOf(string fileName)
         {
             string stem = System.IO.Path.GetFileNameWithoutExtension(fileName);
@@ -134,7 +216,7 @@ namespace Remains.RoomFormat.Original
         {
             string name = element.Attribute("name")?.Value;
             if (string.IsNullOrEmpty(name)) throw new FormatException("комната без name");
-            var room = new RoomFile { Template = $"remains:{land}:{name}" };
+            var room = new RoomFile { Template = $"remains:{Slug(land)}:{Slug(name)}" };
             if (!templates.Add(room.Template)) throw new FormatException($"повтор шаблона {room.Template}");
             room.Source = new RoomSource
             {
