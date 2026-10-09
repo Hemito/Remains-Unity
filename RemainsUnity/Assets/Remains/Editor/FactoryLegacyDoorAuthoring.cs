@@ -203,9 +203,19 @@ namespace Remains.Editor
         {
             var texture=Load<Texture2D>(TexturePath);var sprite=Load<Sprite>(SpritePath);var importer=(TextureImporter)AssetImporter.GetAtPath(TexturePath);
             Require(Hash(Project(TexturePath))==data.sha256 && AssetDatabase.AssetPathToGUID(TexturePath)==data.textureGuid && texture.width==40 && texture.height==120 &&
-                sprite.texture==texture && sprite.rect==new Rect(0,0,40,120) && sprite.pixelsPerUnit==50 && sprite.pivot==new Vector2(20,0) && sprite.bounds.size==new Vector3(.8f,2.4f,0) &&
+                sprite.texture==texture && sprite.rect==new Rect(0,0,40,120) && sprite.pixelsPerUnit==50 && sprite.pivot==new Vector2(20,0) &&
+                // Unity Sprite bounds include renderer depth; the source registration describes the XY plane.
+                (Vector2)sprite.bounds.size==new Vector2(.8f,2.4f) && (Vector2)sprite.bounds.center==new Vector2(0,1.2f) &&
                 importer.textureType==TextureImporterType.Default && importer.npotScale==TextureImporterNPOTScale.None && !importer.mipmapEnabled && !importer.alphaIsTransparency &&
                 importer.textureCompression==TextureImporterCompression.Uncompressed && importer.filterMode==FilterMode.Point && importer.wrapMode==TextureWrapMode.Clamp,"Native door3 die texture/Sprite/регистрация изменены.");
+        }
+        public static void DiagnoseNativeFrame()
+        {
+            var data=ReadManifest().door3;
+            var texture=Load<Texture2D>(TexturePath);var sprite=Load<Sprite>(SpritePath);
+            var importer=(TextureImporter)AssetImporter.GetAtPath(TexturePath);
+            Debug.Log($"Диагностика door3 die: путь={TexturePath}; SHA={Hash(Project(TexturePath))}, ожидается={data.sha256}; GUID={AssetDatabase.AssetPathToGUID(TexturePath)}, ожидается={data.textureGuid}; texture={texture.width}x{texture.height}; ссылка texture совпадает={sprite.texture==texture}; rect={sprite.rect}; PPU={sprite.pixelsPerUnit:R}; pivot=({sprite.pivot.x:R},{sprite.pivot.y:R}); bounds.size=({sprite.bounds.size.x:R},{sprite.bounds.size.y:R},{sprite.bounds.size.z:R}); bounds.center=({sprite.bounds.center.x:R},{sprite.bounds.center.y:R},{sprite.bounds.center.z:R}); type={importer.textureType}; NPOT={importer.npotScale}; mipmaps={importer.mipmapEnabled}; alphaIsTransparency={importer.alphaIsTransparency}; compression={importer.textureCompression}; filter={importer.filterMode}; wrap={importer.wrapMode}",sprite);
+            CheckNativeFrame(data);
         }
         private static Sprite Destroyed(Definition type)=>type.id=="door3"?Load<Sprite>(SpritePath):Load<Sprite>("Assets/Remains/Resources/"+type.destroyedResource+".png");
         private static string ModulePath(int module)=>module switch {46=>"Assets/Remains/RoomDrafts/FactoryEntry46.prefab",18=>"Assets/Remains/RoomDrafts/FactoryWorkshop18.prefab",53=>"Assets/Remains/RoomDrafts/FactoryOffice53.prefab",_=>throw new InvalidOperationException("Неизвестный legacy module "+module)};
