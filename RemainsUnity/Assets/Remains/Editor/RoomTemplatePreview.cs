@@ -33,6 +33,7 @@ namespace Remains.Editor
         };
 
         private static bool unlit,radiance;
+        private const int RadianceSettleUpdates=8;
 
         [MenuItem("Remains/Комнаты/Предпросмотр выбранного шаблона")]
         public static void PreviewSelected()
@@ -102,7 +103,8 @@ namespace Remains.Editor
         // Diagnostics: GPU cost of one field update (30 updates, then a readback waits for the GPU).
         private static void MeasureRadiance(RoomRadianceField field,string template)
         {
-            field.Render();
+            // Settle the bounce light (one bounce per update), like a few game frames.
+            for(int i=0;i<RadianceSettleUpdates;i++) field.Render();
             Sync();
             var watch=System.Diagnostics.Stopwatch.StartNew();
             const int runs=30;

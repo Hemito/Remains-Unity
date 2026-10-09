@@ -2,7 +2,7 @@
 // Scene: rgb emitted radiance, a = 1 opaque (walls and lamp disks). Rays stop at the first opaque
 // texel and take its radiance; rays leaving the room are lost (as in the reference tracer).
 // Cascade c: probes every 2^c texels, 4^(c+1) directions, ray interval [(4^c-1)/3, (4^(c+1)-1)/3]
-// texels; each probe stores its directions as a 2^(c+1) square block. Computed from the top
+// texels (a hit takes the scene emission plus the wall's bounce radiance); each probe stores its directions as a 2^(c+1) square block. Computed from the top
 // cascade down; a ray that hits nothing continues with the cascade above (its 4 sub-directions,
 // bilinear between the 4 nearest upper probes). Fluence = Σ radiance × 2π / 4 over cascade 0;
 // opaque texels (inside walls, beams) then take the brightest open texel within 2 texels, so thin
@@ -13,6 +13,7 @@
 #pragma kernel Cascade
 #pragma kernel Fluence
 #pragma kernel Fill
+#pragma kernel Bounce
 
 #define FAR 1e6
 #define TAU 6.28318530718
@@ -28,6 +29,9 @@ RWTexture2D<float4> _Cascade;
 Texture2D<float4> _Cascade0;
 RWTexture2D<float4> _Fluence;
 Texture2D<float4> _FluenceRaw;
+Texture2D<float4> _Bounce;          // wall radiance from the previous update (one bounce per update)
+RWTexture2D<float4> _BounceOut;
+float _Albedo;
 int2 _Size;
 int _Step;
 int _Level;
@@ -94,7 +98,7 @@ void Cascade(uint3 id : SV_DispatchThreadID)
         int2 texel = int2(floor(p));
         if (!Inside(texel)) { result = float4(0, 0, 0, 0); break; }
         float sd = _Distance[texel];
-        if (sd < 0.5) { result = float4(_Scene[texel].rgb, 0); break; }
+        if (sd < 0.5) { result = float4(_Scene[texel].rgb + _Bounce[texel].rgb, 0); break; }
         t += max(sd - 1.0, 0.5);
     }
 
@@ -147,4 +151,34 @@ void Fill(uint3 id : SV_DispatchThreadID)
             if (Inside(q) && _Scene[q].a < 0.5) best = max(best, _FluenceRaw[q]);
         }
     _Fluence[p] = best;
+}
+
+// Bounce: a wall texel beside open space reflects diffusely (flatland Lambert: outgoing radiance =
+// albedo / 2 × irradiance). Irradiance from each open 4-neighbour q (normal n = q - p) uses only the
+// cascade-0 directions leaving the wall (d·n > 0): E = Σ L(d) (d·n) Δθ, Δθ = π/2. Directions back
+// into the wall would see the wall's own glow (no self-lighting). Averaged over open sides; read
+// by the next update, so light bounces once per update and settles over a few frames.
+[numthreads(8,8,1)]
+void Bounce(uint3 id : SV_DispatchThreadID)
+{
+    int2 p = int2(id.xy);
+    if (!Inside(p)) return;
+    float4 scene = _Scene[p];
+    if (scene.a < 0.5 || any(scene.rgb > 0)) { _BounceOut[p] = 0; return; }
+    const int2 sides[4] = { int2(1, 0), int2(-1, 0), int2(0, 1), int2(0, -1) };
+    float3 sum = 0; float count = 0;
+    for (int i = 0; i < 4; i++)
+    {
+        int2 q = p + sides[i];
+        if (!Inside(q) || _Scene[q].a > 0.5) continue;
+        float3 e = 0;
+        for (int k = 0; k < 4; k++)
+        {
+            float angle = (k + 0.5) / 4 * TAU;
+            float c = dot(float2(cos(angle), sin(angle)), float2(sides[i]));
+            if (c > 0) e += _Cascade0[q * 2 + int2(k % 2, k / 2)].rgb * c * (TAU / 4);
+        }
+        sum += e; count++;
+    }
+    _BounceOut[p] = float4(count > 0 ? sum / count * (_Albedo * 0.5) : 0, 1);
 }

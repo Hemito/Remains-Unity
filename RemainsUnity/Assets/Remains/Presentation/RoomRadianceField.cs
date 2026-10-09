@@ -6,7 +6,8 @@ using UnityEngine.Experimental.Rendering;
 namespace Remains.Presentation
 {
     // Lamp light of one room by radiance cascades (prototype, experiment after the reference tracer):
-    // flatland transport on the GPU, same model as RoomConvert trace (direct light, no bounces yet).
+    // flatland transport on the GPU, same model as RoomConvert trace. Wall bounce: each update reflects
+    // the previous update's light once (multi-bounce settles over a few updates; lamps off → it fades).
     // The scene texture (walls + lamp disks) comes from RoomLightScene; Render() recomputes on
     // demand (scene change), not per frame. The result is a world-space fluence texture read by
     // WorldTerrain instead of URP lamp lights (_RemainsRadiance*, one room at a time for now).
@@ -15,7 +16,8 @@ namespace Remains.Presentation
         private const string ComputeResource="Presentation/RadianceCascades";
         private ComputeShader compute;
         private Texture2D scene;
-        private RenderTexture seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence;
+        private RenderTexture seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB;
+        private float albedo;
         private int width,height,levels;
         private Vector4 rect;
         private float texel;
@@ -56,7 +58,7 @@ namespace Remains.Presentation
             var field=obj.AddComponent<RoomRadianceField>();
             field.compute=compute;
             field.scene=sceneTexture;
-            field.width=w;field.height=h;field.texel=t;
+            field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;
             field.rect=new Vector4(origin.x,origin.y,w*t,h*t);
             // Top cascade: the ray interval reaches the room diagonal, (4^(levels) - 1) / 3 ≥ diagonal.
             float diagonal=Mathf.Sqrt(w*w+h*h);
@@ -78,6 +80,8 @@ namespace Remains.Presentation
             fluenceRaw=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Освещённость по пробам");
             fluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Освещённость");
             fluence.filterMode=FilterMode.Bilinear;
+            bounceA=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Отражение стен A");
+            bounceB=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Отражение стен B");
         }
 
         private static RenderTexture Target(int w,int h,GraphicsFormat format,string name)
@@ -89,7 +93,7 @@ namespace Remains.Presentation
 
         public void Render()
         {
-            int seed=compute.FindKernel("Seed"),jump=compute.FindKernel("Jump"),dist=compute.FindKernel("Distance"),cascade=compute.FindKernel("Cascade"),flu=compute.FindKernel("Fluence"),fill=compute.FindKernel("Fill");
+            int seed=compute.FindKernel("Seed"),jump=compute.FindKernel("Jump"),dist=compute.FindKernel("Distance"),cascade=compute.FindKernel("Cascade"),flu=compute.FindKernel("Fluence"),fill=compute.FindKernel("Fill"),bounce=compute.FindKernel("Bounce");
             compute.SetInts("_Size",width,height);
             int gx=(width+7)/8,gy=(height+7)/8;
 
@@ -117,6 +121,7 @@ namespace Remains.Presentation
                 compute.SetTexture(cascade,"_Scene",scene);
                 compute.SetTexture(cascade,"_Distance",distance);
                 compute.SetTexture(cascade,"_Upper",upper);
+                compute.SetTexture(cascade,"_Bounce",bounceA);
                 compute.SetTexture(cascade,"_Cascade",current);
                 int spacing=1<<c,block=2<<c;
                 int cw=(width+spacing-1)/spacing*block,ch=(height+spacing-1)/spacing*block;
@@ -130,6 +135,12 @@ namespace Remains.Presentation
             compute.SetTexture(fill,"_FluenceRaw",fluenceRaw);
             compute.SetTexture(fill,"_Fluence",fluence);
             compute.Dispatch(fill,gx,gy,1);
+            compute.SetFloat("_Albedo",albedo);
+            compute.SetTexture(bounce,"_Scene",scene);
+            compute.SetTexture(bounce,"_Cascade0",upper);
+            compute.SetTexture(bounce,"_BounceOut",bounceB);
+            compute.Dispatch(bounce,gx,gy,1);
+            (bounceA,bounceB)=(bounceB,bounceA);
 
             Shader.SetGlobalTexture("_RemainsRadiance",fluence);
             Shader.SetGlobalVector("_RemainsRadianceRect",rect);
@@ -140,8 +151,8 @@ namespace Remains.Presentation
         private void OnDestroy()
         {
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence}) if(texture!=null) texture.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,scene})
+            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB}) if(texture!=null) texture.Release();
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,scene})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }
