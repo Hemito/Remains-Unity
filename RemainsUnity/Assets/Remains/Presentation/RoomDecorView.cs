@@ -17,12 +17,21 @@ namespace Remains.Presentation
     // Random choices are seeded by room template and placement index (same for every player and load).
     // Light-zone decor (halo only) and object types drawn by their own systems (units, pickups, traps,
     // markers) are reported, not drawn.
+    // A drawn decor/object sprite for light consumers (RoomRadianceField: lamps emit over their
+    // silhouette, objects absorb).
+    public sealed class RoomSpritePlacement
+    {
+        public RoomDefinition Definition;
+        public Sprite Sprite;
+        public Matrix4x4 LocalToWorld;
+    }
+
     public static class RoomDecorView
     {
         private const string SpriteShaderResource="Presentation/WorldSprite",EraseShaderResource="Presentation/EraseMask";
         private const float SourcePixelsPerMeter=50;
 
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,Transform terrainRoot)
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,Transform terrainRoot,List<RoomSpritePlacement> placements=null)
         {
             if(room==null || definitions==null || lands==null || art==null || terrainRoot==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):art==null?nameof(art):nameof(terrainRoot));
             var spriteShader=Resources.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
@@ -94,6 +103,7 @@ namespace Remains.Presentation
                 renderer.color=new Color(1,1,1,alpha);
                 renderer.sortingOrder=d.EraseFirst?RoomTerrainView.DecorBackOrder-5:d.DecorLayer<=0?RoomTerrainView.DecorBackOrder+d.DecorLayer:RoomTerrainView.DecorFrontOrder+d.DecorLayer;
                 decorCount++;
+                placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,LocalToWorld=obj.transform.localToWorldMatrix});
                 string eraseId=TileManifest.DecorEraseFrameId(d.Art,frame);
                 if(art.Manifest.Art.ContainsKey(eraseId)) erases.Add((art.Tile(eraseId).sprite,obj.transform.localToWorldMatrix));
             }
@@ -113,6 +123,7 @@ namespace Remains.Presentation
                 renderer.sharedMaterial=MaterialFor(null,false);
                 renderer.sortingOrder=RoomTerrainView.ObjectOrder;
                 objectCount++;
+                placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,LocalToWorld=obj.transform.localToWorldMatrix});
             }
 
             if(erases.Count>0) holder.BuildErase(erases,origin,new Vector2(room.Width*cell,room.Height*cell),Resources.Load<Shader>(EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+EraseShaderResource));

@@ -22,6 +22,21 @@ namespace Remains.RoomFormat
         public double RadiancePower, RadianceLampSize, RadianceAlbedo;   // lamp fluence 1 m away = power × intensity; disk = lampSize × half decor width   // lit wall edge width (m) and lamp shadow softness 0..1
         public readonly SortedDictionary<string, double[]> Tints = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, RoomLamp> Lamps = new SortedDictionary<string, RoomLamp>(StringComparer.Ordinal);
+        // Light absorbed by free-standing objects by size class, and per-definition overrides.
+        public readonly SortedDictionary<int, double> AbsorptionBySize = new SortedDictionary<int, double>();
+        public readonly SortedDictionary<string, double> AbsorptionByObject = new SortedDictionary<string, double>(StringComparer.Ordinal);
+
+        // Share of light an object stops (0..1). Original placement depth: wall = 1 hangs on the back
+        // wall (not in the light's plane) → 0; wall = 2 stands across the corridor (doors, grates,
+        // windows) → its original "opac", else 1; free-standing → by size class (table), unless overridden.
+        public double ObjectAbsorption(RoomDefinition definition)
+        {
+            if (AbsorptionByObject.TryGetValue(definition.Id, out double value)) return value;
+            if (definition.Wall == 1) return 0;
+            if (definition.Wall >= 2) return definition.Opacity > 0 ? definition.Opacity : 1;
+            if (AbsorptionBySize.TryGetValue(Math.Max(1, definition.ObjectSize), out value)) return value;
+            throw new InvalidOperationException($"Таблица света: нет поглощения для размера {definition.ObjectSize} ({definition.Id}).");
+        }
 
         public double Ambient(double darkness) => Math.Max(AmbientMin, Math.Min(AmbientMax, AmbientBase - darkness * DarknessScale));
 
@@ -48,6 +63,9 @@ namespace Remains.RoomFormat
             table.RadianceAlbedo = radiance.Get("albedo").AsDouble(source + ".radiance.albedo");
             if (table.RadianceAlbedo < 0 || table.RadianceAlbedo >= 1) throw new FormatException(source + ".radiance.albedo: доля отражённого света в [0, 1).");
             if (table.RadianceResolution < 1 || table.RadiancePower < 0 || table.RadianceLampSize <= 0) throw new FormatException(source + ".radiance: resolution ≥ 1, power ≥ 0, lampSize > 0.");
+            var absorption = root.Get("absorption") ?? throw new FormatException(source + ": нет раздела absorption.");
+            foreach (var e in absorption.Get("bySize").Fields) table.AbsorptionBySize.Add(int.Parse(e.Key, System.Globalization.CultureInfo.InvariantCulture), e.Value.AsDouble(source + ".absorption.bySize." + e.Key));
+            foreach (var e in absorption.Get("objects").Fields) table.AbsorptionByObject.Add(e.Key, e.Value.AsDouble(source + ".absorption.objects." + e.Key));
             if (table.ShadowEdge < 0) throw new FormatException(source + ".shadows.edge: ширина кромки не может быть отрицательной.");
             foreach (var t in root.Get("tints").Fields) table.Tints.Add(t.Key, Rgb(t.Value, source + ".tints." + t.Key));
             foreach (var l in root.Get("lamps").Fields)

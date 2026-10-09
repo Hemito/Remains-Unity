@@ -1,6 +1,7 @@
 // Radiance cascades (flatland light transport, prototype). Grid = room light texels.
-// Scene: rgb emitted radiance, a = 1 opaque (walls and lamp disks). Rays stop at the first opaque
-// texel and take its radiance; rays leaving the room are lost (as in the reference tracer).
+// Scene: rgb emitted radiance, a = absorption (1 walls and lamps; objects partly: a ray crossing the
+// texel keeps 1 - a of its light). Rays gather emission × transmittance until it runs out (an
+// opaque texel ends the ray); rays leaving the room are lost (as in the reference tracer).
 // Cascade c: probes every 2^c texels, 4^(c+1) directions, ray interval [(4^c-1)/3, (4^(c+1)-1)/3]
 // texels (a hit takes the scene emission plus the wall's bounce radiance); each probe stores its directions as a 2^(c+1) square block. Computed from the top
 // cascade down; a ray that hits nothing continues with the cascade above (its 4 sub-directions,
@@ -43,7 +44,7 @@ bool Inside(int2 p) { return all(p >= 0) && all(p < _Size); }
 void Seed(uint3 id : SV_DispatchThreadID)
 {
     if (!Inside(int2(id.xy))) return;
-    _SeedsOut[id.xy] = _Scene[id.xy].a > 0.5 ? float2(id.xy) : float2(-FAR, -FAR);
+    _SeedsOut[id.xy] = _Scene[id.xy].a > 0.004 ? float2(id.xy) : float2(-FAR, -FAR);
 }
 
 // Jump flood: nearest opaque texel among the 3×3 neighbours at distance _Step.
@@ -90,19 +91,27 @@ void Cascade(uint3 id : SV_DispatchThreadID)
     float2 d = float2(cos(angle), sin(angle));
     float start = ((1 << (2 * c)) - 1) / 3.0, end = ((1 << (2 * (c + 1))) - 1) / 3.0;
 
-    float4 result = float4(0, 0, 0, 1);   // rgb radiance, a = 1 nothing hit (continue above)
+    float4 result = float4(0, 0, 0, 1);   // rgb radiance, a = transmittance left for the cascade above
     float t = start;
-    for (int i = 0; i < 256 && t < end; i++)
+    for (int i = 0; i < 256 && t < end && result.a > 0.002; i++)
     {
         float2 p = origin + d * t;
         int2 texel = int2(floor(p));
-        if (!Inside(texel)) { result = float4(0, 0, 0, 0); break; }
+        if (!Inside(texel)) { result.a = 0; break; }
         float sd = _Distance[texel];
-        if (sd < 0.5) { result = float4(_Scene[texel].rgb + _Bounce[texel].rgb, 0); break; }
-        t += max(sd - 1.0, 0.5);
+        if (sd < 0.5)
+        {
+            // Absorbing texel: its emission (and wall bounce) weighted by what it absorbs, then the
+            // light behind it is dimmed. One step per texel inside absorbers.
+            float4 scene = _Scene[texel];
+            result.rgb += result.a * (scene.rgb + _Bounce[texel].rgb) * scene.a;
+            result.a *= 1 - scene.a;
+            t += 1.0;
+        }
+        else t += max(sd - 1.0, 0.5);
     }
 
-    if (result.a > 0.5 && c < _Top)
+    if (result.a > 0.002 && c < _Top)
     {
         int upperSpacing = spacing * 2, upperBlock = block * 2;
         int2 upperProbes = (_Size + upperSpacing - 1) / upperSpacing;
@@ -122,7 +131,7 @@ void Cascade(uint3 id : SV_DispatchThreadID)
                 merged += _Upper[q * upperBlock + jl].rgb * weight;
             }
         }
-        result.rgb += merged * 0.25;
+        result.rgb += merged * 0.25 * result.a;
     }
     _Cascade[id.xy] = result;
 }
@@ -141,14 +150,14 @@ void Fill(uint3 id : SV_DispatchThreadID)
 {
     int2 p = int2(id.xy);
     if (!Inside(p)) return;
-    if (_Scene[p].a < 0.5) { _Fluence[p] = _FluenceRaw[p]; return; }
+    if (_Scene[p].a < 0.99) { _Fluence[p] = _FluenceRaw[p]; return; }   // open or partly absorbing
     float4 best = 0;
     int reach = any(_Scene[p].rgb > 0) ? 6 : 2;   // lamp disks: up to their centre
     for (int dy = -reach; dy <= reach; dy++)
         for (int dx = -reach; dx <= reach; dx++)
         {
             int2 q = p + int2(dx, dy);
-            if (Inside(q) && _Scene[q].a < 0.5) best = max(best, _FluenceRaw[q]);
+            if (Inside(q) && _Scene[q].a < 0.99) best = max(best, _FluenceRaw[q]);
         }
     _Fluence[p] = best;
 }
@@ -164,13 +173,13 @@ void Bounce(uint3 id : SV_DispatchThreadID)
     int2 p = int2(id.xy);
     if (!Inside(p)) return;
     float4 scene = _Scene[p];
-    if (scene.a < 0.5 || any(scene.rgb > 0)) { _BounceOut[p] = 0; return; }
+    if (scene.a < 0.99 || any(scene.rgb > 0)) { _BounceOut[p] = 0; return; }   // walls only
     const int2 sides[4] = { int2(1, 0), int2(-1, 0), int2(0, 1), int2(0, -1) };
     float3 sum = 0; float count = 0;
     for (int i = 0; i < 4; i++)
     {
         int2 q = p + sides[i];
-        if (!Inside(q) || _Scene[q].a > 0.5) continue;
+        if (!Inside(q) || _Scene[q].a >= 0.99) continue;
         float3 e = 0;
         for (int k = 0; k < 4; k++)
         {

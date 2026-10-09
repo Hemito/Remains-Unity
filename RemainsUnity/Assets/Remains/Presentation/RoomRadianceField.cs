@@ -1,28 +1,36 @@
 using System;
+using System.Collections.Generic;
 using Remains.RoomFormat;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 
 namespace Remains.Presentation
 {
     // Lamp light of one room by radiance cascades (prototype, experiment after the reference tracer):
     // flatland transport on the GPU, same model as RoomConvert trace. Wall bounce: each update reflects
     // the previous update's light once (multi-bounce settles over a few updates; lamps off → it fades).
-    // The scene texture (walls + lamp disks) comes from RoomLightScene; Render() recomputes on
+    // Scene texture: the wall raster (RoomLightScene) plus, when the room's sprites are given
+    // (RoomDecorView), lamp decor emitting over its silhouette (an "off" frame emits nothing) and
+    // objects absorbing by RoomLightingTable.ObjectAbsorption; without sprites, lamp disks at the decor
+    // positions (as the reference tracer). Render() recomputes on
     // demand (scene change), not per frame. The result is a world-space fluence texture read by
     // WorldTerrain instead of URP lamp lights (_RemainsRadiance*, one room at a time for now).
     public sealed class RoomRadianceField : MonoBehaviour
     {
-        private const string ComputeResource="Presentation/RadianceCascades";
+        private const string ComputeResource="Presentation/RadianceCascades",SceneShaderResource="Presentation/LightScene";
         private ComputeShader compute;
-        private Texture2D scene;
+        private Texture scene;
+        private Texture2D wallsTexture;
+        private Material sceneMaterial;
+        private Mesh quad;
         private RenderTexture seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB;
         private float albedo;
         private int width,height,levels;
         private Vector4 rect;
         private float texel;
 
-        public static RoomRadianceField Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent)
+        public static RoomRadianceField Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent,IReadOnlyList<RoomSpritePlacement> sprites=null)
         {
             if(!SystemInfo.supportsComputeShaders) throw new InvalidOperationException("Поле излучения: видеокарта/API без compute-шейдеров.");
             var compute=Resources.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
@@ -37,7 +45,7 @@ namespace Remains.Presentation
                 for(int x=0;x<w;x++)
                     if(walls[x,y]) pixels[y*w+x]=new Color(0,0,0,1);
             float t=1f/resolution;
-            foreach(var lamp in light.Lamps)
+            if(sprites==null) foreach(var lamp in light.Lamps)
             {
                 double r=Math.Max(lamp.DiskRadius,t*0.75);
                 for(int y=Mathf.FloorToInt((float)((lamp.Y-r)*resolution));y<=Mathf.CeilToInt((float)((lamp.Y+r)*resolution));y++)
@@ -57,16 +65,72 @@ namespace Remains.Presentation
             if(parent!=null) obj.transform.SetParent(parent,false);
             var field=obj.AddComponent<RoomRadianceField>();
             field.compute=compute;
+            field.wallsTexture=sceneTexture;
             field.scene=sceneTexture;
             field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;
+            int emitters=0,absorbers=0;
+            if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers);
             field.rect=new Vector4(origin.x,origin.y,w*t,h*t);
             // Top cascade: the ray interval reaches the room diagonal, (4^(levels) - 1) / 3 ≥ diagonal.
             float diagonal=Mathf.Sqrt(w*w+h*h);
             field.levels=1;
             while((Mathf.Pow(4,field.levels)-1)/3<diagonal) field.levels++;
             field.Allocate();
-            Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, ламп {light.Lamps.Count}.");
+            Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters}, поглощающих объектов {absorbers}."));
             return field;
+        }
+
+        // Walls + sprites into one scene target at the light grid resolution (max blend: walls stay).
+        private RenderTexture DrawSprites(Texture2D walls,IReadOnlyList<RoomSpritePlacement> sprites,RoomLightingTable table,RoomLightScene light,Vector4 worldRect,ref int emitters,ref int absorbers)
+        {
+            var shader=Resources.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource);
+            var target=Target(walls.width,walls.height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света");
+            Graphics.Blit(walls,target);
+            sceneMaterial=new Material(shader){name="Сцена света"};
+            quad=new Mesh{name="Квадрат спрайта"};
+            quad.SetVertices(new[]{new Vector3(0,0,0),new Vector3(1,0,0),new Vector3(0,1,0),new Vector3(1,1,0)});
+            quad.SetUVs(0,new[]{new Vector2(0,0),new Vector2(1,0),new Vector2(0,1),new Vector2(1,1)});
+            quad.SetTriangles(new[]{0,2,1,1,2,3},0);
+            var cmd=new CommandBuffer{name="Сцена света: спрайты"};
+            cmd.SetRenderTarget(target);
+            cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(worldRect.x,worldRect.x+worldRect.z,worldRect.y,worldRect.y+worldRect.w,-1,1),false));
+            var block=new MaterialPropertyBlock();
+            foreach(var placement in sprites)
+            {
+                var d=placement.Definition;
+                var bounds=placement.Sprite.bounds;
+                block.Clear();
+                block.SetTexture("_MainTex",placement.Sprite.texture);
+                if(d.Kind==RoomDefinitionKind.Decor)
+                {
+                    if(!table.Lamps.TryGetValue(d.Id,out var lamp)) continue;   // other decor hangs on the back wall
+                    // Flatland: fluence 1 m away ≈ radiance × apparent width; width = equal-area disk diameter.
+                    var scale=placement.LocalToWorld.lossyScale;
+                    double area=Math.Abs(bounds.size.x*scale.x*bounds.size.y*scale.y);
+                    double width=Math.Max(texel,2*Math.Sqrt(area/Math.PI));
+                    double l=table.RadiancePower*lamp.Intensity/width;
+                    block.SetColor("_Emission",new Color((float)(l*lamp.Color[0]*light.Tint[0]),(float)(l*lamp.Color[1]*light.Tint[1]),(float)(l*lamp.Color[2]*light.Tint[2]),1));
+                    block.SetFloat("_Absorption",0);
+                    emitters++;
+                }
+                else
+                {
+                    double absorption=table.ObjectAbsorption(d);
+                    if(absorption<=0) continue;
+                    // The table gives what the whole object stops; per texel so that crossing its
+                    // thickness (smaller side) stops that much: 1 - (1 - A)^(1 / thickness).
+                    var scale=placement.LocalToWorld.lossyScale;
+                    double thickness=Math.Max(1,Math.Min(Math.Abs(bounds.size.x*scale.x),Math.Abs(bounds.size.y*scale.y))/texel);
+                    double perTexel=absorption>=1?1:1-Math.Pow(1-absorption,1/thickness);
+                    block.SetColor("_Emission",Color.clear);
+                    block.SetFloat("_Absorption",(float)perTexel);
+                    absorbers++;
+                }
+                cmd.DrawMesh(quad,placement.LocalToWorld*Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),sceneMaterial,0,0,block);
+            }
+            Graphics.ExecuteCommandBuffer(cmd);
+            cmd.Release();
+            return target;
         }
 
         private void Allocate()
@@ -152,7 +216,8 @@ namespace Remains.Presentation
         {
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
             foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB}) if(texture!=null) texture.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,scene})
+            if(scene is RenderTexture sceneTarget) sceneTarget.Release();
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,scene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }
