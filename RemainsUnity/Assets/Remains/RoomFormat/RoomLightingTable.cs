@@ -19,7 +19,18 @@ namespace Remains.RoomFormat
         public double AmbientBase, DarknessScale, AmbientMin, AmbientMax;
         public double ShadowEdge, ShadowSoftness;
         public int RadianceResolution;              // flatland light transport grid, texels per metre
-        public double RadiancePower, RadianceLampSize, RadianceAlbedo;   // lamp fluence 1 m away = power × intensity; disk = lampSize × half decor width   // lit wall edge width (m) and lamp shadow softness 0..1
+        public double RadiancePower, RadianceLampSize, RadianceAlbedo;
+        public double LampOtherFrame;   // lamp frames other than "on"/"off" (dimmer variants): share of the power
+
+        // Share of a lamp's power by its drawn frame: "on" 1, "off" 0, other frames LampOtherFrame;
+        // lamps without on/off frames in the data shine in every frame.
+        public double LampFrameShare(RoomDefinition definition, int frame)
+        {
+            if (definition.DecorFrameOn == 0 && definition.DecorFrameOff == 0) return 1;
+            if (frame == definition.DecorFrameOff) return 0;
+            if (frame == definition.DecorFrameOn) return 1;
+            return LampOtherFrame;
+        }   // lamp fluence 1 m away = power × intensity; disk = lampSize × half decor width   // lit wall edge width (m) and lamp shadow softness 0..1
         public readonly SortedDictionary<string, double[]> Tints = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, RoomLamp> Lamps = new SortedDictionary<string, RoomLamp>(StringComparer.Ordinal);
         // Light absorbed by free-standing objects by size class, and per-definition overrides.
@@ -64,6 +75,7 @@ namespace Remains.RoomFormat
             table.RadiancePower = radiance.Get("power").AsDouble(source + ".radiance.power");
             table.RadianceLampSize = radiance.Get("lampSize").AsDouble(source + ".radiance.lampSize");
             table.RadianceAlbedo = radiance.Get("albedo").AsDouble(source + ".radiance.albedo");
+            table.LampOtherFrame = radiance.Get("lampOtherFrame").AsDouble(source + ".radiance.lampOtherFrame");
             if (table.RadianceAlbedo < 0 || table.RadianceAlbedo >= 1) throw new FormatException(source + ".radiance.albedo: доля отражённого света в [0, 1).");
             if (table.RadianceResolution < 1 || table.RadiancePower < 0 || table.RadianceLampSize <= 0) throw new FormatException(source + ".radiance: resolution ≥ 1, power ≥ 0, lampSize > 0.");
             var absorption = root.Get("absorption") ?? throw new FormatException(source + ": нет раздела absorption.");

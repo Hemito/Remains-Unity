@@ -68,20 +68,20 @@ namespace Remains.Presentation
             field.wallsTexture=sceneTexture;
             field.scene=sceneTexture;
             field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;
-            int emitters=0,absorbers=0,glowing=0;
-            if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers,ref glowing);
+            int emitters=0,absorbers=0,glowing=0,dark=0;
+            if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers,ref glowing,ref dark);
             field.rect=new Vector4(origin.x,origin.y,w*t,h*t);
             // Top cascade: the ray interval reaches the room diagonal, (4^(levels) - 1) / 3 ≥ diagonal.
             float diagonal=Mathf.Sqrt(w*w+h*h);
             field.levels=1;
             while((Mathf.Pow(4,field.levels)-1)/3<diagonal) field.levels++;
             field.Allocate();
-            Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters}, поглощающих объектов {absorbers}, светящихся экранов {glowing}."));
+            Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters} (выключенных {dark}), поглощающих объектов {absorbers}, светящихся экранов {glowing}."));
             return field;
         }
 
         // Walls + sprites into one scene target at the light grid resolution (max blend: walls stay).
-        private RenderTexture DrawSprites(Texture2D walls,IReadOnlyList<RoomSpritePlacement> sprites,RoomLightingTable table,RoomLightScene light,Vector4 worldRect,ref int emitters,ref int absorbers,ref int glowing)
+        private RenderTexture DrawSprites(Texture2D walls,IReadOnlyList<RoomSpritePlacement> sprites,RoomLightingTable table,RoomLightScene light,Vector4 worldRect,ref int emitters,ref int absorbers,ref int glowing,ref int dark)
         {
             var shader=Resources.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource);
             var target=Target(walls.width,walls.height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света");
@@ -107,12 +107,14 @@ namespace Remains.Presentation
                 if(glows) glowing++;
                 if(d.Kind==RoomDefinitionKind.Decor && table.Lamps.TryGetValue(d.Id,out var lamp))
                 {
+                    double share=table.LampFrameShare(d,placement.Frame);
+                    if(share<=0) {dark++;continue;}   // the "off" frame
                     // Flatland: fluence 1 m away ≈ radiance × apparent width; width = diameter of the disk
                     // with the silhouette's area, so every lamp sends the table's power whatever its shape.
                     var scale=placement.LocalToWorld.lossyScale;
                     double area=SilhouetteArea(placement.Sprite)*Math.Abs(scale.x*scale.y);
                     double width=Math.Max(texel,2*Math.Sqrt(area/Math.PI));
-                    double l=table.RadiancePower*lamp.Intensity/width;
+                    double l=share*table.RadiancePower*lamp.Intensity/width;
                     block.SetColor("_Emission",new Color((float)(l*lamp.Color[0]*light.Tint[0]),(float)(l*lamp.Color[1]*light.Tint[1]),(float)(l*lamp.Color[2]*light.Tint[2]),1));
                     block.SetFloat("_Absorption",0);
                     emitters++;

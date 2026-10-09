@@ -23,6 +23,7 @@ namespace Remains.Presentation
     {
         public RoomDefinition Definition;
         public Sprite Sprite;
+        public int Frame;
         public Matrix4x4 LocalToWorld;
     }
 
@@ -106,7 +107,7 @@ namespace Remains.Presentation
                 renderer.color=new Color(1,1,1,alpha);
                 renderer.sortingOrder=d.EraseFirst?RoomTerrainView.DecorBackOrder-5:d.DecorLayer<=0?RoomTerrainView.DecorBackOrder+d.DecorLayer:RoomTerrainView.DecorFrontOrder+d.DecorLayer;
                 decorCount++;
-                placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,LocalToWorld=obj.transform.localToWorldMatrix});
+                placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,Frame=frame,LocalToWorld=obj.transform.localToWorldMatrix});
                 string eraseId=TileManifest.DecorEraseFrameId(d.Art,frame);
                 if(art.Manifest.Art.ContainsKey(eraseId)) erases.Add((art.Tile(eraseId).sprite,obj.transform.localToWorldMatrix));
             }
@@ -126,7 +127,7 @@ namespace Remains.Presentation
                 renderer.sharedMaterial=MaterialFor(null,false,d.Id);
                 renderer.sortingOrder=RoomTerrainView.ObjectOrder;
                 objectCount++;
-                placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,LocalToWorld=obj.transform.localToWorldMatrix});
+                placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,Frame=1,LocalToWorld=obj.transform.localToWorldMatrix});
             }
 
             if(erases.Count>0) holder.BuildErase(erases,origin,new Vector2(room.Width*cell,room.Height*cell),Resources.Load<Shader>(EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+EraseShaderResource));

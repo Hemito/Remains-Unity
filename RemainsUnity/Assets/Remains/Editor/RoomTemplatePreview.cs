@@ -21,6 +21,8 @@ namespace Remains.Editor
     // -roomPreviewUnlit: templates only, no lights at all (plain colours, "<name>-albedo.png") — input
     // for the reference light tracer (RoomConvert trace --albedo-image).
     // -roomPreviewRadiance: lamps by RoomRadianceField (radiance cascades) instead of URP lamp lights.
+    // -roomPreviewDummy: test only — training dummies (sprite of Prefabs/Actors/training-dummy) stand
+    // in the room as light absorbers/receivers, to check actor shadows.
     public static class RoomTemplatePreview
     {
         private const string Definitions="Assets/Remains/Rooms/Original/definitions.json";
@@ -32,7 +34,14 @@ namespace Remains.Editor
             ("Assets/Remains/Rooms/Original/plant/vkhod2.room.json","Assets/Remains/RoomDrafts/FactoryEntry46.prefab"),
         };
 
-        private static bool unlit,radiance;
+        private static bool unlit,radiance,dummy;
+        private const string DummyPrefab="Assets/Remains/Prefabs/Actors/training-dummy.prefab";
+        // Test positions (m, foot point) per template: between the lamps of the lower rooms.
+        private static readonly Dictionary<string,Vector2[]> DummySpots=new()
+        {
+            ["remains:plant:vkhod2"]=new[]{new Vector2(25.6f,0.8f),new Vector2(31f,0.8f)},
+            ["remains:plant:tsekh1"]=new[]{new Vector2(5.2f,0.8f)},
+        };
         private const int RadianceSettleUpdates=8;
 
         [MenuItem("Remains/Комнаты/Предпросмотр выбранного шаблона")]
@@ -55,6 +64,7 @@ namespace Remains.Editor
                 RoomTileArtAuthoring.Build();
                 unlit=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewUnlit")>=0;
                 radiance=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewRadiance")>=0;
+                dummy=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewDummy")>=0;
                 foreach(var (templatePath,prefabPath) in Rooms)
                 {
                     var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(templatePath)??throw new InvalidOperationException("Нет шаблона "+templatePath);
@@ -99,10 +109,32 @@ namespace Remains.Editor
             var glow=new Dictionary<string,double>();
             foreach(var e in table.Glow) glow.Add(e.Key,e.Value.Threshold);
             RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,view.transform,sprites,glow);
+            if(dummy) PlaceDummies(room,view.transform,sprites);
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
             if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,!radiance);
             if(radiance) MeasureRadiance(RoomRadianceField.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,sprites),room.Template);
             return view;
+        }
+
+        // Test: training dummy sprites as free-standing objects (size class 2 in the absorption table).
+        private static void PlaceDummies(RoomFile room,Transform parent,List<RoomSpritePlacement> sprites)
+        {
+            if(!DummySpots.TryGetValue(room.Template,out var spots)) {Debug.LogWarning($"Манекен: нет тестовых мест для {room.Template}.");return;}
+            var source=AssetDatabase.LoadAssetAtPath<GameObject>(DummyPrefab)?.GetComponent<SpriteRenderer>()??throw new InvalidOperationException("Нет спрайта манекена в "+DummyPrefab);
+            var material=new Material(Resources.Load<Shader>("Presentation/WorldSprite")){name="Манекен"};
+            var definition=new RoomDefinition{Id="remains:test:training-dummy",Kind=RoomDefinitionKind.Object,ObjectType="test",ObjectSize=2};
+            foreach(var spot in spots)
+            {
+                var obj=new GameObject("Манекен (тест)");
+                obj.transform.SetParent(parent,false);
+                obj.transform.localPosition=spot;
+                var renderer=obj.AddComponent<SpriteRenderer>();
+                renderer.sprite=source.sprite;
+                renderer.sharedMaterial=material;
+                renderer.sortingOrder=RoomTerrainView.ObjectOrder;
+                sprites.Add(new RoomSpritePlacement{Definition=definition,Sprite=source.sprite,Frame=1,LocalToWorld=obj.transform.localToWorldMatrix});
+            }
+            Debug.Log($"Манекен: {spots.Length} шт. в {room.Template}, спрайт {source.sprite.name} {source.sprite.bounds.size.x:0.##}×{source.sprite.bounds.size.y:0.##} м, точка {source.sprite.pivot}.");
         }
 
         // Diagnostics: GPU cost of one field update (30 updates, then a readback waits for the GPU).
