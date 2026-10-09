@@ -3,9 +3,9 @@ Shader "Remains/WorldTerrain"
     // Terrain layer lit by URP 2D lights: the tile sprite is only a shape mask; the material
     // texture is laid in world space from the room origin (one continuous surface across
     // cells). Light, tint and shadows come from Light2D / ShadowCaster2D (stage L1).
-    // Walls (_EdgeWidth > 0): lamp light (blend style 1) fades from the wall's open sides into its
-    // body over _EdgeWidth, starting right at the edge; ambient (blend style 0) stays uniform. The
-    // edge map comes from RoomShadowShapes.Edges (casters leave that strip unshadowed).
+    // Walls (_EdgeWidth > 0): lamp light (blend style 1) is read in the room just outside the wall's
+    // open sides/inner corners (within one cell) and fades into the body over _EdgeWidth,
+    // starting right at the edge; ambient (blend style 0) stays uniform. Edge map: RoomShadowShapes.Edges.
     Properties
     {
         [PerRendererData] _MainTex ("Маска формы", 2D) = "white" {}
@@ -67,36 +67,58 @@ Shader "Remains/WorldTerrain"
                 float4 _EdgeOrigin;
             CBUFFER_END
 
-            // Edge map texel: r = WallOpen bits, g = wall flag, b = wall top / cell.
-            half EdgeLight(float2 world)
+            #if USE_SHAPE_LIGHT_TYPE_1
+            SHAPE_LIGHT(1)
+            #endif
+
+            half2 LightingUV(float2 world)
             {
-                if(_EdgeWidth<=0) return 1;
+                float4 clip=TransformWorldToHClip(float3(world,0));
+                return half2(ComputeScreenPos(clip/clip.w).xy);
+            }
+
+            half EdgeFade(float d)
+            {
+                half t=saturate(d/_EdgeWidth);
+                return 1-t*t*(3-2*t);   // from the very edge, smooth to zero at the full width
+            }
+
+            // Lamp light on a wall pixel. Edge map texel: r = WallOpen bits, g = wall flag, b = wall
+            // top / cell. Every open side / inner corner of the cell contributes the lamp light read in
+            // the room just outside it, faded by the distance to it; the brightest wins (no seams on
+            // convex corners). Non-wall pixels read their own light.
+            half4 LampLight(float2 world,half2 lightingUV)
+            {
+                #if USE_SHAPE_LIGHT_TYPE_1
+                if(_EdgeWidth<=0) return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,lightingUV);
                 float2 c=(world-_EdgeOrigin.xy)/_EdgeCell;
                 float2 index=floor(c);
-                if(any(index<0) || any(index>=_EdgeTex_TexelSize.zw)) return 1;
+                if(any(index<0) || any(index>=_EdgeTex_TexelSize.zw)) return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,lightingUV);
                 half4 e=SAMPLE_TEXTURE2D_LOD(_EdgeTex,sampler_EdgeTex,(index+0.5)*_EdgeTex_TexelSize.xy,0);
-                if(e.g<0.5) return 1;
+                if(e.g<0.5) return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,lightingUV);
                 uint open=(uint)round(e.r*255);
-                float h=e.b*_EdgeCell, w=_EdgeCell;
-                float2 p=(c-index)*_EdgeCell;
-                float d=1e4;
-                if(open&1u)   d=min(d,h-p.y);
-                if(open&2u)   d=min(d,w-p.x);
-                if(open&4u)   d=min(d,p.y);
-                if(open&8u)   d=min(d,p.x);
-                if(open&16u)  d=min(d,length(p-float2(0,h)));
-                if(open&32u)  d=min(d,length(p-float2(w,h)));
-                if(open&64u)  d=min(d,length(p-float2(w,0)));
-                if(open&128u) d=min(d,length(p-float2(0,0)));
-                half t=saturate(d/_EdgeWidth);
-                return (1-t)*(1-t);   // brightest at the very edge, fading over the whole width
+                float h=e.b*_EdgeCell, w=_EdgeCell, step=_EdgeCell*0.06;
+                float2 cellOrigin=_EdgeOrigin.xy+index*_EdgeCell;
+                float2 p=c*_EdgeCell-index*_EdgeCell;
+                half4 light=0;
+                #define REMAINS_EDGE(bit,dist,point,dir) if((open&bit)!=0 && dist<_EdgeWidth) light=max(light,SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,LightingUV(cellOrigin+point+dir*step))*EdgeFade(dist));
+                REMAINS_EDGE(1u,h-p.y,float2(p.x,h),float2(0,1))
+                REMAINS_EDGE(2u,w-p.x,float2(w,p.y),float2(1,0))
+                REMAINS_EDGE(4u,p.y,float2(p.x,0),float2(0,-1))
+                REMAINS_EDGE(8u,p.x,float2(0,p.y),float2(-1,0))
+                REMAINS_EDGE(16u,length(p-float2(0,h)),float2(0,h),float2(-0.7071,0.7071))
+                REMAINS_EDGE(32u,length(p-float2(w,h)),float2(w,h),float2(0.7071,0.7071))
+                REMAINS_EDGE(64u,length(p-float2(w,0)),float2(w,0),float2(0.7071,-0.7071))
+                REMAINS_EDGE(128u,length(p-float2(0,0)),float2(0,0),float2(-0.7071,-0.7071))
+                #undef REMAINS_EDGE
+                return light;
+                #else
+                return 0;
+                #endif
             }
 
             #if USE_SHAPE_LIGHT_TYPE_0
             SHAPE_LIGHT(0)
-            #endif
-            #if USE_SHAPE_LIGHT_TYPE_1
-            SHAPE_LIGHT(1)
             #endif
             #if USE_SHAPE_LIGHT_TYPE_2
             SHAPE_LIGHT(2)
@@ -135,7 +157,7 @@ Shader "Remains/WorldTerrain"
                 modulate+=l0*_ShapeLightBlendFactors0.x; additive+=l0*_ShapeLightBlendFactors0.y;
                 #endif
                 #if USE_SHAPE_LIGHT_TYPE_1
-                half4 l1=SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,i.lightingUV)*EdgeLight(i.world);
+                half4 l1=LampLight(i.world,i.lightingUV);
                 modulate+=l1*_ShapeLightBlendFactors1.x; additive+=l1*_ShapeLightBlendFactors1.y;
                 #endif
                 #if !USE_SHAPE_LIGHT_TYPE_0 && !USE_SHAPE_LIGHT_TYPE_1

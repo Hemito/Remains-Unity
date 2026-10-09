@@ -24,14 +24,11 @@ namespace Remains.RoomFormat
         public double Height;   // wall top above the cell bottom (lowered for partial height)
     }
 
-    // Lit wall edge (lighting L1): a lamp lights a wall only near its sides open to the room, fading
-    // into the dark body. One model of wall cells and their open sides/corners feeds both consumers:
-    // shadow casters (Build: walls cast and receive their own shadow, open sides moved inward by
-    // `edge`, open inner corners cut out, so the edge strip is never inside a caster) and the
-    // terrain shader's edge map (Edges: per-cell open sides/corners, the shader fades lamp light by
-    // the distance to them). Wall cells of one row are merged while openness and height match, so
-    // internal seams get no inset (no light slits). Room borders count as closed (the wall continues
-    // in the neighbouring room). Beams cast plain shadows; stairs cast none (thin treads).
+    // Wall cells and their open sides/inner corners (lighting L1), one model for both consumers:
+    // shadow casters (Build: whole wall rectangles merged per row by height, dark inside; beams cast
+    // plain shadows; stairs none — thin treads) and the terrain shader's edge map (Edges: the shader
+    // reads lamp light just outside the nearest open side/corner and fades it into the wall body).
+    // Room borders count as closed (the wall continues in the neighbouring room).
     public static class RoomShadowShapes
     {
         public static WallEdge[,] Edges(RoomGeometry geometry)
@@ -70,10 +67,9 @@ namespace Remains.RoomFormat
             return edges;
         }
 
-        public static List<ShadowRect> Build(RoomGeometry geometry, double edge)
+        public static List<ShadowRect> Build(RoomGeometry geometry)
         {
             if (geometry == null) throw new ArgumentNullException(nameof(geometry));
-            if (edge < 0 || edge >= geometry.Cell / 2) throw new ArgumentOutOfRangeException(nameof(edge), edge, "Кромка должна быть в пределах [0, половина клетки).");
             double cell = geometry.Cell;
             var result = new List<ShadowRect>();
             foreach (var s in geometry.Surfaces)
@@ -81,7 +77,6 @@ namespace Remains.RoomFormat
 
             var edges = Edges(geometry);
             int width = edges.GetLength(0), height = edges.GetLength(1);
-            const WallOpen corners = WallOpen.TopLeft | WallOpen.TopRight | WallOpen.BottomRight | WallOpen.BottomLeft;
             for (int y = 0; y < height; y++)
             {
                 int x = 0;
@@ -89,38 +84,13 @@ namespace Remains.RoomFormat
                 {
                     var e = edges[x, y];
                     if (!e.Wall) { x++; continue; }
-                    var rowOpen = e.Open & (WallOpen.Top | WallOpen.Bottom);
                     int end = x + 1;
-                    if ((e.Open & corners) == 0)
-                        while (end < width && edges[end, y].Wall && Math.Abs(edges[end, y].Height - e.Height) < 1e-9
-                            && (edges[end, y].Open & corners) == 0 && (edges[end, y].Open & (WallOpen.Top | WallOpen.Bottom)) == rowOpen) end++;
-                    var open = rowOpen | (e.Open & (WallOpen.Left | corners)) | (edges[end - 1, y].Open & WallOpen.Right);
-                    Cut(result, x * cell, end * cell, y * cell, y * cell + e.Height, open, edge);
+                    while (end < width && edges[end, y].Wall && Math.Abs(edges[end, y].Height - e.Height) < 1e-9) end++;
+                    result.Add(new ShadowRect { X = x * cell, Y = y * cell, Width = (end - x) * cell, Height = e.Height, SelfShadow = true });
                     x = end;
                 }
             }
             return result;
-        }
-
-        // Rectangle with open sides moved inward and open inner corners cut out (edge × edge), as
-        // up to three horizontal strips.
-        private static void Cut(List<ShadowRect> result, double x0, double x1, double y0, double y1, WallOpen open, double edge)
-        {
-            bool Has(WallOpen flag) => (open & flag) != 0;
-            if (Has(WallOpen.Left)) x0 += edge;
-            if (Has(WallOpen.Right)) x1 -= edge;
-            if (Has(WallOpen.Bottom)) y0 += edge;
-            if (Has(WallOpen.Top)) y1 -= edge;
-            double bottomCut = Has(WallOpen.BottomLeft) || Has(WallOpen.BottomRight) ? edge : 0;
-            double topCut = Has(WallOpen.TopLeft) || Has(WallOpen.TopRight) ? edge : 0;
-            Add(result, x0 + (Has(WallOpen.BottomLeft) ? edge : 0), x1 - (Has(WallOpen.BottomRight) ? edge : 0), y0, y0 + bottomCut);
-            Add(result, x0, x1, y0 + bottomCut, y1 - topCut);
-            Add(result, x0 + (Has(WallOpen.TopLeft) ? edge : 0), x1 - (Has(WallOpen.TopRight) ? edge : 0), y1 - topCut, y1);
-        }
-
-        private static void Add(List<ShadowRect> result, double x0, double x1, double y0, double y1)
-        {
-            if (x1 - x0 > 1e-9 && y1 - y0 > 1e-9) result.Add(new ShadowRect { X = x0, Y = y0, Width = x1 - x0, Height = y1 - y0, SelfShadow = true });
         }
     }
 }

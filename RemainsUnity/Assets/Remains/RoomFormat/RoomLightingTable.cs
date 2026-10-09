@@ -39,6 +39,7 @@ namespace Remains.RoomFormat
             var shadows = root.Get("shadows") ?? throw new FormatException(source + ": нет раздела shadows.");
             table.ShadowEdge = shadows.Get("edge").AsDouble(source + ".shadows.edge");
             table.ShadowSoftness = shadows.Get("softness").AsDouble(source + ".shadows.softness");
+            if (table.ShadowEdge < 0) throw new FormatException(source + ".shadows.edge: ширина кромки не может быть отрицательной.");
             foreach (var t in root.Get("tints").Fields) table.Tints.Add(t.Key, Rgb(t.Value, source + ".tints." + t.Key));
             foreach (var l in root.Get("lamps").Fields)
             {

@@ -19,7 +19,7 @@ namespace Remains.Presentation
         public const int BackdropOrder=-30,BackOrder=-29,RearOrder=-6,FrontOrder=-4,BorderOrder=-3,FloorOrder=-2,RearSpriteOrder=-5,FrontSpriteOrder=1;
         private const string ShaderResource="Presentation/WorldTerrain";
 
-        // litEdge: width (m) of the lamp-lit wall edge (lighting table shadows.edge), 0 = walls lit evenly.
+        // litEdge: how deep (m, up to one cell) lamp light enters a wall from its open edge (lighting table shadows.edge), 0 = walls lit evenly.
         public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,double litEdge,Transform parent=null)
         {
             if(room==null || definitions==null || lands==null || art==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):nameof(art));
@@ -33,6 +33,7 @@ namespace Remains.Presentation
             float quarter=(float)room.Cell/2;
             grid.cellSize=new Vector3(quarter,quarter,0);
             var shapes=RoomTerrainShapes.Compute(room);
+            if(litEdge>room.Cell) Debug.LogWarning($"{room.Template}: кромка {litEdge} м больше клетки {room.Cell} м — свет лампы заходит в стену не глубже одной клетки.");
             var edges=litEdge>0?EdgeMap(RoomShadowShapes.Edges(RoomGeometryBuilder.Build(room,definitions)),room.Cell,lifetime):null;
             var builder=new Builder(room,definitions,art,shader,root.transform,lifetime,quarter,origin,edges,(float)litEdge);
             builder.Backdrop(lands);

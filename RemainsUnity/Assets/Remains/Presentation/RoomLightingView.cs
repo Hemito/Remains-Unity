@@ -9,7 +9,7 @@ namespace Remains.Presentation
 {
     // Room lighting with URP 2D lights (stage L1, preview only): global light from the
     // room/land darkness and color tint, a point light with real-time shadows per lamp decor,
-    // and shadow casters from the grid geometry (RoomShadowShapes: walls with a lit edge, beams):
+    // and shadow casters from the grid geometry (RoomShadowShapes: walls, beams):
     // scaled unit squares, no Physics2D colliders.
     public static class RoomLightingView
     {
@@ -67,10 +67,10 @@ namespace Remains.Presentation
                     lamps++;
                 }
 
-            // Shadow casters: wall rectangles with the open sides moved inward (lit edge), beams.
+            // Shadow casters: wall rectangles (lit edge comes from the terrain shader), beams.
             var casters=new GameObject("Тени стен");
             casters.transform.SetParent(root.transform,false);
-            foreach(var rect in RoomShadowShapes.Build(RoomGeometryBuilder.Build(room,definitions),table.ShadowEdge))
+            foreach(var rect in RoomShadowShapes.Build(RoomGeometryBuilder.Build(room,definitions)))
             {
                 var obj=new GameObject("Тень");
                 obj.transform.SetParent(casters.transform,false);
