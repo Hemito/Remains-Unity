@@ -16,11 +16,13 @@ namespace Remains.Editor
     // -ponySupersample N: each panel is composed N× larger and box-filtered down (seam check).
     // -ponyParts: instead of the comparison, a grid with each visible part highlighted in red over the
     //   pony (current textures), labelled by index, shape path and texture (find which part draws a seam).
+    // -ponyNoTint: original colours (no appearance tint), to compare with the SWF render.
     // -ponyFixUv Z: candidate textures were exported at zoom Z with the canvas rounded up to whole
     // pixels; map only the shape's exact span (span·Z / canvas) instead of stretching the whole canvas.
     public static class PonyResolutionPreview
     {
         private static int supersample=1;
+        private static bool noTint;
         private static float fixUvZoom;
         private static Dictionary<string,float[]> shapeBounds;
         public static void RenderBatch()
@@ -33,6 +35,7 @@ namespace Remains.Editor
                 string clipId=Argument("-ponyClip")??"idle";
                 int frameIndex=int.Parse(Argument("-ponyFrame")??"0");
                 supersample=Math.Max(1,int.Parse(Argument("-ponySupersample")??"1"));
+                noTint=Array.IndexOf(Environment.GetCommandLineArgs(),"-ponyNoTint")>=0;
                 fixUvZoom=float.Parse(Argument("-ponyFixUv")??"0",System.Globalization.CultureInfo.InvariantCulture);
                 if(fixUvZoom>0)
                 {
@@ -57,9 +60,11 @@ namespace Remains.Editor
                     if(!File.Exists(file)) throw new FileNotFoundException("Нет картинки-кандидата "+file);
                     var tex=new Texture2D(2,2,TextureFormat.RGBA32,true,false){name=current.name,filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
                     tex.LoadImage(File.ReadAllBytes(file),false);
+                    Dilate(tex);
                     candidates.Add(current,tex);
                     var bc=new Texture2D(2,2,TextureFormat.RGBA32,true,false){name=current.name+" BC7",filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
                     bc.LoadImage(File.ReadAllBytes(file),false);
+                    Dilate(bc);
                     EditorUtility.CompressTexture(bc,TextureFormat.BC7,TextureCompressionQuality.Best);
                     compressed.Add(current,bc);
                     bytesNow+=UnityEngine.Profiling.Profiler.GetRuntimeMemorySizeLong(current);
@@ -119,7 +124,7 @@ namespace Remains.Editor
                 var part=parts[index];
                 block.Clear();
                 block.SetTexture("_MainTex",texture(part));
-                block.SetColor("_Color",PonyAppearance.Tint(part.slot,1));
+                block.SetColor("_Color",noTint?Color.white:PonyAppearance.Tint(part.slot,1));
                 block.SetFloat("_Emission",part.slot=="magic"?1:0);
                 modify?.Invoke(index,block);
                 var tex=texture(part);
@@ -147,6 +152,26 @@ namespace Remains.Editor
             for(int i=0;i<tiles.Count;i++) sheet.SetPixels((i%columns)*tw,(rows-1-i/columns)*th,tw,th,tiles[i].GetPixels());
             File.WriteAllBytes(output,sheet.EncodeToPNG());
             for(int i=0;i<parts.Length;i++) Debug.Log($"Часть {i}: {parts[i].sourcePath} текстура {parts[i].material.mainTexture.name} область {parts[i].slot} порядок {parts[i].drawOrder}");
+        }
+
+        // Like the importer's alphaIsTransparency: transparent pixels take the colour of the nearest
+        // visible ones (alpha unchanged), so filtering does not pull black into the edges.
+        private static void Dilate(Texture2D texture)
+        {
+            int w=texture.width,h=texture.height;var px=texture.GetPixels32();var filled=new bool[px.Length];
+            var queue=new Queue<int>();
+            for(int i=0;i<px.Length;i++) if(px[i].a>0) {filled[i]=true;queue.Enqueue(i);}
+            while(queue.Count>0)
+            {
+                int i=queue.Dequeue(),x=i%w,y=i/w;
+                foreach(var (dx,dy) in new[]{(1,0),(-1,0),(0,1),(0,-1)})
+                {
+                    int nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=w||ny>=h) continue;
+                    int n=ny*w+nx;if(filled[n]) continue;
+                    filled[n]=true;px[n]=new Color32(px[i].r,px[i].g,px[i].b,0);queue.Enqueue(n);
+                }
+            }
+            texture.SetPixels32(px);texture.Apply(true,false);
         }
 
         private static readonly Dictionary<(Mesh,Texture),Mesh> fixedMeshes=new();
