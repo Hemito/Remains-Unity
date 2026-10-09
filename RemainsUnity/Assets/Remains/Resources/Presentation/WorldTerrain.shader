@@ -83,25 +83,52 @@ Shader "Remains/WorldTerrain"
                 return 1-t*t*(3-2*t);   // from the very edge, smooth to zero at the full width
             }
 
-            // Lamp light on a wall pixel. Edge map texel: r = WallOpen bits, g = wall flag, b = wall
-            // top / cell. Every open side / inner corner of the cell contributes the lamp light read in
-            // the room just outside it, faded by the distance to it; the brightest wins (no seams on
-            // convex corners). Non-wall pixels read their own light.
-            half4 LampLight(float2 world,half2 lightingUV)
+            // Radiance field (RoomRadianceField, prototype): world-space lamp fluence instead of URP lamps.
+            TEXTURE2D(_RemainsRadiance); SAMPLER(sampler_RemainsRadiance);
+            float4 _RemainsRadianceRect;   // origin xy, size zw (m)
+            float _RemainsRadianceTexel;
+            float _RemainsRadianceEnabled;
+
+            bool LampsAvailable()
             {
                 #if USE_SHAPE_LIGHT_TYPE_1
-                if(_EdgeWidth<=0) return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,lightingUV);
+                return true;
+                #else
+                return _RemainsRadianceEnabled>0.5;
+                #endif
+            }
+
+            half4 SampleLamp(float2 world)
+            {
+                if(_RemainsRadianceEnabled>0.5)
+                    return SAMPLE_TEXTURE2D_LOD(_RemainsRadiance,sampler_RemainsRadiance,(world-_RemainsRadianceRect.xy)/_RemainsRadianceRect.zw,0);
+                #if USE_SHAPE_LIGHT_TYPE_1
+                return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,LightingUV(world));
+                #else
+                return 0;
+                #endif
+            }
+
+            // Lamp light on a pixel. Edge map texel: r = WallOpen bits, g = wall flag, b = wall top / cell.
+            // On a wall every open side / inner corner of the cell contributes the lamp light read in the
+            // room just outside it, faded by the distance to it; the brightest wins (no seams on convex
+            // corners). Non-wall pixels read their own light.
+            half4 LampLight(float2 world)
+            {
+                if(!LampsAvailable()) return 0;
+                if(_EdgeWidth<=0) return SampleLamp(world);
                 float2 c=(world-_EdgeOrigin.xy)/_EdgeCell;
                 float2 index=floor(c);
-                if(any(index<0) || any(index>=_EdgeTex_TexelSize.zw)) return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,lightingUV);
+                if(any(index<0) || any(index>=_EdgeTex_TexelSize.zw)) return SampleLamp(world);
                 half4 e=SAMPLE_TEXTURE2D_LOD(_EdgeTex,sampler_EdgeTex,(index+0.5)*_EdgeTex_TexelSize.xy,0);
-                if(e.g<0.5) return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,lightingUV);
+                if(e.g<0.5) return SampleLamp(world);
                 uint open=(uint)round(e.r*255);
-                float h=e.b*_EdgeCell, w=_EdgeCell, step=_EdgeCell*0.06;
+                // Outside step: clear of the wall in the light grid too (radiance texels are opaque inside walls).
+                float h=e.b*_EdgeCell, w=_EdgeCell, step=max(_EdgeCell*0.06,_RemainsRadianceEnabled>0.5?_RemainsRadianceTexel*1.0:0);
                 float2 cellOrigin=_EdgeOrigin.xy+index*_EdgeCell;
                 float2 p=c*_EdgeCell-index*_EdgeCell;
                 half4 light=0;
-                #define REMAINS_EDGE(bit,dist,point,dir) if((open&bit)!=0 && dist<_EdgeWidth) light=max(light,SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,LightingUV(cellOrigin+point+dir*step))*EdgeFade(dist));
+                #define REMAINS_EDGE(bit,dist,point,dir) if((open&bit)!=0 && dist<_EdgeWidth) light=max(light,SampleLamp(cellOrigin+point+dir*step)*EdgeFade(dist));
                 REMAINS_EDGE(1u,h-p.y,float2(p.x,h),float2(0,1))
                 REMAINS_EDGE(2u,w-p.x,float2(w,p.y),float2(1,0))
                 REMAINS_EDGE(4u,p.y,float2(p.x,0),float2(0,-1))
@@ -112,9 +139,6 @@ Shader "Remains/WorldTerrain"
                 REMAINS_EDGE(128u,length(p-float2(0,0)),float2(0,0),float2(-0.7071,-0.7071))
                 #undef REMAINS_EDGE
                 return light;
-                #else
-                return 0;
-                #endif
             }
 
             #if USE_SHAPE_LIGHT_TYPE_0
@@ -156,12 +180,14 @@ Shader "Remains/WorldTerrain"
                 half4 l0=SAMPLE_TEXTURE2D(_ShapeLightTexture0,sampler_ShapeLightTexture0,i.lightingUV);
                 modulate+=l0*_ShapeLightBlendFactors0.x; additive+=l0*_ShapeLightBlendFactors0.y;
                 #endif
+                // Lamps: the radiance field multiplies like the "Lamps" blend style.
+                half4 l1=LampLight(i.world);
+                if(_RemainsRadianceEnabled>0.5) modulate+=l1;
                 #if USE_SHAPE_LIGHT_TYPE_1
-                half4 l1=LampLight(i.world,i.lightingUV);
-                modulate+=l1*_ShapeLightBlendFactors1.x; additive+=l1*_ShapeLightBlendFactors1.y;
+                else { modulate+=l1*_ShapeLightBlendFactors1.x; additive+=l1*_ShapeLightBlendFactors1.y; }
                 #endif
                 #if !USE_SHAPE_LIGHT_TYPE_0 && !USE_SHAPE_LIGHT_TYPE_1
-                modulate=1;
+                if(_RemainsRadianceEnabled<0.5) modulate=1;
                 #endif
                 half4 color=_HDREmulationScale*(half4(main.rgb,1)*modulate+additive);
                 return half4(max(0,color.rgb),main.a);

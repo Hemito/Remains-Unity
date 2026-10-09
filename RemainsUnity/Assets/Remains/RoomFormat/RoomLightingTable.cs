@@ -17,7 +17,9 @@ namespace Remains.RoomFormat
         public const string FormatName = "remains-room-lighting";
         public const int CurrentVersion = 1;
         public double AmbientBase, DarknessScale, AmbientMin, AmbientMax;
-        public double ShadowEdge, ShadowSoftness;   // lit wall edge width (m) and lamp shadow softness 0..1
+        public double ShadowEdge, ShadowSoftness;
+        public int RadianceResolution;              // flatland light transport grid, texels per metre
+        public double RadiancePower, RadianceLampSize;   // lamp fluence 1 m away = power × intensity; disk = lampSize × half decor width   // lit wall edge width (m) and lamp shadow softness 0..1
         public readonly SortedDictionary<string, double[]> Tints = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, RoomLamp> Lamps = new SortedDictionary<string, RoomLamp>(StringComparer.Ordinal);
 
@@ -39,6 +41,11 @@ namespace Remains.RoomFormat
             var shadows = root.Get("shadows") ?? throw new FormatException(source + ": нет раздела shadows.");
             table.ShadowEdge = shadows.Get("edge").AsDouble(source + ".shadows.edge");
             table.ShadowSoftness = shadows.Get("softness").AsDouble(source + ".shadows.softness");
+            var radiance = root.Get("radiance") ?? throw new FormatException(source + ": нет раздела radiance.");
+            table.RadianceResolution = (int)radiance.Get("resolution").AsLong(source + ".radiance.resolution");
+            table.RadiancePower = radiance.Get("power").AsDouble(source + ".radiance.power");
+            table.RadianceLampSize = radiance.Get("lampSize").AsDouble(source + ".radiance.lampSize");
+            if (table.RadianceResolution < 1 || table.RadiancePower < 0 || table.RadianceLampSize <= 0) throw new FormatException(source + ".radiance: resolution ≥ 1, power ≥ 0, lampSize > 0.");
             if (table.ShadowEdge < 0) throw new FormatException(source + ".shadows.edge: ширина кромки не может быть отрицательной.");
             foreach (var t in root.Get("tints").Fields) table.Tints.Add(t.Key, Rgb(t.Value, source + ".tints." + t.Key));
             foreach (var l in root.Get("lamps").Fields)

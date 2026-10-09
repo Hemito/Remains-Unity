@@ -20,6 +20,7 @@ namespace Remains.Editor
     //   -executeMethod Remains.Editor.RoomTemplatePreview.RenderBatch -roomPreviewOut <dir> [-roomPreviewFiles <a;b>] [-roomPreviewUnlit]
     // -roomPreviewUnlit: templates only, no lights at all (plain colours, "<name>-albedo.png") — input
     // for the reference light tracer (RoomConvert trace --albedo-image).
+    // -roomPreviewRadiance: lamps by RoomRadianceField (radiance cascades) instead of URP lamp lights.
     public static class RoomTemplatePreview
     {
         private const string Definitions="Assets/Remains/Rooms/Original/definitions.json";
@@ -31,7 +32,7 @@ namespace Remains.Editor
             ("Assets/Remains/Rooms/Original/plant/vkhod2.room.json","Assets/Remains/RoomDrafts/FactoryEntry46.prefab"),
         };
 
-        private static bool unlit;
+        private static bool unlit,radiance;
 
         [MenuItem("Remains/Комнаты/Предпросмотр выбранного шаблона")]
         public static void PreviewSelected()
@@ -52,12 +53,13 @@ namespace Remains.Editor
                 Directory.CreateDirectory(outDir);
                 RoomTileArtAuthoring.Build();
                 unlit=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewUnlit")>=0;
+                radiance=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewRadiance")>=0;
                 foreach(var (templatePath,prefabPath) in Rooms)
                 {
                     var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(templatePath)??throw new InvalidOperationException("Нет шаблона "+templatePath);
                     string name=Path.GetFileName(templatePath).Replace(".room.json","");
-                    RenderRoom(template.Room,Path.Combine(outDir,name+(unlit?"-albedo.png":"-template.png")));
-                    if(unlit) continue;
+                    RenderRoom(template.Room,Path.Combine(outDir,name+(unlit?"-albedo.png":radiance?"-radiance.png":"-template.png")));
+                    if(unlit || radiance) continue;
 
                     EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
                     var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)??throw new InvalidOperationException("Нет префаба "+prefabPath);
@@ -91,8 +93,32 @@ namespace Remains.Editor
             var lightingAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lighting)??throw new InvalidOperationException("Нет таблицы света "+Lighting);
             var table=RoomLightingTable.Read(lightingAsset.text,Lighting);
             var view=RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,table.ShadowEdge);
-            if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent);
+            Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
+            if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,!radiance);
+            if(radiance) MeasureRadiance(RoomRadianceField.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent),room.Template);
             return view;
+        }
+
+        // Diagnostics: GPU cost of one field update (30 updates, then a readback waits for the GPU).
+        private static void MeasureRadiance(RoomRadianceField field,string template)
+        {
+            field.Render();
+            Sync();
+            var watch=System.Diagnostics.Stopwatch.StartNew();
+            const int runs=30;
+            for(int i=0;i<runs;i++) field.Render();
+            Sync();
+            Debug.Log($"Поле излучения {template}: {watch.Elapsed.TotalMilliseconds/runs:0.00} мс на пересчёт (среднее из {runs}, с ожиданием GPU).");
+        }
+
+        private static void Sync()
+        {
+            var probe=Shader.GetGlobalTexture("_RemainsRadiance") as RenderTexture;
+            var previous=RenderTexture.active;RenderTexture.active=probe;
+            var pixel=new Texture2D(1,1,TextureFormat.RGBAHalf,false);
+            pixel.ReadPixels(new Rect(0,0,1,1),0,0);
+            RenderTexture.active=previous;
+            UnityEngine.Object.DestroyImmediate(pixel);
         }
 
         // Original: the land's fon, "fonDefault" when the land names none.

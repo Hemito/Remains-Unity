@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Remains.RoomFormat;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -16,51 +15,38 @@ namespace Remains.Presentation
         // Renderer2D blend styles: 0 ambient (global), 1 lamps (multiply). WorldTerrain fades style 1 on wall bodies.
         public const int LampBlendStyle=1;
 
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent=null)
+        // urpLamps: false when RoomRadianceField lights the room (lamps are its emitters, not Light2D).
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent=null,bool urpLamps=true)
         {
             if(room==null || definitions==null || lands==null || table==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):nameof(table));
             var root=new GameObject("Освещение комнаты: "+room.Template);
             if(parent!=null) root.transform.SetParent(parent,false);
             root.transform.localPosition=origin;
-            var issues=new List<string>();
+            var scene=RoomLightScene.Build(room,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
+            var issues=new List<string>(scene.Issues);
 
             // Global light: ambient level and tint.
-            // Original keys differ: the room says "dark", the land says "darkness".
-            double darkness=Number(room.Options.TryGetValue("dark",out string roomDark)?roomDark:lands.Option(room,"darkness",issues),0);
-            string colorName=lands.Option(room,"color",issues);
-            var tint=Color.white;
-            if(!string.IsNullOrEmpty(colorName))
-            {
-                if(table.Tints.TryGetValue(colorName,out var rgb)) tint=new Color((float)rgb[0],(float)rgb[1],(float)rgb[2]);
-                else issues.Add($"{room.Template}: цветовой тон \"{colorName}\" не описан в таблице света — без тона.");
-            }
+            var tint=new Color((float)scene.Tint[0],(float)scene.Tint[1],(float)scene.Tint[2]);
             var global=new GameObject("Общий свет").AddComponent<Light2D>();
             global.transform.SetParent(root.transform,false);
             global.lightType=Light2D.LightType.Global;
-            global.intensity=(float)table.Ambient(darkness);
+            global.intensity=(float)table.Ambient(scene.Darkness);
             global.color=tint;
 
-            // Lamps: decor placements with a lamp entry. Lamps are on unless the room switches them off (lon < 0).
-            bool lampsOn=Number(lands.Option(room,"lon",issues),0)>=0;
-            float cell=(float)room.Cell;
+            // Lamps: URP point lights with shadows, unless the radiance field lights the room instead.
             int lamps=0;
-            if(lampsOn)
-                foreach(var decor in room.Decor)
+            if(urpLamps)
+                foreach(var source in scene.Lamps)
                 {
-                    if(!table.Lamps.TryGetValue(decor.Type,out var lamp)) continue;
-                    var definition=definitions.Require(decor.Type,room.Template+" декор");
-                    // Placement cell is the decor's top-left; footprint extends right and down.
-                    float cx=(decor.X+definition.DecorWidth/2f)*cell;
-                    float cy=(decor.Y+1-definition.DecorHeight/2f)*cell+(float)lamp.OffsetY;
-                    var light=new GameObject("Лампа "+decor.Type).AddComponent<Light2D>();
+                    var light=new GameObject("Лампа "+source.Type).AddComponent<Light2D>();
                     light.transform.SetParent(root.transform,false);
-                    light.transform.localPosition=new Vector3(cx,cy,0);
+                    light.transform.localPosition=new Vector3((float)source.X,(float)source.Y,0);
                     light.lightType=Light2D.LightType.Point;
                     light.blendStyleIndex=LampBlendStyle;
-                    light.pointLightOuterRadius=(float)lamp.Radius;
-                    light.pointLightInnerRadius=(float)lamp.Radius*.15f;
-                    light.intensity=(float)lamp.Intensity;
-                    light.color=new Color((float)lamp.Color[0],(float)lamp.Color[1],(float)lamp.Color[2])*tint;
+                    light.pointLightOuterRadius=(float)source.Lamp.Radius;
+                    light.pointLightInnerRadius=(float)source.Lamp.Radius*.15f;
+                    light.intensity=(float)source.Lamp.Intensity;
+                    light.color=new Color((float)source.Color[0],(float)source.Color[1],(float)source.Color[2]);
                     light.shadowsEnabled=true;
                     light.shadowIntensity=1f;
                     light.shadowSoftness=(float)table.ShadowSoftness;
@@ -85,11 +71,8 @@ namespace Remains.Presentation
                     issues.Add($"{room.Template}: тенеотбрасыватель {rect.X:0.##},{rect.Y:0.##} {rect.Width:0.##}×{rect.Height:0.##} без сетки — тени от него не будет.");
             }
             foreach(string issue in issues) Debug.LogWarning(issue);
-            Debug.Log($"Свет {room.Template}: общий {global.intensity:0.##}, тон {(string.IsNullOrEmpty(colorName)?"нет":colorName)}, ламп {lamps}{(lampsOn?"":" (выключены комнатой)")}, теней {casters.transform.childCount}.");
+            Debug.Log($"Свет {room.Template}: общий {global.intensity:0.##}, тон {(string.IsNullOrEmpty(scene.TintName)?"нет":scene.TintName)}, ламп {(urpLamps?lamps.ToString():scene.Lamps.Count+" (поле излучения)")}{(scene.LampsOn?"":" (выключены комнатой)")}, теней {casters.transform.childCount}.");
             return root;
         }
-
-        private static double Number(string value,double fallback)
-            =>string.IsNullOrEmpty(value)?fallback:double.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out double parsed)?parsed:throw new FormatException("Не число: "+value);
     }
 }

@@ -1,0 +1,150 @@
+// Radiance cascades (flatland light transport, prototype). Grid = room light texels.
+// Scene: rgb emitted radiance, a = 1 opaque (walls and lamp disks). Rays stop at the first opaque
+// texel and take its radiance; rays leaving the room are lost (as in the reference tracer).
+// Cascade c: probes every 2^c texels, 4^(c+1) directions, ray interval [(4^c-1)/3, (4^(c+1)-1)/3]
+// texels; each probe stores its directions as a 2^(c+1) square block. Computed from the top
+// cascade down; a ray that hits nothing continues with the cascade above (its 4 sub-directions,
+// bilinear between the 4 nearest upper probes). Fluence = Σ radiance × 2π / 4 over cascade 0;
+// opaque texels (inside walls, beams) then take the brightest open texel within 2 texels, so thin
+// beams and wall rims read the light beside them; lamp disks look up to 6 texels (their centre).
+#pragma kernel Seed
+#pragma kernel Jump
+#pragma kernel Distance
+#pragma kernel Cascade
+#pragma kernel Fluence
+#pragma kernel Fill
+
+#define FAR 1e6
+#define TAU 6.28318530718
+
+Texture2D<float4> _Scene;
+Texture2D<float2> _SeedsIn;
+RWTexture2D<float2> _SeedsOut;
+Texture2D<float2> _SeedsFinal;
+RWTexture2D<float> _DistanceOut;
+Texture2D<float> _Distance;
+Texture2D<float4> _Upper;
+RWTexture2D<float4> _Cascade;
+Texture2D<float4> _Cascade0;
+RWTexture2D<float4> _Fluence;
+Texture2D<float4> _FluenceRaw;
+int2 _Size;
+int _Step;
+int _Level;
+int _Top;
+
+bool Inside(int2 p) { return all(p >= 0) && all(p < _Size); }
+
+[numthreads(8,8,1)]
+void Seed(uint3 id : SV_DispatchThreadID)
+{
+    if (!Inside(int2(id.xy))) return;
+    _SeedsOut[id.xy] = _Scene[id.xy].a > 0.5 ? float2(id.xy) : float2(-FAR, -FAR);
+}
+
+// Jump flood: nearest opaque texel among the 3×3 neighbours at distance _Step.
+[numthreads(8,8,1)]
+void Jump(uint3 id : SV_DispatchThreadID)
+{
+    int2 p = int2(id.xy);
+    if (!Inside(p)) return;
+    float2 best = _SeedsIn[p];
+    float bestDistance = best.x < -FAR * 0.5 ? FAR : distance(best, float2(p));
+    for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            int2 q = p + int2(dx, dy) * _Step;
+            if (!Inside(q)) continue;
+            float2 s = _SeedsIn[q];
+            if (s.x < -FAR * 0.5) continue;
+            float d = distance(s, float2(p));
+            if (d < bestDistance) { bestDistance = d; best = s; }
+        }
+    _SeedsOut[p] = best;
+}
+
+[numthreads(8,8,1)]
+void Distance(uint3 id : SV_DispatchThreadID)
+{
+    int2 p = int2(id.xy);
+    if (!Inside(p)) return;
+    float2 s = _SeedsFinal[p];
+    _DistanceOut[p] = s.x < -FAR * 0.5 ? FAR : distance(s, float2(p));
+}
+
+[numthreads(8,8,1)]
+void Cascade(uint3 id : SV_DispatchThreadID)
+{
+    int c = _Level;
+    int block = 1 << (c + 1), directions = block * block, spacing = 1 << c;
+    int2 probes = (_Size + spacing - 1) / spacing;
+    int2 probe = int2(id.xy) / block, local = int2(id.xy) % block;
+    if (any(probe >= probes)) return;
+    int dir = local.x + local.y * block;
+    float2 origin = (float2(probe) + 0.5) * spacing;
+    float angle = (dir + 0.5) / directions * TAU;
+    float2 d = float2(cos(angle), sin(angle));
+    float start = ((1 << (2 * c)) - 1) / 3.0, end = ((1 << (2 * (c + 1))) - 1) / 3.0;
+
+    float4 result = float4(0, 0, 0, 1);   // rgb radiance, a = 1 nothing hit (continue above)
+    float t = start;
+    for (int i = 0; i < 256 && t < end; i++)
+    {
+        float2 p = origin + d * t;
+        int2 texel = int2(floor(p));
+        if (!Inside(texel)) { result = float4(0, 0, 0, 0); break; }
+        float sd = _Distance[texel];
+        if (sd < 0.5) { result = float4(_Scene[texel].rgb, 0); break; }
+        t += max(sd - 1.0, 0.5);
+    }
+
+    if (result.a > 0.5 && c < _Top)
+    {
+        int upperSpacing = spacing * 2, upperBlock = block * 2;
+        int2 upperProbes = (_Size + upperSpacing - 1) / upperSpacing;
+        float2 f = origin / upperSpacing - 0.5;
+        int2 q0 = int2(floor(f));
+        float2 w = f - q0;
+        float3 merged = 0;
+        for (int k = 0; k < 4; k++)
+        {
+            int j = dir * 4 + k;
+            int2 jl = int2(j % upperBlock, j / upperBlock);
+            for (int corner = 0; corner < 4; corner++)
+            {
+                int2 o = int2(corner & 1, corner >> 1);
+                int2 q = clamp(q0 + o, int2(0, 0), upperProbes - 1);
+                float weight = (o.x ? w.x : 1 - w.x) * (o.y ? w.y : 1 - w.y);
+                merged += _Upper[q * upperBlock + jl].rgb * weight;
+            }
+        }
+        result.rgb += merged * 0.25;
+    }
+    _Cascade[id.xy] = result;
+}
+
+[numthreads(8,8,1)]
+void Fluence(uint3 id : SV_DispatchThreadID)
+{
+    int2 p = int2(id.xy);
+    if (!Inside(p)) return;
+    float3 sum = _Cascade0[p * 2].rgb + _Cascade0[p * 2 + int2(1, 0)].rgb + _Cascade0[p * 2 + int2(0, 1)].rgb + _Cascade0[p * 2 + int2(1, 1)].rgb;
+    _Fluence[p] = float4(sum * (TAU / 4), 1);
+}
+
+[numthreads(8,8,1)]
+void Fill(uint3 id : SV_DispatchThreadID)
+{
+    int2 p = int2(id.xy);
+    if (!Inside(p)) return;
+    if (_Scene[p].a < 0.5) { _Fluence[p] = _FluenceRaw[p]; return; }
+    float4 best = 0;
+    int reach = any(_Scene[p].rgb > 0) ? 6 : 2;   // lamp disks: up to their centre
+    for (int dy = -reach; dy <= reach; dy++)
+        for (int dx = -reach; dx <= reach; dx++)
+        {
+            int2 q = p + int2(dx, dy);
+            if (Inside(q) && _Scene[q].a < 0.5) best = max(best, _FluenceRaw[q]);
+        }
+    _Fluence[p] = best;
+}
