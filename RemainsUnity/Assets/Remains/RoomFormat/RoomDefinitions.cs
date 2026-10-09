@@ -17,6 +17,9 @@ namespace Remains.RoomFormat
         public int Slope;                      // stairs: +1 rises to the right, -1 to the left
         public int Facing;                     // ladder: +1 right, -1 left
         public double LadderFraction, MovementOffset, ArtworkOffset;   // ladder placement inside the cell
+        // Visual layers (TileManifest IDs / mask names). Draw order relative to actors: Rear.
+        public string MainTexture, MainMask, AltTexture, BorderTexture, BorderMask, FloorTexture, FloorMask, Filter, FrontSprite;
+        public bool Rear;
     }
 
     public sealed class RoomDefinitionCatalog
@@ -51,6 +54,11 @@ namespace Remains.RoomFormat
                 if (d.Threshold != 0) v.Set("threshold", JsonValue.Of(d.Threshold));
                 if (d.Indestructible) v.Set("indestructible", JsonValue.Of(true));
                 if (d.Slope != 0) v.Set("slope", JsonValue.Of(d.Slope));
+                SetIf(v, "mainTexture", d.MainTexture); SetIf(v, "mainMask", d.MainMask); SetIf(v, "altTexture", d.AltTexture);
+                SetIf(v, "borderTexture", d.BorderTexture); SetIf(v, "borderMask", d.BorderMask);
+                SetIf(v, "floorTexture", d.FloorTexture); SetIf(v, "floorMask", d.FloorMask);
+                SetIf(v, "filter", d.Filter); SetIf(v, "frontSprite", d.FrontSprite);
+                if (d.Rear) v.Set("rear", JsonValue.Of(true));
                 if (d.Kind == RoomDefinitionKind.Ladder)
                     v.Set("facing", JsonValue.Of(d.Facing)).Set("ladderFraction", JsonValue.Of(d.LadderFraction))
                      .Set("movementOffset", JsonValue.Of(d.MovementOffset)).Set("artworkOffset", JsonValue.Of(d.ArtworkOffset));
@@ -59,6 +67,9 @@ namespace Remains.RoomFormat
             root.Set("definitions", items);
             return JsonText.Write(root, 3, new[] { "definitions" });
         }
+
+        private static void SetIf(JsonValue v, string key, string value) { if (!string.IsNullOrEmpty(value)) v.Set(key, JsonValue.Of(value)); }
+        private static string Str(JsonValue v, string key, string ctx) => v.Get(key)?.AsString(ctx + "." + key);
 
         public static RoomDefinitionCatalog Read(string text, string source)
         {
@@ -86,6 +97,11 @@ namespace Remains.RoomFormat
                     LadderFraction = v.Get("ladderFraction")?.AsDouble(ctx + ".ladderFraction") ?? 0,
                     MovementOffset = v.Get("movementOffset")?.AsDouble(ctx + ".movementOffset") ?? 0,
                     ArtworkOffset = v.Get("artworkOffset")?.AsDouble(ctx + ".artworkOffset") ?? 0,
+                    MainTexture = Str(v, "mainTexture", ctx), MainMask = Str(v, "mainMask", ctx), AltTexture = Str(v, "altTexture", ctx),
+                    BorderTexture = Str(v, "borderTexture", ctx), BorderMask = Str(v, "borderMask", ctx),
+                    FloorTexture = Str(v, "floorTexture", ctx), FloorMask = Str(v, "floorMask", ctx),
+                    Filter = Str(v, "filter", ctx), FrontSprite = Str(v, "frontSprite", ctx),
+                    Rear = v.Get("rear")?.Bool ?? false,
                 });
             }
             return catalog;

@@ -9,6 +9,8 @@ namespace Remains.RoomFormat.Original
     {
         public string Id, Name, Back, Mirror;
         public int Ed, Vid, Diagon, Stair, Hp, Threshold, Mat;
+        // Drawing layers (fe/graph/Material): texture name and its shape mask per layer.
+        public string MainTexture, MainMask, AltTexture, BorderTexture, BorderMask, FloorTexture, FloorMask, Filter;
         public bool Shelf, Rear, Solid, Indestructible;
         // Form.as: a form without vid draws itself as the tile front.
         public string Front => Vid > 0 ? null : Id;
@@ -16,7 +18,8 @@ namespace Remains.RoomFormat.Original
 
     public sealed class OriginalForms
     {
-        private static readonly Regex MatTag = new Regex(@"<mat\s([^>]*)>", RegexOptions.CultureInvariant);
+        private static readonly Regex MatTag = new Regex(@"<mat\s([^>]*?)(/>|>(.*?)</mat>)", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+        private static readonly Regex ChildTag = new Regex(@"<(main|border|floor|filter)\s([^>]*?)/?>", RegexOptions.CultureInvariant);
         private static readonly Regex Attribute = new Regex(@"([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?:'([^']*)'|""([^""]*)"")", RegexOptions.CultureInvariant);
 
         // fForms: ed=1 (first character); oForms: every other ed (following characters).
@@ -53,6 +56,18 @@ namespace Remains.RoomFormat.Original
                 };
                 var table = form.Ed == 1 ? result.Front : result.Other;
                 if (table.ContainsKey(id)) throw new FormatException($"{source}: повтор формы ed={form.Ed} id={id}.");
+                foreach (Match child in ChildTag.Matches(tag.Groups[3].Value))
+                {
+                    var c = new Dictionary<string, string>(StringComparer.Ordinal);
+                    foreach (Match a in Attribute.Matches(child.Groups[2].Value)) c[a.Groups[1].Value] = a.Groups[2].Success ? a.Groups[2].Value : a.Groups[3].Value;
+                    switch (child.Groups[1].Value)
+                    {
+                        case "main": form.MainTexture = Get(c, "tex"); form.MainMask = Get(c, "mask"); form.AltTexture = Get(c, "alt"); break;
+                        case "border": form.BorderTexture = Get(c, "tex"); form.BorderMask = Get(c, "mask"); break;
+                        case "floor": form.FloorTexture = Get(c, "tex"); form.FloorMask = Get(c, "mask"); break;
+                        case "filter": form.Filter = Get(c, "f"); break;
+                    }
+                }
                 table.Add(id, form);
             }
             if (result.Front.Count == 0) throw new FormatException(source + ": не найдено ни одной формы <mat ed='1'>.");

@@ -35,15 +35,15 @@ namespace Remains.RoomFormat.Original
                 return null;
             }
             foreach (var form in forms.Front.Values)
-                catalog.Add(new RoomDefinition
+                catalog.Add(Visual(form, new RoomDefinition
                 {
                     Id = SolidPrefix + form.Id, Kind = RoomDefinitionKind.Solid, Name = form.Name, Source = $"AllData mat ed=1 id={form.Id}",
                     MovementSound = Sound(form), Hp = form.Hp, Threshold = form.Threshold, Indestructible = form.Indestructible,
-                });
+                }));
             foreach (var form in forms.Other.Values)
             {
                 if (form.Ed == 2)
-                    catalog.Add(new RoomDefinition { Id = BackPrefix + form.Id, Kind = RoomDefinitionKind.Backwall, Name = form.Name, Source = $"AllData mat ed=2 id={form.Id}" });
+                    catalog.Add(Visual(form, new RoomDefinition { Id = BackPrefix + form.Id, Kind = RoomDefinitionKind.Backwall, Name = form.Name, Source = $"AllData mat ed=2 id={form.Id}" }));
                 else if (Structural.TryGetValue(form.Id, out var mapped))
                 {
                     var kind = mapped.Layer == RoomLayers.Ladder ? RoomDefinitionKind.Ladder : mapped.Layer == RoomLayers.Platform ? RoomDefinitionKind.Platform : RoomDefinitionKind.Stairs;
@@ -60,12 +60,26 @@ namespace Remains.RoomFormat.Original
                         definition.LadderFraction = mapped.LadderFraction; definition.MovementOffset = mapped.MovementOffset; definition.ArtworkOffset = mapped.ArtworkOffset;
                     }
                     if (kind == RoomDefinitionKind.Stairs && definition.Slope == 0) throw new FormatException($"Ступени {form.Id}: diagon=0.");
-                    catalog.Add(definition);
+                    catalog.Add(Visual(form, definition));
                 }
                 else issues.Add($"Форма ed={form.Ed} id={form.Id} ({form.Name}) не входит в каталог: нет сопоставления.");
             }
             return catalog;
         }
+
+        // Material.as: rear for ed=2 or rear attribute; textures by name, masks by symbol class.
+        private static RoomDefinition Visual(OriginalForm form, RoomDefinition definition)
+        {
+            definition.MainTexture = Tex(form.MainTexture); definition.AltTexture = Tex(form.AltTexture);
+            definition.BorderTexture = Tex(form.BorderTexture); definition.FloorTexture = Tex(form.FloorTexture);
+            definition.MainMask = form.MainMask; definition.BorderMask = form.BorderMask; definition.FloorMask = form.FloorMask;
+            definition.Filter = form.Filter;
+            definition.Rear = form.Rear || form.Ed == 2;
+            if (form.Vid > 0) definition.FrontSprite = TileManifest.FrontFrameId(form.Vid);
+            return definition;
+        }
+
+        private static string Tex(string name) => string.IsNullOrEmpty(name) ? null : TileManifest.TextureId(name);
 
         public static OriginalFormMap Parse(string json, string source)
         {
