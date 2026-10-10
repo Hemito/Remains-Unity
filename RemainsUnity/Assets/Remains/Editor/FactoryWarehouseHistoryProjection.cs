@@ -183,8 +183,12 @@ namespace Remains.Editor
             ExactWarehouse(source.level,all,added);
             string prefix=source.level+":";
             var office=source.doors.Where(d=>d.id.StartsWith(prefix+"original:plant:53:",StringComparison.Ordinal)).ToArray();
-            var openings=office.Where(d=>d.integrity!=null).Select(d=>d.id).ToArray();
-            var initial=office.Where(d=>d.integrity==null).Select(d=>d.id).ToArray();
+            // Expansion membership comes from the source placements. Later capability
+            // upgrades (r68) also give the initial doors integrity; they do not add IDs.
+            var openingData=FactoryOfficeOpeningsAuthoring.ReadData(projectRoot==null?null:Path.Combine(projectRoot,"Tools/Research/OfficeOpeningsResources"));
+            var openingIds=openingData.placements.Select(p=>prefix+p.Id).ToHashSet(StringComparer.Ordinal);
+            var openings=office.Where(d=>openingIds.Contains(d.id)).Select(d=>d.id).ToArray();
+            var initial=office.Where(d=>!openingIds.Contains(d.id)).Select(d=>d.id).ToArray();
             Require(openings.Length==6 && initial.Length==3,"Потеряны шесть проёмов и три прежние двери офиса.");
             ValidateChain(source.level,source.expansion,all,"doors",new[]{added,openings,initial});
             var result=StateJson.Copy(source);result.doors=result.doors.Where(d=>!added.Contains(d.id)).ToArray();

@@ -13226,6 +13226,7 @@ GameObject:
   - component: {fileID: 5790121976742073011}
   - component: {fileID: 7683558705906858284}
   - component: {fileID: 5415082512045697827}
+  - component: {fileID: 6214877565255235849}
   m_Layer: 0
   m_Name: FactoryWorkshop18
   m_TagString: Untagged
@@ -13403,6 +13404,10 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   patch: base:factory-workshop-18:doors-v1
+  expansion:
+    previousPatch:
+    additions: []
+    earlierVersions: []
 --- !u!114 &6406370102143564393
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13475,6 +13480,23 @@ MonoBehaviour:
     previousPatch:
     additions: []
     earlierVersions: []
+--- !u!114 &6214877565255235849
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5300161484523417046}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cfbe9526d5d518a9c278c7ce03a036f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  patch: base:factory-legacy-door-18:capabilities-v1
+  stableIds:
+  - original:plant:18:u5L7cDvWbALJnJxf
+  - original:plant:18:JLgxVHRV2bDR9qHK
+  - original:plant:18:u3cH0Npzu0VH1RKK
 --- !u!1 &5339424222898628946
 GameObject:
   m_ObjectHideFlags: 0

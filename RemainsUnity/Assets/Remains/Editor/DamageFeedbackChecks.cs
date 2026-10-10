@@ -15,10 +15,12 @@ namespace Remains.Editor
         private sealed class HeavyHit : IDamageRule {public float Calculate(string weapon,float speed)=>100;}
         public static void Run()
         {
+            Remains.Content.ActorTypes.Load();
             var actor=new ActorState {id="target",health=7,level="hub",generation=3};
             var attack=new AttackEvent {id="overkill",level="hub",weapon="pistol",attacker="other"};
             var receiver=new DamageReceiver(new HeavyHit());int count=0;DamageResult result=default;
-            receiver.Applied+=value=>{count++;result=value;};
+            // The network publisher adds the current world to the actual outcome.
+            receiver.Applied+=value=>{count++;result=value;result.world="damage-feedback-check-world";};
             if(receiver.Apply(actor,attack,false) || count!=0) throw new Exception("Промах породил число урона.");
             if(!receiver.Apply(actor,attack,true) || count!=1 || result.amount!=7 || result.actor!=actor.id || result.generation!=3 || !DamageFeedback.Valid(result))
                 throw new Exception("Число урона не соответствует фактически снятым 7 HP при ударе на 100.");

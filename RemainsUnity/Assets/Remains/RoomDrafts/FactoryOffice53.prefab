@@ -9402,6 +9402,7 @@ GameObject:
   - component: {fileID: 8748668585791500760}
   - component: {fileID: 6996004771579417521}
   - component: {fileID: 383096401109303833}
+  - component: {fileID: 7090647682998025132}
   m_Layer: 0
   m_Name: FactoryOffice53
   m_TagString: Untagged
@@ -9802,6 +9803,23 @@ MonoBehaviour:
       y: 0
       width: 3.98
       height: 2.4
+--- !u!114 &7090647682998025132
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3132930778957156883}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cfbe9526d5d518a9c278c7ce03a036f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  patch: base:factory-legacy-door-53:capabilities-v1
+  stableIds:
+  - original:plant:53:ffoNKTl2qsZVBCG3
+  - original:plant:53:foMRNLiLOHCLfItd
+  - original:plant:53:NMeCLKXlWsv6CYYL
 --- !u!1 &3141027747770149343
 GameObject:
   m_ObjectHideFlags: 0

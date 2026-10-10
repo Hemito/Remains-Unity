@@ -125,10 +125,20 @@ namespace Remains.Networking
             if (reply.accepted)
             {
                 RoomContentBatch content;
+                DoorCapabilityLayout[] capabilities;
                 using(TransitionTiming.Measure("travel.content-read",request.destination))
-                    content=RoomContentBatch.Read(RoomAuthoring.Load(request.destination,session.ServerWorld),request.destination);
+                {
+                    var authoring=RoomAuthoring.Load(request.destination,session.ServerWorld);
+                    content=RoomContentBatch.Read(authoring,request.destination);
+                    capabilities=RoomDoorCapabilityContent.Read(authoring,request.destination);
+                }
                 using(TransitionTiming.Measure("travel.content-install",request.destination))
                     RoomContentInstaller.Apply(session.ServerWorld,content);
+                // Rooms first visited after startup need the same explicit capability
+                // journal as loaded rooms. Preserve the saved source before migration;
+                // already damaged doors and recorded versions remain untouched.
+                using(TransitionTiming.Measure("travel.door-capabilities",request.destination))
+                    session.PrepareDoorCapabilities(capabilities,true);
                 session.LevelTime.EnsureLevel(request.destination);
                 using(TransitionTiming.Measure("travel.mechanisms",request.destination))
                     session.Mechanisms.ReconcileServer();

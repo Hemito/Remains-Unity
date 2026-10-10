@@ -143,7 +143,7 @@ namespace Remains.Runtime
             Require(!Actor.down && Actor.health>0,"Игрок потерял живой контекст; HP не подменяется. "+Context());
             if(!placed)Place();
             if(!readySent && Time.unscaledTime-placedAt>Mathf.Max(.25f,WeaponRigs.RaiseDelay+.1f) && (!Driver || Actor.weapon=="pistol") &&
-                runtime.ActiveRoomLighting is {IsReady:true,IsUpdating:false} && InView())
+                runtime.ActiveRoomLighting is {IsReady:true,IsUpdating:false} && DrawnPlayerReady() && InView())
             {
                 var room=runtime.Geometry.Get(Actor.level);
                 Require(!Actor.climbing && ActorTerrainMotion.Supported(room,Anatomy.Movement(Actor),Actor.Position),"Начальное тело потеряло обычную опору.");
@@ -175,15 +175,42 @@ namespace Remains.Runtime
             Require(npc!=null && !npc.player && !npc.down && npc.health>0 && npc.actorType==Type && npc.level=="factory:0","Не найдена живая авторская встреча: "+Target);
             var players=world.actors.Where(a=>a.player && a.connected).OrderBy(a=>a.character,StringComparer.Ordinal).ToArray();
             string driver=players.Single(a=>runtime.Options.ProbePeers==1 || a.character=="session-client-1").id;
-            fixture=new Fixture {world=world.worldId,driver=driver,target=Target,type=Type,initialNpc=npc.Copy(),players=players.Select(a=>new Placement {actor=a.id,
-                position=npc.Position+(Type=="radroach"?Vector2.right*(a.id==driver?1.1f:2.2f):Vector2.left*(a.id==driver?1.6f:2.7f))}).ToArray()};
+            var placements=new List<Placement>();
+            foreach(var player in players.OrderBy(a=>a.id==driver?0:1))
+                placements.Add(new Placement {actor=player.id,position=SelectFixturePosition(world,npc,player,driver,placements)});
+            fixture=new Fixture {world=world.worldId,driver=driver,target=Target,type=Type,initialNpc=npc.Copy(),players=placements.ToArray()};
             fixtureSent=true;NetworkServer.SendToAll(new ActorDeathProbeFixture {json=StateJson.ToJson(fixture)});
         }
+        private Vector2 SelectFixturePosition(WorldState world,ActorState npc,ActorState player,string driver,List<Placement> placements)
+        {
+            var room=runtime.Geometry.Get(npc.level);var hull=Anatomy.Movement(player);
+            float start=Type=="radroach"?(player.id==driver?1.1f:2.2f):(player.id==driver?1.6f:2.7f);
+            float direction=Type=="radroach"?1:-1;
+            float minimum=(hull.width+Anatomy.Movement(npc).width)*.5f;
+            var distances=Enumerable.Range(0,26).Select(step=>minimum+step*.2f).Append(start).Distinct().OrderBy(distance=>Mathf.Abs(distance-start));
+            // Up raises the weapon through normal input, but also catches native ladders.
+            // Select the initial floor fixture once; never move the NPC or suppress climbing.
+            foreach(float side in new[]{direction,-direction})
+            foreach(float distance in distances)
+            {
+                var position=npc.Position+Vector2.right*(side*distance);
+                if(!ActorTerrainMotion.IsClear(room,hull,position) || !ActorTerrainMotion.Supported(room,hull,position) || !ClearOfLadder(room,position))continue;
+                var body=new Rect(position.x-hull.width*.5f,position.y,hull.width,hull.height);
+                if(placements.Any(p=>Mathf.Abs(p.position.x-position.x)<1.1f))continue;
+                if(WorldProps.All(world).Any(prop=>prop.level==npc.level && prop.hasPhysicalBody &&
+                    body.Overlaps(new Rect(prop.x-prop.width*.5f,prop.y-prop.anchorHeight,prop.width,prop.height))))continue;
+                return position;
+            }
+            throw new InvalidOperationException($"Нет свободной опоры вне хвата лестницы: actor={player.id}, target={npc.id}, position={npc.Position}, start={start}.");
+        }
+        private static bool ClearOfLadder(RoomLayout room,Vector2 position)=>!room.ladders.Any(l=>
+            Mathf.Abs(position.x-l.x-l.movementOffset)<.8f && position.y>=l.bottom-.1f && position.y<l.top+.2f);
         private void Place()
         {
             Require(fixture.world==runtime.Session.World.worldId && fixture.target==Target && fixture.type==Type,"Изменились мир/тип/ID fixture.");
             var position=fixture.players.Single(p=>p.actor==Actor.id).position;var room=runtime.Geometry.Get(Actor.level);var hull=Anatomy.Movement(Actor);
             Require(ActorTerrainMotion.IsClear(room,hull,position) && ActorTerrainMotion.Supported(room,hull,position),"Нет реальной свободной опоры player fixture: "+position);
+            Require(ClearOfLadder(room,position),"Начальная опора player fixture попала в хват лестницы: "+position);
             var body=new Rect(position.x-hull.width*.5f,position.y,hull.width,hull.height);
             foreach(var prop in WorldProps.All(runtime.Session.World))
                 if(prop.level==Actor.level && prop.hasPhysicalBody)
@@ -227,7 +254,7 @@ namespace Remains.Runtime
         });
         private void LateUpdate()=>Guard(()=>
         {
-            if(captureDeath && Npc is {down:true,health:<=0} && !runtime.IsLevelPreparing && InView())
+            if(captureDeath && Npc is {down:true,health:<=0} && !runtime.IsLevelPreparing && DrawnPlayerReady() && InView())
             {Capture(2);captureDeath=false;}
         });
         private void Capture(int phase)
@@ -242,6 +269,8 @@ namespace Remains.Runtime
             var point=Camera.main.WorldToViewportPoint(Npc.BodyPosition);
             return point.z>0 && point.x>.05f && point.x<.95f && point.y>.05f && point.y<.95f;
         }
+        private bool DrawnPlayerReady()=>Actor!=null && runtime.FindActorVisual(Actor.id) is {} visual &&
+            visual.gameObject.activeInHierarchy && visual.TryGetDrawnBounds(out _);
         private void CompleteArchive()
         {
             var message=pendingFinish.Value;
@@ -254,13 +283,17 @@ namespace Remains.Runtime
         private void StepResume()
         {
             Require(Npc is {down:true,health:<=0} && Npc.actorType==Type,"Загрузка воскресила NPC или потеряла тип.");
-            if(runtime.IsLevelPreparing || runtime.ActiveRoomLighting is not {IsReady:true,IsUpdating:false})return;
-            if(resumeAt<0){resumeAt=Time.unscaledTime;Capture(3);}
             Require(runtime.DeathAudio.Accepted==0 && runtime.DeathAudio.Played==0 && cues==0,"Загрузка down baseline воспроизвела смерть.");
+            if(runtime.IsLevelPreparing || runtime.ActiveRoomLighting is not {IsReady:true,IsUpdating:false})return;
+            if(resumeAt<0)
+            {
+                if(!DrawnPlayerReady() || !InView())return;
+                resumeAt=Time.unscaledTime;Capture(3);
+            }
             if(Host && repeated<3 && Time.unscaledTime-resumeAt>(repeated+1)*.35f){runtime.Session.CommitWorld();repeated++;}
             if(Time.unscaledTime-resumeAt>=2 && repeated==3 && changes>=3)Finish(true,"Новый процесс загрузил down baseline; три обычных снимка не воспроизвели голос.");
         }
-        private string Context()=>$"type={Type}, actor={Actor?.id}, HP={Actor?.health}, npcHP={Npc?.health}, pos={Actor?.Position}, lift={Actor?.weaponLift}, placed={placed}, started={started}, shots={attacks.Count}, reloads={reloads}, cue={cues}, changed={changes}, repeat={repeated}";
+        private string Context()=>$"type={Type}, actor={Actor?.id}, HP={Actor?.health}, npcHP={Npc?.health}, pos={Actor?.Position}, climbing={Actor?.climbing}, lift={Actor?.weaponLift}, placed={placed}, started={started}, shots={attacks.Count}, reloads={reloads}, cue={cues}, changed={changes}, repeat={repeated}";
         private static void Require(bool condition,string reason){if(!condition)throw new InvalidOperationException("Голос смерти NPC: "+reason);}
         private void Guard(Action action){if(finished)return;try{action();}catch(Exception error){Fail(error.Message);}}
         private void Fail(string detail)

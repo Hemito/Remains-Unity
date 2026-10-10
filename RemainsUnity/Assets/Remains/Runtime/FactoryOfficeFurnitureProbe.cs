@@ -43,15 +43,24 @@ namespace Remains.Runtime
         [Serializable] private sealed class PlayerBaseline {public string id,owner;public int generation;public int[] counts;public Vector2 fixturePosition;}
         [Serializable] private sealed class Fixture
         {public string source,firstItem;public ItemStack[] items;public PlayerBaseline[] players;public int firstCount;}
+        [Serializable] private sealed class OpeningVoice
+        {
+            public string source,definition,resource,clip;public int phase,voice,channels,frequency,samples,timeSamples;
+            public float gain,volume,expectedVolume,mixVolume,attenuation;public bool playing,muted;
+        }
         [Serializable] private sealed class Report
         {
             public bool success,explicitInitialFixture,closedVerified,appearanceVerified,closedWindowVerified,opened,empty,reopened,policiesVerified,stableRecipientsVerified,durableVerified,savedReloadVerified,reinstallVerified,raceSkipped,pointerCaptureVerified;
             public string detail,type,source,snapshot,progress;public int phase,claimsAccepted,claimsDenied,uiRaceAttempts,combatShots,layoutCaptures;public PlayerBaseline[] players;
             public ItemStack[] initialItems;
+            public int actualOpenings,totalOpenings,expectedOpenings;public OpeningVoice[] openingVoices;
         }
         private PrototypeRuntime runtime;private Expected expected;private Fixture fixture;private PlayerBaseline baseline;
         private readonly HashSet<string> accepted=new(StringComparer.Ordinal),denied=new(StringComparer.Ordinal);
         private readonly HashSet<string> barrier=new(StringComparer.Ordinal);
+        private readonly List<OpeningVoice> openingVoices=new();
+        private string OpeningResource=>expected.type=="trash"?"Original/Audio/container-small-open":
+            expected.type=="table"?"Original/Room/ContinuationObjects/Audio/wood_open":null;
         private int phase=-1,serverPhase=-1,combatShots,shotsAtOpen,roundsAtOpen,uiRaceAttempts,layoutCaptures;
         private bool traveled,installed,finished,closedVerified,closedWindowVerified,opened,reopened,empty,reported,clickDone,clicking,raceSkipped,edge,pointerCaptureVerified;
         private float deadline,nextHeal,fixtureAt,quietSince=-1;private double raceAt;
@@ -79,6 +88,7 @@ namespace Remains.Runtime
                 value.Session.Saves.SaveWorld(NewGameWorld.Create());
             }
             value.CommandSource=Command;
+            value.ContainerAudio.Opened+=ObserveOpening;
             value.Session.AttackReceived+=attack=>{if(attack.attacker==value.Session.LocalActorId) combatShots++;};
             value.Session.ClaimPrepared+=(transaction,valid)=>{if(fixture!=null) (valid?accepted:denied).Add(transaction);};
             value.Session.ClientReady+=()=>
@@ -364,6 +374,32 @@ namespace Remains.Runtime
             catch(Exception error) {NetworkServer.SendToAll(new FurnitureProbeFinish {detail=error.Message});}
         }
         private static int Magazine(ActorState actor)=>actor.inventory.FirstOrDefault(i=>i.definition=="pistol")?.weaponState?.rounds??-1;
+        private void ObserveOpening(string source,string definition,AudioClip clip)
+        {
+            if(source!=expected.Id || finished) return;
+            try
+            {
+                string resource=OpeningResource;
+                if(resource==null || definition!=expected.type || Target?.definition!=definition ||
+                    !runtime.ContainerAudio.TryGet(definition,out var mapped,out float gain) || mapped!=clip ||
+                    Resources.Load<AudioClip>(resource)!=clip || gain!=.5f || phase is not (0 or 5))
+                    throw new InvalidOperationException($"Нет исходного банка/фазы E мебели: source={source}, type={definition}, phase={phase}.");
+                var voice=runtime.Audio.GetComponentsInChildren<AudioSource>().LastOrDefault(v=>v.clip==clip &&
+                    !openingVoices.Any(observed=>observed.voice==v.GetInstanceID()));
+                float attenuation=GameplayAudio.Attenuation(Vector2.Distance(Target.Position,Actor.BodyPosition));
+                float expectedVolume=Mathf.Clamp01(runtime.Audio.Volume)*gain*attenuation;
+                if(voice==null || !voice.isPlaying || voice.volume<=0 ||
+                    Mathf.Abs(voice.volume-expectedVolume)>.00001f || voice.mute!=Application.isBatchMode ||
+                    clip.samples<=0 || clip.frequency<=0 || clip.channels<=0 ||
+                    expected.type=="trash" && (clip.samples!=35712 || clip.frequency!=44100 || clip.channels!=2))
+                    throw new InvalidOperationException("E мебели не создал новый настоящий голос исходного native банка: "+source);
+                openingVoices.Add(new OpeningVoice {source=source,definition=definition,resource=resource,clip=clip.name,phase=phase,
+                    voice=voice.GetInstanceID(),channels=clip.channels,frequency=clip.frequency,samples=clip.samples,timeSamples=voice.timeSamples,
+                    gain=gain,volume=voice.volume,expectedVolume=expectedVolume,mixVolume=runtime.Audio.Volume,attenuation=attenuation,
+                    playing=voice.isPlaying,muted=voice.mute});
+            }
+            catch(Exception error) {Finish(false,error.Message+": "+Progress);}
+        }
         private void LateUpdate()
         {
             if(capture==null) return;
@@ -389,6 +425,11 @@ namespace Remains.Runtime
             {
                 if(success)
                 {
+                    int expectedCount=OpeningResource==null?0:2;
+                    if(openingVoices.Count!=expectedCount || runtime.ContainerAudio.Openings!=expectedCount ||
+                        expectedCount==2 && (openingVoices[0].phase!=0 || openingVoices[1].phase!=5) ||
+                        expectedCount==0 && runtime.ContainerAudio.TryGet(expected.type,out _,out _))
+                        throw new InvalidOperationException($"Неверное число исходных голосов двух E мебели: type={expected.type}, actual={openingVoices.Count}/{runtime.ContainerAudio.Openings}, expected={expectedCount}.");
                     // This opt-in disk check needs the completed recovery head,
                     // not the previous head while its ordered write is pending.
                     runtime.Session.FlushSaveWrites();
@@ -409,9 +450,11 @@ namespace Remains.Runtime
                 explicitInitialFixture=true,players=fixture?.players,initialItems=fixture?.items,opened=opened,empty=empty,reopened=reopened,
                 closedVerified=closedVerified,appearanceVerified=success && opened && closedVerified,closedWindowVerified=closedWindowVerified,
                 policiesVerified=success,stableRecipientsVerified=success,durableVerified=success,savedReloadVerified=reload,reinstallVerified=reinstall,
-                snapshot=snapshot,claimsAccepted=accepted.Count,claimsDenied=denied.Count,uiRaceAttempts=uiRaceAttempts,raceSkipped=raceSkipped,combatShots=combatShots,layoutCaptures=layoutCaptures,pointerCaptureVerified=pointerCaptureVerified,progress=Progress},true));
+                snapshot=snapshot,claimsAccepted=accepted.Count,claimsDenied=denied.Count,uiRaceAttempts=uiRaceAttempts,raceSkipped=raceSkipped,combatShots=combatShots,layoutCaptures=layoutCaptures,pointerCaptureVerified=pointerCaptureVerified,progress=Progress,
+                actualOpenings=openingVoices.Count,totalOpenings=runtime.ContainerAudio.Openings,expectedOpenings=OpeningResource==null?0:2,openingVoices=openingVoices.ToArray()},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
+        private void OnDestroy() {if(runtime?.ContainerAudio!=null) runtime.ContainerAudio.Opened-=ObserveOpening;}
     }
 }

@@ -15,6 +15,7 @@ namespace Remains.Editor
         {private readonly float value;public Hit(float value)=>this.value=value;public float Calculate(string weapon,float speed)=>value;}
         public static void Run()
         {
+            ActorTypes.Load();
             CheckOutcomes();CheckCatalog();ActorDeathAudioAuthoring.Check();
             Debug.Log("Голоса смерти NPC: PASS — actual damage outcome, новый смертельный контакт, повтор/снимок/загрузка/owner-life-world guards, Player KO и явные исходные банки. Native воспроизведение проверяется отдельно.");
         }

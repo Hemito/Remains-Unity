@@ -27,6 +27,7 @@ namespace Remains.Editor
                 Require(layouts.Length==3 && layouts.SelectMany(l=>l.doors).Count()==9,"Не точные9 зарегистрированных ID: "+level);
                 CheckMigration(RoomDoorContent.Read(room,level),layouts);
                 CheckPreservedIntegrity(RoomDoorContent.Read(room,level),layouts);
+                CheckFirstVisit(RoomDoorContent.Read(room,level),layouts);
                 CheckFailures(RoomDoorContent.Read(room,level),layouts);
                 CheckFrames(layouts);
             }
@@ -105,6 +106,25 @@ namespace Remains.Editor
             var absent=Legacy(initial,layouts);var ids=desired.Select(d=>d.id).ToHashSet(StringComparer.Ordinal);
             absent.doors.RemoveAll(d=>ids.Contains(d.id));int count=absent.doors.Count;
             Require(DoorCapabilityMigration.Prepare(absent,layouts,()=>{}) && absent.doors.Count==count,"Полностью отсутствующий набор воскрес.");
+        }
+        private static void CheckFirstVisit(DoorLayout initial,DoorCapabilityLayout[] layouts)
+        {
+            var world=new WorldState {worldId="first-visit-door-check"};
+            Require(DoorContentInstaller.Apply(world,initial),"Первое посещение не установило двери.");
+            string before=StateJson.ToJson(world);int backups=0;
+            var door=world.doors.Single(d=>d.id==layouts[0].doors[0].id);
+            var integrity=door.integrity;
+            Require(DoorCapabilityMigration.Prepare(world,layouts,()=>
+            {
+                Require(StateJson.ToJson(world)==before,"Журнал первого посещения изменён до сохранения источника.");
+                backups++;
+            }),"Первое посещение не записало версии прочности.");
+            Require(backups==1 && ReferenceEquals(door.integrity,integrity) && layouts.All(l=>world.contentPatches.Contains(l.patch)),"Первое посещение сбросило исходную прочность или потеряло журнал.");
+            Require(DoorDamageOperations.Apply(door,"first-visit-destroy",integrity.maxHealth,out _)==DoorChange.Changed && door.Destroyed,"Новая дверь не разрушена.");
+            world.doors.RemoveAll(d=>d.id==layouts.Last().doors.Last().id);
+            var reloaded=StateJson.FromJson<WorldState>(StateJson.ToJson(world));string saved=StateJson.ToJson(reloaded);
+            Require(!DoorContentInstaller.Apply(reloaded,initial) && !DoorCapabilityMigration.Prepare(reloaded,layouts,()=>throw new InvalidOperationException("Повтор backup первого посещения")) && StateJson.ToJson(reloaded)==saved,
+                "Повторное посещение/reload сбросили разрушение, воскресили удалённую дверь или повторили backup.");
         }
         private static void CheckFailures(DoorLayout initial,DoorCapabilityLayout[] layouts)
         {

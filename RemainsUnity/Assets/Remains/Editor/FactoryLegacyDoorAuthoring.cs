@@ -87,6 +87,7 @@ namespace Remains.Editor
                 if(asset.CapabilityVersion==1) continue;
                 asset.ConfigureBarrier(type.id,asset.Size,asset.Closed,asset.Opened,Destroyed(type),asset.OpenSound,asset.CloseSound,
                     Load<AudioClip>(FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,type.destroySound)),true,type.hp,asset.Size);
+                EditorUtility.SetDirty(asset);
                 AssetDatabase.SaveAssetIfDirty(asset);
             }
             foreach(int module in new[]{46,18,53})

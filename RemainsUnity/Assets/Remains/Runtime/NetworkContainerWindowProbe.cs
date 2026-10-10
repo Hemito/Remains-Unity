@@ -285,12 +285,19 @@ namespace Remains.Runtime
         }
         private void Finish(bool success,string detail)
         {
-            if(success && (openings.Count!=3 || runtime.ContainerAudio.Openings!=3))
-            {success=false;detail="Три обычных E-открывания не дали ровно три звука: "+openings.Count;}
+            // This historical UI fixture uses mcrate1. Its original declaration
+            // has no open sound (Tools/Research/ContainerOpenAudio/manifest.json).
+            // UI acknowledgement is independent; a world voice here would invent a bank.
+            var source=runtime.Session.World?.containers.SingleOrDefault(c=>c.id==ContainerState.PrototypeId);
+            if(success && (source?.definition!="mcrate1" || runtime.ContainerAudio.TryGet(source.definition,out _,out _)))
+            {success=false;detail="Исходный mcrate1 без open подменён типом/звуковым банком: "+source?.definition;}
+            if(success && (openings.Count!=0 || runtime.ContainerAudio.Openings!=0))
+            {success=false;detail="Три обычных E-открывания mcrate1 без исходного open создали звук мира: "+openings.Count;}
             if(finished) return;finished=true;
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(new Report {success=success,detail=detail,phase=phase,approachVerified=approachVerified,
                 aimCommands=aimCommands,stackClicks=stackClicks,originalItem=originalItem,originalWindow=originalWindow,originalSlot=originalSlot,
-                maxWindowDrift=maxWindowDrift,maxSlotDrift=maxSlotDrift,maxAimTurn=maxAimTurn,approach=approach.ToArray(),openings=openings.ToArray()},true));
+                maxWindowDrift=maxWindowDrift,maxSlotDrift=maxSlotDrift,maxAimTurn=maxAimTurn,approach=approach.ToArray(),openings=openings.ToArray(),
+                openingDefinition=source?.definition,expectedOpenings=0,actualOpenings=runtime.ContainerAudio.Openings},true));
             StartCoroutine(Exit(success));
         }
         private IEnumerator Exit(bool success) {yield return new WaitForSecondsRealtime(1);Application.Quit(success?0:1);}
@@ -299,6 +306,7 @@ namespace Remains.Runtime
         {public string stage;public float time,weaponAngle;public Vector2 pointer,aim;public Rect window,slot;public bool weaponFlip;public Vector3 camera;}
         [Serializable] private sealed class Report
         {public bool success,approachVerified;public string detail,originalItem;public int phase,aimCommands,stackClicks;public Rect originalWindow,originalSlot;
+            public string openingDefinition;public int expectedOpenings,actualOpenings;
             public float maxWindowDrift,maxSlotDrift,maxAimTurn;public ApproachSample[] approach;public OpeningWitness[] openings;}
     }
 }

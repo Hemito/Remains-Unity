@@ -10678,6 +10678,7 @@ GameObject:
   - component: {fileID: 7915650240582060598}
   - component: {fileID: 514759165753614041}
   - component: {fileID: 2914108553526261912}
+  - component: {fileID: 8850752929071259837}
   m_Layer: 0
   m_Name: FactoryEntry46
   m_TagString: Untagged
@@ -10842,6 +10843,10 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   patch: base:factory-entry-46:doors-v1
+  expansion:
+    previousPatch:
+    additions: []
+    earlierVersions: []
 --- !u!114 &514759165753614041
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10876,6 +10881,23 @@ MonoBehaviour:
     previousPatch:
     additions: []
     earlierVersions: []
+--- !u!114 &8850752929071259837
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4639252473051735563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cfbe9526d5d518a9c278c7ce03a036f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  patch: base:factory-legacy-door-46:capabilities-v1
+  stableIds:
+  - original:plant:46:aaChLmLMEdgLxJEr
+  - original:plant:46:K9s9yoNo9KR4GVb3
+  - original:plant:46:YdDyzvJujerru2kS
 --- !u!1 &4648146481314113612
 GameObject:
   m_ObjectHideFlags: 0

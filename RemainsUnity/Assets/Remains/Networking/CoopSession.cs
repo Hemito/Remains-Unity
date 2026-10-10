@@ -230,9 +230,9 @@ namespace Remains.Networking
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             NpcWeaponInventoryMigration.Apply(ServerWorld,source==null?null:()=>Debug.Log("Сохранена копия мира перед преобразованием оружия NPC: "+Saves.PreserveRecoverySource()));
             NpcWeaponActions.ValidateWorld(ServerWorld);
-            DoorCapabilityMigration.Prepare(ServerWorld,
+            PrepareDoorCapabilities(
                 contentLevels.SelectMany(level=>RoomDoorCapabilityContent.Read(RoomAuthoring.Load(level,ServerWorld),level)),
-                source==null?()=>{}:()=>Debug.Log("Исходный мир сохранён перед добавлением прочности дверей: "+Saves.PreserveRecoverySource()));
+                source!=null);
             WorldHistory.BeginContinuation(ServerWorld);
             LevelTimeMigration.Prepare(ServerWorld,contentLevels.Concat(ServerWorld.rooms.Select(room=>room.level)),source==null?null:
                 ()=>Debug.Log("Исходный мир сохранён перед установкой часов уровней: "+Saves.PreserveRecoverySource()));
@@ -256,6 +256,11 @@ namespace Remains.Networking
             inventory = new SharedInventory(ServerWorld,Rules.Loot);
             InvokeRepeating(nameof(CheckpointWorld),3,3);
         }
+
+        internal bool PrepareDoorCapabilities(IEnumerable<DoorCapabilityLayout> layouts,bool preserveSource)
+            => DoorCapabilityMigration.Prepare(ServerWorld,layouts,preserveSource
+                ?()=>Debug.Log("Исходный мир сохранён перед добавлением прочности дверей: "+Saves.PreserveRecoverySource())
+                :()=>{});
 
         internal void DiscardUnstartedWorld()
         {
