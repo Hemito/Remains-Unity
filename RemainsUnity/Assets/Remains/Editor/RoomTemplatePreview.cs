@@ -120,7 +120,7 @@ namespace Remains.Editor
                 var layout=new FactoryLayout{Land=RoomLandCatalog.LandOf(room.Template),Width=1,Depth=1};
                 layout.Cells.Add(new FactoryCell{Template=room.Template,Mirror=mirror});
                 var grid=FactoryGridBuilder.Build(layout,new Dictionary<string,RoomFile>{[room.Template]=room},LoadDefinitions(),
-                    FactoryGridBuilder.BorderSolid(LoadLands(),layout.Land),closeOuter:false);
+                    FactoryGridBuilder.BorderSolid(LoadLands(),layout.Land,LoadDefinitions()),closeOuter:false);
                 foreach(string issue in grid.Issues) Debug.LogWarning(issue);
                 var level=grid.Level;
                 level.Template=room.Template;   // land and room options of this one room

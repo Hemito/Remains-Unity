@@ -85,7 +85,9 @@ namespace Remains.RoomFormat
             var heights = new char[width, height];
             var water = new bool[width, height];
             var conflicts = new List<string>();
-            int conflictCount = 0;
+            var conflictLayers = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            var addedLayers = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            int conflictCount = 0, added = 0;
             for (int x = 0; x < width; x++)
                 for (int row = 0; row < height; row++)
                 {
@@ -94,40 +96,62 @@ namespace Remains.RoomFormat
                     int ownerIndex = grid.Rooms.IndexOf(owner);
                     covering.Remove(ownerIndex);
                     covering.Insert(0, ownerIndex);   // owner first, then the others in layout order
-                    bool solid = false;
-                    foreach (int i in covering) if (Local(placed[i], RoomLayers.Solid, grid.Rooms[i], x, row) != null) { solid = true; break; }
+                    // §4.4 on a shared cell. The original had both rooms' edges side by side, so a wall or a
+                    // structure (beam, ladder, stairs) of either side existed there: a wall of either side stays a
+                    // wall (it becomes the land border below) and a structure only one side has is kept (counted).
+                    // Where both sides have different values, and for back wall, height and water, the owner's
+                    // value wins, emptiness included (listed). Height and water follow the room that gave the structure.
+                    var o = grid.Rooms[ownerIndex];
+                    string solid = null;
+                    foreach (int i in covering) solid ??= Local(placed[i], RoomLayers.Solid, grid.Rooms[i], x, row);
+                    ids[RoomLayers.Solid][x, row] = solid;
+                    int fixedSource = ownerIndex;
                     foreach (string layer in IdLayers)
                     {
-                        string chosen = null;
-                        foreach (int i in covering)
-                        {
-                            string v = Local(placed[i], layer, grid.Rooms[i], x, row);
-                            if (v == null) continue;
-                            if (chosen == null) chosen = v;
-                            else if (v != chosen && !solid)   // a solid shared cell becomes the border below
+                        if (layer == RoomLayers.Solid) continue;
+                        string value = Local(placed[ownerIndex], layer, o, x, row);
+                        if (value == null && Array.IndexOf(Structural, layer) >= 0)
+                            foreach (int i in covering)
                             {
-                                conflictCount++;
-                                if (conflicts.Count < 8) conflicts.Add($"{x},{row} {layer}: {chosen} ({grid.Rooms[covering[0]].Template.Template}) / {v} ({grid.Rooms[i].Template.Template})");
+                                if (i == ownerIndex || (value = Local(placed[i], layer, grid.Rooms[i], x, row)) == null) continue;
+                                if (solid == null && covering.Count > 1) { added++; addedLayers[layer] = addedLayers.TryGetValue(layer, out int n) ? n + 1 : 1; }
+                                if (layer != RoomLayers.Ladder && fixedSource == ownerIndex) fixedSource = i;
+                                break;
                             }
+                        ids[layer][x, row] = value;
+                    }
+                    var f = grid.Rooms[fixedSource];
+                    heights[x, row] = fixedLayers[fixedSource][RoomLayers.Height][x - f.Column, row - f.Row];
+                    water[x, row] = fixedLayers[fixedSource][RoomLayers.Water][x - f.Column, row - f.Row] != RoomFile.Empty;
+                    bool outer = x == 0 || row == 0 || x == width - 1 || row == height - 1;
+                    if (solid != null || covering.Count == 1 || closeOuter && outer) continue;   // these become the border
+                    foreach (int i in covering)
+                    {
+                        if (i == ownerIndex) continue;
+                        var other = grid.Rooms[i];
+                        foreach (string layer in IdLayers)
+                        {
+                            string mine = ids[layer][x, row], theirs = Local(placed[i], layer, other, x, row);
+                            if (theirs != null && mine != theirs) Conflict(layer, mine, theirs);
+                            else if (theirs == null && mine != null && layer == RoomLayers.Back) Conflict(layer, mine, null);
                         }
-                        ids[layer][x, row] = chosen;
+                        foreach (string layer in new[] { RoomLayers.Height, RoomLayers.Water })
+                        {
+                            char mine = (layer == RoomLayers.Height ? heights[x, row] : water[x, row] ? '~' : RoomFile.Empty), theirs = fixedLayers[i][layer][x - other.Column, row - other.Row];
+                            if (mine != theirs) Conflict(layer, mine.ToString(), theirs.ToString());
+                        }
+                        void Conflict(string layer, string mine, string theirs)
+                        {
+                            conflictCount++;
+                            conflictLayers[layer] = conflictLayers.TryGetValue(layer, out int n) ? n + 1 : 1;
+                            if (conflicts.Count < 8) conflicts.Add($"{x},{row} {layer}: {mine ?? "пусто"} ({o.Template.Template}, владелец) / {theirs ?? "пусто"} ({other.Template.Template})");
+                        }
                     }
-                    char hc = RoomFile.Empty;
-                    foreach (int i in covering)
-                    {
-                        var room = grid.Rooms[i];
-                        char c = fixedLayers[i][RoomLayers.Height][x - room.Column, row - room.Row];
-                        if (c != RoomFile.Empty) { hc = c; break; }
-                    }
-                    foreach (int i in covering)
-                    {
-                        var room = grid.Rooms[i];
-                        if (fixedLayers[i][RoomLayers.Water][x - room.Column, row - room.Row] != RoomFile.Empty) water[x, row] = true;
-                    }
-                    heights[x, row] = hc;
                 }
+            if (added > 0)
+                grid.Issues.Add($"Общие клетки стыков: {added} конструкций только одной стороны сохранены, как в оригинале с двумя краями ({string.Join(", ", addedLayers.Select(e => e.Key + " " + e.Value))}).");
             if (conflictCount > 0)
-                grid.Issues.Add($"Общие клетки стыков: {conflictCount} расхождений слоёв без стены, взято значение владельца (§4.4): {string.Join("; ", conflicts)}{(conflictCount > conflicts.Count ? "; …" : "")}.");
+                grid.Issues.Add($"Общие клетки стыков: {conflictCount} расхождений без стены ({string.Join(", ", conflictLayers.Select(e => e.Key + " " + e.Value))}), взято значение владельца (§4.4): {string.Join("; ", conflicts)}{(conflictCount > conflicts.Count ? "; …" : "")}.");
 
             // Passages (Location.setDoor): each side clears its edge cell and the next one inward.
             foreach (var seam in layout.Seams) grid.Passages.Add(Cut(grid, seam, ids, placed));
@@ -158,16 +182,22 @@ namespace Remains.RoomFormat
             return grid;
         }
 
-        // LandAct.border: the original default when the land has no options.border.
+        // LandAct.border = "A": the original's own value for a land without options.border (code-derived rule,
+        // not a substitute for missing data).
         public const string OriginalBorderDefault = "A";
 
-        // Border solid of a land's random levels: "random_<land>" options.border, the original default otherwise.
-        public static string BorderSolid(RoomLandCatalog lands, string land, string solidPrefix = "remains:solid:")
+        // Border solid of a land's random levels ("random_<land>" options.border, else the original's "A"),
+        // checked against the catalogue: an unknown land or form is an error with the land and key.
+        public static string BorderSolid(RoomLandCatalog lands, string land, RoomDefinitionCatalog definitions, string solidPrefix = "remains:solid:")
         {
             RoomLand entry = null;
             foreach (var l in lands.Lands) if (l.Id == "random_" + land) entry = l;
             if (entry == null) throw new KeyNotFoundException($"Нет земли random_{land} в каталоге земель.");
-            return solidPrefix + (entry.Options.TryGetValue("border", out string b) ? b : OriginalBorderDefault);
+            bool own = entry.Options.TryGetValue("border", out string key);
+            string id = solidPrefix + (own ? key : OriginalBorderDefault);
+            var d = definitions.Require(id, $"граница земли random_{land} (options.border {(own ? "«" + key + "»" : "не задан, по оригиналу «A»")})");
+            if (d.Kind != RoomDefinitionKind.Solid) throw new FormatException($"Граница земли random_{land}: {id} вида {d.Kind}, нужен Solid.");
+            return id;
         }
 
         private static RoomFile Template(IReadOnlyDictionary<string, RoomFile> templates, FactoryCell cell) =>
@@ -253,8 +283,12 @@ namespace Remains.RoomFormat
         {
             var passage = new FactoryPassage { Seam = seam };
             int depth = grid.Layout.Depth;
-            if (seam.Down ? seam.Y + 1 >= depth || seam.Slot < 6 || seam.Slot > 10 : seam.X + 1 >= grid.Layout.Width || seam.Slot < 0 || seam.Slot > 5)
-                throw new FormatException($"Стык {seam.X},{seam.Y} {(seam.Down ? "вниз" : "вправо")} слот {seam.Slot}: вне завода или неверный слот.");
+            string where = $"Стык {seam.X},{seam.Y} {(seam.Down ? "вниз" : "вправо")} слот {seam.Slot} ширина {seam.Width}";
+            if (seam.X < 0 || seam.Y < 0 || seam.X >= grid.Layout.Width || seam.Y >= depth || (seam.Down ? seam.Y + 1 >= depth : seam.X + 1 >= grid.Layout.Width))
+                throw new FormatException(where + ": соседняя клетка вне завода.");
+            if (seam.Down ? seam.Slot < 6 || seam.Slot > 10 : seam.Slot < 0 || seam.Slot > 5) throw new FormatException(where + ": неверный слот для этой стороны.");
+            // Location.setDoor ignores a value below 2 (no passage); a saved seam with it is damaged data.
+            if (seam.Width < 2) throw new FormatException(where + ": ширина прохода меньше 2 — такой стык не сохраняется.");
             int a = seam.X * depth + seam.Y, b = seam.Down ? a + 1 : a + depth;
             var first = grid.Rooms[a]; var second = grid.Rooms[b];
             if (!seam.Down)
