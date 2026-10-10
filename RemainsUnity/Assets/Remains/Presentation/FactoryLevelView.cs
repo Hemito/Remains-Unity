@@ -145,10 +145,13 @@ namespace Remains.Presentation
             var erases=new List<(Sprite,Matrix4x4)>();
             foreach(var (authored,definition) in pictures)
             {
-                if(authored==null || !authored.isActiveAndEnabled) continue;   // adapters disable pictures their objects replace
+                if(authored==null || !Shown(authored)) continue;   // adapters disable pictures their objects replace
                 var renderer=authored.GetComponent<SpriteRenderer>();
-                if(renderer==null || !renderer.enabled || !bounds.Overlaps(new Rect(renderer.bounds.min,renderer.bounds.size))) continue;
                 var matrix=authored.transform.localToWorldMatrix;
+                // From the sprite, not Renderer.bounds: an inactive source root reports empty renderer bounds.
+                var local=renderer.sprite.bounds;
+                Vector2 a=matrix.MultiplyPoint3x4(local.min),b=matrix.MultiplyPoint3x4(local.max);
+                if(!bounds.Overlaps(Rect.MinMaxRect(Mathf.Min(a.x,b.x),Mathf.Min(a.y,b.y),Mathf.Max(a.x,b.x),Mathf.Max(a.y,b.y)))) continue;
                 sprites.Add(new RoomSpritePlacement{Definition=definition,Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix});
                 if(authored.Erase!=null) erases.Add((authored.Erase,matrix));
             }
@@ -163,6 +166,16 @@ namespace Remains.Presentation
             }
             field=RoomRadianceField.Build(region,catalog.Definitions,catalog.Lands,table,origin,window.transform,sprites,occluders);
             for(int i=0;i<SettleUpdates;i++) field.Render();
+        }
+
+        // Shown in the room, judged up to the level root: a prepared source root may itself be inactive.
+        private bool Shown(RoomSpriteAuthoring authored)
+        {
+            if(!authored.enabled) return false;
+            var renderer=authored.GetComponent<SpriteRenderer>();
+            if(renderer==null || !renderer.enabled) return false;
+            for(var t=authored.transform;t!=null && t!=transform;t=t.parent) if(!t.gameObject.activeSelf) return false;
+            return true;
         }
 
         public void Release()
