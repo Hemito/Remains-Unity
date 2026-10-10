@@ -13,18 +13,19 @@ namespace Remains.Presentation
         private readonly MonoBehaviour runner;
         private readonly CoopSession session;
         private readonly SimulationGeometry geometry;
-        private readonly Action<RoomLighting,RoomLayout,bool> bind;
+        private readonly Action<IRoomLighting,RoomLayout,bool> bind;
         private Coroutine preparation;
         private EntryPreparationContext context;
         private GameObject roomObject;
-        public RoomLighting Lighting {get;private set;}
+        public IRoomLighting Light {get;private set;}
+        public RoomLighting Lighting=>Light as RoomLighting;
         public RoomLayout Room {get;private set;}
         public bool IsPrepared {get;private set;}
         public bool HasRoom=>roomObject!=null;
         public event Action<EntryPreparationContext> Prepared;
 
         public EntryRoomPreparation(MonoBehaviour runner,CoopSession session,SimulationGeometry geometry,
-            Action<RoomLighting,RoomLayout,bool> bind)
+            Action<IRoomLighting,RoomLayout,bool> bind)
         {
             this.runner=runner??throw new ArgumentNullException(nameof(runner));
             this.session=session??throw new ArgumentNullException(nameof(session));
@@ -48,11 +49,12 @@ namespace Remains.Presentation
                 if(roomObject==null)
                 {
                     roomObject=AuthoredRoomVisual.Create(value.Level,Room,value.ViewWorld);
-                    Lighting=roomObject.GetComponent<RoomLighting>();
-                    if(Lighting==null) throw new InvalidOperationException("Подготовка входа: отсутствует свет локации "+value.Level);
+                    Light=roomObject.GetComponent<IRoomLighting>();
+                    if(Light==null) throw new InvalidOperationException("Подготовка входа: отсутствует свет локации "+value.Level);
                 }
-                Lighting.Synchronize(Room,geometry.EntryOcclusionRevision(Room));
-                bind(Lighting,Room,true);
+                Light.Synchronize(Room,value.ViewWorld,geometry.EntryOcclusionRevision(Room));
+                if(Light is FactoryLevelView factory) factory.Focus(value.ViewWorld.Find(value.ActorId).Position);
+                bind(Light,Room,true);
                 Debug.Log($"Начата подготовка входа: world={value.WorldId}, level={value.Level}, actor={value.ActorId}, token={value.Token}.");
                 preparation=runner.StartCoroutine(WaitForPreparation(value));
             }
@@ -64,12 +66,12 @@ namespace Remains.Presentation
             yield return null;
             while(ReferenceEquals(context,value) && session.EntryPreparation.ClientPending)
             {
-                if(Lighting.Failure!=null) {session.ReportGameplayPreparationFailure(Lighting.Failure);yield break;}
-                if(Lighting.IsReady && !Lighting.IsUpdating &&
-                    Lighting.AppliedOcclusionRevision==geometry.EntryOcclusionRevision(Room))
+                if(Light.Failure!=null) {session.ReportGameplayPreparationFailure(Light.Failure);yield break;}
+                if(Light.IsReady && !Light.IsUpdating &&
+                    Light.AppliedOcclusionRevision==geometry.EntryOcclusionRevision(Room))
                 {
                     IsPrepared=true;geometry.MarkEntryPrepared(Room);preparation=null;
-                    Debug.Log($"Готова локация перед входом: world={value.WorldId}, level={value.Level}, token={value.Token}, revision={Lighting.AppliedOcclusionRevision}.");
+                    Debug.Log($"Готова локация перед входом: world={value.WorldId}, level={value.Level}, token={value.Token}, revision={Light.AppliedOcclusionRevision}.");
                     Prepared?.Invoke(value);
                     session.EntryPreparation.MarkPrepared(value.Token);
                     yield break;
@@ -82,17 +84,17 @@ namespace Remains.Presentation
         {
             if(!HasRoom) return null;
             if(!IsPrepared || context==null || world?.worldId!=context.WorldId || level!=context.Level ||
-                !ReferenceEquals(liveRoom,Room) || !Lighting.IsReady || Lighting.IsUpdating ||
-                Lighting.AppliedOcclusionRevision!=geometry.OcclusionRevision(level))
+                !ReferenceEquals(liveRoom,Room) || !Light.IsReady || Light.IsUpdating ||
+                Light.AppliedOcclusionRevision!=geometry.OcclusionRevision(level))
                 throw new InvalidOperationException($"Готовый вход не совпадает с опубликованной локацией: world={world?.worldId}, level={level}, ready={IsPrepared}.");
-            var result=roomObject;roomObject=null;Lighting=null;Room=null;context=null;IsPrepared=false;
+            var result=roomObject;roomObject=null;Light=null;Room=null;context=null;IsPrepared=false;
             return result;
         }
         private void ReleaseRoom()
         {
-            Lighting?.Release();
+            Light?.Release();
             if(roomObject!=null) {roomObject.SetActive(false);UnityEngine.Object.Destroy(roomObject);}
-            roomObject=null;Lighting=null;Room=null;IsPrepared=false;
+            roomObject=null;Light=null;Room=null;IsPrepared=false;
         }
         private void ClearPreparation()
         {

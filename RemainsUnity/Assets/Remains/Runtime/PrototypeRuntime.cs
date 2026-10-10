@@ -51,7 +51,9 @@ namespace Remains.Runtime
         public DamageNumbers DamageNumbers {get;private set;}
         public System.Func<PlayerCommand> CommandSource { get; set; }
         public PrototypeHud Hud => hud;
-        public RoomLighting ActiveRoomLighting {get;private set;}
+        private IRoomLighting ActiveLevelLighting {get;set;}
+        public RoomLighting ActiveRoomLighting=>ActiveLevelLighting as RoomLighting;
+        public FactoryLevelView ActiveFactoryLighting=>ActiveLevelLighting as FactoryLevelView;
         public bool LevelPresentationReady=>roomPresentation?.IsReady==true;
         public bool IsLevelPreparing=>roomPresentation?.IsPreparing==true;
         public Camera WorldCamera=>cameraView;
@@ -177,11 +179,11 @@ namespace Remains.Runtime
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
-            ActiveRoomLighting=roomObject.GetComponent<RoomLighting>();
+            ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();
             travelPointVisuals.Bind(roomObject);
             cameraView=CameraFollower.RequireCamera(Camera.main);
             roomPresentation=new RoomPresentationGate(cameraView);roomPresentation.Failed+=RoomPreparationFailed;
-            roomPresentation.Bind(ActiveRoomLighting);
+            roomPresentation.Bind(ActiveLevelLighting);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=CreateOwnedObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
             HealingAudio=CreateOwnedObject("Звуки лечения").AddComponent<HealingItemAudio>();HealingAudio.Initialize(Session.HealingAudio,Audio);
@@ -359,8 +361,8 @@ namespace Remains.Runtime
 
         private void RefreshRoomOcclusion(string level,RoomLayout room,long revision)
         {
-            if(Session.LocalActor?.level==level && ActiveRoomLighting!=null && ReferenceEquals(ActiveRoomLighting.Room,room))
-                ActiveRoomLighting.RequestOcclusionUpdate(room,revision);
+            if(Session.LocalActor?.level==level && ActiveLevelLighting!=null && ReferenceEquals(ActiveLevelLighting.Room,room))
+                ActiveLevelLighting.Synchronize(room,Session.World,revision);
         }
 
         private void RefreshVisuals()
@@ -369,7 +371,7 @@ namespace Remains.Runtime
             if (Session.World==null || Session.LocalActor==null)
             {
                 roomPresentation.SetContext(false,null);
-                ActiveRoomLighting?.Release();
+                ActiveLevelLighting?.Release();
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
                 visuals.Clear();visualLayers.Synchronize(Session.World,Session.LocalActor?.level);travelPointVisuals.Clear();return;
             }
@@ -381,10 +383,18 @@ namespace Remains.Runtime
                 shownLevel=Session.LocalActor.level;shownRoom=definition;
                 var room=Geometry.Get(shownLevel);
                 using(TransitionTiming.Measure("runtime.release-room",shownLevel))
-                {roomPresentation.Bind(null);ActiveRoomLighting?.Release();}
+                {roomPresentation.Bind(null);ActiveLevelLighting?.Release();}
                 Destroy(roomObject);roomObject=adoptEntry?entryRoom.Take(Session.World,shownLevel,room):AuthoredRoomVisual.Create(shownLevel,room,Session.World);
-                ActiveRoomLighting=roomObject.GetComponent<RoomLighting>();
-                roomPresentation.Bind(ActiveRoomLighting);
+                ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();
+                roomPresentation.Bind(ActiveLevelLighting);
+                if(ActiveLevelLighting is FactoryLevelView factory)
+                {
+                    factory.Synchronize(room,Session.World,Geometry.OcclusionRevision(shownLevel));
+                    factory.Focus(Session.LocalActor.Position);
+                    if(!roomObject.TryGetComponent<FactoryLightFocus>(out var focus))
+                        throw new System.InvalidOperationException("Нет авторского наблюдателя камеры завода.");
+                    focus.Bind(cameraView);
+                }
                 movement=CreateMovement(room);
                 cameraFollower.Room=room;
                 releaseRequested=true;
@@ -392,8 +402,8 @@ namespace Remains.Runtime
             }
             travelPointVisuals.Bind(roomObject);
             var activeRoom=Geometry.Get(Session.LocalActor.level);
-            if(ActiveRoomLighting==null) throw new System.InvalidOperationException("Нет света видимой локации: "+Session.LocalActor.level);
-            ActiveRoomLighting.Synchronize(activeRoom,Geometry.OcclusionRevision(Session.LocalActor.level));
+            if(ActiveLevelLighting==null) throw new System.InvalidOperationException("Нет света видимой локации: "+Session.LocalActor.level);
+            ActiveLevelLighting.Synchronize(activeRoom,Session.World,Geometry.OcclusionRevision(Session.LocalActor.level));
             roomPresentation.SetEntryPending(false);
             roomPresentation.SetContext(true,activeRoom);
             if(!ReferenceEquals(movement.Room,activeRoom)) movement=CreateMovement(activeRoom);
@@ -420,11 +430,11 @@ namespace Remains.Runtime
             foreach (var id in removed) visuals.Remove(id);
             visualLayers.Synchronize(Session.World,Session.LocalActor?.level);
         }
-        private void BindEntryPresentation(RoomLighting lighting,RoomLayout room,bool pending)
+        private void BindEntryPresentation(IRoomLighting lighting,RoomLayout room,bool pending)
         {
             if(roomPresentation==null) return;
             roomPresentation.SetEntryPending(pending);
-            roomPresentation.Bind(pending?lighting:ActiveRoomLighting);
+            roomPresentation.Bind(pending?lighting:ActiveLevelLighting);
             roomPresentation.SetContext(pending,room);
         }
 
@@ -646,18 +656,18 @@ namespace Remains.Runtime
             Session?.SaveLocalCharacter();
             Session?.FlushSaveWrites();
         }
-        private void RoomPreparationFailed(RoomLighting source,System.Exception error)
+        private void RoomPreparationFailed(IRoomLighting source,System.Exception error)
         {
-            if(roomFailurePending || source!=ActiveRoomLighting && source!=entryRoom?.Lighting) return;
+            if(roomFailurePending || source!=ActiveLevelLighting && source!=entryRoom?.Light) return;
             automaticStartCancelled=true;roomFailurePending=true;StartCoroutine(EndFailedSession(source,error,"Не удалось загрузить локацию. Сессия остановлена; подробности — в журнале ошибки."));
         }
         private void GameplayPreparationFailed(System.Exception error)
         {
             if(roomFailurePending) return;
             automaticStartCancelled=true;roomFailurePending=true;
-            StartCoroutine(EndFailedSession(ActiveRoomLighting,error,"Ошибка игрового правила. Сессия остановлена; подробности — в журнале ошибки."));
+            StartCoroutine(EndFailedSession(ActiveLevelLighting,error,"Ошибка игрового правила. Сессия остановлена; подробности — в журнале ошибки."));
         }
-        private IEnumerator EndFailedSession(RoomLighting source,System.Exception error,string notice)
+        private IEnumerator EndFailedSession(IRoomLighting source,System.Exception error,string notice)
         {
             // Let the world/geometry notification that initiated this binding finish before
             // Mirror releases it. The next frame cannot run a partially prepared simulation.
@@ -693,7 +703,7 @@ namespace Remains.Runtime
                 Session.FlushSaveWrites();
             }
             entryRoom?.Dispose();entryRoom=null;EntryPresentationPrepared=null;
-            roomPresentation?.Dispose();ActiveRoomLighting?.Release();
+            roomPresentation?.Dispose();ActiveLevelLighting?.Release();
             Pickup?.Dispose();MechanismInteraction?.Dispose();
             if(Platforms!=null) {Platforms.TopologyChanged-=ActorBodySupport.InvalidateRoom;Platforms.Dispose();}
             Geometry?.Dispose();

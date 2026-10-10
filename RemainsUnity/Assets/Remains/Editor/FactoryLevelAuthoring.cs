@@ -31,6 +31,8 @@ namespace Remains.Editor
                 DoorView Door(string id)=>AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Remains/Resources/Presentation/Doors/{id}.prefab")?.GetComponent<DoorView>()
                     ??throw new InvalidOperationException("Нет готового префаба двери: "+id);
                 root.AddComponent<FactoryDoorAdapter>().Configure(Door("door1"),Door("door2"),Door("door3"));
+                var view=root.AddComponent<FactoryLevelView>();
+                root.AddComponent<FactoryLightFocus>().Configure(view);
                 PrefabUtility.SaveAsPrefabAsset(root,PrefabPath,out bool saved);
                 if(!saved) throw new IOException("Не записан корень завода: "+PrefabPath);
                 AssetDatabase.SaveAssets();
@@ -42,6 +44,52 @@ namespace Remains.Editor
             int code=0;
             try {Generate();Check();}
             catch(Exception error) {Debug.LogError("Подготовка корня завода прервана: "+error);code=1;}
+            EditorApplication.Exit(code);
+        }
+        public static void RunPresentationBatch()
+        {
+            int code=0;
+            GameObject visual=null,cameraObject=null;
+            RoomPresentationGate gate=null;
+            try
+            {
+                RoomLoadingViewChecks.Run();
+                var catalog=AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath);
+                var world=new WorldState{seed=104};
+                FactoryPreparation.Create(world,catalog,0);
+                FactoryContentSources.Prepare(world,"factory:0");
+                var source=RoomAuthoring.Load("factory:0",world);
+                DoorContentInstaller.Apply(world,RoomDoorContent.Read(source,"factory:0"));
+                var room=source.CreateLayout(false);
+                visual=AuthoredRoomVisual.Create("factory:0",room,world);
+                var view=visual.GetComponent<FactoryLevelView>();
+                cameraObject=new GameObject("Проверка камеры завода",typeof(Camera));
+                var camera=cameraObject.GetComponent<Camera>();camera.cullingMask=31;
+                gate=new RoomPresentationGate(camera);gate.SetContext(true,room);gate.Bind(view);
+                if(view==null || gate.IsReady || camera.cullingMask!=0)
+                    throw new InvalidOperationException("Камера завода открылась до подготовки окна света.");
+                view.Synchronize(room,world,1);
+                view.Focus(new Vector2(room.spawnX,room.spawnY));
+                if(!gate.IsReady || camera.cullingMask!=31 || view.AppliedOcclusionRevision!=1 || view.LightWindowRooms.y!=0)
+                    throw new InvalidOperationException("Готовый свет верхнего входа не принят камерой завода.");
+                gate.SetEntryPending(true);
+                if(gate.IsReady || camera.cullingMask!=0)
+                    throw new InvalidOperationException("Вход в завод показан до завершения допуска.");
+                gate.SetEntryPending(false);
+                if(!gate.IsReady) throw new InvalidOperationException("Допуск не принял подготовленный свет завода.");
+                view.Release();
+                if(gate.IsReady || camera.cullingMask!=0)
+                    throw new InvalidOperationException("Освобождение света оставило игровую камеру открытой.");
+                Debug.Log("Игровой показ завода: PASS; авторский корень, окно света верхнего входа, ревизия дверей, общий допуск камеры и освобождение ресурсов.");
+            }
+            catch(Exception error) {Debug.LogError("Проверка игрового показа завода прервана: "+error);code=1;}
+            finally
+            {
+                gate?.Dispose();
+                if(visual!=null) UnityEngine.Object.DestroyImmediate(visual);
+                if(cameraObject!=null) UnityEngine.Object.DestroyImmediate(cameraObject);
+                FactoryContentSources.Clear();
+            }
             EditorApplication.Exit(code);
         }
         public static void Check()

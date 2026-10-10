@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Remains.Content;
 using Remains.Domain;
 using Remains.RoomFormat;
@@ -11,13 +12,13 @@ namespace Remains.Presentation
 {
     // Visuals of a prepared factory level (FactoryLevelRoot): walls from the composed grid with backdrops per
     // room, ambient light, and — inside a light window of rooms around a focus point — the background erase
-    // mask (windows) and the radiance field lit by the installed room prefabs' pictures (RoomSpriteAuthoring).
+        // mask (windows) and the radiance field lit by the installed room prefabs' pictures (RoomSpriteAuthoring).
     // The whole 4×21 level is too large for one field (≈1500×4000 texels at 10/m, cascades of ~3000×8000)
     // and one erase mask (>16384 px), so both cover only the window; outside it windows are not cut and lamps
     // do not light. Everything is built in explicit calls (Initialize, Focus, RefreshLight), never per frame.
     // Doors: SyncDoors(states, revision) adds closed doors as light occluders (radiance scene); grid walls stay static.
     // Lifetime: Initialize after FactoryLevelRoot.InstantiateRooms, Release before the root is destroyed.
-    public sealed class FactoryLevelView : MonoBehaviour
+    public sealed class FactoryLevelView : MonoBehaviour,IRoomLighting
     {
         public const int WindowRooms=3;            // rooms across and down in the light window (odd)
         public const int SettleUpdates=8;          // field updates after a rebuild: one wall bounce per update
@@ -31,7 +32,23 @@ namespace Remains.Presentation
         private readonly List<(RoomSpriteAuthoring sprite,RoomDefinition definition)> pictures=new();
         private readonly List<(Rect bounds,double opacity)> doors=new();   // blocking doors, level-local rectangles
 
-        public bool IsReady=>root!=null && field!=null;
+        public RoomLayout Room {get;private set;}
+        public Exception Failure {get;private set;}
+        public bool IsUpdating=>false; // Explicit synchronous rebuilds publish before returning.
+        public long AppliedOcclusionRevision=>AppliedDoorRevision;
+        public event Action<IRoomLighting> PresentationChanged;
+        public event Action<IRoomLighting,Exception> PresentationFailed;
+        public bool IsReady=>root!=null && field!=null && Failure==null;
+        public void Synchronize(RoomLayout room,WorldState world,long revision)
+        {
+            if(!ReferenceEquals(room,Room)) throw new InvalidOperationException("Свет завода ссылается на другую игровую геометрию.");
+            if(world==null) throw new ArgumentNullException(nameof(world));
+            if(revision==AppliedDoorRevision) return;
+            try {SyncDoors(world.doors.Where(door=>door.level==Room.id).ToArray(),revision);}
+            catch(Exception error) {ReportFailure(error);throw;}
+        }
+        public void ReportFailure(Exception error)
+        {Failure=error;PresentationChanged?.Invoke(this);PresentationFailed?.Invoke(this,error);}
         public RectInt LightWindowRooms=>windowRooms;
         // Revision of the last door snapshot in the light (-1: none yet); the loader admits actors after it.
         public long AppliedDoorRevision {get;private set;}=-1;
@@ -66,12 +83,14 @@ namespace Remains.Presentation
             if(field!=null) RefreshLight();
         }
 
-        public void Initialize(FactoryLevelRoot level)
+        public void Initialize(FactoryLevelRoot level,RoomLayout geometry=null)
         {
             if(level==null) throw new ArgumentNullException(nameof(level));
             if(root!=null) throw new InvalidOperationException("Вид завода уже подготовлен: повторная подготовка запрещена.");
             if(level.gameObject!=gameObject) throw new InvalidOperationException("Вид завода должен лежать на объекте корня завода.");
             var prepared=level.Prepared??throw new InvalidOperationException("Вид завода: корень ещё не подготовлен (FactoryLevelRoot.Initialize).");
+            Room=geometry??prepared.Physics;
+            if(Room.id!=prepared.Level) throw new InvalidOperationException("Вид завода: игровая геометрия другого уровня: "+Room.id);
             if(level.Rooms.childCount!=prepared.Grid.Rooms.Count)
                 throw new InvalidOperationException($"Вид завода: установлено комнат {level.Rooms.childCount}, в раскладке {prepared.Grid.Rooms.Count} (сначала InstantiateRooms).");
             var catalog=level.Catalog;
@@ -100,11 +119,20 @@ namespace Remains.Presentation
             foreach(var sprite in level.Rooms.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 pictures.Add((sprite,definitions.Require(sprite.Definition,"вид завода, "+sprite.name)));
             root=level;
+            PresentationChanged?.Invoke(this);
             Debug.Log($"Вид завода {prepared.Level}: сетка {grid.Level.Width}×{grid.Level.Height}, комнат {grid.Rooms.Count}, картинок {pictures.Count}.",this);
         }
 
         // Moves the light window to the rooms around a world point; rebuilds only when the window changes.
         public void Focus(Vector2 world)
+        {
+            var rooms=WindowFor(world);
+            if(rooms.Equals(windowRooms) && field!=null) return;
+            windowRooms=rooms;
+            RefreshLight();
+        }
+        // Lightweight camera observation; no allocation, scene lookup or rebuild here.
+        public RectInt WindowFor(Vector2 world)
         {
             if(root==null) throw new InvalidOperationException("Вид завода не подготовлен.");
             var layout=root.Prepared.Grid.Layout;
@@ -115,15 +143,11 @@ namespace Remains.Presentation
             int cx=Mathf.Clamp(Mathf.FloorToInt(local.x/cell/stepX),0,layout.Width-1);
             int cy=Mathf.Clamp(Mathf.FloorToInt((level.Height-local.y/cell)/stepY),0,layout.Depth-1);
             int w=Math.Min(WindowRooms,layout.Width),h=Math.Min(WindowRooms,layout.Depth);
-            var rooms=new RectInt(Mathf.Clamp(cx-WindowRooms/2,0,layout.Width-w),Mathf.Clamp(cy-WindowRooms/2,0,layout.Depth-h),w,h);
-            if(rooms.Equals(windowRooms) && field!=null) return;
-            windowRooms=rooms;
-            RefreshLight();
+            return new RectInt(Mathf.Clamp(cx-WindowRooms/2,0,layout.Width-w),Mathf.Clamp(cy-WindowRooms/2,0,layout.Depth-h),w,h);
         }
 
         // Rebuilds the window's erase mask and radiance field (after Focus, or when lights/occluders change:
-        // door state, a lamp switched or broken). Doors are not light occluders yet: a future door change calls
-        // this after updating the light scene input.
+        // door state, a lamp switched or broken). SyncDoors supplies the current canonical door occluders.
         public void RefreshLight()
         {
             if(root==null) throw new InvalidOperationException("Вид завода не подготовлен.");
@@ -166,6 +190,7 @@ namespace Remains.Presentation
             }
             field=RoomRadianceField.Build(region,catalog.Definitions,catalog.Lands,table,origin,window.transform,sprites,occluders);
             for(int i=0;i<SettleUpdates;i++) field.Render();
+            PresentationChanged?.Invoke(this);
         }
 
         // Shown in the room, judged up to the level root: a prepared source root may itself be inactive.
@@ -184,6 +209,7 @@ namespace Remains.Presentation
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) Destroy(ambient);
             terrain=ambient=null;root=null;pictures.Clear();doors.Clear();AppliedDoorRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
+            Room=null;PresentationChanged?.Invoke(this);
         }
 
         private void DestroyWindow()

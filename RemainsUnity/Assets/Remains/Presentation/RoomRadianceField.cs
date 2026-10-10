@@ -106,7 +106,9 @@ namespace Remains.Presentation
         {
             var shader=Resources.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource);
             var target=Target(walls.width,walls.height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света");
-            Graphics.Blit(walls,target);
+            var previousTarget=RenderTexture.active;
+            try {Graphics.Blit(walls,target);}
+            finally {RenderTexture.active=previousTarget;}
             sceneMaterial=new Material(shader){name="Сцена света"};
             quad=new Mesh{name="Квадрат спрайта"};
             quad.SetVertices(new[]{new Vector3(0,0,0),new Vector3(1,0,0),new Vector3(0,1,0),new Vector3(1,1,0)});

@@ -37,7 +37,7 @@ namespace Remains.Presentation
             return new RoomLightProfile {ambient=ambient*backgroundAmbientScale,lights=Array.ConvertAll(lights,light=>light.ForBackground())};
         }
     }
-    public sealed class RoomLighting : MonoBehaviour
+    public sealed class RoomLighting : MonoBehaviour,IRoomLighting
     {
         private static RoomLighting active;
         private Texture2D map,backgroundMap,stagingMap,stagingBackground;
@@ -54,6 +54,9 @@ namespace Remains.Presentation
         private long requestedRevision;
         public event Action<RoomLighting> ReadinessChanged;
         public event Action<RoomLighting,Exception> Failed;
+        public event Action<IRoomLighting> PresentationChanged;
+        public event Action<IRoomLighting,Exception> PresentationFailed;
+        public void Synchronize(RoomLayout room,WorldState world,long revision)=>Synchronize(room,revision);
         public RoomLightProfile Profile {get;private set;}
         public RoomLayout Room {get;private set;}
         public Rect Bounds {get;private set;}
@@ -223,7 +226,7 @@ namespace Remains.Presentation
             SetReady(true);
         }
         private void SetReady(bool value)
-        {if(IsReady==value) return;IsReady=value;ReadinessChanged?.Invoke(this);}
+        {if(IsReady==value) return;IsReady=value;ReadinessChanged?.Invoke(this);PresentationChanged?.Invoke(this);}
         private void Fail(Exception error)
         {
             cancellation?.Cancel();cancellation?.Dispose();cancellation=null;
@@ -234,6 +237,7 @@ namespace Remains.Presentation
             if(active==this) Shader.SetGlobalFloat("_WorldLightEnabled",0);
             Debug.LogError($"Не удалось подготовить свет: room={Room?.id}, revision={requestedRevision}, reason={error}.",this);
             Failed?.Invoke(this,error);
+            PresentationFailed?.Invoke(this,error);
         }
         private void Publish(RoomLightMaps context,UpdateResult result,Request request)
         {

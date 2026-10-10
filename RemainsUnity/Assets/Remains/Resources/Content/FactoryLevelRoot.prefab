@@ -43,6 +43,8 @@ GameObject:
   - component: {fileID: 1910087580373390608}
   - component: {fileID: 665818839952213938}
   - component: {fileID: 3657179629320155683}
+  - component: {fileID: 4987876256302106301}
+  - component: {fileID: 1409078995652682342}
   m_Layer: 0
   m_Name: FactoryLevelRoot
   m_TagString: Untagged
@@ -122,3 +124,28 @@ MonoBehaviour:
   wood: {fileID: 8855824104596934271, guid: 884036ccca23c98448c6e30530814efc, type: 3}
   metal: {fileID: 1563556946310455587, guid: eec69e944ea2fd442a91c59d6c3ea51e, type: 3}
   large: {fileID: 8816736731275887374, guid: 9a6dd8fe8e0d41c4c98d95a5b0c4397b, type: 3}
+--- !u!114 &4987876256302106301
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1374235996491122679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0ed692b9e66d1f4cabd6288fba44958, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1409078995652682342
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1374235996491122679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39ce5ddc6acf48c1adf9d78bb0edbb6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  view: {fileID: 4987876256302106301}

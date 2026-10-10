@@ -12,6 +12,21 @@ namespace Remains.Presentation
         public static GameObject Create(string level,RoomLayout room,WorldState world=null)
         {
             using var timing=TransitionTiming.Measure("authored-room.create",level);
+            if(FactoryContentSources.IsGenerated(world,level))
+            {
+                var factory=FactoryLevelRoot.Create(world,level);
+                try
+                {
+                    factory.InstantiateRooms();
+                    if(!factory.TryGetComponent<FactoryDoorAdapter>(out var doors) || !factory.TryGetComponent<FactoryLevelView>(out var view))
+                        throw new InvalidOperationException("Корень завода: отсутствует авторский адаптер дверей или вид уровня.");
+                    doors.Install(factory);
+                    foreach(var door in factory.GetComponentsInChildren<RoomDoorAuthoring>(true)) door.gameObject.SetActive(false);
+                    view.Initialize(factory,room);
+                    return factory.gameObject;
+                }
+                catch {ReleaseFailed(factory.gameObject);throw;}
+            }
             RoomAuthoring source;
             using(TransitionTiming.Measure("authored-room.resolve",level))
                 source=RoomAuthoring.Load(level,world);
@@ -48,7 +63,9 @@ namespace Remains.Presentation
                 }
                 return instance.gameObject;
             }
-            catch {UnityEngine.Object.Destroy(instance.gameObject);throw;}
+            catch {ReleaseFailed(instance.gameObject);throw;}
         }
+        private static void ReleaseFailed(GameObject root)
+        {if(Application.isPlaying) UnityEngine.Object.Destroy(root);else UnityEngine.Object.DestroyImmediate(root);}
     }
 }
