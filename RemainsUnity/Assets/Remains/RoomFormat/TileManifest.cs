@@ -3,7 +3,8 @@ using System.Collections.Generic;
 
 namespace Remains.RoomFormat
 {
-    public enum TileArtKind { Vector, Bitmap }
+    // Mixed: vector shapes together with embedded bitmaps — rasterised with the vector reserve.
+    public enum TileArtKind { Vector, Bitmap, Mixed }
 
     // One exported image with provenance (docs/pipelines/svg-export.md): vector art is
     // rasterised with reserve, bitmaps keep their native resolution.
@@ -65,13 +66,20 @@ namespace Remains.RoomFormat
             root.Set("masks", masks);
             var art = JsonValue.NewArray();
             foreach (var a in Art.Values)
-                art.Add(JsonValue.NewObject().Set("id", JsonValue.Of(a.Id)).Set("kind", JsonValue.Of(a.Kind == TileArtKind.Vector ? "vector" : "bitmap"))
+                art.Add(JsonValue.NewObject().Set("id", JsonValue.Of(a.Id)).Set("kind", JsonValue.Of(KindName(a.Kind)))
                     .Set("file", JsonValue.Of(a.File)).Set("width", JsonValue.Of(a.Width)).Set("height", JsonValue.Of(a.Height))
                     .Set("zoom", JsonValue.Of(a.Zoom)).Set("originX", JsonValue.Of(a.OriginX)).Set("originY", JsonValue.Of(a.OriginY))
                     .Set("source", JsonValue.Of(a.Source)).Set("sha256", JsonValue.Of(a.Sha256)));
             root.Set("art", art);
             return JsonText.Write(root, 3, new[] { "art", "masks" });
         }
+
+        private static string KindName(TileArtKind kind) => kind == TileArtKind.Vector ? "vector" : kind == TileArtKind.Mixed ? "mixed" : "bitmap";
+        private static TileArtKind ParseKind(string kind, string ctx) => kind switch
+        {
+            "vector" => TileArtKind.Vector, "bitmap" => TileArtKind.Bitmap, "mixed" => TileArtKind.Mixed,
+            _ => throw new FormatException($"{ctx}: неизвестный тип рисунка {kind}."),
+        };
 
         public static TileManifest Read(string text, string source)
         {
@@ -106,7 +114,7 @@ namespace Remains.RoomFormat
                 string ctx = source + ":" + id;
                 manifest.Art.Add(id, new TileArt
                 {
-                    Id = id, Kind = v.Get("kind").AsString(ctx + ".kind") == "vector" ? TileArtKind.Vector : TileArtKind.Bitmap,
+                    Id = id, Kind = ParseKind(v.Get("kind").AsString(ctx + ".kind"), ctx),
                     File = v.Get("file").AsString(ctx + ".file"), Width = (int)v.Get("width").AsLong(ctx + ".width"), Height = (int)v.Get("height").AsLong(ctx + ".height"),
                     Zoom = v.Get("zoom").AsDouble(ctx + ".zoom"), OriginX = v.Get("originX").AsDouble(ctx + ".originX"), OriginY = v.Get("originY").AsDouble(ctx + ".originY"),
                     Source = v.Get("source").AsString(ctx + ".source"), Sha256 = v.Get("sha256").AsString(ctx + ".sha256"),

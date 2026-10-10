@@ -8,13 +8,15 @@ using UnityEngine;
 namespace Remains.Editor
 {
     // Import settings for exported terrain art come from tiles-manifest.json, never from
-    // guesses: vector masks are 8x sprites (PPU = 50 px/m × zoom) pivoted at their SWF
-    // registration; bitmaps stay at native size (no NPOT rescale, no size cap below source).
+    // guesses: vector art is exported with reserve (PPU = 50 px/m × zoom) pivoted at its SWF
+    // registration; bitmaps stay at native size (no NPOT rescale). The export keeps the full
+    // reserve; the in-game size limit is MaxImportSide (user decision 2026-10-10), applied here.
     public sealed class RoomTileArtPostprocessor : AssetPostprocessor
     {
         public const string Root="Assets/Remains/Rooms/Original/Tiles/";
         public const string ManifestPath=Root+"tiles-manifest.json";
         public const float SourcePixelsPerMeter=50;
+        public const int MaxImportSide=4096;
 
         private void OnPreprocessTexture()
         {
@@ -30,7 +32,7 @@ namespace Remains.Editor
             importer.mipmapEnabled=true;
             importer.alphaIsTransparency=true;
             importer.npotScale=TextureImporterNPOTScale.None;
-            importer.maxTextureSize=Mathf.Max(2048,Mathf.NextPowerOfTwo(Mathf.Max(art.Width,art.Height)));
+            importer.maxTextureSize=Mathf.Min(MaxImportSide,Mathf.Max(2048,Mathf.NextPowerOfTwo(Mathf.Max(art.Width,art.Height))));
             importer.filterMode=FilterMode.Bilinear;
             if(art.Id.StartsWith("texture:",StringComparison.Ordinal))
             {
