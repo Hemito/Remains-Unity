@@ -4,6 +4,7 @@ using System.Linq;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
+using Remains.Presentation;
 using Remains.Serialization;
 using UnityEditor;
 using UnityEngine;
@@ -27,6 +28,9 @@ namespace Remains.Editor
                 var room=root.AddComponent<RoomAuthoring>();
                 var container=new GameObject("Комнаты").transform;container.SetParent(root.transform,false);
                 root.AddComponent<FactoryLevelRoot>().Configure(catalog,room,container);
+                DoorView Door(string id)=>AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Remains/Resources/Presentation/Doors/{id}.prefab")?.GetComponent<DoorView>()
+                    ??throw new InvalidOperationException("Нет готового префаба двери: "+id);
+                root.AddComponent<FactoryDoorAdapter>().Configure(Door("door1"),Door("door2"),Door("door3"));
                 PrefabUtility.SaveAsPrefabAsset(root,PrefabPath,out bool saved);
                 if(!saved) throw new IOException("Не записан корень завода: "+PrefabPath);
                 AssetDatabase.SaveAssets();
@@ -54,6 +58,16 @@ namespace Remains.Editor
                     throw new InvalidOperationException("Геометрия или ID объектов корня не совпали с подготовленными данными.");
                 root.InstantiateRooms();
                 if(root.Rooms.childCount!=84) throw new InvalidOperationException("Число комнат корня не совпало с раскладкой.");
+                var adapter=root.GetComponent<FactoryDoorAdapter>();adapter.Install(root);
+                var doors=RoomDoorContent.Read(root.Authoring,"factory:0");
+                if(doors.doors.Length!=adapter.Installed || doors.doors.Length==0 ||
+                    doors.doors.Any(door=>!root.Objects.Any(obj=>obj.Id==door.id && obj.Source.Params.TryGetValue("lock",out var value) && value=="0")))
+                    throw new InvalidOperationException("Адаптер потерял ID дверей или установил неподдержанный замок.");
+                DoorContentInstaller.Apply(world,doors);
+                var savedDoor=world.doors[0];savedDoor.open=true;savedDoor.integrity.health=0;savedDoor.revision=2;
+                if(DoorContentInstaller.Apply(world,doors) || !savedDoor.open || !savedDoor.Destroyed || savedDoor.revision!=2)
+                    throw new InvalidOperationException("Повторная установка сбросила сохранённую дверь.");
+                Debug.Log($"Адаптер завода: PASS; явно незапертых дверей {adapter.Installed}; повторная установка сохраняет состояние.");
                 var identity=FactoryContentIdentity.Capture(world);
                 var copy=StateJson.Copy(world);
                 if(!identity.Matches(copy)) throw new InvalidOperationException("Идентичность заводов изменилась после копирования мира.");

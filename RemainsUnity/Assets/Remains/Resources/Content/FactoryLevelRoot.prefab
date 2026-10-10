@@ -42,6 +42,7 @@ GameObject:
   - component: {fileID: 6206870027617976617}
   - component: {fileID: 1910087580373390608}
   - component: {fileID: 665818839952213938}
+  - component: {fileID: 3657179629320155683}
   m_Layer: 0
   m_Name: FactoryLevelRoot
   m_TagString: Untagged
@@ -106,3 +107,18 @@ MonoBehaviour:
   catalog: {fileID: 11400000, guid: ca5b71e2bd7b90f48a95be1464036aac, type: 2}
   authoring: {fileID: 1910087580373390608}
   rooms: {fileID: 8441854219517789294}
+--- !u!114 &3657179629320155683
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1374235996491122679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4d076a123474bc1b1836fcce3eb2668, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  wood: {fileID: 8855824104596934271, guid: 884036ccca23c98448c6e30530814efc, type: 3}
+  metal: {fileID: 1563556946310455587, guid: eec69e944ea2fd442a91c59d6c3ea51e, type: 3}
+  large: {fileID: 8816736731275887374, guid: 9a6dd8fe8e0d41c4c98d95a5b0c4397b, type: 3}

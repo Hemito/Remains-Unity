@@ -30,6 +30,15 @@ namespace Remains.Content
         public RoomAuthoring Authoring=>authoring;
         public Transform Rooms=>rooms;
         public IReadOnlyList<FactoryPlacedObject> Objects {get;private set;}
+        private readonly Dictionary<FactoryRoomPlacement,RoomTemplateInstance> instances=new();
+        public void HideObjectArtwork(FactoryPlacedObject placement)
+        {
+            if(!instances.TryGetValue(placement.Room,out var room))
+                throw new InvalidOperationException("Не установлена комната объекта: "+placement.Id);
+            foreach(var sprite in room.GetComponentsInChildren<RoomSpriteAuthoring>(true))
+                if(sprite.Kind==RoomSpriteKind.Object && sprite.Index==placement.Index)
+                    sprite.GetComponent<SpriteRenderer>().enabled=false;
+        }
         public void Configure(FactoryCatalogAsset source,RoomAuthoring geometry,Transform roomParent)
         {
             if(source==null || geometry==null || roomParent==null || geometry.transform!=transform || roomParent.parent!=transform)
@@ -39,7 +48,11 @@ namespace Remains.Content
         public Vector2 Offset(FactoryRoomPlacement room)
         {
             if(Prepared==null) throw new InvalidOperationException("Корень завода ещё не подготовлен.");
-            var level=Prepared.Grid.Level;float cell=(float)level.Cell;
+            return Offset(Prepared,room);
+        }
+        private static Vector2 Offset(PreparedFactory prepared,FactoryRoomPlacement room)
+        {
+            var level=prepared.Grid.Level;float cell=(float)level.Cell;
             return new Vector2(room.Column*cell,(level.Height-room.Row-room.Template.Height)*cell);
         }
         public void Initialize(WorldState world,string level)
@@ -52,8 +65,8 @@ namespace Remains.Content
             {
                 var prefab=catalog.Prefab(room.Cell.Template,room.Cell.Mirror);
                 var points=prefab.GetComponentsInChildren<RoomTemplateObjectPoint>(true);
-                var source=room.Template;float cell=(float)source.Cell;
-                var offset=new Vector2(room.Column*cell,(prepared.Grid.Level.Height-room.Row-source.Height)*cell);
+                var source=room.Template;
+                var offset=Offset(prepared,room);
                 foreach(var point in points)
                 {
                     var obj=source.Objects[point.Index];
@@ -82,6 +95,7 @@ namespace Remains.Content
                 var instance=Instantiate(catalog.Prefab(room.Cell.Template,room.Cell.Mirror),rooms,false);
                 instance.name=$"Комната {room.Cell.X},{room.Cell.Y}: {room.Cell.Template}";
                 instance.transform.localPosition=Offset(room);
+                instances.Add(room,instance);
             }
         }
         public static FactoryLevelRoot Create(WorldState world,string level)
