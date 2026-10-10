@@ -27,6 +27,9 @@ namespace Remains.Editor
     // -factoryPreview [-factorySeed 1 -factorySize 2x3]: a generated factory of that size (FactoryLayoutGenerator)
     // as the level would be prepared: walls from the composed grid (FactoryGridBuilder), room prefab instances
     // (RoomPrefabGenerator), their sprites into the radiance field: "factory-<seed>-<W>x<D>.png".
+    // -factoryRootPreview [-factorySeed 1]: the game path — a world with a created factory 0, FactoryLevelRoot,
+    // installed rooms, FactoryLevelView focused on the start room; renders the light window
+    // ("factory-root-<seed>.png").
     // -roomPreviewDummy: test only — training dummies (sprite of Prefabs/Actors/training-dummy) stand
     // in the room as light absorbers/receivers, to check actor shadows.
     public static class RoomTemplatePreview
@@ -73,6 +76,12 @@ namespace Remains.Editor
                 unlit=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewUnlit")>=0;
                 radiance=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewRadiance")>=0;
                 dummy=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewDummy")>=0;
+                if(Array.IndexOf(Environment.GetCommandLineArgs(),"-factoryRootPreview")>=0)
+                {
+                    RenderFactoryRoot(outDir);
+                    EditorApplication.Exit(0);
+                    return;
+                }
                 if(Array.IndexOf(Environment.GetCommandLineArgs(),"-factoryPreview")>=0)
                 {
                     RenderFactory(outDir);
@@ -202,6 +211,30 @@ namespace Remains.Editor
             string file=Path.Combine(outDir,$"factory-{seed}-{width}x{depth}.png");
             Render(levelSize,file,camera=>FarBackground(rooms[layout.Cell(0,0).Template],camera));
             Debug.Log($"Предпросмотр завода: {file}; комнат {grid.Rooms.Count}, картинок {sprites.Count}, окон {erases.Count}.");
+        }
+
+        private static void RenderFactoryRoot(string outDir)
+        {
+            int seed=int.Parse(Argument("-factorySeed")??"1",System.Globalization.CultureInfo.InvariantCulture);
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+            var world=new Remains.Domain.WorldState{seed=seed};
+            FactoryPreparation.Create(world,FactoryCatalogAsset.Load(),0);
+            var root=FactoryLevelRoot.Create(world,"factory:0");
+            root.InstantiateRooms();
+            var view=root.gameObject.AddComponent<FactoryLevelView>();
+            view.Initialize(root);
+            var start=root.Prepared.Grid.Rooms[0];   // column 0, top row: a start room
+            var center=root.Offset(start)+new Vector2(start.Template.Width,start.Template.Height)*(float)start.Template.Cell/2;
+            view.Focus(root.transform.TransformPoint(center));
+            var grid=root.Prepared.Grid;float cell=(float)grid.Level.Cell;
+            var w=view.LightWindowRooms;
+            var origin=new Vector2(w.x*grid.StepX*cell,(grid.Level.Height-w.y*grid.StepY-(w.height*grid.StepY+1))*cell);
+            var size=new Vector2((w.width*grid.StepX+1)*cell,(w.height*grid.StepY+1)*cell);
+            string file=Path.Combine(outDir,$"factory-root-{seed}.png");
+            Render(size,file,camera=>{camera.transform.position=new Vector3(origin.x+size.x/2,origin.y+size.y/2,-10);FarBackground(start.Template,camera);});
+            Debug.Log($"Предпросмотр корня завода: {file}; окно {w}, готов {view.IsReady}.");
+            view.Release();
+            UnityEngine.Object.DestroyImmediate(root.gameObject);
         }
 
         private static Vector2 Size(RoomFile room)=>new Vector2((float)(room.Width*room.Cell),(float)(room.Height*room.Cell));

@@ -25,14 +25,16 @@ namespace Remains.Presentation
         // litEdge: how deep (m, up to one cell) lamp light enters a wall from its open edge (lighting table shadows.edge), 0 = walls lit evenly.
         // backdrops: for a composed level (FactoryGrid) the room whose options give each backdrop and its
         // bottom-left offset in the level; null = the room itself is one backdrop.
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,double litEdge,Transform parent=null,IReadOnlyList<(RoomFile options,Vector2 offset)> backdrops=null)
+        // ownSortingGroup: false when the caller's object already sorts the terrain together with room decor
+        // (a composed level: decor of installed room prefabs interleaves with the walls by sorting order).
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,double litEdge,Transform parent=null,IReadOnlyList<(RoomFile options,Vector2 offset)> backdrops=null,bool ownSortingGroup=true)
         {
             if(room==null || definitions==null || lands==null || art==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):nameof(art));
             var shader=Resources.Load<Shader>(ShaderResource)??throw new InvalidOperationException("Нет шейдера "+ShaderResource);
             var root=new GameObject("Оформление комнаты: "+room.Template);
             if(parent!=null) root.transform.SetParent(parent,false);
             root.transform.localPosition=origin;
-            root.AddComponent<SortingGroup>().sortingOrder=WorldVisualOrderPolicy.SceneryRoomOrder;
+            if(ownSortingGroup) root.AddComponent<SortingGroup>().sortingOrder=WorldVisualOrderPolicy.SceneryRoomOrder;
             var lifetime=root.AddComponent<RoomMeshLifetime>();
             var grid=root.AddComponent<Grid>();
             float quarter=(float)room.Cell/2;
