@@ -43,6 +43,7 @@ GameObject:
   - component: {fileID: 1910087580373390608}
   - component: {fileID: 665818839952213938}
   - component: {fileID: 3657179629320155683}
+  - component: {fileID: 6484053050679885635}
   - component: {fileID: 4987876256302106301}
   - component: {fileID: 1409078995652682342}
   m_Layer: 0
@@ -124,6 +125,26 @@ MonoBehaviour:
   wood: {fileID: 8855824104596934271, guid: 884036ccca23c98448c6e30530814efc, type: 3}
   metal: {fileID: 1563556946310455587, guid: eec69e944ea2fd442a91c59d6c3ea51e, type: 3}
   large: {fileID: 8816736731275887374, guid: 9a6dd8fe8e0d41c4c98d95a5b0c4397b, type: 3}
+--- !u!114 &6484053050679885635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1374235996491122679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68a756ae9e8a47539202d70074175a19, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  definitions:
+  - {fileID: 11400000, guid: d6d48ace0625c6348bf2e67e609fb6c6, type: 2}
+  - {fileID: 11400000, guid: 15ae96fec9e3dc446a4e38b8ba2109ea, type: 2}
+  - {fileID: 11400000, guid: 0a1e8e6769a0cc24fb881038b5384e73, type: 2}
+  - {fileID: 11400000, guid: d3ab0bd15d5fd38468bd24dd10e36bbc, type: 2}
+  - {fileID: 11400000, guid: 7f430674b2372ad479dbd2d8a6a57fff, type: 2}
+  - {fileID: 11400000, guid: b1d82bfda34878c4f933e91935a2afa8, type: 2}
+  - {fileID: 11400000, guid: 523b4b7d8d26440469f13346bb9b0c03, type: 2}
 --- !u!114 &4987876256302106301
 MonoBehaviour:
   m_ObjectHideFlags: 0

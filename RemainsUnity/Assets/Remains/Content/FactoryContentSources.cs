@@ -46,6 +46,9 @@ namespace Remains.Content
                 if(!root.TryGetComponent<FactoryDoorAdapter>(out var doors))
                     throw new InvalidOperationException("Нет сериализованного адаптера дверей корня: "+level);
                 doors.Install(root);
+                if(!root.TryGetComponent<FactoryPropAdapter>(out var props))
+                    throw new InvalidOperationException("Нет сериализованного адаптера физических объектов корня: "+level);
+                props.Install(root);
                 sources[key]=new Entry {root=root,seed=world.seed,definition=factory.definition,fingerprint=factory.contentFingerprint,layout=factory.layout};
             }
             catch {Release(root);throw;}

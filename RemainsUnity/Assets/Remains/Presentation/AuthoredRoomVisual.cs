@@ -21,6 +21,9 @@ namespace Remains.Presentation
                     if(!factory.TryGetComponent<FactoryDoorAdapter>(out var doors) || !factory.TryGetComponent<FactoryLevelView>(out var view))
                         throw new InvalidOperationException("Корень завода: отсутствует авторский адаптер дверей или вид уровня.");
                     doors.Install(factory);
+                    if(!factory.TryGetComponent<FactoryPropAdapter>(out var props))
+                        throw new InvalidOperationException("Корень завода: отсутствует авторский адаптер физических объектов.");
+                    props.Install(factory);
                     foreach(var door in factory.GetComponentsInChildren<RoomDoorAuthoring>(true)) door.gameObject.SetActive(false);
                     view.Initialize(factory,room);
                     return factory.gameObject;

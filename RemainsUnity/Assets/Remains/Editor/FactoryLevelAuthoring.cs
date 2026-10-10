@@ -31,6 +31,12 @@ namespace Remains.Editor
                 DoorView Door(string id)=>AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Remains/Resources/Presentation/Doors/{id}.prefab")?.GetComponent<DoorView>()
                     ??throw new InvalidOperationException("Нет готового префаба двери: "+id);
                 root.AddComponent<FactoryDoorAdapter>().Configure(Door("door1"),Door("door2"),Door("door3"));
+                var propPaths=new[]{"Assets/Remains/RoomDrafts/woodbox.asset","Assets/Remains/RoomDrafts/FactoryProps/bigbox.asset",
+                    "Assets/Remains/RoomDrafts/mcrate4.asset","Assets/Remains/Resources/Content/props/box.asset",
+                    "Assets/Remains/Resources/Content/props/mcrate1.asset","Assets/Remains/Resources/Content/props/mcrate2.asset",
+                    "Assets/Remains/Resources/Content/props/mcrate3.asset"};
+                root.AddComponent<FactoryPropAdapter>().Configure(propPaths.Select(path=>AssetDatabase.LoadAssetAtPath<PropAsset>(path)
+                    ??throw new InvalidOperationException("Нет готового определения физического объекта: "+path)).ToArray());
                 var view=root.AddComponent<FactoryLevelView>();
                 root.AddComponent<FactoryLightFocus>().Configure(view);
                 PrefabUtility.SaveAsPrefabAsset(root,PrefabPath,out bool saved);
@@ -122,6 +128,23 @@ namespace Remains.Editor
                 if(DoorContentInstaller.Apply(world,doors) || !savedDoor.open || !savedDoor.Destroyed || savedDoor.revision!=2)
                     throw new InvalidOperationException("Повторная установка сбросила сохранённую дверь.");
                 Debug.Log($"Адаптер завода: PASS; явно незапертых дверей {adapter.Installed}; повторная установка сохраняет состояние.");
+                var props=root.GetComponent<FactoryPropAdapter>();props.Install(root);
+                var physical=RoomPhysicalContent.Read(root.Authoring,"factory:0");
+                if(physical.props.Length!=props.Installed || props.Installed==0 || physical.containers.Length!=0 ||
+                    physical.props.Any(prop=>!root.Objects.Any(obj=>obj.Id==prop.id && obj.Position==new Vector2(prop.x,prop.y))))
+                    throw new InvalidOperationException("Адаптер физических объектов потерял ID, позицию или подставил контейнер.");
+                var entityCatalog=EntityAssetCatalog.Load();
+                var registered=entityCatalog.CreateProps().ToDictionary(prop=>prop.id,StringComparer.Ordinal);
+                foreach(var prop in physical.props)
+                    if(!registered.TryGetValue(prop.definition,out var definition) || definition.width!=prop.width || definition.height!=prop.height ||
+                        definition.mass!=prop.mass || definition.movable!=prop.movable || definition.hasPhysicalBody!=prop.hasPhysicalBody ||
+                        !entityCatalog.TryGetPropPrefab(definition.id,definition.resource,out var prefab) || prefab==null)
+                        throw new InvalidOperationException("Игровой каталог не соответствует расстановке: "+prop.id+", type="+prop.definition);
+                PhysicalContentInstaller.Apply(world,physical);
+                var savedProp=world.props[0];savedProp.x+=.25f;savedProp.vx=2;
+                if(PhysicalContentInstaller.Apply(world,physical) || savedProp.vx!=2 || savedProp.x!=physical.props[0].x+.25f)
+                    throw new InvalidOperationException("Повтор расстановки сбросил сохранённое движение физического объекта.");
+                Debug.Log($"Физические объекты завода: PASS; объектов {props.Installed}, исходные ID/позиции, повтор сохраняет движение.");
                 bool rejected=false;
                 try {RoomAuthoring.Load("factory:0",world);} catch(InvalidOperationException) {rejected=true;}
                 if(!rejected) throw new InvalidOperationException("Чтение неподготовленного завода не отклонено.");
