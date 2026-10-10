@@ -233,6 +233,19 @@ namespace Remains.Editor
             string file=Path.Combine(outDir,$"factory-root-{seed}.png");
             Render(size,file,camera=>{camera.transform.position=new Vector3(origin.x+size.x/2,origin.y+size.y/2,-10);FarBackground(start.Template,camera);});
             Debug.Log($"Предпросмотр корня завода: {file}; окно {w}, готов {view.IsReady}.");
+            // Door transition: a closed door1 in the start room occludes, opening it stops occluding; same revision is a no-op.
+            var door=new Remains.Domain.DoorState{id="check:door",definition="door1",level=root.Prepared.Level,surfaceTexture="door:wood",
+                x=center.x,y=root.Offset(start).y+(float)start.Template.Cell,width=.4f,height=2.4f};
+            view.SyncDoors(new[]{door},1);
+            int closed=view.DoorOccluderTexels;
+            door.open=true;
+            view.SyncDoors(new[]{door},1);
+            int unchanged=view.DoorOccluderTexels;
+            view.SyncDoors(new[]{door},2);
+            int opened=view.DoorOccluderTexels;
+            if(closed<=0 || unchanged!=closed || opened!=0 || view.AppliedDoorRevision!=2)
+                throw new InvalidOperationException($"Заслонка двери: закрыта {closed}, та же ревизия {unchanged}, открыта {opened}, ревизия {view.AppliedDoorRevision}.");
+            Debug.Log($"Двери в свете завода: PASS; закрытая дверь — {closed} текселей заслонки, открытая — 0, повтор ревизии не пересобирает.");
             view.Release();
             UnityEngine.Object.DestroyImmediate(root.gameObject);
         }

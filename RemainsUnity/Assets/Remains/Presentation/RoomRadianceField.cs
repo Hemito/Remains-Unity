@@ -28,11 +28,13 @@ namespace Remains.Presentation
         private RenderTexture seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB;
         private float albedo,edgeTexels,rimTexels;
         private bool objectGradient;
+        public int OccluderTexels {get;private set;}   // diagnostics: scene texels set by occluders
         private int width,height,levels;
         private Vector4 rect;
         private float texel;
 
-        public static RoomRadianceField Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent,IReadOnlyList<RoomSpritePlacement> sprites=null)
+        // occluders: world rectangles that stop a share of light (closed doors: original Box door_opac); 1 = a wall.
+        public static RoomRadianceField Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent,IReadOnlyList<RoomSpritePlacement> sprites=null,IReadOnlyList<(Rect bounds,double opacity)> occluders=null)
         {
             if(!SystemInfo.supportsComputeShaders) throw new InvalidOperationException("Поле излучения: видеокарта/API без compute-шейдеров.");
             var compute=Resources.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
@@ -59,6 +61,22 @@ namespace Remains.Presentation
                         pixels[y*w+x]=new Color((float)lamp.Radiance[0],(float)lamp.Radiance[1],(float)lamp.Radiance[2],1);
                     }
             }
+            int occluderTexels=0;
+            if(occluders!=null)
+                foreach(var (bounds,opacity) in occluders)
+                {
+                    if(!(opacity>0 && opacity<=1)) throw new ArgumentOutOfRangeException(nameof(occluders),$"Поле излучения {room.Template}: непрозрачность заслонки {opacity} вне (0,1].");
+                    // Light crosses the occluder along its thinner side; per texel so the whole thickness stops `opacity`.
+                    double thickness=Math.Max(1,Math.Min(bounds.width,bounds.height)/t);
+                    float alpha=opacity>=1?1:(float)Math.Min(MaxObjectTexelAbsorption,1-Math.Pow(1-opacity,1/thickness));
+                    for(int y=Mathf.FloorToInt((bounds.yMin-origin.y)/t);y<Mathf.CeilToInt((bounds.yMax-origin.y)/t);y++)
+                        for(int x=Mathf.FloorToInt((bounds.xMin-origin.x)/t);x<Mathf.CeilToInt((bounds.xMax-origin.x)/t);x++)
+                        {
+                            if(x<0 || y<0 || x>=w || y>=h) continue;
+                            var p=pixels[y*w+x];
+                            if(alpha>p.a) {pixels[y*w+x]=new Color(0,0,0,alpha);occluderTexels++;}
+                        }
+                }
             var sceneTexture=new Texture2D(w,h,TextureFormat.RGBAHalf,false,true){name="Сцена света",filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
             sceneTexture.SetPixels(pixels);
             sceneTexture.Apply(false,false);
@@ -69,6 +87,7 @@ namespace Remains.Presentation
             field.compute=compute;
             field.wallsTexture=sceneTexture;
             field.scene=sceneTexture;
+            field.OccluderTexels=occluderTexels;
             field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;field.edgeTexels=(float)(table.ShadowEdge/t);field.rimTexels=(float)(table.ObjectRimWidth/t);field.objectGradient=table.ObjectLightMode=="gradient";
             int emitters=0,absorbers=0,glowing=0,dark=0;
             if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers,ref glowing,ref dark);
