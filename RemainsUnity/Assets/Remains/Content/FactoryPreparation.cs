@@ -29,7 +29,12 @@ namespace Remains.Content
             if(catalog==null) throw new ArgumentNullException(nameof(catalog));
             var layout=WorldFactories.Require(world,level,FactoryCatalogAsset.DefinitionId,catalog.ContentFingerprint);
             if(layout.Land!="plant") throw new InvalidOperationException($"Мир {world.worldId}, завод {level}: земля {layout.Land} не поддерживается каталогом завода.");
-            foreach(var cell in layout.Cells) catalog.Prefab(cell.Template,cell.Mirror);
+            foreach(var cell in layout.Cells)
+            {
+                catalog.Prefab(cell.Template,cell.Mirror);
+                if(cell.Role!=FactoryCellRole.None && catalog.Templates[cell.Template].Objects.FindAll(obj=>obj.Id==cell.RolePoint && obj.Type=="remains:obj:player").Count!=1)
+                    throw new InvalidOperationException($"Мир {world.worldId}, завод {level}, клетка {cell.X},{cell.Y}, роль {cell.Role}: исходный маркер {cell.RolePoint} отсутствует или неоднозначен в {cell.Template}.");
+            }
             var grid=FactoryGridBuilder.Build(layout,catalog.Templates,catalog.Definitions,
                 FactoryGridBuilder.BorderSolid(catalog.Lands,layout.Land,catalog.Definitions),true);
             foreach(string issue in layout.Issues) Debug.LogWarning($"Мир {world.worldId}, завод {level}, раскладка: {issue}",catalog);

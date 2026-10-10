@@ -107,6 +107,28 @@ namespace Remains.Editor
             try
             {
                 var geometry=root.Authoring.CreateLayout(false);
+                var layout=root.Prepared.Grid.Layout;
+                string stored=world.factories[0].layout;
+                var read=Remains.RoomFormat.FactoryLayoutReader.Read(stored,"проверка точек ролей");
+                if(read.Write()!=stored || root.RolePoints.Count!=layout.Cells.Count(cell=>cell.Role!=Remains.RoomFormat.FactoryCellRole.None) ||
+                    root.RolePoints.Any(point=>point.Cell.RolePoint!=point.Marker.Source.Id || point.Position!=point.Marker.Position))
+                    throw new InvalidOperationException("Сохранённые точки ролей не совпали с исходными маркерами.");
+                var generated=Remains.RoomFormat.FactoryLayoutGenerator.Generate(catalog.Templates.Values.ToArray(),"plant",104,0,4,21);
+                if(generated.Write()!=stored) throw new InvalidOperationException("Точки ролей не воспроизводятся тем же seed и версией генератора.");
+                var role=read.Cells.First(cell=>cell.Role!=Remains.RoomFormat.FactoryCellRole.None);
+                string savedPoint=role.RolePoint;role.RolePoint=null;
+                bool pointRejected=false;
+                try {Remains.RoomFormat.FactoryLayoutReader.Read(read.Write(),"отсутствующий маркер роли");} catch(FormatException) {pointRejected=true;}
+                if(!pointRejected) throw new InvalidOperationException("Отсутствующий сохранённый маркер роли не отклонён.");
+                role.RolePoint="missing-role-marker";
+                var invalid=StateJson.Copy(world);invalid.factories[0].layout=read.Write();pointRejected=false;
+                try {FactoryPreparation.Prepare(invalid,catalog,"factory:0");} catch(InvalidOperationException) {pointRejected=true;}
+                if(!pointRejected) throw new InvalidOperationException("Несуществующий исходный маркер роли не отклонён.");
+                role.RolePoint=savedPoint;read.GeneratorVersion=1;
+                invalid.factories[0].layout=read.Write();string legacy=invalid.factories[0].layout;pointRejected=false;
+                try {FactoryPreparation.Prepare(invalid,catalog,"factory:0");} catch(System.IO.InvalidDataException) {pointRejected=true;}
+                if(!pointRejected || invalid.factories[0].layout!=legacy) throw new InvalidOperationException("Старая версия генератора не отклонена или была перезаписана.");
+                Debug.Log($"Точки ролей завода: PASS; генератор {layout.GeneratorVersion}, точек {root.RolePoints.Count}, выходов {root.RolePoints.Count(point=>point.Cell.Role==Remains.RoomFormat.FactoryCellRole.Exit)}; выбор сохранён, отсутствующий/чужой маркер и старая версия отклонены без перегенерации.");
                 var anatomy=StateJson.FromJson<AnatomyCatalog>(Resources.Load<TextAsset>("Content/anatomy").text).anatomies.Single(value=>value.id=="pony");
                 var arrival=FactoryArrival.Require(root.Prepared,root.Objects);
                 string arrivalError=FactoryArrival.Rejection(geometry,anatomy.movement,new Vector2(geometry.spawnX,geometry.spawnY));

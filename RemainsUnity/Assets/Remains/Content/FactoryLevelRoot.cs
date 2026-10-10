@@ -30,6 +30,7 @@ namespace Remains.Content
         public RoomAuthoring Authoring=>authoring;
         public Transform Rooms=>rooms;
         public IReadOnlyList<FactoryPlacedObject> Objects {get;private set;}
+        public IReadOnlyList<FactoryRolePoint> RolePoints {get;private set;}
         private readonly Dictionary<FactoryRoomPlacement,RoomTemplateInstance> instances=new();
         public void HideObjectArtwork(FactoryPlacedObject placement)
         {
@@ -88,6 +89,7 @@ namespace Remains.Content
             prepared.Physics.spawnX=arrival.Position.x;prepared.Physics.spawnY=arrival.Position.y;
             authoring.ConfigurePrepared(prepared.Physics);
             Prepared=prepared;Objects=placed.AsReadOnly();
+            RolePoints=Array.AsReadOnly(FactoryRolePoints.Read(prepared,Objects));
         }
         public void InstantiateRooms()
         {

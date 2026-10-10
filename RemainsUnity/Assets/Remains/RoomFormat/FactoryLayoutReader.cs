@@ -48,6 +48,10 @@ namespace Remains.RoomFormat
                 cell.Role = role == null ? FactoryCellRole.None : role == "checkpoint" ? FactoryCellRole.Checkpoint :
                     role == "exit" ? FactoryCellRole.Exit : role == "trial" ? FactoryCellRole.Trial :
                     throw new FormatException($"{source}: неизвестная роль клетки {cell.X},{cell.Y}: {role}.");
+                cell.RolePoint=value.Get("rolePoint")?.AsString(source+".rolePoint");
+                if(cell.Role==FactoryCellRole.None && cell.RolePoint!=null || result.GeneratorVersion>=2 &&
+                    cell.Role!=FactoryCellRole.None && string.IsNullOrWhiteSpace(cell.RolePoint))
+                    throw new FormatException($"{source}: роль и сохранённая точка клетки {cell.X},{cell.Y} не согласованы.");
                 if (cell.X < 0 || cell.X >= result.Width || cell.Y < 0 || cell.Y >= result.Depth ||
                     string.IsNullOrWhiteSpace(cell.Template) || cell.Level < 0 || cell.MaxLevel < cell.Level || cell.Band < 0)
                     throw new FormatException($"{source}: неверная комната {cell.X},{cell.Y}: {cell.Template}.");

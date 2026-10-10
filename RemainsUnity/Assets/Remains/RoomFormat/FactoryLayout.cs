@@ -21,6 +21,7 @@ namespace Remains.RoomFormat
         public int Band;                       // original stage the row corresponds to
         public bool Start, Repeat;             // fixed start room; chosen after the band's room budget ran out
         public FactoryCellRole Role;
+        public string RolePoint;               // saved local ID of the selected source spawnpoint
         public bool RoleRequired;              // trial at the bottom of a band (original "important" trial)
     }
 
@@ -65,6 +66,7 @@ namespace Remains.RoomFormat
                 if (c.Start) v.Set("start", JsonValue.Of(true));
                 if (c.Repeat) v.Set("repeat", JsonValue.Of(true));
                 if (c.Role != FactoryCellRole.None) v.Set("role", JsonValue.Of(c.Role.ToString().ToLowerInvariant()));
+                if (c.RolePoint != null) v.Set("rolePoint", JsonValue.Of(c.RolePoint));
                 if (c.RoleRequired) v.Set("required", JsonValue.Of(true));
                 cells.Add(v);
             }

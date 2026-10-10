@@ -19,7 +19,7 @@ namespace Remains.RoomFormat
     // differs between runtimes. Changing any rule bumps GeneratorVersion.
     public static class FactoryLayoutGenerator
     {
-        public const int GeneratorVersion = 1;
+        public const int GeneratorVersion = 2; // 2: persist the selected marker for every cell role
         public const int FirstBandRows = 3, BandRows = 6, MaxRoomLevel = 3;
         private static readonly HashSet<string> NotRandomTips = new HashSet<string>(StringComparer.Ordinal)
             { "beg0", "back", "roof", "pass", "passroof", "roofpass", "vert", "surf" };
@@ -128,6 +128,16 @@ namespace Remains.RoomFormat
                     else if (bottom) { cell.Role = FactoryCellRole.Trial; cell.RoleRequired = true; }
                     else if (random.Unit() < 0.3) cell.Role = FactoryCellRole.Trial;
                 }
+            foreach(var cell in layout.Cells)
+            {
+                if(cell.Role==FactoryCellRole.None) continue;
+                var points=grid[cell.X,cell.Y].Room.Objects.Where(obj=>obj.Type=="remains:obj:player")
+                    .OrderBy(obj=>obj.Id,StringComparer.Ordinal).ToArray();
+                if(points.Length==0 || points.Any(obj=>string.IsNullOrWhiteSpace(obj.Id)) ||
+                    points.Select(obj=>obj.Id).Distinct(StringComparer.Ordinal).Count()!=points.Length)
+                    throw new InvalidOperationException($"Клетка {cell.X},{cell.Y}, {cell.Template}, роль {cell.Role}: нет однозначных постоянных ID исходных точек появления.");
+                cell.RolePoint=points[random.Range(points.Length)].Id;
+            }
             Reachability(layout);
             return layout;
         }
