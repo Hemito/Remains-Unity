@@ -23,7 +23,9 @@ namespace Remains.Presentation
         private const string ShaderResource="Presentation/WorldTerrain",SpriteShaderResource="Presentation/WorldSprite";
 
         // litEdge: how deep (m, up to one cell) lamp light enters a wall from its open edge (lighting table shadows.edge), 0 = walls lit evenly.
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,double litEdge,Transform parent=null)
+        // backdrops: for a composed level (FactoryGrid) the room whose options give each backdrop and its
+        // bottom-left offset in the level; null = the room itself is one backdrop.
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,double litEdge,Transform parent=null,IReadOnlyList<(RoomFile options,Vector2 offset)> backdrops=null)
         {
             if(room==null || definitions==null || lands==null || art==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):nameof(art));
             var shader=Resources.Load<Shader>(ShaderResource)??throw new InvalidOperationException("Нет шейдера "+ShaderResource);
@@ -39,7 +41,8 @@ namespace Remains.Presentation
             if(litEdge>room.Cell) Debug.LogWarning($"{room.Template}: кромка {litEdge} м больше клетки {room.Cell} м — свет лампы заходит в стену не глубже одной клетки.");
             var edges=litEdge>0?EdgeMap(RoomShadowShapes.Edges(RoomGeometryBuilder.Build(room,definitions)),room.Cell,lifetime):null;
             var builder=new Builder(room,definitions,art,shader,root.transform,lifetime,quarter,origin,edges,(float)litEdge);
-            builder.Backdrop(lands);
+            if(backdrops==null) builder.Backdrop(lands,room,Vector2.zero);
+            else foreach(var (options,offset) in backdrops) builder.Backdrop(lands,options,offset);
 
             for(int x=0;x<room.Width;x++)
                 for(int y=0;y<room.Height;y++)
@@ -106,7 +109,7 @@ namespace Remains.Presentation
             // Room backdrop (original drawBackWall): the room's own backwall or its land default;
             // "sky" = no backdrop (far background is a separate layer, not drawn yet). backform
             // keeps only parts of the room: 1 side strips, 2 lower part from row 16, 3 from row 24.
-            public void Backdrop(RoomLandCatalog lands)
+            public void Backdrop(RoomLandCatalog lands,RoomFile room,Vector2 offset)
             {
                 var issues=new List<string>();
                 string name=lands.Option(room,"backwall",issues);
@@ -127,10 +130,10 @@ namespace Remains.Presentation
                 float Px(float sourcePixels)=>sourcePixels/pixels*cell;
                 switch(form)
                 {
-                    case 0: BackdropRect(textureId,0,0,width,height);break;
-                    case 1: BackdropRect(textureId,0,0,Px(11*pixels-10),height);BackdropRect(textureId,Px(37*pixels+10),0,width-Px(37*pixels+10),height);break;
-                    case 2: BackdropRect(textureId,0,0,width,height-Px(16*pixels+10));break;
-                    case 3: BackdropRect(textureId,0,0,width,height-Px(24*pixels+10));break;
+                    case 0: BackdropRect(textureId,offset.x,offset.y,width,height);break;
+                    case 1: BackdropRect(textureId,offset.x,offset.y,Px(11*pixels-10),height);BackdropRect(textureId,offset.x+Px(37*pixels+10),offset.y,width-Px(37*pixels+10),height);break;
+                    case 2: BackdropRect(textureId,offset.x,offset.y,width,height-Px(16*pixels+10));break;
+                    case 3: BackdropRect(textureId,offset.x,offset.y,width,height-Px(24*pixels+10));break;
                     default: Debug.LogWarning($"{room.Template}: неизвестная форма фона backform={form}, фон не нарисован.");break;
                 }
             }

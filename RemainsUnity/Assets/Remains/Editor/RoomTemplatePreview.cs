@@ -24,6 +24,9 @@ namespace Remains.Editor
     // -roomPreviewPrefabs: the generated room prefabs (RoomPrefabGenerator), normal and mirrored, over the
     // template's walls from a one-room level grid (FactoryGridBuilder; edge walls become the land border),
     // unlit: "<name>-prefab-n.png" / "<name>-prefab-m.png".
+    // -factoryPreview [-factorySeed 1 -factorySize 2x3]: a generated factory of that size (FactoryLayoutGenerator)
+    // as the level would be prepared: walls from the composed grid (FactoryGridBuilder), room prefab instances
+    // (RoomPrefabGenerator), their sprites into the radiance field: "factory-<seed>-<W>x<D>.png".
     // -roomPreviewDummy: test only — training dummies (sprite of Prefabs/Actors/training-dummy) stand
     // in the room as light absorbers/receivers, to check actor shadows.
     public static class RoomTemplatePreview
@@ -70,6 +73,12 @@ namespace Remains.Editor
                 unlit=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewUnlit")>=0;
                 radiance=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewRadiance")>=0;
                 dummy=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewDummy")>=0;
+                if(Array.IndexOf(Environment.GetCommandLineArgs(),"-factoryPreview")>=0)
+                {
+                    RenderFactory(outDir);
+                    EditorApplication.Exit(0);
+                    return;
+                }
                 if(Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewPrefabs")>=0)
                 {
                     foreach(var (templatePath,_) in Rooms) RenderPrefabs(templatePath,outDir);
@@ -133,6 +142,66 @@ namespace Remains.Editor
                 Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
                 Render(Size(room),Path.Combine(outDir,$"{name}-prefab-{(mirror?"m":"n")}.png"),camera=>FarBackground(room,camera));
             }
+        }
+
+        private static void RenderFactory(string outDir)
+        {
+            ulong seed=ulong.Parse(Argument("-factorySeed")??"1",System.Globalization.CultureInfo.InvariantCulture);
+            string[] size=(Argument("-factorySize")??"2x3").Split('x');
+            int width=int.Parse(size[0]),depth=int.Parse(size[1]);
+            var files=new Dictionary<string,string>(StringComparer.Ordinal);   // template -> file name (assets unload with the new scene)
+            var rooms=new Dictionary<string,RoomFile>(StringComparer.Ordinal);
+            foreach(string guid in AssetDatabase.FindAssets("t:"+nameof(RoomTemplateAsset),new[]{"Assets/Remains/Rooms/Original/plant"}))
+            {
+                string path=AssetDatabase.GUIDToAssetPath(guid);
+                var asset=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(path);
+                files.Add(asset.Template,Path.GetFileName(path).Replace(".room.json",""));
+                rooms.Add(asset.Template,asset.Room);
+            }
+            var definitions=LoadDefinitions();var lands=LoadLands();
+            var lightingAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lighting)??throw new InvalidOperationException("Нет таблицы света "+Lighting);
+            var table=RoomLightingTable.Read(lightingAsset.text,Lighting);
+            var layout=FactoryLayoutGenerator.Generate(new List<RoomFile>(rooms.Values),"plant",seed,0,width,depth);
+            var grid=FactoryGridBuilder.Build(layout,rooms,definitions,FactoryGridBuilder.BorderSolid(lands,"plant",definitions),closeOuter:true);
+            foreach(string issue in grid.Issues) Debug.LogWarning("Сетка завода: "+issue);
+            var level=grid.Level;
+            float cell=(float)level.Cell,levelHeight=level.Height*cell;
+
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+            var art=LoadArt();   // after the new scene: it unloads assets loaded before
+            Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
+            Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
+            // Room cell (Column, Row from the top) -> bottom-left offset in the level, y up.
+            Vector2 Offset(FactoryRoomPlacement p)=>new Vector2(p.Column*cell,levelHeight-(p.Row+p.Template.Height)*cell);
+            var backdrops=new List<(RoomFile,Vector2)>();
+            foreach(var p in grid.Rooms) backdrops.Add((p.Template,Offset(p)));
+            var view=RoomTerrainView.Build(level,definitions,lands,art,Vector2.zero,table.ShadowEdge,null,backdrops);
+            var sprites=new List<RoomSpritePlacement>();
+            var erases=new List<(Sprite,Matrix4x4)>();
+            foreach(var p in grid.Rooms)
+            {
+                string name=files[p.Cell.Template];
+                string prefabPath=$"{Prefabs}/{name}{(p.Cell.Mirror?"-m":"")}.prefab";
+                var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)??throw new InvalidOperationException("Нет префаба "+prefabPath);
+                var instance=(GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                instance.transform.SetParent(view.transform,false);
+                instance.transform.localPosition=Offset(p);
+                foreach(var authored in instance.GetComponentsInChildren<RoomSpriteAuthoring>())
+                {
+                    var renderer=authored.GetComponent<SpriteRenderer>();
+                    var matrix=authored.transform.localToWorldMatrix;
+                    sprites.Add(new RoomSpritePlacement{Definition=definitions.Require(authored.Definition,prefabPath),Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix});
+                    if(authored.Erase!=null) erases.Add((authored.Erase,matrix));
+                }
+            }
+            var levelSize=new Vector2(level.Width*cell,levelHeight);
+            if(erases.Count>0) new GameObject("Стирание фона уровня").AddComponent<RoomDecorResources>().BuildErase(erases,Vector2.zero,levelSize,Resources.Load<Shader>(RoomDecorView.EraseShaderResource));
+            RoomLightingView.Build(level,definitions,lands,table,Vector2.zero,null,false);
+            var field=RoomRadianceField.Build(level,definitions,lands,table,Vector2.zero,null,sprites);
+            for(int i=0;i<RadianceSettleUpdates;i++) field.Render();
+            string file=Path.Combine(outDir,$"factory-{seed}-{width}x{depth}.png");
+            Render(levelSize,file,camera=>FarBackground(rooms[layout.Cell(0,0).Template],camera));
+            Debug.Log($"Предпросмотр завода: {file}; комнат {grid.Rooms.Count}, картинок {sprites.Count}, окон {erases.Count}.");
         }
 
         private static Vector2 Size(RoomFile room)=>new Vector2((float)(room.Width*room.Cell),(float)(room.Height*room.Cell));
