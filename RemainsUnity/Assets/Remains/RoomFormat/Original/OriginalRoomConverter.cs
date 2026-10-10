@@ -64,6 +64,21 @@ namespace Remains.RoomFormat.Original
                 }
                 else issues.Add($"Форма ed={form.Ed} id={form.Id} ({form.Name}) не входит в каталог: нет сопоставления.");
             }
+            // Back wall a solid form brings as a border (Tile.mainFrame); must be a catalogued back form.
+            foreach (var form in forms.Front.Values)
+            {
+                if (string.IsNullOrEmpty(form.Back)) continue;
+                if (!catalog.Items.ContainsKey(BackPrefix + form.Back)) throw new FormatException($"Форма {form.Id}: задник {form.Back} не в каталоге.");
+                catalog.Items[SolidPrefix + form.Id].BackForm = BackPrefix + form.Back;
+            }
+            // Mirror pairs (Tile.dec: a mirrored room draws form m instead); both sides must be catalogued.
+            foreach (var form in forms.Other.Values)
+            {
+                if (string.IsNullOrEmpty(form.Mirror) || !Structural.TryGetValue(form.Id, out var own)) continue;
+                if (!Structural.TryGetValue(form.Mirror, out var mirrored))
+                    throw new FormatException($"Форма {form.Id}: зеркальная форма {form.Mirror} не сопоставлена.");
+                catalog.Items[own.Id].MirrorForm = mirrored.Id;
+            }
             return catalog;
         }
 

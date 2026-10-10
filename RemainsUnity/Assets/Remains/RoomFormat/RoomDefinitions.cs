@@ -17,6 +17,8 @@ namespace Remains.RoomFormat
         public int Slope;                      // stairs: +1 rises to the right, -1 to the left
         public int Facing;                     // ladder: +1 right, -1 left
         public double LadderFraction, MovementOffset, ArtworkOffset;   // ladder placement inside the cell
+        public string MirrorForm;              // ladder/stairs: definition drawn in a mirrored room (original form attribute m)
+        public string BackForm;                // solid: back wall it brings when it becomes a room border (Location.mainFrame)
         // Visual layers (TileManifest IDs / mask names). Draw order relative to actors: Rear.
         public string MainTexture, MainMask, AltTexture, BorderTexture, BorderMask, FloorTexture, FloorMask, Filter, FrontSprite;
         public bool Rear;
@@ -70,6 +72,8 @@ namespace Remains.RoomFormat
                 if (d.Threshold != 0) v.Set("threshold", JsonValue.Of(d.Threshold));
                 if (d.Indestructible) v.Set("indestructible", JsonValue.Of(true));
                 if (d.Slope != 0) v.Set("slope", JsonValue.Of(d.Slope));
+                SetIf(v, "mirrorForm", d.MirrorForm);
+                SetIf(v, "backForm", d.BackForm);
                 SetIf(v, "mainTexture", d.MainTexture); SetIf(v, "mainMask", d.MainMask); SetIf(v, "altTexture", d.AltTexture);
                 SetIf(v, "borderTexture", d.BorderTexture); SetIf(v, "borderMask", d.BorderMask);
                 SetIf(v, "floorTexture", d.FloorTexture); SetIf(v, "floorMask", d.FloorMask);
@@ -134,6 +138,8 @@ namespace Remains.RoomFormat
                     Indestructible = v.Get("indestructible")?.Bool ?? false,
                     Slope = (int)(v.Get("slope")?.AsLong(ctx + ".slope") ?? 0),
                     Facing = (int)(v.Get("facing")?.AsLong(ctx + ".facing") ?? 0),
+                    MirrorForm = Str(v, "mirrorForm", ctx),
+                    BackForm = Str(v, "backForm", ctx),
                     LadderFraction = v.Get("ladderFraction")?.AsDouble(ctx + ".ladderFraction") ?? 0,
                     MovementOffset = v.Get("movementOffset")?.AsDouble(ctx + ".movementOffset") ?? 0,
                     ArtworkOffset = v.Get("artworkOffset")?.AsDouble(ctx + ".artworkOffset") ?? 0,
