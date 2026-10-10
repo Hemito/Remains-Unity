@@ -33,10 +33,14 @@ namespace Remains.Editor
             importer.textureCompression=TextureImporterCompression.CompressedHQ;
         }
 
+        // Everything OnPreprocessTexture enforces, plus no Standalone override: the policy sets none,
+        // and an override could shrink or recompress the texture past this check.
         public static bool Complies(TextureImporter importer,int requiredSize)=>importer!=null &&
             importer.textureType==TextureImporterType.Default && importer.npotScale==TextureImporterNPOTScale.None &&
             importer.alphaIsTransparency && importer.mipmapEnabled && importer.mipmapFilter==TextureImporterMipFilter.KaiserFilter &&
-            importer.textureCompression==TextureImporterCompression.CompressedHQ && importer.maxTextureSize>=requiredSize;
+            importer.filterMode==FilterMode.Bilinear && importer.wrapMode==TextureWrapMode.Clamp &&
+            importer.textureCompression==TextureImporterCompression.CompressedHQ && importer.maxTextureSize>=requiredSize &&
+            !importer.GetPlatformTextureSettings("Standalone").overridden;
 
         // Explicit authoring step: reimport every base pony texture so the policy reaches files whose
         // pixels did not change.
