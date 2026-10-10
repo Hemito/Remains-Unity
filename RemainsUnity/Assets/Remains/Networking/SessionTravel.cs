@@ -109,6 +109,11 @@ namespace Remains.Networking
             TravelPoint arrival=null;
             RoomLayout destination=null;
             if(reason==null) FactoryContentSources.Prepare(session.ServerWorld,request.destination);
+            if(reason==null && string.IsNullOrEmpty(point?.arrivalPoint) && FactoryContentSources.IsGenerated(session.ServerWorld,request.destination))
+            {
+                destination=RoomLayout.Load(request.destination,session.ServerWorld);
+                reason=FactoryArrival.Rejection(destination,Anatomy.Movement(actor),new Vector2(destination.spawnX,destination.spawnY));
+            }
             if(reason==null && !string.IsNullOrEmpty(point?.arrivalPoint))
             {
                 arrival=Find(point.arrivalPoint,request.destination,true);

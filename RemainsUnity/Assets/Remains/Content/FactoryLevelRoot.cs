@@ -84,6 +84,8 @@ namespace Remains.Content
                     placed.Add(new FactoryPlacedObject(id,room,obj,point.Index,offset+anchor));
                 }
             }
+            var arrival=FactoryArrival.Require(prepared,placed);
+            prepared.Physics.spawnX=arrival.Position.x;prepared.Physics.spawnY=arrival.Position.y;
             authoring.ConfigurePrepared(prepared.Physics);
             Prepared=prepared;Objects=placed.AsReadOnly();
         }

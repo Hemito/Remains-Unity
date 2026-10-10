@@ -53,6 +53,12 @@ namespace Remains.Editor
             try
             {
                 var geometry=root.Authoring.CreateLayout(false);
+                var anatomy=StateJson.FromJson<AnatomyCatalog>(Resources.Load<TextAsset>("Content/anatomy").text).anatomies.Single(value=>value.id=="pony");
+                var arrival=FactoryArrival.Require(root.Prepared,root.Objects);
+                string arrivalError=FactoryArrival.Rejection(geometry,anatomy.movement,new Vector2(geometry.spawnX,geometry.spawnY));
+                if(arrivalError!=null || new Vector2(geometry.spawnX,geometry.spawnY)!=arrival.Position)
+                    throw new InvalidOperationException(arrivalError??"Прибытие не совпало с исходным маркером игрока.");
+                Debug.Log($"Прибытие завода: PASS; ID {arrival.Id}, точка {arrival.Position}, свободная опора общей сетки.");
                 if(geometry.platforms.Length!=root.Prepared.Physics.platforms.Length || root.Objects.Count==0 ||
                     root.Objects.Select(o=>o.Id).Distinct(StringComparer.Ordinal).Count()!=root.Objects.Count)
                     throw new InvalidOperationException("Геометрия или ID объектов корня не совпали с подготовленными данными.");
