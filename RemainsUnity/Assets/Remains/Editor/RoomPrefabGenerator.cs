@@ -66,18 +66,24 @@ namespace Remains.Editor
                 return material;
             }
 
+            // Inputs shared by every room: a prefab is rewritten only when its fingerprint changes (Unity gives
+            // new objects new file IDs, so an unconditional rewrite would churn every prefab).
+            string shared=Sha256(GeneratorVersion+"|"+Text(Definitions)+"|"+Text(Lands)+"|"+Text(Lighting)+"|"+RoomSerializerManifest(art));
             var written=new HashSet<string>(StringComparer.Ordinal);
-            int sprites=0,points=0;
+            int sprites=0,points=0,unchanged=0;
             var guids=AssetDatabase.FindAssets("t:"+nameof(RoomTemplateAsset),new[]{Templates});
             foreach(string guid in guids.OrderBy(g=>AssetDatabase.GUIDToAssetPath(g),StringComparer.Ordinal))
             {
                 string templatePath=AssetDatabase.GUIDToAssetPath(guid);
                 var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(templatePath);
                 var room=template.Room;
-                string fingerprint=Sha256(RoomSerializer.Write(room));
+                string fingerprint=Sha256(shared+"|"+RoomSerializer.Write(room));
                 string fileName=Path.GetFileName(templatePath).Replace(".room.json","");
                 foreach(bool mirror in new[]{false,true})
                 {
+                    string path=$"{Output}/{fileName}{(mirror?"-m":"")}.prefab";
+                    var existing=AssetDatabase.LoadAssetAtPath<GameObject>(path)?.GetComponent<RoomTemplateInstance>();
+                    if(existing!=null && existing.Fingerprint==fingerprint && existing.Mirror==mirror && existing.Template==template) {written.Add(path);unchanged++;continue;}
                     var issues=new List<string>();
                     var lightZones=new SortedDictionary<string,int>(StringComparer.Ordinal);
                     var otherObjects=new SortedDictionary<string,int>(StringComparer.Ordinal);
@@ -112,7 +118,6 @@ namespace Remains.Editor
                             points++;
                         }
                         foreach(string issue in issues) Debug.LogWarning(issue);
-                        string path=$"{Output}/{root.name}.prefab";
                         PrefabUtility.SaveAsPrefabAsset(root,path,out bool saved);
                         if(!saved) throw new IOException("Не сохранён префаб "+path);
                         written.Add(path);
@@ -127,8 +132,10 @@ namespace Remains.Editor
                 AssetDatabase.DeleteAsset(stale);
             }
             AssetDatabase.SaveAssets();
-            Debug.Log($"Префабы комнат: {written.Count} ({guids.Length} шаблонов × обычный/зеркальный), картинок {sprites}, точек объектов {points}, материалов {materials.Count}.");
+            Debug.Log($"Префабы комнат: {written.Count} ({guids.Length} шаблонов × обычный/зеркальный), без изменений {unchanged}, записано картинок {sprites}, точек объектов {points}, материалов {materials.Count}.");
         }
+
+        private static string RoomSerializerManifest(RoomTileArtAsset art)=>art.Manifest.Write();
 
         private static Transform Child(Transform parent,string name)
         {

@@ -13,7 +13,7 @@ namespace Remains.Content
     {
         [SerializeField,InspectorName("Шаблон")] private RoomTemplateAsset template;
         [SerializeField,InspectorName("ID шаблона")] private string templateId;
-        [SerializeField,InspectorName("Отпечаток шаблона (SHA256 записи)")] private string fingerprint;
+        [SerializeField,InspectorName("Отпечаток входа (шаблон, каталоги, графика, генератор)")] private string fingerprint;
         [SerializeField,InspectorName("Версия генератора")] private int generatorVersion;
         [SerializeField,InspectorName("Зеркальный вариант")] private bool mirror;
         [SerializeField,InspectorName("Размер, клеток")] private Vector2Int size;
