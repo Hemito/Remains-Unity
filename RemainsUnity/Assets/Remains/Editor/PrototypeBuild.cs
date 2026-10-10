@@ -36,6 +36,8 @@ namespace Remains.Editor
                     importer.assetPath.Contains("/Original/Containers/OfficeFurniture/") ||
                     importer.assetPath.Contains("/Original/Inventory/office-valuables/") ||
                     importer.assetPath.Contains("/Original/Inventory/tool-components/")) continue;
+                // Base pony parts: one import policy (mipmaps, edge dilation, BC7), owned by PonyTextureImportPolicy.
+                if(PonyTextureImportPolicy.Applies(importer.assetPath)) continue;
                 importer.textureType=TextureImporterType.Default;
                 importer.alphaIsTransparency=true;
                 importer.textureCompression=TextureImporterCompression.Uncompressed;

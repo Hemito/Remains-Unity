@@ -150,7 +150,7 @@ namespace Remains.Editor
             var texture=new Texture2D(2,2,TextureFormat.RGBA32,false);
             try
             {
-                string file=Path.Combine(Application.dataPath,"Remains/Resources/Original/Pony",part.texture+".png");
+                string file=PonyContactSource.Png(part.texture);
                 Require(ImageConversion.LoadImage(texture,File.ReadAllBytes(file)),"PNG копыта не декодирован: "+file);
                 var pixels=texture.GetPixels32();var bounds=part.bounds;
                 var lowest=new Vector2(0,float.PositiveInfinity);

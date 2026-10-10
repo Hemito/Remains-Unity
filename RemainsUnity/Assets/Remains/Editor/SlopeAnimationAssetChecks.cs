@@ -129,7 +129,7 @@ namespace Remains.Editor
                 var texture=new Texture2D(2,2,TextureFormat.RGBA32,false);
                 try
                 {
-                    string path=Path.Combine(Application.dataPath,"Remains/Resources/Original/Pony",part.texture+".png");
+                    string path=PonyContactSource.Png(part.texture);
                     Require(ImageConversion.LoadImage(texture,File.ReadAllBytes(path)),"Не декодирован PNG опоры: "+path);
                     data=(texture.width,texture.height,texture.GetPixels32());cache.Add(part.texture,data);
                 }

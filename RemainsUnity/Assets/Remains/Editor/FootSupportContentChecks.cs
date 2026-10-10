@@ -38,7 +38,7 @@ namespace Remains.Editor
             foreach(var clip in library.clips) foreach(var frame in clip.frames) foreach(var part in frame.parts)
                 if(Array.IndexOf(declaration.shapes,part.shape)>=0 && !textures.ContainsKey(part.texture))
                 {
-                    string file=Path.Combine(Application.dataPath,"Remains/Resources/Original/Pony",part.texture+".png");
+                    string file=PonyContactSource.Png(part.texture);
                     var encoded=File.ReadAllBytes(file);var texture=new Texture2D(2,2,TextureFormat.RGBA32,false);
                     try
                     {
