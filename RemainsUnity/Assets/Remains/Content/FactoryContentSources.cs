@@ -43,7 +43,8 @@ namespace Remains.Content
                 root.name=$"Подготовленные данные {world.worldId}: {level}";
                 root.gameObject.SetActive(false);
                 root.InstantiateRooms();
-                var doors=root.GetComponent<FactoryDoorAdapter>()??throw new InvalidOperationException("Нет сериализованного адаптера дверей корня: "+level);
+                if(!root.TryGetComponent<FactoryDoorAdapter>(out var doors))
+                    throw new InvalidOperationException("Нет сериализованного адаптера дверей корня: "+level);
                 doors.Install(root);
                 sources[key]=new Entry {root=root,seed=world.seed,definition=factory.definition,fingerprint=factory.contentFingerprint,layout=factory.layout};
             }
