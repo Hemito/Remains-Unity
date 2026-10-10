@@ -21,7 +21,7 @@ namespace Remains.Editor
     //   batch -executeMethod Remains.Editor.RoomPrefabGenerator.RunBatch
     public static class RoomPrefabGenerator
     {
-        public const int GeneratorVersion=1;
+        public const int GeneratorVersion=2;   // 2: object point ID
         private const string Templates="Assets/Remains/Rooms/Original/plant";
         private const string Output="Assets/Remains/Rooms/Original/Prefabs/plant";
         private const string Materials="Assets/Remains/Rooms/Original/Prefabs/Materials";
@@ -127,9 +127,9 @@ namespace Remains.Editor
                             var o=room.Objects[i];
                             var d=definitions.Require(o.Type,$"{room.Template} объект {o.Code}");
                             int width=Math.Max(1,d.ObjectSize),cellX=RoomSpriteLayout.ObjectCellX(room,o,d,mirror);
-                            var point=Child(objects,$"{d.ObjectType ?? "?"} {o.Code}");
+                            var point=Child(objects,$"{d.ObjectType ?? "?"} {o.Id}");
                             point.localPosition=new Vector3((float)((cellX+width/2.0)*room.Cell),(float)(o.Y*room.Cell),0);
-                            point.gameObject.AddComponent<RoomTemplateObjectPoint>().Configure(i,o.Code,o.Type,new Vector2Int(cellX,o.Y),width);
+                            point.gameObject.AddComponent<RoomTemplateObjectPoint>().Configure(o.Id,i,o.Code,o.Type,new Vector2Int(cellX,o.Y),width);
                             points++;
                         }
                         foreach(string issue in issues) Debug.LogWarning(issue);
