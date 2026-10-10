@@ -21,6 +21,9 @@ namespace Remains.Editor
     // -roomPreviewUnlit: templates only, no lights at all (plain colours, "<name>-albedo.png") — input
     // for the reference light tracer (RoomConvert trace --albedo-image).
     // -roomPreviewRadiance: lamps by RoomRadianceField (radiance cascades) instead of URP lamp lights.
+    // -roomPreviewPrefabs: the generated room prefabs (RoomPrefabGenerator), normal and mirrored, over the
+    // template's walls from a one-room level grid (FactoryGridBuilder; edge walls become the land border),
+    // unlit: "<name>-prefab-n.png" / "<name>-prefab-m.png".
     // -roomPreviewDummy: test only — training dummies (sprite of Prefabs/Actors/training-dummy) stand
     // in the room as light absorbers/receivers, to check actor shadows.
     public static class RoomTemplatePreview
@@ -35,6 +38,7 @@ namespace Remains.Editor
         };
 
         private static bool unlit,radiance,dummy;
+        private const string Prefabs="Assets/Remains/Rooms/Original/Prefabs/plant";
         private const string DummyPrefab="Assets/Remains/Prefabs/Actors/training-dummy.prefab";
         // Test positions (m, foot point) per template: between the lamps of the lower rooms.
         private static readonly Dictionary<string,Vector2[]> DummySpots=new()
@@ -66,6 +70,13 @@ namespace Remains.Editor
                 unlit=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewUnlit")>=0;
                 radiance=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewRadiance")>=0;
                 dummy=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewDummy")>=0;
+                if(Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewPrefabs")>=0)
+                {
+                    foreach(var (templatePath,_) in Rooms) RenderPrefabs(templatePath,outDir);
+                    Debug.Log("Предпросмотр префабов комнат: "+outDir);
+                    EditorApplication.Exit(0);
+                    return;
+                }
                 foreach(var (templatePath,prefabPath) in Rooms)
                 {
                     var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(templatePath)??throw new InvalidOperationException("Нет шаблона "+templatePath);
@@ -96,6 +107,32 @@ namespace Remains.Editor
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             Build(room,Vector2.zero);
             Render(Size(room),file,camera=>FarBackground(room,camera));
+        }
+
+        private static void RenderPrefabs(string templatePath,string outDir)
+        {
+            var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(templatePath)??throw new InvalidOperationException("Нет шаблона "+templatePath);
+            var room=template.Room;
+            string name=Path.GetFileName(templatePath).Replace(".room.json","");
+            foreach(bool mirror in new[]{false,true})
+            {
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+                var layout=new FactoryLayout{Land=RoomLandCatalog.LandOf(room.Template),Width=1,Depth=1};
+                layout.Cells.Add(new FactoryCell{Template=room.Template,Mirror=mirror});
+                var grid=FactoryGridBuilder.Build(layout,new Dictionary<string,RoomFile>{[room.Template]=room},LoadDefinitions(),
+                    FactoryGridBuilder.BorderSolid(LoadLands(),layout.Land),closeOuter:false);
+                foreach(string issue in grid.Issues) Debug.LogWarning(issue);
+                var level=grid.Level;
+                level.Template=room.Template;   // land and room options of this one room
+                foreach(var option in room.Options) level.Options[option.Key]=option.Value;
+                var view=RoomTerrainView.Build(level,LoadDefinitions(),LoadLands(),LoadArt(),Vector2.zero,0);
+                string prefabPath=$"{Prefabs}/{name}{(mirror?"-m":"")}.prefab";
+                var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)??throw new InvalidOperationException("Нет префаба "+prefabPath);
+                ((GameObject)PrefabUtility.InstantiatePrefab(prefab)).transform.SetParent(view.transform,false);
+                Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
+                Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
+                Render(Size(room),Path.Combine(outDir,$"{name}-prefab-{(mirror?"m":"n")}.png"),camera=>FarBackground(room,camera));
+            }
         }
 
         private static Vector2 Size(RoomFile room)=>new Vector2((float)(room.Width*room.Cell),(float)(room.Height*room.Cell));

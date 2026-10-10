@@ -158,6 +158,18 @@ namespace Remains.RoomFormat
             return grid;
         }
 
+        // LandAct.border: the original default when the land has no options.border.
+        public const string OriginalBorderDefault = "A";
+
+        // Border solid of a land's random levels: "random_<land>" options.border, the original default otherwise.
+        public static string BorderSolid(RoomLandCatalog lands, string land, string solidPrefix = "remains:solid:")
+        {
+            RoomLand entry = null;
+            foreach (var l in lands.Lands) if (l.Id == "random_" + land) entry = l;
+            if (entry == null) throw new KeyNotFoundException($"Нет земли random_{land} в каталоге земель.");
+            return solidPrefix + (entry.Options.TryGetValue("border", out string b) ? b : OriginalBorderDefault);
+        }
+
         private static RoomFile Template(IReadOnlyDictionary<string, RoomFile> templates, FactoryCell cell) =>
             templates.TryGetValue(cell.Template, out var room) ? room : throw new KeyNotFoundException($"Клетка {cell.X},{cell.Y}: нет шаблона {cell.Template}.");
 
