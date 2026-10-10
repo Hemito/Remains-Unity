@@ -11,16 +11,25 @@ namespace Remains.Content
     {
         [SerializeField,InspectorName("Границы, оформление и настройки комнаты")] private RoomLayout settings;
         [SerializeField,HideInInspector] private bool authoredArtwork;
+        [NonSerialized] private RoomLayout preparedLayout;
         public bool HasAuthoredArtwork=>authoredArtwork;
+        public void ConfigurePrepared(RoomLayout source)
+        {
+            if(source?.platforms==null || source.ladders==null || source.platforms.Length==0 || source.left>=source.right)
+                throw new ArgumentException("Подготовленная геометрия уровня отсутствует или неверна.");
+            preparedLayout=source;
+        }
         public void UseAuthoredArtwork() {authoredArtwork=true;settings.artwork=null;}
         public void Configure(RoomLayout source)
         {
+            preparedLayout=null;
             settings=StateJson.FromJson<RoomLayout>(StateJson.ToJson(source));
             settings.platforms=null;settings.ladders=null;
             if(authoredArtwork) settings.artwork=null;
         }
         public RoomLayout CreateLayout(bool includeArtwork=true)
         {
+            if(preparedLayout!=null) return StateJson.Copy(preparedLayout);
             string context=TransitionTiming.Enabled?name:null;
             using var timing=TransitionTiming.Measure("room.layout",context);
             if(settings==null) throw new InvalidOperationException($"Комната {name}: отсутствуют настройки.");

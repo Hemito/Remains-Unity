@@ -15,7 +15,9 @@ namespace Remains.Gameplay
         private readonly CoopSession session;
         private string worldId;
         private string roomDefinitions;
+        private FactoryContentIdentity factoryDefinitions;
         private string stagedWorld,stagedDefinitions,stagedLevel;
+        private FactoryContentIdentity stagedFactories;
         private RoomDoorGeometry stagedEntry;
         private bool stagedReady;
         public long TopologyVersion {get;private set;}
@@ -37,10 +39,11 @@ namespace Remains.Gameplay
             if(viewWorld==null || string.IsNullOrWhiteSpace(viewWorld.worldId) || string.IsNullOrWhiteSpace(level))
                 throw new ArgumentException("Подготовка входа: не указаны мир или локация.");
             string definitions=Remains.Serialization.StateJson.ToJson(viewWorld.rooms);
-            if(stagedEntry==null || stagedWorld!=viewWorld.worldId || stagedDefinitions!=definitions || stagedLevel!=level)
+            if(stagedEntry==null || stagedWorld!=viewWorld.worldId || stagedDefinitions!=definitions || stagedLevel!=level || stagedFactories?.Matches(viewWorld)!=true)
             {
                 stagedEntry=new RoomDoorGeometry(RoomLayout.Load(level,viewWorld));
                 stagedWorld=viewWorld.worldId;stagedDefinitions=definitions;stagedLevel=level;
+                stagedFactories=FactoryContentIdentity.Capture(viewWorld);
             }
             stagedReady=false;stagedEntry.Reconcile(viewWorld.doors,level);
             return stagedEntry.Room;
@@ -56,17 +59,17 @@ namespace Remains.Gameplay
                 throw new InvalidOperationException("Подготовка входа ссылается на другую геометрию локации.");
         }
         public void ClearEntryPreparation()
-        {stagedEntry=null;stagedWorld=stagedDefinitions=stagedLevel=null;stagedReady=false;}
+        {stagedEntry=null;stagedWorld=stagedDefinitions=stagedLevel=null;stagedFactories=null;stagedReady=false;}
         public void Reconcile(WorldState world)
         {
             using var timing=TransitionTiming.Measure("geometry.reconcile",world?.worldId);
             string definitions=Remains.Serialization.StateJson.ToJson(world?.rooms);
-            if(worldId!=world?.worldId || roomDefinitions!=definitions)
-            {rooms.Clear();worldId=world?.worldId;roomDefinitions=definitions;TopologyVersion++;}
+            if(worldId!=world?.worldId || roomDefinitions!=definitions || factoryDefinitions?.Matches(world)!=true)
+            {rooms.Clear();worldId=world?.worldId;roomDefinitions=definitions;factoryDefinitions=FactoryContentIdentity.Capture(world);TopologyVersion++;}
             var required=world==null?new HashSet<string>():new HashSet<string>(world.actors.Where(a=>a.player && a.connected).Select(a=>a.level));
             if(stagedEntry!=null && world!=null && required.Contains(stagedLevel))
             {
-                if(!stagedReady || stagedWorld!=world.worldId || stagedDefinitions!=definitions)
+                if(!stagedReady || stagedWorld!=world.worldId || stagedDefinitions!=definitions || stagedFactories?.Matches(world)!=true)
                     throw new InvalidOperationException($"Вход завершён до готовности согласованной геометрии: world={world.worldId}, level={stagedLevel}, ready={stagedReady}.");
                 rooms[stagedLevel]=stagedEntry;ClearEntryPreparation();TopologyVersion++;
             }
