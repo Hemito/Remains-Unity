@@ -27,15 +27,19 @@ namespace Remains.RoomFormat
     //    right edge, otherwise only its position mirrors; objects move to width - x - size;
     //  - objects: clip origin at the bottom centre of "size" cells, 1 source pixel above the cell bottom.
     // Random choices are seeded by template and placement index, so both variants of a room and every
-    // player get the same frames. Decor without a picture (light zones) and objects without a vis clip
-    // (drawn by their own systems) are counted in the given dictionaries, not placed.
+    // player get the same frames. Decor art listed as having no picture (light zones, decor-without-picture.json)
+    // and objects without a vis clip (drawn by their own systems) are counted in the given dictionaries, not
+    // placed; any other decor whose picture is missing from the manifest is a resource error (MissingArt).
     public static class RoomSpriteLayout
     {
         public const double SourcePixelsPerMeter = 50;
 
+        public const string MissingArt = "Нет рисунка декора";
+
         public static List<RoomPlacedSprite> Place(RoomFile room, bool mirror, RoomDefinitionCatalog definitions, TileManifest manifest, double lightsOn,
-            List<string> issues, SortedDictionary<string, int> lightZones, SortedDictionary<string, int> otherObjects)
+            IReadOnlyDictionary<string, string> withoutPicture, List<string> issues, SortedDictionary<string, int> lightZones, SortedDictionary<string, int> otherObjects)
         {
+            if (withoutPicture == null) throw new ArgumentNullException(nameof(withoutPicture));
             var frames = FrameCounts(manifest);
             var result = new List<RoomPlacedSprite>();
             double cell = room.Cell, roomWidth = room.Width * cell;
@@ -43,7 +47,11 @@ namespace Remains.RoomFormat
             {
                 var placement = room.Decor[i];
                 var d = definitions.Require(placement.Type, $"{room.Template} декор {i}");
-                if (!frames.TryGetValue("decor:" + d.Art, out int count)) { Count(lightZones, d.Art); continue; }
+                bool listed = d.Art != null && withoutPicture.ContainsKey(d.Art);
+                bool drawn = frames.TryGetValue("decor:" + d.Art, out int count);
+                if (listed && drawn) issues.Add($"{room.Template}: декор {i} {d.Id}: «{d.Art}» записан без рисунка, но рисунок в манифесте есть — список устарел.");
+                if (listed) { Count(lightZones, d.Art); continue; }
+                if (!drawn) { issues.Add($"{MissingArt} {room.Template}: декор {i} {d.Id}, рисунок decor:{d.Art} отсутствует в манифесте."); continue; }
                 var random = Seeded(room.Template, i);
                 int frame = d.DecorFrame;
                 if (frame == 0)
@@ -124,5 +132,25 @@ namespace Remains.RoomFormat
 
         private static double? Param(IReadOnlyDictionary<string, string> parameters, string key)
             => parameters != null && parameters.TryGetValue(key, out string v) && v.Length > 0 ? double.Parse(v, NumberStyles.Float, CultureInfo.InvariantCulture) : (double?)null;
+    }
+}
+
+namespace Remains.RoomFormat
+{
+    // decor-without-picture.json: art IDs of decor drawn only by light (no picture clip in the original).
+    public static class DecorWithoutPicture
+    {
+        public const string FormatName = "remains-decor-without-picture";
+
+        public static IReadOnlyDictionary<string, string> Read(string text, string source)
+        {
+            var root = JsonText.Parse(text, source);
+            if (root.Get("format")?.AsString(source) != FormatName || root.Get("version")?.AsLong(source) != 1)
+                throw new FormatException($"{source}: ожидался {FormatName} версии 1.");
+            var result = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            foreach (var entry in (root.Get("art") ?? throw new FormatException(source + ": нет раздела art.")).Fields)
+                result.Add(entry.Key, entry.Value.AsString(source + ".art." + entry.Key));
+            return result;
+        }
     }
 }

@@ -146,7 +146,7 @@ namespace Remains.Editor
             var sprites=new List<RoomSpritePlacement>();
             var glow=new Dictionary<string,double>();
             foreach(var e in table.Glow) glow.Add(e.Key,e.Value.Threshold);
-            RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,view.transform,sprites,glow);
+            RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),RoomPrefabGenerator.LoadWithoutPicture(),origin,view.transform,sprites,glow);
             if(dummy) PlaceDummies(room,view.transform,sprites);
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
             if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,!radiance);

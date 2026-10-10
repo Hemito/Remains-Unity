@@ -26,7 +26,8 @@ namespace Remains.Presentation
         public const string SpriteShaderResource="Presentation/WorldSprite",EraseShaderResource="Presentation/EraseMask";
 
         // glowThresholds: definition -> luminance threshold of self-lit pixels (screens; lighting table "glow").
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,Transform terrainRoot,List<RoomSpritePlacement> placements=null,IReadOnlyDictionary<string,double> glowThresholds=null)
+        // withoutPicture: decor art drawn only by light (DecorWithoutPicture); any other missing picture is reported.
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,IReadOnlyDictionary<string,string> withoutPicture,Vector2 origin,Transform terrainRoot,List<RoomSpritePlacement> placements=null,IReadOnlyDictionary<string,double> glowThresholds=null)
         {
             if(room==null || definitions==null || lands==null || art==null || terrainRoot==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):art==null?nameof(art):nameof(terrainRoot));
             var spriteShader=Resources.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
@@ -47,7 +48,7 @@ namespace Remains.Presentation
             var issues=new List<string>();
             var lightZones=new SortedDictionary<string,int>(StringComparer.Ordinal);
             var otherObjects=new SortedDictionary<string,int>(StringComparer.Ordinal);
-            var sprites=RoomSpriteLayout.Place(room,false,definitions,art.Manifest,Number(lands.Option(room,"lon",issues)),issues,lightZones,otherObjects);
+            var sprites=RoomSpriteLayout.Place(room,false,definitions,art.Manifest,Number(lands.Option(room,"lon",issues)),withoutPicture,issues,lightZones,otherObjects);
             var erases=new List<(Sprite sprite,Matrix4x4 matrix)>();
             int decorCount=0,objectCount=0;
             foreach(var placed in sprites)

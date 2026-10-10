@@ -28,6 +28,9 @@ namespace Remains.Editor
         private const string Definitions="Assets/Remains/Rooms/Original/definitions.json";
         private const string Lands="Assets/Remains/Rooms/Original/lands.json";
         private const string Lighting="Assets/Remains/Rooms/Original/room-lighting.json";
+        private const string WithoutPicture="Assets/Remains/Rooms/Original/decor-without-picture.json";
+
+        public static IReadOnlyDictionary<string,string> LoadWithoutPicture()=>DecorWithoutPicture.Read(Text(WithoutPicture),WithoutPicture);
 
         [MenuItem("Remains/Комнаты/Создать префабы комнат завода")]
         public static void Run() => Generate();
@@ -45,6 +48,7 @@ namespace Remains.Editor
             var definitions=RoomDefinitionCatalog.Read(Text(Definitions),Definitions);
             var lands=RoomLandCatalog.Read(Text(Lands),Lands);
             var table=RoomLightingTable.Read(Text(Lighting),Lighting);
+            var withoutPicture=LoadWithoutPicture();
             var glow=table.Glow.ToDictionary(e=>e.Key,e=>e.Value.Threshold,StringComparer.Ordinal);
             var art=AssetDatabase.LoadAssetAtPath<RoomTileArtAsset>(RoomTileArtAuthoring.AssetPath)
                 ??throw new InvalidOperationException("Нет набора графики клеток: выполните «Remains/Комнаты/Обновить набор графики клеток».");
@@ -68,9 +72,11 @@ namespace Remains.Editor
 
             // Inputs shared by every room: a prefab is rewritten only when its fingerprint changes (Unity gives
             // new objects new file IDs, so an unconditional rewrite would churn every prefab).
-            string shared=Sha256(GeneratorVersion+"|"+Text(Definitions)+"|"+Text(Lands)+"|"+Text(Lighting)+"|"+RoomSerializerManifest(art));
+            string shared=Sha256(GeneratorVersion+"|"+Text(Definitions)+"|"+Text(Lands)+"|"+Text(Lighting)+"|"+Text(WithoutPicture)+"|"+RoomSerializerManifest(art));
             var written=new HashSet<string>(StringComparer.Ordinal);
-            int sprites=0,points=0,unchanged=0;
+            int sprites=0,points=0,unchanged=0,repaired=0;
+            var lightZonesTotal=new SortedDictionary<string,int>(StringComparer.Ordinal);
+            var otherObjectsTotal=new SortedDictionary<string,int>(StringComparer.Ordinal);
             var guids=AssetDatabase.FindAssets("t:"+nameof(RoomTemplateAsset),new[]{Templates});
             foreach(string guid in guids.OrderBy(g=>AssetDatabase.GUIDToAssetPath(g),StringComparer.Ordinal))
             {
@@ -83,11 +89,20 @@ namespace Remains.Editor
                 {
                     string path=$"{Output}/{fileName}{(mirror?"-m":"")}.prefab";
                     var existing=AssetDatabase.LoadAssetAtPath<GameObject>(path)?.GetComponent<RoomTemplateInstance>();
-                    if(existing!=null && existing.Fingerprint==fingerprint && existing.Mirror==mirror && existing.Template==template) {written.Add(path);unchanged++;continue;}
+                    if(existing!=null && existing.Fingerprint==fingerprint && existing.Mirror==mirror && existing.Template==template)
+                    {
+                        string damage=Damage(existing,room);
+                        if(damage==null) {written.Add(path);unchanged++;continue;}
+                        Debug.LogWarning($"Префабы комнат: {path} повреждён ({damage}) — создаётся заново.");
+                        repaired++;
+                    }
                     var issues=new List<string>();
                     var lightZones=new SortedDictionary<string,int>(StringComparer.Ordinal);
                     var otherObjects=new SortedDictionary<string,int>(StringComparer.Ordinal);
-                    var placed=RoomSpriteLayout.Place(room,mirror,definitions,art.Manifest,Number(lands.Option(room,"lon",issues)),issues,lightZones,otherObjects);
+                    var placed=RoomSpriteLayout.Place(room,mirror,definitions,art.Manifest,Number(lands.Option(room,"lon",issues)),withoutPicture,issues,lightZones,otherObjects);
+                    var missing=issues.Where(i=>i.StartsWith(RoomSpriteLayout.MissingArt,StringComparison.Ordinal)).ToList();
+                    if(missing.Count>0) throw new InvalidOperationException($"Префабы комнат: нет рисунков декора ({missing.Count}), префаб с дырами не создаётся: {string.Join("; ",missing.Take(8))}");
+                    if(!mirror) {Add(lightZonesTotal,lightZones);Add(otherObjectsTotal,otherObjects);}
                     var root=new GameObject(fileName+(mirror?"-m":""));
                     try
                     {
@@ -132,8 +147,32 @@ namespace Remains.Editor
                 AssetDatabase.DeleteAsset(stale);
             }
             AssetDatabase.SaveAssets();
-            Debug.Log($"Префабы комнат: {written.Count} ({guids.Length} шаблонов × обычный/зеркальный), без изменений {unchanged}, записано картинок {sprites}, точек объектов {points}, материалов {materials.Count}.");
+            Debug.Log($"Покрытие декора и объектов (обычные варианты): только свет, без картинки — {Join(lightZonesTotal)}; объекты без рисунка vis (своя отрисовка позже) — {Join(otherObjectsTotal)}.");
+            Debug.Log($"Префабы комнат: {written.Count} ({guids.Length} шаблонов × обычный/зеркальный), без изменений {unchanged}, восстановлено {repaired}, записано картинок {sprites}, точек объектов {points}, материалов {materials.Count}.");
         }
+
+        // Integrity of an unchanged prefab: every picture has its sprite and material, counts match the
+        // template; a damaged result is regenerated (its file IDs change, the others keep theirs).
+        private static string Damage(RoomTemplateInstance prefab,RoomFile room)
+        {
+            foreach(var renderer in prefab.GetComponentsInChildren<SpriteRenderer>(true))
+            {
+                if(renderer.sprite==null) return "картинка без спрайта: "+renderer.name;
+                if(renderer.sharedMaterial==null) return "картинка без материала: "+renderer.name;
+            }
+            foreach(var sprite in prefab.GetComponentsInChildren<RoomSpriteAuthoring>(true))
+                if(sprite.GetComponent<SpriteRenderer>()==null) return "нет SpriteRenderer у "+sprite.name;
+            int points=prefab.GetComponentsInChildren<RoomTemplateObjectPoint>(true).Length;
+            if(points!=room.Objects.Count) return $"точек объектов {points}, в шаблоне {room.Objects.Count}";
+            return null;
+        }
+
+        private static void Add(SortedDictionary<string,int> total,SortedDictionary<string,int> part)
+        {
+            foreach(var e in part) total[e.Key]=total.TryGetValue(e.Key,out int n)?n+e.Value:e.Value;
+        }
+
+        private static string Join(SortedDictionary<string,int> counts)=>counts.Count==0?"нет":string.Join(", ",counts.Select(e=>$"{e.Key} ×{e.Value}"));
 
         private static string RoomSerializerManifest(RoomTileArtAsset art)=>art.Manifest.Write();
 

@@ -87,7 +87,8 @@ namespace Remains.RoomFormat
             var conflicts = new List<string>();
             var conflictLayers = new SortedDictionary<string, int>(StringComparer.Ordinal);
             var addedLayers = new SortedDictionary<string, int>(StringComparer.Ordinal);
-            int conflictCount = 0, added = 0;
+            var incompatibleCells = new List<string>();
+            int conflictCount = 0, added = 0, incompatible = 0;
             for (int x = 0; x < width; x++)
                 for (int row = 0; row < height; row++)
                 {
@@ -105,21 +106,34 @@ namespace Remains.RoomFormat
                     string solid = null;
                     foreach (int i in covering) solid ??= Local(placed[i], RoomLayers.Solid, grid.Rooms[i], x, row);
                     ids[RoomLayers.Solid][x, row] = solid;
-                    int fixedSource = ownerIndex;
-                    foreach (string layer in IdLayers)
+                    // Height (partial cell top) is one per cell and applies to every physical form in it (beam,
+                    // stairs), so a form of another room joins only with the same height; otherwise the
+                    // owner's forms stay and the incompatible one is listed. Ladders do not use the height.
+                    bool counted = solid == null && covering.Count > 1;
+                    void Added(string layer) { if (counted) { added++; addedLayers[layer] = addedLayers.TryGetValue(layer, out int n) ? n + 1 : 1; } }
+                    char HeightOf(int i) => fixedLayers[i][RoomLayers.Height][x - grid.Rooms[i].Column, row - grid.Rooms[i].Row];
+                    foreach (string layer in new[] { RoomLayers.Back, RoomLayers.Ladder, RoomLayers.Platform, RoomLayers.Stairs })
+                        ids[layer][x, row] = Local(placed[ownerIndex], layer, o, x, row);
+                    if (ids[RoomLayers.Ladder][x, row] == null)
+                        foreach (int i in covering)
+                            if (i != ownerIndex && (ids[RoomLayers.Ladder][x, row] = Local(placed[i], RoomLayers.Ladder, grid.Rooms[i], x, row)) != null) { Added(RoomLayers.Ladder); break; }
+                    int fixedSource = ids[RoomLayers.Platform][x, row] != null || ids[RoomLayers.Stairs][x, row] != null ? ownerIndex : -1;
+                    foreach (int i in covering)
                     {
-                        if (layer == RoomLayers.Solid) continue;
-                        string value = Local(placed[ownerIndex], layer, o, x, row);
-                        if (value == null && Array.IndexOf(Structural, layer) >= 0)
-                            foreach (int i in covering)
-                            {
-                                if (i == ownerIndex || (value = Local(placed[i], layer, grid.Rooms[i], x, row)) == null) continue;
-                                if (solid == null && covering.Count > 1) { added++; addedLayers[layer] = addedLayers.TryGetValue(layer, out int n) ? n + 1 : 1; }
-                                if (layer != RoomLayers.Ladder && fixedSource == ownerIndex) fixedSource = i;
-                                break;
-                            }
-                        ids[layer][x, row] = value;
+                        if (i == ownerIndex) continue;
+                        string platform = Local(placed[i], RoomLayers.Platform, grid.Rooms[i], x, row), stairs = Local(placed[i], RoomLayers.Stairs, grid.Rooms[i], x, row);
+                        bool addPlatform = platform != null && ids[RoomLayers.Platform][x, row] == null, addStairs = stairs != null && ids[RoomLayers.Stairs][x, row] == null;
+                        if (!addPlatform && !addStairs) continue;
+                        if (fixedSource >= 0 && HeightOf(i) != HeightOf(fixedSource))
+                        {
+                            if (counted) { incompatible++; if (incompatibleCells.Count < 8) incompatibleCells.Add($"{x},{row}: {grid.Rooms[fixedSource].Template.Template} высота «{HeightOf(fixedSource)}» / {grid.Rooms[i].Template.Template} {(addPlatform ? platform : stairs)} высота «{HeightOf(i)}»"); }
+                            continue;
+                        }
+                        if (fixedSource < 0) fixedSource = i;
+                        if (addPlatform) { ids[RoomLayers.Platform][x, row] = platform; Added(RoomLayers.Platform); }
+                        if (addStairs) { ids[RoomLayers.Stairs][x, row] = stairs; Added(RoomLayers.Stairs); }
                     }
+                    if (fixedSource < 0) fixedSource = ownerIndex;
                     var f = grid.Rooms[fixedSource];
                     heights[x, row] = fixedLayers[fixedSource][RoomLayers.Height][x - f.Column, row - f.Row];
                     water[x, row] = fixedLayers[fixedSource][RoomLayers.Water][x - f.Column, row - f.Row] != RoomFile.Empty;
@@ -132,7 +146,8 @@ namespace Remains.RoomFormat
                         foreach (string layer in IdLayers)
                         {
                             string mine = ids[layer][x, row], theirs = Local(placed[i], layer, other, x, row);
-                            if (theirs != null && mine != theirs) Conflict(layer, mine, theirs);
+                            bool form = layer == RoomLayers.Platform || layer == RoomLayers.Stairs;
+                            if (theirs != null && mine != theirs && !(form && mine == null)) Conflict(layer, mine, theirs);   // a form not joined: listed above
                             else if (theirs == null && mine != null && layer == RoomLayers.Back) Conflict(layer, mine, null);
                         }
                         foreach (string layer in new[] { RoomLayers.Height, RoomLayers.Water })
@@ -150,6 +165,8 @@ namespace Remains.RoomFormat
                 }
             if (added > 0)
                 grid.Issues.Add($"Общие клетки стыков: {added} конструкций только одной стороны сохранены, как в оригинале с двумя краями ({string.Join(", ", addedLayers.Select(e => e.Key + " " + e.Value))}).");
+            if (incompatible > 0)
+                grid.Issues.Add($"Общие клетки стыков: {incompatible} форм соседа с другой высотой клетки не добавлены, оставлены формы владельца: {string.Join("; ", incompatibleCells)}{(incompatible > incompatibleCells.Count ? "; …" : "")}.");
             if (conflictCount > 0)
                 grid.Issues.Add($"Общие клетки стыков: {conflictCount} расхождений без стены ({string.Join(", ", conflictLayers.Select(e => e.Key + " " + e.Value))}), взято значение владельца (§4.4): {string.Join("; ", conflicts)}{(conflictCount > conflicts.Count ? "; …" : "")}.");
 
