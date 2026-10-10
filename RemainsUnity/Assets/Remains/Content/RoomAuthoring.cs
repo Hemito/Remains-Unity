@@ -61,6 +61,7 @@ namespace Remains.Content
         }
         public static RoomAuthoring Load(string level,WorldState world)
         {
+            if(FactoryContentSources.IsGenerated(world,level)) return FactoryContentSources.Require(world,level);
             RoomCatalogAsset catalog;
             using(TransitionTiming.Measure("room.resolve-catalog",level)) catalog=RoomCatalogAsset.Load();
             using(TransitionTiming.Measure("room.resolve-entry",level)) return catalog.Resolve(WorldRooms.Definition(world,level));

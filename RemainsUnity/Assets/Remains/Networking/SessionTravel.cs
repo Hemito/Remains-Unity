@@ -108,6 +108,7 @@ namespace Remains.Networking
             }
             TravelPoint arrival=null;
             RoomLayout destination=null;
+            if(reason==null) FactoryContentSources.Prepare(session.ServerWorld,request.destination);
             if(reason==null && !string.IsNullOrEmpty(point?.arrivalPoint))
             {
                 arrival=Find(point.arrivalPoint,request.destination,true);

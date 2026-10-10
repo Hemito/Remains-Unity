@@ -38,6 +38,7 @@ namespace Remains.Presentation
             try
             {
                 if(preparation!=null) {runner.StopCoroutine(preparation);preparation=null;}
+                Remains.Content.FactoryContentSources.Prepare(value.ViewWorld,value.Level);
                 var room=geometry.PrepareEntry(value.ViewWorld,value.Level);
                 if(roomObject!=null && !ReferenceEquals(room,Room)) ReleaseRoom();
                 context=value;Room=room;IsPrepared=false;

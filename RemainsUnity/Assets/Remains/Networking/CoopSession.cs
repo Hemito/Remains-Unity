@@ -219,6 +219,7 @@ namespace Remains.Networking
             npcHits?.Reset();
             var contentLevels=ServerWorld.actors.Select(a=>a.level).Concat(ServerWorld.containers.Select(c=>c.level))
                 .Concat(ServerWorld.props.Select(p=>p.level)).Concat(ServerWorld.doors.Select(d=>d.level)).Append("hub").Distinct().ToArray();
+            FactoryContentSources.Prepare(ServerWorld,contentLevels);
             var roomContent=contentLevels.Select(level=>RoomContentBatch.Read(RoomAuthoring.Load(level,ServerWorld),level)).ToArray();
             if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld) ||
                 roomContent.Any(batch=>RoomContentInstaller.NeedsInstall(ServerWorld,batch)))
@@ -456,6 +457,7 @@ namespace Remains.Networking
                 BeginJoinSelection();
                 joinSelection.RequireCurrent(CharacterId,Saves);
                 joinSelection.RequireWelcome(welcomed,message.actor,message.owner);
+                FactoryContentSources.Prepare(welcomed,welcomed.actors.Where(a=>a.player && a.connected).Select(a=>a.level).Distinct());
                 EntryPreparation.Take(welcomed,message.actor);
             }
             catch(Exception error)
@@ -486,7 +488,9 @@ namespace Remains.Networking
             if(World==null || LocalActorId==null) throw new InvalidOperationException("Получен игровой снимок до фактического входа в мир.");
             using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
             var snapshot=verified??new RecoverySnapshot(message.json);
-            var incoming = PersistCopy(snapshot);
+            var incoming=snapshot.CreateLiveWorld();
+            FactoryContentSources.Prepare(incoming,incoming.actors.Where(a=>a.player && a.connected).Select(a=>a.level).Distinct());
+            incoming=PersistCopy(snapshot,incoming);
             bool sameWorld=World!=null && World.worldId==incoming.worldId;
             // Validate before motion/selection helpers can replace an incoming sample.
             foreach(var actor in incoming.actors)
@@ -1094,6 +1098,7 @@ namespace Remains.Networking
             yield return null;
             while(NetworkClient.active || NetworkServer.active) yield return null;
             stopNotification=null;
+            FactoryContentSources.Clear();
             SessionStopped?.Invoke();
         }
         private void CancelStopNotification()

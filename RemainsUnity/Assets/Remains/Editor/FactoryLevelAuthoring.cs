@@ -68,6 +68,15 @@ namespace Remains.Editor
                 if(DoorContentInstaller.Apply(world,doors) || !savedDoor.open || !savedDoor.Destroyed || savedDoor.revision!=2)
                     throw new InvalidOperationException("Повторная установка сбросила сохранённую дверь.");
                 Debug.Log($"Адаптер завода: PASS; явно незапертых дверей {adapter.Installed}; повторная установка сохраняет состояние.");
+                bool rejected=false;
+                try {RoomAuthoring.Load("factory:0",world);} catch(InvalidOperationException) {rejected=true;}
+                if(!rejected) throw new InvalidOperationException("Чтение неподготовленного завода не отклонено.");
+                FactoryContentSources.Prepare(world,"factory:0");
+                var cached=RoomAuthoring.Load("factory:0",world);
+                FactoryContentSources.Prepare(StateJson.Copy(world),"factory:0");
+                if(cached!=RoomAuthoring.Load("factory:0",world)) throw new InvalidOperationException("Повторная подготовка пересоздала источник завода.");
+                if(RoomDoorContent.Read(cached,"factory:0").doors.Length!=adapter.Installed)
+                    throw new InvalidOperationException("Подготовленный источник потерял двери.");
                 var identity=FactoryContentIdentity.Capture(world);
                 var copy=StateJson.Copy(world);
                 if(!identity.Matches(copy)) throw new InvalidOperationException("Идентичность заводов изменилась после копирования мира.");
@@ -83,9 +92,13 @@ namespace Remains.Editor
                 world.factories[0].layout+=" ";
                 simulation.Reconcile(world);
                 if(loads!=2) throw new InvalidOperationException("Кэш физики не обновился при смене сохранённой раскладки.");
+                rejected=false;
+                try {RoomAuthoring.Load("factory:0",world);} catch(InvalidOperationException) {rejected=true;}
+                if(!rejected) throw new InvalidOperationException("Чтение изменённой раскладки использовало прежний источник.");
+                Debug.Log("Источники игрового завода: PASS; чтение только после подготовки, повтор использует один источник, смена раскладки отклоняет устаревший кэш.");
                 Debug.Log($"Корень игрового завода: PASS; комнат {root.Rooms.childCount}, объектов {root.Objects.Count}, геометрия из общей сетки; кэш обнаруживает смену раскладки.");
             }
-            finally {UnityEngine.Object.DestroyImmediate(root.gameObject);}
+            finally {FactoryContentSources.Clear();UnityEngine.Object.DestroyImmediate(root.gameObject);}
         }
     }
 }
