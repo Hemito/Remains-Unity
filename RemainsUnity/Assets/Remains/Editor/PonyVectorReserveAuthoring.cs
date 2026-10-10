@@ -113,6 +113,9 @@ namespace Remains.Editor
                 }
             }
             Require(Hash(AssetFile(BankPath))==manifest.wearableBank.afterSha256,"Декларация antirad не соответствует новым пикселям.");
+            var compiled=AssetDatabase.LoadAssetAtPath<WearableRenderAsset>(RenderPath);
+            Require(compiled!=null && compiled.SourceHash==manifest.wearableBank.afterSha256,
+                $"Скомпилированный antirad собран из другого банка: sourceHash={compiled?.SourceHash}, банк={manifest.wearableBank.afterSha256}. Нужен RefreshWearableRender.");
             Debug.Log($"Векторная графика пони: PASS — {manifest.entries.Length} source shapes,10 Texture2D8×,{references} прежних ссылок; GUID/importer/геометрия сохранены.");
         }
         public static void InstallAndBuild()
@@ -157,6 +160,23 @@ namespace Remains.Editor
                 bareRenderUnchanged=Hash(AssetFile(PonyRoot+"render.asset"))==bareBefore,
                 wearableGeometryBefore=geometryBefore,wearableGeometryAfter=GeometryFingerprint(RenderPath),
                 runtimeBuild="RemainsUnity/Builds/PonyVectorReserve/Remains.exe",contractsPassed=true},Formatting.Indented));
+        }
+        // A later revision of the reserve (e.g. screen8, 2026-10-10) replaces pixels and the bank's texture
+        // hashes, not geometry: recompile antirad-render.asset so its source hash and content fingerprint
+        // follow the bank, and prove geometry, layers, persistent references and the bare pony unchanged.
+        //   -executeMethod Remains.Editor.PonyVectorReserveAuthoring.RefreshWearableRender
+        public static void RefreshWearableRender()
+        {
+            var manifest=Read();
+            Require(Hash(AssetFile(BankPath))==manifest.wearableBank.afterSha256,"Банк antirad не совпадает с манифестом r63.");
+            string bareBefore=Hash(AssetFile(PonyRoot+"render.asset"));
+            string geometryBefore=GeometryFingerprint(RenderPath);
+            WearableRenderCompiler.BuildAsset(File.ReadAllText(AssetFile(BankPath)),RenderPath,"Original/Pony/Wearables/antirad");
+            AssetDatabase.SaveAssets();
+            Require(Hash(AssetFile(PonyRoot+"render.asset"))==bareBefore,"Базовая сохранённая геометрия/материалы изменились.");
+            Require(GeometryFingerprint(RenderPath)==geometryBefore,"Геометрия, слои или постоянные ссылки antirad изменились.");
+            Run();
+            Debug.Log("Векторная графика пони: antirad пересобран по текущему банку; geometry fingerprint и базовый render.asset прежние.");
         }
         private static string GeometryFingerprint(string path)
         {
