@@ -55,12 +55,13 @@ namespace Remains.Domain
             // Body health/pose and clocks are intentionally absent. Room bindings (including
             // unknown extensions) and exact finite door states decide the warm-room identity.
             return RecoverySnapshot.Fingerprint(StateJson.ToJson(new GeometryIdentity {
-                world=world.worldId,level=level,definition=definition,rooms=world.rooms,doors=doors}));
+                world=world.worldId,level=level,definition=definition,rooms=world.rooms,factories=world.factories,doors=doors}));
         }
         private sealed class GeometryIdentity
         {
             public string world,level,definition;
             public System.Collections.Generic.List<WorldRoom> rooms;
+            public System.Collections.Generic.List<WorldFactory> factories;
             public DoorState[] doors;
         }
         public static WorldState NarrowView(WorldState detachedWorld,string actorId,string level)

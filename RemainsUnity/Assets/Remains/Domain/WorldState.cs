@@ -125,6 +125,7 @@ namespace Remains.Domain
         public List<ActorState> actors = new();
         public List<string> contentPatches = new();
         public List<WorldRoom> rooms = new();
+        public List<WorldFactory> factories = new();
         public int levelTimeVersion;
         public List<LevelSimulationTime> levelTimes = new();
         public int mechanismVersion;

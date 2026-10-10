@@ -13,10 +13,14 @@ namespace Remains.Content
         public static RoomLayout Create(RoomTemplateAsset template,RoomDefinitionCatalog definitions)
         {
             if(template==null) throw new ArgumentNullException(nameof(template));
+            return Create(template.Room,definitions);
+        }
+        public static RoomLayout Create(RoomFile room,RoomDefinitionCatalog definitions)
+        {
+            if(room==null) throw new ArgumentNullException(nameof(room));
             if(definitions==null) throw new ArgumentNullException(nameof(definitions));
-            var room=template.Room;
             var geometry=RoomGeometryBuilder.Build(room,definitions);
-            foreach(string issue in geometry.Issues) Debug.LogWarning($"Шаблон комнаты {template.Template}: {issue}",template);
+            foreach(string issue in geometry.Issues) Debug.LogWarning($"Шаблон комнаты {room.Template}: {issue}");
             return new RoomLayout
             {
                 id=room.Template,left=0,right=(float)geometry.Width,bottom=0,top=(float)geometry.Height,
