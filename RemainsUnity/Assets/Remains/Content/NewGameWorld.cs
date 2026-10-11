@@ -1,14 +1,18 @@
 using Remains.Domain;
+using System;
+using UnityEngine;
 
 namespace Remains.Content
 {
     public static class NewGameWorld
     {
-        public const string FactoryDefinitionId="base:factory-connected-46-18";
+        public const string FactoryDefinitionId=FactoryCatalogAsset.DefinitionId;
         public static WorldState Create()
         {
             var world=new WorldState();
-            world.rooms.Add(new WorldRoom {level="factory:0",definition=FactoryDefinitionId});
+            var catalog=Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey)
+                ??throw new InvalidOperationException("Новый мир: отсутствует каталог игрового завода.");
+            FactoryPreparation.Create(world,catalog,0);
             return world;
         }
     }

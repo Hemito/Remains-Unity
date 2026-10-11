@@ -47,7 +47,8 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Маршрут не перезаписывает существующий мир.");
-                var world=NewGameWorld.Create();world.worldId="2bbb03303d6848758e98eb9a573eac8d";value.Session.Saves.SaveWorld(world);
+                var world=seam==null?NewGameWorld.Create():LegacyFactoryFixture.Create();
+                world.worldId="2bbb03303d6848758e98eb9a573eac8d";value.Session.Saves.SaveWorld(world);
             }
             var ladder=RoomLayout.Load("hub").ladders.Where(l=>l.x<20 && l.bottom<1 && l.top>7.2f).OrderByDescending(l=>l.x).First();
             ladderX=ladder.x+ladder.movementOffset;
@@ -95,7 +96,7 @@ namespace Remains.Runtime
                 if(runtime.Options.Smoke.Contains("-frames-")) NetworkSceneRecord.Save(runtime,20);
                 phase=1;return new PlayerCommand {interact=true,hasAim=true,aim=Map.Bounds.center};
             }
-            if(phase==4) return Move(6);
+            if(phase==4) return Move(FarExitX);
             if(phase==5) return Move(runtime.Geometry.Get(actor.level).spawnX);
             if(phase==7)
             {
@@ -113,6 +114,8 @@ namespace Remains.Runtime
             return default;
         }
         private PlayerCommand Move(float x)=>new() {movement=Vector2.right*(Mathf.Abs(Actor.x-x)>.06f?Mathf.Sign(x-Actor.x):0)};
+        private float FarExitX=>FactoryContentSources.IsGenerated(runtime.Session.World,"factory:0")?
+            runtime.Geometry.Get("factory:0").spawnX+4:6;
         private void Update()
         {
             if(finished) return;
@@ -122,9 +125,12 @@ namespace Remains.Runtime
             if(session.World.actors.Any(a=>a.player && a.connected && a.id!=actor.id && a.level!=actor.level)) separated=true;
             if(phase==1 && runtime.Hud.WorldMap.IsOpen && !clicking)
             {phase=2;clicking=true;StartCoroutine(ChooseFactory(true));}
-            else if(phase==2 && actor.level=="factory:0" && !session.Travel.Pending)
+            else if(phase==2 && actor.level=="factory:0" && !session.Travel.Pending && runtime.LevelPresentationReady)
             {
-                if(WorldRooms.Definition(session.World,actor.level)!=NewGameWorld.FactoryDefinitionId) {Finish(false,"Маршрут использовал старый тестовый завод.");return;}
+                string expected=seam==null?NewGameWorld.FactoryDefinitionId:LegacyFactoryFixture.DefinitionId;
+                if(WorldRooms.Definition(session.World,actor.level)!=expected) {Finish(false,"Маршрут использовал другое определение завода.");return;}
+                if(seam==null && (runtime.ActiveFactoryLighting==null || !runtime.ActiveFactoryLighting.IsReady))
+                {Finish(false,"Игровой завод не подключил готовое окно нового света.");return;}
                 phase=3;
             }
             else if(phase==3 && session.World.actors.Count(a=>a.player && a.connected && a.level=="factory:0")==runtime.Options.ProbePeers)
@@ -135,7 +141,7 @@ namespace Remains.Runtime
                 if(seam.Failure!=null) {Finish(false,seam.Failure);return;}
                 if(seam.Complete) {roomState=ContentState(session.World);phase=4;}
             }
-            else if(phase==4 && Mathf.Abs(actor.x-6)<.08f)
+            else if(phase==4 && Mathf.Abs(actor.x-FarExitX)<.08f)
             {
                 if(ExitPoint.Rejection(actor)==null) {Finish(false,"Дверь достижима издалека.");return;}
                 session.PublishActor(actor);
