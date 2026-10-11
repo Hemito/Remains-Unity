@@ -22,8 +22,10 @@ namespace Remains.Editor
     public static class RoomPrefabGenerator
     {
         public const int GeneratorVersion=2;   // 2: object point ID
-        private const string Templates="Assets/Remains/Rooms/Original/plant";
-        private const string Output="Assets/Remains/Rooms/Original/Prefabs/plant";
+        // Lands whose templates get prefabs: the factory and the hub (rbl/room_0_0 — the camp the hub was built from).
+        private static readonly string[] LandFolders={"plant","rbl"};
+        private const string TemplatesRoot="Assets/Remains/Rooms/Original/";
+        private const string OutputRoot="Assets/Remains/Rooms/Original/Prefabs/";
         private const string Materials="Assets/Remains/Rooms/Original/Prefabs/Materials";
         private const string Definitions="Assets/Remains/Rooms/Original/definitions.json";
         private const string Lands="Assets/Remains/Rooms/Original/lands.json";
@@ -53,7 +55,7 @@ namespace Remains.Editor
             var art=AssetDatabase.LoadAssetAtPath<RoomTileArtAsset>(RoomTileArtAuthoring.AssetPath)
                 ??throw new InvalidOperationException("Нет набора графики клеток: выполните «Remains/Комнаты/Обновить набор графики клеток».");
             var spriteShader=Resources.Load<Shader>(RoomDecorView.SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.SpriteShaderResource);
-            Directory.CreateDirectory(Output);Directory.CreateDirectory(Materials);
+            Directory.CreateDirectory(Materials);
             var materials=new Dictionary<string,Material>(StringComparer.Ordinal);
             Material MaterialFor(RoomDefinition d,string context)
             {
@@ -77,7 +79,13 @@ namespace Remains.Editor
             int sprites=0,points=0,unchanged=0,repaired=0;
             var lightZonesTotal=new SortedDictionary<string,int>(StringComparer.Ordinal);
             var otherObjectsTotal=new SortedDictionary<string,int>(StringComparer.Ordinal);
-            var guids=AssetDatabase.FindAssets("t:"+nameof(RoomTemplateAsset),new[]{Templates});
+            int templates=0;
+            foreach(string land in LandFolders)
+            {
+            string Output=OutputRoot+land;
+            Directory.CreateDirectory(Output);
+            var guids=AssetDatabase.FindAssets("t:"+nameof(RoomTemplateAsset),new[]{TemplatesRoot+land});
+            templates+=guids.Length;
             foreach(string guid in guids.OrderBy(g=>AssetDatabase.GUIDToAssetPath(g),StringComparer.Ordinal))
             {
                 string templatePath=AssetDatabase.GUIDToAssetPath(guid);
@@ -146,9 +154,10 @@ namespace Remains.Editor
                 Debug.LogWarning("Префабы комнат: удалён префаб без шаблона "+stale);
                 AssetDatabase.DeleteAsset(stale);
             }
+            }
             AssetDatabase.SaveAssets();
             Debug.Log($"Покрытие декора и объектов (обычные варианты): только свет, без картинки — {Join(lightZonesTotal)}; объекты без рисунка vis (своя отрисовка позже) — {Join(otherObjectsTotal)}.");
-            Debug.Log($"Префабы комнат: {written.Count} ({guids.Length} шаблонов × обычный/зеркальный), без изменений {unchanged}, восстановлено {repaired}, записано картинок {sprites}, точек объектов {points}, материалов {materials.Count}.");
+            Debug.Log($"Префабы комнат: {written.Count} ({templates} шаблонов × обычный/зеркальный, земли {string.Join(", ",LandFolders)}), без изменений {unchanged}, восстановлено {repaired}, записано картинок {sprites}, точек объектов {points}, материалов {materials.Count}.");
         }
 
         // Integrity of an unchanged prefab: every picture has its sprite and material, counts match the
