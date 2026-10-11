@@ -21,7 +21,8 @@ namespace Remains.Presentation
     public sealed class FactoryLevelView : MonoBehaviour,IRoomLighting
     {
         public const int WindowRooms=3;            // rooms across and down in the light window (odd)
-        public const int SettleUpdates=8;          // field updates after a rebuild: one wall bounce per update
+        public const int SettleUpdates=8;
+        public const string AmbientResource="Presentation/FactoryAmbientLight";          // field updates after a rebuild: one wall bounce per update
 
         private FactoryLevelRoot root;
         private RoomLightingTable table;
@@ -108,10 +109,11 @@ namespace Remains.Presentation
             // Ambient: one level for the factory (per-room darkness and tint are not applied yet).
             var scene=RoomLightScene.Build(grid.Level,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
             foreach(string issue in scene.Issues) Debug.LogWarning("Вид завода: "+issue,this);
-            ambient=new GameObject("Общий свет завода");
-            ambient.transform.SetParent(transform,false);
-            var light=ambient.AddComponent<Light2D>();
-            light.lightType=Light2D.LightType.Global;
+            // From an authored prefab: Light2D fills its target sorting layers only in the Editor, so one added by
+            // code in a player build has none (FactoryAmbientLightAuthoring).
+            var light=Instantiate(Resources.Load<Light2D>(AmbientResource)??throw new InvalidOperationException("Нет префаба общего света завода: Resources/"+AmbientResource),transform,false);
+            ambient=light.gameObject;
+            if(light.lightType!=Light2D.LightType.Global) throw new InvalidOperationException("Префаб общего света завода: свет не общий (Global).");
             light.intensity=(float)table.Ambient(scene.Darkness);
             light.color=new Color((float)scene.Tint[0],(float)scene.Tint[1],(float)scene.Tint[2]);
 
