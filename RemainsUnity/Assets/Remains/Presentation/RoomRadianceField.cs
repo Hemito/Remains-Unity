@@ -177,7 +177,8 @@ namespace Remains.Presentation
         private bool freeReady,lastHadEmission;
         private int lastSilhouettes;
 
-        // Cheap change test of the silhouette set: transforms rounded to a quarter light texel.
+        // Cheap change test of the silhouette set: shape (sprite/mesh, texture), opacity, transform (position
+        // rounded to a quarter light texel). Mesh vertex edits in place are not seen: a pose change also moves parts.
         private int Signature(IReadOnlyList<LightOccluder> occluders)
         {
             if(occluders==null) return 0;
@@ -191,6 +192,8 @@ namespace Remains.Presentation
                     hash=hash*31+Mathf.RoundToInt(m.m00*64);hash=hash*31+Mathf.RoundToInt(m.m01*64);
                     hash=hash*31+Mathf.RoundToInt(m.m10*64);hash=hash*31+Mathf.RoundToInt(m.m11*64);
                     hash=hash*31+(o.Sprite!=null?o.Sprite.GetInstanceID():o.Mesh!=null?o.Mesh.GetInstanceID():0);
+                    hash=hash*31+(o.Texture!=null?o.Texture.GetInstanceID():0);
+                    hash=hash*31+Mathf.RoundToInt(o.Opacity*1024);
                 }
                 return hash;
             }
