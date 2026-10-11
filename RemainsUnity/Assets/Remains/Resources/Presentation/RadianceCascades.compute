@@ -38,6 +38,8 @@ float _BounceGain;
 Texture2D<float4> _StaticFluence;
 Texture2D<float4> _DirectFluence;
 Texture2D<float4> _FreeFluence;
+Texture2D<float4> _OccluderScene;   // static scene + dynamic silhouettes (alpha)
+Texture2D<float4> _BaseScene;       // static scene
 Texture2D<float4> _LampOccludedFluence;
 float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
 float _RimTexels;    // objects, rim mode: width of the dimming at the dark edge
@@ -338,6 +340,17 @@ void CombineDirect(uint3 id : SV_DispatchThreadID)
     // Geometry-dependent object fill can increase direct lamp samples. A blocker may only
     // remove their energy. Keep flashes separate so this bound never suppresses a new source.
     float3 removed = max(0, free - lamp);
+    // A silhouette lies in the same plane as the wall behind it (flatland): its own texels and their bilinear
+    // neighbours would read its absorption as darkness — a dark rim around the actor and a dark actor. There the
+    // static light stays; the shadow is cast only beyond the silhouette, away from the lamp.
+    bool silhouette = false;
+    for (int y = -1; y <= 1 && !silhouette; y++)
+        for (int x = -1; x <= 1; x++)
+        {
+            int2 p = int2(id.xy) + int2(x, y);
+            if (Inside(p) && _OccluderScene[p].a > _BaseScene[p].a + 0.001) { silhouette = true; break; }
+        }
+    if (silhouette) removed = 0;
     float3 flash = max(0, _DirectFluence[id.xy].rgb - lamp);
     _Fluence[id.xy] = float4(max(0, _StaticFluence[id.xy].rgb - removed) + flash, 1);
 }

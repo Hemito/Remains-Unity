@@ -85,7 +85,36 @@ namespace Remains.Editor
                     var view=visual.GetComponent<FactoryLevelView>()??throw new InvalidOperationException("Хаб не получил вид уровня из шаблонов.");
                     view.Focus(new Vector2(room.spawnX,room.spawnY));
                     Debug.Log($"Хаб из шаблонов: готов {view.IsReady}, окно {view.LightWindowRooms}.");
+                    if(Argument("-lightDiagPony")!=null)
+                    {
+                        // Diagnostics: a real pony visual (as MuzzleFlashLightingChecks) at the given point, its silhouette in the light.
+                        var at=Argument("-lightDiagPony").Split(',');
+                        Remains.Content.ActorTypes.Load();Remains.Content.PropCatalog.Load();PonyVisual.Prepare();
+                        var actor=new Remains.Domain.ActorState {id="diag-pony",actorType="pony",anatomy="pony",player=true,connected=true,level="hub",pose="idle",
+                            x=float.Parse(at[0],System.Globalization.CultureInfo.InvariantCulture),y=float.Parse(at[1],System.Globalization.CultureInfo.InvariantCulture),
+                            appearance=new Remains.Domain.CharacterAppearance {version=Remains.Domain.CharacterAppearance.CurrentVersion}};
+                        var pony=(PonyVisual)ActorVisualFactory.Create(actor);
+                        pony.Bind(actor);pony.DrawPose(0);
+                        var silhouettes=new List<RoomRadianceField.LightOccluder>();pony.AppendLightOccluders(silhouettes);
+                        view.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),silhouettes);
+                        Debug.Log($"Диагностика света: пони в ({actor.x},{actor.y}), частей силуэта {silhouettes.Count}.");
+                    }
                     Render(new Vector2(room.right+0.8f,room.top),Path.Combine(outDir,"hub-game.png"),null);
+                    if(Array.IndexOf(Environment.GetCommandLineArgs(),"-lightDiagField")>=0)
+                    {
+                        // Diagnostics: the light field itself (fluence of the window, no artwork), brightest texel = white.
+                        var target=(RenderTexture)Shader.GetGlobalTexture("_RemainsRadiance");
+                        var previous=RenderTexture.active;RenderTexture.active=target;
+                        var copy=new Texture2D(target.width,target.height,TextureFormat.RGBAFloat,false,true);
+                        copy.ReadPixels(new Rect(0,0,target.width,target.height),0,0);copy.Apply();RenderTexture.active=previous;
+                        var pixels=copy.GetPixels();float peak=1e-6f;
+                        foreach(var p in pixels) peak=Mathf.Max(peak,p.maxColorComponent);
+                        for(int i=0;i<pixels.Length;i++) {var p=pixels[i]/peak;pixels[i]=new Color(Mathf.Sqrt(p.r),Mathf.Sqrt(p.g),Mathf.Sqrt(p.b),1);}
+                        var image=new Texture2D(target.width,target.height,TextureFormat.RGBA32,false);image.SetPixels(pixels);image.Apply();
+                        File.WriteAllBytes(Path.Combine(outDir,"hub-field.png"),image.EncodeToPNG());
+                        Debug.Log($"Диагностика света: поле {target.width}×{target.height}, пик {peak}.");
+                        UnityEngine.Object.DestroyImmediate(copy);UnityEngine.Object.DestroyImmediate(image);
+                    }
                     view.Release();UnityEngine.Object.DestroyImmediate(visual);
                     EditorApplication.Exit(0);
                     return;

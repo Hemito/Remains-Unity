@@ -63,7 +63,7 @@ namespace Remains.RoomFormat
         // Light absorption raster for the radiance field, [x, y] with y up, per texel: 1 for walls; beams (one-way
         // platforms) stop all but `beamTransmittance` across their height, spread per texel and capped below the
         // wall threshold (`maxPerTexel`), so a beam is lit like an object, not as a wall. Stairs: none (as Walls).
-        public static float[,] Absorption(RoomFile room, RoomGeometry geometry, int resolution, double beamTransmittance, double maxPerTexel)
+        public static float[,] Absorption(RoomFile room, RoomGeometry geometry, int resolution, double beamTransmittance, double maxPerTexel, double beamHeight = 1)
         {
             double texel = 1.0 / resolution;
             int width = (int)Math.Round(room.Width * room.Cell * resolution), height = (int)Math.Round(room.Height * room.Cell * resolution);
@@ -72,13 +72,18 @@ namespace Remains.RoomFormat
             {
                 if (s.Slope != 0) continue;
                 float alpha = 1;
+                double bottom = s.Y;
                 if (s.OneWay)
                 {
-                    double thickness = Math.Max(1, s.Height / texel);
+                    // Only the drawn part of the beam (the top of its cell): the rest of the cell is open air in the
+                    // picture, and lighting it as the beam's body showed a bright band under every beam.
+                    double extent = Math.Min(s.Height, beamHeight * room.Cell);
+                    bottom = s.Y + s.Height - extent;
+                    double thickness = Math.Max(1, extent / texel);
                     alpha = (float)Math.Min(maxPerTexel, 1 - Math.Pow(Math.Max(beamTransmittance, 1e-4), 1 / thickness));
                 }
                 for (int x = (int)Math.Round(s.X / texel); x < (int)Math.Round((s.X + s.Width) / texel); x++)
-                    for (int y = (int)Math.Round(s.Y / texel); y < (int)Math.Round((s.Y + s.Height) / texel); y++)
+                    for (int y = (int)Math.Round(bottom / texel); y < (int)Math.Round((s.Y + s.Height) / texel); y++)
                         if (x >= 0 && y >= 0 && x < width && y < height && alpha > result[x, y]) result[x, y] = alpha;
             }
             return result;

@@ -180,6 +180,8 @@ namespace Remains.Presentation
                 compute.SetTexture(combine,"_FreeFluence",freeFluence);
                 compute.SetTexture(combine,"_DirectFluence",directFluence);
                 compute.SetTexture(combine,"_LampOccludedFluence",lampOccludedFluence);
+                compute.SetTexture(combine,"_OccluderScene",transientScene);
+                compute.SetTexture(combine,"_BaseScene",staticScene);
                 compute.SetTexture(combine,"_Fluence",fluence);
                 compute.Dispatch(combine,(width+7)/8,(height+7)/8,1);
             }
@@ -223,7 +225,7 @@ namespace Remains.Presentation
             int resolution=table.RadianceResolution;
             var light=RoomLightScene.Build(room,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
             foreach(string issue in light.Issues) Debug.LogWarning(issue);
-            var walls=RoomLightScene.Absorption(room,RoomGeometryBuilder.Build(room,definitions),resolution,table.BeamTransmittance,MaxObjectTexelAbsorption);
+            var walls=RoomLightScene.Absorption(room,RoomGeometryBuilder.Build(room,definitions),resolution,table.BeamTransmittance,MaxObjectTexelAbsorption,table.BeamHeight);
             int w=walls.GetLength(0),h=walls.GetLength(1);
 
             var pixels=new Color[w*h];

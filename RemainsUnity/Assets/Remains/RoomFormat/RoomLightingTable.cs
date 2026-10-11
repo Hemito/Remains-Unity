@@ -42,6 +42,7 @@ namespace Remains.RoomFormat
         public string ObjectLightMode;   // "rim": lit fully, dims only near the dark edge; "gradient": through the whole body
         public double ObjectRimWidth;    // m, rim mode
         public double BeamTransmittance; // share of light a beam (one-way platform) lets through across its height
+        public double BeamHeight=1;      // share of the cell (from its top) the beam's drawing covers: its extent for light
 
         // Light an object lets through (0..1). Closed doors: none. Original placement depth: wall = 1 hangs
         // on the back wall (not in the light's plane) → all; wall = 2 stands across the corridor (grates,
@@ -102,6 +103,8 @@ namespace Remains.RoomFormat
             }
             var beams = root.Get("beams") ?? throw new FormatException(source + ": нет раздела beams.");
             table.BeamTransmittance = beams.Get("transmittance").AsDouble(source + ".beams.transmittance");
+            table.BeamHeight = beams.Get("height").AsDouble(source + ".beams.height");
+            if (table.BeamHeight <= 0 || table.BeamHeight > 1) throw new FormatException(source + ".beams.height: доля клетки в (0, 1].");
             if (table.BeamTransmittance < 0 || table.BeamTransmittance >= 1) throw new FormatException(source + ".beams.transmittance: доля в [0, 1).");
             var objects = root.Get("objects") ?? throw new FormatException(source + ": нет раздела objects.");
             var transmittance = objects.Get("transmittance");
