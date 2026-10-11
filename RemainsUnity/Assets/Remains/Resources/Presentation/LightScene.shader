@@ -94,5 +94,16 @@ Shader "Hidden/Remains/LightScene"
             float4 DoorFrag(Varyings i) : SV_Target { return float4(0,0,0,_Absorption); }
             ENDHLSL
         }
+        // Projected mask union affects only its source contribution, never static illumination.
+        Pass
+        {
+            ColorMask A
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment ShadowMaskFrag
+            float4 ShadowMaskFrag(Varyings i) : SV_Target
+            { return float4(0,0,0,SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a*_OccluderOpacity); }
+            ENDHLSL
+        }
     }
 }

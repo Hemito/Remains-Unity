@@ -6,6 +6,15 @@ using UnityEngine.Rendering;
 
 namespace Remains.Presentation
 {
+    public readonly struct ProjectedLightShadow
+    {
+        public readonly string SourceId;
+        public readonly Texture Mask;
+        public readonly Rect WorldBounds;
+        public readonly float Opacity;
+        public ProjectedLightShadow(string sourceId,Texture mask,Rect worldBounds,float opacity)
+        {SourceId=sourceId;Mask=mask;WorldBounds=worldBounds;Opacity=opacity;}
+    }
     // A presentation-only projection: the source actor meshes and world transforms are never modified.
     // Body/weapon alpha is unioned once per pose. Each source sweeps it continuously from the body
     // to its projection before blending one shadow onto the background.
@@ -38,6 +47,9 @@ namespace Remains.Presentation
             public Bounds lastBounds;
             public Matrix4x4 lastInverse;
             public bool hasQuad;
+            public bool transient;
+            public string sourceId;
+            public float coverage;
         }
         public int ActiveSourceCount {get;private set;}
         public void Configure(Material material)
@@ -57,6 +69,26 @@ namespace Remains.Presentation
         }
         public static float Penumbra(Vector2 actorPosition,Vector2 sourcePosition,float radius,float depth)
             =>Mathf.Clamp(.25f*Mathf.Max(0,radius)*Mathf.Max(0,depth)/Mathf.Max(.1f,Vector2.Distance(actorPosition,sourcePosition)),0,.06f);
+
+        public static Matrix4x4 TransientProjection(Vector2 actorPosition,Vector2 sourcePosition,float requestedScale,float maxScale,float maxOffset)
+        {
+            if(!float.IsFinite(requestedScale) || requestedScale<1 || !float.IsFinite(maxScale) || maxScale<1 || !float.IsFinite(maxOffset) || maxOffset<=0)
+                throw new ArgumentOutOfRangeException(nameof(requestedScale),"Неверные параметры центральной проекции тени вспышки.");
+            float scale=Mathf.Min(requestedScale,maxScale);
+            float distance=Vector2.Distance(actorPosition,sourcePosition);
+            if(distance>.0001f) scale=Mathf.Min(scale,1+maxOffset/distance);
+            return Matrix4x4.Translate(sourcePosition)*Matrix4x4.Scale(new Vector3(scale,scale,1))*Matrix4x4.Translate(-sourcePosition);
+        }
+        public void AppendProjectedLightShadows(List<ProjectedLightShadow> output)
+        {
+            if(output==null) throw new ArgumentNullException(nameof(output));
+            for(int i=0;i<ActiveSourceCount;i++)
+            {
+                var slot=slots[i];if(!slot.transient) continue;
+                var bounds=slot.lastBounds;
+                output.Add(new ProjectedLightShadow(slot.sourceId,slot.mask,new Rect(bounds.min.x,bounds.min.y,bounds.size.x,bounds.size.y),slot.coverage));
+            }
+        }
 
         public bool NeedsPreparation(IReadOnlyList<RoomRadianceField.LightOccluder> parts,int sourceCount)
         {
@@ -123,21 +155,24 @@ namespace Remains.Presentation
             for(int i=0;i<count;i++)
             {
                 var source=sources[i];
-                float opacity=Mathf.Clamp01((float)settings.ActorShadowMaxOpacity)*Mathf.Clamp01(source.Strength);
-                if(opacity<=0 || parts.Count==0) continue;
-                var projection=Projection(actorPosition,source.Position,(float)settings.ActorShadowDepth,(float)settings.ActorShadowMaxOffset);
+                float opacity=source.IsTransient ? .95f : Mathf.Clamp01((float)settings.ActorShadowMaxOpacity)*Mathf.Clamp01(source.Strength);
+                if(source.Strength<=0 || opacity<=0 || parts.Count==0) continue;
+                var projection=source.IsTransient
+                    ?TransientProjection(actorPosition,source.Position,source.ProjectionScale,(float)settings.ActorShadowMaxScale,(float)settings.ActorShadowMaxOffset)
+                    :Projection(actorPosition,source.Position,(float)settings.ActorShadowDepth,(float)settings.ActorShadowMaxOffset);
                 float blur=Penumbra(actorPosition,source.Position,source.Radius,(float)settings.ActorShadowDepth);
                 bool hasBounds=true;Bounds bounds=poseBounds;
                 ExpandBounds(ref bounds,ref hasBounds,poseBounds,projection);
                 bounds.Expand(new Vector3(Mathf.Max(.02f,blur*4),Mathf.Max(.02f,blur*4),0));
                 if(bounds.size.x<=.0001f || bounds.size.y<=.0001f) continue;
                 var slot=slots[ActiveSourceCount++];
+                slot.transient=source.IsTransient;slot.sourceId=source.Id;slot.coverage=opacity;
                 DrawSweep(slot,actorPosition,projection,bounds);
                 SetQuad(slot,bounds);
                 properties.Clear();properties.SetTexture("_MainTex",slot.mask);
                 properties.SetFloat("_Opacity",opacity);
                 properties.SetVector("_BlurUv",new Vector4(blur/bounds.size.x,blur/bounds.size.y,0,0));
-                slot.renderer.SetPropertyBlock(properties);slot.renderer.enabled=true;
+                slot.renderer.SetPropertyBlock(properties);slot.renderer.enabled=!source.IsTransient;
             }
             for(int i=ActiveSourceCount;i<slots.Count;i++) slots[i].renderer.enabled=false;
             lastSignature=signature;hasSignature=true;MaskRebuilds++;
@@ -147,6 +182,7 @@ namespace Remains.Presentation
             var hash=new HashCode();hash.Add(actorPosition);hash.Add(transform.localToWorldMatrix);
             hash.Add(settings.ActorShadowDepth);hash.Add(settings.ActorShadowMaxOffset);hash.Add(settings.ActorShadowMaxOpacity);
             hash.Add(settings.ActorShadowMoveThreshold);hash.Add(settings.ActorShadowMaxSources);hash.Add(parts.Count);hash.Add(sources.Count);
+            hash.Add(settings.ActorShadowMaxScale);
             for(int i=0;i<parts.Count;i++)
             {
                 var part=parts[i];hash.Add(part.Sprite!=null?part.Sprite.GetInstanceID():0);hash.Add(part.Mesh!=null?part.Mesh.GetInstanceID():0);
@@ -154,7 +190,7 @@ namespace Remains.Presentation
                 if(part.Sprite!=null) {hash.Add(part.Sprite.texture.GetInstanceID());hash.Add(part.Sprite.bounds);}
                 if(part.Mesh!=null) hash.Add(part.Mesh.bounds);
             }
-            for(int i=0;i<sources.Count;i++) {var source=sources[i];hash.Add(source.Id);hash.Add(source.Position);hash.Add(source.Radius);hash.Add(source.Strength);}
+            for(int i=0;i<sources.Count;i++) {var source=sources[i];hash.Add(source.Id);hash.Add(source.Position);hash.Add(source.Radius);hash.Add(source.Strength);hash.Add(source.IsTransient);hash.Add(source.ProjectionScale);}
             return hash.ToHashCode();
         }
         private static int PoseSignature(IReadOnlyList<RoomRadianceField.LightOccluder> parts)

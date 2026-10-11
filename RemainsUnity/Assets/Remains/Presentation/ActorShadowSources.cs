@@ -9,8 +9,10 @@ namespace Remains.Presentation
         public readonly string Id;
         public readonly Vector2 Position;
         public readonly float Radius,Strength;
-        public ActorShadowSource(string id,Vector2 position,float radius,float strength)
-        {Id=id;Position=position;Radius=radius;Strength=strength;}
+        public readonly bool IsTransient;
+        public readonly float ProjectionScale;
+        public ActorShadowSource(string id,Vector2 position,float radius,float strength,bool isTransient=false,float projectionScale=1)
+        {Id=id;Position=position;Radius=radius;Strength=strength;IsTransient=isTransient;ProjectionScale=projectionScale;}
     }
 
     // Prepared once per light window. Select is called explicitly by the actor coordinator,
@@ -62,14 +64,14 @@ namespace Remains.Presentation
                 while(index<output.Count && (output[index].Strength>strength ||
                     output[index].Strength==strength && string.CompareOrdinal(output[index].Id,source.Id)<0)) index++;
                 if(index>=maxSources) continue;
-                output.Insert(index,new ActorShadowSource(source.Id,source.Position,source.Radius,strength));
+                output.Insert(index,new ActorShadowSource(source.Id,source.Position,source.Radius,strength,source.IsTransient,source.ProjectionScale));
                 if(output.Count>maxSources) output.RemoveAt(maxSources);
             }
             if(total<=0) return;
             for(int i=0;i<output.Count;i++)
             {
                 var source=output[i];
-                output[i]=new ActorShadowSource(source.Id,source.Position,source.Radius,source.Strength/total);
+                output[i]=new ActorShadowSource(source.Id,source.Position,source.Radius,source.Strength/total,source.IsTransient,source.ProjectionScale);
             }
         }
 

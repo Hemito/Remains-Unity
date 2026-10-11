@@ -239,11 +239,11 @@ namespace Remains.Presentation
             private Material TerrainMaterial(string textureId,bool wall)
             {
                 bool edged=wall && edges!=null;
-                string key=edged?textureId+"|кромка":textureId;
+                string key=textureId+(wall?"|стена":"|фон")+(edged?"|кромка":"");
                 if(lifetime.Materials.TryGetValue(key,out var material)) return material;
                 material=new Material(shader){name="Terrain:"+key};
                 // Backdrop and back walls are drawn before the original's background erase (windows).
-                if(!wall) material.SetFloat("_EraseAffected",1);
+                if(!wall) {material.SetFloat("_EraseAffected",1);material.SetFloat("_ReceiveProjectedShadow",1);}
                 if(edged)
                 {
                     material.SetTexture("_EdgeTex",edges);

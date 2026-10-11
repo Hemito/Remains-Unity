@@ -65,6 +65,7 @@ namespace Remains.Editor
                 }
                 Require(sourceRed>sourceGreen*2 && sourceGreen>sourceBlue*2,"Цвет исходной маски вспышки потерян.");
                 var lit=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
+                CheckProjectedFlash(field,emissions,baselineLight,lit);
                 float nearby=Mean(lit,64,16,24,24,32);
                 float shadow=Mean(lit,64,44,52,24,32);
                 Require(nearby>initial+.02f,$"Вспышка в пустом пространстве не освещает соседние тексели: исходное={initial}, вспышка={nearby}.");
@@ -110,6 +111,34 @@ namespace Remains.Editor
         }
 
         // Direct light the flash adds: the dynamic pass also holds the lamps' direct light (shadowed by silhouettes).
+        private static void CheckProjectedFlash(RoomRadianceField field,RoomRadianceField.SpriteEmission[] emissions,Color[] baseline,Color[] unmasked)
+        {
+            var mask=new Texture2D(2,2,TextureFormat.RGBA32,false,true);
+            try
+            {
+                mask.SetPixels(new[]{Color.black,Color.black,Color.black,Color.black});mask.Apply();
+                var rect=new Rect(0,0,8,6);
+                var shadows=new[]{new ProjectedLightShadow("shot",mask,rect,1)};
+                field.RenderTransient(emissions,shadows,new[]{"shot"});
+                Equal(Read(Shader.GetGlobalTexture("_RemainsRadiance")),unmasked,"Маска затронула освещение актёров.");
+                Equal(Read(Shader.GetGlobalTexture("_RemainsBackgroundRadiance")),baseline,"Полная маска тени затронула свет ламп или оставила вклад вспышки.");
+                field.RenderTransient(emissions,shadows,new[]{"other"});
+                Equal(Read(Shader.GetGlobalTexture("_RemainsRadiance")),unmasked,"Маска другого источника затронула вспышку.");
+                Equal(Read(Shader.GetGlobalTexture("_RemainsBackgroundRadiance")),unmasked,"Маска другого источника затронула фон.");
+                field.RenderTransient(new[]{emissions[0],emissions[0]},shadows,new[]{"shot","other"});
+                Equal(Read(Shader.GetGlobalTexture("_RemainsBackgroundRadiance")),unmasked,"Тень одной вспышки погасила другую вспышку.");
+                var actors=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
+                for(int i=0;i<actors.Length;i++)
+                {
+                    var expected=baseline[i]+(unmasked[i]-baseline[i])*2;
+                    Require(Mathf.Abs(actors[i].r-expected.r)<=Mathf.Max(.002f,expected.r*.002f),$"Несколько вспышек неверно освещают актёров в текселе {i}.");
+                }
+                field.RenderTransient(emissions);
+                Equal(Read(Shader.GetGlobalTexture("_RemainsRadiance")),unmasked,"Снятие маски не восстановило вспышку.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(mask);}
+        }
+
         private static Color[] FlashDirect(RoomRadianceField field)
         {
             var direct=Read(Scene(field,"directFluence"));var free=Read(Scene(field,"freeFluence"));

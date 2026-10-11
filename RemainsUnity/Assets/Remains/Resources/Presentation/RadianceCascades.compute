@@ -30,6 +30,7 @@ Texture2D<float4> _Upper;
 RWTexture2D<float4> _Cascade;
 Texture2D<float4> _Cascade0;
 RWTexture2D<float4> _Fluence;
+RWTexture2D<float4> _BackgroundFluence;
 Texture2D<float4> _FluenceRaw;
 Texture2D<float4> _Bounce;          // wall radiance from the previous update (one bounce per update)
 RWTexture2D<float4> _BounceOut;
@@ -38,6 +39,7 @@ float _BounceGain;
 Texture2D<float4> _StaticFluence;
 Texture2D<float4> _DirectFluence;
 Texture2D<float4> _FreeFluence;
+Texture2D<float4> _ProjectedShadowMask;
 float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
 float _RimTexels;    // objects, rim mode: width of the dimming at the dark edge
 int _ObjectGradient; // objects: 1 gradient through the body, 0 rim
@@ -333,5 +335,7 @@ void CombineDirect(uint3 id : SV_DispatchThreadID)
 {
     if (!Inside(int2(id.xy))) return;
     float3 flash = max(0, _DirectFluence[id.xy].rgb - _FreeFluence[id.xy].rgb);
-    _Fluence[id.xy] = float4(_StaticFluence[id.xy].rgb + flash, 1);
+    float visibility = 1 - saturate(_ProjectedShadowMask[id.xy].a);
+    _Fluence[id.xy] = float4(_Fluence[id.xy].rgb + flash, _Fluence[id.xy].a);
+    _BackgroundFluence[id.xy] = float4(_BackgroundFluence[id.xy].rgb + flash * visibility, _BackgroundFluence[id.xy].a);
 }

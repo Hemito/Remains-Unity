@@ -1,9 +1,6 @@
 using System;
 using Remains.Presentation;
 using Remains.RoomFormat;
-using Remains.Content;
-using Remains.Domain;
-using Remains.Gameplay;
 using UnityEditor;
 using UnityEngine;
 
@@ -38,80 +35,16 @@ namespace Remains.Editor
             Require(Vector2.Distance(projected,actor)<=.30001f,"Смещение тени превысило ограничение.");
             Require(ActorCastShadowView.Projection(actor,actor,.2f,.3f).MultiplyPoint3x4(actor)==(Vector3)actor,"Совпадающий источник сдвинул центр.");
             Require(ActorCastShadowView.Penumbra(actor,Vector2.zero,1,.2f)>ActorCastShadowView.Penumbra(actor,Vector2.zero,.1f,.2f),"Радиус источника не изменяет полутень.");
+            var transientSource=new Vector2(0,3);
+            var central=ActorCastShadowView.TransientProjection(actor,transientSource,2.2f,3,.3f);
+            Require(Vector2.Distance(central.MultiplyPoint3x4(transientSource),transientSource)<.00001f,"Центральная проекция сдвинула точку источника.");
+            Require(Vector2.Distance(central.MultiplyPoint3x4(actor),actor)<=.30001f,"Центральная проекция превышает максимальное смещение центра.");
+            Require(central.m00<=3 && central.m00>1,"Центральная проекция потеряла конус или превысила ограничение масштаба.");
             Require(ActorCastShadowView.ShadowOrder>WorldVisualOrderPolicy.SceneryRoomOrder && ActorCastShadowView.ShadowOrder<WorldVisualOrderPolicy.FirstOrder(WorldVisualCategory.Scenery),"Тень пересекает порядок декорации/актёров.");
             var prefab=AssetDatabase.LoadAssetAtPath<ActorCastShadowView>(PrefabPath);
             Require(prefab!=null,"Не создан авторский префаб тени.");prefab.Validate();
             CheckMask(prefab);
-            CapturePonyPreview(prefab);
             Debug.Log("ActorCastShadowAuthoring: PASS — направление, ограничение смещения, полутень, порядок и авторский материал.");
-        }
-        private static void CapturePonyPreview(ActorCastShadowView prefab)
-        {
-            // Actual game pony/weapon meshes rendered by the configured pipeline, with a flat diagnostic background.
-            // World illumination is disabled temporarily so the proof isolates projection and preserves the source artwork.
-            ActorTypes.Load();PropCatalog.Load();Anatomy.Load();WeaponCatalog.Load();PonyVisual.Prepare();
-            var artwork=WeaponArtwork.Load();
-            var actor=new ActorState{id="cast-shadow-preview",actorType="pony",anatomy="pony",player=true,connected=true,
-                level="hub",pose="idle",x=0,y=0,facing=1,weapon="pistol",weaponAngle=0,weaponReach=.4f,
-                appearance=new CharacterAppearance{version=CharacterAppearance.CurrentVersion}};
-            var visual=(PonyVisual)ActorVisualFactory.Create(actor);
-            var shadow=UnityEngine.Object.Instantiate(prefab);
-            var weaponRoot=new GameObject("Настоящий пистолет, диагностический кадр");
-            var flashRoot=new GameObject("Исходная дульная вспышка");
-            var cameraRoot=new GameObject("Резервная камера непрерывной тени");
-            var target=new RenderTexture(1024,512,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear);
-            Texture2D read=null;var previous=RenderTexture.active;
-            float priorWorld=Shader.GetGlobalFloat("_WorldLightEnabled"),priorRadiance=Shader.GetGlobalFloat("_RemainsRadianceEnabled");
-            try
-            {
-                Shader.SetGlobalFloat("_WorldLightEnabled",0);Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-                visual.ConfigureMagicPreview(0);visual.Bind(actor);visual.DrawPose(0);
-                visual.GetComponent<UnityEngine.Rendering.SortingGroup>().sortingOrder=WorldVisualOrderPolicy.FirstOrder(WorldVisualCategory.Player);
-                Require(visual.TryGetDrawnBounds(out var actorBounds),"Нет реальных границ пони для доказательного кадра.");
-                var weapon=weaponRoot.AddComponent<SpriteRenderer>();SpriteArtworkMaterial.Apply(weapon,artwork["pistol"]);
-                var pose=WeaponPose.SampleRanged(actor);weaponRoot.transform.position=pose.Root;weaponRoot.transform.rotation=Quaternion.Euler(0,0,pose.Angle);
-                weaponRoot.transform.localScale=new Vector3(1,pose.Mirrored?-1:1,1);weapon.sortingOrder=WorldVisualOrderPolicy.FirstOrder(WorldVisualCategory.Player)+1;
-                var flashSprite=AssetDatabase.LoadAssetAtPath<Sprite>(MuzzleFlashAuthoring.Root+"pistol-flash-1.png")
-                    ??throw new InvalidOperationException("Нет исходного спрайта вспышки для реального кадра тени.");
-                var flash=flashRoot.AddComponent<SpriteRenderer>();SpriteArtworkMaterial.Prepare(flashSprite);SpriteArtworkMaterial.Apply(flash,flashSprite);
-                SpriteArtworkMaterial.SetSelfIlluminated(flash);flash.sortingOrder=WorldVisualOrderPolicy.FirstOrder(WorldVisualCategory.Effect);
-                flashRoot.transform.position=weaponRoot.transform.TransformPoint(new Vector3(.602f,.122f,0));
-                flashRoot.transform.rotation=weaponRoot.transform.rotation;flashRoot.transform.localScale=weaponRoot.transform.localScale;
-                var sourcePosition=(Vector2)flashRoot.transform.TransformPoint(flashSprite.bounds.center);
-                var sources=new[]{new ActorShadowSource("original-pistol-flash",sourcePosition,flashSprite.bounds.size.magnitude*.25f,8f/9f)};
-                var parts=new System.Collections.Generic.List<RoomRadianceField.LightOccluder>();visual.AppendLightOccluders(parts);
-                parts.Add(new RoomRadianceField.LightOccluder(weapon.sprite,weaponRoot.transform.localToWorldMatrix));
-                var tableAsset=AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/Remains/Rooms/Original/room-lighting.json")
-                    ??throw new InvalidOperationException("Нет текущей таблицы света для доказательного кадра тени.");
-                var settings=RoomLightingTable.Read(tableAsset.text,tableAsset.name);
-                shadow.Prepare(parts,1);shadow.Draw(actorBounds.center,parts,sources,settings);
-                Require(shadow.ActiveSourceCount==1,"Настоящая вспышка не создала непрерывную тень пони.");
-                const int layer=31;
-                foreach(var child in visual.GetComponentsInChildren<Transform>(true)) child.gameObject.layer=layer;
-                foreach(var child in shadow.GetComponentsInChildren<Transform>(true)) child.gameObject.layer=layer;
-                weaponRoot.layer=layer;flashRoot.layer=layer;
-                Bounds bounds=actorBounds;bounds.Encapsulate(weapon.bounds);bounds.Encapsulate(flash.bounds);
-                foreach(var renderer in shadow.GetComponentsInChildren<Renderer>()) if(renderer.enabled) bounds.Encapsulate(renderer.bounds);
-                var camera=cameraRoot.AddComponent<Camera>();camera.enabled=false;camera.orthographic=true;camera.aspect=2;
-                camera.orthographicSize=Mathf.Max(bounds.size.y*.65f,bounds.size.x*.325f);
-                camera.transform.position=new Vector3(bounds.center.x,bounds.center.y,-10);camera.cullingMask=1<<layer;
-                camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.86f,.84f,.78f,1);camera.allowHDR=false;camera.allowMSAA=false;
-                target.Create();camera.targetTexture=target;CombatHudRender.RenderReserveCamera(camera,target);
-                read=new Texture2D(target.width,target.height,TextureFormat.RGBA32,false);RenderTexture.active=target;
-                read.ReadPixels(new Rect(0,0,target.width,target.height),0,0);read.Apply();
-                string export=System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../../.reference/actor-continuous-shadow-pony.png"));
-                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(export));System.IO.File.WriteAllBytes(export,read.EncodeToPNG());
-                string evidence=$"Рендер настоящего PonyVisual, пистолета и исходной дульной вспышки через резервную камеру активного render pipeline. Не AI-изображение.\nПозa: {actor.pose}, кадр: {visual.DrawnFrame}; силуэтов тела и оружия: {parts.Count}.\nПроекция: depth={settings.ActorShadowDepth}, maxOffset={settings.ActorShadowMaxOffset}, maxOpacity={settings.ActorShadowMaxOpacity}.\nОднородный фон без пола/стены; глобальный свет временно выключен только для сохранения видимости исходной графики в диагностическом кадре.\n";
-                System.IO.File.WriteAllText(System.IO.Path.ChangeExtension(export,".txt"),evidence);
-                Debug.Log($"ActorCastShadowAuthoring: actual pony+pistol+original flash camera preview, {parts.Count} silhouettes: {export}.");
-            }
-            finally
-            {
-                Shader.SetGlobalFloat("_WorldLightEnabled",priorWorld);Shader.SetGlobalFloat("_RemainsRadianceEnabled",priorRadiance);RenderTexture.active=previous;
-                if(read!=null) UnityEngine.Object.DestroyImmediate(read);target.Release();UnityEngine.Object.DestroyImmediate(target);
-                UnityEngine.Object.DestroyImmediate(cameraRoot);UnityEngine.Object.DestroyImmediate(flashRoot);UnityEngine.Object.DestroyImmediate(weaponRoot);
-                UnityEngine.Object.DestroyImmediate(shadow.gameObject);UnityEngine.Object.DestroyImmediate(visual.gameObject);
-            }
         }
         private static void CheckMask(ActorCastShadowView prefab)
         {
@@ -129,7 +62,7 @@ namespace Remains.Editor
                 var part=new RoomRadianceField.LightOccluder(mesh,texture,original);
                 var parts=new[]{part,part};
                 var sources=new[]{new ActorShadowSource("check",new Vector2(-2,0),.1f,1)};
-                var settings=new RoomLightingTable{ActorShadowDepth=.1,ActorShadowMaxOffset=.5,ActorShadowMaxOpacity=.4,ActorShadowMaxSources=3};
+                var settings=new RoomLightingTable{ActorShadowDepth=.1,ActorShadowMaxOffset=.5,ActorShadowMaxOpacity=.4,ActorShadowMaxSources=3,ActorShadowMaxScale=3};
                 Require(view.NeedsPreparation(parts,sources.Length),"Новый вид не запросил явную подготовку.");
                 view.Prepare(parts,sources.Length);
                 Require(!view.NeedsPreparation(parts,sources.Length),"Явная подготовка не создала рабочий кеш.");
@@ -148,8 +81,15 @@ namespace Remains.Editor
                 Require(part.LocalToWorld==original && mesh.bounds.center==Vector3.zero,"Проекция изменила исходную матрицу/mesh актёра.");
                 CheckComposite(view);
                 view.Prepare(parts,4);
-                view.Draw(Vector2.zero,parts,new[]{sources[0],sources[0],sources[0],new ActorShadowSource("flash",new Vector2(2,0),.05f,1)},settings);
+                view.Draw(Vector2.zero,parts,new[]{sources[0],sources[0],sources[0],new ActorShadowSource("flash",new Vector2(2,0),.05f,1,true,2.2f)},settings);
                 Require(view.ActiveSourceCount==4,"Вспышка после трёх ламп потерялась из-за лимита постоянных источников.");
+                var projected=new System.Collections.Generic.List<ProjectedLightShadow>();view.AppendProjectedLightShadows(projected);
+                Require(projected.Count==1 && projected[0].SourceId=="flash" && projected[0].Mask!=null && Mathf.Abs(projected[0].Opacity-.95f)<.00001f,"Экспорт маски вспышки потерял ID/coverage либо включил постоянные лампы.");
+                var transientSlot=slots[3];
+                Require(!((MeshRenderer)transientSlot.GetType().GetField("renderer").GetValue(transientSlot)).enabled,"Вспышка рисует чёрное наложение вместо маски для своего светового поля.");
+                view.Draw(Vector2.zero,parts,new[]{new ActorShadowSource("weak-flash",new Vector2(2,0),.05f,.01f,true,2.2f)},settings);
+                projected.Clear();view.AppendProjectedLightShadows(projected);
+                Require(projected.Count==1 && Mathf.Abs(projected[0].Opacity-.95f)<.00001f,"Сила вспышки изменяет покрытие тени вместо силы исходного света.");
                 CheckConnectedSweep(view,texture);
                 view.Clear();Require(view.ActiveSourceCount==0,"Clear оставил активную тень.");
                 Debug.Log($"ActorCastShadowAuthoring: GPU union alpha={unionAlpha:F4}; mirror, исходные mesh/матрица и Clear PASS.");
@@ -163,7 +103,7 @@ namespace Remains.Editor
             narrow.uv=new[]{Vector2.zero,Vector2.right,Vector2.one,Vector2.up};narrow.colors=new[]{Color.white,Color.white,Color.white,Color.white};narrow.triangles=new[]{0,1,2,0,2,3};narrow.RecalculateBounds();
             var parts=new[]{new RoomRadianceField.LightOccluder(narrow,texture,Matrix4x4.identity)};
             var source=new[]{new ActorShadowSource("left",new Vector2(-3,0),.03f,1)};
-            var settings=new RoomLightingTable{ActorShadowDepth=.25,ActorShadowMaxOffset=.6,ActorShadowMaxOpacity=.4,ActorShadowMaxSources=3};
+            var settings=new RoomLightingTable{ActorShadowDepth=.25,ActorShadowMaxOffset=.6,ActorShadowMaxOpacity=.4,ActorShadowMaxSources=3,ActorShadowMaxScale=3};
             Texture2D read=null;var previous=RenderTexture.active;
             try
             {

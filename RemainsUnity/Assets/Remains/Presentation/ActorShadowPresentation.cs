@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Remains.RoomFormat;
 using UnityEngine;
 
 namespace Remains.Presentation
@@ -37,6 +38,22 @@ namespace Remains.Presentation
             this.parent=parent;
             prefab=Resources.Load<ActorCastShadowView>("Presentation/ActorCastShadow")??
                 throw new InvalidOperationException("Нет авторского префаба проецируемой тени персонажа.");
+        }
+        public void CollectProjectedLightShadows(List<ProjectedLightShadow> output)
+        {
+            if(output==null) throw new ArgumentNullException(nameof(output));
+            output.Clear();
+            foreach(var entry in entries.Values) entry.View.AppendProjectedLightShadows(output);
+        }
+        public static float FlashProjectionScale(RoomLightingTable settings)
+        {
+            if(settings==null || !double.IsFinite(settings.ActorShadowActorDepth) ||
+                !double.IsFinite(settings.ActorShadowFlashDepth) || settings.ActorShadowActorDepth<=0 ||
+                settings.ActorShadowFlashDepth<=settings.ActorShadowActorDepth ||
+                !double.IsFinite(settings.ActorShadowMaxScale) || settings.ActorShadowMaxScale<1)
+                throw new InvalidOperationException("Проекция вспышки: требуется 0 < actorDepth < flashDepth и конечный maxScale >= 1.");
+            return Mathf.Clamp((float)(settings.ActorShadowFlashDepth/(settings.ActorShadowFlashDepth-settings.ActorShadowActorDepth)),
+                1,(float)settings.ActorShadowMaxScale);
         }
 
         public void Present(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
@@ -76,10 +93,11 @@ namespace Remains.Presentation
                         throw new InvalidOperationException("Проекция вспышки: отсутствует стабильный ID выстрела.");
                     string id=flashIds[i];
                     float strength=flash.Gain/(1+flash.Gain)/Mathf.Max(1,Vector2.Distance(position,entry.Position));
-                    entry.Flashes.Add(new ActorShadowSource(id,position,radius,strength));
+                    float projectionScale=FlashProjectionScale(settings);
+                    entry.Flashes.Add(new ActorShadowSource(id,position,radius,strength,true,projectionScale));
                     if(entry.FlashVisibility.TryGetValue(id,out var cached) && cached.Revision==level.ShadowSourceRevision)
                     {
-                        entry.Sources.Add(new ActorShadowSource(id,position,radius,strength*cached.Transmission));
+                        entry.Sources.Add(new ActorShadowSource(id,position,radius,strength*cached.Transmission,true,projectionScale));
                         if((cached.Position-position).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold ||
                             (cached.ActorPosition-entry.Position).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)
                             entry.Queued=true;
@@ -141,19 +159,19 @@ namespace Remains.Presentation
                 for(int j=0;j<targets.Count;j++) if(targets[j].Id==old.Id)
                 {
                     var target=targets[j];
-                    displayed[i]=new ActorShadowSource(target.Id,target.Position,target.Radius,Mathf.Lerp(old.Strength,target.Strength,blend));
+                    displayed[i]=new ActorShadowSource(target.Id,target.Position,target.Radius,Mathf.Lerp(old.Strength,target.Strength,blend),target.IsTransient,target.ProjectionScale);
                     found=true;break;
                 }
                 if(found) continue;
                 float strength=Mathf.Lerp(old.Strength,0,blend);
                 if(strength<=.0001f) displayed.RemoveAt(i);
-                else displayed[i]=new ActorShadowSource(old.Id,old.Position,old.Radius,strength);
+                else displayed[i]=new ActorShadowSource(old.Id,old.Position,old.Radius,strength,old.IsTransient,old.ProjectionScale);
             }
             foreach(var target in targets)
             {
                 bool found=false;foreach(var source in displayed) if(source.Id==target.Id) {found=true;break;}
                 if(!found && target.Strength>0)
-                    displayed.Add(new ActorShadowSource(target.Id,target.Position,target.Radius,target.Strength*blend));
+                    displayed.Add(new ActorShadowSource(target.Id,target.Position,target.Radius,target.Strength*blend,target.IsTransient,target.ProjectionScale));
             }
             // Reserve two source sets for a crossfade, never an unbounded history
             // of formerly selected lamps during fast movement.

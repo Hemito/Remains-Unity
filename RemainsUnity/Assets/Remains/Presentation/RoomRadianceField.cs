@@ -45,8 +45,9 @@ namespace Remains.Presentation
         private RenderTexture transientScene;
         private bool distanceReady;
         private bool transientActive;
-        private RenderTexture staticFluence,directFluence;
+        private RenderTexture staticFluence,directFluence,projectedShadowMask,backgroundFluence;
         private MaterialPropertyBlock emissionBlock;
+        private CommandBuffer transientCommands;
 
         public readonly struct SpriteEmission
         {
@@ -73,20 +74,20 @@ namespace Remains.Presentation
         // Actor and weapon shadows are projected by the presentation renderer. They do not change
         // flatland transport. Temporary sources add direct light without altering lamp bounce history.
         public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<LightOccluder> occluders=null)
+            =>RenderTransient(emissions,null,null);
+        public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds)
         {
             if((emissions?.Count??0)==0)
             {
                 if(!transientActive) return false;
                 Graphics.CopyTexture(staticFluence,fluence);
+                Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
                 transientActive=false;
                 return true;
             }
-            EnsureSceneDrawing();
+            if(masks!=null && masks.Count>0 && sourceIds==null) throw new ArgumentException("Для масок тени необходимы ID источников.");
+            if(sourceIds!=null && sourceIds.Count!=emissions.Count) throw new ArgumentException("Количество ID источников не совпадает с количеством вспышек.");
             if(staticScene==null) staticScene=scene;
-            if(transientScene==null) transientScene=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена динамического света");
-            if(directFluence==null) directFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет вспышки");
-            if(freeFluence==null) freeFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет ламп");
-            if(staticFluence==null) staticFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сохранённый свет ламп");
             if(!transientActive) Graphics.CopyTexture(fluence,staticFluence);
             try
             {
@@ -97,14 +98,18 @@ namespace Remains.Presentation
                     Graphics.CopyTexture(directFluence,freeFluence);
                     freeReady=true;
                 }
+                Graphics.CopyTexture(staticFluence,fluence);
+                Graphics.CopyTexture(staticFluence,backgroundFluence);
+                for(int emissionIndex=0;emissionIndex<emissions.Count;emissionIndex++)
+                {
                 var previous=RenderTexture.active;
                 try {Graphics.Blit(staticScene,transientScene);}
                 finally {RenderTexture.active=previous;}
-                using(var cmd=new CommandBuffer{name="Прямой свет вспышки"})
                 {
+                    var cmd=transientCommands;cmd.Clear();
                     cmd.SetRenderTarget(transientScene);
                     cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
-                    if(emissions!=null) foreach(var emission in emissions)
+                    var emission=emissions[emissionIndex];
                     {
                         if(emission.Sprite==null || !float.IsFinite(emission.Gain) || emission.Gain<=0)
                         {Debug.LogWarning($"Поле излучения {name}: некорректная маска вспышки или сила {emission.Gain}.",this);continue;}
@@ -118,24 +123,65 @@ namespace Remains.Presentation
                         emissionBlock.SetVector("_SpriteUvRect",new Vector4(uv.x/sprite.texture.width,uv.y/sprite.texture.height,uv.width/sprite.texture.width,uv.height/sprite.texture.height));
                         emissionBlock.SetFloat("_Glow",emission.Gain);
                         emissionBlock.SetFloat("_GlowThreshold",-0.15f);
-                        cmd.DrawMesh(quad,emission.LocalToWorld*Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),sceneMaterial,0,1,emissionBlock);
+                        cmd.DrawMesh(quad,transform.worldToLocalMatrix*emission.LocalToWorld*Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),sceneMaterial,0,1,emissionBlock);
                     }
                     Graphics.ExecuteCommandBuffer(cmd);
                 }
                 scene=transientScene;distanceReady=false;
                 RenderField(true);
+                DrawProjectedMask(masks,sourceIds==null?null:sourceIds[emissionIndex]);
                 int combine=compute.FindKernel("CombineDirect");
-                compute.SetTexture(combine,"_StaticFluence",staticFluence);
+                compute.SetTexture(combine,"_ProjectedShadowMask",projectedShadowMask);
                 compute.SetTexture(combine,"_FreeFluence",freeFluence);
                 compute.SetTexture(combine,"_DirectFluence",directFluence);
                 compute.SetTexture(combine,"_Fluence",fluence);
+                compute.SetTexture(combine,"_BackgroundFluence",backgroundFluence);
                 compute.Dispatch(combine,(width+7)/8,(height+7)/8,1);
+                }
             }
             finally {scene=staticScene;distanceReady=false;}
+            Shader.SetGlobalTexture("_RemainsBackgroundRadiance",backgroundFluence);
+            Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",1);
             transientActive=true;DynamicUpdates++;
             return true;
         }
 
+        private void PrepareTransientTargets()
+        {
+            transientCommands=new CommandBuffer{name="Вспышка и маска тени"};
+            transientScene=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена динамического света");
+            directFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет вспышки");
+            freeFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет ламп");
+            staticFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сохранённый свет ламп");
+            projectedShadowMask=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Маска тени вспышки");
+            backgroundFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Свет фона с тенью вспышки");
+            backgroundFluence.filterMode=FilterMode.Bilinear;
+        }
+
+        private void DrawProjectedMask(IReadOnlyList<ProjectedLightShadow> masks,string sourceId)
+        {
+            {
+                var cmd=transientCommands;cmd.Clear();
+                cmd.SetRenderTarget(projectedShadowMask);
+                cmd.ClearRenderTarget(false,true,Color.clear);
+                cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
+                if(masks!=null && sourceId!=null) foreach(var shadow in masks)
+                {
+                    if(shadow.SourceId!=sourceId) continue;
+                    if(shadow.Mask==null || !float.IsFinite(shadow.Opacity) || shadow.Opacity<0 || shadow.Opacity>1 ||
+                        shadow.WorldBounds.width<=0 || shadow.WorldBounds.height<=0)
+                        throw new ArgumentException($"Некорректная маска тени источника {sourceId}.");
+                    emissionBlock.Clear();
+                    emissionBlock.SetTexture("_MainTex",shadow.Mask);
+                    emissionBlock.SetVector("_SpriteUvRect",new Vector4(0,0,1,1));
+                    emissionBlock.SetFloat("_OccluderOpacity",shadow.Opacity);
+                    var bounds=shadow.WorldBounds;
+                    var matrix=transform.worldToLocalMatrix*Matrix4x4.TRS(new Vector3(bounds.x,bounds.y,0),Quaternion.identity,new Vector3(bounds.width,bounds.height,1));
+                    cmd.DrawMesh(quad,matrix,sceneMaterial,0,4,emissionBlock);
+                }
+                Graphics.ExecuteCommandBuffer(cmd);
+            }
+        }
         public int DynamicUpdates {get;private set;}
         private RenderTexture freeFluence;
         private bool freeReady;
@@ -192,6 +238,7 @@ namespace Remains.Presentation
             field.UpdateOccluders(occluders);
             field.Allocate();
             field.EnsureSceneDrawing();
+            field.PrepareTransientTargets();
             Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters} (выключенных {dark}), поглощающих объектов {absorbers}, светящихся экранов {glowing}, светящих окон {windows}."));
             return field;
         }
@@ -404,6 +451,7 @@ namespace Remains.Presentation
 
         public void Render()
         {
+            Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
             transientActive=false;freeReady=false;
             StaticRenderUpdates++;
             RenderField(false);
@@ -481,11 +529,13 @@ namespace Remains.Presentation
 
         private void OnDestroy()
         {
+            Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
+            transientCommands?.Release();
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence}) if(texture!=null) texture.Release();
+            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence}) if(texture!=null) texture.Release();
             if(baseScene is RenderTexture baseTarget) baseTarget.Release();
             if(occlusionScene!=null) occlusionScene.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }

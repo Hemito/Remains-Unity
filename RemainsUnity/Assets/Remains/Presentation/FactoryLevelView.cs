@@ -153,6 +153,12 @@ namespace Remains.Presentation
             try {field.RenderTransient(emissions,occluders);}
             catch(Exception error) {ReportFailure(error);throw;}
         }
+        public void RenderMuzzleFlashes(IReadOnlyList<RoomRadianceField.SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds)
+        {
+            if(!IsReady) return;
+            try {field.RenderTransient(emissions,masks,sourceIds);}
+            catch(Exception error) {ReportFailure(error);throw;}
+        }
         // Revision of the last door snapshot in the light (-1: none yet); the loader admits actors after it.
         public long AppliedDoorRevision {get;private set;}=-1;
         public int DoorOccluderTexels=>field!=null?field.OccluderTexels:0;

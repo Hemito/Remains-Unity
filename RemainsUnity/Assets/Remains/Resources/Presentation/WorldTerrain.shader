@@ -18,6 +18,7 @@ Shader "Remains/WorldTerrain"
         _EdgeCell ("Размер клетки (м)", Float) = 0.8
         _EdgeOrigin ("Левый низ комнаты (м)", Vector) = (0,0,0,0)
         [Toggle] _EraseAffected ("Стирается окнами (фон, задние стены)", Float) = 0
+        [Toggle] _ReceiveProjectedShadow ("Принимает проекцию тени (задняя стена)", Float) = 0
     }
     SubShader
     {
@@ -67,6 +68,7 @@ Shader "Remains/WorldTerrain"
                 float _EdgeCell;
                 float4 _EdgeOrigin;
                 float _EraseAffected;
+                float _ReceiveProjectedShadow;
             CBUFFER_END
 
             #if USE_SHAPE_LIGHT_TYPE_0
@@ -143,7 +145,8 @@ Shader "Remains/WorldTerrain"
                 half4 main=SAMPLE_TEXTURE2D(_MaterialTex,sampler_MaterialTex,texel*_MaterialTex_TexelSize.xy)*i.color;
                 main.a*=mask*RemainsEraseKeep(i.world,_EraseAffected);
                 if(main.a<=0) discard;
-                return RemainsCombineLight(main.rgb,main.a,i.lightingUV,LampLight(i.world));
+                half4 light=_ReceiveProjectedShadow>0.5?RemainsSampleBackgroundLamp(i.world):LampLight(i.world);
+                return RemainsCombineLight(main.rgb,main.a,i.lightingUV,light);
             }
             ENDHLSL
         }

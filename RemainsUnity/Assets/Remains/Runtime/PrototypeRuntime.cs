@@ -72,6 +72,7 @@ namespace Remains.Runtime
         private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
         private ActorShadowPresentation actorShadows;
+        private readonly List<ProjectedLightShadow> projectedFlashShadows=new();
         private readonly PonyMagicActivitySource ponyMagic=new();
         private readonly RemoteActorMotion remoteMotion=new();
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
@@ -178,8 +179,9 @@ namespace Remains.Runtime
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
             {
                 if(!LevelPresentationReady || ActiveFactoryLighting==null) {actorShadows.Clear();return;}
-                ActiveFactoryLighting.RenderMuzzleFlashes(emissions);
                 actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds);
+                actorShadows.CollectProjectedLightShadows(projectedFlashShadows);
+                ActiveFactoryLighting.RenderMuzzleFlashes(emissions,projectedFlashShadows,interactionVisuals.MuzzleSourceIds);
             },(attack,emission)=>
             {
                 if(LevelPresentationReady && ActiveFactoryLighting!=null)

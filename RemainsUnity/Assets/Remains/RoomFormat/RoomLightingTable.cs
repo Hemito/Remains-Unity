@@ -45,6 +45,7 @@ namespace Remains.RoomFormat
         public double BeamHeight=1;      // share of the cell (from its top) the beam's drawing covers: its extent for light
         public double ActorShadowDepth,ActorShadowMaxOffset,ActorShadowMaxOpacity,ActorShadowMoveThreshold;
         public int ActorShadowMaxSources;
+        public double ActorShadowActorDepth,ActorShadowFlashDepth,ActorShadowMaxScale;
 
         // Light an object lets through (0..1). Closed doors: none. Original placement depth: wall = 1 hangs
         // on the back wall (not in the light's plane) → all; wall = 2 stands across the corridor (grates,
@@ -91,6 +92,13 @@ namespace Remains.RoomFormat
             table.ActorShadowMaxOffset=actorShadows.Get("maxOffset").AsDouble(source+".actorShadows.maxOffset");
             table.ActorShadowMaxOpacity=actorShadows.Get("maxOpacity").AsDouble(source+".actorShadows.maxOpacity");
             table.ActorShadowMoveThreshold=actorShadows.Get("moveThreshold").AsDouble(source+".actorShadows.moveThreshold");
+            table.ActorShadowActorDepth=actorShadows.Get("actorDepth").AsDouble(source+".actorShadows.actorDepth");
+            table.ActorShadowFlashDepth=actorShadows.Get("flashDepth").AsDouble(source+".actorShadows.flashDepth");
+            table.ActorShadowMaxScale=actorShadows.Get("maxScale").AsDouble(source+".actorShadows.maxScale");
+            if(!double.IsFinite(table.ActorShadowActorDepth) || !double.IsFinite(table.ActorShadowFlashDepth) ||
+                table.ActorShadowActorDepth<=0 || table.ActorShadowFlashDepth<=table.ActorShadowActorDepth ||
+                !double.IsFinite(table.ActorShadowMaxScale) || table.ActorShadowMaxScale<1)
+                throw new FormatException(source+".actorShadows: 0 < actorDepth < flashDepth, maxScale >= 1; значения должны быть конечными.");
             long shadowSourceCount=actorShadows.Get("maxSources").AsLong(source+".actorShadows.maxSources");
             if(shadowSourceCount<1 || shadowSourceCount>3)
                 throw new FormatException(source+".actorShadows.maxSources: ожидается от 1 до 3.");

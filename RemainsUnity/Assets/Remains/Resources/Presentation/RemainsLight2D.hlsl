@@ -9,6 +9,8 @@ TEXTURE2D(_RemainsRadiance); SAMPLER(sampler_RemainsRadiance);
 float4 _RemainsRadianceRect;   // origin xy, size zw (m)
 float _RemainsRadianceTexel;
 float _RemainsRadianceEnabled;
+TEXTURE2D(_RemainsBackgroundRadiance); SAMPLER(sampler_RemainsBackgroundRadiance);
+float _RemainsBackgroundRadianceEnabled;
 
 half2 RemainsLightingUV(float2 world)
 {
@@ -38,6 +40,18 @@ half4 RemainsSampleLamp(float2 world)
     #else
     return 0;
     #endif
+}
+
+// A receiver-specific field: actors, props and floors keep the unoccluded flash.
+half4 RemainsSampleBackgroundLamp(float2 world)
+{
+    if(_RemainsRadianceEnabled>0.5 && _RemainsBackgroundRadianceEnabled>0.5)
+    {
+        float2 uv=(world-_RemainsRadianceRect.xy)/_RemainsRadianceRect.zw;
+        if(any(uv<0) || any(uv>1)) return 0;
+        return SAMPLE_TEXTURE2D_LOD(_RemainsBackgroundRadiance,sampler_RemainsBackgroundRadiance,uv,0);
+    }
+    return RemainsSampleLamp(world);
 }
 
 // Same sum as URP CombinedShapeLightShared (no mask channels): ambient + the given lamp light.
