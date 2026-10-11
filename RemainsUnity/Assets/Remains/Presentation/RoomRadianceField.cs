@@ -32,6 +32,11 @@ namespace Remains.Presentation
         private int width,height,levels;
         private Vector4 rect;
         private float texel;
+        private Texture baseScene;
+        private RenderTexture occlusionScene;
+        public int SilhouetteReadbacks {get;private set;}
+        public int OcclusionUpdates {get;private set;}
+        public int StaticRenderUpdates {get;private set;}
         private Texture staticScene;
         private RenderTexture transientScene;
         private bool distanceReady;
@@ -179,22 +184,6 @@ namespace Remains.Presentation
                         pixels[y*w+x]=new Color((float)lamp.Radiance[0],(float)lamp.Radiance[1],(float)lamp.Radiance[2],1);
                     }
             }
-            int occluderTexels=0;
-            if(occluders!=null)
-                foreach(var (bounds,opacity) in occluders)
-                {
-                    if(!(opacity>0 && opacity<=1)) throw new ArgumentOutOfRangeException(nameof(occluders),$"Поле излучения {room.Template}: непрозрачность заслонки {opacity} вне (0,1].");
-                    // Light crosses the occluder along its thinner side; per texel so the whole thickness stops `opacity`.
-                    double thickness=Math.Max(1,Math.Min(bounds.width,bounds.height)/t);
-                    float alpha=opacity>=1?1:(float)Math.Min(MaxObjectTexelAbsorption,1-Math.Pow(1-opacity,1/thickness));
-                    for(int y=Mathf.FloorToInt((bounds.yMin-origin.y)/t);y<Mathf.CeilToInt((bounds.yMax-origin.y)/t);y++)
-                        for(int x=Mathf.FloorToInt((bounds.xMin-origin.x)/t);x<Mathf.CeilToInt((bounds.xMax-origin.x)/t);x++)
-                        {
-                            if(x<0 || y<0 || x>=w || y>=h) continue;
-                            var p=pixels[y*w+x];
-                            if(alpha>p.a) {pixels[y*w+x]=new Color(0,0,0,alpha);occluderTexels++;}
-                        }
-                }
             var sceneTexture=new Texture2D(w,h,TextureFormat.RGBAHalf,false,true){name="Сцена света",filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
             sceneTexture.SetPixels(pixels);
             sceneTexture.Apply(false,false);
@@ -205,7 +194,7 @@ namespace Remains.Presentation
             field.compute=compute;
             field.wallsTexture=sceneTexture;
             field.scene=sceneTexture;
-            field.OccluderTexels=occluderTexels;
+
             field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;field.edgeTexels=(float)(table.ShadowEdge/t);field.rimTexels=(float)(table.ObjectRimWidth/t);field.objectGradient=table.ObjectLightMode=="gradient";
             int emitters=0,absorbers=0,glowing=0,dark=0;
             if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers,ref glowing,ref dark);
@@ -214,10 +203,46 @@ namespace Remains.Presentation
             float diagonal=Mathf.Sqrt(w*w+h*h);
             field.levels=1;
             while((Mathf.Pow(4,field.levels)-1)/3<diagonal) field.levels++;
+            field.baseScene=field.scene;
+            field.UpdateOccluders(occluders);
             field.Allocate();
             field.EnsureSceneDrawing();
             Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters} (выключенных {dark}), поглощающих объектов {absorbers}, светящихся экранов {glowing}."));
             return field;
+        }
+
+        // Door changes reuse the prepared wall/lamp/object scene and all GPU buffers. No sprite
+        // lookup, wall rasterization or synchronous silhouette readback belongs to this path.
+        public void UpdateOccluders(IReadOnlyList<(Rect bounds,double opacity)> occluders)
+        {
+            EnsureSceneDrawing();
+            if(occlusionScene==null) occlusionScene=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света с дверями");
+            var previous=RenderTexture.active;
+            try {Graphics.Blit(baseScene,occlusionScene);}
+            finally {RenderTexture.active=previous;}
+            OccluderTexels=0;
+            using(var cmd=new CommandBuffer{name="Свет: изменение заслонок"})
+            {
+                cmd.SetRenderTarget(occlusionScene);
+                cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
+                if(occluders!=null) foreach(var (bounds,opacity) in occluders)
+                {
+                    if(!(opacity>0 && opacity<=1)) throw new ArgumentOutOfRangeException(nameof(occluders),$"Поле света {name}: непрозрачность заслонки {opacity} вне (0,1].");
+                    int left=Mathf.Clamp(Mathf.FloorToInt((bounds.xMin-rect.x)/texel),0,width);
+                    int right=Mathf.Clamp(Mathf.CeilToInt((bounds.xMax-rect.x)/texel),0,width);
+                    int bottom=Mathf.Clamp(Mathf.FloorToInt((bounds.yMin-rect.y)/texel),0,height);
+                    int top=Mathf.Clamp(Mathf.CeilToInt((bounds.yMax-rect.y)/texel),0,height);
+                    if(right<=left || top<=bottom) continue;
+                    double thickness=Math.Max(1,Math.Min(bounds.width,bounds.height)/texel);
+                    float alpha=opacity>=1?1:(float)Math.Min(MaxObjectTexelAbsorption,1-Math.Pow(1-opacity,1/thickness));
+                    emissionBlock.Clear();emissionBlock.SetFloat("_Absorption",alpha);
+                    cmd.DrawMesh(quad,Matrix4x4.TRS(new Vector3(rect.x+left*texel,rect.y+bottom*texel,0),Quaternion.identity,new Vector3((right-left)*texel,(top-bottom)*texel,1)),sceneMaterial,0,3,emissionBlock);
+                    OccluderTexels+=(right-left)*(top-bottom);
+                }
+                Graphics.ExecuteCommandBuffer(cmd);
+            }
+            scene=staticScene=occlusionScene;
+            transientActive=false;distanceReady=false;OcclusionUpdates++;
         }
 
         // Walls + sprites into one scene target at the light grid resolution (max blend: walls stay).
@@ -321,6 +346,7 @@ namespace Remains.Presentation
             var previous=RenderTexture.active;RenderTexture.active=target;
             var copy=new Texture2D(w,h,TextureFormat.RGBAHalf,false,true);
             copy.ReadPixels(new Rect(0,0,w,h),0,0);
+            SilhouetteReadbacks++;
             RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);
             int count=0;
             foreach(var pixel in copy.GetPixels()) if(pixel.r>0.5f) count++;
@@ -355,6 +381,7 @@ namespace Remains.Presentation
         public void Render()
         {
             transientActive=false;
+            StaticRenderUpdates++;
             RenderField(false);
         }
 
@@ -430,8 +457,9 @@ namespace Remains.Presentation
         {
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
             foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence}) if(texture!=null) texture.Release();
-            if(scene is RenderTexture sceneTarget) sceneTarget.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,scene,wallsTexture,sceneMaterial,quad})
+            if(baseScene is RenderTexture baseTarget) baseTarget.Release();
+            if(occlusionScene!=null) occlusionScene.Release();
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }

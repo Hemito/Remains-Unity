@@ -84,5 +84,15 @@ Shader "Hidden/Remains/LightScene"
             #pragma fragment OccluderFrag
             ENDHLSL
         }
+        // Constant door absorption, already snapped to the light grid by the CPU.
+        Pass
+        {
+            ColorMask A
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment DoorFrag
+            float4 DoorFrag(Varyings i) : SV_Target { return float4(0,0,0,_Absorption); }
+            ENDHLSL
+        }
     }
 }

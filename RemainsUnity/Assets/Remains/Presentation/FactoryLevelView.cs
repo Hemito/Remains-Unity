@@ -60,6 +60,9 @@ namespace Remains.Presentation
         // Revision of the last door snapshot in the light (-1: none yet); the loader admits actors after it.
         public long AppliedDoorRevision {get;private set;}=-1;
         public int DoorOccluderTexels=>field!=null?field.OccluderTexels:0;
+        public int LightFieldInstanceId=>field!=null?field.GetInstanceID():0;
+        public int LightSilhouetteReadbacks=>field!=null?field.SilhouetteReadbacks:0;
+        public int LightOcclusionUpdates=>field!=null?field.OcclusionUpdates:0;
 
         // Original Box.door_opac: 1 unless the object type sets opac (door1: 0.8). Definition opacity 0 = not set.
         public const double OriginalDoorOpacity=1;
@@ -86,8 +89,13 @@ namespace Remains.Presentation
                 if(door.Blocks) next.Add((door.Bounds,definition.Opacity>0?definition.Opacity:OriginalDoorOpacity));
             }
             doors.Clear();doors.AddRange(next);
+            if(field!=null)
+            {
+                field.UpdateOccluders(WorldDoorOccluders());
+                for(int i=0;i<SettleUpdates;i++) field.Render();
+            }
             AppliedDoorRevision=revision;
-            if(field!=null) RefreshLight();
+            PresentationChanged?.Invoke(this);
         }
 
         public void Initialize(FactoryLevelRoot level,RoomLayout geometry=null)
@@ -193,15 +201,17 @@ namespace Remains.Presentation
             Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
             if(erases.Count>0)
                 window.AddComponent<RoomDecorResources>().BuildErase(erases,origin,size,Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource));
-            var occluders=new List<(Rect,double)>();
-            foreach(var (local,opacity) in doors)
-            {
-                var world=new Rect((Vector2)transform.TransformPoint(local.position),local.size);   // the root is not scaled
-                if(bounds.Overlaps(world)) occluders.Add((world,opacity));
-            }
-            field=RoomRadianceField.Build(region,catalog.Definitions,catalog.Lands,table,origin,window.transform,sprites,occluders);
+            field=RoomRadianceField.Build(region,catalog.Definitions,catalog.Lands,table,origin,window.transform,sprites,WorldDoorOccluders());
             for(int i=0;i<SettleUpdates;i++) field.Render();
             PresentationChanged?.Invoke(this);
+        }
+
+        private List<(Rect,double)> WorldDoorOccluders()
+        {
+            var result=new List<(Rect,double)>(doors.Count);
+            foreach(var (local,opacity) in doors)
+                result.Add((new Rect((Vector2)transform.TransformPoint(local.position),local.size),opacity));
+            return result;
         }
 
         // Only the rooms of the light window keep their pictures active: all 84 rooms are ~5600 sprites, more than a

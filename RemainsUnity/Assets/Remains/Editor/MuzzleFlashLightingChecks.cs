@@ -33,8 +33,9 @@ namespace Remains.Editor
                 field=RoomRadianceField.Build(room,new RoomDefinitionCatalog(),new RoomLandCatalog(),table,Vector2.zero,null,
                     occluders:new[]{(new Rect(4,0,1,6),1d)});
                 // A static emitter beside the wall ensures the lamp bounce history is nonzero.
-                var staticScene=(Texture2D)Scene(field,"scene");
+                var staticScene=(Texture2D)Scene(field,"baseScene");
                 staticScene.SetPixel(24,24,new Color(2,1,.5f,1));staticScene.Apply();
+                field.UpdateOccluders(new[]{(new Rect(4,0,1,6),1d)});
                 // Fully closed barrier separates the two sides, with the emitter far from it.
                 for(int i=0;i<8;i++) field.Render();
                 var baseline=Read(Scene(field,"scene"));
