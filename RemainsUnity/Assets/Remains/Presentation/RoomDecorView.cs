@@ -19,6 +19,7 @@ namespace Remains.Presentation
         public Sprite Sprite;
         public int Frame;
         public Matrix4x4 LocalToWorld;
+        public Sprite Erase;   // window: the background-erase clip (light from outside comes through it)
     }
 
     public static class RoomDecorView
@@ -64,7 +65,7 @@ namespace Remains.Presentation
                 renderer.color=new Color(1,1,1,(float)placed.Alpha);
                 renderer.sortingOrder=Order(placed);
                 if(placed.Kind==RoomSpriteKind.Decor) decorCount++; else objectCount++;
-                placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,Frame=placed.Frame,LocalToWorld=obj.transform.localToWorldMatrix});
+                placements?.Add(new RoomSpritePlacement{Definition=d,Sprite=renderer.sprite,Frame=placed.Frame,LocalToWorld=obj.transform.localToWorldMatrix,Erase=placed.EraseArtId!=null?art.Tile(placed.EraseArtId).sprite:null});
                 if(placed.EraseArtId!=null) erases.Add((art.Tile(placed.EraseArtId).sprite,obj.transform.localToWorldMatrix));
             }
 

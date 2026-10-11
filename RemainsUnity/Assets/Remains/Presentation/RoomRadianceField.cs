@@ -204,13 +204,13 @@ namespace Remains.Presentation
             int resolution=table.RadianceResolution;
             var light=RoomLightScene.Build(room,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
             foreach(string issue in light.Issues) Debug.LogWarning(issue);
-            var walls=RoomLightScene.Walls(room,RoomGeometryBuilder.Build(room,definitions),resolution);
+            var walls=RoomLightScene.Absorption(room,RoomGeometryBuilder.Build(room,definitions),resolution,table.BeamTransmittance,MaxObjectTexelAbsorption);
             int w=walls.GetLength(0),h=walls.GetLength(1);
 
             var pixels=new Color[w*h];
             for(int y=0;y<h;y++)
                 for(int x=0;x<w;x++)
-                    if(walls[x,y]) pixels[y*w+x]=new Color(0,0,0,1);
+                    if(walls[x,y]>0) pixels[y*w+x]=new Color(0,0,0,walls[x,y]);
             float t=1f/resolution;
             if(sprites==null) foreach(var lamp in light.Lamps)
             {
@@ -236,8 +236,8 @@ namespace Remains.Presentation
             field.scene=sceneTexture;
 
             field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;field.edgeTexels=(float)(table.ShadowEdge/t);field.rimTexels=(float)(table.ObjectRimWidth/t);field.objectGradient=table.ObjectLightMode=="gradient";
-            int emitters=0,absorbers=0,glowing=0,dark=0;
-            if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),ref emitters,ref absorbers,ref glowing,ref dark);
+            int emitters=0,absorbers=0,glowing=0,dark=0,windows=0;
+            if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),room,lands,ref emitters,ref absorbers,ref glowing,ref dark,ref windows);
             field.rect=new Vector4(origin.x,origin.y,w*t,h*t);
             // Top cascade: the ray interval reaches the room diagonal, (4^(levels) - 1) / 3 ≥ diagonal.
             float diagonal=Mathf.Sqrt(w*w+h*h);
@@ -247,7 +247,7 @@ namespace Remains.Presentation
             field.UpdateOccluders(occluders);
             field.Allocate();
             field.EnsureSceneDrawing();
-            Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters} (выключенных {dark}), поглощающих объектов {absorbers}, светящихся экранов {glowing}."));
+            Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters} (выключенных {dark}), поглощающих объектов {absorbers}, светящихся экранов {glowing}, светящих окон {windows}."));
             return field;
         }
 
@@ -286,7 +286,7 @@ namespace Remains.Presentation
         }
 
         // Walls + sprites into one scene target at the light grid resolution (max blend: walls stay).
-        private RenderTexture DrawSprites(Texture2D walls,IReadOnlyList<RoomSpritePlacement> sprites,RoomLightingTable table,RoomLightScene light,Vector4 worldRect,ref int emitters,ref int absorbers,ref int glowing,ref int dark)
+        private RenderTexture DrawSprites(Texture2D walls,IReadOnlyList<RoomSpritePlacement> sprites,RoomLightingTable table,RoomLightScene light,Vector4 worldRect,RoomFile room,RoomLandCatalog lands,ref int emitters,ref int absorbers,ref int glowing,ref int dark,ref int windows)
         {
             EnsureSceneDrawing();
             var target=Target(walls.width,walls.height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света");
@@ -297,6 +297,27 @@ namespace Remains.Presentation
             cmd.SetRenderTarget(target);
             cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(worldRect.x,worldRect.x+worldRect.z,worldRect.y,worldRect.y+worldRect.w,-1,1),false));
             var block=new MaterialPropertyBlock();
+            // Windows: the erase clip emits the far background's radiance (table "windows" by the land's fon);
+            // a bigger opening sends more light. An unknown background is reported, its windows stay dark.
+            var issues=new List<string>();
+            string fon=lands.Option(room,"fon",issues);
+            if(string.IsNullOrEmpty(fon)) fon="fonDefault";
+            foreach(string issue in issues) Debug.LogWarning(issue);
+            bool hasWindowLight=table.WindowRadiance.TryGetValue(fon,out var sky);
+            int windowCount=0;
+            foreach(var placement in sprites)
+            {
+                if(placement.Erase==null) continue;
+                if(!hasWindowLight) {Debug.LogWarning($"Поле излучения {room.Template}: нет света окон для дальнего фона «{fon}» в таблице света — окна не светят.");break;}
+                var eraseBounds=placement.Erase.bounds;
+                block.Clear();
+                block.SetTexture("_MainTex",placement.Erase.texture);
+                block.SetColor("_Emission",new Color((float)(sky[0]*light.Tint[0]),(float)(sky[1]*light.Tint[1]),(float)(sky[2]*light.Tint[2]),1));
+                block.SetFloat("_Absorption",0);block.SetFloat("_Glow",0);block.SetFloat("_GlowThreshold",1);
+                cmd.DrawMesh(quad,placement.LocalToWorld*Matrix4x4.TRS(eraseBounds.min,Quaternion.identity,eraseBounds.size),sceneMaterial,0,0,block);
+                windowCount++;
+            }
+            windows=windowCount;
             foreach(var placement in sprites)
             {
                 var d=placement.Definition;

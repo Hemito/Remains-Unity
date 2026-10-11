@@ -195,7 +195,7 @@ namespace Remains.Presentation
                 var local=renderer.sprite.bounds;
                 Vector2 a=matrix.MultiplyPoint3x4(local.min),b=matrix.MultiplyPoint3x4(local.max);
                 if(!bounds.Overlaps(Rect.MinMaxRect(Mathf.Min(a.x,b.x),Mathf.Min(a.y,b.y),Mathf.Max(a.x,b.x),Mathf.Max(a.y,b.y)))) continue;
-                sprites.Add(new RoomSpritePlacement{Definition=definition,Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix});
+                sprites.Add(new RoomSpritePlacement{Definition=definition,Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix,Erase=authored.Erase});
                 if(authored.Erase!=null) erases.Add((authored.Erase,matrix));
             }
             Shader.SetGlobalFloat("_RemainsEraseEnabled",0);

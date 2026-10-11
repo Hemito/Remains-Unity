@@ -60,7 +60,31 @@ namespace Remains.RoomFormat
             return scene;
         }
 
-        // Wall raster, `resolution` texels per metre, [x, y] with y up: solid cells and beams.
+        // Light absorption raster for the radiance field, [x, y] with y up, per texel: 1 for walls; beams (one-way
+        // platforms) stop all but `beamTransmittance` across their height, spread per texel and capped below the
+        // wall threshold (`maxPerTexel`), so a beam is lit like an object, not as a wall. Stairs: none (as Walls).
+        public static float[,] Absorption(RoomFile room, RoomGeometry geometry, int resolution, double beamTransmittance, double maxPerTexel)
+        {
+            double texel = 1.0 / resolution;
+            int width = (int)Math.Round(room.Width * room.Cell * resolution), height = (int)Math.Round(room.Height * room.Cell * resolution);
+            var result = new float[width, height];
+            foreach (var s in geometry.Surfaces)
+            {
+                if (s.Slope != 0) continue;
+                float alpha = 1;
+                if (s.OneWay)
+                {
+                    double thickness = Math.Max(1, s.Height / texel);
+                    alpha = (float)Math.Min(maxPerTexel, 1 - Math.Pow(Math.Max(beamTransmittance, 1e-4), 1 / thickness));
+                }
+                for (int x = (int)Math.Round(s.X / texel); x < (int)Math.Round((s.X + s.Width) / texel); x++)
+                    for (int y = (int)Math.Round(s.Y / texel); y < (int)Math.Round((s.Y + s.Height) / texel); y++)
+                        if (x >= 0 && y >= 0 && x < width && y < height && alpha > result[x, y]) result[x, y] = alpha;
+            }
+            return result;
+        }
+
+        // Wall raster, `resolution` texels per metre, [x, y] with y up: solid cells and beams (the reference tracer).
         public static bool[,] Walls(RoomFile room, RoomGeometry geometry, int resolution)
         {
             double texel = 1.0 / resolution;

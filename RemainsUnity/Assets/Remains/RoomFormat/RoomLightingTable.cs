@@ -41,6 +41,7 @@ namespace Remains.RoomFormat
         public double ActorTransmittance, LargeTransmittance, LargeArea;
         public string ObjectLightMode;   // "rim": lit fully, dims only near the dark edge; "gradient": through the whole body
         public double ObjectRimWidth;    // m, rim mode
+        public double BeamTransmittance; // share of light a beam (one-way platform) lets through across its height
 
         // Light an object lets through (0..1). Closed doors: none. Original placement depth: wall = 1 hangs
         // on the back wall (not in the light's plane) → all; wall = 2 stands across the corridor (grates,
@@ -58,6 +59,8 @@ namespace Remains.RoomFormat
         }
 
         // Screens and panels glowing by their bright pixels: definition -> (gain, luminance threshold).
+        // Light through windows (decor erase clips): radiance of the far background ("fon" of the land) seen in them.
+        public readonly SortedDictionary<string, double[]> WindowRadiance = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
         public readonly SortedDictionary<string, (double Gain, double Threshold)> Glow = new SortedDictionary<string, (double, double)>(StringComparer.Ordinal);
 
         // Share of light an object stops (0..1). Closed doors: all. Original placement depth: wall = 1 hangs on the back
@@ -90,6 +93,16 @@ namespace Remains.RoomFormat
             table.LampOtherFrame = radiance.Get("lampOtherFrame").AsDouble(source + ".radiance.lampOtherFrame");
             if (table.RadianceAlbedo < 0 || table.RadianceAlbedo >= 1) throw new FormatException(source + ".radiance.albedo: доля отражённого света в [0, 1).");
             if (table.RadianceResolution < 1 || table.RadiancePower < 0 || table.RadianceLampSize <= 0) throw new FormatException(source + ".radiance: resolution ≥ 1, power ≥ 0, lampSize > 0.");
+            var windows = root.Get("windows") ?? throw new FormatException(source + ": нет раздела windows.");
+            foreach (var e in windows.Fields)
+            {
+                var c = e.Value.Get("color").Items; double i = e.Value.Get("intensity").AsDouble(source + ".windows." + e.Key + ".intensity");
+                if (c.Count != 3 || i < 0) throw new FormatException(source + ".windows." + e.Key + ": color [r,g,b], intensity ≥ 0.");
+                table.WindowRadiance.Add(e.Key, new[] { c[0].AsDouble(source) * i, c[1].AsDouble(source) * i, c[2].AsDouble(source) * i });
+            }
+            var beams = root.Get("beams") ?? throw new FormatException(source + ": нет раздела beams.");
+            table.BeamTransmittance = beams.Get("transmittance").AsDouble(source + ".beams.transmittance");
+            if (table.BeamTransmittance < 0 || table.BeamTransmittance >= 1) throw new FormatException(source + ".beams.transmittance: доля в [0, 1).");
             var objects = root.Get("objects") ?? throw new FormatException(source + ": нет раздела objects.");
             var transmittance = objects.Get("transmittance");
             foreach (var e in transmittance.Get("bySize").Fields) table.TransmittanceBySize.Add(int.Parse(e.Key, System.Globalization.CultureInfo.InvariantCulture), e.Value.AsDouble(source + ".objects.transmittance.bySize." + e.Key));

@@ -199,7 +199,7 @@ namespace Remains.Editor
                 {
                     var renderer=authored.GetComponent<SpriteRenderer>();
                     var matrix=authored.transform.localToWorldMatrix;
-                    sprites.Add(new RoomSpritePlacement{Definition=definitions.Require(authored.Definition,prefabPath),Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix});
+                    sprites.Add(new RoomSpritePlacement{Definition=definitions.Require(authored.Definition,prefabPath),Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix,Erase=authored.Erase});
                     if(authored.Erase!=null) erases.Add((authored.Erase,matrix));
                 }
             }
