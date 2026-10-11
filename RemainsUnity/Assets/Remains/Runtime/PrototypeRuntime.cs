@@ -177,12 +177,10 @@ namespace Remains.Runtime
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
             {
                 if(!LevelPresentationReady || ActiveFactoryLighting==null) return;
+                // Actors and weapons shadow lamps every frame, not only flashes; the field recomputes only on change.
                 muzzleOccluders.Clear();
-                if(emissions.Count>0)
-                {
-                    foreach(var visual in visuals.Values) visual.AppendLightOccluders(muzzleOccluders);
-                    interactionVisuals.AppendWeaponLightOccluders(muzzleOccluders);
-                }
+                foreach(var visual in visuals.Values) visual.AppendLightOccluders(muzzleOccluders);
+                interactionVisuals.AppendWeaponLightOccluders(muzzleOccluders);
                 ActiveFactoryLighting.RenderMuzzleFlashes(emissions,muzzleOccluders);
             });
             CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals,ponyMagic);

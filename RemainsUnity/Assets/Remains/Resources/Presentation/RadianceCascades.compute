@@ -15,7 +15,6 @@
 #pragma kernel Fluence
 #pragma kernel Fill
 #pragma kernel Bounce
-#pragma kernel TransientScene
 #pragma kernel CombineDirect
 
 #define FAR 1e6
@@ -36,9 +35,9 @@ Texture2D<float4> _Bounce;          // wall radiance from the previous update (o
 RWTexture2D<float4> _BounceOut;
 float _Albedo;
 float _BounceGain;
-RWTexture2D<float4> _TransientScene;
 Texture2D<float4> _StaticFluence;
 Texture2D<float4> _DirectFluence;
+Texture2D<float4> _FreeFluence;
 float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
 float _RimTexels;    // objects, rim mode: width of the dimming at the dark edge
 int _ObjectGradient; // objects: 1 gradient through the body, 0 rim
@@ -294,15 +293,9 @@ void Bounce(uint3 id : SV_DispatchThreadID)
 
 // Isolate transient emission while preserving the static scene's absorption.
 [numthreads(8,8,1)]
-void TransientScene(uint3 id : SV_DispatchThreadID)
-{
-    if (!Inside(int2(id.xy))) return;
-    _TransientScene[id.xy] = float4(0, 0, 0, _Scene[id.xy].a);
-}
-
-[numthreads(8,8,1)]
 void CombineDirect(uint3 id : SV_DispatchThreadID)
 {
     if (!Inside(int2(id.xy))) return;
-    _Fluence[id.xy] = float4(_StaticFluence[id.xy].rgb + _DirectFluence[id.xy].rgb, 1);
+    // static - lamps direct light without silhouettes + direct light of lamps and flashes with them
+    _Fluence[id.xy] = float4(max(0, _StaticFluence[id.xy].rgb - _FreeFluence[id.xy].rgb + _DirectFluence[id.xy].rgb), 1);
 }

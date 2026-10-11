@@ -60,7 +60,8 @@ namespace Remains.Editor
                 for(int i=0;i<baseline.Length;i++)
                 {
                     Require(Mathf.Abs(composed[i].a-baseline[i].a)<.00001f,$"Вспышка изменила поглощение препятствия в текселе {i}.");
-                    sourceRed+=composed[i].r;sourceGreen+=composed[i].g;sourceBlue+=composed[i].b;
+                    // The dynamic scene keeps the lamps' emission: the flash is what was added to it.
+                    sourceRed+=composed[i].r-baseline[i].r;sourceGreen+=composed[i].g-baseline[i].g;sourceBlue+=composed[i].b-baseline[i].b;
                 }
                 Require(sourceRed>sourceGreen*2 && sourceGreen>sourceBlue*2,"Цвет исходной маски вспышки потерян.");
                 var lit=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
@@ -83,14 +84,14 @@ namespace Remains.Editor
                 var blocker=new[]{new RoomRadianceField.LightOccluder(sprite,
                     Matrix4x4.TRS(new Vector3(2.25f,3,0),Quaternion.identity,new Vector3(.25f,4,1)))};
                 field.RenderTransient(emissions,blocker);
-                float blocked=Mean(Read(Scene(field,"directFluence")),64,24,28,24,32);
+                float blocked=Mean(FlashDirect(field),64,24,28,24,32);
                 field.RenderTransient(emissions);
-                float unblocked=Mean(Read(Scene(field,"directFluence")),64,24,28,24,32);
+                float unblocked=Mean(FlashDirect(field),64,24,28,24,32);
                 Require(unblocked>.02f && blocked<unblocked*.25f,$"Динамический силуэт не отбрасывает тень: открыто={unblocked}, тень={blocked}.");
                 var movedBlocker=new[]{new RoomRadianceField.LightOccluder(sprite,
                     Matrix4x4.TRS(new Vector3(2.25f,5.5f,0),Quaternion.identity,new Vector3(.25f,.5f,1)))};
                 field.RenderTransient(emissions,movedBlocker);
-                float moved=Mean(Read(Scene(field,"directFluence")),64,24,28,24,32);
+                float moved=Mean(FlashDirect(field),64,24,28,24,32);
                 Require(moved>unblocked*.8f,$"Тень осталась после перемещения силуэта: открыто={unblocked}, перемещено={moved}.");
                 Equal(Read(Scene(field,"bounceA")),bounceBefore,"Динамический силуэт изменил отражения лампы.");
                 field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>());
@@ -105,6 +106,14 @@ namespace Remains.Editor
                 if(sprite!=null) UnityEngine.Object.DestroyImmediate(sprite);
                 if(mask!=null) UnityEngine.Object.DestroyImmediate(mask);
             }
+        }
+
+        // Direct light the flash adds: the dynamic pass also holds the lamps' direct light (shadowed by silhouettes).
+        private static Color[] FlashDirect(RoomRadianceField field)
+        {
+            var direct=Read(Scene(field,"directFluence"));var free=Read(Scene(field,"freeFluence"));
+            for(int i=0;i<direct.Length;i++) direct[i]-=free[i];
+            return direct;
         }
 
         private static Texture Scene(RoomRadianceField field,string name)

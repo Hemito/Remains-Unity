@@ -246,6 +246,20 @@ namespace Remains.Editor
             if(closed<=0 || unchanged!=closed || opened!=0 || view.AppliedDoorRevision!=2)
                 throw new InvalidOperationException($"Заслонка двери: закрыта {closed}, та же ревизия {unchanged}, открыта {opened}, ревизия {view.AppliedDoorRevision}.");
             Debug.Log($"Двери в свете завода: PASS; закрытая дверь — {closed} текселей заслонки, открытая — 0, повтор ревизии не пересобирает.");
+            // Cost of the per-frame dynamic pass (lamp shadows of moving silhouettes) on the full light window.
+            var mask=new Texture2D(4,4,TextureFormat.RGBA32,false,true);
+            var white=new Color[16];for(int i=0;i<16;i++) white[i]=Color.white;mask.SetPixels(white);mask.Apply();
+            var dummy=Sprite.Create(mask,new Rect(0,0,4,4),new Vector2(.5f,.5f),4);
+            var occluders=new List<RoomRadianceField.LightOccluder>();
+            void Place(int step){occluders.Clear();occluders.Add(new RoomRadianceField.LightOccluder(dummy,Matrix4x4.TRS(new Vector3(center.x+step*.1f,center.y,0),Quaternion.identity,new Vector3(.8f,1.6f,1))));}
+            Place(0);view.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),occluders);Sync();
+            var watch=System.Diagnostics.Stopwatch.StartNew();
+            const int runs=30;
+            for(int i=1;i<=runs;i++) {Place(i);view.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),occluders);}
+            Sync();
+            Debug.Log($"Тени от ламп в окне завода: {watch.Elapsed.TotalMilliseconds/runs:0.00} мс на динамический пересчёт (среднее из {runs}, с ожиданием GPU).");
+            view.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),null);
+            UnityEngine.Object.DestroyImmediate(dummy);UnityEngine.Object.DestroyImmediate(mask);
             view.Release();
             UnityEngine.Object.DestroyImmediate(root.gameObject);
         }

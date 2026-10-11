@@ -32,8 +32,8 @@ Shader "Hidden/Remains/LightScene"
             Varyings Vert(Attributes v) { Varyings o; o.positionCS=TransformObjectToHClip(v.positionOS); o.uv=_SpriteUvRect.xy+v.uv*_SpriteUvRect.zw; o.alpha=v.color.a; return o; }
             float4 OccluderFrag(Varyings i) : SV_Target
             {
-                float alpha=SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a*i.alpha*_OccluderOpacity;
-                return float4(0,0,0,alpha>=0.4?1:0);
+                float alpha=SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a*i.alpha;
+                return float4(0,0,0,alpha>=0.4?_OccluderOpacity:0);   // per-texel absorption from RoomRadianceField
             }
             float4 Frag(Varyings i) : SV_Target
             {
