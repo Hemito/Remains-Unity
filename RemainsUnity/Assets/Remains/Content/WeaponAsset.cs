@@ -12,6 +12,8 @@ namespace Remains.Content
         public Remains.Presentation.WeaponView Presentation=>presentation;
         [SerializeField,InspectorName("Анимация выстрела (необязательно)")] private WeaponShotClip shotAnimation;
         public WeaponShotClip ShotAnimation=>shotAnimation;
+        [SerializeField,Min(0),InspectorName("Множитель света дульной вспышки")] private float muzzleFlashGain=1;
+        public float MuzzleFlashGain=>muzzleFlashGain;
         [SerializeField,InspectorName("Анимация перезарядки (необязательно)")] private WeaponReloadClip reloadAnimation;
         public WeaponReloadClip ReloadAnimation=>reloadAnimation;
         [SerializeField,InspectorName("Эффект гильзы (пусто — намеренно отсутствует)")] private CasingEffectProfile casingProfile;
@@ -34,6 +36,8 @@ namespace Remains.Content
         public void SetDefinition(WeaponDefinition value)=>definition=StateJson.FromJson<WeaponDefinition>(StateJson.ToJson(value));
         private void OnValidate()
         {
+            if(!float.IsFinite(muzzleFlashGain) || muzzleFlashGain<0)
+            {Debug.LogWarning($"Оружие {name}: неверный множитель света вспышки {muzzleFlashGain}.",this);muzzleFlashGain=0;}
             if(definition==null || string.IsNullOrWhiteSpace(definition.id))
             {Debug.LogWarning($"Оружие {name}: задайте стабильный ID определения.",this);return;}
             try {WeaponCatalogLoader.Validate(CreateDefinition(),"ассет "+name);}

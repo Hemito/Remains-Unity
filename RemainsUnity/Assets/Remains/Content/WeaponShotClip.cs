@@ -9,6 +9,12 @@ namespace Remains.Content
         [SerializeField,Min(.01f),InspectorName("Кадров в секунду")] private float fps=30;
         [SerializeField,InspectorName("Кадры по порядку")] private Sprite[] frames=Array.Empty<Sprite>();
         public float FramesPerSecond=>fps;
+        [SerializeField,InspectorName("Маски дульной вспышки по кадрам (пусто — без света)")] private Sprite[] emissionFrames=Array.Empty<Sprite>();
+        [SerializeField,InspectorName("Смещение вспышки от начала оружия (м)")] private Vector2 emissionOffset;
+        public Sprite[] EmissionFrames=>emissionFrames;
+        public Vector2 EmissionOffset=>emissionOffset;
+        public void ConfigureEmission(Sprite[] masks,Vector2 offset)
+        {emissionFrames=(Sprite[])masks.Clone();emissionOffset=offset;Validate();}
         public Sprite[] CopyFrames()
         {
             Validate();return (Sprite[])frames.Clone();
@@ -20,6 +26,10 @@ namespace Remains.Content
                 throw new InvalidOperationException($"Анимация {name}: нужны кадры и положительная конечная частота.");
             for(int i=0;i<frames.Length;i++)
                 if(frames[i]==null) throw new InvalidOperationException($"Анимация {name}: отсутствует кадр {i}.");
+            if(emissionFrames!=null && emissionFrames.Length!=0 && emissionFrames.Length!=frames.Length)
+                throw new InvalidOperationException($"Анимация {name}: число масок вспышки не совпадает с кадрами.");
+            if(!float.IsFinite(emissionOffset.x) || !float.IsFinite(emissionOffset.y))
+                throw new InvalidOperationException($"Анимация {name}: неконечное смещение вспышки.");
         }
         public void ValidateAgainst(Sprite rest)
         {

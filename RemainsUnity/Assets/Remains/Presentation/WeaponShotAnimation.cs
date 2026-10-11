@@ -10,7 +10,7 @@ namespace Remains.Presentation
     // Original shot frames share the resting sprite's authored origin. No gameplay pose changes.
     public sealed class WeaponShotAnimation : MonoBehaviour
     {
-        private sealed class Clip {public string weapon;public float fps;public Sprite[] sprites;}
+        private sealed class Clip {public string weapon,ammo;public float fps,gain;public Sprite[] sprites,masks;public Vector2 offset;}
         private sealed class Playing {public Clip clip;public string shot,world,level,owner,item;public long selection;public int generation,lifecycle;public float elapsed;}
         private CoopSession session;
         private string world,level;
@@ -28,8 +28,19 @@ namespace Remains.Presentation
             foreach(var weapon in catalog.AnimatedWeapons())
             {
                 var animation=weapon.ShotAnimation;
-                var clip=new Clip {weapon=weapon.Id,fps=animation.FramesPerSecond,sprites=animation.CopyFrames()};
+                var clip=new Clip {weapon=weapon.Id,ammo=weapon.CreateDefinition().ammo,gain=weapon.MuzzleFlashGain,
+                    fps=animation.FramesPerSecond,sprites=animation.CopyFrames(),masks=animation.EmissionFrames,offset=animation.EmissionOffset};
                 byAttack.Add(weapon.Id,clip);
+            }
+            var lightCatalog=Resources.Load<MuzzleFlashCatalog>("Content/MuzzleFlashCatalog");
+            if(lightCatalog==null) throw new InvalidOperationException("Нет Content/MuzzleFlashCatalog для света выстрелов.");
+            var lightProfiles=lightCatalog.Read();
+            foreach(var clip in byAttack.Values)
+            {
+                if(clip.masks==null || clip.masks.Length==0) continue;
+                if(string.IsNullOrEmpty(clip.ammo) || !lightProfiles.TryGetValue(clip.ammo,out float gain))
+                {Debug.LogWarning($"Свет вспышки пропущен: оружие={clip.weapon}, патрон={clip.ammo ?? "<нет>"}, профиль патрона отсутствует.",this);clip.gain=0;}
+                else clip.gain*=gain;
             }
             session.AttackReceived+=Observe;session.Projectiles.Rejected+=Rejected;session.Changed+=Reconcile;session.SessionStopped+=Stopped;Reconcile();
         }
@@ -57,6 +68,16 @@ namespace Remains.Presentation
             if(actor==null || !playing.TryGetValue(actor.id,out var effect) || !Matches(actor,effect)) return rest;
             int frame=Mathf.FloorToInt(effect.elapsed*effect.clip.fps);
             return frame<effect.clip.sprites.Length?effect.clip.sprites[frame]:rest;
+        }
+        // Shares the exact selection/time/lifecycle gate with the visible shot, including rejection and pause.
+        public bool TryEmission(ActorState actor,Sprite drawn,Matrix4x4 weaponMatrix,out RoomRadianceField.SpriteEmission emission)
+        {
+            emission=default;
+            if(actor==null || !playing.TryGetValue(actor.id,out var effect) || !Matches(actor,effect))return false;
+            var clip=effect.clip;int frame=Mathf.FloorToInt(effect.elapsed*clip.fps);
+            if(clip.gain<=0 || frame>=clip.sprites.Length || drawn!=clip.sprites[frame] || clip.masks==null || frame>=clip.masks.Length || clip.masks[frame]==null)return false;
+            emission=new RoomRadianceField.SpriteEmission(clip.masks[frame],weaponMatrix*Matrix4x4.Translate(clip.offset),clip.gain);
+            return true;
         }
         private bool Matches(ActorState actor,Playing effect)=>!ActorSessionRules.IsPassive(actor) && ActorPresence.IsPresent(actor) && actor.level==session.LocalActor?.level &&
             !HeldItemSelection.HasSelection(actor) && session.World?.worldId==effect.world && actor.level==effect.level && actor.weapon==effect.clip.weapon &&

@@ -32,6 +32,68 @@ namespace Remains.Presentation
         private int width,height,levels;
         private Vector4 rect;
         private float texel;
+        private Texture staticScene;
+        private RenderTexture transientScene;
+        private bool distanceReady;
+        private int transientSettle;
+        private MaterialPropertyBlock emissionBlock;
+
+        public readonly struct SpriteEmission
+        {
+            public readonly Sprite Sprite;
+            public readonly Matrix4x4 LocalToWorld;
+            public readonly float Gain;
+            public SpriteEmission(Sprite sprite,Matrix4x4 localToWorld,float gain)
+            {Sprite=sprite;LocalToWorld=localToWorld;Gain=gain;}
+        }
+
+        // Caller supplies already cached sprites and actual weapon poses. Empty input fades wall bounce.
+        // Returns false when the field is settled; no geometry or content lookup happens per frame.
+        public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions)
+        {
+            bool active=emissions!=null && emissions.Count>0;
+            if(!active && transientSettle==0) return false;
+            if(staticScene==null) staticScene=scene;
+            if(active)
+            {
+                EnsureSceneDrawing();
+                if(transientScene==null) transientScene=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена кратковременного света");
+                var previous=RenderTexture.active;
+                try {Graphics.Blit(staticScene,transientScene);}
+                finally {RenderTexture.active=previous;}
+                using(var cmd=new CommandBuffer{name="Кратковременное излучение"})
+                {
+                    cmd.SetRenderTarget(transientScene);
+                    cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
+                    foreach(var emission in emissions)
+                    {
+                        if(emission.Sprite==null || !float.IsFinite(emission.Gain) || emission.Gain<=0)
+                        {Debug.LogWarning($"Поле излучения {name}: некорректная маска вспышки или сила {emission.Gain}.",this);continue;}
+                        var sprite=emission.Sprite;
+                        if(sprite.packed && (sprite.packingMode==SpritePackingMode.Tight || sprite.packingRotation!=SpritePackingRotation.None))
+                        {Debug.LogWarning($"Поле излучения {name}: маска вспышки {sprite.name} упакована с обрезкой или поворотом; требуется прямоугольный спрайт без поворота.",this);continue;}
+                        var bounds=sprite.bounds;
+                        var uv=sprite.textureRect;
+                        emissionBlock.Clear();
+                        emissionBlock.SetTexture("_MainTex",sprite.texture);
+                        emissionBlock.SetVector("_SpriteUvRect",new Vector4(uv.x/sprite.texture.width,uv.y/sprite.texture.height,uv.width/sprite.texture.width,uv.height/sprite.texture.height));
+                        emissionBlock.SetFloat("_Glow",emission.Gain);
+                        emissionBlock.SetFloat("_GlowThreshold",-0.15f);
+                        cmd.DrawMesh(quad,emission.LocalToWorld*Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),sceneMaterial,0,1,emissionBlock);
+                    }
+                    Graphics.ExecuteCommandBuffer(cmd);
+                }
+                transientSettle=8;
+            }
+            else transientSettle--;
+            scene=active?transientScene:staticScene;
+            // Jump-flood seeds include emitting RGB as well as absorption. A newly appearing
+            // source must be included, otherwise sphere tracing can step straight past it.
+            if(active) distanceReady=false;
+            try {Render();}
+            finally {scene=staticScene;if(active) distanceReady=false;}
+            return true;
+        }
 
         // occluders: world rectangles that stop a share of light (closed doors: original Box door_opac); 1 = a wall.
         public static RoomRadianceField Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent,IReadOnlyList<RoomSpritePlacement> sprites=null,IReadOnlyList<(Rect bounds,double opacity)> occluders=null)
@@ -97,6 +159,7 @@ namespace Remains.Presentation
             field.levels=1;
             while((Mathf.Pow(4,field.levels)-1)/3<diagonal) field.levels++;
             field.Allocate();
+            field.EnsureSceneDrawing();
             Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters} (выключенных {dark}), поглощающих объектов {absorbers}, светящихся экранов {glowing}."));
             return field;
         }
@@ -104,16 +167,11 @@ namespace Remains.Presentation
         // Walls + sprites into one scene target at the light grid resolution (max blend: walls stay).
         private RenderTexture DrawSprites(Texture2D walls,IReadOnlyList<RoomSpritePlacement> sprites,RoomLightingTable table,RoomLightScene light,Vector4 worldRect,ref int emitters,ref int absorbers,ref int glowing,ref int dark)
         {
-            var shader=Resources.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource);
+            EnsureSceneDrawing();
             var target=Target(walls.width,walls.height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света");
             var previousTarget=RenderTexture.active;
             try {Graphics.Blit(walls,target);}
             finally {RenderTexture.active=previousTarget;}
-            sceneMaterial=new Material(shader){name="Сцена света"};
-            quad=new Mesh{name="Квадрат спрайта"};
-            quad.SetVertices(new[]{new Vector3(0,0,0),new Vector3(1,0,0),new Vector3(0,1,0),new Vector3(1,1,0)});
-            quad.SetUVs(0,new[]{new Vector2(0,0),new Vector2(1,0),new Vector2(0,1),new Vector2(1,1)});
-            quad.SetTriangles(new[]{0,2,1,1,2,3},0);
             var cmd=new CommandBuffer{name="Сцена света: спрайты"};
             cmd.SetRenderTarget(target);
             cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(worldRect.x,worldRect.x+worldRect.z,worldRect.y,worldRect.y+worldRect.w,-1,1),false));
@@ -169,6 +227,18 @@ namespace Remains.Presentation
             Graphics.ExecuteCommandBuffer(cmd);
             cmd.Release();
             return target;
+        }
+
+        private void EnsureSceneDrawing()
+        {
+            if(sceneMaterial!=null) return;
+            var shader=Resources.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource);
+            sceneMaterial=new Material(shader){name="Сцена света"};
+            emissionBlock=new MaterialPropertyBlock();
+            quad=new Mesh{name="Квадрат спрайта"};
+            quad.SetVertices(new[]{new Vector3(0,0,0),new Vector3(1,0,0),new Vector3(0,1,0),new Vector3(1,1,0)});
+            quad.SetUVs(0,new[]{new Vector2(0,0),new Vector2(1,0),new Vector2(0,1),new Vector2(1,1)});
+            quad.SetTriangles(new[]{0,2,1,1,2,3},0);
         }
 
         private readonly Dictionary<Sprite,double> silhouettes=new();
@@ -231,6 +301,8 @@ namespace Remains.Presentation
             compute.SetInts("_Size",width,height);
             int gx=(width+7)/8,gy=(height+7)/8;
 
+            if(!distanceReady)
+            {
             compute.SetTexture(seed,"_Scene",scene);
             compute.SetTexture(seed,"_SeedsOut",seedsA);
             compute.Dispatch(seed,gx,gy,1);
@@ -246,6 +318,8 @@ namespace Remains.Presentation
             compute.SetTexture(dist,"_SeedsFinal",source);
             compute.SetTexture(dist,"_DistanceOut",distance);
             compute.Dispatch(dist,gx,gy,1);
+            distanceReady=true;
+            }
 
             compute.SetInt("_Top",levels-1);
             RenderTexture upper=cascadeB,current=cascadeA;
@@ -288,9 +362,9 @@ namespace Remains.Presentation
         private void OnDestroy()
         {
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB}) if(texture!=null) texture.Release();
+            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene}) if(texture!=null) texture.Release();
             if(scene is RenderTexture sceneTarget) sceneTarget.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,scene,wallsTexture,sceneMaterial,quad})
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,scene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }

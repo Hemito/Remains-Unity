@@ -62,16 +62,29 @@ namespace Remains.Editor
                     Require(animation.Select(actor,rest)==rest,"Покой заменён до выстрела");
                     animation.Observe(attack);var frame=animation.Select(actor,rest);
                     Require(frame!=rest,"Нет исходного кадра выстрела");
+                    if(weapon=="pistol")
+                    {
+                        var matrix=Matrix4x4.TRS(new Vector3(3,4,0),Quaternion.Euler(0,0,90),new Vector3(1,-1,1));
+                        Require(animation.TryEmission(actor,frame,matrix,out var emission),"Нет отдельной маски света пистолета");
+                        var asset=Resources.Load<WeaponAsset>("Content/weapons/pistol");
+                        float expected=Resources.Load<MuzzleFlashCatalog>("Content/MuzzleFlashCatalog").Read()[asset.CreateDefinition().ammo]*asset.MuzzleFlashGain;
+                        Require(emission.Gain==expected && emission.Sprite!=frame,"Свет получил корпус оружия или неверный профиль патрона");
+                        Require(Vector3.Distance(emission.LocalToWorld.MultiplyPoint3x4(Vector3.zero),matrix.MultiplyPoint3x4(new Vector3(.602f,.122f,0)))<.00001f,
+                            "Маска света потеряла поворот, зеркальность или исходную привязку");
+                        Require(!animation.TryEmission(actor,rest,matrix,out _),"Свет остался при показе обычного кадра");
+                    }
                     var rig=Remains.Content.WeaponRigs.Get(weapon);
                     Require(Mathf.Abs(frame.pivot.x-(rig.x+rest.pivot.x))<.001f && Mathf.Abs(frame.pivot.y-(rig.y+rest.pivot.y))<.001f,
                         "При замене кадра смещается графическая точка оружия");
                     animation.Step(1f/60);animation.Observe(attack);
                     animation.Step((weapon=="pistol"?1f:4f)/30-1f/60+.001f);
                     Require(animation.Select(actor,rest)==rest,"Дубликат продлил вспышку или анимация не завершилась");
+                    Require(!animation.TryEmission(actor,frame,Matrix4x4.identity,out _),"Свет остался после завершения кадра");
                     attack.id="other-level";attack.level="factory:0";animation.Observe(attack);
                     Require(animation.Select(actor,rest)==rest,"Выстрел другого уровня появился локально");
                     attack.id="new-shot";attack.level="hub";animation.Observe(attack);actor.generation++;
                     Require(animation.Select(actor,rest)==rest,"Смена поколения оставила старую вспышку");
+                    Require(!animation.TryEmission(actor,frame,Matrix4x4.identity,out _),"Смена поколения оставила старый свет");
                 }
                 finally {UnityEngine.Object.DestroyImmediate(root);}
             }

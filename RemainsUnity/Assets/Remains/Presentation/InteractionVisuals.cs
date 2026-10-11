@@ -16,6 +16,9 @@ namespace Remains.Presentation
         private ActorVisualLayers layers;
         private PropArtwork propArtwork;
         private WeaponShotAnimation shotAnimation;
+        private Action<IReadOnlyList<RoomRadianceField.SpriteEmission>> muzzleLighting;
+        private readonly List<RoomRadianceField.SpriteEmission> muzzleEmissions=new();
+        public void ConfigureMuzzleLighting(Action<IReadOnlyList<RoomRadianceField.SpriteEmission>> publish)=>muzzleLighting=publish;
         private WeaponReloadAnimation reloadAnimation;
         private CasingEffects casingEffects;
         public CasingEffects Casing=>casingEffects;
@@ -146,6 +149,7 @@ namespace Remains.Presentation
         }
         private void Update()
         {
+            muzzleEmissions.Clear();
             if(session?.World==null) return;
             foreach(var prop in session.World.props)
                 if(props.TryGetValue(prop.id,out var view)) {view.DrawMotion(prop,session.LocalOwner,session.Pause.IsPaused(prop.level),Time.deltaTime);view.SetVisible(prop.level==session.LocalActor?.level);}
@@ -170,6 +174,8 @@ namespace Remains.Presentation
                     WeaponPose.Origin(actor)+direction*(actor.weaponReach-sprite.bounds.max.x):pose.Root;
                 view.transform.rotation=Quaternion.Euler(0,0,pose.Angle);
                 view.SetMirrored(WeaponPose.Flip(actor));
+                if(view.gameObject.activeInHierarchy && shotAnimation.TryEmission(actor,sprite,view.transform.localToWorldMatrix,out var emission))
+                    muzzleEmissions.Add(emission);
             }
             foreach(var pair in flights) pair.Value.enabled=false;
             foreach(var flight in grenades.Flights) if(flights.TryGetValue(flight.message.id,out var view))
@@ -181,6 +187,7 @@ namespace Remains.Presentation
             reloadAnimation.Step(Time.deltaTime);
             casingEffects.Step(Time.deltaTime);
         }
+        private void LateUpdate()=>muzzleLighting?.Invoke(muzzleEmissions);
     }
 
 }

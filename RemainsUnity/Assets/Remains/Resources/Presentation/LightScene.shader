@@ -12,6 +12,7 @@ Shader "Hidden/Remains/LightScene"
         _AlphaCut ("Порог силуэта лампы", Float) = 0.4
         _Glow ("Свечение ярких пикселей", Float) = 0
         _GlowThreshold ("Порог яркости свечения", Float) = 0.5
+        _SpriteUvRect ("Область спрайта", Vector) = (0,0,1,1)
     }
     SubShader
     {
@@ -19,18 +20,15 @@ Shader "Hidden/Remains/LightScene"
         Cull Off ZWrite Off ZTest Always
         BlendOp Max
         Blend One One
-        Pass
-        {
-            HLSLPROGRAM
+            HLSLINCLUDE
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #pragma vertex Vert
-            #pragma fragment Frag
             struct Attributes { float3 positionOS : POSITION; float2 uv : TEXCOORD0; };
             struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float4 _Emission;
+            float4 _SpriteUvRect;
             float _Absorption, _AlphaCut, _Glow, _GlowThreshold;
-            Varyings Vert(Attributes v) { Varyings o; o.positionCS=TransformObjectToHClip(v.positionOS); o.uv=v.uv; return o; }
+            Varyings Vert(Attributes v) { Varyings o; o.positionCS=TransformObjectToHClip(v.positionOS); o.uv=_SpriteUvRect.xy+v.uv*_SpriteUvRect.zw; return o; }
             float4 Frag(Varyings i) : SV_Target
             {
                 float a=SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a;
@@ -52,6 +50,23 @@ Shader "Hidden/Remains/LightScene"
                 }
                 return float4(glow,a*_Absorption);
             }
+            ENDHLSL
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment Frag
+            ENDHLSL
+        }
+        // Transient emission adds RGB, preserving the static scene's exact absorption alpha.
+        Pass
+        {
+            BlendOp Add
+            Blend One One
+            ColorMask RGB
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment Frag
             ENDHLSL
         }
     }

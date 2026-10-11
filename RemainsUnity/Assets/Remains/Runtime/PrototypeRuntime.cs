@@ -173,6 +173,10 @@ namespace Remains.Runtime
             visualLayers=new ActorVisualLayers(transform,visualOrders);
             var interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers,Combat.Reload);
+            interactionVisuals.ConfigureMuzzleLighting(emissions=>
+            {
+                if(LevelPresentationReady && ActiveFactoryLighting!=null) ActiveFactoryLighting.RenderMuzzleFlashes(emissions);
+            });
             CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals,ponyMagic);
             HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
             var room=RoomLayout.Load(shownLevel);
