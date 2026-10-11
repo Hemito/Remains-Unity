@@ -9,12 +9,13 @@ namespace Remains.Presentation
 {
     public static class AuthoredRoomVisual
     {
-        public static GameObject Create(string level,RoomLayout room,WorldState world=null)
+        public static GameObject Create(string level,RoomLayout room,WorldState world=null,bool staged=false)
         {
             using var timing=TransitionTiming.Measure("authored-room.create",level);
             if(FactoryContentSources.IsGenerated(world,level))
             {
                 var factory=FactoryLevelRoot.Create(world,level);
+                if(staged) factory.gameObject.SetActive(false);
                 try
                 {
                     factory.InstantiateRooms();
@@ -55,6 +56,7 @@ namespace Remains.Presentation
                 // template level view; gameplay (surfaces, ladders, containers, targets, travel) stays as authored.
                 if(instance.TryGetComponent<HubTemplateLevel>(out var hub))
                 {
+                    if(staged) instance.gameObject.SetActive(false);
                     if(!instance.TryGetComponent<FactoryLevelView>(out var hubView)) throw new InvalidOperationException("Хаб из шаблонов: нет вида уровня.");
                     foreach(var artwork in instance.GetComponentsInChildren<RoomArtworkAuthoring>(true))
                         foreach(var renderer in artwork.GetComponents<Renderer>()) renderer.enabled=false;

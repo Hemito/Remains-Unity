@@ -87,6 +87,32 @@ void Distance(uint3 id : SV_DispatchThreadID)
     _DistanceOut[p] = s.x < -FAR * 0.5 ? FAR : distance(s, float2(p));
 }
 
+// Join the lower ray's end to the upper ray's start. Probe origins alone are not
+// sufficient: interpolated interval endpoints can straddle a thin absorber.
+float ProbeVisibility(float2 from, float2 to)
+{
+    float2 delta = to - from;
+    float lengthOfPath = length(delta);
+    if (lengthOfPath < 0.001) return 1;
+    float2 direction = delta / lengthOfPath;
+    float transmission = 1, travelled = 0;
+    int2 previous = int2(-1, -1);
+    for (int i = 0; i < 256 && travelled < lengthOfPath && transmission > 0.002; i++)
+    {
+        int2 p = int2(floor(from + direction * travelled));
+        if (!Inside(p)) return 0;
+        float distanceToScene = _Distance[p];
+        if (distanceToScene < 0.5)
+        {
+            if (any(p != previous)) transmission *= 1 - _Scene[p].a;
+            previous = p;
+            travelled += 0.5;
+        }
+        else travelled += max(distanceToScene - 1.0, 0.5);
+    }
+    return travelled >= lengthOfPath ? transmission : 0;
+}
+
 [numthreads(8,8,1)]
 void Cascade(uint3 id : SV_DispatchThreadID)
 {
@@ -133,12 +159,16 @@ void Cascade(uint3 id : SV_DispatchThreadID)
         {
             int j = dir * 4 + k;
             int2 jl = int2(j % upperBlock, j / upperBlock);
+            float upperAngle = (j + 0.5) / (directions * 4) * TAU;
+            float2 upperDirection = float2(cos(upperAngle), sin(upperAngle));
             for (int corner = 0; corner < 4; corner++)
             {
                 int2 o = int2(corner & 1, corner >> 1);
                 int2 q = clamp(q0 + o, int2(0, 0), upperProbes - 1);
                 float weight = (o.x ? w.x : 1 - w.x) * (o.y ? w.y : 1 - w.y);
-                merged += _Upper[q * upperBlock + jl].rgb * weight;
+                float2 upperOrigin = (float2(q) + 0.5) * upperSpacing;
+                merged += _Upper[q * upperBlock + jl].rgb * weight *
+                    ProbeVisibility(origin + d * end, upperOrigin + upperDirection * end);
             }
         }
         result.rgb += merged * 0.25 * result.a;

@@ -48,7 +48,7 @@ namespace Remains.Presentation
                 PlatformSimulation.RestoreSupport(value.ViewWorld,Room,value.Level,clock.elapsedSeconds);
                 if(roomObject==null)
                 {
-                    roomObject=AuthoredRoomVisual.Create(value.Level,Room,value.ViewWorld);
+                    roomObject=AuthoredRoomVisual.Create(value.Level,Room,value.ViewWorld,staged:true);
                     Light=roomObject.GetComponent<IRoomLighting>();
                     if(Light==null) throw new InvalidOperationException("Подготовка входа: отсутствует свет локации "+value.Level);
                     // Factory fields are prepared explicitly; staged artwork and its global
