@@ -31,9 +31,18 @@ namespace Remains.Editor
                     RadianceAlbedo=.35,ShadowEdge=.1,ObjectRimWidth=.1,ObjectLightMode="gradient"};
                 field=RoomRadianceField.Build(room,new RoomDefinitionCatalog(),new RoomLandCatalog(),table,Vector2.zero,null,
                     occluders:new[]{(new Rect(4,0,1,6),1d)});
+                // A static emitter beside the wall ensures the lamp bounce history is nonzero.
+                var staticScene=(Texture2D)Scene(field,"scene");
+                staticScene.SetPixel(24,24,new Color(2,1,.5f,1));staticScene.Apply();
                 // Fully closed barrier separates the two sides, with the emitter far from it.
                 for(int i=0;i<8;i++) field.Render();
                 var baseline=Read(Scene(field,"scene"));
+                var baselineLight=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
+                var bounceBefore=Read(Scene(field,"bounceA"));
+                var bounceOtherBefore=Read(Scene(field,"bounceB"));
+                float reflected=0;
+                foreach(var pixel in bounceBefore) reflected+=pixel.r;
+                Require(reflected>.01f,"Лампа не создала отражений для проверки изоляции вспышки.");
                 float initial=Mean(Read(Shader.GetGlobalTexture("_RemainsRadiance")),64,16,24,24,32);
                 mask=new Texture2D(4,4,TextureFormat.RGBA32,false,true) {filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
                 var pixels=new Color[16];
@@ -57,11 +66,19 @@ namespace Remains.Editor
                 float shadow=Mean(lit,64,44,52,24,32);
                 Require(nearby>initial+.02f,$"Вспышка в пустом пространстве не освещает соседние тексели: исходное={initial}, вспышка={nearby}.");
                 Require(shadow<nearby*.02f,$"Свет вспышки прошёл через сплошную стену: рядом={nearby}, за стеной={shadow}.");
-                for(int i=0;i<8;i++) Require(field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>()),$"Затухание закончено раньше восьмого расчёта: {i}.");
+                for(int i=0;i<3;i++)
+                {
+                    field.RenderTransient(emissions);
+                    Equal(Read(Scene(field,"bounceA")),bounceBefore,"Вспышка изменила основную историю отражений лампы.");
+                    Equal(Read(Scene(field,"bounceB")),bounceOtherBefore,"Вспышка изменила вторую историю отражений лампы.");
+                    Equal(Read(Shader.GetGlobalTexture("_RemainsRadiance")),lit,"Повторная вспышка накопила свет.");
+                }
+                Require(field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>()),"Удаление вспышки не восстановило свет ламп.");
+                Equal(Read(Shader.GetGlobalTexture("_RemainsRadiance")),baselineLight,"После вспышки изменился свет ламп или остался световой хвост.");
                 float cleared=Mean(Read(Shader.GetGlobalTexture("_RemainsRadiance")),64,16,24,24,32);
                 Require(cleared<initial+.002f+nearby*.02f,$"Свет остался после удаления вспышки: вспышка={nearby}, остаток={cleared}.");
                 Require(!field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>()),"Стабильное поле продолжает пересчитываться.");
-                Debug.Log($"Дульная вспышка: PASS — GPU излучение в пустом пространстве, цвет маски, неизменное поглощение, стена, затухание; рядом={nearby}, за стеной={shadow}, остаток={cleared}.");
+                Debug.Log($"Дульная вспышка: PASS — прямой GPU свет, цвет, неизменное поглощение, стена, история отражений лампы сохранена, повтор без накопления, мгновенное восстановление; рядом={nearby}, за стеной={shadow}, восстановлено={cleared}, отражение лампы={reflected}.");
             }
             finally
             {
@@ -94,6 +111,12 @@ namespace Remains.Editor
             float total=0;
             for(int y=y0;y<y1;y++) for(int x=x0;x<x1;x++) total+=pixels[y*width+x].r;
             return total/((x1-x0)*(y1-y0));
+        }
+        private static void Equal(Color[] actual,Color[] expected,string message)
+        {
+            Require(actual.Length==expected.Length,message);
+            for(int i=0;i<actual.Length;i++)
+                Require(actual[i]==expected[i],$"{message} Тексель={i}, было={expected[i]}, стало={actual[i]}.");
         }
         private static void Require(bool condition,string message)
         {if(!condition) throw new InvalidOperationException(message);}

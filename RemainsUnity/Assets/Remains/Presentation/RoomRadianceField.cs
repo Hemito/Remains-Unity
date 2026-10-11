@@ -35,7 +35,8 @@ namespace Remains.Presentation
         private Texture staticScene;
         private RenderTexture transientScene;
         private bool distanceReady;
-        private int transientSettle;
+        private bool transientActive;
+        private RenderTexture staticFluence,directFluence;
         private MaterialPropertyBlock emissionBlock;
 
         public readonly struct SpriteEmission
@@ -47,20 +48,31 @@ namespace Remains.Presentation
             {Sprite=sprite;LocalToWorld=localToWorld;Gain=gain;}
         }
 
-        // Caller supplies already cached sprites and actual weapon poses. Empty input fades wall bounce.
-        // Returns false when the field is settled; no geometry or content lookup happens per frame.
+        // Transient sources contribute direct light only, never touching the lamp bounce history.
+        // Empty input restores the cached static result immediately.
         public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions)
         {
             bool active=emissions!=null && emissions.Count>0;
-            if(!active && transientSettle==0) return false;
+            if(!active)
+            {
+                if(!transientActive) return false;
+                Graphics.CopyTexture(staticFluence,fluence);
+                transientActive=false;
+                return true;
+            }
             if(staticScene==null) staticScene=scene;
             if(active)
             {
                 EnsureSceneDrawing();
                 if(transientScene==null) transientScene=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена кратковременного света");
-                var previous=RenderTexture.active;
-                try {Graphics.Blit(staticScene,transientScene);}
-                finally {RenderTexture.active=previous;}
+                if(staticFluence==null) staticFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сохранённый свет ламп");
+                if(directFluence==null) directFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет вспышки");
+                if(!transientActive) Graphics.CopyTexture(fluence,staticFluence);
+                int isolate=compute.FindKernel("TransientScene");
+                compute.SetInts("_Size",width,height);
+                compute.SetTexture(isolate,"_Scene",staticScene);
+                compute.SetTexture(isolate,"_TransientScene",transientScene);
+                compute.Dispatch(isolate,(width+7)/8,(height+7)/8,1);
                 using(var cmd=new CommandBuffer{name="Кратковременное излучение"})
                 {
                     cmd.SetRenderTarget(transientScene);
@@ -83,15 +95,22 @@ namespace Remains.Presentation
                     }
                     Graphics.ExecuteCommandBuffer(cmd);
                 }
-                transientSettle=8;
+                transientActive=true;
             }
-            else transientSettle--;
-            scene=active?transientScene:staticScene;
+            scene=transientScene;
             // Jump-flood seeds include emitting RGB as well as absorption. A newly appearing
             // source must be included, otherwise sphere tracing can step straight past it.
             if(active) distanceReady=false;
-            try {Render();}
-            finally {scene=staticScene;if(active) distanceReady=false;}
+            try
+            {
+                RenderField(true);
+                int combine=compute.FindKernel("CombineDirect");
+                compute.SetTexture(combine,"_StaticFluence",staticFluence);
+                compute.SetTexture(combine,"_DirectFluence",directFluence);
+                compute.SetTexture(combine,"_Fluence",fluence);
+                compute.Dispatch(combine,(width+7)/8,(height+7)/8,1);
+            }
+            finally {scene=staticScene;distanceReady=false;}
             return true;
         }
 
@@ -297,6 +316,12 @@ namespace Remains.Presentation
 
         public void Render()
         {
+            transientActive=false;
+            RenderField(false);
+        }
+
+        private void RenderField(bool directOnly)
+        {
             int seed=compute.FindKernel("Seed"),jump=compute.FindKernel("Jump"),dist=compute.FindKernel("Distance"),cascade=compute.FindKernel("Cascade"),flu=compute.FindKernel("Fluence"),fill=compute.FindKernel("Fill"),bounce=compute.FindKernel("Bounce");
             compute.SetInts("_Size",width,height);
             int gx=(width+7)/8,gy=(height+7)/8;
@@ -322,6 +347,7 @@ namespace Remains.Presentation
             }
 
             compute.SetInt("_Top",levels-1);
+            compute.SetFloat("_BounceGain",directOnly?0:1);
             RenderTexture upper=cascadeB,current=cascadeA;
             for(int c=levels-1;c>=0;c--)
             {
@@ -344,14 +370,17 @@ namespace Remains.Presentation
             compute.SetFloat("_RimTexels",Mathf.Max(1,rimTexels));
             compute.SetInt("_ObjectGradient",objectGradient?1:0);
             compute.SetTexture(fill,"_FluenceRaw",fluenceRaw);
-            compute.SetTexture(fill,"_Fluence",fluence);
+            compute.SetTexture(fill,"_Fluence",directOnly?directFluence:fluence);
             compute.Dispatch(fill,gx,gy,1);
+            if(!directOnly)
+            {
             compute.SetFloat("_Albedo",albedo);
             compute.SetTexture(bounce,"_Scene",scene);
             compute.SetTexture(bounce,"_Cascade0",upper);
             compute.SetTexture(bounce,"_BounceOut",bounceB);
             compute.Dispatch(bounce,gx,gy,1);
             (bounceA,bounceB)=(bounceB,bounceA);
+            }
 
             Shader.SetGlobalTexture("_RemainsRadiance",fluence);
             Shader.SetGlobalVector("_RemainsRadianceRect",rect);
@@ -362,9 +391,9 @@ namespace Remains.Presentation
         private void OnDestroy()
         {
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene}) if(texture!=null) texture.Release();
+            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence}) if(texture!=null) texture.Release();
             if(scene is RenderTexture sceneTarget) sceneTarget.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,scene,wallsTexture,sceneMaterial,quad})
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,scene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }

@@ -15,6 +15,8 @@
 #pragma kernel Fluence
 #pragma kernel Fill
 #pragma kernel Bounce
+#pragma kernel TransientScene
+#pragma kernel CombineDirect
 
 #define FAR 1e6
 #define TAU 6.28318530718
@@ -33,6 +35,10 @@ Texture2D<float4> _FluenceRaw;
 Texture2D<float4> _Bounce;          // wall radiance from the previous update (one bounce per update)
 RWTexture2D<float4> _BounceOut;
 float _Albedo;
+float _BounceGain;
+RWTexture2D<float4> _TransientScene;
+Texture2D<float4> _StaticFluence;
+Texture2D<float4> _DirectFluence;
 float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
 float _RimTexels;    // objects, rim mode: width of the dimming at the dark edge
 int _ObjectGradient; // objects: 1 gradient through the body, 0 rim
@@ -108,7 +114,7 @@ void Cascade(uint3 id : SV_DispatchThreadID)
             // Emitting or absorbing texel: its emission (lamps, glowing screens; walls' bounce by
             // their absorption), then the light behind it is dimmed. One step per texel inside.
             float4 scene = _Scene[texel];
-            result.rgb += result.a * (scene.rgb + _Bounce[texel].rgb * scene.a);
+            result.rgb += result.a * (scene.rgb + _Bounce[texel].rgb * scene.a * _BounceGain);
             result.a *= 1 - scene.a;
             t += 1.0;
         }
@@ -251,4 +257,19 @@ void Bounce(uint3 id : SV_DispatchThreadID)
         sum += e; count++;
     }
     _BounceOut[p] = float4(count > 0 ? sum / count * (_Albedo * 0.5) : 0, 1);
+}
+
+// Isolate transient emission while preserving the static scene's absorption.
+[numthreads(8,8,1)]
+void TransientScene(uint3 id : SV_DispatchThreadID)
+{
+    if (!Inside(int2(id.xy))) return;
+    _TransientScene[id.xy] = float4(0, 0, 0, _Scene[id.xy].a);
+}
+
+[numthreads(8,8,1)]
+void CombineDirect(uint3 id : SV_DispatchThreadID)
+{
+    if (!Inside(int2(id.xy))) return;
+    _Fluence[id.xy] = float4(_StaticFluence[id.xy].rgb + _DirectFluence[id.xy].rgb, 1);
 }
