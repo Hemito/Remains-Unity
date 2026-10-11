@@ -137,6 +137,7 @@ namespace Remains.Gameplay
                 if(flight.state.owner==session.LocalOwner && !string.IsNullOrEmpty(surface.sourceDoorId))
                     session.DoorDamage.Report(attack,surface.sourceDoorId,point,flight.state.generation);
             }
+            if(flight.state.owner==session.LocalOwner) session.Lamps.ReportContacts(attack,stop??1,flight.state.generation);
             return stop;
         }
         private void Observe(ProjectileFlight flight,string key,Vector2 position,string target,string targetType,string texture,string sourceDoorId=null)

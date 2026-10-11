@@ -200,6 +200,7 @@ namespace Remains.Gameplay
                 else ObserveSurface();
             }
             float limit=melee?MeleeTerrainOcclusion.ContactLimit(room,attack,definition.stopAtTerrain):definition.stopAtTerrain?terrain??1:1;
+            session.Lamps.ReportContacts(attack,limit,0,Reachable);
             foreach(var prop in WorldProps.All(session.World))
             {
                 if(!prop.hasPhysicalBody || prop.level!=attack.level) continue;

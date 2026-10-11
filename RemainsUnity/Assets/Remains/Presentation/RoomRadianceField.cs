@@ -33,6 +33,10 @@ namespace Remains.Presentation
         private Vector4 rect;
         private float texel;
         private Texture baseScene;
+        private RoomFile sourceRoom;
+        private RoomLandCatalog sourceLands;
+        private RoomLightingTable sourceTable;
+        private RoomLightScene sourceLight;
         private RenderTexture occlusionScene;
         public int SilhouetteReadbacks {get;private set;}
         public int OcclusionUpdates {get;private set;}
@@ -236,6 +240,7 @@ namespace Remains.Presentation
             var field=obj.AddComponent<RoomRadianceField>();
             field.compute=compute;
             field.wallsTexture=sceneTexture;
+            field.sourceRoom=room;field.sourceLands=lands;field.sourceTable=table;field.sourceLight=light;
             field.scene=sceneTexture;
 
             field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;field.edgeTexels=(float)(table.ShadowEdge/t);field.rimTexels=(float)(table.ObjectRimWidth/t);field.objectGradient=table.ObjectLightMode=="gradient";
@@ -252,6 +257,24 @@ namespace Remains.Presentation
             field.EnsureSceneDrawing();
             Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters} (выключенных {dark}), поглощающих объектов {absorbers}, светящихся экранов {glowing}, светящих окон {windows}."));
             return field;
+        }
+
+        // Lamp changes redraw emission over the cached walls. The measured silhouette areas and all
+        // transport buffers survive; dark lamp frames skip emission before any silhouette measurement.
+        public void UpdateSprites(IReadOnlyList<RoomSpritePlacement> sprites,IReadOnlyList<(Rect bounds,double opacity)> occluders)
+        {
+            if(sprites==null) throw new ArgumentNullException(nameof(sprites));
+            int emitters=0,absorbers=0,glowing=0,dark=0,windows=0;
+            var next=DrawSprites(wallsTexture,sprites,sourceTable,sourceLight,rect,sourceRoom,sourceLands,
+                ref emitters,ref absorbers,ref glowing,ref dark,ref windows);
+            var previous=baseScene;
+            baseScene=next;
+            UpdateOccluders(occluders);
+            if(previous!=wallsTexture)
+            {
+                if(previous is RenderTexture target) target.Release();
+                if(Application.isPlaying) Destroy(previous);else DestroyImmediate(previous);
+            }
         }
 
         // Door changes reuse the prepared wall/lamp/object scene and all GPU buffers. No sprite

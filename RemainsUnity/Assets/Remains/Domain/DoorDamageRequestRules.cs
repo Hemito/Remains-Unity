@@ -76,10 +76,10 @@ namespace Remains.Domain
             return null;
         }
         private static bool Finite(Vector2 point)=>float.IsFinite(point.x) && float.IsFinite(point.y);
-        private static bool SameLaunch(AttackEvent launch,AttackEvent segment)=>launch.id==segment.id && launch.attacker==segment.attacker &&
+        internal static bool SameLaunch(AttackEvent launch,AttackEvent segment)=>launch.id==segment.id && launch.attacker==segment.attacker &&
             launch.weapon==segment.weapon && launch.level==segment.level && launch.sourceOwner==segment.sourceOwner &&
             launch.sourcePlayer==segment.sourcePlayer && launch.friendlyFireDecision==segment.friendlyFireDecision;
-        private static bool OnFlight(ProjectileState flight,AttackEvent segment)
+        internal static bool OnFlight(ProjectileState flight,AttackEvent segment)
         {
             if(segment.speed!=flight.flightSpeed || segment.radius!=flight.launch.radius) return false;
             var delta=flight.launch.End-flight.launch.Origin;float range=delta.magnitude;

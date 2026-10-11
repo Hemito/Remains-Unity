@@ -123,6 +123,8 @@ namespace Remains.Networking
         public SessionWeaponRecoil Recoil=>recoil??=new SessionWeaponRecoil(this);
         private SessionReloadAudio reloadAudio;
         public SessionReloadAudio ReloadAudio=>reloadAudio ??= new SessionReloadAudio(this);
+        private SessionLamps lamps;
+        public SessionLamps Lamps=>lamps ??= new SessionLamps(this);
         private SessionDoorDamage doorDamage;
         public SessionDoorDamage DoorDamage=>doorDamage ??= new SessionDoorDamage(this);
         private SessionHealingAudio healingAudio;
@@ -167,7 +169,7 @@ namespace Remains.Networking
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();
-            DoorDamage.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();HealingAudio.RegisterServer();
+            DoorDamage.RegisterServer();Lamps.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();HealingAudio.RegisterServer();
             Admission.RegisterServer();EntryPreparation.RegisterServer();
             InvokeRepeating(nameof(ExpireEntryPreparation),1,1);
             ServerWorld=null;
@@ -210,7 +212,7 @@ namespace Remains.Networking
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
-            DoorDamage.ResetServer();
+            DoorDamage.ResetServer();Lamps.ResetServer();
             ContainerAppearancePersistence.Prepare(ServerWorld,source==null?()=>{}:
                 ()=>Debug.Log("Исходный мир сохранён перед миграцией вида контейнеров: "+Saves.PreserveRecoverySource()));
             ActorControlMigration.Prepare(ServerWorld,Rules.Knockdown,Saves.PreserveRecoverySource);
@@ -220,6 +222,7 @@ namespace Remains.Networking
             var contentLevels=ServerWorld.actors.Select(a=>a.level).Concat(ServerWorld.containers.Select(c=>c.level))
                 .Concat(ServerWorld.props.Select(p=>p.level)).Concat(ServerWorld.doors.Select(d=>d.level)).Append("hub").Distinct().ToArray();
             FactoryContentSources.Prepare(ServerWorld,contentLevels);
+            foreach(var level in contentLevels) LampOperations.Install(ServerWorld,level,LampContent.Read(ServerWorld,level));
             var roomContent=contentLevels.Select(level=>RoomContentBatch.Read(RoomAuthoring.Load(level,ServerWorld),level)).ToArray();
             if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld) ||
                 roomContent.Any(batch=>RoomContentInstaller.NeedsInstall(ServerWorld,batch)))
@@ -265,7 +268,7 @@ namespace Remains.Networking
 
         internal void DiscardUnstartedWorld()
         {
-            DoorDamage.ResetServer();HealingAudio.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
+            DoorDamage.ResetServer();Lamps.ResetServer();HealingAudio.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
         }
 
         internal void AdmitLobbyPlayer(NetworkConnectionToClient connection,JoinMessage message)=>Join(connection,message);
@@ -283,7 +286,7 @@ namespace Remains.Networking
             Travel.RegisterClient();
             ContainerInspection.RegisterClient();
             Mechanisms.RegisterClient();
-            DoorDamage.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
+            DoorDamage.RegisterClient();Lamps.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
             worldReplication.Reset();
             NetworkClient.RegisterHandler<WorldPartMessage>(message=>
             {
@@ -892,6 +895,8 @@ namespace Remains.Networking
             }
             string contactReason=DoorDamage.RecordAccepted(attack,ServerWorld.Find(attack.attacker));
             if(contactReason!=null) {Reject(contactReason);return;}
+            contactReason=Lamps.RecordAccepted(attack,ServerWorld.Find(attack.attacker));
+            if(contactReason!=null) {Reject(contactReason);return;}
             NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }
 
@@ -1068,7 +1073,7 @@ namespace Remains.Networking
             CancelInvoke(nameof(CheckpointWorld));CancelInvoke(nameof(ExpireEntryPreparation));EntryPreparation.ResetServer();
             if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
             LevelTime.ResetServer();
-            Mechanisms.ResetServer();DoorDamage.ResetServer();
+            Mechanisms.ResetServer();DoorDamage.ResetServer();Lamps.ResetServer();
             QueueStopNotification();
         }
         public override void OnStopClient()
@@ -1083,7 +1088,7 @@ namespace Remains.Networking
             FlushSaveWrites();joinSelection=null;
             World=null;LocalActorId=null;LocalOwner=null;
             playTime.Stop();
-            ContainerInspection.ResetClient();DoorDamage.ResetClient();Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
+            ContainerInspection.ResetClient();DoorDamage.ResetClient();Lamps.ResetClient();Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
             Changed?.Invoke();
             QueueStopNotification();
         }

@@ -130,6 +130,7 @@ namespace Remains.Networking
             var reply = new TravelReply { id = request.id, accepted = reason == null, reason = reason };
             if (reply.accepted)
             {
+                LampOperations.Install(session.ServerWorld,request.destination,LampContent.Read(session.ServerWorld,request.destination));
                 RoomContentBatch content;
                 DoorCapabilityLayout[] capabilities;
                 using(TransitionTiming.Measure("travel.content-read",request.destination))

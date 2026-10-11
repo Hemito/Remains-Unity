@@ -32,16 +32,20 @@ namespace Remains.Presentation
         private SortingGroup sorting;
         private RectInt windowRooms=new RectInt(-1,-1,0,0);
         private readonly List<(RoomSpriteAuthoring sprite,RoomDefinition definition)> pictures=new();
+        private readonly List<(RoomSpriteAuthoring sprite,RoomSpritePlacement placement)> windowPictures=new();
         private readonly List<(Rect bounds,double opacity)> doors=new();   // blocking doors, level-local rectangles
         // Lamps of the level by world ID (<level>:<room x>,<room y>:<decor id>): their picture, lit frame and sprite.
         private readonly Dictionary<string,(RoomSpriteAuthoring picture,int frame,Sprite sprite,RoomDefinition definition)> lamps=new(StringComparer.Ordinal);
         private readonly HashSet<string> darkLamps=new(StringComparer.Ordinal);
+        private readonly List<LampState> lampPlacements=new();
         public IReadOnlyCollection<string> LampIds=>lamps.Keys;
+        public IReadOnlyList<LampState> LampPlacements=>lampPlacements;
+        public string LampWorldLevel=>root is HubTemplateLevel?"hub":root?.Level;
         // Revision of the last lamp snapshot in the light (-1: none yet).
         public long AppliedLampRevision {get;private set;}=-1;
 
         // Lamps switched off or broken in the world (world IDs, see LampIds). A dark lamp shows its original "off"
-        // frame when it has one and stops emitting; the light window is rebuilt only for a new revision.
+        // frame when it has one and stops emitting; a changed snapshot redraws the existing scene.
         public void SyncLamps(IReadOnlyCollection<string> dark,long revision)
         {
             if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
@@ -49,16 +53,47 @@ namespace Remains.Presentation
             if(revision<0) throw new ArgumentOutOfRangeException(nameof(revision),"Ревизия ламп отрицательная.");
             if(revision==AppliedLampRevision) return;
             foreach(string id in dark) if(!lamps.ContainsKey(id)) throw new ArgumentException($"Вид уровня {root.Level}: неизвестная лампа {id}.");
+            if(darkLamps.SetEquals(dark))
+            {
+                AppliedLampRevision=revision;
+                PresentationChanged?.Invoke(this);
+                return;
+            }
             darkLamps.Clear();foreach(string id in dark) darkLamps.Add(id);
             foreach(var pair in lamps)
             {
                 var (picture,frame,sprite,definition)=pair.Value;
                 var renderer=picture.GetComponent<SpriteRenderer>();
                 bool off=darkLamps.Contains(pair.Key);
-                renderer.sprite=off && definition.DecorFrameOff>0?root.Art.Tile(TileManifest.DecorFrameId(definition.Art,definition.DecorFrameOff)).sprite:sprite;
+                renderer.sprite=sprite;
+                if(off && definition.DecorFrameOff>0)
+                {
+                    string frameId=TileManifest.DecorFrameId(definition.Art,definition.DecorFrameOff);
+                    if(root.Art.Manifest.Art.ContainsKey(frameId)) renderer.sprite=root.Art.Tile(frameId).sprite;
+                    else Debug.LogWarning($"Лампа {pair.Key}, {definition.Id}: отсутствует кадр выключения {frameId}; свет погашен, исходный корпус сохранён до подготовки разбитой графики.",this);
+                }
             }
             AppliedLampRevision=revision;
-            if(field!=null) RefreshLight(); else PresentationChanged?.Invoke(this);
+            if(field!=null)
+            {
+                var sprites=new List<RoomSpritePlacement>(windowPictures.Count);
+                bool changed=false;
+                foreach(var (picture,placement) in windowPictures)
+                {
+                    var sprite=picture.GetComponent<SpriteRenderer>().sprite;
+                    bool isDark=IsDark(picture);
+                    changed|=placement.Sprite!=sprite || placement.Dark!=isDark;
+                    placement.Sprite=sprite;
+                    placement.Dark=isDark;
+                    sprites.Add(placement);
+                }
+                if(changed)
+                {
+                    field.UpdateSprites(sprites,WorldDoorOccluders());
+                    for(int i=0;i<SettleUpdates;i++) field.Render();
+                }
+            }
+            PresentationChanged?.Invoke(this);
         }
 
         public RoomLayout Room {get;private set;}
@@ -72,8 +107,12 @@ namespace Remains.Presentation
         {
             if(!ReferenceEquals(room,Room)) throw new InvalidOperationException("Свет завода ссылается на другую игровую геометрию.");
             if(world==null) throw new ArgumentNullException(nameof(world));
-            if(revision==AppliedDoorRevision) return;
-            try {SyncDoors(world.doors.Where(door=>door.level==Room.id).ToArray(),revision);}
+            if(revision==AppliedDoorRevision && world.lampRevision==AppliedLampRevision) return;
+            try
+            {
+                SyncDoors(world.doors.Where(door=>door.level==Room.id).ToArray(),revision);
+                SyncLamps(world.lamps.Where(lamp=>lamp.level==LampWorldLevel && lamp.broken).Select(lamp=>lamp.id).ToArray(),world.lampRevision);
+            }
             catch(Exception error) {ReportFailure(error);throw;}
         }
         public void ReportFailure(Exception error)
@@ -166,7 +205,7 @@ namespace Remains.Presentation
             // The same ambient for WorldLit artwork (actors, props, doors), which does not read Light2D.
             Shader.SetGlobalVector("_RemainsAmbient",(Vector4)(light.color*light.intensity));
 
-            pictures.Clear();lamps.Clear();darkLamps.Clear();
+            pictures.Clear();lamps.Clear();darkLamps.Clear();lampPlacements.Clear();
             foreach(var sprite in level.RoomInstances.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 pictures.Add((sprite,definitions.Require(sprite.Definition,"вид уровня, "+sprite.name)));
             for(int i=0;i<level.Rooms.Count;i++)
@@ -177,9 +216,12 @@ namespace Remains.Presentation
                     if(picture.Kind!=RoomSpriteKind.Decor || !table.Lamps.ContainsKey(picture.Definition)) continue;
                     var decor=room.Template.Decor[picture.Index];
                     if(decor.Id==null) throw new InvalidOperationException($"Вид уровня {level.Level}: лампа без ID, шаблон {room.Template.Template}, декор {picture.Index}.");
-                    lamps.Add($"{level.Level}:{room.X},{room.Y}:{decor.Id}",(picture,picture.Frame,picture.GetComponent<SpriteRenderer>().sprite,definitions.Require(picture.Definition,"лампа")));
+                    string id=$"{level.Level}:{room.X},{room.Y}:{decor.Id}";
+                    var renderer=picture.GetComponent<SpriteRenderer>();
+                    lamps.Add(id,(picture,picture.Frame,renderer.sprite,definitions.Require(picture.Definition,"лампа")));
                 }
             }
+            lampPlacements.AddRange(LampContent.Read(level));
             root=level;
             PresentationChanged?.Invoke(this);
             Debug.Log($"Вид уровня {level.Level}: сетка {level.Grid.Width}×{level.Grid.Height}, комнат {level.Rooms.Count}, картинок {pictures.Count}.",this);
@@ -214,8 +256,8 @@ namespace Remains.Presentation
             return new RectInt(Mathf.Clamp(cx-WindowRooms/2,0,roomsWide-ww),Mathf.Clamp(cy-WindowRooms/2,0,roomsDeep-wh),ww,wh);
         }
 
-        // Rebuilds the window's erase mask and radiance field (after Focus, or when lights/occluders change:
-        // door state, a lamp switched or broken). SyncDoors supplies the current canonical door occluders.
+        // Rebuilds the erase mask and radiance field after the focus window changes.
+        // Door and lamp snapshots update the existing field instead.
         public void RefreshLight()
         {
             if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
@@ -238,6 +280,7 @@ namespace Remains.Presentation
             window=new GameObject($"Окно света {windowRooms.x},{windowRooms.y}");
             window.transform.SetParent(transform,false);
             var sprites=new List<RoomSpritePlacement>();
+            windowPictures.Clear();
             var erases=new List<(Sprite,Matrix4x4)>();
             foreach(var (authored,definition) in pictures)
             {
@@ -248,7 +291,8 @@ namespace Remains.Presentation
                 var local=renderer.sprite.bounds;
                 Vector2 a=matrix.MultiplyPoint3x4(local.min),b=matrix.MultiplyPoint3x4(local.max);
                 if(!bounds.Overlaps(Rect.MinMaxRect(Mathf.Min(a.x,b.x),Mathf.Min(a.y,b.y),Mathf.Max(a.x,b.x),Mathf.Max(a.y,b.y)))) continue;
-                sprites.Add(new RoomSpritePlacement{Definition=definition,Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix,Erase=authored.Erase,Dark=IsDark(authored)});
+                var placement=new RoomSpritePlacement{Definition=definition,Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix,Erase=authored.Erase,Dark=IsDark(authored)};
+                sprites.Add(placement);windowPictures.Add((authored,placement));
                 if(authored.Erase!=null) erases.Add((authored.Erase,matrix));
             }
             Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
@@ -306,7 +350,7 @@ namespace Remains.Presentation
             DestroyWindow();
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) Destroy(ambient);
-            terrain=ambient=null;root=null;pictures.Clear();doors.Clear();lamps.Clear();darkLamps.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
+            terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();darkLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
             Room=null;PresentationChanged?.Invoke(this);
         }
 

@@ -205,6 +205,7 @@ namespace Remains.Runtime
             PropAudio=CreateOwnedObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
             ContainerAudio=CreateOwnedObject("Звуки контейнеров").AddComponent<ContainerOpenAudio>();ContainerAudio.Initialize(Audio);
             ImpactAudio=CreateOwnedObject("Звуки попаданий").AddComponent<ProjectileAudio>();ImpactAudio.Initialize(Combat.Projectiles,Audio);
+            CreateOwnedObject("Разрушение ламп").AddComponent<LampBreakEffects>().Initialize(Session,Audio,visualOrders);
             MeleeAudio=CreateOwnedObject("Звуки контактов ближнего оружия").AddComponent<MeleeImpactAudio>();MeleeAudio.Initialize(Combat,Audio);
             CreateOwnedObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles,visualOrders);
             CreateOwnedObject("Попадания лазера").AddComponent<LaserImpactEffects>().Initialize(Session,Combat.Projectiles,visualOrders);

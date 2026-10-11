@@ -68,7 +68,8 @@ namespace Remains.Presentation
             {
                 if(Light.Failure!=null) {session.ReportGameplayPreparationFailure(Light.Failure);yield break;}
                 if(Light.IsReady && !Light.IsUpdating &&
-                    Light.AppliedOcclusionRevision==geometry.EntryOcclusionRevision(Room))
+                    Light.AppliedOcclusionRevision==geometry.EntryOcclusionRevision(Room) &&
+                    (!(Light is FactoryLevelView factory) || factory.AppliedLampRevision==value.ViewWorld.lampRevision))
                 {
                     IsPrepared=true;geometry.MarkEntryPrepared(Room);preparation=null;
                     Debug.Log($"Готова локация перед входом: world={value.WorldId}, level={value.Level}, token={value.Token}, revision={Light.AppliedOcclusionRevision}.");
@@ -85,7 +86,8 @@ namespace Remains.Presentation
             if(!HasRoom) return null;
             if(!IsPrepared || context==null || world?.worldId!=context.WorldId || level!=context.Level ||
                 !ReferenceEquals(liveRoom,Room) || !Light.IsReady || Light.IsUpdating ||
-                Light.AppliedOcclusionRevision!=geometry.OcclusionRevision(level))
+                Light.AppliedOcclusionRevision!=geometry.OcclusionRevision(level) ||
+                (Light is FactoryLevelView factory && factory.AppliedLampRevision!=world.lampRevision))
                 throw new InvalidOperationException($"Готовый вход не совпадает с опубликованной локацией: world={world?.worldId}, level={level}, ready={IsPrepared}.");
             var result=roomObject;roomObject=null;Light=null;Room=null;context=null;IsPrepared=false;
             return result;
