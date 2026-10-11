@@ -5,6 +5,7 @@ using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Presentation;
+using Remains.RoomFormat;
 using UnityEditor;
 using UnityEngine;
 
@@ -38,20 +39,33 @@ namespace Remains.Editor
                 world.lampRevision++;
                 view.Synchronize(room,world,1);
                 Require(view.LightFieldInstanceId==original && view.AppliedLampRevision==world.lampRevision,"Пустое изменение ревизии пересоздало поле.");
+                view.SyncLamps(view.LampIds.ToArray(),++world.lampRevision);
+                var brokenArt=Resources.Load<BrokenLampArt>(BrokenLampArt.ResourcePath);
+                foreach(var picture in view.GetComponentsInChildren<RoomSpriteAuthoring>(true))
+                    if(brokenArt.TryGet(picture.Definition,out _))
+                    {
+                        var definition=catalog.Definitions.Require(picture.Definition,"проверка обычного выключения лампы");
+                        int expectedFrame=definition.DecorFrameOff>0?definition.DecorFrameOff:picture.Frame;
+                        var expected=catalog.Art.Tile(TileManifest.DecorFrameId(definition.Art,expectedFrame)).sprite;
+                        Require(picture.GetComponent<SpriteRenderer>().sprite==expected,$"Лампа {picture.Definition}: обычное выключение не сохранило исходный off-кадр.");
+                    }
                 foreach(var lamp in world.lamps) {lamp.broken=true;lamp.revision=++world.lampRevision;}
                 view.Synchronize(room,world,1);
                 double dark=Emission(view);
+                CheckBrokenArtwork(view);
                 Require(view.LightFieldInstanceId==original && view.LightSilhouetteReadbacks==readbacks,"Разрушение лампы пересоздало поле или повторило чтение силуэтов.");
                 Require(view.AppliedDoorRevision==1 && view.AppliedLampRevision==world.lampRevision && lit>dark,"Лампы не выключились при неизменной ревизии дверей.");
                 int broken=view.LightFieldInstanceId;
                 view.Synchronize(room,world,1);
                 Require(view.LightFieldInstanceId==broken,"Повторный снимок ламп пересоздал поле.");
                 view.Focus(focus+new Vector2(0,-60));view.Focus(focus);
+                CheckBrokenArtwork(view);
                 Require(Math.Abs(Emission(view)-dark)<.01,"Смена окна воскресила свет лампы.");
                 UnityEngine.Object.DestroyImmediate(visual);visual=null;
                 world=Remains.Serialization.StateJson.Copy(world);
                 visual=AuthoredRoomVisual.Create("factory:0",room,world);view=visual.GetComponent<FactoryLevelView>();
                 view.Synchronize(room,world,1);view.Focus(focus);
+                CheckBrokenArtwork(view);
                 Require(Math.Abs(Emission(view)-dark)<.01 && view.AppliedLampRevision==world.lampRevision,"Повторный вход/сериализация воскресили лампы.");
                 Debug.Log($"LampPresentationChecks: PASS — {world.lamps.Count} ламп, эмиссия {lit:F3} → {dark:F3}; ревизия без дверей, повтор, смена окна и повторный вход.");
                 EditorApplication.Exit(0);
@@ -73,5 +87,18 @@ namespace Remains.Editor
             finally {RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(pixels);}
         }
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException(message);}
+        private static void CheckBrokenArtwork(FactoryLevelView view)
+        {
+            var catalog=Resources.Load<BrokenLampArt>(BrokenLampArt.ResourcePath);
+            Require(catalog!=null,"Нет каталога разбитых ламп.");
+            int checkedPictures=0;
+            foreach(var picture in view.GetComponentsInChildren<RoomSpriteAuthoring>(true))
+                if(catalog.TryGet(picture.Definition,out var expected))
+                {
+                    Require(picture.GetComponent<SpriteRenderer>().sprite==expected,$"Лампа {picture.Definition}: разбитый спрайт не сохранился при синхронизации/повторном входе.");
+                    checkedPictures++;
+                }
+            Require(checkedPictures>0,"В заводе не проверено ни одной разбитой картинки лампы.");
+        }
     }
 }
