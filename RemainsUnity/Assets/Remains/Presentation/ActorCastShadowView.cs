@@ -16,8 +16,8 @@ namespace Remains.Presentation
         {SourceId=sourceId;Mask=mask;WorldBounds=worldBounds;Opacity=opacity;}
     }
     // A presentation-only projection: the source actor meshes and world transforms are never modified.
-    // Body/weapon alpha is unioned once per pose. Each source sweeps it continuously from the body
-    // to its projection before blending one shadow onto the background.
+    // Body/weapon alpha is unioned once per pose. Flashes project onto a separate wall plane;
+    // the legacy lamp overlay still uses a continuous sweep.
     public sealed class ActorCastShadowView : MonoBehaviour
     {
         public const string ResourcePath="Presentation/ActorCastShadow";
@@ -56,7 +56,7 @@ namespace Remains.Presentation
         {shadowMaterial=material;Validate();}
         public void Validate()
         {
-            if(shadowMaterial==null || shadowMaterial.shader==null || shadowMaterial.passCount<3)
+            if(shadowMaterial==null || shadowMaterial.shader==null || shadowMaterial.passCount<4)
                 throw new InvalidOperationException($"Проекция тени {name}: нет авторского материала с проходами силуэта, протяжённой тени и композиции.");
         }
 
@@ -79,6 +79,8 @@ namespace Remains.Presentation
             if(distance>.0001f) scale=Mathf.Min(scale,1+maxOffset/distance);
             return Matrix4x4.Translate(sourcePosition)*Matrix4x4.Scale(new Vector3(scale,scale,1))*Matrix4x4.Translate(-sourcePosition);
         }
+        public static float WallPenumbra(float radius,float scale)
+            =>Mathf.Clamp(Mathf.Max(0,radius)*Mathf.Max(0,scale-1),0,.06f);
         public void AppendProjectedLightShadows(List<ProjectedLightShadow> output)
         {
             if(output==null) throw new ArgumentNullException(nameof(output));
@@ -155,19 +157,22 @@ namespace Remains.Presentation
             for(int i=0;i<count;i++)
             {
                 var source=sources[i];
-                float opacity=source.IsTransient ? .95f : Mathf.Clamp01((float)settings.ActorShadowMaxOpacity)*Mathf.Clamp01(source.Strength);
+                // The maximum is an explicit artistic coverage control, not material transparency.
+                // Source power already scales the light contribution, so never apply it twice.
+                float opacity=Mathf.Clamp01((float)settings.ActorShadowMaxOpacity)*(source.IsTransient ? 1 : Mathf.Clamp01(source.Strength));
                 if(source.Strength<=0 || opacity<=0 || parts.Count==0) continue;
                 var projection=source.IsTransient
                     ?TransientProjection(actorPosition,source.Position,source.ProjectionScale,(float)settings.ActorShadowMaxScale,(float)settings.ActorShadowMaxOffset)
                     :Projection(actorPosition,source.Position,(float)settings.ActorShadowDepth,(float)settings.ActorShadowMaxOffset);
-                float blur=Penumbra(actorPosition,source.Position,source.Radius,(float)settings.ActorShadowDepth);
-                bool hasBounds=true;Bounds bounds=poseBounds;
+                float blur=source.IsTransient ? WallPenumbra(source.Radius,projection.m00)
+                    :Penumbra(actorPosition,source.Position,source.Radius,(float)settings.ActorShadowDepth);
+                bool hasBounds=!source.IsTransient;Bounds bounds=source.IsTransient ? default : poseBounds;
                 ExpandBounds(ref bounds,ref hasBounds,poseBounds,projection);
                 bounds.Expand(new Vector3(Mathf.Max(.02f,blur*4),Mathf.Max(.02f,blur*4),0));
                 if(bounds.size.x<=.0001f || bounds.size.y<=.0001f) continue;
                 var slot=slots[ActiveSourceCount++];
                 slot.transient=source.IsTransient;slot.sourceId=source.Id;slot.coverage=opacity;
-                DrawSweep(slot,actorPosition,projection,bounds);
+                DrawProjection(slot,actorPosition,projection,bounds,blur);
                 SetQuad(slot,bounds);
                 properties.Clear();properties.SetTexture("_MainTex",slot.mask);
                 properties.SetFloat("_Opacity",opacity);
@@ -238,7 +243,7 @@ namespace Remains.Presentation
             }
             finally {GL.PopMatrix();RenderTexture.active=previous;}
         }
-        private void DrawSweep(Slot slot,Vector2 actorPosition,Matrix4x4 projection,Bounds bounds)
+        private void DrawProjection(Slot slot,Vector2 actorPosition,Matrix4x4 projection,Bounds bounds,float blur)
         {
             var end=(Vector2)projection.MultiplyPoint3x4(actorPosition);
             var offset=end-actorPosition;
@@ -246,7 +251,8 @@ namespace Remains.Presentation
             maskMaterial.SetVector("_OutputRect",new Vector4(bounds.min.x,bounds.min.y,bounds.size.x,bounds.size.y));
             maskMaterial.SetVector("_SweepActor",new Vector4(actorPosition.x,actorPosition.y,0,0));
             maskMaterial.SetVector("_SweepProjection",new Vector4(offset.x,offset.y,projection.m00-1,0));
-            Graphics.Blit(poseMask,slot.mask,maskMaterial,2);
+            maskMaterial.SetVector("_WallPenumbra",new Vector4(blur,blur,0,0));
+            Graphics.Blit(poseMask,slot.mask,maskMaterial,slot.transient ? 3 : 2);
         }
         private static RenderTexture CreateMask(string maskName)
         {

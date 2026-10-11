@@ -100,6 +100,9 @@ namespace Remains.Editor
                 var frameBounds=bodyBounds;frameBounds.Encapsulate(weapon.bounds);frameBounds.Encapsulate(flash.bounds);
                 foreach(var projected in masks)
                 {frameBounds.Encapsulate(new Vector3(projected.WorldBounds.xMin,projected.WorldBounds.yMin,0));frameBounds.Encapsulate(new Vector3(projected.WorldBounds.xMax,projected.WorldBounds.yMax,0));}
+                // The floor is not a wall receiver: keep the visible wall, rather than framing a
+                // mathematically projected silhouette that is correctly clipped below the floor.
+                frameBounds.SetMinMax(new Vector3(frameBounds.min.x,floor-.15f,0),frameBounds.max);
                 camera.enabled=false;camera.orthographic=true;camera.aspect=2;
                 camera.orthographicSize=Mathf.Max(frameBounds.size.y*.62f,frameBounds.size.x*.31f);
                 camera.transform.position=new Vector3(frameBounds.center.x,frameBounds.center.y,-10);camera.cullingMask=1<<layer;
@@ -133,7 +136,7 @@ namespace Remains.Editor
                 Require(shadowChanged>20,$"Настоящая маска не изменила освещённый фон хаба: пикселей={shadowChanged}.");
                 contactSheet=new Texture2D(3072,512,TextureFormat.RGBA32,false);
                 for(int frame=0;frame<3;frame++) contactSheet.SetPixels(frame*1024,0,1024,512,frames[frame].GetPixels());
-                contactSheet.Apply();string export=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/flash-shadow-experiment.png"));
+                contactSheet.Apply();string export=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/wall-shadow-experiment.png"));
                 Directory.CreateDirectory(Path.GetDirectoryName(export));File.WriteAllBytes(export,contactSheet.EncodeToPNG());
                 File.WriteAllText(Path.ChangeExtension(export,".txt"),$"Настоящий хаб, PonyVisual, pistol и исходная вспышка. Рендер активного pipeline, не AI и не искусственный чёрный фон.\nСлева: до выстрела; центр: вспышка без маски; справа: тот же выстрел с отдельной маской собственного вклада.\nПозиция актёра ({actor.x},{actor.y}), bounds={bodyBounds}; физические стены не пересечены.\nИсточников={sources.Length}, масок={masks.Count}, силуэтов={parts.Count}, projectionScale={sources[0].ProjectionScale}, coverage={masks[0].Opacity}.\nИзменений изображения от вспышки={flashChanged}, от тени={shadowChanged}; поле освещения актёра совпадает с исходным.\n");
                 Debug.Log($"Эксперимент в настоящем хабе: PASS — flashPixels={flashChanged}, shadowPixels={shadowChanged}, actor fluence unchanged; {export}.");

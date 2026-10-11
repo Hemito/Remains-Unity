@@ -11,7 +11,7 @@ Shader "Remains/ActorCastShadow"
         struct Varyings {float4 positionCS:SV_POSITION;float2 uv:TEXCOORD0;float alpha:TEXCOORD1;};
         TEXTURE2D(_MainTex);SAMPLER(sampler_MainTex);
         float _Opacity;float4 _BlurUv;
-        float4 _SourceRect,_OutputRect,_SweepActor,_SweepProjection;
+        float4 _SourceRect,_OutputRect,_SweepActor,_SweepProjection,_WallPenumbra;
         Varyings Vert(Attributes v) {Varyings o;o.positionCS=TransformObjectToHClip(v.positionOS);o.uv=v.uv;o.alpha=v.color.a;return o;}
         float4 Mask(Varyings i):SV_Target {return float4(0,0,0,SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a*i.alpha*_Opacity);}
         float4 Shadow(Varyings i):SV_Target
@@ -42,6 +42,24 @@ Shader "Remains/ActorCastShadow"
             }
             return float4(0,0,0,alpha);
         }
+        float4 WallProjection(Varyings i):SV_Target
+        {
+            float2 world=_OutputRect.xy+i.uv*_OutputRect.zw;
+            float scale=1+_SweepProjection.z;
+            float alpha=0;
+            // Inverse ray/plane projection. The empty space between actor and wall image stays empty.
+            // A bounded source footprint supplies a finite penumbra in wall coordinates.
+            [unroll] for(int y=-1;y<=1;y++) [unroll] for(int x=-1;x<=1;x++)
+            {
+                float2 sampleWorld=world+float2(x,y)*_WallPenumbra.xy;
+                float2 original=_SweepActor.xy+(sampleWorld-_SweepActor.xy-_SweepProjection.xy)/scale;
+                float2 uv=(original-_SourceRect.xy)/_SourceRect.zw;
+                float weight=(x==0?2:1)*(y==0?2:1);
+                if(all(uv>=0) && all(uv<=1))
+                    alpha+=SAMPLE_TEXTURE2D_LOD(_MainTex,sampler_MainTex,uv,0).a*weight;
+            }
+            return float4(0,0,0,saturate(alpha/16));
+        }
         ENDHLSL
         Pass
         {
@@ -71,6 +89,16 @@ Shader "Remains/ActorCastShadow"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Sweep
+            ENDHLSL
+        }
+        Pass
+        {
+            Name "WallProjection"
+            Tags {"LightMode"="RemainsWallProjection"}
+            Blend Off
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment WallProjection
             ENDHLSL
         }
     }

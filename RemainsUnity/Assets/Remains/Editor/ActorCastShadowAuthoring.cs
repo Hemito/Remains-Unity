@@ -84,17 +84,50 @@ namespace Remains.Editor
                 view.Draw(Vector2.zero,parts,new[]{sources[0],sources[0],sources[0],new ActorShadowSource("flash",new Vector2(2,0),.05f,1,true,2.2f)},settings);
                 Require(view.ActiveSourceCount==4,"Вспышка после трёх ламп потерялась из-за лимита постоянных источников.");
                 var projected=new System.Collections.Generic.List<ProjectedLightShadow>();view.AppendProjectedLightShadows(projected);
-                Require(projected.Count==1 && projected[0].SourceId=="flash" && projected[0].Mask!=null && Mathf.Abs(projected[0].Opacity-.95f)<.00001f,"Экспорт маски вспышки потерял ID/coverage либо включил постоянные лампы.");
+                Require(projected.Count==1 && projected[0].SourceId=="flash" && projected[0].Mask!=null && Mathf.Abs(projected[0].Opacity-(float)settings.ActorShadowMaxOpacity)<.00001f,"Экспорт маски вспышки потерял ID/coverage либо включил постоянные лампы.");
                 var transientSlot=slots[3];
                 Require(!((MeshRenderer)transientSlot.GetType().GetField("renderer").GetValue(transientSlot)).enabled,"Вспышка рисует чёрное наложение вместо маски для своего светового поля.");
                 view.Draw(Vector2.zero,parts,new[]{new ActorShadowSource("weak-flash",new Vector2(2,0),.05f,.01f,true,2.2f)},settings);
                 projected.Clear();view.AppendProjectedLightShadows(projected);
-                Require(projected.Count==1 && Mathf.Abs(projected[0].Opacity-.95f)<.00001f,"Сила вспышки изменяет покрытие тени вместо силы исходного света.");
+                Require(projected.Count==1 && Mathf.Abs(projected[0].Opacity-(float)settings.ActorShadowMaxOpacity)<.00001f,"Сила вспышки изменяет покрытие тени вместо силы исходного света.");
                 CheckConnectedSweep(view,texture);
+                CheckWallProjection(view,texture);
                 view.Clear();Require(view.ActiveSourceCount==0,"Clear оставил активную тень.");
                 Debug.Log($"ActorCastShadowAuthoring: GPU union alpha={unionAlpha:F4}; mirror, исходные mesh/матрица и Clear PASS.");
             }
             finally {RenderTexture.active=oldTarget;if(read!=null) UnityEngine.Object.DestroyImmediate(read);UnityEngine.Object.DestroyImmediate(view.gameObject);UnityEngine.Object.DestroyImmediate(mesh);UnityEngine.Object.DestroyImmediate(texture);}
+        }
+        private static void CheckWallProjection(ActorCastShadowView view,Texture texture)
+        {
+            var mesh=new Mesh{name="Силуэт проверки отдельной проекции стены"};
+            mesh.vertices=new[]{new Vector3(-.1f,-.5f),new Vector3(.1f,-.5f),new Vector3(.1f,.5f),new Vector3(-.1f,.5f)};
+            mesh.uv=new[]{Vector2.zero,Vector2.right,Vector2.one,Vector2.up};mesh.colors=new[]{Color.white,Color.white,Color.white,Color.white};mesh.triangles=new[]{0,1,2,0,2,3};mesh.RecalculateBounds();
+            var parts=new[]{new RoomRadianceField.LightOccluder(mesh,texture,Matrix4x4.identity)};
+            var settings=new RoomLightingTable{ActorShadowMaxOffset=1,ActorShadowMaxOpacity=.65,ActorShadowMaxScale=3};
+            Texture2D read=null;var previous=RenderTexture.active;
+            try
+            {
+                view.Prepare(parts,1);
+                foreach(float direction in new[]{-1f,1f})
+                {
+                    var light=new Vector2(direction*2,0);
+                    view.Draw(Vector2.zero,parts,new[]{new ActorShadowSource("wall",light,.04f,1,true,1.5f)},settings);
+                    var masks=new System.Collections.Generic.List<ProjectedLightShadow>();view.AppendProjectedLightShadows(masks);
+                    var target=(RenderTexture)masks[0].Mask;var rect=masks[0].WorldBounds;
+                    var bounds=new Bounds(new Vector3(rect.center.x,rect.center.y,0),new Vector3(rect.width,rect.height,0));
+                    if(read==null) read=new Texture2D(target.width,target.height,TextureFormat.RGBA32,false,true);
+                    RenderTexture.active=target;read.ReadPixels(new Rect(0,0,target.width,target.height),0,0);read.Apply();
+                    float center=-direction;
+                    Require(WorldAlpha(read,bounds,new Vector2(center,0))>.45f,"Конечная проекция потеряла силуэт.");
+                    Require(!rect.Contains(new Vector2(center*.5f,0)),"Границы проекции включают искусственный мост до тела.");
+                    Require(WorldAlpha(read,bounds,new Vector2(center+.17f,0))<.03f,"Полутень размазывает край за радиус источника.");
+                    bool fractional=false;foreach(var pixel in read.GetPixels()) if(pixel.a>.03f && pixel.a<.43f) {fractional=true;break;}
+                    Require(fractional,"Полутень не попала в экспортируемую маску стены.");
+                }
+                Require(ActorCastShadowView.WallPenumbra(.1f,1)==0,"Единичная проекция создаёт полутень без расстояния до стены.");
+                Debug.Log("Проекция стены: PASS — отдельный силуэт, оба направления, пустой промежуток, конечный радиус полутени.");
+            }
+            finally {RenderTexture.active=previous;if(read!=null) UnityEngine.Object.DestroyImmediate(read);UnityEngine.Object.DestroyImmediate(mesh);}
         }
         private static void CheckConnectedSweep(ActorCastShadowView view,Texture texture)
         {
