@@ -10,8 +10,8 @@ using UnityEngine.Rendering.Universal;
 
 namespace Remains.Presentation
 {
-    // Visuals of a prepared factory level (FactoryLevelRoot): walls from the composed grid with backdrops per
-    // room, ambient light, and — inside a light window of rooms around a focus point — the background erase
+    // Visuals of a level built from room templates (ITemplateLevel: the generated factory, the hub): walls from the
+    // composed grid with backdrops per room, ambient light, and — inside a light window of rooms around a focus point — the background erase
         // mask (windows) and the radiance field lit by the installed room prefabs' pictures (RoomSpriteAuthoring).
     // The whole 4×21 level is too large for one field (≈1500×4000 texels at 10/m, cascades of ~3000×8000)
     // and one erase mask (>16384 px), so both cover only the window; outside it windows are not cut and lamps
@@ -24,7 +24,8 @@ namespace Remains.Presentation
         public const int SettleUpdates=8;
         public const string AmbientResource="Presentation/FactoryAmbientLight";          // field updates after a rebuild: one wall bounce per update
 
-        private FactoryLevelRoot root;
+        private ITemplateLevel root;
+        private int roomsWide,roomsDeep;
         private RoomLightingTable table;
         private GameObject terrain,ambient,window;
         private RoomRadianceField field;
@@ -82,8 +83,8 @@ namespace Remains.Presentation
             {
                 if(door==null) throw new ArgumentException("Вид завода: пустое состояние двери.");
                 door.Validate();
-                if(door.level!=root.Prepared.Level) throw new ArgumentException($"Вид завода {root.Prepared.Level}: дверь {door.id} другого уровня {door.level}.");
-                var definition=root.Catalog.Definitions.Require("remains:obj:"+door.definition,$"вид завода, дверь {door.id}");
+                if(door.level!=root.Level) throw new ArgumentException($"Вид уровня {root.Level}: дверь {door.id} другого уровня {door.level}.");
+                var definition=root.Definitions.Require("remains:obj:"+door.definition,$"вид завода, дверь {door.id}");
                 if(definition.Kind!=RoomDefinitionKind.Object || definition.ObjectType!="door")
                     throw new ArgumentException($"Вид завода: дверь {door.id}, определение {definition.Id} — не дверь ({definition.Kind}, {definition.ObjectType}).");
                 if(door.Blocks) next.Add((door.Bounds,definition.Opacity>0?definition.Opacity:OriginalDoorOpacity));
@@ -101,28 +102,33 @@ namespace Remains.Presentation
         public void Initialize(FactoryLevelRoot level,RoomLayout geometry=null)
         {
             if(level==null) throw new ArgumentNullException(nameof(level));
-            if(root!=null) throw new InvalidOperationException("Вид завода уже подготовлен: повторная подготовка запрещена.");
             if(level.gameObject!=gameObject) throw new InvalidOperationException("Вид завода должен лежать на объекте корня завода.");
-            var prepared=level.Prepared??throw new InvalidOperationException("Вид завода: корень ещё не подготовлен (FactoryLevelRoot.Initialize).");
-            Room=geometry??prepared.Physics;
-            if(Room.id!=prepared.Level) throw new InvalidOperationException("Вид завода: игровая геометрия другого уровня: "+Room.id);
-            if(level.Rooms.childCount!=prepared.Grid.Rooms.Count)
-                throw new InvalidOperationException($"Вид завода: установлено комнат {level.Rooms.childCount}, в раскладке {prepared.Grid.Rooms.Count} (сначала InstantiateRooms).");
-            var catalog=level.Catalog;
-            table=RoomLightingTable.Read(catalog.Lighting.text,catalog.Lighting.name);
-            var grid=prepared.Grid;
-            var lands=catalog.Lands;var definitions=catalog.Definitions;
+            Initialize(new FactoryTemplateLevel(level),geometry);
+        }
+
+        public void Initialize(ITemplateLevel level,RoomLayout geometry=null)
+        {
+            if(level==null) throw new ArgumentNullException(nameof(level));
+            if(root!=null) throw new InvalidOperationException("Вид уровня уже подготовлен: повторная подготовка запрещена.");
+            Room=geometry??level.Physics;
+            if(Room.id!=level.Level) throw new InvalidOperationException("Вид уровня: игровая геометрия другого уровня: "+Room.id);
+            if(level.RoomInstances.childCount!=level.Rooms.Count)
+                throw new InvalidOperationException($"Вид уровня {level.Level}: установлено комнат {level.RoomInstances.childCount}, в раскладке {level.Rooms.Count} (сначала установка комнат).");
+            table=RoomLightingTable.Read(level.Lighting.text,level.Lighting.name);
+            var lands=level.Lands;var definitions=level.Definitions;
+            roomsWide=roomsDeep=0;
+            foreach(var room in level.Rooms) {roomsWide=Math.Max(roomsWide,room.X+1);roomsDeep=Math.Max(roomsDeep,room.Y+1);}
 
             // Walls and decor of all rooms sort together: one group on the level root, none on the terrain.
             if(!TryGetComponent(out sorting)) sorting=gameObject.AddComponent<SortingGroup>();   // not ?? : Unity null
             sorting.sortingOrder=WorldVisualOrderPolicy.SceneryRoomOrder;
             var backdrops=new List<(RoomFile,Vector2)>();
-            foreach(var room in grid.Rooms) backdrops.Add((room.Template,level.Offset(room)));
-            terrain=RoomTerrainView.Build(grid.Level,definitions,lands,catalog.Art,Vector2.zero,table.ShadowEdge,transform,backdrops,ownSortingGroup:false);
+            foreach(var room in level.Rooms) backdrops.Add((room.Template,room.Offset));
+            terrain=RoomTerrainView.Build(level.Grid,definitions,lands,level.Art,Vector2.zero,table.ShadowEdge,transform,backdrops,ownSortingGroup:false);
 
-            // Ambient: one level for the factory (per-room darkness and tint are not applied yet).
-            var scene=RoomLightScene.Build(grid.Level,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
-            foreach(string issue in scene.Issues) Debug.LogWarning("Вид завода: "+issue,this);
+            // Ambient: one level for the whole level (per-room darkness and tint are not applied yet).
+            var scene=RoomLightScene.Build(level.Grid,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
+            foreach(string issue in scene.Issues) Debug.LogWarning("Вид уровня: "+issue,this);
             // From an authored prefab: Light2D fills its target sorting layers only in the Editor, so one added by
             // code in a player build has none (FactoryAmbientLightAuthoring).
             var light=Instantiate(Resources.Load<Light2D>(AmbientResource)??throw new InvalidOperationException("Нет префаба общего света завода: Resources/"+AmbientResource),transform,false);
@@ -134,11 +140,11 @@ namespace Remains.Presentation
             Shader.SetGlobalVector("_RemainsAmbient",(Vector4)(light.color*light.intensity));
 
             pictures.Clear();
-            foreach(var sprite in level.Rooms.GetComponentsInChildren<RoomSpriteAuthoring>(true))
-                pictures.Add((sprite,definitions.Require(sprite.Definition,"вид завода, "+sprite.name)));
+            foreach(var sprite in level.RoomInstances.GetComponentsInChildren<RoomSpriteAuthoring>(true))
+                pictures.Add((sprite,definitions.Require(sprite.Definition,"вид уровня, "+sprite.name)));
             root=level;
             PresentationChanged?.Invoke(this);
-            Debug.Log($"Вид завода {prepared.Level}: сетка {grid.Level.Width}×{grid.Level.Height}, комнат {grid.Rooms.Count}, картинок {pictures.Count}.",this);
+            Debug.Log($"Вид уровня {level.Level}: сетка {level.Grid.Width}×{level.Grid.Height}, комнат {level.Rooms.Count}, картинок {pictures.Count}.",this);
         }
 
         // Moves the light window to the rooms around a world point; rebuilds only when the window changes.
@@ -152,30 +158,39 @@ namespace Remains.Presentation
         // Lightweight camera observation; no allocation, scene lookup or rebuild here.
         public RectInt WindowFor(Vector2 world)
         {
-            if(root==null) throw new InvalidOperationException("Вид завода не подготовлен.");
-            var layout=root.Prepared.Grid.Layout;
-            var level=root.Prepared.Grid.Level;
-            float cell=(float)level.Cell;
+            if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
+            var grid=root.Grid;
+            float cell=(float)grid.Cell;
             Vector2 local=transform.InverseTransformPoint(world);
-            int stepX=root.Prepared.Grid.StepX,stepY=root.Prepared.Grid.StepY;
-            int cx=Mathf.Clamp(Mathf.FloorToInt(local.x/cell/stepX),0,layout.Width-1);
-            int cy=Mathf.Clamp(Mathf.FloorToInt((level.Height-local.y/cell)/stepY),0,layout.Depth-1);
-            int w=Math.Min(WindowRooms,layout.Width),h=Math.Min(WindowRooms,layout.Depth);
-            return new RectInt(Mathf.Clamp(cx-WindowRooms/2,0,layout.Width-w),Mathf.Clamp(cy-WindowRooms/2,0,layout.Depth-h),w,h);
+            int cx=0,cy=0;float best=float.MaxValue;
+            var rooms=root.Rooms;
+            for(int i=0;i<rooms.Count;i++)
+            {
+                var r=rooms[i];
+                float w=r.Cells.width*cell,h=r.Cells.height*cell;
+                float dx=Mathf.Max(0,Mathf.Max(r.Offset.x-local.x,local.x-(r.Offset.x+w))),dy=Mathf.Max(0,Mathf.Max(r.Offset.y-local.y,local.y-(r.Offset.y+h)));
+                float d=dx*dx+dy*dy;
+                if(d<best) {best=d;cx=r.X;cy=r.Y;if(d==0) break;}
+            }
+            int ww=Math.Min(WindowRooms,roomsWide),wh=Math.Min(WindowRooms,roomsDeep);
+            return new RectInt(Mathf.Clamp(cx-WindowRooms/2,0,roomsWide-ww),Mathf.Clamp(cy-WindowRooms/2,0,roomsDeep-wh),ww,wh);
         }
 
         // Rebuilds the window's erase mask and radiance field (after Focus, or when lights/occluders change:
         // door state, a lamp switched or broken). SyncDoors supplies the current canonical door occluders.
         public void RefreshLight()
         {
-            if(root==null) throw new InvalidOperationException("Вид завода не подготовлен.");
-            if(windowRooms.width<=0) throw new InvalidOperationException("Вид завода: окно света не выбрано (Focus).");
+            if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
+            if(windowRooms.width<=0) throw new InvalidOperationException("Вид уровня: окно света не выбрано (Focus).");
             DestroyWindow();
-            var grid=root.Prepared.Grid;var level=grid.Level;var catalog=root.Catalog;
-            ShowWindowRooms(grid);
+            var level=root.Grid;
+            ShowWindowRooms();
             float cell=(float)level.Cell;
-            int column=windowRooms.x*grid.StepX,row=windowRooms.y*grid.StepY;
-            int width=windowRooms.width*grid.StepX+1,height=windowRooms.height*grid.StepY+1;
+            // The window's cells: the union of its rooms' cells in the composed grid.
+            int column=int.MaxValue,row=int.MaxValue,right=0,bottom=0;
+            foreach(var r in root.Rooms)
+                if(InWindow(r)) {column=Math.Min(column,r.Cells.x);row=Math.Min(row,r.Cells.y);right=Math.Max(right,r.Cells.xMax);bottom=Math.Max(bottom,r.Cells.yMax);}
+            int width=right-column,height=bottom-row;
             var region=RoomFileRegion.Crop(level,column,row,width,height);
             Vector2 localOrigin=new Vector2(column*cell,(level.Height-row-height)*cell);
             Vector2 origin=transform.TransformPoint(localOrigin);
@@ -201,7 +216,7 @@ namespace Remains.Presentation
             Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
             if(erases.Count>0)
                 window.AddComponent<RoomDecorResources>().BuildErase(erases,origin,size,Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource));
-            field=RoomRadianceField.Build(region,catalog.Definitions,catalog.Lands,table,origin,window.transform,sprites,WorldDoorOccluders());
+            field=RoomRadianceField.Build(region,root.Definitions,root.Lands,table,origin,window.transform,sprites,WorldDoorOccluders());
             for(int i=0;i<SettleUpdates;i++) field.Render();
             PresentationChanged?.Invoke(this);
         }
@@ -214,21 +229,22 @@ namespace Remains.Presentation
             return result;
         }
 
-        // Only the rooms of the light window keep their pictures active: all 84 rooms are ~5600 sprites, more than a
-        // SortingGroup handles (4095) and a large per-frame cost. Room instances are the root's Rooms children in
-        // grid order (FactoryLevelRoot.InstantiateRooms). Walls (terrain tilemaps) stay level-wide.
-        private void ShowWindowRooms(FactoryGrid grid)
+        // Only the rooms of the light window keep their pictures active: all 84 factory rooms are ~5600 sprites, more
+        // than a SortingGroup handles (4095) and a large per-frame cost. Room instances are RoomInstances children in
+        // Rooms order. Walls (terrain tilemaps) stay level-wide.
+        private void ShowWindowRooms()
         {
-            var rooms=root.Rooms;
-            if(rooms.childCount!=grid.Rooms.Count) throw new InvalidOperationException($"Вид завода: комнат {rooms.childCount}, в раскладке {grid.Rooms.Count}.");
-            for(int i=0;i<grid.Rooms.Count;i++)
+            var instances=root.RoomInstances;var rooms=root.Rooms;
+            if(instances.childCount!=rooms.Count) throw new InvalidOperationException($"Вид уровня: комнат {instances.childCount}, в раскладке {rooms.Count}.");
+            for(int i=0;i<rooms.Count;i++)
             {
-                var cell=grid.Rooms[i].Cell;
-                bool inside=cell.X>=windowRooms.xMin && cell.X<windowRooms.xMax && cell.Y>=windowRooms.yMin && cell.Y<windowRooms.yMax;
-                var instance=rooms.GetChild(i).gameObject;
+                bool inside=InWindow(rooms[i]);
+                var instance=instances.GetChild(i).gameObject;
                 if(instance.activeSelf!=inside) instance.SetActive(inside);
             }
         }
+
+        private bool InWindow(TemplateLevelRoom r)=>r.X>=windowRooms.xMin && r.X<windowRooms.xMax && r.Y>=windowRooms.yMin && r.Y<windowRooms.yMax;
 
         // Shown in the room, judged up to the level root: a prepared source root may itself be inactive.
         private bool Shown(RoomSpriteAuthoring authored)

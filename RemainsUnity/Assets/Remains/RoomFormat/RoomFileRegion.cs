@@ -23,5 +23,49 @@ namespace Remains.RoomFormat
             foreach (var option in source.Options) result.Options.Add(option.Key, option.Value);
             return result;
         }
+
+        // Rooms side by side without a shared column (a fixed land such as the hub's camp, where rooms keep their own
+        // edges), as one grid: palettes merged by definition ID, fixed-alphabet layers copied. Same height and cell.
+        public static RoomFile JoinHorizontal(string template, IReadOnlyList<RoomFile> parts)
+        {
+            if (parts == null || parts.Count == 0) throw new ArgumentException("Нет частей для объединения сетки.");
+            int height = parts[0].Height, width = 0;
+            foreach (var part in parts)
+            {
+                if (part.Height != height || Math.Abs(part.Cell - parts[0].Cell) > 1e-9) throw new FormatException($"{part.Template}: высота или клетка отличаются от {parts[0].Template}.");
+                width += part.Width;
+            }
+            var result = new RoomFile { Template = template, Width = width, Height = height, Cell = parts[0].Cell };
+            var layers = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (var part in parts) foreach (var layer in part.Layers.Keys) layers.Add(layer);
+            const string Keys = "#ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!$%&'()*+,-/:;<=>?@[]^_`{|}~";
+            foreach (string layer in layers)
+            {
+                string group = RoomLayers.GroupOf(layer);
+                var keys = new Dictionary<string, char>(StringComparer.Ordinal);
+                if (group != null)
+                {
+                    var ids = new SortedSet<string>(StringComparer.Ordinal);
+                    foreach (var part in parts) if (part.Palettes.TryGetValue(group, out var palette)) foreach (var id in palette.Values) ids.Add(id);
+                    if (ids.Count > Keys.Length) throw new FormatException($"Слой {layer}: {ids.Count} определений, ключей {Keys.Length}.");
+                    int k = 0;
+                    foreach (string id in ids) { keys.Add(id, Keys[k]); result.Palette(group).Add(Keys[k++], id); }
+                }
+                var rows = new string[height];
+                for (int r = 0; r < height; r++)
+                {
+                    var line = new System.Text.StringBuilder(width);
+                    foreach (var part in parts)
+                    {
+                        if (!part.Layers.TryGetValue(layer, out var source)) { line.Append(RoomFile.Empty, part.Width); continue; }
+                        foreach (char c in source[r])
+                            line.Append(c == RoomFile.Empty || group == null ? c : keys[part.Palettes[group][c]]);
+                    }
+                    rows[r] = line.ToString();
+                }
+                result.Layers.Add(layer, rows);
+            }
+            return result;
+        }
     }
 }

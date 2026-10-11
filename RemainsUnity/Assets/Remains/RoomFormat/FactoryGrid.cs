@@ -206,14 +206,19 @@ namespace Remains.RoomFormat
         // Border solid of a land's random levels ("random_<land>" options.border, else the original's "A"),
         // checked against the catalogue: an unknown land or form is an error with the land and key.
         public static string BorderSolid(RoomLandCatalog lands, string land, RoomDefinitionCatalog definitions, string solidPrefix = "remains:solid:")
+            => BorderSolidOf(lands, "random_" + land, definitions, solidPrefix);
+
+        // The same rule for a land entry by its ID (a fixed land such as "rbl", the hub's camp).
+        public static string BorderSolidOf(RoomLandCatalog lands, string landEntry, RoomDefinitionCatalog definitions, string solidPrefix = "remains:solid:")
         {
             RoomLand entry = null;
-            foreach (var l in lands.Lands) if (l.Id == "random_" + land) entry = l;
-            if (entry == null) throw new KeyNotFoundException($"Нет земли random_{land} в каталоге земель.");
+            foreach (var l in lands.Lands) if (l.Id == landEntry) entry = l;
+            if (entry == null) throw new KeyNotFoundException($"Нет земли {landEntry} в каталоге земель.");
+            string land = landEntry;
             bool own = entry.Options.TryGetValue("border", out string key);
             string id = solidPrefix + (own ? key : OriginalBorderDefault);
-            var d = definitions.Require(id, $"граница земли random_{land} (options.border {(own ? "«" + key + "»" : "не задан, по оригиналу «A»")})");
-            if (d.Kind != RoomDefinitionKind.Solid) throw new FormatException($"Граница земли random_{land}: {id} вида {d.Kind}, нужен Solid.");
+            var d = definitions.Require(id, $"граница земли {land} (options.border {(own ? "«" + key + "»" : "не задан, по оригиналу «A»")})");
+            if (d.Kind != RoomDefinitionKind.Solid) throw new FormatException($"Граница земли {land}: {id} вида {d.Kind}, нужен Solid.");
             return id;
         }
 

@@ -51,6 +51,18 @@ namespace Remains.Presentation
                     foreach(var platform in instance.GetComponentsInChildren<RoomMovingPlatformPlacement>(true)) platform.gameObject.SetActive(false);
                     foreach(var button in instance.GetComponentsInChildren<RoomMechanismButtonPlacement>(true)) button.gameObject.SetActive(false);
                 }
+                // The hub drawn from the camp's room templates: authored artwork and old light are replaced by the
+                // template level view; gameplay (surfaces, ladders, containers, targets, travel) stays as authored.
+                if(instance.TryGetComponent<HubTemplateLevel>(out var hub))
+                {
+                    if(!instance.TryGetComponent<FactoryLevelView>(out var hubView)) throw new InvalidOperationException("Хаб из шаблонов: нет вида уровня.");
+                    foreach(var artwork in instance.GetComponentsInChildren<RoomArtworkAuthoring>(true))
+                        foreach(var renderer in artwork.GetComponents<Renderer>()) renderer.enabled=false;
+                    foreach(var fixture in instance.GetComponentsInChildren<RoomLightAuthoring>(true))
+                        foreach(var renderer in fixture.GetComponentsInChildren<Renderer>(true)) renderer.enabled=false;
+                    using(TransitionTiming.Measure("authored-room.hub-template",level)) {hub.Build(room);hubView.Initialize(hub,room);}
+                    return instance.gameObject;
+                }
                 var lighting=instance.GetComponent<RoomLightingAuthoring>();
                 if(lighting==null) throw new InvalidOperationException("Нет авторинга света: "+level);
                 var sorting=instance.GetComponent<SortingGroup>();if(sorting==null) sorting=instance.gameObject.AddComponent<SortingGroup>();

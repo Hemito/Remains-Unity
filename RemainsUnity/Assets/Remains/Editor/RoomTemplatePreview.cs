@@ -76,6 +76,37 @@ namespace Remains.Editor
                 unlit=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewUnlit")>=0;
                 radiance=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewRadiance")>=0;
                 dummy=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewDummy")>=0;
+                if(Array.IndexOf(Environment.GetCommandLineArgs(),"-hubPreview")>=0)
+                {
+                    // The game path for the hub: AuthoredRoomVisual with the template level and the new light.
+                    EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
+                    var room=Remains.Domain.RoomLayout.Load("hub");
+                    var visual=AuthoredRoomVisual.Create("hub",room);
+                    var view=visual.GetComponent<FactoryLevelView>()??throw new InvalidOperationException("Хаб не получил вид уровня из шаблонов.");
+                    view.Focus(new Vector2(room.spawnX,room.spawnY));
+                    Debug.Log($"Хаб из шаблонов: готов {view.IsReady}, окно {view.LightWindowRooms}.");
+                    Render(new Vector2(room.right+0.8f,room.top),Path.Combine(outDir,"hub-game.png"),null);
+                    view.Release();UnityEngine.Object.DestroyImmediate(visual);
+                    EditorApplication.Exit(0);
+                    return;
+                }
+                if(Array.IndexOf(Environment.GetCommandLineArgs(),"-hubCompare")>=0)
+                {
+                    // Diagnostics: the game's hub physics (Levels/hub.prefab) against the hub template's grid geometry.
+                    var hub=RoomAuthoring.Load("hub").CreateLayout(false);
+                    var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>("Assets/Remains/Rooms/Original/rbl/room_0_0.room.json");
+                    var geometry=RoomGeometryBuilder.Build(template.Room,LoadDefinitions());
+                    float minX=float.MaxValue,maxX=float.MinValue,minY=float.MaxValue,maxY=float.MinValue;
+                    foreach(var p in hub.platforms){minX=Mathf.Min(minX,p.x);maxX=Mathf.Max(maxX,p.x+p.width);minY=Mathf.Min(minY,p.y);maxY=Mathf.Max(maxY,p.y+p.height);}
+                    double gx0=double.MaxValue,gx1=double.MinValue,gy0=double.MaxValue,gy1=double.MinValue;
+                    foreach(var g in geometry.Surfaces){gx0=Math.Min(gx0,g.X);gx1=Math.Max(gx1,g.X+g.Width);gy0=Math.Min(gy0,g.Y);gy1=Math.Max(gy1,g.Y+g.Height);}
+                    Debug.Log($"Хаб игры: left={hub.left} right={hub.right} top={hub.top} spawn=({hub.spawnX},{hub.spawnY}); поверхностей {hub.platforms.Length}, охват x {minX}..{maxX}, y {minY}..{maxY}; лестниц {hub.ladders.Length}.");
+                    Debug.Log($"Шаблон хаба: {template.Room.Width}×{template.Room.Height}, клетка {template.Room.Cell}; поверхностей {geometry.Surfaces.Count}, охват x {gx0}..{gx1}, y {gy0}..{gy1}; лестниц {geometry.Ladders.Count}.");
+                    for(int i=0;i<Math.Min(6,hub.platforms.Length);i++) Debug.Log($"  хаб {hub.platforms[i].x},{hub.platforms[i].y} {hub.platforms[i].width}×{hub.platforms[i].height}");
+                    for(int i=0;i<Math.Min(6,geometry.Surfaces.Count);i++) Debug.Log($"  шаблон {geometry.Surfaces[i].X},{geometry.Surfaces[i].Y} {geometry.Surfaces[i].Width}×{geometry.Surfaces[i].Height}");
+                    EditorApplication.Exit(0);
+                    return;
+                }
                 if(Array.IndexOf(Environment.GetCommandLineArgs(),"-factoryRootPreview")>=0)
                 {
                     RenderFactoryRoot(outDir);
