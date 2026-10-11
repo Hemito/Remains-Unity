@@ -13,7 +13,7 @@ namespace Remains.Domain
             if(maximumHeight<=0 || Mathf.Abs(delta.x)<.0001f || delta.y>0 ||
                 Mathf.Abs(blocked.x-start.x-delta.x)<.0001f || !ActorTerrainMotion.Supported(room,hull,start)) return false;
             float nextX=start.x+delta.x,half=hull.width*.5f,height=0;
-            foreach(var surface in RoomSurfaces.All(room))
+            foreach(var surface in RoomSurfaces.Near(room,new Rect(nextX-half,start.y-.0001f,hull.width,maximumHeight+.0002f)))
             {
                 if(nextX+half<=surface.x || nextX-half>=surface.x+surface.width) continue;
                 float rise=RoomSupport.Top(surface,nextX,hull.width)-start.y;

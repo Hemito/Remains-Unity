@@ -32,7 +32,8 @@ namespace Remains.Gameplay
                 throw new InvalidOperationException($"Некорректные данные наклонного контакта: room={room.id}, feet={feet}, width={hull.width}.");
             RoomSurface selected=null;float selectedGap=0,selectedTop=0,selectedCoverage=0;
             float half=hull.width*.5f;
-            foreach(var surface in RoomSurfaces.All(room))
+            foreach(var surface in RoomSurfaces.Near(room,Rect.MinMaxRect(feet.x-half,feet.y-RoomSupport.ContactTolerance,
+                feet.x+half,feet.y+RoomSupport.ContactTolerance)))
             {
                 if(feet.x+half<=surface.x+ContactInset || feet.x-half>=surface.x+surface.width-ContactInset) continue;
                 float top=RoomSupport.Top(surface,feet.x,hull.width),gap=Mathf.Abs(feet.y-top);

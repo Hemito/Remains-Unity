@@ -9,7 +9,8 @@ namespace Remains.Domain
         {
             height=float.NegativeInfinity;
             bool grounded=false;float initialGradient=0,half=hull.width*.5f;
-            foreach(var surface in RoomSurfaces.All(room,excludedSurface))
+            foreach(var surface in RoomSurfaces.Near(room,new Rect(start.x-half,start.y-RoomSupport.ContactTolerance,
+                hull.width,RoomSupport.ContactTolerance*2),excludedSurface))
             {
                 if(start.x+half<surface.x || start.x-half>surface.x+surface.width ||
                     Mathf.Abs(start.y-RoomSupport.Top(surface,start.x,hull.width))>RoomSupport.ContactTolerance) continue;
@@ -17,7 +18,8 @@ namespace Remains.Domain
                 if(surface.slopeDirection!=0) initialGradient=Mathf.Max(initialGradient,surface.height/surface.width);
             }
             if(!grounded) return false;
-            foreach(var surface in RoomSurfaces.All(room,excludedSurface))
+            float reach=Mathf.Max(initialGradient,RoomSurfaces.MaximumSlopeGradient(room))*Mathf.Abs(nextX-start.x)+RoomSupport.ContactTolerance;
+            foreach(var surface in RoomSurfaces.Near(room,new Rect(nextX-half,start.y-reach,hull.width,reach*2),excludedSurface))
             {
                 if(nextX+half<=surface.x || nextX-half>=surface.x+surface.width ||
                     initialGradient==0 && surface.slopeDirection==0) continue;

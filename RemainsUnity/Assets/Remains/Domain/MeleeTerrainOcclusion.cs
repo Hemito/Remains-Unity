@@ -57,7 +57,7 @@ namespace Remains.Domain
         {
             if(!stopAtTerrain) return 1;
             float limit=1;
-            foreach(var surface in RoomSurfaces.All(room))
+            foreach(var surface in RoomSurfaces.Near(room,SurfaceContact.QueryBounds(attack.Origin,attack.End,attack.radius)))
             {
                 if(surface.shotsPassThrough) continue;
                 var bounds=new Rect(surface.x,surface.y,surface.width,surface.height);

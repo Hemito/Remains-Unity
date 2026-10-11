@@ -18,6 +18,7 @@ namespace Remains.Gameplay
         {
             Room=room??throw new ArgumentNullException(nameof(room));
             authored=room.platforms??throw new ArgumentException("У комнаты нет поверхностей.");
+            RoomSurfaces.Prepare(Room);
             publishedSolids=SolidShape(authored);
         }
         public bool Reconcile(IReadOnlyList<DoorState> doors,string level)
@@ -34,6 +35,7 @@ namespace Remains.Gameplay
             var shape=selected.Select(d=>(d.id,d.Blocks,d.x,d.y,d.width,d.height,d.surfaceTexture)).ToArray();
             if(previous!=null && previous.SequenceEqual(shape)) return false;
             Room.platforms=selected.Count==0?authored:DoorGeometry.Compose(authored,selected,level);
+            RoomSurfaces.Prepare(Room);
             previous=shape;
             var solids=SolidShape(Room.platforms);
             if(publishedSolids.SequenceEqual(solids)) return false;

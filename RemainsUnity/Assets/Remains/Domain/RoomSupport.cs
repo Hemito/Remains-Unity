@@ -18,7 +18,7 @@ namespace Remains.Domain
 
         public static bool IsSupported(RoomLayout room,Vector2 position)
         {
-            foreach(var surface in RoomSurfaces.All(room))
+            foreach(var surface in RoomSurfaces.Near(room,new Rect(position.x,position.y-ContactTolerance,0,ContactTolerance*2)))
                 if(ContainsX(surface,position.x) && Mathf.Abs(position.y-Top(surface,position.x))<=ContactTolerance) return true;
             return false;
         }
@@ -27,7 +27,7 @@ namespace Remains.Domain
         {
             height=float.NegativeInfinity;
             if(next.y>previous.y) return false;
-            foreach(var surface in RoomSurfaces.All(room))
+            foreach(var surface in RoomSurfaces.Near(room,Rect.MinMaxRect(next.x,next.y,next.x,previous.y+ContactTolerance)))
             {
                 if(climbing && surface.oneWay || !ContainsX(surface,next.x)) continue;
                 float top=Top(surface,next.x);

@@ -16,7 +16,7 @@ namespace Remains.Domain
             var end=start+Vector2.right*Mathf.Sign(destination.x-actor.x)*(hull.width*.5f+.6f);
             // Movement sees solid surfaces regardless of their bullet permeability.
             float nearest=float.PositiveInfinity;RoomSurface obstacle=null;
-            foreach(var surface in RoomSurfaces.All(room))
+            foreach(var surface in RoomSurfaces.Near(room,SurfaceContact.QueryBounds(start,end)))
             {
                 if(surface.oneWay) continue;
                 var entry=SurfaceContact.Entry(surface,start,end);

@@ -12,7 +12,7 @@ namespace Remains.Domain
         {
             contacted=null;
             float? nearest=null;
-            foreach(var surface in RoomSurfaces.All(room))
+            foreach(var surface in RoomSurfaces.Near(room,SurfaceContact.QueryBounds(start,end,radius)))
             {
                 if(surface.shotsPassThrough) continue;
                 var enter=SurfaceContact.Entry(surface,start,end,radius);

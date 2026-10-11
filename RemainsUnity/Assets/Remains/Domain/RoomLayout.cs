@@ -16,6 +16,7 @@ namespace Remains.Domain
         public RoomLadder[] ladders;
         public RoomArtwork[] artwork;
         [NonSerialized] public DynamicSurfaceFrame dynamicSurfaces;
+        [NonSerialized] internal RoomSurfaceIndex surfaceIndex;
         public static RoomLayout Load(string level="factory:0")
             =>Load(level,null);
         public static RoomLayout Load(string level,WorldState world)
@@ -23,6 +24,7 @@ namespace Remains.Domain
             var result=Remains.Content.RoomAuthoring.Load(level,world).CreateLayout();
             if(result.platforms==null || result.ladders==null || result.left>=result.right)
                 throw new InvalidOperationException($"Некорректная геометрия комнаты: {result.id}.");
+            RoomSurfaces.Prepare(result);
             return result;
         }
     }

@@ -5,6 +5,12 @@ namespace Remains.Domain
     // Shared segment/rectangle intersection; callers choose which surfaces block their query.
     public static class SurfaceContact
     {
+        public static Rect QueryBounds(Vector2 start,Vector2 end,float radius=0)
+        {
+            radius=Mathf.Max(0,radius);
+            return Rect.MinMaxRect(Mathf.Min(start.x,end.x)-radius,Mathf.Min(start.y,end.y)-radius,
+                Mathf.Max(start.x,end.x)+radius,Mathf.Max(start.y,end.y)+radius);
+        }
         public static float? Entry(RoomSurface surface,Vector2 start,Vector2 end,float radius=0)
             =>Entry(new Rect(surface.x,surface.y,surface.width,surface.height),start,end,radius);
         public static float? Entry(Rect bounds,Vector2 start,Vector2 end,float radius=0)
@@ -40,7 +46,7 @@ namespace Remains.Domain
     {
         public static bool Clear(RoomLayout room,Vector2 start,Vector2 end)
         {
-            foreach(var surface in RoomSurfaces.All(room))
+            foreach(var surface in RoomSurfaces.Near(room,SurfaceContact.QueryBounds(start,end)))
                 if(!surface.oneWay && SurfaceContact.Entry(surface,start,end).HasValue) return false;
             return true;
         }
