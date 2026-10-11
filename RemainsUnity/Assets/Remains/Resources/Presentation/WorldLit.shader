@@ -42,6 +42,7 @@ Shader "Remains/WorldLit"
                 float2 uv : TEXCOORD0;
                 float2 lightUV : TEXCOORD1;
                 float2 maskUV : TEXCOORD2;
+                float2 radianceUV : TEXCOORD3;
                 fixed4 color : COLOR;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -54,6 +55,7 @@ Shader "Remains/WorldLit"
                 output.vertex=UnityObjectToClipPos(local);
                 float2 world=mul(unity_ObjectToWorld,local).xy;
                 output.lightUV=RemainsWorldLightUV(world);
+                output.radianceUV=RemainsRadianceUV(world);
                 output.uv=input.texcoord;
                 output.maskUV=input.maskUV;
                 output.color=input.color*_Color*_RendererColor;
@@ -63,7 +65,7 @@ Shader "Remains/WorldLit"
             {
                 fixed4 color=SampleSpriteTexture(input.uv)*input.color;
                 color.a*=lerp(1,tex2D(_ArtworkVisibility,input.maskUV).r,_ArtworkVisibilityEnabled);
-                color.rgb*=RemainsWorldLight(input.lightUV,_BackgroundLighting,_Emission)*color.a;
+                color.rgb*=RemainsWorldLight(input.lightUV,input.radianceUV,_BackgroundLighting,_Emission)*color.a;
                 return color;
             }
             ENDCG

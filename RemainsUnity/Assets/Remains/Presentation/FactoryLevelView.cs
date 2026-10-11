@@ -116,6 +116,8 @@ namespace Remains.Presentation
             if(light.lightType!=Light2D.LightType.Global) throw new InvalidOperationException("Префаб общего света завода: свет не общий (Global).");
             light.intensity=(float)table.Ambient(scene.Darkness);
             light.color=new Color((float)scene.Tint[0],(float)scene.Tint[1],(float)scene.Tint[2]);
+            // The same ambient for WorldLit artwork (actors, props, doors), which does not read Light2D.
+            Shader.SetGlobalVector("_RemainsAmbient",(Vector4)(light.color*light.intensity));
 
             pictures.Clear();
             foreach(var sprite in level.Rooms.GetComponentsInChildren<RoomSpriteAuthoring>(true))
