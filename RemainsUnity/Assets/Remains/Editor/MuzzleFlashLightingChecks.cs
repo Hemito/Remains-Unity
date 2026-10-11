@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Collections.Generic;
 using Remains.Presentation;
 using Remains.RoomFormat;
 using UnityEditor;
@@ -78,6 +79,23 @@ namespace Remains.Editor
                 float cleared=Mean(Read(Shader.GetGlobalTexture("_RemainsRadiance")),64,16,24,24,32);
                 Require(cleared<initial+.002f+nearby*.02f,$"Свет остался после удаления вспышки: вспышка={nearby}, остаток={cleared}.");
                 Require(!field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>()),"Стабильное поле продолжает пересчитываться.");
+                var blocker=new[]{new RoomRadianceField.LightOccluder(sprite,
+                    Matrix4x4.TRS(new Vector3(2.25f,3,0),Quaternion.identity,new Vector3(.25f,4,1)))};
+                field.RenderTransient(emissions,blocker);
+                float blocked=Mean(Read(Scene(field,"directFluence")),64,24,28,24,32);
+                field.RenderTransient(emissions);
+                float unblocked=Mean(Read(Scene(field,"directFluence")),64,24,28,24,32);
+                Require(unblocked>.02f && blocked<unblocked*.25f,$"Динамический силуэт не отбрасывает тень: открыто={unblocked}, тень={blocked}.");
+                var movedBlocker=new[]{new RoomRadianceField.LightOccluder(sprite,
+                    Matrix4x4.TRS(new Vector3(2.25f,5.5f,0),Quaternion.identity,new Vector3(.25f,.5f,1)))};
+                field.RenderTransient(emissions,movedBlocker);
+                float moved=Mean(Read(Scene(field,"directFluence")),64,24,28,24,32);
+                Require(moved>unblocked*.8f,$"Тень осталась после перемещения силуэта: открыто={unblocked}, перемещено={moved}.");
+                Equal(Read(Scene(field,"bounceA")),bounceBefore,"Динамический силуэт изменил отражения лампы.");
+                field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>());
+                Equal(Read(Shader.GetGlobalTexture("_RemainsRadiance")),baselineLight,"После тени не восстановился свет лампы.");
+                Debug.Log($"Тени динамических силуэтов: PASS — открыто={unblocked}, тень={blocked}, перемещено={moved}.");
+                CheckActorSilhouette(field,emissions,baseline);
                 Debug.Log($"Дульная вспышка: PASS — прямой GPU свет, цвет, неизменное поглощение, стена, история отражений лампы сохранена, повтор без накопления, мгновенное восстановление; рядом={nearby}, за стеной={shadow}, восстановлено={cleared}, отражение лампы={reflected}.");
             }
             finally
@@ -90,6 +108,34 @@ namespace Remains.Editor
 
         private static Texture Scene(RoomRadianceField field,string name)
             => (Texture)typeof(RoomRadianceField).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(field);
+
+        private static void CheckActorSilhouette(RoomRadianceField field,RoomRadianceField.SpriteEmission[] emissions,Color[] baseline)
+        {
+            Remains.Content.ActorTypes.Load();Remains.Content.PropCatalog.Load();PonyVisual.Prepare();
+            var actor=new Remains.Domain.ActorState {id="shadow-pony",actorType="pony",anatomy="pony",player=true,connected=true,
+                level="hub",pose="idle",x=2.6f,y=2.2f,appearance=new Remains.Domain.CharacterAppearance {version=Remains.Domain.CharacterAppearance.CurrentVersion}};
+            var visual=(PonyVisual)ActorVisualFactory.Create(actor);
+            try
+            {
+                visual.ConfigureMagicPreview(1);visual.Bind(actor);visual.DrawPose(0);
+                var silhouettes=new List<RoomRadianceField.LightOccluder>();
+                visual.AppendLightOccluders(silhouettes);
+                Require(silhouettes.Count>0,"Пони не передал нарисованные части для тени.");
+                foreach(var part in silhouettes) Require(part.Mesh!=null && part.Texture!=null,"Часть силуэта пони потеряла mesh/texture.");
+                field.RenderTransient(emissions,silhouettes);
+                var scene=Read(Scene(field,"transientScene"));
+                int changed=0;
+                for(int i=0;i<scene.Length;i++) if(scene[i].a>baseline[i].a+.5f) changed++;
+                Require(changed>4,$"Нарисованный пони не перекрывает свет на GPU: текселей={changed}.");
+                actor.facing=-1;visual.DrawPose(0);silhouettes.Clear();visual.AppendLightOccluders(silhouettes);
+                Require(silhouettes[0].LocalToWorld.determinant<0,"Зеркальность тела не передана в силуэт тени.");
+                visual.SetVisible(false);silhouettes.Clear();visual.AppendLightOccluders(silhouettes);
+                Require(silhouettes.Count==0,"Скрытый пони продолжает отбрасывать тень.");
+                field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>());
+                Debug.Log($"Силуэт настоящего пони: PASS — GPU поглощение, зеркальность, скрытие; текселей={changed}.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
+        }
 
         private static Color[] Read(Texture source)
         {

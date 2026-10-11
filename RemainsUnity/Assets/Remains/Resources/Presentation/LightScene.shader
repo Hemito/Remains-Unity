@@ -22,13 +22,19 @@ Shader "Hidden/Remains/LightScene"
         Blend One One
             HLSLINCLUDE
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            struct Attributes { float3 positionOS : POSITION; float2 uv : TEXCOORD0; };
-            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
+            struct Attributes { float3 positionOS : POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; };
+            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float alpha : TEXCOORD1; };
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float4 _Emission;
             float4 _SpriteUvRect;
             float _Absorption, _AlphaCut, _Glow, _GlowThreshold;
-            Varyings Vert(Attributes v) { Varyings o; o.positionCS=TransformObjectToHClip(v.positionOS); o.uv=_SpriteUvRect.xy+v.uv*_SpriteUvRect.zw; return o; }
+            float _OccluderOpacity;
+            Varyings Vert(Attributes v) { Varyings o; o.positionCS=TransformObjectToHClip(v.positionOS); o.uv=_SpriteUvRect.xy+v.uv*_SpriteUvRect.zw; o.alpha=v.color.a; return o; }
+            float4 OccluderFrag(Varyings i) : SV_Target
+            {
+                float alpha=SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a*i.alpha*_OccluderOpacity;
+                return float4(0,0,0,alpha>=0.4?1:0);
+            }
             float4 Frag(Varyings i) : SV_Target
             {
                 float a=SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a;
@@ -67,6 +73,15 @@ Shader "Hidden/Remains/LightScene"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            ENDHLSL
+        }
+        // Dynamic silhouettes only absorb; they never enter the lamp bounce history.
+        Pass
+        {
+            ColorMask A
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment OccluderFrag
             ENDHLSL
         }
     }

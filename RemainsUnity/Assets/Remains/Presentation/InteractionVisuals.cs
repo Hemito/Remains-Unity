@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace Remains.Presentation
 {
+    [DefaultExecutionOrder(1000)] // Publish light after the actors have drawn their LateUpdate poses.
     public sealed class InteractionVisuals : MonoBehaviour
     {
         private CoopSession session;
@@ -34,6 +35,20 @@ namespace Remains.Presentation
         private readonly HashSet<string> retainedProps=new(),retainedContainers=new(),retainedWeapons=new(),retainedFlights=new();
         private readonly List<string> removed=new();
         public WeaponView FindWeapon(string actorId)=>weapons.TryGetValue(actorId,out var view)?view:null;
+        public void AppendWeaponLightOccluders(List<RoomRadianceField.LightOccluder> output)
+        {
+            foreach(var pair in weapons)
+            {
+                var view=pair.Value;
+                var renderer=view.Artwork;
+                if(!view.gameObject.activeInHierarchy || !renderer.enabled || renderer.forceRenderingOff || renderer.color.a<=0) continue;
+                // Shot art includes emissive muzzle pixels. Only the cached physical weapon
+                // silhouette absorbs; use the same actual weapon transform, not another pose sample.
+                if(!sprites.TryGetValue(view.Id,out var sprite))
+                {if(missingGraphics.Add("shadow:"+view.Id)) Debug.LogWarning($"Нет силуэта оружия для тени: actor={pair.Key}, weapon={view.Id}.",this);continue;}
+                output.Add(new RoomRadianceField.LightOccluder(sprite,renderer.transform.localToWorldMatrix,renderer.color.a));
+            }
+        }
         public PropView FindProp(string id)=>props.TryGetValue(id,out var view)?view:null;
         public PropView FindContainer(string id)=>containers.TryGetValue(id,out var view)?view:null;
         // Install once before a world is presented. This source is rebuilt in

@@ -71,6 +71,7 @@ namespace Remains.Runtime
         private NpcController npcs;
         private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
+        private readonly List<RoomRadianceField.LightOccluder> muzzleOccluders=new();
         private readonly PonyMagicActivitySource ponyMagic=new();
         private readonly RemoteActorMotion remoteMotion=new();
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
@@ -175,7 +176,14 @@ namespace Remains.Runtime
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers,Combat.Reload);
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
             {
-                if(LevelPresentationReady && ActiveFactoryLighting!=null) ActiveFactoryLighting.RenderMuzzleFlashes(emissions);
+                if(!LevelPresentationReady || ActiveFactoryLighting==null) return;
+                muzzleOccluders.Clear();
+                if(emissions.Count>0)
+                {
+                    foreach(var visual in visuals.Values) visual.AppendLightOccluders(muzzleOccluders);
+                    interactionVisuals.AppendWeaponLightOccluders(muzzleOccluders);
+                }
+                ActiveFactoryLighting.RenderMuzzleFlashes(emissions,muzzleOccluders);
             });
             CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals,ponyMagic);
             HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);

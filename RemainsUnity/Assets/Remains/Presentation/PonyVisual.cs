@@ -50,6 +50,18 @@ namespace Remains.Presentation
             renderer=null;return false;
         }
         public int DrawnPartCount {get;private set;}
+        public override void AppendLightOccluders(List<RoomRadianceField.LightOccluder> output)
+        {
+            if(!gameObject.activeInHierarchy || drawnParts==null) return;
+            for(int i=0;i<drawnParts.Length;i++)
+            {
+                var renderer=renderers[i];
+                if(PonyMagicRenderRoles.Contains(drawnParts[i]) || !renderer.enabled || renderer.forceRenderingOff || !renderer.gameObject.activeInHierarchy) continue;
+                var mesh=filters[i].sharedMesh;
+                if(mesh==null) continue;
+                output.Add(new RoomRadianceField.LightOccluder(mesh,renderer.sharedMaterial.GetTexture("_MainTex"),renderer.transform.localToWorldMatrix));
+            }
+        }
         public override bool TryGetDrawnBounds(out Bounds bounds)
         {bounds=drawnBounds;return hasDrawnBounds && gameObject.activeInHierarchy;}
         public override string ActorId=>state?.id;

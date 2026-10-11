@@ -48,9 +48,22 @@ namespace Remains.Presentation
             {Sprite=sprite;LocalToWorld=localToWorld;Gain=gain;}
         }
 
+        public readonly struct LightOccluder
+        {
+            public readonly Sprite Sprite;
+            public readonly Mesh Mesh;
+            public readonly Texture Texture;
+            public readonly Matrix4x4 LocalToWorld;
+            public readonly float Opacity;
+            public LightOccluder(Sprite sprite,Matrix4x4 matrix,float opacity=1)
+            {Sprite=sprite;Mesh=null;Texture=null;LocalToWorld=matrix;Opacity=opacity;}
+            public LightOccluder(Mesh mesh,Texture texture,Matrix4x4 matrix,float opacity=1)
+            {Sprite=null;Mesh=mesh;Texture=texture;LocalToWorld=matrix;Opacity=opacity;}
+        }
+
         // Transient sources contribute direct light only, never touching the lamp bounce history.
         // Empty input restores the cached static result immediately.
-        public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions)
+        public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<LightOccluder> occluders=null)
         {
             bool active=emissions!=null && emissions.Count>0;
             if(!active)
@@ -77,6 +90,30 @@ namespace Remains.Presentation
                 {
                     cmd.SetRenderTarget(transientScene);
                     cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
+                    if(occluders!=null) foreach(var occluder in occluders)
+                    {
+                        var mesh=occluder.Mesh;
+                        var texture=occluder.Texture;
+                        var matrix=occluder.LocalToWorld;
+                        var uvRect=new Vector4(0,0,1,1);
+                        if(occluder.Sprite!=null)
+                        {
+                            var sprite=occluder.Sprite;
+                            if(sprite.packed && (sprite.packingMode==SpritePackingMode.Tight || sprite.packingRotation!=SpritePackingRotation.None))
+                            {Debug.LogWarning($"Поле света {name}: неподдержанная упаковка силуэта {sprite.name}.",this);continue;}
+                            mesh=quad;texture=sprite.texture;
+                            var uv=sprite.textureRect;
+                            uvRect=new Vector4(uv.x/texture.width,uv.y/texture.height,uv.width/texture.width,uv.height/texture.height);
+                            matrix*=Matrix4x4.TRS(sprite.bounds.min,Quaternion.identity,sprite.bounds.size);
+                        }
+                        if(mesh==null || texture==null || !float.IsFinite(occluder.Opacity) || occluder.Opacity<=0)
+                        {Debug.LogWarning($"Поле света {name}: некорректный силуэт препятствия, mesh={mesh}, texture={texture}, opacity={occluder.Opacity}.",this);continue;}
+                        emissionBlock.Clear();
+                        emissionBlock.SetTexture("_MainTex",texture);
+                        emissionBlock.SetVector("_SpriteUvRect",uvRect);
+                        emissionBlock.SetFloat("_OccluderOpacity",occluder.Opacity);
+                        cmd.DrawMesh(mesh,matrix,sceneMaterial,0,2,emissionBlock);
+                    }
                     foreach(var emission in emissions)
                     {
                         if(emission.Sprite==null || !float.IsFinite(emission.Gain) || emission.Gain<=0)
@@ -257,6 +294,7 @@ namespace Remains.Presentation
             quad=new Mesh{name="Квадрат спрайта"};
             quad.SetVertices(new[]{new Vector3(0,0,0),new Vector3(1,0,0),new Vector3(0,1,0),new Vector3(1,1,0)});
             quad.SetUVs(0,new[]{new Vector2(0,0),new Vector2(1,0),new Vector2(0,1),new Vector2(1,1)});
+            quad.SetColors(new[]{Color.white,Color.white,Color.white,Color.white});
             quad.SetTriangles(new[]{0,2,1,1,2,3},0);
         }
 

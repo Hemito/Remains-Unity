@@ -51,10 +51,10 @@ namespace Remains.Presentation
         public void ReportFailure(Exception error)
         {Failure=error;PresentationChanged?.Invoke(this);PresentationFailed?.Invoke(this,error);}
         public RectInt LightWindowRooms=>windowRooms;
-        public void RenderMuzzleFlashes(IReadOnlyList<RoomRadianceField.SpriteEmission> emissions)
+        public void RenderMuzzleFlashes(IReadOnlyList<RoomRadianceField.SpriteEmission> emissions,IReadOnlyList<RoomRadianceField.LightOccluder> occluders=null)
         {
             if(!IsReady) return;
-            try {field.RenderTransient(emissions);}
+            try {field.RenderTransient(emissions,occluders);}
             catch(Exception error) {ReportFailure(error);throw;}
         }
         // Revision of the last door snapshot in the light (-1: none yet); the loader admits actors after it.
