@@ -44,6 +44,7 @@ namespace Remains.Editor
                 AssetDatabase.SaveAssets();
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
+            FactoryEntranceAuthoring.Install();
         }
         public static void RunBatch()
         {

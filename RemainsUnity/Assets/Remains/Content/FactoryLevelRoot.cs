@@ -90,6 +90,9 @@ namespace Remains.Content
             authoring.ConfigurePrepared(prepared.Physics);
             Prepared=prepared;Objects=placed.AsReadOnly();
             RolePoints=Array.AsReadOnly(FactoryRolePoints.Read(prepared,Objects));
+            if(!TryGetComponent<FactoryEntrance>(out var entrance))
+                throw new InvalidOperationException("Корень завода: нет авторского входа/выхода.");
+            entrance.Prepare(this);
         }
         public void InstantiateRooms()
         {
