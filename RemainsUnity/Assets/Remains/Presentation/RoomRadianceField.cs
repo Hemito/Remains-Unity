@@ -45,7 +45,7 @@ namespace Remains.Presentation
         private RenderTexture transientScene;
         private bool distanceReady;
         private bool transientActive;
-        private RenderTexture staticFluence,directFluence,lampOccludedFluence;
+        private RenderTexture staticFluence,directFluence,lampOccludedFluence,silhouetteRows,silhouetteDistance;
         private MaterialPropertyBlock emissionBlock;
 
         public readonly struct SpriteEmission
@@ -95,6 +95,8 @@ namespace Remains.Presentation
             if(directFluence==null) directFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет с силуэтами");
             if(lampOccludedFluence==null) lampOccludedFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет затенённых ламп");
             if(freeFluence==null) freeFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет ламп без силуэтов");
+            if(silhouetteRows==null) silhouetteRows=Target(width,height,GraphicsFormat.R32_SFloat,"Расстояние до силуэта по строкам");
+            if(silhouetteDistance==null) silhouetteDistance=Target(width,height,GraphicsFormat.R32_SFloat,"Расстояние до силуэта");
             if(staticFluence==null) staticFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сохранённый свет ламп");
             if(!transientActive) Graphics.CopyTexture(fluence,staticFluence);
             try
@@ -175,13 +177,22 @@ namespace Remains.Presentation
                 // Jump-flood seeds include emitting RGB as well as absorption: a new source or silhouette must be seen.
                 scene=transientScene;distanceReady=false;
                 if(emitting>0) RenderField(true);
+                // Distance to the silhouettes in two separable passes (row, then column), read once per texel below.
+                int rows=compute.FindKernel("SilhouetteRows");
+                compute.SetTexture(rows,"_OccluderScene",transientScene);
+                compute.SetTexture(rows,"_BaseScene",staticScene);
+                compute.SetTexture(rows,"_SilhouetteRowsOut",silhouetteRows);
+                compute.Dispatch(rows,(width+7)/8,(height+7)/8,1);
+                int columns=compute.FindKernel("SilhouetteDistance");
+                compute.SetTexture(columns,"_SilhouetteRows",silhouetteRows);
+                compute.SetTexture(columns,"_SilhouetteDistanceOut",silhouetteDistance);
+                compute.Dispatch(columns,(width+7)/8,(height+7)/8,1);
                 int combine=compute.FindKernel("CombineDirect");
                 compute.SetTexture(combine,"_StaticFluence",staticFluence);
                 compute.SetTexture(combine,"_FreeFluence",freeFluence);
                 compute.SetTexture(combine,"_DirectFluence",directFluence);
                 compute.SetTexture(combine,"_LampOccludedFluence",lampOccludedFluence);
-                compute.SetTexture(combine,"_OccluderScene",transientScene);
-                compute.SetTexture(combine,"_BaseScene",staticScene);
+                compute.SetTexture(combine,"_SilhouetteDistance",silhouetteDistance);
                 compute.SetTexture(combine,"_Fluence",fluence);
                 compute.Dispatch(combine,(width+7)/8,(height+7)/8,1);
             }
@@ -559,10 +570,10 @@ namespace Remains.Presentation
         private void OnDestroy()
         {
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,lampOccludedFluence}) if(texture!=null) texture.Release();
+            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,lampOccludedFluence,silhouetteRows,silhouetteDistance}) if(texture!=null) texture.Release();
             if(baseScene is RenderTexture baseTarget) baseTarget.Release();
             if(occlusionScene!=null) occlusionScene.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,lampOccludedFluence,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,lampOccludedFluence,silhouetteRows,silhouetteDistance,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }

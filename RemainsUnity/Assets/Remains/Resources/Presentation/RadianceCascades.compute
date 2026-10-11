@@ -15,6 +15,8 @@
 #pragma kernel Fluence
 #pragma kernel Fill
 #pragma kernel Bounce
+#pragma kernel SilhouetteRows
+#pragma kernel SilhouetteDistance
 #pragma kernel CombineDirect
 
 #define FAR 1e6
@@ -41,6 +43,10 @@ Texture2D<float4> _FreeFluence;
 Texture2D<float4> _OccluderScene;   // static scene + dynamic silhouettes (alpha)
 Texture2D<float4> _BaseScene;       // static scene
 Texture2D<float4> _LampOccludedFluence;
+RWTexture2D<float> _SilhouetteRowsOut;
+Texture2D<float> _SilhouetteRows;
+RWTexture2D<float> _SilhouetteDistanceOut;
+Texture2D<float> _SilhouetteDistance;
 float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
 float _RimTexels;    // objects, rim mode: width of the dimming at the dark edge
 int _ObjectGradient; // objects: 1 gradient through the body, 0 rim
@@ -331,6 +337,36 @@ void Bounce(uint3 id : SV_DispatchThreadID)
 }
 
 // Isolate transient emission while preserving the static scene's absorption.
+// Distance (texels) to the nearest dynamic silhouette texel (transient scene absorbs more than the static one),
+// exact Euclidean within SILHOUETTE_SHADOW, larger beyond: per row first, then over the column of row distances.
+#define SILHOUETTE_FULL 2
+#define SILHOUETTE_SHADOW 8
+
+bool SilhouetteAt(int2 p) { return Inside(p) && _OccluderScene[p].a > _BaseScene[p].a + 0.001; }
+
+[numthreads(8,8,1)]
+void SilhouetteRows(uint3 id : SV_DispatchThreadID)
+{
+    if (!Inside(int2(id.xy))) return;
+    float best = SILHOUETTE_SHADOW + 1;
+    for (int x = -SILHOUETTE_SHADOW; x <= SILHOUETTE_SHADOW; x++)
+        if (SilhouetteAt(int2(id.xy) + int2(x, 0))) best = min(best, abs(x));
+    _SilhouetteRowsOut[id.xy] = best;
+}
+
+[numthreads(8,8,1)]
+void SilhouetteDistance(uint3 id : SV_DispatchThreadID)
+{
+    if (!Inside(int2(id.xy))) return;
+    float best = SILHOUETTE_SHADOW + 1;
+    for (int y = -SILHOUETTE_SHADOW; y <= SILHOUETTE_SHADOW; y++)
+    {
+        int2 p = int2(id.xy) + int2(0, y);
+        if (Inside(p)) best = min(best, length(float2(_SilhouetteRows[p], y)));
+    }
+    _SilhouetteDistanceOut[id.xy] = best;
+}
+
 [numthreads(8,8,1)]
 void CombineDirect(uint3 id : SV_DispatchThreadID)
 {
@@ -344,17 +380,8 @@ void CombineDirect(uint3 id : SV_DispatchThreadID)
     // it: a flatland blocker shades the whole room behind it like a wall across a corridor. Its shadow is kept short,
     // as on the wall behind an actor: full beside the silhouette, gone SILHOUETTE_SHADOW texels away; the silhouette's
     // own texels keep the static light (the actor is lit from the front, not by the wall behind it).
-    #define SILHOUETTE_FULL 2
-    #define SILHOUETTE_SHADOW 8
-    float nearest = SILHOUETTE_SHADOW + 1;
-    for (int y = -SILHOUETTE_SHADOW; y <= SILHOUETTE_SHADOW; y++)
-        for (int x = -SILHOUETTE_SHADOW; x <= SILHOUETTE_SHADOW; x++)
-        {
-            int2 p = int2(id.xy) + int2(x, y);
-            if (Inside(p) && _OccluderScene[p].a > _BaseScene[p].a + 0.001) nearest = min(nearest, length(float2(x, y)));
-        }
-    bool own = _OccluderScene[id.xy].a > _BaseScene[id.xy].a + 0.001;
-    removed *= own ? 0 : 1 - smoothstep(SILHOUETTE_FULL, SILHOUETTE_SHADOW, nearest);
+    float nearest = _SilhouetteDistance[id.xy];
+    removed *= nearest < 0.5 ? 0 : 1 - smoothstep(SILHOUETTE_FULL, SILHOUETTE_SHADOW, nearest);
     float3 flash = max(0, _DirectFluence[id.xy].rgb - lamp);
     _Fluence[id.xy] = float4(max(0, _StaticFluence[id.xy].rgb - removed) + flash, 1);
 }
