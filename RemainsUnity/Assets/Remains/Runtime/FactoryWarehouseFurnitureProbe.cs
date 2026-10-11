@@ -107,7 +107,7 @@ namespace Remains.Runtime
             visuals=FindFirstObjectByType<InteractionVisuals>();Require(visuals!=null,"Нет настоящих представлений предметов.");
             AudioListener.volume=0; // Device output only. Each real voice still has its own positive gain.
             if(Host && !reload)
-            {Require(value.Session.Saves.SelectedSnapshot()==null,"Fresh проверка не заменяет сохранённый мир.");value.Session.Saves.SaveWorld(NewGameWorld.Create());}
+            {Require(value.Session.Saves.SelectedSnapshot()==null,"Fresh проверка не заменяет сохранённый мир.");value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());}
             if(reload)
             {
                 Require(File.Exists(ReloadPath),"Нет явного свидетельства для загрузки копии: "+ReloadPath);
@@ -443,7 +443,7 @@ namespace Remains.Runtime
         }
         private void Setup()
         {
-            var world=runtime.Session.ServerWorld;Require(WorldRooms.Definition(world,Level)==NewGameWorld.FactoryDefinitionId,"Вместо обычного мира установлена legacy fixture.");
+            var world=runtime.Session.ServerWorld;Require(WorldRooms.Definition(world,Level)==LegacyFactoryFixture.DefinitionId,"Нужен исторический мир со старым собранным заводом (LegacyFactoryFixture).");
             ValidateDefinitions(world,!reload);var room=runtime.Geometry.Get(Level);var players=world.actors.Where(a=>a.player && a.connected).ToArray();
             if(selected.Continuation)
             {

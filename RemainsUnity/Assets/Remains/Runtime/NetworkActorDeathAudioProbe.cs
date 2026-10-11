@@ -74,7 +74,7 @@ namespace Remains.Runtime
             {
                 var saved=value.Session.Saves.SelectedSnapshot();
                 Require(Resume?saved!=null:saved==null,"Неверный fresh/resume каталог; существующий мир не заменяется.");
-                if(!Resume)value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                if(!Resume)value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
                 else Require(saved.CreateLiveWorld().Find(Target) is {down:true,health:<=0},"Копия для resume не содержит побеждённую выбранную встречу.");
             }
             value.CommandSource=Command;

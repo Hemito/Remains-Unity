@@ -89,7 +89,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 Require(value.Session.Saves.SelectedSnapshot()==null,"Проверка не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.Session.AttackReceived+=OnAttack;

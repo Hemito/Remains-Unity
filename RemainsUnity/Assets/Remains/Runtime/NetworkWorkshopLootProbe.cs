@@ -39,7 +39,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка лута цеха не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.Session.AttackReceived+=attack=>
@@ -131,7 +131,7 @@ namespace Remains.Runtime
         private void Setup(ActorState player)
         {
             var session=runtime.Session;var npc=session.ServerWorld.Find(NpcId);var room=runtime.Geometry.Get("factory:0");
-            if(WorldRooms.Definition(session.ServerWorld,"factory:0")!=NewGameWorld.FactoryDefinitionId || npc==null || npc.down || npc.inventory.Count!=3)
+            if(WorldRooms.Definition(session.ServerWorld,"factory:0")!=LegacyFactoryFixture.DefinitionId || npc==null || npc.down || npc.inventory.Count!=3)
                 throw new InvalidOperationException("Проверка не получила обычного исходного рейдера и инвентарь цеха.");
             var start=npc.Position+Vector2.left*1.6f;var hull=Anatomy.Movement(player);
             if(!ActorTerrainMotion.IsClear(room,hull,start) || !ActorTerrainMotion.Supported(room,hull,start))

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Presentation;
 using Remains.Serialization;
@@ -17,7 +18,7 @@ namespace Remains.Editor
         public static void Run()
         {
             PropCatalog.Load();ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
-            FactoryOfficeOpeningsAuthoring.CheckAssets();Check(RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId));
+            FactoryOfficeOpeningsAuthoring.CheckAssets();Check(RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId));
         }
         public static bool CheckOfficeStage(RoomAuthoring office)
         {

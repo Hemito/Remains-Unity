@@ -47,7 +47,7 @@ namespace Remains.Editor
         }
         private static void SnapshotWitnesses(FactoryContinuationRouteEvidence source)
         {
-            var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId).CreateLayout(false);
+            var room=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId).CreateLayout(false);
             var actor=new ActorState {id="snapshot-route-player",owner="snapshot-owner",player=true,connected=true,
                 generation=1,lifecycleSequence=3,x=125.38f,y=.8f};
             ActorBodySupport.Bind(actor,room);
@@ -78,7 +78,7 @@ namespace Remains.Editor
         private static int ObservationFence()
         {
             Anatomy.Load();
-            var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId).CreateLayout(false);
+            var room=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId).CreateLayout(false);
             string roomBefore=StateJson.ToJson(room);
             var canonical=new ActorState {id="observation-player",owner="observation-owner",player=true,connected=true,
                 generation=1,lifecycleSequence=3,revision=32,level="factory:0",x=163.04097f,y=4,vx=1.79998755f,motionSequence=1265};

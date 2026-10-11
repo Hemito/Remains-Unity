@@ -17,7 +17,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();SlopePoseCatalog.Load();FootSupportCatalog.Load();
-            var source=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
+            var source=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);
             string sourceBefore=StateJson.ToJson(source.CreateLayout(false));
             string doorsBefore=StateJson.ToJson(RoomDoorContent.Read(source,"factory:0"));
             int cases=0;
@@ -38,7 +38,7 @@ namespace Remains.Editor
         public static void RunFiringParking()
         {
             PrepareFiringCatalogs();
-            var source=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
+            var source=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);
             string geometryBefore=StateJson.ToJson(source.CreateLayout(false));
             string doorsBefore=StateJson.ToJson(RoomDoorContent.Read(source,"factory:0"));
             int cases=FiringCases(source);

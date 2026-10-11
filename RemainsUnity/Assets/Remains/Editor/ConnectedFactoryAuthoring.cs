@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -14,7 +15,7 @@ namespace Remains.Editor
         public static void Assemble()
         {
             RoomAuthoringScenes.ValidateSavedOverrides();
-            if(AssetDatabase.LoadMainAssetAtPath(Path)!=null || RoomCatalogAsset.Load().Entries.Any(e=>e.id==NewGameWorld.FactoryDefinitionId))
+            if(AssetDatabase.LoadMainAssetAtPath(Path)!=null || RoomCatalogAsset.Load().Entries.Any(e=>e.id==LegacyFactoryFixture.DefinitionId))
                 throw new InvalidOperationException("Связный завод уже сохранён; повторная сборка не заменяет авторские правки.");
             var root=new GameObject("Завод · вход2 и цех1 · один уровень");
             try
@@ -30,7 +31,7 @@ namespace Remains.Editor
                 root.AddComponent<RoomNpcContent>().Configure("base:factory-connected-46-18:npcs-v1");
                 ConnectedFactoryChecks.Check(room);
                 var saved=PrefabUtility.SaveAsPrefabAsset(root,Path).GetComponent<RoomAuthoring>();
-                var catalog=RoomCatalogAsset.Load();catalog.Configure(catalog.Entries.Append(new RoomCatalogAsset.Entry {id=NewGameWorld.FactoryDefinitionId,room=saved}).ToArray());
+                var catalog=RoomCatalogAsset.Load();catalog.Configure(catalog.Entries.Append(new RoomCatalogAsset.Entry {id=LegacyFactoryFixture.DefinitionId,room=saved}).ToArray());
                 EditorUtility.SetDirty(catalog);AssetDatabase.SaveAssets();
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}

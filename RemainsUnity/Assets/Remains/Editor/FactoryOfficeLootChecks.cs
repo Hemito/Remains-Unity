@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Presentation;
 using Remains.Serialization;
@@ -17,7 +18,7 @@ namespace Remains.Editor
         {
             PropCatalog.Load();ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
             FactoryOfficeLootArtworkAuthoring.Check();
-            Check(RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId));
+            Check(RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId));
         }
         // Strict stage discriminator also used by earlier checks: partial four-record installs are rejected.
         internal static bool CheckOfficeStage(RoomAuthoring room)

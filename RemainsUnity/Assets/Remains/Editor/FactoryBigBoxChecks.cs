@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Presentation;
 using Remains.Serialization;
@@ -36,7 +37,7 @@ namespace Remains.Editor
             var settings=JsonUtility.FromJson<PropContactAudio.Settings>(Resources.Load<TextAsset>("Presentation/prop-audio").text);
             var sound=settings.entries.Single(e=>e.definition=="bigbox");
             Require(sound.clip=="Original/Audio/crate-metal-fall" && Resources.Load<AudioClip>(sound.clip)?.samples>0,"Нет исходного банка падения металла.");
-            var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
+            var room=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);
             var layout=FactoryContentCheckFixtures.BeforeOffice(RoomPhysicalContent.Read(room,"factory:0"));var boxes=layout.props.Where(p=>p.definition=="bigbox").OrderBy(p=>p.x).ToArray();
             Require(boxes.Length==2 && Mathf.Abs(boxes[0].x-52)<.001f && Mathf.Abs(boxes[1].x-55.2f)<.001f && boxes.All(p=>Mathf.Abs(p.y-.8f)<.001f),"Потеряны две исходные расстановки или смещение цеха.");
             foreach(var box in boxes)

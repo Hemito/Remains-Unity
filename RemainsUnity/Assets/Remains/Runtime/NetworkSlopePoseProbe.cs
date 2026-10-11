@@ -69,7 +69,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 Require(value.Session.Saves.SelectedSnapshot()==null,"Маршрут не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             report.role=value.Options.Role;report.participants=value.Options.ProbePeers;report.frameRate=value.Options.ProbeFrameRate;
             deadline=Time.unscaledTime+100;value.CommandSource=Command;

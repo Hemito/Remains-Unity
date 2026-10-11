@@ -32,7 +32,7 @@ namespace Remains.Runtime
             if(value.Options.Role=="host")
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка нового завода не заменяет существующий мир.");
-                var world=Remains.Content.NewGameWorld.Create();
+                var world=LegacyFactoryFixture.Create();
                 // This regression deliberately keeps the entry46 fixture; the seam has its own ordinary route.
                 world.rooms.Single(r=>r.level=="factory:0").definition="base:factory-entry-46";
                 world.worldId="2bbb03303d6848758e98eb9a573eac8d";

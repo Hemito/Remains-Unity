@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEngine;
@@ -185,10 +186,10 @@ namespace Remains.Editor
 
         private static void CheckSavedLayouts()
         {
-            var source=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
+            var source=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);
             var world=new WorldState();
             foreach(string level in new[] {"factory:0","factory:6","factory:-27"})
-                world.rooms.Add(new WorldRoom {level=level,definition=NewGameWorld.FactoryDefinitionId});
+                world.rooms.Add(new WorldRoom {level=level,definition=LegacyFactoryFixture.DefinitionId});
             var first=RoomLayout.Load("factory:0",world);var second=RoomLayout.Load("factory:6",world);var third=RoomLayout.Load("factory:-27",world);
             string original=StateJson.ToJson(first);
             Require(first.platforms.Length>0 && first.ladders.Length>0 && first.artwork.Length>0,"В actual factory отсутствуют данные для проверки независимых layout");

@@ -63,7 +63,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка стыка не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             if(value.Options.Smoke.StartsWith("continuation-seam",StringComparison.Ordinal))
             {

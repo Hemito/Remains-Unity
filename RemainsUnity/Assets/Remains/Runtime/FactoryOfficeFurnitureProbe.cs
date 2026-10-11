@@ -85,7 +85,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка мебели не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.ContainerAudio.Opened+=ObserveOpening;

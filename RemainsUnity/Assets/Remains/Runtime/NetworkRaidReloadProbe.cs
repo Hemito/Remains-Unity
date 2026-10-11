@@ -36,7 +36,7 @@ namespace Remains.Runtime
             if(Host && !Resume)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка не заменяет существующий мир.");
-                var world=NewGameWorld.Create();var room=RoomLayout.Load("factory:0",world);
+                var world=LegacyFactoryFixture.Create();var room=RoomLayout.Load("factory:0",world);
                 for(int index=0;index<value.Options.ProbePeers;index++)
                 {
                     string character=index==0?"session-host":"session-client-"+index;

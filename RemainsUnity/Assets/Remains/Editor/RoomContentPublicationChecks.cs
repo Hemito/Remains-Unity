@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEngine;
@@ -18,7 +19,7 @@ namespace Remains.Editor
         {
             CheckRules();
             WeaponCatalog.Load();
-            var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
+            var room=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);
             var batch=RoomContentBatch.Read(room,Level);
             CheckInstallation(Fixture(),batch);
             Debug.Log("Публикация содержимого: PASS — "+assertions+" проверок; один подготовленный набор, точный лут, прежние ссылки/состояния, атомарный отказ и повтор без изменений.");

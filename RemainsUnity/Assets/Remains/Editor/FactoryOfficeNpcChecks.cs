@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEditor;
@@ -15,7 +16,7 @@ namespace Remains.Editor
         public static void Run()
         {
             ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
-            Check(RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId));
+            Check(RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId));
         }
         public static void Check(RoomAuthoring room)
         {

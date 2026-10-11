@@ -79,7 +79,7 @@ namespace Remains.Runtime
                 throw new InvalidOperationException("Нижний маршрут склада требует HUD и одного/двух участников.");
             actorId=Actor.id;owner=Actor.owner;generation=Actor.generation;lifecycle=Actor.lifecycleSequence;
             worldId=runtime.Session.World.worldId;room=runtime.Geometry.Get(Level);
-            if(Actor.level!=Level || WorldRooms.Definition(runtime.Session.World,Level)!=NewGameWorld.FactoryDefinitionId)
+            if(Actor.level!=Level || WorldRooms.Definition(runtime.Session.World,Level)!=LegacyFactoryFixture.DefinitionId)
                 throw new InvalidOperationException("Нижний маршрут склада требует установленный связный завод.");
             ValidateAmmo(Target);motion=new WarehouseLowerRouteMotion(room,Actor);
             runtime.Hud.CloseContainer();stage=Stage.Approach;

@@ -77,7 +77,7 @@ namespace Remains.Runtime
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null)
                     throw new InvalidOperationException("Проверка лестницы не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.Session.Changed+=VisualChanged;
@@ -190,7 +190,7 @@ namespace Remains.Runtime
 
         private void Prepare()
         {
-            if(Actor.level!="hub" || WorldRooms.Definition(runtime.Session.World,"factory:0")!=NewGameWorld.FactoryDefinitionId)
+            if(Actor.level!="hub" || WorldRooms.Definition(runtime.Session.World,"factory:0")!=LegacyFactoryFixture.DefinitionId)
                 throw new InvalidOperationException("Ожидается новый авторский мир и обычный spawn хаба; исключите ladder-contact из LegacyPrototypeFixture.");
             room=runtime.Geometry.Get("hub");startPosition=Actor.Position;
             var hull=Anatomy.Movement(Actor);

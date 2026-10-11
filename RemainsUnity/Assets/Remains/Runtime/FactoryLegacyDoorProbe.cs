@@ -79,7 +79,7 @@ namespace Remains.Runtime
                 Require(File.Exists(sourceArchive),"Нет исходного immutable архива.");sourceHash=Hash(File.ReadAllBytes(sourceArchive));
                 var door=sourceWorld.doors.Single(d=>d.id==DoorId);Require(door.Destroyed && door.integrity.maxHealth==60 && door.integrity.resolvedAttacks.Count>0,"Reload требует actual сохранённое разрушение60HP.");
             }
-            else if(Host) {Require(value.Session.Saves.SelectedSnapshot()==null,"Fresh не заменяет существующий мир.");value.Session.Saves.SaveWorld(NewGameWorld.Create());}
+            else if(Host) {Require(value.Session.Saves.SelectedSnapshot()==null,"Fresh не заменяет существующий мир.");value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());}
             value.CommandSource=Command;
             value.Session.ClientReady+=ClientHandlers;value.Session.ServerReady+=ServerHandlers;
             value.Session.AttackReceived+=Attack;value.Session.Changed+=Sound;value.Session.Notice+=Notice;
@@ -190,7 +190,7 @@ namespace Remains.Runtime
         }
         private void Setup()
         {
-            var world=runtime.Session.ServerWorld;Require(WorldRooms.Definition(world,Level)==NewGameWorld.FactoryDefinitionId,"Нужен обычный мир, не legacy fixture.");
+            var world=runtime.Session.ServerWorld;Require(WorldRooms.Definition(world,Level)==LegacyFactoryFixture.DefinitionId,"Нужен исторический мир со старым собранным заводом (LegacyFactoryFixture).");
             var door=world.doors.Single(d=>d.id==DoorId);Require(door.definition=="door1" && door.integrity?.maxHealth==60 && Mathf.Abs(door.x-46.4f)<.0001f && Mathf.Abs(door.y-13.6f)<.0001f,"Не approved реальная деревянная дверь.");
             Require(reload?door.Destroyed:!door.open && door.integrity.health==60 && door.revision==0,"Начальное door состояние подменено.");
             var players=world.actors.Where(a=>a.player && a.connected).OrderBy(a=>a.id,StringComparer.Ordinal).ToArray();var room=runtime.Geometry.Get(Level);var positions=new List<PlayerFixture>();

@@ -234,8 +234,11 @@ namespace Remains.Presentation
         // Explicit presentation events own this flag; loading is not a pause request.
         public void SetRoomPresentationPending(bool pending)
         {
-            if(session==null || roomLoading==null)
+            if(session==null || ReferenceEquals(roomLoading,null))
                 throw new InvalidOperationException("Загрузка локации: HUD ещё не инициализирован.");
+            // Initialized, but its loading view is already destroyed: application shutdown destroys HUD children in
+            // any order, and a lighting release reaching here then has no interface left to publish to.
+            if(roomLoading==null) return;
             bool next=pending && (session.LocalActor!=null || session.EntryPreparation.ClientPending);
             if(roomPresentationPending==next) return;
             roomPresentationPending=next;

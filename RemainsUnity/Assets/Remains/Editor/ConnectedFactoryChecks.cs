@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Presentation;
 using Remains.Serialization;
@@ -11,7 +12,7 @@ namespace Remains.Editor
 {
     public static class ConnectedFactoryChecks
     {
-        public static void Run()=>Check(RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId));
+        public static void Run()=>Check(RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId));
         public static void Check(RoomAuthoring room)
         {
             var layout=room.CreateLayout();var batch=RoomContentBatch.Read(room,"factory:0");

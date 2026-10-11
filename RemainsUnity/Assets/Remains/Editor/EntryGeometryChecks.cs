@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Serialization;
@@ -12,7 +13,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            var source=NewGameWorld.Create();
+            var source=LegacyFactoryFixture.Create();
             var before=StateJson.ToJson(source);
             using var geometry=new SimulationGeometry(level=>RoomLayout.Load(level,source));
             var room=geometry.PrepareEntry(source,"hub");

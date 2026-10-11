@@ -64,7 +64,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка контактов требует новый мир; существующий сейв не заменяется.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.Combat.Projectiles.ContactObserved+=ProjectileContact;
@@ -123,7 +123,7 @@ namespace Remains.Runtime
         private void PrepareFixture()
         {
             var session=runtime.Session;var self=session.LocalActor;
-            if(WorldRooms.Definition(session.World,"factory:0")!=NewGameWorld.FactoryDefinitionId)
+            if(WorldRooms.Definition(session.World,"factory:0")!=LegacyFactoryFixture.DefinitionId)
                 throw new InvalidOperationException("Контактная проверка получила legacy-мир вместо NewGameWorld; исключите contact-audio из LegacyPrototypeFixture.");
             if(Screen.width!=1920 || Screen.height!=1080) throw new InvalidOperationException($"Для scene/capture нужны 1920×1080, сейчас {Screen.width}×{Screen.height}.");
             if(self.level!="hub" || self.down || runtime.Audio.Volume<=0) throw new InvalidOperationException("Нужен активный персонаж в обычном хабе и ненулевая громкость эффектов.");

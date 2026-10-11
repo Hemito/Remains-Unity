@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEngine;
@@ -12,7 +13,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);int checks=0;
+            var room=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);int checks=0;
             foreach(string level in new[]{"factory:0","factory:6","factory:-27"})
                 checks+=Check(RoomContentBatch.Read(room,level));
             Debug.Log($"Исторические проверки склада40: PASS — {checks} проверок; source27 v9/v6/v6→v8/v5/v5 только точные новые ID, затем прежние мебель/metal/склад цепочки, независимые копии, неизвестные поля и отрицательные случаи. Нативный маршрут этим сообщением не подтверждается.");

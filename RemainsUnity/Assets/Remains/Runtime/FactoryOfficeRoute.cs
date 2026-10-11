@@ -130,7 +130,7 @@ namespace Remains.Runtime
                 throw new InvalidOperationException("Маршрут офиса требует локального игрока, HUD и одного/двух участников.");
             actorId=Actor.id;owner=Actor.owner;generation=Actor.generation;lifecycle=Actor.lifecycleSequence;
             room=runtime.Geometry.Get(Level);
-            if(Actor.level!=Level || WorldRooms.Definition(runtime.Session.World,Level)!=NewGameWorld.FactoryDefinitionId ||
+            if(Actor.level!=Level || WorldRooms.Definition(runtime.Session.World,Level)!=LegacyFactoryFixture.DefinitionId ||
                 !At(40.4f,10.4f)) throw new InvalidOperationException("Маршрут офиса начинается на настоящей опоре цеха (40,4;10,4).");
             if(Container==null || Container.definition!="explbox")
                 throw new InvalidOperationException("В сохранённом офисе нет исходного explbox38: "+TargetId);

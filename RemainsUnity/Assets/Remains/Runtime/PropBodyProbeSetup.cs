@@ -26,7 +26,7 @@ namespace Remains.Runtime
                 sender.level!="factory:0" || string.IsNullOrEmpty(sender.owner) || sender.owner!=message.owner ||
                 string.IsNullOrEmpty(hostActorId) || (remote?sender.id==hostActorId:sender.id!=hostActorId))
                 return $"Неверный подключённый источник: sender={sender?.id}, requested={message.source}, owner={message.owner}, remote={remote}.";
-            if(WorldRooms.Definition(world,sender.level)!=NewGameWorld.FactoryDefinitionId ||
+            if(WorldRooms.Definition(world,sender.level)!=LegacyFactoryFixture.DefinitionId ||
                 world.actors.Count(a=>a.player && a.connected)!=2 ||
                 world.actors.Any(a=>a.player && a.connected && a.id!=sender.id && (a.level!="hub" || a.down)))
                 return "Подготовка не подтверждает авторский завод и активного союзника в хабе.";

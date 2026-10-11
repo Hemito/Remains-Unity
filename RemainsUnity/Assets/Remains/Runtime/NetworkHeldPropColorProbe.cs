@@ -69,7 +69,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Цвет удержания не заменяет существующий выбранный мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;value.Session.Notice+=Notice;
             value.Session.ClientReady+=RegisterClient;
@@ -138,7 +138,7 @@ namespace Remains.Runtime
         private void PrepareFixture()
         {
             var session=runtime.Session;var actor=session.LocalActor;var cargo=Cargo;
-            Require(actor.level=="hub" && WorldRooms.Definition(session.World,"factory:0")==NewGameWorld.FactoryDefinitionId,
+            Require(actor.level=="hub" && WorldRooms.Definition(session.World,"factory:0")==LegacyFactoryFixture.DefinitionId,
                 "Нужен реальный NewGameWorld, не LegacyPrototypeFixture.");
             Require(cargo!=null && cargo.definition=="mcrate1" && cargo.level=="hub" && cargo.hasPhysicalBody && cargo.movable &&
                 cargo.mass==25 && !cargo.held,"Нет существующего свободного25кг тренировочного ящика.");

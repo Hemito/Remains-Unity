@@ -62,7 +62,7 @@ namespace Remains.Runtime
                 if(value.Options.Role=="host")
                 {
                     if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Прямое действие требует новый мир; существующий сейв не заменяется.");
-                    value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                    value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
                 }
                 if(!value.PropAudio.ItemSounds.TryGet("p10",out landingClip,out var reason))
                     throw new InvalidOperationException("Не разрешён WAV приземления p10: "+reason);
@@ -183,7 +183,7 @@ namespace Remains.Runtime
                 traveled=true;
                 if(Direct)
                 {
-                    if(WorldRooms.Definition(world,"factory:0")!=NewGameWorld.FactoryDefinitionId || actor.level!="hub")
+                    if(WorldRooms.Definition(world,"factory:0")!=LegacyFactoryFixture.DefinitionId || actor.level!="hub")
                         {Finish(false,"Прямое действие получило старый проверочный мир вместо обычного хаба.");return;}
                 }
                 else runtime.Session.Travel.RequestFactory();

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEngine;
@@ -41,7 +42,7 @@ namespace Remains.Editor
             room.platforms=DoorGeometry.Compose(Array.Empty<RoomSurface>(),world.doors,npc.level);Require(Select()==null,"Открытая дверь вновь выбрана.");
             var copy=StateJson.Copy(world);Require(copy.doors[0].open && copy.doors[0].revision==1,"Сохранение потеряло открытие NPC.");
             npc.owner="a";npc.generation++;Require(DoorRequestRules.ResolveActor(world,b,npc.id,out _)==null,"Старый владелец действует после передачи симуляции.");
-            var actual=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
+            var actual=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);
             var actualDoor=RoomDoorContent.Read(actual,"factory:0").doors.Single(d=>d.id.EndsWith(":aaChLmLMEdgLxJEr",StringComparison.Ordinal));
             var actualRoom=actual.CreateLayout();actualRoom.platforms=DoorGeometry.Compose(actualRoom.platforms,new[]{actualDoor},"factory:0");
             var actualNpc=new ActorState {id="actual-npc",actorType="raider",anatomy="raider",owner="a",x=actualDoor.x-.5f,y=actualDoor.y};

@@ -196,7 +196,7 @@ namespace Remains.Runtime
             if(!readySent && Settled && Standing(Actor) && ActorBodySupport.Sample(Actor).Grounded &&
                 runtime.Session.World.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers)
             {
-                Require(WorldRooms.Definition(runtime.Session.World,"factory:0")==NewGameWorld.FactoryDefinitionId,"Проверка получила legacy fixture вместо обычного мира.");
+                Require(WorldRooms.Definition(runtime.Session.World,"factory:0")==LegacyFactoryFixture.DefinitionId,"Нужен исторический мир со старым собранным заводом (LegacyFactoryFixture).");
                 readySent=true;NetworkClient.Send(new CosmeticProbeReady {actor=Actor.id,world=runtime.Session.World.worldId});
             }
             if(NetworkServer.active && !beginSent && readyPeers.Count==runtime.Options.ProbePeers)

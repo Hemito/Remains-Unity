@@ -33,7 +33,7 @@ namespace Remains.Runtime
             {Level=level;Texture=texture;Clip=clip;Position=position;Aim=aim;Bounds=bounds;Gain=gain;MeleeWeapon=meleeWeapon;}
         }
         // TrainingRoom is nested at +38.4 in the saved playable hub. Factory18
-        // is nested at +38.4 in NewGameWorld's connected factory. Wood is a
+        // is nested at +38.4 in the historical connected factory (LegacyFactoryFixture). Wood is a
         // three-cell column, not a prop or a synthetic material test rectangle.
         // The wood fixture deliberately uses .15 m of the existing shelf at
         // 41.6..44.8. Concrete is an exposed office floor; the enclosed rock
@@ -89,7 +89,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 Require(value.Session.Saves.SelectedSnapshot()==null,"Существующий мир не заменяется проверкой.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             ValidateMappings();
             value.CommandSource=Command;
@@ -186,7 +186,7 @@ namespace Remains.Runtime
                 Require(session.World.worldId==worldId && !actor.down && runtime.Audio.Volume>0 && AudioListener.volume==0,
                     "Изменился мир/состояние игрока или громкость проверки.");
                 Require(Screen.width==1920 && Screen.height==1080,"Кадры требуют фактический viewport1920×1080.");
-                Require(WorldRooms.Definition(session.World,"factory:0")==NewGameWorld.FactoryDefinitionId,"Нужен обычный NewGameWorld, не legacy fixture.");
+                Require(WorldRooms.Definition(session.World,"factory:0")==LegacyFactoryFixture.DefinitionId,"Нужен исторический мир со старым собранным заводом (LegacyFactoryFixture).");
                 if(phase==0){if(!ready){ready=true;NetworkClient.Send(new SurfaceAudioReady {phase=0});}return;}
                 if(actor.level!=current.Level)
                 {

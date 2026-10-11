@@ -97,7 +97,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Melee occlusion не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.Session.AttackReceived+=Attack;
@@ -271,7 +271,7 @@ namespace Remains.Runtime
         private void Setup()
         {
             var session=runtime.Session;var world=session.ServerWorld;var door=world.doors.Single(d=>d.id==DoorId);door.Validate();
-            Require(WorldRooms.Definition(world,Level)==NewGameWorld.FactoryDefinitionId && door.definition=="office-door1" && !door.open &&
+            Require(WorldRooms.Definition(world,Level)==LegacyFactoryFixture.DefinitionId && door.definition=="office-door1" && !door.open &&
                 !door.Destroyed && door.integrity is {health:60,maxHealth:60} && door.revision==0 && door.integrity.resolvedAttacks.Count==0,
                 "Нужен настоящий новый CLOSED office-door1, без подмены состояния.");
             Require(world.friendlyFire && world.friendlyFireDecision==FriendlyFireDecision.Victim,"Pair proof требует штатный friendly fire/victim policy.");

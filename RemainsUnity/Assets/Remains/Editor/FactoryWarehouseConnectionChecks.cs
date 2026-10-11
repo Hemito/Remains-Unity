@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEditor;
@@ -11,7 +12,7 @@ namespace Remains.Editor
 {
     public static class FactoryWarehouseConnectionChecks
     {
-        public static void Run()=>Check(RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId));
+        public static void Run()=>Check(RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId));
         public static void Check(RoomAuthoring room)
         {
             var modules=room.GetComponentsInChildren<RoomAuthoring>(true);
@@ -78,7 +79,7 @@ namespace Remains.Editor
             foreach(int family in new[]{0,1,2}) foreach(var step in family==0?physical:family==1?doors:npcs)
             {
                 var world=new WorldState {worldId="warehouse-history-"+step.previousPatch,mechanismVersion=1};
-                world.rooms.Add(new WorldRoom {level=batch.physical.level,definition=NewGameWorld.FactoryDefinitionId,
+                world.rooms.Add(new WorldRoom {level=batch.physical.level,definition=LegacyFactoryFixture.DefinitionId,
                     extensions=new System.Collections.Generic.Dictionary<string,JToken>{{"modRoom",JToken.Parse("{\"branch\":\"retained\",\"nested\":[17,true]}")}}});
                 RoomContentInstaller.Apply(world,batch);
                 string patch=family==0?batch.physical.patch:family==1?batch.doors.patch:batch.npcs.patch;

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEditor;
@@ -10,7 +11,7 @@ namespace Remains.Editor
 {
     public static class FactoryOfficeConnectionChecks
     {
-        public static void Run()=>Check(RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId));
+        public static void Run()=>Check(RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId));
         public static void Check(RoomAuthoring room)
         {
             var modules=room.GetComponentsInChildren<RoomAuthoring>(true);

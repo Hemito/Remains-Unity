@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEngine;
@@ -12,7 +13,7 @@ namespace Remains.Editor
         public static void Run()
         {
             ActorTypes.Load();Anatomy.Load();WeaponCatalog.Load();
-            var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
+            var room=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);
             var layout=FactoryContentCheckFixtures.BeforeOffice(RoomNpcContent.Read(room,"factory:0"));var geometry=room.CreateLayout();
             var records=room.GetComponentsInChildren<RoomImportAudit>(true).Single(a=>a.Report.SourceId=="original:plant:18").Report.Records;
             var crawlers=layout.actors.Where(a=>a.actorType=="radroach").ToArray();

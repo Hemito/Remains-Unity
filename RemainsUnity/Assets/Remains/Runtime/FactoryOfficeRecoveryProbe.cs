@@ -71,7 +71,7 @@ namespace Remains.Runtime
                 {
                     if(selected!=null || value.Session.Saves.ReadCharacterSource()!=null)
                         throw new InvalidOperationException("Fresh office recovery не заменяет существующие мир/персонажа.");
-                    value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                    value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
                 }
             }
             else if(value.Session.Saves.SelectedSnapshot()!=null || value.Session.Saves.ReadCharacterSource()!=null)
@@ -347,7 +347,7 @@ namespace Remains.Runtime
         private void Setup()
         {
             var world=runtime.Session.ServerWorld;var npc=world.Find(NpcId);var players=world.actors.Where(a=>a.player && a.connected).ToArray();
-            if(WorldRooms.Definition(world,Level)!=NewGameWorld.FactoryDefinitionId || players.Length!=2 ||
+            if(WorldRooms.Definition(world,Level)!=LegacyFactoryFixture.DefinitionId || players.Length!=2 ||
                 npc is not {actorType:"raider",down:false,health:140} || Vector2.Distance(npc.Position,new Vector2(104.8f,11.2f))>.001f || npc.inventory.Count!=3)
                 throw new InvalidOperationException("Не получены текущая saved office geometry и настоящий исходный raider64.");
             var host=players.Single(a=>a.character=="session-host");var client=players.Single(a=>a.character=="session-client-1");

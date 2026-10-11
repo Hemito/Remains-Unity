@@ -66,7 +66,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;value.Grenades.Created+=GrenadeCreated;value.Session.Notice+=Notice;
             value.Session.ClientReady+=()=>
@@ -183,7 +183,7 @@ namespace Remains.Runtime
         }
         private void PrepareFixture()
         {
-            if(WorldRooms.Definition(runtime.Session.World,"factory:0")!=NewGameWorld.FactoryDefinitionId || Actor.health!=100 || Actor.down || CountGrenades(Actor)<2)
+            if(WorldRooms.Definition(runtime.Session.World,"factory:0")!=LegacyFactoryFixture.DefinitionId || Actor.health!=100 || Actor.down || CountGrenades(Actor)<2)
                 throw new InvalidOperationException("Нужны обычный авторский завод и свежий активный персонаж со стартовыми гранатами. Предметы/HP не исправлялись.");
             cargoRoom=runtime.Geometry.Get("factory:0");setup=PropBodyProbeSetup.Select(runtime.Session.World,Actor,cargoRoom,runtime.Session.Rules.Telekinesis);
             Actor.Position=setup.PlayerPosition;Actor.vx=Actor.vy=0;Actor.revision++;runtime.Session.PublishActor(Actor);fixture=true;

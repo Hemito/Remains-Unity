@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Serialization;
@@ -13,7 +14,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();WeaponCatalog.Load();
-            var world=NewGameWorld.Create();MechanismPersistence.Prepare(world,()=>{});
+            var world=LegacyFactoryFixture.Create();MechanismPersistence.Prepare(world,()=>{});
             RoomContentInstaller.Apply(world,RoomContentBatch.Read(RoomAuthoring.Load("factory:0",world),"factory:0"));
             LevelTimeMigration.Prepare(world,new[]{"factory:0"});
             var platform=world.movingPlatforms.Single(p=>p.level=="factory:0");

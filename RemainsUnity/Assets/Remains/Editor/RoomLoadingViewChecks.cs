@@ -1,5 +1,6 @@
 using System;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
@@ -59,7 +60,7 @@ namespace Remains.Editor
             {
                 // Inactive real session: no sockets, admission, world or profile writes.
                 var session=owner.AddComponent<CoopSession>();geometry=new SimulationGeometry(session);
-                var staged=geometry.PrepareEntry(NewGameWorld.Create(),"hub");
+                var staged=geometry.PrepareEntry(LegacyFactoryFixture.Create(),"hub");
                 geometry.MarkEntryPrepared(staged);
                 var image=ui.GetComponent<Image>();
                 preparation=new EntryRoomPreparation(session,session,geometry,(light,room,pending)=>

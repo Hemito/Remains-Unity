@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Remains.Content;
+using Remains.Runtime;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEngine;
@@ -25,7 +26,7 @@ namespace Remains.Editor
         {
             RoomAuthoringScenes.ValidateSavedOverrides();
             WeaponCatalog.Load();Anatomy.Load();PropCatalog.Load();ActorTypes.Load();
-            var room=RoomCatalogAsset.Load().Resolve(NewGameWorld.FactoryDefinitionId);
+            var room=RoomCatalogAsset.Load().Resolve(LegacyFactoryFixture.DefinitionId);
             var evidence=new Evidence {output=OutputPath,layout=room.CreateLayout(),
                 content=RoomContentBatch.Read(room,"factory:0"),
                 moduleSources=room.GetComponentsInChildren<RoomImportAudit>(true).Select(a=>a.Report.SourceId).ToArray()};

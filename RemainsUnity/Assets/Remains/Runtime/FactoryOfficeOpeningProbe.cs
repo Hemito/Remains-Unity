@@ -113,7 +113,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка проёма не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.Session.AttackReceived+=attack=>{if(attack.attacker==value.Session.LocalActorId && ownAttacks.Add(attack.id)) shots++;};

@@ -71,7 +71,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка механизмов не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.Session.RecoveryPersisted+=RecoveryPersisted;
@@ -190,7 +190,7 @@ namespace Remains.Runtime
         }
         private void PrepareFixture()
         {
-            if(WorldRooms.Definition(runtime.Session.World,Level)!=NewGameWorld.FactoryDefinitionId)
+            if(WorldRooms.Definition(runtime.Session.World,Level)!=LegacyFactoryFixture.DefinitionId)
                 throw new InvalidOperationException("Проверка получила legacy-завод вместо авторского NewGameWorld; исключите mechanism из LegacyPrototypeFixture.");
             var button=Button??throw new InvalidOperationException("Нет авторской левой кнопки "+ButtonId);
             var platform=Platform??throw new InvalidOperationException("Нет авторской платформы "+PlatformId);

@@ -35,7 +35,7 @@ namespace Remains.Runtime
             if(Host)
             {
                 if(value.Session.Saves.SelectedSnapshot()!=null) throw new InvalidOperationException("Проверка NPC не заменяет существующий мир.");
-                value.Session.Saves.SaveWorld(NewGameWorld.Create());
+                value.Session.Saves.SaveWorld(LegacyFactoryFixture.Create());
             }
             value.CommandSource=Command;
             value.Session.Doors.NpcFinished+=(actor,door,reply)=>
@@ -108,7 +108,7 @@ namespace Remains.Runtime
         private void Setup(ActorState player)
         {
             var session=runtime.Session;
-            if(WorldRooms.Definition(session.ServerWorld,"factory:0")!=NewGameWorld.FactoryDefinitionId)
+            if(WorldRooms.Definition(session.ServerWorld,"factory:0")!=LegacyFactoryFixture.DefinitionId)
                 throw new InvalidOperationException("Проверка двери использует другой завод.");
             var door=session.ServerWorld.doors.Single(d=>d.id==DoorId);
             var npc=session.ServerWorld.actors.Single(a=>a.id=="factory:0:original:plant:46:Pca2ee6SiIQvzRpV");
