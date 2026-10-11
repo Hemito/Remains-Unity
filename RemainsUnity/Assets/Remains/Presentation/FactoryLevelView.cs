@@ -156,6 +156,7 @@ namespace Remains.Presentation
             if(windowRooms.width<=0) throw new InvalidOperationException("Вид завода: окно света не выбрано (Focus).");
             DestroyWindow();
             var grid=root.Prepared.Grid;var level=grid.Level;var catalog=root.Catalog;
+            ShowWindowRooms(grid);
             float cell=(float)level.Cell;
             int column=windowRooms.x*grid.StepX,row=windowRooms.y*grid.StepY;
             int width=windowRooms.width*grid.StepX+1,height=windowRooms.height*grid.StepY+1;
@@ -193,6 +194,22 @@ namespace Remains.Presentation
             field=RoomRadianceField.Build(region,catalog.Definitions,catalog.Lands,table,origin,window.transform,sprites,occluders);
             for(int i=0;i<SettleUpdates;i++) field.Render();
             PresentationChanged?.Invoke(this);
+        }
+
+        // Only the rooms of the light window keep their pictures active: all 84 rooms are ~5600 sprites, more than a
+        // SortingGroup handles (4095) and a large per-frame cost. Room instances are the root's Rooms children in
+        // grid order (FactoryLevelRoot.InstantiateRooms). Walls (terrain tilemaps) stay level-wide.
+        private void ShowWindowRooms(FactoryGrid grid)
+        {
+            var rooms=root.Rooms;
+            if(rooms.childCount!=grid.Rooms.Count) throw new InvalidOperationException($"Вид завода: комнат {rooms.childCount}, в раскладке {grid.Rooms.Count}.");
+            for(int i=0;i<grid.Rooms.Count;i++)
+            {
+                var cell=grid.Rooms[i].Cell;
+                bool inside=cell.X>=windowRooms.xMin && cell.X<windowRooms.xMax && cell.Y>=windowRooms.yMin && cell.Y<windowRooms.yMax;
+                var instance=rooms.GetChild(i).gameObject;
+                if(instance.activeSelf!=inside) instance.SetActive(inside);
+            }
         }
 
         // Shown in the room, judged up to the level root: a prepared source root may itself be inactive.
