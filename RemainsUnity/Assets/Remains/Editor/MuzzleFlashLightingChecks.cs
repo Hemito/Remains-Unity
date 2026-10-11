@@ -84,10 +84,11 @@ namespace Remains.Editor
                 var blocker=new[]{new RoomRadianceField.LightOccluder(sprite,
                     Matrix4x4.TRS(new Vector3(2.25f,3,0),Quaternion.identity,new Vector3(.25f,4,1)))};
                 field.RenderTransient(emissions,blocker);
+                Equal(Read(Shader.GetGlobalTexture("_RemainsRadiance")),lit,"Силуэт изменил свет вспышки.");
                 float blocked=Mean(FlashDirect(field),64,24,28,24,32);
                 field.RenderTransient(emissions);
                 float unblocked=Mean(FlashDirect(field),64,24,28,24,32);
-                Require(unblocked>.02f && blocked<unblocked*.25f,$"Динамический силуэт не отбрасывает тень: открыто={unblocked}, тень={blocked}.");
+                Require(unblocked>.02f && Mathf.Abs(blocked-unblocked)<1e-4f,$"Силуэт изменил прямой свет вспышки: открыто={unblocked}, тень={blocked}.");
                 var movedBlocker=new[]{new RoomRadianceField.LightOccluder(sprite,
                     Matrix4x4.TRS(new Vector3(2.25f,5.5f,0),Quaternion.identity,new Vector3(.25f,.5f,1)))};
                 field.RenderTransient(emissions,movedBlocker);
@@ -96,7 +97,7 @@ namespace Remains.Editor
                 Equal(Read(Scene(field,"bounceA")),bounceBefore,"Динамический силуэт изменил отражения лампы.");
                 field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>());
                 Equal(Read(Shader.GetGlobalTexture("_RemainsRadiance")),baselineLight,"После тени не восстановился свет лампы.");
-                Debug.Log($"Тени динамических силуэтов: PASS — открыто={unblocked}, тень={blocked}, перемещено={moved}.");
+                Debug.Log($"Изоляция динамических силуэтов: PASS — открыто={unblocked}, тень={blocked}, перемещено={moved}.");
                 CheckActorSilhouette(field,emissions,baseline);
                 Debug.Log($"Дульная вспышка: PASS — прямой GPU свет, цвет, неизменное поглощение, стена, история отражений лампы сохранена, повтор без накопления, мгновенное восстановление; рядом={nearby}, за стеной={shadow}, восстановлено={cleared}, отражение лампы={reflected}.");
             }
@@ -111,7 +112,7 @@ namespace Remains.Editor
         // Direct light the flash adds: the dynamic pass also holds the lamps' direct light (shadowed by silhouettes).
         private static Color[] FlashDirect(RoomRadianceField field)
         {
-            var direct=Read(Scene(field,"directFluence"));var free=Read(Scene(field,"lampOccludedFluence"));
+            var direct=Read(Scene(field,"directFluence"));var free=Read(Scene(field,"freeFluence"));
             for(int i=0;i<direct.Length;i++) direct[i]-=free[i];
             return direct;
         }
@@ -135,14 +136,14 @@ namespace Remains.Editor
                 field.RenderTransient(emissions,silhouettes);
                 var scene=Read(Scene(field,"transientScene"));
                 int changed=0;
-                for(int i=0;i<scene.Length;i++) if(scene[i].a>baseline[i].a+.5f) changed++;
-                Require(changed>4,$"Нарисованный пони не перекрывает свет на GPU: текселей={changed}.");
+                for(int i=0;i<scene.Length;i++) if(Mathf.Abs(scene[i].a-baseline[i].a)>1e-5f) changed++;
+                Require(changed==0,$"Пони изменил поглощение светового поля: текселей={changed}.");
                 actor.facing=-1;visual.DrawPose(0);silhouettes.Clear();visual.AppendLightOccluders(silhouettes);
                 Require(silhouettes[0].LocalToWorld.determinant<0,"Зеркальность тела не передана в силуэт тени.");
                 visual.SetVisible(false);silhouettes.Clear();visual.AppendLightOccluders(silhouettes);
                 Require(silhouettes.Count==0,"Скрытый пони продолжает отбрасывать тень.");
                 field.RenderTransient(Array.Empty<RoomRadianceField.SpriteEmission>());
-                Debug.Log($"Силуэт настоящего пони: PASS — GPU поглощение, зеркальность, скрытие; текселей={changed}.");
+                Debug.Log($"Силуэт настоящего пони: PASS — неизменное GPU поглощение, зеркальность, скрытие; текселей={changed}.");
             }
             finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
         }

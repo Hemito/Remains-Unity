@@ -1,0 +1,136 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Remains.Presentation
+{
+    // Pose drawing is lightweight animation. Source/grid analysis is an explicit cached
+    // rebuild, scheduled after movement or a lighting revision, never in LateUpdate.
+    public sealed class ActorShadowPresentation : IDisposable
+    {
+        private sealed class Entry
+        {
+            public ActorCastShadowView View;
+            public readonly List<RoomRadianceField.LightOccluder> Parts=new();
+            public readonly List<ActorShadowSource> Lamps=new(),Sources=new();
+            public readonly List<ActorShadowSource> Flashes=new();
+            public readonly Dictionary<string,(Vector2 Position,float Transmission)> FlashVisibility=new();
+            public Vector2 Position,SelectedAt;
+            public long Revision=-1;
+            public bool Queued;
+        }
+        private readonly MonoBehaviour runner;
+        private readonly Transform parent;
+        private readonly ActorCastShadowView prefab;
+        private readonly Dictionary<string,Entry> entries=new(StringComparer.Ordinal);
+        private readonly HashSet<string> retained=new(StringComparer.Ordinal);
+        private readonly List<string> removed=new();
+        private FactoryLevelView level;
+        private Coroutine refresh;
+
+        public ActorShadowPresentation(MonoBehaviour runner,Transform parent)
+        {
+            this.runner=runner??throw new ArgumentNullException(nameof(runner));
+            this.parent=parent;
+            prefab=Resources.Load<ActorCastShadowView>("Presentation/ActorCastShadow")??
+                throw new InvalidOperationException("Нет авторского префаба проецируемой тени персонажа.");
+        }
+
+        public void Present(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
+            InteractionVisuals weapons,IReadOnlyList<RoomRadianceField.SpriteEmission> flashes)
+        {
+            if(current!=level) {Clear();level=current;}
+            if(level==null || !level.IsReady) {Clear();return;}
+            var settings=level.ShadowSettings;
+            retained.Clear();removed.Clear();
+            foreach(var pair in actors)
+            {
+                if(pair.Value==null || !pair.Value.gameObject.activeInHierarchy) continue;
+                retained.Add(pair.Key);
+                if(!entries.TryGetValue(pair.Key,out var entry))
+                {
+                    entry=new Entry{View=UnityEngine.Object.Instantiate(prefab,parent,false)};
+                    entry.View.name="Проецируемая тень: "+pair.Key;entries.Add(pair.Key,entry);
+                }
+                entry.Parts.Clear();pair.Value.AppendLightOccluders(entry.Parts);
+                weapons.AppendWeaponLightOccluders(pair.Key,entry.Parts);
+                if(entry.Parts.Count==0) {entry.View.Clear();continue;}
+                entry.Position=pair.Value.TryGetDrawnBounds(out var bounds)?(Vector2)bounds.center:
+                    PartsCenter(entry.Parts);
+                if(entry.Revision!=level.ShadowSourceRevision ||
+                    (entry.Position-entry.SelectedAt).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)
+                    entry.Queued=true;
+                entry.Sources.Clear();entry.Sources.AddRange(entry.Lamps);entry.Flashes.Clear();
+                if(entry.Revision!=level.ShadowSourceRevision) entry.FlashVisibility.Clear();
+                if(flashes!=null) for(int i=0;i<flashes.Count;i++)
+                {
+                    var flash=flashes[i];
+                    if(flash.Sprite==null || flash.Gain<=0 || !float.IsFinite(flash.Gain)) continue;
+                    Vector2 position=flash.LocalToWorld.MultiplyPoint3x4(flash.Sprite.bounds.center);
+                    var size=flash.Sprite.bounds.size;var scale=flash.LocalToWorld.lossyScale;
+                    float radius=Mathf.Max(Mathf.Abs(size.x*scale.x),Mathf.Abs(size.y*scale.y))*.25f;
+                    string id="flash:"+i;
+                    float strength=flash.Gain/(1+flash.Gain)/Mathf.Max(1,Vector2.Distance(position,entry.Position));
+                    entry.Flashes.Add(new ActorShadowSource(id,position,radius,strength));
+                    if(entry.FlashVisibility.TryGetValue(id,out var cached) &&
+                        (cached.Position-position).sqrMagnitude<settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold && !entry.Queued)
+                        entry.Sources.Add(new ActorShadowSource(id,position,radius,strength*cached.Transmission));
+                    else entry.Queued=true;
+                }
+                if(entry.View.NeedsPreparation(entry.Parts,entry.Sources.Count)) entry.Queued=true;
+                entry.View.Draw(entry.Position,entry.Parts,entry.Sources,settings);
+            }
+            foreach(var pair in entries) if(!retained.Contains(pair.Key)) removed.Add(pair.Key);
+            foreach(var id in removed) {Destroy(entries[id]);entries.Remove(id);}
+            if(refresh==null) foreach(var pair in entries) if(pair.Value.Queued)
+                {refresh=runner.StartCoroutine(RebuildSources());break;}
+        }
+
+        private IEnumerator RebuildSources()
+        {
+            // First yield avoids executing the grid traversal inside the pose callback.
+            yield return null;
+            if(level!=null && level.IsReady) foreach(var pair in entries)
+            {
+                var entry=pair.Value;if(!entry.Queued) continue;
+                if(entry.Revision!=level.ShadowSourceRevision ||
+                    (entry.Position-entry.SelectedAt).sqrMagnitude>=level.ShadowSettings.ActorShadowMoveThreshold*level.ShadowSettings.ActorShadowMoveThreshold)
+                {
+                    level.SelectActorShadowSources(entry.Position,entry.Lamps);
+                    entry.SelectedAt=entry.Position;entry.Revision=level.ShadowSourceRevision;
+                }
+                foreach(var flash in entry.Flashes)
+                    entry.FlashVisibility[flash.Id]=(flash.Position,level.ActorShadowTransmission(entry.Position,flash.Position));
+                entry.View.Prepare(entry.Parts,entry.Lamps.Count+entry.Flashes.Count);
+                entry.Queued=false;
+            }
+            refresh=null;
+        }
+        private static Vector2 PartsCenter(List<RoomRadianceField.LightOccluder> parts)
+        {
+            // Exact bounds of the supplied drawing, also for sprite actors that do not expose pony bounds.
+            Vector2 min=new(float.PositiveInfinity,float.PositiveInfinity),max=new(float.NegativeInfinity,float.NegativeInfinity);
+            foreach(var part in parts)
+            {
+                var bounds=part.Sprite!=null?part.Sprite.bounds:part.Mesh.bounds;
+                for(int i=0;i<4;i++)
+                {
+                    Vector2 point=part.LocalToWorld.MultiplyPoint3x4(new Vector3((i&1)==0?bounds.min.x:bounds.max.x,
+                        (i&2)==0?bounds.min.y:bounds.max.y,0));
+                    min=Vector2.Min(min,point);max=Vector2.Max(max,point);
+                }
+            }
+            return (min+max)*.5f;
+        }
+        private static void Destroy(Entry entry)
+        {entry.View.Clear();entry.View.gameObject.SetActive(false);UnityEngine.Object.Destroy(entry.View.gameObject);}
+        public void Clear()
+        {
+            if(refresh!=null) {runner.StopCoroutine(refresh);refresh=null;}
+            foreach(var pair in entries) Destroy(pair.Value);
+            entries.Clear();level=null;
+        }
+        public void Dispose()=>Clear();
+    }
+}

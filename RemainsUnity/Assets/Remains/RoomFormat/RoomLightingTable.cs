@@ -43,6 +43,8 @@ namespace Remains.RoomFormat
         public double ObjectRimWidth;    // m, rim mode
         public double BeamTransmittance; // share of light a beam (one-way platform) lets through across its height
         public double BeamHeight=1;      // share of the cell (from its top) the beam's drawing covers: its extent for light
+        public double ActorShadowDepth,ActorShadowMaxOffset,ActorShadowMaxOpacity,ActorShadowMoveThreshold;
+        public int ActorShadowMaxSources;
 
         // Light an object lets through (0..1). Closed doors: none. Original placement depth: wall = 1 hangs
         // on the back wall (not in the light's plane) → all; wall = 2 stands across the corridor (grates,
@@ -84,6 +86,21 @@ namespace Remains.RoomFormat
                 AmbientMax = ambient.Get("max").AsDouble(source + ".ambient.max"),
             };
             var shadows = root.Get("shadows") ?? throw new FormatException(source + ": нет раздела shadows.");
+            var actorShadows = root.Get("actorShadows") ?? throw new FormatException(source + ": нет раздела actorShadows.");
+            table.ActorShadowDepth=actorShadows.Get("depth").AsDouble(source+".actorShadows.depth");
+            table.ActorShadowMaxOffset=actorShadows.Get("maxOffset").AsDouble(source+".actorShadows.maxOffset");
+            table.ActorShadowMaxOpacity=actorShadows.Get("maxOpacity").AsDouble(source+".actorShadows.maxOpacity");
+            table.ActorShadowMoveThreshold=actorShadows.Get("moveThreshold").AsDouble(source+".actorShadows.moveThreshold");
+            long shadowSourceCount=actorShadows.Get("maxSources").AsLong(source+".actorShadows.maxSources");
+            if(shadowSourceCount<1 || shadowSourceCount>3)
+                throw new FormatException(source+".actorShadows.maxSources: ожидается от 1 до 3.");
+            table.ActorShadowMaxSources=(int)shadowSourceCount;
+            if(!double.IsFinite(table.ActorShadowDepth) || table.ActorShadowDepth<=0 ||
+                !double.IsFinite(table.ActorShadowMaxOffset) || table.ActorShadowMaxOffset<=0 ||
+                !double.IsFinite(table.ActorShadowMaxOpacity) || table.ActorShadowMaxOpacity<0 || table.ActorShadowMaxOpacity>1 ||
+                !double.IsFinite(table.ActorShadowMoveThreshold) || table.ActorShadowMoveThreshold<=0 ||
+                table.ActorShadowMaxSources<1 || table.ActorShadowMaxSources>3)
+                throw new FormatException(source+".actorShadows: depth/maxOffset/moveThreshold > 0, maxOpacity в [0,1], maxSources от 1 до 3.");
             table.ShadowEdge = shadows.Get("edge").AsDouble(source + ".shadows.edge");
             table.ShadowSoftness = shadows.Get("softness").AsDouble(source + ".shadows.softness");
             var radiance = root.Get("radiance") ?? throw new FormatException(source + ": нет раздела radiance.");

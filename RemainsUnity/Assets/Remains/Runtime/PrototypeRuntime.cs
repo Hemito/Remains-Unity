@@ -71,7 +71,7 @@ namespace Remains.Runtime
         private NpcController npcs;
         private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
-        private readonly List<RoomRadianceField.LightOccluder> muzzleOccluders=new();
+        private ActorShadowPresentation actorShadows;
         private readonly PonyMagicActivitySource ponyMagic=new();
         private readonly RemoteActorMotion remoteMotion=new();
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
@@ -174,14 +174,12 @@ namespace Remains.Runtime
             visualLayers=new ActorVisualLayers(transform,visualOrders);
             var interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers,Combat.Reload);
+            actorShadows=new ActorShadowPresentation(this,transform);
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
             {
-                if(!LevelPresentationReady || ActiveFactoryLighting==null) return;
-                // Actors and weapons shadow lamps every frame, not only flashes; the field recomputes only on change.
-                muzzleOccluders.Clear();
-                foreach(var visual in visuals.Values) visual.AppendLightOccluders(muzzleOccluders);
-                interactionVisuals.AppendWeaponLightOccluders(muzzleOccluders);
-                ActiveFactoryLighting.RenderMuzzleFlashes(emissions,muzzleOccluders);
+                if(!LevelPresentationReady || ActiveFactoryLighting==null) {actorShadows.Clear();return;}
+                ActiveFactoryLighting.RenderMuzzleFlashes(emissions);
+                actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions);
             });
             CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals,ponyMagic);
             HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
@@ -714,6 +712,7 @@ namespace Remains.Runtime
                 Session.FlushSaveWrites();
             }
             entryRoom?.Dispose();entryRoom=null;EntryPresentationPrepared=null;
+            actorShadows?.Dispose();actorShadows=null;
             roomPresentation?.Dispose();ActiveLevelLighting?.Release();
             Pickup?.Dispose();MechanismInteraction?.Dispose();
             if(Platforms!=null) {Platforms.TopologyChanged-=ActorBodySupport.InvalidateRoom;Platforms.Dispose();}

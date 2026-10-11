@@ -10,7 +10,7 @@ namespace Remains.Presentation
     // World category is independent of position, ownership, pose and local part order.
     public static class WorldVisualOrderPolicy
     {
-        public const int SceneryRoomOrder=0,ActorPartOrder=20,WeaponPartOrder=100,OutlineLocalOrder=short.MaxValue;
+        public const int SceneryRoomOrder=0,ActorShadowOrder=1,ActorPartOrder=20,WeaponPartOrder=100,OutlineLocalOrder=short.MaxValue;
         private static readonly Dictionary<string,WorldVisualCategory> actorCategories=new(StringComparer.Ordinal)
         {{"training-dummy",WorldVisualCategory.Scenery},{"training-armored-dummy",WorldVisualCategory.Scenery}};
         public static void RegisterActorCategory(string actorType,WorldVisualCategory category,bool replace=false)
@@ -31,7 +31,7 @@ namespace Remains.Presentation
         public static WorldVisualCategory Category(PropState prop)=>prop.held?WorldVisualCategory.Telekinesis:WorldVisualCategory.OrdinaryObject;
         public static int FirstOrder(WorldVisualCategory category)=>category switch
         {
-            WorldVisualCategory.Scenery=>1,WorldVisualCategory.OrdinaryObject=>998,WorldVisualCategory.Body=>5000,
+            WorldVisualCategory.Scenery=>2,WorldVisualCategory.OrdinaryObject=>998,WorldVisualCategory.Body=>5000,
             WorldVisualCategory.Npc=>10000,WorldVisualCategory.Player=>15000,WorldVisualCategory.Telekinesis=>21000,
             WorldVisualCategory.Effect=>30000,_=>throw new ArgumentOutOfRangeException(nameof(category))
         };

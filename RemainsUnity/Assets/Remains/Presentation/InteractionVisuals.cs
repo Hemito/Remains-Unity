@@ -36,9 +36,12 @@ namespace Remains.Presentation
         private readonly List<string> removed=new();
         public WeaponView FindWeapon(string actorId)=>weapons.TryGetValue(actorId,out var view)?view:null;
         public void AppendWeaponLightOccluders(List<RoomRadianceField.LightOccluder> output)
+            =>AppendWeaponLightOccluders(null,output);
+        public void AppendWeaponLightOccluders(string actorId,List<RoomRadianceField.LightOccluder> output)
         {
             foreach(var pair in weapons)
             {
+                if(actorId!=null && pair.Key!=actorId) continue;
                 var view=pair.Value;
                 var renderer=view.Artwork;
                 if(!view.gameObject.activeInHierarchy || !renderer.enabled || renderer.forceRenderingOff || renderer.color.a<=0) continue;

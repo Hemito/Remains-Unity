@@ -41,6 +41,19 @@ namespace Remains.Presentation
         private readonly HashSet<string> darkLamps=new(StringComparer.Ordinal);
         private readonly HashSet<string> brokenLamps=new(StringComparer.Ordinal);
         private readonly List<LampState> lampPlacements=new();
+        private readonly ActorShadowSources shadowSources=new();
+        private readonly List<(int x,int y,ActorShadowSource source)> shadowLamps=new();
+        private readonly List<ActorShadowSource> windowShadowLamps=new();
+        private float shadowAmbient;
+        public RoomLightingTable ShadowSettings=>table;
+        public long ShadowSourceRevision {get;private set;}
+        public float ActorShadowTransmission(Vector2 from,Vector2 to)=>IsReady?shadowSources.Visibility(from,to,doors):0;
+        public void SelectActorShadowSources(Vector2 actor,List<ActorShadowSource> output)
+        {
+            if(output==null) throw new ArgumentNullException(nameof(output));
+            if(!IsReady) {output.Clear();return;}
+            shadowSources.Select(actor,darkLamps,doors,table.ActorShadowMaxSources,output);
+        }
         public IReadOnlyCollection<string> LampIds=>lamps.Keys;
         public IReadOnlyList<LampState> LampPlacements=>lampPlacements;
         public string LampWorldLevel=>root is HubTemplateLevel?"hub":root?.Level;
@@ -62,6 +75,7 @@ namespace Remains.Presentation
             if(darkLamps.SetEquals(dark) && brokenLamps.SetEquals(broken))
             {
                 AppliedLampRevision=revision;
+                ShadowSourceRevision++;
                 PresentationChanged?.Invoke(this);
                 return;
             }
@@ -87,6 +101,7 @@ namespace Remains.Presentation
                 }
             }
             AppliedLampRevision=revision;
+            ShadowSourceRevision++;
             if(field!=null)
             {
                 var sprites=new List<RoomSpritePlacement>(windowPictures.Count);
@@ -176,6 +191,7 @@ namespace Remains.Presentation
                 for(int i=0;i<SettleUpdates;i++) field.Render();
             }
             AppliedDoorRevision=revision;
+            ShadowSourceRevision++;
             PresentationChanged?.Invoke(this);
         }
 
@@ -218,15 +234,26 @@ namespace Remains.Presentation
             if(light.lightType!=Light2D.LightType.Global) throw new InvalidOperationException("Префаб общего света завода: свет не общий (Global).");
             light.intensity=(float)table.Ambient(scene.Darkness);
             light.color=new Color((float)scene.Tint[0],(float)scene.Tint[1],(float)scene.Tint[2]);
+            shadowAmbient=light.intensity*(.2126f*light.color.r+.7152f*light.color.g+.0722f*light.color.b);
             // The same ambient for WorldLit artwork (actors, props, doors), which does not read Light2D.
             Shader.SetGlobalVector("_RemainsAmbient",(Vector4)(light.color*light.intensity));
 
-            pictures.Clear();lamps.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();
+            pictures.Clear();lamps.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();shadowLamps.Clear();
             foreach(var sprite in level.RoomInstances.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 pictures.Add((sprite,definitions.Require(sprite.Definition,"вид уровня, "+sprite.name)));
             for(int i=0;i<level.Rooms.Count;i++)
             {
                 var room=level.Rooms[i];
+                var roomLight=RoomLightScene.Build(room.Template,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
+                foreach(string issue in roomLight.Issues) Debug.LogWarning($"Источники тени, {room.Template.Template}: {issue}",this);
+                var byDecor=new Dictionary<int,RoomLightSource>();
+                int sourceIndex=0;
+                for(int decorIndex=0;decorIndex<room.Template.Decor.Count;decorIndex++)
+                    if(table.Lamps.ContainsKey(room.Template.Decor[decorIndex].Type) && sourceIndex<roomLight.Lamps.Count)
+                        byDecor.Add(decorIndex,roomLight.Lamps[sourceIndex++]);
+                var templateInstance=level.RoomInstances.GetChild(i).GetComponent<RoomTemplateInstance>()??
+                    throw new InvalidOperationException($"Источники тени: комната {i}, {room.Template.Template} без RoomTemplateInstance.");
+                bool mirrored=templateInstance.Mirror;
                 foreach(var picture in level.RoomInstances.GetChild(i).GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 {
                     if(picture.Kind!=RoomSpriteKind.Decor || !table.Lamps.ContainsKey(picture.Definition)) continue;
@@ -235,6 +262,17 @@ namespace Remains.Presentation
                     string id=$"{level.Level}:{room.X},{room.Y}:{decor.Id}";
                     var renderer=picture.GetComponent<SpriteRenderer>();
                     lamps.Add(id,(picture,picture.Frame,renderer.sprite,definitions.Require(picture.Definition,"лампа")));
+                    if(byDecor.TryGetValue(picture.Index,out var source))
+                    {
+                        float x=(float)(mirrored?room.Template.Width*room.Template.Cell-source.X:source.X);
+                        Vector2 position=transform.TransformPoint(room.Offset+new Vector2(x,(float)source.Y));
+                        // The field applies the composed level's tint, not individual room filters.
+                        double luminance=.2126*source.Lamp.Color[0]*scene.Tint[0]+
+                            .7152*source.Lamp.Color[1]*scene.Tint[1]+.0722*source.Lamp.Color[2]*scene.Tint[2];
+                        float power=(float)(table.RadiancePower*source.Lamp.Intensity*luminance*
+                            table.LampFrameShare(definitions.Require(picture.Definition,"источник тени"),picture.Frame));
+                        shadowLamps.Add((room.X,room.Y,new ActorShadowSource(id,position,(float)source.DiskRadius,power)));
+                    }
                 }
             }
             lampPlacements.AddRange(LampContent.Read(level));
@@ -316,6 +354,16 @@ namespace Remains.Presentation
                 window.AddComponent<RoomDecorResources>().BuildErase(erases,origin,size,Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource));
             field=RoomRadianceField.Build(region,root.Definitions,root.Lands,table,origin,window.transform,sprites,WorldDoorOccluders());
             for(int i=0;i<SettleUpdates;i++) field.Render();
+            windowShadowLamps.Clear();
+            foreach(var lamp in shadowLamps)
+                if(lamp.x>=windowRooms.xMin && lamp.x<windowRooms.xMax && lamp.y>=windowRooms.yMin && lamp.y<windowRooms.yMax &&
+                    Shown(lamps[lamp.source.Id].picture))
+                    windowShadowLamps.Add(lamp.source);
+            var shadowTerrain=RoomLightScene.Absorption(region,RoomGeometryBuilder.Build(region,root.Definitions),
+                table.RadianceResolution,table.BeamTransmittance,.985,table.BeamHeight);
+            shadowSources.Configure(shadowTerrain,localOrigin,1f/table.RadianceResolution,
+                transform.worldToLocalMatrix,windowShadowLamps,shadowAmbient);
+            ShadowSourceRevision++;
             PresentationChanged?.Invoke(this);
         }
 
@@ -367,6 +415,7 @@ namespace Remains.Presentation
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) {ambient.SetActive(false);Destroy(ambient);}
             terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
+            shadowSources.Clear();shadowLamps.Clear();windowShadowLamps.Clear();ShadowSourceRevision++;
             Room=null;PresentationChanged?.Invoke(this);
         }
 

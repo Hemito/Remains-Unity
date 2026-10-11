@@ -45,7 +45,7 @@ namespace Remains.Presentation
         private RenderTexture transientScene;
         private bool distanceReady;
         private bool transientActive;
-        private RenderTexture staticFluence,directFluence,lampOccludedFluence,silhouetteRows,silhouetteDistance;
+        private RenderTexture staticFluence,directFluence;
         private MaterialPropertyBlock emissionBlock;
 
         public readonly struct SpriteEmission
@@ -70,33 +70,22 @@ namespace Remains.Presentation
             {Sprite=null;Mesh=mesh;Texture=texture;LocalToWorld=matrix;Opacity=opacity;}
         }
 
-        // Dynamic light on top of the static field (lamps with their bounce history, computed by Render):
-        // moving silhouettes (actors, weapons) shadow the lamps' DIRECT light, and transient sources (muzzle
-        // flashes) add direct light. Remove only the positive loss of lamp direct light, and add the
-        // combined-minus-lamp flash contribution separately. Geometry-dependent Fill cannot invent lamp
-        // energy. Bounce stays from the static field: a shadow does not darken reflections.
-        // The free direct light is recomputed only when the static scene changes; the dynamic pass only when
-        // the silhouettes or flashes change. Empty input restores the static result.
+        // Actor and weapon shadows are projected by the presentation renderer. They do not change
+        // flatland transport. Temporary sources add direct light without altering lamp bounce history.
         public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<LightOccluder> occluders=null)
         {
-            int emitting=emissions?.Count??0,blocking=occluders?.Count??0;
-            if(emitting==0 && blocking==0)
+            if((emissions?.Count??0)==0)
             {
                 if(!transientActive) return false;
                 Graphics.CopyTexture(staticFluence,fluence);
-                transientActive=false;lastSilhouettes=0;
+                transientActive=false;
                 return true;
             }
-            int silhouettes=Signature(occluders);
-            if(emitting==0 && transientActive && freeReady && silhouettes==lastSilhouettes && !lastHadEmission) return false;
             EnsureSceneDrawing();
             if(staticScene==null) staticScene=scene;
             if(transientScene==null) transientScene=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена динамического света");
-            if(directFluence==null) directFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет с силуэтами");
-            if(lampOccludedFluence==null) lampOccludedFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет затенённых ламп");
-            if(freeFluence==null) freeFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет ламп без силуэтов");
-            if(silhouetteRows==null) silhouetteRows=Target(width,height,GraphicsFormat.R32_SFloat,"Расстояние до силуэта по строкам");
-            if(silhouetteDistance==null) silhouetteDistance=Target(width,height,GraphicsFormat.R32_SFloat,"Расстояние до силуэта");
+            if(directFluence==null) directFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет вспышки");
+            if(freeFluence==null) freeFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой свет ламп");
             if(staticFluence==null) staticFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сохранённый свет ламп");
             if(!transientActive) Graphics.CopyTexture(fluence,staticFluence);
             try
@@ -109,51 +98,10 @@ namespace Remains.Presentation
                     freeReady=true;
                 }
                 var previous=RenderTexture.active;
-                try {Graphics.Blit(staticScene,transientScene);}   // lamps' emission and absorption stay
+                try {Graphics.Blit(staticScene,transientScene);}
                 finally {RenderTexture.active=previous;}
-                using(var cmd=new CommandBuffer{name="Динамический свет"})
+                using(var cmd=new CommandBuffer{name="Прямой свет вспышки"})
                 {
-                    cmd.SetRenderTarget(transientScene);
-                    cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
-                    if(occluders!=null) foreach(var occluder in occluders)
-                    {
-                        var mesh=occluder.Mesh;
-                        var texture=occluder.Texture;
-                        var matrix=occluder.LocalToWorld;
-                        var uvRect=new Vector4(0,0,1,1);
-                        Vector3 size;
-                        if(occluder.Sprite!=null)
-                        {
-                            var sprite=occluder.Sprite;
-                            if(sprite.packed && (sprite.packingMode==SpritePackingMode.Tight || sprite.packingRotation!=SpritePackingRotation.None))
-                            {Debug.LogWarning($"Поле света {name}: неподдержанная упаковка силуэта {sprite.name}.",this);continue;}
-                            mesh=quad;texture=sprite.texture;
-                            var uv=sprite.textureRect;
-                            uvRect=new Vector4(uv.x/texture.width,uv.y/texture.height,uv.width/texture.width,uv.height/texture.height);
-                            size=sprite.bounds.size;
-                            matrix*=Matrix4x4.TRS(sprite.bounds.min,Quaternion.identity,sprite.bounds.size);
-                        }
-                        else size=mesh!=null?mesh.bounds.size:Vector3.zero;
-                        if(mesh==null || texture==null || !float.IsFinite(occluder.Opacity) || occluder.Opacity<=0)
-                        {Debug.LogWarning($"Поле света {name}: некорректный силуэт препятствия, mesh={mesh}, texture={texture}, opacity={occluder.Opacity}.",this);continue;}
-                        // Object semantics, as furniture: the whole silhouette stops `Opacity` across its thinner side
-                        // and stays lit through its body (below the wall threshold, no wall bounce).
-                        var scale=occluder.LocalToWorld.lossyScale;
-                        double thickness=Math.Max(1,Math.Min(Math.Abs(size.x*scale.x),Math.Abs(size.y*scale.y))/texel);
-                        double perTexel=Math.Min(MaxObjectTexelAbsorption,1-Math.Pow(1-Math.Min(occluder.Opacity,0.9999),1/thickness));
-                        emissionBlock.Clear();
-                        emissionBlock.SetTexture("_MainTex",texture);
-                        emissionBlock.SetVector("_SpriteUvRect",uvRect);
-                        emissionBlock.SetFloat("_OccluderOpacity",(float)perTexel);
-                        cmd.DrawMesh(mesh,matrix,sceneMaterial,0,2,emissionBlock);
-                    }
-                    // Fill depends on receiving geometry. Adding an absorbing silhouette can extend its
-                    // lit fill into previously dark texels; it must never create extra lamp energy.
-                    Graphics.ExecuteCommandBuffer(cmd);
-                    scene=transientScene;distanceReady=false;
-                    RenderField(true);
-                    Graphics.CopyTexture(directFluence,lampOccludedFluence);
-                    cmd.Clear();
                     cmd.SetRenderTarget(transientScene);
                     cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
                     if(emissions!=null) foreach(var emission in emissions)
@@ -174,59 +122,23 @@ namespace Remains.Presentation
                     }
                     Graphics.ExecuteCommandBuffer(cmd);
                 }
-                // Jump-flood seeds include emitting RGB as well as absorption: a new source or silhouette must be seen.
                 scene=transientScene;distanceReady=false;
-                if(emitting>0) RenderField(true);
-                // Distance to the silhouettes in two separable passes (row, then column), read once per texel below.
-                int rows=compute.FindKernel("SilhouetteRows");
-                compute.SetTexture(rows,"_OccluderScene",transientScene);
-                compute.SetTexture(rows,"_BaseScene",staticScene);
-                compute.SetTexture(rows,"_SilhouetteRowsOut",silhouetteRows);
-                compute.Dispatch(rows,(width+7)/8,(height+7)/8,1);
-                int columns=compute.FindKernel("SilhouetteDistance");
-                compute.SetTexture(columns,"_SilhouetteRows",silhouetteRows);
-                compute.SetTexture(columns,"_SilhouetteDistanceOut",silhouetteDistance);
-                compute.Dispatch(columns,(width+7)/8,(height+7)/8,1);
+                RenderField(true);
                 int combine=compute.FindKernel("CombineDirect");
                 compute.SetTexture(combine,"_StaticFluence",staticFluence);
                 compute.SetTexture(combine,"_FreeFluence",freeFluence);
                 compute.SetTexture(combine,"_DirectFluence",directFluence);
-                compute.SetTexture(combine,"_LampOccludedFluence",lampOccludedFluence);
-                compute.SetTexture(combine,"_SilhouetteDistance",silhouetteDistance);
                 compute.SetTexture(combine,"_Fluence",fluence);
                 compute.Dispatch(combine,(width+7)/8,(height+7)/8,1);
             }
             finally {scene=staticScene;distanceReady=false;}
-            transientActive=true;lastSilhouettes=silhouettes;lastHadEmission=emitting>0;DynamicUpdates++;
+            transientActive=true;DynamicUpdates++;
             return true;
         }
 
         public int DynamicUpdates {get;private set;}
         private RenderTexture freeFluence;
-        private bool freeReady,lastHadEmission;
-        private int lastSilhouettes;
-
-        // Cheap change test of the silhouette set: shape (sprite/mesh, texture), opacity, transform (position
-        // rounded to a quarter light texel). Mesh vertex edits in place are not seen: a pose change also moves parts.
-        private int Signature(IReadOnlyList<LightOccluder> occluders)
-        {
-            if(occluders==null) return 0;
-            unchecked
-            {
-                int hash=17+occluders.Count;
-                foreach(var o in occluders)
-                {
-                    var m=o.LocalToWorld;
-                    hash=hash*31+Mathf.RoundToInt(m.m03/texel*4);hash=hash*31+Mathf.RoundToInt(m.m13/texel*4);
-                    hash=hash*31+Mathf.RoundToInt(m.m00*64);hash=hash*31+Mathf.RoundToInt(m.m01*64);
-                    hash=hash*31+Mathf.RoundToInt(m.m10*64);hash=hash*31+Mathf.RoundToInt(m.m11*64);
-                    hash=hash*31+(o.Sprite!=null?o.Sprite.GetInstanceID():o.Mesh!=null?o.Mesh.GetInstanceID():0);
-                    hash=hash*31+(o.Texture!=null?o.Texture.GetInstanceID():0);
-                    hash=hash*31+Mathf.RoundToInt(o.Opacity*1024);
-                }
-                return hash;
-            }
-        }
+        private bool freeReady;
 
         // occluders: world rectangles that stop a share of light (closed doors: original Box door_opac); 1 = a wall.
         public static RoomRadianceField Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent,IReadOnlyList<RoomSpritePlacement> sprites=null,IReadOnlyList<(Rect bounds,double opacity)> occluders=null)
@@ -570,10 +482,10 @@ namespace Remains.Presentation
         private void OnDestroy()
         {
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,lampOccludedFluence,silhouetteRows,silhouetteDistance}) if(texture!=null) texture.Release();
+            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence}) if(texture!=null) texture.Release();
             if(baseScene is RenderTexture baseTarget) baseTarget.Release();
             if(occlusionScene!=null) occlusionScene.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,lampOccludedFluence,silhouetteRows,silhouetteDistance,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }
