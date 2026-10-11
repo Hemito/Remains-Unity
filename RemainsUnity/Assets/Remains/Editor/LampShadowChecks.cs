@@ -8,7 +8,8 @@ using UnityEngine;
 namespace Remains.Editor
 {
     // Silhouettes shadow lamp light (RoomRadianceField.RenderTransient without flashes): a blocker between a
-    // static emitter and a probe darkens the probe, moving it away restores the light, an unchanged silhouette set
+    // static emitter and a probe darkens the probe right behind it, the shadow is short (an actor stands in front of
+    // the wall: no shade a metre away), moving the blocker away restores the light, an unchanged silhouette set
     // does not recompute, an empty set restores the static field exactly.
     //   batch -executeMethod Remains.Editor.LampShadowChecks.RunBatch
     public static class LampShadowChecks
@@ -34,8 +35,9 @@ namespace Remains.Editor
                 field.UpdateOccluders(Array.Empty<(Rect,double)>());
                 for(int i=0;i<8;i++) field.Render();
                 var lampLight=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
-                float open=Mean(lampLight,64,40,44,22,26);   // probe at ~(5, 3) m
-                Require(open>.01f,$"Лампа не освещает пробу: {open}.");
+                float open=Mean(lampLight,64,27,29,22,26);   // probe right behind the blocker, ~(3.5, 3) m
+                float farOpen=Mean(lampLight,64,40,44,22,26);   // probe ~2 m behind it, ~(5, 3) m
+                Require(open>.01f && farOpen>.01f,$"Лампа не освещает пробы: {open}, {farOpen}.");
 
                 mask=new Texture2D(4,4,TextureFormat.RGBA32,false,true){filterMode=FilterMode.Point};
                 var pixels=new Color[16];for(int i=0;i<16;i++) pixels[i]=Color.white;mask.SetPixels(pixels);mask.Apply();
@@ -44,21 +46,23 @@ namespace Remains.Editor
                 Require(field.RenderTransient(null,between),"Силуэт не вызвал расчёт света.");
                 var shadowPixels=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
                 AssertNoAddedLight(lampLight,shadowPixels);
-                float shadowed=Mean(shadowPixels,64,40,44,22,26);
+                float shadowed=Mean(shadowPixels,64,27,29,22,26);
                 Require(shadowed<open*.5f,$"Силуэт не затеняет лампу: открыто={open}, в тени={shadowed}.");
+                float far=Mean(shadowPixels,64,40,44,22,26);
+                Require(far>farOpen*.95f,$"Тень силуэта длинная: в 2 м за ним открыто={farOpen}, с силуэтом={far}.");
                 Require(!field.RenderTransient(null,between),"Неподвижный силуэт пересчитывает свет.");
                 var away=new[]{new RoomRadianceField.LightOccluder(sprite,Matrix4x4.TRS(new Vector3(6.5f,.75f,0),Quaternion.identity,new Vector3(.5f,.5f,1)))};
                 field.RenderTransient(null,away);
                 var movedPixels=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
                 AssertNoAddedLight(lampLight,movedPixels);
-                float moved=Mean(movedPixels,64,40,44,22,26);
+                float moved=Mean(movedPixels,64,27,29,22,26);
                 Require(moved>open*.85f,$"Тень осталась после ухода силуэта: открыто={open}, после={moved}.");
                 Require(field.RenderTransient(null,null),"Пустой набор не восстановил статичный свет.");
                 var restored=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
                 for(int i=0;i<restored.Length;i++)
                     if((restored[i]-lampLight[i]).maxColorComponent>1e-4f || (lampLight[i]-restored[i]).maxColorComponent>1e-4f)
                         throw new InvalidOperationException($"Статичный свет не восстановлен в текселе {i}.");
-                Debug.Log($"Тени от ламп: PASS — открыто={open}, в тени={shadowed}, после ухода={moved}, неподвижный силуэт без пересчёта, восстановление точное.");
+                Debug.Log($"Тени от ламп: PASS — открыто={open}, в тени={shadowed}, в 2 м={far}/{farOpen}, после ухода={moved}, неподвижный силуэт без пересчёта, восстановление точное.");
             }
             finally
             {

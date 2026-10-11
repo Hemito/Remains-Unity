@@ -340,17 +340,21 @@ void CombineDirect(uint3 id : SV_DispatchThreadID)
     // Geometry-dependent object fill can increase direct lamp samples. A blocker may only
     // remove their energy. Keep flashes separate so this bound never suppresses a new source.
     float3 removed = max(0, free - lamp);
-    // A silhouette lies in the same plane as the wall behind it (flatland): its own texels and their bilinear
-    // neighbours would read its absorption as darkness — a dark rim around the actor and a dark actor. There the
-    // static light stays; the shadow is cast only beyond the silhouette, away from the lamp.
-    bool silhouette = false;
-    for (int y = -1; y <= 1 && !silhouette; y++)
-        for (int x = -1; x <= 1; x++)
+    // A silhouette lies in the same plane as the wall (flatland), while in the picture the actor stands in front of
+    // it: a flatland blocker shades the whole room behind it like a wall across a corridor. Its shadow is kept short,
+    // as on the wall behind an actor: full beside the silhouette, gone SILHOUETTE_SHADOW texels away; the silhouette's
+    // own texels keep the static light (the actor is lit from the front, not by the wall behind it).
+    #define SILHOUETTE_FULL 2
+    #define SILHOUETTE_SHADOW 8
+    float nearest = SILHOUETTE_SHADOW + 1;
+    for (int y = -SILHOUETTE_SHADOW; y <= SILHOUETTE_SHADOW; y++)
+        for (int x = -SILHOUETTE_SHADOW; x <= SILHOUETTE_SHADOW; x++)
         {
             int2 p = int2(id.xy) + int2(x, y);
-            if (Inside(p) && _OccluderScene[p].a > _BaseScene[p].a + 0.001) { silhouette = true; break; }
+            if (Inside(p) && _OccluderScene[p].a > _BaseScene[p].a + 0.001) nearest = min(nearest, length(float2(x, y)));
         }
-    if (silhouette) removed = 0;
+    bool own = _OccluderScene[id.xy].a > _BaseScene[id.xy].a + 0.001;
+    removed *= own ? 0 : 1 - smoothstep(SILHOUETTE_FULL, SILHOUETTE_SHADOW, nearest);
     float3 flash = max(0, _DirectFluence[id.xy].rgb - lamp);
     _Fluence[id.xy] = float4(max(0, _StaticFluence[id.xy].rgb - removed) + flash, 1);
 }
