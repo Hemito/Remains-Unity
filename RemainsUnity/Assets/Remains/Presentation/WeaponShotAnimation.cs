@@ -79,6 +79,20 @@ namespace Remains.Presentation
             emission=new RoomRadianceField.SpriteEmission(clip.masks[frame],weaponMatrix*Matrix4x4.Translate(clip.offset),clip.gain);
             return true;
         }
+        public string EmissionId(ActorState actor)=>actor!=null && playing.TryGetValue(actor.id,out var effect) && Matches(actor,effect)?effect.shot:null;
+        // AttackReceived runs after Observe registered the shot. Warm shadow visibility from
+        // its captured pose before the first drawn muzzle frame, outside the pose callback.
+        public bool TryAttackEmission(AttackEvent attack,out RoomRadianceField.SpriteEmission emission)
+        {
+            emission=default;
+            if(attack?.rangedPose==null) return false;
+            var actor=session.World?.Find(attack.attacker);
+            if(EmissionId(actor)!=attack.id) return false;
+            var pose=attack.rangedPose;
+            var matrix=Matrix4x4.TRS(new Vector3(pose.rootX,pose.rootY,0),Quaternion.Euler(0,0,pose.angleDegrees),
+                new Vector3(1,pose.mirrored?-1:1,1));
+            return TryEmission(actor,Select(actor,null),matrix,out emission);
+        }
         private bool Matches(ActorState actor,Playing effect)=>!ActorSessionRules.IsPassive(actor) && ActorPresence.IsPresent(actor) && actor.level==session.LocalActor?.level &&
             !HeldItemSelection.HasSelection(actor) && session.World?.worldId==effect.world && actor.level==effect.level && actor.weapon==effect.clip.weapon &&
             actor.owner==effect.owner && actor.equippedWeaponItem==effect.item && actor.weaponSelectionRevision==effect.selection &&

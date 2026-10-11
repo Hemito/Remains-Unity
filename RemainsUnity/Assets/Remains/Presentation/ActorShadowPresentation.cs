@@ -14,8 +14,10 @@ namespace Remains.Presentation
             public ActorCastShadowView View;
             public readonly List<RoomRadianceField.LightOccluder> Parts=new();
             public readonly List<ActorShadowSource> Lamps=new(),Sources=new();
+            public readonly List<ActorShadowSource> DisplayLamps=new();
             public readonly List<ActorShadowSource> Flashes=new();
-            public readonly Dictionary<string,(Vector2 Position,float Transmission)> FlashVisibility=new();
+            public readonly Dictionary<string,(Vector2 Position,Vector2 ActorPosition,float Transmission,long Revision,int Frame)> FlashVisibility=new();
+            public readonly List<string> ExpiredFlashes=new();
             public Vector2 Position,SelectedAt;
             public long Revision=-1;
             public bool Queued;
@@ -38,7 +40,7 @@ namespace Remains.Presentation
         }
 
         public void Present(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
-            InteractionVisuals weapons,IReadOnlyList<RoomRadianceField.SpriteEmission> flashes)
+            InteractionVisuals weapons,IReadOnlyList<RoomRadianceField.SpriteEmission> flashes,IReadOnlyList<string> flashIds=null)
         {
             if(current!=level) {Clear();level=current;}
             if(level==null || !level.IsReady) {Clear();return;}
@@ -61,8 +63,8 @@ namespace Remains.Presentation
                 if(entry.Revision!=level.ShadowSourceRevision ||
                     (entry.Position-entry.SelectedAt).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)
                     entry.Queued=true;
-                entry.Sources.Clear();entry.Sources.AddRange(entry.Lamps);entry.Flashes.Clear();
-                if(entry.Revision!=level.ShadowSourceRevision) entry.FlashVisibility.Clear();
+                BlendLampSources(entry.DisplayLamps,entry.Lamps,Time.deltaTime,settings.ActorShadowMaxSources);
+                entry.Sources.Clear();entry.Sources.AddRange(entry.DisplayLamps);entry.Flashes.Clear();
                 if(flashes!=null) for(int i=0;i<flashes.Count;i++)
                 {
                     var flash=flashes[i];
@@ -70,14 +72,25 @@ namespace Remains.Presentation
                     Vector2 position=flash.LocalToWorld.MultiplyPoint3x4(flash.Sprite.bounds.center);
                     var size=flash.Sprite.bounds.size;var scale=flash.LocalToWorld.lossyScale;
                     float radius=Mathf.Max(Mathf.Abs(size.x*scale.x),Mathf.Abs(size.y*scale.y))*.25f;
-                    string id="flash:"+i;
+                    if(flashIds==null || i>=flashIds.Count || string.IsNullOrEmpty(flashIds[i]))
+                        throw new InvalidOperationException("Проекция вспышки: отсутствует стабильный ID выстрела.");
+                    string id=flashIds[i];
                     float strength=flash.Gain/(1+flash.Gain)/Mathf.Max(1,Vector2.Distance(position,entry.Position));
                     entry.Flashes.Add(new ActorShadowSource(id,position,radius,strength));
-                    if(entry.FlashVisibility.TryGetValue(id,out var cached) &&
-                        (cached.Position-position).sqrMagnitude<settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold && !entry.Queued)
+                    if(entry.FlashVisibility.TryGetValue(id,out var cached) && cached.Revision==level.ShadowSourceRevision)
+                    {
                         entry.Sources.Add(new ActorShadowSource(id,position,radius,strength*cached.Transmission));
+                        if((cached.Position-position).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold ||
+                            (cached.ActorPosition-entry.Position).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)
+                            entry.Queued=true;
+                        entry.FlashVisibility[id]=(cached.Position,cached.ActorPosition,cached.Transmission,cached.Revision,Time.frameCount);
+                    }
                     else entry.Queued=true;
                 }
+                entry.ExpiredFlashes.Clear();
+                foreach(var cached in entry.FlashVisibility)
+                    if(Time.frameCount-cached.Value.Frame>4) entry.ExpiredFlashes.Add(cached.Key);
+                foreach(string id in entry.ExpiredFlashes) entry.FlashVisibility.Remove(id);
                 if(entry.View.NeedsPreparation(entry.Parts,entry.Sources.Count)) entry.Queued=true;
                 entry.View.Draw(entry.Position,entry.Parts,entry.Sources,settings);
             }
@@ -85,6 +98,76 @@ namespace Remains.Presentation
             foreach(var id in removed) {Destroy(entries[id]);entries.Remove(id);}
             if(refresh==null) foreach(var pair in entries) if(pair.Value.Queued)
                 {refresh=runner.StartCoroutine(RebuildSources());break;}
+        }
+
+        // Shot event preparation keeps CPU visibility and pool allocation out of LateUpdate,
+        // while making the first visible flash use a ready cache and target slot immediately.
+        public void PrepareFlash(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
+            InteractionVisuals weapons,string id,RoomRadianceField.SpriteEmission flash)
+        {
+            if(current!=level) {Clear();level=current;}
+            if(level==null || !level.IsReady || flash.Sprite==null) return;
+            if(string.IsNullOrEmpty(id)) throw new ArgumentException("Нет стабильного ID вспышки.",nameof(id));
+            Vector2 sourcePosition=flash.LocalToWorld.MultiplyPoint3x4(flash.Sprite.bounds.center);
+            foreach(var actor in actors)
+            {
+                if(actor.Value==null || !actor.Value.gameObject.activeInHierarchy) continue;
+                if(!entries.TryGetValue(actor.Key,out var entry))
+                {
+                    entry=new Entry{View=UnityEngine.Object.Instantiate(prefab,parent,false)};
+                    entry.View.name="Проецируемая тень: "+actor.Key;entries.Add(actor.Key,entry);
+                }
+                entry.Parts.Clear();actor.Value.AppendLightOccluders(entry.Parts);
+                weapons.AppendWeaponLightOccluders(actor.Key,entry.Parts);
+                if(entry.Parts.Count==0) continue;
+                entry.Position=actor.Value.TryGetDrawnBounds(out var bounds)?(Vector2)bounds.center:PartsCenter(entry.Parts);
+                if(entry.Revision!=level.ShadowSourceRevision)
+                {
+                    level.SelectActorShadowSources(entry.Position,entry.Lamps);
+                    entry.SelectedAt=entry.Position;entry.Revision=level.ShadowSourceRevision;
+                }
+                entry.FlashVisibility[id]=(sourcePosition,entry.Position,
+                    level.ActorShadowTransmission(entry.Position,sourcePosition),level.ShadowSourceRevision,Time.frameCount);
+                entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.FlashVisibility.Count);
+            }
+        }
+
+        public static void BlendLampSources(List<ActorShadowSource> displayed,IReadOnlyList<ActorShadowSource> targets,float dt,int maxSources=3)
+        {
+            float blend=Mathf.Clamp01(Mathf.Max(0,dt)/.08f);
+            for(int i=displayed.Count-1;i>=0;i--)
+            {
+                var old=displayed[i];bool found=false;
+                for(int j=0;j<targets.Count;j++) if(targets[j].Id==old.Id)
+                {
+                    var target=targets[j];
+                    displayed[i]=new ActorShadowSource(target.Id,target.Position,target.Radius,Mathf.Lerp(old.Strength,target.Strength,blend));
+                    found=true;break;
+                }
+                if(found) continue;
+                float strength=Mathf.Lerp(old.Strength,0,blend);
+                if(strength<=.0001f) displayed.RemoveAt(i);
+                else displayed[i]=new ActorShadowSource(old.Id,old.Position,old.Radius,strength);
+            }
+            foreach(var target in targets)
+            {
+                bool found=false;foreach(var source in displayed) if(source.Id==target.Id) {found=true;break;}
+                if(!found && target.Strength>0)
+                    displayed.Add(new ActorShadowSource(target.Id,target.Position,target.Radius,target.Strength*blend));
+            }
+            // Reserve two source sets for a crossfade, never an unbounded history
+            // of formerly selected lamps during fast movement.
+            while(displayed.Count>2*maxSources)
+            {
+                int weakest=-1;
+                for(int i=0;i<displayed.Count;i++)
+                {
+                    bool active=false;foreach(var target in targets) if(target.Id==displayed[i].Id) {active=true;break;}
+                    if(!active && (weakest<0 || displayed[i].Strength<displayed[weakest].Strength)) weakest=i;
+                }
+                if(weakest<0) throw new InvalidOperationException("Число выбранных ламп превышает лимит проекций тени.");
+                displayed.RemoveAt(weakest);
+            }
         }
 
         private IEnumerator RebuildSources()
@@ -101,8 +184,9 @@ namespace Remains.Presentation
                     entry.SelectedAt=entry.Position;entry.Revision=level.ShadowSourceRevision;
                 }
                 foreach(var flash in entry.Flashes)
-                    entry.FlashVisibility[flash.Id]=(flash.Position,level.ActorShadowTransmission(entry.Position,flash.Position));
-                entry.View.Prepare(entry.Parts,entry.Lamps.Count+entry.Flashes.Count);
+                    entry.FlashVisibility[flash.Id]=(flash.Position,entry.Position,
+                        level.ActorShadowTransmission(entry.Position,flash.Position),level.ShadowSourceRevision,Time.frameCount);
+                entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.Flashes.Count);
                 entry.Queued=false;
             }
             refresh=null;

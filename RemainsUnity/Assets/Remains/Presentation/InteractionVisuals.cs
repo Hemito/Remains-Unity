@@ -19,7 +19,12 @@ namespace Remains.Presentation
         private WeaponShotAnimation shotAnimation;
         private Action<IReadOnlyList<RoomRadianceField.SpriteEmission>> muzzleLighting;
         private readonly List<RoomRadianceField.SpriteEmission> muzzleEmissions=new();
-        public void ConfigureMuzzleLighting(Action<IReadOnlyList<RoomRadianceField.SpriteEmission>> publish)=>muzzleLighting=publish;
+        private readonly List<string> muzzleSourceIds=new();
+        private Action<AttackEvent,RoomRadianceField.SpriteEmission> prepareMuzzleShadow;
+        public IReadOnlyList<string> MuzzleSourceIds=>muzzleSourceIds;
+        public void ConfigureMuzzleLighting(Action<IReadOnlyList<RoomRadianceField.SpriteEmission>> publish,
+            Action<AttackEvent,RoomRadianceField.SpriteEmission> prepare=null)
+        {muzzleLighting=publish;prepareMuzzleShadow=prepare;}
         private WeaponReloadAnimation reloadAnimation;
         private CasingEffects casingEffects;
         public CasingEffects Casing=>casingEffects;
@@ -84,6 +89,8 @@ namespace Remains.Presentation
         private void OnGrenadeCreated(GrenadeFlight flight)=>Refresh();
         private void OnAttackReceived(AttackEvent attack)
         {
+                if(prepareMuzzleShadow!=null && shotAnimation.TryAttackEmission(attack,out var emission))
+                    prepareMuzzleShadow(attack,emission);
                 if(NpcNaturalAttack.IsNatural(attack)) return;
                 if(attack.weapon is "spear" or "crowbar" or "grenade" || attack.level!=session.LocalActor?.level) return;
                 if(Remains.Content.WeaponCatalog.Get(attack.weapon).projectileSpeed>0) return;
@@ -168,6 +175,7 @@ namespace Remains.Presentation
         private void Update()
         {
             muzzleEmissions.Clear();
+            muzzleSourceIds.Clear();
             if(session?.World==null) return;
             foreach(var prop in session.World.props)
                 if(props.TryGetValue(prop.id,out var view)) {view.DrawMotion(prop,session.LocalOwner,session.Pause.IsPaused(prop.level),Time.deltaTime);view.SetVisible(prop.level==session.LocalActor?.level);}
@@ -193,7 +201,7 @@ namespace Remains.Presentation
                 view.transform.rotation=Quaternion.Euler(0,0,pose.Angle);
                 view.SetMirrored(WeaponPose.Flip(actor));
                 if(view.gameObject.activeInHierarchy && shotAnimation.TryEmission(actor,sprite,view.transform.localToWorldMatrix,out var emission))
-                    muzzleEmissions.Add(emission);
+                {muzzleEmissions.Add(emission);muzzleSourceIds.Add("flash:"+shotAnimation.EmissionId(actor));}
             }
             foreach(var pair in flights) pair.Value.enabled=false;
             foreach(var flight in grenades.Flights) if(flights.TryGetValue(flight.message.id,out var view))

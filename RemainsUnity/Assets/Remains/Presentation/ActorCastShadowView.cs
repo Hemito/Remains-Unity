@@ -7,7 +7,8 @@ using UnityEngine.Rendering;
 namespace Remains.Presentation
 {
     // A presentation-only projection: the source actor meshes and world transforms are never modified.
-    // Each source unions the alpha of all body/weapon parts before blending one shadow onto the background.
+    // Body/weapon alpha is unioned once per pose. Each source sweeps it continuously from the body
+    // to its projection before blending one shadow onto the background.
     public sealed class ActorCastShadowView : MonoBehaviour
     {
         public const string ResourcePath="Presentation/ActorCastShadow";
@@ -20,7 +21,12 @@ namespace Remains.Presentation
         private Material maskMaterial;
         private int lastSignature;
         private bool hasSignature;
+        private RenderTexture poseMask;
+        private Bounds poseBounds;
+        private int lastPoseSignature;
+        private bool hasPoseMask;
         public int MaskRebuilds {get;private set;}
+        public int PoseMaskRebuilds {get;private set;}
         private sealed class Slot
         {
             public GameObject root;
@@ -38,8 +44,8 @@ namespace Remains.Presentation
         {shadowMaterial=material;Validate();}
         public void Validate()
         {
-            if(shadowMaterial==null || shadowMaterial.shader==null || shadowMaterial.passCount<2)
-                throw new InvalidOperationException($"Проекция тени {name}: нет авторского материала с проходами маски и композиции.");
+            if(shadowMaterial==null || shadowMaterial.shader==null || shadowMaterial.passCount<3)
+                throw new InvalidOperationException($"Проекция тени {name}: нет авторского материала с проходами силуэта, протяжённой тени и композиции.");
         }
 
         public static Matrix4x4 Projection(Vector2 actorPosition,Vector2 sourcePosition,float depth,float maxOffset)
@@ -50,13 +56,13 @@ namespace Remains.Presentation
                 *Matrix4x4.Scale(new Vector3(scale,scale,1))*Matrix4x4.Translate(new Vector3(-actorPosition.x,-actorPosition.y,0));
         }
         public static float Penumbra(Vector2 actorPosition,Vector2 sourcePosition,float radius,float depth)
-            =>Mathf.Clamp(Mathf.Max(0,radius)*Mathf.Max(0,depth)/Mathf.Max(.1f,Vector2.Distance(actorPosition,sourcePosition)),0,.25f);
+            =>Mathf.Clamp(.25f*Mathf.Max(0,radius)*Mathf.Max(0,depth)/Mathf.Max(.1f,Vector2.Distance(actorPosition,sourcePosition)),0,.06f);
 
         public bool NeedsPreparation(IReadOnlyList<RoomRadianceField.LightOccluder> parts,int sourceCount)
         {
             if(parts==null) throw new ArgumentNullException(nameof(parts));
             if(sourceCount<0) throw new ArgumentOutOfRangeException(nameof(sourceCount));
-            if(maskMaterial==null || properties==null || slots.Count<sourceCount) return true;
+            if(maskMaterial==null || poseMask==null || properties==null || slots.Count<sourceCount) return true;
             for(int i=0;i<parts.Count;i++)
                 if(parts[i].Sprite!=null && !spriteMeshes.ContainsKey(parts[i].Sprite)) return true;
             return false;
@@ -69,6 +75,7 @@ namespace Remains.Presentation
             if(sourceCount<0) throw new ArgumentOutOfRangeException(nameof(sourceCount));
             properties??=new MaterialPropertyBlock();
             if(maskMaterial==null) maskMaterial=new Material(shadowMaterial){name="Рабочая маска проекции тени"};
+            if(poseMask==null) poseMask=CreateMask("Исходный объединённый силуэт тела и оружия");
             for(int i=0;i<parts.Count;i++)
             {
                 var sprite=parts[i].Sprite;
@@ -90,11 +97,26 @@ namespace Remains.Presentation
         {
             Validate();
             if(parts==null || sources==null || settings==null) throw new ArgumentNullException("Нет силуэтов, источников или настроек проекции тени.");
+            if(parts.Count==0 || sources.Count==0) {Clear();return;}
             // A queued first/new-content preparation deliberately leaves no projection for this pose.
             // Never allocate render targets or generate sprite topology in the per-pose callback.
             if(NeedsPreparation(parts,sources.Count)) {Clear();return;}
             int signature=Signature(actorPosition,parts,sources,settings);
             if(hasSignature && signature==lastSignature) return;
+            int poseSignature=PoseSignature(parts);
+            if(!hasPoseMask || lastPoseSignature!=poseSignature)
+            {
+                bool validBounds=false;poseBounds=default;
+                for(int partIndex=0;partIndex<parts.Count;partIndex++)
+                {
+                    var part=parts[partIndex];
+                    if(TryMesh(part,out var mesh,out _)) ExpandBounds(ref poseBounds,ref validBounds,mesh.bounds,part.LocalToWorld);
+                }
+                if(!validBounds || poseBounds.size.x<=.0001f || poseBounds.size.y<=.0001f) {Clear();return;}
+                poseBounds.Expand(new Vector3(.01f,.01f,0));
+                DrawMask(poseMask,parts,poseBounds);
+                lastPoseSignature=poseSignature;hasPoseMask=true;PoseMaskRebuilds++;
+            }
             // The selector limits steady lamps. Transient flashes appended by the caller must remain visible.
             int count=sources.Count;
             ActiveSourceCount=0;
@@ -105,19 +127,12 @@ namespace Remains.Presentation
                 if(opacity<=0 || parts.Count==0) continue;
                 var projection=Projection(actorPosition,source.Position,(float)settings.ActorShadowDepth,(float)settings.ActorShadowMaxOffset);
                 float blur=Penumbra(actorPosition,source.Position,source.Radius,(float)settings.ActorShadowDepth);
-                bool hasBounds=false;Bounds bounds=default;
-                for(int partIndex=0;partIndex<parts.Count;partIndex++)
-                {
-                    var part=parts[partIndex];
-                    if(!TryMesh(part,out var mesh,out _)) continue;
-                    var matrix=projection*part.LocalToWorld;
-                    ExpandBounds(ref bounds,ref hasBounds,mesh.bounds,matrix);
-                }
-                if(!hasBounds) continue;
+                bool hasBounds=true;Bounds bounds=poseBounds;
+                ExpandBounds(ref bounds,ref hasBounds,poseBounds,projection);
                 bounds.Expand(new Vector3(Mathf.Max(.02f,blur*4),Mathf.Max(.02f,blur*4),0));
                 if(bounds.size.x<=.0001f || bounds.size.y<=.0001f) continue;
                 var slot=slots[ActiveSourceCount++];
-                DrawMask(slot,parts,projection,bounds);
+                DrawSweep(slot,actorPosition,projection,bounds);
                 SetQuad(slot,bounds);
                 properties.Clear();properties.SetTexture("_MainTex",slot.mask);
                 properties.SetFloat("_Opacity",opacity);
@@ -142,6 +157,18 @@ namespace Remains.Presentation
             for(int i=0;i<sources.Count;i++) {var source=sources[i];hash.Add(source.Id);hash.Add(source.Position);hash.Add(source.Radius);hash.Add(source.Strength);}
             return hash.ToHashCode();
         }
+        private static int PoseSignature(IReadOnlyList<RoomRadianceField.LightOccluder> parts)
+        {
+            var hash=new HashCode();hash.Add(parts.Count);
+            for(int i=0;i<parts.Count;i++)
+            {
+                var part=parts[i];hash.Add(part.Sprite!=null?part.Sprite.GetInstanceID():0);hash.Add(part.Mesh!=null?part.Mesh.GetInstanceID():0);
+                hash.Add(part.Texture!=null?part.Texture.GetInstanceID():0);hash.Add(part.LocalToWorld);hash.Add(part.Opacity);
+                if(part.Sprite!=null) {hash.Add(part.Sprite.texture.GetInstanceID());hash.Add(part.Sprite.bounds);}
+                if(part.Mesh!=null) hash.Add(part.Mesh.bounds);
+            }
+            return hash.ToHashCode();
+        }
         private bool TryMesh(RoomRadianceField.LightOccluder part,out Mesh mesh,out Texture texture)
         {
             mesh=part.Mesh;texture=part.Texture;
@@ -156,10 +183,10 @@ namespace Remains.Presentation
             if(warned.Add(key)) Debug.LogWarning($"Проекция тени {name}: пропущена часть {key}; отсутствует mesh или texture, исходная графика не подменяется.",this);
             return false;
         }
-        private void DrawMask(Slot slot,IReadOnlyList<RoomRadianceField.LightOccluder> parts,Matrix4x4 projection,Bounds bounds)
+        private void DrawMask(RenderTexture target,IReadOnlyList<RoomRadianceField.LightOccluder> parts,Bounds bounds)
         {
             var previous=RenderTexture.active;
-            RenderTexture.active=slot.mask;GL.PushMatrix();
+            RenderTexture.active=target;GL.PushMatrix();
             try
             {
                 GL.Clear(false,true,Color.clear);
@@ -170,10 +197,26 @@ namespace Remains.Presentation
                     var part=parts[partIndex];
                     if(!TryMesh(part,out var mesh,out var texture)) continue;
                     maskMaterial.SetTexture("_MainTex",texture);maskMaterial.SetFloat("_Opacity",Mathf.Clamp01(part.Opacity));
-                    maskMaterial.SetPass(0);Graphics.DrawMeshNow(mesh,projection*part.LocalToWorld);
+                    maskMaterial.SetPass(0);Graphics.DrawMeshNow(mesh,part.LocalToWorld);
                 }
             }
             finally {GL.PopMatrix();RenderTexture.active=previous;}
+        }
+        private void DrawSweep(Slot slot,Vector2 actorPosition,Matrix4x4 projection,Bounds bounds)
+        {
+            var end=(Vector2)projection.MultiplyPoint3x4(actorPosition);
+            var offset=end-actorPosition;
+            maskMaterial.SetVector("_SourceRect",new Vector4(poseBounds.min.x,poseBounds.min.y,poseBounds.size.x,poseBounds.size.y));
+            maskMaterial.SetVector("_OutputRect",new Vector4(bounds.min.x,bounds.min.y,bounds.size.x,bounds.size.y));
+            maskMaterial.SetVector("_SweepActor",new Vector4(actorPosition.x,actorPosition.y,0,0));
+            maskMaterial.SetVector("_SweepProjection",new Vector4(offset.x,offset.y,projection.m00-1,0));
+            Graphics.Blit(poseMask,slot.mask,maskMaterial,2);
+        }
+        private static RenderTexture CreateMask(string maskName)
+        {
+            var target=new RenderTexture(MaskResolution,MaskResolution,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear)
+            {name=maskName,filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp,useMipMap=false};
+            target.Create();return target;
         }
         private Slot GetSlot(int index)
         {
@@ -187,9 +230,8 @@ namespace Remains.Presentation
             slot.mesh.MarkDynamic();slot.mesh.vertices=slot.vertices;
             slot.mesh.uv=new[]{Vector2.zero,Vector2.right,Vector2.one,Vector2.up};
             slot.mesh.colors=new[]{Color.white,Color.white,Color.white,Color.white};slot.mesh.triangles=new[]{0,1,2,0,2,3};
-            slot.mask=new RenderTexture(MaskResolution,MaskResolution,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear)
-            {name="Объединённый силуэт тени",filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp,useMipMap=false};
-            slot.mask.Create();slots.Add(slot);return slot;
+            slot.mask=CreateMask("Непрерывная проекция силуэта");
+            slots.Add(slot);return slot;
         }
         private void SetQuad(Slot slot,Bounds bounds)
         {
@@ -221,6 +263,7 @@ namespace Remains.Presentation
             foreach(var mesh in spriteMeshes.Values) if(mesh!=null) ReleaseObject(mesh);
             spriteMeshes.Clear();slots.Clear();
             if(maskMaterial!=null) ReleaseObject(maskMaterial);
+            if(poseMask!=null) {poseMask.Release();ReleaseObject(poseMask);}
         }
         private static void ReleaseObject(UnityEngine.Object value)
         {if(Application.isPlaying) Destroy(value);else DestroyImmediate(value);}

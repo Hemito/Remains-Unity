@@ -179,7 +179,11 @@ namespace Remains.Runtime
             {
                 if(!LevelPresentationReady || ActiveFactoryLighting==null) {actorShadows.Clear();return;}
                 ActiveFactoryLighting.RenderMuzzleFlashes(emissions);
-                actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions);
+                actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds);
+            },(attack,emission)=>
+            {
+                if(LevelPresentationReady && ActiveFactoryLighting!=null)
+                    actorShadows.PrepareFlash(ActiveFactoryLighting,visuals,interactionVisuals,"flash:"+attack.id,emission);
             });
             CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals,ponyMagic);
             HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Remains.Domain;
 using Remains.Presentation;
 using UnityEditor;
@@ -12,6 +13,64 @@ namespace Remains.Editor
 {
     public static class ActorProjectedShadowChecks
     {
+        public static void RunTimingBatch()
+        {
+            try {RunTimingChecks();EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+        public static void RunTimingChecks()
+        {
+            GameObject room=null,actorObject=null,runnerObject=null;Texture2D texture=null;Sprite sprite=null;
+            ActorShadowPresentation presentation=null;
+            try
+            {
+                ActorCastShadowAuthoring.Check();
+                var layout=RoomLayout.Load("hub");room=AuthoredRoomVisual.Create("hub",layout);
+                var level=room.GetComponent<FactoryLevelView>();level.Focus(new Vector2(10,5));
+                var lights=new List<ActorShadowSource>();Vector2 position=default;
+                for(float y=2;y<(float)layout.top-1 && lights.Count==0;y+=3)
+                    for(float x=2;x<(float)layout.right-1 && lights.Count==0;x+=4)
+                    {position=new Vector2(x,y);level.SelectActorShadowSources(position,lights);}
+                if(lights.Count==0) throw new InvalidOperationException("Нет доступной лампы для проверки первого кадра вспышки.");
+                texture=new Texture2D(1,1,TextureFormat.RGBA32,false,true);texture.SetPixel(0,0,Color.white);texture.Apply();
+                sprite=Sprite.Create(texture,new Rect(0,0,1,1),new Vector2(.5f,.5f),1);
+                actorObject=new GameObject("Актёр проверки времени тени");actorObject.transform.position=position;
+                var renderer=actorObject.AddComponent<SpriteRenderer>();renderer.sprite=sprite;
+                var actor=actorObject.AddComponent<ActorShadowTimingVisual>();actor.Artwork=renderer;
+                runnerObject=new GameObject("Проверка времени тени");var weapons=runnerObject.AddComponent<InteractionVisuals>();
+                presentation=new ActorShadowPresentation(weapons,runnerObject.transform);
+                var actors=new Dictionary<string,ActorVisual>{{"timing",actor}};
+                var flash=new RoomRadianceField.SpriteEmission(sprite,
+                    Matrix4x4.Translate(lights[0].Position),8);
+                const string id="flash:stable-shot-1";
+                presentation.PrepareFlash(level,actors,weapons,id,flash);
+                var entries=(System.Collections.IDictionary)typeof(ActorShadowPresentation)
+                    .GetField("entries",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(presentation);
+                object entry=entries["timing"];
+                entry.GetType().GetField("Queued").SetValue(entry,true);
+                presentation.Present(level,actors,weapons,new[]{flash},new[]{id});
+                var sources=(List<ActorShadowSource>)entry.GetType().GetField("Sources").GetValue(entry);
+                var view=(ActorCastShadowView)entry.GetType().GetField("View").GetValue(entry);
+                if(!sources.Exists(source=>source.Id==id && source.Strength>0) || view.ActiveSourceCount==0)
+                    throw new InvalidOperationException("Первый кадр вспышки потерял тень при ожидающем обновлении статичных источников.");
+                var display=new List<ActorShadowSource>{new ActorShadowSource("old",Vector2.zero,.1f,.5f)};
+                var target=new[]{new ActorShadowSource("new",Vector2.one,.1f,.5f)};
+                ActorShadowPresentation.BlendLampSources(display,target,.01f);
+                if(display.Count!=2 || !display.Exists(source=>source.Id=="old" && source.Strength>0) ||
+                    !display.Exists(source=>source.Id=="new" && source.Strength>0 && source.Strength<.5f))
+                    throw new InvalidOperationException("Лампы переключаются скачком вместо перехода по стабильным ID.");
+                ActorShadowPresentation.BlendLampSources(display,target,.08f);
+                if(display.Count!=1 || display[0].Id!="new" || display[0].Strength!=.5f)
+                    throw new InvalidOperationException("Плавная смена ламп не достигает нового состояния.");
+                Debug.Log("Время проекции тени: PASS — первый кадр вспышки виден при queued static, лампы плавно сменяются по ID.");
+            }
+            finally
+            {
+                presentation?.Dispose();
+                foreach(var obj in new UnityEngine.Object[]{actorObject,runnerObject,room,sprite,texture})
+                    if(obj!=null) UnityEngine.Object.DestroyImmediate(obj);
+            }
+        }
         // Incremental player delivery after the full PrototypeBuild/ContractChecks
         // succeeded, for a final scoped shadow-only correction; not a substitute for admission.
         public static void BuildVerifiedPlayer()
@@ -57,5 +116,13 @@ namespace Remains.Editor
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
             finally {if(room!=null) UnityEngine.Object.DestroyImmediate(room);}
         }
+    }
+    // Editor-only fixture: the supplied sprite is the actual drawn pose.
+    public sealed class ActorShadowTimingVisual : ActorVisual
+    {
+        public SpriteRenderer Artwork;
+        public override string ActorId=>"timing";
+        public override void Bind(ActorState actor) { }
+        public override void AppendLightOccluders(List<RoomRadianceField.LightOccluder> output)=>AppendSpriteOccluder(Artwork,output);
     }
 }
