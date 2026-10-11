@@ -277,6 +277,18 @@ namespace Remains.Editor
             if(closed<=0 || unchanged!=closed || opened!=0 || view.AppliedDoorRevision!=2)
                 throw new InvalidOperationException($"Заслонка двери: закрыта {closed}, та же ревизия {unchanged}, открыта {opened}, ревизия {view.AppliedDoorRevision}.");
             Debug.Log($"Двери в свете завода: PASS; закрытая дверь — {closed} текселей заслонки, открытая — 0, повтор ревизии не пересобирает.");
+            // Lamps: all lamps of the level dark -> the window's lamp light is gone; lit again -> back; same revision no-op.
+            float LampLight(){var t=Shader.GetGlobalTexture("_RemainsRadiance") as RenderTexture;var prev=RenderTexture.active;RenderTexture.active=t;
+                var copy=new Texture2D(t.width,t.height,TextureFormat.RGBAFloat,false,true);copy.ReadPixels(new Rect(0,0,t.width,t.height),0,0);copy.Apply();RenderTexture.active=prev;
+                float sum=0;foreach(var p in copy.GetPixels()) sum+=p.r+p.g+p.b;UnityEngine.Object.DestroyImmediate(copy);return sum;}
+            float litSum=LampLight();
+            var allLamps=new List<string>(view.LampIds);
+            view.SyncLamps(allLamps,1);float darkSum=LampLight();
+            view.SyncLamps(allLamps,1);
+            view.SyncLamps(Array.Empty<string>(),2);float againSum=LampLight();
+            if(allLamps.Count==0 || darkSum>litSum*.9f || Mathf.Abs(againSum-litSum)>litSum*.01f)
+                throw new InvalidOperationException($"Лампы в свете завода: ламп {allLamps.Count}, свет {litSum} → выключены {darkSum} → снова {againSum}.");
+            Debug.Log($"Лампы в свете завода: PASS; ламп на уровне {allLamps.Count}, свет окна {litSum:0} → все выключены {darkSum:0} (окна остаются) → снова {againSum:0}.");
             // Cost of the per-frame dynamic pass (lamp shadows of moving silhouettes) on the full light window.
             var mask=new Texture2D(4,4,TextureFormat.RGBA32,false,true);
             var white=new Color[16];for(int i=0;i<16;i++) white[i]=Color.white;mask.SetPixels(white);mask.Apply();

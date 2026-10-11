@@ -44,7 +44,9 @@ namespace Remains.RoomFormat
             var decor = JsonValue.NewArray();
             foreach (var item in room.Decor)
             {
-                var value = JsonValue.NewObject().Set("type", JsonValue.Of(item.Type)).Set("x", JsonValue.Of(item.X)).Set("y", JsonValue.Of(item.Y));
+                var value = JsonValue.NewObject();
+                if (item.Id != null) value.Set("id", JsonValue.Of(item.Id));
+                value.Set("type", JsonValue.Of(item.Type)).Set("x", JsonValue.Of(item.X)).Set("y", JsonValue.Of(item.Y));
                 if (item.Params.Count > 0) value.Set("params", Map(item.Params));
                 decor.Add(value);
             }
@@ -114,6 +116,7 @@ namespace Remains.RoomFormat
             {
                 var decor = new RoomDecor
                 {
+                    Id = item.Get("id")?.AsString(ctx + ".decor.id"),
                     Type = Required(item, "type", ctx + ".decor").AsString(ctx + ".decor.type"),
                     X = checked((int)Required(item, "x", ctx + ".decor").AsLong(ctx + ".decor.x")),
                     Y = checked((int)Required(item, "y", ctx + ".decor").AsLong(ctx + ".decor.y")),

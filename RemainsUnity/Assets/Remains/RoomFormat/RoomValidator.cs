@@ -49,7 +49,10 @@ namespace Remains.RoomFormat
                 if (!Inside(room, obj.X, obj.Y)) errors.Add($"{ctx}: объект {obj.Type} ({obj.Id}) вне комнаты: {obj.X},{obj.Y}.");
             }
             foreach (var decor in room.Decor)
+            {
                 if (string.IsNullOrWhiteSpace(decor.Type)) errors.Add($"{ctx}: декор без type в клетке {decor.X},{decor.Y}.");
+                if (decor.Id != null && !ids.Add(decor.Id)) errors.Add($"{ctx}: повтор id декора \"{decor.Id}\" (id уникальны среди объектов и декора).");
+            }
             return errors;
         }
 

@@ -20,6 +20,7 @@ namespace Remains.Presentation
         public int Frame;
         public Matrix4x4 LocalToWorld;
         public Sprite Erase;   // window: the background-erase clip (light from outside comes through it)
+        public bool Dark;      // a lamp switched off or broken in the world: no emission whatever its frame
     }
 
     public static class RoomDecorView

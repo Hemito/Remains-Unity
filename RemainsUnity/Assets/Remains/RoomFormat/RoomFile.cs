@@ -33,6 +33,7 @@ namespace Remains.RoomFormat
 
     public sealed class RoomDecor
     {
+        public string Id;                 // persistent identity (lamps can be broken); null until assigned (spec §4.3)
         public string Type;
         public int X, Y;
         public readonly SortedDictionary<string, string> Params = new SortedDictionary<string, string>(StringComparer.Ordinal);

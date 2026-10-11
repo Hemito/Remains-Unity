@@ -33,6 +33,33 @@ namespace Remains.Presentation
         private RectInt windowRooms=new RectInt(-1,-1,0,0);
         private readonly List<(RoomSpriteAuthoring sprite,RoomDefinition definition)> pictures=new();
         private readonly List<(Rect bounds,double opacity)> doors=new();   // blocking doors, level-local rectangles
+        // Lamps of the level by world ID (<level>:<room x>,<room y>:<decor id>): their picture, lit frame and sprite.
+        private readonly Dictionary<string,(RoomSpriteAuthoring picture,int frame,Sprite sprite,RoomDefinition definition)> lamps=new(StringComparer.Ordinal);
+        private readonly HashSet<string> darkLamps=new(StringComparer.Ordinal);
+        public IReadOnlyCollection<string> LampIds=>lamps.Keys;
+        // Revision of the last lamp snapshot in the light (-1: none yet).
+        public long AppliedLampRevision {get;private set;}=-1;
+
+        // Lamps switched off or broken in the world (world IDs, see LampIds). A dark lamp shows its original "off"
+        // frame when it has one and stops emitting; the light window is rebuilt only for a new revision.
+        public void SyncLamps(IReadOnlyCollection<string> dark,long revision)
+        {
+            if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
+            if(dark==null) throw new ArgumentNullException(nameof(dark));
+            if(revision<0) throw new ArgumentOutOfRangeException(nameof(revision),"Ревизия ламп отрицательная.");
+            if(revision==AppliedLampRevision) return;
+            foreach(string id in dark) if(!lamps.ContainsKey(id)) throw new ArgumentException($"Вид уровня {root.Level}: неизвестная лампа {id}.");
+            darkLamps.Clear();foreach(string id in dark) darkLamps.Add(id);
+            foreach(var pair in lamps)
+            {
+                var (picture,frame,sprite,definition)=pair.Value;
+                var renderer=picture.GetComponent<SpriteRenderer>();
+                bool off=darkLamps.Contains(pair.Key);
+                renderer.sprite=off && definition.DecorFrameOff>0?root.Art.Tile(TileManifest.DecorFrameId(definition.Art,definition.DecorFrameOff)).sprite:sprite;
+            }
+            AppliedLampRevision=revision;
+            if(field!=null) RefreshLight(); else PresentationChanged?.Invoke(this);
+        }
 
         public RoomLayout Room {get;private set;}
         public Exception Failure {get;private set;}
@@ -139,9 +166,20 @@ namespace Remains.Presentation
             // The same ambient for WorldLit artwork (actors, props, doors), which does not read Light2D.
             Shader.SetGlobalVector("_RemainsAmbient",(Vector4)(light.color*light.intensity));
 
-            pictures.Clear();
+            pictures.Clear();lamps.Clear();darkLamps.Clear();
             foreach(var sprite in level.RoomInstances.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 pictures.Add((sprite,definitions.Require(sprite.Definition,"вид уровня, "+sprite.name)));
+            for(int i=0;i<level.Rooms.Count;i++)
+            {
+                var room=level.Rooms[i];
+                foreach(var picture in level.RoomInstances.GetChild(i).GetComponentsInChildren<RoomSpriteAuthoring>(true))
+                {
+                    if(picture.Kind!=RoomSpriteKind.Decor || !table.Lamps.ContainsKey(picture.Definition)) continue;
+                    var decor=room.Template.Decor[picture.Index];
+                    if(decor.Id==null) throw new InvalidOperationException($"Вид уровня {level.Level}: лампа без ID, шаблон {room.Template.Template}, декор {picture.Index}.");
+                    lamps.Add($"{level.Level}:{room.X},{room.Y}:{decor.Id}",(picture,picture.Frame,picture.GetComponent<SpriteRenderer>().sprite,definitions.Require(picture.Definition,"лампа")));
+                }
+            }
             root=level;
             PresentationChanged?.Invoke(this);
             Debug.Log($"Вид уровня {level.Level}: сетка {level.Grid.Width}×{level.Grid.Height}, комнат {level.Rooms.Count}, картинок {pictures.Count}.",this);
@@ -210,7 +248,7 @@ namespace Remains.Presentation
                 var local=renderer.sprite.bounds;
                 Vector2 a=matrix.MultiplyPoint3x4(local.min),b=matrix.MultiplyPoint3x4(local.max);
                 if(!bounds.Overlaps(Rect.MinMaxRect(Mathf.Min(a.x,b.x),Mathf.Min(a.y,b.y),Mathf.Max(a.x,b.x),Mathf.Max(a.y,b.y)))) continue;
-                sprites.Add(new RoomSpritePlacement{Definition=definition,Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix,Erase=authored.Erase});
+                sprites.Add(new RoomSpritePlacement{Definition=definition,Sprite=renderer.sprite,Frame=authored.Frame,LocalToWorld=matrix,Erase=authored.Erase,Dark=IsDark(authored)});
                 if(authored.Erase!=null) erases.Add((authored.Erase,matrix));
             }
             Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
@@ -219,6 +257,13 @@ namespace Remains.Presentation
             field=RoomRadianceField.Build(region,root.Definitions,root.Lands,table,origin,window.transform,sprites,WorldDoorOccluders());
             for(int i=0;i<SettleUpdates;i++) field.Render();
             PresentationChanged?.Invoke(this);
+        }
+
+        private bool IsDark(RoomSpriteAuthoring picture)
+        {
+            if(darkLamps.Count==0) return false;
+            foreach(var pair in lamps) if(pair.Value.picture==picture) return darkLamps.Contains(pair.Key);
+            return false;
         }
 
         private List<(Rect,double)> WorldDoorOccluders()
@@ -261,7 +306,7 @@ namespace Remains.Presentation
             DestroyWindow();
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) Destroy(ambient);
-            terrain=ambient=null;root=null;pictures.Clear();doors.Clear();AppliedDoorRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
+            terrain=ambient=null;root=null;pictures.Clear();doors.Clear();lamps.Clear();darkLamps.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
             Room=null;PresentationChanged?.Invoke(this);
         }
 

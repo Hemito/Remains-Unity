@@ -333,8 +333,8 @@ namespace Remains.Presentation
                 if(glows) glowing++;
                 if(d.Kind==RoomDefinitionKind.Decor && table.Lamps.TryGetValue(d.Id,out var lamp))
                 {
-                    double share=table.LampFrameShare(d,placement.Frame);
-                    if(share<=0) {dark++;continue;}   // the "off" frame
+                    double share=placement.Dark?0:table.LampFrameShare(d,placement.Frame);
+                    if(share<=0) {dark++;continue;}   // the "off" frame or a dark lamp
                     // Flatland: fluence 1 m away ≈ radiance × apparent width; width = diameter of the disk
                     // with the silhouette's area, so every lamp sends the table's power whatever its shape.
                     var scale=placement.LocalToWorld.lossyScale;
