@@ -20,6 +20,7 @@ namespace Remains.Editor
             var stage=UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
             if(stage!=null && stage.assetPath==PrefabPath)
                 throw new InvalidOperationException("Закройте редактирование префаба корня завода перед его подготовкой.");
+            PrepareHatch();
             var catalog=AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath)
                 ??throw new InvalidOperationException("Сначала подготовьте каталог игрового завода.");
             var root=new GameObject("Завод");
@@ -30,7 +31,7 @@ namespace Remains.Editor
                 root.AddComponent<FactoryLevelRoot>().Configure(catalog,room,container);
                 DoorView Door(string id)=>AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Remains/Resources/Presentation/Doors/{id}.prefab")?.GetComponent<DoorView>()
                     ??throw new InvalidOperationException("Нет готового префаба двери: "+id);
-                root.AddComponent<FactoryDoorAdapter>().Configure(Door("door1"),Door("door2"),Door("door3"));
+                root.AddComponent<FactoryDoorAdapter>().Configure(Door("door1"),Door("door2"),Door("door3"),Door("hatch1"));
                 var propPaths=new[]{"Assets/Remains/RoomDrafts/woodbox.asset","Assets/Remains/RoomDrafts/FactoryProps/bigbox.asset",
                     "Assets/Remains/RoomDrafts/mcrate4.asset","Assets/Remains/Resources/Content/props/box.asset",
                     "Assets/Remains/Resources/Content/props/mcrate1.asset","Assets/Remains/Resources/Content/props/mcrate2.asset",
@@ -46,10 +47,31 @@ namespace Remains.Editor
             finally {UnityEngine.Object.DestroyImmediate(root);}
             FactoryEntranceAuthoring.Install();
         }
+        private static void PrepareHatch()
+        {
+            const string folder="Assets/Remains/Resources/Presentation/Doors/";
+            var original=AssetDatabase.LoadAssetAtPath<DoorAsset>(folder+"office-hatch1.asset")
+                ??throw new InvalidOperationException("Нет проверенного исходного определения люка office-hatch1.");
+            var asset=AssetDatabase.LoadAssetAtPath<DoorAsset>(folder+"hatch1.asset");
+            if(asset==null) {asset=ScriptableObject.CreateInstance<DoorAsset>();AssetDatabase.CreateAsset(asset,folder+"hatch1.asset");}
+            asset.name="hatch1";
+            asset.ConfigureBarrier("hatch1",original.Size,original.Closed,original.Opened,original.Destroyed,
+                original.OpenSound,original.CloseSound,original.DestroySound,original.Interactive,original.MaxHealth,original.InteractionSize);
+            EditorUtility.SetDirty(asset);
+            var prefab=PrefabUtility.LoadPrefabContents(folder+"office-hatch1.prefab");
+            try
+            {
+                prefab.name="hatch1";
+                var view=prefab.GetComponent<DoorView>();view.Configure(asset,view.Artwork);
+                PrefabUtility.SaveAsPrefabAsset(prefab,folder+"hatch1.prefab",out bool saved);
+                if(!saved) throw new IOException("Не сохранён префаб заводского люка.");
+            }
+            finally {PrefabUtility.UnloadPrefabContents(prefab);}
+        }
         public static void RunBatch()
         {
             int code=0;
-            try {Generate();Check();}
+            try {Generate();Check();FurnitureLightChecks.Run();MuzzleFlashLightingChecks.Run();}
             catch(Exception error) {Debug.LogError("Подготовка корня завода прервана: "+error);code=1;}
             EditorApplication.Exit(code);
         }
@@ -147,6 +169,27 @@ namespace Remains.Editor
                     doors.doors.Any(door=>!root.Objects.Any(obj=>obj.Id==door.id && obj.Source.Params.TryGetValue("lock",out var value) && value=="0")))
                     throw new InvalidOperationException("Адаптер потерял ID дверей или установил неподдержанный замок.");
                 DoorContentInstaller.Apply(world,doors);
+                var hatches=doors.doors.Where(door=>door.definition=="hatch1").ToArray();
+                if(hatches.Length==0) throw new InvalidOperationException("Проверяемый завод потерял незапертые люки.");
+                foreach(var hatch in hatches)
+                {
+                    var position=new Vector2(hatch.x+hatch.width*.5f,hatch.y+hatch.height+.01f);
+                    var hull=new MovementHull {width=.6f,height=1.8f};
+                    var test=StateJson.Copy(geometry);
+                    hatch.open=false;test.platforms=DoorGeometry.Compose(geometry.platforms,new[]{hatch},hatch.level);RoomSurfaces.Prepare(test);
+                    var closed=ActorTerrainMotion.Move(test,hull,position,new Vector2(0,-.5f),false);
+                    hatch.open=true;test.platforms=DoorGeometry.Compose(geometry.platforms,new[]{hatch},hatch.level);RoomSurfaces.Prepare(test);
+                    var opened=ActorTerrainMotion.Move(test,hull,position,new Vector2(0,-.5f),false);
+                    if(closed.y<hatch.y+hatch.height-.001f || opened.y>=closed.y-.3f)
+                        throw new InvalidOperationException($"Люк не освобождает вертикальный проход: {hatch.id}, закрыт={closed}, открыт={opened}.");
+                    hatch.open=false;
+                }
+                var prior=StateJson.Copy(world);
+                prior.doors.RemoveAll(door=>door.definition=="hatch1");
+                prior.contentPatches.Remove(doors.patch);prior.contentPatches.Add("factory:0:base:factory-generated:doors-v1");
+                var removed=prior.doors[0];prior.doors.RemoveAt(0);
+                if(!DoorContentInstaller.Apply(prior,doors) || prior.doors.Any(door=>door.id==removed.id) || prior.doors.Count(door=>door.definition=="hatch1")!=hatches.Length)
+                    throw new InvalidOperationException("Обновление люков восстановило удалённую старую дверь или потеряло люк.");
                 var savedDoor=world.doors[0];savedDoor.open=true;savedDoor.integrity.health=0;savedDoor.revision=2;
                 if(DoorContentInstaller.Apply(world,doors) || !savedDoor.open || !savedDoor.Destroyed || savedDoor.revision!=2)
                     throw new InvalidOperationException("Повторная установка сбросила сохранённую дверь.");

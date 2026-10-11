@@ -155,6 +155,34 @@ void Fluence(uint3 id : SV_DispatchThreadID)
     _Fluence[p] = float4(sum * (TAU / 4), 1);
 }
 
+// Fill may cross the receiving furniture's partially absorbing body, but must not
+// borrow light across a fully opaque floor/wall. Visit every crossed texel, including
+// both sides of a corner: fixed-distance stepping can miss thin diagonal barriers.
+bool ObjectFillVisible(int2 from, int2 to)
+{
+    int2 delta = to - from;
+    int2 step = int2(delta.x > 0 ? 1 : -1, delta.y > 0 ? 1 : -1);
+    float2 stride = float2(delta.x == 0 ? FAR : 1.0 / abs(delta.x),
+                           delta.y == 0 ? FAR : 1.0 / abs(delta.y));
+    float2 next = stride * 0.5;
+    int2 current = from;
+    for (int i = 0; i < 32; i++)
+    {
+        if (all(current == to)) return true;
+        if (abs(next.x - next.y) < 0.000001)
+        {
+            if (_Scene[current + int2(step.x, 0)].a >= 0.99 ||
+                _Scene[current + int2(0, step.y)].a >= 0.99) return false;
+            current += step;
+            next += stride;
+        }
+        else if (next.x < next.y) { current.x += step.x; next.x += stride.x; }
+        else { current.y += step.y; next.y += stride.y; }
+        if (_Scene[current].a >= 0.99) return false;
+    }
+    return false;
+}
+
 [numthreads(8,8,1)]
 void Fill(uint3 id : SV_DispatchThreadID)
 {
@@ -175,7 +203,11 @@ void Fill(uint3 id : SV_DispatchThreadID)
                 for (int dx = -r; dx <= r; dx += 2)
                 {
                     int2 q = p + int2(dx, dy);
-                    if (Inside(q) && _Scene[q].a <= 0.004 && dx * dx + dy * dy <= r * r) lit = max(lit, _FluenceRaw[q]);
+                    if (Inside(q) && _Scene[q].a <= 0.004 && dx * dx + dy * dy <= r * r)
+                    {
+                        float4 f = _FluenceRaw[q];
+                        if (any(f > lit) && ObjectFillVisible(q, p)) lit = max(lit, f);
+                    }
                 }
             float bright = max(lit.r, max(lit.g, lit.b));
             float dark = 1e4;
@@ -186,7 +218,7 @@ void Fill(uint3 id : SV_DispatchThreadID)
                     int2 q = p + int2(dx2, dy2);
                     if (!Inside(q) || _Scene[q].a > 0.004) continue;
                     float4 f = _FluenceRaw[q];
-                    if (max(f.r, max(f.g, f.b)) < 0.5 * bright) dark = min(dark, length(float2(dx2, dy2)));
+                    if (max(f.r, max(f.g, f.b)) < 0.5 * bright && ObjectFillVisible(q, p)) dark = min(dark, length(float2(dx2, dy2)));
                 }
             float t = saturate((dark - 0.5) / _RimTexels);
             _Fluence[p] = lit * (t * t * (3 - 2 * t));
@@ -204,6 +236,7 @@ void Fill(uint3 id : SV_DispatchThreadID)
                 if (d > r || d < 0.5) continue;
                 float4 f = _FluenceRaw[q];
                 if (all(f <= lit)) continue;
+                if (!ObjectFillVisible(q, p)) continue;
                 float2 dir = -float2(gx, gy) / d;
                 float rest = 0;
                 for (int k = 1; k <= 32; k++)

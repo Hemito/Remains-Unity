@@ -28,7 +28,11 @@ bool RemainsLampsAvailable()
 half4 RemainsSampleLamp(float2 world)
 {
     if(_RemainsRadianceEnabled>0.5)
-        return SAMPLE_TEXTURE2D_LOD(_RemainsRadiance,sampler_RemainsRadiance,(world-_RemainsRadianceRect.xy)/_RemainsRadianceRect.zw,0);
+    {
+        float2 uv=(world-_RemainsRadianceRect.xy)/_RemainsRadianceRect.zw;
+        if(any(uv<0) || any(uv>1)) return 0;
+        return SAMPLE_TEXTURE2D_LOD(_RemainsRadiance,sampler_RemainsRadiance,uv,0);
+    }
     #if USE_SHAPE_LIGHT_TYPE_1
     return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,RemainsLightingUV(world));
     #else
