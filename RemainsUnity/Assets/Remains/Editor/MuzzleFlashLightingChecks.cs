@@ -12,7 +12,7 @@ namespace Remains.Editor
     {
         public static void RunBatch()
         {
-            try {Run();EditorApplication.Exit(0);}
+            try {Run();FurnitureLightChecks.Run();EditorApplication.Exit(0);}
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
         }
 
@@ -111,7 +111,7 @@ namespace Remains.Editor
         // Direct light the flash adds: the dynamic pass also holds the lamps' direct light (shadowed by silhouettes).
         private static Color[] FlashDirect(RoomRadianceField field)
         {
-            var direct=Read(Scene(field,"directFluence"));var free=Read(Scene(field,"freeFluence"));
+            var direct=Read(Scene(field,"directFluence"));var free=Read(Scene(field,"lampOccludedFluence"));
             for(int i=0;i<direct.Length;i++) direct[i]-=free[i];
             return direct;
         }

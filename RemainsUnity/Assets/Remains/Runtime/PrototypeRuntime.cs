@@ -394,7 +394,7 @@ namespace Remains.Runtime
                 shownLevel=Session.LocalActor.level;shownRoom=definition;
                 var room=Geometry.Get(shownLevel);
                 using(TransitionTiming.Measure("runtime.release-room",shownLevel))
-                {roomPresentation.Bind(null);ActiveLevelLighting?.Release();}
+                {roomPresentation.Bind(null);if(roomObject!=null) roomObject.SetActive(false);ActiveLevelLighting?.Release();}
                 Destroy(roomObject);roomObject=adoptEntry?entryRoom.Take(Session.World,shownLevel,room):AuthoredRoomVisual.Create(shownLevel,room,Session.World);
                 ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();
                 roomPresentation.Bind(ActiveLevelLighting);

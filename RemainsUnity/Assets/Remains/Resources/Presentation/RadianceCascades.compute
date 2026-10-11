@@ -38,6 +38,7 @@ float _BounceGain;
 Texture2D<float4> _StaticFluence;
 Texture2D<float4> _DirectFluence;
 Texture2D<float4> _FreeFluence;
+Texture2D<float4> _LampOccludedFluence;
 float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
 float _RimTexels;    // objects, rim mode: width of the dimming at the dark edge
 int _ObjectGradient; // objects: 1 gradient through the body, 0 rim
@@ -155,7 +156,9 @@ void Fluence(uint3 id : SV_DispatchThreadID)
 }
 
 // Fill may cross the receiving furniture's partially absorbing body, but must not
-// borrow light across a fully opaque floor/wall. Visit every crossed texel, including
+// borrow light across a fully opaque floor/wall or a separate partial object. Once
+// the path enters a partial body it must stay in it up to the receiving texel.
+// Visit every crossed texel, including
 // both sides of a corner: fixed-distance stepping can miss thin diagonal barriers.
 bool ObjectFillVisible(int2 from, int2 to)
 {
@@ -165,6 +168,7 @@ bool ObjectFillVisible(int2 from, int2 to)
                            delta.y == 0 ? FAR : 1.0 / abs(delta.y));
     float2 next = stride * 0.5;
     int2 current = from;
+    bool enteredBody = false;
     for (int i = 0; i < 32; i++)
     {
         if (all(current == to)) return true;
@@ -177,7 +181,10 @@ bool ObjectFillVisible(int2 from, int2 to)
         }
         else if (next.x < next.y) { current.x += step.x; next.x += stride.x; }
         else { current.y += step.y; next.y += stride.y; }
-        if (_Scene[current].a >= 0.99) return false;
+        float absorption = _Scene[current].a;
+        if (absorption >= 0.99) return false;
+        if (absorption > 0.004) enteredBody = true;
+        else if (enteredBody) return false;
     }
     return false;
 }
@@ -296,6 +303,11 @@ void Bounce(uint3 id : SV_DispatchThreadID)
 void CombineDirect(uint3 id : SV_DispatchThreadID)
 {
     if (!Inside(int2(id.xy))) return;
-    // static - lamps direct light without silhouettes + direct light of lamps and flashes with them
-    _Fluence[id.xy] = float4(max(0, _StaticFluence[id.xy].rgb - _FreeFluence[id.xy].rgb + _DirectFluence[id.xy].rgb), 1);
+    float3 free = _FreeFluence[id.xy].rgb;
+    float3 lamp = _LampOccludedFluence[id.xy].rgb;
+    // Geometry-dependent object fill can increase direct lamp samples. A blocker may only
+    // remove their energy. Keep flashes separate so this bound never suppresses a new source.
+    float3 removed = max(0, free - lamp);
+    float3 flash = max(0, _DirectFluence[id.xy].rgb - lamp);
+    _Fluence[id.xy] = float4(max(0, _StaticFluence[id.xy].rgb - removed) + flash, 1);
 }

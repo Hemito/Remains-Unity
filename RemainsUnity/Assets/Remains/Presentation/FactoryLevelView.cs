@@ -365,7 +365,7 @@ namespace Remains.Presentation
         {
             DestroyWindow();
             if(terrain!=null) Destroy(terrain);
-            if(ambient!=null) Destroy(ambient);
+            if(ambient!=null) {ambient.SetActive(false);Destroy(ambient);}
             terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
             Room=null;PresentationChanged?.Invoke(this);
         }

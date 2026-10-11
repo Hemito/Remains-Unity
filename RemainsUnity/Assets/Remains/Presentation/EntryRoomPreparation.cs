@@ -51,6 +51,9 @@ namespace Remains.Presentation
                     roomObject=AuthoredRoomVisual.Create(value.Level,Room,value.ViewWorld);
                     Light=roomObject.GetComponent<IRoomLighting>();
                     if(Light==null) throw new InvalidOperationException("Подготовка входа: отсутствует свет локации "+value.Level);
+                    // Factory fields are prepared explicitly; staged artwork and its global
+                    // ambient must stay hidden while the previous level is still active.
+                    if(Light is FactoryLevelView) roomObject.SetActive(false);
                 }
                 Light.Synchronize(Room,value.ViewWorld,geometry.EntryOcclusionRevision(Room));
                 if(Light is FactoryLevelView factory) factory.Focus(value.ViewWorld.Find(value.ActorId).Position);
@@ -90,6 +93,7 @@ namespace Remains.Presentation
                 (Light is FactoryLevelView factory && factory.AppliedLampRevision!=world.lampRevision))
                 throw new InvalidOperationException($"Готовый вход не совпадает с опубликованной локацией: world={world?.worldId}, level={level}, ready={IsPrepared}.");
             var result=roomObject;roomObject=null;Light=null;Room=null;context=null;IsPrepared=false;
+            result.SetActive(true);
             return result;
         }
         private void ReleaseRoom()

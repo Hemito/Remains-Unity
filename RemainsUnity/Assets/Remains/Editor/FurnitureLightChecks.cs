@@ -23,10 +23,11 @@ namespace Remains.Editor
                 float wall=Evaluate(compute,mode,1);
                 float floor=Evaluate(compute,mode,2);
                 float corner=Evaluate(compute,mode,3);
+                float partial=Evaluate(compute,mode,4);
                 Require(front>.1f,$"Мебель потеряла доступный свет через собственный объём: режим={mode}, свет={front}.");
-                Require(wall<.00001f && floor<.00001f && corner<.00001f,
-                    $"Мебель заимствует свет через препятствие: режим={mode}, стена={wall}, пол={floor}, угол={corner}.");
-                Debug.Log($"Освещение мебели: PASS — режим={mode}, доступный свет={front}, стена={wall}, пол={floor}, угол={corner}.");
+                Require(wall<.00001f && floor<.00001f && corner<.00001f && partial<.00001f,
+                    $"Мебель заимствует свет через препятствие: режим={mode}, стена={wall}, пол={floor}, угол={corner}, отдельная балка={partial}.");
+                Debug.Log($"Освещение мебели: PASS — режим={mode}, доступный свет={front}, стена={wall}, пол={floor}, угол={corner}, отдельная балка={partial}.");
             }
         }
 
@@ -48,6 +49,9 @@ namespace Remains.Editor
                 var source=barrier==2?new Vector2Int(20,8):barrier==3?new Vector2Int(12,8):new Vector2Int(12,16);
                 lightPixels[source.y*Size+source.x]=new Color(1,.5f,.25f,1);
                 if(barrier==1) for(int y=0;y<Size;y++) scenePixels[y*Size+16]=new Color(0,0,0,1);
+                // A separate partly absorbing beam must not become part of the receiver's
+                // own volume merely because neither object reaches the opaque-wall threshold.
+                if(barrier==4) for(int y=0;y<Size;y++) scenePixels[y*Size+16]=new Color(0,0,0,.5f);
                 if(barrier==2) for(int x=0;x<Size;x++) scenePixels[12*Size+x]=new Color(0,0,0,1);
                 // The diagonal crosses a corner between (15,11) and (16,12).
                 // This adjacent opaque texel must also block the borrowing path.

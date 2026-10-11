@@ -42,12 +42,16 @@ namespace Remains.Editor
                 sprite=Sprite.Create(mask,new Rect(0,0,4,4),new Vector2(.5f,.5f),4);
                 var between=new[]{new RoomRadianceField.LightOccluder(sprite,Matrix4x4.TRS(new Vector3(3,3,0),Quaternion.identity,new Vector3(.5f,3,1)))};
                 Require(field.RenderTransient(null,between),"Силуэт не вызвал расчёт света.");
-                float shadowed=Mean(Read(Shader.GetGlobalTexture("_RemainsRadiance")),64,40,44,22,26);
+                var shadowPixels=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
+                AssertNoAddedLight(lampLight,shadowPixels);
+                float shadowed=Mean(shadowPixels,64,40,44,22,26);
                 Require(shadowed<open*.5f,$"Силуэт не затеняет лампу: открыто={open}, в тени={shadowed}.");
                 Require(!field.RenderTransient(null,between),"Неподвижный силуэт пересчитывает свет.");
                 var away=new[]{new RoomRadianceField.LightOccluder(sprite,Matrix4x4.TRS(new Vector3(6.5f,.75f,0),Quaternion.identity,new Vector3(.5f,.5f,1)))};
                 field.RenderTransient(null,away);
-                float moved=Mean(Read(Shader.GetGlobalTexture("_RemainsRadiance")),64,40,44,22,26);
+                var movedPixels=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
+                AssertNoAddedLight(lampLight,movedPixels);
+                float moved=Mean(movedPixels,64,40,44,22,26);
                 Require(moved>open*.85f,$"Тень осталась после ухода силуэта: открыто={open}, после={moved}.");
                 Require(field.RenderTransient(null,null),"Пустой набор не восстановил статичный свет.");
                 var restored=Read(Shader.GetGlobalTexture("_RemainsRadiance"));
@@ -86,5 +90,11 @@ namespace Remains.Editor
         }
 
         private static void Require(bool condition,string message) {if(!condition) throw new InvalidOperationException(message);}
+        private static void AssertNoAddedLight(Color[] baseline,Color[] shadow)
+        {
+            for(int i=0;i<baseline.Length;i++)
+                Require(shadow[i].r<=baseline[i].r+1e-4f && shadow[i].g<=baseline[i].g+1e-4f && shadow[i].b<=baseline[i].b+1e-4f,
+                    $"Силуэт добавил свет в текселе {i}: исходно={baseline[i]}, с препятствием={shadow[i]}.");
+        }
     }
 }
