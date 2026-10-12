@@ -1,5 +1,12 @@
 # Remains: Unity
 
+**Русский** · [English](README.en.md)
+
+[![Участие](https://img.shields.io/badge/Участие-5865F2?style=for-the-badge)](CONTRIBUTING.md)
+[![Статус](https://img.shields.io/badge/Статус-Experimental-orange?style=for-the-badge)](PROJECT_STATUS.md)
+[![Issues](https://img.shields.io/badge/Issues-Сообщить_об_ошибке-238636?style=for-the-badge)](https://github.com/Hemito/Remains-Unity/issues/new/choose)
+[![Pull Requests](https://img.shields.io/badge/Pull_Requests-Предложить_изменения-8957E5?style=for-the-badge)](https://github.com/Hemito/Remains-Unity/pulls)
+
 Экспериментальный независимый фанатский remake игры **Remains** автора **Empalu**
 на Unity с сетевым кооперативом. Это не официальный продукт оригинальной команды.
 Авторство оригинальных графики, звуков и контента не приписывается Hemito.
