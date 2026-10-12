@@ -26,6 +26,7 @@ namespace Remains.Presentation
         private Material sceneMaterial;
         private Mesh quad;
         private RenderTexture seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB;
+        private RenderTexture fillSamples,fillWeights;
         private float albedo,edgeTexels,rimTexels;
         private bool objectGradient;
         public int OccluderTexels {get;private set;}   // diagnostics: scene texels set by occluders
@@ -45,9 +46,81 @@ namespace Remains.Presentation
         private RenderTexture transientScene;
         private bool distanceReady;
         private bool transientActive;
-        private RenderTexture staticFluence,directFluence,projectedShadowMask,backgroundFluence;
+        private RenderTexture staticFluence,directFluence,projectedShadowMask,backgroundFluence,backgroundAccumulation;
         private MaterialPropertyBlock emissionBlock;
         private CommandBuffer transientCommands;
+        private readonly SteadyLightShadowCache steadyShadows=new();
+        private readonly HashSet<string> composedSteadyIds=new(StringComparer.Ordinal);
+        private readonly HashSet<string> warnedSteadyIds=new(StringComparer.Ordinal);
+        private int backgroundSignature;
+        private bool hasBackgroundSignature;
+        private bool hasWindowEmission;
+        private Color windowEmission;
+        public int SteadyShadowFieldCount=>steadyShadows.Count;
+        public int SteadyShadowGeneration=>steadyShadows.Generation;
+        public bool TryGetSteadyShadowField(string id,out Texture field)
+        {bool found=steadyShadows.TryGet(id,out var target);field=target;return found;}
+        public void RegisterSteadyEmitters(IReadOnlyList<SteadyLightEmitter> sources)
+        {steadyShadows.Register(sources);hasBackgroundSignature=false;warnedSteadyIds.Clear();}
+        public void PrepareSteadyShadowFields(IReadOnlyCollection<string> ids)
+        {steadyShadows.Prepare(ids,BuildSteadyDirect);hasBackgroundSignature=false;}
+
+        private RenderTexture BuildSteadyDirect(SteadyLightEmitter source)
+        {
+            if(staticScene==null) staticScene=scene;
+            var restore=scene;
+            try
+            {
+                // Preserve the full scene's sampling geometry, including non-absorbing glow pixels.
+                // Isolating RGB must not change the ray steps or the contribution decomposition.
+                if(!distanceReady || !freeReady)
+                {
+                    scene=staticScene;distanceReady=false;RenderField(true);
+                    Graphics.CopyTexture(directFluence,freeFluence);freeReady=true;
+                }
+                compute.SetInts("_Size",width,height);
+                int clear=compute.FindKernel("ClearEmission");
+                compute.SetTexture(clear,"_Scene",staticScene);compute.SetTexture(clear,"_EmissionScene",transientScene);
+                compute.Dispatch(clear,(width+7)/8,(height+7)/8,1);
+                var cmd=transientCommands;cmd.Clear();cmd.SetRenderTarget(transientScene);
+                cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
+                emissionBlock.Clear();emissionBlock.SetTexture("_MainTex",source.Sprite.texture);
+                emissionBlock.SetVector("_SpriteUvRect",new Vector4(0,0,1,1));
+                emissionBlock.SetColor("_Emission",source.Radiance);emissionBlock.SetFloat("_Glow",0);
+                var bounds=source.Sprite.bounds;
+                cmd.DrawMesh(quad,transform.worldToLocalMatrix*source.LocalToWorld*Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),sceneMaterial,0,1,emissionBlock);
+                Graphics.ExecuteCommandBuffer(cmd);
+                scene=transientScene;RenderField(true);
+                var target=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Прямой вклад "+source.Id);
+                target.filterMode=FilterMode.Bilinear;
+                int apply=compute.FindKernel("ApplyStaticFill");
+                compute.SetTexture(apply,"_FillSamples",fillSamples);compute.SetTexture(apply,"_FillWeights",fillWeights);
+                compute.SetTexture(apply,"_FluenceRaw",fluenceRaw);compute.SetTexture(apply,"_MappedDirect",target);
+                compute.Dispatch(apply,(width+7)/8,(height+7)/8,1);return target;
+            }
+            finally {scene=restore;distanceReady=restore==staticScene;}
+        }
+
+        private void ComposeSteadyShadows(IReadOnlyList<ProjectedLightShadow> masks)
+        {
+            Graphics.Blit(staticFluence,backgroundAccumulation);composedSteadyIds.Clear();
+            if(masks!=null) foreach(var mask in masks)
+            {
+                if(composedSteadyIds.Contains(mask.SourceId)) continue;
+                if(!steadyShadows.TryGet(mask.SourceId,out var direct))
+                {
+                    if(steadyShadows.IsRegistered(mask.SourceId) && warnedSteadyIds.Add(mask.SourceId))
+                        Debug.LogWarning($"Поле света {name}: прямой вклад {mask.SourceId} ещё не подготовлен, поколение {steadyShadows.Generation}; тень пропущена до явной подготовки.",this);
+                    continue; // Flash IDs are handled separately; unknown IDs are diagnosed during preparation.
+                }
+                composedSteadyIds.Add(mask.SourceId);
+                DrawProjectedMask(masks,mask.SourceId);
+                int subtract=compute.FindKernel("SubtractSteadyDirect");
+                compute.SetTexture(subtract,"_SteadyDirect",direct);compute.SetTexture(subtract,"_ProjectedShadowMask",projectedShadowMask);
+                compute.SetTexture(subtract,"_BackgroundFluence",backgroundAccumulation);
+                compute.Dispatch(subtract,(width+7)/8,(height+7)/8,1);
+            }
+        }
 
         public readonly struct SpriteEmission
         {
@@ -77,12 +150,21 @@ namespace Remains.Presentation
             =>RenderTransient(emissions,null,null);
         public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds)
         {
+            compute.SetInts("_Size",width,height);
+            var hash=new HashCode();hash.Add(steadyShadows.Generation);
+            if(masks!=null) foreach(var mask in masks)
+            {hash.Add(mask.SourceId);hash.Add(mask.Mask!=null?mask.Mask.GetInstanceID():0);hash.Add(mask.WorldBounds);hash.Add(mask.Opacity);hash.Add(mask.Revision);}
+            int signature=hash.ToHashCode();
             if((emissions?.Count??0)==0)
             {
-                if(!transientActive) return false;
-                Graphics.CopyTexture(staticFluence,fluence);
-                Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
+                if(!transientActive && hasBackgroundSignature && signature==backgroundSignature) return false;
+                if(transientActive) Graphics.CopyTexture(staticFluence,fluence);
+                ComposeSteadyShadows(masks);
+                Graphics.Blit(backgroundAccumulation,backgroundFluence);
+                Shader.SetGlobalTexture("_RemainsBackgroundRadiance",backgroundFluence);
+                Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",composedSteadyIds.Count>0?1:0);
                 transientActive=false;
+                backgroundSignature=signature;hasBackgroundSignature=true;
                 return true;
             }
             if(masks!=null && masks.Count>0 && sourceIds==null) throw new ArgumentException("Для масок тени необходимы ID источников.");
@@ -99,7 +181,7 @@ namespace Remains.Presentation
                     freeReady=true;
                 }
                 Graphics.CopyTexture(staticFluence,fluence);
-                Graphics.CopyTexture(staticFluence,backgroundFluence);
+                ComposeSteadyShadows(masks);
                 for(int emissionIndex=0;emissionIndex<emissions.Count;emissionIndex++)
                 {
                 var previous=RenderTexture.active;
@@ -135,14 +217,16 @@ namespace Remains.Presentation
                 compute.SetTexture(combine,"_FreeFluence",freeFluence);
                 compute.SetTexture(combine,"_DirectFluence",directFluence);
                 compute.SetTexture(combine,"_Fluence",fluence);
-                compute.SetTexture(combine,"_BackgroundFluence",backgroundFluence);
+                compute.SetTexture(combine,"_BackgroundFluence",backgroundAccumulation);
                 compute.Dispatch(combine,(width+7)/8,(height+7)/8,1);
                 }
             }
             finally {scene=staticScene;distanceReady=false;}
+            Graphics.Blit(backgroundAccumulation,backgroundFluence);
             Shader.SetGlobalTexture("_RemainsBackgroundRadiance",backgroundFluence);
             Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",1);
             transientActive=true;DynamicUpdates++;
+            hasBackgroundSignature=false;
             return true;
         }
 
@@ -155,6 +239,7 @@ namespace Remains.Presentation
             staticFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сохранённый свет ламп");
             projectedShadowMask=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Маска тени вспышки");
             backgroundFluence=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Свет фона с тенью вспышки");
+            backgroundAccumulation=Target(width,height,GraphicsFormat.R32G32B32A32_SFloat,"Композиция прямого света без промежуточного округления");
             backgroundFluence.filterMode=FilterMode.Bilinear;
         }
 
@@ -185,6 +270,33 @@ namespace Remains.Presentation
         public int DynamicUpdates {get;private set;}
         private RenderTexture freeFluence;
         private bool freeReady;
+
+        private Color LampRadiance(RoomSpritePlacement placement,RoomLightingTable table,RoomLightScene light,double share)
+        {
+            var lamp=table.Lamps[placement.Definition.Id];var scale=placement.LocalToWorld.lossyScale;
+            double area=SilhouetteArea(placement.Sprite)*Math.Abs(scale.x*scale.y);
+            double width=Math.Max(texel,2*Math.Sqrt(area/Math.PI));
+            double l=share*table.RadiancePower*lamp.Intensity/width;
+            return new Color((float)(l*lamp.Color[0]*light.Tint[0]),(float)(l*lamp.Color[1]*light.Tint[1]),(float)(l*lamp.Color[2]*light.Tint[2]),1);
+        }
+        public bool TryCreateSteadyEmitter(string id,RoomSpritePlacement placement,bool window,out SteadyLightEmitter emitter)
+        {
+            emitter=default;
+            if(window)
+            {
+                if(placement.Erase==null || !hasWindowEmission) return false;
+                emitter=new SteadyLightEmitter(id,placement.Erase,placement.LocalToWorld,windowEmission);return true;
+            }
+            if(placement.Definition.Kind!=RoomDefinitionKind.Decor || !sourceTable.Lamps.ContainsKey(placement.Definition.Id)) return false;
+            double share=placement.Dark?0:sourceTable.LampFrameShare(placement.Definition,placement.Frame);
+            if(share<=0) return false;
+            emitter=new SteadyLightEmitter(id,placement.Sprite,placement.LocalToWorld,LampRadiance(placement,sourceTable,sourceLight,share));return true;
+        }
+        public float SteadyEmitterWidth(SteadyLightEmitter emitter)
+        {
+            var scale=emitter.LocalToWorld.lossyScale;
+            return Mathf.Max(texel,(float)(2*Math.Sqrt(SilhouetteArea(emitter.Sprite)*Math.Abs(scale.x*scale.y)/Math.PI)));
+        }
 
         // occluders: world rectangles that stop a share of light (closed doors: original Box door_opac); 1 = a wall.
         public static RoomRadianceField Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent,IReadOnlyList<RoomSpritePlacement> sprites=null,IReadOnlyList<(Rect bounds,double opacity)> occluders=null)
@@ -265,6 +377,7 @@ namespace Remains.Presentation
         // lookup, wall rasterization or synchronous silhouette readback belongs to this path.
         public void UpdateOccluders(IReadOnlyList<(Rect bounds,double opacity)> occluders)
         {
+            steadyShadows.InvalidateFields();hasBackgroundSignature=false;warnedSteadyIds.Clear();
             EnsureSceneDrawing();
             if(occlusionScene==null) occlusionScene=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света с дверями");
             var previous=RenderTexture.active;
@@ -314,6 +427,8 @@ namespace Remains.Presentation
             if(string.IsNullOrEmpty(fon)) fon="fonDefault";
             foreach(string issue in issues) Debug.LogWarning(issue);
             bool hasWindowLight=table.WindowRadiance.TryGetValue(fon,out var sky);
+            hasWindowEmission=hasWindowLight;
+            windowEmission=hasWindowLight?new Color((float)(sky[0]*light.Tint[0]),(float)(sky[1]*light.Tint[1]),(float)(sky[2]*light.Tint[2]),1):Color.clear;
             int windowCount=0;
             foreach(var placement in sprites)
             {
@@ -322,7 +437,7 @@ namespace Remains.Presentation
                 var eraseBounds=placement.Erase.bounds;
                 block.Clear();
                 block.SetTexture("_MainTex",placement.Erase.texture);
-                block.SetColor("_Emission",new Color((float)(sky[0]*light.Tint[0]),(float)(sky[1]*light.Tint[1]),(float)(sky[2]*light.Tint[2]),1));
+                block.SetColor("_Emission",windowEmission);
                 block.SetFloat("_Absorption",0);block.SetFloat("_Glow",0);block.SetFloat("_GlowThreshold",1);
                 cmd.DrawMesh(quad,placement.LocalToWorld*Matrix4x4.TRS(eraseBounds.min,Quaternion.identity,eraseBounds.size),sceneMaterial,0,0,block);
                 windowCount++;
@@ -344,11 +459,7 @@ namespace Remains.Presentation
                     if(share<=0) {dark++;continue;}   // the "off" frame or a dark lamp
                     // Flatland: fluence 1 m away ≈ radiance × apparent width; width = diameter of the disk
                     // with the silhouette's area, so every lamp sends the table's power whatever its shape.
-                    var scale=placement.LocalToWorld.lossyScale;
-                    double area=SilhouetteArea(placement.Sprite)*Math.Abs(scale.x*scale.y);
-                    double width=Math.Max(texel,2*Math.Sqrt(area/Math.PI));
-                    double l=share*table.RadiancePower*lamp.Intensity/width;
-                    block.SetColor("_Emission",new Color((float)(l*lamp.Color[0]*light.Tint[0]),(float)(l*lamp.Color[1]*light.Tint[1]),(float)(l*lamp.Color[2]*light.Tint[2]),1));
+                    block.SetColor("_Emission",LampRadiance(placement,table,light,share));
                     block.SetFloat("_Absorption",0);
                     emitters++;
                 }
@@ -453,6 +564,10 @@ namespace Remains.Presentation
 
         private void Allocate()
         {
+            // Float32 linear texel indices remain exact for this bounded light window.
+            if((long)width*height>16777216) throw new InvalidOperationException($"Поле света {name}: {width}×{height} превышает точность индексов проб заполнения.");
+            fillSamples=Target(width,height,GraphicsFormat.R32G32B32A32_SFloat,"Проба заполнения по RGB");
+            fillWeights=Target(width,height,GraphicsFormat.R32G32B32A32_SFloat,"Вес проб заполнения по RGB");
             seedsA=Target(width,height,GraphicsFormat.R32G32_SFloat,"Ближайшая стена A");
             seedsB=Target(width,height,GraphicsFormat.R32G32_SFloat,"Ближайшая стена B");
             distance=Target(width,height,GraphicsFormat.R32_SFloat,"Расстояние до стены");
@@ -475,6 +590,7 @@ namespace Remains.Presentation
 
         public void Render()
         {
+            staticScene=scene;steadyShadows.InvalidateFields();hasBackgroundSignature=false;warnedSteadyIds.Clear();
             Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
             transientActive=false;freeReady=false;
             StaticRenderUpdates++;
@@ -529,6 +645,8 @@ namespace Remains.Presentation
             compute.SetTexture(flu,"_Fluence",fluenceRaw);
             compute.Dispatch(flu,gx,gy,1);
             compute.SetTexture(fill,"_Scene",scene);
+            compute.SetInt("_RecordFill",directOnly?0:1);
+            compute.SetTexture(fill,"_FillSamples",fillSamples);compute.SetTexture(fill,"_FillWeights",fillWeights);
             compute.SetFloat("_EdgeTexels",Mathf.Max(1,edgeTexels));
             compute.SetFloat("_RimTexels",Mathf.Max(1,rimTexels));
             compute.SetInt("_ObjectGradient",objectGradient?1:0);
@@ -553,13 +671,14 @@ namespace Remains.Presentation
 
         private void OnDestroy()
         {
+            steadyShadows.Dispose();
             Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
             transientCommands?.Release();
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence}) if(texture!=null) texture.Release();
+            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,fillSamples,fillWeights,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence,backgroundAccumulation}) if(texture!=null) texture.Release();
             if(baseScene is RenderTexture baseTarget) baseTarget.Release();
             if(occlusionScene!=null) occlusionScene.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
+            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,fillSamples,fillWeights,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence,backgroundAccumulation,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }

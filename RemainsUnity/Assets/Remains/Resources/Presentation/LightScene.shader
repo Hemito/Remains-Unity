@@ -3,7 +3,7 @@ Shader "Hidden/Remains/LightScene"
     // Draws a sprite into the radiance field's scene texture (RoomRadianceField): lamps emit their
     // radiance over their silhouette (alpha > _AlphaCut), objects absorb by alpha × absorption, screens
     // glow by their bright pixels (luminance above _GlowThreshold) × _Glow, 4×4 samples per light texel.
-    // Max-blended over the wall raster, so walls stay opaque.
+    // Emission adds over the wall raster; maximum absorption keeps walls opaque.
     Properties
     {
         _MainTex ("Спрайт", 2D) = "white" {}
@@ -18,7 +18,8 @@ Shader "Hidden/Remains/LightScene"
     {
         Tags { "RenderPipeline"="UniversalPipeline" }
         Cull Off ZWrite Off ZTest Always
-        BlendOp Max
+        // Independent emitters add radiance; overlapping occluders keep maximum absorption.
+        BlendOp Add, Max
         Blend One One
             HLSLINCLUDE
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"

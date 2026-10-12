@@ -11,12 +11,13 @@ namespace Remains.Presentation
         public readonly float Radius,Strength;
         public readonly bool IsTransient;
         public readonly float ProjectionScale;
+        public readonly float Coverage;
         // Samples of the actual emitted sprite silhouette: world X/Y and emitted area weight in Z.
         // Null denotes an explicitly point-like source (for example a muzzle flash).
         public readonly IReadOnlyList<Vector3> EmissionPoints;
         public ActorShadowSource(string id,Vector2 position,float radius,float strength,bool isTransient=false,float projectionScale=1,
-            IReadOnlyList<Vector3> emissionPoints=null)
-        {Id=id;Position=position;Radius=radius;Strength=strength;IsTransient=isTransient;ProjectionScale=projectionScale;EmissionPoints=emissionPoints;}
+            IReadOnlyList<Vector3> emissionPoints=null,float coverage=1)
+        {Id=id;Position=position;Radius=radius;Strength=strength;IsTransient=isTransient;ProjectionScale=projectionScale;EmissionPoints=emissionPoints;Coverage=coverage;}
     }
 
     // Prepared once per light window. Select is called explicitly by the actor coordinator,
@@ -80,14 +81,14 @@ namespace Remains.Presentation
                 while(index<output.Count && (output[index].Strength>strength ||
                     output[index].Strength==strength && string.CompareOrdinal(output[index].Id,source.Id)<0)) index++;
                 if(index>=maxSources) continue;
-                output.Insert(index,new ActorShadowSource(source.Id,position,source.Radius,strength,source.IsTransient,source.ProjectionScale,source.EmissionPoints));
+                output.Insert(index,new ActorShadowSource(source.Id,position,source.Radius,strength,source.IsTransient,source.ProjectionScale,source.EmissionPoints,source.Coverage));
                 if(output.Count>maxSources) output.RemoveAt(maxSources);
             }
             if(total<=0) return;
             for(int i=0;i<output.Count;i++)
             {
                 var source=output[i];
-                output[i]=new ActorShadowSource(source.Id,source.Position,source.Radius,source.Strength/total,source.IsTransient,source.ProjectionScale,source.EmissionPoints);
+                output[i]=new ActorShadowSource(source.Id,source.Position,source.Radius,source.Strength/total,source.IsTransient,source.ProjectionScale,source.EmissionPoints,source.Coverage);
             }
         }
 

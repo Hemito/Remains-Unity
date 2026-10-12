@@ -18,6 +18,8 @@ namespace Remains.Editor
             try
             {
                 ActorShadowSourceChecks.Run();
+                StaticLightShadowChecks.Run();
+                StaticLightShadowChecks.RunAuthoredWindow();
                 WindowActorCompositeChecks.RunGroupedWindows();
                 WindowActorCompositeChecks.RunLampProjection();
                 MuzzleFlashLightingChecks.Run();

@@ -29,6 +29,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,Entry> entries=new(StringComparer.Ordinal);
         private readonly HashSet<string> retained=new(StringComparer.Ordinal);
         private readonly List<string> removed=new();
+        private readonly HashSet<string> steadySources=new(StringComparer.Ordinal);
         private FactoryLevelView level;
         private Coroutine refresh;
 
@@ -148,6 +149,7 @@ namespace Remains.Presentation
                     level.ActorShadowTransmission(entry.Position,sourcePosition),level.ShadowSourceRevision,Time.frameCount);
                 entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.FlashVisibility.Count);
             }
+            PrepareSteadyFields();
         }
 
         public static void BlendLampSources(List<ActorShadowSource> displayed,IReadOnlyList<ActorShadowSource> targets,float dt,int maxSources=3)
@@ -161,19 +163,21 @@ namespace Remains.Presentation
                     var target=targets[j];
                     // A partly occluded long lamp changes its effective emitting centre as well as
                     // its power. Interpolate both so a cached visibility update cannot snap the shadow.
-                    displayed[i]=new ActorShadowSource(target.Id,Vector2.Lerp(old.Position,target.Position,blend),target.Radius,Mathf.Lerp(old.Strength,target.Strength,blend),target.IsTransient,target.ProjectionScale);
+                    displayed[i]=new ActorShadowSource(target.Id,Vector2.Lerp(old.Position,target.Position,blend),target.Radius,Mathf.Lerp(old.Strength,target.Strength,blend),target.IsTransient,target.ProjectionScale,
+                        coverage:Mathf.Lerp(old.Coverage,target.Coverage,blend));
                     found=true;break;
                 }
                 if(found) continue;
                 float strength=Mathf.Lerp(old.Strength,0,blend);
-                if(strength<=.0001f) displayed.RemoveAt(i);
-                else displayed[i]=new ActorShadowSource(old.Id,old.Position,old.Radius,strength,old.IsTransient,old.ProjectionScale);
+                float coverage=Mathf.Lerp(old.Coverage,0,blend);
+                if(strength<=.0001f && coverage<=.0001f) displayed.RemoveAt(i);
+                else displayed[i]=new ActorShadowSource(old.Id,old.Position,old.Radius,strength,old.IsTransient,old.ProjectionScale,coverage:coverage);
             }
             foreach(var target in targets)
             {
                 bool found=false;foreach(var source in displayed) if(source.Id==target.Id) {found=true;break;}
                 if(!found && target.Strength>0)
-                    displayed.Add(new ActorShadowSource(target.Id,target.Position,target.Radius,target.Strength*blend,target.IsTransient,target.ProjectionScale));
+                    displayed.Add(new ActorShadowSource(target.Id,target.Position,target.Radius,target.Strength*blend,target.IsTransient,target.ProjectionScale,coverage:target.Coverage*blend));
             }
             // Reserve two source sets for a crossfade, never an unbounded history
             // of formerly selected lamps during fast movement.
@@ -209,7 +213,19 @@ namespace Remains.Presentation
                 entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.Flashes.Count);
                 entry.Queued=false;
             }
+            PrepareSteadyFields();
             refresh=null;
+        }
+        private void PrepareSteadyFields()
+        {
+            if(level==null || !level.IsReady) return;
+            steadySources.Clear();
+            foreach(var entry in entries.Values)
+            {
+                foreach(var source in entry.Lamps) steadySources.Add(source.Id);
+                foreach(var source in entry.DisplayLamps) steadySources.Add(source.Id);
+            }
+            level.PrepareActorShadowFields(steadySources);
         }
         private static Vector2 PartsCenter(List<RoomRadianceField.LightOccluder> parts)
         {

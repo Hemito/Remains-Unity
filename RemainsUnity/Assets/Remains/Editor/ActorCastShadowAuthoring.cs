@@ -79,18 +79,18 @@ namespace Remains.Editor
                 float unionAlpha=read.GetPixel(mask.width/2,mask.height/2).a;
                 Require(Mathf.Abs(unionAlpha-.5f)<.02f,$"Две совпадающие части должны объединяться без двойного затемнения: alpha {unionAlpha}.");
                 Require(part.LocalToWorld==original && mesh.bounds.center==Vector3.zero,"Проекция изменила исходную матрицу/mesh актёра.");
-                CheckComposite(view);
+                foreach(var renderer in view.GetComponentsInChildren<MeshRenderer>())
+                    Require(!renderer.enabled,"Постоянная тень рисует чёрное наложение поверх общего света.");
                 view.Prepare(parts,4);
                 view.Draw(Vector2.zero,parts,new[]{sources[0],sources[0],sources[0],new ActorShadowSource("flash",new Vector2(2,0),.05f,1,true,2.2f)},settings);
                 Require(view.ActiveSourceCount==4,"Вспышка после трёх ламп потерялась из-за лимита постоянных источников.");
                 var projected=new System.Collections.Generic.List<ProjectedLightShadow>();view.AppendProjectedLightShadows(projected);
-                Require(projected.Count==1 && projected[0].SourceId=="flash" && projected[0].Mask!=null && Mathf.Abs(projected[0].Opacity-(float)settings.ActorShadowMaxOpacity)<.00001f,"Экспорт маски вспышки потерял ID/coverage либо включил постоянные лампы.");
+                Require(projected.Count==4 && projected[3].SourceId=="flash" && projected[3].Mask!=null && Mathf.Abs(projected[3].Opacity-(float)settings.ActorShadowMaxOpacity)<.00001f,"Экспорт масок постоянного света и вспышки потерял ID/coverage.");
                 var transientSlot=slots[3];
                 Require(!((MeshRenderer)transientSlot.GetType().GetField("renderer").GetValue(transientSlot)).enabled,"Вспышка рисует чёрное наложение вместо маски для своего светового поля.");
                 view.Draw(Vector2.zero,parts,new[]{new ActorShadowSource("weak-flash",new Vector2(2,0),.05f,.01f,true,2.2f)},settings);
                 projected.Clear();view.AppendProjectedLightShadows(projected);
                 Require(projected.Count==1 && Mathf.Abs(projected[0].Opacity-(float)settings.ActorShadowMaxOpacity)<.00001f,"Сила вспышки изменяет покрытие тени вместо силы исходного света.");
-                CheckConnectedSweep(view,texture);
                 CheckWallProjection(view,texture);
                 view.Clear();Require(view.ActiveSourceCount==0,"Clear оставил активную тень.");
                 Debug.Log($"ActorCastShadowAuthoring: GPU union alpha={unionAlpha:F4}; mirror, исходные mesh/матрица и Clear PASS.");

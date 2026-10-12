@@ -16,6 +16,9 @@
 #pragma kernel Fill
 #pragma kernel Bounce
 #pragma kernel CombineDirect
+#pragma kernel ClearEmission
+#pragma kernel SubtractSteadyDirect
+#pragma kernel ApplyStaticFill
 
 #define FAR 1e6
 #define TAU 6.28318530718
@@ -40,6 +43,12 @@ Texture2D<float4> _StaticFluence;
 Texture2D<float4> _DirectFluence;
 Texture2D<float4> _FreeFluence;
 Texture2D<float4> _ProjectedShadowMask;
+RWTexture2D<float4> _EmissionScene;
+Texture2D<float4> _SteadyDirect;
+RWTexture2D<float4> _FillSamples;
+RWTexture2D<float4> _FillWeights;
+RWTexture2D<float4> _MappedDirect;
+int _RecordFill;
 float _EdgeTexels;   // shadows.edge in light texels (walls' lit edge; reserved)
 float _RimTexels;    // objects, rim mode: width of the dimming at the dark edge
 int _ObjectGradient; // objects: 1 gradient through the body, 0 rim
@@ -220,13 +229,29 @@ bool ObjectFillVisible(int2 from, int2 to)
     return false;
 }
 
+void SaveFill(int2 p,float3 samples,float3 weights)
+{
+    if (_RecordFill == 0) return;
+    _FillSamples[p] = float4(samples,0);
+    _FillWeights[p] = float4(weights,0);
+}
+void ChooseFill(inout float4 lit,inout float3 samples,inout float3 weights,float4 candidate,int2 q,float factor)
+{
+    float index=q.y*_Size.x+q.x;
+    if(candidate.r>lit.r) {samples.r=index;weights.r=factor;}
+    if(candidate.g>lit.g) {samples.g=index;weights.g=factor;}
+    if(candidate.b>lit.b) {samples.b=index;weights.b=factor;}
+    lit=max(lit,candidate);
+}
 [numthreads(8,8,1)]
 void Fill(uint3 id : SV_DispatchThreadID)
 {
     int2 p = int2(id.xy);
     if (!Inside(p)) return;
     float own = _Scene[p].a;
-    if (own <= 0.004) { _Fluence[p] = _FluenceRaw[p]; return; }   // open
+    float index=p.y*_Size.x+p.x;
+    float3 samples=float3(index,index,index),weights=1;
+    if (own <= 0.004) { _Fluence[p] = _FluenceRaw[p]; SaveFill(p,samples,weights); return; }   // open
     if (own < 0.99)
     {
         // Partly absorbing object (unlike walls; its own texels are dimmed by its own absorption).
@@ -243,7 +268,7 @@ void Fill(uint3 id : SV_DispatchThreadID)
                     if (Inside(q) && _Scene[q].a <= 0.004 && dx * dx + dy * dy <= r * r)
                     {
                         float4 f = _FluenceRaw[q];
-                        if (any(f > lit) && ObjectFillVisible(q, p)) lit = max(lit, f);
+                        if (any(f > lit) && ObjectFillVisible(q, p)) ChooseFill(lit,samples,weights,f,q,1);
                     }
                 }
             float bright = max(lit.r, max(lit.g, lit.b));
@@ -258,7 +283,8 @@ void Fill(uint3 id : SV_DispatchThreadID)
                     if (max(f.r, max(f.g, f.b)) < 0.5 * bright && ObjectFillVisible(q, p)) dark = min(dark, length(float2(dx2, dy2)));
                 }
             float t = saturate((dark - 0.5) / _RimTexels);
-            _Fluence[p] = lit * (t * t * (3 - 2 * t));
+            float factor=t*t*(3-2*t);
+            _Fluence[p] = lit * factor;SaveFill(p,samples,weights*factor);
             return;
         }
         // Gradient: for each nearby open texel q (every second), its light dimmed linearly by the share
@@ -283,20 +309,35 @@ void Fill(uint3 id : SV_DispatchThreadID)
                     rest = k;
                 }
                 float t = (d - 0.5) / max(d + rest, 1);
-                lit = max(lit, f * saturate(1 - t));
+                float factor=saturate(1-t);
+                ChooseFill(lit,samples,weights,f*factor,q,factor);
             }
-        _Fluence[p] = lit;
+        _Fluence[p] = lit;SaveFill(p,samples,weights);
         return;
     }
     float4 best = 0;
+    weights=0;
     int reach = any(_Scene[p].rgb > 0) ? 6 : 2;   // lamp disks: up to their centre
     for (int dy = -reach; dy <= reach; dy++)
         for (int dx = -reach; dx <= reach; dx++)
         {
             int2 q = p + int2(dx, dy);
-            if (Inside(q) && _Scene[q].a < 0.99) best = max(best, _FluenceRaw[q]);
+            if (Inside(q) && _Scene[q].a < 0.99) ChooseFill(best,samples,weights,_FluenceRaw[q],q,1);
         }
-    _Fluence[p] = best;
+    _Fluence[p] = best;SaveFill(p,samples,weights);
+}
+
+// Sample the isolated source at the RGB winners selected for the full static illumination.
+// This keeps Fill's max/rim operation from inventing a different contribution per source.
+[numthreads(8,8,1)]
+void ApplyStaticFill(uint3 id : SV_DispatchThreadID)
+{
+    int2 p=int2(id.xy);if(!Inside(p)) return;
+    int3 samples=int3(round(_FillSamples[p].rgb));float3 weights=_FillWeights[p].rgb;
+    int2 r=int2(samples.r%_Size.x,samples.r/_Size.x);
+    int2 g=int2(samples.g%_Size.x,samples.g/_Size.x);
+    int2 b=int2(samples.b%_Size.x,samples.b/_Size.x);
+    _MappedDirect[p]=float4(float3(_FluenceRaw[r].r,_FluenceRaw[g].g,_FluenceRaw[b].b)*weights,0);
 }
 
 // Bounce: a wall texel beside open space reflects diffusely (flatland Lambert: outgoing radiance =
@@ -338,4 +379,22 @@ void CombineDirect(uint3 id : SV_DispatchThreadID)
     float visibility = 1 - saturate(_ProjectedShadowMask[id.xy].a);
     _Fluence[id.xy] = float4(_Fluence[id.xy].rgb + flash, _Fluence[id.xy].a);
     _BackgroundFluence[id.xy] = float4(_BackgroundFluence[id.xy].rgb + flash * visibility, _BackgroundFluence[id.xy].a);
+}
+
+// Keep the exact absorbing scene (including other emitter surfaces), isolate emission only.
+[numthreads(8,8,1)]
+void ClearEmission(uint3 id : SV_DispatchThreadID)
+{
+    if (!Inside(int2(id.xy))) return;
+    _EmissionScene[id.xy] = float4(0,0,0,_Scene[id.xy].a);
+}
+
+// The full static field already contains GI and every source. Remove just this direct term.
+[numthreads(8,8,1)]
+void SubtractSteadyDirect(uint3 id : SV_DispatchThreadID)
+{
+    if (!Inside(int2(id.xy))) return;
+    float4 full = _BackgroundFluence[id.xy];
+    full.rgb = max(0, full.rgb - _SteadyDirect[id.xy].rgb * saturate(_ProjectedShadowMask[id.xy].a));
+    _BackgroundFluence[id.xy] = full;
 }
