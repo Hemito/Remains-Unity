@@ -1,3 +1,17 @@
+# Keep only the Unity project and public repository documents at the root.
+/*
+!/.gitignore
+!/.gitattributes
+!/.github/
+!/RemainsUnity/
+!/README.md
+!/CONTRIBUTING.md
+!/PROJECT_STATUS.md
+!/THIRD_PARTY_NOTICES.md
+!/LICENSE
+!/LICENSING.md
+!/ADDITIONAL_PERMISSIONS.md
+
 # Generated Unity state and local files.
 **/[Ll]ibrary/
 **/[Tt]emp/
@@ -24,3 +38,12 @@
 .env.*
 **/*.pfx
 **/*.p12
+
+# Local instructions, tooling state and diagnostic output never belong in the public project.
+**/.agents/
+**/.codex/
+**/AGENTS.md
+**/AGENTS.md.meta
+**/CLAUDE.md
+**/CLAUDE.md.meta
+**/*.log
