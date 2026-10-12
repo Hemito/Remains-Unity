@@ -11,8 +11,12 @@ namespace Remains.Presentation
         public readonly float Radius,Strength;
         public readonly bool IsTransient;
         public readonly float ProjectionScale;
-        public ActorShadowSource(string id,Vector2 position,float radius,float strength,bool isTransient=false,float projectionScale=1)
-        {Id=id;Position=position;Radius=radius;Strength=strength;IsTransient=isTransient;ProjectionScale=projectionScale;}
+        // Samples of the actual emitted sprite silhouette: world X/Y and emitted area weight in Z.
+        // Null denotes an explicitly point-like source (for example a muzzle flash).
+        public readonly IReadOnlyList<Vector3> EmissionPoints;
+        public ActorShadowSource(string id,Vector2 position,float radius,float strength,bool isTransient=false,float projectionScale=1,
+            IReadOnlyList<Vector3> emissionPoints=null)
+        {Id=id;Position=position;Radius=radius;Strength=strength;IsTransient=isTransient;ProjectionScale=projectionScale;EmissionPoints=emissionPoints;}
     }
 
     // Prepared once per light window. Select is called explicitly by the actor coordinator,
@@ -55,23 +59,35 @@ namespace Remains.Presentation
             foreach(var source in lamps)
             {
                 if(dark.Contains(source.Id) || source.Strength<=0) continue;
-                float visibility=Visibility(actor,source.Position,doors);
-                if(visibility<=0) continue;
-                float strength=source.Strength*visibility/Mathf.Max(.5f,Vector2.Distance(actor,source.Position));
+                float strength=0,totalWeight=0;Vector2 position=Vector2.zero;
+                int count=source.EmissionPoints?.Count??1;
+                if(count==0) throw new InvalidOperationException($"Источник тени {source.Id}: пустой набор излучающих точек.");
+                for(int sample=0;sample<count;sample++)
+                {
+                    Vector2 point=source.EmissionPoints==null?source.Position:(Vector2)source.EmissionPoints[sample];
+                    float weight=source.EmissionPoints==null?1:source.EmissionPoints[sample].z;
+                    if(weight<=0 || !float.IsFinite(weight))
+                        throw new InvalidOperationException($"Источник тени {source.Id}: неверный вес излучающей точки {sample}, {weight}.");
+                    totalWeight+=weight;
+                    float contribution=weight*Visibility(actor,point,doors)/Mathf.Max(.5f,Vector2.Distance(actor,point));
+                    strength+=contribution;position+=point*contribution;
+                }
                 if(strength<=0) continue;
+                position/=strength;
+                strength*=source.Strength/totalWeight;
                 total+=strength;
                 int index=0;
                 while(index<output.Count && (output[index].Strength>strength ||
                     output[index].Strength==strength && string.CompareOrdinal(output[index].Id,source.Id)<0)) index++;
                 if(index>=maxSources) continue;
-                output.Insert(index,new ActorShadowSource(source.Id,source.Position,source.Radius,strength,source.IsTransient,source.ProjectionScale));
+                output.Insert(index,new ActorShadowSource(source.Id,position,source.Radius,strength,source.IsTransient,source.ProjectionScale,source.EmissionPoints));
                 if(output.Count>maxSources) output.RemoveAt(maxSources);
             }
             if(total<=0) return;
             for(int i=0;i<output.Count;i++)
             {
                 var source=output[i];
-                output[i]=new ActorShadowSource(source.Id,source.Position,source.Radius,source.Strength/total,source.IsTransient,source.ProjectionScale);
+                output[i]=new ActorShadowSource(source.Id,source.Position,source.Radius,source.Strength/total,source.IsTransient,source.ProjectionScale,source.EmissionPoints);
             }
         }
 

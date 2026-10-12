@@ -250,16 +250,8 @@ namespace Remains.Presentation
             for(int i=0;i<level.Rooms.Count;i++)
             {
                 var room=level.Rooms[i];
-                var roomLight=RoomLightScene.Build(room.Template,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
-                foreach(string issue in roomLight.Issues) Debug.LogWarning($"Источники тени, {room.Template.Template}: {issue}",this);
-                var byDecor=new Dictionary<int,RoomLightSource>();
-                int sourceIndex=0;
-                for(int decorIndex=0;decorIndex<room.Template.Decor.Count;decorIndex++)
-                    if(table.Lamps.ContainsKey(room.Template.Decor[decorIndex].Type) && sourceIndex<roomLight.Lamps.Count)
-                        byDecor.Add(decorIndex,roomLight.Lamps[sourceIndex++]);
                 var templateInstance=level.RoomInstances.GetChild(i).GetComponent<RoomTemplateInstance>()??
                     throw new InvalidOperationException($"Источники тени: комната {i}, {room.Template.Template} без RoomTemplateInstance.");
-                bool mirrored=templateInstance.Mirror;
                 foreach(var picture in level.RoomInstances.GetChild(i).GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 {
                     if(picture.Kind!=RoomSpriteKind.Decor || !table.Lamps.ContainsKey(picture.Definition)) continue;
@@ -268,16 +260,18 @@ namespace Remains.Presentation
                     string id=$"{level.Level}:{room.X},{room.Y}:{decor.Id}";
                     var renderer=picture.GetComponent<SpriteRenderer>();
                     lamps.Add(id,(picture,picture.Frame,renderer.sprite,definitions.Require(picture.Definition,"лампа")));
-                    if(byDecor.TryGetValue(picture.Index,out var source))
+                    if(table.Lamps.TryGetValue(picture.Definition,out var lamp))
                     {
-                        float x=(float)(mirrored?room.Template.Width*room.Template.Cell-source.X:source.X);
-                        Vector2 position=transform.TransformPoint(room.Offset+new Vector2(x,(float)source.Y));
+                        // Match DrawSprites: actual authored sprite placement, including mirror and pivot.
+                        // The legacy disk source's OffsetY/lon are not used by the current sprite emitter.
+                        Vector2 position=picture.transform.TransformPoint(renderer.sprite.bounds.center);
                         // The field applies the composed level's tint, not individual room filters.
-                        double luminance=.2126*source.Lamp.Color[0]*scene.Tint[0]+
-                            .7152*source.Lamp.Color[1]*scene.Tint[1]+.0722*source.Lamp.Color[2]*scene.Tint[2];
-                        float power=(float)(table.RadiancePower*source.Lamp.Intensity*luminance*
+                        double luminance=.2126*lamp.Color[0]*scene.Tint[0]+
+                            .7152*lamp.Color[1]*scene.Tint[1]+.0722*lamp.Color[2]*scene.Tint[2];
+                        float power=(float)(table.RadiancePower*lamp.Intensity*luminance*
                             table.LampFrameShare(definitions.Require(picture.Definition,"источник тени"),picture.Frame));
-                        shadowLamps.Add((room.X,room.Y,new ActorShadowSource(id,position,(float)source.DiskRadius,power)));
+                        float radius=renderer.sprite.bounds.size.x*Mathf.Abs(picture.transform.lossyScale.x)*.5f*(float)table.RadianceLampSize;
+                        shadowLamps.Add((room.X,room.Y,new ActorShadowSource(id,position,Mathf.Max(.05f,radius),power)));
                     }
                 }
             }
@@ -364,7 +358,16 @@ namespace Remains.Presentation
             foreach(var lamp in shadowLamps)
                 if(lamp.x>=windowRooms.xMin && lamp.x<windowRooms.xMax && lamp.y>=windowRooms.yMin && lamp.y<windowRooms.yMax &&
                     Shown(lamps[lamp.source.Id].picture))
-                    windowShadowLamps.Add(lamp.source);
+                {
+                    var authored=lamps[lamp.source.Id];
+                    var samples=field.PrepareLampShadowSamples(authored.sprite,authored.picture.transform.localToWorldMatrix);
+                    if(samples.Length==0)
+                    {Debug.LogWarning($"Источник тени {lamp.source.Id}: исходный спрайт {authored.sprite.name} не излучает ни одного текселя в сетке света; тень пропущена.",this);continue;}
+                    Vector2 center=Vector2.zero;float weight=0;
+                    foreach(var sample in samples) {center+=new Vector2(sample.x,sample.y)*sample.z;weight+=sample.z;}
+                    center/=weight;
+                    windowShadowLamps.Add(new ActorShadowSource(lamp.source.Id,center,lamp.source.Radius,lamp.source.Strength,emissionPoints:samples));
+                }
             var shadowTerrain=RoomLightScene.Absorption(region,RoomGeometryBuilder.Build(region,root.Definitions),
                 table.RadianceResolution,table.BeamTransmittance,.985,table.BeamHeight);
             shadowSources.Configure(shadowTerrain,localOrigin,1f/table.RadianceResolution,

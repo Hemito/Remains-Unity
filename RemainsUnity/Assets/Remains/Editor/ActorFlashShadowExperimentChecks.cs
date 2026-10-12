@@ -17,6 +17,9 @@ namespace Remains.Editor
         {
             try
             {
+                ActorShadowSourceChecks.Run();
+                WindowActorCompositeChecks.RunGroupedWindows();
+                WindowActorCompositeChecks.RunLampProjection();
                 MuzzleFlashLightingChecks.Run();
                 // Includes ActorCastShadowAuthoring.Check and the queued-first-frame timing proof.
                 ActorProjectedShadowChecks.RunTimingChecks();

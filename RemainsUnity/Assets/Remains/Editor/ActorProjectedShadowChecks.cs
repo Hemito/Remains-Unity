@@ -62,6 +62,9 @@ namespace Remains.Editor
                 ActorShadowPresentation.BlendLampSources(display,target,.08f);
                 if(display.Count!=1 || display[0].Id!="new" || display[0].Strength!=.5f)
                     throw new InvalidOperationException("Плавная смена ламп не достигает нового состояния.");
+                ActorShadowPresentation.BlendLampSources(display,new[]{new ActorShadowSource("new",new Vector2(3,1),.1f,.5f)},.01f);
+                if(Mathf.Abs(display[0].Position.x-1.25f)>.0001f)
+                    throw new InvalidOperationException("Эффективный центр частично видимой лампы меняется скачком.");
                 Debug.Log("Время проекции тени: PASS — первый кадр вспышки виден при queued static, лампы плавно сменяются по ID.");
             }
             finally

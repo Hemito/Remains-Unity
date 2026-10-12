@@ -159,7 +159,9 @@ namespace Remains.Presentation
                 for(int j=0;j<targets.Count;j++) if(targets[j].Id==old.Id)
                 {
                     var target=targets[j];
-                    displayed[i]=new ActorShadowSource(target.Id,target.Position,target.Radius,Mathf.Lerp(old.Strength,target.Strength,blend),target.IsTransient,target.ProjectionScale);
+                    // A partly occluded long lamp changes its effective emitting centre as well as
+                    // its power. Interpolate both so a cached visibility update cannot snap the shadow.
+                    displayed[i]=new ActorShadowSource(target.Id,Vector2.Lerp(old.Position,target.Position,blend),target.Radius,Mathf.Lerp(old.Strength,target.Strength,blend),target.IsTransient,target.ProjectionScale);
                     found=true;break;
                 }
                 if(found) continue;

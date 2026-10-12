@@ -395,6 +395,21 @@ namespace Remains.Presentation
         }
 
         private readonly Dictionary<Sprite,double> silhouettes=new();
+        private readonly Dictionary<Sprite,Vector3[]> lampFootprints=new();
+
+        // Uses the same alpha-threshold raster as the lamp's emitted light, prepared at rebuild time.
+        // Eight weighted columns retain the extent of a long lamp without tracing every lit pixel.
+        public Vector3[] PrepareLampShadowSamples(Sprite sprite,Matrix4x4 localToWorld)
+        {
+            SilhouetteArea(sprite);
+            var local=lampFootprints[sprite];var output=new Vector3[local.Length];
+            for(int i=0;i<local.Length;i++)
+            {
+                var world=localToWorld.MultiplyPoint3x4(new Vector3(local[i].x,local[i].y,0));
+                output[i]=new Vector3(world.x,world.y,local[i].z);
+            }
+            return output;
+        }
 
         // Area (m²) a sprite's silhouette (alpha > 0.4) covers in the light grid (lamp emission, object size): the sprite drawn alone with
         // the scene shader into a grid-sized target, lit texels counted (once per sprite, at build).
@@ -419,8 +434,17 @@ namespace Remains.Presentation
             copy.ReadPixels(new Rect(0,0,w,h),0,0);
             SilhouetteReadbacks++;
             RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);
-            int count=0;
-            foreach(var pixel in copy.GetPixels()) if(pixel.r>0.5f) count++;
+            int count=0;var pixels=copy.GetPixels();
+            var sums=new Vector2[8];var counts=new int[8];
+            for(int y=0;y<h;y++) for(int x=0;x<w;x++) if(pixels[y*w+x].r>.5f)
+            {
+                count++;int column=Mathf.Min(7,x*8/w);counts[column]++;
+                sums[column]+=new Vector2(bounds.min.x-texel+(x+.5f)*texel,bounds.min.y-texel+(y+.5f)*texel);
+            }
+            var footprint=new List<Vector3>(8);
+            for(int i=0;i<8;i++) if(counts[i]>0)
+                footprint.Add(new Vector3(sums[i].x/counts[i],sums[i].y/counts[i],(float)counts[i]/count));
+            lampFootprints[sprite]=footprint.ToArray();
             UnityEngine.Object.DestroyImmediate(copy);
             double area=Math.Max(1,count)*texel*texel;
             silhouettes[sprite]=area;
