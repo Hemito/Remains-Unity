@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Remains.Domain;
 using Remains.Diagnostics;
 using Remains.Serialization;
@@ -15,6 +16,9 @@ namespace Remains.Content
         private readonly string baseline;
         private readonly long initialRevision;
         private readonly AppendTail[] lists;
+        private readonly Dictionary<string,int> liveLimits,initialLimits;
+        private readonly int initialContainers;
+        private Dictionary<string,int> preparedLimits;
         private long publishedRevision;
         private Stage stage;
         private enum Stage {Captured,Prepared,Consumed}
@@ -36,6 +40,8 @@ namespace Remains.Content
             if(live.revision!=staged.revision || live.worldId!=staged.worldId || live.branchId!=staged.branchId)
                 throw new InvalidOperationException("Подготовленная копия принадлежит другому состоянию мира: "+live.worldId);
             this.live=live;this.staged=staged;initialRevision=staged.revision;
+            liveLimits=live.factoryLootLimits;initialLimits=new Dictionary<string,int>(staged.factoryLootLimits,StringComparer.Ordinal);
+            initialContainers=staged.containers.Count;
             lists=new AppendTail[] {
                 new AppendTail<ActorState>(live.actors,staged.actors,()=>live.actors,()=>staged.actors,"actors"),
                 new AppendTail<DoorState>(live.doors,staged.doors,()=>live.doors,()=>staged.doors,"doors"),
@@ -58,6 +64,11 @@ namespace Remains.Content
             if(patches<=0 || initialRevision>long.MaxValue-patches || staged.revision!=initialRevision+patches)
                 throw new InvalidOperationException("Установка содержимого изменила ревизию без соответствующих новых версий: "+live.worldId);
             publishedRevision=staged.revision;
+            var expectedLimits=FactoryLootLimitLedger.WithUsage(initialLimits,staged.containers.Skip(initialContainers));
+            if(!FactoryLootLimitLedger.Equal(expectedLimits,staged.factoryLootLimits))
+                throw new InvalidOperationException("Изменение лимитов лута не соответствует добавленным контейнерам: "+live.worldId);
+            preparedLimits=new Dictionary<string,int>(staged.factoryLootLimits,StringComparer.Ordinal);
+            staged.factoryLootLimits=new Dictionary<string,int>(initialLimits,StringComparer.Ordinal);
             foreach(var list in lists) list.DetachTail();
             staged.revision=initialRevision;
             if(!string.Equals(baseline,StateJson.ToJson(staged),StringComparison.Ordinal))
@@ -74,8 +85,12 @@ namespace Remains.Content
             // Check all destinations before appending the first object. Reserve all
             // capacity first so ordinary validation/allocation cannot publish a prefix.
             foreach(var list in lists) list.CheckDestination();
+            if(!ReferenceEquals(liveLimits,live.factoryLootLimits)||!FactoryLootLimitLedger.Equal(initialLimits,liveLimits))
+                throw new InvalidOperationException("Живой журнал лимитов лута изменился после подготовки: "+live.worldId);
+            liveLimits.EnsureCapacity(preparedLimits.Count);
             foreach(var list in lists) list.Reserve();
             foreach(var list in lists) list.Append();
+            foreach(var entry in preparedLimits)liveLimits[entry.Key]=entry.Value;
             live.revision=publishedRevision;
         }
 

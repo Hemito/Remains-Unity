@@ -110,6 +110,7 @@ namespace Remains.Domain
     [Serializable]
     public sealed class WorldState : ExtensibleState
     {
+        public Dictionary<string,int> factoryLootLimits=new();
         public Remains.Content.ContentManifest weaponContent;
         public List<Remains.Content.ContentManifest> weaponContentHistory=new();
         [Newtonsoft.Json.JsonProperty(Required=Newtonsoft.Json.Required.Always)] public int schema = 1;

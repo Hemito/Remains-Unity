@@ -417,7 +417,7 @@ namespace Remains.Presentation
                 containerHint.RefreshMechanism(selected,interaction.bounds,show,actor,MechanismProgress?.Invoke()??0,MechanismPending?.Invoke()==true);
             }
             else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
-                InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true);
+                InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true,session.Rules.Loot);
             containerHint.Highlight(interaction,show);
         }
         // Readiness may change after Update, before the first ready camera frame.

@@ -59,6 +59,10 @@ namespace Remains.Content
             var rules=Rules??GameplayCodeMods.Compose(loaded.codeMods);
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
             inputs.Add(ExportedContentCatalog.ResourcePath,ExportedContentCatalog.Load().sourceHash);
+            var factoryLoot=Resources.Load<FactoryLootCatalog>("Content/FactoryLoot")??throw new InvalidOperationException("Нет каталога исходного лута завода.");
+            inputs.Add("Content/FactoryLoot",factoryLoot.sourceHash+"|"+FactoryContainerLoot.Version+"|"+
+                factoryLoot.baseDifficulty.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+"|"+
+                factoryLoot.depthDifficulty.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+"|"+factoryLoot.gameStage);
             inputs.Add(CosmeticCatalog.Resource,CosmeticCatalog.Current.Fingerprint);
             inputs.Add("Presentation/visual-equipment",WearableRenderCatalog.ContentFingerprint);
             inputs.Add(FootSupportCatalog.Resource,FootSupportCatalog.Fingerprint);

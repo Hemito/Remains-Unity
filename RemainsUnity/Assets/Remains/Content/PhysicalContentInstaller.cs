@@ -77,6 +77,7 @@ namespace Remains.Content
                 else props.Add(StateJson.Copy(entry));
             }
             if(world.revision==long.MaxValue) throw new InvalidOperationException("Исчерпан счётчик мира при установке объектов.");
+            world.factoryLootLimits=FactoryLootLimitLedger.WithUsage(world.factoryLootLimits,containers);
             world.props.AddRange(props);world.containers.AddRange(containers);world.contentPatches.Add(layout.patch);world.revision++;
             return true;
         }

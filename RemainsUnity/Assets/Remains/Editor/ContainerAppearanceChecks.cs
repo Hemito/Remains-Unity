@@ -122,7 +122,10 @@ namespace Remains.Editor
                 }
                 finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
             }
-            if(pairs!=12 || statics!=14) throw new InvalidOperationException($"Неверное покрытие каталога после установки шкафов комнаты27: pair={pairs}, static={statics}.");
+            var factoryLoot=Resources.Load<FactoryLootCatalog>("Content/FactoryLoot");
+            int newStatics=factoryLoot==null?0:factoryLoot.definitions.Where(entry=>entry.physical!=null &&
+                UnityEditor.AssetDatabase.GetAssetPath(entry.physical).StartsWith("Assets/Remains/FactoryLoot/",StringComparison.Ordinal)).Count();
+            if(pairs!=12 || statics!=14+newStatics) throw new InvalidOperationException($"Неверное покрытие каталога контейнеров: pair={pairs}, static={statics}, новых исходных статических типов={newStatics}.");
         }
     }
 }

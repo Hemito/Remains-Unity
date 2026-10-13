@@ -47,6 +47,7 @@ GameObject:
   - component: {fileID: 4987876256302106301}
   - component: {fileID: 1409078995652682342}
   - component: {fileID: 864531393380093437}
+  - component: {fileID: 5073280866610648535}
   m_Layer: 0
   m_Name: FactoryLevelRoot
   m_TagString: Untagged
@@ -186,6 +187,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   doorway: {fileID: 287254059634069793}
+--- !u!114 &5073280866610648535
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1374235996491122679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f781eede08a1402488e3f757481f48c7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  catalog: {fileID: 11400000, guid: 98ebec4ee19447f43bdc8d42b719f13c, type: 2}
 --- !u!1 &4626430130974191981
 GameObject:
   m_ObjectHideFlags: 0

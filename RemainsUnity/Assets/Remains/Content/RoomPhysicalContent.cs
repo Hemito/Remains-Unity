@@ -39,6 +39,13 @@ namespace Remains.Content
             layout.containers=room.GetComponentsInChildren<RoomContainerPlacement>(true).Where(room.Included).Select(p=>
             {
                 var state=(ContainerState)ReadProp(p,room,level,true);
+                var generated=p.ReadSourceState();
+                if(generated!=null)
+                {
+                    if(generated.id!=state.id||generated.level!=state.level)throw new InvalidOperationException("Не совпадает идентичность исходного контейнера: "+state.id);
+                    state.items=generated.items;state.extensions=generated.extensions;state.lockLevel=generated.lockLevel;state.mineLevel=generated.mineLevel;
+                    state.lootCategory=generated.lootCategory;state.lootGenerationVersion=generated.lootGenerationVersion;return state;
+                }
                 var items=p.ReadInitialItems();
                 if(items==null) throw new InvalidOperationException("Не задан список содержимого: "+state.id);
                 foreach(var item in items)

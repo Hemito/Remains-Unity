@@ -24,7 +24,7 @@ namespace Remains.Presentation
         private ActorState actor;
         private readonly Func<Rect?> drawnActorBounds;
         private bool missingActorWarning;
-        private enum Content {None,Pickup,PickupPending,Body,FixedContainer,MassContainer,Revival,Travel,DoorOpen,DoorClosed,MechanismPending,MechanismReady,MechanismRepair,MechanismProgress,MechanismUnavailable}
+        private enum Content {None,Pickup,PickupPending,Body,FixedContainer,MassContainer,SecuredContainer,Revival,Travel,DoorOpen,DoorClosed,MechanismPending,MechanismReady,MechanismRepair,MechanismProgress,MechanismUnavailable}
         private Content content;
         private float? displayedMass;
         private string displayedTitle;
@@ -55,19 +55,21 @@ namespace Remains.Presentation
         {
             RefreshSource(container,visible,localActor);
         }
-        public void RefreshSource(InventorySource source,bool visible,ActorState localActor,bool pickupPending=false)
+        public void RefreshSource(InventorySource source,bool visible,ActorState localActor,bool pickupPending=false,ILootRule lootRule=null)
         {
             hasTarget=source!=null;allowed=visible;actor=localActor;
             if(!hasTarget || !allowed) UpdateOutline();
             if(source!=null)
             {
                 var mass=source.Mass;
-                var next=source.IsLooseItem?(pickupPending?Content.PickupPending:Content.Pickup):source.Body!=null?Content.Body:mass.HasValue?Content.MassContainer:Content.FixedContainer;
-                if(content!=next || next==Content.MassContainer && displayedMass!=mass)
+                string security=localActor==null?NearbyLootRule.SecurityRejection(source.LockLevel,source.MineLevel):
+                    ContainerAccess.Rejection(localActor,source,lootRule);
+                var next=security!=null?Content.SecuredContainer:source.IsLooseItem?(pickupPending?Content.PickupPending:Content.Pickup):source.Body!=null?Content.Body:mass.HasValue?Content.MassContainer:Content.FixedContainer;
+                if(content!=next || next==Content.MassContainer && displayedMass!=mass || next==Content.SecuredContainer && displayedTitle!=security)
                 {
-                    content=next;displayedMass=mass;
-                    SetText(source.IsLooseItem?(pickupPending?"Подбор выбранной вещи подтверждается…":"E · Подобрать предмет"):
-                        source.Body!=null?"E · Обыскать тело":mass.HasValue?$"E · Контейнер · {mass:0.#} кг":"E · Контейнер · Закреплён",normalColor);
+                    content=next;displayedMass=mass;displayedTitle=security;
+                    SetText(security??(source.IsLooseItem?(pickupPending?"Подбор выбранной вещи подтверждается…":"E · Подобрать предмет"):
+                        source.Body!=null?"E · Обыскать тело":mass.HasValue?$"E · Контейнер · {mass:0.#} кг":"E · Контейнер · Закреплён"),security!=null?Color.yellow:normalColor);
                 }
                 var bounds=source.Bounds;targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
             }

@@ -1,0 +1,170 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3e993aeea9b40358650b976bc667103, type: 3}
+  m_Name: FactoryLoot
+  m_EditorClassIdentifier: 
+  source: {fileID: 11400000, guid: 1dac3b994c32c8e4eba640f9651a961b, type: 2}
+  sourceHash: b186f515d6bac733193988af9ba354ebba8e5999f0dc20072531b51c972814e1
+  definitions:
+  - id: ammobox
+    rawXml: <obj ed="3" ico="cont" id="ammobox" inter="1" tip="box" hp="200" montdam="8"
+      mat="1" cont="ammo" rem="1" lock="1" low="0.5" lockch="0.25" size="1" wid="1"
+      fall="fall_metal_small" open="small_open" />
+    physical: {fileID: 11400000, guid: 537103add8b78c14ebb5c35c558401e2, type: 2}
+  - id: basechest
+    rawXml: "<obj ed=\"2\" ico=\"cont\" id=\"basechest\" n=\"\u0421\u0443\u043D\u0434\u0443\u043A
+      \u0431\u0430\u0437\u044B\" tip=\"box\" inter=\"1\" hp=\"400\" shield=\"0.25\"
+      montdam=\"25\" mat=\"1\" cont=\"chest\" rem=\"1\" plav=\"0.5\" lurk=\"3\" lock=\"1.5\"
+      locktip=\"2\" low=\"0.4\" lockch=\"0.85\" size=\"2\" wid=\"1\" fall=\"fall_metal_big\"
+      open=\"metal_open\" />"
+    physical: {fileID: 0}
+  - id: bigexpl
+    rawXml: <obj ed="2" ico="cont" id="bigexpl" inter="1" tip="box" hp="400" shield="0.5"
+      montdam="10" mat="3" cont="bigexpl" lock="1.2" low="0.2" lockch="0.75" size="3"
+      wid="1" fall="fall_wood_big" open="wood_open" />
+    physical: {fileID: 0}
+  - id: bigmed
+    rawXml: <obj ed="2" ico="cont" id="bigmed" inter="1" tip="box" cont="med2" mat="3"
+      massaMult="0.5" plav="0.3" lurk="2" size="2" wid="3" fall="fall_wood_big" open="wood_open"
+      />
+    physical: {fileID: 0}
+  - id: bookcase
+    rawXml: <obj ed="2" ico="cont" id="bookcase" inter="1" tip="box" cont="book"
+      mat="3" wall="1" size="2" plav="0.3" wid="3" fall="fall_wood_big" />
+    physical: {fileID: 11400000, guid: 45c42aeb146390147854dd88ece5e5cd, type: 2}
+  - id: case
+    rawXml: <obj ed="3" ico="cont" id="case" inter="1" tip="box" cont="case" rem="1"
+      plav="-1" size="1" wid="1" fall="fall_metal_small" massaMult="0.5" />
+    physical: {fileID: 11400000, guid: 838a4b6f8313ca44794cd23d8ff4039f, type: 2}
+  - id: ccup
+    rawXml: <obj ed="3" ico="cont" id="ccup" tip="box" inter="1" massaMult="1.5"
+      mat="3" cont="food" rem="1" size="1" wid="1" fall="fall_wood_big" open="wood_open"
+      />
+    physical: {fileID: 0}
+  - id: chest
+    rawXml: <obj ed="2" ico="cont" id="chest" tip="box" inter="1" hp="400" shield="0.25"
+      montdam="15" mat="1" cont="chest" rem="1" plav="0.5" lurk="3" lock="1.5" low="0.4"
+      lockch="0.85" size="2" wid="1" fall="fall_metal_big" open="metal_open" />
+    physical: {fileID: 11400000, guid: 344fc263d45350a429d4cc535746a2ec, type: 2}
+  - id: cryocap
+    rawXml: <obj ed="2" ico="cont" id="cryocap" inter="1" tip="box" cont="cryo" mat="1"
+      wall="1" size="2" wid="3" />
+    physical: {fileID: 11400000, guid: 81bd56959a265fc47a1634b559911c9c, type: 2}
+  - id: cup
+    rawXml: <obj ed="3" ico="cont" id="cup" tip="box" inter="1" cont="cup" mat="3"
+      shield="0.3" rem="1" plav="-0.5" lock="1" lockch="0.4" lurk="2" size="2" wid="2"
+      fall="fall_wood_big" open="wood_open" />
+    physical: {fileID: 11400000, guid: 94fc223483334db4999782999788a452, type: 2}
+  - id: enclcase
+    rawXml: "<obj ed=\"2\" ico=\"cont\" id=\"enclcase\" n=\"\u042F\u0449\u0438\u043A
+      \u0410\u043D\u043A\u043B\u0430\u0432\u0430\" inter=\"1\" tip=\"box\" hp=\"500\"
+      shield=\"0.3\" montdam=\"25\" mat=\"1\" cont=\"wbig\" massaMult=\"2\" lock=\"1.8\"
+      lockch=\"0.9\" lurk=\"3\" size=\"3\" wid=\"1\" fall=\"fall_metal_big\" open=\"metal_open\"
+      />"
+    physical: {fileID: 0}
+  - id: enclchest
+    rawXml: "<obj ed=\"2\" ico=\"cont\" id=\"enclchest\" n=\"\u0421\u0443\u043D\u0434\u0443\u043A
+      \u0410\u043D\u043A\u043B\u0430\u0432\u0430\" tip=\"box\" inter=\"1\" hp=\"400\"
+      shield=\"0.25\" montdam=\"25\" mat=\"1\" cont=\"chest\" rem=\"1\" plav=\"0.5\"
+      lurk=\"3\" lock=\"1.5\" low=\"0.4\" lockch=\"0.85\" size=\"2\" wid=\"1\" fall=\"fall_metal_big\"
+      open=\"metal_open\" />"
+    physical: {fileID: 0}
+  - id: explbox
+    rawXml: <obj ed="3" ico="cont" id="explbox" inter="1" tip="box" hp="200" montdam="8"
+      mat="1" cont="expl" rem="1" lock="1.2" low="0.5" lockch="0.35" size="1" wid="1"
+      fall="fall_metal_small" open="small_open" />
+    physical: {fileID: 11400000, guid: d756f03d7f6114541abd4778c5c8eed3, type: 2}
+  - id: filecab
+    rawXml: <obj ed="3" ico="cont" id="filecab" tip="box" inter="1" cont="filecab"
+      mat="1" rem="1" size="1" lurk="2" wid="2" fall="fall_metal_big" open="metal_open"
+      />
+    physical: {fileID: 11400000, guid: b39c51341df08c94c92b2d0323325ef2, type: 2}
+  - id: fridge
+    rawXml: <obj ed="3" ico="cont" id="fridge" tip="box" inter="1" cont="fridge"
+      mat="1" shield="0.3" rem="1" size="1" wid="2" lurk="2" fall="fall_metal_big"
+      open="metal_open" />
+    physical: {fileID: 0}
+  - id: instr1
+    rawXml: <obj ed="3" ico="cont" id="instr1" inter="1" tip="box" cont="instr" shield="0.3"
+      mat="3" rem="1" massaMult="1.2" lock="1" low="0.7" lockch="0.3" lurk="3" size="2"
+      wid="2" fall="fall_wood_big" open="wood_open" />
+    physical: {fileID: 11400000, guid: fad255ff699df2f43ba126364b8c9b92, type: 2}
+  - id: instr2
+    rawXml: <obj ed="3" ico="cont" id="instr2" inter="1" tip="box" cont="instr2"
+      mat="3" rem="1" wall="1" size="2" wid="1" />
+    physical: {fileID: 11400000, guid: f0da4ccd6de231e4aa0b5efbcb42010e, type: 2}
+  - id: locker
+    rawXml: <obj ed="3" ico="cont" id="locker" inter="1" tip="box" cont="chest" mat="1"
+      wall="1" lock="1" low="0.5" lockch="0.4" size="2" wid="3" open="metal_open"
+      />
+    physical: {fileID: 11400000, guid: a91fe072c2e4d3e4d95d8b592cd11cf8, type: 2}
+  - id: medbox
+    rawXml: <obj ed="3" ico="cont" id="medbox" inter="1" tip="box" cont="med" mat="3"
+      wall="1" size="1" wid="1" open="wood_open" />
+    physical: {fileID: 11400000, guid: 01a06baf1d6023143a1236904171426e, type: 2}
+  - id: safe
+    rawXml: <obj ed="2" ico="cont" id="safe" tip="box" explcrack="1" xp="50" hp="1200"
+      shield="0.5" thre="200" mat="1" inter="1" cont="safe" lock="2.2" lockhp="16"
+      mine="2" minech="0.6" massaMult="1.5" lurk="2" size="2" wid="2" fall="fall_metal_safe"
+      open="safe_open" />
+    physical: {fileID: 11400000, guid: 756f7e06065dc3949bb87fbd7fe7a904, type: 2}
+  - id: table
+    rawXml: <obj ed="3" ico="cont" id="table" inter="1" tip="box" cont="table" sur="1"
+      shield="0.3" lock="1" low="0.5" lockch="0.25" mat="3" rem="1" plav="0.3" lurk="3"
+      massaMult="0.5" size="2" wid="1" fall="fall_wood_small" open="wood_open" />
+    physical: {fileID: 11400000, guid: 0aca2c7bebde23a489aec5a3478652c4, type: 2}
+  - id: tap
+    rawXml: <obj ed="3" ico="cont" id="tap" tip="box" inter="1" massaMult="1.5" cont="trash"
+      mat="3" rem="1" size="1" wid="1" scy="45" fall="fall_wood_big" open="wood_open"
+      />
+    physical: {fileID: 0}
+  - id: trash
+    rawXml: <obj ed="3" ico="cont" id="trash" inter="1" tip="box" cont="trash" rem="1"
+      plav="-0.3" massaMult="0.5" size="1" wid="1" fall="fall_metal_small" open="small_open"
+      />
+    physical: {fileID: 11400000, guid: 2de2e71fba4f5f0409c217aed31a6480, type: 2}
+  - id: tumba1
+    rawXml: <obj ed="3" ico="cont" id="tumba1" tip="box" inter="1" cont="case" mat="3"
+      rem="1" size="1" wid="1" open="wood_open" fall="fall_wood_small" />
+    physical: {fileID: 0}
+  - id: tumba2
+    rawXml: <obj ed="3" ico="cont" id="tumba2" tip="box" inter="1" cont="case" mat="1"
+      rem="1" size="1" wid="1" fall="fall_metal_small" open="metal_open" />
+    physical: {fileID: 0}
+  - id: wallcab
+    rawXml: <obj ed="3" ico="cont" id="wallcab" tip="box" inter="1" cont="case" mat="1"
+      rem="1" wall="2" lock="1" low="0.5" lockch="0.2" size="1" wid="1" open="wood_open"
+      />
+    physical: {fileID: 11400000, guid: 3fc4f3ad385c6084a8ec8e73293ba029, type: 2}
+  - id: wallsafe
+    rawXml: <obj ed="2" ico="cont" id="wallsafe" tip="box" explcrack="1" xp="50"
+      hp="1200" thre="200" mat="1" inter="1" hack="1" wall="2" cont="safe" mine="3"
+      minech="0.75" lock="2.5" lockhp="13" massaMult="1.5" size="1" wid="1" open="safe_open"
+      />
+    physical: {fileID: 11400000, guid: 61908106da73b8043bfd5cdc8f060075, type: 2}
+  - id: wcup
+    rawXml: <obj ed="3" ico="cont" id="wcup" tip="box" inter="1" wall="1" cont="food"
+      mat="3" rem="1" size="1" wid="1" fall="fall_wood_big" open="wood_open" />
+    physical: {fileID: 11400000, guid: bbeae973c43b79f48a849c57da998a53, type: 2}
+  - id: weapbox
+    rawXml: <obj ed="2" ico="cont" id="weapbox" inter="1" tip="box" hp="400" shield="0.5"
+      montdam="15" mat="1" cont="wbattle" massaMult="1.5" lurk="2" lock="1.5" low="0.3"
+      lockch="0.9" size="2" wid="2" fall="fall_metal_big" open="metal_open" />
+    physical: {fileID: 11400000, guid: 682f23dc0c84c6d4a851e3b3ded9af57, type: 2}
+  - id: weapcase
+    rawXml: <obj ed="2" ico="cont" id="weapcase" inter="1" tip="box" hp="500" shield="0.3"
+      montdam="25" mat="1" cont="wbig" massaMult="2" lock="1.8" lockch="0.9" lurk="3"
+      size="3" wid="1" fall="fall_metal_big" open="metal_open" />
+    physical: {fileID: 0}
+  baseDifficulty: 1
+  depthDifficulty: 1
+  gameStage: 1

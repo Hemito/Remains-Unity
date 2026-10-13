@@ -73,7 +73,9 @@ namespace Remains.Domain
 
             void ConsiderSource(InventorySource source)
             {
-                if(!ContainerAccess.Accessible(actor,source,rules.Loot,rules.Deposit)) return;
+                if(!ContainerAccess.Accessible(actor,source,rules.Loot,rules.Deposit) &&
+                    !(source!=null && source.Body==null && (source.LockLevel>0 || source.MineLevel>0) &&
+                      actor.level==source.level && Vector2.Distance(actor.Position,source.Position)<=2)) return;
                 Consider(source.IsLooseItem?InteractionKind.Pickup:InteractionKind.Container,source.id,source.Bounds);
             }
             void Consider(InteractionKind kind,string id,Rect bounds)

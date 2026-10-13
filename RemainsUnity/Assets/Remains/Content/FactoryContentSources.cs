@@ -13,9 +13,11 @@ namespace Remains.Content
         {
             public FactoryLevelRoot root;
             public int seed;
-            public string definition,fingerprint,layout;
+            public string definition,fingerprint,layout,lootLedger;
             public bool Matches(WorldState world,WorldFactory factory)=>root!=null && seed==world.seed &&
-                definition==factory.definition && fingerprint==factory.contentFingerprint && layout==factory.layout;
+                definition==factory.definition && fingerprint==factory.contentFingerprint && layout==factory.layout &&
+                (world.contentPatches.Contains(root.Prepared.Level+":"+FactoryContainerAdapter.Patch) ||
+                 lootLedger==Remains.Serialization.StateJson.ToJson(world.factoryLootLimits));
         }
         private static readonly Dictionary<(string world,string level),Entry> sources=new();
         public static bool IsGenerated(WorldState world,string level)=>
@@ -49,7 +51,10 @@ namespace Remains.Content
                 if(!root.TryGetComponent<FactoryPropAdapter>(out var props))
                     throw new InvalidOperationException("Нет сериализованного адаптера физических объектов корня: "+level);
                 props.Install(root);
-                sources[key]=new Entry {root=root,seed=world.seed,definition=factory.definition,fingerprint=factory.contentFingerprint,layout=factory.layout};
+                if(!root.TryGetComponent<FactoryContainerAdapter>(out var containers))throw new InvalidOperationException("Нет сериализованного адаптера контейнеров завода: "+level);
+                containers.Install(root,world);
+                sources[key]=new Entry {root=root,seed=world.seed,definition=factory.definition,fingerprint=factory.contentFingerprint,layout=factory.layout,
+                    lootLedger=Remains.Serialization.StateJson.ToJson(world.factoryLootLimits)};
             }
             catch {Release(root);throw;}
             if(current!=null) Release(current.root);

@@ -40,6 +40,8 @@ namespace Remains.Editor
                     ??throw new InvalidOperationException("Нет готового определения физического объекта: "+path)).ToArray());
                 var view=root.AddComponent<FactoryLevelView>();
                 root.AddComponent<FactoryLightFocus>().Configure(view);
+                if(AssetDatabase.LoadAssetAtPath<FactoryLootCatalog>(FactoryLootAuthoring.CatalogPath)!=null)
+                    FactoryLootAuthoring.InstallOnRoot(root.GetComponent<FactoryLevelRoot>());
                 PrefabUtility.SaveAsPrefabAsset(root,PrefabPath,out bool saved);
                 if(!saved) throw new IOException("Не записан корень завода: "+PrefabPath);
                 AssetDatabase.SaveAssets();
