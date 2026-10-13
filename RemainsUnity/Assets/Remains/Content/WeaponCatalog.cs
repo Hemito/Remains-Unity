@@ -58,6 +58,7 @@ namespace Remains.Content
             // Code mods may register additional visuals/definitions during Configure, before first queries freeze the registries.
             var rules=Rules??GameplayCodeMods.Compose(loaded.codeMods);
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
+            inputs.Add(ExportedContentCatalog.ResourcePath,ExportedContentCatalog.Load().sourceHash);
             inputs.Add(CosmeticCatalog.Resource,CosmeticCatalog.Current.Fingerprint);
             inputs.Add("Presentation/visual-equipment",WearableRenderCatalog.ContentFingerprint);
             inputs.Add(FootSupportCatalog.Resource,FootSupportCatalog.Fingerprint);

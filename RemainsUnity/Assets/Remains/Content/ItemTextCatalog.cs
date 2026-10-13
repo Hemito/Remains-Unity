@@ -48,11 +48,15 @@ namespace Remains.Content
         public string Name(string id,string context)
         {
             if(id!=null && entries.TryGetValue(id,out var entry)) return entry.name;
+            if(ExportedContentCatalog.Load().TryItem(id,out var source)&&!string.IsNullOrWhiteSpace(source.displayName))return source.displayName;
             Warn(id,context,"название");return "["+(id??"<null>")+"]";
         }
         public string Description(string id,string context)
         {
             if(id!=null && entries.TryGetValue(id,out var entry)) return entry.description;
+            if(ExportedContentCatalog.Load().TryItem(id,out var source))
+                return (string.IsNullOrWhiteSpace(source.description)?"":source.description+"\n")+
+                    "Подключено как обычный предмет. Специальное действие пока не реализовано.";
             Warn(id,context,"описание");return "Нет описания предмета «"+(id??"<null>")+"».";
         }
         private void Warn(string id,string context,string field)
