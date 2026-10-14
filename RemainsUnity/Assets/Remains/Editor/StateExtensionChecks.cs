@@ -13,6 +13,21 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            var spelling=new JObject {{"id","Числа внутри строки: \\\"123\\\" и 99e-7"},
+                {"42e3","-99.5 не является числом"},{"mod:nested",new JObject {{"123",new JArray("\\42",17,-8)}}},
+                {"mod:exponent","replace-number"},{"vx",.125f}};
+            string numericJson=spelling.ToString(Newtonsoft.Json.Formatting.None)
+                .Replace("\"mod:exponent\":\"replace-number\"","\"mod:exponent\":-1.234567890123456789012345678e-1");
+            var numeric=StateJson.FromJson<ActorState>(numericJson);
+            Require(numeric.id==spelling["id"].Value<string>() && numeric.vx==.125f &&
+                numeric.extensions["mod:exponent"].Value<decimal>()==-.1234567890123456789012345678m &&
+                numeric.extensions["mod:nested"]["123"][2].Value<int>()== -8 &&
+                numeric.extensions["42e3"].Value<string>()=="-99.5 не является числом",
+                "Лексический проход чисел захватил строку/имя поля или потерял exponent precision");
+            bool exponentRejected=false;
+            try {StateJson.FromJson<ActorState>("{\"mod:exponent\":-1.2345678901234567890123456789e-1}");}
+            catch(InvalidDataException) {exponentRejected=true;}
+            Require(exponentRejected,"Неизвестный exponent с Decimal scale29 округлён вместо отказа");
             foreach(float speed in new[]{1e-29f,-1e-38f,float.Epsilon,float.MaxValue})
             {
                 var moving=new ActorState {id="tiny-speed",vx=speed};

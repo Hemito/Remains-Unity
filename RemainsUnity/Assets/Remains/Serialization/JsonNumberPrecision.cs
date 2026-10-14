@@ -1,8 +1,6 @@
 using System;
 using System.Globalization;
 using System.IO;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace Remains.Serialization
@@ -10,14 +8,15 @@ namespace Remains.Serialization
     // Decimal parsing must fail explicitly instead of rounding unknown mod values.
     internal static class JsonNumberPrecision
     {
-        private static readonly Regex tokens=new("\"(?:\\\\.|[^\"\\\\])*\"|-?[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?",RegexOptions.Compiled|RegexOptions.CultureInvariant);
+        private static readonly char[] exponentMarkers={'e','E'};
         public sealed class Reader : JsonTextReader
         {
-            private readonly Queue<string> numbers=new();
+            private readonly string source;
+            private int scan;
             public Reader(string json):base(new StringReader(json))
             {
+                source=json;
                 DateParseHandling=DateParseHandling.None;FloatParseHandling=FloatParseHandling.Double;MaxDepth=128;
-                foreach(Match match in tokens.Matches(json)) if(match.Value[0]!='"') numbers.Enqueue(match.Value);
             }
             public override bool Read()
             {
@@ -26,8 +25,7 @@ namespace Remains.Serialization
                     (TokenType==JsonToken.String || TokenType==JsonToken.PropertyName) && QuoteChar!='"'))
                     throw new InvalidDataException($"Состояние требует JSON без комментариев и с двойными кавычками: {Path}.");
                 if(!read || TokenType!=JsonToken.Float && TokenType!=JsonToken.Integer) return read;
-                if(numbers.Count==0) throw new InvalidDataException($"Некорректное число JSON: {Path}.");
-                string raw=numbers.Dequeue();
+                string raw=NextNumber(TokenType==JsonToken.Float);
                 if(TokenType==JsonToken.Float)
                 {
                     double binary=Convert.ToDouble(Value,CultureInfo.InvariantCulture);
@@ -39,10 +37,45 @@ namespace Remains.Serialization
                 }
                 return read;
             }
+            // The JSON reader remains responsible for syntax, duplicates and depth.
+            // This cursor only recovers the original numeric spelling. Long XML/mod
+            // strings are skipped once, without Regex Match/backtracking allocations.
+            private string NextNumber(bool spelling)
+            {
+                while(scan<source.Length)
+                {
+                    char value=source[scan++];
+                    if(value=='"')
+                    {
+                        while(scan<source.Length)
+                        {
+                            char part=source[scan++];
+                            if(part=='\\') {if(scan<source.Length) scan++;}
+                            else if(part=='"') break;
+                        }
+                        continue;
+                    }
+                    if(!Digit(value) && !(value=='-' && scan<source.Length && Digit(source[scan]))) continue;
+                    int start=scan-1;
+                    while(scan<source.Length && Digit(source[scan])) scan++;
+                    if(scan+1<source.Length && source[scan]=='.' && Digit(source[scan+1]))
+                    {scan+=2;while(scan<source.Length && Digit(source[scan])) scan++;}
+                    if(scan<source.Length && (source[scan]=='e' || source[scan]=='E'))
+                    {
+                        int marker=scan++;if(scan<source.Length && (source[scan]=='+' || source[scan]=='-')) scan++;
+                        if(scan<source.Length && Digit(source[scan]))
+                        {while(scan<source.Length && Digit(source[scan])) scan++;}
+                        else scan=marker;
+                    }
+                    return spelling?source.Substring(start,scan-start):null;
+                }
+                throw new InvalidDataException($"Некорректное число JSON: {Path}.");
+            }
+            private static bool Digit(char value)=>value>='0' && value<='9';
         }
         private static string Normalize(string value)
         {
-            int marker=value.IndexOfAny(new[]{'e','E'});
+            int marker=value.IndexOfAny(exponentMarkers);
             long exponent=marker<0?0:long.Parse(value.Substring(marker+1),CultureInfo.InvariantCulture);
             string mantissa=marker<0?value:value.Substring(0,marker);
             bool negative=mantissa.StartsWith("-",StringComparison.Ordinal);

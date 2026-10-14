@@ -25,7 +25,9 @@ namespace Remains.Gameplay
                 if(prop.owner!=localOwner || !prop.movable || !prop.hasPhysicalBody || prop.held ||
                     !context.Running(prop.level)) continue;
                 var room=context.Room(prop.level,roomForLevel);
-                PropMotion.Step(prop,room,dt,null,context.Props,room.dynamicSurfaces?.Count>0?passengers?.ForProp(prop):null,context.Hull);
+                float previousX=prop.x;
+                PropMotion.Step(prop,room,dt,null,context.Support,room.dynamicSurfaces?.Count>0?passengers?.ForProp(prop):null,context.Hull);
+                context.Support.Moved(prop,previousX);
                 stepped++;
                 publish?.Invoke(prop);
             }
@@ -39,10 +41,12 @@ namespace Remains.Gameplay
         private readonly Dictionary<string,bool> levels=new(StringComparer.Ordinal);
         private readonly Dictionary<string,RoomLayout> rooms=new(StringComparer.Ordinal);
         internal readonly MovementHull Hull=new();
+        internal readonly PropSupportIndex Support=new();
         internal WorldPropView Props {get;private set;}
         internal void Prepare(WorldState world,Func<string,bool> isPaused)
         {
             if(Props?.World!=world) Props=new WorldPropView(world);
+            Support.Prepare(Props);
             levels.Clear();rooms.Clear();
             foreach(var actor in world.actors)
                 if(actor.player && actor.connected && !levels.ContainsKey(actor.level)) levels.Add(actor.level,!isPaused(actor.level));

@@ -31,6 +31,7 @@ namespace Remains.Editor
             var room=FactoryContentSources.Require(world,"factory:0");
             var layout=RoomPhysicalContent.Read(room,"factory:0");
             var root=room.GetComponent<FactoryLevelRoot>();
+            CheckRegistration(root,layout);
             var placement=root.Objects.First(value=>value.Source.Type=="remains:obj:ammobox");
             var sourceParams=placement.Source.Params.ToArray();var sourceItems=placement.Source.Items.ToArray();
             try
@@ -66,6 +67,36 @@ namespace Remains.Editor
             Require(StateJson.ToJson(world)==snapshot,"содержимое, замки, выдача и мировые лимиты после перезапуска");
             Debug.Log($"PASS лут завода: seed104, containers={world.containers.Count}, items={world.containers.Sum(value=>value.items.Count)}, locked={world.containers.Count(value=>value.lockLevel>0)}, mined={world.containers.Count(value=>value.mineLevel>0)}; резерв/выдача/дедупликация/сохранение/повторная подготовка. Это доменная интеграция; обычный игровой ввод проверяется отдельно.");
             FactoryContentSources.Clear();
+        }
+        public static void CheckRegistration(FactoryLevelRoot root,PhysicalLayout layout)
+        {
+            var placement=root.Objects.First(value=>value.Source.Type=="remains:obj:instr2" && layout.containers.Any(c=>c.id==value.Id));
+            var state=layout.containers.Single(value=>value.id==placement.Id);
+            var original=root.Catalog.Prefab(placement.Room.Cell.Template,placement.Room.Cell.Mirror)
+                .GetComponentsInChildren<RoomSpriteAuthoring>(true).Single(value=>value.Kind==Remains.RoomFormat.RoomSpriteKind.Object && value.Index==placement.Index)
+                .GetComponent<SpriteRenderer>();
+            var roomInstance=root.Rooms.Cast<Transform>().Single(value=>Vector2.Distance(value.localPosition,root.Offset(placement.Room))<.0001f);
+            var replaced=roomInstance.GetComponentsInChildren<RoomSpriteAuthoring>(true)
+                .Single(value=>value.Kind==Remains.RoomFormat.RoomSpriteKind.Object && value.Index==placement.Index).GetComponent<SpriteRenderer>();
+            Require(!replaced.enabled,"исходный instr2 должен быть скрыт после замены контейнерным видом: "+state.id);
+            var asset=Resources.Load<FactoryLootCatalog>("Content/FactoryLoot").definitions.Single(value=>value.id=="instr2").physical;
+            var view=UnityEngine.Object.Instantiate(asset.Prefab);
+            try
+            {
+                view.DrawMotion(state,null,false,0);
+                var expected=original.bounds;expected.center+=(Vector3)root.Offset(placement.Room);
+                var actual=view.Artwork.bounds;
+                Require(Vector3.Distance(expected.min,actual.min)<.0001f && Vector3.Distance(expected.max,actual.max)<.0001f,
+                    $"регистрация instr2: id={state.id}, source={expected}, actual={actual}");
+                var group=view.GetComponent<UnityEngine.Rendering.SortingGroup>()??view.gameObject.AddComponent<UnityEngine.Rendering.SortingGroup>();
+                var outline=Remains.Presentation.WorldOutlineSource.ForRenderer(view.Artwork,true);
+                InventorySource source=state;var rect=outline.Bounds(source.Bounds);
+                Require(Vector2.Distance(rect.min,(Vector2)actual.min)<.0001f && Vector2.Distance(rect.max,(Vector2)actual.max)<.0001f,
+                    "рамка instr2 совпадает с рисунком; область доступа остаётся отдельной");
+                Require(Mathf.Abs(source.Bounds.yMin-rect.yMin-.24f)<.0001f,"исходный pivot instr2 не заменён нижним краем");
+                Debug.Log($"PASS регистрация контейнера: id={state.id}, artwork={rect}, access={source.Bounds}; рамка рисунка отдельно от области доступа.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
         }
         private static void Require(bool result,string message){if(!result)throw new InvalidOperationException("Не выполнено: "+message);}
     }

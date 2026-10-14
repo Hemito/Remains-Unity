@@ -15,11 +15,16 @@ namespace Remains.Gameplay
         private readonly ReplicationCadence cadence=new(.05);
         private readonly PassengerMotionRegistry passengers=new();
         private readonly FreePropMotionContext motion=new();
+        private readonly FreePropPoseCadence poses=new();
+        private readonly Action<PropState> publishChanged;
+        private WorldState poseWorld;
+        private string poseOwner;
         public FreePropSimulation(CoopSession session,SimulationGeometry geometry,InteractionAdapter interactions)
         {
             this.session=session??throw new ArgumentNullException(nameof(session));
             roomForLevel=(geometry??throw new ArgumentNullException(nameof(geometry))).Get;
             publish=(interactions??throw new ArgumentNullException(nameof(interactions))).SendProp;
+            publishChanged=prop=> {if(poses.ShouldPublish(prop,Time.unscaledTimeAsDouble)) publish(prop);};
             isPaused=session.Pause.IsPaused;
             session.Changed+=()=>passengers.Reconcile(session.World,session.LocalOwner);
         }
@@ -27,8 +32,10 @@ namespace Remains.Gameplay
         {
             // No simulation owner exists before welcome or after client shutdown.
             if(session.World==null || string.IsNullOrEmpty(session.LocalOwner)) return;
+            if(!ReferenceEquals(poseWorld,session.World) || poseOwner!=session.LocalOwner)
+            {poses.Reset();poseWorld=session.World;poseOwner=session.LocalOwner;}
             FreePropMotion.Step(session.World,session.LocalOwner,delta,roomForLevel,isPaused,
-                cadence.TryAdvance(Time.unscaledTimeAsDouble)?publish:null,passengers,motion);
+                cadence.TryAdvance(Time.unscaledTimeAsDouble)?publishChanged:null,passengers,motion);
         }
     }
 }

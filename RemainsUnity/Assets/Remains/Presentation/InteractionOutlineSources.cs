@@ -49,7 +49,7 @@ namespace Remains.Presentation
             // Ownership is prepared when a view appears/replaces its frame. An
             // unchanged pointer target only does a dictionary lookup each frame.
             if(renderer!=lastRenderer || lastSource.Group==null)
-            {lastRenderer=renderer;lastSource=WorldOutlineSource.ForRenderer(renderer);}
+            {lastRenderer=renderer;lastSource=WorldOutlineSource.ForRenderer(renderer,target.kind==InteractionKind.Container);}
             return lastSource;
         }
     }

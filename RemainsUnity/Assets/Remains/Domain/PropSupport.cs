@@ -16,6 +16,7 @@ namespace Remains.Domain
         public static bool Resolve(PropState moving,Vector2 start,ref Vector2 end,IEnumerable<PropState> neighbours)
         {
             if(!moving.hasPhysicalBody || neighbours==null || end.y>start.y) return false;
+            if(neighbours is PropSupportIndex index) return ResolveIterator(moving,start,ref end,index.Near(moving,end.x).GetEnumerator());
             if(neighbours is WorldPropView live) return ResolveIterator(moving,start,ref end,live.GetEnumerator());
             return ResolveIterator(moving,start,ref end,neighbours.GetEnumerator());
         }

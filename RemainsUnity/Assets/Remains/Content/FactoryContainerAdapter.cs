@@ -40,7 +40,8 @@ namespace Remains.Content
                 catch(NotSupportedException error)
                 {limits=before;warnings.Add($"{placement.Id}: type={definition.id}, {error.Message}");continue;}
                 var node=new GameObject("Контейнер: "+placement.Id);nodes.Add(node);
-                node.transform.SetParent(transform,false);node.transform.localPosition=placement.Position;
+                // Object-cell points are gameplay registration; source room art has a one-pixel Y inset.
+                node.transform.SetParent(transform,false);node.transform.localPosition=placement.Position+Vector2.up/(float)Remains.RoomFormat.RoomSpriteLayout.SourcePixelsPerMeter;
                 string localId=$"{placement.Room.Cell.X},{placement.Room.Cell.Y}:{placement.Source.Id}";
                 var marker=node.AddComponent<RoomContainerPlacement>();marker.Configure(localId,definition.physical);marker.SetSourceState(state);
                 additions.Add(localId);root.HideObjectArtwork(placement);

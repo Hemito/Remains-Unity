@@ -19,7 +19,7 @@ namespace Remains.Editor
         {
             public bool success;
             public string detail,workload="IsClear + Move + Supported + CanDrop for every factory prop and a player hull";
-            public int seed=104,surfaces,props,repeats=3,samples=5,queriesPerSample;
+            public int seed=104,surfaces,props,containers,repeats=3,samples=5,queriesPerSample;
             public double medianMilliseconds;
             public double[] sampleMilliseconds;
             public long checksum;
@@ -36,6 +36,8 @@ namespace Remains.Editor
             try
             {
                 if(string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Нужен -factoryPhysicsReport с путём отчёта.");
+                CheckSupportIndex();
+                CheckPoseCadence();
                 Anatomy.Load();WeaponCatalog.Load();
                 var catalog=Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
                 if(catalog==null) throw new InvalidOperationException("Нет каталога завода.");
@@ -43,11 +45,14 @@ namespace Remains.Editor
                 FactoryPreparation.Create(world,catalog,0);
                 root=FactoryLevelRoot.Create(world,"factory:0");root.gameObject.SetActive(false);
                 root.InstantiateRooms();root.GetComponent<FactoryPropAdapter>().Install(root);
+                root.GetComponent<FactoryContainerAdapter>().Install(root,world);
                 var room=root.Prepared.Physics;
                 // Production publishes the index at RoomLayout.Load / RoomDoorGeometry;
                 // this fixture intentionally reads the prepared grid directly.
                 RoomSurfaces.Prepare(room);
-                var props=RoomPhysicalContent.Read(root.Authoring,"factory:0").props;
+                var layout=RoomPhysicalContent.Read(root.Authoring,"factory:0");
+                var props=layout.props;
+                report.containers=layout.containers.Length;
                 if(props.Length==0 || room.platforms.Length<1000) throw new InvalidOperationException("Не загружены полная геометрия и физические объекты завода.");
                 report.props=props.Length;report.surfaces=room.platforms.Length;
                 report.queriesPerSample=report.repeats*props.Length*2*4;
@@ -63,6 +68,8 @@ namespace Remains.Editor
                 report.medianMilliseconds=sorted[sorted.Length/2];report.success=true;
                 world.actors.Add(new ActorState {id="benchmark-player",owner="benchmark-owner",player=true,connected=true,level="factory:0",x=room.spawnX,y=room.spawnY});
                 foreach(var prop in props) {prop.owner="benchmark-owner";world.props.Add(prop);}
+                foreach(var container in layout.containers) {container.owner="benchmark-owner";world.containers.Add(container);}
+                CheckFullSupportIndex(world,room,report.repeats);
                 report.freePropTickMilliseconds=new double[report.samples];
                 for(int sample=-1;sample<report.samples;sample++)
                 {
@@ -73,13 +80,14 @@ namespace Remains.Editor
                     timer.Stop();if(sample<0) continue;
                     report.freePropTickMilliseconds[sample]=timer.Elapsed.TotalMilliseconds/report.repeats;
                     report.steppedPerTick=stepped/report.repeats;
-                    long state=17;foreach(var prop in copy.props) unchecked {state=state*31+Mathf.RoundToInt(prop.x*10000);state=state*31+Mathf.RoundToInt(prop.y*10000);state=state*31+Mathf.RoundToInt(prop.vx*10000);state=state*31+Mathf.RoundToInt(prop.vy*10000);}
+                    long state=17;foreach(var prop in WorldProps.All(copy)) unchecked {state=state*31+Mathf.RoundToInt(prop.x*10000);state=state*31+Mathf.RoundToInt(prop.y*10000);state=state*31+Mathf.RoundToInt(prop.vx*10000);state=state*31+Mathf.RoundToInt(prop.vy*10000);}
                     if(sample>0 && state!=report.freePropChecksum) throw new InvalidOperationException("Свободные объекты изменяют результат между одинаковыми выборками.");
                     report.freePropChecksum=state;
                 }
                 var propSorted=(double[])report.freePropTickMilliseconds.Clone();Array.Sort(propSorted);
                 report.medianFreePropTickMilliseconds=propSorted[propSorted.Length/2];
-                if(report.steppedPerTick!=props.Length) throw new InvalidOperationException("Не все физические объекты прошли реальный тик.");
+                int eligible=0;foreach(var prop in WorldProps.All(world)) if(prop.movable && prop.hasPhysicalBody && !prop.held) eligible++;
+                if(report.steppedPerTick!=eligible) throw new InvalidOperationException("Не все физические объекты прошли реальный тик.");
                 report.detail="PASS: реальная сетка seed 104, реальные положения и габариты объектов; CPU terrain microbenchmark.";
             }
             catch(Exception error) {report.success=false;report.detail=error.ToString();Debug.LogError(report.detail);}
@@ -106,6 +114,70 @@ namespace Remains.Editor
                 unchecked {checksum=checksum*31+(clear?1:0)+(supported?2:0)+(drop?4:0);checksum=checksum*31+Mathf.RoundToInt(moved.x*10000);checksum=checksum*31+Mathf.RoundToInt(moved.y*10000);}
             }
             return checksum;
+        }
+        private static void CheckSupportIndex()
+        {
+            var world=new WorldState();
+            var lower=new PropState {id="index-lower",level="a",hasPhysicalBody=true,x=3.9f,y=0,width=12,height=1};
+            var upper=new PropState {id="index-upper",level="a",hasPhysicalBody=true,x=4.1f,y=.5f,width=2,height=1};
+            var foreign=new PropState {id="index-foreign",level="b",hasPhysicalBody=true,x=4,y=1,width=12,height=1};
+            world.props.Add(lower);world.props.Add(upper);world.props.Add(foreign);
+            var source=new WorldPropView(world);var index=new PropSupportIndex();index.Prepare(source);
+            var moving=new PropState {id="index-moving",level="a",hasPhysicalBody=true,width=1,height=1};
+            void Compare(float x)
+            {
+                var start=new Vector2(x,3);var exhaustive=new Vector2(x,-1);var indexed=exhaustive;
+                bool expected=PropSupport.Resolve(moving,start,ref exhaustive,source);
+                bool actual=PropSupport.Resolve(moving,start,ref indexed,index);
+                if(expected!=actual || exhaustive!=indexed) throw new InvalidOperationException("Индекс опоры расходится с полным обходом: x="+x);
+            }
+            foreach(float x in new[]{-3f,0f,3.99f,4.01f,9f,15f}) Compare(x);
+            float previous=upper.x;upper.x=15;index.Moved(upper,previous);
+            Compare(4);Compare(15);
+            world.props.Remove(lower);index.Prepare(source);Compare(0);Compare(15);
+            var replacement=new WorldState();replacement.props.Add(foreign);source=new WorldPropView(replacement);index.Prepare(source);
+            Compare(4);Compare(15);
+        }
+        private static void CheckFullSupportIndex(WorldState world,RoomLayout room,int ticks)
+        {
+            var indexed=StateJson.Copy(world);var linear=StateJson.Copy(world);
+            var context=new FreePropMotionContext();var all=new WorldPropView(linear);var hull=new MovementHull();
+            for(int tick=0;tick<ticks;tick++)
+            {
+                FreePropMotion.Step(indexed,"benchmark-owner",1f/60,_=>room,_=>false,null,null,context);
+                foreach(var prop in all)
+                    if(prop.owner=="benchmark-owner" && prop.movable && prop.hasPhysicalBody && !prop.held)
+                        PropMotion.Step(prop,room,1f/60,null,all,null,hull);
+                var actual=new WorldPropView(indexed);
+                for(int i=0;i<all.Count;i++)
+                    if(actual[i].Position!=all[i].Position || actual[i].vx!=all[i].vx || actual[i].vy!=all[i].vy)
+                        throw new InvalidOperationException($"Индекс изменил физику: tick={tick}, id={all[i].id}, indexed={actual[i].Position}, linear={all[i].Position}.");
+            }
+        }
+        private static void CheckPoseCadence()
+        {
+            var policy=new FreePropPoseCadence();
+            var prop=new PropState {id="pose-rest",owner="a",level="a",generation=1};
+            void Require(bool value,string reason) {if(!value) throw new InvalidOperationException("Публикация позы: "+reason);}
+            Require(policy.ShouldPublish(prop,0),"нет первой позы");
+            Require(!policy.ShouldPublish(prop,.001),"неизменная поза публикуется снова");
+            prop.x=1;prop.vx=2;Require(policy.ShouldPublish(prop,.002),"движение не опубликовано");
+            prop.vx=0;Require(policy.ShouldPublish(prop,.003),"финальная остановка не опубликована");
+            Require(policy.ShouldPublish(prop,1.003),"потерянная финальная поза не восстановилась heartbeat");
+            Require(!policy.ShouldPublish(prop,1.004),"повтор heartbeat без ожидания");
+            prop.generation++;Require(policy.ShouldPublish(prop,1.005),"новая generation скрыта");
+            prop.owner="b";Require(policy.ShouldPublish(prop,1.006),"новый владелец скрыт");
+            Require(policy.ShouldPublish(new PropState {id=prop.id,owner=prop.owner,level=prop.level,generation=prop.generation,x=prop.x},1.007),"новый объект с прежним ID скрыт");
+            policy.Reset();Require(policy.ShouldPublish(prop,1.008),"новая эпоха мира скрыта");
+            var spread=new FreePropPoseCadence();var bodies=new PropState[1000];
+            for(int i=0;i<bodies.Length;i++) {bodies[i]=new PropState {id="pose-distribution-"+i};spread.ShouldPublish(bodies[i],0);}
+            int maximum=0,total=0;
+            for(int tick=1;tick<=20;tick++)
+            {
+                int emitted=0;foreach(var body in bodies) if(spread.ShouldPublish(body,tick*.05+.00001)) emitted++;
+                maximum=Math.Max(maximum,emitted);total+=emitted;
+            }
+            Require(total==1000 && maximum<100,"неподвижные heartbeat собрались в один сетевой всплеск");
         }
     }
 }

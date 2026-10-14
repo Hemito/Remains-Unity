@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
 using Newtonsoft.Json;
@@ -11,14 +12,21 @@ namespace Remains.Serialization
     [Serializable]
     public abstract class ExtensibleState
     {
+        private static readonly ConcurrentDictionary<Type,HashSet<string>> reservedNames=new();
+        private static HashSet<string> ReadReservedNames(Type type)=>new(
+            type.GetFields(BindingFlags.Instance|BindingFlags.Public)
+                .Where(field=>!Attribute.IsDefined(field,typeof(JsonExtensionDataAttribute))).Select(field=>field.Name),
+            StringComparer.OrdinalIgnoreCase);
         [JsonExtensionData] public IDictionary<string,JToken> extensions;
         [System.Runtime.Serialization.OnSerializing]
         internal void CheckExtensionNames(System.Runtime.Serialization.StreamingContext context)
         {
             if(extensions==null) return;
-            var fields=GetType().GetFields(BindingFlags.Instance|BindingFlags.Public);
+            // Contracts are immutable by CLR type. Do not repeat reflection and
+            // allocate predicates for every item in a large checkpoint.
+            var fields=reservedNames.GetOrAdd(GetType(),ReadReservedNames);
             foreach(string key in extensions.Keys)
-                if(fields.Any(f=>!Attribute.IsDefined(f,typeof(JsonExtensionDataAttribute)) && string.Equals(f.Name,key,StringComparison.OrdinalIgnoreCase)))
+                if(fields.Contains(key))
                     throw new System.IO.InvalidDataException($"Дополнительное поле {key} конфликтует с полем состояния {GetType().Name}.");
         }
     }
@@ -59,6 +67,9 @@ namespace Remains.Serialization
                     (float.IsInfinity((float)binary) || binary!=0 && (float)binary==0))
                     throw new System.IO.InvalidDataException($"Число JSON вне точного диапазона поля {type.Name}: {token.Path}. Неизвестные числовые данные вне Decimal храните строкой.");
             }
+            // Scalars have no field names or children to inspect. Numeric range
+            // validation above still applies before this fast path.
+            if(token is JValue) return;
             var contract=settings.ContractResolver.ResolveContract(type);
             if(contract is JsonArrayContract array && token is JArray items)
                 foreach(var item in items) CheckFieldNames(array.CollectionItemType,item);

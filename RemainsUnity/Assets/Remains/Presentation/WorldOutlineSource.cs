@@ -9,9 +9,16 @@ namespace Remains.Presentation
         public readonly SortingGroup Group;
         public readonly Renderer Artwork;
         private readonly bool requiresArtwork;
-        private WorldOutlineSource(SortingGroup group,Renderer artwork,bool requiresArtwork) {Group=group;Artwork=artwork;this.requiresArtwork=requiresArtwork;}
-        public static WorldOutlineSource ForRenderer(Renderer artwork)=>artwork==null?default:new(RenderSorting.FindOwner(artwork),artwork,true);
-        public static WorldOutlineSource ForGroup(SortingGroup group)=>new(group,null,false);
+        private readonly bool outlineArtwork;
+        private WorldOutlineSource(SortingGroup group,Renderer artwork,bool requiresArtwork,bool outlineArtwork) {Group=group;Artwork=artwork;this.requiresArtwork=requiresArtwork;this.outlineArtwork=outlineArtwork;}
+        public static WorldOutlineSource ForRenderer(Renderer artwork,bool outlineArtwork=false)=>artwork==null?default:new(RenderSorting.FindOwner(artwork),artwork,true,outlineArtwork);
+        public static WorldOutlineSource ForGroup(SortingGroup group)=>new(group,null,false,false);
+        // A visible frame may differ from the deliberately authored access volume.
+        public Rect Bounds(Rect interactionBounds)
+        {
+            if(!outlineArtwork || Artwork==null) return interactionBounds;
+            var bounds=Artwork.bounds;return new Rect(bounds.min.x,bounds.min.y,bounds.size.x,bounds.size.y);
+        }
         public bool Visible=>Group!=null && Group.enabled && Group.gameObject.activeInHierarchy &&
             (!requiresArtwork || Artwork!=null && Artwork.enabled && !Artwork.forceRenderingOff && Artwork.gameObject.activeInHierarchy);
         public float Depth=>requiresArtwork?Artwork.bounds.center.z:Group.transform.position.z;

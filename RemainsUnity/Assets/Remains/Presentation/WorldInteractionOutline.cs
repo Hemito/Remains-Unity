@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 namespace Remains.Presentation
 {
-    // The rectangle describes the selected interaction volume. Its sorting owner
+    // The rectangle describes the selected image (containers) or interaction volume. Its sorting owner
     // is the actual object's outer group, so a foreground actor occludes both.
     public sealed class WorldInteractionOutline : IDisposable
     {
@@ -98,11 +98,13 @@ namespace Remains.Presentation
             if(!Valid(target.bounds)) {Unavailable("невалидные границы цели");return;}
             if(source.Group==null) {Unavailable("нет фактической внешней SortingGroup выбранного изображения");return;}
             if(!source.Visible) {Unavailable("изображение или его SortingGroup выключены");return;}
+            var rect=source.Bounds(target.bounds);
+            if(!Valid(rect)) {Unavailable("невалидные границы изображения цели");return;}
             if(compensation==null) {Unavailable("изображение цели удалено до обновления выбранного представления");return;}
             float depth=source.Depth;
             if(!float.IsFinite(depth)) {Unavailable("невалидная глубина фактического изображения");return;}
             if((camera.cullingMask & (1<<source.GameLayer))==0 ||
-                camera.WorldToViewportPoint(new Vector3(target.bounds.center.x,target.bounds.center.y,depth)).z<=0) {Hide();return;}
+                camera.WorldToViewportPoint(new Vector3(rect.center.x,rect.center.y,depth)).z<=0) {Hide();return;}
             var parent=source.Group.transform;
             if(compensation.parent!=parent)
             {Unavailable("actual owner сменился после target refresh; требуется ранняя привязка до camera pass");return;}
@@ -115,9 +117,8 @@ namespace Remains.Presentation
                 if(!Neutralize(parent,matrix,out reason)) {Unavailable(reason);return;}
                 ownerMatrix=matrix;hasOwnerMatrix=true;
             }
-            if(!hasPlaced || placedBounds!=target.bounds || placedDepth!=depth || placedWidth!=width)
+            if(!hasPlaced || placedBounds!=rect || placedDepth!=depth || placedWidth!=width)
             {
-                var rect=target.bounds;
                 PlaceBar(0,new Vector3(rect.center.x,rect.yMin,depth),new Vector2(rect.width+width,width));
                 PlaceBar(1,new Vector3(rect.center.x,rect.yMax,depth),new Vector2(rect.width+width,width));
                 PlaceBar(2,new Vector3(rect.xMin,rect.center.y,depth),new Vector2(width,rect.height+width));
