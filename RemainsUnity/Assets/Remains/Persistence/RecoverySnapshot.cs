@@ -18,6 +18,9 @@ namespace Remains.Persistence
         public string WorldId { get; }
         public long Revision { get; }
         private WorldState preparedLive;
+        private byte[] utf8;
+        // UTF-8 payload, encoded once per snapshot for all recipients (not once per connection).
+        public byte[] Utf8=>utf8??=new UTF8Encoding(false).GetBytes(Json);
         // Composed and validated by this process (FromWorld): live copies may use the trusted reader.
         private readonly bool producedHere;
         // The last few snapshots this process produced, by ID: its own host client receives them back through the

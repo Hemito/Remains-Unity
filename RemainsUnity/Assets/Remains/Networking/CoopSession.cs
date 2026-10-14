@@ -515,8 +515,11 @@ namespace Remains.Networking
             bool publishHealing=false;
             if (World != null && World.worldId == incoming.worldId)
             {
+                // By ID dictionary: the former WorldProps.Find per body was O(bodies²) per snapshot (~2M compares).
+                var localBodies=new Dictionary<string,PropState>(StringComparer.Ordinal);
+                foreach(var prop in WorldProps.All(World)) localBodies[prop.id]=prop;
                 foreach(var prop in WorldProps.All(incoming))
-                    PropReplication.PreserveNewerPose(WorldProps.Find(World,prop.id),prop,LocalOwner);
+                    PropReplication.PreserveNewerPose(localBodies.TryGetValue(prop.id,out var local)?local:null,prop,LocalOwner);
                 // A full backup must not rewind locally-owned pose or an unacknowledged health change.
                 for(int actorIndex=0;actorIndex<incoming.actors.Count;actorIndex++)
                 {

@@ -143,7 +143,7 @@ namespace Remains.Persistence
                 if(File.ReadAllText(path)!=snapshot.Json)
                     throw new InvalidDataException($"Повреждён архив снимка: {path}.");
             }
-            else WriteWorld(archive,snapshot.Json);
+            else {WriteWorld(archive,snapshot.Json);PruneArchive(snapshot.WorldId);}
             PreserveExistingWorld("world.json");
             PreserveExistingWorld(Path.Combine("Worlds",snapshot.WorldId+".json"));
             string flat=Path.Combine("Worlds",snapshot.WorldId+".json");
@@ -173,6 +173,23 @@ namespace Remains.Persistence
             }
             string archive=Path.Combine("Worlds",previous.WorldId,"Snapshots",previous.Id+".json");
             if(!File.Exists(Path.Combine(WorldDirectoryPath,archive))) WriteWorld(archive,previous.Json);
+        }
+        // Archive rotation (2026-10-14): every checkpoint (3 s and shared actions) is a distinct ~1.25 MB payload, and
+        // keeping all of them grew a factory world to 1.2 GB. The newest ArchiveKept copies of the world stay; the
+        // newest is the one just written, which a pending recovery pair refers to.
+        public const int ArchiveKept=10;
+        private void PruneArchive(string worldId)
+        {
+            var directory=new DirectoryInfo(Path.Combine(WorldDirectoryPath,"Worlds",worldId,"Snapshots"));
+            if(!directory.Exists) return;
+            var files=directory.GetFiles("*.json");
+            if(files.Length<=ArchiveKept) return;
+            Array.Sort(files,(a,b)=>b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
+            for(int i=ArchiveKept;i<files.Length;i++)
+            {
+                try {files[i].Delete();}
+                catch(IOException error) {Debug.LogWarning($"Ротация архива мира {worldId}: не удалён {files[i].FullName}: {error.Message}");}
+            }
         }
         private void RememberWorldFile(string filename,RecoverySnapshot snapshot)
         {

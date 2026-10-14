@@ -27,7 +27,7 @@ namespace Remains.Networking
             =>SendParts(snapshot,part=> {part.owner=part.offset==0?owner:null;part.actor=part.offset==0?actor:null;connection.Send(part);});
         internal static void SendParts(RecoverySnapshot snapshot,Action<WorldPartMessage> send)
         {
-            byte[] bytes=Encoding.UTF8.GetBytes(snapshot.Json);
+            byte[] bytes=snapshot.Utf8;
             if(bytes.Length>SnapshotTransfer.MaximumBytes) throw new InvalidDataException("Снимок мира превышает текущий предел 32 МиБ.");
             // Enqueue this reliable snapshot contiguously. Later reliable actor events
             // must follow its final chunk, so an older snapshot cannot overwrite them.

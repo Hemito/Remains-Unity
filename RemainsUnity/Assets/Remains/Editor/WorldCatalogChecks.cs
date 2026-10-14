@@ -39,7 +39,11 @@ namespace Remains.Editor
             Require(detached.files.All(entry=>entry.summary?.worldId!= "modified-by-caller") && !detached.readIndex && !detached.wroteIndex,
                 "Mod-facing DTO заменил внутренний индекс");
             warm=detached;
-            Require(cold.readPayloads==cold.inspectedFiles && cold.inspectedFiles>=83,"Первичная индексация не прочитала архив");
+            // Saving rotates the archive (SaveStore.ArchiveKept): the 80 written copies are pruned to the newest ones.
+            var archived=Directory.GetFiles(Path.Combine(store.DirectoryPath,"Worlds",world.worldId,"Snapshots"),"*.json");
+            Require(archived.Length<=SaveStore.ArchiveKept && archived.Any(file=>Path.GetFileNameWithoutExtension(file)==current.Id) &&
+                archived.Any(file=>Path.GetFileNameWithoutExtension(file)==alternative.Id),$"Ротация архива: копий {archived.Length}, текущая и ветка должны остаться.");
+            Require(cold.readPayloads==cold.inspectedFiles && cold.inspectedFiles>=archived.Length,"Первичная индексация не прочитала архив");
             Require(warm.readPayloads==0,"Повторный список перечитывает полные снимки");
             Require(warm.entries.Count==1 && warm.entries[0].summary.snapshot==alternative.Id,"Предок не скрыт по ancestry");
             Require(warm.selected.snapshot==current.Id,"Описание выбранного мира заменено более поздним архивом");
@@ -67,7 +71,7 @@ namespace Remains.Editor
             new WorldLibrary(store).Delete(world.worldId);
             Require(store.Catalog.Read().entries.Count==0 && store.SelectedSnapshot()==null &&
                 File.Exists(oversized) &&
-                Directory.EnumerateFiles(Path.Combine(store.DirectoryPath,"DeletedWorlds"),"*.json",SearchOption.AllDirectories).Count()>=83,
+                Directory.EnumerateFiles(Path.Combine(store.DirectoryPath,"DeletedWorlds"),"*.json",SearchOption.AllDirectories).Count()>=archived.Length,
                 "Удаление потеряло архивные снимки/ветви или оставило мир в списке");
             Debug.Log($"Индекс миров: PASS — {cold.inspectedFiles} файлов, повторное чтение payload=0, ancestry/ветви, 3 изменённых файла, строгий выбор, явная пересборка и обратимое удаление.");
         }
