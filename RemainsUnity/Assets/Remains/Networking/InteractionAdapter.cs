@@ -16,25 +16,25 @@ namespace Remains.Networking
             this.session=session;
             session.ServerReady+=()=>
             {
-                NetworkServer.RegisterHandler<PropGrabMessage>(Grab);
-                NetworkServer.RegisterHandler<PropPoseMessage>(Pose);
-                NetworkServer.RegisterHandler<ThrowRequest>(Throw);
-                NetworkServer.RegisterHandler<GrenadePoseMessage>(GrenadePose);
+                NetworkServer.RegisterHandler<PropGrabMessage>(Remains.Networking.MessageTiming.Server<PropGrabMessage>(Grab));
+                NetworkServer.RegisterHandler<PropPoseMessage>(Remains.Networking.MessageTiming.Server<PropPoseMessage>(Pose));
+                NetworkServer.RegisterHandler<ThrowRequest>(Remains.Networking.MessageTiming.Server<ThrowRequest>(Throw));
+                NetworkServer.RegisterHandler<GrenadePoseMessage>(Remains.Networking.MessageTiming.Server<GrenadePoseMessage>(GrenadePose));
             };
             session.ClientReady+=()=>
             {
-                NetworkClient.RegisterHandler<PropPoseMessage>(message=>
+                NetworkClient.RegisterHandler<PropPoseMessage>(Remains.Networking.MessageTiming.Client<PropPoseMessage>(message=>
                 {
                     var prop=WorldProps.Find(session.World,message.prop);
                     if(prop==null || prop.generation!=message.generation || !PropReplication.CanAcceptPose(prop) || prop.owner==session.LocalOwner) return;
                     PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy);
-                });
-                NetworkClient.RegisterHandler<GrenadePoseMessage>(message=>
+                }));
+                NetworkClient.RegisterHandler<GrenadePoseMessage>(Remains.Networking.MessageTiming.Client<GrenadePoseMessage>(message=>
                 {
                     var grenade=session.World?.grenades.Find(g=>g.id==message.id);
                     if(grenade==null || grenade.generation!=message.generation || unchecked((int)(message.sequence-grenade.sequence))<=0) return;
                     Apply(grenade,message);GrenadeUpdated?.Invoke(grenade);
-                });
+                }));
             };
         }
 

@@ -16,7 +16,7 @@ namespace Remains.Networking
         private readonly CoopSession session;
         private readonly HashSet<string> pending=new(),localEffects=new();
         public SessionProjectiles(CoopSession session) {this.session=session;}
-        public void RegisterServer()=>NetworkServer.RegisterHandler<ProjectileProgressMessage>(Progress);
+        public void RegisterServer()=>NetworkServer.RegisterHandler<ProjectileProgressMessage>(Remains.Networking.MessageTiming.Server<ProjectileProgressMessage>(Progress));
         public event Action Launched;
         public event Action<string> Confirmed;
         public event Action<string> Rejected;
@@ -31,14 +31,14 @@ namespace Remains.Networking
         }
         public void RegisterClient()
         {
-            NetworkClient.RegisterHandler<ProjectileLaunchMessage>(message=>
-                ReceiveLaunch(Remains.Serialization.StateJson.FromJson<ProjectileState>(message.json)));
-            NetworkClient.RegisterHandler<ProjectileRejectedMessage>(ReceiveRejection);
-            NetworkClient.RegisterHandler<ProjectileProgressMessage>(message=>
+            NetworkClient.RegisterHandler<ProjectileLaunchMessage>(Remains.Networking.MessageTiming.Client<ProjectileLaunchMessage>(message=>
+                ReceiveLaunch(Remains.Serialization.StateJson.FromJson<ProjectileState>(message.json))));
+            NetworkClient.RegisterHandler<ProjectileRejectedMessage>(Remains.Networking.MessageTiming.Client<ProjectileRejectedMessage>(ReceiveRejection));
+            NetworkClient.RegisterHandler<ProjectileProgressMessage>(Remains.Networking.MessageTiming.Client<ProjectileProgressMessage>(message=>
         {
             var flight=session.World?.projectiles.Find(p=>p.launch.id==message.id);
             if(flight!=null) ProjectileLifecycle.AcceptProgress(flight,flight.owner,message.generation,message.sequence,message.traveled,message.finished);
-        });
+        }));
         }
         private void ReceiveLaunch(ProjectileState state)
         {

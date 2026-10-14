@@ -39,15 +39,15 @@ namespace Remains.Networking
         {
             coordinator=new LevelPauseCoordinator(session.Rules.Pause);
             published=new PauseStateMessage {revision=0,levels=Array.Empty<string>()};
-            NetworkServer.RegisterHandler<PauseIntentMessage>((connection,message)=>
-                Apply(connection,coordinator.SetIntent(session.ConnectedActor(connection),message.generation,message.lifecycle,message.menu,message.inventory)));
-            NetworkServer.RegisterHandler<ManualPauseMessage>((connection,message)=>
-                Apply(connection,coordinator.SetManual(session.ConnectedActor(connection),message.generation,message.lifecycle,message.paused)));
+            NetworkServer.RegisterHandler<PauseIntentMessage>(Remains.Networking.MessageTiming.Server<PauseIntentMessage>((connection,message)=>
+                Apply(connection,coordinator.SetIntent(session.ConnectedActor(connection),message.generation,message.lifecycle,message.menu,message.inventory))));
+            NetworkServer.RegisterHandler<ManualPauseMessage>(Remains.Networking.MessageTiming.Server<ManualPauseMessage>((connection,message)=>
+                Apply(connection,coordinator.SetManual(session.ConnectedActor(connection),message.generation,message.lifecycle,message.paused))));
         }
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<PauseStateMessage>(Receive);
+            NetworkClient.RegisterHandler<PauseStateMessage>(Remains.Networking.MessageTiming.Client<PauseStateMessage>(Receive));
         }
         public void ResetClient()
         {Revision=-1;pausedLevels.Clear();PauseOnMenu=PauseOnInventory=false;Changed?.Invoke();}

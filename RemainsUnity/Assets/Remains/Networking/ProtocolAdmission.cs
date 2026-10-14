@@ -32,19 +32,19 @@ namespace Remains.Networking
         public void RegisterServer()
         {
             approved.Clear();waiting.Clear();closing.Clear();RejectedCount=0;
-            NetworkServer.RegisterHandler<ProtocolHello>((connection,message)=>
+            NetworkServer.RegisterHandler<ProtocolHello>(Remains.Networking.MessageTiming.Server<ProtocolHello>((connection,message)=>
             {
                 if(closing.ContainsKey(connection.connectionId)) return;
                 string reason=SessionProtocol.Rejection(message.version);
                 if(reason!=null) {Reject(connection,reason);return;}
                 approved.Add(connection.connectionId);waiting.Remove(connection.connectionId);
                 connection.Send(new ProtocolReply {version=SessionProtocol.Version,accepted=true});
-            });
+            }));
         }
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<ProtocolReply>(message=>
+            NetworkClient.RegisterHandler<ProtocolReply>(Remains.Networking.MessageTiming.Client<ProtocolReply>(message=>
             {
                 // Admission may still fail after the protocol handshake (for example, a taken character name).
                 if(!pending && (!ClientApproved || message.accepted)) return;
@@ -52,7 +52,7 @@ namespace Remains.Networking
                 if(!message.accepted || message.version!=SessionProtocol.Version)
                 {LastError=string.IsNullOrEmpty(message.reason)?$"Хост использует несовместимый сетевой протокол {message.version}.":message.reason;session.ShowNotice(LastError);session.StopClient();return;}
                 ClientApproved=true;session.ProtocolAccepted();
-            });
+            }));
         }
         // Startup can spend seconds loading a room within one frame. The cached frame time
         // must not make a newly opened connection appear older than it actually is.

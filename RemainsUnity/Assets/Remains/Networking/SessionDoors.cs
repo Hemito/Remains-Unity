@@ -22,11 +22,11 @@ namespace Remains.Networking
         public event Action<DoorReply> Finished;
         public event Action<string,string,DoorReply> NpcFinished;
         public SessionDoors(CoopSession session)=>this.session=session;
-        public void RegisterServer()=>NetworkServer.RegisterHandler<DoorRequest>(Receive);
+        public void RegisterServer()=>NetworkServer.RegisterHandler<DoorRequest>(Remains.Networking.MessageTiming.Server<DoorRequest>(Receive));
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<DoorReply>(reply=>
+            NetworkClient.RegisterHandler<DoorReply>(Remains.Networking.MessageTiming.Client<DoorReply>(reply=>
             {
                 if(npcRequests.Remove(reply.request,out var context))
                 {
@@ -36,7 +36,7 @@ namespace Remains.Networking
                 }
                 if(reply.request!=pending) return;
                 pending=null;session.ShowNotice(reply.reason);Finished?.Invoke(reply);
-            });
+            }));
         }
         public void ResetClient() {pending=null;npcRequests.Clear();pendingNpcs.Clear();nextNpcRequest.Clear();}
         public bool RequestNpcOpen(ActorState actor,string doorId)

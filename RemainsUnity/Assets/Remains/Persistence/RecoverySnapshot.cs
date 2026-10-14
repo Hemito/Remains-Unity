@@ -42,11 +42,11 @@ namespace Remains.Persistence
         // written from. No parsed graph is kept: CreateLiveWorld parses the immutable Json when asked.
         private RecoverySnapshot(WorldState world, string json)
         {
-            Validate(world);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: правила мира")) Validate(world);
             Json = json;
             WorldId = world.worldId;
             Revision = world.revision;
-            Id = Fingerprint(json);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: хеш")) Id = Fingerprint(json);
             producedHere = true;
         }
 

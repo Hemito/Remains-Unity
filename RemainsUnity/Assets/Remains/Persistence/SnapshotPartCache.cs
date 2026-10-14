@@ -16,6 +16,9 @@ namespace Remains.Persistence
     {
         private static readonly object gate=new();
         private static Dictionary<Type,HashSet<string>> accepted=new();   // texts accepted by the last composition
+        private static readonly Dictionary<Type,List<string>> lastTexts=new();   // diagnostics: previous text by list position
+        // Diagnostics of the last composition: changed parts per list and the first changed spot of each.
+        public static string LastReport {get;private set;}
 
         public readonly struct Composition
         {
@@ -29,13 +32,18 @@ namespace Remains.Persistence
             if(world==null) throw new ArgumentNullException(nameof(world));
             lock(gate)
             {
-                string skeleton=StateJson.ToJson(world,new JsonConverter[] {new PartList<ContainerState>(null),new PartList<PropState>(null),new PartList<LampState>(null)});
-                StateJson.FromJson<WorldState>(skeleton);   // strict: everything outside the cached lists
+                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет"))
+                {
+                    string skeleton=StateJson.ToJson(world,new JsonConverter[] {new PartList<ContainerState>(null),new PartList<PropState>(null),new PartList<LampState>(null)});
+                    StateJson.FromJson<WorldState>(skeleton);   // strict: everything outside the cached lists
+                }
                 var next=new Dictionary<Type,HashSet<string>>();
                 var lists=new JsonConverter[] {new PartList<ContainerState>(next),new PartList<PropState>(next),new PartList<LampState>(next)};
-                string json=StateJson.ToJson(world,lists);
-                int parts=0,parsed=0;
-                foreach(IPartList list in lists) {parts+=list.Parts;parsed+=list.Parsed;}
+                string json;
+                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) json=StateJson.ToJson(world,lists);
+                int parts=0,parsed=0;var report=new System.Text.StringBuilder("снимок: изменено");
+                foreach(IPartList list in lists) {parts+=list.Parts;parsed+=list.Parsed;report.Append(' ').Append(list.Report);}
+                LastReport=report.ToString();
                 accepted=next;   // only after the whole composition succeeded
                 return new Composition(json,parts,parsed);
             }
@@ -44,7 +52,7 @@ namespace Remains.Persistence
         // Test hook: the next composition parses every part again.
         public static void Clear() {lock(gate) accepted=new Dictionary<Type,HashSet<string>>();}
 
-        private interface IPartList {int Parts {get;} int Parsed {get;}}
+        private interface IPartList {int Parts {get;} int Parsed {get;} string Report {get;}}
 
         // One declared list type (List<T> field of WorldState). Skeleton mode (next==null) writes an empty array.
         private sealed class PartList<T> : JsonConverter,IPartList where T:class
@@ -52,6 +60,8 @@ namespace Remains.Persistence
             private readonly Dictionary<Type,HashSet<string>> next;
             public int Parts {get;private set;}
             public int Parsed {get;private set;}
+            private string example;
+            public string Report=>typeof(T).Name+" "+Parsed+"/"+Parts+(example==null?"":" ["+example+"]");
             public PartList(Dictionary<Type,HashSet<string>> next) {this.next=next;}
             public override bool CanRead=>false;
             public override bool CanConvert(Type objectType)=>objectType==typeof(List<T>);
@@ -65,6 +75,8 @@ namespace Remains.Persistence
                 {
                     accepted.TryGetValue(typeof(T),out var previous);
                     if(!next.TryGetValue(typeof(T),out var current)) next.Add(typeof(T),current=new HashSet<string>(StringComparer.Ordinal));
+                    if(!lastTexts.TryGetValue(typeof(T),out var before)) lastTexts.Add(typeof(T),before=new List<string>());
+                    int index=0;
                     foreach(var item in list)
                     {
                         string text=item==null?"null":StateJson.ToJson(item);
@@ -72,12 +84,22 @@ namespace Remains.Persistence
                         {
                             StateJson.FromJson<T>(text);   // the same strict check the whole-world parse applies to it
                             Parsed++;
+                            if(example==null && index<before.Count) example=Difference(before[index],text);
                         }
+                        if(index<before.Count) before[index]=text; else before.Add(text);
+                        index++;
                         current.Add(text);Parts++;
                         writer.WriteRawValue(text);
                     }
                 }
                 writer.WriteEndArray();
+            }
+
+            private static string Difference(string was,string now)
+            {
+                int at=0;while(at<was.Length && at<now.Length && was[at]==now[at]) at++;
+                int from=Math.Max(0,at-40);
+                return was.Substring(from,Math.Min(70,was.Length-from))+" → "+now.Substring(from,Math.Min(70,now.Length-from));
             }
         }
     }

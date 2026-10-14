@@ -33,12 +33,12 @@ namespace Remains.Networking
         public void RegisterServer()
         {
             replies.Clear();points.Clear();
-            NetworkServer.RegisterHandler<TravelRequest>(ReceiveRequest);
+            NetworkServer.RegisterHandler<TravelRequest>(Remains.Networking.MessageTiming.Server<TravelRequest>(ReceiveRequest));
         }
         public void RegisterClient()
         {
             pending = null;points.Clear();
-            NetworkClient.RegisterHandler<TravelReply>(ReceiveReply);
+            NetworkClient.RegisterHandler<TravelReply>(Remains.Networking.MessageTiming.Client<TravelReply>(ReceiveReply));
         }
         public void ResetClient() => pending = null;
 

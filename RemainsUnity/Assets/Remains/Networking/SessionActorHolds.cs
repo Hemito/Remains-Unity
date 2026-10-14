@@ -23,11 +23,11 @@ namespace Remains.Networking
         public event Action<ActorHoldReply> Replied;
         public SessionActorHolds(CoopSession session)=>this.session=session;
         public void RegisterServer()
-        {replies.Clear();NetworkServer.RegisterHandler<ActorHoldRequest>(Receive);NetworkServer.RegisterHandler<ActorHoldTargetMessage>(ReceiveTarget);}
+        {replies.Clear();NetworkServer.RegisterHandler<ActorHoldRequest>(Remains.Networking.MessageTiming.Server<ActorHoldRequest>(Receive));NetworkServer.RegisterHandler<ActorHoldTargetMessage>(Remains.Networking.MessageTiming.Server<ActorHoldTargetMessage>(ReceiveTarget));}
         public void RegisterClient()
         {
-            NetworkClient.RegisterHandler<ActorHoldReply>(reply=>
-            {if(!reply.accepted) session.ShowNotice(reply.reason);Replied?.Invoke(reply);});
+            NetworkClient.RegisterHandler<ActorHoldReply>(Remains.Networking.MessageTiming.Client<ActorHoldReply>(reply=>
+            {if(!reply.accepted) session.ShowNotice(reply.reason);Replied?.Invoke(reply);}));
             RegisterTargetClient();
         }
         public void Step()
@@ -94,7 +94,7 @@ namespace Remains.Networking
             if(!ActorHoldRules.SetTarget(body,holder.id,message.epoch,message.sequence,new Vector2(message.x,message.y))) return;
             NetworkServer.SendToAll(message,Channels.Unreliable);
         }
-        public void RegisterTargetClient()=>NetworkClient.RegisterHandler<ActorHoldTargetMessage>(message=>
-            ActorHoldRules.SetTarget(session.World?.Find(message.body),message.holder,message.epoch,message.sequence,new Vector2(message.x,message.y)));
+        public void RegisterTargetClient()=>NetworkClient.RegisterHandler<ActorHoldTargetMessage>(Remains.Networking.MessageTiming.Client<ActorHoldTargetMessage>(message=>
+            ActorHoldRules.SetTarget(session.World?.Find(message.body),message.holder,message.epoch,message.sequence,new Vector2(message.x,message.y))));
     }
 }

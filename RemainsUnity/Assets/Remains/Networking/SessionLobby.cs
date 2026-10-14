@@ -70,15 +70,15 @@ namespace Remains.Networking
             var initial=startup.Mode==SessionStartupMode.ContinueSelected?startup.Selected:
                 startup.Mode==SessionStartupMode.NewWorld?null:session.Saves.SelectedSnapshot();
             initialHash=initial?.Id;
-            NetworkServer.RegisterHandler<SaveOfferMessage>(ReceiveOffer);
-            NetworkServer.RegisterHandler<SaveChunkMessage>(ReceiveChunk);
-            NetworkServer.RegisterHandler<SaveTransferErrorMessage>((connection,message)=>
-            {if(Busy && connection.connectionId==source && message.request==request) Fail(message.error);});
+            NetworkServer.RegisterHandler<SaveOfferMessage>(Remains.Networking.MessageTiming.Server<SaveOfferMessage>(ReceiveOffer));
+            NetworkServer.RegisterHandler<SaveChunkMessage>(Remains.Networking.MessageTiming.Server<SaveChunkMessage>(ReceiveChunk));
+            NetworkServer.RegisterHandler<SaveTransferErrorMessage>(Remains.Networking.MessageTiming.Server<SaveTransferErrorMessage>((connection,message)=>
+            {if(Busy && connection.connectionId==source && message.request==request) Fail(message.error);}));
         }
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<LobbyStateMessage>(message=>
+            NetworkClient.RegisterHandler<LobbyStateMessage>(Remains.Networking.MessageTiming.Client<LobbyStateMessage>(message=>
             {
                 ClientWaiting=message.waiting;ClientBusy=message.busy;ClientSelected=message.selected;
                 ClientChoosingCopies=message.choosingCopies;ClientContentPending=message.contentPending;
@@ -94,10 +94,10 @@ namespace Remains.Networking
                         session.StopClient();
                     }
                 }
-            });
-            NetworkClient.RegisterHandler<LobbyCopyMessage>(message=>Copies.Add(JsonUtility.FromJson<LobbyCopy>(message.json)));
-            NetworkClient.RegisterHandler<LobbyStateEndMessage>(_=>Changed?.Invoke());
-            NetworkClient.RegisterHandler<SaveRequestMessage>(SendCopy);
+            }));
+            NetworkClient.RegisterHandler<LobbyCopyMessage>(Remains.Networking.MessageTiming.Client<LobbyCopyMessage>(message=>Copies.Add(JsonUtility.FromJson<LobbyCopy>(message.json))));
+            NetworkClient.RegisterHandler<LobbyStateEndMessage>(Remains.Networking.MessageTiming.Client<LobbyStateEndMessage>(_=>Changed?.Invoke()));
+            NetworkClient.RegisterHandler<SaveRequestMessage>(Remains.Networking.MessageTiming.Client<SaveRequestMessage>(SendCopy));
         }
         public void ResetClient()
         {

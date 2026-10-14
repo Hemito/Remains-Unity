@@ -31,15 +31,15 @@ namespace Remains.Networking
         public bool Pending=>pending!=null;
         public event Action<MechanismReply> Finished;
         public SessionMechanisms(CoopSession session)=>this.session=session;
-        public void RegisterServer()=>NetworkServer.RegisterHandler<MechanismRequest>(Receive);
+        public void RegisterServer()=>NetworkServer.RegisterHandler<MechanismRequest>(Remains.Networking.MessageTiming.Server<MechanismRequest>(Receive));
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<MechanismReply>(reply=>
+            NetworkClient.RegisterHandler<MechanismReply>(Remains.Networking.MessageTiming.Client<MechanismReply>(reply=>
             {
                 if(reply.operation!=pending) return;
                 pending=null;session.ShowNotice(reply.reason);Finished?.Invoke(reply);
-            });
+            }));
         }
         public void ResetClient()=>pending=null;
         public void ResetServer() {types.Clear();serverOperations=null;}

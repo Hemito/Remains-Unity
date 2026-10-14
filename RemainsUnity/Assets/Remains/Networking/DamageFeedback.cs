@@ -23,17 +23,17 @@ namespace Remains.Networking
             session.ServerReady+=()=>
             {
                 relayed.Clear();recentRelayed.Clear();
-                NetworkServer.RegisterHandler<DamageFeedbackMessage>(Relay);
+                NetworkServer.RegisterHandler<DamageFeedbackMessage>(Remains.Networking.MessageTiming.Server<DamageFeedbackMessage>(Relay));
             };
             session.ClientReady+=()=>
             {
                 seen.Clear();recent.Clear();Accepted=0;
-                NetworkClient.RegisterHandler<DamageFeedbackMessage>((message,channel)=>
+                NetworkClient.RegisterHandler<DamageFeedbackMessage>(Remains.Networking.MessageTiming.Client<DamageFeedbackMessage>((message,channel)=>
                 {
                     DeliveryMeasured?.Invoke(channel==Channels.Unreliable?"damage-number-delivered-unreliable":"damage-number-delivered-reliable",message.result);
                     DeliveryMeasured?.Invoke("damage-number-delivered",message.result);
                     Receive(message.result);
-                });
+                }));
             };
         }
         public void Publish(DamageResult result)

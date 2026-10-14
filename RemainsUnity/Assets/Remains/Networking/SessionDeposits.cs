@@ -19,16 +19,16 @@ namespace Remains.Networking
         public bool Pending=>requests.Count>0;
         public event Action Reconciled;
         public SessionDeposits(CoopSession session) {this.session=session;session.Changed+=Reconcile;}
-        public void RegisterServer() {replies.Clear();NetworkServer.RegisterHandler<DepositRequest>(Receive);}
+        public void RegisterServer() {replies.Clear();NetworkServer.RegisterHandler<DepositRequest>(Remains.Networking.MessageTiming.Server<DepositRequest>(Receive));}
         public void RegisterClient()
         {
             requests.Clear();
-            NetworkClient.RegisterHandler<DepositReply>(reply=>
+            NetworkClient.RegisterHandler<DepositReply>(Remains.Networking.MessageTiming.Client<DepositReply>(reply=>
             {
                 if(!requests.ContainsKey(reply.transaction)) return;
                 if(!reply.accepted) {requests.Remove(reply.transaction);Reconcile();}
                 session.ShowNotice(reply.reason);
-            });
+            }));
         }
         public bool Request(string containerId,string itemId,int quantity=0)
             =>Send(new DepositRequest {container=containerId,item=itemId,quantity=quantity});

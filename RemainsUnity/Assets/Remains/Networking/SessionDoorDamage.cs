@@ -27,16 +27,16 @@ namespace Remains.Networking
         public event Action<DoorDamageReply> Finished;
         public event Action<DoorDamageRequestData> Reported;
         public SessionDoorDamage(CoopSession session)=>this.session=session;
-        public void RegisterServer() {ResetServer();NetworkServer.RegisterHandler<DoorDamageRequest>(Receive);}
+        public void RegisterServer() {ResetServer();NetworkServer.RegisterHandler<DoorDamageRequest>(Remains.Networking.MessageTiming.Server<DoorDamageRequest>(Receive));}
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<DoorDamageReply>(reply=>
+            NetworkClient.RegisterHandler<DoorDamageReply>(Remains.Networking.MessageTiming.Client<DoorDamageReply>(reply=>
             {
                 if(!reply.accepted)
                 {reported.Remove(Key(reply.door,reply.attack));session.ShowNotice(reply.reason);}
                 Finished?.Invoke(reply);
-            });
+            }));
         }
         public void ResetClient() {reported.Clear();order.Clear();clientWorld=null;}
         public void ResetServer()=>ledger.Clear();

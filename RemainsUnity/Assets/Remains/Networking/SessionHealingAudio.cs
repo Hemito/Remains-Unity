@@ -42,13 +42,13 @@ namespace Remains.Networking
         public void RegisterClient()
         {
             receipts.Clear();
-            NetworkClient.RegisterHandler<HealingSoundCue>(cue=>
+            NetworkClient.RegisterHandler<HealingSoundCue>(Remains.Networking.MessageTiming.Client<HealingSoundCue>(cue=>
             {
                 // An expedited cue may precede its world update. Do not consume
                 // its receipt when context is absent: the reliable copy follows
                 // BroadcastWorld and can be accepted in the actual life scope.
                 if(receipts.Accept(session.World,cue)) Received?.Invoke(cue);
-            });
+            }));
         }
         public void Publish(ActorState healer,string transaction,string definition)
         {

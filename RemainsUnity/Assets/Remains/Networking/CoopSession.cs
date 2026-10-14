@@ -175,15 +175,15 @@ namespace Remains.Networking
             ServerWorld=null;
             Lobby.RegisterServer(UseLobby);
             if(!UseLobby) StartSelectedWorld(null,false);
-            NetworkServer.RegisterHandler<JoinMessage>(Join);
-            NetworkServer.RegisterHandler<ActorMessage>(UpdateActor);
-            NetworkServer.RegisterHandler<PoseMessage>(UpdatePose);
-            NetworkServer.RegisterHandler<AttackMessage>(RelayAttack);
-            NetworkServer.RegisterHandler<NpcHitMessage>(RelayNpcHit);
-            NetworkServer.RegisterHandler<FriendlyHitMessage>(RelayFriendlyHit);
-            NetworkServer.RegisterHandler<ClaimMessage>(Claim);
-            NetworkServer.RegisterHandler<ReviveMessage>(Revive);
-            NetworkServer.RegisterHandler<BackupAckMessage>((connection, ack) =>
+            NetworkServer.RegisterHandler<JoinMessage>(Remains.Networking.MessageTiming.Server<JoinMessage>(Join));
+            NetworkServer.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Server<ActorMessage>(UpdateActor));
+            NetworkServer.RegisterHandler<PoseMessage>(Remains.Networking.MessageTiming.Server<PoseMessage>(UpdatePose));
+            NetworkServer.RegisterHandler<AttackMessage>(Remains.Networking.MessageTiming.Server<AttackMessage>(RelayAttack));
+            NetworkServer.RegisterHandler<NpcHitMessage>(Remains.Networking.MessageTiming.Server<NpcHitMessage>(RelayNpcHit));
+            NetworkServer.RegisterHandler<FriendlyHitMessage>(Remains.Networking.MessageTiming.Server<FriendlyHitMessage>(RelayFriendlyHit));
+            NetworkServer.RegisterHandler<ClaimMessage>(Remains.Networking.MessageTiming.Server<ClaimMessage>(Claim));
+            NetworkServer.RegisterHandler<ReviveMessage>(Remains.Networking.MessageTiming.Server<ReviveMessage>(Revive));
+            NetworkServer.RegisterHandler<BackupAckMessage>(Remains.Networking.MessageTiming.Server<BackupAckMessage>((connection, ack) =>
             {
                 if(ServerWorld==null) return;
                 if (ack.world != ServerWorld.worldId) Debug.LogWarning($"Подтверждение чужого мира: клиент={connection.connectionId}, мир={ack.world}, ожидается={ServerWorld.worldId}.");
@@ -195,7 +195,7 @@ namespace Remains.Networking
                     RecoveryAcknowledged?.Invoke(connection.connectionId,ack.snapshot,ack.revision);
                     CompleteBackedUpGrants();
                 }
-            });
+            }));
             ServerReady?.Invoke();
         }
 
@@ -288,32 +288,32 @@ namespace Remains.Networking
             Mechanisms.RegisterClient();
             DoorDamage.RegisterClient();Lamps.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
             worldReplication.Reset();
-            NetworkClient.RegisterHandler<WorldPartMessage>(message=>
+            NetworkClient.RegisterHandler<WorldPartMessage>(Remains.Networking.MessageTiming.Client<WorldPartMessage>(message=>
             {
                 var received=worldReplication.Receive(message);
                 if(received==null) return;
                 if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor,worldJson=received.snapshot.Json},received.snapshot);
                 else ReceiveWorld(new WorldMessage {json=received.snapshot.Json},received.snapshot);
-            });
-            NetworkClient.RegisterHandler<ActorMessage>(message =>
+            }));
+            NetworkClient.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Client<ActorMessage>(message =>
             {
                 var actor = JsonUtility.FromJson<ActorState>(message.json);
                 MergeActor(actor);
-            });
+            }));
             Projectiles.RegisterClient();
-            NetworkClient.RegisterHandler<PoseMessage>(ReceivePose);
-            NetworkClient.RegisterHandler<AttackMessage>(message =>
+            NetworkClient.RegisterHandler<PoseMessage>(Remains.Networking.MessageTiming.Client<PoseMessage>(ReceivePose));
+            NetworkClient.RegisterHandler<AttackMessage>(Remains.Networking.MessageTiming.Client<AttackMessage>(message =>
             {
                 var attack=JsonUtility.FromJson<AttackEvent>(message.json);
                 if(NpcNaturalAttack.IsNatural(attack) || WeaponCatalog.Get(attack.weapon).projectileSpeed<=0 || Projectiles.AcceptEcho(attack.id)) AttackReceived?.Invoke(attack);
-            });
-            NetworkClient.RegisterHandler<NpcHitMessage>(message =>
-            {TraceNpcHit("npc-hit-received",message);NpcHitReceived?.Invoke(message);});
-            NetworkClient.RegisterHandler<FriendlyHitMessage>(message=>FriendlyHitReceived?.Invoke(message));
-            NetworkClient.RegisterHandler<NoticeMessage>(message => Notice?.Invoke(message.text));
-            NetworkClient.RegisterHandler<ClaimReplyMessage>(message=>{ClaimPrepared?.Invoke(message.transaction,message.accepted);Notice?.Invoke(message.reason);});
-            NetworkClient.RegisterHandler<ModMismatchMessage>(message=>ModMismatch?.Invoke(JsonUtility.FromJson<ContentManifest>(System.Text.Encoding.UTF8.GetString(message.manifest))));
-            NetworkClient.RegisterHandler<HealingReplyMessage>(message=>{if(!message.success) selfHealing.Reject(message.transaction);HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);});
+            }));
+            NetworkClient.RegisterHandler<NpcHitMessage>(Remains.Networking.MessageTiming.Client<NpcHitMessage>(message =>
+            {TraceNpcHit("npc-hit-received",message);NpcHitReceived?.Invoke(message);}));
+            NetworkClient.RegisterHandler<FriendlyHitMessage>(Remains.Networking.MessageTiming.Client<FriendlyHitMessage>(message=>FriendlyHitReceived?.Invoke(message)));
+            NetworkClient.RegisterHandler<NoticeMessage>(Remains.Networking.MessageTiming.Client<NoticeMessage>(message => Notice?.Invoke(message.text)));
+            NetworkClient.RegisterHandler<ClaimReplyMessage>(Remains.Networking.MessageTiming.Client<ClaimReplyMessage>(message=>{ClaimPrepared?.Invoke(message.transaction,message.accepted);Notice?.Invoke(message.reason);}));
+            NetworkClient.RegisterHandler<ModMismatchMessage>(Remains.Networking.MessageTiming.Client<ModMismatchMessage>(message=>ModMismatch?.Invoke(JsonUtility.FromJson<ContentManifest>(System.Text.Encoding.UTF8.GetString(message.manifest)))));
+            NetworkClient.RegisterHandler<HealingReplyMessage>(Remains.Networking.MessageTiming.Client<HealingReplyMessage>(message=>{if(!message.success) selfHealing.Reject(message.transaction);HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);}));
             ClientReady?.Invoke();
         }
 
@@ -548,8 +548,9 @@ namespace Remains.Networking
             }
             if(World?.worldId!=incoming.worldId) selfHealing.Reset();
             World = incoming;
-            QueueRecoveryReceipt(snapshot);
-            if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else Changed?.Invoke();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подтверждение (клиент)")) QueueRecoveryReceipt(snapshot);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: событие «мир изменился» (клиент)"))
+                if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else Changed?.Invoke();
         }
 
         private WorldState PersistCopy(RecoverySnapshot snapshot,WorldState parsed=null)
@@ -1044,6 +1045,7 @@ namespace Remains.Networking
             Pause.Publish();
             RecoverySnapshot snapshot;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подготовка")) snapshot=PrepareRecovery();
+            Remains.Diagnostics.FrameHitchLog.Note(SnapshotPartCache.LastReport);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: отправка"))
                 foreach(int id in owners.Keys)
                     if(NetworkServer.connections.TryGetValue(id,out var connection)) WorldReplication.Send(connection,snapshot);

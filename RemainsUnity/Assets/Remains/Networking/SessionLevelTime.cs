@@ -31,7 +31,7 @@ namespace Remains.Networking
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<LevelTimeMessage>(message=>
+            NetworkClient.RegisterHandler<LevelTimeMessage>(Remains.Networking.MessageTiming.Client<LevelTimeMessage>(message=>
             {
                 string previousWorld=replica.WorldId;
                 if(!replica.Receive(message.world,message.sequence,message.sentAt,message.clocks)) return;
@@ -40,7 +40,7 @@ namespace Remains.Networking
                 foreach(string level in localClocks.Keys.Where(level=>!retained.Contains(level)).ToArray()) localClocks.Remove(level);
                 foreach(string level in retained) if(!localClocks.ContainsKey(level)) localClocks.Add(level,new LevelTimePlayback());
                 EpochChanged?.Invoke();
-            });
+            }));
         }
         public bool HasLocal(string level)=>NetworkServer.active && session.ServerWorld!=null ||
             replica.Has(session.World?.worldId,level) && localClocks.TryGetValue(level,out var clock) && clock.Initialized;

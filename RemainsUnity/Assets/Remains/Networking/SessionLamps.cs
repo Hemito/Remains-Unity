@@ -21,18 +21,18 @@ namespace Remains.Networking
         private readonly HashSet<string> effects=new();
         public event Action<LampState> Broken;
         public SessionLamps(CoopSession session)=>this.session=session;
-        public void RegisterServer(){ResetServer();NetworkServer.RegisterHandler<LampBreakRequest>(Receive);}
+        public void RegisterServer(){ResetServer();NetworkServer.RegisterHandler<LampBreakRequest>(Remains.Networking.MessageTiming.Server<LampBreakRequest>(Receive));}
         public void ResetServer()=>ledger.Clear();
         public void ResetClient(){reported.Clear();effects.Clear();clientWorld=null;}
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<LampBreakRejected>(reply=>{reported.Remove(reply.lamp);Debug.LogWarning($"Контакт лампы отклонён: lamp={reply.lamp}, reason={reply.reason}.");});
-            NetworkClient.RegisterHandler<LampBrokenMessage>(message=>
+            NetworkClient.RegisterHandler<LampBreakRejected>(Remains.Networking.MessageTiming.Client<LampBreakRejected>(reply=>{reported.Remove(reply.lamp);Debug.LogWarning($"Контакт лампы отклонён: lamp={reply.lamp}, reason={reply.reason}.");}));
+            NetworkClient.RegisterHandler<LampBrokenMessage>(Remains.Networking.MessageTiming.Client<LampBrokenMessage>(message=>
             {
                 if(session.World?.worldId!=message.world)return;
                 var lamp=StateJson.FromJson<LampState>(message.json);lamp.Validate();if(effects.Add(lamp.id+":"+lamp.revision))Broken?.Invoke(lamp);
-            });
+            }));
         }
         public bool Install(string level,IReadOnlyList<LampState> lamps)
         {

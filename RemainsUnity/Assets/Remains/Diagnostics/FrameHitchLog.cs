@@ -36,6 +36,10 @@ namespace Remains.Diagnostics
         private static bool installed;
         private static double toMs;
 
+        private static string note;
+        // Extra detail for the current frame's line (e.g. what changed in a snapshot); kept only if the frame is slow.
+        public static void Note(string text) {if(installed) note=note==null?text:note+"; "+text;}
+
         // Short description of where the player is (level, counts); set by the runtime on changes.
         public static string Context="";
         public static string Path=>path;
@@ -131,6 +135,7 @@ namespace Remains.Diagnostics
             if(periodStart==0) periodStart=time;
             periodFrames.Add(total);
             if(total>SlowMilliseconds) WriteSlow(total);
+            note=null;
             Array.Clear(phaseMs,0,phaseMs.Length);
             Array.Clear(sectionMs,0,sectionIndex.Count);Array.Clear(sectionCalls,0,sectionIndex.Count);
             if(time-periodStart>=SummarySeconds) {WriteSummary(time);Flush();}
@@ -148,6 +153,7 @@ namespace Remains.Diagnostics
                     .Append(sectionCalls[i]>1?"×"+sectionCalls[i]:"");
             int gc=GC.CollectionCount(0)-gcAtFrameStart;
             if(gc>0) line.Append(" | gc ").Append(gc);
+            if(note!=null) line.Append(" | ").Append(note);
             if(!string.IsNullOrEmpty(Context)) line.Append(" | ").Append(Context);
             line.Append('\n');
         }

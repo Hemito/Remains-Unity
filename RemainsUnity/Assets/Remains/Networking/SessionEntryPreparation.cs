@@ -101,9 +101,9 @@ namespace Remains.Networking
         }
         public SessionEntryPreparation(CoopSession session) {this.session=session??throw new ArgumentNullException(nameof(session));}
         public void RegisterServer()
-        {ResetServer();NetworkServer.RegisterHandler<EntryPreparedMessage>(Ready);}
+        {ResetServer();NetworkServer.RegisterHandler<EntryPreparedMessage>(Remains.Networking.MessageTiming.Server<EntryPreparedMessage>(Ready));}
         public void RegisterClient()
-        {ResetClient();NetworkClient.RegisterHandler<EntryPreparationPartMessage>(Receive);}
+        {ResetClient();NetworkClient.RegisterHandler<EntryPreparationPartMessage>(Remains.Networking.MessageTiming.Client<EntryPreparationPartMessage>(Receive));}
         public void Begin(NetworkConnectionToClient connection,JoinMessage join)
         {
             if(session.ServerWorld?.actors.Any(actor=>actor.character==join.character && actor.connected)==true)

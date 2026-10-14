@@ -20,11 +20,11 @@ namespace Remains.Networking
         public event Action<ContainerInspectReply> Finished;
         public event Action<ContainerInspectRequest> Requested;
         public SessionContainerInspection(CoopSession session)=>this.session=session;
-        public void RegisterServer()=>NetworkServer.RegisterHandler<ContainerInspectRequest>(Receive);
+        public void RegisterServer()=>NetworkServer.RegisterHandler<ContainerInspectRequest>(Remains.Networking.MessageTiming.Server<ContainerInspectRequest>(Receive));
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<ContainerInspectReply>(reply=>
+            NetworkClient.RegisterHandler<ContainerInspectReply>(Remains.Networking.MessageTiming.Client<ContainerInspectReply>(reply=>
             {
                 if(reply.request==null || !pending.Remove(reply.request,out var captured)) return;
                 var context=captured.context;
@@ -32,7 +32,7 @@ namespace Remains.Networking
                 // The reply never changes graphics. Only the confirmed world can do so.
                 if(!reply.accepted) session.ShowNotice(reply.reason);
                 Finished?.Invoke(reply);
-            });
+            }));
         }
         public void ResetClient() {pending.Clear();clientWorld=null;}
         public bool Request(string sourceId)
