@@ -25,6 +25,8 @@ namespace Remains.Editor
             public long checksum;
             public double medianFreePropTickMilliseconds;
             public double[] freePropTickMilliseconds;
+            // Steady state with body sleep: after 120 settling ticks, the mean of 60 ticks and the bodies still stepped.
+            public double steadyFreePropTickMilliseconds;public int steadySteppedPerTick,steadySleepingPerTick;
             public long freePropChecksum;
             public int steppedPerTick;
         }
@@ -83,6 +85,14 @@ namespace Remains.Editor
                     long state=17;foreach(var prop in WorldProps.All(copy)) unchecked {state=state*31+Mathf.RoundToInt(prop.x*10000);state=state*31+Mathf.RoundToInt(prop.y*10000);state=state*31+Mathf.RoundToInt(prop.vx*10000);state=state*31+Mathf.RoundToInt(prop.vy*10000);}
                     if(sample>0 && state!=report.freePropChecksum) throw new InvalidOperationException("Свободные объекты изменяют результат между одинаковыми выборками.");
                     report.freePropChecksum=state;
+                }
+                {
+                    var copy=StateJson.Copy(world);var context=new FreePropMotionContext();
+                    for(int tick=0;tick<120;tick++) FreePropMotion.Step(copy,"benchmark-owner",1f/60,_=>room,_=>false,null,null,context);
+                    var timer=Stopwatch.StartNew();int stepped=0,sleeping=0;
+                    for(int tick=0;tick<60;tick++) {stepped+=FreePropMotion.Step(copy,"benchmark-owner",1f/60,_=>room,_=>false,null,null,context);sleeping+=context.LastSleeping;}
+                    timer.Stop();
+                    report.steadyFreePropTickMilliseconds=timer.Elapsed.TotalMilliseconds/60;report.steadySteppedPerTick=stepped/60;report.steadySleepingPerTick=sleeping/60;
                 }
                 var propSorted=(double[])report.freePropTickMilliseconds.Clone();Array.Sort(propSorted);
                 report.medianFreePropTickMilliseconds=propSorted[propSorted.Length/2];

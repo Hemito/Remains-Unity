@@ -59,7 +59,8 @@ namespace Remains.Editor
             var context=new FreePropMotionContext();int lookups=0,pauseReads=0;
             Func<string,RoomLayout> lookup=level=>{lookups++;return room;};
             Func<string,bool> pause=level=>{pauseReads++;return false;};
-            for(int i=0;i<fps*3;i++) Require(FreePropMotion.Step(world,"local",1f/fps,lookup,pause,null,null,context)==49,"Пропущен подключённый down-владелец");
+            // Every body of the connected owner's level either steps or sleeps (body sleep, 2026-10-15).
+            for(int i=0;i<fps*3;i++) Require(FreePropMotion.Step(world,"local",1f/fps,lookup,pause,null,null,context)+context.LastSleeping==49,"Пропущен подключённый down-владелец");
             Require(lookups==fps*3 && pauseReads==fps*3,"Геометрия/пауза читаются повторно для каждого груза");
             Require(ReferenceEquals(cargo.items[0],item) && item.count==12 && cargo.itemAliases["old-ammo"]==item.id,"Изменено содержимое");
             long before=GC.GetAllocatedBytesForCurrentThread();
