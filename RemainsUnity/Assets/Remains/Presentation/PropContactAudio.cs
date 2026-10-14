@@ -62,6 +62,7 @@ namespace Remains.Presentation
         }
         private void LateUpdate()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PropContactAudio.LateUpdate");
             var listener=session.LocalActor;if(listener==null) return;
             if(props?.World!=session.World) props=new WorldPropView(session.World);
             var room=geometry.Get(listener.level);

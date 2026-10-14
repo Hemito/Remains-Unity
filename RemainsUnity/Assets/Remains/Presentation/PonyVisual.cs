@@ -120,6 +120,7 @@ namespace Remains.Presentation
         // Draw only after the movement/pose contact decision for this frame.
         private void LateUpdate()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PonyVisual.LateUpdate");
             DrawPose(state?.poseTime??0);
         }
 

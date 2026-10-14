@@ -63,7 +63,7 @@ namespace Remains.Presentation
             view.AddComponent<WorldVisualOrderBinding>().Initialize(orders,kind,id,group);
             return view;
         }
-        private void LateUpdate()=>DrawPlatforms();
+        private void LateUpdate() {using(Remains.Diagnostics.FrameHitchLog.Section("MechanismVisuals.LateUpdate")) DrawPlatforms();}
         private void DrawPlatforms()
         {
             foreach(var pair in platforms)

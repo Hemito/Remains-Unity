@@ -94,10 +94,12 @@ namespace Remains.Runtime
         private GameObject networkObject;
         private bool disposed;
         private string bodyWorld;
+        private string hitchLevel;private int hitchProps=-1;   // FrameHitchLog context: rebuilt only on change
         public bool ReleasingUnusedAssets {get;private set;}
 
         private void Awake()
         {
+            Remains.Diagnostics.FrameHitchLog.Install();
             try { Initialize(); }
             catch(System.Exception failure)
             {
@@ -179,13 +181,13 @@ namespace Remains.Runtime
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
             {
                 if(!LevelPresentationReady || ActiveFactoryLighting==null) {actorShadows.Clear();return;}
-                actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds);
-                actorShadows.CollectProjectedLightShadows(projectedFlashShadows);
-                ActiveFactoryLighting.RenderMuzzleFlashes(emissions,projectedFlashShadows,interactionVisuals.MuzzleSourceIds);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: персонажи")) actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: проекции вспышек")) actorShadows.CollectProjectedLightShadows(projectedFlashShadows);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Свет: вспышки и тени")) ActiveFactoryLighting.RenderMuzzleFlashes(emissions,projectedFlashShadows,interactionVisuals.MuzzleSourceIds);
             },(attack,emission)=>
             {
                 if(LevelPresentationReady && ActiveFactoryLighting!=null)
-                    actorShadows.PrepareFlash(ActiveFactoryLighting,visuals,interactionVisuals,"flash:"+attack.id,emission);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вспышки")) actorShadows.PrepareFlash(ActiveFactoryLighting,visuals,interactionVisuals,"flash:"+attack.id,emission);
             });
             CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals,ponyMagic);
             HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
@@ -490,8 +492,9 @@ namespace Remains.Runtime
 
         private void Update()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeRuntime.Update");
             if(roomFailurePending) return;
-            Session.PumpSaveWrites();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Сохранения: очередь")) Session.PumpSaveWrites();
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             Session.LevelTime.Step(Time.deltaTime);
             Session.Mechanisms.Step();Platforms.Step(Time.deltaTime);
@@ -503,7 +506,12 @@ namespace Remains.Runtime
                 {if(NetworkServer.active) Session.StopHost();else Session.StopClient();}
                 remoteMotion.Clear();InteractionFocus.Clear();return;
             }
-            remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true);
+            if(actor.level!=hitchLevel || Session.World.props.Count!=hitchProps)
+            {
+                hitchLevel=actor.level;hitchProps=Session.World.props.Count;
+                Remains.Diagnostics.FrameHitchLog.Context=$"уровень {actor.level}, игроков {Session.World.actors.FindAll(a=>a.player && a.connected).Count}, тел {hitchProps}, контейнеров {Session.World.containers.Count}";
+            }
+            using(Remains.Diagnostics.FrameHitchLog.Section("Удалённое движение")) remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true);
             foreach(var body in Session.World.actors)
                 if(body.owner==Session.LocalOwner &&
                     LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
@@ -521,15 +529,15 @@ namespace Remains.Runtime
             Grenades.Step(Time.deltaTime);
             if (Options.Smoke==null || Options.Smoke.StartsWith("actor-death") || Options.Smoke.StartsWith("legacy-doors") || Options.Smoke.StartsWith("cosmetics") || Options.Smoke.StartsWith("lighting-preparation") || Options.Smoke=="performance-audit" || Options.Smoke.StartsWith("warehouse-furniture") || Options.Smoke.StartsWith("warehouse-metal-doors") || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("raid-entry") || (Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("continuation-seam")) || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("shot-spread") || Options.Smoke.StartsWith("weapon-reload") || Options.Smoke.StartsWith("held-prop-color") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("direct-items") || Options.Smoke.StartsWith("slope-poses") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
-                npcs.Step(Time.deltaTime);
+                using(Remains.Diagnostics.FrameHitchLog.Section("NPC")) npcs.Step(Time.deltaTime);
                 // Do not consume a probe/input source's one-shot actions until its room is
                 // ready. Real Escape still passes through; physics/network continue below.
                 var command=IsLevelPreparing?ReadCommand():CommandSource?.Invoke() ?? ReadCommand();
                 if(!IsLevelPreparing && CommandSource!=null && Options.Smoke!=null) command=ProbeWeaponSelection.Resolve(actor,command);
-                ApplyCommand(command,Time.deltaTime);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Управление")) ApplyCommand(command,Time.deltaTime);
             }
-            freeProps.Step(Time.deltaTime);
-            Combat.Step(Time.deltaTime);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Физические тела")) freeProps.Step(Time.deltaTime);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Бой")) Combat.Step(Time.deltaTime);
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))
             {
                 foreach (var owned in Session.World.actors) if (owned.owner==Session.LocalOwner) Session.PublishPose(owned);

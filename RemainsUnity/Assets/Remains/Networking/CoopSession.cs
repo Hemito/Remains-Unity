@@ -1038,6 +1038,7 @@ namespace Remains.Networking
         private void BroadcastWorld()
         {
             using var timing=TransitionTiming.Measure("snapshot.broadcast",ServerWorld?.worldId);
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Снимок мира");
             Pause.Publish();
             var snapshot=PrepareRecovery();
             foreach(int id in owners.Keys)

@@ -432,6 +432,7 @@ namespace Remains.Presentation
         }
         private void Update()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.Update");
             if(session.LocalActor==null && Application.isFocused && UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame==true)
             {
                 if(Characters!=null) ToggleMenu();
@@ -459,7 +460,7 @@ namespace Remains.Presentation
             if(WorldMap!=null && PauseMenu!=null) WorldMap.StateChanged-=PauseMenu.PublishIntent;
         }
         private void OnDestroy()=>Dispose();
-        private void LateUpdate()=>containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen);
+        private void LateUpdate() {using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.LateUpdate");containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen);}
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {
             var texture=Resources.Load<Texture2D>("Original/Hud/"+key);

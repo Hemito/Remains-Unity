@@ -109,6 +109,7 @@ namespace Remains.Presentation
         }
         private void LateUpdate()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("ProjectileVisuals.LateUpdate");
             if(flight.cancelled || session.LocalActor?.level!=flight.state.launch.level) {Destroy(gameObject);return;}
             // Presentation samples the frozen path as well, including a newly restored view.
             var path=flight.path;

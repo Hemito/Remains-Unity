@@ -19,6 +19,7 @@ namespace Remains.Presentation
         }
         private void LateUpdate()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("FactoryLightFocus.LateUpdate");
             if(camera==null || view==null || !view.IsReady) return;
             requested=camera.transform.position;
             if(view.WindowFor(requested)==view.LightWindowRooms || rebuild!=null) return;

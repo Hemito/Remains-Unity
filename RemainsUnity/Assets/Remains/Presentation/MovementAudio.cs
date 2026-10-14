@@ -77,6 +77,7 @@ namespace Remains.Presentation
         }
         private void LateUpdate()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("MovementAudio.LateUpdate");
             var listener=session.LocalActor;if(listener==null) return;
             var room=geometry.Get(listener.level);
             bool paused=session.Pause.IsPaused(listener.level);

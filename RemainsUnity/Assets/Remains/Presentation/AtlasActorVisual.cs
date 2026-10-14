@@ -81,7 +81,7 @@ namespace Remains.Presentation
             }
             return result;
         }
-        private void Update() {if(state!=null) Draw();}
+        private void Update() {if(state==null) return;using(Remains.Diagnostics.FrameHitchLog.Section("AtlasActorVisual.Update")) Draw();}
         public void Draw()
         {
             transform.position=state.Position+Vector2.up*(state.down?deadLift:0);view.flipX=(state.facing<0)!=artwork.facesLeft;

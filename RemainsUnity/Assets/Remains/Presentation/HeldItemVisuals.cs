@@ -64,6 +64,7 @@ namespace Remains.Presentation
         }
         private void Update()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("HeldItemVisuals.Update");
             if(session?.World==null) return;
             foreach(var pair in views)
             {

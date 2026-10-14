@@ -174,6 +174,7 @@ namespace Remains.Presentation
         }
         private void Update()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("InteractionVisuals.Update");
             muzzleEmissions.Clear();
             muzzleSourceIds.Clear();
             if(session?.World==null) return;
@@ -213,7 +214,7 @@ namespace Remains.Presentation
             reloadAnimation.Step(Time.deltaTime);
             casingEffects.Step(Time.deltaTime);
         }
-        private void LateUpdate()=>muzzleLighting?.Invoke(muzzleEmissions);
+        private void LateUpdate() {using(Remains.Diagnostics.FrameHitchLog.Section("InteractionVisuals.LateUpdate")) muzzleLighting?.Invoke(muzzleEmissions);}
     }
 
 }

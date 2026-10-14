@@ -53,6 +53,7 @@ namespace Remains.Presentation
         }
         private void Update()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("DamageNumbers.Update");
             for(int i=active.Count-1;i>=0;i--)
             {
                 var entry=active[i];

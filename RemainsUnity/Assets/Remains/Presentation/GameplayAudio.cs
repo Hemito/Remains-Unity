@@ -157,6 +157,7 @@ namespace Remains.Presentation
         }
         private void Update()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("GameplayAudio.Update");
             for(int i=voices.Count-1;i>=0;i--)
             {
                 var voice=voices[i];var listener=session.LocalActor;

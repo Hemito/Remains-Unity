@@ -48,7 +48,7 @@ namespace Remains.Presentation
             }
             Draw();
         }
-        private void Update() {if(state!=null) Draw();}
+        private void Update() {if(state==null) return;using(Remains.Diagnostics.FrameHitchLog.Section("StaticActorVisual.Update")) Draw();}
         private void Draw() {transform.position=state.Position;view.flipX=state.facing<0;}
     }
 }

@@ -34,6 +34,7 @@ namespace Remains.Presentation
         // Cheap per-frame check: refit only when the camera's view size changes.
         private void LateUpdate()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("FarBackgroundView.LateUpdate");
             if(viewCamera!=null && (viewCamera.orthographicSize!=fittedSize || viewCamera.aspect!=fittedAspect)) Fit();
         }
 
