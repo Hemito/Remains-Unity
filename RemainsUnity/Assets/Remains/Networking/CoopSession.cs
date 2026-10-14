@@ -65,6 +65,17 @@ namespace Remains.Networking
             if(NetworkServer.active) StopHost();else if(NetworkClient.active) StopClient();
         }
         public event Action Changed;
+        // Each subscriber in its own FrameHitchLog section (subscribers rebuild presentation on world changes).
+        private void RaiseChanged()
+        {
+            var handlers=Changed;if(handlers==null) return;
+            foreach(Action handler in handlers.GetInvocationList())
+            {
+                var method=handler.Method;
+                string owner=method.DeclaringType?.Name??"?";
+                using(Remains.Diagnostics.FrameHitchLog.Section("Мир изменился → "+(method.DeclaringType?.DeclaringType?.Name??owner)+"."+method.Name)) handler();
+            }
+        }
         public event Action SessionStopped;
         public event Action<string,string,float,float> RemotePoseCorrection;
         private void ObservePoseCorrection(string source,ActorState current,string nextPose,float nextTime)
@@ -482,7 +493,7 @@ namespace Remains.Networking
                 if(backup!=null) Debug.LogWarning($"Личный профиль сохранён перед возвращением в тело: world={World.worldId}, actor={LocalActorId}, backup={backup}. Последствия оставленного тела принадлежат миру; независимые состояния персонажа не объединяются автоматически.");
             }
             QueueRecoveryReceipt(snapshot);
-            Changed?.Invoke();
+            RaiseChanged();
             if(ReferenceEquals(World,welcomed) && !GameplayFailurePending) EntryPreparation.CompleteAdmission();
         }
 
@@ -550,7 +561,7 @@ namespace Remains.Networking
             World = incoming;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подтверждение (клиент)")) QueueRecoveryReceipt(snapshot);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: событие «мир изменился» (клиент)"))
-                if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else Changed?.Invoke();
+                if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else RaiseChanged();
         }
 
         private WorldState PersistCopy(RecoverySnapshot snapshot,WorldState parsed=null)
@@ -659,7 +670,7 @@ namespace Remains.Networking
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
-            if(selfHealTransition) PublishActor(actor);else Changed?.Invoke();
+            if(selfHealTransition) PublishActor(actor);else RaiseChanged();
         }
 
         private static void PreserveOwnerInventory(ActorState incoming,ActorState current)
@@ -732,7 +743,7 @@ namespace Remains.Networking
         public void PublishActor(ActorState actor)
         {
             selfHealing.Observe(World?.worldId,actor);
-            Changed?.Invoke();
+            RaiseChanged();
             if (NetworkClient.isConnected)
             {
                 actor.motionSequence=unchecked(actor.motionSequence+1);
@@ -1096,7 +1107,7 @@ namespace Remains.Networking
             World=null;LocalActorId=null;LocalOwner=null;
             playTime.Stop();
             ContainerInspection.ResetClient();DoorDamage.ResetClient();Lamps.ResetClient();Doors.ResetClient();Pause.ResetClient();LevelTime.ResetClient();Mechanisms.ResetClient();
-            Changed?.Invoke();
+            RaiseChanged();
             QueueStopNotification();
         }
         private void QueueStopNotification()
