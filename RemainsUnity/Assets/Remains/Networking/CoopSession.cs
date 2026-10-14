@@ -490,9 +490,11 @@ namespace Remains.Networking
         {
             if(World==null || LocalActorId==null) throw new InvalidOperationException("Получен игровой снимок до фактического входа в мир.");
             using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Снимок: приём (клиент)");
             var snapshot=verified??new RecoverySnapshot(message.json);
-            var incoming=snapshot.CreateLiveWorld();
-            FactoryContentSources.Prepare(incoming,incoming.actors.Where(a=>a.player && a.connected).Select(a=>a.level).Distinct());
+            WorldState incoming;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: копия мира (клиент)")) incoming=snapshot.CreateLiveWorld();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: контент (клиент)")) FactoryContentSources.Prepare(incoming,incoming.actors.Where(a=>a.player && a.connected).Select(a=>a.level).Distinct());
             incoming=PersistCopy(snapshot,incoming);
             bool sameWorld=World!=null && World.worldId==incoming.worldId;
             // Validate before motion/selection helpers can replace an incoming sample.
@@ -1040,9 +1042,11 @@ namespace Remains.Networking
             using var timing=TransitionTiming.Measure("snapshot.broadcast",ServerWorld?.worldId);
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Снимок мира");
             Pause.Publish();
-            var snapshot=PrepareRecovery();
-            foreach(int id in owners.Keys)
-                if(NetworkServer.connections.TryGetValue(id,out var connection)) WorldReplication.Send(connection,snapshot);
+            RecoverySnapshot snapshot;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подготовка")) snapshot=PrepareRecovery();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: отправка"))
+                foreach(int id in owners.Keys)
+                    if(NetworkServer.connections.TryGetValue(id,out var connection)) WorldReplication.Send(connection,snapshot);
             // New authority arrives before its pending hits on the same reliable channel.
             // A generation change must not wait for the periodic retry timer.
             npcHits?.Flush();

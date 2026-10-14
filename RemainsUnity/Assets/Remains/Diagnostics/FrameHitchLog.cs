@@ -18,7 +18,7 @@ namespace Remains.Diagnostics
     {
         public const double SlowMilliseconds=50;
         private const double SummarySeconds=10;
-        private const int MaxSections=48;
+        private const int MaxSections=256;
 
         private static readonly string[] phaseNames={"Initialization","EarlyUpdate","FixedUpdate","PreUpdate","Update","PreLateUpdate","PostLateUpdate"};
         private static readonly double[] phaseMs=new double[phaseNames.Length];
@@ -51,9 +51,18 @@ namespace Remains.Diagnostics
             {
                 int phase=Array.IndexOf(phaseNames,systems[i].type?.Name);
                 if(phase<0) continue;
-                var inner=new List<PlayerLoopSystem>(systems[i].subSystemList??Array.Empty<PlayerLoopSystem>());
+                var original=systems[i].subSystemList??Array.Empty<PlayerLoopSystem>();
+                var inner=new List<PlayerLoopSystem>(original.Length*2+2);
                 int captured=phase;
-                inner.Insert(0,new PlayerLoopSystem {type=typeof(FrameHitchLog),updateDelegate=()=>BeginPhase(captured)});
+                inner.Add(new PlayerLoopSystem {type=typeof(FrameHitchLog),updateDelegate=()=>BeginPhase(captured)});
+                // Each Unity subsystem of the phase as its own section ("<phase>.<subsystem>"), timed between markers.
+                foreach(var sub in original)
+                {
+                    int section=SectionIndex(phaseNames[phase]+"."+(sub.type?.Name??"?"));
+                    inner.Add(new PlayerLoopSystem {type=typeof(FrameHitchLog),updateDelegate=()=>subStart=Stopwatch.GetTimestamp()});
+                    inner.Add(sub);
+                    inner.Add(new PlayerLoopSystem {type=typeof(FrameHitchLog),updateDelegate=()=>EndSub(section)});
+                }
                 inner.Add(new PlayerLoopSystem {type=typeof(FrameHitchLog),updateDelegate=()=>EndPhase(captured)});
                 systems[i].subSystemList=inner.ToArray();
             }
@@ -71,12 +80,23 @@ namespace Remains.Diagnostics
         public static Scope Section(string name)
         {
             if(!installed) return default;
-            if(!sectionIndex.TryGetValue(name,out int index))
-            {
-                if(sectionIndex.Count>=MaxSections) return default;
-                index=sectionIndex.Count;sectionIndex.Add(name,index);sectionNames[index]=name;
-            }
-            return new Scope(index,Stopwatch.GetTimestamp());
+            int index=SectionIndex(name);
+            return index<0?default:new Scope(index,Stopwatch.GetTimestamp());
+        }
+
+        private static int SectionIndex(string name)
+        {
+            if(sectionIndex.TryGetValue(name,out int index)) return index;
+            if(sectionIndex.Count>=MaxSections) return -1;
+            index=sectionIndex.Count;sectionIndex.Add(name,index);sectionNames[index]=name;
+            return index;
+        }
+
+        private static long subStart;
+        private static void EndSub(int section)
+        {
+            if(section<0) return;
+            sectionMs[section]+=(Stopwatch.GetTimestamp()-subStart)*toMs;sectionCalls[section]++;
         }
 
         public readonly struct Scope : IDisposable

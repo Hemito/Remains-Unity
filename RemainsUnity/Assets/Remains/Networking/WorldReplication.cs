@@ -41,6 +41,7 @@ namespace Remains.Networking
         public ReceivedWorld Receive(WorldPartMessage message)
         {
             using var timing=TransitionTiming.Measure("snapshot.assemble",message.snapshot);
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Снимок: сборка частей (клиент)");
             if(incoming==null)
             {
                 if(message.offset!=0) throw new InvalidDataException("Снимок мира начался с неполного пакета.");
