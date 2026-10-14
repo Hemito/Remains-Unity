@@ -8,7 +8,7 @@ namespace Remains.Domain
         public static string Resolve(RoomLayout room,MovementHull hull,Vector2 position)
         {
             RoomSurface selected=null;float largest=0;
-            foreach(var surface in RoomSurfaces.Near(room,Rect.MinMaxRect(position.x-hull.width*.5f,position.y-RoomSupport.ContactTolerance,
+            foreach(var surface in RoomSurfaces.NearForActors(room,Rect.MinMaxRect(position.x-hull.width*.5f,position.y-RoomSupport.ContactTolerance,
                 position.x+hull.width*.5f,position.y+RoomSupport.ContactTolerance)))
             {
                 if(Mathf.Abs(position.y-RoomSupport.Top(surface,position.x,hull.width))>RoomSupport.ContactTolerance) continue;

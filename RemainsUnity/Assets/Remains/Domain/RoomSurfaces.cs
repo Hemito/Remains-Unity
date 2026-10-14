@@ -17,6 +17,13 @@ namespace Remains.Domain
             return new SurfaceSet(room,excluded,Rect.MinMaxRect(bounds.xMin-margin,bounds.yMin-margin,
                 bounds.xMax+margin,bounds.yMax+margin),true);
         }
+        // Near plus the tops of physical bodies (BodyTopSurfaces): for actor movement queries only.
+        public static SurfaceSet NearForActors(RoomLayout room,Rect bounds,RoomSurface excluded=null)
+        {
+            const float margin=.0001f;
+            return new SurfaceSet(room,excluded,Rect.MinMaxRect(bounds.xMin-margin,bounds.yMin-margin,
+                bounds.xMax+margin,bounds.yMax+margin),true,true);
+        }
         public static float MaximumSlopeGradient(RoomLayout room)
         {
             float result=0;
@@ -36,10 +43,10 @@ namespace Remains.Domain
             private readonly RoomLayout room;
             private readonly RoomSurface excluded;
             private readonly Rect bounds;
-            private readonly bool near;
-            public SurfaceSet(RoomLayout room,RoomSurface excluded,Rect bounds,bool near)
-            {this.room=room;this.excluded=excluded;this.bounds=bounds;this.near=near;}
-            public Enumerator GetEnumerator()=>new(room,excluded,bounds,near);
+            private readonly bool near,bodies;
+            public SurfaceSet(RoomLayout room,RoomSurface excluded,Rect bounds,bool near,bool bodies=false)
+            {this.room=room;this.excluded=excluded;this.bounds=bounds;this.near=near;this.bodies=bodies;}
+            public Enumerator GetEnumerator()=>new(room,excluded,bounds,near,bodies);
             IEnumerator<RoomSurface> IEnumerable<RoomSurface>.GetEnumerator()=>GetEnumerator();
             IEnumerator IEnumerable.GetEnumerator()=>GetEnumerator();
         }
@@ -51,13 +58,14 @@ namespace Remains.Domain
             private readonly bool near;
             private readonly RoomSurfaceIndex spatial;
             private readonly int left,right,bottom,top;
-            private int index,dynamicIndex;
+            private readonly bool bodies;
+            private int index,dynamicIndex,bodyIndex;
             private bool authoredDone;
             public RoomSurface Current {get;private set;}
             object IEnumerator.Current=>Current;
-            public Enumerator(RoomLayout room,RoomSurface excluded,Rect bounds,bool near)
+            public Enumerator(RoomLayout room,RoomSurface excluded,Rect bounds,bool near,bool bodies=false)
             {
-                this.room=room;this.excluded=excluded;this.bounds=bounds;
+                this.room=room;this.excluded=excluded;this.bounds=bounds;this.bodies=bodies;bodyIndex=-1;
                 this.near=near && room.surfaceIndex!=null && ReferenceEquals(room.surfaceIndex.Source,room.platforms);
                 left=RoomSurfaceIndex.Cell(bounds.xMin);right=RoomSurfaceIndex.Cell(bounds.xMax);
                 bottom=RoomSurfaceIndex.Cell(bounds.yMin);top=RoomSurfaceIndex.Cell(bounds.yMax);
@@ -81,12 +89,17 @@ namespace Remains.Domain
                     Current=room.dynamicSurfaces.Pose(dynamicIndex).Current;
                     if(Accept()) return true;
                 }
+                if(bodies) while(++bodyIndex<(room.bodySurfaces?.Count??0))
+                {
+                    Current=room.bodySurfaces[bodyIndex];
+                    if(Accept()) return true;
+                }
                 Current=null;return false;
             }
             private bool Accept()=>!ReferenceEquals(Current,excluded) && (!near ||
                 Current.x<=bounds.xMax && Current.x+Current.width>=bounds.xMin &&
                 Current.y<=bounds.yMax && Current.y+Current.height>=bounds.yMin);
-            public void Reset() {index=-1;dynamicIndex=-1;authoredDone=false;Current=null;}
+            public void Reset() {index=-1;dynamicIndex=-1;bodyIndex=-1;authoredDone=false;Current=null;}
             public void Dispose() {}
         }
     }

@@ -16,6 +16,7 @@ namespace Remains.Domain
         public RoomLadder[] ladders;
         public RoomArtwork[] artwork;
         [NonSerialized] public DynamicSurfaceFrame dynamicSurfaces;
+        [NonSerialized] public System.Collections.Generic.List<RoomSurface> bodySurfaces;   // BodyTopSurfaces: actor movement only
         [NonSerialized] internal RoomSurfaceIndex surfaceIndex;
         public static RoomLayout Load(string level="factory:0")
             =>Load(level,null);

@@ -23,7 +23,7 @@ namespace Remains.Gameplay
             supports.Clear();
             bool slope=false;
             var hull=Anatomy.Movement(actor);
-            foreach(var surface in RoomSurfaces.Near(room,Rect.MinMaxRect(actor.x-hull.width*.5f,actor.y-RoomSupport.ContactTolerance,
+            foreach(var surface in RoomSurfaces.NearForActors(room,Rect.MinMaxRect(actor.x-hull.width*.5f,actor.y-RoomSupport.ContactTolerance,
                 actor.x+hull.width*.5f,actor.y+RoomSupport.ContactTolerance)))
             {
                 if(actor.x+hull.width*.5f<=surface.x || actor.x-hull.width*.5f>=surface.x+surface.width ||

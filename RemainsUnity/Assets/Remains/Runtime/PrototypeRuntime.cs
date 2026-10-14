@@ -511,6 +511,9 @@ namespace Remains.Runtime
                 hitchLevel=actor.level;hitchProps=Session.World.props.Count;
                 Remains.Diagnostics.FrameHitchLog.Context=$"уровень {actor.level}, игроков {Session.World.actors.FindAll(a=>a.player && a.connected).Count}, тел {hitchProps}, контейнеров {Session.World.containers.Count}";
             }
+            // Tops of physical bodies as actor supports, current before any actor moves this frame.
+            using(Remains.Diagnostics.FrameHitchLog.Section("Опоры на телах"))
+                foreach(string level in Geometry.LoadedLevels) BodyTopSurfaces.Update(Geometry.Get(level),Session.World,level);
             using(Remains.Diagnostics.FrameHitchLog.Section("Удалённое движение")) remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true);
             foreach(var body in Session.World.actors)
                 if(body.owner==Session.LocalOwner &&
