@@ -56,14 +56,16 @@ namespace Remains.Domain
             {
                 if(container.id.StartsWith(InventorySource.BodyPrefix,StringComparison.Ordinal))
                     throw new InvalidOperationException($"ID контейнера использует префикс инвентарей тел: {container.id}.");
+                if(container.level!=actor.level) continue;   // cheap first: access rules reject other levels anyway
                 ConsiderSource(container);
             }
             foreach(var other in world.actors)
             {
+                if(other.level!=actor.level) continue;
                 ConsiderSource(InventorySource.FromBody(other));
             }
             foreach(var door in world.doors)
-                if(door.CanInteract && rules.DoorAccess.Rejection(actor,door)==null) Consider(InteractionKind.Door,door.id,door.InteractionBounds);
+                if(door.level==actor.level && door.CanInteract && rules.DoorAccess.Rejection(actor,door)==null) Consider(InteractionKind.Door,door.id,door.InteractionBounds);
             if(travelPoints!=null) foreach(var point in travelPoints)
                 if(point.Rejection(actor)==null) Consider(point.kind==TravelPointKind.Map?InteractionKind.Map:InteractionKind.Exit,point.id,point.Bounds);
             if(mechanismPoints!=null) foreach(var point in mechanismPoints)
@@ -73,6 +75,8 @@ namespace Remains.Domain
 
             void ConsiderSource(InventorySource source)
             {
+                // The pointer test (required by Consider) before the access rules, which build per-source contexts.
+                if(source==null || !source.Bounds.Contains(cursor)) return;
                 if(!ContainerAccess.Accessible(actor,source,rules.Loot,rules.Deposit) &&
                     !(source!=null && source.Body==null && (source.LockLevel>0 || source.MineLevel>0) &&
                       actor.level==source.level && Vector2.Distance(actor.Position,source.Position)<=2)) return;

@@ -46,10 +46,11 @@ namespace Remains.Gameplay
         internal void Prepare(WorldState world,Func<string,bool> isPaused)
         {
             if(Props?.World!=world) Props=new WorldPropView(world);
-            Support.Prepare(Props);
             levels.Clear();rooms.Clear();
             foreach(var actor in world.actors)
                 if(actor.player && actor.connected && !levels.ContainsKey(actor.level)) levels.Add(actor.level,!isPaused(actor.level));
+            // Only running levels' bodies: neighbours are searched on the stepped body's own level.
+            Support.Prepare(Props,Running);
         }
         internal bool Running(string level)=>levels.TryGetValue(level,out bool running) && running;
         internal RoomLayout Room(string level,Func<string,RoomLayout> read)

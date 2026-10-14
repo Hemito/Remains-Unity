@@ -12,14 +12,45 @@ namespace Remains.Domain
             foreach(var prop in world.props) yield return prop;
             foreach(var container in world.containers) yield return container;
         }
+        // By ID through a per-world index (pose packets, snapshot merge, telekinesis called the former linear scan
+        // over all ~1400 bodies). The index is checked on every hit (same object at the recorded position) and
+        // rebuilt when list sizes change, a hit is stale or an ID is missing — lists are mutated in place elsewhere.
         public static PropState Find(WorldState world,string id)
         {
-            if(world==null) return null;
-            PropState prop=null,container=null;
-            for(int i=0;i<world.props.Count;i++) if(world.props[i].id==id) {prop=world.props[i];break;}
-            for(int i=0;i<world.containers.Count;i++) if(world.containers[i].id==id) {container=world.containers[i];break;}
-            if(prop!=null && container!=null) throw new InvalidOperationException($"Повтор ID физического объекта и контейнера: {id}.");
-            return prop??container;
+            if(world==null || id==null) return null;
+            var index=indexes.GetValue(world,_=>new Index());
+            if(index.TryGet(world,id,out var found)) return found;
+            index.Build(world);
+            return index.TryGet(world,id,out found)?found:null;
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,Index> indexes=new();
+        private sealed class Index
+        {
+            private readonly Dictionary<string,(bool container,int position)> entries=new(StringComparer.Ordinal);
+            private int props=-1,containers=-1;
+            public bool TryGet(WorldState world,string id,out PropState found)
+            {
+                found=null;
+                if(props!=world.props.Count || containers!=world.containers.Count || !entries.TryGetValue(id,out var entry)) return false;
+                PropState candidate=entry.container?(entry.position<world.containers.Count?world.containers[entry.position]:null):
+                    entry.position<world.props.Count?world.props[entry.position]:null;
+                if(candidate==null || candidate.id!=id) return false;
+                found=candidate;return true;
+            }
+            public void Build(WorldState world)
+            {
+                entries.Clear();
+                for(int i=0;i<world.props.Count;i++) if(world.props[i]?.id!=null) entries.TryAdd(world.props[i].id,(false,i));   // first, as the scan
+                for(int i=0;i<world.containers.Count;i++)
+                {
+                    string id=world.containers[i]?.id;if(id==null) continue;
+                    if(entries.TryGetValue(id,out var other) && !other.container)
+                        throw new InvalidOperationException($"Повтор ID физического объекта и контейнера: {id}.");
+                    entries.TryAdd(id,(true,i));
+                }
+                props=world.props.Count;containers=world.containers.Count;
+            }
         }
     }
 

@@ -13,14 +13,14 @@ namespace Remains.Domain
         private readonly Dictionary<(string level,int cell),List<PropState>> buckets=new();
         private readonly Dictionary<string,float> halfWidths=new(StringComparer.Ordinal);
         private WorldPropView source;
-        public void Prepare(WorldPropView props)
+        public void Prepare(WorldPropView props,Func<string,bool> includeLevel=null)
         {
             source=props;
             foreach(var bucket in buckets.Values) bucket.Clear();
             halfWidths.Clear();
             foreach(var prop in props)
             {
-                if(!prop.hasPhysicalBody) continue;
+                if(!prop.hasPhysicalBody || includeLevel!=null && !includeLevel(prop.level)) continue;
                 Add(prop,Cell(prop.x));
                 halfWidths.TryGetValue(prop.level,out float width);
                 halfWidths[prop.level]=Mathf.Max(width,prop.width*.5f);
