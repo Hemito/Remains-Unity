@@ -38,17 +38,18 @@ namespace Remains.Editor
             Require(second.Json==first.Json && second.Parsed==0,$"Неизменный мир: разобрано {second.Parsed} частей.");
 
             var container=world.containers[0];
-            container.x+=0.5f;
+            container.x+=0.5f;WorldChanges.Mark(world,container);
             var moved=SnapshotPartCache.Compose(world);
             Require(moved.Json==StateJson.ToJson(world) && moved.Parsed==1,$"Сдвиг одного контейнера: разобрано {moved.Parsed}.");
 
             container.extensions??=new Dictionary<string,JToken>();
             container.extensions["probe"]=new JValue(1e300);   // an unknown number outside Decimal: StateJson rejects it
+            WorldChanges.Mark(world,container);
             bool rejected=false;
             try {RecoverySnapshot.FromWorld(world);}
             catch(InvalidDataException) {rejected=true;}
             Require(rejected,"Испорченная часть, бывшая в кэше, не отклонена.");
-            container.extensions.Remove("probe");
+            container.extensions.Remove("probe");WorldChanges.Mark(world,container);
             var restored=RecoverySnapshot.FromWorld(world);
             Require(restored.Json==StateJson.ToJson(world),"После исправления текст снимка отличается.");
             // Bench: strict parse vs trusted deserialization of the same text (both must give the same state).
@@ -75,6 +76,16 @@ namespace Remains.Editor
             world.revision++;
             string foreign=StateJson.ToJson(world);
             Require(!ReferenceEquals(RecoverySnapshot.FromReceived(foreign),own),"Чужой текст принят как собственный снимок.");
+            // An unmarked change: kept out until the next full verification, which reports it and writes the fresh text.
+            var silent=world.containers[1];silent.y+=1;
+            bool caught=false;
+            for(int i=0;i<SnapshotPartCache.VerifyEvery+1 && !caught;i++)
+            {
+                var composed=SnapshotPartCache.Compose(world);
+                caught=SnapshotPartCache.LastUnmarked>0;
+                if(caught) Require(composed.Json==StateJson.ToJson(world),"Сверка нашла непомеченное изменение, но текст снимка устарел.");
+            }
+            Require(caught,"Непомеченное изменение не найдено сверкой.");
             Debug.Log($"Кэш частей снимка: PASS — частей {first.Parts}, повторно разобрано 0, после сдвига 1, испорченная часть отклонена, текст совпадает.");
         }
 

@@ -23,6 +23,8 @@ namespace Remains.Persistence
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,Dictionary<string,(object part,string text)>> partTexts=new();
         private static readonly HashSet<string> warnedUnmarked=new(StringComparer.Ordinal);
         public static int LastUnmarked {get;private set;}
+        public const int VerifyEvery=10;
+        private static long compositions;
 
         public readonly struct Composition
         {
@@ -43,13 +45,15 @@ namespace Remains.Persistence
                 }
                 var next=new Dictionary<Type,HashSet<string>>();
                 partTexts.TryGetValue(world,out var previousTexts);
-                var audit=new Audit(world,previousTexts,new Dictionary<string,(object part,string text)>(StringComparer.Ordinal));
+                var audit=new Audit(world,previousTexts,new Dictionary<string,(object part,string text)>(StringComparer.Ordinal))
+                    {Verify=previousTexts==null || ++compositions%VerifyEvery==0};
                 var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit),new PartList<PropState>(next,audit),new PartList<LampState>(next,audit)};
                 string json;
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) json=StateJson.ToJson(world,lists);
                 int parts=0,parsed=0;var report=new System.Text.StringBuilder("снимок: изменено");
                 foreach(IPartList list in lists) {parts+=list.Parts;parsed+=list.Parsed;report.Append(' ').Append(list.Report);}
                 LastUnmarked=audit.Unmarked;
+                report.Append(audit.Verify?"; сверка всех частей":"; готовых текстов "+audit.Reused);
                 if(audit.Unmarked>0) report.Append("; непомеченных изменений ").Append(audit.Unmarked).Append(" [").Append(audit.Example).Append(']');
                 LastReport=report.ToString();
                 accepted=next;   // only after the whole composition succeeded
@@ -69,9 +73,17 @@ namespace Remains.Persistence
         {
             public readonly WorldState World;
             public readonly Dictionary<string,(object part,string text)> Previous,Current;
-            public int Unmarked;public string Example;
+            public int Unmarked,Reused;public string Example;
+            public bool Verify;   // this composition re-serializes everything and audits the marks
             public Audit(WorldState world,Dictionary<string,(object part,string text)> previous,Dictionary<string,(object part,string text)> current)
             {World=world;Previous=previous;Current=current;}
+            public bool Reuse(string kind,string id,object part,out string text)
+            {
+                text=null;
+                if(Verify || id==null || Previous==null || !Previous.TryGetValue(kind+":"+id,out var before) ||
+                    !ReferenceEquals(before.part,part) || WorldChanges.IsMarked(World,part)) return false;
+                text=before.text;Reused++;return true;
+            }
             public void Observe(string kind,string id,object part,string text)
             {
                 if(id==null) return;
@@ -130,7 +142,10 @@ namespace Remains.Persistence
                     int index=0;
                     foreach(var item in list)
                     {
-                        string text=item==null?"null":StateJson.ToJson(item);
+                        string id=item switch {PropState body=>body.id,LampState lamp=>lamp.id,_=>null};
+                        // Stage 1 on: an unmarked part that is still the same object keeps its stored text; every
+                        // VerifyEvery-th composition re-serializes all parts and reports unmarked changes (Audit).
+                        string text=item==null?"null":audit!=null && audit.Reuse(typeof(T).Name,id,item,out var stored)?stored:StateJson.ToJson(item);
                         if(item!=null && !(previous?.Contains(text)??false) && !current.Contains(text))
                         {
                             StateJson.FromJson<T>(text);   // the same strict check the whole-world parse applies to it
@@ -138,7 +153,7 @@ namespace Remains.Persistence
                             if(example==null && index<before.Count) example=Difference(before[index],text);
                         }
                         if(index<before.Count) before[index]=text; else before.Add(text);
-                        if(item!=null) audit?.Observe(typeof(T).Name,item switch {PropState body=>body.id,LampState lamp=>lamp.id,_=>null},item,text);
+                        if(item!=null) audit?.Observe(typeof(T).Name,id,item,text);
                         index++;
                         current.Add(text);Parts++;
                         writer.WriteRawValue(text);
