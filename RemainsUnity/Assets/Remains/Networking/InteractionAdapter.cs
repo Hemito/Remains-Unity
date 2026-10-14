@@ -49,7 +49,7 @@ namespace Remains.Networking
             if(message.release)
             {
                 if(prop.owner!=actor.owner || !prop.held) return;
-                prop.held=false;prop.generation++;
+                prop.held=false;prop.generation++;WorldChanges.Mark(session.ServerWorld,prop);
             }
             else
             {
@@ -58,7 +58,7 @@ namespace Remains.Networking
                 {connection.Send(new NoticeMessage {text="Сначала завершите захват тела."});return;}
                 if(!prop.movable || !prop.hasPhysicalBody) {connection.Send(new NoticeMessage {text="Этот объект закреплён."});return;}
                 if(prop.held && prop.owner!=actor.owner) {connection.Send(new NoticeMessage {text="Объект уже удерживает другой игрок."});return;}
-                prop.owner=actor.owner;prop.generation++;prop.held=true;
+                prop.owner=actor.owner;prop.generation++;prop.held=true;WorldChanges.Mark(session.ServerWorld,prop);
             }
             session.CommitWorld();
         }
@@ -69,6 +69,7 @@ namespace Remains.Networking
             if(prop!=null && !PropReplication.CanAcceptPose(prop)) return;
             if(!PropPoseScope.CanPublish(session.ServerWorld,actor,prop,prop!=null && session.Pause.IsServerPaused(prop.level)) ||
                 !PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy)) return;
+            WorldChanges.Mark(session.ServerWorld,prop);
             NetworkServer.SendToAll(message,Channels.Unreliable);
         }
 

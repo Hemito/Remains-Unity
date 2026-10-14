@@ -24,6 +24,7 @@ namespace Remains.Domain
             if(!container.Reserve(transaction,item,amount,out var reserved))
             {reason="Предмет зарезервирован или состояние источника изменилось.";return false;}
             item=reserved;
+            WorldChanges.Mark(world,container.Part);
             world.revision++;
             world.pendingGrants.Add(new PendingGrant { transaction=transaction,recipient=recipient.id,containerId=containerId,item=item,preparedRevision=world.revision });
             return true;
@@ -39,7 +40,7 @@ namespace Remains.Domain
                 {
                     var container=InventorySource.Resolve(world,grant.containerId);
                     if(container==null) throw new InvalidOperationException($"Нет источника резерва: transaction={grant.transaction}, container={grant.containerId}.");
-                    container.Add(grant.item);
+                    container.Add(grant.item);WorldChanges.Mark(world,container.Part);
                     UnityEngine.Debug.LogWarning($"Резерв возвращён в контейнер: transaction={grant.transaction}, recipient={grant.recipient}, container={container.id}.");
                 }
                 world.completedTransactions.Add(grant.transaction);

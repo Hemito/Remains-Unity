@@ -75,7 +75,7 @@ namespace Remains.Domain
             else
             {
                 var destination=InventorySource.Resolve(world,pending.containerId)??throw new InvalidOperationException($"Нет контейнера резерва: transaction={transaction}, container={pending.containerId}.");
-                destination.Add(pending.item);
+                destination.Add(pending.item);WorldChanges.Mark(world,destination.Part);
             }
             world.pendingDeposits.Remove(pending);world.completedTransactions.Add(transaction);world.revision++;
             return true;

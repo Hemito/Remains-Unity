@@ -40,7 +40,7 @@ namespace Remains.Domain
                 actor.generation++;actor.revision++;
             }
             foreach(var prop in WorldProps.All(world))
-            {prop.owner=null;prop.held=false;prop.generation++;}
+            {prop.owner=null;prop.held=false;prop.generation++;WorldChanges.Mark(world,prop);}
         }
         public void Reassign(WorldState world, IReadOnlyCollection<string> activeOwners)
             =>ReassignAndReportChanges(world,activeOwners);
@@ -98,7 +98,7 @@ namespace Remains.Domain
                     .ThenBy(a=>Vector2.Distance(a.Position,prop.Position)).ThenBy(a=>a.id).FirstOrDefault();
                 string next=candidate?.owner;
                 if(prop.owner==next && !prop.held) continue;
-                prop.owner=next;prop.held=false;prop.generation++;
+                prop.owner=next;prop.held=false;prop.generation++;WorldChanges.Mark(world,prop);
                 changed=true;
             }
             return changed;

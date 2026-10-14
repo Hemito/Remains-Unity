@@ -45,7 +45,7 @@ namespace Remains.Domain
             if(container.appearance.opened) {reason=null;return ContainerInspectChange.Unchanged;}
             reason="Исчерпан/невалиден счётчик вида контейнера или мира.";
             if(world.revision<0 || world.revision==long.MaxValue || container.appearance.revision==long.MaxValue) return ContainerInspectChange.Rejected;
-            container.appearance.opened=true;container.appearance.revision++;world.revision++;
+            container.appearance.opened=true;container.appearance.revision++;world.revision++;WorldChanges.Mark(world,container);
             reason=null;return ContainerInspectChange.Changed;
         }
     }

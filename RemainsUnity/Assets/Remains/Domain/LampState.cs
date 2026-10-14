@@ -46,7 +46,7 @@ namespace Remains.Domain
             lamp.Validate();
             if(string.IsNullOrWhiteSpace(attack)) throw new ArgumentException("Не задан ID атаки лампы.");
             if(lamp.broken) return false;
-            lamp.broken=true;lamp.breakingAttack=attack;lamp.revision++;world.lampRevision++;return true;
+            lamp.broken=true;lamp.breakingAttack=attack;lamp.revision++;world.lampRevision++;WorldChanges.Mark(world,lamp);return true;
         }
     }
 }

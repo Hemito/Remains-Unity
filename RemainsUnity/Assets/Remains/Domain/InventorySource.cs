@@ -18,6 +18,8 @@ namespace Remains.Domain
         private readonly ContainerState container;
         private string bodyActorId,bodySourceId;
         public ActorState Body {get;}
+        // The world part that holds these items (WorldChanges.Mark after a change): the container or the body.
+        public object Part=>Body??(object)container;
         private InventorySource(ContainerState container) {this.container=container;}
         private InventorySource(ActorState body) {Body=body;bodyActorId=body.id;bodySourceId=BodyId(body.id);}
         public string id
