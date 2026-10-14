@@ -70,6 +70,7 @@ namespace Remains.Presentation
         // only IDs explicitly present in broken use the authored broken artwork.
         public void SyncLamps(IReadOnlyCollection<string> dark,long revision,IReadOnlyCollection<string> broken=null)
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: лампы (SyncLamps)");
             if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
             if(dark==null) throw new ArgumentNullException(nameof(dark));
             if(revision<0) throw new ArgumentOutOfRangeException(nameof(revision),"Ревизия ламп отрицательная.");
@@ -180,6 +181,7 @@ namespace Remains.Presentation
         // set is kept across Focus.
         public void SyncDoors(IReadOnlyList<DoorState> states,long revision)
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: двери (SyncDoors)");
             if(root==null) throw new InvalidOperationException("Вид завода не подготовлен.");
             if(states==null) throw new ArgumentNullException(nameof(states));
             if(revision<0) throw new ArgumentOutOfRangeException(nameof(revision),"Ревизия дверей отрицательная.");
@@ -203,7 +205,7 @@ namespace Remains.Presentation
             }
             AppliedDoorRevision=revision;
             ShadowSourceRevision++;
-            PresentationChanged?.Invoke(this);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Свет: событие PresentationChanged")) PresentationChanged?.Invoke(this);
         }
 
         public void Initialize(FactoryLevelRoot level,RoomLayout geometry=null)
@@ -312,6 +314,7 @@ namespace Remains.Presentation
         // Door and lamp snapshots update the existing field instead.
         public void RefreshLight()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: пересборка окна");
             if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
             if(windowRooms.width<=0) throw new InvalidOperationException("Вид уровня: окно света не выбрано (Focus).");
             DestroyWindow();

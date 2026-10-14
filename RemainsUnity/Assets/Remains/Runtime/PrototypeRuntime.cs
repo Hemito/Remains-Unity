@@ -379,7 +379,7 @@ namespace Remains.Runtime
         private void RefreshRoomOcclusion(string level,RoomLayout room,long revision)
         {
             if(Session.LocalActor?.level==level && ActiveLevelLighting!=null && ReferenceEquals(ActiveLevelLighting.Room,room))
-                ActiveLevelLighting.Synchronize(room,Session.World,revision);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Двери: свет")) ActiveLevelLighting.Synchronize(room,Session.World,revision);
         }
 
         private void RefreshVisuals()
@@ -488,7 +488,7 @@ namespace Remains.Runtime
             catch(System.Exception failure) {Session.ReportGameplayPreparationFailure(failure);}
         }
         private void RefreshBodyGeometry(string level,RoomLayout changed,long revision)
-            =>ActorBodySupport.InvalidateRoom(changed);
+        {using(Remains.Diagnostics.FrameHitchLog.Section("Двери: опоры тел")) ActorBodySupport.InvalidateRoom(changed);}
 
         private void Update()
         {

@@ -63,7 +63,7 @@ namespace Remains.Presentation
         public void RegisterSteadyEmitters(IReadOnlyList<SteadyLightEmitter> sources)
         {steadyShadows.Register(sources);hasBackgroundSignature=false;warnedSteadyIds.Clear();}
         public void PrepareSteadyShadowFields(IReadOnlyCollection<string> ids)
-        {steadyShadows.Prepare(ids,BuildSteadyDirect);hasBackgroundSignature=false;}
+        {using(Remains.Diagnostics.FrameHitchLog.Section("Свет: поля прямого света для теней")) steadyShadows.Prepare(ids,BuildSteadyDirect);hasBackgroundSignature=false;}
 
         private RenderTexture BuildSteadyDirect(SteadyLightEmitter source)
         {
@@ -377,6 +377,7 @@ namespace Remains.Presentation
         // lookup, wall rasterization or synchronous silhouette readback belongs to this path.
         public void UpdateOccluders(IReadOnlyList<(Rect bounds,double opacity)> occluders)
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: заслонки");
             steadyShadows.InvalidateFields();hasBackgroundSignature=false;warnedSteadyIds.Clear();
             EnsureSceneDrawing();
             if(occlusionScene==null) occlusionScene=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Сцена света с дверями");
@@ -590,6 +591,7 @@ namespace Remains.Presentation
 
         public void Render()
         {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: проход поля");
             staticScene=scene;steadyShadows.InvalidateFields();hasBackgroundSignature=false;warnedSteadyIds.Clear();
             Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
             transientActive=false;freeReady=false;

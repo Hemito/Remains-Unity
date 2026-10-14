@@ -301,7 +301,18 @@ namespace Remains.Editor
             door.open=true;
             view.SyncDoors(new[]{door},1);
             int unchanged=view.DoorOccluderTexels;
+            // Timing (GPU included: a 1-texel readback waits for the queued light passes).
+            float Sync(){var t=Shader.GetGlobalTexture("_RemainsRadiance") as RenderTexture;var prev=RenderTexture.active;RenderTexture.active=t;
+                var one=new Texture2D(1,1,TextureFormat.RGBAFloat,false,true);one.ReadPixels(new Rect(0,0,1,1),0,0);RenderTexture.active=prev;
+                float v=one.GetPixel(0,0).r;UnityEngine.Object.DestroyImmediate(one);return v;}
+            Sync();
+            var doorTimer=System.Diagnostics.Stopwatch.StartNew();
             view.SyncDoors(new[]{door},2);
+            double doorCpu=doorTimer.Elapsed.TotalMilliseconds;Sync();double doorAll=doorTimer.Elapsed.TotalMilliseconds;
+            var fieldTimer=System.Diagnostics.Stopwatch.StartNew();
+            var fieldObject=(RoomRadianceField)typeof(FactoryLevelView).GetField("field",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(view);
+            fieldObject.Render();Sync();double oneRender=fieldTimer.Elapsed.TotalMilliseconds;
+            Debug.Log($"Замер двери: SyncDoors {doorCpu:F1} мс процессора, {doorAll:F1} мс вместе с видеокартой; один проход поля {oneRender:F1} мс; проходов при смене двери {FactoryLevelView.SettleUpdates}.");
             int opened=view.DoorOccluderTexels;
             if(closed<=0 || unchanged!=closed || opened!=0 || view.AppliedDoorRevision!=2)
                 throw new InvalidOperationException($"Заслонка двери: закрыта {closed}, та же ревизия {unchanged}, открыта {opened}, ревизия {view.AppliedDoorRevision}.");
