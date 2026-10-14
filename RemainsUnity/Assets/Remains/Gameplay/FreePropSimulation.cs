@@ -17,7 +17,7 @@ namespace Remains.Gameplay
         private readonly FreePropPoseCadence poses=new();
         private readonly Action<PropState> publishChanged;
         private readonly Action<PropState,bool> publishPose;
-        private WorldState poseWorld;
+        private string poseWorld;
         private string poseOwner;
         public FreePropSimulation(CoopSession session,SimulationGeometry geometry,InteractionAdapter interactions)
         {
@@ -32,8 +32,9 @@ namespace Remains.Gameplay
         {
             // No simulation owner exists before welcome or after client shutdown.
             if(session.World==null || string.IsNullOrEmpty(session.LocalOwner)) return;
-            if(!ReferenceEquals(poseWorld,session.World) || poseOwner!=session.LocalOwner)
-            {poses.Reset();poseWorld=session.World;poseOwner=session.LocalOwner;}
+            // A new graph of the same world (every received snapshot) keeps the sent poses; another world or owner resets.
+            if(poseWorld!=session.World.worldId || poseOwner!=session.LocalOwner)
+            {poses.Reset();poseWorld=session.World.worldId;poseOwner=session.LocalOwner;}
             FreePropMotion.Step(session.World,session.LocalOwner,delta,roomForLevel,isPaused,
                 cadence.TryAdvance(Time.unscaledTimeAsDouble)?publishChanged:null,passengers,motion);
         }

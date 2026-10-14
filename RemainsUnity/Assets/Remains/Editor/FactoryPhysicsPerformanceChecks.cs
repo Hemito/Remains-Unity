@@ -167,7 +167,10 @@ namespace Remains.Editor
             Require(!policy.ShouldPublish(prop,1.004),"повтор heartbeat без ожидания");
             prop.generation++;Require(policy.ShouldPublish(prop,1.005),"новая generation скрыта");
             prop.owner="b";Require(policy.ShouldPublish(prop,1.006),"новый владелец скрыт");
-            Require(policy.ShouldPublish(new PropState {id=prop.id,owner=prop.owner,level=prop.level,generation=prop.generation,x=prop.x},1.007),"новый объект с прежним ID скрыт");
+            // A new graph of the same body (every received snapshot replaces World objects) with the same pose is not
+            // republished: that republished every body with a new sequence each snapshot (TD-15). A changed pose is.
+            Require(!policy.ShouldPublish(new PropState {id=prop.id,owner=prop.owner,level=prop.level,generation=prop.generation,x=prop.x},1.007),"тот же ID и поза в новом объекте публикуются снова");
+            Require(policy.ShouldPublish(new PropState {id=prop.id,owner=prop.owner,level=prop.level,generation=prop.generation,x=prop.x+1},1.0075),"новый объект с другой позой скрыт");
             policy.Reset();Require(policy.ShouldPublish(prop,1.008),"новая эпоха мира скрыта");
             var spread=new FreePropPoseCadence();var bodies=new PropState[1000];
             for(int i=0;i<bodies.Length;i++) {bodies[i]=new PropState {id="pose-distribution-"+i};spread.ShouldPublish(bodies[i],0);}
