@@ -167,9 +167,11 @@ namespace Remains.Editor
                 if(root.Rooms.childCount!=84) throw new InvalidOperationException("Число комнат корня не совпало с раскладкой.");
                 var adapter=root.GetComponent<FactoryDoorAdapter>();adapter.Install(root);
                 var doors=RoomDoorContent.Read(root.Authoring,"factory:0");
-                if(doors.doors.Length!=adapter.Installed || doors.doors.Length==0 ||
-                    doors.doors.Any(door=>!root.Objects.Any(obj=>obj.Id==door.id && obj.Source.Params.TryGetValue("lock",out var value) && value=="0")))
-                    throw new InvalidOperationException("Адаптер потерял ID дверей или установил неподдержанный замок.");
+                // All doors and hatches are installed; original locks are ignored for now (decision 2026-10-14).
+                int placedDoors=root.Objects.Count(obj=>obj.Source.Type is "remains:obj:door1" or "remains:obj:door2" or "remains:obj:door3" or "remains:obj:hatch1");
+                if(doors.doors.Length!=adapter.Installed || doors.doors.Length==0 || adapter.Installed!=placedDoors ||
+                    doors.doors.Any(door=>!root.Objects.Any(obj=>obj.Id==door.id)))
+                    throw new InvalidOperationException($"Адаптер потерял ID дверей: установлено {adapter.Installed}, в раскладке {placedDoors}, в контенте {doors.doors.Length}.");
                 DoorContentInstaller.Apply(world,doors);
                 var hatches=doors.doors.Where(door=>door.definition=="hatch1").ToArray();
                 if(hatches.Length==0) throw new InvalidOperationException("Проверяемый завод потерял незапертые люки.");
@@ -195,7 +197,7 @@ namespace Remains.Editor
                 var savedDoor=world.doors[0];savedDoor.open=true;savedDoor.integrity.health=0;savedDoor.revision=2;
                 if(DoorContentInstaller.Apply(world,doors) || !savedDoor.open || !savedDoor.Destroyed || savedDoor.revision!=2)
                     throw new InvalidOperationException("Повторная установка сбросила сохранённую дверь.");
-                Debug.Log($"Адаптер завода: PASS; явно незапертых дверей {adapter.Installed}; повторная установка сохраняет состояние.");
+                Debug.Log($"Адаптер завода: PASS; дверей и люков {adapter.Installed} (замки пока не учитываются); повторная установка сохраняет состояние.");
                 var props=root.GetComponent<FactoryPropAdapter>();props.Install(root);
                 var physical=RoomPhysicalContent.Read(root.Authoring,"factory:0");
                 if(physical.props.Length!=props.Installed || props.Installed==0 || physical.containers.Length!=0 ||

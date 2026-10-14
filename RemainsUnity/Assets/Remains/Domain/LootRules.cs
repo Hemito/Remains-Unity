@@ -39,8 +39,12 @@ namespace Remains.Domain
             if(context.distance>2) return "Подойдите ближе к контейнеру.";
             return SecurityRejection(context.lockLevel,context.mineLevel);
         }
+        // User decision 2026-10-14: there is no lockpicking or mine disarming yet, so original locks and mines do not
+        // block access; their levels stay in the saved state for the future mechanic (docs/decisions.md).
+        public static readonly bool SecurityEnforced=false;
         public static string SecurityRejection(int lockLevel,int mineLevel)
         {
+            if(!SecurityEnforced) return null;
             if(mineLevel>0) return "Контейнер заминирован. Обезвреживание пока не реализовано.";
             if(lockLevel>0) return $"Контейнер заперт (сложность {lockLevel}). Взлом пока не реализован.";
             return null;

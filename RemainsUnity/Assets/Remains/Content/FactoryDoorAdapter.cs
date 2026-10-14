@@ -6,8 +6,10 @@ using UnityEngine;
 
 namespace Remains.Content
 {
-    // Explicitly unlocked placements only. Original randomized locks need a separate
-    // persisted lock contract; never silently turn these into ordinary unlocked doors.
+    // All factory doors and hatches. Original locks (explicit or randomized) and unsupported door parameters are
+    // ignored for now by the user's decision (2026-10-14: no lock mechanic yet, doors must work); every such door
+    // is listed in a warning. They are added by the doors-v3 content step, so saved worlds gain them and keep the
+    // states of doors they already have.
     public sealed class FactoryDoorAdapter : MonoBehaviour
     {
         [SerializeField,InspectorName("Деревянная дверь")] private DoorView wood;
@@ -26,6 +28,7 @@ namespace Remains.Content
                 throw new InvalidOperationException("Адаптер дверей: не заданы сериализованные префабы дверей и люка.");
             var skipped=new Dictionary<string,List<string>>(StringComparer.Ordinal);
             var accepted=new List<(FactoryPlacedObject source,DoorView prefab,bool open)>();
+            var relaxed=new HashSet<FactoryPlacedObject>();   // accepted only because locks/parameters are ignored (doors-v3)
             foreach(var placement in root.Objects)
             {
                 var obj=placement.Source;
@@ -38,9 +41,10 @@ namespace Remains.Content
                     reason="Параметры, содержимое или связи двери ещё не поддержаны";
                 if(reason!=null)
                 {
+                    reason+=" — проигнорировано, дверь подключена обычной (решение пользователя 2026-10-14)";
                     if(!skipped.TryGetValue(reason,out var ids)) skipped.Add(reason,ids=new List<string>());
                     ids.Add($"{placement.Id} ({obj.Type}, {placement.Room.Template.Template}, code={obj.Code})");
-                    continue;
+                    relaxed.Add(placement);
                 }
                 if(prefab.Definition==null) throw new InvalidOperationException("Адаптер дверей: у префаба нет определения: "+obj.Type);
                 prefab.Definition.Validate();
@@ -65,10 +69,22 @@ namespace Remains.Content
                 // A new additive patch installs hatches in existing worlds; the installer
                 // validates and preserves all previously installed door states.
                 var content=gameObject.AddComponent<RoomDoorContent>();
-                var hatches=accepted.Where(entry=>entry.prefab==hatch)
-                    .Select(entry=>$"{entry.source.Room.Cell.X},{entry.source.Room.Cell.Y}:{entry.source.Source.Id}").ToArray();
-                content.Configure(hatches.Length==0?"base:factory-generated:doors-v1":"base:factory-generated:doors-v2");
-                if(hatches.Length>0) content.ConfigureExpansion(new ContentExpansion {previousPatch="base:factory-generated:doors-v1",additions=hatches});
+                string LocalId(FactoryPlacedObject placed)=>$"{placed.Room.Cell.X},{placed.Room.Cell.Y}:{placed.Source.Id}";
+                // v1: unlocked doors; v2: + unlocked hatches; v3: + doors/hatches whose locks or parameters are ignored.
+                var hatches=accepted.Where(entry=>entry.prefab==hatch && !relaxed.Contains(entry.source)).Select(entry=>LocalId(entry.source)).ToArray();
+                var unlocked=accepted.Where(entry=>relaxed.Contains(entry.source)).Select(entry=>LocalId(entry.source)).ToArray();
+                if(unlocked.Length>0)
+                {
+                    content.Configure("base:factory-generated:doors-v3");
+                    content.ConfigureExpansion(new ContentExpansion {previousPatch="base:factory-generated:doors-v2",additions=unlocked,
+                        // Each step lists everything added since its version: from v1 that is the hatches and these doors.
+                        earlierVersions=new[]{new ContentExpansionStep {previousPatch="base:factory-generated:doors-v1",additions=hatches.Concat(unlocked).ToArray()}}});
+                }
+                else
+                {
+                    content.Configure(hatches.Length==0?"base:factory-generated:doors-v1":"base:factory-generated:doors-v2");
+                    if(hatches.Length>0) content.ConfigureExpansion(new ContentExpansion {previousPatch="base:factory-generated:doors-v1",additions=hatches});
+                }
                 Installed=accepted.Count;installed=true;
             }
             catch
@@ -78,7 +94,7 @@ namespace Remains.Content
             }
             foreach(var entry in accepted) root.HideObjectArtwork(entry.source);
             foreach(var pair in skipped)
-                Debug.LogWarning($"Завод {root.Prepared.Physics.id}: {pair.Key}; пропущено {pair.Value.Count} дверей. ID: {string.Join("; ",pair.Value)}",this);
+                Debug.LogWarning($"Завод {root.Prepared.Physics.id}: {pair.Key}; дверей {pair.Value.Count}. ID: {string.Join("; ",pair.Value)}",this);
         }
     }
 }

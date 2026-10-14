@@ -14,6 +14,13 @@ namespace Remains.Editor
     //   batch -executeMethod Remains.Editor.DoorToggleBench.RunBatch
     public static class DoorToggleBench
     {
+        // FactoryLevelAuthoring.Check alone (its RunBatch also regenerates assets).
+        public static void RunAdapterCheck()
+        {
+            try {FactoryLevelAuthoring.Check();EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+
         public static void RunBatch()
         {
             FactoryLevelRoot root=null;
