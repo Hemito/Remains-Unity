@@ -99,13 +99,20 @@ namespace Remains.Presentation
             heldRadius=float.IsFinite(heldRadius)?Mathf.Clamp(heldRadius,.005f,.25f):.08f;
             heldIntensity=float.IsFinite(heldIntensity)?Mathf.Clamp01(heldIntensity):.7f;
         }
+        private bool hasDrawn,drawnMirrored;private Vector2 drawnPosition;private float drawnAngle;
         public void DrawMotion(Remains.Domain.PropState state,string localOwner,bool paused,float dt)
         {
             var position=motion.Sample(state,localOwner,paused,dt);
             if(visualAnchor==PropVisualAnchor.PlacementAnchor) position-=Vector2.up*(state.height*.5f-state.anchorHeight);
-            transform.position=position;
-            if(state is Remains.Domain.ContainerState {presentationItem:not null} loose)
-            {transform.rotation=Quaternion.Euler(0,0,loose.presentationAngle);artwork.flipY=loose.presentationMirrored;}
+            // Written only on change: ~1400 resting factory bodies otherwise dirtied their transforms every frame.
+            if(!hasDrawn || position!=drawnPosition) {transform.position=position;drawnPosition=position;}
+            if(state is Remains.Domain.ContainerState {presentationItem:not null} loose &&
+                (!hasDrawn || loose.presentationAngle!=drawnAngle || loose.presentationMirrored!=drawnMirrored))
+            {
+                transform.rotation=Quaternion.Euler(0,0,loose.presentationAngle);artwork.flipY=loose.presentationMirrored;
+                drawnAngle=loose.presentationAngle;drawnMirrored=loose.presentationMirrored;
+            }
+            hasDrawn=true;
             // Standalone editor previews have no world/table. Runtime instances bind
             // once at creation; their category changes only through table events.
             if(depth==null && sorting!=null && standaloneHeld!=state.held)
