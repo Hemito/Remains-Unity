@@ -127,10 +127,34 @@ namespace Remains.Persistence
             return snapshot;
         }
 
+        // SHA-256 of the UTF-8 text, hex lowercase. Encoded in 64 KB pieces into a reused buffer: the former
+        // whole-text GetBytes allocated ~1.25 MB per factory snapshot (GC pressure), the result is identical.
+        [ThreadStatic] private static byte[] fingerprintBuffer;
+        [ThreadStatic] private static SHA256 fingerprintHash;
+        private static readonly UTF8Encoding fingerprintEncoding=new(false);
         public static string Fingerprint(string text)
         {
-            using var sha=SHA256.Create();
-            return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
+            if(text==null) throw new ArgumentNullException(nameof(text));
+            const int piece=16384;   // chars per piece; UTF-8 needs at most 3 bytes per UTF-16 unit
+            var buffer=fingerprintBuffer??=new byte[piece*3+4];
+            var sha=fingerprintHash??=SHA256.Create();
+            sha.Initialize();
+            var encoder=fingerprintEncoding.GetEncoder();
+            for(int at=0;at<text.Length;)
+            {
+                int count=Math.Min(piece,text.Length-at);
+                // Do not split a surrogate pair between pieces (the encoder would carry it, but keep pieces whole).
+                if(at+count<text.Length && char.IsHighSurrogate(text[at+count-1])) count--;
+                int bytes=encoder.GetBytes(text.AsSpan(at,count),buffer.AsSpan(),at+count>=text.Length);
+                sha.TransformBlock(buffer,0,bytes,null,0);
+                at+=count;
+            }
+            sha.TransformFinalBlock(buffer,0,0);
+            var hash=sha.Hash;
+            var hex=new char[hash.Length*2];
+            const string digits="0123456789abcdef";
+            for(int i=0;i<hash.Length;i++) {hex[i*2]=digits[hash[i]>>4];hex[i*2+1]=digits[hash[i]&15];}
+            return new string(hex);
         }
 
         // Exactly one consumer takes ownership of the already validated parse.

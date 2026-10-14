@@ -87,6 +87,18 @@ namespace Remains.Editor
                 if(caught) Require(composed.Json==StateJson.ToJson(world),"Сверка нашла непомеченное изменение, но текст снимка устарел.");
             }
             Require(caught,"Непомеченное изменение не найдено сверкой.");
+            // Fingerprint: identical to SHA-256 over the whole UTF-8 text; timing of both.
+            string full=StateJson.ToJson(world);
+            var watch=System.Diagnostics.Stopwatch.StartNew();
+            string chunked=RecoverySnapshot.Fingerprint(full);double chunkedMs=watch.Elapsed.TotalMilliseconds;watch.Restart();
+            string reference;
+            using(var sha=System.Security.Cryptography.SHA256.Create())
+                reference=BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(full))).Replace("-","").ToLowerInvariant();
+            double referenceMs=watch.Elapsed.TotalMilliseconds;
+            Require(chunked==reference,"Контрольная сумма кусками отличается от SHA-256 всего текста.");
+            Require(RecoverySnapshot.Fingerprint("Привет, 𝄞 мир")==BitConverter.ToString(System.Security.Cryptography.SHA256.Create().ComputeHash(
+                System.Text.Encoding.UTF8.GetBytes("Привет, 𝄞 мир"))).Replace("-","").ToLowerInvariant(),"Контрольная сумма ошиблась на кириллице/суррогатах.");
+            Debug.Log($"Контрольная сумма мира: кусками {chunkedMs:F1} мс, целиком {referenceMs:F1} мс, совпадает.");
             Debug.Log($"Кэш частей снимка: PASS — частей {first.Parts}, повторно разобрано 0, после сдвига 1, испорченная часть отклонена, текст совпадает.");
         }
 
