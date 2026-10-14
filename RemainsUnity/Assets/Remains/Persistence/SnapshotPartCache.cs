@@ -174,8 +174,9 @@ namespace Remains.Persistence
             {
                 if(id==null) return;
                 string key=kind+":"+id;
-                if(Previous!=null && Previous.TryGetValue(key,out var before) && ReferenceEquals(before.part,part) && before.text!=text &&
-                    !WorldChanges.IsMarked(World,part))
+                // Actors are always re-serialized (never reused), so an unmarked actor change is expected, not a gap.
+                if(kind!=nameof(ActorState) && Previous!=null && Previous.TryGetValue(key,out var before) && ReferenceEquals(before.part,part) &&
+                    before.text!=text && !WorldChanges.IsMarked(World,part))
                 {
                     Unmarked++;
                     string field=Field(before.text,text);

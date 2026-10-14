@@ -26,6 +26,7 @@ namespace Remains.Diagnostics
         private static readonly string[] sectionNames=new string[MaxSections];
         private static readonly double[] sectionMs=new double[MaxSections];
         private static readonly int[] sectionCalls=new int[MaxSections];
+        private static readonly double[] periodSectionMs=new double[MaxSections];   // summary: per-section totals of the period
         private static readonly Dictionary<string,int> sectionIndex=new(StringComparer.Ordinal);
         private static readonly List<double> periodFrames=new(4096);
         private static readonly StringBuilder pending=new();
@@ -135,6 +136,7 @@ namespace Remains.Diagnostics
             if(periodStart==0) periodStart=time;
             periodFrames.Add(total);
             if(total>SlowMilliseconds) WriteSlow(total);
+            for(int i=0;i<sectionIndex.Count;i++) periodSectionMs[i]+=sectionMs[i];
             note=null;
             Array.Clear(phaseMs,0,phaseMs.Length);
             Array.Clear(sectionMs,0,sectionIndex.Count);Array.Clear(sectionCalls,0,sectionIndex.Count);
@@ -168,6 +170,15 @@ namespace Remains.Diagnostics
                 .Append(", макс ").Append(periodFrames[n-1].ToString("F1"))
                 .Append(", медленных ").Append(periodFrames.FindAll(f=>f>SlowMilliseconds).Count)
                 .Append(string.IsNullOrEmpty(Context)?"":" | "+Context).Append('\n');
+            // Steady load: the costliest own sections per frame over the period (Unity phases excluded).
+            var order=new List<int>();
+            for(int i=0;i<sectionIndex.Count;i++) if(periodSectionMs[i]>0 && sectionNames[i].IndexOf('.')<0) order.Add(i);
+            order.Sort((a,b)=>periodSectionMs[b].CompareTo(periodSectionMs[a]));
+            pending.Append("   на кадр:");
+            for(int k=0;k<Math.Min(8,order.Count);k++)
+                pending.Append(' ').Append(sectionNames[order[k]]).Append(' ').Append((periodSectionMs[order[k]]/Math.Max(1,n)).ToString("F2")).Append(';');
+            pending.Append('\n');
+            Array.Clear(periodSectionMs,0,periodSectionMs.Length);
             periodFrames.Clear();periodStart=time;
         }
 
