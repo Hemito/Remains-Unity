@@ -67,7 +67,8 @@ namespace Remains.Domain
             var acceleration=Vector2.down*definition.grenadeGravity;
             var delta=state.Velocity*dt+acceleration*(.5f*dt*dt);
             state.Velocity+=acceleration*dt;
-            var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false)+Vector2.up*.1f;
+            // Body tops are actor supports only (BodyTopSurfaces); a grenade landing on them hovered and crept (TD-16).
+            var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false,bodyTops:false)+Vector2.up*.1f;
             state.Position=moved;
             GrenadeRotation.Advance(state,dt);
             bool collided=false;

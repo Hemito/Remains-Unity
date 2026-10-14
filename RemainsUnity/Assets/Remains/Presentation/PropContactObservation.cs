@@ -28,7 +28,7 @@ namespace Remains.Presentation
             if(!suppressed && !supported)
             {
                 SupportQueries++;
-                supported=ActorTerrainMotion.Supported(room,hull,feet) || PropSupport.Supported(prop,feet,neighbours);
+                supported=ActorTerrainMotion.Supported(room,hull,feet,bodyTops:false) || PropSupport.Supported(prop,feet,neighbours);
             }
             reusableSupport=supported;
             supportedFeet=feet;supportedRoom=room;supportedLevel=prop.level;supportedGeneration=prop.generation;

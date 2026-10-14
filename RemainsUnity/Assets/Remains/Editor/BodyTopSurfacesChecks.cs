@@ -40,10 +40,16 @@ namespace Remains.Editor
             int general=0;foreach(var _ in RoomSurfaces.Near(room,new Rect(4,.2f,2,2))) general++;   // above the floor, around the box top
             Require(general==0,"Верх ящика виден общим запросам геометрии (выстрелы, NPC).");
 
+            // A grenade falling onto the box passes its top: body tops are actor supports only (TD-16).
+            Remains.Content.WeaponCatalog.Load();
+            var grenade=new GrenadeState {id="check:grenade",level=room.id,x=5,y=3,vx=0,vy=0,remaining=1.5f};
+            GrenadeRules.Step(grenade,room,1.2f);
+            Require(grenade.y<top-.2f,$"Граната легла на верх ящика: y={grenade.y}, верх ящика {top}.");
+
             box.held=true;BodyTopSurfaces.Update(room,world,room.id);
             var fell=ActorTerrainMotion.Move(room,hull,new Vector2(5,3),new Vector2(0,-5),false);
             Require(Mathf.Abs(fell.y)<.001f,$"Удерживаемый ящик остался опорой: y={fell.y}.");
-            Debug.Log("Опоры на телах: PASS — приземление и опора на ящике, проход сбоку, спрыгивание, удерживаемый ящик не опора, общие запросы не видят.");
+            Debug.Log("Опоры на телах: PASS — приземление и опора на ящике, проход сбоку, спрыгивание, удерживаемый ящик не опора, граната пролетает верх, общие запросы не видят.");
         }
 
         private static void Require(bool condition,string message) {if(!condition) throw new InvalidOperationException(message);}
