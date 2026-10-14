@@ -32,6 +32,7 @@ namespace Remains.Editor
             var host=StateJson.FromJson<WorldState>(File.ReadAllText(input));
             Require(host.containers.Count>2,"В мире мало контейнеров.");
 
+            WorldChanges.Track(host);
             // Host snapshot A, client replica and live world from the full A.
             var a=RecoverySnapshot.FromWorld(host);
             var replica=WorldReplica.FromSnapshot(a);
@@ -40,11 +41,14 @@ namespace Remains.Editor
             // B: one container moved (marked), one lamp broken (marked).
             var moved=host.containers[0];moved.x+=1;WorldChanges.Mark(host,moved);
             if(host.lamps.Count>0) {host.lamps[0].broken=!host.lamps[0].broken;WorldChanges.Mark(host,host.lamps[0]);}
+            int expected=1+(host.lamps.Count>0?1:0);
+            if(host.doors.Count>0) {host.doors[0].open=!host.doors[0].open;host.doors[0].revision++;WorldChanges.Mark(host,host.doors[0]);expected++;}
+            if(host.actors.Count>0) {host.actors[0].x+=.5f;expected++;}   // actors: always serialized, no mark needed
             host.revision++;
             var b=RecoverySnapshot.FromWorld(host);
             var delta=WorldDelta.Build(host.worldId,a.Id,a.Composition,b.Id,b.Composition);
             int changed=WorldDelta.ChangedParts(delta);
-            Require(changed==(host.lamps.Count>0?2:1),$"Изменение A→B: частей {changed}.");
+            Require(changed==expected,$"Изменение A→B: частей {changed}, ожидалось {expected}.");
             string encoded=StateJson.ToJson(delta);
             var timer=System.Diagnostics.Stopwatch.StartNew();
             var applied=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(encoded),client);

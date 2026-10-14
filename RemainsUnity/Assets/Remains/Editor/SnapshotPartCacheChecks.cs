@@ -31,6 +31,7 @@ namespace Remains.Editor
             var world=StateJson.FromJson<WorldState>(File.ReadAllText(input));
             Require(world.containers.Count>0,"В мире нет контейнеров.");
             SnapshotPartCache.Clear();
+            WorldChanges.Track(world);   // the session-world mode: unmarked parts reuse stored text
             var first=SnapshotPartCache.Compose(world);
             Require(first.Json==StateJson.ToJson(world),"Составной текст отличается от обычной сериализации.");
             Require(first.Parsed==first.Parts,$"Первый снимок разобрал {first.Parsed} частей из {first.Parts}.");

@@ -235,6 +235,7 @@ namespace Remains.Networking
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
             ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
+            WorldChanges.Track(ServerWorld);   // shared mutations of the session world are marked (delta replication)
             DoorDamage.ResetServer();Lamps.ResetServer();
             ContainerAppearancePersistence.Prepare(ServerWorld,source==null?()=>{}:
                 ()=>Debug.Log("Исходный мир сохранён перед миграцией вида контейнеров: "+Saves.PreserveRecoverySource()));

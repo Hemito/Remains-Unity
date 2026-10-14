@@ -25,7 +25,9 @@ namespace Remains.Domain
             if(reason!=null) return DoorChange.Rejected;
             var door=world.doors.Find(d=>d.id==doorId);
             bool occupied=door!=null && door.open && !open && DoorOccupancy.IsOccupied(world,door);
-            return DoorOperations.SetOpen(door,actor,revision,open,access,occupied,out reason);
+            var change=DoorOperations.SetOpen(door,actor,revision,open,access,occupied,out reason);
+            if(change==DoorChange.Changed) WorldChanges.Mark(world,door);
+            return change;
         }
     }
 }

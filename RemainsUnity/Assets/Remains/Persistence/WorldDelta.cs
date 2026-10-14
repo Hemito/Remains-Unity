@@ -108,11 +108,14 @@ namespace Remains.Persistence
             // The live world: strict template, strict changed parts, reused unchanged objects.
             var world=StateJson.FromJson<WorldState>(SnapshotPartCache.Skeleton(payload.template));
             var reuse=new Dictionary<string,PropState>(StringComparer.Ordinal);var lamps=new Dictionary<string,LampState>(StringComparer.Ordinal);
+            var doors=new Dictionary<string,DoorState>(StringComparer.Ordinal);var factories=new Dictionary<string,WorldFactory>(StringComparer.Ordinal);
             if(current?.worldId==WorldId)
             {
                 foreach(var body in current.containers) reuse["containers:"+body.id]=body;
                 foreach(var body in current.props) reuse["props:"+body.id]=body;
                 foreach(var lamp in current.lamps) lamps["lamps:"+lamp.id]=lamp;
+                foreach(var door in current.doors) doors["doors:"+door.id]=door;
+                foreach(var factory in current.factories) factories["factories:"+factory.level]=factory;
             }
             foreach(var set in sets)
                 for(int i=0;i<set.Keys.Length;i++)
@@ -126,6 +129,13 @@ namespace Remains.Persistence
                             world.props.Add(!fresh && reuse.TryGetValue(key,out var p) && p.GetType()==typeof(PropState)?p:StateJson.FromJson<PropState>(set.Texts[i]));break;
                         case "lamps":
                             world.lamps.Add(!fresh && lamps.TryGetValue(key,out var l)?l:StateJson.FromJson<LampState>(set.Texts[i]));break;
+                        case "doors":
+                            world.doors.Add(!fresh && doors.TryGetValue(key,out var d)?d:StateJson.FromJson<DoorState>(set.Texts[i]));break;
+                        // Actors are always fresh: the client mutates its own actors locally every frame.
+                        case "actors":
+                            world.actors.Add(StateJson.FromJson<ActorState>(set.Texts[i]));break;
+                        case "factories":
+                            world.factories.Add(!fresh && factories.TryGetValue(key,out var f)?f:StateJson.FromJson<WorldFactory>(set.Texts[i]));break;
                         default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
                     }
                 }

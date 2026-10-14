@@ -16,6 +16,12 @@ namespace Remains.Domain
             public int GetHashCode(object value)=>RuntimeHelpers.GetHashCode(value);
         }
         private static readonly ConditionalWeakTable<WorldState,HashSet<object>> marks=new();
+        private static readonly ConditionalWeakTable<WorldState,object> tracked=new();
+
+        // Opt-in: only a world whose every shared mutation goes through marking code (the host's session world)
+        // reuses stored part texts. Tests, tools, previews and saves mutate worlds directly and stay fully serialized.
+        public static void Track(WorldState world) {if(world!=null) tracked.GetValue(world,_=>new object());}
+        public static bool IsTracked(WorldState world)=>world!=null && tracked.TryGetValue(world,out _);
 
         public static void Mark(WorldState world,object part)
         {

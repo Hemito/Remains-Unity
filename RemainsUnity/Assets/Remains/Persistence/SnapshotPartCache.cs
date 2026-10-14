@@ -42,7 +42,15 @@ namespace Remains.Persistence
             public Composition(string json,string template,PartSet[] lists,int parts,int parsed)
             {Json=json;Template=template;Lists=lists;Parts=parts;Parsed=parsed;}
         }
-        public static readonly string[] ListNames={"containers","props","lamps"};
+        public static readonly string[] ListNames={"containers","props","lamps","doors","actors","factories"};
+        // Part key within its list: the stable ID (a factory by its level).
+        internal static string PartId(object item)=>item switch
+        {
+            PropState body=>body.id,LampState lamp=>lamp.id,DoorState door=>door.id,ActorState actor=>actor.id,WorldFactory factory=>factory.level,_=>null
+        };
+        internal static string ListName(Type type)=>type==typeof(ContainerState)?"containers":type==typeof(PropState)?"props":type==typeof(LampState)?"lamps":
+            type==typeof(DoorState)?"doors":type==typeof(ActorState)?"actors":type==typeof(WorldFactory)?"factories":
+            throw new ArgumentException("Тип не является частью мира: "+type.Name);
         public static string Marker(string list)=>""+list+"";
 
         public static string Splice(string template,IReadOnlyList<PartSet> lists)
@@ -80,7 +88,8 @@ namespace Remains.Persistence
                 partTexts.TryGetValue(world,out var previousTexts);
                 var audit=new Audit(world,previousTexts,new Dictionary<string,(object part,string text)>(StringComparer.Ordinal))
                     {Verify=previousTexts==null || ++compositions%VerifyEvery==0};
-                var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit),new PartList<PropState>(next,audit),new PartList<LampState>(next,audit)};
+                var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit),new PartList<PropState>(next,audit),new PartList<LampState>(next,audit),
+                    new PartList<DoorState>(next,audit),new PartList<ActorState>(next,audit),new PartList<WorldFactory>(next,audit)};
                 string template,json;
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) template=StateJson.ToJson(world,lists);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет")) StateJson.FromJson<WorldState>(Skeleton(template));   // strict outside the parts
@@ -110,7 +119,8 @@ namespace Remains.Persistence
         public static (string Template,PartSet[] Lists) Split(WorldState world)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
-            var lists=new JsonConverter[] {new PlainList<ContainerState>(),new PlainList<PropState>(),new PlainList<LampState>()};
+            var lists=new JsonConverter[] {new PlainList<ContainerState>(),new PlainList<PropState>(),new PlainList<LampState>(),
+                new PlainList<DoorState>(),new PlainList<ActorState>(),new PlainList<WorldFactory>()};
             string template=StateJson.ToJson(world,lists);
             var sets=new PartSet[lists.Length];
             for(int i=0;i<lists.Length;i++) sets[i]=((IPlainList)lists[i]).Set;
@@ -122,7 +132,7 @@ namespace Remains.Persistence
         {
             private readonly List<string> keys=new(),texts=new();
             public PartSet Set=>new(Name,keys.ToArray(),texts.ToArray());
-            private static readonly string Name=typeof(T)==typeof(ContainerState)?"containers":typeof(T)==typeof(PropState)?"props":"lamps";
+            private static readonly string Name=ListName(typeof(T));
             public override bool CanRead=>false;
             public override bool CanConvert(Type objectType)=>objectType==typeof(List<T>);
             public override object ReadJson(JsonReader reader,Type objectType,object existingValue,JsonSerializer serializer)
@@ -133,7 +143,7 @@ namespace Remains.Persistence
                 int index=0;
                 foreach(var item in (List<T>)value)
                 {
-                    string id=item switch {PropState body=>body.id,LampState lamp=>lamp.id,_=>null};
+                    string id=PartId(item);
                     keys.Add(Name+":"+(id??"#"+index));texts.Add(item==null?"null":StateJson.ToJson(item));index++;
                 }
             }
@@ -156,7 +166,7 @@ namespace Remains.Persistence
             public bool Reuse(string kind,string id,object part,out string text)
             {
                 text=null;
-                if(Verify || id==null || Previous==null || !Previous.TryGetValue(kind+":"+id,out var before) ||
+                if(Verify || id==null || kind==nameof(ActorState) || !WorldChanges.IsTracked(World) || Previous==null || !Previous.TryGetValue(kind+":"+id,out var before) ||
                     !ReferenceEquals(before.part,part) || WorldChanges.IsMarked(World,part)) return false;
                 text=before.text;Reused++;return true;
             }
@@ -203,7 +213,7 @@ namespace Remains.Persistence
             public string Report=>typeof(T).Name+" "+Parsed+"/"+Parts+(example==null?"":" ["+example+"]");
             private readonly List<string> keys=new(),texts=new();
             public PartSet Set=>new(Name,keys.ToArray(),texts.ToArray());
-            private static readonly string Name=typeof(T)==typeof(ContainerState)?"containers":typeof(T)==typeof(PropState)?"props":"lamps";
+            private static readonly string Name=ListName(typeof(T));
             public PartList(Dictionary<Type,HashSet<string>> next,Audit audit=null) {this.next=next;this.audit=audit;}
             public override bool CanRead=>false;
             public override bool CanConvert(Type objectType)=>objectType==typeof(List<T>);
@@ -221,7 +231,7 @@ namespace Remains.Persistence
                     int index=0;
                     foreach(var item in list)
                     {
-                        string id=item switch {PropState body=>body.id,LampState lamp=>lamp.id,_=>null};
+                        string id=PartId(item);
                         // Stage 1 on: an unmarked part that is still the same object keeps its stored text; every
                         // VerifyEvery-th composition re-serializes all parts and reports unmarked changes (Audit).
                         string text=item==null?"null":audit!=null && audit.Reuse(typeof(T).Name,id,item,out var stored)?stored:StateJson.ToJson(item);

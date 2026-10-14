@@ -26,7 +26,12 @@ namespace Remains.Domain
             if(paused) {reason="Локация на паузе: новый урон закреплённому объекту не принят.";return DoorChange.Rejected;}
             if(!door.Blocks) {reason="Закреплённый объект больше не перекрывает контакт.";return DoorChange.Rejected;}
             if(rule==null) {reason="Не настроено правило урона закреплённым объектам.";return DoorChange.Rejected;}
-            try {return DoorDamageOperations.Apply(door,request.attack.id,rule.Damage(door,request.attack,weapon),out reason);}
+            try
+            {
+                var change=DoorDamageOperations.Apply(door,request.attack.id,rule.Damage(door,request.attack,weapon),out reason);
+                if(change==DoorChange.Changed) WorldChanges.Mark(world,door);
+                return change;
+            }
             catch(Exception failure) when(failure is ArgumentException || failure is InvalidOperationException)
             {reason=failure.Message;return DoorChange.Rejected;}
         }
