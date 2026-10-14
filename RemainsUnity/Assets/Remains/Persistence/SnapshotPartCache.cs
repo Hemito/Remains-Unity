@@ -26,11 +26,49 @@ namespace Remains.Persistence
         public const int VerifyEvery=10;
         private static long compositions;
 
-        public readonly struct Composition
+        // A world as a template plus ordered part lists (delta replication, host-migration.md): the template is the
+        // world JSON with each part list replaced by a unique marker (a raw U+0001 never appears in serializer output);
+        // Splice puts the lists back, giving exactly StateJson.ToJson(world).
+        public sealed class PartSet
         {
-            public readonly string Json;
+            public readonly string Name;public readonly string[] Keys,Texts;
+            public PartSet(string name,string[] keys,string[] texts) {Name=name;Keys=keys;Texts=texts;}
+        }
+        public sealed class Composition
+        {
+            public readonly string Json,Template;
+            public readonly PartSet[] Lists;
             public readonly int Parts,Parsed;
-            public Composition(string json,int parts,int parsed) {Json=json;Parts=parts;Parsed=parsed;}
+            public Composition(string json,string template,PartSet[] lists,int parts,int parsed)
+            {Json=json;Template=template;Lists=lists;Parts=parts;Parsed=parsed;}
+        }
+        public static readonly string[] ListNames={"containers","props","lamps"};
+        public static string Marker(string list)=>""+list+"";
+
+        public static string Splice(string template,IReadOnlyList<PartSet> lists)
+        {
+            int size=template.Length;
+            foreach(var list in lists) foreach(string text in list.Texts) size+=text.Length+1;
+            var result=new System.Text.StringBuilder(size+8);
+            int at=0;
+            foreach(var list in lists)
+            {
+                string marker=Marker(list.Name);
+                int found=template.IndexOf(marker,at,StringComparison.Ordinal);
+                if(found<0) throw new System.IO.InvalidDataException("Шаблон мира без метки списка "+list.Name+".");
+                result.Append(template,at,found-at).Append('[');
+                for(int i=0;i<list.Texts.Length;i++) {if(i>0) result.Append(',');result.Append(list.Texts[i]);}
+                result.Append(']');
+                at=found+marker.Length;
+            }
+            result.Append(template,at,template.Length-at);
+            return result.ToString();
+        }
+        // The template with empty lists: the strict check of everything outside the parts.
+        public static string Skeleton(string template)
+        {
+            foreach(string name in ListNames) template=template.Replace(Marker(name),"[]");
+            return template;
         }
 
         public static Composition Compose(WorldState world)
@@ -38,20 +76,24 @@ namespace Remains.Persistence
             if(world==null) throw new ArgumentNullException(nameof(world));
             lock(gate)
             {
-                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет"))
-                {
-                    string skeleton=StateJson.ToJson(world,new JsonConverter[] {new PartList<ContainerState>(null),new PartList<PropState>(null),new PartList<LampState>(null)});
-                    StateJson.FromJson<WorldState>(skeleton);   // strict: everything outside the cached lists
-                }
                 var next=new Dictionary<Type,HashSet<string>>();
                 partTexts.TryGetValue(world,out var previousTexts);
                 var audit=new Audit(world,previousTexts,new Dictionary<string,(object part,string text)>(StringComparer.Ordinal))
                     {Verify=previousTexts==null || ++compositions%VerifyEvery==0};
                 var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit),new PartList<PropState>(next,audit),new PartList<LampState>(next,audit)};
-                string json;
-                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) json=StateJson.ToJson(world,lists);
+                string template,json;
+                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) template=StateJson.ToJson(world,lists);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет")) StateJson.FromJson<WorldState>(Skeleton(template));   // strict outside the parts
                 int parts=0,parsed=0;var report=new System.Text.StringBuilder("снимок: изменено");
-                foreach(IPartList list in lists) {parts+=list.Parts;parsed+=list.Parsed;report.Append(' ').Append(list.Report);}
+                var sets=new PartSet[lists.Length];
+                for(int i=0;i<lists.Length;i++)
+                {
+                    var list=(IPartList)lists[i];parts+=list.Parts;parsed+=list.Parsed;report.Append(' ').Append(list.Report);
+                    sets[i]=list.Set;
+                }
+                // Marker order in the template follows WorldState field order; Splice expects the same order.
+                Array.Sort(sets,(a,b)=>template.IndexOf(Marker(a.Name),StringComparison.Ordinal).CompareTo(template.IndexOf(Marker(b.Name),StringComparison.Ordinal)));
+                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: сборка текста")) json=Splice(template,sets);
                 LastUnmarked=audit.Unmarked;
                 report.Append(audit.Verify?"; сверка всех частей":"; готовых текстов "+audit.Reused);
                 if(audit.Unmarked>0) report.Append("; непомеченных изменений ").Append(audit.Unmarked).Append(" [").Append(audit.Example).Append(']');
@@ -59,14 +101,48 @@ namespace Remains.Persistence
                 accepted=next;   // only after the whole composition succeeded
                 partTexts.AddOrUpdate(world,audit.Current);
                 WorldChanges.Clear(world);
-                return new Composition(json,parts,parsed);
+                return new Composition(json,template,sets,parts,parsed);
+            }
+        }
+
+        // Template and part lists of an already validated world (the receiver of a full snapshot builds its replica):
+        // no strict parse, no audit, no shared state.
+        public static (string Template,PartSet[] Lists) Split(WorldState world)
+        {
+            if(world==null) throw new ArgumentNullException(nameof(world));
+            var lists=new JsonConverter[] {new PlainList<ContainerState>(),new PlainList<PropState>(),new PlainList<LampState>()};
+            string template=StateJson.ToJson(world,lists);
+            var sets=new PartSet[lists.Length];
+            for(int i=0;i<lists.Length;i++) sets[i]=((IPlainList)lists[i]).Set;
+            Array.Sort(sets,(a,b)=>template.IndexOf(Marker(a.Name),StringComparison.Ordinal).CompareTo(template.IndexOf(Marker(b.Name),StringComparison.Ordinal)));
+            return (template,sets);
+        }
+        private interface IPlainList {PartSet Set {get;}}
+        private sealed class PlainList<T> : JsonConverter,IPlainList where T:class
+        {
+            private readonly List<string> keys=new(),texts=new();
+            public PartSet Set=>new(Name,keys.ToArray(),texts.ToArray());
+            private static readonly string Name=typeof(T)==typeof(ContainerState)?"containers":typeof(T)==typeof(PropState)?"props":"lamps";
+            public override bool CanRead=>false;
+            public override bool CanConvert(Type objectType)=>objectType==typeof(List<T>);
+            public override object ReadJson(JsonReader reader,Type objectType,object existingValue,JsonSerializer serializer)
+                =>throw new NotSupportedException("Раскладка мира только записывает.");
+            public override void WriteJson(JsonWriter writer,object value,JsonSerializer serializer)
+            {
+                writer.WriteRawValue(Marker(Name));
+                int index=0;
+                foreach(var item in (List<T>)value)
+                {
+                    string id=item switch {PropState body=>body.id,LampState lamp=>lamp.id,_=>null};
+                    keys.Add(Name+":"+(id??"#"+index));texts.Add(item==null?"null":StateJson.ToJson(item));index++;
+                }
             }
         }
 
         // Test hook: the next composition parses every part again.
         public static void Clear() {lock(gate) accepted=new Dictionary<Type,HashSet<string>>();}
 
-        private interface IPartList {int Parts {get;} int Parsed {get;} string Report {get;}}
+        private interface IPartList {int Parts {get;} int Parsed {get;} string Report {get;} PartSet Set {get;}}
 
         // A part whose text changed while the same object stayed unmarked: a mutation site without WorldChanges.Mark.
         private sealed class Audit
@@ -116,7 +192,7 @@ namespace Remains.Persistence
             }
         }
 
-        // One declared list type (List<T> field of WorldState). Skeleton mode (next==null) writes an empty array.
+        // One declared list type (List<T> field of WorldState): writes its marker into the template, collects the part texts.
         private sealed class PartList<T> : JsonConverter,IPartList where T:class
         {
             private readonly Dictionary<Type,HashSet<string>> next;
@@ -125,6 +201,9 @@ namespace Remains.Persistence
             public int Parsed {get;private set;}
             private string example;
             public string Report=>typeof(T).Name+" "+Parsed+"/"+Parts+(example==null?"":" ["+example+"]");
+            private readonly List<string> keys=new(),texts=new();
+            public PartSet Set=>new(Name,keys.ToArray(),texts.ToArray());
+            private static readonly string Name=typeof(T)==typeof(ContainerState)?"containers":typeof(T)==typeof(PropState)?"props":"lamps";
             public PartList(Dictionary<Type,HashSet<string>> next,Audit audit=null) {this.next=next;this.audit=audit;}
             public override bool CanRead=>false;
             public override bool CanConvert(Type objectType)=>objectType==typeof(List<T>);
@@ -133,8 +212,8 @@ namespace Remains.Persistence
             public override void WriteJson(JsonWriter writer,object value,JsonSerializer serializer)
             {
                 var list=(List<T>)value;
-                writer.WriteStartArray();
-                if(next!=null)
+                // The part list stays out of the template: a marker the splice replaces with the parts.
+                writer.WriteRawValue(Marker(Name));
                 {
                     accepted.TryGetValue(typeof(T),out var previous);
                     if(!next.TryGetValue(typeof(T),out var current)) next.Add(typeof(T),current=new HashSet<string>(StringComparer.Ordinal));
@@ -156,10 +235,9 @@ namespace Remains.Persistence
                         if(item!=null) audit?.Observe(typeof(T).Name,id,item,text);
                         index++;
                         current.Add(text);Parts++;
-                        writer.WriteRawValue(text);
+                        keys.Add(Name+":"+(id??"#"+(index-1)));texts.Add(text);
                     }
                 }
-                writer.WriteEndArray();
             }
 
             private static string Difference(string was,string now)

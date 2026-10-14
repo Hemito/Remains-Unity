@@ -18,6 +18,8 @@ namespace Remains.Persistence
         public string WorldId { get; }
         public long Revision { get; }
         private WorldState preparedLive;
+        // The parts this snapshot was composed from (FromWorld on the host): the base or target of a delta.
+        public SnapshotPartCache.Composition Composition {get;private set;}
         private byte[] utf8;
         // UTF-8 payload, encoded once per snapshot for all recipients (not once per connection).
         public byte[] Utf8=>utf8??=new UTF8Encoding(false).GetBytes(Json);
@@ -51,6 +53,18 @@ namespace Remains.Persistence
             Revision = world.revision;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: хеш")) Id = Fingerprint(json);
             producedHere = true;
+        }
+
+        // A delta-assembled snapshot (WorldReplica.Apply): the text must hash to the expected ID; the live world was
+        // built from the strictly parsed template and changed parts plus unchanged live parts, and passes the rules.
+        internal static RecoverySnapshot Assembled(string json,string expectedId,WorldState world)
+        {
+            if(json==null || world==null) throw new ArgumentNullException(json==null?nameof(json):nameof(world));
+            var snapshot=new RecoverySnapshot(world,json);
+            if(snapshot.Id!=expectedId)
+                throw new System.IO.InvalidDataException($"Изменение мира собрано с другим хешем: ожидался {expectedId}, получен {snapshot.Id}.");
+            snapshot.preparedLive=world;
+            return snapshot;
         }
 
         // A received text: the snapshot object itself when this process produced exactly this text, otherwise the
@@ -103,7 +117,8 @@ namespace Remains.Persistence
         public static RecoverySnapshot FromWorld(WorldState world)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
-            var snapshot=new RecoverySnapshot(world, SnapshotPartCache.Compose(world).Json);
+            var composition=SnapshotPartCache.Compose(world);
+            var snapshot=new RecoverySnapshot(world, composition.Json) {Composition=composition};
             lock(producedGate)
             {
                 produced.Enqueue(snapshot);

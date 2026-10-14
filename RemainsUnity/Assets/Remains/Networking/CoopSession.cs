@@ -157,6 +157,11 @@ namespace Remains.Networking
         private long canonicalPersistedRevision=-1;
         private readonly RecoveryReceiptGate recoveryReceipts = new();
         private readonly WorldReplication worldReplication=new();
+        // Delta replication (host-migration.md): the snapshot each connection holds, and the recent host snapshots
+        // a delta can start from. A connection on another base gets a full snapshot.
+        private readonly Dictionary<int,string> deliveredSnapshots=new();
+        private readonly List<RecoverySnapshot> recentSnapshots=new();
+        private const int RecentSnapshotsKept=4;
         private OwnershipService ownership = new();
         private SharedInventory inventory;
         private readonly HashSet<string> recoveredActors=new();
@@ -176,7 +181,7 @@ namespace Remains.Networking
                 return NetworkServer.connections.TryGetValue(recipient.Key,out var connection)?connection:null;
             });
             serverPoses.Clear();
-            backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();
+            backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();
@@ -194,6 +199,13 @@ namespace Remains.Networking
             NetworkServer.RegisterHandler<FriendlyHitMessage>(Remains.Networking.MessageTiming.Server<FriendlyHitMessage>(RelayFriendlyHit));
             NetworkServer.RegisterHandler<ClaimMessage>(Remains.Networking.MessageTiming.Server<ClaimMessage>(Claim));
             NetworkServer.RegisterHandler<ReviveMessage>(Remains.Networking.MessageTiming.Server<ReviveMessage>(Revive));
+            NetworkServer.RegisterHandler<WorldResyncRequest>(Remains.Networking.MessageTiming.Server<WorldResyncRequest>((connection,request)=>
+            {
+                if(ServerWorld==null || !owners.ContainsKey(connection.connectionId)) return;
+                Debug.LogWarning($"Клиент запросил полный снимок: connection={connection.connectionId}, snapshot={request.snapshot}, причина: {request.reason}");
+                deliveredSnapshots.Remove(connection.connectionId);
+                if(recentSnapshots.Count>0) SendFullWorld(connection,recentSnapshots[recentSnapshots.Count-1]);
+            }));
             NetworkServer.RegisterHandler<BackupAckMessage>(Remains.Networking.MessageTiming.Server<BackupAckMessage>((connection, ack) =>
             {
                 if(ServerWorld==null) return;
@@ -298,11 +310,17 @@ namespace Remains.Networking
             ContainerInspection.RegisterClient();
             Mechanisms.RegisterClient();
             DoorDamage.RegisterClient();Lamps.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
-            worldReplication.Reset();
+            worldReplication.Forget();
             NetworkClient.RegisterHandler<WorldPartMessage>(Remains.Networking.MessageTiming.Client<WorldPartMessage>(message=>
             {
-                var received=worldReplication.Receive(message);
+                var received=worldReplication.Receive(message,()=>World);
                 if(received==null) return;
+                if(received.resync)
+                {
+                    Debug.LogWarning("Изменение мира не применено, запрошен полный снимок: "+received.reason);
+                    NetworkClient.Send(new WorldResyncRequest {world=World?.worldId,snapshot=message.snapshot,reason=received.reason});
+                    return;
+                }
                 if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor,worldJson=received.snapshot.Json},received.snapshot);
                 else ReceiveWorld(new WorldMessage {json=received.snapshot.Json},received.snapshot);
             }));
@@ -435,7 +453,7 @@ namespace Remains.Networking
             playerIds[owner]=actor.id;
             ownership.Reassign(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
-            WorldReplication.Send(connection,PrepareRecovery(),owner,actor.id);
+            SendFullWorld(connection,PrepareRecovery(),owner,actor.id);
             if(entryNotice!=null) {Debug.LogWarning($"world={ServerWorld.worldId}, actor={actor.id}: {entryNotice}");connection.Send(new NoticeMessage {text=entryNotice});}
             if(recoveredActors.Contains(actor.id)) connection.Send(new NoticeMessage {text="Недопустимая позиция из старого сохранения восстановлена на свободной опоре. Здоровье и предметы сохранены; исходный сейв скопирован в Recovery."});
             BroadcastWorld();
@@ -448,7 +466,7 @@ namespace Remains.Networking
             Lobby.Disconnected(connection.connectionId);EntryPreparation.Disconnected(connection.connectionId);
             if (owners.Remove(connection.connectionId, out string owner))
             {
-                backupRevisions.Remove(connection.connectionId);
+                backupRevisions.Remove(connection.connectionId);deliveredSnapshots.Remove(connection.connectionId);
                 RecoveryPeerLeft?.Invoke(connection.connectionId);
                 var actor = ServerWorld.Find(playerIds[owner]);
                 ActorSessionRules.Disconnect(actor);
@@ -628,6 +646,12 @@ namespace Remains.Networking
             if(started!=0) RecoveryMeasured?.Invoke(stage,
                 (System.Diagnostics.Stopwatch.GetTimestamp()-started)/(double)System.Diagnostics.Stopwatch.Frequency,characters);
         }
+        private void SendFullWorld(NetworkConnectionToClient connection,RecoverySnapshot snapshot,string owner=null,string actor=null)
+        {
+            WorldReplication.Send(connection,snapshot,owner,actor);
+            deliveredSnapshots[connection.connectionId]=snapshot.Id;
+        }
+
         private RecoverySnapshot PrepareRecovery()
         {
             using var timing=TransitionTiming.Measure("snapshot.prepare",ServerWorld?.worldId);
@@ -641,6 +665,11 @@ namespace Remains.Networking
                 if(ServerWorld?.worldId==snapshot.WorldId) CompleteBackedUpGrants();
             },SaveWriteFailed);
             recoveryReceipts.Register(snapshot);
+            if(snapshot.Composition!=null)
+            {
+                recentSnapshots.Add(snapshot);
+                while(recentSnapshots.Count>RecentSnapshotsKept) recentSnapshots.RemoveAt(0);
+            }
             RecoveryPrepared?.Invoke(snapshot.Id,snapshot.Revision);
             FinishRecoveryMeasurement("recovery-prepared",started,snapshot.Json.Length);
             return snapshot;
@@ -1061,8 +1090,26 @@ namespace Remains.Networking
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подготовка")) snapshot=PrepareRecovery();
             Remains.Diagnostics.FrameHitchLog.Note(SnapshotPartCache.LastReport);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: отправка"))
+            {
+                // One encoded delta per base for all connections holding that base; others get the full snapshot.
+                var payloads=new Dictionary<string,byte[]>(StringComparer.Ordinal);int deltas=0,full=0;
                 foreach(int id in owners.Keys)
-                    if(NetworkServer.connections.TryGetValue(id,out var connection)) WorldReplication.Send(connection,snapshot);
+                {
+                    if(!NetworkServer.connections.TryGetValue(id,out var connection)) continue;
+                    var baseSnapshot=deliveredSnapshots.TryGetValue(id,out string baseId)?recentSnapshots.Find(s=>s.Id==baseId):null;
+                    if(baseSnapshot?.Composition!=null && snapshot.Composition!=null && baseSnapshot.Id!=snapshot.Id)
+                    {
+                        if(!payloads.TryGetValue(baseSnapshot.Id,out var payload))
+                            payloads.Add(baseSnapshot.Id,payload=new System.Text.UTF8Encoding(false).GetBytes(Remains.Serialization.StateJson.ToJson(
+                                WorldDelta.Build(snapshot.WorldId,baseSnapshot.Id,baseSnapshot.Composition,snapshot.Id,snapshot.Composition))));
+                        WorldReplication.SendDelta(connection,baseSnapshot.Id,snapshot.Id,payload);
+                        deliveredSnapshots[id]=snapshot.Id;deltas++;
+                    }
+                    else {SendFullWorld(connection,snapshot);full++;}
+                }
+                if(full>0 || deltas>0) Remains.Diagnostics.FrameHitchLog.Note($"рассылка: изменений {deltas}, полных снимков {full}"+
+                    (payloads.Count>0?$", байт изменения {System.Linq.Enumerable.First(payloads.Values).Length}":""));
+            }
             // New authority arrives before its pending hits on the same reliable channel.
             // A generation change must not wait for the periodic retry timer.
             npcHits?.Flush();
@@ -1103,7 +1150,7 @@ namespace Remains.Networking
             selfHealing.Reset();
             CharacterContent.Reset();ModMismatch?.Invoke(null);
             Admission.EndClient();
-            EntryPreparation.ResetClient();Travel.ResetClient();Lobby.ResetClient();worldReplication.Reset();
+            EntryPreparation.ResetClient();Travel.ResetClient();Lobby.ResetClient();worldReplication.Forget();
             Projectiles.ResetClient();
             SaveLocalCharacter();
             FlushSaveWrites();joinSelection=null;

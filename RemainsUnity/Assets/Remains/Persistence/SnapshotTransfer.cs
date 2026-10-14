@@ -16,6 +16,15 @@ namespace Remains.Persistence
         public SnapshotTransfer(string expectedHash) {expected=expectedHash;}
         public RecoverySnapshot Append(int total,int offset,byte[] chunk)
         {
+            var bytes=AppendRaw(total,offset,chunk);
+            if(bytes==null) return null;
+            var snapshot=RecoverySnapshot.FromReceived(new UTF8Encoding(false,true).GetString(bytes));
+            if(snapshot.Id!=expected) throw new InvalidDataException("Хеш переданного сохранения не совпадает с выбранной копией.");
+            return snapshot;
+        }
+        // The complete payload once all chunks arrived (null before); same bounds, order and repeat checks.
+        public byte[] AppendRaw(int total,int offset,byte[] chunk)
+        {
             if(total<=0 || total>MaximumBytes || chunk==null || chunk.Length==0 || chunk.Length>ChunkSize ||
                 offset<0 || offset>total-chunk.Length)
                 throw new InvalidDataException("Некорректные границы пакета сохранения.");
@@ -28,10 +37,7 @@ namespace Remains.Persistence
                 return null;
             }
             Buffer.BlockCopy(chunk,0,buffer,offset,chunk.Length);received+=chunk.Length;
-            if(received!=buffer.Length) return null;
-            var snapshot=RecoverySnapshot.FromReceived(new UTF8Encoding(false,true).GetString(buffer));
-            if(snapshot.Id!=expected) throw new InvalidDataException("Хеш переданного сохранения не совпадает с выбранной копией.");
-            return snapshot;
+            return received==buffer.Length?buffer:null;
         }
     }
 }
