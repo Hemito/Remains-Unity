@@ -232,10 +232,35 @@ namespace Remains.Domain
                     {if(!buildingBins.TryGetValue(bin,out var list)) buildingBins.Add(bin,list=new());list.Add(i);}
                 }
                 foreach(var pair in buildingBins) bins.Add(pair.Key,pair.Value.ToArray());
+                // Joined surfaces overlap horizontally and meet in height (Join), so they share a cell of a coarse
+                // x/height grid: candidates come from the surface's own cells (ascending, as the former all-pairs
+                // scan) instead of all 7884² factory pairs (~2 s per door change, 2026-10-14).
+                var cells=new Dictionary<long,List<int>>();
+                long Cell(int x,int y)=>((long)x<<32)^(uint)y;
+                (int x0,int x1,int y0,int y1) Span(Surface surface)
+                {
+                    double a=surface.Gradient*surface.Left+surface.Intercept,b=surface.Gradient*surface.Right+surface.Intercept;
+                    double tolerance=RoomSupport.ContactTolerance;
+                    return (Bin(surface.Left),Bin(surface.Right),Bin(Math.Min(a,b)-tolerance),Bin(Math.Max(a,b)+tolerance));
+                }
+                for(int i=0;i<staticCount;i++)
+                {
+                    var span=Span(surfaces[i]);
+                    for(int x=span.x0;x<=span.x1;x++) for(int y=span.y0;y<=span.y1;y++)
+                    {if(!cells.TryGetValue(Cell(x,y),out var list)) cells.Add(Cell(x,y),list=new List<int>());list.Add(i);}
+                }
+                var candidates=new List<int>();var seen=new bool[staticCount];
                 for(int i=0;i<staticCount;i++)
                 {
                     var neighbors=new List<Edge>();
-                    for(int j=0;j<staticCount;j++)
+                    candidates.Clear();
+                    var span=Span(surfaces[i]);
+                    for(int x=span.x0;x<=span.x1;x++) for(int y=span.y0;y<=span.y1;y++)
+                        if(cells.TryGetValue(Cell(x,y),out var members))
+                            foreach(int member in members) if(!seen[member]) {seen[member]=true;candidates.Add(member);}
+                    foreach(int member in candidates) seen[member]=false;
+                    candidates.Sort();
+                    foreach(int j in candidates)
                     {
                         if(j<i && SameGeometry(surfaces[i],surfaces[j]) && (surfaces[i].Texture!=surfaces[j].Texture || surfaces[i].Sound!=surfaces[j].Sound))
                             Debug.LogWarning($"Неоднозначный материал совпадающих опор: room={Layout.id}, indices={j}/{i}, bounds={surfaces[i].Bounds}, textures={surfaces[j].Texture}/{surfaces[i].Texture}, banks={surfaces[j].Sound}/{surfaces[i].Sound}. Для одинаковой физики выбран ordinal texture, затем bank.");
