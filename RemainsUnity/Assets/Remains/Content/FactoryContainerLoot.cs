@@ -127,7 +127,9 @@ namespace Remains.Content
                 else item=workingAmmo?SharedInventory.Create(id,count):catalog.source.CreateFormalItem(key,grade,count);
                 if(!artwork.TryGet(item.definition,out _))
                     throw new NotSupportedException($"Не подготовлена графика предмета: source={key}, container={placement.Id}.");
-                item.id="loot:"+Hash(placement.Id+"|"+Version+"|"+state.items.Count+"|"+item.definition);
+                // World-unique: a character carries its items into other worlds of the same seed, where the same
+                // placement would otherwise generate the same IDs and reject the factory install (2026-10-14).
+                item.id="loot:"+Hash(world.worldId+"|"+placement.Id+"|"+Version+"|"+state.items.Count+"|"+item.definition);
                 if((!workingAmmo&&runtime!="grenade")||important>0)item.extensions=new Dictionary<string,JToken> {["sourceDefinition"]=key,["sourceGrade"]=grade};
                 if(important>0)item.extensions["sourceImportant"]=important;
                 if(weapon)item.extensions["sourceConditionFraction"]=request.count==0?.05+.15*U():request.count==1?.6+.25*U():1;
