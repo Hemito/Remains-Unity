@@ -401,13 +401,15 @@ namespace Remains.Runtime
                 var room=Geometry.Get(shownLevel);
                 using(TransitionTiming.Measure("runtime.release-room",shownLevel))
                 {roomPresentation.Bind(null);if(roomObject!=null) roomObject.SetActive(false);ActiveLevelLighting?.Release();}
-                Destroy(roomObject);roomObject=adoptEntry?entryRoom.Take(Session.World,shownLevel,room):AuthoredRoomVisual.Create(shownLevel,room,Session.World);
+                Destroy(roomObject);
+                using(Remains.Diagnostics.FrameHitchLog.Section(adoptEntry?"Переход: подготовленная локация":"Переход: создание локации"))
+                    roomObject=adoptEntry?entryRoom.Take(Session.World,shownLevel,room):AuthoredRoomVisual.Create(shownLevel,room,Session.World);
                 ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();
                 roomPresentation.Bind(ActiveLevelLighting);
                 if(ActiveLevelLighting is FactoryLevelView factory)
                 {
-                    factory.Synchronize(room,Session.World,Geometry.OcclusionRevision(shownLevel));
-                    factory.Focus(Session.LocalActor.Position);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: свет двери/лампы")) factory.Synchronize(room,Session.World,Geometry.OcclusionRevision(shownLevel));
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: окно света")) factory.Focus(Session.LocalActor.Position);
                     if(!roomObject.TryGetComponent<FactoryLightFocus>(out var focus))
                         throw new System.InvalidOperationException("Нет авторского наблюдателя камеры завода.");
                     focus.Bind(cameraView);
@@ -430,7 +432,8 @@ namespace Remains.Runtime
                 if (!ActorPresence.IsPresent(actor) || actor.level!=Session.LocalActor.level) continue;
                 if (!visuals.TryGetValue(actor.id,out var visual))
                 {
-                    visual=ActorVisualFactory.Create(actor); visuals.Add(actor.id,visual);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: визуал актёров")) visual=ActorVisualFactory.Create(actor);
+                    visuals.Add(actor.id,visual);
                     visualLayers.Attach(actor.id,visual.transform);
                 }
                 if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);

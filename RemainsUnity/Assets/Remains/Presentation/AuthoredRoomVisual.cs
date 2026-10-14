@@ -14,21 +14,22 @@ namespace Remains.Presentation
             using var timing=TransitionTiming.Measure("authored-room.create",level);
             if(FactoryContentSources.IsGenerated(world,level))
             {
-                var factory=FactoryLevelRoot.Create(world,level);
+                FactoryLevelRoot factory;
+                using(Remains.Diagnostics.FrameHitchLog.Section("Переход: корень завода")) factory=FactoryLevelRoot.Create(world,level);
                 if(staged) factory.gameObject.SetActive(false);
                 try
                 {
-                    factory.InstantiateRooms();
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: комнаты завода")) factory.InstantiateRooms();
                     if(!factory.TryGetComponent<FactoryDoorAdapter>(out var doors) || !factory.TryGetComponent<FactoryLevelView>(out var view))
                         throw new InvalidOperationException("Корень завода: отсутствует авторский адаптер дверей или вид уровня.");
-                    doors.Install(factory);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: двери")) doors.Install(factory);
                     if(!factory.TryGetComponent<FactoryPropAdapter>(out var props))
                         throw new InvalidOperationException("Корень завода: отсутствует авторский адаптер физических объектов.");
-                    props.Install(factory);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: тела")) props.Install(factory);
                     if(!factory.TryGetComponent<FactoryContainerAdapter>(out var containers))throw new InvalidOperationException("Нет авторского адаптера контейнеров завода.");
-                    containers.Install(factory,world);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: контейнеры")) containers.Install(factory,world);
                     foreach(var door in factory.GetComponentsInChildren<RoomDoorAuthoring>(true)) door.gameObject.SetActive(false);
-                    view.Initialize(factory,room);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: вид уровня")) view.Initialize(factory,room);
                     return factory.gameObject;
                 }
                 catch {ReleaseFailed(factory.gameObject);throw;}
