@@ -22,6 +22,28 @@ namespace Remains.Persistence
         public RecoverySnapshot(string json)
         {
             var world = JsonUtility.FromJson<WorldState>(json);
+            Validate(world);
+            Json = json;
+            WorldId = world.worldId;
+            Revision = world.revision;
+            Id = Fingerprint(json);
+            preparedLive = world;
+        }
+
+        // From live state: the text is composed from cached parts (SnapshotPartCache), whose strict parse covers
+        // what the whole-text round-trip covered; the world rules are checked on the live world the text was
+        // written from. No parsed graph is kept: CreateLiveWorld parses the immutable Json when asked.
+        private RecoverySnapshot(WorldState world, string json)
+        {
+            Validate(world);
+            Json = json;
+            WorldId = world.worldId;
+            Revision = world.revision;
+            Id = Fingerprint(json);
+        }
+
+        private static void Validate(WorldState world)
+        {
             if (world == null || world.schema != 1 || !Guid.TryParseExact(world.worldId, "N", out _))
                 throw new System.IO.InvalidDataException("Некорректный восстановительный снимок мира.");
             try {LevelTimeMigration.ValidateWorld(world);}
@@ -50,21 +72,15 @@ namespace Remains.Persistence
             {
                 throw new System.IO.InvalidDataException("Некорректное визуальное снаряжение восстановительного снимка: мир="+world.worldId+". "+error.Message,error);
             }
-            Json = json;
-            WorldId = world.worldId;
-            Revision = world.revision;
-            Id = Fingerprint(json);
-            preparedLive = world;
         }
 
         // The caller owns live state until serialization finishes; later mutations cannot change Json.
-        // Keep the strict round-trip here: StateJson.FromJson additionally rejects unknown numeric
-        // extensions which the live domain validators and serializer callbacks do not validate.
-        // Removing this parse requires an equivalent serializer/extension validation contract.
+        // Strictness: every part's text passes StateJson.FromJson (unknown numeric extensions etc.), the
+        // skeleton on every call, unchanged list elements once (SnapshotPartCache).
         public static RecoverySnapshot FromWorld(WorldState world)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
-            return new RecoverySnapshot(JsonUtility.ToJson(world));
+            return new RecoverySnapshot(world, SnapshotPartCache.Compose(world).Json);
         }
 
         public static string Fingerprint(string text)

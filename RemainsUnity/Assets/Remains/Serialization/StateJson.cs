@@ -47,6 +47,15 @@ namespace Remains.Serialization
         };
         public static string ToJson(object value,bool prettyPrint=false)=>
             JsonConvert.SerializeObject(value,prettyPrint?Formatting.Indented:Formatting.None,settings);
+        // The same contract with extra converters (e.g. composing a large state from cached parts).
+        public static string ToJson(object value,IEnumerable<JsonConverter> converters)
+        {
+            var serializer=JsonSerializer.Create(settings);
+            foreach(var converter in converters) serializer.Converters.Add(converter);
+            var text=new System.IO.StringWriter(System.Globalization.CultureInfo.InvariantCulture);
+            using(var writer=new JsonTextWriter(text) {Formatting=Formatting.None}) serializer.Serialize(writer,value);
+            return text.ToString();
+        }
         public static T FromJson<T>(string json)
         {
             try
