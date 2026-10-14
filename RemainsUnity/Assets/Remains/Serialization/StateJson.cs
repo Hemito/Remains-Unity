@@ -68,6 +68,20 @@ namespace Remains.Serialization
             }
             catch(JsonException failure) {throw new System.IO.InvalidDataException($"Некорректное состояние {typeof(T).Name}: {failure.Message}",failure);}
         }
+        // Same contract and number handling as FromJson, without the strictness pass (no JToken tree, no field/number
+        // checks). Only for text this process already accepted through FromJson (e.g. its own validated snapshot).
+        public static T FromTrustedJson<T>(string json)
+        {
+            try
+            {
+                // Plain reader: JsonNumberPrecision.Reader tracks number spelling through Read() only, and direct
+                // deserialization reads some numbers via ReadAsX, which would desynchronise it.
+                using var reader=new JsonTextReader(new System.IO.StringReader(json))
+                    {DateParseHandling=DateParseHandling.None,FloatParseHandling=FloatParseHandling.Decimal,MaxDepth=128};
+                return JsonSerializer.Create(settings).Deserialize<T>(reader);
+            }
+            catch(JsonException failure) {throw new System.IO.InvalidDataException($"Некорректное состояние {typeof(T).Name}: {failure.Message}",failure);}
+        }
         private static void CheckFieldNames(Type type,JToken token)
         {
             if(token is JValue number && number.Value is double binary)

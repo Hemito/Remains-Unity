@@ -29,7 +29,7 @@ namespace Remains.Persistence
             }
             Buffer.BlockCopy(chunk,0,buffer,offset,chunk.Length);received+=chunk.Length;
             if(received!=buffer.Length) return null;
-            var snapshot=new RecoverySnapshot(new UTF8Encoding(false,true).GetString(buffer));
+            var snapshot=RecoverySnapshot.FromReceived(new UTF8Encoding(false,true).GetString(buffer));
             if(snapshot.Id!=expected) throw new InvalidDataException("Хеш переданного сохранения не совпадает с выбранной копией.");
             return snapshot;
         }

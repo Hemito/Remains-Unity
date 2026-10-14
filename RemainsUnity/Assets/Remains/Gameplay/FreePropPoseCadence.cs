@@ -17,10 +17,14 @@ namespace Remains.Gameplay
         }
         private readonly Dictionary<PropState,Entry> sent=new();
         public void Reset()=>sent.Clear();
-        public bool ShouldPublish(PropState prop,double now)
+        public bool ShouldPublish(PropState prop,double now)=>ShouldPublish(prop,now,out _);
+        // changed: the pose differs from the last one sent (a new pose version); a resting heartbeat repeats the
+        // last pose and keeps its sequence, so receivers that already have it ignore it and the world state
+        // (sequence included) does not change once a body is at rest.
+        public bool ShouldPublish(PropState prop,double now,out bool changed)
         {
             bool found=sent.TryGetValue(prop,out var previous);
-            bool changed=!found || previous.owner!=prop.owner || previous.level!=prop.level || previous.generation!=prop.generation ||
+            changed=!found || previous.owner!=prop.owner || previous.level!=prop.level || previous.generation!=prop.generation ||
                 previous.x!=prop.x || previous.y!=prop.y || previous.vx!=prop.vx || previous.vy!=prop.vy;
             if(!changed && now<previous.next) return false;
             // Different IDs stagger the first resting retransmission; subsequent

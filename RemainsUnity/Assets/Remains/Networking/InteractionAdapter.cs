@@ -123,10 +123,13 @@ namespace Remains.Networking
                 angle=state.angle,angularVelocity=state.angularVelocity,mirrored=state.mirrored,detonate=detonate,enemyHits=enemyHits});
         }
         public void GrabProp(string prop,bool release) => NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });
-        public void SendProp(PropState prop)
+        public void SendProp(PropState prop)=>SendProp(prop,true);
+        // newPose=false: a resting heartbeat resends the current pose version unchanged (PropReplication.Accept
+        // takes only newer sequences, so a receiver that missed the last pose still accepts it).
+        public void SendProp(PropState prop,bool newPose)
         {
             if(!PropReplication.CanAcceptPose(prop)) return;
-            prop.sequence++;
+            if(newPose) prop.sequence++;
             NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy },Channels.Unreliable);
         }
         public bool ThrowGrenade(Vector2 aim,RoomLayout room=null)

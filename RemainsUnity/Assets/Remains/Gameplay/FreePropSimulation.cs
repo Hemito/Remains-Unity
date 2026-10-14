@@ -11,20 +11,20 @@ namespace Remains.Gameplay
         private readonly CoopSession session;
         private readonly Func<string,RoomLayout> roomForLevel;
         private readonly Func<string,bool> isPaused;
-        private readonly Action<PropState> publish;
         private readonly ReplicationCadence cadence=new(.05);
         private readonly PassengerMotionRegistry passengers=new();
         private readonly FreePropMotionContext motion=new();
         private readonly FreePropPoseCadence poses=new();
         private readonly Action<PropState> publishChanged;
+        private readonly Action<PropState,bool> publishPose;
         private WorldState poseWorld;
         private string poseOwner;
         public FreePropSimulation(CoopSession session,SimulationGeometry geometry,InteractionAdapter interactions)
         {
             this.session=session??throw new ArgumentNullException(nameof(session));
             roomForLevel=(geometry??throw new ArgumentNullException(nameof(geometry))).Get;
-            publish=(interactions??throw new ArgumentNullException(nameof(interactions))).SendProp;
-            publishChanged=prop=> {if(poses.ShouldPublish(prop,Time.unscaledTimeAsDouble)) publish(prop);};
+            publishPose=(interactions??throw new ArgumentNullException(nameof(interactions))).SendProp;
+            publishChanged=prop=> {if(poses.ShouldPublish(prop,Time.unscaledTimeAsDouble,out bool changed)) publishPose(prop,changed);};
             isPaused=session.Pause.IsPaused;
             session.Changed+=()=>passengers.Reconcile(session.World,session.LocalOwner);
         }

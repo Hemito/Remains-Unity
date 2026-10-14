@@ -51,6 +51,30 @@ namespace Remains.Editor
             container.extensions.Remove("probe");
             var restored=RecoverySnapshot.FromWorld(world);
             Require(restored.Json==StateJson.ToJson(world),"После исправления текст снимка отличается.");
+            // Bench: strict parse vs trusted deserialization of the same text (both must give the same state).
+            string text=StateJson.ToJson(world);
+            var timer=System.Diagnostics.Stopwatch.StartNew();
+            for(int i=0;i<3;i++) StateJson.FromJson<WorldState>(text);
+            double strict=timer.Elapsed.TotalMilliseconds/3;timer.Restart();
+            WorldState trusted=null;
+            for(int i=0;i<3;i++) trusted=StateJson.FromTrustedJson<WorldState>(text);
+            double fast=timer.Elapsed.TotalMilliseconds/3;
+            Debug.Log($"Чтение снимка {text.Length} символов: строгое {strict:F1} мс, доверенное {fast:F1} мс.");
+            string again=StateJson.ToJson(trusted);
+            if(again!=text)
+            {
+                int at=0;while(at<Math.Min(again.Length,text.Length) && again[at]==text[at]) at++;
+                throw new InvalidOperationException($"Доверенное чтение даёт другое состояние с символа {at}: «{text.Substring(Math.Max(0,at-80),Math.Min(160,text.Length-Math.Max(0,at-80)))}» против «{again.Substring(Math.Max(0,at-80),Math.Min(160,again.Length-Math.Max(0,at-80)))}».");
+            }
+            // Own snapshot received back (host client): the same object, trusted live copy equal to the text;
+            // a different text (another world revision) is a separate strict parse.
+            var own=RecoverySnapshot.FromWorld(world);
+            var received=RecoverySnapshot.FromReceived(own.Json);   // the same text was also produced as "restored"
+            Require(ReferenceEquals(received,own) || ReferenceEquals(received,restored),"Собственный снимок не узнан при приёме.");
+            Require(StateJson.ToJson(own.CreateLiveWorld())==own.Json,"Копия мира из собственного снимка отличается от текста.");
+            world.revision++;
+            string foreign=StateJson.ToJson(world);
+            Require(!ReferenceEquals(RecoverySnapshot.FromReceived(foreign),own),"Чужой текст принят как собственный снимок.");
             Debug.Log($"Кэш частей снимка: PASS — частей {first.Parts}, повторно разобрано 0, после сдвига 1, испорченная часть отклонена, текст совпадает.");
         }
 

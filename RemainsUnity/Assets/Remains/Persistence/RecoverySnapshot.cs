@@ -18,6 +18,13 @@ namespace Remains.Persistence
         public string WorldId { get; }
         public long Revision { get; }
         private WorldState preparedLive;
+        // Composed and validated by this process (FromWorld): live copies may use the trusted reader.
+        private readonly bool producedHere;
+        // The last few snapshots this process produced, by ID: its own host client receives them back through the
+        // network path and must not strictly re-parse a text it has just validated (TD-15).
+        private static readonly object producedGate=new();
+        private static readonly Queue<RecoverySnapshot> produced=new();
+        private const int ProducedKept=4;
 
         public RecoverySnapshot(string json)
         {
@@ -40,6 +47,19 @@ namespace Remains.Persistence
             WorldId = world.worldId;
             Revision = world.revision;
             Id = Fingerprint(json);
+            producedHere = true;
+        }
+
+        // A received text: the snapshot object itself when this process produced exactly this text, otherwise the
+        // strict parse (any foreign or altered text).
+        public static RecoverySnapshot FromReceived(string json)
+        {
+            if(json==null) throw new ArgumentNullException(nameof(json));
+            string id=Fingerprint(json);
+            lock(producedGate)
+                foreach(var own in produced)
+                    if(own.Id==id && string.Equals(own.Json,json,StringComparison.Ordinal)) return own;
+            return new RecoverySnapshot(json);
         }
 
         private static void Validate(WorldState world)
@@ -80,7 +100,13 @@ namespace Remains.Persistence
         public static RecoverySnapshot FromWorld(WorldState world)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
-            return new RecoverySnapshot(world, SnapshotPartCache.Compose(world).Json);
+            var snapshot=new RecoverySnapshot(world, SnapshotPartCache.Compose(world).Json);
+            lock(producedGate)
+            {
+                produced.Enqueue(snapshot);
+                while(produced.Count>ProducedKept) produced.Dequeue();
+            }
+            return snapshot;
         }
 
         public static string Fingerprint(string text)
@@ -93,7 +119,8 @@ namespace Remains.Persistence
         // The snapshot retains no reference after transfer; concurrent/subsequent
         // consumers independently parse immutable Json and cannot see live edits.
         public WorldState CreateLiveWorld()
-            => Interlocked.Exchange(ref preparedLive, null) ?? JsonUtility.FromJson<WorldState>(Json);
+            => Interlocked.Exchange(ref preparedLive, null) ??
+               (producedHere ? JsonUtility.FromTrustedJson<WorldState>(Json) : JsonUtility.FromJson<WorldState>(Json));
     }
 
     // A revision alone cannot identify a snapshot: pose packets do not increment it.
