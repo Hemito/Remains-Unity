@@ -69,6 +69,11 @@ namespace Remains.Networking
         // What the current Changed notification changed (valid during the handlers; All outside and for every
         // notification that does not know better). A consumer skips work for unchanged parts.
         public WorldChangeKind LastChange {get;private set;}=WorldChangeKind.All;
+        // Actor update streams by pieces (ActorStreams): this client's sends, the host's broadcasts, and the bases
+        // each receiver holds (per connection on the host).
+        private readonly ActorPiecesSender clientActors=new(),serverActors=new();
+        private readonly ActorPiecesReceiver clientActorsReceived=new();
+        private readonly Dictionary<int,ActorPiecesReceiver> serverActorsReceived=new();
         // The changed part keys of the current notification ("containers:<id>", "props:<id>"...) when known exactly
         // (a delta that kept every list's composition); null means any part may have changed.
         public IReadOnlyCollection<string> LastChangedParts {get;private set;}
@@ -203,7 +208,13 @@ namespace Remains.Networking
             Lobby.RegisterServer(UseLobby);
             if(!UseLobby) StartSelectedWorld(null,false);
             NetworkServer.RegisterHandler<JoinMessage>(Remains.Networking.MessageTiming.Server<JoinMessage>(Join));
+            serverActors.Clear();serverActorsReceived.Clear();
             NetworkServer.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Server<ActorMessage>(UpdateActor));
+            NetworkServer.RegisterHandler<ActorResyncRequest>(Remains.Networking.MessageTiming.Server<ActorResyncRequest>((connection,request)=>
+            {
+                if(serverActors.TryFull(request.actor,out var full)) connection.Send(full);
+                else Debug.LogWarning($"Запрос полного состояния персонажа без отправленной базы: actor={request.actor}, connection={connection.connectionId}.");
+            }));
             NetworkServer.RegisterHandler<PoseMessage>(Remains.Networking.MessageTiming.Server<PoseMessage>(UpdatePose));
             NetworkServer.RegisterHandler<AttackMessage>(Remains.Networking.MessageTiming.Server<AttackMessage>(RelayAttack));
             NetworkServer.RegisterHandler<NpcHitMessage>(Remains.Networking.MessageTiming.Server<NpcHitMessage>(RelayNpcHit));
@@ -337,10 +348,19 @@ namespace Remains.Networking
                 if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor},received.snapshot);
                 else ReceiveWorld(new WorldMessage(),received.snapshot,received.changes,received.changedParts);
             }));
+            clientActors.Clear();clientActorsReceived.Clear();
             NetworkClient.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Client<ActorMessage>(message =>
             {
-                var actor = JsonUtility.FromJson<ActorState>(message.json);
+                if(!clientActorsReceived.TryRead(message,out var actor))
+                {NetworkClient.Send(new ActorResyncRequest {actor=message.actor});return;}
                 MergeActor(actor);
+            }));
+            // The host lacks the base of this client's actor stream: the current state goes whole.
+            NetworkClient.RegisterHandler<ActorResyncRequest>(Remains.Networking.MessageTiming.Client<ActorResyncRequest>(request =>
+            {
+                clientActors.Forget(request.actor);
+                var actor=World?.Find(request.actor);
+                if(actor!=null && actor.owner==LocalOwner) NetworkClient.Send(clientActors.Next(actor));
             }));
             Projectiles.RegisterClient();
             NetworkClient.RegisterHandler<PoseMessage>(Remains.Networking.MessageTiming.Client<PoseMessage>(ReceivePose));
@@ -490,6 +510,7 @@ namespace Remains.Networking
                 BroadcastWorld();
                 CompleteBackedUpGrants();
             }
+            serverActorsReceived.Remove(connection.connectionId);
             base.OnServerDisconnect(connection);
         }
 
@@ -732,7 +753,8 @@ namespace Remains.Networking
 
         private void UpdateActor(NetworkConnectionToClient connection, ActorMessage message)
         {
-            var incoming = JsonUtility.FromJson<ActorState>(message.json);
+            if(!serverActorsReceived.TryGetValue(connection.connectionId,out var stream)) serverActorsReceived.Add(connection.connectionId,stream=new ActorPiecesReceiver());
+            if(!stream.TryRead(message,out var incoming)) {connection.Send(new ActorResyncRequest {actor=message.actor});return;}
             var actor = ServerWorld.Find(incoming.id);
             if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner) return;
             if(!ActorVersion.CanPublishOwnerState(incoming,actor))
@@ -742,7 +764,7 @@ namespace Remains.Networking
                     if(CosmeticEquipment.TryApplyOwnerSelection(actor,incoming))
                     {
                         ServerWorld.revision++;
-                        NetworkServer.SendToAll(new ActorMessage {json=JsonUtility.ToJson(actor)});
+                        NetworkServer.SendToAll(serverActors.Next(actor));
                     }
                 }
                 catch(InvalidOperationException error)
@@ -786,7 +808,7 @@ namespace Remains.Networking
                 checkpoint|=ownership.ReassignAndReportChanges(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
             if(checkpoint) {BroadcastWorld();return;}
-            NetworkServer.SendToAll(new ActorMessage { json = JsonUtility.ToJson(incoming) });
+            NetworkServer.SendToAll(serverActors.Next(incoming));
         }
 
         // changes: what the notification reports; publishing an actor changes only actors (a received world passes
@@ -800,7 +822,7 @@ namespace Remains.Networking
             {
                 actor.motionSequence=unchecked(actor.motionSequence+1);
                 StampMotion(actor);
-                NetworkClient.Send(new ActorMessage { json = JsonUtility.ToJson(actor) });
+                NetworkClient.Send(clientActors.Next(actor));
             }
         }
 

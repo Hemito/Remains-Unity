@@ -7,7 +7,16 @@ namespace Remains.Networking
     public struct ModMismatchMessage : NetworkMessage { public byte[] manifest; }
     public struct WelcomeMessage : NetworkMessage { public string owner; public string actor; public string worldJson; }
     public struct WorldMessage : NetworkMessage { public string json; }
-    public struct ActorMessage : NetworkMessage { public string json; }
+    // An actor's state: whole (json), or, after a previous message of the same stream, as its template plus the
+    // changed cold texts (ActorPiecesSender); actor/sequence/baseSequence identify the stream position.
+    public struct ActorMessage : NetworkMessage
+    {
+        public string json;
+        public string actor;
+        public uint baseSequence,sequence;
+        public string template;
+        public string[] cold;
+    }
     public struct PoseMessage : NetworkMessage
     {
         public string actor;

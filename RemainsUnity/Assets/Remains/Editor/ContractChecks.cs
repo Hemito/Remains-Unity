@@ -257,7 +257,7 @@ namespace Remains.Editor
             SessionChecks.Run();
             MeleeSweepChecks.Run();
             MeleeTerrainOcclusionChecks.Run();
-            AmmunitionChecks.Run(); RecoveryChecks.Run(); RevivalChecks.Run(); GrenadeChecks.Run(); NpcAttackChecks.Run(); NpcPerceptionIntegrationChecks.Run(); ContainerChecks.Run(); StateExtensionChecks.Run(); BodyTopSurfacesChecks.Run(); BodySleepChecks.Run(); BodySupportDoorChecks.Run(); ActorTextChecks.Run();
+            AmmunitionChecks.Run(); RecoveryChecks.Run(); RevivalChecks.Run(); GrenadeChecks.Run(); NpcAttackChecks.Run(); NpcPerceptionIntegrationChecks.Run(); ContainerChecks.Run(); StateExtensionChecks.Run(); BodyTopSurfacesChecks.Run(); BodySleepChecks.Run(); BodySupportDoorChecks.Run(); ActorTextChecks.Run(); ActorStreamChecks.Run();
             actor.connected=true;actor.down=true;second.connected=false;second.down=false;
             actor.injuries.Add(new InjuryState{id="infection",periodicDamage=true});
             actor.injuries.Add(new InjuryState{id="fracture",periodicDamage=false});
