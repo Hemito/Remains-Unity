@@ -15,6 +15,9 @@ namespace Remains.Networking
     public struct MineDisarmedMessage : NetworkMessage {public string mine,definition,level;public float x,y;}
     // A player's mine: the client releases the held mine and finds where it falls (its own actor's hold); the host checks
     // the stack and spends it. drop is the fall from the release point, drawn by every client.
+    // Telekinesis of a lying mine: the holding client moves it and sends poses; the host relays them and owns the state.
+    public struct MineGrabRequest : NetworkMessage {public string world,actor,mine;public bool release;public int generation,lifecycle;public float x,y,drop;}
+    public struct MinePoseMessage : NetworkMessage {public string mine,holder,level;public uint sequence;public bool released;public float x,y,drop;}
     public struct MinePlaceRequest : NetworkMessage {public string transaction,world,actor,level,item;public int generation,lifecycle;public float x,y,drop;}
 
     // The host simulates the mines of levels with a connected player (Mine.control): an armed mine checks its zone every
@@ -24,7 +27,7 @@ namespace Remains.Networking
     {
         private readonly CoopSession session;
         private readonly Dictionary<string,float> senseClocks=new(StringComparer.Ordinal);   // host-local, not saved
-        private readonly List<MineState> exploding=new();
+        private readonly List<MineState> exploding=new(),lost=new();
         private string pending;
         private double deadline;
         public int Explosions {get;private set;}
@@ -32,12 +35,94 @@ namespace Remains.Networking
         public bool Pending=>pending!=null;
         public event Action<MineDisarmedMessage> DisarmHeard;
         public SessionMines(CoopSession session) {this.session=session;}
-        public void ResetServer() {senseClocks.Clear();exploding.Clear();}
+        public void ResetServer() {senseClocks.Clear();exploding.Clear();heldClocks.Clear();receivedPoses.Clear();}
+        // A new session: nobody holds anything any more (a saved holder is a stale hold).
+        public static void BeginSession(WorldState world) {foreach(var mine in world.mines) mine.holder=null;}
+
+        public void RequestGrab(MineState mine,bool release,Vector2 position=default,float drop=0)
+        {
+            var actor=session.LocalActor;
+            if(actor==null || mine==null || !NetworkClient.isConnected || session.World==null) return;
+            NetworkClient.Send(new MineGrabRequest {world=session.World.worldId,actor=actor.id,mine=mine.id,release=release,
+                generation=actor.generation,lifecycle=actor.lifecycleSequence,x=position.x,y=position.y,drop=drop});
+        }
+        public void SendPose(MineState mine,Vector2 position)
+        {
+            var actor=session.LocalActor;if(actor==null || !NetworkClient.isConnected) return;
+            sentPoses.TryGetValue(mine.id,out uint sequence);sentPoses[mine.id]=++sequence;
+            var message=new MinePoseMessage {mine=mine.id,holder=actor.id,level=mine.level,sequence=sequence,x=position.x,y=position.y};
+            PoseHeard?.Invoke(message);   // the holder draws its own pose at once
+            NetworkClient.Send(message,Channels.Unreliable);
+        }
+        private void ReceiveGrab(NetworkConnectionToClient connection,MineGrabRequest request)
+        {
+            var world=session.ServerWorld;var actor=session.ConnectedActor(connection);
+            var mine=world?.mines.Find(m=>m.id==request.mine);
+            if(world==null || request.world!=world.worldId || actor==null || request.actor!=actor.id || mine==null ||
+                actor.generation!=request.generation || actor.lifecycleSequence!=request.lifecycle) return;
+            if(request.release)
+            {
+                if(mine.holder!=actor.id) return;
+                // The rest point lies straight below the last relayed pose (the client dropped it through its geometry).
+                var rest=new Vector2(request.x,request.y);
+                bool valid=float.IsFinite(rest.x) && float.IsFinite(rest.y) && float.IsFinite(request.drop) && request.drop>=0 &&
+                    Mathf.Abs(rest.x-mine.x)<=1 && mine.y-rest.y>=-1 && mine.y-rest.y<=MineRules.PlaceDrop+1;
+                if(!valid) Debug.LogWarning($"Некорректное отпускание мины: мина={mine.id}, actor={actor.id}, точка={rest}, последняя={mine.Position}, падение={request.drop}; мина остаётся на месте.");
+                Release(mine,valid?rest:mine.Position,valid?request.drop:0);
+                return;
+            }
+            var profile=MineRules.Profile(mine);
+            string reason=mine.holder!=null?"Мину уже удерживает другой игрок.":
+                session.Pause.IsServerPaused(mine.level)?"Локация на паузе.":
+                !MineRules.Visible(mine,actor,profile)?"Мина не видна.":
+                session.Rules.Telekinesis.Rejection(actor,MineRules.TelekinesisBody(mine,profile),false);
+            if(reason!=null) {connection.Send(new NoticeMessage {text=reason});return;}
+            mine.holder=actor.id;heldClocks.Remove(mine.id);receivedPoses.Remove(mine.id);
+            WorldChanges.Mark(world,mine);session.CommitWorld();
+        }
+        private void ReceivePose(NetworkConnectionToClient connection,MinePoseMessage message)
+        {
+            var world=session.ServerWorld;var actor=session.ConnectedActor(connection);
+            var mine=world?.mines.Find(m=>m.id==message.mine);
+            if(actor==null || mine==null || mine.holder!=actor.id || message.holder!=actor.id || message.released) return;
+            receivedPoses.TryGetValue(mine.id,out uint last);
+            if(last!=0 && unchecked((int)(message.sequence-last))<=0) return;
+            var position=new Vector2(message.x,message.y);
+            var body=MineRules.TelekinesisBody(mine,MineRules.Profile(mine));body.x=position.x;body.y=position.y;
+            if(!float.IsFinite(position.x) || !float.IsFinite(position.y) || session.Rules.Telekinesis.Rejection(actor,body,true) is {} reason)
+            {Debug.LogWarning($"Положение мины в телекинезе отклонено: мина={mine.id}, actor={actor.id}, точка={position}.");return;}
+            receivedPoses[mine.id]=message.sequence;
+            mine.x=position.x;mine.y=position.y;WorldChanges.Mark(world,mine);
+            message.level=mine.level;
+            NetworkServer.SendToAll(message,Channels.Unreliable);
+        }
+        private void Release(MineState mine,Vector2 rest,float drop)
+        {
+            mine.holder=null;mine.x=rest.x;mine.y=rest.y;heldClocks.Remove(mine.id);receivedPoses.Remove(mine.id);
+            WorldChanges.Mark(session.ServerWorld,mine);session.CommitWorld();
+            NetworkServer.SendToAll(new MinePoseMessage {mine=mine.id,level=mine.level,released=true,x=rest.x,y=rest.y,drop=drop});
+        }
+        // The holder left, fell or changed level: the mine drops from where it was.
+        private void LoseHolder(MineState mine)
+        {
+            var room=Geometry?.Invoke(mine.level);
+            if(room!=null && MineRules.TryDrop(room,mine.Position,MineRules.Profile(mine),out var rest)) {Release(mine,rest,Mathf.Max(0,mine.y-rest.y));return;}
+            Debug.LogWarning($"Мина {mine.id} потеряла удерживающего {mine.holder}, но геометрия уровня {mine.level} недоступна или опоры нет; мина остаётся на месте.");
+            Release(mine,mine.Position,0);
+        }
         public event Action<MinePlaceRequest> PlaceHeard;
+        public event Action<MinePoseMessage> PoseHeard;
+        // Host-only: the level geometry a mine dropped by a lost holder falls through (set by the runtime).
+        public Func<string,RoomLayout> Geometry {get;set;}
+        private readonly Dictionary<string,float> heldClocks=new(StringComparer.Ordinal);
+        private readonly Dictionary<string,uint> sentPoses=new(StringComparer.Ordinal),receivedPoses=new(StringComparer.Ordinal);
+        private readonly System.Random chance=new();
         public void RegisterServer()
         {
             NetworkServer.RegisterHandler<MineDisarmRequest>(MessageTiming.Server<MineDisarmRequest>(Receive));
             NetworkServer.RegisterHandler<MinePlaceRequest>(MessageTiming.Server<MinePlaceRequest>(ReceivePlace));
+            NetworkServer.RegisterHandler<MineGrabRequest>(MessageTiming.Server<MineGrabRequest>(ReceiveGrab));
+            NetworkServer.RegisterHandler<MinePoseMessage>(MessageTiming.Server<MinePoseMessage>(ReceivePose));
         }
         public void RegisterClient()
         {
@@ -49,6 +134,12 @@ namespace Remains.Networking
             }));
             NetworkClient.RegisterHandler<MineDisarmedMessage>(MessageTiming.Client<MineDisarmedMessage>(message=>DisarmHeard?.Invoke(message)));
             NetworkClient.RegisterHandler<MinePlaceRequest>(MessageTiming.Client<MinePlaceRequest>(message=>PlaceHeard?.Invoke(message)));
+            NetworkClient.RegisterHandler<MinePoseMessage>(MessageTiming.Client<MinePoseMessage>(message=>
+            {
+                // The holder already drew its own pose; the host's relay of it is older.
+                if(!message.released && message.holder!=null && message.holder==session.LocalActor?.id) return;
+                PoseHeard?.Invoke(message);
+            }));
         }
 
         // Disarming (interim rule: always succeeds) turns the mine into its item lying where it was, as the original's
@@ -143,11 +234,26 @@ namespace Remains.Networking
         {
             var world=session.ServerWorld;
             if(!NetworkServer.active || world==null || world.mines.Count==0 || dt<=0) return;
-            bool triggered=false;exploding.Clear();
+            bool triggered=false;exploding.Clear();lost.Clear();
             foreach(var mine in world.mines)
             {
                 if(!LevelActivity.HasConnectedPlayer(world,mine.level) || session.Pause.IsServerPaused(mine.level)) continue;
                 var profile=MineRules.Profile(mine);
+                if(mine.holder!=null)
+                {
+                    var holder=world.Find(mine.holder);
+                    if(holder==null || !holder.connected || holder.down || holder.level!=mine.level) {lost.Add(mine);continue;}
+                    if(MineRules.CanTriggerHeld(mine))
+                    {
+                        heldClocks.TryGetValue(mine.id,out float held);held+=dt;
+                        while(held>=MineRules.HeldTriggerPeriod && !mine.triggered)
+                        {
+                            held-=MineRules.HeldTriggerPeriod;
+                            if(chance.NextDouble()<MineRules.HeldTriggerChance) {MineRules.Trigger(mine,profile);WorldChanges.Mark(world,mine);triggered=true;}
+                        }
+                        heldClocks[mine.id]=held;
+                    }
+                }
                 if(mine.triggered)
                 {
                     mine.remaining=Mathf.Max(0,mine.remaining-dt);WorldChanges.Mark(world,mine);
@@ -160,6 +266,7 @@ namespace Remains.Networking
                     if(mine.arming<=0) triggered=true;   // armed: the view changes its frame
                     continue;
                 }
+                if(mine.holder!=null) continue;   // a held mine reacts to telekinesis, not to its zone
                 senseClocks.TryGetValue(mine.id,out float clock);clock+=dt;
                 if(clock<MineRules.SensePeriod) {senseClocks[mine.id]=clock;continue;}
                 senseClocks[mine.id]=clock%MineRules.SensePeriod;
@@ -167,6 +274,7 @@ namespace Remains.Networking
                     if(MineRules.Senses(mine,actor,profile))
                     {MineRules.Trigger(mine,profile);WorldChanges.Mark(world,mine);triggered=true;break;}
             }
+            foreach(var mine in lost) LoseHolder(mine);
             foreach(var mine in exploding)
             {
                 var attack=MineRules.Attack(mine,MineRules.Profile(mine));

@@ -37,7 +37,7 @@ namespace Remains.Presentation
         {
             session=value;playback=audio;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));
             exported=ExportedContentCatalog.Load();gravity=WeaponCatalog.Get("grenade").grenadeGravity;
-            session.Changed+=Refresh;session.Mines.DisarmHeard+=Disarmed;session.Mines.PlaceHeard+=Placed;Refresh();
+            session.Changed+=Refresh;session.Mines.DisarmHeard+=Disarmed;session.Mines.PlaceHeard+=Placed;session.Mines.PoseHeard+=Pose;Refresh();
         }
 
         // Views change only with mines, the visible level or the world (CoopSession.LastChange).
@@ -56,6 +56,8 @@ namespace Remains.Presentation
                 if(!views.TryGetValue(mine.id,out var entry)) views.Add(mine.id,entry=Create(mine));
                 if(entry.state.triggered && !mine.triggered) throw new InvalidOperationException($"Мина {mine.id}: снимок отменяет срабатывание.");
                 entry.state=mine;
+                // A held mine is drawn at its relayed telekinesis pose, a lying one at its state.
+                if(mine.holder==null) entry.renderer.transform.parent.localPosition=new Vector3(mine.x,mine.y,0);
                 if(mine.triggered) spotted.Add(mine.id);
                 Show(entry);
             }
@@ -166,12 +168,26 @@ namespace Remains.Presentation
             }
         }
 
+        // Telekinesis poses of held mines (the local holder's own come directly, SessionMines drops their echo); a release
+        // moves the mine onto its support and draws the fall.
+        private void Pose(MinePoseMessage message)
+        {
+            if(message.level!=level || !views.TryGetValue(message.mine,out var entry)) return;
+            entry.renderer.transform.parent.localPosition=new Vector3(message.x,message.y,0);
+            if(message.released && message.drop>0)
+            {
+                entry.fall=message.drop;entry.fallSpeed=0;
+                entry.renderer.transform.localPosition=(Vector3)entry.art.offset+Vector3.up*entry.fall;
+                if(!falling.Contains(entry)) falling.Add(entry);
+            }
+        }
+
         private void Remove(string id)
         {
             var entry=views[id];var root=entry.renderer.transform.parent.gameObject;falling.Remove(entry);
             root.SetActive(false);if(Application.isPlaying) Destroy(root);else DestroyImmediate(root);views.Remove(id);
         }
         private void Clear() {foreach(string id in views.Keys.ToArray()) Remove(id);falling.Clear();}
-        private void OnDestroy() {if(session!=null) {session.Changed-=Refresh;session.Mines.DisarmHeard-=Disarmed;session.Mines.PlaceHeard-=Placed;}}
+        private void OnDestroy() {if(session!=null) {session.Changed-=Refresh;session.Mines.DisarmHeard-=Disarmed;session.Mines.PlaceHeard-=Placed;session.Mines.PoseHeard-=Pose;}}
     }
 }

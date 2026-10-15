@@ -78,6 +78,12 @@ namespace Remains.Editor
             Require(MineRules.DisarmRejection(mine,player,profile)!=null,"обезвреживание издали");
             player.x=.5f;Require(MineRules.DisarmRejection(mine,player,profile)==null,"обезвреживание рядом");
 
+            mine.holder="p";
+            Require(MineRules.CanTriggerHeld(mine) && MineRules.DisarmRejection(mine,player,profile)!=null &&
+                MineRules.Visible(mine,new ActorState {level="l",x=profile.visibility+5},profile),"удерживаемая мина: риск срабатывания, видна, не обезвреживается");
+            var body=MineRules.TelekinesisBody(mine,profile);
+            Require(body.mass>0 && body.movable && body.hasPhysicalBody && body.id==mine.id && Mathf.Approximately(body.mass,profile.mass),"мина для правил телекинеза");
+            mine.holder=null;Require(!MineRules.CanTriggerHeld(mine),"лежащая мина не срабатывает от телекинеза");
             Require(MineRules.Trigger(mine,profile) && !MineRules.Trigger(mine,profile) && Mathf.Approximately(mine.remaining,profile.delaySeconds),"отсчёт с задержкой из оружия");
             Require(MineRules.DisarmRejection(mine,player,profile)!=null,"обезвреживание сработавшей мины");
             var explosion=MineRules.Detonate(world,mine,new[] {"n","p"});

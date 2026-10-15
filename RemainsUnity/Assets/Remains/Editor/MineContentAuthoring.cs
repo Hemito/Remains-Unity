@@ -50,6 +50,7 @@ namespace Remains.Editor
                     {
                         sensitivity=Number(character,"sens")/PixelsPerMetre,delaySeconds=Number(character,"time")/FramesPerSecond,
                         visibility=OriginalVisibility/PixelsPerMetre,width=Number(root,"sX")/PixelsPerMetre,height=Number(root,"sY")/PixelsPerMetre,
+                        mass=Number(character,"massafix")/50,
                         artwork=Binding(entry.graphics,"item-image-grade-0",id),beepSound=Binding(entry.sounds,"sens",id),
                         defuseSound=Binding(entry.sounds,"dem",id),placeSound=Binding(entry.sounds,"shoot",id)
                     }

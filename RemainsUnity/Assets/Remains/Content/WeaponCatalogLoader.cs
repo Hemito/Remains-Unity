@@ -192,7 +192,7 @@ namespace Remains.Content
                 var mine=weapon.mine;
                 if(!weapon.explosive || !float.IsFinite(mine.sensitivity) || !float.IsFinite(mine.delaySeconds) || mine.delaySeconds<=0 ||
                     !float.IsFinite(mine.visibility) || mine.visibility<=0 || !float.IsFinite(mine.width) || mine.width<=0 ||
-                    !float.IsFinite(mine.height) || mine.height<=0 || string.IsNullOrEmpty(mine.artwork) || string.IsNullOrEmpty(mine.beepSound) ||
+                    !float.IsFinite(mine.height) || mine.height<=0 || !float.IsFinite(mine.mass) || mine.mass<=0 || string.IsNullOrEmpty(mine.artwork) || string.IsNullOrEmpty(mine.beepSound) ||
                     string.IsNullOrEmpty(mine.defuseSound))
                     throw new InvalidDataException($"Некорректный профиль мины: источник={source}, id={weapon.id}. Нужны взрывное оружие, положительные зона/задержка/видимость/размер, графика и звуки.");
             }

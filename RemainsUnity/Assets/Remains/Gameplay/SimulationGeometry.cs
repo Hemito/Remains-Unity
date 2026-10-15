@@ -84,6 +84,7 @@ namespace Remains.Gameplay
         }
         public RoomLayout Get(string level)=>rooms.TryGetValue(level,out var room)?room.Room:
             throw new InvalidOperationException($"Не загружена геометрия активной локации: level={level}.");
+        public RoomLayout Find(string level)=>level!=null && rooms.TryGetValue(level,out var room)?room.Room:null;
         public long OcclusionRevision(string level)=>rooms.TryGetValue(level,out var room)?room.OcclusionRevision:
             throw new InvalidOperationException($"Не загружены препятствия активной локации: level={level}.");
     }

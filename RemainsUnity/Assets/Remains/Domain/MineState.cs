@@ -18,6 +18,7 @@ namespace Remains.Domain
         public bool triggered;
         public float remaining;        // seconds to the explosion once triggered
         public float arming;           // a placed mine's seconds until it senses (0 for a level mine)
+        public string holder;          // the player actor holding it in telekinesis (null when lying)
         public Vector2 Position=>new(x,y);
     }
 
@@ -32,6 +33,15 @@ namespace Remains.Domain
         // How far below its release point a placed mine may fall onto a support.
         // The hold point is within the telekinesis reach around the body; PlaceReach bounds it generously on the host.
         public const float PlaceDrop=6f,PlaceReach=3f;
+        // Original Mine.control: an armed mine held in telekinesis sets itself off with 10% every 10 frames at 30 fps.
+        public const float HeldTriggerPeriod=10f/30,HeldTriggerChance=.1f;
+        public static bool CanTriggerHeld(MineState mine)=>mine.holder!=null && !mine.triggered && mine.arming<=0;
+        // The common telekinesis rules (reach, mana, mass, sight) see a mine as this light body; it never enters WorldProps.
+        public static PropState TelekinesisBody(MineState mine,MineProfile profile)=>new()
+        {
+            id=mine.id,level=mine.level,x=mine.x,y=mine.y,mass=profile.mass,movable=true,hasPhysicalBody=true,
+            width=profile.width,height=profile.height,anchorHeight=profile.height*.5f
+        };
         // Where a released mine (its bottom centre) comes to rest: straight down onto the first support within PlaceDrop.
         public static bool TryDrop(RoomLayout room,Vector2 bottom,MineProfile profile,out Vector2 point)
         {
@@ -110,7 +120,7 @@ namespace Remains.Domain
             return new Rect(mine.x-width*.5f,mine.y,width,height);
         }
         public static bool Visible(MineState mine,ActorState viewer,MineProfile profile)=>
-            mine.triggered || mine.side==PlayerSide || viewer!=null && viewer.level==mine.level &&
+            mine.triggered || mine.side==PlayerSide || mine.holder!=null || viewer!=null && viewer.level==mine.level &&
             Vector2.Distance(viewer.Position,mine.Position)<=profile.visibility;
         public static string DisarmRejection(MineState mine,ActorState actor,MineProfile profile)
         {
@@ -118,6 +128,7 @@ namespace Remains.Domain
             if(actor==null || actor.down || !actor.connected || actor.health<=0) return "Обезвреживание недоступно: персонаж не может действовать.";
             if(actor.level!=mine.level || !Visible(mine,actor,profile)) return "Мина не видна.";
             if(mine.triggered) return "Мина уже сработала.";
+            if(mine.holder!=null) return "Мину удерживают телекинезом.";
             if(Vector2.Distance(actor.Position,mine.Position)>DisarmRadius) return "Подойдите ближе к мине.";
             return null;
         }

@@ -17,6 +17,7 @@ namespace Remains.Content
         public float delaySeconds;   // trigger → explosion
         public float visibility;     // a player notices an unnoticed mine within this distance (interim, no perception skill)
         public float width,height;   // drawn and interaction size
+        public float mass;           // lying, for telekinesis (original massafix/50; preliminary kilograms)
         public string artwork;       // exported vector resource: frame 1 disarmed, 2 armed, 3+ triggered
         public string beepSound,defuseSound,placeSound;   // exported sound resources
         public bool Configured=>sensitivity>0;

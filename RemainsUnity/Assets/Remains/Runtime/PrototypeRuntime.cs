@@ -160,7 +160,7 @@ namespace Remains.Runtime
             Session.Changed+=RefreshVisualOrders;
             Session.GameplayPreparationFailed+=GameplayPreparationFailed;
             RefreshVisualOrders();
-            Geometry=new SimulationGeometry(Session);
+            Geometry=new SimulationGeometry(Session);Session.Mines.Geometry=Geometry.Find;
             Geometry.OcclusionChanged+=RefreshRoomOcclusion;
             Platforms=new PlatformSimulation(Session,Geometry);
             Platforms.TopologyChanged+=ActorBodySupport.InvalidateRoom;

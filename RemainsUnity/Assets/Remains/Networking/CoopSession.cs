@@ -290,7 +290,7 @@ namespace Remains.Networking
                 ()=>Debug.Log("Исходный мир сохранён перед установкой часов уровней: "+Saves.PreserveRecoverySource()));
             LevelTime.BeginServer();
             Mechanisms.ReconcileServer();
-            GrenadeRules.BeginSession(ServerWorld);
+            GrenadeRules.BeginSession(ServerWorld);SessionMines.BeginSession(ServerWorld);
             recoveredActors.Clear();
             foreach(var actor in ServerWorld.actors)
             {

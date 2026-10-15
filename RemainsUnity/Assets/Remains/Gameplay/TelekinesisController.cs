@@ -16,10 +16,11 @@ namespace Remains.Gameplay
         private readonly MagicRecovery recovery=new();
         private bool statsDirty;
         private readonly BodyTelekinesisController bodies;
+        private readonly MineTelekinesis mines;
         private readonly MovementHull hull=new();
         private WorldPropView props;
         public TelekinesisController(CoopSession session,InteractionAdapter adapter,SimulationGeometry geometry)
-        {this.session=session;this.adapter=adapter;this.geometry=geometry;bodies=new BodyTelekinesisController(session,geometry);}
+        {this.session=session;this.adapter=adapter;this.geometry=geometry;bodies=new BodyTelekinesisController(session,geometry);mines=new MineTelekinesis(session,geometry);}
         public void Step(bool held,Vector2 aim,float dt)
         {
             var actor=session.LocalActor;
@@ -30,7 +31,10 @@ namespace Remains.Gameplay
             if(held && !wasHeld)
             {
                 var target=TelekinesisTarget.Nearest(session.World,actor,aim);
-                if(target?.Body!=null) bodies.Begin(target.Value.Body);
+                // A seen mine competes with props and bodies by its distance to the cursor (within the same 1 m).
+                var mine=mines.Candidate(actor,aim,target.HasValue?Vector2.Distance(target.Value.Center,aim):1);
+                if(mine!=null) mines.Begin(actor,mine);
+                else if(target?.Body!=null) bodies.Begin(target.Value.Body);
                 else if(target?.Prop!=null)
                 {
                     var nearest=target.Value.Prop;
@@ -59,6 +63,11 @@ namespace Remains.Gameplay
             }
             wasHeld=held;
             float bodyCost=bodies.Step(held,aim,dt,publish,out bool holding);
+            if(mines.Active)
+            {
+                float mineCost=mines.Step(actor,held,aim,dt);
+                if(mines.Active) {holding=true;actor.mana=Mathf.Max(0,actor.mana-mineCost);actor.revision++;statsDirty=true;}
+            }
             if(holding)
             {actor.mana=Mathf.Max(0,actor.mana-bodyCost);actor.revision++;statsDirty=true;}
             if(held && selected!=null)
