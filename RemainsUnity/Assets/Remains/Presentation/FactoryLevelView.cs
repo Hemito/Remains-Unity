@@ -39,6 +39,7 @@ namespace Remains.Presentation
         // Lamps of the level by world ID (<level>:<room x>,<room y>:<decor id>): their picture, lit frame and sprite.
         private readonly Dictionary<string,(RoomSpriteAuthoring picture,int frame,Sprite sprite,RoomDefinition definition)> lamps=new(StringComparer.Ordinal);
         private readonly HashSet<string> darkLamps=new(StringComparer.Ordinal);
+        private readonly Dictionary<RoomSpriteAuthoring,string> lampByPicture=new();   // lamp ID of a picture (window rebuilds)
         private readonly HashSet<string> brokenLamps=new(StringComparer.Ordinal);
         private readonly List<LampState> lampPlacements=new();
         private readonly ActorShadowSources shadowSources=new();
@@ -266,7 +267,7 @@ namespace Remains.Presentation
             // The same ambient for WorldLit artwork (actors, props, doors), which does not read Light2D.
             Shader.SetGlobalVector("_RemainsAmbient",(Vector4)(light.color*light.intensity));
 
-            pictures.Clear();lamps.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();windowSourceIds.Clear();
+            pictures.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();windowSourceIds.Clear();
             foreach(var sprite in level.RoomInstances.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 pictures.Add((sprite,definitions.Require(sprite.Definition,"вид уровня, "+sprite.name)));
             for(int i=0;i<level.Rooms.Count;i++)
@@ -288,6 +289,7 @@ namespace Remains.Presentation
                     string id=$"{level.Level}:{room.X},{room.Y}:{decor.Id}";
                     var renderer=picture.GetComponent<SpriteRenderer>();
                     lamps.Add(id,(picture,picture.Frame,renderer.sprite,definitions.Require(picture.Definition,"лампа")));
+                    lampByPicture.Add(picture,id);
                 }
             }
             lampPlacements.AddRange(LampContent.Read(level));
@@ -332,9 +334,9 @@ namespace Remains.Presentation
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: пересборка окна");
             if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
             if(windowRooms.width<=0) throw new InvalidOperationException("Вид уровня: окно света не выбрано (Focus).");
-            DestroyWindow();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: снос")) DestroyWindow();
             var level=root.Grid;
-            ShowWindowRooms();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: комнаты")) ShowWindowRooms();
             float cell=(float)level.Cell;
             // The window's cells: the union of its rooms' cells in the composed grid.
             int column=int.MaxValue,row=int.MaxValue,right=0,bottom=0;
@@ -351,6 +353,7 @@ namespace Remains.Presentation
             window.transform.SetParent(transform,false);
             var sprites=new List<RoomSpritePlacement>();
             windowPictures.Clear();
+            var collect=Remains.Diagnostics.FrameHitchLog.Section("Окно света: картинки");
             var erases=new List<(Sprite,Matrix4x4)>();
             foreach(var (authored,definition) in pictures)
             {
@@ -365,15 +368,18 @@ namespace Remains.Presentation
                 sprites.Add(placement);windowPictures.Add((authored,placement));
                 if(authored.Erase!=null) erases.Add((authored.Erase,matrix));
             }
+            collect.Dispose();
             Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
             if(erases.Count>0)
-                window.AddComponent<RoomDecorResources>().BuildErase(erases,origin,size,Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource));
-            field=RoomRadianceField.Build(region,root.Definitions,root.Lands,table,origin,window.transform,sprites,WorldDoorOccluders());
-            for(int i=0;i<SettleUpdates;i++) field.Render();
-            shadowTerrain=RoomLightScene.Absorption(region,RoomGeometryBuilder.Build(region,root.Definitions),
-                table.RadianceResolution,table.BeamTransmittance,.985,table.BeamHeight);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: маска стирания")) window.AddComponent<RoomDecorResources>().BuildErase(erases,origin,size,Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource));
+            using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: поле"))
+                field=RoomRadianceField.Build(region,root.Definitions,root.Lands,table,origin,window.transform,sprites,WorldDoorOccluders());
+            using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: начальные проходы")) for(int i=0;i<SettleUpdates;i++) field.Render();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: препятствия теней"))
+                shadowTerrain=RoomLightScene.Absorption(region,RoomGeometryBuilder.Build(region,root.Definitions),
+                    table.RadianceResolution,table.BeamTransmittance,.985,table.BeamHeight);
             shadowOrigin=localOrigin;
-            RefreshShadowEmitters();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: излучатели")) RefreshShadowEmitters();
             PresentationChanged?.Invoke(this);
         }
 
@@ -384,9 +390,7 @@ namespace Remains.Presentation
             foreach(var (picture,placement) in windowPictures)
             {
                 if(windowSourceIds.TryGetValue(picture,out string windowId)) AddEmitter(windowId,placement,true);
-                foreach(var lamp in lamps)
-                    if(lamp.Value.picture==picture)
-                    {AddEmitter(lamp.Key,placement,false);break;}
+                if(lampByPicture.TryGetValue(picture,out string lampId)) AddEmitter(lampId,placement,false);
             }
             field.RegisterSteadyEmitters(emitters);
             shadowSources.Configure(shadowTerrain,shadowOrigin,1f/table.RadianceResolution,
@@ -417,8 +421,7 @@ namespace Remains.Presentation
         private bool IsDark(RoomSpriteAuthoring picture)
         {
             if(darkLamps.Count==0) return false;
-            foreach(var pair in lamps) if(pair.Value.picture==picture) return darkLamps.Contains(pair.Key);
-            return false;
+            return lampByPicture.TryGetValue(picture,out string id) && darkLamps.Contains(id);
         }
 
         private List<(Rect,double)> WorldDoorOccluders()
@@ -461,7 +464,7 @@ namespace Remains.Presentation
             DestroyWindow();
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) {ambient.SetActive(false);Destroy(ambient);}
-            terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
+            terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
             shadowSources.Clear();windowShadowLamps.Clear();windowSourceIds.Clear();shadowTerrain=null;ShadowSourceRevision++;
             Room=null;PresentationChanged?.Invoke(this);
         }

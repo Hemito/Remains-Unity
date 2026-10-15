@@ -84,6 +84,17 @@ namespace Remains.Diagnostics
             Debug.Log("Журнал медленных кадров: "+path);
         }
 
+        // Editor benches: sections are timed without the player loop, file or summaries; TakeSections reads and
+        // clears the accumulated totals.
+        public static void MeasureOnly() {if(installed) return;installed=true;toMs=1000.0/Stopwatch.Frequency;}
+        public static List<(string Name,double Milliseconds,int Calls)> TakeSections()
+        {
+            var result=new List<(string,double,int)>();
+            for(int i=0;i<sectionIndex.Count;i++) if(sectionCalls[i]>0) result.Add((sectionNames[i],sectionMs[i],sectionCalls[i]));
+            Array.Clear(sectionMs,0,sectionIndex.Count);Array.Clear(sectionCalls,0,sectionIndex.Count);
+            return result;
+        }
+
         public static Scope Section(string name)
         {
             if(!installed) return default;

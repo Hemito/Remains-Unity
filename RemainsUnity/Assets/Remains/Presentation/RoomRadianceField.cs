@@ -304,7 +304,10 @@ namespace Remains.Presentation
             if(!SystemInfo.supportsComputeShaders) throw new InvalidOperationException("Поле излучения: видеокарта/API без compute-шейдеров.");
             var compute=Resources.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
             int resolution=table.RadianceResolution;
+            var buildScene=Remains.Diagnostics.FrameHitchLog.Section("Поле света: сцена");
             var light=RoomLightScene.Build(room,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
+            buildScene.Dispose();
+            var buildWalls=Remains.Diagnostics.FrameHitchLog.Section("Поле света: стены");
             foreach(string issue in light.Issues) Debug.LogWarning(issue);
             var walls=RoomLightScene.Absorption(room,RoomGeometryBuilder.Build(room,definitions),resolution,table.BeamTransmittance,MaxObjectTexelAbsorption,table.BeamHeight);
             int w=walls.GetLength(0),h=walls.GetLength(1);
@@ -326,6 +329,7 @@ namespace Remains.Presentation
                         pixels[y*w+x]=new Color((float)lamp.Radiance[0],(float)lamp.Radiance[1],(float)lamp.Radiance[2],1);
                     }
             }
+            buildWalls.Dispose();
             var sceneTexture=new Texture2D(w,h,TextureFormat.RGBAHalf,false,true){name="Сцена света",filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
             sceneTexture.SetPixels(pixels);
             sceneTexture.Apply(false,false);
@@ -340,17 +344,20 @@ namespace Remains.Presentation
 
             field.width=w;field.height=h;field.texel=t;field.albedo=(float)table.RadianceAlbedo;field.edgeTexels=(float)(table.ShadowEdge/t);field.rimTexels=(float)(table.ObjectRimWidth/t);field.objectGradient=table.ObjectLightMode=="gradient";
             int emitters=0,absorbers=0,glowing=0,dark=0,windows=0;
-            if(sprites!=null) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),room,lands,ref emitters,ref absorbers,ref glowing,ref dark,ref windows);
+            if(sprites!=null) using(Remains.Diagnostics.FrameHitchLog.Section("Поле света: спрайты")) field.scene=field.DrawSprites(sceneTexture,sprites,table,light,new Vector4(origin.x,origin.y,w*t,h*t),room,lands,ref emitters,ref absorbers,ref glowing,ref dark,ref windows);
             field.rect=new Vector4(origin.x,origin.y,w*t,h*t);
             // Top cascade: the ray interval reaches the room diagonal, (4^(levels) - 1) / 3 ≥ diagonal.
             float diagonal=Mathf.Sqrt(w*w+h*h);
             field.levels=1;
             while((Mathf.Pow(4,field.levels)-1)/3<diagonal) field.levels++;
             field.baseScene=field.scene;
-            field.UpdateOccluders(occluders);
-            field.Allocate();
-            field.EnsureSceneDrawing();
-            field.PrepareTransientTargets();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Поле света: буферы"))
+            {
+                field.UpdateOccluders(occluders);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Поле света: рабочие текстуры")) field.Allocate();
+                field.EnsureSceneDrawing();
+                using(Remains.Diagnostics.FrameHitchLog.Section("Поле света: текстуры вспышек")) field.PrepareTransientTargets();
+            }
             Debug.Log($"Поле излучения {room.Template}: сетка {w}×{h}, каскадов {field.levels}, "+(sprites==null?$"ламп-дисков {light.Lamps.Count}.":$"ламп по спрайтам {emitters} (выключенных {dark}), поглощающих объектов {absorbers}, светящихся экранов {glowing}, светящих окон {windows}."));
             return field;
         }
@@ -506,15 +513,17 @@ namespace Remains.Presentation
             quad.SetTriangles(new[]{0,2,1,1,2,3},0);
         }
 
-        private readonly Dictionary<Sprite,double> silhouettes=new();
-        private readonly Dictionary<Sprite,Vector3[]> lampFootprints=new();
+        // Silhouette measurements depend only on the (immutable) sprite and the grid texel, not on the window: shared
+        // by every field of the session. Per field they cost a GPU render + synchronous ReadPixels per lamp sprite on
+        // every light window change (~60 ms of the ~90 ms factory window rebuild).
+        private static readonly Dictionary<(Sprite sprite,float texel),(double area,Vector3[] footprint)> measured=new();
 
         // Uses the same alpha-threshold raster as the lamp's emitted light, prepared at rebuild time.
         // Eight weighted columns retain the extent of a long lamp without tracing every lit pixel.
         public Vector3[] PrepareLampShadowSamples(Sprite sprite,Matrix4x4 localToWorld)
         {
             SilhouetteArea(sprite);
-            var local=lampFootprints[sprite];var output=new Vector3[local.Length];
+            var local=measured[(sprite,texel)].footprint;var output=new Vector3[local.Length];
             for(int i=0;i<local.Length;i++)
             {
                 var world=localToWorld.MultiplyPoint3x4(new Vector3(local[i].x,local[i].y,0));
@@ -527,7 +536,7 @@ namespace Remains.Presentation
         // the scene shader into a grid-sized target, lit texels counted (once per sprite, at build).
         private double SilhouetteArea(Sprite sprite)
         {
-            if(silhouettes.TryGetValue(sprite,out double cached)) return cached;
+            if(measured.TryGetValue((sprite,texel),out var cached)) return cached.area;
             var bounds=sprite.bounds;
             int w=Mathf.CeilToInt(bounds.size.x/texel)+2,h=Mathf.CeilToInt(bounds.size.y/texel)+2;
             var target=RenderTexture.GetTemporary(w,h,0,RenderTextureFormat.ARGBHalf,RenderTextureReadWrite.Linear);
@@ -556,10 +565,9 @@ namespace Remains.Presentation
             var footprint=new List<Vector3>(8);
             for(int i=0;i<8;i++) if(counts[i]>0)
                 footprint.Add(new Vector3(sums[i].x/counts[i],sums[i].y/counts[i],(float)counts[i]/count));
-            lampFootprints[sprite]=footprint.ToArray();
             UnityEngine.Object.DestroyImmediate(copy);
             double area=Math.Max(1,count)*texel*texel;
-            silhouettes[sprite]=area;
+            measured[(sprite,texel)]=(area,footprint.ToArray());
             return area;
         }
 
@@ -582,11 +590,31 @@ namespace Remains.Presentation
             bounceB=Target(width,height,GraphicsFormat.R16G16B16A16_SFloat,"Отражение стен B");
         }
 
+        // Window rebuilds replace a field with one of the same size: its working targets are taken over from the
+        // previous field (cleared) instead of freed and allocated again (~20 targets per light window change).
+        private static readonly Dictionary<(int w,int h,GraphicsFormat format,string name),RenderTexture> spare=new();
         private static RenderTexture Target(int w,int h,GraphicsFormat format,string name)
         {
+            if(spare.Remove((w,h,format,name),out var reused) && reused!=null && reused.IsCreated())
+            {
+                reused.filterMode=FilterMode.Point;reused.wrapMode=TextureWrapMode.Clamp;
+                var previous=RenderTexture.active;
+                try {RenderTexture.active=reused;GL.Clear(false,true,Color.clear);}
+                finally {RenderTexture.active=previous;}
+                return reused;
+            }
             var texture=new RenderTexture(w,h,0,format){name=name,enableRandomWrite=true,filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
             texture.Create();
             return texture;
+        }
+        // Keeps one spare target per size/format/purpose; any other is freed.
+        private static void Recycle(RenderTexture texture)
+        {
+            if(texture==null) return;
+            var key=(texture.width,texture.height,texture.graphicsFormat,texture.name);
+            if(texture.IsCreated() && !spare.ContainsKey(key)) {spare.Add(key,texture);return;}
+            texture.Release();
+            if(Application.isPlaying) Destroy(texture);else DestroyImmediate(texture);
         }
 
         public void Render()
@@ -677,10 +705,10 @@ namespace Remains.Presentation
             Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
             transientCommands?.Release();
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
-            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,fillSamples,fillWeights,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence,backgroundAccumulation}) if(texture!=null) texture.Release();
-            if(baseScene is RenderTexture baseTarget) baseTarget.Release();
-            if(occlusionScene!=null) occlusionScene.Release();
-            foreach(var obj in new UnityEngine.Object[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,fillSamples,fillWeights,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence,backgroundAccumulation,occlusionScene,baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
+            foreach(var texture in new[]{seedsA,seedsB,distance,cascadeA,cascadeB,fluenceRaw,fluence,bounceA,bounceB,fillSamples,fillWeights,transientScene,staticFluence,directFluence,freeFluence,projectedShadowMask,backgroundFluence,backgroundAccumulation,occlusionScene})
+                Recycle(texture);
+            if(baseScene is RenderTexture baseTarget) Recycle(baseTarget);
+            foreach(var obj in new UnityEngine.Object[]{baseScene is RenderTexture?null:baseScene==wallsTexture?null:baseScene,wallsTexture,sceneMaterial,quad})
                 if(obj!=null) {if(Application.isPlaying) Destroy(obj);else DestroyImmediate(obj);}
         }
     }
