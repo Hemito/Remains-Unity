@@ -10,6 +10,15 @@ namespace Remains.Editor
 {
     public static class ActorShadowSourceChecks
     {
+        // The worker-thread selection (ActorShadowPresentation) must equal the in-frame one exactly.
+        private static void RequireSameAsync(FactoryLevelView view,Vector2 actor,List<ActorShadowSource> expected)
+        {
+            var background=view.SelectActorShadowSourcesAsync(actor).GetAwaiter().GetResult();
+            bool same=background.Count==expected.Count;
+            for(int i=0;same && i<expected.Count;i++)
+                same=background[i].Id==expected[i].Id && background[i].Strength==expected[i].Strength && background[i].Position==expected[i].Position;
+            Require(same,$"Фоновый выбор ламп тени отличается от выбора в кадре: актёр={actor}, в кадре {expected.Count}, в фоне {background.Count}.");
+        }
         public static void RunHubBatch()
         {
             GameObject room=null;
@@ -41,7 +50,7 @@ namespace Remains.Editor
                 var selected=new List<ActorShadowSource>();
                 for(float x=32.7f;x<=33.31f;x+=.05f)
                 {
-                    actor.x=x;view.SelectActorShadowSources(actor,selected);
+                    actor.x=x;view.SelectActorShadowSources(actor,selected);RequireSameAsync(view,actor,selected);
                     string trace="";foreach(var lamp in selected) trace+=$" {lamp.Id}:{lamp.Strength:F4}@{lamp.Position}";
                     Debug.Log($"Тени ванной: актёр={actor};{trace}");
                     Require(selected.Exists(s=>s.Id==left) && selected.Exists(s=>s.Id==right),
@@ -49,10 +58,10 @@ namespace Remains.Editor
                 }
                 actor.x=33;view.SelectActorShadowSources(actor,selected);
                 float before=selected.Find(s=>s.Id==left).Strength;
-                view.SyncLamps(new[]{middle,right},2,new[]{middle,right});view.SelectActorShadowSources(actor,selected);
+                view.SyncLamps(new[]{middle,right},2,new[]{middle,right});view.SelectActorShadowSources(actor,selected);RequireSameAsync(view,actor,selected);
                 Require(!selected.Exists(s=>s.Id==right) && selected.Exists(s=>s.Id==left) && selected.Find(s=>s.Id==left).Strength>before,
                     "Разбитая правая лампа ванной сохраняется в тенях или не меняет вклад левой.");
-                Debug.Log("Ванная настоящего хаба: PASS — две лампы, движение через 5 см и уничтожение правой лампы.");
+                Debug.Log("Ванная настоящего хаба: PASS — две лампы, движение через 5 см и уничтожение правой лампы; фоновый выбор совпадает.");
                 EditorApplication.Exit(0);
             }
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}

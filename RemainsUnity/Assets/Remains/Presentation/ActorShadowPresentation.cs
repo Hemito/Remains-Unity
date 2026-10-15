@@ -32,6 +32,7 @@ namespace Remains.Presentation
         private readonly HashSet<string> steadySources=new(StringComparer.Ordinal);
         private FactoryLevelView level;
         private Coroutine refresh;
+        private readonly List<(Entry Entry,Vector2 At,long Revision,System.Threading.Tasks.Task<List<ActorShadowSource>> Task)> jobs=new();
 
         public ActorShadowPresentation(MonoBehaviour runner,Transform parent)
         {
@@ -198,16 +199,34 @@ namespace Remains.Presentation
         {
             // First yield avoids executing the grid traversal inside the pose callback.
             yield return null;
+            // Lamp selection (ray traces to every lamp of the window) runs on worker threads; the frame only starts
+            // the jobs and adopts results that still match the window and lamp/door revision they were taken for.
+            var owner=level;
+            if(owner!=null && owner.IsReady)
+            {
+                jobs.Clear();
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: запуск выбора ламп"))
+                foreach(var pair in entries)
+                {
+                    var entry=pair.Value;
+                    if(entry.Queued && (entry.Revision!=owner.ShadowSourceRevision ||
+                        (entry.Position-entry.SelectedAt).sqrMagnitude>=owner.ShadowSettings.ActorShadowMoveThreshold*owner.ShadowSettings.ActorShadowMoveThreshold))
+                        jobs.Add((entry,entry.Position,owner.ShadowSourceRevision,owner.SelectActorShadowSourcesAsync(entry.Position)));
+                }
+                foreach(var job in jobs) while(!job.Task.IsCompleted) yield return null;
+                if(level!=owner || !owner.IsReady) {refresh=null;yield break;}
+                foreach(var job in jobs)
+                {
+                    var selected=job.Task.GetAwaiter().GetResult();   // a failed selection throws here, as the synchronous call did
+                    if(job.Revision!=owner.ShadowSourceRevision || !entries.ContainsValue(job.Entry)) continue;   // stale: reselected next frame
+                    job.Entry.Lamps.Clear();job.Entry.Lamps.AddRange(selected);
+                    job.Entry.SelectedAt=job.At;job.Entry.Revision=job.Revision;
+                }
+            }
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Тени: источники персонажей");
             if(level!=null && level.IsReady) foreach(var pair in entries)
             {
                 var entry=pair.Value;if(!entry.Queued) continue;
-                if(entry.Revision!=level.ShadowSourceRevision ||
-                    (entry.Position-entry.SelectedAt).sqrMagnitude>=level.ShadowSettings.ActorShadowMoveThreshold*level.ShadowSettings.ActorShadowMoveThreshold)
-                {
-                    using(Remains.Diagnostics.FrameHitchLog.Section("Тени: выбор ламп")) level.SelectActorShadowSources(entry.Position,entry.Lamps);
-                    entry.SelectedAt=entry.Position;entry.Revision=level.ShadowSourceRevision;
-                }
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: видимость вспышек"))
                 foreach(var flash in entry.Flashes)
                     entry.FlashVisibility[flash.Id]=(flash.Position,entry.Position,

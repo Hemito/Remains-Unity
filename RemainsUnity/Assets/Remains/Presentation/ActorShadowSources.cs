@@ -22,6 +22,8 @@ namespace Remains.Presentation
 
     // Prepared once per light window. Select is called explicitly by the actor coordinator,
     // never from Update here; it reads canonical cached terrain and current door rectangles.
+    // Configure only swaps references (the terrain array is new per window and never written after; the lamp list
+    // is copied), so a Detached copy plus copied dark/door sets can select on a worker thread.
     public sealed class ActorShadowSources
     {
         private float[,] absorption;
@@ -45,9 +47,14 @@ namespace Remains.Presentation
         {
             absorption=terrain??throw new ArgumentNullException(nameof(terrain));
             if(texelSize<=0 || !float.IsFinite(texelSize)) throw new ArgumentOutOfRangeException(nameof(texelSize));
-            lamps=sources??throw new ArgumentNullException(nameof(sources));
+            if(sources==null) throw new ArgumentNullException(nameof(sources));
+            var copy=new ActorShadowSource[sources.Count];for(int i=0;i<copy.Length;i++) copy[i]=sources[i];
+            lamps=copy;
             origin=levelOrigin;texel=texelSize;worldToLevel=inverseLevel;ambient=Mathf.Max(0,ambientContribution);
         }
+
+        // An immutable copy of the prepared window for a worker-thread Select.
+        public ActorShadowSources Detached()=>new() {absorption=absorption,origin=origin,texel=texel,worldToLevel=worldToLevel,lamps=lamps,ambient=ambient};
 
         public void Select(Vector2 actor,ISet<string> dark,IReadOnlyList<(Rect bounds,double opacity)> doors,
             int maxSources,List<ActorShadowSource> output)

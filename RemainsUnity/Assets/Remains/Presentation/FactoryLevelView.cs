@@ -56,6 +56,21 @@ namespace Remains.Presentation
             if(!IsReady) {output.Clear();return;}
             shadowSources.Select(actor,darkLamps,doors,table.ActorShadowMaxSources,output);
         }
+        // The same selection on a worker thread (11–12 ms per moving actor on the factory when run in the frame):
+        // the window, dark lamps and doors are captured now; the result belongs to the current ShadowSourceRevision.
+        public System.Threading.Tasks.Task<List<ActorShadowSource>> SelectActorShadowSourcesAsync(Vector2 actor)
+        {
+            if(!IsReady) return System.Threading.Tasks.Task.FromResult(new List<ActorShadowSource>());
+            var window=shadowSources.Detached();
+            var dark=new HashSet<string>(darkLamps,StringComparer.Ordinal);
+            var blocking=doors.ToArray();int max=table.ActorShadowMaxSources;
+            return System.Threading.Tasks.Task.Run(()=>
+            {
+                var output=new List<ActorShadowSource>(max);
+                window.Select(actor,dark,blocking,max,output);
+                return output;
+            });
+        }
         public IReadOnlyCollection<string> LampIds=>lamps.Keys;
         public void PrepareActorShadowFields(IReadOnlyCollection<string> ids)
         {

@@ -128,6 +128,9 @@ namespace Remains.Runtime
             passiveMovementSettings=MovementSettings.Load();
             WeaponCatalog.Load();
             Application.runInBackground=true;
+            // Vertical sync off (user decision 2026-10-15): the quality level enabled it, which ignored the frame-rate
+            // target and turned every frame over one refresh into a doubled frame. A menu setting may enable it later.
+            QualitySettings.vSyncCount=0;
             Application.targetFrameRate=Options.Smoke==null?60:Options.ProbeFrameRate;
             networkObject=new GameObject("Сетевая сессия");
             networkObject.SetActive(false);
