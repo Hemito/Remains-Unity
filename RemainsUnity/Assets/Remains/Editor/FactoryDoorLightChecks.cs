@@ -19,6 +19,8 @@ namespace Remains.Editor
             GameObject visual=null;
             try
             {
+                // The factory content (mines, loot) reads the weapon catalog, as in the game.
+                Anatomy.Load();WeaponCatalog.Load();
                 var catalog=AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath);
                 var world=new WorldState{seed=104};
                 FactoryPreparation.Create(world,catalog,0);

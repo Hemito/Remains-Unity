@@ -62,6 +62,15 @@ namespace Remains.Presentation
         {bool found=steadyShadows.TryGet(id,out var target);field=target;return found;}
         public void RegisterSteadyEmitters(IReadOnlyList<SteadyLightEmitter> sources)
         {steadyShadows.Register(sources);hasBackgroundSignature=false;warnedSteadyIds.Clear();}
+        public bool HasStaleSteadyShadowFields=>steadyShadows.HasStale;
+        // One stale direct field rebuilt after a scene change (FactoryLevelView spreads them over frames).
+        public bool RebuildOneStaleSteadyShadowField()
+        {
+            bool rebuilt;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Свет: поле прямого света для теней (досборка)")) rebuilt=steadyShadows.RebuildOneStale(BuildSteadyDirect);
+            if(rebuilt) hasBackgroundSignature=false;
+            return rebuilt;
+        }
         public void PrepareSteadyShadowFields(IReadOnlyCollection<string> ids)
         {using(Remains.Diagnostics.FrameHitchLog.Section("Свет: поля прямого света для теней")) steadyShadows.Prepare(ids,BuildSteadyDirect);hasBackgroundSignature=false;}
 

@@ -22,6 +22,11 @@ namespace Remains.Presentation
     {
         public const int WindowRooms=3;            // rooms across and down in the light window (odd)
         public const int SettleUpdates=8;
+        // After a door or lamp event the field gets one update at once and the rest of its settle updates one per
+        // frame, then the stale shadow fields one per frame: a local event costs a few milliseconds of video card
+        // per frame instead of the whole window's passes in one frame.
+        private int pendingSettle;
+        private Coroutine settling;
         public const string AmbientResource="Presentation/FactoryAmbientLight";          // field updates after a rebuild: one wall bounce per update
 
         private ITemplateLevel root;
@@ -140,7 +145,7 @@ namespace Remains.Presentation
                 if(changed)
                 {
                     field.UpdateSprites(sprites,WorldDoorOccluders());
-                    for(int i=0;i<SettleUpdates;i++) field.Render();
+                    SettleOverFrames();
                     RefreshShadowEmitters();
                 }
             }
@@ -218,11 +223,41 @@ namespace Remains.Presentation
             if(field!=null)
             {
                 field.UpdateOccluders(WorldDoorOccluders());
-                for(int i=0;i<SettleUpdates;i++) field.Render();
+                SettleOverFrames();
             }
             AppliedDoorRevision=revision;
             ShadowSourceRevision++;
             using(Remains.Diagnostics.FrameHitchLog.Section("Свет: событие PresentationChanged")) PresentationChanged?.Invoke(this);
+        }
+
+        private void SettleOverFrames()
+        {
+            field.Render();
+            pendingSettle=SettleUpdates-1;
+            if(!Application.isPlaying || !isActiveAndEnabled)
+            {
+                // Editor tools and checks have no frames to spread over: the whole settle at once, as before.
+                for(;pendingSettle>0;pendingSettle--) field.Render();
+                while(field.RebuildOneStaleSteadyShadowField()) {}
+                return;
+            }
+            if(settling==null) settling=StartCoroutine(Settle());
+        }
+        private System.Collections.IEnumerator Settle()
+        {
+            while(true)
+            {
+                yield return null;
+                if(field==null) break;
+                if(pendingSettle>0)
+                {
+                    pendingSettle--;
+                    // The field textures update in place; listeners already reacted to the event itself.
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Свет: досчёт после события")) field.Render();
+                }
+                else if(!field.RebuildOneStaleSteadyShadowField()) break;
+            }
+            settling=null;
         }
 
         public void Initialize(FactoryLevelRoot level,RoomLayout geometry=null)
@@ -395,6 +430,7 @@ namespace Remains.Presentation
                 using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: маска стирания")) window.AddComponent<RoomDecorResources>().BuildErase(erases,origin,size,Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource));
             using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: поле"))
                 field=RoomRadianceField.Build(data.Scene,root.Lands,origin,window.transform,sprites,WorldDoorOccluders());
+            pendingSettle=0;   // a new window field gets its own full passes below
             using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: начальные проходы")) for(int i=0;i<SettleUpdates;i++) field.Render();
             shadowTerrain=data.Shadow;
             shadowOrigin=localOrigin;

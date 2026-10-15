@@ -76,12 +76,21 @@ namespace Remains.Editor
                 if(Shader.GetGlobalFloat("_RemainsBackgroundRadianceEnabled")>0)
                     Equal(Read(Shader.GetGlobalTexture("_RemainsBackgroundRadiance")),baseline,"Снятие тени не восстановило фон.");
                 CheckOverlappingSources(field,scene,sprite,shadowMask,barrier);
-                int generation=field.SteadyShadowGeneration;
+                int generation=field.SteadyShadowGeneration,count=field.SteadyShadowFieldCount;
+                Require(field.TryGetSteadyShadowField("red",out var beforeField),"Нет поля источника до ревизии заслонки.");
+                var beforePixels=Read(beforeField);
                 field.UpdateOccluders(new[]{(new Rect(2.5f,0,.25f,6),1d)});
-                Require(field.SteadyShadowFieldCount==0 && field.SteadyShadowGeneration>generation,
-                    "Ревизия заслонки не очистила поля постоянных источников.");
-                Require(!field.TryGetSteadyShadowField("red",out _),"После ревизии возвращается устаревшее поле источника.");
-                Debug.Log("Постоянные тени: PASS — только прямой вклад выбранной лампы, сохранены отражения/другой источник/актёры, Max масок, без накопления, очистка ревизией.");
+                // A door revision keeps the fields as stale until they are rebuilt one per frame (FactoryLevelView).
+                Require(field.SteadyShadowGeneration>generation && field.HasStaleSteadyShadowFields && field.SteadyShadowFieldCount==count,
+                    "Ревизия заслонки не пометила поля постоянных источников устаревшими.");
+                while(field.RebuildOneStaleSteadyShadowField()) {}
+                bool rebuilt=field.TryGetSteadyShadowField("red",out var afterField);
+                Require(!field.HasStaleSteadyShadowFields && rebuilt && !ReferenceEquals(afterField,beforeField),
+                    "Устаревшее поле источника не пересобрано после ревизии.");
+                bool differs=false;var afterPixels=Read(afterField);
+                for(int i=0;i<afterPixels.Length && !differs;i++) differs=(afterPixels[i]-beforePixels[i]).maxColorComponent>1e-4f || (beforePixels[i]-afterPixels[i]).maxColorComponent>1e-4f;
+                Require(differs,"Пересобранное поле источника не учло новую заслонку.");
+                Debug.Log("Постоянные тени: PASS — только прямой вклад выбранной лампы, сохранены отражения/другой источник/актёры, Max масок, без накопления, ревизия: поля устаревают и пересобираются с новой заслонкой.");
             }
             finally
             {

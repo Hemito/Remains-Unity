@@ -16,13 +16,16 @@ namespace Remains.Presentation
     }
 
     // Owns isolated direct-light fields. Catalog changes and preparation are explicit events;
-    // drawing an actor's current shadow only reads already prepared textures.
+    // drawing an actor's current shadow only reads already prepared textures. A scene change (a door) makes the
+    // fields stale instead of dropping them: shadows keep the previous field until RebuildOneStale replaces it,
+    // one field per call, so a door does not rebuild every lamp's field in one frame.
     public sealed class SteadyLightShadowCache : IDisposable
     {
         private readonly Dictionary<string, SteadyLightEmitter> catalog = new(StringComparer.Ordinal);
         private readonly Dictionary<string, RenderTexture> fields = new(StringComparer.Ordinal);
         private readonly HashSet<string> requested = new(StringComparer.Ordinal);
         private readonly HashSet<string> retired = new(StringComparer.Ordinal);
+        private readonly HashSet<string> stale = new(StringComparer.Ordinal);
         private readonly List<string> inactive = new();
         private bool disposed;
 
@@ -77,6 +80,7 @@ namespace Remains.Presentation
             {
                 Release(fields[id]);
                 fields.Remove(id);
+                stale.Remove(id);
             }
             inactive.Clear();
 
@@ -103,8 +107,29 @@ namespace Remains.Presentation
         public void InvalidateFields()
         {
             ThrowIfDisposed();
-            ClearFields();
+            stale.UnionWith(fields.Keys);
             Generation++;
+        }
+        public bool HasStale => stale.Count > 0;
+        // Rebuilds one stale field (the scene changed since it was built); false when none is left.
+        public bool RebuildOneStale(Func<SteadyLightEmitter, RenderTexture> build)
+        {
+            ThrowIfDisposed();
+            if (build == null) throw new ArgumentNullException(nameof(build));
+            string id = null;
+            foreach (string candidate in stale) { id = candidate; break; }
+            if (id == null) return false;
+            stale.Remove(id);
+            if (!fields.TryGetValue(id, out var old) || !catalog.TryGetValue(id, out var emitter)) return true;
+            RenderTexture texture = build(emitter);
+            if (texture == null)
+            {
+                Debug.LogWarning($"SteadyLightShadowCache: пересборка поля вернула пустую текстуру для ID='{id}', поколение {Generation}; оставлено прежнее поле.");
+                return true;
+            }
+            fields[id] = texture;
+            if (!ReferenceEquals(old, texture)) Release(old);
+            return true;
         }
 
         public void Dispose()
@@ -122,6 +147,7 @@ namespace Remains.Presentation
         {
             foreach (var entry in fields) Release(entry.Value);
             fields.Clear();
+            stale.Clear();
         }
 
         private static void Release(RenderTexture texture)
