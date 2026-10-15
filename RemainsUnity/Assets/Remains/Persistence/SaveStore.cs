@@ -292,17 +292,6 @@ namespace Remains.Persistence
         private void WriteWorld(string filename,string content)=>AtomicSaveFile.Write(Path.Combine(WorldDirectoryPath,filename),content);
         // Streamed from the snapshot's parts: no ~2.8 MB whole-text string per periodic save (GC pauses).
         private void WriteWorld(string filename,RecoverySnapshot snapshot)=>AtomicSaveFile.Write(Path.Combine(WorldDirectoryPath,filename),snapshot.WriteTo);
-        // The canonical archive copy of a snapshot (content-addressed by its ID), written if missing.
-        internal string EnsureArchive(RecoverySnapshot snapshot)
-        {
-            EnsureWorldLibrary();
-            using var access=SaveAccess.Enter(WorldDirectoryPath);
-            string archive=Path.Combine("Worlds",snapshot.WorldId,"Snapshots",snapshot.Id+".json");
-            string path=Path.Combine(WorldDirectoryPath,archive);
-            if(File.Exists(path)) {if(!snapshot.MatchesFile(path)) throw new InvalidDataException($"Повреждён архив снимка: {path}.");}
-            else {WriteWorld(archive,snapshot);PruneArchive(snapshot.WorldId);}
-            return path;
-        }
         private void WriteCharacter(string filename,string content)=>AtomicSaveFile.Write(Path.Combine(CharacterDirectoryPath,filename),content);
     }
 }

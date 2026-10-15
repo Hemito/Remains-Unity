@@ -9,8 +9,9 @@ namespace Remains.Persistence
     // The stored paths are bindings only: every write uses the configured store.
     internal static class LocalRecoveryPair
     {
-        // 2 (2026-10-15): the intent refers to the canonical archive copy of the world by its SHA-256 (written before
-        // the intent) instead of carrying the world text; a fresh save does not re-parse the validated snapshot.
+        // 2 (2026-10-15): the world travels in its own file beside the intent (RecoveryPair/pending-world.json,
+        // streamed from the snapshot parts, checked by SHA-256) instead of inside the intent text; a fresh save does
+        // not re-parse the validated snapshot. The copy is the profile's own: shared archive rotation cannot remove it.
         private const int Version=2;
         [Serializable]
         private sealed class Intent : ExtensibleState
@@ -27,6 +28,7 @@ namespace Remains.Persistence
             public RecoverySnapshot snapshot;
         }
         internal static string PendingPath(SaveStore store)=>Path.Combine(store.CharacterDirectoryPath,"RecoveryPair","pending.json");
+        private static string PendingWorldPath(SaveStore store)=>Path.Combine(store.CharacterDirectoryPath,"RecoveryPair","pending-world.json");
         internal static void Save(SaveStore store,RecoverySnapshot snapshot,string characterJson,bool publishWorld,Action<string> writeCharacter)
         {
             if(snapshot==null) throw new ArgumentNullException(nameof(snapshot));
@@ -41,16 +43,16 @@ namespace Remains.Persistence
             using var characterAccess=SaveAccess.Enter(store.CharacterDirectoryPath);
             RecoverLocked(store,writeCharacter);
             using var worldAccess=SaveAccess.Enter(store.WorldDirectoryPath);
-            // The world copy the intent refers to is durable before the intent: a published pair writes it here, a
-            // host-local pair requires the canonical copy the host already wrote.
-            if(publishWorld) {FlushFile(store.EnsureArchive(validated.snapshot));}
-            RequireArchive(store,validated.snapshot);
+            RequireArchive(store,validated.snapshot,publishWorld);
+            // The world copy the intent refers to is durable before the intent.
+            string worldCopy=PendingWorldPath(store);
+            AtomicSaveFile.Write(worldCopy,validated.snapshot.WriteTo);FlushFile(worldCopy);
             intent.previousCharacterSha256=ExistingHash(CharacterPath(store));
             if(publishWorld) intent.previousWorldSha256=File.Exists(WorldPath(store))?TextSha256.OfFile(WorldPath(store)):null;
             string pending=PendingPath(store);
             AtomicSaveFile.Write(pending,StateJson.ToJson(intent));FlushFile(pending);
             Publish(store,validated,writeCharacter);
-            File.Delete(pending);
+            File.Delete(pending);File.Delete(worldCopy);
         }
         internal static bool Recover(SaveStore store,Action<string> writeCharacter)
         {
@@ -67,8 +69,9 @@ namespace Remains.Persistence
                 using var worldAccess=SaveAccess.Enter(store.WorldDirectoryPath);
                 RequireUnchanged(CharacterPath(store),intent.previousCharacterSha256,intent.characterJson);
                 if(intent.publishWorld.Value) RequireUnchangedWorld(WorldPath(store),intent.previousWorldSha256,intent.worldSha256);
+                RequireArchive(store,validated.snapshot,intent.publishWorld.Value);
                 Publish(store,validated,writeCharacter);
-                File.Delete(pending);
+                File.Delete(pending);File.Delete(PendingWorldPath(store));
                 UnityEngine.Debug.LogWarning($"Завершена прерванная запись мира и персонажа: world={intent.worldId}, actor={intent.actorId}, character={intent.characterId}, publishWorld={intent.publishWorld}, intent={pending}.");
                 return true;
             }
@@ -89,15 +92,15 @@ namespace Remains.Persistence
             if(!saved.player || saved.character!=actor.character) throw new InvalidDataException("Мир содержит другую личность для ID персонажа.");
             return new Validated {intent=intent,snapshot=snapshot};
         }
-        // A pending pair after a restart: the world comes from its canonical archive copy, strictly parsed.
+        // A pending pair after a restart: the world comes from the pair's own copy, strictly parsed.
         private static Validated ValidateStored(SaveStore store,Intent intent)
         {
             var actor=ValidateCommon(store,intent);
             if(!Guid.TryParseExact(intent.worldId,"N",out _) || intent.worldSha256==null || !HashOrMissing(intent.worldSha256))
                 throw new InvalidDataException("Некорректный ID или хэш мира в намерении записи пары.");
-            string archive=Path.Combine(store.WorldDirectoryPath,"Worlds",intent.worldId,"Snapshots",intent.worldSha256+".json");
-            if(!File.Exists(archive)) throw new InvalidDataException("Нет канонической копии мира, на которую ссылается намерение: "+archive);
-            var snapshot=new RecoverySnapshot(File.ReadAllText(archive));
+            string copy=PendingWorldPath(store);
+            if(!File.Exists(copy)) throw new InvalidDataException("Нет копии мира, на которую ссылается намерение: "+copy);
+            var snapshot=new RecoverySnapshot(File.ReadAllText(copy));
             if(snapshot.WorldId!=intent.worldId || snapshot.Id!=intent.worldSha256)
                 throw new InvalidDataException("Не совпадает ID или точный хэш мира в намерении записи пары.");
             var world=snapshot.CreateLiveWorld();int identities=0;
@@ -139,9 +142,11 @@ namespace Remains.Persistence
                 FlushFile(WorldPath(store));
             }
         }
-        private static void RequireArchive(SaveStore store,RecoverySnapshot snapshot)
+        // A host-local pair (publishWorld=false) requires the canonical copy the host already wrote.
+        private static void RequireArchive(SaveStore store,RecoverySnapshot snapshot,bool allowMissing)
         {
             string path=Archive(store,snapshot);
+            if(allowMissing && !File.Exists(path)) return;
             if(!File.Exists(path) || !snapshot.MatchesFile(path))
                 throw new InvalidDataException($"Не найдена точная каноническая копия перед записью профиля: snapshot={snapshot.Id}, archive={path}.");
         }
