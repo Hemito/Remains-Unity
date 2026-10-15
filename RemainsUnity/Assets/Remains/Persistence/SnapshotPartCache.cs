@@ -23,8 +23,8 @@ namespace Remains.Persistence
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,Dictionary<string,(object part,string text)>> partTexts=new();
         private static readonly HashSet<string> warnedUnmarked=new(StringComparer.Ordinal);
         public static int LastUnmarked {get;private set;}
-        // Rolling audit: each composition re-serializes every VerifyEvery-th part (by list position, shifting each
-        // time), so every part is verified once per VerifyEvery compositions without a whole-world spike.
+        // Rolling audit: each composition re-serializes the parts whose key slot matches this round (a stable hash
+        // of the part key), so every part is verified once per VerifyEvery compositions without a whole-world spike.
         public const int VerifyEvery=30;
         private static long compositions;
 
@@ -193,10 +193,12 @@ namespace Remains.Persistence
             public Audit(WorldState world,Dictionary<string,(object part,string text)> previous,Dictionary<string,(object part,string text)> current)
             {World=world;Previous=previous;Current=current;}
             // key: the part key (list:id); always-serialized lists (actors, projectiles) are never reused.
-            public bool Reuse(string key,bool actor,object part,int index,out string text)
+            public bool Reuse(string key,bool actor,object part,out string text)
             {
                 text=null;
-                if(!Verify && (index+Round)%VerifyEvery==0) {Verified++;return false;}
+                // The slot follows the part's key, not its list position: removals before a part shift its index
+                // together with Round and could keep it out of the audit forever (Codex review 2026-10-15).
+                if(!Verify && ((uint)StringComparer.Ordinal.GetHashCode(key)+(ulong)Round)%VerifyEvery==0) {Verified++;return false;}
                 if(Verify || actor || !WorldChanges.IsTracked(World) || Previous==null || !Previous.TryGetValue(key,out var before) ||
                     !ReferenceEquals(before.part,part) || WorldChanges.IsMarked(World,part)) return false;
                 text=before.text;Reused++;return true;
@@ -271,7 +273,7 @@ namespace Remains.Persistence
                         // A reused text was accepted when it was stored (immutable string): no strict check and no
                         // hashing of it into the accepted sets, which cost a pass over the whole ~1.25 MB per snapshot.
                         string stored=null;
-                        bool reused=item!=null && id!=null && audit!=null && audit.Reuse(key,actor,item,index,out stored);
+                        bool reused=item!=null && id!=null && audit!=null && audit.Reuse(key,actor,item,out stored);
                         string text=item==null?"null":reused?stored:StateJson.ToJson(item);
                         if(item!=null && !reused && !(audit?.Stored(key,text)??false) && !(previous?.Contains(text)??false) && !current.Contains(text))
                         {
