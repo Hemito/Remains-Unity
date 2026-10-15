@@ -29,13 +29,14 @@ namespace Remains.Domain
         // Original WThrow.shoot for a placed mine (throwtip 1): it arms for 75 frames, and its countdown is 0.3 of the
         // definition's once triggered.
         public const float PlacedArmingSeconds=75f/30,PlacedDelayFactor=.3f;
-        // How far below the feet a placed mine may fall onto a support.
-        public const float PlaceDrop=6f,PlaceReach=1.5f;
-        // Where a mine released at the feet comes to rest: straight down onto the first support within PlaceDrop.
-        public static bool TryDrop(RoomLayout room,Vector2 feet,MineProfile profile,out Vector2 point)
+        // How far below its release point a placed mine may fall onto a support.
+        // The hold point is within the telekinesis reach around the body; PlaceReach bounds it generously on the host.
+        public const float PlaceDrop=6f,PlaceReach=3f;
+        // Where a released mine (its bottom centre) comes to rest: straight down onto the first support within PlaceDrop.
+        public static bool TryDrop(RoomLayout room,Vector2 bottom,MineProfile profile,out Vector2 point)
         {
             var hull=new MovementHull {width=profile.width,height=profile.height};
-            var start=feet+Vector2.up*.1f;
+            var start=bottom+Vector2.up*.1f;
             point=ActorTerrainMotion.Move(room,hull,start,Vector2.down*(PlaceDrop+.1f),false,bodyTops:false);
             return start.y-point.y<PlaceDrop+.09f;
         }

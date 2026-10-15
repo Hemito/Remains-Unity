@@ -597,7 +597,6 @@ namespace Remains.Runtime
                 command.reload=keyboard.rKey.wasPressedThisFrame;
                 command.interact=keyboard.eKey.wasPressedThisFrame;command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;
                 command.grenade=keyboard.gKey.wasPressedThisFrame;command.heal=keyboard.hKey.wasPressedThisFrame;
-                command.mine=keyboard.mKey.wasPressedThisFrame;
             }
             if(mouse!=null)
             {
@@ -677,13 +676,15 @@ namespace Remains.Runtime
             if(command.reload && !HeldItemSelection.HasSelection(actor) && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
             Revival.Step(InteractionFocus.Target,command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);
-            if(command.grenade && !actor.down && command.hasAim) Grenades.TryThrow(command.aim);
+            // G uses the throw slot as the original: a mine held in telekinesis is released, otherwise a grenade is thrown.
+            if(command.grenade && !actor.down && command.hasAim)
+            {if(SessionMines.HoldsMine(actor)) Session.Mines.RequestPlace(Geometry.Get(actor.level));else Grenades.TryThrow(command.aim);}
             if(command.heal && !actor.down) Session.RequestSelfHeal();
-            if(command.mine && !actor.down) Session.Mines.RequestPlace(Geometry.Get(actor.level));
             if(command.fire && command.hasAim && (actor.weaponSelectionRevision==selectionBefore ||
                 !HeldItemSelection.HasSelection(actor) && actor.weapon!="grenade"))
             {
-                if(HeldItemSelection.HasSelection(actor)) ItemActions.TryThrow(command.aim,command.throwWholeStack);
+                if(SessionMines.HoldsMine(actor)) Session.Mines.RequestPlace(Geometry.Get(actor.level));
+                else if(HeldItemSelection.HasSelection(actor)) ItemActions.TryThrow(command.aim,command.throwWholeStack);
                 else if(actor.weapon=="grenade") Grenades.TryThrow(command.aim);
                 else Combat.Fire(actor,command.aim);
             }

@@ -15,7 +15,9 @@ namespace Remains.Presentation
     {
         private const float FramesPerSecond=30,BeepPeriod=5/FramesPerSecond,SpotPeriod=.2f;
         private sealed class Art {public Sprite[] frames;public Sprite arming;public float scale;public Vector2 offset;public AudioClip beep,defuse,place;}
-        private sealed class Entry {public MineState state;public MineProfile profile;public Art art;public SpriteRenderer renderer;public float animation,beep;}
+        private sealed class Entry {public MineState state;public MineProfile profile;public Art art;public SpriteRenderer renderer;public float animation,beep,fall,fallSpeed;}
+        private readonly List<Entry> falling=new();
+        private float gravity;
         private readonly Dictionary<string,Entry> views=new(StringComparer.Ordinal);
         private readonly Dictionary<string,Art> arts=new(StringComparer.Ordinal);
         private readonly HashSet<string> spotted=new(StringComparer.Ordinal);
@@ -34,7 +36,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession value,GameplayAudio audio,WorldVisualOrderTable orderTable)
         {
             session=value;playback=audio;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));
-            exported=ExportedContentCatalog.Load();
+            exported=ExportedContentCatalog.Load();gravity=WeaponCatalog.Get("grenade").grenadeGravity;
             session.Changed+=Refresh;session.Mines.DisarmHeard+=Disarmed;session.Mines.PlaceHeard+=Placed;Refresh();
         }
 
@@ -112,6 +114,14 @@ namespace Remains.Presentation
         {
             if(views.Count==0) return;
             float dt=Time.deltaTime;
+            // A released mine is drawn falling from where it was held (its state already rests on the support).
+            for(int i=falling.Count-1;i>=0;i--)
+            {
+                var drop=falling[i];
+                drop.fallSpeed+=gravity*dt;drop.fall=Mathf.Max(0,drop.fall-drop.fallSpeed*dt);
+                drop.renderer.transform.localPosition=(Vector3)drop.art.offset+Vector3.up*drop.fall;
+                if(drop.fall<=0) falling.RemoveAt(i);
+            }
             bool paused=level!=null && session.Pause.IsPaused(level);
             spotClock+=dt;
             if(spotClock>=SpotPeriod)
@@ -149,14 +159,19 @@ namespace Remains.Presentation
             if(weapon==null) {Debug.LogWarning($"Звук установки мины пропущен: мина placed:{message.transaction} ещё не получена, уровень {message.level}.",this);return;}
             var profile=MineRules.Profile(new MineState {id=message.transaction,definition=weapon});
             playback?.PlayContact(Prepare(weapon,profile).place,message.level,new Vector2(message.x,message.y),1);
+            if(message.drop>0 && views.TryGetValue("placed:"+message.transaction,out var entry) && !falling.Contains(entry))
+            {
+                entry.fall=message.drop;entry.fallSpeed=0;
+                entry.renderer.transform.localPosition=(Vector3)entry.art.offset+Vector3.up*entry.fall;falling.Add(entry);
+            }
         }
 
         private void Remove(string id)
         {
-            var entry=views[id];var root=entry.renderer.transform.parent.gameObject;
+            var entry=views[id];var root=entry.renderer.transform.parent.gameObject;falling.Remove(entry);
             root.SetActive(false);if(Application.isPlaying) Destroy(root);else DestroyImmediate(root);views.Remove(id);
         }
-        private void Clear() {foreach(string id in views.Keys.ToArray()) Remove(id);}
+        private void Clear() {foreach(string id in views.Keys.ToArray()) Remove(id);falling.Clear();}
         private void OnDestroy() {if(session!=null) {session.Changed-=Refresh;session.Mines.DisarmHeard-=Disarmed;session.Mines.PlaceHeard-=Placed;}}
     }
 }

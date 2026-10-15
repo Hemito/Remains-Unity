@@ -13,8 +13,9 @@ namespace Remains.Networking
     public struct MineDisarmReply : NetworkMessage {public string mine,reason;public bool accepted;}
     // Every client plays the defuse sound where the mine was (its removal alone does not say why it disappeared).
     public struct MineDisarmedMessage : NetworkMessage {public string mine,definition,level;public float x,y;}
-    // A player's mine: the client finds where it falls under its own (owned) actor; the host checks the stack and spends it.
-    public struct MinePlaceRequest : NetworkMessage {public string transaction,world,actor,level,item;public int generation,lifecycle;public float x,y;}
+    // A player's mine: the client releases the held mine and finds where it falls (its own actor's hold); the host checks
+    // the stack and spends it. drop is the fall from the release point, drawn by every client.
+    public struct MinePlaceRequest : NetworkMessage {public string transaction,world,actor,level,item;public int generation,lifecycle;public float x,y,drop;}
 
     // The host simulates the mines of levels with a connected player (Mine.control): an armed mine checks its zone every
     // SensePeriod, a triggered one counts down and explodes as its weapon through the common explosion path (persisted
@@ -65,20 +66,25 @@ namespace Remains.Networking
             NetworkClient.Send(new MineDisarmRequest {world=session.World.worldId,actor=actor.id,mine=mine.id,generation=actor.generation,lifecycle=actor.lifecycleSequence});
             return true;
         }
-        // Original WThrow.shoot (throwtip 1): the mine appears at the player and falls onto the support below.
+        // Whether the actor holds a mine in telekinesis (an ordinary held item that places a mine).
+        public static bool HoldsMine(ActorState actor)=>MineRules.PlacedWeapon(HeldItemSelection.Selected(actor)?.definition)!=null;
+
+        // Original WThrow.shoot (throwtip 1): the mine appears where it was held, without speed, and falls onto the
+        // support below.
         public bool RequestPlace(RoomLayout room)
         {
             var actor=session.LocalActor;
             if(actor==null || actor.down || room==null || !NetworkClient.isConnected || session.World==null) return false;
             if(session.Pause.IsPaused(actor.level)) {session.ShowNotice("Локация на паузе.");return false;}
-            var stack=actor.inventory.Find(item=>MineRules.PlacedWeapon(item.definition)!=null && InventoryAvailability.Count(actor,item)>0);
-            if(stack==null) {session.ShowNotice("Нет мин в инвентаре.");return false;}
-            if(actor.climbing) {session.ShowNotice("Мину нельзя поставить на лестнице.");return false;}
-            if(!MineRules.TryDrop(room,actor.Position,MineRules.Profile(new MineState {id=stack.id,definition=MineRules.PlacedWeapon(stack.definition)}),out var point))
-            {session.ShowNotice("Под персонажем нет опоры для мины.");return false;}
+            var stack=HeldItemSelection.Selected(actor);string weapon=MineRules.PlacedWeapon(stack?.definition);
+            if(weapon==null || InventoryAvailability.Count(actor,stack)<=0) {session.ShowNotice("Удерживаемая мина закончилась. Выберите другой предмет.");return false;}
+            if(!actor.heldItemPoseValid) {session.ShowNotice("Мину нельзя отпустить: точка удержания перекрыта.");return false;}
+            var profile=MineRules.Profile(new MineState {id=stack.id,definition=weapon});
+            var release=Remains.Gameplay.HeldItemPose.Mount(actor)-Vector2.up*(profile.height*.5f);
+            if(!MineRules.TryDrop(room,release,profile,out var point)) {session.ShowNotice("Под миной нет опоры.");return false;}
             session.PublishActor(actor);
             NetworkClient.Send(new MinePlaceRequest {transaction=Guid.NewGuid().ToString("N"),world=session.World.worldId,actor=actor.id,level=actor.level,
-                item=stack.id,generation=actor.generation,lifecycle=actor.lifecycleSequence,x=point.x,y=point.y});
+                item=stack.id,generation=actor.generation,lifecycle=actor.lifecycleSequence,x=point.x,y=point.y,drop=Mathf.Max(0,release.y-point.y)});
             return true;
         }
         private void ReceivePlace(NetworkConnectionToClient connection,MinePlaceRequest request)
@@ -88,7 +94,7 @@ namespace Remains.Networking
                 actor.generation!=request.generation || actor.lifecycleSequence!=request.lifecycle?"Мина не поставлена: мир или персонаж изменился.":
                 session.Pause.IsServerPaused(actor.level)?"Мина не поставлена: локация на паузе.":
                 string.IsNullOrWhiteSpace(request.transaction) || world.completedTransactions.Contains(request.transaction)?"Мина уже поставлена.":
-                !float.IsFinite(request.x) || !float.IsFinite(request.y) || Mathf.Abs(request.x-actor.x)>MineRules.PlaceReach ||
+                !float.IsFinite(request.x) || !float.IsFinite(request.y) || !float.IsFinite(request.drop) || request.drop<0 || request.drop>MineRules.PlaceDrop+MineRules.PlaceReach || Mathf.Abs(request.x-actor.x)>MineRules.PlaceReach ||
                 request.y>actor.y+MineRules.PlaceReach || request.y<actor.y-MineRules.PlaceDrop-MineRules.PlaceReach?"Мина не поставлена: точка далеко от персонажа.":null;
             var stack=reason==null?actor.inventory.Find(item=>item.id==InventoryStacks.ResolveId(actor.inventoryAliases,request.item)):null;
             string weapon=MineRules.PlacedWeapon(stack?.definition);
