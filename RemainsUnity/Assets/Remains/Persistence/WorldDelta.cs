@@ -8,8 +8,8 @@ namespace Remains.Persistence
 {
     // Delta replication (host-migration.md, stage 2): a world revision as "base snapshot → snapshot": the new
     // template (world JSON with part-list markers), the changed or new parts, and a list's order only when it
-    // changed. The receiver rebuilds exactly the host's JSON (SnapshotPartCache.Splice), checks it against the
-    // snapshot ID (SHA-256 of that JSON) and strictly parses only the template and the changed parts.
+    // changed. The receiver checks the host's JSON, streamed from template and parts without building it, against
+    // the snapshot ID (SHA-256 of that JSON) and strictly parses only the template and the changed parts.
     [Serializable] public sealed class WorldDeltaPayload
     {
         public int format=1;
@@ -55,9 +55,16 @@ namespace Remains.Persistence
     // of its exact text), advanced by each verified delta; any mismatch disables it until the next full snapshot.
     public sealed class WorldReplica
     {
+        // Part texts in list order and each key's position: an unchanged order updates texts in place of a copy.
         private sealed class List
         {
-            public string[] Keys;public Dictionary<string,string> Texts;
+            public string[] Keys,Texts;public Dictionary<string,int> Index;
+            public static List Of(string[] keys,string[] texts)
+            {
+                var index=new Dictionary<string,int>(keys.Length,StringComparer.Ordinal);
+                for(int i=0;i<keys.Length;i++) index[keys[i]]=i;
+                return new List {Keys=keys,Texts=texts,Index=index};
+            }
         }
         public string WorldId {get;private set;}
         public string SnapshotId {get;private set;}
@@ -72,12 +79,7 @@ namespace Remains.Persistence
             if(SnapshotPartCache.Splice(split.Template,split.Lists)!=snapshot.Json)
                 throw new InvalidDataException($"Снимок мира не раскладывается на части без потерь: world={snapshot.WorldId}, snapshot={snapshot.Id}.");
             var replica=new WorldReplica {WorldId=snapshot.WorldId,SnapshotId=snapshot.Id,template=split.Template};
-            foreach(var set in split.Lists)
-            {
-                var texts=new Dictionary<string,string>(StringComparer.Ordinal);
-                for(int i=0;i<set.Keys.Length;i++) texts[set.Keys[i]]=set.Texts[i];
-                replica.lists[set.Name]=new List {Keys=set.Keys,Texts=texts};
-            }
+            foreach(var set in split.Lists) replica.lists[set.Name]=List.Of(set.Keys,set.Texts);
             return replica;
         }
 
@@ -94,17 +96,34 @@ namespace Remains.Persistence
             {
                 if(!lists.TryGetValue(delta.name,out var before)) throw new InvalidDataException("Изменение неизвестного списка мира: "+delta.name);
                 if((delta.keys?.Length??0)!=(delta.texts?.Length??0)) throw new InvalidDataException("Изменение списка "+delta.name+": ключи и тексты не совпадают.");
-                var texts=new Dictionary<string,string>(before.Texts,StringComparer.Ordinal);
-                for(int i=0;i<(delta.keys?.Length??0);i++) {texts[delta.keys[i]]=delta.texts[i];changed.Add(delta.keys[i]);}
-                var keys=delta.order??before.Keys;
-                var ordered=new string[keys.Length];
-                for(int i=0;i<keys.Length;i++)
-                    if(!texts.TryGetValue(keys[i],out ordered[i])) throw new InvalidDataException("Изменение списка "+delta.name+": нет текста части "+keys[i]+".");
-                if(delta.order!=null) {var kept=new Dictionary<string,string>(StringComparer.Ordinal);for(int i=0;i<keys.Length;i++) kept[keys[i]]=ordered[i];texts=kept;}
-                sets.Add(new SnapshotPartCache.PartSet(delta.name,keys,ordered));
-                nextLists[delta.name]=new List {Keys=keys,Texts=texts};
+                int count=delta.keys?.Length??0;
+                for(int i=0;i<count;i++) changed.Add(delta.keys[i]);
+                List next;
+                if(delta.order==null)
+                {
+                    // Same keys in the same order: the changed texts replace theirs by position.
+                    var ordered=(string[])before.Texts.Clone();
+                    for(int i=0;i<count;i++)
+                    {
+                        if(!before.Index.TryGetValue(delta.keys[i],out int at))
+                            throw new InvalidDataException("Изменение списка "+delta.name+": новая часть "+delta.keys[i]+" без нового порядка.");
+                        ordered[at]=delta.texts[i];
+                    }
+                    next=new List {Keys=before.Keys,Texts=ordered,Index=before.Index};
+                }
+                else
+                {
+                    var texts=new Dictionary<string,string>(before.Keys.Length+count,StringComparer.Ordinal);
+                    for(int i=0;i<before.Keys.Length;i++) texts[before.Keys[i]]=before.Texts[i];
+                    for(int i=0;i<count;i++) texts[delta.keys[i]]=delta.texts[i];
+                    var ordered=new string[delta.order.Length];
+                    for(int i=0;i<ordered.Length;i++)
+                        if(!texts.TryGetValue(delta.order[i],out ordered[i])) throw new InvalidDataException("Изменение списка "+delta.name+": нет текста части "+delta.order[i]+".");
+                    next=List.Of(delta.order,ordered);
+                }
+                sets.Add(new SnapshotPartCache.PartSet(delta.name,next.Keys,next.Texts));
+                nextLists[delta.name]=next;
             }
-            string json=SnapshotPartCache.Splice(payload.template,sets);
             // The live world: strict template, strict changed parts, reused unchanged objects.
             var world=StateJson.FromJson<WorldState>(SnapshotPartCache.Skeleton(payload.template));
             var reuse=new Dictionary<string,PropState>(StringComparer.Ordinal);var lamps=new Dictionary<string,LampState>(StringComparer.Ordinal);
@@ -139,7 +158,7 @@ namespace Remains.Persistence
                         default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
                     }
                 }
-            var snapshot=RecoverySnapshot.Assembled(json,payload.snapshot,world);
+            var snapshot=RecoverySnapshot.Assembled(payload.template,sets,payload.snapshot,world);
             template=payload.template;SnapshotId=payload.snapshot;
             lists.Clear();foreach(var pair in nextLists) lists.Add(pair.Key,pair.Value);
             return snapshot;

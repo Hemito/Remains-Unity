@@ -322,8 +322,9 @@ namespace Remains.Networking
                     NetworkClient.Send(new WorldResyncRequest {world=World?.worldId,snapshot=message.snapshot,reason=received.reason});
                     return;
                 }
-                if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor,worldJson=received.snapshot.Json},received.snapshot);
-                else ReceiveWorld(new WorldMessage {json=received.snapshot.Json},received.snapshot);
+                // The verified snapshot is passed itself; its whole text is not needed here (built lazily for the save).
+                if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor},received.snapshot);
+                else ReceiveWorld(new WorldMessage(),received.snapshot);
             }));
             NetworkClient.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Client<ActorMessage>(message =>
             {
@@ -590,7 +591,7 @@ namespace Remains.Networking
         {
             long started=BeginRecoveryMeasurement();
             var world=parsed??snapshot.CreateLiveWorld();
-            FinishRecoveryMeasurement("recovery-received",started,snapshot.Json.Length);
+            FinishRecoveryMeasurement("recovery-received",started,snapshot);
             return world;
         }
 
@@ -642,10 +643,11 @@ namespace Remains.Networking
 
         public event Action<string,double,int> RecoveryMeasured;
         private long BeginRecoveryMeasurement()=>RecoveryMeasured==null?0:System.Diagnostics.Stopwatch.GetTimestamp();
-        private void FinishRecoveryMeasurement(string stage,long started,int characters)
+        // The text length only when measured: a composed snapshot builds its whole text lazily (RecoverySnapshot.Json).
+        private void FinishRecoveryMeasurement(string stage,long started,RecoverySnapshot snapshot)
         {
             if(started!=0) RecoveryMeasured?.Invoke(stage,
-                (System.Diagnostics.Stopwatch.GetTimestamp()-started)/(double)System.Diagnostics.Stopwatch.Frequency,characters);
+                (System.Diagnostics.Stopwatch.GetTimestamp()-started)/(double)System.Diagnostics.Stopwatch.Frequency,snapshot.Json.Length);
         }
         private void SendFullWorld(NetworkConnectionToClient connection,RecoverySnapshot snapshot,string owner=null,string actor=null)
         {
@@ -672,7 +674,7 @@ namespace Remains.Networking
                 while(recentSnapshots.Count>RecentSnapshotsKept) recentSnapshots.RemoveAt(0);
             }
             RecoveryPrepared?.Invoke(snapshot.Id,snapshot.Revision);
-            FinishRecoveryMeasurement("recovery-prepared",started,snapshot.Json.Length);
+            FinishRecoveryMeasurement("recovery-prepared",started,snapshot);
             return snapshot;
         }
 

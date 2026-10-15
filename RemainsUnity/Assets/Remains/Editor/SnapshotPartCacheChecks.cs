@@ -98,7 +98,15 @@ namespace Remains.Editor
             Require(chunked==reference,"Контрольная сумма кусками отличается от SHA-256 всего текста.");
             Require(RecoverySnapshot.Fingerprint("Привет, 𝄞 мир")==BitConverter.ToString(System.Security.Cryptography.SHA256.Create().ComputeHash(
                 System.Text.Encoding.UTF8.GetBytes("Привет, 𝄞 мир"))).Replace("-","").ToLowerInvariant(),"Контрольная сумма ошиблась на кириллице/суррогатах.");
-            Debug.Log($"Контрольная сумма мира: кусками {chunkedMs:F1} мс, целиком {referenceMs:F1} мс, совпадает.");
+            // Long text whose surrogate pairs and 3-byte letters cross the hasher's buffer boundaries.
+            string mixed=string.Concat(System.Linq.Enumerable.Repeat("ж𝄞a",40000));
+            Require(RecoverySnapshot.Fingerprint(mixed)==BitConverter.ToString(System.Security.Cryptography.SHA256.Create().ComputeHash(
+                System.Text.Encoding.UTF8.GetBytes(mixed))).Replace("-","").ToLowerInvariant(),"Контрольная сумма ошиблась на границах буфера.");
+            // Streamed from template and parts: the same as the spliced text's, without building it.
+            var parts=SnapshotPartCache.Compose(world);
+            watch.Restart();string streamed=SnapshotPartCache.Fingerprint(parts.Template,parts.Lists);double streamedMs=watch.Elapsed.TotalMilliseconds;
+            Require(streamed==RecoverySnapshot.Fingerprint(parts.Json),"Контрольная сумма по частям отличается от суммы склеенного текста.");
+            Debug.Log($"Контрольная сумма мира: кусками {chunkedMs:F1} мс, по частям без склейки {streamedMs:F1} мс, управляемая целиком {referenceMs:F1} мс, совпадает.");
             Debug.Log($"Кэш частей снимка: PASS — частей {first.Parts}, повторно разобрано 0, после сдвига 1, испорченная часть отклонена, текст совпадает.");
         }
 

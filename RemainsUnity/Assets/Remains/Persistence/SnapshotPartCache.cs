@@ -36,11 +36,13 @@ namespace Remains.Persistence
         }
         public sealed class Composition
         {
-            public readonly string Json,Template;
+            public readonly string Template;
             public readonly PartSet[] Lists;
             public readonly int Parts,Parsed;
-            public Composition(string json,string template,PartSet[] lists,int parts,int parsed)
-            {Json=json;Template=template;Lists=lists;Parts=parts;Parsed=parsed;}
+            public Composition(string template,PartSet[] lists,int parts,int parsed)
+            {Template=template;Lists=lists;Parts=parts;Parsed=parsed;}
+            // The whole text; built on demand (RecoverySnapshot keeps it lazy, off the game thread where possible).
+            public string Json=>Splice(Template,Lists);
         }
         public static readonly string[] ListNames={"containers","props","lamps","doors","actors","factories"};
         // Part key within its list: the stable ID (a factory by its level).
@@ -53,24 +55,44 @@ namespace Remains.Persistence
             throw new ArgumentException("Тип не является частью мира: "+type.Name);
         public static string Marker(string list)=>""+list+"";
 
+        // Receives the spliced text in order (Splice builds the string, Fingerprint hashes it without building it).
+        public interface ITextSink {void Append(string text,int start,int count);void Append(char value);}
+        private sealed class BuilderSink : ITextSink
+        {
+            public readonly System.Text.StringBuilder Builder;
+            public BuilderSink(int capacity) {Builder=new System.Text.StringBuilder(capacity);}
+            public void Append(string text,int start,int count)=>Builder.Append(text,start,count);
+            public void Append(char value)=>Builder.Append(value);
+        }
         public static string Splice(string template,IReadOnlyList<PartSet> lists)
         {
             int size=template.Length;
             foreach(var list in lists) foreach(string text in list.Texts) size+=text.Length+1;
-            var result=new System.Text.StringBuilder(size+8);
+            var sink=new BuilderSink(size+8);
+            Write(template,lists,sink);
+            return sink.Builder.ToString();
+        }
+        // SHA-256 of Splice(template, lists), streamed: no whole-text string (RecoverySnapshot.Fingerprint).
+        public static string Fingerprint(string template,IReadOnlyList<PartSet> lists)
+        {
+            var hasher=TextSha256.Begin();
+            Write(template,lists,hasher);
+            return hasher.Finish();
+        }
+        private static void Write(string template,IReadOnlyList<PartSet> lists,ITextSink sink)
+        {
             int at=0;
             foreach(var list in lists)
             {
                 string marker=Marker(list.Name);
                 int found=template.IndexOf(marker,at,StringComparison.Ordinal);
                 if(found<0) throw new System.IO.InvalidDataException("Шаблон мира без метки списка "+list.Name+".");
-                result.Append(template,at,found-at).Append('[');
-                for(int i=0;i<list.Texts.Length;i++) {if(i>0) result.Append(',');result.Append(list.Texts[i]);}
-                result.Append(']');
+                sink.Append(template,at,found-at);sink.Append('[');
+                for(int i=0;i<list.Texts.Length;i++) {if(i>0) sink.Append(',');string text=list.Texts[i];sink.Append(text,0,text.Length);}
+                sink.Append(']');
                 at=found+marker.Length;
             }
-            result.Append(template,at,template.Length-at);
-            return result.ToString();
+            sink.Append(template,at,template.Length-at);
         }
         // The template with empty lists: the strict check of everything outside the parts.
         public static string Skeleton(string template)
@@ -90,7 +112,7 @@ namespace Remains.Persistence
                     {Verify=previousTexts==null || ++compositions%VerifyEvery==0};
                 var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit),new PartList<PropState>(next,audit),new PartList<LampState>(next,audit),
                     new PartList<DoorState>(next,audit),new PartList<ActorState>(next,audit),new PartList<WorldFactory>(next,audit)};
-                string template,json;
+                string template;
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) template=StateJson.ToJson(world,lists);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет")) StateJson.FromJson<WorldState>(Skeleton(template));   // strict outside the parts
                 int parts=0,parsed=0;var report=new System.Text.StringBuilder("снимок: изменено");
@@ -102,7 +124,6 @@ namespace Remains.Persistence
                 }
                 // Marker order in the template follows WorldState field order; Splice expects the same order.
                 Array.Sort(sets,(a,b)=>template.IndexOf(Marker(a.Name),StringComparison.Ordinal).CompareTo(template.IndexOf(Marker(b.Name),StringComparison.Ordinal)));
-                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: сборка текста")) json=Splice(template,sets);
                 LastUnmarked=audit.Unmarked;
                 report.Append(audit.Verify?"; сверка всех частей":"; готовых текстов "+audit.Reused);
                 if(audit.Unmarked>0) report.Append("; непомеченных изменений ").Append(audit.Unmarked).Append(" [").Append(audit.Example).Append(']');
@@ -110,7 +131,7 @@ namespace Remains.Persistence
                 accepted=next;   // only after the whole composition succeeded
                 partTexts.AddOrUpdate(world,audit.Current);
                 WorldChanges.Clear(world);
-                return new Composition(json,template,sets,parts,parsed);
+                return new Composition(template,sets,parts,parsed);
             }
         }
 

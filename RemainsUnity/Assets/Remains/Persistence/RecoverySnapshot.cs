@@ -1,7 +1,6 @@
 using JsonUtility=Remains.Serialization.StateJson;
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using Remains.Domain;
@@ -13,7 +12,21 @@ namespace Remains.Persistence
     // never shared with subsequent live consumers.
     public sealed class RecoverySnapshot
     {
-        public string Json { get; }
+        // The whole text. A snapshot composed from parts (host FromWorld, client delta) builds it on first use, which
+        // for a periodic snapshot is the save writer's thread: the game thread only hashes the parts (Fingerprint).
+        public string Json
+        {
+            get
+            {
+                var value=Volatile.Read(ref json);
+                if(value!=null) return value;
+                lock(jsonGate) return json??=SnapshotPartCache.Splice(template,parts);
+            }
+        }
+        private string json;
+        private readonly string template;
+        private readonly IReadOnlyList<SnapshotPartCache.PartSet> parts;
+        private readonly object jsonGate=new();
         public string Id { get; }
         public string WorldId { get; }
         public long Revision { get; }
@@ -35,7 +48,7 @@ namespace Remains.Persistence
         {
             var world = JsonUtility.FromJson<WorldState>(json);
             Validate(world);
-            Json = json;
+            this.json = json;
             WorldId = world.worldId;
             Revision = world.revision;
             Id = Fingerprint(json);
@@ -45,22 +58,22 @@ namespace Remains.Persistence
         // From live state: the text is composed from cached parts (SnapshotPartCache), whose strict parse covers
         // what the whole-text round-trip covered; the world rules are checked on the live world the text was
         // written from. No parsed graph is kept: CreateLiveWorld parses the immutable Json when asked.
-        private RecoverySnapshot(WorldState world, string json)
+        private RecoverySnapshot(WorldState world,string template,IReadOnlyList<SnapshotPartCache.PartSet> parts)
         {
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: правила мира")) Validate(world);
-            Json = json;
+            this.template=template;this.parts=parts;
             WorldId = world.worldId;
             Revision = world.revision;
-            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: хеш")) Id = Fingerprint(json);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: хеш")) Id = SnapshotPartCache.Fingerprint(template,parts);
             producedHere = true;
         }
 
         // A delta-assembled snapshot (WorldReplica.Apply): the text must hash to the expected ID; the live world was
         // built from the strictly parsed template and changed parts plus unchanged live parts, and passes the rules.
-        internal static RecoverySnapshot Assembled(string json,string expectedId,WorldState world)
+        internal static RecoverySnapshot Assembled(string template,IReadOnlyList<SnapshotPartCache.PartSet> parts,string expectedId,WorldState world)
         {
-            if(json==null || world==null) throw new ArgumentNullException(json==null?nameof(json):nameof(world));
-            var snapshot=new RecoverySnapshot(world,json);
+            if(template==null || parts==null || world==null) throw new ArgumentNullException(world==null?nameof(world):template==null?nameof(template):nameof(parts));
+            var snapshot=new RecoverySnapshot(world,template,parts);
             if(snapshot.Id!=expectedId)
                 throw new System.IO.InvalidDataException($"Изменение мира собрано с другим хешем: ожидался {expectedId}, получен {snapshot.Id}.");
             snapshot.preparedLive=world;
@@ -118,7 +131,7 @@ namespace Remains.Persistence
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
             var composition=SnapshotPartCache.Compose(world);
-            var snapshot=new RecoverySnapshot(world, composition.Json) {Composition=composition};
+            var snapshot=new RecoverySnapshot(world,composition.Template,composition.Lists) {Composition=composition};
             lock(producedGate)
             {
                 produced.Enqueue(snapshot);
@@ -127,34 +140,11 @@ namespace Remains.Persistence
             return snapshot;
         }
 
-        // SHA-256 of the UTF-8 text, hex lowercase. Encoded in 64 KB pieces into a reused buffer: the former
-        // whole-text GetBytes allocated ~1.25 MB per factory snapshot (GC pressure), the result is identical.
-        [ThreadStatic] private static byte[] fingerprintBuffer;
-        [ThreadStatic] private static SHA256 fingerprintHash;
-        private static readonly UTF8Encoding fingerprintEncoding=new(false);
+        // SHA-256 of the UTF-8 text, hex lowercase (TextSha256: streamed, system implementation on Windows).
         public static string Fingerprint(string text)
         {
             if(text==null) throw new ArgumentNullException(nameof(text));
-            const int piece=16384;   // chars per piece; UTF-8 needs at most 3 bytes per UTF-16 unit
-            var buffer=fingerprintBuffer??=new byte[piece*3+4];
-            var sha=fingerprintHash??=SHA256.Create();
-            sha.Initialize();
-            var encoder=fingerprintEncoding.GetEncoder();
-            for(int at=0;at<text.Length;)
-            {
-                int count=Math.Min(piece,text.Length-at);
-                // Do not split a surrogate pair between pieces (the encoder would carry it, but keep pieces whole).
-                if(at+count<text.Length && char.IsHighSurrogate(text[at+count-1])) count--;
-                int bytes=encoder.GetBytes(text.AsSpan(at,count),buffer.AsSpan(),at+count>=text.Length);
-                sha.TransformBlock(buffer,0,bytes,null,0);
-                at+=count;
-            }
-            sha.TransformFinalBlock(buffer,0,0);
-            var hash=sha.Hash;
-            var hex=new char[hash.Length*2];
-            const string digits="0123456789abcdef";
-            for(int i=0;i<hash.Length;i++) {hex[i*2]=digits[hash[i]>>4];hex[i*2+1]=digits[hash[i]&15];}
-            return new string(hex);
+            var hasher=TextSha256.Begin();hasher.Append(text);return hasher.Finish();
         }
 
         // Exactly one consumer takes ownership of the already validated parse.
