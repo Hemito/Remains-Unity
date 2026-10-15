@@ -122,17 +122,21 @@ namespace Remains.Diagnostics
 
         private static void InstallGpu()
         {
-            counters=new ProfilerRecorder[counterSpecs.Length];counterValues=new long[counterSpecs.Length];previousCounterValues=new long[counterSpecs.Length];
             var missing=new List<string>();
+            // Unity fills its render counters only in development players; a release build would log zeros.
+            if(Debug.isDebugBuild || Application.isEditor)
+            {
+            counters=new ProfilerRecorder[counterSpecs.Length];counterValues=new long[counterSpecs.Length];previousCounterValues=new long[counterSpecs.Length];
             for(int i=0;i<counterSpecs.Length;i++)
             {
                 counters[i]=ProfilerRecorder.StartNew(counterSpecs[i].Category,counterSpecs[i].Counter);
                 if(!counters[i].Valid) missing.Add(counterSpecs[i].Counter);
             }
+            }
             frameTimings=FrameTimingManager.IsFeatureEnabled();
             pending.Append("# Видеокарта: ").Append(SystemInfo.graphicsDeviceType).Append(", время кадров видеокарты ")
                 .Append(frameTimings?"измеряется":"недоступно (FrameTimingManager выключен или не поддержан)")
-                .Append(missing.Count==0?"":", недоступные счётчики: "+string.Join(", ",missing)).Append('\n');
+                .Append(counters==null?", счётчики отрисовки Unity только в отладочной сборке":missing.Count==0?"":", недоступные счётчики: "+string.Join(", ",missing)).Append('\n');
             if(!frameTimings || missing.Count>0)
                 Debug.LogWarning($"Журнал медленных кадров: часть данных видеокарты недоступна: время кадров={(frameTimings?"есть":"нет")}, счётчики без данных: {(missing.Count==0?"нет":string.Join(", ",missing))}.");
         }

@@ -26,6 +26,8 @@ namespace Remains.Domain
         }
         public static string Clip(ActorState actor)=>ActorSessionRules.IsPassive(actor)?"down":actor.pose;
         public static bool StationaryClimb(ActorState actor)=>actor.climbing && !ActorSessionRules.IsPassive(actor) && System.Math.Abs(actor.vy)<.001f;
+        // Longer than any lying-down clip; the pose stays at its last frame afterwards.
+        public const float PassiveSettleSeconds=5;
         public static void Advance(ActorState actor,float dt)
         {
             if(actor.pose=="run" && actor.poseCorrectionRemaining>0)
@@ -36,6 +38,10 @@ namespace Remains.Domain
                 actor.poseCorrectionRemaining-=held;dt-=held;
             }
             if(StationaryClimb(actor)) {actor.poseTime=0;return;}
+            // A passive (down or disconnected) body lies still once its fall has played: its pose time is world state
+            // sent with every snapshot, so it must not keep growing.
+            if(ActorSessionRules.IsPassive(actor))
+            {if(actor.poseTime<PassiveSettleSeconds) actor.poseTime=System.Math.Min(PassiveSettleSeconds,actor.poseTime+dt);return;}
             actor.poseTime+=actor.climbing && !ActorSessionRules.IsPassive(actor) && actor.vy<0?-dt:dt;
         }
         public static void Select(ActorState actor,string pose)

@@ -53,6 +53,13 @@ namespace Remains.Content
                 // Interact.as treats presence of @open as the initial open instruction.
                 accepted.Add((placement,prefab,obj.Params.ContainsKey("open")));
             }
+            // The same door twice in one cell of the source data: keep the first ID in ordinal order (DoorDuplicates).
+            string Local(FactoryPlacedObject placed)=>$"{placed.Room.Cell.X},{placed.Room.Cell.Y}:{placed.Source.Id}";
+            var duplicates=accepted.GroupBy(entry=>(entry.source.Source.Type,Mathf.RoundToInt(entry.source.Position.x*1000),Mathf.RoundToInt(entry.source.Position.y*1000)))
+                .Where(group=>group.Count()>1).SelectMany(group=>group.OrderBy(entry=>Local(entry.source),StringComparer.Ordinal).Skip(1)).ToList();
+            foreach(var duplicate in duplicates) accepted.Remove(duplicate);
+            if(duplicates.Count>0)
+                Debug.LogWarning($"Завод {root.Prepared.Physics.id}: дубли дверей в одной клетке исходных данных пропущены: {string.Join("; ",duplicates.Select(d=>$"{d.source.Id} ({d.source.Source.Type}, {d.source.Room.Template.Template})"))}.",this);
             var created=new List<GameObject>();
             try
             {
@@ -92,7 +99,7 @@ namespace Remains.Content
                 foreach(var item in created) {if(Application.isPlaying) Destroy(item);else DestroyImmediate(item);}
                 throw;
             }
-            foreach(var entry in accepted) root.HideObjectArtwork(entry.source);
+            foreach(var entry in accepted.Concat(duplicates)) root.HideObjectArtwork(entry.source);
             foreach(var pair in skipped)
                 Debug.LogWarning($"Завод {root.Prepared.Physics.id}: {pair.Key}; дверей {pair.Value.Count}. ID: {string.Join("; ",pair.Value)}",this);
         }

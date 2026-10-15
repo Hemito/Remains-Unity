@@ -279,6 +279,7 @@ namespace Remains.Networking
                 HubTrainingContent.Install(ServerWorld);FactoryRaiderContent.Install(ServerWorld);
                 foreach(var batch in roomContent) RoomContentInstaller.Apply(ServerWorld,batch);
             }
+            DoorDuplicates.Remove(ServerWorld,source==null?null:()=>Debug.Log("Исходный мир сохранён перед удалением двойных дверей: "+Saves.PreserveRecoverySource()));
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             NpcWeaponInventoryMigration.Apply(ServerWorld,source==null?null:()=>Debug.Log("Сохранена копия мира перед преобразованием оружия NPC: "+Saves.PreserveRecoverySource()));
             NpcWeaponActions.ValidateWorld(ServerWorld);

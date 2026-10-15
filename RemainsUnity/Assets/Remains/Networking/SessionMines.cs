@@ -222,7 +222,7 @@ namespace Remains.Networking
             var item=ExportedContentCatalog.Load().CreateFormalItem("weapon:"+mine.definition,0,1);
             world.mines.Remove(mine);senseClocks.Remove(mine.id);
             world.containers.Add(new ContainerState {id=itemId,definition="loose-item",presentationItem=item.definition,level=mine.level,
-                x=mine.x,y=mine.y,width=DroppedItemTransfer.Width,height=DroppedItemTransfer.Height,anchorHeight=DroppedItemTransfer.Height*.5f,
+                x=mine.x,y=mine.y+DroppedItemTransfer.Height*.5f,width=DroppedItemTransfer.Width,height=DroppedItemTransfer.Height,anchorHeight=DroppedItemTransfer.Height*.5f,
                 mass=.1f,generation=1,items=new List<ItemStack> {item}});
             Disarmed++;
             session.CommitWorld();

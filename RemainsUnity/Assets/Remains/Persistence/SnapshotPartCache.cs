@@ -356,6 +356,7 @@ namespace Remains.Persistence
                 bool coldSame=prev!=null;
                 for(int i=0;coldSame && i<next.Cold.Length;i++) coldSame=prev.Cold[i]==next.Cold[i];
                 if(templateSame && coldSame) return previousText;
+                if(example==null && prev!=null && !templateSame) example=key+": "+Difference(prev.Template,next.Template);
                 ActorText.Verify(next.Template,!templateSame,next.Cold,i=>prev==null || prev.Cold[i]!=next.Cold[i]);
                 Parsed++;
                 return ActorText.Join(next.Template,next.Cold);

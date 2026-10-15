@@ -14,7 +14,7 @@ namespace Remains.Presentation
     public sealed class MineVisuals : MonoBehaviour
     {
         private const float FramesPerSecond=30,BeepPeriod=5/FramesPerSecond,SpotPeriod=.2f;
-        private sealed class Art {public Sprite[] frames;public Sprite arming;public float scale;public Vector2 offset;public AudioClip beep,defuse,place;}
+        private sealed class Art {public Sprite[] frames;public Sprite arming;public AudioClip beep,defuse,place;}
         private sealed class Entry {public MineState state;public MineProfile profile;public Art art;public SpriteRenderer renderer;public float animation,beep,fall,fallSpeed;}
         private readonly List<Entry> falling=new();
         private float gravity;
@@ -72,7 +72,7 @@ namespace Remains.Presentation
             var root=new GameObject("Мина: "+mine.id);root.transform.SetParent(transform,false);
             root.transform.localPosition=new Vector3(mine.x,mine.y,0);
             var body=new GameObject("Изображение");body.transform.SetParent(root.transform,false);
-            body.transform.localPosition=art.offset;body.transform.localScale=new Vector3(art.scale,art.scale,1);
+            // Exported frames keep the original scale and their pivot is the unit's registration point (its feet).
             var renderer=body.AddComponent<SpriteRenderer>();SpriteArtworkMaterial.Apply(renderer,art.frames[0]);
             root.AddComponent<WorldVisualOrderBinding>().Initialize(orders,WorldVisualKind.Mine,mine.id,null,renderer);
             return new Entry {state=mine,profile=profile,art=art,renderer=renderer};
@@ -90,9 +90,7 @@ namespace Remains.Presentation
             if(frames.Length==0 || frames.Any(f=>f==null) || arming==null)
                 throw new InvalidOperationException($"Мина {definition}: нет кадров изображения {profile.artwork} (1 — взведение, со 2 — взведена).");
             SpriteArtworkMaterial.Prepare(arming);foreach(var frame in frames) SpriteArtworkMaterial.Prepare(frame);
-            var bounds=frames[0].bounds;
-            float scale=profile.width/bounds.size.x;
-            art=new Art {frames=frames,arming=arming,scale=scale,offset=new Vector2(-bounds.center.x*scale,-bounds.min.y*scale),
+            art=new Art {frames=frames,arming=arming,
                 beep=Sound(profile.beepSound,definition),defuse=Sound(profile.defuseSound,definition),place=Sound(profile.placeSound,definition)};
             arts.Add(definition,art);
             return art;
@@ -121,7 +119,7 @@ namespace Remains.Presentation
             {
                 var drop=falling[i];
                 drop.fallSpeed+=gravity*dt;drop.fall=Mathf.Max(0,drop.fall-drop.fallSpeed*dt);
-                drop.renderer.transform.localPosition=(Vector3)drop.art.offset+Vector3.up*drop.fall;
+                drop.renderer.transform.localPosition=Vector3.up*drop.fall;
                 if(drop.fall<=0) falling.RemoveAt(i);
             }
             bool paused=level!=null && session.Pause.IsPaused(level);
@@ -164,7 +162,7 @@ namespace Remains.Presentation
             if(message.drop>0 && views.TryGetValue("placed:"+message.transaction,out var entry) && !falling.Contains(entry))
             {
                 entry.fall=message.drop;entry.fallSpeed=0;
-                entry.renderer.transform.localPosition=(Vector3)entry.art.offset+Vector3.up*entry.fall;falling.Add(entry);
+                entry.renderer.transform.localPosition=Vector3.up*entry.fall;falling.Add(entry);
             }
         }
 
@@ -177,7 +175,7 @@ namespace Remains.Presentation
             if(message.released && message.drop>0)
             {
                 entry.fall=message.drop;entry.fallSpeed=0;
-                entry.renderer.transform.localPosition=(Vector3)entry.art.offset+Vector3.up*entry.fall;
+                entry.renderer.transform.localPosition=Vector3.up*entry.fall;
                 if(!falling.Contains(entry)) falling.Add(entry);
             }
         }
