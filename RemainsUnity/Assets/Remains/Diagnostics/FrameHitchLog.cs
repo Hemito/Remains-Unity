@@ -20,7 +20,9 @@ namespace Remains.Diagnostics
         private const double SummarySeconds=10;
         private const int MaxSections=256;
 
-        private static readonly string[] phaseNames={"Initialization","EarlyUpdate","FixedUpdate","PreUpdate","Update","PreLateUpdate","PostLateUpdate"};
+        // TimeUpdate first: it holds the wait for the previous frame's presentation (GPU-bound frames) and the frame
+        // rate limit, so a frame's total is its real duration.
+        private static readonly string[] phaseNames={"TimeUpdate","Initialization","EarlyUpdate","FixedUpdate","PreUpdate","Update","PreLateUpdate","PostLateUpdate"};
         private static readonly double[] phaseMs=new double[phaseNames.Length];
         private static readonly long[] phaseStart=new long[phaseNames.Length];
         private static readonly string[] sectionNames=new string[MaxSections];
@@ -76,7 +78,7 @@ namespace Remains.Diagnostics
             string directory=System.IO.Path.Combine(Remains.Runtime.ProjectStorage.RootDirectory,"Diagnostics");
             Directory.CreateDirectory(directory);
             path=System.IO.Path.Combine(directory,"frames-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".txt");
-            pending.Append("# Журнал медленных кадров (>").Append(SlowMilliseconds).Append(" мс). Фазы Unity и участки кода в мс; gc — сборки мусора за кадр.\n");
+            pending.Append("# Журнал медленных кадров (>").Append(SlowMilliseconds).Append(" мс). Фазы Unity и участки кода в мс; gc — сборки мусора за кадр. Кадр — от TimeUpdate (ожидание видеокарты и предела кадров) до конца PostLateUpdate.\n");
             pending.Append("# ").Append(Application.version).Append(", ").Append(SystemInfo.processorType).Append(", ").Append(SystemInfo.graphicsDeviceName).Append('\n');
             Application.quitting+=Flush;
             Debug.Log("Журнал медленных кадров: "+path);

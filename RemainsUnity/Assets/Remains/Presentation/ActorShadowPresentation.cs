@@ -198,19 +198,21 @@ namespace Remains.Presentation
         {
             // First yield avoids executing the grid traversal inside the pose callback.
             yield return null;
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Тени: источники персонажей");
             if(level!=null && level.IsReady) foreach(var pair in entries)
             {
                 var entry=pair.Value;if(!entry.Queued) continue;
                 if(entry.Revision!=level.ShadowSourceRevision ||
                     (entry.Position-entry.SelectedAt).sqrMagnitude>=level.ShadowSettings.ActorShadowMoveThreshold*level.ShadowSettings.ActorShadowMoveThreshold)
                 {
-                    level.SelectActorShadowSources(entry.Position,entry.Lamps);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Тени: выбор ламп")) level.SelectActorShadowSources(entry.Position,entry.Lamps);
                     entry.SelectedAt=entry.Position;entry.Revision=level.ShadowSourceRevision;
                 }
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: видимость вспышек"))
                 foreach(var flash in entry.Flashes)
                     entry.FlashVisibility[flash.Id]=(flash.Position,entry.Position,
                         level.ActorShadowTransmission(entry.Position,flash.Position),level.ShadowSourceRevision,Time.frameCount);
-                entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.Flashes.Count);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вида")) entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.Flashes.Count);
                 entry.Queued=false;
             }
             PrepareSteadyFields();

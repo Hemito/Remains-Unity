@@ -187,6 +187,7 @@ namespace Remains.Presentation
                 var result=task.Result;
                 try
                 {
+                    using var publishSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: публикация обновления");
                     if(IsReady) Publish(context,result,request);
                     else
                     {
