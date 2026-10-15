@@ -62,6 +62,16 @@ namespace Remains.Editor
             player.down=true;player.x=0;player.y=0;Require(!MineRules.Senses(mine,player,profile),"упавший игрок не задевает мину");player.down=false;
             var own=new MineState {id="o",level="l",definition="hmine",side=MineRules.PlayerSide,author="p"};
             Require(MineRules.Senses(own,npc,profile) && !MineRules.Senses(own,player,profile),"мина игрока реагирует на NPC, а не на игроков");
+            own.arming=MineRules.PlacedArmingSeconds;MineRules.Validate(own);
+            Require(!MineRules.Senses(own,npc,profile),"взводящаяся мина игрока уже чувствует");own.arming=0;
+            Require(MineRules.Trigger(own,profile) && Mathf.Approximately(own.remaining,profile.delaySeconds*MineRules.PlacedDelayFactor),"укороченный отсчёт мины игрока");
+            Require(MineRules.PlacedWeapon("hmine")=="hmine" && MineRules.PlacedWeapon("weapon:mine:grade:0")=="mine" &&
+                MineRules.PlacedWeapon("weapon:mine:grade:1")==null && MineRules.PlacedWeapon("grenade")==null && MineRules.PlacedWeapon("weapon:grenade:grade:0")==null,
+                "предметы, которые ставят мину");
+            bool rejected=false;
+            try {MineRules.Validate(new MineState {id="x",level="l",definition="hmine",side=MineRules.LevelSide,arming=1});}
+            catch(InvalidOperationException) {rejected=true;}
+            Require(rejected,"взведение у мины уровня");
 
             player.x=MineRules.DisarmRadius+.5f;
             Require(!MineRules.Visible(mine,new ActorState {level="l",x=profile.visibility+.1f},profile),"мина видна дальше радиуса");
@@ -86,7 +96,8 @@ namespace Remains.Editor
                 var profile=WeaponCatalog.Get(id).mine;
                 var frames=exported.Resource(profile.artwork).frames.Where(f=>f.frame>=2).Select(exported.FrameSprite).ToArray();
                 Require(frames.Length>=2 && frames.All(f=>f!=null && f.bounds.size.x>0),"кадры мины "+id);
-                foreach(string sound in new[] {profile.beepSound,profile.defuseSound})
+                Require(exported.Resource(profile.artwork).frames.Any(f=>f.frame==1 && exported.FrameSprite(f)!=null),"кадр взведения мины "+id);
+                foreach(string sound in new[] {profile.beepSound,profile.defuseSound,profile.placeSound})
                     Require(exported.Resource(sound).sounds?.FirstOrDefault()!=null,$"звук {sound} мины {id}");
                 Require(exported.TryIcon("weapon:"+id,0,out _),"значок предмета мины "+id);
             }

@@ -13,6 +13,8 @@ namespace Remains.Networking
     public struct MineDisarmReply : NetworkMessage {public string mine,reason;public bool accepted;}
     // Every client plays the defuse sound where the mine was (its removal alone does not say why it disappeared).
     public struct MineDisarmedMessage : NetworkMessage {public string mine,definition,level;public float x,y;}
+    // A player's mine: the client finds where it falls under its own (owned) actor; the host checks the stack and spends it.
+    public struct MinePlaceRequest : NetworkMessage {public string transaction,world,actor,level,item;public int generation,lifecycle;public float x,y;}
 
     // The host simulates the mines of levels with a connected player (Mine.control): an armed mine checks its zone every
     // SensePeriod, a triggered one counts down and explodes as its weapon through the common explosion path (persisted
@@ -30,7 +32,12 @@ namespace Remains.Networking
         public event Action<MineDisarmedMessage> DisarmHeard;
         public SessionMines(CoopSession session) {this.session=session;}
         public void ResetServer() {senseClocks.Clear();exploding.Clear();}
-        public void RegisterServer()=>NetworkServer.RegisterHandler<MineDisarmRequest>(MessageTiming.Server<MineDisarmRequest>(Receive));
+        public event Action<MinePlaceRequest> PlaceHeard;
+        public void RegisterServer()
+        {
+            NetworkServer.RegisterHandler<MineDisarmRequest>(MessageTiming.Server<MineDisarmRequest>(Receive));
+            NetworkServer.RegisterHandler<MinePlaceRequest>(MessageTiming.Server<MinePlaceRequest>(ReceivePlace));
+        }
         public void RegisterClient()
         {
             pending=null;
@@ -40,6 +47,7 @@ namespace Remains.Networking
                 pending=null;if(!reply.accepted) session.ShowNotice(reply.reason);
             }));
             NetworkClient.RegisterHandler<MineDisarmedMessage>(MessageTiming.Client<MineDisarmedMessage>(message=>DisarmHeard?.Invoke(message)));
+            NetworkClient.RegisterHandler<MinePlaceRequest>(MessageTiming.Client<MinePlaceRequest>(message=>PlaceHeard?.Invoke(message)));
         }
 
         // Disarming (interim rule: always succeeds) turns the mine into its item lying where it was, as the original's
@@ -57,6 +65,46 @@ namespace Remains.Networking
             NetworkClient.Send(new MineDisarmRequest {world=session.World.worldId,actor=actor.id,mine=mine.id,generation=actor.generation,lifecycle=actor.lifecycleSequence});
             return true;
         }
+        // Original WThrow.shoot (throwtip 1): the mine appears at the player and falls onto the support below.
+        public bool RequestPlace(RoomLayout room)
+        {
+            var actor=session.LocalActor;
+            if(actor==null || actor.down || room==null || !NetworkClient.isConnected || session.World==null) return false;
+            if(session.Pause.IsPaused(actor.level)) {session.ShowNotice("Локация на паузе.");return false;}
+            var stack=actor.inventory.Find(item=>MineRules.PlacedWeapon(item.definition)!=null && InventoryAvailability.Count(actor,item)>0);
+            if(stack==null) {session.ShowNotice("Нет мин в инвентаре.");return false;}
+            if(actor.climbing) {session.ShowNotice("Мину нельзя поставить на лестнице.");return false;}
+            if(!MineRules.TryDrop(room,actor.Position,MineRules.Profile(new MineState {id=stack.id,definition=MineRules.PlacedWeapon(stack.definition)}),out var point))
+            {session.ShowNotice("Под персонажем нет опоры для мины.");return false;}
+            session.PublishActor(actor);
+            NetworkClient.Send(new MinePlaceRequest {transaction=Guid.NewGuid().ToString("N"),world=session.World.worldId,actor=actor.id,level=actor.level,
+                item=stack.id,generation=actor.generation,lifecycle=actor.lifecycleSequence,x=point.x,y=point.y});
+            return true;
+        }
+        private void ReceivePlace(NetworkConnectionToClient connection,MinePlaceRequest request)
+        {
+            var world=session.ServerWorld;var actor=session.ConnectedActor(connection);
+            string reason=world==null || request.world!=world.worldId || actor==null || request.actor!=actor.id || actor.down || actor.level!=request.level ||
+                actor.generation!=request.generation || actor.lifecycleSequence!=request.lifecycle?"Мина не поставлена: мир или персонаж изменился.":
+                session.Pause.IsServerPaused(actor.level)?"Мина не поставлена: локация на паузе.":
+                string.IsNullOrWhiteSpace(request.transaction) || world.completedTransactions.Contains(request.transaction)?"Мина уже поставлена.":
+                !float.IsFinite(request.x) || !float.IsFinite(request.y) || Mathf.Abs(request.x-actor.x)>MineRules.PlaceReach ||
+                request.y>actor.y+MineRules.PlaceReach || request.y<actor.y-MineRules.PlaceDrop-MineRules.PlaceReach?"Мина не поставлена: точка далеко от персонажа.":null;
+            var stack=reason==null?actor.inventory.Find(item=>item.id==InventoryStacks.ResolveId(actor.inventoryAliases,request.item)):null;
+            string weapon=MineRules.PlacedWeapon(stack?.definition);
+            if(reason==null && weapon==null) reason="Мина не поставлена: в инвентаре нет этой мины.";
+            if(reason==null && !SharedInventory.Consume(actor,stack.definition,request.item,request.transaction)) reason="Мина не поставлена: стопка недоступна.";
+            if(reason!=null) {connection.Send(new NoticeMessage {text=reason});return;}
+            world.completedTransactions.Add(request.transaction);actor.revision++;
+            var mine=new MineState {id="placed:"+request.transaction,level=actor.level,definition=weapon,side=MineRules.PlayerSide,author=actor.id,
+                x=request.x,y=request.y,arming=MineRules.PlacedArmingSeconds};
+            MineRules.Validate(mine);
+            world.mines.Add(mine);Placed++;
+            session.CommitWorld();
+            NetworkServer.SendToAll(request);
+        }
+        public int Placed {get;private set;}
+
         public void StepClient()
         {
             if(!Pending || Time.unscaledTimeAsDouble<deadline) return;
@@ -98,6 +146,12 @@ namespace Remains.Networking
                 {
                     mine.remaining=Mathf.Max(0,mine.remaining-dt);WorldChanges.Mark(world,mine);
                     if(mine.remaining<=0) exploding.Add(mine);
+                    continue;
+                }
+                if(mine.arming>0)
+                {
+                    mine.arming=Mathf.Max(0,mine.arming-dt);WorldChanges.Mark(world,mine);
+                    if(mine.arming<=0) triggered=true;   // armed: the view changes its frame
                     continue;
                 }
                 senseClocks.TryGetValue(mine.id,out float clock);clock+=dt;

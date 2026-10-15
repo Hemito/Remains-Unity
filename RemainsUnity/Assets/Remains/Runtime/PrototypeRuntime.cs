@@ -597,6 +597,7 @@ namespace Remains.Runtime
                 command.reload=keyboard.rKey.wasPressedThisFrame;
                 command.interact=keyboard.eKey.wasPressedThisFrame;command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;
                 command.grenade=keyboard.gKey.wasPressedThisFrame;command.heal=keyboard.hKey.wasPressedThisFrame;
+                command.mine=keyboard.mKey.wasPressedThisFrame;
             }
             if(mouse!=null)
             {
@@ -678,6 +679,7 @@ namespace Remains.Runtime
             Telekinesis.Step(command.telekinesis,command.aim,dt);
             if(command.grenade && !actor.down && command.hasAim) Grenades.TryThrow(command.aim);
             if(command.heal && !actor.down) Session.RequestSelfHeal();
+            if(command.mine && !actor.down) Session.Mines.RequestPlace(Geometry.Get(actor.level));
             if(command.fire && command.hasAim && (actor.weaponSelectionRevision==selectionBefore ||
                 !HeldItemSelection.HasSelection(actor) && actor.weapon!="grenade"))
             {

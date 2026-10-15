@@ -17,6 +17,7 @@ namespace Remains.Domain
         public float x,y;              // bottom centre on its support
         public bool triggered;
         public float remaining;        // seconds to the explosion once triggered
+        public float arming;           // a placed mine's seconds until it senses (0 for a level mine)
         public Vector2 Position=>new(x,y);
     }
 
@@ -25,6 +26,34 @@ namespace Remains.Domain
         public const string LevelSide="level",PlayerSide="player";
         // Original Mine.control: hostile units are checked every 4th frame at 30 fps.
         public const float SensePeriod=4f/30;
+        // Original WThrow.shoot for a placed mine (throwtip 1): it arms for 75 frames, and its countdown is 0.3 of the
+        // definition's once triggered.
+        public const float PlacedArmingSeconds=75f/30,PlacedDelayFactor=.3f;
+        // How far below the feet a placed mine may fall onto a support.
+        public const float PlaceDrop=6f,PlaceReach=1.5f;
+        // Where a mine released at the feet comes to rest: straight down onto the first support within PlaceDrop.
+        public static bool TryDrop(RoomLayout room,Vector2 feet,MineProfile profile,out Vector2 point)
+        {
+            var hull=new MovementHull {width=profile.width,height=profile.height};
+            var start=feet+Vector2.up*.1f;
+            point=ActorTerrainMotion.Move(room,hull,start,Vector2.down*(PlaceDrop+.1f),false,bodyTops:false);
+            return start.y-point.y<PlaceDrop+.09f;
+        }
+
+        // The mine weapon an inventory item places: the runtime ID (hmine) or the source item of loot and disarming
+        // (weapon:hmine:grade:0). Other grades and items place nothing.
+        public static string PlacedWeapon(string itemDefinition)
+        {
+            if(string.IsNullOrEmpty(itemDefinition)) return null;
+            string id=itemDefinition;
+            if(id.StartsWith("weapon:",StringComparison.Ordinal))
+            {
+                const string grade=":grade:0";
+                if(!id.EndsWith(grade,StringComparison.Ordinal)) return null;
+                id=id.Substring(7,id.Length-7-grade.Length);
+            }
+            return WeaponCatalog.IsMine(id)?id:null;
+        }
 
         public static MineProfile Profile(MineState mine)
         {
@@ -38,7 +67,8 @@ namespace Remains.Domain
         {
             if(mine==null || string.IsNullOrWhiteSpace(mine.id) || string.IsNullOrWhiteSpace(mine.level) || string.IsNullOrWhiteSpace(mine.definition) ||
                 mine.side!=LevelSide && mine.side!=PlayerSide || mine.side==PlayerSide && string.IsNullOrWhiteSpace(mine.author) ||
-                !float.IsFinite(mine.x) || !float.IsFinite(mine.y) || !float.IsFinite(mine.remaining) || mine.remaining<0)
+                !float.IsFinite(mine.x) || !float.IsFinite(mine.y) || !float.IsFinite(mine.remaining) || mine.remaining<0 ||
+                !float.IsFinite(mine.arming) || mine.arming<0 || mine.arming>0 && (mine.side!=PlayerSide || mine.triggered))
                 throw new InvalidOperationException($"Некорректная мина: id={mine?.id}, level={mine?.level}, definition={mine?.definition}, side={mine?.side}.");
         }
 
@@ -48,7 +78,7 @@ namespace Remains.Domain
         // flag, level mines react to players only.
         public static bool Senses(MineState mine,ActorState actor,MineProfile profile)
         {
-            if(actor==null || actor.level!=mine.level || !ActorPresence.IsPresent(actor) || actor.down || actor.health<=0) return false;
+            if(mine.arming>0 || actor==null || actor.level!=mine.level || !ActorPresence.IsPresent(actor) || actor.down || actor.health<=0) return false;
             bool hostile=mine.side==LevelSide?actor.player:!actor.player;
             if(!hostile) return false;
             float dx=actor.x-mine.x,dy=actor.y-mine.y,s=profile.sensitivity;
@@ -59,7 +89,7 @@ namespace Remains.Domain
         public static bool Trigger(MineState mine,MineProfile profile)
         {
             if(mine.triggered) return false;
-            mine.triggered=true;mine.remaining=profile.delaySeconds;return true;
+            mine.triggered=true;mine.remaining=profile.delaySeconds*(mine.side==PlayerSide?PlacedDelayFactor:1);return true;
         }
 
         public static AttackEvent Attack(MineState mine,MineProfile profile)=>new()

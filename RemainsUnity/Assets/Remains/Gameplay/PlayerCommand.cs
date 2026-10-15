@@ -8,7 +8,7 @@ namespace Remains.Gameplay
         public Vector2 movement, aim;
         public Vector2 pointer;
         public bool hasPointer;
-        public bool hasAim, jump, jumpHeld, sprint, fire, revive, telekinesis, grenade, heal, inventory, interact, reload, menu;
+        public bool hasAim, jump, jumpHeld, sprint, fire, revive, telekinesis, grenade, mine, heal, inventory, interact, reload, menu;
         public string weapon; // Legacy definition command for v0 actors.
         public string weaponItem,weaponShortcut;
         public bool shortcutWholeStack;

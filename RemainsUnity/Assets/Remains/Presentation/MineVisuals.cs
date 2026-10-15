@@ -8,13 +8,13 @@ using UnityEngine;
 
 namespace Remains.Presentation
 {
-    // The mines of the visible level (original Mine.as vis): frame 2 while armed, the frames from 2 on looping at 30 fps
+    // The mines of the visible level (original Mine.as vis): frame 1 while a placed mine arms, frame 2 while armed, the frames from 2 on looping at 30 fps
     // once triggered, a beep every 5 frames of the countdown. A level mine stays hidden until the local player has been
     // within its visibility radius (then it stays seen for this client); triggered and player mines are always shown.
     public sealed class MineVisuals : MonoBehaviour
     {
         private const float FramesPerSecond=30,BeepPeriod=5/FramesPerSecond,SpotPeriod=.2f;
-        private sealed class Art {public Sprite[] frames;public float scale;public Vector2 offset;public AudioClip beep,defuse;}
+        private sealed class Art {public Sprite[] frames;public Sprite arming;public float scale;public Vector2 offset;public AudioClip beep,defuse,place;}
         private sealed class Entry {public MineState state;public MineProfile profile;public Art art;public SpriteRenderer renderer;public float animation,beep;}
         private readonly Dictionary<string,Entry> views=new(StringComparer.Ordinal);
         private readonly Dictionary<string,Art> arts=new(StringComparer.Ordinal);
@@ -35,7 +35,7 @@ namespace Remains.Presentation
         {
             session=value;playback=audio;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));
             exported=ExportedContentCatalog.Load();
-            session.Changed+=Refresh;session.Mines.DisarmHeard+=Disarmed;Refresh();
+            session.Changed+=Refresh;session.Mines.DisarmHeard+=Disarmed;session.Mines.PlaceHeard+=Placed;Refresh();
         }
 
         // Views change only with mines, the visible level or the world (CoopSession.LastChange).
@@ -80,14 +80,16 @@ namespace Remains.Presentation
         {
             if(arts.TryGetValue(definition,out var art)) return art;
             var resource=exported.Resource(profile.artwork);
-            var frames=(resource.frames??Array.Empty<ExportedFrame>()).Where(f=>f.frame>=2).OrderBy(f=>f.frame).Select(exported.FrameSprite).ToArray();
-            if(frames.Length==0 || frames.Any(f=>f==null))
-                throw new InvalidOperationException($"Мина {definition}: нет кадров изображения {profile.artwork} начиная со второго.");
-            foreach(var frame in frames) SpriteArtworkMaterial.Prepare(frame);
+            var all=resource.frames??Array.Empty<ExportedFrame>();
+            var frames=all.Where(f=>f.frame>=2).OrderBy(f=>f.frame).Select(exported.FrameSprite).ToArray();
+            var arming=all.Where(f=>f.frame==1).Select(exported.FrameSprite).FirstOrDefault();
+            if(frames.Length==0 || frames.Any(f=>f==null) || arming==null)
+                throw new InvalidOperationException($"Мина {definition}: нет кадров изображения {profile.artwork} (1 — взведение, со 2 — взведена).");
+            SpriteArtworkMaterial.Prepare(arming);foreach(var frame in frames) SpriteArtworkMaterial.Prepare(frame);
             var bounds=frames[0].bounds;
             float scale=profile.width/bounds.size.x;
-            art=new Art {frames=frames,scale=scale,offset=new Vector2(-bounds.center.x*scale,-bounds.min.y*scale),
-                beep=Sound(profile.beepSound,definition),defuse=Sound(profile.defuseSound,definition)};
+            art=new Art {frames=frames,arming=arming,scale=scale,offset=new Vector2(-bounds.center.x*scale,-bounds.min.y*scale),
+                beep=Sound(profile.beepSound,definition),defuse=Sound(profile.defuseSound,definition),place=Sound(profile.placeSound,definition)};
             arts.Add(definition,art);
             return art;
         }
@@ -101,7 +103,7 @@ namespace Remains.Presentation
         private void Show(Entry entry)
         {
             entry.renderer.enabled=entry.state.triggered || entry.state.side==MineRules.PlayerSide || spotted.Contains(entry.state.id);
-            if(!entry.state.triggered) {entry.animation=0;SpriteArtworkMaterial.Apply(entry.renderer,entry.art.frames[0]);}
+            if(!entry.state.triggered) {entry.animation=0;SpriteArtworkMaterial.Apply(entry.renderer,entry.state.arming>0?entry.art.arming:entry.art.frames[0]);}
         }
 
         // Per frame only the triggered mines animate and beep; spotting is a light distance test of this level's few
@@ -139,12 +141,22 @@ namespace Remains.Presentation
             playback?.PlayContact(Prepare(message.definition,profile).defuse,message.level,new Vector2(message.x,message.y),1);
         }
 
+        private void Placed(MinePlaceRequest message)
+        {
+            if(message.level!=level) return;
+            string weapon=MineRules.PlacedWeapon(session.World?.Find(message.actor)?.inventory.Find(i=>i.id==message.item)?.definition) ??
+                session.World?.mines.Find(m=>m.id=="placed:"+message.transaction)?.definition;
+            if(weapon==null) {Debug.LogWarning($"Звук установки мины пропущен: мина placed:{message.transaction} ещё не получена, уровень {message.level}.",this);return;}
+            var profile=MineRules.Profile(new MineState {id=message.transaction,definition=weapon});
+            playback?.PlayContact(Prepare(weapon,profile).place,message.level,new Vector2(message.x,message.y),1);
+        }
+
         private void Remove(string id)
         {
             var entry=views[id];var root=entry.renderer.transform.parent.gameObject;
             root.SetActive(false);if(Application.isPlaying) Destroy(root);else DestroyImmediate(root);views.Remove(id);
         }
         private void Clear() {foreach(string id in views.Keys.ToArray()) Remove(id);}
-        private void OnDestroy() {if(session!=null) {session.Changed-=Refresh;session.Mines.DisarmHeard-=Disarmed;}}
+        private void OnDestroy() {if(session!=null) {session.Changed-=Refresh;session.Mines.DisarmHeard-=Disarmed;session.Mines.PlaceHeard-=Placed;}}
     }
 }
