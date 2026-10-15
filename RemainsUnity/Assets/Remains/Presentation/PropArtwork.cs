@@ -49,6 +49,8 @@ namespace Remains.Presentation
             var renderer=view.Artwork;
             SpriteArtworkMaterial.Apply(renderer,items.Require(state.presentationItem));
             renderer.sortingOrder=ActorVisualLayers.RestingObjectOrder;view.SetArtwork(renderer);
+            // A mine item is the mine itself (original artwork at world scale, pivot at its feet), not a shrunk icon.
+            if(MineRules.PlacedWeapon(state.presentationItem)!=null) view.ConfigureFeetArtwork();
             view.FitWidth(state.width);view.PrepareHeldGlow();return view;
         }
         public PropView CreateView(string id,string name,float width)

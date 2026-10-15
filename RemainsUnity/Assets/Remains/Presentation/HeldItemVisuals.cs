@@ -52,7 +52,9 @@ namespace Remains.Presentation
                 if(!definitions.TryGetValue(actor.id,out var previous) || previous!=item.definition)
                 {
                     SpriteArtworkMaterial.Apply(view,sprite);
-                    float scale=DroppedItemTransfer.Width/sprite.bounds.size.x;view.transform.localScale=new Vector3(scale,scale,1);
+                    // A held mine keeps its world size (original artwork scale); other items are shown icon-sized.
+                    float scale=MineRules.PlacedWeapon(item.definition)!=null?1:DroppedItemTransfer.Width/sprite.bounds.size.x;
+                    view.transform.localScale=new Vector3(scale,scale,1);
                     definitions[actor.id]=item.definition;
                 }
                 view.enabled=actor.heldItemPoseValid;

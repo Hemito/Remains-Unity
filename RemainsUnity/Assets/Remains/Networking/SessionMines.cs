@@ -171,7 +171,8 @@ namespace Remains.Networking
             if(weapon==null || InventoryAvailability.Count(actor,stack)<=0) {session.ShowNotice("Удерживаемая мина закончилась. Выберите другой предмет.");return false;}
             if(!actor.heldItemPoseValid) {session.ShowNotice("Мину нельзя отпустить: точка удержания перекрыта.");return false;}
             var profile=MineRules.Profile(new MineState {id=stack.id,definition=weapon});
-            var release=Remains.Gameplay.HeldItemPose.Mount(actor)-Vector2.up*(profile.height*.5f);
+            // The held mine is drawn with its feet at the hold point (HeldItemVisuals: world-scale artwork).
+            var release=Remains.Gameplay.HeldItemPose.Mount(actor);
             if(!MineRules.TryDrop(room,release,profile,out var point)) {session.ShowNotice("Под миной нет опоры.");return false;}
             session.PublishActor(actor);
             NetworkClient.Send(new MinePlaceRequest {transaction=Guid.NewGuid().ToString("N"),world=session.World.worldId,actor=actor.id,level=actor.level,
@@ -220,9 +221,10 @@ namespace Remains.Networking
             string itemId="drop:mine:"+mine.id;
             if(WorldProps.Find(world,itemId)!=null) throw new InvalidOperationException("Предмет обезвреженной мины уже существует: "+itemId);
             var item=ExportedContentCatalog.Load().CreateFormalItem("weapon:"+mine.definition,0,1);
+            var size=DroppedItemTransfer.Size(item.definition);
             world.mines.Remove(mine);senseClocks.Remove(mine.id);
             world.containers.Add(new ContainerState {id=itemId,definition="loose-item",presentationItem=item.definition,level=mine.level,
-                x=mine.x,y=mine.y+DroppedItemTransfer.Height*.5f,width=DroppedItemTransfer.Width,height=DroppedItemTransfer.Height,anchorHeight=DroppedItemTransfer.Height*.5f,
+                x=mine.x,y=mine.y+size.y*.5f,width=size.x,height=size.y,anchorHeight=size.y*.5f,
                 mass=.1f,generation=1,items=new List<ItemStack> {item}});
             Disarmed++;
             session.CommitWorld();

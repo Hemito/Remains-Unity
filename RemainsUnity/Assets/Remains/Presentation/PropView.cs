@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 
 namespace Remains.Presentation
 {
-    public enum PropVisualAnchor { BodyCenter, PlacementAnchor }
+    public enum PropVisualAnchor { BodyCenter, PlacementAnchor, Feet }
     public sealed class PropView : MonoBehaviour
     {
         [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer artwork;
@@ -104,6 +104,7 @@ namespace Remains.Presentation
         {
             var position=motion.Sample(state,localOwner,paused,dt);
             if(visualAnchor==PropVisualAnchor.PlacementAnchor) position-=Vector2.up*(state.height*.5f-state.anchorHeight);
+            else if(visualAnchor==PropVisualAnchor.Feet) position-=Vector2.up*state.anchorHeight;
             // Written only on change: ~1400 resting factory bodies otherwise dirtied their transforms every frame.
             if(!hasDrawn || position!=drawnPosition) {transform.position=position;drawnPosition=position;}
             if(state is Remains.Domain.ContainerState {presentationItem:not null} loose &&
@@ -137,6 +138,8 @@ namespace Remains.Presentation
         }
         public void SetArtwork(SpriteRenderer value)=>artwork=value;
         public void ConfigurePlacementArtwork() {visualAnchor=PropVisualAnchor.PlacementAnchor;fitStateWidth=false;}
+        // Artwork at world scale whose pivot is the object's feet (exported original units: mines).
+        public void ConfigureFeetArtwork() {visualAnchor=PropVisualAnchor.Feet;fitStateWidth=false;}
         public void FitWidth(float width)
         {
             if(artwork==null || artwork.sprite==null) throw new InvalidOperationException($"Объект {name}: нет основного спрайта.");

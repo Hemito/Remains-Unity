@@ -8,10 +8,21 @@ namespace Remains.Domain
     public static class DroppedItemTransfer
     {
         public const float Width=.35f,Height=.3f;
+        // A loose item's body: the small common box, or a mine's own size (its artwork is drawn at world scale).
+        public static Vector2 Size(string definition)
+        {
+            string mine=MineRules.PlacedWeapon(definition);
+            if(mine==null) return new Vector2(Width,Height);
+            var profile=Remains.Content.WeaponCatalog.Get(mine).mine;
+            return new Vector2(profile.width,profile.height);
+        }
         public static ContainerState Preview(ActorState actor,string transaction,string definition,Vector2 origin,Vector2 velocity,float angle=0,bool mirrored=false)
-            =>new ContainerState {id="drop:"+transaction,definition="loose-item",presentationItem=definition,level=actor.level,
-                x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,width=Width,height=Height,anchorHeight=Height*.5f,presentationAngle=angle,presentationMirrored=mirrored,
+        {
+            var size=Size(definition);
+            return new ContainerState {id="drop:"+transaction,definition="loose-item",presentationItem=definition,level=actor.level,
+                x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,width=size.x,height=size.y,anchorHeight=size.y*.5f,presentationAngle=angle,presentationMirrored=mirrored,
                 mass=.1f,owner=actor.owner,generation=1};
+        }
         public static bool Prepare(WorldState world,ActorState actor,string transaction,string itemId,int quantity,
             Vector2 origin,Vector2 velocity,IDepositRule rule,out string reason,bool paused=false,float angle=0,bool mirrored=false)
         {
