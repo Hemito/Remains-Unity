@@ -21,7 +21,7 @@ namespace Remains.Persistence
         // Per composed world and list: the objects, keys and texts of its last composition, by list position. When a
         // list holds the same objects in the same order, its unmarked parts are taken by position (no per-part
         // dictionaries or key strings: ~10 ms per factory snapshot before); otherwise parts are matched by key.
-        private sealed class ListMemory {public object[] Objects;public string[] Keys,Texts;public uint[] Slots;}
+        private sealed class ListMemory {public object[] Objects;public string[] Keys,Texts;public uint[] Slots;public ActorText.Pieces[] Pieces;}
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,Dictionary<string,ListMemory>> memories=new();
         private static readonly HashSet<string> warnedUnmarked=new(StringComparer.Ordinal);
         public static int LastUnmarked {get;private set;}
@@ -36,7 +36,8 @@ namespace Remains.Persistence
         public sealed class PartSet
         {
             public readonly string Name;public readonly string[] Keys,Texts;
-            public PartSet(string name,string[] keys,string[] texts) {Name=name;Keys=keys;Texts=texts;}
+            public readonly ActorText.Pieces[] Pieces;   // actors (host compositions): the template and cold texts of each part
+            public PartSet(string name,string[] keys,string[] texts,ActorText.Pieces[] pieces=null) {Name=name;Keys=keys;Texts=texts;Pieces=pieces;}
         }
         public sealed class Composition
         {
@@ -250,7 +251,8 @@ namespace Remains.Persistence
             private string example;
             public string Report=>typeof(T).Name+" "+Parsed+"/"+Parts+(example==null?"":" ["+example+"]");
             private string[] keys=Array.Empty<string>(),texts=Array.Empty<string>();
-            public PartSet Set=>new(Name,keys,texts);
+            private ActorText.Pieces[] pieces;
+            public PartSet Set=>new(Name,keys,texts,pieces);
             private static readonly string Name=ListName(typeof(T));
             private static readonly bool Always=AlwaysSerialized(Name);
             public PartList(Dictionary<Type,HashSet<string>> next,Audit audit=null,Dictionary<string,ListMemory> memory=null,Dictionary<string,ListMemory> remembered=null)
@@ -283,9 +285,25 @@ namespace Remains.Persistence
                     for(int i=0;i<before.Keys.Length;i++) if(before.Objects[i]!=null) byKey[before.Keys[i]]=(before.Objects[i],before.Texts[i]);
                 }
                 var objects=new object[count];keys=new string[count];texts=new string[count];var slots=new uint[count];
+                bool actors=typeof(T)==typeof(ActorState);
+                if(actors) pieces=new ActorText.Pieces[count];
+                // Actors: the previous pieces and text by key (the host replaces an actor object on every update).
+                Dictionary<string,(ActorText.Pieces pieces,string text)> previousActors=null;
+                if(actors && reuse && before.Pieces!=null)
+                {
+                    previousActors=new Dictionary<string,(ActorText.Pieces,string)>(before.Keys.Length,StringComparer.Ordinal);
+                    for(int i=0;i<before.Keys.Length;i++) if(before.Pieces[i]!=null) previousActors[before.Keys[i]]=(before.Pieces[i],before.Texts[i]);
+                }
                 for(int i=0;i<count;i++)
                 {
                     var item=list[i];objects[i]=item;
+                    if(actors && item!=null)
+                    {
+                        string actorKey=Name+":"+(PartId(item)??"#"+i);
+                        keys[i]=actorKey;slots[i]=Audit.SlotOf(actorKey);
+                        texts[i]=ComposeActor((ActorState)(object)item,actorKey,i,previousActors);Parts++;
+                        continue;
+                    }
                     string key,text,was=null;uint slot;bool known=false;
                     if(aligned && item!=null)
                     {
@@ -323,7 +341,24 @@ namespace Remains.Persistence
                     }
                     keys[i]=key;texts[i]=text;slots[i]=slot;Parts++;
                 }
-                remembered?.Add(Name,new ListMemory {Objects=objects,Keys=keys,Texts=texts,Slots=slots});
+                remembered?.Add(Name,new ListMemory {Objects=objects,Keys=keys,Texts=texts,Slots=slots,Pieces=pieces});
+            }
+
+            // An actor as its template and cold texts (ActorText): only changed pieces get the strict check, and an
+            // actor whose pieces are all unchanged keeps its previous text (no ~50 KB parse of a moving player).
+            private string ComposeActor(ActorState actor,string key,int index,Dictionary<string,(ActorText.Pieces pieces,string text)> previous)
+            {
+                var next=ActorText.Pieces.Of(actor);
+                pieces[index]=next;
+                ActorText.Pieces prev=null;string previousText=null;
+                if(previous!=null && previous.TryGetValue(key,out var found)) {prev=found.pieces;previousText=found.text;}
+                bool templateSame=prev!=null && prev.Template==next.Template;
+                bool coldSame=prev!=null;
+                for(int i=0;coldSame && i<next.Cold.Length;i++) coldSame=prev.Cold[i]==next.Cold[i];
+                if(templateSame && coldSame) return previousText;
+                ActorText.Verify(next.Template,!templateSame,next.Cold,i=>prev==null || prev.Cold[i]!=next.Cold[i]);
+                Parsed++;
+                return ActorText.Join(next.Template,next.Cold);
             }
 
             private static string Difference(string was,string now)

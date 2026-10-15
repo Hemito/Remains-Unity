@@ -65,6 +65,7 @@ namespace Remains.Editor
             var b2=RecoverySnapshot.FromWorld(host);
             var delta2=WorldDelta.Build(host.worldId,b.Id,b.Composition,b2.Id,b2.Composition);
             timer.Restart();
+            RecoverySnapshot actorStep=null;int actorBytes=0;
             var applied2=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(delta2)),nextClient);
             double apply2Ms=timer.Elapsed.TotalMilliseconds;
             Require(applied2.Id==b2.Id && applied2.Json==b2.Json,"Клиент собрал другой текст B2.");
@@ -75,11 +76,37 @@ namespace Remains.Editor
                 "Повторное изменение: изменённый контейнер не разобран заново.");
             nextClient=client2;
 
+            // B3/B4: an actor known to the base travels as its template plus only the changed cold texts.
+            if(host.actors.Count>0)
+            {
+                var mover=host.actors[0];int coldIndex=-1;
+                for(int round=0;round<2;round++)
+                {
+                    if(round==0) mover.x+=.25f;
+                    else {mover.inventory.Add(new ItemStack {id="check:delta-item",definition="caps",count=1});coldIndex=2;}
+                    host.revision++;
+                    var next=RecoverySnapshot.FromWorld(host);
+                    var baseSnapshot=round==0?b2:actorStep;
+                    var actorDelta=WorldDelta.Build(host.worldId,baseSnapshot.Id,baseSnapshot.Composition,next.Id,next.Composition);
+                    var list=actorDelta.lists.Find(entry=>entry.name=="actors");
+                    int at=Array.IndexOf(list.keys,"actors:"+mover.id);
+                    Require(at>=0 && list.templates!=null && list.templates[at]!=null && list.texts[at]==null,"Персонаж передан целым текстом, а не шаблоном.");
+                    for(int part=0;part<list.cold[at].Length;part++)
+                        Require((list.cold[at][part]!=null)==(part==coldIndex),$"Холодная часть {ActorText.Cold[part]}: передана={list.cold[at][part]!=null}, ожидалось {part==coldIndex}.");
+                    var appliedActor=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(actorDelta)),nextClient);
+                    Require(appliedActor.Id==next.Id && appliedActor.Json==next.Json,"Клиент собрал другой текст после изменения персонажа.");
+                    nextClient=appliedActor.CreateLiveWorld();actorStep=next;applied2=appliedActor;
+                    if(round==0) actorBytes=StateJson.ToJson(actorDelta).Length;
+                }
+                mover.inventory.RemoveAll(item=>item.id=="check:delta-item");
+            }
+            var lastBase=host.actors.Count>0?actorStep:b2;
+
             // C: a container added and another removed (order changes).
             var added=StateJson.Copy(host.containers[2]);added.id="check:delta-added";host.containers.Add(added);
             host.containers.RemoveAt(1);host.revision++;
             var c=RecoverySnapshot.FromWorld(host);
-            var orderDelta=WorldDelta.Build(host.worldId,b2.Id,b2.Composition,c.Id,c.Composition);
+            var orderDelta=WorldDelta.Build(host.worldId,lastBase.Id,lastBase.Composition,c.Id,c.Composition);
             Require(orderDelta.lists.Any(list=>list.name=="containers" && list.order!=null),"Смена состава контейнеров без порядка.");
             var appliedC=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(orderDelta)),nextClient);
             Require(appliedC.Id==c.Id && appliedC.Json==c.Json,"Клиент собрал другой текст C после смены состава.");
@@ -93,7 +120,7 @@ namespace Remains.Editor
             Require(rejected,"Изменение от чужой базы применено.");
 
             Debug.Log($"Изменения мира: PASS — A→B частей {changed}, {encoded.Length} символов вместо {b.Json.Length} " +
-                $"({100.0*encoded.Length/b.Json.Length:F1}%), сборка у хоста {composeMs:F1} мс, применение {applyMs:F1} мс, следующее {apply2Ms:F1} мс; смена состава, отказ чужой базе.");
+                $"({100.0*encoded.Length/b.Json.Length:F1}%), сборка у хоста {composeMs:F1} мс, применение {applyMs:F1} мс, следующее {apply2Ms:F1} мс, сдвиг персонажа {actorBytes} символов; смена состава, отказ чужой базе.");
         }
 
         private static void Require(bool condition,string message) {if(!condition) throw new InvalidOperationException(message);}

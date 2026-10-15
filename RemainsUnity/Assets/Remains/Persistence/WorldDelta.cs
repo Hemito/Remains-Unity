@@ -12,7 +12,8 @@ namespace Remains.Persistence
     // the snapshot ID (SHA-256 of that JSON) and strictly parses only the template and the changed parts.
     [Serializable] public sealed class WorldDeltaPayload
     {
-        public int format=1;
+        public const int Format=2;   // 2: changed actors as template plus changed cold texts (ActorText)
+        public int format=Format;
         public string world,baseSnapshot,snapshot;
         public string template;
         public List<WorldDeltaList> lists=new();
@@ -22,6 +23,10 @@ namespace Remains.Persistence
         public string name;
         public string[] order;            // null: the base order
         public string[] keys,texts;       // changed or new parts
+        // Actors: a changed actor known to the base as its template and only the changed cold texts (null: as in the
+        // base); its texts[i] is then null. A ~50 KB player no longer travels whole on every move.
+        public string[] templates;
+        public string[][] cold;
     }
 
     public static class WorldDelta
@@ -36,11 +41,30 @@ namespace Remains.Persistence
                 var before=new Dictionary<string,string>(StringComparer.Ordinal);
                 if(previous!=null) for(int i=0;i<previous.Keys.Length;i++) before[previous.Keys[i]]=previous.Texts[i];
                 var keys=new List<string>();var texts=new List<string>();
+                List<string> templates=null;List<string[]> cold=null;
+                Dictionary<string,ActorText.Pieces> basePieces=null;
+                if(next.Pieces!=null && previous?.Pieces!=null)
+                {
+                    basePieces=new Dictionary<string,ActorText.Pieces>(StringComparer.Ordinal);
+                    for(int i=0;i<previous.Keys.Length;i++) if(previous.Pieces[i]!=null) basePieces[previous.Keys[i]]=previous.Pieces[i];
+                    templates=new List<string>();cold=new List<string[]>();
+                }
                 for(int i=0;i<next.Keys.Length;i++)
-                    if(!before.TryGetValue(next.Keys[i],out var text) || text!=next.Texts[i]) {keys.Add(next.Keys[i]);texts.Add(next.Texts[i]);}
+                {
+                    if(before.TryGetValue(next.Keys[i],out var text) && text==next.Texts[i]) continue;
+                    keys.Add(next.Keys[i]);
+                    if(basePieces!=null && next.Pieces[i]!=null && basePieces.TryGetValue(next.Keys[i],out var prior))
+                    {
+                        var changed=new string[next.Pieces[i].Cold.Length];
+                        for(int c=0;c<changed.Length;c++) changed[c]=next.Pieces[i].Cold[c]==prior.Cold[c]?null:next.Pieces[i].Cold[c];
+                        texts.Add(null);templates.Add(next.Pieces[i].Template);cold.Add(changed);
+                    }
+                    else {texts.Add(next.Texts[i]);templates?.Add(null);cold?.Add(null);}
+                }
                 bool sameOrder=previous!=null && previous.Keys.Length==next.Keys.Length;
                 if(sameOrder) for(int i=0;i<next.Keys.Length && sameOrder;i++) sameOrder=previous.Keys[i]==next.Keys[i];
-                payload.lists.Add(new WorldDeltaList {name=next.Name,order=sameOrder?null:next.Keys,keys=keys.ToArray(),texts=texts.ToArray()});
+                payload.lists.Add(new WorldDeltaList {name=next.Name,order=sameOrder?null:next.Keys,keys=keys.ToArray(),texts=texts.ToArray(),
+                    templates=templates?.ToArray(),cold=cold?.ToArray()});
             }
             return payload;
         }
@@ -95,17 +119,19 @@ namespace Remains.Persistence
         // changed parts are strictly parsed; unchanged parts reuse the current live objects of the same keys.
         public RecoverySnapshot Apply(WorldDeltaPayload payload,WorldState current)
         {
-            if(payload==null || payload.format!=1) throw new InvalidDataException("Неизвестный формат изменения мира.");
+            if(payload==null || payload.format!=WorldDeltaPayload.Format) throw new InvalidDataException("Неизвестный формат изменения мира.");
             if(payload.world!=WorldId || payload.baseSnapshot!=SnapshotId)
                 throw new InvalidDataException($"Изменение мира от другой базы: ожидалась {SnapshotId}, получена {payload.baseSnapshot}, world={payload.world}.");
             var sets=new List<SnapshotPartCache.PartSet>();var nextLists=new Dictionary<string,List>(StringComparer.Ordinal);
             var changed=new HashSet<string>(StringComparer.Ordinal);
             var changedAt=new Dictionary<string,bool[]>(StringComparer.Ordinal);   // same-order lists: changed positions
+            var verified=new HashSet<string>(StringComparer.Ordinal);   // changed actors already checked by pieces
             foreach(var delta in payload.lists)
             {
                 if(!lists.TryGetValue(delta.name,out var before)) throw new InvalidDataException("Изменение неизвестного списка мира: "+delta.name);
                 if((delta.keys?.Length??0)!=(delta.texts?.Length??0)) throw new InvalidDataException("Изменение списка "+delta.name+": ключи и тексты не совпадают.");
                 int count=delta.keys?.Length??0;
+                if(delta.templates!=null || delta.cold!=null) ExpandActors(delta,before,verified);
                 for(int i=0;i<count;i++) changed.Add(delta.keys[i]);
                 List next;
                 if(delta.order==null)
@@ -151,7 +177,7 @@ namespace Remains.Persistence
                     case "lamps": outputs[set.Name]=Fill(world.lamps,set,same?current.lamps:null,changed,lamp=>lamp.id,_=>true,positions);break;
                     case "doors": outputs[set.Name]=Fill(world.doors,set,same?current.doors:null,changed,door=>door.id,_=>true,positions);break;
                     // Actors and projectiles are always fresh objects: the client changes its own ones locally.
-                    case "actors": Fill(world.actors,set,null,changed,actor=>actor.id,_=>false,null);break;
+                    case "actors": Fill(world.actors,set,null,changed,actor=>actor.id,_=>false,null,verified);break;
                     case "factories": outputs[set.Name]=Fill(world.factories,set,same?current.factories:null,changed,factory=>factory.level,_=>true,positions);break;
                     case "projectiles": Fill(world.projectiles,set,null,changed,flight=>flight.launch?.id,_=>false,null);break;
                     default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
@@ -167,8 +193,36 @@ namespace Remains.Persistence
         // Unchanged parts reuse the live object of the same key: normally at the same position (checked by ID, no
         // allocation); any other order falls back to an index of the live list built once. Without a live object an
         // unchanged text is read by the trusted reader: it was strictly parsed when it reached this replica.
+        // An actor sent as template plus changed cold texts: its full text from the base pieces, strictly checked by
+        // pieces (the template and each changed cold text); the delta then carries the full text as any part.
+        private void ExpandActors(WorldDeltaList delta,List before,HashSet<string> verified)
+        {
+            int count=delta.keys?.Length??0;
+            if(delta.name!="actors" || delta.templates==null || delta.cold==null || delta.templates.Length!=count || delta.cold.Length!=count)
+                throw new InvalidDataException("Изменение списка "+delta.name+": неверные части персонажей.");
+            for(int i=0;i<count;i++)
+            {
+                if(delta.templates[i]==null) {if(delta.texts[i]==null) throw new InvalidDataException("Изменение персонажа "+delta.keys[i]+" без текста.");continue;}
+                if(delta.texts[i]!=null || delta.cold[i]==null || delta.cold[i].Length!=ActorText.Cold.Count)
+                    throw new InvalidDataException("Изменение персонажа "+delta.keys[i]+": неверные части.");
+                if(!before.Index.TryGetValue(delta.keys[i],out int position))
+                    throw new InvalidDataException("Изменение персонажа "+delta.keys[i]+" по частям без прежнего текста.");
+                var prior=actorPieces.TryGetValue(delta.keys[i],out var cached) && cached.text==before.Texts[position]?cached.pieces:
+                    ActorText.Pieces.OfText(before.Texts[position]);
+                var merged=new string[ActorText.Cold.Count];
+                for(int c=0;c<merged.Length;c++) merged[c]=delta.cold[i][c]??prior.Cold[c];
+                string text=ActorText.Join(delta.templates[i],merged);
+                var sent=delta.cold[i];
+                ActorText.Verify(delta.templates[i],true,merged,c=>sent[c]!=null);
+                delta.texts[i]=text;verified.Add(delta.keys[i]);
+                actorPieces[delta.keys[i]]=(new ActorText.Pieces(delta.templates[i],merged),text);
+            }
+        }
+        // Pieces of the actor texts last expanded, by key (valid for that exact text).
+        private readonly Dictionary<string,(ActorText.Pieces pieces,string text)> actorPieces=new(StringComparer.Ordinal);
+
         private static object[] Fill<T>(List<T> target,SnapshotPartCache.PartSet set,List<T> live,HashSet<string> changed,Func<T,string> id,Func<T,bool> reusable,
-            Positions positions)
+            Positions positions,HashSet<string> verified=null)
             where T:class
         {
             if(target.Capacity<set.Keys.Length) target.Capacity=set.Keys.Length;
@@ -197,7 +251,8 @@ namespace Remains.Persistence
                     }
                     if(item!=null && !reusable(item)) item=null;
                 }
-                target.Add(item??(changed.Contains(key)?StateJson.FromJson<T>(set.Texts[i]):StateJson.FromTrustedJson<T>(set.Texts[i])));
+                // A changed part is strictly parsed unless its pieces were already checked (actors by template).
+                target.Add(item??(changed.Contains(key) && !(verified?.Contains(key)??false)?StateJson.FromJson<T>(set.Texts[i]):StateJson.FromTrustedJson<T>(set.Texts[i])));
             }
             var result=new object[target.Count];for(int i=0;i<result.Length;i++) result[i]=target[i];
             return result;

@@ -13,5 +13,33 @@ namespace Remains.Persistence
         // Cold field texts by Cold index; null: the field is null and written in place in the template.
         public static string Split(ActorState actor,out string[] cold)=>StateJson.ToJsonWithHoles(actor,Cold,out cold);
         public static string Join(string template,IReadOnlyList<string> cold)=>StateJson.FillHoles(template,cold);
+
+        public sealed class Pieces
+        {
+            public readonly string Template;public readonly string[] Cold;
+            public Pieces(string template,string[] cold) {Template=template;Cold=cold;}
+            public static Pieces Of(ActorState actor) {string template=Split(actor,out var cold);return new Pieces(template,cold);}
+            // From an actor's exact text (a replica that has only the text): split again and required to join back.
+            public static Pieces OfText(string text)
+            {
+                var pieces=Of(StateJson.FromTrustedJson<ActorState>(text));
+                if(Join(pieces.Template,pieces.Cold)!=text) throw new System.IO.InvalidDataException("Текст персонажа не раскладывается на части без потерь.");
+                return pieces;
+            }
+        }
+
+        private static readonly System.Type[] ColdTypes=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(Cold,
+            name=>typeof(ActorState).GetField(name).FieldType));
+        // The strict check of an actor text by pieces: the template (cold fields as null) when it changed, and each cold
+        // text that changed, as its field type: together the checks the whole text's strict parse applies.
+        public static void Verify(string template,bool checkTemplate,IReadOnlyList<string> cold,System.Func<int,bool> changed)
+        {
+            if(checkTemplate)
+            {
+                var nulls=new string[Cold.Count];for(int i=0;i<nulls.Length;i++) nulls[i]="null";
+                StateJson.FromJson<ActorState>(Join(template,nulls));
+            }
+            for(int i=0;i<Cold.Count;i++) if(cold[i]!=null && changed(i)) StateJson.FromJson(cold[i],ColdTypes[i]);
+        }
     }
 }

@@ -122,17 +122,18 @@ namespace Remains.Serialization
             public override object ReadJson(JsonReader reader,Type objectType,object existingValue,JsonSerializer serializer)=>throw new NotSupportedException();
             public override void WriteJson(JsonWriter writer,object value,JsonSerializer serializer)=>writer.WriteRawValue(marker);
         }
-        public static T FromJson<T>(string json)
+        public static T FromJson<T>(string json)=>(T)FromJson(json,typeof(T));
+        public static object FromJson(string json,Type type)
         {
             try
             {
                 using var reader=new JsonNumberPrecision.Reader(json);
                 var token=JToken.Load(reader,new JsonLoadSettings {DuplicatePropertyNameHandling=DuplicatePropertyNameHandling.Error});
                 if(reader.Read()) throw new JsonReaderException("После состояния обнаружены дополнительные данные.");
-                CheckFieldNames(typeof(T),token);
-                return token.ToObject<T>(JsonSerializer.Create(settings));
+                CheckFieldNames(type,token);
+                return token.ToObject(type,JsonSerializer.Create(settings));
             }
-            catch(JsonException failure) {throw new System.IO.InvalidDataException($"Некорректное состояние {typeof(T).Name}: {failure.Message}",failure);}
+            catch(JsonException failure) {throw new System.IO.InvalidDataException($"Некорректное состояние {type.Name}: {failure.Message}",failure);}
         }
         // Same contract and number handling as FromJson, without the strictness pass (no JToken tree, no field/number
         // checks). Only for text this process already accepted through FromJson (e.g. its own validated snapshot).
