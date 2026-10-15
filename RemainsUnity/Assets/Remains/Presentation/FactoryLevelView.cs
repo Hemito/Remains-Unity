@@ -35,6 +35,7 @@ namespace Remains.Presentation
         private RectInt windowRooms=new RectInt(-1,-1,0,0);
         private readonly List<(RoomSpriteAuthoring sprite,RoomDefinition definition)> pictures=new();
         private readonly List<(RoomSpriteAuthoring sprite,RoomSpritePlacement placement)> windowPictures=new();
+        private readonly List<List<int>> picturesByRoom=new();
         private readonly List<(Rect bounds,double opacity)> doors=new();   // blocking doors, level-local rectangles
         // Lamps of the level by world ID (<level>:<room x>,<room y>:<decor id>): their picture, lit frame and sprite.
         private readonly Dictionary<string,(RoomSpriteAuthoring picture,int frame,Sprite sprite,RoomDefinition definition)> lamps=new(StringComparer.Ordinal);
@@ -270,6 +271,15 @@ namespace Remains.Presentation
             pictures.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();windowSourceIds.Clear();
             foreach(var sprite in level.RoomInstances.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 pictures.Add((sprite,definitions.Require(sprite.Definition,"вид уровня, "+sprite.name)));
+            // Pictures by room: a window change looks only at its rooms' pictures (the others are inactive anyway).
+            picturesByRoom.Clear();for(int i=0;i<level.Rooms.Count;i++) picturesByRoom.Add(new List<int>());
+            for(int p=0;p<pictures.Count;p++)
+            {
+                var node=pictures[p].sprite.transform;
+                while(node!=null && node.parent!=level.RoomInstances) node=node.parent;
+                if(node==null) throw new InvalidOperationException($"Вид уровня {level.Level}: картинка {pictures[p].sprite.name} вне комнат.");
+                picturesByRoom[node.GetSiblingIndex()].Add(p);
+            }
             for(int i=0;i<level.Rooms.Count;i++)
             {
                 var room=level.Rooms[i];
@@ -323,6 +333,10 @@ namespace Remains.Presentation
                 float d=dx*dx+dy*dy;
                 if(d<best) {best=d;cx=r.X;cy=r.Y;if(d==0) break;}
             }
+            return WindowAround(cx,cy);
+        }
+        private RectInt WindowAround(int cx,int cy)
+        {
             int ww=Math.Min(WindowRooms,roomsWide),wh=Math.Min(WindowRooms,roomsDeep);
             return new RectInt(Mathf.Clamp(cx-WindowRooms/2,0,roomsWide-ww),Mathf.Clamp(cy-WindowRooms/2,0,roomsDeep-wh),ww,wh);
         }
@@ -343,7 +357,10 @@ namespace Remains.Presentation
             foreach(var r in root.Rooms)
                 if(InWindow(r)) {column=Math.Min(column,r.Cells.x);row=Math.Min(row,r.Cells.y);right=Math.Max(right,r.Cells.xMax);bottom=Math.Max(bottom,r.Cells.yMax);}
             int width=right-column,height=bottom-row;
-            var region=RoomFileRegion.Crop(level,column,row,width,height);
+            // The CPU part (region, light scene, wall and shadow absorption) is usually prepared ahead on a worker.
+            PreparedWindow data;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: подготовленные данные")) data=TakePrepared(windowRooms);
+            var region=data.Region;
             Vector2 localOrigin=new Vector2(column*cell,(level.Height-row-height)*cell);
             Vector2 origin=transform.TransformPoint(localOrigin);
             var size=new Vector2(width*cell,height*cell);
@@ -355,8 +372,12 @@ namespace Remains.Presentation
             windowPictures.Clear();
             var collect=Remains.Diagnostics.FrameHitchLog.Section("Окно света: картинки");
             var erases=new List<(Sprite,Matrix4x4)>();
-            foreach(var (authored,definition) in pictures)
+            var windowIndices=new List<int>();
+            for(int i=0;i<root.Rooms.Count;i++) if(InWindow(root.Rooms[i])) windowIndices.AddRange(picturesByRoom[i]);
+            windowIndices.Sort();   // the original picture order: it is the drawing order of the light scene
+            foreach(int pictureIndex in windowIndices)
             {
+                var (authored,definition)=pictures[pictureIndex];
                 if(authored==null || !Shown(authored)) continue;   // adapters disable pictures their objects replace
                 var renderer=authored.GetComponent<SpriteRenderer>();
                 var matrix=authored.transform.localToWorldMatrix;
@@ -373,14 +394,59 @@ namespace Remains.Presentation
             if(erases.Count>0)
                 using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: маска стирания")) window.AddComponent<RoomDecorResources>().BuildErase(erases,origin,size,Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource));
             using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: поле"))
-                field=RoomRadianceField.Build(region,root.Definitions,root.Lands,table,origin,window.transform,sprites,WorldDoorOccluders());
+                field=RoomRadianceField.Build(data.Scene,root.Lands,origin,window.transform,sprites,WorldDoorOccluders());
             using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: начальные проходы")) for(int i=0;i<SettleUpdates;i++) field.Render();
-            using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: препятствия теней"))
-                shadowTerrain=RoomLightScene.Absorption(region,RoomGeometryBuilder.Build(region,root.Definitions),
-                    table.RadianceResolution,table.BeamTransmittance,.985,table.BeamHeight);
+            shadowTerrain=data.Shadow;
             shadowOrigin=localOrigin;
             using(Remains.Diagnostics.FrameHitchLog.Section("Окно света: излучатели")) RefreshShadowEmitters();
+            PrefetchNeighbours();
             PresentationChanged?.Invoke(this);
+        }
+
+        // CPU data of a light window, prepared on a worker thread: the next window is usually ready when the camera
+        // crosses into it (the ~12 ms of scene, wall and shadow absorption no longer run in that frame).
+        private sealed class PreparedWindow
+        {
+            public RoomFile Region;public RoomRadianceField.PreparedScene Scene;public float[,] Shadow;
+        }
+        private const int PreparedWindowsKept=6;
+        private readonly Dictionary<RectInt,System.Threading.Tasks.Task<PreparedWindow>> preparedWindows=new();
+        private System.Threading.Tasks.Task<PreparedWindow> StartPreparation(RectInt rooms)
+        {
+            // Cells of the window's rooms (read here, on the game thread); the rest is pure data.
+            int column=int.MaxValue,row=int.MaxValue,right=0,bottom=0;
+            foreach(var r in root.Rooms)
+                if(Inside(r,rooms)) {column=Math.Min(column,r.Cells.x);row=Math.Min(row,r.Cells.y);right=Math.Max(right,r.Cells.xMax);bottom=Math.Max(bottom,r.Cells.yMax);}
+            var level=root.Grid;var definitions=root.Definitions;var lands=root.Lands;var lighting=table;
+            return System.Threading.Tasks.Task.Run(()=>
+            {
+                var region=RoomFileRegion.Crop(level,column,row,right-column,bottom-row);
+                var geometry=RoomGeometryBuilder.Build(region,definitions);
+                return new PreparedWindow
+                {
+                    Region=region,Scene=RoomRadianceField.PreparedScene.Create(region,definitions,lands,lighting,geometry),
+                    Shadow=RoomLightScene.Absorption(region,geometry,lighting.RadianceResolution,lighting.BeamTransmittance,.985,lighting.BeamHeight)
+                };
+            });
+        }
+        private PreparedWindow TakePrepared(RectInt rooms)
+        {
+            if(!preparedWindows.TryGetValue(rooms,out var task)) {task=StartPreparation(rooms);preparedWindows.Add(rooms,task);}
+            return task.GetAwaiter().GetResult();   // a failed preparation throws here, as the synchronous build did
+        }
+        // The windows centred on the four rooms next to the current centre; others are dropped.
+        private void PrefetchNeighbours()
+        {
+            var keep=new HashSet<RectInt> {windowRooms};
+            int cx=windowRooms.x+WindowRooms/2,cy=windowRooms.y+WindowRooms/2;
+            foreach(var (dx,dy) in new[]{(1,0),(-1,0),(0,1),(0,-1)})
+            {
+                var next=WindowAround(cx+dx,cy+dy);
+                keep.Add(next);
+                if(!preparedWindows.ContainsKey(next)) preparedWindows.Add(next,StartPreparation(next));
+            }
+            foreach(var key in new List<RectInt>(preparedWindows.Keys)) if(!keep.Contains(key)) preparedWindows.Remove(key);
+            if(preparedWindows.Count>PreparedWindowsKept) throw new InvalidOperationException("Окно света: подготовлено больше окон, чем допускается.");
         }
 
         private void RefreshShadowEmitters()
@@ -447,7 +513,8 @@ namespace Remains.Presentation
             }
         }
 
-        private bool InWindow(TemplateLevelRoom r)=>r.X>=windowRooms.xMin && r.X<windowRooms.xMax && r.Y>=windowRooms.yMin && r.Y<windowRooms.yMax;
+        private bool InWindow(TemplateLevelRoom r)=>Inside(r,windowRooms);
+        private static bool Inside(TemplateLevelRoom r,RectInt rooms)=>r.X>=rooms.xMin && r.X<rooms.xMax && r.Y>=rooms.yMin && r.Y<rooms.yMax;
 
         // Shown in the room, judged up to the level root: a prepared source root may itself be inactive.
         private bool Shown(RoomSpriteAuthoring authored)
@@ -464,7 +531,7 @@ namespace Remains.Presentation
             DestroyWindow();
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) {ambient.SetActive(false);Destroy(ambient);}
-            terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
+            terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);preparedWindows.Clear();
             shadowSources.Clear();windowShadowLamps.Clear();windowSourceIds.Clear();shadowTerrain=null;ShadowSourceRevision++;
             Room=null;PresentationChanged?.Invoke(this);
         }

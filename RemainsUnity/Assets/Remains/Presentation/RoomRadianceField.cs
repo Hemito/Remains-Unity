@@ -299,23 +299,54 @@ namespace Remains.Presentation
         }
 
         // occluders: world rectangles that stop a share of light (closed doors: original Box door_opac); 1 = a wall.
+        // The CPU part of a field: light scene and wall absorption of a room (pure data, no Unity API), so a light
+        // window can prepare it on a worker thread ahead of the change (FactoryLevelView neighbour windows).
+        public sealed class PreparedScene
+        {
+            public readonly RoomFile Room;public readonly RoomLightScene Light;public readonly float[,] Walls;
+            internal readonly RoomLightingTable Table;
+            private Color[] pixels;   // the wall scene texels, built with the data; handed over once (~10 MB on the factory)
+            private PreparedScene(RoomFile room,RoomLightScene light,float[,] walls,RoomLightingTable table)
+            {
+                Room=room;Light=light;Walls=walls;Table=table;
+                int w=walls.GetLength(0),h=walls.GetLength(1);
+                pixels=new Color[w*h];
+                for(int y=0;y<h;y++) for(int x=0;x<w;x++) if(walls[x,y]>0) pixels[y*w+x]=new Color(0,0,0,walls[x,y]);
+            }
+            internal Color[] TakePixels()
+            {
+                var taken=System.Threading.Interlocked.Exchange(ref pixels,null);
+                if(taken!=null) return taken;
+                // Built again for a second field from the same data (checks, previews).
+                int w=Walls.GetLength(0),h=Walls.GetLength(1);taken=new Color[w*h];
+                for(int y=0;y<h;y++) for(int x=0;x<w;x++) if(Walls[x,y]>0) taken[y*w+x]=new Color(0,0,0,Walls[x,y]);
+                return taken;
+            }
+            public static PreparedScene Create(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,RoomGeometry geometry=null)
+            {
+                var light=RoomLightScene.Build(room,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
+                var walls=RoomLightScene.Absorption(room,geometry??RoomGeometryBuilder.Build(room,definitions),table.RadianceResolution,table.BeamTransmittance,MaxObjectTexelAbsorption,table.BeamHeight);
+                return new PreparedScene(room,light,walls,table);
+            }
+        }
         public static RoomRadianceField Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomLightingTable table,Vector2 origin,Transform parent,IReadOnlyList<RoomSpritePlacement> sprites=null,IReadOnlyList<(Rect bounds,double opacity)> occluders=null)
         {
+            PreparedScene prepared;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Поле света: сцена")) prepared=PreparedScene.Create(room,definitions,lands,table);
+            return Build(prepared,lands,origin,parent,sprites,occluders);
+        }
+        public static RoomRadianceField Build(PreparedScene prepared,RoomLandCatalog lands,Vector2 origin,Transform parent,IReadOnlyList<RoomSpritePlacement> sprites=null,IReadOnlyList<(Rect bounds,double opacity)> occluders=null)
+        {
+            if(prepared==null) throw new ArgumentNullException(nameof(prepared));
             if(!SystemInfo.supportsComputeShaders) throw new InvalidOperationException("Поле излучения: видеокарта/API без compute-шейдеров.");
             var compute=Resources.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
+            var room=prepared.Room;var light=prepared.Light;var table=prepared.Table;
             int resolution=table.RadianceResolution;
-            var buildScene=Remains.Diagnostics.FrameHitchLog.Section("Поле света: сцена");
-            var light=RoomLightScene.Build(room,definitions,lands,table,table.RadiancePower,table.RadianceLampSize);
-            buildScene.Dispose();
             var buildWalls=Remains.Diagnostics.FrameHitchLog.Section("Поле света: стены");
             foreach(string issue in light.Issues) Debug.LogWarning(issue);
-            var walls=RoomLightScene.Absorption(room,RoomGeometryBuilder.Build(room,definitions),resolution,table.BeamTransmittance,MaxObjectTexelAbsorption,table.BeamHeight);
+            var walls=prepared.Walls;
             int w=walls.GetLength(0),h=walls.GetLength(1);
-
-            var pixels=new Color[w*h];
-            for(int y=0;y<h;y++)
-                for(int x=0;x<w;x++)
-                    if(walls[x,y]>0) pixels[y*w+x]=new Color(0,0,0,walls[x,y]);
+            var pixels=prepared.TakePixels();
             float t=1f/resolution;
             if(sprites==null) foreach(var lamp in light.Lamps)
             {
