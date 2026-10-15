@@ -16,11 +16,13 @@ namespace Remains.Persistence
     {
         private static readonly object gate=new();
         private static Dictionary<Type,HashSet<string>> accepted=new();   // texts accepted by the last composition
-        private static readonly Dictionary<Type,List<string>> lastTexts=new();   // diagnostics: previous text by list position
         // Diagnostics of the last composition: changed parts per list and the first changed spot of each.
         public static string LastReport {get;private set;}
-        // Stage 1 audit (WorldChanges): previous text of each part by ID, per composed world.
-        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,Dictionary<string,(object part,string text)>> partTexts=new();
+        // Per composed world and list: the objects, keys and texts of its last composition, by list position. When a
+        // list holds the same objects in the same order, its unmarked parts are taken by position (no per-part
+        // dictionaries or key strings: ~10 ms per factory snapshot before); otherwise parts are matched by key.
+        private sealed class ListMemory {public object[] Objects;public string[] Keys,Texts;public uint[] Slots;}
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,Dictionary<string,ListMemory>> memories=new();
         private static readonly HashSet<string> warnedUnmarked=new(StringComparer.Ordinal);
         public static int LastUnmarked {get;private set;}
         // Rolling audit: each composition re-serializes the parts whose key slot matches this round (a stable hash
@@ -122,12 +124,13 @@ namespace Remains.Persistence
             lock(gate)
             {
                 var next=new Dictionary<Type,HashSet<string>>();
-                partTexts.TryGetValue(world,out var previousTexts);
-                var audit=new Audit(world,previousTexts,new Dictionary<string,(object part,string text)>(StringComparer.Ordinal))
-                    {Verify=previousTexts==null,Round=++compositions};
-                var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit),new PartList<PropState>(next,audit),new PartList<LampState>(next,audit),
-                    new PartList<DoorState>(next,audit),new PartList<ActorState>(next,audit),new PartList<WorldFactory>(next,audit),
-                    new PartList<ProjectileState>(next,audit)};
+                memories.TryGetValue(world,out var memory);
+                var remembered=new Dictionary<string,ListMemory>(StringComparer.Ordinal);
+                var audit=new Audit(world) {Verify=memory==null,Round=++compositions};
+                var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit,memory,remembered),new PartList<PropState>(next,audit,memory,remembered),
+                    new PartList<LampState>(next,audit,memory,remembered),new PartList<DoorState>(next,audit,memory,remembered),
+                    new PartList<ActorState>(next,audit,memory,remembered),new PartList<WorldFactory>(next,audit,memory,remembered),
+                    new PartList<ProjectileState>(next,audit,memory,remembered)};
                 string template;
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) template=StateJson.ToJson(world,lists);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет")) StateJson.FromJson<WorldState>(Skeleton(template));   // strict outside the parts
@@ -145,7 +148,7 @@ namespace Remains.Persistence
                 if(audit.Unmarked>0) report.Append("; непомеченных изменений ").Append(audit.Unmarked).Append(" [").Append(audit.Example).Append(']');
                 LastReport=report.ToString();
                 accepted=next;   // only after the whole composition succeeded
-                partTexts.AddOrUpdate(world,audit.Current);
+                memories.AddOrUpdate(world,remembered);   // only after the whole composition succeeded
                 WorldChanges.Clear(world);
                 return new Composition(template,sets,parts,parsed);
             }
@@ -195,38 +198,29 @@ namespace Remains.Persistence
         private sealed class Audit
         {
             public readonly WorldState World;
-            public readonly Dictionary<string,(object part,string text)> Previous,Current;
+            public readonly bool Tracked;
             public int Unmarked,Reused,Verified;public string Example;
-            public bool Verify;   // this composition re-serializes everything (no previous texts)
+            public bool Verify;   // this composition re-serializes everything (no previous texts of this world)
             public long Round;
-            public Audit(WorldState world,Dictionary<string,(object part,string text)> previous,Dictionary<string,(object part,string text)> current)
-            {World=world;Previous=previous;Current=current;}
-            // key: the part key (list:id); always-serialized lists (actors, projectiles) are never reused.
-            public bool Reuse(string key,bool actor,object part,out string text)
+            public Audit(WorldState world) {World=world;Tracked=WorldChanges.IsTracked(world);}
+            // Rolling audit slot: follows the part's key, not its list position (removals before a part would shift
+            // its index together with Round and could keep it out of the audit forever; Codex review 2026-10-15).
+            public static uint SlotOf(string key)=>(uint)StringComparer.Ordinal.GetHashCode(key);
+            public bool VerifyNow(uint slot)
             {
-                text=null;
-                // The slot follows the part's key, not its list position: removals before a part shift its index
-                // together with Round and could keep it out of the audit forever (Codex review 2026-10-15).
-                if(!Verify && ((uint)StringComparer.Ordinal.GetHashCode(key)+(ulong)Round)%VerifyEvery==0) {Verified++;return false;}
-                if(Verify || actor || !WorldChanges.IsTracked(World) || Previous==null || !Previous.TryGetValue(key,out var before) ||
-                    !ReferenceEquals(before.part,part) || WorldChanges.IsMarked(World,part)) return false;
-                text=before.text;Reused++;return true;
+                if(Verify || (slot+(ulong)Round)%VerifyEvery!=0) return false;
+                Verified++;return true;
             }
-            // The same text as this part's stored one (accepted when stored): a re-serialized unchanged part.
-            public bool Stored(string key,string text)=>Previous!=null && Previous.TryGetValue(key,out var before) && string.Equals(before.text,text,StringComparison.Ordinal);
-            public void Observe(string key,bool actor,object part,string text)
+            public bool Marked(object part)=>WorldChanges.IsMarked(World,part);
+            // A part that is the same object as before changed its text without a mark: a mutation site misses
+            // WorldChanges.Mark. Always-serialized parts change unmarked by design and are not reported.
+            public void ReportUnmarked(string key,string was,string now)
             {
-                // Always-serialized parts are never reused, so their unmarked changes are expected, not a gap.
-                if(!actor && Previous!=null && Previous.TryGetValue(key,out var before) && ReferenceEquals(before.part,part) &&
-                    before.text!=text && !WorldChanges.IsMarked(World,part))
-                {
-                    Unmarked++;
-                    string field=Field(before.text,text);
-                    Example??=key+" ("+field+")";
-                    if(warnedUnmarked.Add(key.Substring(0,key.IndexOf(':'))+"."+field))
-                        UnityEngine.Debug.LogWarning($"Непомеченное изменение части мира: {key}, поле {field} (нет WorldChanges.Mark в месте изменения). Было: {Around(before.text,text)}");
-                }
-                Current[key]=(part,text);
+                Unmarked++;
+                string field=Field(was,now);
+                Example??=key+" ("+field+")";
+                if(warnedUnmarked.Add(key.Substring(0,key.IndexOf(':'))+"."+field))
+                    UnityEngine.Debug.LogWarning($"Непомеченное изменение части мира: {key}, поле {field} (нет WorldChanges.Mark в месте изменения). Было: {Around(was,now)}");
             }
             // The JSON key whose value holds the first difference.
             private static string Field(string was,string now)
@@ -250,14 +244,17 @@ namespace Remains.Persistence
         {
             private readonly Dictionary<Type,HashSet<string>> next;
             private readonly Audit audit;
+            private readonly Dictionary<string,ListMemory> memory,remembered;
             public int Parts {get;private set;}
             public int Parsed {get;private set;}
             private string example;
             public string Report=>typeof(T).Name+" "+Parsed+"/"+Parts+(example==null?"":" ["+example+"]");
-            private readonly List<string> keys=new(),texts=new();
-            public PartSet Set=>new(Name,keys.ToArray(),texts.ToArray());
+            private string[] keys=Array.Empty<string>(),texts=Array.Empty<string>();
+            public PartSet Set=>new(Name,keys,texts);
             private static readonly string Name=ListName(typeof(T));
-            public PartList(Dictionary<Type,HashSet<string>> next,Audit audit=null) {this.next=next;this.audit=audit;}
+            private static readonly bool Always=AlwaysSerialized(Name);
+            public PartList(Dictionary<Type,HashSet<string>> next,Audit audit=null,Dictionary<string,ListMemory> memory=null,Dictionary<string,ListMemory> remembered=null)
+            {this.next=next;this.audit=audit;this.memory=memory;this.remembered=remembered;}
             public override bool CanRead=>false;
             public override bool CanConvert(Type objectType)=>objectType==typeof(List<T>);
             public override object ReadJson(JsonReader reader,Type objectType,object existingValue,JsonSerializer serializer)
@@ -267,37 +264,66 @@ namespace Remains.Persistence
                 var list=(List<T>)value;
                 // The part list stays out of the template: a marker the splice replaces with the parts.
                 writer.WriteRawValue(Marker(Name));
+                accepted.TryGetValue(typeof(T),out var previous);
+                ListMemory before=null;memory?.TryGetValue(Name,out before);
+                bool reuse=audit!=null && audit.Tracked && !audit.Verify && before!=null;
+                int count=list.Count;
+                // Same objects at the same positions: parts are taken by position.
+                bool aligned=reuse && before.Objects.Length==count;
+                for(int i=0;aligned && i<count;i++) aligned=ReferenceEquals(before.Objects[i],list[i]);
+                // Texts accepted by this composition that were not taken from the previous one (changed and new
+                // parts): a later composition skips their strict check. Unchanged parts need no set (taken by
+                // position or key); a set carried over would grow with every changed actor or body text.
+                var current=new HashSet<string>(StringComparer.Ordinal);
+                next[typeof(T)]=current;
+                Dictionary<string,(object part,string text)> byKey=null;
+                if(reuse && !aligned)
                 {
-                    accepted.TryGetValue(typeof(T),out var previous);
-                    if(!next.TryGetValue(typeof(T),out var current)) next.Add(typeof(T),current=new HashSet<string>(StringComparer.Ordinal));
-                    if(!lastTexts.TryGetValue(typeof(T),out var before)) lastTexts.Add(typeof(T),before=new List<string>());
-                    int index=0;
-                    foreach(var item in list)
+                    byKey=new Dictionary<string,(object part,string text)>(before.Keys.Length,StringComparer.Ordinal);
+                    for(int i=0;i<before.Keys.Length;i++) if(before.Objects[i]!=null) byKey[before.Keys[i]]=(before.Objects[i],before.Texts[i]);
+                }
+                var objects=new object[count];keys=new string[count];texts=new string[count];var slots=new uint[count];
+                for(int i=0;i<count;i++)
+                {
+                    var item=list[i];objects[i]=item;
+                    string key,text,was=null;uint slot;bool known=false;
+                    if(aligned && item!=null)
+                    {
+                        key=before.Keys[i];slot=before.Slots[i];was=before.Texts[i];known=true;
+                        if(!Always && !audit.VerifyNow(slot) && !audit.Marked(item)) {text=was;audit.Reused++;}
+                        else
+                        {
+                            string id=PartId(item);
+                            string fresh=Name+":"+(id??"#"+i);
+                            if(fresh!=key) {key=fresh;slot=Audit.SlotOf(key);}
+                            text=StateJson.ToJson(item);
+                        }
+                    }
+                    else
                     {
                         string id=PartId(item);
-                        string key=Name+":"+(id??"#"+index);
-                        bool actor=AlwaysSerialized(Name);
-                        // Stage 1 on: an unmarked part that is still the same object keeps its stored text; one
-                        // part in VerifyEvery is re-serialized each composition (rolling) and unmarked changes are reported (Audit).
-                        // A reused text was accepted when it was stored (immutable string): no strict check and no
-                        // hashing of it into the accepted sets, which cost a pass over the whole ~1.25 MB per snapshot.
-                        string stored=null;
-                        bool reused=item!=null && id!=null && audit!=null && audit.Reuse(key,actor,item,out stored);
-                        string text=item==null?"null":reused?stored:StateJson.ToJson(item);
-                        if(item!=null && !reused && !(audit?.Stored(key,text)??false) && !(previous?.Contains(text)??false) && !current.Contains(text))
-                        {
-                            StateJson.FromJson<T>(text);   // the same strict check the whole-world parse applies to it
-                            Parsed++;
-                            if(example==null && index<before.Count) example=Difference(before[index],text);
-                        }
-                        if(index<before.Count) before[index]=text; else before.Add(text);
-                        if(item!=null && id!=null) audit?.Observe(key,actor,item,text);
-                        index++;
-                        if(!reused) current.Add(text);
-                        Parts++;
-                        keys.Add(key);texts.Add(text);
+                        key=Name+":"+(id??"#"+i);slot=Audit.SlotOf(key);
+                        if(byKey!=null && item!=null && id!=null && byKey.TryGetValue(key,out var old) && ReferenceEquals(old.part,item))
+                        {was=old.text;known=true;}
+                        if(known && !Always && !audit.VerifyNow(slot) && !audit.Marked(item)) {text=was;audit.Reused++;}
+                        else text=item==null?"null":StateJson.ToJson(item);
                     }
+                    if(item!=null && !ReferenceEquals(text,was))
+                    {
+                        bool same=known && string.Equals(text,was,StringComparison.Ordinal);
+                        // A text not accepted before gets the strict check the whole-world parse applies to it.
+                        if(!same && !(previous?.Contains(text)??false) && !current.Contains(text))
+                        {
+                            StateJson.FromJson<T>(text);
+                            Parsed++;
+                            if(example==null && was!=null) example=Difference(was,text);
+                        }
+                        if(known && !same && !Always && !audit.Marked(item)) audit.ReportUnmarked(key,was,text);
+                        current.Add(text);
+                    }
+                    keys[i]=key;texts[i]=text;slots[i]=slot;Parts++;
                 }
+                remembered?.Add(Name,new ListMemory {Objects=objects,Keys=keys,Texts=texts,Slots=slots});
             }
 
             private static string Difference(string was,string now)

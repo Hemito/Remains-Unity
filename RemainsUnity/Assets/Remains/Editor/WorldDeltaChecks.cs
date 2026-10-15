@@ -45,7 +45,8 @@ namespace Remains.Editor
             if(host.doors.Count>0) {host.doors[0].open=!host.doors[0].open;host.doors[0].revision++;WorldChanges.Mark(host,host.doors[0]);expected++;}
             if(host.actors.Count>0) {host.actors[0].x+=.5f;expected++;}   // actors: always serialized, no mark needed
             host.revision++;
-            var b=RecoverySnapshot.FromWorld(host);
+            var composeTimer=System.Diagnostics.Stopwatch.StartNew();
+            var b=RecoverySnapshot.FromWorld(host);double composeMs=composeTimer.Elapsed.TotalMilliseconds;
             var delta=WorldDelta.Build(host.worldId,a.Id,a.Composition,b.Id,b.Composition);
             int changed=WorldDelta.ChangedParts(delta);
             Require(changed==expected,$"Изменение A→B: частей {changed}, ожидалось {expected}.");
@@ -77,7 +78,7 @@ namespace Remains.Editor
             Require(rejected,"Изменение от чужой базы применено.");
 
             Debug.Log($"Изменения мира: PASS — A→B частей {changed}, {encoded.Length} символов вместо {b.Json.Length} " +
-                $"({100.0*encoded.Length/b.Json.Length:F1}%), применение {applyMs:F1} мс; смена состава, отказ чужой базе.");
+                $"({100.0*encoded.Length/b.Json.Length:F1}%), сборка у хоста {composeMs:F1} мс, применение {applyMs:F1} мс; смена состава, отказ чужой базе.");
         }
 
         private static void Require(bool condition,string message) {if(!condition) throw new InvalidOperationException(message);}
