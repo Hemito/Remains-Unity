@@ -26,7 +26,7 @@ namespace Remains.Domain
             lamp=world.lamps.Find(value=>value.id==request.lamp);
             if(lamp==null||lamp.level!=attack.level) return "Не найдена лампа в локации атаки.";
             lamp.Validate();
-            if(NpcNaturalAttack.IsNatural(attack)||attack.weapon=="grenade") return "Эта атака не поддерживает разрушение ламп.";
+            if(NpcNaturalAttack.IsNatural(attack)||Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)) return "Эта атака не поддерживает разрушение ламп.";
             var weapon=(weapons??WeaponCatalog.Get)(attack.weapon);
             if(!float.IsFinite(weapon.damage)||weapon.damage<=0) return "Атака не наносит урон лампе.";
             if(weapon.projectileSpeed>0)

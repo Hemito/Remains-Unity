@@ -19,7 +19,7 @@ namespace Remains.Presentation
         {this.session=session;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));prefab=Resources.Load<ExplosionVisual>("Presentation/Explosion");if(prefab==null) throw new InvalidOperationException("Нет префаба взрыва Presentation/Explosion.");prefab.Validate();session.AttackReceived+=Attack;}
         private void Attack(AttackEvent attack)
         {
-            if(attack.weapon!="grenade" || attack.level!=session.LocalActor?.level || !seen.Add(attack.id)) return;
+            if(!Remains.Content.WeaponCatalog.IsExplosive(attack.weapon) || attack.level!=session.LocalActor?.level || !seen.Add(attack.id)) return;
             recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
             var effect=Instantiate(prefab,transform,false);effect.name="Взрыв "+attack.id;
             var renderer=effect.GetComponentInChildren<SpriteRenderer>(true);

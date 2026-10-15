@@ -18,6 +18,9 @@ namespace Remains.Content
         public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
         public float shotSpreadHalfAngleDegrees;
         public WeaponRecoilProfile recoil;
+        // An explosion (grenade, mine): resolved as a persisted ExplosionState around its position within `range`;
+        // it may hurt its own author, does not take the direct friendly-fire choice, damages no doors or lamps directly.
+        public bool explosive;
         public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention,grenadeGravity;
         public float grenadeMaxLaunchSpeed,grenadeFullEffortDistance,grenadeAimLift;
         public float grenadeSpinRate,grenadeAngularRetention;
@@ -44,6 +47,7 @@ namespace Remains.Content
         public static string ModDescription { get; private set; }="";
         public static WeaponDefinition Get(string id)=>definitions.TryGetValue(id,out var value)?value:
             throw new InvalidOperationException($"Отсутствует определение оружия: {id}.");
+        public static bool IsExplosive(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive;
 
         public static void Load()
         {

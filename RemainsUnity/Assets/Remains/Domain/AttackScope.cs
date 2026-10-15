@@ -3,7 +3,7 @@ namespace Remains.Domain
     public static class AttackScope
     {
         public static bool CanAffect(AttackEvent attack,ActorState target,bool friendlyFire) =>
-            Includes(attack,target) && (target.id!=attack.attacker || attack.weapon=="grenade") &&
+            Includes(attack,target) && (target.id!=attack.attacker || Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)) &&
             (!NpcNaturalAttack.IsNatural(attack) || target.id==attack.naturalAttackTarget) &&
             (!target.player || !attack.sourcePlayer || target.id==attack.attacker || friendlyFire);
 

@@ -8,6 +8,6 @@ namespace Remains.Domain
         public static void Validate(string policy)
         {if(policy!=Victim && policy!=Attacker) throw new InvalidDataException($"Неизвестное правило прямого дружественного огня: {policy}.");}
         public static bool UsesAttacker(AttackEvent attack,ActorState target)
-            =>attack.weapon!="grenade" && attack.sourcePlayer && target.player && target.id!=attack.attacker && attack.friendlyFireDecision==Attacker;
+            =>!Remains.Content.WeaponCatalog.IsExplosive(attack.weapon) && attack.sourcePlayer && target.player && target.id!=attack.attacker && attack.friendlyFireDecision==Attacker;
     }
 }

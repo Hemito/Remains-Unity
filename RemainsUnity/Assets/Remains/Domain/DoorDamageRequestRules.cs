@@ -53,7 +53,7 @@ namespace Remains.Domain
             try {door.Validate();}
             catch(InvalidOperationException failure) {return "Некорректные данные закреплённого объекта: "+failure.Message;}
             if(door.level!=attack.level || participant.level!=attack.level) return "Контакт и отправитель находятся в разных локациях.";
-            if(NpcNaturalAttack.IsNatural(attack) || attack.weapon=="grenade") return "Урон закреплённым объектам этой атакой пока не поддержан.";
+            if(NpcNaturalAttack.IsNatural(attack) || Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)) return "Урон закреплённым объектам этой атакой пока не поддержан.";
             try {weapon=weapons?.Invoke(attack.weapon);}
             catch(Exception failure) when(failure is ArgumentException || failure is InvalidOperationException)
             {return "Не удалось определить оружие контакта: "+failure.Message;}

@@ -952,7 +952,7 @@ namespace Remains.Networking
         private void RelayAttack(NetworkConnectionToClient connection, AttackMessage message)
         {
             var attack = JsonUtility.FromJson<AttackEvent>(message.json);
-            if(attack.weapon=="grenade") {Debug.LogWarning($"Взрыв без сохраняемой сущности отклонён: {attack.id}.");return;}
+            if(Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)) {Debug.LogWarning($"Взрыв без сохраняемой сущности отклонён: {attack.id}.");return;}
             void Reject(string reason)
             {
                 Debug.LogWarning($"Запуск отклонён: shot={attack.id}, actor={attack.attacker}, level={attack.level}, reason={reason}");
@@ -960,7 +960,7 @@ namespace Remains.Networking
             }
             if (!owners.TryGetValue(connection.connectionId, out string owner) || ServerWorld.Find(attack.attacker)?.owner != owner)
             {Reject("Выстрел отменён: изменился владелец персонажа.");return;}
-            if(string.IsNullOrEmpty(attack.level) || (attack.weapon!="grenade" && attack.level!=ServerWorld.Find(attack.attacker).level))
+            if(string.IsNullOrEmpty(attack.level) || (!Remains.Content.WeaponCatalog.IsExplosive(attack.weapon) && attack.level!=ServerWorld.Find(attack.attacker).level))
             {Reject("Выстрел отменён: изменилась локация персонажа.");return;}
             attack.sourceOwner=owner;attack.sourcePlayer=ServerWorld.Find(attack.attacker).player;
             attack.friendlyFireDecision=ServerWorld.friendlyFireDecision;

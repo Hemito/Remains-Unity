@@ -42,7 +42,7 @@ namespace Remains.Networking
         public void ResetServer()=>ledger.Clear();
         internal string RecordAccepted(AttackEvent attack,ActorState source)
         {
-            if(NpcNaturalAttack.IsNatural(attack) || WeaponCatalog.Get(attack.weapon).projectileSpeed>0 || attack.weapon=="grenade") return null;
+            if(NpcNaturalAttack.IsNatural(attack) || WeaponCatalog.Get(attack.weapon).projectileSpeed>0 || Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)) return null;
             return ledger.Record(session.ServerWorld.worldId,source,attack);
         }
         public bool Report(AttackEvent attack,string sourceDoorId,Vector2 contact,int projectileGeneration=0)

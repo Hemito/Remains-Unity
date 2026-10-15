@@ -169,7 +169,7 @@ namespace Remains.Gameplay
         private void ReceiveAttack(AttackEvent attack)
         {
             if (session.World == null) return;
-            if(attack.weapon=="grenade") return; // Persisted explosion decisions are processed from World.
+            if(Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)) return; // Persisted explosion decisions are processed from World.
             if(!LevelActivity.HasConnectedPlayer(session.World,attack.level)) return;
             if(NpcNaturalAttack.IsNatural(attack))
             {

@@ -154,8 +154,8 @@ namespace Remains.Domain
             foreach(var region in definition.regions)
             {
                 if(!TryRegion(actor,definition,region,out var center,out float radius)) continue;
-                float? entry=attack.weapon=="grenade"?
-                    (Vector2.Distance(center,attack.End)<3?0f:(float?)null):
+                float? entry=Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)?
+                    (Vector2.Distance(center,attack.End)<Remains.Content.WeaponCatalog.Get(attack.weapon).range?0f:(float?)null):
                     HitGeometry.CircleEntry(center,radius+attack.radius,attack.Origin,attack.End);
                 if(entry.HasValue && entry.Value<fraction) {fraction=entry.Value;nearest=region.id;}
             }
