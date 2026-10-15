@@ -24,7 +24,7 @@ namespace Remains.Presentation
         private ActorState actor;
         private readonly Func<Rect?> drawnActorBounds;
         private bool missingActorWarning;
-        private enum Content {None,Pickup,PickupPending,Body,FixedContainer,MassContainer,SecuredContainer,Revival,Travel,DoorOpen,DoorClosed,MechanismPending,MechanismReady,MechanismRepair,MechanismProgress,MechanismUnavailable}
+        private enum Content {None,Pickup,PickupPending,Body,FixedContainer,MassContainer,SecuredContainer,Revival,Travel,DoorOpen,DoorClosed,MechanismPending,MechanismReady,MechanismRepair,MechanismProgress,MechanismUnavailable,Mine,MinePending}
         private Content content;
         private float? displayedMass;
         private string displayedTitle;
@@ -77,7 +77,7 @@ namespace Remains.Presentation
         public void Highlight(InteractionTarget target,bool visible)
         {
             highlightedTarget=target;
-            highlightVisible=visible && target.kind is InteractionKind.Container or InteractionKind.Pickup or InteractionKind.Door or InteractionKind.Map or InteractionKind.Exit or InteractionKind.Revival or InteractionKind.Mechanism;
+            highlightVisible=visible && target.kind is InteractionKind.Container or InteractionKind.Pickup or InteractionKind.Door or InteractionKind.Map or InteractionKind.Exit or InteractionKind.Revival or InteractionKind.Mechanism or InteractionKind.Mine;
             UpdateOutline();
         }
         public void RefreshRevival(ActorState ally,bool visible,ActorState localActor)
@@ -131,6 +131,15 @@ namespace Remains.Presentation
                 }
                 targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
             }
+        }
+        public void RefreshMine(bool exists,Rect bounds,bool visible,ActorState localActor,bool pending)
+        {
+            hasTarget=exists;allowed=visible;actor=localActor;
+            if(!hasTarget || !allowed) UpdateOutline();
+            if(!hasTarget) return;
+            var next=pending?Content.MinePending:Content.Mine;
+            if(content!=next) {content=next;SetText(pending?"Обезвреживание подтверждается…":"E · Обезвредить мину",Color.yellow);}
+            targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
         }
         private void SetText(string value,Color color)
         {

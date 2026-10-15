@@ -46,6 +46,7 @@ namespace Remains.Runtime
         public ExplosionEffects Explosions {get;private set;}
         public AudioPreferences AudioPreferences {get;private set;}
         public DoorVisuals DoorVisuals {get;private set;}
+        public MineVisuals MineVisuals {get;private set;}
         private float musicMixVolume;
         public DamageFeedback DamageFeedback {get;private set;}
         public DamageNumbers DamageNumbers {get;private set;}
@@ -209,6 +210,7 @@ namespace Remains.Runtime
             DeathAudio=CreateOwnedObject("Звуки смерти NPC").AddComponent<ActorDeathAudio>();DeathAudio.Initialize(Session,DamageFeedback,Audio);
             DoorVisuals=CreateOwnedObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio,visualOrders);
             var mechanismVisuals=CreateOwnedObject("Механизмы мира").AddComponent<MechanismVisuals>();mechanismVisuals.Initialize(Session,Platforms,visualOrders);
+            MineVisuals=CreateOwnedObject("Мины мира").AddComponent<MineVisuals>();MineVisuals.Initialize(Session,Audio,visualOrders);
             GrenadeAudio=CreateOwnedObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
             MovementAudio=CreateOwnedObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=CreateOwnedObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
@@ -236,7 +238,7 @@ namespace Remains.Runtime
                 hud.LocalActorVisual=()=>Session.LocalActor==null?null:FindActorVisual(Session.LocalActor.id);
                 hud.LocalWeaponArtwork=()=>Session.LocalActor==null?null:interactionVisuals.FindWeapon(Session.LocalActor.id)?.Artwork;
                 hud.LocalHeldItemArtwork=()=>Session.LocalActor==null?null:HeldItems.Find(Session.LocalActor.id);
-                var outlineSources=new InteractionOutlineSources(visualLayers,interactionVisuals,DoorVisuals,travelPointVisuals,mechanismVisuals);
+                var outlineSources=new InteractionOutlineSources(visualLayers,interactionVisuals,DoorVisuals,travelPointVisuals,mechanismVisuals,MineVisuals);
                 hud.ConfigureWorldOutline(cameraView,outlineSources.Resolve);
                 hud.SelectedInteraction=()=>InteractionFocus.Target;
                 hud.ContainerOpened+=ContainerAudio.Play;
@@ -504,6 +506,7 @@ namespace Remains.Runtime
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             Session.LevelTime.Step(Time.deltaTime);
             Session.Mechanisms.Step();Platforms.Step(Time.deltaTime);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Мины")) {Session.Mines.Step(Time.deltaTime);Session.Mines.StepClient();}
             var actor=Session.LocalActor;
             Pickup.Step();
             if (actor==null || !NetworkClient.isConnected)
@@ -645,6 +648,7 @@ namespace Remains.Runtime
                     }
                     else if(target.kind==InteractionKind.Map) hud.WorldMap.Open(Session.Travel.Find(target.id,actor.level));
                     else if(target.kind==InteractionKind.Exit) Session.Travel.RequestVia(target.id);
+                    else if(target.kind==InteractionKind.Mine) Session.Mines.RequestDisarm(target.id);
                 }
             }
             if(IsLevelPreparing || hud?.BlocksGameplayInput==true) command=default;

@@ -54,7 +54,7 @@ namespace Remains.Editor
             CharacterInterfaceChecks.Run();
             ActorControlChecks.Run();
             DoorCombatChecks.Run();
-            FactoryRoomContentChecks.Run();
+            FactoryRoomContentChecks.Run();MineChecks.Run();
             FactoryBigBoxChecks.Run();FactoryToolStandChecks.Run();PropBodyChecks.Run();ItemTextChecks.Run();
             FactoryWorkshopNpcChecks.Run();
             FactoryCrawlerChecks.Run();

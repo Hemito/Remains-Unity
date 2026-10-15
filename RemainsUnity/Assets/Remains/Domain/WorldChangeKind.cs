@@ -11,7 +11,8 @@ namespace Remains.Domain
         Skeleton=1,       // fields outside the part lists (rooms, transactions, level times...)
         Containers=2,Props=4,Lamps=8,Doors=16,Actors=32,Factories=64,Projectiles=128,
         Identity=256,     // another world object or world ID: everything must be rebuilt
-        All=511
+        Mines=512,
+        All=1023
     }
 
     public static class WorldChangeKinds
@@ -21,7 +22,7 @@ namespace Remains.Domain
         {
             "containers"=>WorldChangeKind.Containers,"props"=>WorldChangeKind.Props,"lamps"=>WorldChangeKind.Lamps,
             "doors"=>WorldChangeKind.Doors,"actors"=>WorldChangeKind.Actors,"factories"=>WorldChangeKind.Factories,
-            "projectiles"=>WorldChangeKind.Projectiles,
+            "projectiles"=>WorldChangeKind.Projectiles,"mines"=>WorldChangeKind.Mines,
             _=>throw new ArgumentException("Неизвестный список мира: "+list)
         };
         public static bool Any(this WorldChangeKind kinds,WorldChangeKind wanted)=>(kinds&(wanted|WorldChangeKind.Identity))!=0;

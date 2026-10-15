@@ -148,6 +148,14 @@ namespace Remains.Persistence
             {
                 throw new System.IO.InvalidDataException("Некорректное визуальное снаряжение восстановительного снимка: мир="+world.worldId+". "+error.Message,error);
             }
+            var mines=new HashSet<string>(StringComparer.Ordinal);
+            foreach(var mine in world.mines ?? new List<MineState>())
+            {
+                try {MineRules.Validate(mine);}
+                catch(InvalidOperationException error)
+                {throw new System.IO.InvalidDataException("Некорректная мина восстановительного снимка: мир="+world.worldId+". "+error.Message,error);}
+                if(!mines.Add(mine.id)) throw new System.IO.InvalidDataException("Повтор ID мины в восстановительном снимке: мир="+world.worldId+", мина="+mine.id+".");
+            }
         }
 
         // The caller owns live state until serialization finishes; later mutations cannot change Json.

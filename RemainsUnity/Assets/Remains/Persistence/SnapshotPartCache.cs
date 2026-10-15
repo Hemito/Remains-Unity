@@ -49,7 +49,7 @@ namespace Remains.Persistence
             // The whole text; built on demand (RecoverySnapshot keeps it lazy, off the game thread where possible).
             public string Json=>Splice(Template,Lists);
         }
-        public static readonly string[] ListNames={"containers","props","lamps","doors","actors","factories","projectiles"};
+        public static readonly string[] ListNames={"containers","props","lamps","doors","actors","factories","projectiles","mines"};
         // Lists serialized on every composition (their objects change without marks, e.g. local motion, flight
         // progress); an unchanged text is still accepted by key without a strict parse, and deltas carry only changes.
         internal static bool AlwaysSerialized(string list)=>list=="actors" || list=="projectiles";
@@ -57,10 +57,10 @@ namespace Remains.Persistence
         internal static string PartId(object item)=>item switch
         {
             PropState body=>body.id,LampState lamp=>lamp.id,DoorState door=>door.id,ActorState actor=>actor.id,WorldFactory factory=>factory.level,
-            ProjectileState flight=>flight.launch?.id,_=>null
+            ProjectileState flight=>flight.launch?.id,MineState mine=>mine.id,_=>null
         };
         internal static string ListName(Type type)=>type==typeof(ContainerState)?"containers":type==typeof(PropState)?"props":type==typeof(LampState)?"lamps":
-            type==typeof(DoorState)?"doors":type==typeof(ActorState)?"actors":type==typeof(WorldFactory)?"factories":type==typeof(ProjectileState)?"projectiles":
+            type==typeof(DoorState)?"doors":type==typeof(ActorState)?"actors":type==typeof(WorldFactory)?"factories":type==typeof(ProjectileState)?"projectiles":type==typeof(MineState)?"mines":
             throw new ArgumentException("Тип не является частью мира: "+type.Name);
         public static string Marker(string list)=>""+list+"";
 
@@ -131,7 +131,7 @@ namespace Remains.Persistence
                 var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit,memory,remembered),new PartList<PropState>(next,audit,memory,remembered),
                     new PartList<LampState>(next,audit,memory,remembered),new PartList<DoorState>(next,audit,memory,remembered),
                     new PartList<ActorState>(next,audit,memory,remembered),new PartList<WorldFactory>(next,audit,memory,remembered),
-                    new PartList<ProjectileState>(next,audit,memory,remembered)};
+                    new PartList<ProjectileState>(next,audit,memory,remembered),new PartList<MineState>(next,audit,memory,remembered)};
                 string template;
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) template=StateJson.ToJson(world,lists);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет")) StateJson.FromJson<WorldState>(Skeleton(template));   // strict outside the parts
@@ -161,7 +161,7 @@ namespace Remains.Persistence
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
             var lists=new JsonConverter[] {new PlainList<ContainerState>(),new PlainList<PropState>(),new PlainList<LampState>(),
-                new PlainList<DoorState>(),new PlainList<ActorState>(),new PlainList<WorldFactory>(),new PlainList<ProjectileState>()};
+                new PlainList<DoorState>(),new PlainList<ActorState>(),new PlainList<WorldFactory>(),new PlainList<ProjectileState>(),new PlainList<MineState>()};
             string template=StateJson.ToJson(world,lists);
             var sets=new PartSet[lists.Length];
             for(int i=0;i<lists.Length;i++) sets[i]=((IPlainList)lists[i]).Set;

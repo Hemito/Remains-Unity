@@ -152,6 +152,8 @@ namespace Remains.Networking
         public SessionReloadAudio ReloadAudio=>reloadAudio ??= new SessionReloadAudio(this);
         private SessionLamps lamps;
         public SessionLamps Lamps=>lamps ??= new SessionLamps(this);
+        private SessionMines mines;
+        public SessionMines Mines=>mines??=new SessionMines(this);
         private SessionDoorDamage doorDamage;
         public SessionDoorDamage DoorDamage=>doorDamage ??= new SessionDoorDamage(this);
         private SessionHealingAudio healingAudio;
@@ -200,7 +202,7 @@ namespace Remains.Networking
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
-            Mechanisms.RegisterServer();
+            Mechanisms.RegisterServer();Mines.RegisterServer();
             DoorDamage.RegisterServer();Lamps.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();HealingAudio.RegisterServer();
             Admission.RegisterServer();EntryPreparation.RegisterServer();
             InvokeRepeating(nameof(ExpireEntryPreparation),1,1);
@@ -314,7 +316,7 @@ namespace Remains.Networking
 
         internal void DiscardUnstartedWorld()
         {
-            DoorDamage.ResetServer();Lamps.ResetServer();HealingAudio.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
+            DoorDamage.ResetServer();Lamps.ResetServer();Mines.ResetServer();HealingAudio.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
         }
 
         internal void AdmitLobbyPlayer(NetworkConnectionToClient connection,JoinMessage message)=>Join(connection,message);
@@ -331,7 +333,7 @@ namespace Remains.Networking
             Lobby.RegisterClient();
             Travel.RegisterClient();
             ContainerInspection.RegisterClient();
-            Mechanisms.RegisterClient();
+            Mechanisms.RegisterClient();Mines.RegisterClient();
             DoorDamage.RegisterClient();Lamps.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
             worldReplication.Forget();
             NetworkClient.RegisterHandler<WorldPartMessage>(Remains.Networking.MessageTiming.Client<WorldPartMessage>(message=>

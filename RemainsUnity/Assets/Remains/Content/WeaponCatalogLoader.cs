@@ -187,6 +187,15 @@ namespace Remains.Content
                 throw new InvalidDataException($"Некорректный диапазон скорости снаряда: источник={source}, id={weapon.id}.");
             if((weapon.projectileLifetime>0 && weapon.projectileSpeed<=0) || !float.IsFinite(weapon.FlightRange(speeds.y)))
                 throw new InvalidDataException($"Некорректное время или длина полёта: источник={source}, id={weapon.id}.");
+            if(weapon.mine!=null && weapon.mine.Configured)
+            {
+                var mine=weapon.mine;
+                if(!weapon.explosive || !float.IsFinite(mine.sensitivity) || !float.IsFinite(mine.delaySeconds) || mine.delaySeconds<=0 ||
+                    !float.IsFinite(mine.visibility) || mine.visibility<=0 || !float.IsFinite(mine.width) || mine.width<=0 ||
+                    !float.IsFinite(mine.height) || mine.height<=0 || string.IsNullOrEmpty(mine.artwork) || string.IsNullOrEmpty(mine.beepSound) ||
+                    string.IsNullOrEmpty(mine.defuseSound))
+                    throw new InvalidDataException($"Некорректный профиль мины: источник={source}, id={weapon.id}. Нужны взрывное оружие, положительные зона/задержка/видимость/размер, графика и звуки.");
+            }
             if(weapon.range<=0 || weapon.cooldown<=0 || (!string.IsNullOrEmpty(weapon.ammo) &&
                 (weapon.magazineSize<=0 || weapon.ammoPerShot<=0 || weapon.ammoPerShot>weapon.magazineSize || weapon.reloadSeconds<=0)))
                 throw new InvalidDataException($"Некорректная дальность, задержка или боезапас: источник={source}, id={weapon.id}.");

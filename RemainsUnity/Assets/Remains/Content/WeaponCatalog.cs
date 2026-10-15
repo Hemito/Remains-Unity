@@ -9,6 +9,18 @@ using UnityEngine;
 namespace Remains.Content
 {
     [Serializable] public sealed class MeleePoseKey { public float time,angle,reach; public bool rest; }
+    // A mine (original Mine.as): placed by the level or a player, it waits for a hostile actor inside its sensing
+    // zone, counts down and explodes as its weapon. Lengths in metres (original px / 50), times in seconds (frames / 30).
+    [Serializable] public sealed class MineProfile
+    {
+        public float sensitivity;    // half-width of the sensing zone; it reaches sensitivity above and 0.4 × below the mine
+        public float delaySeconds;   // trigger → explosion
+        public float visibility;     // a player notices an unnoticed mine within this distance (interim, no perception skill)
+        public float width,height;   // drawn and interaction size
+        public string artwork;       // exported vector resource: frame 1 disarmed, 2 armed, 3+ triggered
+        public string beepSound,defuseSound,placeSound;   // exported sound resources
+        public bool Configured=>sensitivity>0;
+    }
     [Serializable] public sealed class WeaponDefinition
     {
         public string id;
@@ -21,6 +33,7 @@ namespace Remains.Content
         // An explosion (grenade, mine): resolved as a persisted ExplosionState around its position within `range`;
         // it may hurt its own author, does not take the direct friendly-fire choice, damages no doors or lamps directly.
         public bool explosive;
+        public MineProfile mine;
         public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention,grenadeGravity;
         public float grenadeMaxLaunchSpeed,grenadeFullEffortDistance,grenadeAimLift;
         public float grenadeSpinRate,grenadeAngularRetention;

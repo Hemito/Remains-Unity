@@ -157,7 +157,7 @@ namespace Remains.Gameplay
                 {
                     if(session.Pause.IsPaused(actor.level) || actor.resolvedExplosions.Contains(explosion.attack.id) ||
                         !(actor.player?explosion.players:explosion.enemies).Contains(actor.id)) continue;
-                    var local=LocalExplosionPosition?.Invoke(explosion.attack.id,explosion.generation);
+                    var local=explosion.stationary?explosion.attack.End:LocalExplosionPosition?.Invoke(explosion.attack.id,explosion.generation);
                     if(actor.player && !local.HasValue)
                         Debug.LogWarning($"Восстановленное решение о взрыве без локального полёта: grenade={explosion.attack.id}, actor={actor.id}, generation={explosion.generation}.");
                     if(GrenadeRules.Resolve(actor,explosion,damage,local ?? explosion.attack.End)) session.PublishActor(actor);

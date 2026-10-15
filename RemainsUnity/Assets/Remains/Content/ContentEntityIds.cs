@@ -7,7 +7,7 @@ namespace Remains.Content
 {
     // These categories describe the six existing state collections. They are not
     // serialized type IDs and do not change mod/entity/save definitions.
-    public enum ContentEntityKind {Actor,Prop,Container,Door,MovingPlatform,MechanismButton}
+    public enum ContentEntityKind {Actor,Prop,Container,Door,MovingPlatform,MechanismButton,Mine}
     public readonly struct ContentEntityIdentity
     {
         public ContentEntityKind Kind {get;}
@@ -38,7 +38,7 @@ namespace Remains.Content
             var result=new Dictionary<string,ContentEntityKind>(StringComparer.Ordinal);
             foreach(var entry in entries)
             {
-                if((uint)entry.Kind>(uint)ContentEntityKind.MechanismButton)
+                if((uint)entry.Kind>(uint)ContentEntityKind.Mine)
                     throw new InvalidOperationException($"ID содержимого: неизвестная категория {(int)entry.Kind}; id={entry.Id}, {context}.");
                 string kind=Name(entry.Kind);
                 if(string.IsNullOrWhiteSpace(entry.Id))
@@ -55,7 +55,8 @@ namespace Remains.Content
                 .Concat(Read(world.containers,ContentEntityKind.Container,c=>c.id,context))
                 .Concat(Read(world.doors,ContentEntityKind.Door,d=>d.id,context))
                 .Concat(Read(world.movingPlatforms,ContentEntityKind.MovingPlatform,p=>p.id,context))
-                .Concat(Read(world.mechanismButtons,ContentEntityKind.MechanismButton,b=>b.id,context));
+                .Concat(Read(world.mechanismButtons,ContentEntityKind.MechanismButton,b=>b.id,context))
+                .Concat(Read(world.mines,ContentEntityKind.Mine,m=>m.id,context));
         private static IEnumerable<ContentEntityIdentity> Read<T>(IEnumerable<T> entries,ContentEntityKind kind,Func<T,string> id,string context) where T:class
         {
             if(entries==null) throw new InvalidOperationException($"ID содержимого: отсутствует список {Name(kind)}; {context}.");
@@ -64,7 +65,7 @@ namespace Remains.Content
         private static string Name(ContentEntityKind kind)=>kind switch
         {
             ContentEntityKind.Actor=>"актёр",ContentEntityKind.Prop=>"физический объект",ContentEntityKind.Container=>"контейнер",
-            ContentEntityKind.Door=>"дверь",ContentEntityKind.MovingPlatform=>"платформа",ContentEntityKind.MechanismButton=>"кнопка",
+            ContentEntityKind.Door=>"дверь",ContentEntityKind.MovingPlatform=>"платформа",ContentEntityKind.MechanismButton=>"кнопка",ContentEntityKind.Mine=>"мина",
             _=>throw new InvalidOperationException("ID содержимого: неизвестная категория "+(int)kind+".")
         };
     }

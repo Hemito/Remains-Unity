@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Remains.Domain
 {
-    public enum InteractionKind { None, Revival, Container, Door, Map, Exit, Pickup, Mechanism }
+    public enum InteractionKind { None, Revival, Container, Door, Map, Exit, Pickup, Mechanism, Mine }
     public readonly struct InteractionTarget
     {
         public readonly InteractionKind kind;
@@ -71,6 +71,12 @@ namespace Remains.Domain
             if(mechanismPoints!=null) foreach(var point in mechanismPoints)
                 if(MechanismButtonAccess.Rejection(actor,point.Button,point.Radius)==null)
                     Consider(InteractionKind.Mechanism,point.Button.id,point.Bounds);
+            foreach(var mine in world.mines)
+            {
+                if(mine.level!=actor.level || mine.triggered) continue;
+                var profile=MineRules.Profile(mine);
+                if(MineRules.DisarmRejection(mine,actor,profile)==null) Consider(InteractionKind.Mine,mine.id,MineRules.Bounds(mine,profile));
+            }
             return selected;
 
             void ConsiderSource(InventorySource source)

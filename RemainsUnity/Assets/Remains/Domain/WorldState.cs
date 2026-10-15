@@ -144,6 +144,7 @@ namespace Remains.Domain
         public List<GrenadeState> grenades = new();
         public List<ProjectileState> projectiles = new();
         public List<ExplosionState> explosions = new();
+        public List<MineState> mines = new();
         public ActorState Find(string id)
         {
             for(int i=0;i<actors.Count;i++) if(actors[i].id==id) return actors[i];

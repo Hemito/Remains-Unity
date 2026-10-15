@@ -49,6 +49,7 @@ namespace Remains.Content
                 new AppendTail<ContainerState>(live.containers,staged.containers,()=>live.containers,()=>staged.containers,"containers"),
                 new AppendTail<MovingPlatformState>(live.movingPlatforms,staged.movingPlatforms,()=>live.movingPlatforms,()=>staged.movingPlatforms,"movingPlatforms"),
                 new AppendTail<MechanismButtonState>(live.mechanismButtons,staged.mechanismButtons,()=>live.mechanismButtons,()=>staged.mechanismButtons,"mechanismButtons"),
+                new AppendTail<MineState>(live.mines,staged.mines,()=>live.mines,()=>staged.mines,"mines"),
                 new AppendTail<string>(live.contentPatches,staged.contentPatches,()=>live.contentPatches,()=>staged.contentPatches,"contentPatches")
             };
             // Compare normalized staging JSON, never the pre-copy live JSON.

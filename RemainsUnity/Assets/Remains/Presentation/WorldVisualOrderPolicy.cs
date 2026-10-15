@@ -5,7 +5,7 @@ using Remains.Domain;
 namespace Remains.Presentation
 {
     public enum WorldVisualCategory {Scenery,OrdinaryObject,Body,Npc,Player,Telekinesis,Effect}
-    public enum WorldVisualKind {Actor,Prop,Container,Door,Platform,Button,Grenade,Effect}
+    public enum WorldVisualKind {Actor,Prop,Container,Door,Platform,Button,Grenade,Effect,Mine}
 
     // World category is independent of position, ownership, pose and local part order.
     public static class WorldVisualOrderPolicy
@@ -82,6 +82,7 @@ namespace Remains.Presentation
                 foreach(var platform in world.movingPlatforms) if(platform.level==visibleLevel && !platform.removed) Add(WorldVisualKind.Platform,platform.id,WorldVisualCategory.OrdinaryObject);
                 foreach(var button in world.mechanismButtons) if(button.level==visibleLevel && !button.removed) Add(WorldVisualKind.Button,button.id,WorldVisualCategory.Scenery);
                 foreach(var grenade in world.grenades) if(grenade.level==visibleLevel) Add(WorldVisualKind.Grenade,grenade.id,WorldVisualCategory.OrdinaryObject);
+                foreach(var mine in world.mines) if(mine.level==visibleLevel) Add(WorldVisualKind.Mine,mine.id,WorldVisualCategory.OrdinaryObject);
                 foreach(var pair in transients) if(pair.Key.world==worldId && pair.Value.level==visibleLevel)
                 {
                     if(desired.TryGetValue(pair.Key.key,out var category) && category!=pair.Value.category)

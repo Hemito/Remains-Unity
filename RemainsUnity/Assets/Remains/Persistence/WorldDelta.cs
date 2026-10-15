@@ -180,6 +180,8 @@ namespace Remains.Persistence
                     case "actors": Fill(world.actors,set,null,changed,actor=>actor.id,_=>false,null,verified);break;
                     case "factories": outputs[set.Name]=Fill(world.factories,set,same?current.factories:null,changed,factory=>factory.level,_=>true,positions);break;
                     case "projectiles": Fill(world.projectiles,set,null,changed,flight=>flight.launch?.id,_=>false,null);break;
+                    // Mines change only on the host (trigger, removal); unchanged ones keep their live objects.
+                    case "mines": outputs[set.Name]=Fill(world.mines,set,same?current.mines:null,changed,mine=>mine.id,_=>true,positions);break;
                     default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
                 }
             }

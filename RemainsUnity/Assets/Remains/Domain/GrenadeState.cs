@@ -29,6 +29,8 @@ namespace Remains.Domain
     {
         public AttackEvent attack;
         public bool friendlyFire;
+        // A mine's blast: its position is the recorded attack end, not a locally simulated flight.
+        public bool stationary;
         public int generation;
         public List<string> players=new();
         public List<string> enemies=new();

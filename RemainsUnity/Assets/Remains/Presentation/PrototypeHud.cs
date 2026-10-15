@@ -416,6 +416,8 @@ namespace Remains.Presentation
                 MechanismButtonState selected=null;foreach(var button in session.World.mechanismButtons) if(button.id==interaction.id) {selected=button;break;}
                 containerHint.RefreshMechanism(selected,interaction.bounds,show,actor,MechanismProgress?.Invoke()??0,MechanismPending?.Invoke()==true);
             }
+            else if(interaction.kind==InteractionKind.Mine)
+                containerHint.RefreshMine(session.World.mines.Exists(mine=>mine.id==interaction.id),interaction.bounds,show,actor,session.Mines.Pending);
             else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
                 InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true,session.Rules.Loot);
             containerHint.Highlight(interaction,show);
