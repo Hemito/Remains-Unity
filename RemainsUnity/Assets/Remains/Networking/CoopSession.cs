@@ -1129,6 +1129,17 @@ namespace Remains.Networking
         }
         public ActorState ConnectedActor(NetworkConnectionToClient connection) =>
             owners.TryGetValue(connection.connectionId,out var owner) && playerIds.TryGetValue(owner,out var id)?ServerWorld.Find(id):null;
+        // A commit whose follow-up messages do not depend on the snapshot preceding them (lamp break effects):
+        // several in one frame (an explosion breaking many lamps) become one snapshot at the end of the frame.
+        private bool commitAtFrameEnd;
+        public void CommitWorldAtFrameEnd()=>commitAtFrameEnd=true;
+        public override void LateUpdate()
+        {
+            base.LateUpdate();
+            if(!commitAtFrameEnd) return;
+            commitAtFrameEnd=false;
+            if(NetworkServer.active && ServerWorld!=null) CommitWorld();
+        }
         public void CommitWorld()
         {
             ownership.Reassign(ServerWorld,owners.Values.ToArray());

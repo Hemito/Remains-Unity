@@ -120,7 +120,7 @@ namespace Remains.Presentation
             if(transients.TryGetValue(registration,out var old))
             {if(old.level!=effectLevel) throw new InvalidOperationException("Эффект с тем же ID сменил уровень: "+id);old.references++;return worldId;}
             transients.Add(registration,new Transient {level=effectLevel,category=category,references=1});
-            if(effectLevel==level && worldId!=null && desired.TryAdd(key,category)) Rebuild();
+            if(effectLevel==level && worldId!=null && desired.TryAdd(key,category)) RebuildCategory(category);
             return worldId;
         }
         public void ReleaseTransient(WorldVisualKind kind,string id,string registeredWorld)
@@ -129,7 +129,9 @@ namespace Remains.Presentation
             var registration=(key,registeredWorld);
             if(!transients.TryGetValue(registration,out var value)) return;
             if(--value.references!=0) return;
-            transients.Remove(registration);if(registeredWorld==worldId && !worldKeys.Contains(key) && desired.Remove(key)) Rebuild();
+            transients.Remove(registration);
+            if(registeredWorld==worldId && !worldKeys.Contains(key) && desired.Remove(key,out var category))
+            {categories.Remove(key);orders.Remove(key);RebuildCategory(category);}
         }
         private void Rebuild()
         {
@@ -146,6 +148,20 @@ namespace Remains.Presentation
             }
             categories.Clear();orders.Clear();
             foreach(var entry in sorted) {categories.Add(entry.key,entry.category);orders.Add(entry.key,entry.order);}
+            Rebuilds++;Changed?.Invoke();
+        }
+        // Orders are ranked per category from its own first order, so a transient (a shot's casing or trail) changes
+        // only its category: re-rank that one instead of sorting the whole level's table on every effect.
+        private void RebuildCategory(WorldVisualCategory category)
+        {
+            sorted.Clear();
+            foreach(var pair in desired) if(pair.Value==category) sorted.Add(new Entry {key=pair.Key,category=category});
+            sorted.Sort(Compare);
+            int first=WorldVisualOrderPolicy.FirstOrder(category);
+            if(sorted.Count>0 && first+sorted.Count-1>WorldVisualOrderPolicy.LastOrder(category))
+                throw new InvalidOperationException($"Недостаточно порядка изображений: category={category}, count={sorted.Count}, level={level}.");
+            for(int i=0;i<sorted.Count;i++) {categories[sorted[i].key]=category;orders[sorted[i].key]=first+i;}
+            ranks[(int)category]=sorted.Count;
             Rebuilds++;Changed?.Invoke();
         }
         private static int Compare(Entry a,Entry b)

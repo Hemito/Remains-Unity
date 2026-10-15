@@ -84,13 +84,14 @@ namespace Remains.Networking
                 if(reason!=null)throw new InvalidOperationException(reason);
                 if(lamp.broken)
                 {
-                    session.CommitWorld();
+                    session.CommitWorldAtFrameEnd();
                     if(lamp.breakingAttack==request.attack.id) NetworkServer.SendToAll(new LampBrokenMessage{world=session.ServerWorld.worldId,json=StateJson.ToJson(lamp)});
                     return;
                 }
                 if(session.Pause.IsServerPaused(lamp.level))throw new InvalidOperationException("Локация лампы на паузе.");
                 if(!LampOperations.Break(session.ServerWorld,lamp,request.attack.id))return;
-                session.CommitWorld();
+                // The broken message below only triggers effects; the world revision goes out once per frame.
+                session.CommitWorldAtFrameEnd();
                 NetworkServer.SendToAll(new LampBrokenMessage{world=session.ServerWorld.worldId,json=StateJson.ToJson(lamp)});
             }
             catch(Exception error) when(error is ArgumentException||error is InvalidOperationException||error is IOException)
