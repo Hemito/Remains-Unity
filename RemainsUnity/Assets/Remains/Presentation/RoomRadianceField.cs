@@ -67,6 +67,7 @@ namespace Remains.Presentation
 
         private RenderTexture BuildSteadyDirect(SteadyLightEmitter source)
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu("Свет: прямой вклад источника");
             if(staticScene==null) staticScene=scene;
             var restore=scene;
             try
@@ -103,6 +104,7 @@ namespace Remains.Presentation
 
         private void ComposeSteadyShadows(IReadOnlyList<ProjectedLightShadow> masks)
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu("Свет: сборка теней");
             Graphics.Blit(staticFluence,backgroundAccumulation);composedSteadyIds.Clear();
             if(masks!=null) foreach(var mask in masks)
             {
@@ -150,6 +152,7 @@ namespace Remains.Presentation
             =>RenderTransient(emissions,null,null);
         public bool RenderTransient(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds)
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu("Свет: вспышки и тени (кадр)");
             compute.SetInts("_Size",width,height);
             var hash=new HashCode();hash.Add(steadyShadows.Generation);
             if(masks!=null) foreach(var mask in masks)
@@ -415,6 +418,7 @@ namespace Remains.Presentation
         // lookup, wall rasterization or synchronous silhouette readback belongs to this path.
         public void UpdateOccluders(IReadOnlyList<(Rect bounds,double opacity)> occluders)
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu("Свет: заслонки");
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: заслонки");
             steadyShadows.InvalidateFields();hasBackgroundSignature=false;warnedSteadyIds.Clear();
             EnsureSceneDrawing();
@@ -553,6 +557,7 @@ namespace Remains.Presentation
         // Eight weighted columns retain the extent of a long lamp without tracing every lit pixel.
         public Vector3[] PrepareLampShadowSamples(Sprite sprite,Matrix4x4 localToWorld)
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu("Свет: площадь лампы (чтение с видеокарты)");
             SilhouetteArea(sprite);
             var local=measured[(sprite,texel)].footprint;var output=new Vector3[local.Length];
             for(int i=0;i<local.Length;i++)
@@ -634,6 +639,7 @@ namespace Remains.Presentation
                 finally {RenderTexture.active=previous;}
                 return reused;
             }
+            Remains.Diagnostics.FrameHitchLog.Gpu("Свет: новая текстура рендера");
             var texture=new RenderTexture(w,h,0,format){name=name,enableRandomWrite=true,filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
             texture.Create();
             return texture;
@@ -650,6 +656,7 @@ namespace Remains.Presentation
 
         public void Render()
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu("Свет: поле излучения");
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: проход поля");
             staticScene=scene;steadyShadows.InvalidateFields();hasBackgroundSignature=false;warnedSteadyIds.Clear();
             Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
@@ -662,6 +669,7 @@ namespace Remains.Presentation
 
         private void RenderField(bool directOnly)
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu(directOnly?"Свет: каскады прямого поля":"Свет: каскады полного поля");
             int seed=compute.FindKernel("Seed"),jump=compute.FindKernel("Jump"),dist=compute.FindKernel("Distance"),cascade=compute.FindKernel("Cascade"),flu=compute.FindKernel("Fluence"),fill=compute.FindKernel("Fill"),bounce=compute.FindKernel("Bounce");
             compute.SetInts("_Size",width,height);
             int gx=(width+7)/8,gy=(height+7)/8;

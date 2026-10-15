@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.LowLevel;
 using Debug=UnityEngine.Debug;
@@ -14,6 +15,9 @@ namespace Remains.Diagnostics
     // and managed GC runs. Frames longer than SlowMilliseconds are written as one line each, and a summary line
     // every SummarySeconds; the file is appended at most once per summary period and on quit. Cost when nothing
     // is slow: a few timestamp reads per frame, no allocation.
+    // Video card: a frame waiting in TimeUpdate pays for GPU work submitted earlier, so a slow line also lists our own
+    // GPU submissions (Gpu calls) of this and the previous frame, Unity's render counters of both frames and the GPU
+    // times of the latest completed frames (FrameTimingManager); the summary gives the period's GPU maximum.
     public static class FrameHitchLog
     {
         public const double SlowMilliseconds=50;
@@ -38,6 +42,37 @@ namespace Remains.Diagnostics
         private static string path;
         private static bool installed;
         private static double toMs;
+
+        // Our own GPU submissions by name, this frame and the previous one.
+        private const int MaxGpu=64;
+        private static readonly string[] gpuNames=new string[MaxGpu];
+        private static int[] gpuCalls=new int[MaxGpu],previousGpuCalls=new int[MaxGpu];
+        private static readonly Dictionary<string,int> gpuIndex=new(StringComparer.Ordinal);
+        public static void Gpu(string name)
+        {
+            if(!installed) return;
+            if(!gpuIndex.TryGetValue(name,out int index))
+            {
+                if(gpuIndex.Count>=MaxGpu) return;
+                index=gpuIndex.Count;gpuIndex.Add(name,index);gpuNames[index]=name;
+            }
+            gpuCalls[index]++;
+        }
+        // Unity render counters (values of the frame just rendered) and GPU frame timings.
+        private static readonly (string Label,string Counter,ProfilerCategory Category,bool Bytes)[] counterSpecs=
+        {
+            ("отрисовок","Draw Calls Count",ProfilerCategory.Render,false),("пакетов","Batches Count",ProfilerCategory.Render,false),
+            ("смен шейдера","SetPass Calls Count",ProfilerCategory.Render,false),("треугольников","Triangles Count",ProfilerCategory.Render,false),
+            ("текстур рендера","Render Textures Count",ProfilerCategory.Render,false),("память текстур рендера","Render Textures Bytes",ProfilerCategory.Render,true),
+            ("память текстур","Used Textures Bytes",ProfilerCategory.Render,true),("память видеокарты","Gfx Used Memory",ProfilerCategory.Memory,true)
+        };
+        private static ProfilerRecorder[] counters;
+        private static long[] counterValues,previousCounterValues;
+        private static readonly FrameTiming[] timings=new FrameTiming[4];
+        private static bool frameTimings;
+        private static ulong lastTimingStamp;
+        private static double periodGpuMax;
+        private static int periodGpuSlow;
 
         private static string note;
         // Extra detail for the current frame's line (e.g. what changed in a snapshot); kept only if the frame is slow.
@@ -80,8 +115,26 @@ namespace Remains.Diagnostics
             path=System.IO.Path.Combine(directory,"frames-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".txt");
             pending.Append("# Журнал медленных кадров (>").Append(SlowMilliseconds).Append(" мс). Фазы Unity и участки кода в мс; gc — сборки мусора за кадр. Кадр — от TimeUpdate (ожидание видеокарты и предела кадров) до конца PostLateUpdate.\n");
             pending.Append("# ").Append(Application.version).Append(", ").Append(SystemInfo.processorType).Append(", ").Append(SystemInfo.graphicsDeviceName).Append('\n');
+            InstallGpu();
             Application.quitting+=Flush;
             Debug.Log("Журнал медленных кадров: "+path);
+        }
+
+        private static void InstallGpu()
+        {
+            counters=new ProfilerRecorder[counterSpecs.Length];counterValues=new long[counterSpecs.Length];previousCounterValues=new long[counterSpecs.Length];
+            var missing=new List<string>();
+            for(int i=0;i<counterSpecs.Length;i++)
+            {
+                counters[i]=ProfilerRecorder.StartNew(counterSpecs[i].Category,counterSpecs[i].Counter);
+                if(!counters[i].Valid) missing.Add(counterSpecs[i].Counter);
+            }
+            frameTimings=FrameTimingManager.IsFeatureEnabled();
+            pending.Append("# Видеокарта: ").Append(SystemInfo.graphicsDeviceType).Append(", время кадров видеокарты ")
+                .Append(frameTimings?"измеряется":"недоступно (FrameTimingManager выключен или не поддержан)")
+                .Append(missing.Count==0?"":", недоступные счётчики: "+string.Join(", ",missing)).Append('\n');
+            if(!frameTimings || missing.Count>0)
+                Debug.LogWarning($"Журнал медленных кадров: часть данных видеокарты недоступна: время кадров={(frameTimings?"есть":"нет")}, счётчики без данных: {(missing.Count==0?"нет":string.Join(", ",missing))}.");
         }
 
         // Editor benches: sections are timed without the player loop, file or summaries; TakeSections reads and
@@ -148,12 +201,59 @@ namespace Remains.Diagnostics
             double time=Time.realtimeSinceStartupAsDouble;
             if(periodStart==0) periodStart=time;
             periodFrames.Add(total);
+            ReadGpu();
             if(total>SlowMilliseconds) WriteSlow(total);
+            (gpuCalls,previousGpuCalls)=(previousGpuCalls,gpuCalls);Array.Clear(gpuCalls,0,gpuIndex.Count);
+            if(counters!=null) (counterValues,previousCounterValues)=(previousCounterValues,counterValues);
             for(int i=0;i<sectionIndex.Count;i++) periodSectionMs[i]+=sectionMs[i];
             note=null;
             Array.Clear(phaseMs,0,phaseMs.Length);
             Array.Clear(sectionMs,0,sectionIndex.Count);Array.Clear(sectionCalls,0,sectionIndex.Count);
             if(time-periodStart>=SummarySeconds) {WriteSummary(time);Flush();}
+        }
+
+        private static void ReadGpu()
+        {
+            if(counters!=null) for(int i=0;i<counters.Length;i++) counterValues[i]=counters[i].Valid?counters[i].LastValue:-1;
+            if(!frameTimings) return;
+            FrameTimingManager.CaptureFrameTimings();
+            if(FrameTimingManager.GetLatestTimings(1,timings)==0 || timings[0].frameStartTimestamp==lastTimingStamp) return;
+            lastTimingStamp=timings[0].frameStartTimestamp;
+            double gpu=timings[0].gpuFrameTime;
+            if(gpu>periodGpuMax) periodGpuMax=gpu;
+            if(gpu>SlowMilliseconds) periodGpuSlow++;
+        }
+
+        private static void AppendGpu(StringBuilder line)
+        {
+            line.Append(" | видеокарта:");
+            if(frameTimings)
+            {
+                uint count=FrameTimingManager.GetLatestTimings((uint)timings.Length,timings);
+                line.Append(" время последних кадров");
+                for(int i=0;i<count;i++) line.Append(' ').Append(timings[i].gpuFrameTime.ToString("F1"));
+                line.Append(" мс;");
+            }
+            AppendCalls(line," наше в этом кадре",gpuCalls);AppendCalls(line," наше в прошлом",previousGpuCalls);
+            if(counters==null) return;
+            AppendCounters(line," этот кадр",counterValues);AppendCounters(line," прошлый",previousCounterValues);
+        }
+        private static void AppendCalls(StringBuilder line,string label,int[] calls)
+        {
+            line.Append(label).Append(':');bool any=false;
+            for(int i=0;i<gpuIndex.Count;i++) if(calls[i]>0) {line.Append(' ').Append(gpuNames[i]).Append('×').Append(calls[i]).Append(',');any=true;}
+            line.Append(any?"":" нет").Append(';');
+        }
+        private static void AppendCounters(StringBuilder line,string label,long[] values)
+        {
+            line.Append(label).Append(':');
+            for(int i=0;i<values.Length;i++)
+            {
+                if(values[i]<0) continue;
+                line.Append(' ').Append(counterSpecs[i].Label).Append(' ')
+                    .Append(counterSpecs[i].Bytes?(values[i]/1048576.0).ToString("F0")+" МБ":values[i].ToString());
+            }
+            line.Append(';');
         }
 
         private static void WriteSlow(double total)
@@ -169,6 +269,7 @@ namespace Remains.Diagnostics
             int gc=GC.CollectionCount(0)-gcAtFrameStart;
             if(gc>0) line.Append(" | gc ").Append(gc);
             if(note!=null) line.Append(" | ").Append(note);
+            AppendGpu(line);
             if(!string.IsNullOrEmpty(Context)) line.Append(" | ").Append(Context);
             line.Append('\n');
         }
@@ -184,6 +285,7 @@ namespace Remains.Diagnostics
                 .Append(", медленных ").Append(periodFrames.FindAll(f=>f>SlowMilliseconds).Count)
                 .Append(", сборок мусора ").Append(GC.CollectionCount(0)-gcAtPeriodStart)
                 .Append(", память ").Append((GC.GetTotalMemory(false)/1048576.0).ToString("F0")).Append(" МБ")
+                .Append(frameTimings?", видеокарта макс "+periodGpuMax.ToString("F1")+" мс, кадров видеокарты >"+SlowMilliseconds+" мс "+periodGpuSlow:"")
                 .Append(string.IsNullOrEmpty(Context)?"":" | "+Context).Append('\n');
             // Steady load: the costliest own sections per frame over the period (Unity phases excluded).
             var order=new List<int>();
@@ -202,7 +304,7 @@ namespace Remains.Diagnostics
                 pending.Append(' ').Append(sectionNames[engine[k]]).Append(' ').Append((periodSectionMs[engine[k]]/Math.Max(1,n)).ToString("F2")).Append(';');
             pending.Append('\n');
             Array.Clear(periodSectionMs,0,periodSectionMs.Length);
-            periodFrames.Clear();periodStart=time;gcAtPeriodStart=GC.CollectionCount(0);
+            periodFrames.Clear();periodStart=time;gcAtPeriodStart=GC.CollectionCount(0);periodGpuMax=0;periodGpuSlow=0;
         }
 
         private static void Flush()

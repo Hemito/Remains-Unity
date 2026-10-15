@@ -226,6 +226,7 @@ namespace Remains.Presentation
         }
         private void DrawMask(RenderTexture target,IReadOnlyList<RoomRadianceField.LightOccluder> parts,Bounds bounds)
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu("Тени: маска позы персонажа");
             var previous=RenderTexture.active;
             RenderTexture.active=target;GL.PushMatrix();
             try
@@ -252,10 +253,12 @@ namespace Remains.Presentation
             maskMaterial.SetVector("_SweepActor",new Vector4(actorPosition.x,actorPosition.y,0,0));
             maskMaterial.SetVector("_SweepProjection",new Vector4(offset.x,offset.y,projection.m00-1,0));
             maskMaterial.SetVector("_WallPenumbra",new Vector4(blur,blur,0,0));
+            Remains.Diagnostics.FrameHitchLog.Gpu("Тени: проекция персонажа");
             Graphics.Blit(poseMask,slot.mask,maskMaterial,3);
         }
         private static RenderTexture CreateMask(string maskName)
         {
+            Remains.Diagnostics.FrameHitchLog.Gpu("Тени: новая текстура маски");
             var target=new RenderTexture(MaskResolution,MaskResolution,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear)
             {name=maskName,filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp,useMipMap=false};
             target.Create();return target;
