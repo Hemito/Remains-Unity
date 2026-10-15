@@ -33,7 +33,7 @@ namespace Remains.Serialization
     // Persistent/network state uses public fields, not computed gameplay properties.
     public static class StateJson
     {
-        private sealed class FieldContract : DefaultContractResolver
+        private class FieldContract : DefaultContractResolver
         {
             protected override List<MemberInfo> GetSerializableMembers(Type type)=>
                 type.GetFields(BindingFlags.Instance|BindingFlags.Public).Where(f=>!f.IsNotSerialized).Cast<MemberInfo>().ToList();
@@ -55,6 +55,72 @@ namespace Remains.Serialization
             var text=new System.IO.StringWriter(System.Globalization.CultureInfo.InvariantCulture);
             using(var writer=new JsonTextWriter(text) {Formatting=Formatting.None}) serializer.Serialize(writer,value);
             return text.ToString();
+        }
+        // A value's text with the named fields of its type left as raw markers \u0002<index>\u0002 (never in serializer
+        // output), and those fields' own texts: FillHoles(template, holes) is exactly ToJson(value) (TypeNameHandling
+        // None and no member converters, so a field serializes the same alone and in place). A null field is written
+        // in place (no marker) and its hole is null.
+        public static string ToJsonWithHoles(object value,IReadOnlyList<string> fields,out string[] holes)
+        {
+            if(value==null) throw new ArgumentNullException(nameof(value));
+            var type=value.GetType();
+            var serializer=JsonSerializer.Create(new JsonSerializerSettings
+            {
+                ContractResolver=HoleContracts.GetOrAdd((type,string.Join(",",fields)),key=>new HoleContract(key.type,fields)),
+                TypeNameHandling=settings.TypeNameHandling,MetadataPropertyHandling=settings.MetadataPropertyHandling,
+                DateParseHandling=settings.DateParseHandling,FloatParseHandling=settings.FloatParseHandling,
+                ObjectCreationHandling=settings.ObjectCreationHandling,MaxDepth=settings.MaxDepth,Culture=settings.Culture
+            });
+            var text=new System.IO.StringWriter(System.Globalization.CultureInfo.InvariantCulture);
+            using(var writer=new JsonTextWriter(text) {Formatting=Formatting.None}) serializer.Serialize(writer,value);
+            holes=new string[fields.Count];
+            for(int i=0;i<fields.Count;i++)
+            {
+                var field=type.GetField(fields[i],BindingFlags.Instance|BindingFlags.Public)??
+                    throw new ArgumentException($"Нет поля {fields[i]} у {type.Name}.");
+                var member=field.GetValue(value);
+                holes[i]=member==null?null:ToJson(member);
+            }
+            return text.ToString();
+        }
+        public static string FillHoles(string template,IReadOnlyList<string> holes)
+        {
+            var result=new System.Text.StringBuilder(template.Length+holes.Sum(hole=>hole?.Length??0));
+            int at=0;
+            while(at<template.Length)
+            {
+                int start=template.IndexOf('\u0002',at);
+                if(start<0) {result.Append(template,at,template.Length-at);break;}
+                int end=template.IndexOf('\u0002',start+1);
+                if(end<0 || !int.TryParse(template.AsSpan(start+1,end-start-1),out int index) || index<0 || index>=holes.Count || holes[index]==null)
+                    throw new System.IO.InvalidDataException("Повреждённый шаблон текста с пропусками.");
+                result.Append(template,at,start-at).Append(holes[index]);
+                at=end+1;
+            }
+            return result.ToString();
+        }
+        private static readonly ConcurrentDictionary<(Type type,string fields),HoleContract> HoleContracts=new();
+        private sealed class HoleContract : FieldContract
+        {
+            private readonly Type owner;private readonly IReadOnlyList<string> fields;
+            public HoleContract(Type owner,IReadOnlyList<string> fields) {this.owner=owner;this.fields=fields;}
+            protected override JsonProperty CreateProperty(MemberInfo member,MemberSerialization serialization)
+            {
+                var property=base.CreateProperty(member,serialization);
+                if(member.ReflectedType==owner)
+                    for(int i=0;i<fields.Count;i++)
+                        if(member.Name==fields[i]) {property.Converter=new HoleConverter(i);break;}
+                return property;
+            }
+        }
+        private sealed class HoleConverter : JsonConverter
+        {
+            private readonly string marker;
+            public HoleConverter(int index) {marker="\u0002"+index+"\u0002";}
+            public override bool CanRead=>false;
+            public override bool CanConvert(Type objectType)=>true;
+            public override object ReadJson(JsonReader reader,Type objectType,object existingValue,JsonSerializer serializer)=>throw new NotSupportedException();
+            public override void WriteJson(JsonWriter writer,object value,JsonSerializer serializer)=>writer.WriteRawValue(marker);
         }
         public static T FromJson<T>(string json)
         {
