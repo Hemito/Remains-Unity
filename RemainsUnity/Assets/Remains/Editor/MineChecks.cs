@@ -106,6 +106,9 @@ namespace Remains.Editor
                 foreach(string sound in new[] {profile.beepSound,profile.defuseSound,profile.placeSound})
                     Require(exported.Resource(sound).sounds?.FirstOrDefault()!=null,$"звук {sound} мины {id}");
                 Require(exported.TryIcon("weapon:"+id,0,out _),"значок предмета мины "+id);
+                // The blast is heard through the combat sound table by weapon (GameplayAudio): a missing entry is silent.
+                Require(Resources.Load<TextAsset>("Presentation/combat-audio").text.Contains("{\"weapon\":\""+id+"\",\"clip\":\"grenade-explosion\",\"kind\":\"explosion\""),
+                    "звук взрыва мины "+id+" (expl_e, как у гранаты)");
             }
         }
 

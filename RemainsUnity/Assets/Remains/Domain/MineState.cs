@@ -112,7 +112,9 @@ namespace Remains.Domain
 
         // Interim rules (decisions.md, 2026-10-15): a mine is seen within its profile's visibility radius (300 px of the
         // original) and disarming always succeeds; the original's skill checks come later.
-        public const float DisarmRadius=2f;
+        // Original World.actionDist (40000 px², 200 px): beyond the 2 m sensing zone, so a seen mine can be disarmed
+        // without walking into it.
+        public const float DisarmRadius=4f;
         // The pointer target of a tiny mine: its body, enlarged to a usable minimum around the bottom centre.
         public static Rect Bounds(MineState mine,MineProfile profile)
         {
