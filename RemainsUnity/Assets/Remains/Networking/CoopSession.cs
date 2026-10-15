@@ -66,15 +66,23 @@ namespace Remains.Networking
         }
         public event Action Changed;
         // Each subscriber in its own FrameHitchLog section (subscribers rebuild presentation on world changes).
-        private void RaiseChanged()
+        // What the current Changed notification changed (valid during the handlers; All outside and for every
+        // notification that does not know better). A consumer skips work for unchanged parts.
+        public WorldChangeKind LastChange {get;private set;}=WorldChangeKind.All;
+        private void RaiseChanged(WorldChangeKind kind=WorldChangeKind.All)
         {
             var handlers=Changed;if(handlers==null) return;
-            foreach(Action handler in handlers.GetInvocationList())
+            LastChange=kind;
+            try
             {
-                var method=handler.Method;
-                string owner=method.DeclaringType?.Name??"?";
-                using(Remains.Diagnostics.FrameHitchLog.Section("Мир изменился → "+(method.DeclaringType?.DeclaringType?.Name??owner)+"."+method.Name)) handler();
+                foreach(Action handler in handlers.GetInvocationList())
+                {
+                    var method=handler.Method;
+                    string owner=method.DeclaringType?.Name??"?";
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Мир изменился → "+(method.DeclaringType?.DeclaringType?.Name??owner)+"."+method.Name)) handler();
+                }
             }
+            finally {LastChange=WorldChangeKind.All;}
         }
         public event Action SessionStopped;
         public event Action<string,string,float,float> RemotePoseCorrection;
@@ -324,7 +332,7 @@ namespace Remains.Networking
                 }
                 // The verified snapshot is passed itself; its whole text is not needed here (built lazily for the save).
                 if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor},received.snapshot);
-                else ReceiveWorld(new WorldMessage(),received.snapshot);
+                else ReceiveWorld(new WorldMessage(),received.snapshot,received.changes);
             }));
             NetworkClient.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Client<ActorMessage>(message =>
             {
@@ -517,7 +525,7 @@ namespace Remains.Networking
             if(ReferenceEquals(World,welcomed) && !GameplayFailurePending) EntryPreparation.CompleteAdmission();
         }
 
-        private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null)
+        private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null,WorldChangeKind changes=WorldChangeKind.All)
         {
             if(World==null || LocalActorId==null) throw new InvalidOperationException("Получен игровой снимок до фактического входа в мир.");
             using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
@@ -584,7 +592,7 @@ namespace Remains.Networking
             World = incoming;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подтверждение (клиент)")) QueueRecoveryReceipt(snapshot);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: событие «мир изменился» (клиент)"))
-                if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else RaiseChanged();
+                if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else RaiseChanged(sameWorld?changes:WorldChangeKind.All);
         }
 
         private WorldState PersistCopy(RecoverySnapshot snapshot,WorldState parsed=null)
@@ -626,7 +634,9 @@ namespace Remains.Networking
             var actor=LocalActor;if(actor==null) return null;
             joinSelection?.RequireCurrent(CharacterId,Saves);
             if(actor.character!=CharacterId) throw new InvalidOperationException($"Запись чужого персонажа запрещена: выбран={CharacterId}, actor={actor.id}, character={actor.character}, profile={Saves.CharacterDirectoryPath}.");
-            return actor.Copy();
+            // A detached copy for the save thread, by the trusted reader: the writer strictly re-parses it
+            // (SaveStore.CaptureCharacterJson), so a strict copy here only doubled ~5 ms per received snapshot.
+            return Remains.Serialization.StateJson.FromTrustedJson<ActorState>(Remains.Serialization.StateJson.ToJson(actor));
         }
 
         public void SaveLocalCharacter()

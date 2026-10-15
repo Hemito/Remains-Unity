@@ -24,7 +24,18 @@ namespace Remains.Presentation
         private sealed class Holder {public ActorState actor;public int magic;public string rejection;}
         private readonly Dictionary<string,Holder> holders=new(StringComparer.Ordinal);
         public string WorldId {get;private set;}
+        // Changes when the holders' colors or rejections differ from the previous Rebuild (consumers skip reapplying).
+        public long Revision {get;private set;}
+        private string signature;
         public void Rebuild(WorldState world)
+        {
+            RebuildHolders(world);
+            var key=new System.Text.StringBuilder(WorldId);
+            foreach(var pair in holders) key.Append('|').Append(pair.Key).Append(':').Append(pair.Value.actor.id).Append(':').Append(pair.Value.magic).Append(':').Append(pair.Value.rejection);
+            string next=key.ToString();
+            if(next!=signature) {signature=next;Revision++;}
+        }
+        private void RebuildHolders(WorldState world)
         {
             holders.Clear();WorldId=world?.worldId;
             if(world==null) return;

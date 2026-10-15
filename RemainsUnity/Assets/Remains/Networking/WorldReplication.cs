@@ -25,6 +25,7 @@ namespace Remains.Networking
         public RecoverySnapshot snapshot;
         public string owner,actor;
         public bool resync;   // a delta could not be applied: ask the host for a full snapshot
+        public WorldChangeKind changes=WorldChangeKind.All;   // a delta: its changed part lists, the skeleton and actors
         public string reason;
     }
     public sealed class WorldReplication
@@ -60,6 +61,14 @@ namespace Remains.Networking
                 connection.Send(new WorldPartMessage {snapshot=snapshot,baseSnapshot=baseSnapshot,total=payload.Length,offset=offset,data=data});
             }
         }
+        // Actors and projectiles are always included: their objects are replaced on every applied delta (WorldReplica.Apply).
+        private static WorldChangeKind Changes(WorldDeltaPayload payload)
+        {
+            var kinds=WorldChangeKind.Skeleton|WorldChangeKind.Actors|WorldChangeKind.Projectiles;
+            foreach(var list in payload.lists)
+                if((list.keys?.Length??0)>0 || list.order!=null) kinds|=WorldChangeKinds.ForList(list.name);
+            return kinds;
+        }
         public ReceivedWorld Receive(WorldPartMessage message,Func<WorldState> current)
         {
             using var timing=TransitionTiming.Measure("snapshot.assemble",message.snapshot);
@@ -85,7 +94,7 @@ namespace Remains.Networking
                     RecoverySnapshot applied;
                     using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: применение изменения (клиент)")) applied=replica.Apply(payload,current());
                     Remains.Diagnostics.FrameHitchLog.Note($"изменение мира: частей {WorldDelta.ChangedParts(payload)}, байт {bytes.Length}");
-                    return new ReceivedWorld {snapshot=applied,owner=owned,actor=acting};
+                    return new ReceivedWorld {snapshot=applied,owner=owned,actor=acting,changes=Changes(payload)};
                 }
                 catch(Exception error) when (error is InvalidDataException || error is InvalidOperationException)
                 {

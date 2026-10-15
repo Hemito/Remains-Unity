@@ -26,7 +26,7 @@ namespace Remains.Gameplay
         public SimulationGeometry(Func<string,RoomLayout> load)=>this.load=load??throw new ArgumentNullException(nameof(load));
         public SimulationGeometry(CoopSession session):this(level=>RoomLayout.Load(level,session.World))
         {this.session=session??throw new ArgumentNullException(nameof(session));session.Changed+=OnSessionChanged;}
-        private void OnSessionChanged()=>Reconcile(session.World);
+        private void OnSessionChanged()=>Reconcile(session.World,session.LastChange);
         public void Dispose()
         {
             if(session!=null) session.Changed-=OnSessionChanged;
@@ -60,7 +60,8 @@ namespace Remains.Gameplay
         }
         public void ClearEntryPreparation()
         {stagedEntry=null;stagedWorld=stagedDefinitions=stagedLevel=null;stagedFactories=null;stagedReady=false;}
-        public void Reconcile(WorldState world)
+        // changes: what the notification changed; door geometry of a loaded level is re-checked only for doors.
+        public void Reconcile(WorldState world,WorldChangeKind changes=WorldChangeKind.All)
         {
             using var timing=TransitionTiming.Measure("geometry.reconcile",world?.worldId);
             string definitions=Remains.Serialization.StateJson.ToJson(world?.rooms);
@@ -76,8 +77,9 @@ namespace Remains.Gameplay
             foreach(string level in rooms.Keys.Where(level=>!required.Contains(level)).ToArray()) {rooms.Remove(level);TopologyVersion++;}
             foreach(string level in required)
             {
-                if(!rooms.TryGetValue(level,out var geometry)) {geometry=new RoomDoorGeometry(load(level));rooms.Add(level,geometry);TopologyVersion++;}
-                if(geometry.Reconcile(world.doors,level)) OcclusionChanged?.Invoke(level,geometry.Room,geometry.OcclusionRevision);
+                bool created=false;
+                if(!rooms.TryGetValue(level,out var geometry)) {geometry=new RoomDoorGeometry(load(level));rooms.Add(level,geometry);TopologyVersion++;created=true;}
+                if((created || changes.Any(WorldChangeKind.Doors)) && geometry.Reconcile(world.doors,level)) OcclusionChanged?.Invoke(level,geometry.Room,geometry.OcclusionRevision);
             }
         }
         public RoomLayout Get(string level)=>rooms.TryGetValue(level,out var room)?room.Room:

@@ -29,6 +29,7 @@ namespace Remains.Presentation
         private CasingEffects casingEffects;
         public CasingEffects Casing=>casingEffects;
         private HeldPropColorSource heldColors;
+        private string refreshedLevel;private long refreshedHolders=-1;
         private PonyMagicActivitySource ponyMagic;
         public WeaponReloadAnimation ReloadAnimation=>reloadAnimation;
         private readonly Dictionary<string,Sprite> sprites=new();
@@ -124,14 +125,25 @@ namespace Remains.Presentation
             if(session.World==null || level==null)
             {
                 Prune(props,retainedProps);Prune(containers,retainedContainers);Prune(weapons,retainedWeapons);Prune(flights,retainedFlights);
+                refreshedLevel=null;
                 return;
             }
+            // Body and container views (~1400 on the factory) only when they, the level or the holders changed.
+            bool bodies=session.LastChange.Any(WorldChangeKind.Containers|WorldChangeKind.Props) || level!=refreshedLevel ||
+                heldColors==null || heldColors.Revision!=refreshedHolders;
+            refreshedLevel=level;refreshedHolders=heldColors?.Revision??-1;
+            if(bodies)
+            {
             foreach(var prop in session.World.props) if(prop.level==level) retainedProps.Add(prop.id);
             foreach(var container in session.World.containers) if(container.level==level) retainedContainers.Add(container.id);
+            Prune(props,retainedProps);Prune(containers,retainedContainers);
+            }
             foreach(var actor in session.World.actors)
                 if(ActorPresence.IsPresent(actor) && !string.IsNullOrEmpty(actor.weapon) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level) retainedWeapons.Add(actor.id);
             foreach(var flight in grenades.Flights) if(flight.state.level==level) retainedFlights.Add(flight.state.id);
-            Prune(props,retainedProps);Prune(containers,retainedContainers);Prune(weapons,retainedWeapons);Prune(flights,retainedFlights);
+            Prune(weapons,retainedWeapons);Prune(flights,retainedFlights);
+            if(bodies)
+            {
             foreach(var container in session.World.containers)
             {
                 if(container.level!=level) continue;
@@ -146,6 +158,7 @@ namespace Remains.Presentation
                 if(!props.TryGetValue(prop.id,out var view))
                 {view=propArtwork.CreateView(prop.definition,prop.id,prop.width);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Prop,prop.id);props.Add(prop.id,view);}
                 view.ApplyHeldAppearance(prop,heldColors);
+            }
             }
             foreach(var actor in session.World.actors)
                 if(ActorPresence.IsPresent(actor) && !string.IsNullOrEmpty(actor.weapon) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))

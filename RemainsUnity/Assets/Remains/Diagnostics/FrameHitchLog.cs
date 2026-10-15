@@ -178,6 +178,14 @@ namespace Remains.Diagnostics
             for(int k=0;k<Math.Min(8,order.Count);k++)
                 pending.Append(' ').Append(sectionNames[order[k]]).Append(' ').Append((periodSectionMs[order[k]]/Math.Max(1,n)).ToString("F2")).Append(';');
             pending.Append('\n');
+            // Unity's own subsystems per frame (rendering, scripts, physics...): where the rest of the frame goes.
+            var engine=new List<int>();
+            for(int i=0;i<sectionIndex.Count;i++) if(periodSectionMs[i]>0 && sectionNames[i].IndexOf('.')>=0) engine.Add(i);
+            engine.Sort((a,b)=>periodSectionMs[b].CompareTo(periodSectionMs[a]));
+            pending.Append("   движок на кадр:");
+            for(int k=0;k<Math.Min(6,engine.Count);k++)
+                pending.Append(' ').Append(sectionNames[engine[k]]).Append(' ').Append((periodSectionMs[engine[k]]/Math.Max(1,n)).ToString("F2")).Append(';');
+            pending.Append('\n');
             Array.Clear(periodSectionMs,0,periodSectionMs.Length);
             periodFrames.Clear();periodStart=time;
         }
