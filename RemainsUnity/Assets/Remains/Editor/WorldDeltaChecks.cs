@@ -60,11 +60,26 @@ namespace Remains.Editor
             Require(!ReferenceEquals(nextClient.containers[0],client.containers[0]) && Mathf.Approximately(nextClient.containers[0].x,moved.x),
                 "Изменённый контейнер не разобран заново.");
 
+            // B2: the next change on the applied world (the replica's positional reuse of its own objects).
+            var second=host.containers[3];second.x+=1;WorldChanges.Mark(host,second);host.revision++;
+            var b2=RecoverySnapshot.FromWorld(host);
+            var delta2=WorldDelta.Build(host.worldId,b.Id,b.Composition,b2.Id,b2.Composition);
+            timer.Restart();
+            var applied2=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(delta2)),nextClient);
+            double apply2Ms=timer.Elapsed.TotalMilliseconds;
+            Require(applied2.Id==b2.Id && applied2.Json==b2.Json,"Клиент собрал другой текст B2.");
+            var client2=applied2.CreateLiveWorld();
+            Require(ReferenceEquals(client2.containers[4],nextClient.containers[4]) && ReferenceEquals(client2.props.Count>0?client2.props[0]:null,nextClient.props.Count>0?nextClient.props[0]:null),
+                "Повторное изменение: неизменные объекты не переиспользованы по позиции.");
+            Require(!ReferenceEquals(client2.containers[3],nextClient.containers[3]) && Mathf.Approximately(client2.containers[3].x,second.x),
+                "Повторное изменение: изменённый контейнер не разобран заново.");
+            nextClient=client2;
+
             // C: a container added and another removed (order changes).
             var added=StateJson.Copy(host.containers[2]);added.id="check:delta-added";host.containers.Add(added);
             host.containers.RemoveAt(1);host.revision++;
             var c=RecoverySnapshot.FromWorld(host);
-            var orderDelta=WorldDelta.Build(host.worldId,b.Id,b.Composition,c.Id,c.Composition);
+            var orderDelta=WorldDelta.Build(host.worldId,b2.Id,b2.Composition,c.Id,c.Composition);
             Require(orderDelta.lists.Any(list=>list.name=="containers" && list.order!=null),"Смена состава контейнеров без порядка.");
             var appliedC=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(orderDelta)),nextClient);
             Require(appliedC.Id==c.Id && appliedC.Json==c.Json,"Клиент собрал другой текст C после смены состава.");
@@ -78,7 +93,7 @@ namespace Remains.Editor
             Require(rejected,"Изменение от чужой базы применено.");
 
             Debug.Log($"Изменения мира: PASS — A→B частей {changed}, {encoded.Length} символов вместо {b.Json.Length} " +
-                $"({100.0*encoded.Length/b.Json.Length:F1}%), сборка у хоста {composeMs:F1} мс, применение {applyMs:F1} мс; смена состава, отказ чужой базе.");
+                $"({100.0*encoded.Length/b.Json.Length:F1}%), сборка у хоста {composeMs:F1} мс, применение {applyMs:F1} мс, следующее {apply2Ms:F1} мс; смена состава, отказ чужой базе.");
         }
 
         private static void Require(bool condition,string message) {if(!condition) throw new InvalidOperationException(message);}

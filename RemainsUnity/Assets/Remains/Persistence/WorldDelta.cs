@@ -70,6 +70,14 @@ namespace Remains.Persistence
         public string SnapshotId {get;private set;}
         private string template;
         private readonly Dictionary<string,List> lists=new(StringComparer.Ordinal);
+        // The objects the last apply put into each reusable list, by position: the live list still holding them at the
+        // same positions takes unchanged parts by reference, without key comparisons (~2200 parts per snapshot).
+        private readonly Dictionary<string,object[]> produced=new(StringComparer.Ordinal);
+        private sealed class Positions
+        {
+            public readonly object[] Last;public readonly bool[] Changed;
+            public Positions(object[] last,bool[] changed) {Last=last;Changed=changed;}
+        }
 
         public static WorldReplica FromSnapshot(RecoverySnapshot snapshot)
         {
@@ -92,6 +100,7 @@ namespace Remains.Persistence
                 throw new InvalidDataException($"Изменение мира от другой базы: ожидалась {SnapshotId}, получена {payload.baseSnapshot}, world={payload.world}.");
             var sets=new List<SnapshotPartCache.PartSet>();var nextLists=new Dictionary<string,List>(StringComparer.Ordinal);
             var changed=new HashSet<string>(StringComparer.Ordinal);
+            var changedAt=new Dictionary<string,bool[]>(StringComparer.Ordinal);   // same-order lists: changed positions
             foreach(var delta in payload.lists)
             {
                 if(!lists.TryGetValue(delta.name,out var before)) throw new InvalidDataException("Изменение неизвестного списка мира: "+delta.name);
@@ -103,12 +112,14 @@ namespace Remains.Persistence
                 {
                     // Same keys in the same order: the changed texts replace theirs by position.
                     var ordered=(string[])before.Texts.Clone();
+                    var at=new bool[ordered.Length];
                     for(int i=0;i<count;i++)
                     {
-                        if(!before.Index.TryGetValue(delta.keys[i],out int at))
+                        if(!before.Index.TryGetValue(delta.keys[i],out int position))
                             throw new InvalidDataException("Изменение списка "+delta.name+": новая часть "+delta.keys[i]+" без нового порядка.");
-                        ordered[at]=delta.texts[i];
+                        ordered[position]=delta.texts[i];at[position]=true;
                     }
+                    changedAt[delta.name]=at;
                     next=new List {Keys=before.Keys,Texts=ordered,Index=before.Index};
                 }
                 else
@@ -128,37 +139,47 @@ namespace Remains.Persistence
             WorldState world;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет (клиент)")) world=StateJson.FromJson<WorldState>(SnapshotPartCache.Skeleton(payload.template));
             bool same=current?.worldId==WorldId;
+            var outputs=new Dictionary<string,object[]>(StringComparer.Ordinal);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части (клиент)"))
             foreach(var set in sets)
+            {
+                Positions positions=same && changedAt.TryGetValue(set.Name,out var at) && produced.TryGetValue(set.Name,out var last)?new Positions(last,at):null;
                 switch(set.Name)
                 {
-                    case "containers": Fill(world.containers,set,same?current.containers:null,changed,body=>body.id,_=>true);break;
-                    case "props": Fill(world.props,set,same?current.props:null,changed,body=>body.id,body=>body.GetType()==typeof(PropState));break;
-                    case "lamps": Fill(world.lamps,set,same?current.lamps:null,changed,lamp=>lamp.id,_=>true);break;
-                    case "doors": Fill(world.doors,set,same?current.doors:null,changed,door=>door.id,_=>true);break;
+                    case "containers": outputs[set.Name]=Fill(world.containers,set,same?current.containers:null,changed,body=>body.id,_=>true,positions);break;
+                    case "props": outputs[set.Name]=Fill(world.props,set,same?current.props:null,changed,body=>body.id,body=>body.GetType()==typeof(PropState),positions);break;
+                    case "lamps": outputs[set.Name]=Fill(world.lamps,set,same?current.lamps:null,changed,lamp=>lamp.id,_=>true,positions);break;
+                    case "doors": outputs[set.Name]=Fill(world.doors,set,same?current.doors:null,changed,door=>door.id,_=>true,positions);break;
                     // Actors and projectiles are always fresh objects: the client changes its own ones locally.
-                    case "actors": Fill(world.actors,set,null,changed,actor=>actor.id,_=>false);break;
-                    case "factories": Fill(world.factories,set,same?current.factories:null,changed,factory=>factory.level,_=>true);break;
-                    case "projectiles": Fill(world.projectiles,set,null,changed,flight=>flight.launch?.id,_=>false);break;
+                    case "actors": Fill(world.actors,set,null,changed,actor=>actor.id,_=>false,null);break;
+                    case "factories": outputs[set.Name]=Fill(world.factories,set,same?current.factories:null,changed,factory=>factory.level,_=>true,positions);break;
+                    case "projectiles": Fill(world.projectiles,set,null,changed,flight=>flight.launch?.id,_=>false,null);break;
                     default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
                 }
+            }
             var snapshot=RecoverySnapshot.Assembled(payload.template,sets,payload.snapshot,world);
             template=payload.template;SnapshotId=payload.snapshot;
             lists.Clear();foreach(var pair in nextLists) lists.Add(pair.Key,pair.Value);
+            produced.Clear();foreach(var pair in outputs) produced.Add(pair.Key,pair.Value);
             return snapshot;
         }
 
         // Unchanged parts reuse the live object of the same key: normally at the same position (checked by ID, no
         // allocation); any other order falls back to an index of the live list built once. Without a live object an
         // unchanged text is read by the trusted reader: it was strictly parsed when it reached this replica.
-        private static void Fill<T>(List<T> target,SnapshotPartCache.PartSet set,List<T> live,HashSet<string> changed,Func<T,string> id,Func<T,bool> reusable)
+        private static object[] Fill<T>(List<T> target,SnapshotPartCache.PartSet set,List<T> live,HashSet<string> changed,Func<T,string> id,Func<T,bool> reusable,
+            Positions positions)
             where T:class
         {
             if(target.Capacity<set.Keys.Length) target.Capacity=set.Keys.Length;
             int prefix=set.Name.Length+1;
             Dictionary<string,T> byKey=null;
+            bool aligned=positions!=null && live!=null && positions.Last.Length==set.Keys.Length && positions.Changed.Length==set.Keys.Length;
             for(int i=0;i<set.Keys.Length;i++)
             {
+                // The object this replica put here last time, still in the live list at this position and unchanged.
+                if(aligned && !positions.Changed[i] && i<live.Count && live[i]!=null && ReferenceEquals(live[i],positions.Last[i]))
+                {target.Add(live[i]);continue;}
                 string key=set.Keys[i];T item=null;
                 if(live!=null && !changed.Contains(key))
                 {
@@ -178,6 +199,8 @@ namespace Remains.Persistence
                 }
                 target.Add(item??(changed.Contains(key)?StateJson.FromJson<T>(set.Texts[i]):StateJson.FromTrustedJson<T>(set.Texts[i])));
             }
+            var result=new object[target.Count];for(int i=0;i<result.Length;i++) result[i]=target[i];
+            return result;
         }
     }
 }

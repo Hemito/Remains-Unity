@@ -69,10 +69,13 @@ namespace Remains.Networking
         // What the current Changed notification changed (valid during the handlers; All outside and for every
         // notification that does not know better). A consumer skips work for unchanged parts.
         public WorldChangeKind LastChange {get;private set;}=WorldChangeKind.All;
-        private void RaiseChanged(WorldChangeKind kind=WorldChangeKind.All)
+        // The changed part keys of the current notification ("containers:<id>", "props:<id>"...) when known exactly
+        // (a delta that kept every list's composition); null means any part may have changed.
+        public IReadOnlyCollection<string> LastChangedParts {get;private set;}
+        private void RaiseChanged(WorldChangeKind kind=WorldChangeKind.All,IReadOnlyCollection<string> parts=null)
         {
             var handlers=Changed;if(handlers==null) return;
-            LastChange=kind;
+            LastChange=kind;LastChangedParts=kind==WorldChangeKind.All?null:parts;
             try
             {
                 foreach(Action handler in handlers.GetInvocationList())
@@ -82,7 +85,7 @@ namespace Remains.Networking
                     using(Remains.Diagnostics.FrameHitchLog.Section("Мир изменился → "+(method.DeclaringType?.DeclaringType?.Name??owner)+"."+method.Name)) handler();
                 }
             }
-            finally {LastChange=WorldChangeKind.All;}
+            finally {LastChange=WorldChangeKind.All;LastChangedParts=null;}
         }
         public event Action SessionStopped;
         public event Action<string,string,float,float> RemotePoseCorrection;
@@ -332,7 +335,7 @@ namespace Remains.Networking
                 }
                 // The verified snapshot is passed itself; its whole text is not needed here (built lazily for the save).
                 if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor},received.snapshot);
-                else ReceiveWorld(new WorldMessage(),received.snapshot,received.changes);
+                else ReceiveWorld(new WorldMessage(),received.snapshot,received.changes,received.changedParts);
             }));
             NetworkClient.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Client<ActorMessage>(message =>
             {
@@ -525,7 +528,7 @@ namespace Remains.Networking
             if(ReferenceEquals(World,welcomed) && !GameplayFailurePending) EntryPreparation.CompleteAdmission();
         }
 
-        private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null,WorldChangeKind changes=WorldChangeKind.All)
+        private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null,WorldChangeKind changes=WorldChangeKind.All,IReadOnlyCollection<string> changedParts=null)
         {
             if(World==null || LocalActorId==null) throw new InvalidOperationException("Получен игровой снимок до фактического входа в мир.");
             using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
@@ -592,7 +595,8 @@ namespace Remains.Networking
             World = incoming;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подтверждение (клиент)")) QueueRecoveryReceipt(snapshot);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: событие «мир изменился» (клиент)"))
-                if(publishHealing && LocalActor!=null) PublishActor(LocalActor,sameWorld?changes:WorldChangeKind.All);else RaiseChanged(sameWorld?changes:WorldChangeKind.All);
+                if(publishHealing && LocalActor!=null) PublishActor(LocalActor,sameWorld?changes:WorldChangeKind.All);
+                else RaiseChanged(sameWorld?changes:WorldChangeKind.All,sameWorld?changedParts:null);
         }
 
         private WorldState PersistCopy(RecoverySnapshot snapshot,WorldState parsed=null)

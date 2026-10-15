@@ -129,9 +129,24 @@ namespace Remains.Presentation
                 return;
             }
             // Body and container views (~1400 on the factory) only when they, the level or the holders changed.
-            bool bodies=session.LastChange.Any(WorldChangeKind.Containers|WorldChangeKind.Props) || level!=refreshedLevel ||
-                heldColors==null || heldColors.Revision!=refreshedHolders;
+            bool sameContext=level==refreshedLevel && heldColors!=null && heldColors.Revision==refreshedHolders;
+            bool bodies=session.LastChange.Any(WorldChangeKind.Containers|WorldChangeKind.Props) || !sameContext;
             refreshedLevel=level;refreshedHolders=heldColors?.Revision??-1;
+            // Only some bodies changed (physics moves a few every snapshot): update those views, not all ~1400.
+            if(bodies && sameContext && !session.LastChange.Any(WorldChangeKind.Identity) && session.LastChangedParts!=null)
+            {
+                bodies=false;
+                foreach(string key in session.LastChangedParts)
+                {
+                    bool container=key.StartsWith("containers:",StringComparison.Ordinal);
+                    if(!container && !key.StartsWith("props:",StringComparison.Ordinal)) continue;
+                    string id=key.Substring(container?11:6);
+                    var part=WorldProps.Find(session.World,id);
+                    if(part==null) throw new InvalidOperationException($"Изменённое тело отсутствует в мире: {key}.");
+                    if(part.level!=level) {Remove(container?(Dictionary<string,PropView>)containers:props,id);continue;}
+                    if(part is ContainerState state) UpdateContainer(state,level);else UpdateProp(part,level);
+                }
+            }
             if(bodies)
             {
             foreach(var prop in session.World.props) if(prop.level==level) retainedProps.Add(prop.id);
@@ -144,21 +159,8 @@ namespace Remains.Presentation
             Prune(weapons,retainedWeapons);Prune(flights,retainedFlights);
             if(bodies)
             {
-            foreach(var container in session.World.containers)
-            {
-                if(container.level!=level) continue;
-                if(!containers.TryGetValue(container.id,out var view))
-                {view=propArtwork.CreateContainerView(container);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Container,container.id);containers.Add(container.id,view);}
-                view.ApplyContainerAppearance(container);
-                view.ApplyHeldAppearance(container,heldColors);
-                view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),0);view.SetVisible(container.level==session.LocalActor?.level);
-            }
-            foreach(var prop in session.World.props) if(prop.level==level)
-            {
-                if(!props.TryGetValue(prop.id,out var view))
-                {view=propArtwork.CreateView(prop.definition,prop.id,prop.width);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Prop,prop.id);props.Add(prop.id,view);}
-                view.ApplyHeldAppearance(prop,heldColors);
-            }
+            foreach(var container in session.World.containers) if(container.level==level) UpdateContainer(container,level);
+            foreach(var prop in session.World.props) if(prop.level==level) UpdateProp(prop,level);
             }
             foreach(var actor in session.World.actors)
                 if(ActorPresence.IsPresent(actor) && !string.IsNullOrEmpty(actor.weapon) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
@@ -172,6 +174,25 @@ namespace Remains.Presentation
                     view.gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(layers.Orders,WorldVisualKind.Grenade,flight.state.id,null,view,flight.state.level,true);
                     flights.Add(flight.state.id,view);
                 }
+        }
+        private void UpdateContainer(ContainerState container,string level)
+        {
+            if(!containers.TryGetValue(container.id,out var view))
+            {view=propArtwork.CreateContainerView(container);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Container,container.id);containers.Add(container.id,view);}
+            view.ApplyContainerAppearance(container);
+            view.ApplyHeldAppearance(container,heldColors);
+            view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),0);view.SetVisible(container.level==level);
+        }
+        private void UpdateProp(PropState prop,string level)
+        {
+            if(!props.TryGetValue(prop.id,out var view))
+            {view=propArtwork.CreateView(prop.definition,prop.id,prop.width);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Prop,prop.id);props.Add(prop.id,view);}
+            view.ApplyHeldAppearance(prop,heldColors);
+        }
+        private void Remove<T>(Dictionary<string,T> views,string id) where T:Component
+        {
+            if(!views.TryGetValue(id,out var view)) return;
+            view.gameObject.SetActive(false);Destroy(view.gameObject);views.Remove(id);
         }
         private void Prune<T>(Dictionary<string,T> views,HashSet<string> retained) where T:Component
         {
