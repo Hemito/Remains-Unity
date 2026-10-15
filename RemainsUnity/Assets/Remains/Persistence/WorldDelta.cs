@@ -125,43 +125,59 @@ namespace Remains.Persistence
                 nextLists[delta.name]=next;
             }
             // The live world: strict template, strict changed parts, reused unchanged objects.
-            var world=StateJson.FromJson<WorldState>(SnapshotPartCache.Skeleton(payload.template));
-            var reuse=new Dictionary<string,PropState>(StringComparer.Ordinal);var lamps=new Dictionary<string,LampState>(StringComparer.Ordinal);
-            var doors=new Dictionary<string,DoorState>(StringComparer.Ordinal);var factories=new Dictionary<string,WorldFactory>(StringComparer.Ordinal);
-            if(current?.worldId==WorldId)
-            {
-                foreach(var body in current.containers) reuse["containers:"+body.id]=body;
-                foreach(var body in current.props) reuse["props:"+body.id]=body;
-                foreach(var lamp in current.lamps) lamps["lamps:"+lamp.id]=lamp;
-                foreach(var door in current.doors) doors["doors:"+door.id]=door;
-                foreach(var factory in current.factories) factories["factories:"+factory.level]=factory;
-            }
+            WorldState world;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет (клиент)")) world=StateJson.FromJson<WorldState>(SnapshotPartCache.Skeleton(payload.template));
+            bool same=current?.worldId==WorldId;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части (клиент)"))
             foreach(var set in sets)
-                for(int i=0;i<set.Keys.Length;i++)
+                switch(set.Name)
                 {
-                    string key=set.Keys[i];bool fresh=changed.Contains(key);
-                    switch(set.Name)
-                    {
-                        case "containers":
-                            world.containers.Add(!fresh && reuse.TryGetValue(key,out var c) && c is ContainerState container?container:StateJson.FromJson<ContainerState>(set.Texts[i]));break;
-                        case "props":
-                            world.props.Add(!fresh && reuse.TryGetValue(key,out var p) && p.GetType()==typeof(PropState)?p:StateJson.FromJson<PropState>(set.Texts[i]));break;
-                        case "lamps":
-                            world.lamps.Add(!fresh && lamps.TryGetValue(key,out var l)?l:StateJson.FromJson<LampState>(set.Texts[i]));break;
-                        case "doors":
-                            world.doors.Add(!fresh && doors.TryGetValue(key,out var d)?d:StateJson.FromJson<DoorState>(set.Texts[i]));break;
-                        // Actors are always fresh: the client mutates its own actors locally every frame.
-                        case "actors":
-                            world.actors.Add(StateJson.FromJson<ActorState>(set.Texts[i]));break;
-                        case "factories":
-                            world.factories.Add(!fresh && factories.TryGetValue(key,out var f)?f:StateJson.FromJson<WorldFactory>(set.Texts[i]));break;
-                        default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
-                    }
+                    case "containers": Fill(world.containers,set,same?current.containers:null,changed,body=>body.id,_=>true);break;
+                    case "props": Fill(world.props,set,same?current.props:null,changed,body=>body.id,body=>body.GetType()==typeof(PropState));break;
+                    case "lamps": Fill(world.lamps,set,same?current.lamps:null,changed,lamp=>lamp.id,_=>true);break;
+                    case "doors": Fill(world.doors,set,same?current.doors:null,changed,door=>door.id,_=>true);break;
+                    // Actors and projectiles are always fresh objects: the client changes its own ones locally.
+                    case "actors": Fill(world.actors,set,null,changed,actor=>actor.id,_=>false);break;
+                    case "factories": Fill(world.factories,set,same?current.factories:null,changed,factory=>factory.level,_=>true);break;
+                    case "projectiles": Fill(world.projectiles,set,null,changed,flight=>flight.launch?.id,_=>false);break;
+                    default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
                 }
             var snapshot=RecoverySnapshot.Assembled(payload.template,sets,payload.snapshot,world);
             template=payload.template;SnapshotId=payload.snapshot;
             lists.Clear();foreach(var pair in nextLists) lists.Add(pair.Key,pair.Value);
             return snapshot;
+        }
+
+        // Unchanged parts reuse the live object of the same key: normally at the same position (checked by ID, no
+        // allocation); any other order falls back to an index of the live list built once. Without a live object an
+        // unchanged text is read by the trusted reader: it was strictly parsed when it reached this replica.
+        private static void Fill<T>(List<T> target,SnapshotPartCache.PartSet set,List<T> live,HashSet<string> changed,Func<T,string> id,Func<T,bool> reusable)
+            where T:class
+        {
+            if(target.Capacity<set.Keys.Length) target.Capacity=set.Keys.Length;
+            int prefix=set.Name.Length+1;
+            Dictionary<string,T> byKey=null;
+            for(int i=0;i<set.Keys.Length;i++)
+            {
+                string key=set.Keys[i];T item=null;
+                if(live!=null && !changed.Contains(key))
+                {
+                    var candidate=i<live.Count?live[i]:null;
+                    string candidateId=candidate==null?null:id(candidate);
+                    if(candidateId!=null && key.Length==prefix+candidateId.Length && string.CompareOrdinal(key,prefix,candidateId,0,candidateId.Length)==0) item=candidate;
+                    else
+                    {
+                        if(byKey==null)
+                        {
+                            byKey=new Dictionary<string,T>(live.Count,StringComparer.Ordinal);
+                            foreach(var each in live) if(each!=null && id(each)!=null) byKey[set.Name+":"+id(each)]=each;
+                        }
+                        byKey.TryGetValue(key,out item);
+                    }
+                    if(item!=null && !reusable(item)) item=null;
+                }
+                target.Add(item??(changed.Contains(key)?StateJson.FromJson<T>(set.Texts[i]):StateJson.FromTrustedJson<T>(set.Texts[i])));
+            }
         }
     }
 }

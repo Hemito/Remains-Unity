@@ -23,7 +23,9 @@ namespace Remains.Persistence
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,Dictionary<string,(object part,string text)>> partTexts=new();
         private static readonly HashSet<string> warnedUnmarked=new(StringComparer.Ordinal);
         public static int LastUnmarked {get;private set;}
-        public const int VerifyEvery=10;
+        // Rolling audit: each composition re-serializes every VerifyEvery-th part (by list position, shifting each
+        // time), so every part is verified once per VerifyEvery compositions without a whole-world spike.
+        public const int VerifyEvery=30;
         private static long compositions;
 
         // A world as a template plus ordered part lists (delta replication, host-migration.md): the template is the
@@ -44,14 +46,18 @@ namespace Remains.Persistence
             // The whole text; built on demand (RecoverySnapshot keeps it lazy, off the game thread where possible).
             public string Json=>Splice(Template,Lists);
         }
-        public static readonly string[] ListNames={"containers","props","lamps","doors","actors","factories"};
+        public static readonly string[] ListNames={"containers","props","lamps","doors","actors","factories","projectiles"};
+        // Lists serialized on every composition (their objects change without marks, e.g. local motion, flight
+        // progress); an unchanged text is still accepted by key without a strict parse, and deltas carry only changes.
+        internal static bool AlwaysSerialized(string list)=>list=="actors" || list=="projectiles";
         // Part key within its list: the stable ID (a factory by its level).
         internal static string PartId(object item)=>item switch
         {
-            PropState body=>body.id,LampState lamp=>lamp.id,DoorState door=>door.id,ActorState actor=>actor.id,WorldFactory factory=>factory.level,_=>null
+            PropState body=>body.id,LampState lamp=>lamp.id,DoorState door=>door.id,ActorState actor=>actor.id,WorldFactory factory=>factory.level,
+            ProjectileState flight=>flight.launch?.id,_=>null
         };
         internal static string ListName(Type type)=>type==typeof(ContainerState)?"containers":type==typeof(PropState)?"props":type==typeof(LampState)?"lamps":
-            type==typeof(DoorState)?"doors":type==typeof(ActorState)?"actors":type==typeof(WorldFactory)?"factories":
+            type==typeof(DoorState)?"doors":type==typeof(ActorState)?"actors":type==typeof(WorldFactory)?"factories":type==typeof(ProjectileState)?"projectiles":
             throw new ArgumentException("Тип не является частью мира: "+type.Name);
         public static string Marker(string list)=>""+list+"";
 
@@ -109,9 +115,10 @@ namespace Remains.Persistence
                 var next=new Dictionary<Type,HashSet<string>>();
                 partTexts.TryGetValue(world,out var previousTexts);
                 var audit=new Audit(world,previousTexts,new Dictionary<string,(object part,string text)>(StringComparer.Ordinal))
-                    {Verify=previousTexts==null || ++compositions%VerifyEvery==0};
+                    {Verify=previousTexts==null,Round=++compositions};
                 var lists=new JsonConverter[] {new PartList<ContainerState>(next,audit),new PartList<PropState>(next,audit),new PartList<LampState>(next,audit),
-                    new PartList<DoorState>(next,audit),new PartList<ActorState>(next,audit),new PartList<WorldFactory>(next,audit)};
+                    new PartList<DoorState>(next,audit),new PartList<ActorState>(next,audit),new PartList<WorldFactory>(next,audit),
+                    new PartList<ProjectileState>(next,audit)};
                 string template;
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: части")) template=StateJson.ToJson(world,lists);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: скелет")) StateJson.FromJson<WorldState>(Skeleton(template));   // strict outside the parts
@@ -125,7 +132,7 @@ namespace Remains.Persistence
                 // Marker order in the template follows WorldState field order; Splice expects the same order.
                 Array.Sort(sets,(a,b)=>template.IndexOf(Marker(a.Name),StringComparison.Ordinal).CompareTo(template.IndexOf(Marker(b.Name),StringComparison.Ordinal)));
                 LastUnmarked=audit.Unmarked;
-                report.Append(audit.Verify?"; сверка всех частей":"; готовых текстов "+audit.Reused);
+                report.Append(audit.Verify?"; сверка всех частей":"; готовых текстов "+audit.Reused+", сверено "+audit.Verified);
                 if(audit.Unmarked>0) report.Append("; непомеченных изменений ").Append(audit.Unmarked).Append(" [").Append(audit.Example).Append(']');
                 LastReport=report.ToString();
                 accepted=next;   // only after the whole composition succeeded
@@ -141,7 +148,7 @@ namespace Remains.Persistence
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
             var lists=new JsonConverter[] {new PlainList<ContainerState>(),new PlainList<PropState>(),new PlainList<LampState>(),
-                new PlainList<DoorState>(),new PlainList<ActorState>(),new PlainList<WorldFactory>()};
+                new PlainList<DoorState>(),new PlainList<ActorState>(),new PlainList<WorldFactory>(),new PlainList<ProjectileState>()};
             string template=StateJson.ToJson(world,lists);
             var sets=new PartSet[lists.Length];
             for(int i=0;i<lists.Length;i++) sets[i]=((IPlainList)lists[i]).Set;
@@ -180,29 +187,32 @@ namespace Remains.Persistence
         {
             public readonly WorldState World;
             public readonly Dictionary<string,(object part,string text)> Previous,Current;
-            public int Unmarked,Reused;public string Example;
-            public bool Verify;   // this composition re-serializes everything and audits the marks
+            public int Unmarked,Reused,Verified;public string Example;
+            public bool Verify;   // this composition re-serializes everything (no previous texts)
+            public long Round;
             public Audit(WorldState world,Dictionary<string,(object part,string text)> previous,Dictionary<string,(object part,string text)> current)
             {World=world;Previous=previous;Current=current;}
-            public bool Reuse(string kind,string id,object part,out string text)
+            // key: the part key (list:id); always-serialized lists (actors, projectiles) are never reused.
+            public bool Reuse(string key,bool actor,object part,int index,out string text)
             {
                 text=null;
-                if(Verify || id==null || kind==nameof(ActorState) || !WorldChanges.IsTracked(World) || Previous==null || !Previous.TryGetValue(kind+":"+id,out var before) ||
+                if(!Verify && (index+Round)%VerifyEvery==0) {Verified++;return false;}
+                if(Verify || actor || !WorldChanges.IsTracked(World) || Previous==null || !Previous.TryGetValue(key,out var before) ||
                     !ReferenceEquals(before.part,part) || WorldChanges.IsMarked(World,part)) return false;
                 text=before.text;Reused++;return true;
             }
-            public void Observe(string kind,string id,object part,string text)
+            // The same text as this part's stored one (accepted when stored): a re-serialized unchanged part.
+            public bool Stored(string key,string text)=>Previous!=null && Previous.TryGetValue(key,out var before) && string.Equals(before.text,text,StringComparison.Ordinal);
+            public void Observe(string key,bool actor,object part,string text)
             {
-                if(id==null) return;
-                string key=kind+":"+id;
-                // Actors are always re-serialized (never reused), so an unmarked actor change is expected, not a gap.
-                if(kind!=nameof(ActorState) && Previous!=null && Previous.TryGetValue(key,out var before) && ReferenceEquals(before.part,part) &&
+                // Always-serialized parts are never reused, so their unmarked changes are expected, not a gap.
+                if(!actor && Previous!=null && Previous.TryGetValue(key,out var before) && ReferenceEquals(before.part,part) &&
                     before.text!=text && !WorldChanges.IsMarked(World,part))
                 {
                     Unmarked++;
                     string field=Field(before.text,text);
                     Example??=key+" ("+field+")";
-                    if(warnedUnmarked.Add(kind+"."+field))
+                    if(warnedUnmarked.Add(key.Substring(0,key.IndexOf(':'))+"."+field))
                         UnityEngine.Debug.LogWarning($"Непомеченное изменение части мира: {key}, поле {field} (нет WorldChanges.Mark в месте изменения). Было: {Around(before.text,text)}");
                 }
                 Current[key]=(part,text);
@@ -254,20 +264,27 @@ namespace Remains.Persistence
                     foreach(var item in list)
                     {
                         string id=PartId(item);
-                        // Stage 1 on: an unmarked part that is still the same object keeps its stored text; every
-                        // VerifyEvery-th composition re-serializes all parts and reports unmarked changes (Audit).
-                        string text=item==null?"null":audit!=null && audit.Reuse(typeof(T).Name,id,item,out var stored)?stored:StateJson.ToJson(item);
-                        if(item!=null && !(previous?.Contains(text)??false) && !current.Contains(text))
+                        string key=Name+":"+(id??"#"+index);
+                        bool actor=AlwaysSerialized(Name);
+                        // Stage 1 on: an unmarked part that is still the same object keeps its stored text; one
+                        // part in VerifyEvery is re-serialized each composition (rolling) and unmarked changes are reported (Audit).
+                        // A reused text was accepted when it was stored (immutable string): no strict check and no
+                        // hashing of it into the accepted sets, which cost a pass over the whole ~1.25 MB per snapshot.
+                        string stored=null;
+                        bool reused=item!=null && id!=null && audit!=null && audit.Reuse(key,actor,item,index,out stored);
+                        string text=item==null?"null":reused?stored:StateJson.ToJson(item);
+                        if(item!=null && !reused && !(audit?.Stored(key,text)??false) && !(previous?.Contains(text)??false) && !current.Contains(text))
                         {
                             StateJson.FromJson<T>(text);   // the same strict check the whole-world parse applies to it
                             Parsed++;
                             if(example==null && index<before.Count) example=Difference(before[index],text);
                         }
                         if(index<before.Count) before[index]=text; else before.Add(text);
-                        if(item!=null) audit?.Observe(typeof(T).Name,id,item,text);
+                        if(item!=null && id!=null) audit?.Observe(key,actor,item,text);
                         index++;
-                        current.Add(text);Parts++;
-                        keys.Add(Name+":"+(id??"#"+(index-1)));texts.Add(text);
+                        if(!reused) current.Add(text);
+                        Parts++;
+                        keys.Add(key);texts.Add(text);
                     }
                 }
             }

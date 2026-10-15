@@ -11,7 +11,7 @@ namespace Remains.Networking
     public struct ProtocolReply : NetworkMessage {public int version;public bool accepted;public string reason;}
     public static class SessionProtocol
     {
-        public const int Version=70;   // 70: delta world replication (WorldPartMessage.baseSnapshot, WorldResyncRequest)
+        public const int Version=71;   // 70: delta world replication (WorldPartMessage.baseSnapshot, WorldResyncRequest); 71: projectiles as delta parts
         public static string Rejection(int offered)=>offered==Version?null:
             $"Несовместимый сетевой протокол: у клиента {offered}, у хоста {Version}. Используйте совместимые сборки. Сохранения не загружены.";
     }
