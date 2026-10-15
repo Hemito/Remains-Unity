@@ -19,7 +19,7 @@ namespace Remains.Gameplay
             Room=room??throw new ArgumentNullException(nameof(room));
             authored=room.platforms??throw new ArgumentException("У комнаты нет поверхностей.");
             RoomSurfaces.Prepare(Room);
-            publishedSolids=SolidShape(authored);
+            publishedSolids=SolidShape(authored);   // authored surfaces carry no door ID: empty
         }
         public bool Reconcile(IReadOnlyList<DoorState> doors,string level)
         {
@@ -42,9 +42,11 @@ namespace Remains.Gameplay
             if(publishedSolids.SequenceEqual(solids)) return false;
             publishedSolids=solids;OcclusionRevision++;return true;
         }
-        // Compare actual composed obstacles, independent of door IDs, texture, HP or list order.
+        // Compare actual composed obstacles, independent of door IDs, texture, HP or list order. Only the door
+        // surfaces (DoorGeometry.Compose appends them to the unchanged authored ones): sorting all ~7900 factory
+        // surfaces on every door change compared the same authored part each time.
         private static (float x,float y,float width,float height)[] SolidShape(RoomSurface[] surfaces)
-            =>surfaces.Where(surface=>!surface.oneWay).Select(surface=>(surface.x,surface.y,surface.width,surface.height))
+            =>surfaces.Where(surface=>surface.sourceDoorId!=null && !surface.oneWay).Select(surface=>(surface.x,surface.y,surface.width,surface.height))
                 .OrderBy(shape=>shape.x).ThenBy(shape=>shape.y).ThenBy(shape=>shape.width).ThenBy(shape=>shape.height).ToArray();
     }
 }

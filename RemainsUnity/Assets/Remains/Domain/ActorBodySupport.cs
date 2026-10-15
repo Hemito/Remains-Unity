@@ -53,6 +53,15 @@ namespace Remains.Domain
             if(room==null) throw new ArgumentNullException(nameof(room));
             if(rooms.TryGetValue(room,out var prepared)) prepared.Rebuild();
         }
+        // Checks: the prepared topology of a room (prepared or re-prepared as Bind would) as text — surfaces, joins with
+        // their intervals and the bins, in index order.
+        public static string PreparedSignature(RoomLayout room)
+        {
+            if(room==null) throw new ArgumentNullException(nameof(room));
+            var prepared=rooms.GetValue(room,key=>new PreparedRoom(key));
+            if(!prepared.MatchesTopology) prepared.Rebuild();
+            return prepared.Signature();
+        }
         public static void SetDropping(ActorState actor,bool dropping)
         {
             if(actor!=null && actors.TryGetValue(actor,out var binding) && binding.Dropping!=dropping)
@@ -213,63 +222,170 @@ namespace Remains.Domain
             private int mark,queryCount,staticCount,dynamicCount;
             private DynamicSurfaceFrame dynamicFrame;private long dynamicTopology;
             public PreparedRoom(RoomLayout layout) {Layout=layout;Rebuild();}
+            // Authored surfaces (the level's own) and their joins are prepared once; door surfaces are appended after
+            // them (DoorGeometry.Compose), so a door change re-prepares only the door tail and the joins of its
+            // neighbours (AGENTS: a door recomputes its own surface and neighbours; the full factory preparation was
+            // 12-24 ms per door). The result is identical to a full preparation (BodySupportDoorChecks).
+            private int authoredCount=-1;
+            private Surface[] authoredSurfaces;
+            private Edge[][] authoredEdges;
+            private Dictionary<int,int[]> authoredBins;
+            private Dictionary<long,List<int>> authoredCells;
+            private (float x,float y,float width,float height,int slope,bool oneWay,string texture,string sound)[] authoredValues;
+            private static (float,float,float,float,int,bool,string,string) Values(RoomSurface surface)
+                =>(surface.x,surface.y,surface.width,surface.height,surface.slopeDirection,surface.oneWay,surface.texture,surface.movementSound);
             public void Rebuild()
             {
                 if(!float.IsFinite(Layout.left) || !float.IsFinite(Layout.right) || !float.IsFinite(Layout.bottom) || !float.IsFinite(Layout.top) ||
                     Layout.left>=Layout.right || Layout.bottom>=Layout.top || Layout.platforms==null)
                     throw new InvalidOperationException("Некорректные границы подготовки опоры тела: room="+Layout.id);
-                source=Layout.platforms;staticCount=source.Length;dynamicFrame=Layout.dynamicSurfaces;
+                var next=Layout.platforms;
+                int authored=0;while(authored<next.Length && next[authored]?.sourceDoorId==null) authored++;
+                for(int k=authored;k<next.Length;k++)
+                    if(next[k]?.sourceDoorId==null) throw new InvalidOperationException($"Поверхность уровня после поверхностей дверей: room={Layout.id}, index={k}.");
+                bool sameAuthored=authoredEdges!=null && authored==authoredCount && source!=null && source.Length>=authored;
+                // Same objects with the same values: a surface edited in place must be prepared (and validated) again.
+                for(int k=0;sameAuthored && k<authored;k++) sameAuthored=ReferenceEquals(source[k],next[k]) && authoredValues[k].Equals(Values(next[k]));
+                if(!sameAuthored) PrepareAuthored(next,authored);
+                source=next;staticCount=next.Length;dynamicFrame=Layout.dynamicSurfaces;
                 dynamicCount=dynamicFrame?.Count??0;dynamicTopology=dynamicFrame?.TopologyVersion??0;
                 surfaces=new Surface[staticCount+dynamicCount];edges=new Edge[staticCount][];
                 query=new int[surfaces.Length];marks=new int[surfaces.Length];queue=new int[surfaces.Length];eligible=new bool[surfaces.Length];
-                var buildingBins=new Dictionary<int,List<int>>();var gradients=new HashSet<double>();bins.Clear();mark=0;
-                for(int i=0;i<staticCount;i++)
+                mark=0;
+                Array.Copy(authoredSurfaces,surfaces,authored);
+                bins.Clear();foreach(var pair in authoredBins) bins.Add(pair.Key,pair.Value);
+                var gradients=new HashSet<double>();
+                var tailBins=new Dictionary<int,List<int>>();var tailCells=new Dictionary<long,List<int>>();
+                for(int k=authored;k<staticCount;k++)
                 {
-                    surfaces[i]=new Surface(source[i],Layout.id,i,Layout.movementSound);gradients.Add(surfaces[i].Gradient);
-                    int first=Bin(surfaces[i].Left),last=Bin(surfaces[i].Right);
-                    if((long)last-first>65536) throw new InvalidOperationException($"Слишком протяжённая опора: room={Layout.id}, index={i}.");
-                    for(int bin=first;bin<=last;bin++)
-                    {if(!buildingBins.TryGetValue(bin,out var list)) buildingBins.Add(bin,list=new());list.Add(i);}
+                    surfaces[k]=new Surface(source[k],Layout.id,k,Layout.movementSound);gradients.Add(surfaces[k].Gradient);
+                    AddBins(tailBins,surfaces[k],k);AddCells(tailCells,surfaces[k],k);
                 }
-                foreach(var pair in buildingBins) bins.Add(pair.Key,pair.Value.ToArray());
-                // Joined surfaces overlap horizontally and meet in height (Join), so they share a cell of a coarse
-                // x/height grid: candidates come from the surface's own cells (ascending, as the former all-pairs
-                // scan) instead of all 7884² factory pairs (~2 s per door change, 2026-10-14).
-                var cells=new Dictionary<long,List<int>>();
-                long Cell(int x,int y)=>((long)x<<32)^(uint)y;
-                (int x0,int x1,int y0,int y1) Span(Surface surface)
+                foreach(var pair in tailBins)
                 {
-                    double a=surface.Gradient*surface.Left+surface.Intercept,b=surface.Gradient*surface.Right+surface.Intercept;
-                    double tolerance=RoomSupport.ContactTolerance;
-                    return (Bin(surface.Left),Bin(surface.Right),Bin(Math.Min(a,b)-tolerance),Bin(Math.Max(a,b)+tolerance));
+                    if(bins.TryGetValue(pair.Key,out var existing))
+                    {var merged=new int[existing.Length+pair.Value.Count];existing.CopyTo(merged,0);pair.Value.CopyTo(merged,existing.Length);bins[pair.Key]=merged;}
+                    else bins.Add(pair.Key,pair.Value.ToArray());
                 }
-                for(int i=0;i<staticCount;i++)
-                {
-                    var span=Span(surfaces[i]);
-                    for(int x=span.x0;x<=span.x1;x++) for(int y=span.y0;y<=span.y1;y++)
-                    {if(!cells.TryGetValue(Cell(x,y),out var list)) cells.Add(Cell(x,y),list=new List<int>());list.Add(i);}
-                }
+                // Joins of the door tail: each door surface against authored and door candidates (ascending, as the
+                // full preparation); an authored neighbour gets its door edges after its authored ones.
+                var extra=new Dictionary<int,List<Edge>>();
                 var candidates=new List<int>();var seen=new bool[staticCount];
-                for(int i=0;i<staticCount;i++)
+                for(int k=authored;k<staticCount;k++)
                 {
-                    var neighbors=new List<Edge>();
                     candidates.Clear();
-                    var span=Span(surfaces[i]);
-                    for(int x=span.x0;x<=span.x1;x++) for(int y=span.y0;y<=span.y1;y++)
-                        if(cells.TryGetValue(Cell(x,y),out var members))
-                            foreach(int member in members) if(!seen[member]) {seen[member]=true;candidates.Add(member);}
+                    Candidates(authoredCells,surfaces[k],candidates,seen);Candidates(tailCells,surfaces[k],candidates,seen);
                     foreach(int member in candidates) seen[member]=false;
                     candidates.Sort();
-                    foreach(int j in candidates)
+                    var neighbors=new List<Edge>();
+                    foreach(int other in candidates)
                     {
-                        if(j<i && SameGeometry(surfaces[i],surfaces[j]) && (surfaces[i].Texture!=surfaces[j].Texture || surfaces[i].Sound!=surfaces[j].Sound))
-                            Debug.LogWarning($"Неоднозначный материал совпадающих опор: room={Layout.id}, indices={j}/{i}, bounds={surfaces[i].Bounds}, textures={surfaces[j].Texture}/{surfaces[i].Texture}, banks={surfaces[j].Sound}/{surfaces[i].Sound}. Для одинаковой физики выбран ordinal texture, затем bank.");
-                        if(i!=j && Join(surfaces[i],surfaces[j],out double left,out double right)) neighbors.Add(new Edge(j,left,right));
+                        WarnAmbiguous(k,other);
+                        if(other!=k && Join(surfaces[k],surfaces[other],out double left,out double right)) neighbors.Add(new Edge(other,left,right));
+                        // The authored side of the same join, as its own full preparation computes it.
+                        if(other<authored && Join(surfaces[other],surfaces[k],out double backLeft,out double backRight))
+                        {if(!extra.TryGetValue(other,out var list)) extra.Add(other,list=new List<Edge>());list.Add(new Edge(k,backLeft,backRight));}
                     }
-                    edges[i]=neighbors.ToArray();
+                    edges[k]=neighbors.ToArray();
+                }
+                for(int k=0;k<authored;k++)
+                {
+                    if(!extra.TryGetValue(k,out var doors)) {edges[k]=authoredEdges[k];continue;}
+                    doors.Sort((a,b)=>a.Target.CompareTo(b.Target));
+                    var combined=new Edge[authoredEdges[k].Length+doors.Count];
+                    authoredEdges[k].CopyTo(combined,0);doors.CopyTo(combined,authoredEdges[k].Length);edges[k]=combined;
                 }
                 // Published dynamic platforms are flat; no per-frame gradient preparation.
                 gradients.Add(0);foreach(double gradient in gradients) FootSupportCatalog.PrepareGradient(gradient);Revision++;
+            }
+            private void PrepareAuthored(RoomSurface[] next,int authored)
+            {
+                authoredCount=-1;authoredEdges=null;   // until this preparation succeeds
+                authoredSurfaces=new Surface[authored];var edgesBeingBuilt=new Edge[authored][];
+                authoredValues=new (float,float,float,float,int,bool,string,string)[authored];
+                var buildingBins=new Dictionary<int,List<int>>();var gradients=new HashSet<double>();
+                authoredCells=new Dictionary<long,List<int>>();
+                for(int i=0;i<authored;i++)
+                {
+                    authoredSurfaces[i]=new Surface(next[i],Layout.id,i,Layout.movementSound);gradients.Add(authoredSurfaces[i].Gradient);
+                    authoredValues[i]=Values(next[i]);
+                    AddBins(buildingBins,authoredSurfaces[i],i);AddCells(authoredCells,authoredSurfaces[i],i);
+                }
+                authoredBins=new Dictionary<int,int[]>();
+                foreach(var pair in buildingBins) authoredBins.Add(pair.Key,pair.Value.ToArray());
+                // Joined surfaces overlap horizontally and meet in height (Join), so they share a cell of a coarse
+                // x/height grid: candidates come from the surface's own cells (ascending, as the former all-pairs
+                // scan) instead of all 7884^2 factory pairs (~2 s per door change, 2026-10-14).
+                var candidates=new List<int>();var seen=new bool[authored];
+                var previousSurfaces=surfaces;surfaces=authoredSurfaces;
+                try
+                {
+                    for(int i=0;i<authored;i++)
+                    {
+                        var neighbors=new List<Edge>();
+                        candidates.Clear();Candidates(authoredCells,authoredSurfaces[i],candidates,seen);
+                        foreach(int member in candidates) seen[member]=false;
+                        candidates.Sort();
+                        foreach(int j in candidates)
+                        {
+                            WarnAmbiguous(i,j);
+                            if(i!=j && Join(authoredSurfaces[i],authoredSurfaces[j],out double left,out double right)) neighbors.Add(new Edge(j,left,right));
+                        }
+                        edgesBeingBuilt[i]=neighbors.ToArray();
+                    }
+                }
+                finally {surfaces=previousSurfaces;}
+                gradients.Add(0);foreach(double gradient in gradients) FootSupportCatalog.PrepareGradient(gradient);
+                authoredEdges=edgesBeingBuilt;authoredCount=authored;
+            }
+            // Duplicate physics with different materials: warned once per pair (lower index first), as before.
+            private void WarnAmbiguous(int i,int j)
+            {
+                if(j<i && SameGeometry(surfaces[i],surfaces[j]) && (surfaces[i].Texture!=surfaces[j].Texture || surfaces[i].Sound!=surfaces[j].Sound))
+                    Debug.LogWarning($"Неоднозначный материал совпадающих опор: room={Layout.id}, indices={j}/{i}, bounds={surfaces[i].Bounds}, textures={surfaces[j].Texture}/{surfaces[i].Texture}, banks={surfaces[j].Sound}/{surfaces[i].Sound}. Для одинаковой физики выбран ordinal texture, затем bank.");
+            }
+            private static void AddBins(Dictionary<int,List<int>> target,Surface surface,int index)
+            {
+                int first=Bin(surface.Left),last=Bin(surface.Right);
+                if((long)last-first>65536) throw new InvalidOperationException($"Слишком протяжённая опора: index={index}.");
+                for(int bin=first;bin<=last;bin++)
+                {if(!target.TryGetValue(bin,out var list)) target.Add(bin,list=new());list.Add(index);}
+            }
+            private static long Cell(int x,int y)=>((long)x<<32)^(uint)y;
+            private static (int x0,int x1,int y0,int y1) Span(Surface surface)
+            {
+                double a=surface.Gradient*surface.Left+surface.Intercept,b=surface.Gradient*surface.Right+surface.Intercept;
+                double tolerance=RoomSupport.ContactTolerance;
+                return (Bin(surface.Left),Bin(surface.Right),Bin(Math.Min(a,b)-tolerance),Bin(Math.Max(a,b)+tolerance));
+            }
+            private static void AddCells(Dictionary<long,List<int>> cells,Surface surface,int index)
+            {
+                var span=Span(surface);
+                for(int x=span.x0;x<=span.x1;x++) for(int y=span.y0;y<=span.y1;y++)
+                {if(!cells.TryGetValue(Cell(x,y),out var list)) cells.Add(Cell(x,y),list=new List<int>());list.Add(index);}
+            }
+            // Distinct members of the surface's cells appended (unsorted) to output; the caller clears seen afterwards.
+            private static void Candidates(Dictionary<long,List<int>> cells,Surface surface,List<int> output,bool[] seen)
+            {
+                var span=Span(surface);
+                for(int x=span.x0;x<=span.x1;x++) for(int y=span.y0;y<=span.y1;y++)
+                    if(cells.TryGetValue(Cell(x,y),out var members))
+                        foreach(int member in members) if(!seen[member]) {seen[member]=true;output.Add(member);}
+            }
+            public string Signature()
+            {
+                var text=new System.Text.StringBuilder();
+                for(int i=0;i<staticCount;i++)
+                {
+                    var surface=surfaces[i];
+                    text.Append(i).Append(':').Append(surface.Left.ToString("R")).Append(',').Append(surface.Y.ToString("R")).Append(',')
+                        .Append(surface.Width.ToString("R")).Append(',').Append(surface.HeightSize.ToString("R")).Append('>');
+                    foreach(var edge in edges[i]) text.Append(edge.Target).Append('[').Append(edge.Left.ToString("R")).Append(',').Append(edge.Right.ToString("R")).Append(']');
+                    text.Append('\n');
+                }
+                var keys=new List<int>(bins.Keys);keys.Sort();
+                foreach(int key in keys) text.Append('b').Append(key).Append(':').Append(string.Join(",",bins[key])).Append('\n');
+                return text.ToString();
             }
             public bool MatchesTopology=>ReferenceEquals(source,Layout.platforms) && ReferenceEquals(dynamicFrame,Layout.dynamicSurfaces) &&
                 dynamicCount==(Layout.dynamicSurfaces?.Count??0) && dynamicTopology==(Layout.dynamicSurfaces?.TopologyVersion??0);
