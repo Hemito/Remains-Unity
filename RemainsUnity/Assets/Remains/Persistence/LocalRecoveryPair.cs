@@ -44,6 +44,9 @@ namespace Remains.Persistence
             RecoverLocked(store,writeCharacter);
             using var worldAccess=SaveAccess.Enter(store.WorldDirectoryPath);
             RequireArchive(store,validated.snapshot,publishWorld);
+            // A host-local pair relies on the host's canonical copy after a restart: make it durable too (the host's
+            // save closes the file without a flush to disk; Codex review 2026-10-15).
+            if(!publishWorld) FlushFile(Archive(store,validated.snapshot));
             // The world copy the intent refers to is durable before the intent.
             string worldCopy=PendingWorldPath(store);
             AtomicSaveFile.Write(worldCopy,validated.snapshot.WriteTo);FlushFile(worldCopy);
@@ -89,7 +92,8 @@ namespace Remains.Persistence
             if(snapshot.ActorParts(actor.id,out string text)!=1)
                 throw new InvalidDataException("Мир не содержит ровно одну связанную личность персонажа.");
             var saved=StateJson.FromTrustedJson<ActorState>(text);
-            if(!saved.player || saved.character!=actor.character) throw new InvalidDataException("Мир содержит другую личность для ID персонажа.");
+            // The part key names the actor; its text must too (a delta-assembled part is keyed by the host).
+            if(saved.id!=actor.id || !saved.player || saved.character!=actor.character) throw new InvalidDataException("Мир содержит другую личность для ID персонажа.");
             return new Validated {intent=intent,snapshot=snapshot};
         }
         // A pending pair after a restart: the world comes from the pair's own copy, strictly parsed.
