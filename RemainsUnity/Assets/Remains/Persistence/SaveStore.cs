@@ -140,15 +140,15 @@ namespace Remains.Persistence
             string path=Path.Combine(WorldDirectoryPath,archive);
             if(File.Exists(path))
             {
-                if(File.ReadAllText(path)!=snapshot.Json)
+                if(!snapshot.MatchesFile(path))
                     throw new InvalidDataException($"Повреждён архив снимка: {path}.");
             }
-            else {WriteWorld(archive,snapshot.Json);PruneArchive(snapshot.WorldId);}
+            else {WriteWorld(archive,snapshot);PruneArchive(snapshot.WorldId);}
             PreserveExistingWorld("world.json");
             PreserveExistingWorld(Path.Combine("Worlds",snapshot.WorldId+".json"));
             string flat=Path.Combine("Worlds",snapshot.WorldId+".json");
-            WriteWorld(flat,snapshot.Json);RememberWorldFile(flat,snapshot);
-            WriteWorld("world.json",snapshot.Json);RememberWorldFile("world.json",snapshot);
+            WriteWorld(flat,snapshot);RememberWorldFile(flat,snapshot);
+            WriteWorld("world.json",snapshot);RememberWorldFile("world.json",snapshot);
         }
 
         private void PreserveExistingWorld(string filename)
@@ -158,12 +158,13 @@ namespace Remains.Persistence
             RecoverySnapshot previous;
             try
             {
-                string json=File.ReadAllText(path);var info=new FileInfo(path);
+                var info=new FileInfo(path);
                 var known=filename=="world.json"?knownActive:knownFlat;
+                // The file this store last wrote: identified by its bytes' hash, without reading it into a string.
                 if(known!=null && string.Equals(known.path,SavePath.Absolute(path),StringComparison.OrdinalIgnoreCase) &&
-                    known.length==info.Length && known.ticks==info.LastWriteTimeUtc.Ticks && known.snapshot.Json==json)
+                    known.length==info.Length && known.ticks==info.LastWriteTimeUtc.Ticks && TextSha256.OfFile(path)==known.snapshot.Id)
                 {previous=known.snapshot;ReusedWorldPayloads++;}
-                else previous=new RecoverySnapshot(json);
+                else previous=new RecoverySnapshot(File.ReadAllText(path));
             }
             catch(InvalidDataException error)
             {
@@ -172,7 +173,7 @@ namespace Remains.Persistence
                 return;
             }
             string archive=Path.Combine("Worlds",previous.WorldId,"Snapshots",previous.Id+".json");
-            if(!File.Exists(Path.Combine(WorldDirectoryPath,archive))) WriteWorld(archive,previous.Json);
+            if(!File.Exists(Path.Combine(WorldDirectoryPath,archive))) WriteWorld(archive,previous);
         }
         // Archive rotation (2026-10-14): every checkpoint (3 s and shared actions) is a distinct ~1.25 MB payload, and
         // keeping all of them grew a factory world to 1.2 GB. The newest ArchiveKept copies of the world stay; the
@@ -289,6 +290,19 @@ namespace Remains.Persistence
         }
 
         private void WriteWorld(string filename,string content)=>AtomicSaveFile.Write(Path.Combine(WorldDirectoryPath,filename),content);
+        // Streamed from the snapshot's parts: no ~2.8 MB whole-text string per periodic save (GC pauses).
+        private void WriteWorld(string filename,RecoverySnapshot snapshot)=>AtomicSaveFile.Write(Path.Combine(WorldDirectoryPath,filename),snapshot.WriteTo);
+        // The canonical archive copy of a snapshot (content-addressed by its ID), written if missing.
+        internal string EnsureArchive(RecoverySnapshot snapshot)
+        {
+            EnsureWorldLibrary();
+            using var access=SaveAccess.Enter(WorldDirectoryPath);
+            string archive=Path.Combine("Worlds",snapshot.WorldId,"Snapshots",snapshot.Id+".json");
+            string path=Path.Combine(WorldDirectoryPath,archive);
+            if(File.Exists(path)) {if(!snapshot.MatchesFile(path)) throw new InvalidDataException($"Повреждён архив снимка: {path}.");}
+            else {WriteWorld(archive,snapshot);PruneArchive(snapshot.WorldId);}
+            return path;
+        }
         private void WriteCharacter(string filename,string content)=>AtomicSaveFile.Write(Path.Combine(CharacterDirectoryPath,filename),content);
     }
 }

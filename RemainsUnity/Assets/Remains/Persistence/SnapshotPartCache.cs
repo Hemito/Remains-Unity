@@ -85,6 +85,15 @@ namespace Remains.Persistence
             Write(template,lists,hasher);
             return hasher.Finish();
         }
+        // Splice(template, lists) written to a text writer without building the string (save files).
+        public static void WriteTo(string template,IReadOnlyList<PartSet> lists,System.IO.TextWriter writer)=>Write(template,lists,new WriterSink(writer));
+        private sealed class WriterSink : ITextSink
+        {
+            private readonly System.IO.TextWriter writer;
+            public WriterSink(System.IO.TextWriter writer) {this.writer=writer;}
+            public void Append(string text,int start,int count) {if(start==0 && count==text.Length) writer.Write(text);else writer.Write(text.ToCharArray(start,count));}
+            public void Append(char value)=>writer.Write(value);
+        }
         private static void Write(string template,IReadOnlyList<PartSet> lists,ITextSink sink)
         {
             int at=0;

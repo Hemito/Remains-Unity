@@ -24,6 +24,32 @@ namespace Remains.Persistence
             }
         }
         private string json;
+        // The text into a writer: from the parts when it has not been built (no whole-text string for a save).
+        public void WriteTo(System.IO.TextWriter writer)
+        {
+            var value=Volatile.Read(ref json);
+            if(value!=null) writer.Write(value);
+            else SnapshotPartCache.WriteTo(template,parts,writer);
+        }
+        // Whether a file holds exactly this text: its bytes hashed in pieces against the ID; only an unexpected
+        // mismatch (a BOM or other encoding) reads the text to compare.
+        public bool MatchesFile(string path)=>TextSha256.OfFile(path)==Id || System.IO.File.ReadAllText(path)==Json;
+        // The actor parts with this ID and the text of the last one (identity checks of a saved pair without
+        // parsing the world); a snapshot without parts reads its validated text.
+        internal int ActorParts(string id,out string text)
+        {
+            text=null;int count=0;
+            if(parts!=null)
+            {
+                string key="actors:"+id;
+                foreach(var set in parts) if(set.Name=="actors")
+                    for(int i=0;i<set.Keys.Length;i++) if(set.Keys[i]==key) {count++;text=set.Texts[i];}
+                return count;
+            }
+            foreach(var actor in JsonUtility.FromTrustedJson<WorldState>(Json).actors)
+                if(actor.id==id) {count++;text=JsonUtility.ToJson(actor);}
+            return count;
+        }
         private readonly string template;
         private readonly IReadOnlyList<SnapshotPartCache.PartSet> parts;
         private readonly object jsonGate=new();

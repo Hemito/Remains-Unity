@@ -57,6 +57,17 @@ namespace Remains.Persistence
 
         private void Drain() {if(used>0) hash.Add(buffer,used);used=0;}
 
+        // SHA-256 of a file's bytes, read in pieces (equals Fingerprint of its text for UTF-8 without BOM, the format
+        // the saves are written in): comparing a ~1.4 MB world file needs no whole-text string.
+        public static string OfFile(string path)
+        {
+            var hasher=Begin();
+            using var file=new System.IO.FileStream(path,System.IO.FileMode.Open,System.IO.FileAccess.Read,System.IO.FileShare.Read,BufferBytes);
+            int read;
+            while((read=file.Read(hasher.buffer,0,BufferBytes))>0) {hasher.used=read;hasher.Drain();}
+            return hasher.Finish();
+        }
+
         private abstract class Hash
         {
             public abstract void Reset();

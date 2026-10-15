@@ -50,7 +50,8 @@ namespace Remains.Editor
             CheckRefusal(root,"foreign-root",f=>ChangeIntent(f,j=>j["worldDirectory"]=Path.Combine(f.root,"unrelated")));
             CheckRefusal(root,"wrong-character",f=>ChangeIntent(f,j=>j["characterId"]="another-character"));
             CheckRefusal(root,"wrong-world-hash",f=>ChangeIntent(f,j=>j["worldSha256"]=new string('0',64)));
-            CheckRefusal(root,"future-version",f=>ChangeIntent(f,j=>j["version"]=2));
+            CheckRefusal(root,"future-version",f=>ChangeIntent(f,j=>j["version"]=3));
+            CheckRefusal(root,"missing-world-archive",f=>File.Delete(Path.Combine(f.store.WorldDirectoryPath,"Worlds",f.newWorld.WorldId,"Snapshots",f.newWorld.Id+".json")));
             CheckRefusal(root,"corrupt-json",f=>File.WriteAllText(f.pending,"{truncated"));
             CheckRefusal(root,"external-profile",f=>{var actor=f.oldActor.Copy();actor.x=999;File.WriteAllText(CharacterPath(f),StateJson.ToJson(actor));});
             CheckRefusal(root,"external-world",f=>{var world=f.oldWorld.CreateLiveWorld();world.revision+=20;File.WriteAllText(Path.Combine(f.store.WorldDirectoryPath,"world.json"),StateJson.ToJson(world));});

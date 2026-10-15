@@ -33,7 +33,7 @@ namespace Remains.Diagnostics
         private static readonly List<double> periodFrames=new(4096);
         private static readonly StringBuilder pending=new();
         private static long frameStart;
-        private static int gcAtFrameStart;
+        private static int gcAtFrameStart,gcAtPeriodStart;
         private static double periodStart;
         private static string path;
         private static bool installed;
@@ -182,6 +182,8 @@ namespace Remains.Diagnostics
                 .Append(", 99% ").Append(periodFrames[Math.Min(n-1,(int)(n*.99))].ToString("F1"))
                 .Append(", макс ").Append(periodFrames[n-1].ToString("F1"))
                 .Append(", медленных ").Append(periodFrames.FindAll(f=>f>SlowMilliseconds).Count)
+                .Append(", сборок мусора ").Append(GC.CollectionCount(0)-gcAtPeriodStart)
+                .Append(", память ").Append((GC.GetTotalMemory(false)/1048576.0).ToString("F0")).Append(" МБ")
                 .Append(string.IsNullOrEmpty(Context)?"":" | "+Context).Append('\n');
             // Steady load: the costliest own sections per frame over the period (Unity phases excluded).
             var order=new List<int>();
@@ -200,7 +202,7 @@ namespace Remains.Diagnostics
                 pending.Append(' ').Append(sectionNames[engine[k]]).Append(' ').Append((periodSectionMs[engine[k]]/Math.Max(1,n)).ToString("F2")).Append(';');
             pending.Append('\n');
             Array.Clear(periodSectionMs,0,periodSectionMs.Length);
-            periodFrames.Clear();periodStart=time;
+            periodFrames.Clear();periodStart=time;gcAtPeriodStart=GC.CollectionCount(0);
         }
 
         private static void Flush()

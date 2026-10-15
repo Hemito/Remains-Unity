@@ -9,14 +9,16 @@ namespace Remains.Persistence
     // The stored paths are bindings only: every write uses the configured store.
     internal static class LocalRecoveryPair
     {
-        private const int Version=1;
+        // 2 (2026-10-15): the intent refers to the canonical archive copy of the world by its SHA-256 (written before
+        // the intent) instead of carrying the world text; a fresh save does not re-parse the validated snapshot.
+        private const int Version=2;
         [Serializable]
         private sealed class Intent : ExtensibleState
         {
             public int version;
             public bool? publishWorld;
             public string characterDirectory,worldDirectory,worldId,actorId,characterId;
-            public string worldJson,characterJson,worldSha256,characterSha256;
+            public string characterJson,worldSha256,characterSha256;
             public string previousWorldSha256,previousCharacterSha256;
         }
         private sealed class Validated
@@ -30,17 +32,21 @@ namespace Remains.Persistence
             if(snapshot==null) throw new ArgumentNullException(nameof(snapshot));
             var intent=new Intent {version=Version,publishWorld=publishWorld,
                 characterDirectory=store.CharacterDirectoryPath,worldDirectory=store.WorldDirectoryPath,
-                worldId=snapshot.WorldId,worldJson=snapshot.Json,worldSha256=snapshot.Id,
+                worldId=snapshot.WorldId,worldSha256=snapshot.Id,
                 characterJson=characterJson,characterSha256=RecoverySnapshot.Fingerprint(characterJson)};
             var actor=StateJson.FromJson<ActorState>(characterJson);intent.actorId=actor?.id;intent.characterId=actor?.character;
-            // Invalid new data cannot cause even an older pending publication.
-            var validated=Validate(store,intent);
+            // Invalid new data cannot cause even an older pending publication. The snapshot itself was validated
+            // when it was composed or received: it is not parsed again (a whole-world parse per checkpoint).
+            var validated=ValidateFresh(store,intent,snapshot);
             using var characterAccess=SaveAccess.Enter(store.CharacterDirectoryPath);
             RecoverLocked(store,writeCharacter);
             using var worldAccess=SaveAccess.Enter(store.WorldDirectoryPath);
-            RequireArchive(store,validated.snapshot,publishWorld);
+            // The world copy the intent refers to is durable before the intent: a published pair writes it here, a
+            // host-local pair requires the canonical copy the host already wrote.
+            if(publishWorld) {FlushFile(store.EnsureArchive(validated.snapshot));}
+            RequireArchive(store,validated.snapshot);
             intent.previousCharacterSha256=ExistingHash(CharacterPath(store));
-            if(publishWorld) intent.previousWorldSha256=ExistingHash(WorldPath(store));
+            if(publishWorld) intent.previousWorldSha256=File.Exists(WorldPath(store))?TextSha256.OfFile(WorldPath(store)):null;
             string pending=PendingPath(store);
             AtomicSaveFile.Write(pending,StateJson.ToJson(intent));FlushFile(pending);
             Publish(store,validated,writeCharacter);
@@ -57,11 +63,10 @@ namespace Remains.Persistence
             try
             {
                 var intent=StateJson.FromJson<Intent>(File.ReadAllText(pending));
-                var validated=Validate(store,intent);
+                var validated=ValidateStored(store,intent);
                 using var worldAccess=SaveAccess.Enter(store.WorldDirectoryPath);
                 RequireUnchanged(CharacterPath(store),intent.previousCharacterSha256,intent.characterJson);
-                if(intent.publishWorld.Value) RequireUnchanged(WorldPath(store),intent.previousWorldSha256,intent.worldJson);
-                RequireArchive(store,validated.snapshot,intent.publishWorld.Value);
+                if(intent.publishWorld.Value) RequireUnchangedWorld(WorldPath(store),intent.previousWorldSha256,intent.worldSha256);
                 Publish(store,validated,writeCharacter);
                 File.Delete(pending);
                 UnityEngine.Debug.LogWarning($"Завершена прерванная запись мира и персонажа: world={intent.worldId}, actor={intent.actorId}, character={intent.characterId}, publishWorld={intent.publishWorld}, intent={pending}.");
@@ -72,15 +77,41 @@ namespace Remains.Persistence
                 throw new InvalidDataException($"Не удалось восстановить пару мира и персонажа: intent={pending}. Исходные файлы и намерение сохранены. {error.Message}",error);
             }
         }
-        private static Validated Validate(SaveStore store,Intent intent)
+        // A new pair: the snapshot in hand (validated when composed/received); the identity check reads its actor part.
+        private static Validated ValidateFresh(SaveStore store,Intent intent,RecoverySnapshot snapshot)
+        {
+            var actor=ValidateCommon(store,intent);
+            if(snapshot.WorldId!=intent.worldId || snapshot.Id!=intent.worldSha256)
+                throw new InvalidDataException("Не совпадает ID или точный хэш мира в намерении записи пары.");
+            if(snapshot.ActorParts(actor.id,out string text)!=1)
+                throw new InvalidDataException("Мир не содержит ровно одну связанную личность персонажа.");
+            var saved=StateJson.FromTrustedJson<ActorState>(text);
+            if(!saved.player || saved.character!=actor.character) throw new InvalidDataException("Мир содержит другую личность для ID персонажа.");
+            return new Validated {intent=intent,snapshot=snapshot};
+        }
+        // A pending pair after a restart: the world comes from its canonical archive copy, strictly parsed.
+        private static Validated ValidateStored(SaveStore store,Intent intent)
+        {
+            var actor=ValidateCommon(store,intent);
+            if(!Guid.TryParseExact(intent.worldId,"N",out _) || intent.worldSha256==null || !HashOrMissing(intent.worldSha256))
+                throw new InvalidDataException("Некорректный ID или хэш мира в намерении записи пары.");
+            string archive=Path.Combine(store.WorldDirectoryPath,"Worlds",intent.worldId,"Snapshots",intent.worldSha256+".json");
+            if(!File.Exists(archive)) throw new InvalidDataException("Нет канонической копии мира, на которую ссылается намерение: "+archive);
+            var snapshot=new RecoverySnapshot(File.ReadAllText(archive));
+            if(snapshot.WorldId!=intent.worldId || snapshot.Id!=intent.worldSha256)
+                throw new InvalidDataException("Не совпадает ID или точный хэш мира в намерении записи пары.");
+            var world=snapshot.CreateLiveWorld();int identities=0;
+            foreach(var saved in world.actors)
+                if(saved.id==actor.id) {if(!saved.player || saved.character!=actor.character) throw new InvalidDataException("Мир содержит другую личность для ID персонажа.");identities++;}
+            if(identities!=1) throw new InvalidDataException("Мир не содержит ровно одну связанную личность персонажа.");
+            return new Validated {intent=intent,snapshot=snapshot};
+        }
+        private static ActorState ValidateCommon(SaveStore store,Intent intent)
         {
             if(intent==null || intent.version!=Version || intent.publishWorld==null)
                 throw new InvalidDataException("Неподдерживаемая версия намерения записи пары.");
             if(!SamePath(intent.characterDirectory,store.CharacterDirectoryPath) || !SamePath(intent.worldDirectory,store.WorldDirectoryPath))
                 throw new InvalidDataException("Намерение принадлежит другой библиотеке мира или профилю.");
-            var snapshot=new RecoverySnapshot(intent.worldJson);
-            if(snapshot.WorldId!=intent.worldId || snapshot.Id!=intent.worldSha256)
-                throw new InvalidDataException("Не совпадает ID или точный хэш мира в намерении записи пары.");
             if(intent.characterJson==null || RecoverySnapshot.Fingerprint(intent.characterJson)!=intent.characterSha256)
                 throw new InvalidDataException("Не совпадает точный хэш персонажа в намерении записи пары.");
             var actor=StateJson.FromJson<ActorState>(intent.characterJson);
@@ -90,13 +121,9 @@ namespace Remains.Persistence
             Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
             InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);
             CosmeticEquipment.Validate(actor);
-            var world=snapshot.CreateLiveWorld();int identities=0;
-            foreach(var saved in world.actors)
-                if(saved.id==actor.id) {if(!saved.player || saved.character!=actor.character) throw new InvalidDataException("Мир содержит другую личность для ID персонажа.");identities++;}
-            if(identities!=1) throw new InvalidDataException("Мир не содержит ровно одну связанную личность персонажа.");
             if(!HashOrMissing(intent.previousWorldSha256) || !HashOrMissing(intent.previousCharacterSha256))
                 throw new InvalidDataException("Некорректный хэш исходного файла в намерении записи пары.");
-            return new Validated {intent=intent,snapshot=snapshot};
+            return actor;
         }
         private static void Publish(SaveStore store,Validated validated,Action<string> writeCharacter)
         {
@@ -112,17 +139,23 @@ namespace Remains.Persistence
                 FlushFile(WorldPath(store));
             }
         }
-        private static void RequireArchive(SaveStore store,RecoverySnapshot snapshot,bool allowMissing=false)
+        private static void RequireArchive(SaveStore store,RecoverySnapshot snapshot)
         {
             string path=Archive(store,snapshot);
-            if(allowMissing && !File.Exists(path)) return;
-            if(!File.Exists(path) || File.ReadAllText(path)!=snapshot.Json)
+            if(!File.Exists(path) || !snapshot.MatchesFile(path))
                 throw new InvalidDataException($"Не найдена точная каноническая копия перед записью профиля: snapshot={snapshot.Id}, archive={path}.");
         }
         private static void RequireUnchanged(string path,string previous,string intended)
         {
             string current=File.Exists(path)?File.ReadAllText(path):null;
             if(current==intended || (current==null?previous==null:RecoverySnapshot.Fingerprint(current)==previous)) return;
+            throw new InvalidDataException($"Файл изменён после создания намерения; автоматическая замена запрещена: path={path}.");
+        }
+        // The world file holds the intended or the previous payload (by its bytes' hash), or is still missing.
+        private static void RequireUnchangedWorld(string path,string previous,string intended)
+        {
+            string current=File.Exists(path)?TextSha256.OfFile(path):null;
+            if(current==intended || current==previous) return;
             throw new InvalidDataException($"Файл изменён после создания намерения; автоматическая замена запрещена: path={path}.");
         }
         private static string ExistingHash(string path)=>File.Exists(path)?RecoverySnapshot.Fingerprint(File.ReadAllText(path)):null;

@@ -10,12 +10,17 @@ namespace Remains.Persistence
         public static void Write(string destination,string content,bool uniqueTemporary=true)
             =>Write(destination,content,uniqueTemporary,default);
         public static void Write(string destination,string content,bool uniqueTemporary,CancellationToken cancellation)
+            =>Write(destination,writer=>writer.Write(content),uniqueTemporary,cancellation);
+        // The content written by a callback (a world snapshot streamed from its parts), UTF-8 without BOM as
+        // File.WriteAllText writes it.
+        public static void Write(string destination,Action<TextWriter> write,bool uniqueTemporary=true,CancellationToken cancellation=default)
         {
+            if(write==null) throw new ArgumentNullException(nameof(write));
             destination=SavePath.Absolute(destination);
             using var access=SaveAccess.Enter(destination,cancellation);
             Directory.CreateDirectory(Path.GetDirectoryName(destination));
             string temporary=destination+".tmp"+(uniqueTemporary?"-"+Guid.NewGuid().ToString("N"):"");
-            File.WriteAllText(temporary,content);
+            using(var writer=new StreamWriter(temporary,false,new System.Text.UTF8Encoding(false),65536)) write(writer);
             for(int attempt=0;;attempt++)
             {
                 cancellation.ThrowIfCancellationRequested();
