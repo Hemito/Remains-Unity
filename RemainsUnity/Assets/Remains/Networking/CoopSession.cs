@@ -592,7 +592,7 @@ namespace Remains.Networking
             World = incoming;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подтверждение (клиент)")) QueueRecoveryReceipt(snapshot);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: событие «мир изменился» (клиент)"))
-                if(publishHealing && LocalActor!=null) PublishActor(LocalActor);else RaiseChanged(sameWorld?changes:WorldChangeKind.All);
+                if(publishHealing && LocalActor!=null) PublishActor(LocalActor,sameWorld?changes:WorldChangeKind.All);else RaiseChanged(sameWorld?changes:WorldChangeKind.All);
         }
 
         private WorldState PersistCopy(RecoverySnapshot snapshot,WorldState parsed=null)
@@ -715,7 +715,7 @@ namespace Remains.Networking
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
-            if(selfHealTransition) PublishActor(actor);else RaiseChanged();
+            if(selfHealTransition) PublishActor(actor);else RaiseChanged(WorldChangeKind.Actors);
         }
 
         private static void PreserveOwnerInventory(ActorState incoming,ActorState current)
@@ -785,10 +785,13 @@ namespace Remains.Networking
             NetworkServer.SendToAll(new ActorMessage { json = JsonUtility.ToJson(incoming) });
         }
 
-        public void PublishActor(ActorState actor)
+        // changes: what the notification reports; publishing an actor changes only actors (a received world passes
+        // its own changes when it publishes the local actor right after).
+        public void PublishActor(ActorState actor)=>PublishActor(actor,WorldChangeKind.Actors);
+        private void PublishActor(ActorState actor,WorldChangeKind changes)
         {
             selfHealing.Observe(World?.worldId,actor);
-            RaiseChanged();
+            RaiseChanged(changes);
             if (NetworkClient.isConnected)
             {
                 actor.motionSequence=unchecked(actor.motionSequence+1);

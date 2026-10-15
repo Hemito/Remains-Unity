@@ -32,7 +32,12 @@ namespace Remains.Presentation
         public void Initialize(CoopSession value,GameplayAudio audio,WorldVisualOrderTable orderTable)
         {session=value;playback=audio;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));session.Changed+=Refresh;Refresh();}
         public void SetOrders(WorldVisualOrderTable value)=>orders=value??throw new ArgumentNullException(nameof(value));
-        private void Refresh()=>Reconcile(session.World,session.LocalActor?.level);
+        // Door views change only with doors, the visible level or the world (CoopSession.LastChange).
+        private void Refresh()
+        {
+            if(!session.LastChange.Any(WorldChangeKind.Doors) && worldId==session.World?.worldId && level==session.LocalActor?.level) return;
+            Reconcile(session.World,session.LocalActor?.level);
+        }
         public void Reconcile(WorldState world,string visibleLevel)
         {
             if(session==null)

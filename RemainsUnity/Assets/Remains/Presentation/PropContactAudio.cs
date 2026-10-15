@@ -45,10 +45,14 @@ namespace Remains.Presentation
             }
             session.Changed+=Reconcile;
         }
+        private string reconciledLevel;
+        // Tracks follow the listener's level bodies; their support can change with bodies or doors only.
         private void Reconcile()
         {
-            active.Clear();
             var listener=session.LocalActor;
+            if(!session.LastChange.Any(WorldChangeKind.Props|WorldChangeKind.Doors) && listener?.level==reconciledLevel && listener!=null) return;
+            reconciledLevel=listener?.level;
+            active.Clear();
             if(session.World!=null && props?.World!=session.World) props=new WorldPropView(session.World);
             if(listener!=null && session.World!=null)
                 foreach(var prop in props)
