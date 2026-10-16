@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: de4470810daacd446ad816efb1c6f252, type: 3}
   m_Name: ExportedContent
   m_EditorClassIdentifier: 
-  sourceHash: 69a568dc78a640d74e547a236c3ed98b80c654fa9d7e087c436f2de9d3821588
+  sourceHash: 6ce5a6d710d21bc211fd2ea327bf7dbddbb6c90e6cf656870945ef2a662282fe
   items:
   - key: item:abssalt
     category: item
@@ -8538,6 +8538,263 @@ MonoBehaviour:
       \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
       \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
       \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+  - key: unit:bloat0
+    category: unit
+    sourceId: bloat0
+    rawXml: "<unit id=\"bloat0\" xp=\"20\" cat=\"3\" parent=\"bloat\"><phis sX=\"25\"
+      sY=\"25\" massa=\"6\" /><move speed=\"6\" accel=\"2\" brake=\"0.3\" /><comb
+      hp=\"8\" dexter=\"1.3\" damage=\"4\" tipdam=\"14\" /><vulner bul=\"0.5\" fire=\"1.25\"
+      laser=\"1.25\" plasma=\"1.25\" cryo=\"1.25\" /><vis vclass=\"visualBloat0\"
+      /><un attch=\"0.6\" attr=\"600\" /><n>\u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442</n></unit>"
+    displayName: "\u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442"
+    description: 
+    graphics: []
+    sounds:
+    - role: die/bloat
+      resourceId: sound_unit:64
+      rule: snd/attribute symbol bloat1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:63
+      rule: snd/attribute symbol bloat2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:62
+      rule: snd/attribute symbol bloat3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:61
+      rule: snd/attribute symbol bloat4
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2743 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2742 (frames) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:bloat1
+    category: unit
+    sourceId: bloat1
+    rawXml: <unit id="bloat1" xp="40" cat="3" parent="bloat"><phis /><move speed="5"
+      accel="2" brake="0.3" /><param hero="bloat" /><vulner bul="0.25" fire="1.25"
+      laser="1.25" plasma="1.25" cryo="1.25" acid="0" /><comb hp="12" dexter="1.3"
+      damage="3" tipdam="14" /><vis vclass="visualBloat1" visdam="3" sdamage="5"
+      stipdam="10" /><w id="bloat" no="1" /></unit>
+    displayName: 
+    description: 
+    graphics: []
+    sounds:
+    - role: die/bloat
+      resourceId: sound_unit:64
+      rule: snd/attribute symbol bloat1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:63
+      rule: snd/attribute symbol bloat2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:62
+      rule: snd/attribute symbol bloat3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:61
+      rule: snd/attribute symbol bloat4
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2735 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2734 (frames) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:bloat2
+    category: unit
+    sourceId: bloat2
+    rawXml: "<unit id=\"bloat2\" xp=\"40\" cat=\"3\" parent=\"bloat\"><phis /><move
+      speed=\"5\" accel=\"2\" brake=\"0.3\" /><comb hp=\"14\" dexter=\"1.3\" damage=\"3\"
+      tipdam=\"14\" /><param hero=\"bloat\" /><vulner bul=\"0.25\" fire=\"1.25\"
+      laser=\"1.25\" plasma=\"1.25\" cryo=\"1.25\" venom=\"0\" poison=\"0\" /><vis
+      vclass=\"visualBloat2\" visdam=\"3\" sdamage=\"3\" stipdam=\"14\" /><w id=\"ship\"
+      no=\"1\" /><n>\u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442</n></unit>"
+    displayName: "\u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442"
+    description: 
+    graphics: []
+    sounds:
+    - role: die/bloat
+      resourceId: sound_unit:64
+      rule: snd/attribute symbol bloat1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:63
+      rule: snd/attribute symbol bloat2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:62
+      rule: snd/attribute symbol bloat3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:61
+      rule: snd/attribute symbol bloat4
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2727 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2726 (frames) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:bloat3
+    category: unit
+    sourceId: bloat3
+    rawXml: "<unit id=\"bloat3\" xp=\"60\" cat=\"3\" parent=\"bloat\"><phis sX=\"40\"
+      sY=\"40\" massa=\"15\" /><move speed=\"4\" accel=\"1.2\" brake=\"0.3\" /><comb
+      hp=\"24\" damage=\"9\" tipdam=\"14\" skin=\"5\" /><param hero=\"bloat\" /><vis
+      vclass=\"visualBloat3\" /><vulner bul=\"0.25\" fire=\"0.75\" laser=\"0.75\"
+      plasma=\"0.75\" cryo=\"0.75\" phis=\"0.75\" blade=\"0.75\" /><un bulb=\"1\"
+      /><n>\u0422\u043E\u043B\u0441\u0442\u044B\u0439 \u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442</n></unit>"
+    displayName: "\u0422\u043E\u043B\u0441\u0442\u044B\u0439 \u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442"
+    description: 
+    graphics: []
+    sounds:
+    - role: die/bloat
+      resourceId: sound_unit:64
+      rule: snd/attribute symbol bloat1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:63
+      rule: snd/attribute symbol bloat2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:62
+      rule: snd/attribute symbol bloat3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:61
+      rule: snd/attribute symbol bloat4
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2719 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2718 (frames) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:bloat4
+    category: unit
+    sourceId: bloat4
+    rawXml: "<unit id=\"bloat4\" xp=\"60\" cat=\"3\" parent=\"bloat\"><phis /><move
+      speed=\"7\" run=\"18\" accel=\"2.5\" brake=\"0.3\" /><comb hp=\"16\" dexter=\"1.2\"
+      damage=\"9\" tipdam=\"14\" skin=\"3\" /><param hero=\"bloat\" /><vis vclass=\"visualBloat4\"
+      /><vulner bul=\"0.5\" /><un attch=\"0.8\" attr=\"700\" /><n>\u0417\u0443\u0431\u0430\u0441\u0442\u044B\u0439
+      \u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442</n></unit>"
+    displayName: "\u0417\u0443\u0431\u0430\u0441\u0442\u044B\u0439 \u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442"
+    description: 
+    graphics: []
+    sounds:
+    - role: die/bloat
+      resourceId: sound_unit:64
+      rule: snd/attribute symbol bloat1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:63
+      rule: snd/attribute symbol bloat2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:62
+      rule: snd/attribute symbol bloat3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:61
+      rule: snd/attribute symbol bloat4
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2711 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2710 (frames) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
   - key: unit:bloodwing
     category: unit
     sourceId: bloodwing
@@ -8568,6 +8825,26 @@ MonoBehaviour:
     issues:
     - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
       pfeUI:2676 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2658 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2672 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2673 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2674 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
       \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
       \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
       \u0433\u043E\u0442\u043E\u0432\u0430."
@@ -8760,6 +9037,26 @@ MonoBehaviour:
       \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
       \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
       \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2332 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2336 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2355 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2356 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
   - key: unit:mtrap
     category: unit
     sourceId: mtrap
@@ -8944,6 +9241,16 @@ MonoBehaviour:
       \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
       \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
       \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2106 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2110 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
   - key: unit:scorp1
     category: unit
     sourceId: scorp1
@@ -9123,6 +9430,16 @@ MonoBehaviour:
     issues:
     - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
       pfeUI:2046 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2042 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2044 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
       \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
       \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
       \u0433\u043E\u0442\u043E\u0432\u0430."

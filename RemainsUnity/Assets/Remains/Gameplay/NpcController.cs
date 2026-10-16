@@ -14,6 +14,7 @@ namespace Remains.Gameplay
         private readonly NpcSenses senses;
         private readonly Remains.Content.MovementSettings movementSettings;
         private readonly Dictionary<(string level,string type),MovementController> movement=new();
+        private readonly NpcCreatureController creatures=new();
         public NpcController(CoopSession session,SimulationGeometry geometry)
         {
             this.session=session;this.geometry=geometry;
@@ -57,9 +58,11 @@ namespace Remains.Gameplay
                 bool visible=target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
                     natural?NpcNaturalAttack.Origin(actor):WeaponPose.RangedAnchor(actor),target.BodyPosition+Vector2.up*(natural?type.perception.targetHeight:.55f));
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
+                bool family=NpcCreatureBehaviours.IsFamily(type.behavior);
                 if(actor.attackBusy)
                 {
-                    controller.Step(actor,Vector2.zero,false,dt,lookAtX:!natural && visible?target.x:(float?)null);
+                    if(family && NpcCreatureBehaviours.Flies(type.behavior)) creatures.Coast(actor,type,controller.Room,dt);
+                    else controller.Step(actor,Vector2.zero,false,dt,lookAtX:!natural && visible?target.x:(float?)null);
                     if(!natural) NpcWeaponAim.Apply(actor,visible?target.BodyPosition+Vector2.up*.55f:null,controller.Room);
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
@@ -72,6 +75,13 @@ namespace Remains.Gameplay
                 }
                 Vector2? destination=visible?target.Position:
                     actor.perception.hasKnownPosition?actor.perception.KnownPosition:null;
+                if(family)
+                {
+                    creatures.Step(actor,type,target,destination,controller.Room,controller,dt);
+                    if(visible && target.connected && !target.down && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
+                        session.PublishActor(actor);
+                    continue;
+                }
                 if(natural)
                 {
                     controller.Step(actor,new Vector2(NpcNaturalAttack.Approach(actor,destination,type.naturalAttack.approachSpeed),0),false,dt,

@@ -35,7 +35,11 @@ namespace Remains.Editor
         private const float PixelsPerMetre=50,FramesPerSecond=30;
 
         // Behaviour families implemented in Unity (original class → family). A class not listed here is a gap.
-        private static readonly Dictionary<string,string> families=new(StringComparer.Ordinal) {{"UnitMonstrik","crawler"}};
+        private static readonly Dictionary<string,string> families=new(StringComparer.Ordinal)
+            {{"UnitMonstrik",NpcCreatureBehaviours.Crawler},{"UnitBat",NpcCreatureBehaviours.Bat},{"UnitBloat",NpcCreatureBehaviours.Bloat},{"UnitSlime",NpcCreatureBehaviours.Slime}};
+        // Vector creatures drawn into animation sheets by Tools/build_creature_sheets.py (rows per state, cells at the
+        // unit's registration); the raster ones use the original blit sheets.
+        private const string VectorSheets="../../.reference/creature-sheets-v1";
 
         public static void RunBatch()
         {
@@ -47,6 +51,7 @@ namespace Remains.Editor
         {
             public string id,family,className;public XElement unit;public JObject definition;
             public XElement vis;public XElement[] blits;public JObject sheet;public string[] dieSounds;
+            public JObject vector;public string vectorFolder;   // a built vector sheet (manifest entry) instead of a blit sheet
         }
 
         public static void Run()
@@ -92,15 +97,25 @@ namespace Remains.Editor
             var unit=rows.FirstOrDefault(r=>(string)r["category"]=="unit" && (string)r["id"]==id);
             if(unit==null) return "нет определения unit "+id+" в выгрузке";
             if(!families.TryGetValue(cls,out string family)) return $"поведение класса оригинала {cls} ещё не реализовано";
-            var xml=XElement.Parse((string)unit["rawXml"]);
+            // Unit.getXmlParam reads the parent unit first (UnitBloat: "bloat"), then the unit's own values over it.
+            var parentRow=(string)unit["parent"] is {} parentId?rows.FirstOrDefault(r=>(string)r["category"]=="unit" && (string)r["id"]==parentId):null;
+            var xml=Inherit(XElement.Parse((string)unit["rawXml"]),parentRow==null?null:XElement.Parse((string)parentRow["rawXml"]));
+            var dies=new[]{unit,parentRow}.Where(r=>r!=null).SelectMany(r=>((JArray)r["sounds"]).OfType<JObject>())
+                .Where(s=>((string)s["role"]??"").StartsWith("die",StringComparison.Ordinal)).Select(s=>"exported:"+(string)s["resource"]).Distinct().ToArray();
+            source=new Source {id=id,family=family,className=cls,unit=xml,definition=unit,dieSounds=dies};
             var sheet=((JArray)unit["graphics"]).OfType<JObject>().FirstOrDefault(g=>(string)g["role"]=="animation-sheet");
-            if(sheet==null) return "графика не растровый лист анимаций (векторный вид ждёт выгрузки вложенной анимации)";
-            var meta=XElement.Parse("<m>"+(string)sheet["metadataXml"]+"</m>");
-            if(!resources.TryGetValue((string)sheet["resource"],out var resource)) return "нет ресурса листа "+sheet["resource"];
-            var dies=((JArray)unit["sounds"]).OfType<JObject>().Where(s=>((string)s["role"]??"").StartsWith("die",StringComparison.Ordinal))
-                .Select(s=>"exported:"+(string)s["resource"]).ToArray();
-            source=new Source {id=id,family=family,className=cls,unit=xml,definition=unit,vis=meta.Element("vis"),
-                blits=meta.Elements("blit").ToArray(),sheet=resource,dieSounds=dies};
+            if(sheet!=null)
+            {
+                var meta=XElement.Parse("<m>"+(string)sheet["metadataXml"]+"</m>");
+                if(!resources.TryGetValue((string)sheet["resource"],out var resource)) return "нет ресурса листа "+sheet["resource"];
+                source.vis=meta.Element("vis");source.blits=meta.Elements("blit").ToArray();source.sheet=resource;
+                return null;
+            }
+            string sheets=Path.GetFullPath(Path.Combine(Application.dataPath,VectorSheets));
+            string manifest=Path.Combine(sheets,"manifest.json");
+            var built=File.Exists(manifest)?(JObject)JObject.Parse(File.ReadAllText(manifest))["units"]?[id]:null;
+            if(built==null) {source=null;return "векторный вид не собран в лист (Tools/build_creature_sheets.py)";}
+            source.vector=built;source.vectorFolder=sheets;
             return null;
         }
 
@@ -113,26 +128,43 @@ namespace Remains.Editor
             float walk=Num(move,"speed")*FramesPerSecond/PixelsPerMetre,run=Num(move,"run",Num(move,"speed"))*FramesPerSecond/PixelsPerMetre;
             if(width<=0 || height<=0 || hp<=0 || damage<0 || run<=0) throw new InvalidDataException($"Существо {id}: неполные размеры, здоровье или скорость в AllData.");
 
-            // Sheet: the original raster, hash-checked, as its own texture (the atlas slices it by BlitAnim cells).
+            // Sheet: the original raster or the built vector sheet, hash-checked, as its own texture.
             string folder=ArtFolder+"/"+id;Directory.CreateDirectory(folder);
-            var file=((JArray)source.sheet["files"]).OfType<JObject>().Single(f=>Path.GetExtension((string)f["path"]).ToLowerInvariant()==".png");
-            string input=Path.GetFullPath(Path.Combine(package,(string)file["path"]));
-            if(Hash(input)!=(string)file["sha256"]) throw new InvalidDataException($"Существо {id}: лист {input} не совпадает с SHA256 выгрузки.");
+            string input,expected;
+            if(source.vector!=null) {input=Path.Combine(source.vectorFolder,(string)source.vector["sheet"]);expected=(string)source.vector["sheetSha256"];}
+            else
+            {
+                var file=((JArray)source.sheet["files"]).OfType<JObject>().Single(f=>Path.GetExtension((string)f["path"]).ToLowerInvariant()==".png");
+                input=Path.GetFullPath(Path.Combine(package,(string)file["path"]));expected=(string)file["sha256"];
+            }
+            if(Hash(input)!=expected) throw new InvalidDataException($"Существо {id}: лист {input} не совпадает с SHA256 источника.");
             string texturePath=folder+"/sheet.png";
             Guard(texturePath,id,owned);
             File.Copy(input,texturePath,true);AssetDatabase.ImportAsset(texturePath,ImportAssetOptions.ForceSynchronousImport);
             var importer=(TextureImporter)AssetImporter.GetAtPath(texturePath);
             importer.textureType=TextureImporterType.Default;importer.textureCompression=TextureImporterCompression.Uncompressed;
-            importer.npotScale=TextureImporterNPOTScale.None;importer.mipmapEnabled=false;importer.filterMode=FilterMode.Point;
+            importer.npotScale=TextureImporterNPOTScale.None;importer.mipmapEnabled=false;importer.filterMode=source.vector!=null?FilterMode.Bilinear:FilterMode.Point;
             importer.alphaIsTransparency=true;importer.maxTextureSize=8192;importer.SaveAndReimport();
             var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
-            int cellX=(int)Num(source.vis,"sprX"),cellY=(int)Num(source.vis,"sprY",cellX);
+            int cellX,cellY;float dx,dy,pixelsPerUnit;bool lyingFrame;AtlasActorClip[] clips;
+            if(source.vector!=null)
+            {
+                cellX=(int)source.vector["cellWidth"];cellY=(int)source.vector["cellHeight"];
+                dx=(float)source.vector["registrationX"];dy=(float)source.vector["registrationY"];
+                pixelsPerUnit=PixelsPerMetre*(float)source.vector["pixelsPerSourcePixel"];
+                clips=VectorClips(source,notes,out lyingFrame);
+            }
+            else
+            {
+                cellX=(int)Num(source.vis,"sprX");cellY=(int)Num(source.vis,"sprY",cellX);
+                dx=Num(source.vis,"sprDX",-1);dy=Num(source.vis,"sprDY",-1);
+                // Unit.initBlit: the bitmap is offset by sprDX/sprDY (defaults: half width, height − 10).
+                if(dx<0) dx=cellX*.5f;if(dy<0) dy=cellY-10;
+                pixelsPerUnit=PixelsPerMetre;clips=Clips(source,notes,out lyingFrame);
+            }
             if(texture.width%cellX!=0 || texture.height%cellY!=0) throw new InvalidDataException($"Существо {id}: лист {texture.width}×{texture.height} не делится на клетки {cellX}×{cellY}.");
-            float dx=Num(source.vis,"sprDX",-1),dy=Num(source.vis,"sprDY",-1);
-            // Unit.initBlit: the bitmap is offset by sprDX/sprDY (defaults: half width, height − 10).
-            if(dx<0) dx=cellX*.5f;if(dy<0) dy=cellY-10;
             var art=new AtlasActorArtwork {resource=ArtFolder.Substring("Assets/Remains/Resources/".Length)+"/"+id+"/sheet",width=texture.width,height=texture.height,
-                cellWidth=cellX,cellHeight=cellY,pixelsPerUnit=PixelsPerMetre,pivotX=dx/cellX,pivotY=1-dy/cellY,facesLeft=false,clips=Clips(source,notes,out bool lyingFrame)};
+                cellWidth=cellX,cellHeight=cellY,pixelsPerUnit=pixelsPerUnit,pivotX=dx/cellX,pivotY=1-dy/cellY,facesLeft=false,clips=clips};
             string atlasPath=folder+"/artwork.asset";Guard(atlasPath,id,owned);
             var atlas=AssetDatabase.LoadAssetAtPath<AtlasSpriteAsset>(atlasPath);
             if(atlas==null) {atlas=ScriptableObject.CreateInstance<AtlasSpriteAsset>();atlas.Configure(texture,art);AssetDatabase.CreateAsset(atlas,atlasPath);}
@@ -146,9 +178,15 @@ namespace Remains.Editor
                 // Unit vision: a target is noticed within vision × 1000 px (Unit.as); close range and timings: crawler family.
                 perception=new NpcPerceptionSettings {sightDistance=vision*1000/PixelsPerMetre,closeDistance=width*2,recognitionSeconds=.3f,
                     memorySeconds=4,hearingDistance=vision*1000/PixelsPerMetre,eyeHeight=height*.67f,targetHeight=.25f},
-                // Contact geometry scaled from the crawler family (CRAWLER_SPEC, radroach); damage and speed are AllData.
-                naturalAttack=new NaturalAttackDefinition {approachSpeed=run,beginDistance=width*1.5f,verticalDistance=Mathf.Max(.65f,height*2.2f),
-                    preparationSeconds=.3f,recoverySeconds=1,damage=damage,originX=width*.33f,originY=height*.53f,reach=width*1.25f,radius=Mathf.Max(.08f,height*.4f)}
+                naturalAttack=source.family==NpcCreatureBehaviours.Crawler
+                    // Bite geometry scaled from the crawler family (CRAWLER_SPEC, radroach); damage and speed are AllData.
+                    ?new NaturalAttackDefinition {approachSpeed=run,beginDistance=width*1.5f,verticalDistance=Mathf.Max(.65f,height*2.2f),
+                        preparationSeconds=.3f,recoverySeconds=1,damage=damage,originX=width*.33f,originY=height*.53f,reach=width*1.25f,radius=Mathf.Max(.08f,height*.4f)}
+                    // Touch (attKorp → udarUnit): no preparation; the pause is the victim's 30-frame window between touches.
+                    :new NaturalAttackDefinition {approachSpeed=walk,beginDistance=width*.5f+.4f,verticalDistance=height+1f,
+                        preparationSeconds=0,recoverySeconds=1,damage=damage,originX=0,originY=height*.5f,reach=width*.5f+.3f,radius=Mathf.Max(.1f,height*.4f)},
+                behavior=source.family==NpcCreatureBehaviours.Crawler?null:source.family,
+                motion=source.family==NpcCreatureBehaviours.Crawler?null:Motion(source,walk)
             };
             if(walk<=0) notes.Add("нет скорости шага");
             string actorPath=ActorFolder+"/"+id+".asset";Guard(actorPath,id,owned);
@@ -185,6 +223,49 @@ namespace Remains.Editor
             pendingAnatomy[id]=Anatomy(id,art,width,height);
             sounds[id]=source.dieSounds;
             return new CreatureEntry {sourceId=id,actorType=id,family=source.family,spawn=spawn,notes=notes.ToArray()};
+        }
+
+        private static CreatureMotionSettings Motion(Source source,float walk)
+        {
+            var move=source.unit.Element("move");var un=source.unit.Element("un");
+            float run=move?.Attribute("run")!=null?Num(move,"run")*FramesPerSecond/PixelsPerMetre:walk*2;   // UnitBat/UnitBloat: runSpeed = 2 × speed
+            return new CreatureMotionSettings {walkSpeed=walk,runSpeed=Mathf.Max(run,walk),acceleration=Num(move,"accel",1)*FramesPerSecond*FramesPerSecond/PixelsPerMetre,
+                dashRange=Num(un,"attr",400)/PixelsPerMetre,dashChance=Num(un,"attch",.4f)};
+        }
+        private static XElement Inherit(XElement unit,XElement parent)
+        {
+            if(parent==null) return unit;
+            var merged=new XElement(parent);
+            foreach(var own in unit.Elements())
+            {
+                var target=merged.Element(own.Name);
+                if(target==null) {merged.Add(new XElement(own));continue;}
+                foreach(var attribute in own.Attributes()) target.SetAttributeValue(attribute.Name,attribute.Value);
+            }
+            foreach(var attribute in unit.Attributes()) merged.SetAttributeValue(attribute.Name,attribute.Value);
+            return merged;
+        }
+        // Vector sheets: a row per state clip (stay/fly/attack/die) or one looping row (the clip's own frames), 30 fps.
+        private static AtlasActorClip[] VectorClips(Source source,List<string> notes,out bool lyingFrame)
+        {
+            var rows=((JArray)source.vector["rows"]).OfType<JObject>().Select((r,i)=>(label:(string)r["label"],frames:(int)r["frames"],row:i)).ToList();
+            AtlasActorClip Clip(string pose,(string label,int frames,int row) r,bool loop)=>new() {pose=pose,row=r.row,column=0,count=r.frames,
+                framesPerSecond=FramesPerSecond,loop=loop && r.frames>1,loopStartFrame=0};
+            var byLabel=rows.ToDictionary(r=>r.label,StringComparer.Ordinal);
+            lyingFrame=false;
+            if(byLabel.TryGetValue("fly",out var fly))
+            {
+                var stay=byLabel.TryGetValue("stay",out var s)?s:fly;
+                var attack=byLabel.TryGetValue("attack",out var a)?a:fly;
+                var result=new List<AtlasActorClip> {Clip("idle",stay,true),Clip("walk",fly,true),Clip("run",fly,true),Clip("jump",fly,true),Clip("attack",attack,true)};
+                if(byLabel.TryGetValue("die",out var die)) result.Add(Clip("down",die,false));
+                else {lyingFrame=true;result.Add(Clip("down",(stay.label,1,stay.row),false));notes.Add("нет анимации смерти — лежит стоящий кадр");}
+                return result.ToArray();
+            }
+            if(rows.Count!=1) throw new InvalidDataException($"Существо {source.id}: ряды листа без метки fly не разобраны: {string.Join(", ",rows.Select(r=>r.label))}.");
+            var only=rows[0];lyingFrame=true;
+            notes.Add("одна анимация на все позы; смерть — стоящий кадр перевёрнут");
+            return new[]{Clip("idle",only,true),Clip("walk",only,true),Clip("run",only,true),Clip("jump",only,true),Clip("attack",only,true),Clip("down",(only.label,1,only.row),false)};
         }
 
         // BlitAnim (serv/BlitAnim.as): row y, frames ff…ff+len−1 stepped by df per 30 fps tick, replay from rf.

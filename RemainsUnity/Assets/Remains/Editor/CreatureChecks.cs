@@ -14,6 +14,7 @@ namespace Remains.Editor
     public static class CreatureChecks
     {
         private static readonly string[] Poses={"idle","walk","run","jump","down"};
+        private static readonly string[] FamilyPoses={"idle","walk","run","jump","attack","down"};
         public static void RunBatch()
         {
             try {Run();EditorApplication.Exit(0);}
@@ -31,7 +32,9 @@ namespace Remains.Editor
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
                 var art=AtlasAnimationData.Get(type.artwork);
-                foreach(string pose in Poses) Require(art.Clip(pose).count>0,$"{creature.actorType}: поза {pose}");
+                bool family=NpcCreatureBehaviours.IsFamily(type.behavior);
+                foreach(string pose in family?FamilyPoses:Poses) Require(art.Clip(pose).count>0,$"{creature.actorType}: поза {pose}");
+                if(family) type.motion.Validate(creature.actorType);
                 Require(Anatomy.Movement(new ActorState {anatomy=creature.actorType}).width>0,"анатомия "+creature.actorType);
                 var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
                 float hp=float.Parse((string)unit.Element("comb").Attribute("hp"),System.Globalization.CultureInfo.InvariantCulture);
@@ -54,13 +57,20 @@ namespace Remains.Editor
                 Require(RoomContentInstaller.Apply(world,batch),"первая установка");
                 int installed=world.actors.Count(a=>catalog.Creatures.Any(c=>c.actorType==a.actorType));
                 Require(installed==expected && !RoomContentInstaller.Apply(world,batch),"повторная установка");
-                // A world that installed v1 (no scorpions) gets only the v2 additions.
-                var older=StateJson.Copy(world);
-                int scorpions=older.actors.RemoveAll(a=>a.actorType.StartsWith("scorp",StringComparison.Ordinal));
-                older.contentPatches.Remove("factory:0:"+FactoryCreatureAdapter.Patch);older.contentPatches.Add("factory:0:"+FactoryCreatureAdapter.PreviousPatch);
-                var keep=older.actors.Select(a=>a.id).ToHashSet();
-                Require(scorpions>0 && RoomContentInstaller.Apply(older,batch) && older.actors.Count(a=>a.actorType.StartsWith("scorp",StringComparison.Ordinal))==scorpions &&
-                    older.actors.Count==keep.Count+scorpions,"переход v1 → v2 добавляет только скорпионов");
+                // A world that installed an earlier placement version gets only what it lacks.
+                bool V3(ActorState a)=>a.actorType=="bloodwing" || a.actorType=="slime" || a.actorType.StartsWith("bloat",StringComparison.Ordinal);
+                bool V2(ActorState a)=>a.actorType.StartsWith("scorp",StringComparison.Ordinal);
+                void Upgrade(string patch,Func<ActorState,bool> missing,string what)
+                {
+                    var older=StateJson.Copy(world);
+                    int lacking=older.actors.RemoveAll(a=>missing(a));
+                    older.contentPatches.Remove("factory:0:"+FactoryCreatureAdapter.Patch);older.contentPatches.Add("factory:0:"+patch);
+                    int kept=older.actors.Count;
+                    Require(lacking>0 && RoomContentInstaller.Apply(older,batch) && older.actors.Count==kept+lacking && older.actors.Count(a=>missing(a))==lacking,what);
+                }
+                Upgrade("base:factory-generated:creatures-v2",V3,"переход v2 → v3 добавляет только летунов и слизь");
+                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a),"переход v1 → v3 добавляет скорпионов, летунов и слизь");
+                Behaviours(world,room.CreateLayout(false));
                 string saved=StateJson.ToJson(world);
                 Require(StateJson.ToJson(StateJson.FromJson<WorldState>(saved))==saved,"сохранение мира с существами");
                 var counts=string.Join(", ",world.actors.Where(a=>!a.player).GroupBy(a=>a.actorType).Select(g=>$"{g.Key} {g.Count()}"));
@@ -73,6 +83,34 @@ namespace Remains.Editor
                 Debug.Log($"PASS существа: подключено {catalog.Creatures.Count} ({string.Join(", ",catalog.Creatures.Select(c=>c.actorType))}), пробелов {catalog.Gaps.Count}; завод seed104: {counts}; сон вдали.");
             }
             finally {FactoryContentSources.Clear();}
+        }
+        // A few seconds of each family on the real factory geometry with a target nearby: no NaN, never inside walls,
+        // flyers move and change pose, a crawling slime stays on its floor.
+        private static void Behaviours(WorldState world,RoomLayout room)
+        {
+            var controller=new Remains.Gameplay.NpcCreatureController();
+            foreach(string kind in new[]{NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Bloat,NpcCreatureBehaviours.Slime})
+            {
+                var actor=StateJson.Copy(world.actors.First(a=>ActorTypes.Get(a.actorType).behavior==kind));
+                var type=ActorTypes.Get(actor.actorType);var hull=Anatomy.Movement(actor);
+                var settings=MovementSettings.Load();settings.walkSpeed=type.naturalAttack.approachSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);
+                var ground=new Remains.Gameplay.MovementController(room,settings);
+                var start=actor.Position;var poses=new System.Collections.Generic.HashSet<string>();
+                Vector2 target=start+new Vector2(4,-1);
+                bool crawling=false;float lowest=float.MaxValue;
+                for(int i=0;i<600;i++)
+                {
+                    controller.Step(actor,type,null,target,room,ground,1f/60);
+                    Require(float.IsFinite(actor.x) && float.IsFinite(actor.y),$"{kind}: нечисловое положение");
+                    if(NpcCreatureBehaviours.Flies(kind)) Require(ActorTerrainMotion.IsClear(room,hull,actor.Position),$"{kind}: внутри стены в {actor.Position}");
+                    poses.Add(actor.pose);
+                    if(kind==NpcCreatureBehaviours.Slime && actor.creature.mode=="crawl") {crawling=true;lowest=Math.Min(lowest,actor.y);}
+                }
+                if(NpcCreatureBehaviours.Flies(kind)) Require(Vector2.Distance(start,actor.Position)>.5f,$"{kind}: не сдвинулся за 10 с ({start} → {actor.Position})");
+                if(kind==NpcCreatureBehaviours.Bat) Require(poses.Contains("walk") && poses.Contains("idle"),$"летучая мышь: позы {string.Join(",",poses)}");
+                if(crawling) Require(start.y-lowest<.5f,$"слизь упала с пола: {start.y} → {lowest}");
+                Debug.Log($"Поведение {kind} ({actor.actorType}): {start} → {actor.Position}, позы {string.Join(",",poses)}, режим {actor.creature.mode}.");
+            }
         }
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Существа: "+message);}
     }

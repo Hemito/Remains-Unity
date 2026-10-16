@@ -8,6 +8,8 @@ namespace Remains.Presentation
 {
     public sealed class AtlasActorVisual : ActorVisual
     {
+        private const float InvertedLift=.8f;
+        private bool wasInverted;
         private sealed class Clip
         {
             public Sprite[] frames;public AtlasActorClip definition;
@@ -84,8 +86,13 @@ namespace Remains.Presentation
         private void Update() {if(state==null) return;using(Remains.Diagnostics.FrameHitchLog.Section("AtlasActorVisual.Update")) Draw();}
         public void Draw()
         {
-            transform.position=state.Position+Vector2.up*(state.down?deadLift:0);view.flipX=(state.facing<0)!=artwork.facesLeft;
+            // A creature hanging upside down (slime on a ceiling, UnitSlime.setVisPos) is drawn turned over, 0.8 m higher.
+            bool inverted=state.creature?.inverted==true && !state.down;
+            transform.position=state.Position+Vector2.up*(state.down?deadLift:inverted?InvertedLift:0);view.flipX=(state.facing<0)!=artwork.facesLeft;
             if(customDeadPresentation) {view.flipY=state.down && deadFlipY;view.color=state.down?deadTint:Color.white;}
+            if(inverted) view.flipY=true;
+            else if(wasInverted) view.flipY=customDeadPresentation && state.down && deadFlipY;
+            wasInverted=inverted;
             string pose=ActorPose.Clip(state);
             if(!artwork.clips.TryGetValue(pose,out var clip))
             {

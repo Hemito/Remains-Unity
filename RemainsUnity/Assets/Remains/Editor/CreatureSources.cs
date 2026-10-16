@@ -19,7 +19,8 @@ namespace Remains.Editor
         // Classes with their own world systems, not actors (Mine: world.mines).
         private static readonly HashSet<string> separate=new(StringComparer.Ordinal) {"Mine"};
         private static readonly Dictionary<string,string> classDefaults=new(StringComparer.Ordinal) {{"UnitTrap","mtrap"},{"UnitDamager","damshot"}};
-        private static readonly Dictionary<string,string[]> randomVariants=new(StringComparer.Ordinal) {{"scorp",new[]{"scorp1","scorp2"}}};
+        private static readonly Dictionary<string,string[]> randomVariants=new(StringComparer.Ordinal) {{"scorp",new[]{"scorp1","scorp2"}},
+            {"bloat",new[]{"bloat0","bloat1","bloat2","bloat3","bloat4"}}};   // UnitBloat: tr = floor(random × 5) without a parameter
 
         public sealed class TemplateObject
         {
@@ -60,7 +61,15 @@ namespace Remains.Editor
             if(result.Count==0) throw new InvalidDataException("В шаблонах завода не найдено ни одного существа: "+folder);
             return result;
         }
-        public static HashSet<string> FactoryUnitIds(JObject catalog)=>FactoryObjects(catalog).SelectMany(o=>o.units).ToHashSet(StringComparer.Ordinal);
+        // With their parents: a unit reads its parent's values and sounds first (Unit.getXmlParam; bloat0 → bloat).
+        public static HashSet<string> FactoryUnitIds(JObject catalog)
+        {
+            var parents=((JArray)catalog["definitions"]).OfType<JObject>().Where(r=>(string)r["category"]=="unit" && (string)r["parent"]!=null)
+                .ToDictionary(r=>(string)r["id"],r=>(string)r["parent"],StringComparer.Ordinal);
+            var result=FactoryObjects(catalog).SelectMany(o=>o.units).ToHashSet(StringComparer.Ordinal);
+            foreach(string id in result.ToArray()) if(parents.TryGetValue(id,out string parent)) result.Add(parent);
+            return result;
+        }
 
         // A unit's bindings that the pipeline imports: raster animation sheets, the class constructors' own vis symbol
         // (flat frame animation) and sounds. A vclass appearance animates through nested clips the export does not

@@ -16,6 +16,8 @@ namespace Remains.Content
         [Min(0),InspectorName("Поглощение урона от попадания")] public float hitProtection;
         [InspectorName("Восприятие (для боевого AI)")] public Remains.Domain.NpcPerceptionSettings perception;
         [SerializeReference,InspectorName("Естественная атака (пусто — оружейный AI)")] public Remains.Domain.NaturalAttackDefinition naturalAttack;
+        [InspectorName("Поведение (семейство существа оригинала; пусто — ползун)")] public string behavior;
+        [InspectorName("Движение существа (летуны, слизь)")] public Remains.Domain.CreatureMotionSettings motion;
     }
     [Serializable] public sealed class ActorTypeList {public ActorTypeDefinition[] actors;}
     public static class ActorTypes
@@ -49,6 +51,13 @@ namespace Remains.Content
             {
                 if(definition.perception==null) throw new InvalidOperationException($"У боевого типа {definition.id} нет настроек восприятия.");
                 definition.perception.Validate();
+            }
+            if(!Remains.Domain.NpcCreatureBehaviours.Valid(definition.behavior))
+                throw new InvalidOperationException($"Тип {definition.id}: неизвестное поведение {definition.behavior}.");
+            if(Remains.Domain.NpcCreatureBehaviours.IsFamily(definition.behavior))
+            {
+                if(definition.naturalAttack==null || definition.motion==null) throw new InvalidOperationException($"Тип {definition.id}: поведение {definition.behavior} требует атаку касанием и движение.");
+                definition.motion.Validate(definition.id);
             }
             if(definition.naturalAttack!=null)
             {

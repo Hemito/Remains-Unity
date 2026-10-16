@@ -36,6 +36,7 @@ namespace Remains.Domain
         public string owner;
         public string target;
         public NpcPerceptionMemory perception=new();
+        public NpcCreatureState creature;   // family AI of an original creature (null for other actors)
         public string level = "factory:0";
         public string anatomy = "pony";
         public string actorType = "pony";

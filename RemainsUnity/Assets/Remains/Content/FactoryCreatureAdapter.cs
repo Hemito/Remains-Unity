@@ -10,9 +10,15 @@ namespace Remains.Content
     // the catalog lists as gaps are reported with their reason and count, never replaced by another creature.
     public static class FactoryCreatureAdapter
     {
-        // v1: tarakan, rat, molerat; v2: + scorpions (scorp1|scorp2). A world with v1 gets only the additions.
-        public const string Patch="base:factory-generated:creatures-v2",PreviousPatch="base:factory-generated:creatures-v1";
-        private static readonly HashSet<string> firstVersion=new(StringComparer.Ordinal) {"tarakan","rat","molerat"};
+        // Placement versions: each adds objects to the ones before; a world gets only what its version lacks.
+        private static readonly (string patch,string[] objects)[] versions=
+        {
+            ("base:factory-generated:creatures-v1",new[]{"tarakan","rat","molerat"}),
+            ("base:factory-generated:creatures-v2",new[]{"scorp"}),
+            ("base:factory-generated:creatures-v3",new[]{"bloodwing","bloat","slime"})
+        };
+        public static string Patch=>versions[^1].patch;
+        public static string PreviousPatch=>versions[^2].patch;
         private const string ObjectPrefix="remains:obj:";
 
         public static int Install(FactoryLevelRoot root)
@@ -21,7 +27,7 @@ namespace Remains.Content
             if(root.GetComponent<RoomNpcContent>()!=null) throw new InvalidOperationException("Существа завода: корень уже содержит расстановку NPC.");
             var catalog=CreatureCatalog.Load();
             var gaps=new Dictionary<string,int>(StringComparer.Ordinal);
-            int count=0;var additions=new List<string>();
+            int count=0;var added=new Dictionary<string,List<string>>(StringComparer.Ordinal);   // object → local IDs
             foreach(var placement in root.Objects.OrderBy(value=>value.Id,StringComparer.Ordinal))
             {
                 string type=placement.Source.Type;
@@ -43,11 +49,16 @@ namespace Remains.Content
                 int facing=(hash&1)==0?1:-1;
                 var marker=node.AddComponent<RoomActorPlacement>();marker.Configure(localId,creature.actorType,facing,false,null);marker.SetSpawn(creature.spawn);
                 root.HideObjectArtwork(placement);
-                if(!firstVersion.Contains(id)) additions.Add(localId);
+                if(!added.TryGetValue(id,out var ids)) added.Add(id,ids=new List<string>());
+                ids.Add(localId);
                 count++;
             }
+            var unknown=added.Keys.Where(o=>!versions.Any(v=>v.objects.Contains(o))).ToArray();
+            if(unknown.Length>0) throw new InvalidOperationException("Существа завода: объекты без версии расстановки: "+string.Join(", ",unknown));
+            string[] Since(int version)=>versions.Skip(version+1).SelectMany(v=>v.objects).Where(added.ContainsKey).SelectMany(o=>added[o]).ToArray();
             var content=root.gameObject.AddComponent<RoomNpcContent>();content.Configure(Patch);
-            content.ConfigureExpansion(PreviousPatch,additions.ToArray());
+            content.ConfigureExpansion(new ContentExpansion {previousPatch=versions[^2].patch,additions=Since(versions.Length-2),
+                earlierVersions=Enumerable.Range(0,versions.Length-2).Reverse().Select(v=>new ContentExpansionStep {previousPatch=versions[v].patch,additions=Since(v)}).ToArray()});
             if(gaps.Count>0)
                 Debug.LogWarning($"Завод {root.Prepared.Physics.id}: существа ещё не подключены и не поставлены — "+
                     string.Join("; ",gaps.OrderBy(g=>g.Key,StringComparer.Ordinal).Select(g=>$"{g.Key} ×{g.Value} ({catalog.GapReason(g.Key)})"))+".");
