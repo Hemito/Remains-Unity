@@ -54,7 +54,7 @@ namespace Remains.Editor
                 if(candidates.Length!=1)throw new InvalidOperationException("Несколько незарегистрированных ассетов контейнера type="+group.Key);
                 existing.Add(group.Key,candidates[0]);
             }
-            string file=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/content-catalog-v7/catalog.json"));
+            string file=ContentPackage.Catalog;
             byte[] bytes=File.ReadAllBytes(file);
             var package=JObject.Parse(System.Text.Encoding.UTF8.GetString(bytes));
             var entries=new List<FactoryContainerDefinition>();

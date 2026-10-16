@@ -48,12 +48,19 @@ namespace Remains.Editor
                 var room=FactoryContentSources.Require(world,"factory:0");
                 var root=room.GetComponent<FactoryLevelRoot>();
                 int expected=root.Objects.Count(o=>o.Source.Type.StartsWith("remains:obj:",StringComparison.Ordinal) &&
-                    catalog.TryGet(o.Source.Type.Substring("remains:obj:".Length),out _));
+                    catalog.TryObject(o.Source.Type.Substring("remains:obj:".Length),out _));
                 var batch=RoomContentBatch.Read(room,"factory:0");
                 Require(batch.npcs!=null && batch.npcs.actors.Length==expected && expected>0,$"на заводе {batch.npcs?.actors.Length} существ из {expected}");
                 Require(RoomContentInstaller.Apply(world,batch),"первая установка");
                 int installed=world.actors.Count(a=>catalog.Creatures.Any(c=>c.actorType==a.actorType));
                 Require(installed==expected && !RoomContentInstaller.Apply(world,batch),"повторная установка");
+                // A world that installed v1 (no scorpions) gets only the v2 additions.
+                var older=StateJson.Copy(world);
+                int scorpions=older.actors.RemoveAll(a=>a.actorType.StartsWith("scorp",StringComparison.Ordinal));
+                older.contentPatches.Remove("factory:0:"+FactoryCreatureAdapter.Patch);older.contentPatches.Add("factory:0:"+FactoryCreatureAdapter.PreviousPatch);
+                var keep=older.actors.Select(a=>a.id).ToHashSet();
+                Require(scorpions>0 && RoomContentInstaller.Apply(older,batch) && older.actors.Count(a=>a.actorType.StartsWith("scorp",StringComparison.Ordinal))==scorpions &&
+                    older.actors.Count==keep.Count+scorpions,"переход v1 → v2 добавляет только скорпионов");
                 string saved=StateJson.ToJson(world);
                 Require(StateJson.ToJson(StateJson.FromJson<WorldState>(saved))==saved,"сохранение мира с существами");
                 var counts=string.Join(", ",world.actors.Where(a=>!a.player).GroupBy(a=>a.actorType).Select(g=>$"{g.Key} {g.Count()}"));

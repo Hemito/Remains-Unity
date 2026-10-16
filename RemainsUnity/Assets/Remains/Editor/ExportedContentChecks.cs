@@ -20,7 +20,7 @@ namespace Remains.Editor
         public static void Run()
         {
             var catalog=ExportedContentCatalog.Load();catalog.Validate();
-            var source=JObject.Parse(File.ReadAllText("../.reference/content-catalog-v7/catalog.json"));
+            var source=JObject.Parse(File.ReadAllText(ContentPackage.Catalog));
             var expected=((JArray)source["definitions"]).OfType<JObject>()
                 .Where(row=>new[]{"item","weapon","weapon1"}.Contains((string)row["category"])).ToArray();
             Require(catalog.items.Length==expected.Length,"число определений");

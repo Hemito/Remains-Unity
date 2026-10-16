@@ -24,7 +24,7 @@ namespace Remains.Editor
     //   batch -executeMethod Remains.Editor.CreatureAuthoring.RunBatch
     public static class CreatureAuthoring
     {
-        private const string Package="../../.reference/content-catalog-v7";
+
         private const string ArtFolder="Assets/Remains/Resources/Original/Creatures";
         private const string PrefabFolder="Assets/Remains/Prefabs/Actors/Creatures";
         private const string SpawnFolder="Assets/Remains/Content/Creatures";
@@ -51,38 +51,46 @@ namespace Remains.Editor
 
         public static void Run()
         {
-            string package=Path.GetFullPath(Path.Combine(Application.dataPath,Package));
+            string package=ContentPackage.Directory;
             var catalog=JObject.Parse(File.ReadAllText(Path.Combine(package,"catalog.json")));
             var rows=((JArray)catalog["definitions"]).OfType<JObject>().ToArray();
             var resources=((JArray)catalog["resources"]).OfType<JObject>().ToDictionary(r=>(string)r["id"],StringComparer.Ordinal);
             var previous=AssetDatabase.LoadAssetAtPath<CreatureCatalog>(CatalogPath);
             var owned=new HashSet<string>(previous?.Creatures.Select(c=>c.actorType)??Enumerable.Empty<string>(),StringComparer.Ordinal);
-            var entries=new List<CreatureEntry>();var gaps=new List<CreatureGap>();
-            foreach(string id in CreatureSources.FactoryUnitIds(catalog).OrderBy(v=>v,StringComparer.Ordinal))
+            var entries=new List<CreatureEntry>();var rules=new List<CreatureObjectRule>();var gaps=new List<CreatureGap>();
+            foreach(var template in CreatureSources.FactoryObjects(catalog).OrderBy(o=>o.objectId,StringComparer.Ordinal))
             {
-                string reason=Select(id,rows,resources,out var source);
-                if(reason!=null) {gaps.Add(new CreatureGap {sourceId=id,reason=reason});continue;}
-                entries.Add(Generate(source,package,owned));
+                string reason=template.problem;
+                var types=new List<string>();
+                foreach(string unitId in template.units)
+                {
+                    if(reason!=null) break;
+                    var existing=entries.FirstOrDefault(e=>e.actorType==unitId);
+                    if(existing!=null) {types.Add(existing.actorType);continue;}
+                    reason=Select(unitId,template.className,rows,resources,out var source);
+                    if(reason==null) {var entry=Generate(source,package,owned);entries.Add(entry);types.Add(entry.actorType);}
+                }
+                if(reason!=null) gaps.Add(new CreatureGap {sourceId=template.objectId,reason=reason});
+                else rules.Add(new CreatureObjectRule {objectId=template.objectId,actorTypes=types.ToArray()});
             }
             WriteAnatomy(entries.Select(e=>e.actorType).ToHashSet(StringComparer.Ordinal),owned);
             WriteDeathAudio(entries,owned);
             var asset=previous??ScriptableObject.CreateInstance<CreatureCatalog>();
-            asset.Configure(entries.ToArray(),gaps.ToArray());
+            asset.Configure(entries.ToArray(),rules.ToArray(),gaps.ToArray());
             if(previous==null) {Directory.CreateDirectory(Path.GetDirectoryName(CatalogPath));AssetDatabase.CreateAsset(asset,CatalogPath);}
             EditorUtility.SetDirty(asset);AssetDatabase.SaveAssets();
             foreach(var entry in entries)
                 Debug.Log($"Существо {entry.sourceId} → {entry.actorType} ({entry.family}){(entry.notes.Length==0?"":": "+string.Join("; ",entry.notes))}.");
-            foreach(var gap in gaps) Debug.Log($"Существо {gap.sourceId} не подключено: {gap.reason}");
-            Debug.Log($"Существа завода: подключено {entries.Count}, ещё нет {gaps.Count}.");
+            foreach(var rule in rules) Debug.Log($"Объект {rule.objectId} → {string.Join(" | ",rule.actorTypes)}.");
+            foreach(var gap in gaps) Debug.Log($"Объект {gap.sourceId} не подключён: {gap.reason}");
+            Debug.Log($"Существа завода: типов {entries.Count}, объектов подключено {rules.Count}, ещё нет {gaps.Count}.");
         }
 
-        private static string Select(string id,JObject[] rows,Dictionary<string,JObject> resources,out Source source)
+        private static string Select(string id,string cls,JObject[] rows,Dictionary<string,JObject> resources,out Source source)
         {
             source=null;
             var unit=rows.FirstOrDefault(r=>(string)r["category"]=="unit" && (string)r["id"]==id);
-            var obj=rows.FirstOrDefault(r=>(string)r["category"]=="obj" && (string)r["id"]==id);
-            if(unit==null || obj==null) return "нет определения unit/obj в выгрузке";
-            string cls=(string)XElement.Parse((string)obj["rawXml"]).Attribute("cl")??"";
+            if(unit==null) return "нет определения unit "+id+" в выгрузке";
             if(!families.TryGetValue(cls,out string family)) return $"поведение класса оригинала {cls} ещё не реализовано";
             var xml=XElement.Parse((string)unit["rawXml"]);
             var sheet=((JArray)unit["graphics"]).OfType<JObject>().FirstOrDefault(g=>(string)g["role"]=="animation-sheet");

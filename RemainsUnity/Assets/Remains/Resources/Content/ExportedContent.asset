@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: de4470810daacd446ad816efb1c6f252, type: 3}
   m_Name: ExportedContent
   m_EditorClassIdentifier: 
-  sourceHash: b186f515d6bac733193988af9ba354ebba8e5999f0dc20072531b51c972814e1
+  sourceHash: 69a568dc78a640d74e547a236c3ed98b80c654fa9d7e087c436f2de9d3821588
   items:
   - key: item:abssalt
     category: item
@@ -8571,6 +8571,24 @@ MonoBehaviour:
       \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
       \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
       \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:damexpl1
+    category: unit
+    sourceId: damexpl1
+    rawXml: "<unit id=\"damexpl1\" fraction=\"2\"><phis sX=\"36\" sY=\"36\" /><move
+      fixed=\"1\" /><comb hp=\"20\" /><param trup=\"0\" acttrap=\"0\" mech=\"1\"
+      /><un tip=\"3\" skill=\"explosives\" /><n>\u0412\u0437\u0440\u044B\u0432\u0447\u0430\u0442\u043A\u0430</n></unit>"
+    displayName: "\u0412\u0437\u0440\u044B\u0432\u0447\u0430\u0442\u043A\u0430"
+    description: 
+    graphics:
+    - role: appearance
+      resourceId: pfeUI:3137
+      rule: unit class constructor Res.getVis("vis" + id)
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    sounds: []
+    issues: []
   - key: unit:doctor
     category: unit
     sourceId: doctor
@@ -8742,6 +8760,25 @@ MonoBehaviour:
       \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
       \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
       \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:mtrap
+    category: unit
+    sourceId: mtrap
+    rawXml: "<unit id=\"mtrap\"><phis sX=\"20\" sY=\"20\" massa=\"15\" /><move brake=\"10\"
+      knocked=\"0.1\" damwall=\"10\" /><vulner fire=\"0.1\" cryo=\"0.1\" spark=\"0.25\"
+      venom=\"0\" poison=\"0\" bleed=\"0\" /><comb hp=\"010\" skin=\"10\" damage=\"24\"
+      tipdam=\"14\" dexter=\"0.7\" /><param trup=\"0\" acttrap=\"0\" mech=\"1\" /><n>\u041A\u0430\u043F\u043A\u0430\u043D</n></unit>"
+    displayName: "\u041A\u0430\u043F\u043A\u0430\u043D"
+    description: 
+    graphics:
+    - role: appearance
+      resourceId: pfeUI:3131
+      rule: unit class constructor Res.getVis("vis" + id)
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    sounds: []
+    issues: []
   - key: unit:raider
     category: unit
     sourceId: raider
@@ -8907,6 +8944,134 @@ MonoBehaviour:
       \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
       \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
       \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:scorp1
+    category: unit
+    sourceId: scorp1
+    rawXml: "<unit id=\"scorp1\" fraction=\"1\" cont=\"scorp\" xp=\"100\" cat=\"3\"><phis
+      sX=\"55\" sY=\"39\" massa=\"35\" /><move speed=\"1.5\" run=\"5\" accel=\"0.6\"
+      jump=\"10\" brake=\"1\" levitaccel=\"0.7\" levit_max=\"120\" porog=\"10\" damwall=\"8\"
+      /><comb hp=\"40\" damage=\"7\" skin=\"5\" tipdam=\"14\" /><vulner phis=\"0.75\"
+      blade=\"0.5\" venom=\"0.5\" acid=\"0.5\" laser=\"0.5\" /><param blood=\"2\"
+      acttrap=\"1\" overlook=\"0\" insect=\"1\" hero=\"scorp\" /><vis blit=\"sprScorp1\"
+      sprX=\"85\" sprY=\"58\" sprDX=\"38\" sprDY=\"56\" visdam=\"1\" /><snd die=\"scorp\"
+      /><n>\u0420\u0430\u0434\u0441\u043A\u043E\u0440\u043F\u0438\u043E\u043D</n><blit
+      id=\"stay\" /><blit id=\"attack\" len=\"15\" ff=\"1\" /><blit id=\"walk\" y=\"1\"
+      len=\"18\" rep=\"1\" df=\"0.5\" /><blit id=\"run\" y=\"1\" len=\"18\" rep=\"1\"
+      /><blit id=\"plav\" y=\"1\" len=\"18\" rep=\"1\" /><blit id=\"jump\" y=\"1\"
+      len=\"18\" rep=\"1\" /><blit id=\"die\" y=\"2\" len=\"20\" /><blit id=\"death\"
+      y=\"2\" ff=\"19\" /></unit>"
+    displayName: "\u0420\u0430\u0434\u0441\u043A\u043E\u0440\u043F\u0438\u043E\u043D"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite:15
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis blit="sprScorp1" sprX="85" sprY="58" sprDX="38" sprDY="56"
+        visdam="1" />
+
+        <blit id="stay" />
+
+        <blit id="attack" len="15"
+        ff="1" />
+
+        <blit id="walk" y="1" len="18" rep="1" df="0.5" />
+
+        <blit
+        id="run" y="1" len="18" rep="1" />
+
+        <blit id="plav" y="1" len="18"
+        rep="1" />
+
+        <blit id="jump" y="1" len="18" rep="1" />
+
+        <blit
+        id="die" y="2" len="20" />
+
+        <blit id="death" y="2" ff="19" />'
+      sheetJson: '{"cellWidth":85,"cellHeight":58,"originX":38,"originY":56,"clips":[{"id":"attack","row":0,"first":1,"length":15,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"attack\" len=\"15\" ff=\"1\" />"},{"id":"death","row":2,"first":19,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"2\" ff=\"19\" />"},{"id":"die","row":2,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"2\" len=\"20\" />"},{"id":"jump","row":1,"first":0,"length":18,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"jump\" y=\"1\" len=\"18\" rep=\"1\" />"},{"id":"plav","row":1,"first":0,"length":18,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"plav\" y=\"1\" len=\"18\" rep=\"1\" />"},{"id":"run","row":1,"first":0,"length":18,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"1\" len=\"18\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"walk","row":1,"first":0,"length":18,"step":0.5,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"1\" len=\"18\" rep=\"1\" df=\"0.5\" />"}]}'
+      frame: 0
+    sounds:
+    - role: die
+      resourceId: sound_unit:26
+      rule: snd/attribute symbol scorp
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:scorp2
+    category: unit
+    sourceId: scorp2
+    rawXml: "<unit id=\"scorp2\" fraction=\"1\" cont=\"scorp\" xp=\"100\" cat=\"3\"><phis
+      sX=\"55\" sY=\"39\" massa=\"35\" /><move speed=\"1.5\" run=\"8\" accel=\"0.8\"
+      jump=\"10\" brake=\"1\" levitaccel=\"1.2\" levit_max=\"60\" porog=\"10\" damwall=\"12\"
+      /><comb hp=\"60\" damage=\"10\" skin=\"2\" tipdam=\"14\" /><vulner phis=\"0.75\"
+      blade=\"0.5\" venom=\"0.5\" acid=\"0.5\" laser=\"0.5\" /><param blood=\"2\"
+      acttrap=\"1\" overlook=\"0\" insect=\"1\" hero=\"scorp\" /><vis blit=\"sprScorp2\"
+      sprX=\"85\" sprY=\"58\" sprDX=\"38\" sprDY=\"56\" visdam=\"1\" /><snd die=\"scorp\"
+      /><n>\u0420\u0430\u0434\u0441\u043A\u043E\u0440\u043F\u0438\u043E\u043D</n><blit
+      id=\"stay\" /><blit id=\"attack\" len=\"15\" ff=\"1\" /><blit id=\"walk\" y=\"1\"
+      len=\"18\" rep=\"1\" df=\"0.5\" /><blit id=\"run\" y=\"1\" len=\"18\" rep=\"1\"
+      /><blit id=\"plav\" y=\"1\" len=\"18\" rep=\"1\" /><blit id=\"jump\" y=\"1\"
+      len=\"18\" rep=\"1\" /><blit id=\"die\" y=\"2\" len=\"20\" /><blit id=\"death\"
+      y=\"2\" ff=\"19\" /></unit>"
+    displayName: "\u0420\u0430\u0434\u0441\u043A\u043E\u0440\u043F\u0438\u043E\u043D"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite:14
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis blit="sprScorp2" sprX="85" sprY="58" sprDX="38" sprDY="56"
+        visdam="1" />
+
+        <blit id="stay" />
+
+        <blit id="attack" len="15"
+        ff="1" />
+
+        <blit id="walk" y="1" len="18" rep="1" df="0.5" />
+
+        <blit
+        id="run" y="1" len="18" rep="1" />
+
+        <blit id="plav" y="1" len="18"
+        rep="1" />
+
+        <blit id="jump" y="1" len="18" rep="1" />
+
+        <blit
+        id="die" y="2" len="20" />
+
+        <blit id="death" y="2" ff="19" />'
+      sheetJson: '{"cellWidth":85,"cellHeight":58,"originX":38,"originY":56,"clips":[{"id":"attack","row":0,"first":1,"length":15,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"attack\" len=\"15\" ff=\"1\" />"},{"id":"death","row":2,"first":19,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"2\" ff=\"19\" />"},{"id":"die","row":2,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"2\" len=\"20\" />"},{"id":"jump","row":1,"first":0,"length":18,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"jump\" y=\"1\" len=\"18\" rep=\"1\" />"},{"id":"plav","row":1,"first":0,"length":18,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"plav\" y=\"1\" len=\"18\" rep=\"1\" />"},{"id":"run","row":1,"first":0,"length":18,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"1\" len=\"18\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"walk","row":1,"first":0,"length":18,"step":0.5,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"1\" len=\"18\" rep=\"1\" df=\"0.5\" />"}]}'
+      frame: 0
+    sounds:
+    - role: die
+      resourceId: sound_unit:26
+      rule: snd/attribute symbol scorp
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
   - key: unit:slime
     category: unit
     sourceId: slime
@@ -76362,6 +76527,125 @@ MonoBehaviour:
       sourceHash: 634f2a01bcb01e7365100926a7c5aed3ae54416be09bfae0fe73cf7a28e6d4f1
     sounds: []
     issues: []
+  - id: pfeUI:3131
+    kind: vector
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames:
+    - frame: 1
+      zoom: 8
+      spriteResource: Imported/Art/d9718298280e659244e1ca2f74420b228651d9607b19929e06a8cffe67fc88aa
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 31629db3ad6fb78554f5fe140d09d32e0dc0d8551d6b0192755c112829847f76
+    - frame: 2
+      zoom: 8
+      spriteResource: Imported/Art/3b1470a80d2fb9083501f0445d0872848e6996fe5c16c933c6a6bd86586212ec
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: c674ee271869e48fb579bd1a31d77e9fa523261291082183fd8211f360a1c56d
+    - frame: 3
+      zoom: 8
+      spriteResource: Imported/Art/02b7c70380015d12e8e2c0d4d76cc6f8835b998daa43ecb769239d3832468cb1
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 303b021b718c421af5216ffbaa1b99315ea65576080bc92b1b0d0b05ffafed64
+    - frame: 4
+      zoom: 8
+      spriteResource: Imported/Art/383425ed64775c65ce01d39064fb87ddcb5c0caf9c43bafac1c04f667195cce0
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: db1e201e61f8e3890c850efacf13ac50f1d7545a835a8b8c467e4a8993e0fe59
+    - frame: 5
+      zoom: 8
+      spriteResource: Imported/Art/207f7bee66c45914fa2acfe2ed40e207fc42d6e9af76057ae99dbd7fc3c63e5d
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 6284ffccff4a9254673620125ef6c0ecde4822a2d4fd7112b4fad7c488371d75
+    - frame: 6
+      zoom: 8
+      spriteResource: Imported/Art/2755dc79fa51f7b95bab2c9720d01a5b74cd08064cd61df66817d24ef7c9f50a
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 1f5a78fbff737429908e57fd78b515bf511729fecc997290538b99c98f7688f3
+    - frame: 7
+      zoom: 8
+      spriteResource: Imported/Art/6199499c0188ca6d9ed1858d34b1ba15c05bb1fe7af2babbe176d5e9d32fd558
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 2c6446db6f4a3ebf22d0a1e2e551f865dc2beae5edb824d5fdd550e7e819dfeb
+    - frame: 8
+      zoom: 8
+      spriteResource: Imported/Art/403ed81d677acb835371c88595edc322fe015b7b2d5bb7c5f05284f0c2680d37
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 9d120473034c7931f06e3806195edbd9cda21c952ab12d67384ae02c320d29b6
+    - frame: 9
+      zoom: 8
+      spriteResource: Imported/Art/c03efeac639f1f9ff0c73c1553a463a5d220f034e00e911dd7367a4f5d1d1b1f
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: bda09ab8009cdca3f2ff9c05f6a7c3c8f9d41b4e9e372e26698ba022ddaaeae8
+    - frame: 10
+      zoom: 8
+      spriteResource: Imported/Art/c88a46cc92abed765737644ee4f93519253c8a46f5d61a93b0398fa1a861e7a3
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: ffabfa33741214435c7a2a7b27137bd28d2b3859cd5009caa4732693082a6cb5
+    - frame: 11
+      zoom: 8
+      spriteResource: Imported/Art/a2fc4dd4e8fc266d5c774a10f8d0fcf1249ed63ff2e0bfa3a2ae52a6ab7c494f
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 7855c7c2822810d19daa71ba4134865aad94375058d3ecbe081fa12903d1af96
+    - frame: 12
+      zoom: 8
+      spriteResource: Imported/Art/83fd31d8fe9a76e74e8c2d6d86ceaa54b07852b2231684df314459bff1b50e46
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 8844b5ba59b8439a664dcb058160c2d9d1f613f92d6f8fc6b32c4ac83d594701
+    - frame: 13
+      zoom: 8
+      spriteResource: Imported/Art/4a58dc37fedc286626a177f14682a9c1840b242734dbd885441a8ad7f040b12f
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 7c7813bb5236ed15582824c3764a0018d98613abb17666b82f1bb36c3e7ec151
+    - frame: 14
+      zoom: 8
+      spriteResource: Imported/Art/f545ca461d899af226eda953e39de5bcd710431395f511e3d201c9f6827082c2
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: b769cb91f536322a43dc4cb85c5f6639eea998992ef7d8aafedc71cdc536ff05
+    - frame: 15
+      zoom: 8
+      spriteResource: Imported/Art/56153bbd24b7e6768818872b60874ed200ab533211a1d5238a312d6368632126
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: a039001382277de6cb79f6eb15a701cf3465c31c38ed07d23b7ff7522acc75cf
+    - frame: 16
+      zoom: 8
+      spriteResource: Imported/Art/3b9e6a6d224e52d9809cf32399690cb457a361876426961a952c788cf5bafacf
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 4a0fa88fe4685cebdc454d465aa39bf56da8b64b591b25aab8b23b0677d66278
+    - frame: 17
+      zoom: 8
+      spriteResource: Imported/Art/61b5bc6dd0e5df3c105beff88f4f08e0563b6e5c84e935f8cfdf1f7d8a37ac15
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 4205210366ccaa65d5d8154e32d40eb57fd246f582017a81444be53080e3ac77
+    - frame: 18
+      zoom: 8
+      spriteResource: Imported/Art/78794f941ab5c4bf99ac838bbd8065309ab5fb7945f798e021f13005656e608b
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 0364551f87a4611a8ee9f14d1ef51f9c6b5135f72db8727770cda434dd9a7289
+    - frame: 19
+      zoom: 8
+      spriteResource: Imported/Art/4bd554775b5cc673c390791c04387e16ddd19a5d73e62192857d95758b760ca0
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: 45e30ba295d57049184f3db0f8e602d63d5521538bbcbd48c56e9e9651dfceac
+    - frame: 20
+      zoom: 8
+      spriteResource: Imported/Art/967f44c0b58dcf90c3a68a0d50a9a4c361bafcb7543e6649ea98d85c86f4bb1e
+      sourceOrigin: {x: 20.05, y: 19.7}
+      sourceHash: d9391909fae8f51b05f69c1640051481fa02d04e1c3a35411a7cca22a6aac1bb
+    sounds: []
+    issues: []
+  - id: pfeUI:3137
+    kind: vector
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames:
+    - frame: 1
+      zoom: 8
+      spriteResource: Imported/Art/bdfeb44237ab3655cb2e1279342c2429bda036ebd92ca1e31b57b3540f068fec
+      sourceOrigin: {x: 22.65, y: 40}
+      sourceHash: faeceb1272b75fbe9c67af7224cda724f8da1d9b461dd02bb11abafc83a9d544
+    sounds: []
+    issues: []
   - id: pfeUI:3895
     kind: mixed
     socketsJson: '[]'
@@ -82718,6 +83002,14 @@ MonoBehaviour:
     sounds:
     - {fileID: 8300000, guid: 88a8eb3bed694dc46926177e31cf037b, type: 3}
     issues: []
+  - id: sound_unit:26
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: dd81131ce3e11334fa86ce2cf19cf5cc, type: 3}
+    issues: []
   - id: sound_unit:27
     kind: sound
     socketsJson: '[]'
@@ -83412,6 +83704,20 @@ MonoBehaviour:
     sounds: []
     issues: []
   - id: sprite1:41
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite:14
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite:15
     kind: bitmap
     socketsJson: '[]'
     labelsJson: '{}'

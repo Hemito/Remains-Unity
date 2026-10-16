@@ -37,13 +37,15 @@ namespace Remains.Editor
 
         public static ExportedContentCatalog InstallPackage()
         {
-            string package = Path.GetFullPath(Path.Combine(Application.dataPath, "../../.reference/content-catalog-v7"));
+            string package = ContentPackage.Directory;
             string catalogFile = Path.Combine(package, "catalog.json");
             string catalogHash = Hash(catalogFile);
             var source = JObject.Parse(File.ReadAllText(catalogFile));
             if ((int?)source["version"] != 2) throw new InvalidDataException("Неподдержанная версия каталога исходного контента.");
             var existing = AssetDatabase.LoadAssetAtPath<ExportedContentCatalog>(CatalogPath);
-            if (existing != null && existing.sourceHash != catalogHash)
+            // A newer package may extend an installed one it declares (ContentPackage.Replaces); every file already
+            // imported is still checked against its SHA256 below (Prepare), so nothing installed changes silently.
+            if (existing != null && existing.sourceHash != catalogHash && !ContentPackage.CanReplace(existing.sourceHash))
                 throw new InvalidDataException($"Каталог {CatalogPath} принадлежит другому исходному пакету; автоматическая перезапись запрещена.");
             // Creatures of the factory (CreatureSources): their definitions, animation sheets and sounds.
             var unitIds = CreatureSources.FactoryUnitIds(source);
