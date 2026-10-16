@@ -67,7 +67,7 @@ namespace Remains.Content
         public static void Load()
         {
             WeaponRigs.Load();
-            ActorTypes.Load();PropCatalog.Load();
+            ActorTypes.Load();PropCatalog.Load();HazardCatalog.Load();
             var asset=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
             CasingEffectCatalog.Load();
@@ -85,6 +85,7 @@ namespace Remains.Content
             inputs.Add(CosmeticCatalog.Resource,CosmeticCatalog.Current.Fingerprint);
             inputs.Add("Presentation/visual-equipment",WearableRenderCatalog.ContentFingerprint);
             inputs.Add(FootSupportCatalog.Resource,FootSupportCatalog.Fingerprint);
+            inputs.Add(HazardCatalog.Resource,HazardCatalog.Json);
             inputs.Add("Rules/actor-body-support","sampled-centres-v1");
             foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/standing-edge-poses",SlopePoseCatalog.Resource,"Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
             {
@@ -116,6 +117,7 @@ namespace Remains.Content
                 inputs.Add(key,JsonUtility.ToJson(AtlasAnimationData.Get(key)));
             var complete=GameplayContentManifest.Compose(loaded.manifest,inputs);
             definitions=loaded.definitions;
+            HazardCatalog.ValidateWeapons();
             manifest=complete;Rules=rules;
             ModFingerprint=complete.fingerprint;ModDescription=loaded.description+"\nГеометрия, анатомия и позы: "+inputs.Count+" набора данных";
         }

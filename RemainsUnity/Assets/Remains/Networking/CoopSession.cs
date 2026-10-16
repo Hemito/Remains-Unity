@@ -154,6 +154,8 @@ namespace Remains.Networking
         public SessionLamps Lamps=>lamps ??= new SessionLamps(this);
         private SessionMines mines;
         public SessionMines Mines=>mines??=new SessionMines(this);
+        private SessionHazards hazards;
+        public SessionHazards Hazards=>hazards??=new SessionHazards(this);
         private SessionDoorDamage doorDamage;
         public SessionDoorDamage DoorDamage=>doorDamage ??= new SessionDoorDamage(this);
         private SessionHealingAudio healingAudio;
@@ -202,7 +204,7 @@ namespace Remains.Networking
             backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
-            Mechanisms.RegisterServer();Mines.RegisterServer();
+            Mechanisms.RegisterServer();Mines.RegisterServer();Hazards.RegisterServer();
             DoorDamage.RegisterServer();Lamps.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();HealingAudio.RegisterServer();
             Admission.RegisterServer();EntryPreparation.RegisterServer();
             InvokeRepeating(nameof(ExpireEntryPreparation),1,1);
@@ -317,7 +319,7 @@ namespace Remains.Networking
 
         internal void DiscardUnstartedWorld()
         {
-            DoorDamage.ResetServer();Lamps.ResetServer();Mines.ResetServer();HealingAudio.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
+            DoorDamage.ResetServer();Lamps.ResetServer();Mines.ResetServer();Hazards.ResetServer();HealingAudio.ResetServer();CancelInvoke(nameof(CheckpointWorld));LevelTime.ResetServer();Mechanisms.ResetServer();ServerWorld=null;inventory=null;recoveredActors.Clear();
         }
 
         internal void AdmitLobbyPlayer(NetworkConnectionToClient connection,JoinMessage message)=>Join(connection,message);
@@ -334,7 +336,7 @@ namespace Remains.Networking
             Lobby.RegisterClient();
             Travel.RegisterClient();
             ContainerInspection.RegisterClient();
-            Mechanisms.RegisterClient();Mines.RegisterClient();
+            Mechanisms.RegisterClient();Mines.RegisterClient();Hazards.RegisterClient();
             DoorDamage.RegisterClient();Lamps.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
             worldReplication.Forget();
             NetworkClient.RegisterHandler<WorldPartMessage>(Remains.Networking.MessageTiming.Client<WorldPartMessage>(message=>
@@ -987,6 +989,8 @@ namespace Remains.Networking
             string contactReason=DoorDamage.RecordAccepted(attack,ServerWorld.Find(attack.attacker));
             if(contactReason!=null) {Reject(contactReason);return;}
             contactReason=Lamps.RecordAccepted(attack,ServerWorld.Find(attack.attacker));
+            if(contactReason!=null) {Reject(contactReason);return;}
+            contactReason=Hazards.RecordAccepted(attack,ServerWorld.Find(attack.attacker));
             if(contactReason!=null) {Reject(contactReason);return;}
             NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
         }

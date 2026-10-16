@@ -23,6 +23,9 @@ namespace Remains.Content
         [InspectorName("Материал попадания (flesh/metal/slime)")] public string hitMaterial;
         // Original Unit.udarUnit by the attacker's damage type (fang_hit, acid, hit_flesh...): one is chosen per touch.
         [InspectorName("Звуки атаки касанием (AudioClipSource)")] public string[] attackSounds;
+        // Original Unit.activateTrap (AllData param acttrap): 2 springs traps (players and most units), 1 is a small
+        // creature that only players' mines notice, 0 springs nothing. Unset in older assets: 2, the original default.
+        [Range(0,2),InspectorName("Срабатывание ловушек (acttrap: 2 — да, 1 — мелкое, 0 — нет)")] public int activateTrap=2;
     }
     [Serializable] public sealed class ActorTypeList {public ActorTypeDefinition[] actors;}
     public static class ActorTypes

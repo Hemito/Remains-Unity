@@ -15,7 +15,7 @@ namespace Remains.Editor
     public static class ContentEntityIdentityChecks
     {
         private const string Level="factory:0",Occupied=Level+":occupied";
-        private const string ActorPrefix=Level+":prefix-actor",PhysicalPrefix=Level+":prefix-physical",DoorPrefix=Level+":prefix-door",MechanismPrefix=Level+":prefix-mechanism",MinePrefix=Level+":prefix-mine";
+        private const string ActorPrefix=Level+":prefix-actor",PhysicalPrefix=Level+":prefix-physical",DoorPrefix=Level+":prefix-door",MechanismPrefix=Level+":prefix-mechanism",MinePrefix=Level+":prefix-mine",HazardPrefix=Level+":prefix-hazard";
         private static int assertions;
         public static void Run()
         {
@@ -152,7 +152,7 @@ namespace Remains.Editor
         private static DoorLayout Doors(string id)=>new() {patch=Level+":doors-test",level=Level,doors=new[]{Door(DoorPrefix),Door(id)}};
         private static NpcLayout Npcs(string id)=>new() {patch=Level+":npc-test",level=Level,actors=new[]{Npc(ActorPrefix),Npc(id)}};
         private static string PrefixFor(ContentEntityKind kind)=>kind switch
-        {ContentEntityKind.Actor=>ActorPrefix,ContentEntityKind.Prop or ContentEntityKind.Container=>PhysicalPrefix,ContentEntityKind.Door=>DoorPrefix,ContentEntityKind.Mine=>MinePrefix,_=>MechanismPrefix};
+        {ContentEntityKind.Actor=>ActorPrefix,ContentEntityKind.Prop or ContentEntityKind.Container=>PhysicalPrefix,ContentEntityKind.Door=>DoorPrefix,ContentEntityKind.Mine=>MinePrefix,ContentEntityKind.Hazard=>HazardPrefix,_=>MechanismPrefix};
         private static MechanismLayout Mechanisms(ContentEntityKind kind,string id)
         {
             var platform=Platform(MechanismPrefix);return new MechanismLayout {patch=Level+":mechanisms-test",level=Level,
@@ -169,6 +169,7 @@ namespace Remains.Editor
                 case ContentEntityKind.Prop:case ContentEntityKind.Container:PhysicalContentInstaller.Apply(world,Physical(kind,id));break;
                 case ContentEntityKind.Door:DoorContentInstaller.Apply(world,Doors(id));break;
                 case ContentEntityKind.Mine:MineContentInstaller.Apply(world,new MineLayout {patch=Level+":test-mines",level=Level,mines=new[]{Mine(MinePrefix),Mine(id)}});break;
+                case ContentEntityKind.Hazard:HazardContentInstaller.Apply(world,new HazardLayout {patch=Level+":test-hazards",level=Level,hazards=new[]{Hazard(HazardPrefix),Hazard(id)}});break;
                 default:MechanismContentInstaller.Apply(world,Mechanisms(kind,id));break;
             }
         }
@@ -185,14 +186,16 @@ namespace Remains.Editor
                     string link=MechanismPrefix;if(!world.movingPlatforms.Any(p=>p.id==link)) world.movingPlatforms.Add(Platform(link));
                     var button=Button(id,link);button.removed=true;button.revision=8;world.mechanismButtons.Add(button);break;
                 case ContentEntityKind.Mine:var mine=Mine(id);mine.triggered=true;mine.remaining=.25f;world.mines.Add(mine);break;
+                case ContentEntityKind.Hazard:var hazard=Hazard(id);hazard.closed=true;hazard.health=3;world.hazards.Add(hazard);break;
             }
         }
         private static MineState Mine(string id)=>new() {id=id,level=Level,definition="hmine",side=MineRules.LevelSide,x=1,y=0};
+        private static HazardState Hazard(string id)=>new() {id=id,level=Level,definition="mtrap",side=MineRules.LevelSide,x=2,y=0,health=10};
         private static object Find(WorldState world,ContentEntityKind kind,string id)=>kind switch
         {ContentEntityKind.Actor=>world.actors.Single(a=>a.id==id),ContentEntityKind.Prop=>world.props.Single(p=>p.id==id),
             ContentEntityKind.Container=>world.containers.Single(c=>c.id==id),ContentEntityKind.Door=>world.doors.Single(d=>d.id==id),
             ContentEntityKind.MovingPlatform=>world.movingPlatforms.Single(p=>p.id==id),ContentEntityKind.Mine=>world.mines.Single(m=>m.id==id),
-            _=>world.mechanismButtons.Single(b=>b.id==id)};
+            ContentEntityKind.Hazard=>world.hazards.Single(h=>h.id==id),_=>world.mechanismButtons.Single(b=>b.id==id)};
         private static void SetNull(WorldState world,ContentEntityKind kind,bool list)
         {
             void Change<T>(ref List<T> entries) where T:class {if(list) entries=null;else entries.Add(null);}
@@ -200,13 +203,13 @@ namespace Remains.Editor
             {case ContentEntityKind.Actor:Change(ref world.actors);break;case ContentEntityKind.Prop:Change(ref world.props);break;
                 case ContentEntityKind.Container:Change(ref world.containers);break;case ContentEntityKind.Door:Change(ref world.doors);break;
                 case ContentEntityKind.MovingPlatform:Change(ref world.movingPlatforms);break;case ContentEntityKind.MechanismButton:Change(ref world.mechanismButtons);break;
-                case ContentEntityKind.Mine:Change(ref world.mines);break;}
+                case ContentEntityKind.Mine:Change(ref world.mines);break;case ContentEntityKind.Hazard:Change(ref world.hazards);break;}
         }
         private static void RejectUnchanged(WorldState world,Action action,string reason)
         {
-            string before=StateJson.ToJson(world);object[] references={world.actors,world.props,world.containers,world.doors,world.movingPlatforms,world.mechanismButtons,world.mines,world.contentPatches};
+            string before=StateJson.ToJson(world);object[] references={world.actors,world.props,world.containers,world.doors,world.movingPlatforms,world.mechanismButtons,world.mines,world.hazards,world.contentPatches};
             Reject(action,reason);Require(StateJson.ToJson(world)==before,"Отказ изменил state: "+reason);
-            object[] after={world.actors,world.props,world.containers,world.doors,world.movingPlatforms,world.mechanismButtons,world.mines,world.contentPatches};
+            object[] after={world.actors,world.props,world.containers,world.doors,world.movingPlatforms,world.mechanismButtons,world.mines,world.hazards,world.contentPatches};
             Require(references.Zip(after,ReferenceEquals).All(v=>v),"Отказ заменил прежние list refs: "+reason);
         }
         private static void Reject(Action action,string reason)

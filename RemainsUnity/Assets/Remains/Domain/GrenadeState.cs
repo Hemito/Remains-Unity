@@ -35,6 +35,20 @@ namespace Remains.Domain
         public List<string> players=new();
         public List<string> enemies=new();
     }
+    // One way an explosion becomes world state (grenades, mines, charges): every present player of the level decides
+    // its own contact; the host lists the non-player actors it hit.
+    public static class ExplosionRules
+    {
+        public static ExplosionState Record(WorldState world,AttackEvent attack,IEnumerable<string> enemyHits,bool stationary,int generation=0)
+        {
+            var explosion=new ExplosionState {attack=attack,friendlyFire=world.friendlyFire,stationary=stationary,generation=generation};
+            explosion.players=world.actors.Where(a=>a.player && ActorPresence.IsPresent(a) && a.level==attack.level).Select(a=>a.id).ToList();
+            var hits=new HashSet<string>(enemyHits??Array.Empty<string>(),StringComparer.Ordinal);
+            explosion.enemies=world.actors.Where(a=>!a.player && a.level==attack.level && hits.Contains(a.id)).Select(a=>a.id).ToList();
+            world.explosions.Add(explosion);
+            return explosion;
+        }
+    }
     public static class GrenadeRules
     {
         public const double SimulationStep=1d/120;
@@ -105,11 +119,8 @@ namespace Remains.Domain
         public static ExplosionState Detonate(WorldState world,GrenadeState grenade,IEnumerable<string> enemyHits)
         {
             if(!world.grenades.Contains(grenade) || grenade.remaining>0) return null;
-            var explosion=new ExplosionState {attack=grenade.Attack(),friendlyFire=world.friendlyFire,generation=grenade.generation};
-            explosion.players=world.actors.Where(a=>a.player && ActorPresence.IsPresent(a) && a.level==grenade.level).Select(a=>a.id).ToList();
-            var hits=new HashSet<string>(enemyHits ?? Array.Empty<string>());
-            explosion.enemies=world.actors.Where(a=>!a.player && a.level==grenade.level && hits.Contains(a.id)).Select(a=>a.id).ToList();
-            world.grenades.Remove(grenade);world.explosions.Add(explosion);return explosion;
+            world.grenades.Remove(grenade);
+            return ExplosionRules.Record(world,grenade.Attack(),enemyHits,false,grenade.generation);
         }
         public static bool Resolve(ActorState actor,ExplosionState explosion,DamageReceiver damage,Vector2 localPosition)
         {

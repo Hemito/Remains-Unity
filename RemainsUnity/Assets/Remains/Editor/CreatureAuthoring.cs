@@ -68,6 +68,8 @@ namespace Remains.Editor
             var entries=new List<CreatureEntry>();var rules=new List<CreatureObjectRule>();var gaps=new List<CreatureGap>();
             foreach(var template in CreatureSources.FactoryObjects(catalog).OrderBy(o=>o.objectId,StringComparer.Ordinal))
             {
+                // Traps and charges are hazards (HazardAuthoring), neither creatures nor gaps.
+                if(template.problem==null && template.units.All(u=>CreatureSources.HazardKind(template.className,CreatureSources.UnitXml(catalog,u))!=null)) continue;
                 string reason=template.problem;
                 var types=new List<string>();
                 foreach(string unitId in template.units)
@@ -189,6 +191,7 @@ namespace Remains.Editor
                     :new NaturalAttackDefinition {approachSpeed=walk,beginDistance=width*.5f+.4f,verticalDistance=height+1f,
                         preparationSeconds=0,recoverySeconds=1,damage=damage,originX=0,originY=height*.5f,reach=width*.5f+.3f,radius=Mathf.Max(.1f,height*.4f)},
                 behavior=source.family==NpcCreatureBehaviours.Crawler?null:source.family,
+                activateTrap=(int)Num(source.unit.Element("param"),"acttrap",2),
                 hitMaterial=MetalClasses.Contains(source.className)?"metal":source.className=="UnitSlime"?"slime":"flesh",
                 attackSounds=TouchSounds(Num(comb,"tipdam",0)),
                 motion=source.family==NpcCreatureBehaviours.Crawler?null:Motion(source,walk)

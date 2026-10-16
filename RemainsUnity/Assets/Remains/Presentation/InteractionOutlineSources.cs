@@ -13,17 +13,19 @@ namespace Remains.Presentation
         private readonly TravelPointVisuals travel;
         private readonly MechanismVisuals mechanisms;
         private readonly MineVisuals mines;
+        private readonly HazardVisuals hazards;
         private InteractionKind lastKind;
         private string lastId,bodyActorId;
         private Renderer lastRenderer;
         private SortingGroup lastGroup;
         private WorldOutlineSource lastSource;
-        public InteractionOutlineSources(ActorVisualLayers actors,InteractionVisuals items,DoorVisuals doors,TravelPointVisuals travel,MechanismVisuals mechanisms,MineVisuals mines)
+        public InteractionOutlineSources(ActorVisualLayers actors,InteractionVisuals items,DoorVisuals doors,TravelPointVisuals travel,MechanismVisuals mechanisms,MineVisuals mines,HazardVisuals hazards)
         {
             this.actors=actors??throw new ArgumentNullException(nameof(actors));this.items=items??throw new ArgumentNullException(nameof(items));
             this.doors=doors??throw new ArgumentNullException(nameof(doors));this.travel=travel??throw new ArgumentNullException(nameof(travel));
             this.mechanisms=mechanisms??throw new ArgumentNullException(nameof(mechanisms));
             this.mines=mines??throw new ArgumentNullException(nameof(mines));
+            this.hazards=hazards??throw new ArgumentNullException(nameof(hazards));
         }
         public WorldOutlineSource Resolve(InteractionTarget target)
         {
@@ -47,6 +49,7 @@ namespace Remains.Presentation
                 InteractionKind.Map or InteractionKind.Exit=>travel.Find(target.id),
                 InteractionKind.Mechanism=>mechanisms.FindButtonRenderer(target.id),
                 InteractionKind.Mine=>mines.Find(target.id),
+                InteractionKind.Hazard=>hazards.Find(target.id),
                 _=>null
             };
             // Ownership is prepared when a view appears/replaces its frame. An

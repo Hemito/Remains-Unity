@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Remains.Domain
 {
-    public enum InteractionKind { None, Revival, Container, Door, Map, Exit, Pickup, Mechanism, Mine }
+    public enum InteractionKind { None, Revival, Container, Door, Map, Exit, Pickup, Mechanism, Mine, Hazard }
     public readonly struct InteractionTarget
     {
         public readonly InteractionKind kind;
@@ -76,6 +76,12 @@ namespace Remains.Domain
                 if(mine.level!=actor.level || mine.triggered) continue;
                 var profile=MineRules.Profile(mine);
                 if(MineRules.DisarmRejection(mine,actor,profile)==null) Consider(InteractionKind.Mine,mine.id,MineRules.Bounds(mine,profile));
+            }
+            foreach(var hazard in world.hazards)
+            {
+                if(hazard.level!=actor.level) continue;
+                var profile=HazardRules.Profile(hazard);
+                if(HazardRules.DisarmRejection(hazard,actor,profile)==null) Consider(InteractionKind.Hazard,hazard.id,HazardRules.Bounds(hazard,profile));
             }
             return selected;
 

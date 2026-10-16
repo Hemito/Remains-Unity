@@ -59,7 +59,9 @@ namespace Remains.Presentation
                 if(string.IsNullOrEmpty(entry.weapon) || string.IsNullOrEmpty(entry.clip) || entry.kind is not ("shot" or "melee" or "explosion") ||
                     !float.IsFinite(entry.minGain) || !float.IsFinite(entry.maxGain) || entry.minGain<=0 || entry.maxGain<entry.minGain || entry.maxGain>1)
                     throw new InvalidOperationException($"Некорректная звуковая привязка: weapon={entry.weapon}, clip={entry.clip}, kind={entry.kind}.");
-                entry.audio=Load(entry.clip);sounds.Add(entry.weapon,entry);
+                // A Resources key under Original/Audio, or an original sound of the content package (AudioClipSource).
+                entry.audio=entry.clip.StartsWith(AudioClipSource.ExportedPrefix,StringComparison.Ordinal)?AudioClipSource.Load(entry.clip):Load(entry.clip);
+                sounds.Add(entry.weapon,entry);
             }
             reloadClip=Load("pistol-reload");
             if(camera.GetComponent<AudioListener>()==null) camera.gameObject.AddComponent<AudioListener>();

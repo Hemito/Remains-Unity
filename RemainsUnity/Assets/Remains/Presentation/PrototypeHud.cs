@@ -418,6 +418,12 @@ namespace Remains.Presentation
             }
             else if(interaction.kind==InteractionKind.Mine)
                 containerHint.RefreshMine(session.World.mines.Exists(mine=>mine.id==interaction.id),interaction.bounds,show,actor,session.Mines.Pending);
+            else if(interaction.kind==InteractionKind.Hazard)
+            {
+                var hazard=session.World.hazards.Find(h=>h.id==interaction.id);
+                containerHint.RefreshHazard(hazard==null?null:HazardRules.Action(hazard,HazardRules.Profile(hazard))+" "+HazardRules.Profile(hazard).title.ToLowerInvariant(),
+                    interaction.bounds,show,actor,session.Hazards.Pending);
+            }
             else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
                 InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true,session.Rules.Loot);
             containerHint.Highlight(interaction,show);

@@ -31,10 +31,8 @@ namespace Remains.Editor
         {
             var exported=ExportedContentCatalog.Load();
             var catalog=AssetDatabase.LoadAssetAtPath<WeaponAssetCatalog>(CatalogPath)??throw new InvalidOperationException("Нет каталога оружия "+CatalogPath);
-            var grenadeAsset=catalog.AllAssets().Single(asset=>asset.Id=="grenade");
-            var grenade=grenadeAsset.CreateDefinition();
+            var (damageScale,radiusScale)=BlastScale(exported,catalog);
             var grenadeChar=Char(exported.Require("weapon:grenade"));
-            float damageScale=grenade.damage/Number(grenadeChar,"damexpl"),radiusScale=grenade.range/Number(grenadeChar,"expl");
             var serialized=new SerializedObject(catalog);var list=serialized.FindProperty("weapons");
             foreach(string id in Mines)
             {
@@ -55,18 +53,32 @@ namespace Remains.Editor
                         defuseSound=Binding(entry.sounds,"dem",id),placeSound=Binding(entry.sounds,"shoot",id)
                     }
                 };
-                string path=$"{Folder}/{id}.asset";
-                var asset=AssetDatabase.LoadAssetAtPath<WeaponAsset>(path);
-                if(asset==null) {asset=ScriptableObject.CreateInstance<WeaponAsset>();asset.SetDefinition(definition);AssetDatabase.CreateAsset(asset,path);}
-                else {asset.SetDefinition(definition);EditorUtility.SetDirty(asset);}
-                bool listed=false;
-                for(int i=0;i<list.arraySize;i++) listed|=list.GetArrayElementAtIndex(i).objectReferenceValue==asset;
-                if(!listed) {list.arraySize++;list.GetArrayElementAtIndex(list.arraySize-1).objectReferenceValue=asset;}
+                Store(definition,list);
                 Debug.Log($"Мина {id}: урон {definition.damage:F1}, радиус {definition.range:F2} м, зона ±{definition.mine.sensitivity:F2} м, задержка {definition.mine.delaySeconds:F2} с, графика {definition.mine.artwork}.");
             }
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(catalog);AssetDatabase.SaveAssets();
         }
+
+        // An original blast (damexpl, expl px) in Unity units: the ratio of the current Unity grenade to the original's.
+        internal static (float damage,float radius) BlastScale(ExportedContentCatalog exported,WeaponAssetCatalog catalog)
+        {
+            var grenade=catalog.AllAssets().Single(asset=>asset.Id=="grenade").CreateDefinition();
+            var grenadeChar=Char(exported.Require("weapon:grenade"));
+            return (grenade.damage/Number(grenadeChar,"damexpl"),grenade.range/Number(grenadeChar,"expl"));
+        }
+        // Writes a generated weapon asset (Resources/Content/weapons/<id>) and lists it in the weapon catalog.
+        internal static void Store(WeaponDefinition definition,SerializedProperty list)
+        {
+            string path=$"{Folder}/{definition.id}.asset";
+            var asset=AssetDatabase.LoadAssetAtPath<WeaponAsset>(path);
+            if(asset==null) {asset=ScriptableObject.CreateInstance<WeaponAsset>();asset.SetDefinition(definition);AssetDatabase.CreateAsset(asset,path);}
+            else {asset.SetDefinition(definition);EditorUtility.SetDirty(asset);}
+            bool listed=false;
+            for(int i=0;i<list.arraySize;i++) listed|=list.GetArrayElementAtIndex(i).objectReferenceValue==asset;
+            if(!listed) {list.arraySize++;list.GetArrayElementAtIndex(list.arraySize-1).objectReferenceValue=asset;}
+        }
+        internal const string CatalogAsset=CatalogPath;
 
         private static XElement Char(ExportedItemEntry entry)=>XElement.Parse(entry.rawXml).Element("char")??throw new InvalidOperationException("Нет char у "+entry.key);
         private static float Number(XElement element,string name)

@@ -68,7 +68,7 @@ namespace Remains.Persistence
             }
             world.grenades ??= new List<GrenadeState>();world.explosions ??= new List<ExplosionState>();
             world.projectiles ??= new List<ProjectileState>();
-            world.mines ??= new List<MineState>();
+            world.mines ??= new List<MineState>();world.hazards ??= new List<HazardState>();
             foreach(var flight in world.projectiles) flight.Path();
             foreach(var actor in world.actors) {actor.inventoryUses ??= new List<InventoryUse>();actor.resolvedExplosions ??= new List<string>();actor.resolvedAttacks ??= new List<string>();}
             if(InventoryStackMigration.Needed(world))

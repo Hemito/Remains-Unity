@@ -71,6 +71,15 @@ namespace Remains.Editor
             return result;
         }
 
+        // Units that are fixed hazards (HazardAuthoring, world.hazards), not creatures: UnitTrap, and UnitDamager with
+        // un tip 3 (an explosive charge; UnitDamager.getXmlParam reads tipDamager from un@tip, default 1 — a turret that
+        // shoots, still a creature gap).
+        public const string TrapClass="UnitTrap",DamagerClass="UnitDamager";
+        public static string HazardKind(string className,XElement unit)=>className==TrapClass?Remains.Domain.HazardRules.Trap:
+            className==DamagerClass && (string)unit?.Element("un")?.Attribute("tip")=="3"?Remains.Domain.HazardRules.Charge:null;
+        public static XElement UnitXml(JObject catalog,string id)=>((JArray)catalog["definitions"]).OfType<JObject>()
+            .Where(r=>(string)r["category"]=="unit" && (string)r["id"]==id).Select(r=>XElement.Parse((string)r["rawXml"])).FirstOrDefault();
+
         // Original sounds the creature families play by name (Unit.udarUnit by damage type, Bullet.sound by material,
         // UnitTrap): imported with the content package and referenced as "exported:<resource>".
         public static readonly string[] Sounds={"fang_hit1","fang_hit2","fang_hit3","acid","hit_flesh","hit_slime","electro","hit_necr","trap_a","trap_reload"};

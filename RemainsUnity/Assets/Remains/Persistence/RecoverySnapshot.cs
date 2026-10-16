@@ -156,6 +156,14 @@ namespace Remains.Persistence
                 {throw new System.IO.InvalidDataException("Некорректная мина восстановительного снимка: мир="+world.worldId+". "+error.Message,error);}
                 if(!mines.Add(mine.id)) throw new System.IO.InvalidDataException("Повтор ID мины в восстановительном снимке: мир="+world.worldId+", мина="+mine.id+".");
             }
+            var hazards=new HashSet<string>(StringComparer.Ordinal);
+            foreach(var hazard in world.hazards ?? new List<HazardState>())
+            {
+                try {HazardRules.Validate(hazard);}
+                catch(InvalidOperationException error)
+                {throw new System.IO.InvalidDataException("Некорректная ловушка восстановительного снимка: мир="+world.worldId+". "+error.Message,error);}
+                if(!hazards.Add(hazard.id)) throw new System.IO.InvalidDataException("Повтор ID ловушки в восстановительном снимке: мир="+world.worldId+", ловушка="+hazard.id+".");
+            }
         }
 
         // The caller owns live state until serialization finishes; later mutations cannot change Json.

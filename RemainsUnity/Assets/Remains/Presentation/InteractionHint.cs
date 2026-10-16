@@ -24,7 +24,7 @@ namespace Remains.Presentation
         private ActorState actor;
         private readonly Func<Rect?> drawnActorBounds;
         private bool missingActorWarning;
-        private enum Content {None,Pickup,PickupPending,Body,FixedContainer,MassContainer,SecuredContainer,Revival,Travel,DoorOpen,DoorClosed,MechanismPending,MechanismReady,MechanismRepair,MechanismProgress,MechanismUnavailable,Mine,MinePending}
+        private enum Content {None,Pickup,PickupPending,Body,FixedContainer,MassContainer,SecuredContainer,Revival,Travel,DoorOpen,DoorClosed,MechanismPending,MechanismReady,MechanismRepair,MechanismProgress,MechanismUnavailable,Mine,MinePending,Hazard}
         private Content content;
         private float? displayedMass;
         private string displayedTitle;
@@ -139,6 +139,16 @@ namespace Remains.Presentation
             if(!hasTarget) return;
             var next=pending?Content.MinePending:Content.Mine;
             if(content!=next) {content=next;SetText(pending?"Обезвреживание подтверждается…":"E · Обезвредить мину",Color.yellow);}
+            targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
+        }
+        // A trap or charge: its action and name ("Обезвредить капкан", "Взвести капкан"); null when it is gone.
+        public void RefreshHazard(string action,Rect bounds,bool visible,ActorState localActor,bool pending)
+        {
+            hasTarget=action!=null;allowed=visible;actor=localActor;
+            if(!hasTarget || !allowed) UpdateOutline();
+            if(!hasTarget) return;
+            content=pending?Content.MinePending:Content.Hazard;
+            SetText(pending?"Действие подтверждается…":"E · "+action,Color.yellow);
             targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
         }
         private void SetText(string value,Color color)

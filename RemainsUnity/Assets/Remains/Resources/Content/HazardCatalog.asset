@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae481c219e2d2e74790b4d99c5dbbe0b, type: 3}
+  m_Name: HazardCatalog
+  m_EditorClassIdentifier: 
+  definitions:
+  - id: damexpl1
+    kind: charge
+    title: "\u0412\u0437\u0440\u044B\u0432\u0447\u0430\u0442\u043A\u0430"
+    objects:
+    - expl1
+    width: 0.72
+    height: 0.72
+    health: 20
+    skin: 0
+    visibility: 6
+    artwork: pfeUI:3137
+    biteWeapon: 
+    blastWeapon: damexpl1-blast
+    snapSound: 
+    rearmSound: 
+    disarmItem: weapon:dinamit
+    disarmCount: 3
+  - id: mtrap
+    kind: trap
+    title: "\u041A\u0430\u043F\u043A\u0430\u043D"
+    objects:
+    - trap
+    width: 0.4
+    height: 0.4
+    health: 10
+    skin: 10
+    visibility: 6
+    artwork: pfeUI:3131
+    biteWeapon: mtrap-bite
+    blastWeapon: 
+    snapSound: sound_unit:20
+    rearmSound: sound_unit:19
+    disarmItem: 
+    disarmCount: 0

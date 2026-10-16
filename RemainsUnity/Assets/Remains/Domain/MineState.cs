@@ -122,8 +122,11 @@ namespace Remains.Domain
             return new Rect(mine.x-width*.5f,mine.y,width,height);
         }
         public static bool Visible(MineState mine,ActorState viewer,MineProfile profile)=>
-            mine.triggered || mine.side==PlayerSide || mine.holder!=null || viewer!=null && viewer.level==mine.level &&
-            Vector2.Distance(viewer.Position,mine.Position)<=profile.visibility;
+            mine.triggered || mine.side==PlayerSide || mine.holder!=null || Within(mine.level,mine.Position,viewer,profile.visibility);
+        // The interim noticing rule of hidden level objects (mines, traps, charges; original visibility 300 px): the viewer
+        // is on the level within the radius. The original's perception check (Unit.lookInvis) comes with skills.
+        public static bool Within(string level,Vector2 position,ActorState viewer,float radius)=>
+            viewer!=null && viewer.level==level && Vector2.Distance(viewer.Position,position)<=radius;
         public static string DisarmRejection(MineState mine,ActorState actor,MineProfile profile)
         {
             if(mine==null) return "Мина больше недоступна.";
@@ -135,17 +138,12 @@ namespace Remains.Domain
             return null;
         }
 
-        // Removes the mine and records its explosion like a grenade's (GrenadeRules.Detonate): every present player of the
-        // level decides its own contact; the host lists the non-player actors it hit.
+        // Removes the mine and records its explosion (ExplosionRules.Record).
         public static ExplosionState Detonate(WorldState world,MineState mine,IEnumerable<string> enemyHits)
         {
             if(!world.mines.Contains(mine)) return null;
-            var explosion=new ExplosionState {attack=Attack(mine,Profile(mine)),friendlyFire=world.friendlyFire,stationary=true};
-            explosion.players=world.actors.Where(a=>a.player && ActorPresence.IsPresent(a) && a.level==mine.level).Select(a=>a.id).ToList();
-            var hits=new HashSet<string>(enemyHits??Array.Empty<string>(),StringComparer.Ordinal);
-            explosion.enemies=world.actors.Where(a=>!a.player && a.level==mine.level && hits.Contains(a.id)).Select(a=>a.id).ToList();
-            world.mines.Remove(mine);world.explosions.Add(explosion);
-            return explosion;
+            world.mines.Remove(mine);
+            return ExplosionRules.Record(world,Attack(mine,Profile(mine)),enemyHits,true);
         }
     }
 }

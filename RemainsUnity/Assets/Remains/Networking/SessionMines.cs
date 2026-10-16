@@ -285,6 +285,7 @@ namespace Remains.Networking
                 senseClocks.Remove(mine.id);Explosions++;
                 session.CommitWorld();
                 NetworkServer.SendToAll(new AttackMessage {json=StateJson.ToJson(explosion.attack)});
+                session.Hazards.Blast(explosion.attack);
             }
             if(exploding.Count==0 && triggered) session.CommitWorldAtFrameEnd();
         }

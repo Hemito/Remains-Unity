@@ -113,6 +113,7 @@ namespace Remains.Networking
                 if(explosion==null) return;
                 session.CommitWorld();
                 NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(explosion.attack)});
+                session.Hazards.Blast(explosion.attack);
             }
             else NetworkServer.SendToAll(message);
         }
