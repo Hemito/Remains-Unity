@@ -60,6 +60,9 @@ namespace Remains.Editor
             var catalog=JObject.Parse(File.ReadAllText(Path.Combine(package,"catalog.json")));
             var rows=((JArray)catalog["definitions"]).OfType<JObject>().ToArray();
             var resources=((JArray)catalog["resources"]).OfType<JObject>().ToDictionary(r=>(string)r["id"],StringComparer.Ordinal);
+            soundIds.Clear();
+            foreach(var resource in resources.Values.Where(r=>(string)r["kind"]=="sound"))
+                foreach(var name in ((JArray)resource["names"]).Select(n=>(string)n)) soundIds.TryAdd(name,(string)resource["id"]);
             var previous=AssetDatabase.LoadAssetAtPath<CreatureCatalog>(CatalogPath);
             var owned=new HashSet<string>(previous?.Creatures.Select(c=>c.actorType)??Enumerable.Empty<string>(),StringComparer.Ordinal);
             var entries=new List<CreatureEntry>();var rules=new List<CreatureObjectRule>();var gaps=new List<CreatureGap>();
@@ -186,6 +189,8 @@ namespace Remains.Editor
                     :new NaturalAttackDefinition {approachSpeed=walk,beginDistance=width*.5f+.4f,verticalDistance=height+1f,
                         preparationSeconds=0,recoverySeconds=1,damage=damage,originX=0,originY=height*.5f,reach=width*.5f+.3f,radius=Mathf.Max(.1f,height*.4f)},
                 behavior=source.family==NpcCreatureBehaviours.Crawler?null:source.family,
+                hitMaterial=MetalClasses.Contains(source.className)?"metal":source.className=="UnitSlime"?"slime":"flesh",
+                attackSounds=TouchSounds(Num(comb,"tipdam",0)),
                 motion=source.family==NpcCreatureBehaviours.Crawler?null:Motion(source,walk)
             };
             if(walk<=0) notes.Add("нет скорости шага");
@@ -225,6 +230,15 @@ namespace Remains.Editor
             return new CreatureEntry {sourceId=id,actorType=id,family=source.family,spawn=spawn,notes=notes.ToArray()};
         }
 
+        // Unit classes that set mat = 1 (metal) in their constructors; UnitSlime sets 12.
+        private static readonly HashSet<string> MetalClasses=new(StringComparer.Ordinal) {"UnitMsp","UnitDamager","UnitAIRobot","UnitDestr","UnitDron"};
+        // Unit.udarUnit: the touch sound by the attacker's damage type.
+        private static string[] TouchSounds(float damageType)
+        {
+            string[] names=damageType switch {14=>new[]{"fang_hit1","fang_hit2","fang_hit3"},10=>new[]{"acid"},9=>new[]{"electro"},16=>new[]{"hit_necr"},_=>new[]{"hit_flesh"}};
+            return names.Select(name=>"exported:"+(soundIds.TryGetValue(name,out string id)?id:throw new InvalidDataException("Нет исходного звука "+name))).ToArray();
+        }
+        private static readonly Dictionary<string,string> soundIds=new(StringComparer.Ordinal);
         private static CreatureMotionSettings Motion(Source source,float walk)
         {
             var move=source.unit.Element("move");var un=source.unit.Element("un");

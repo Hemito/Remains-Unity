@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Presentation
@@ -40,6 +41,7 @@ namespace Remains.Presentation
         public int ReloadStarts {get;private set;}
         public int MeleeSounds {get;private set;}
         public int ExplosionSounds {get;private set;}
+        private readonly Dictionary<string,AudioClip> naturalClips=new(StringComparer.Ordinal);
         private AudioMixSettings mix;
         private Camera view;
         public float BaseVolume=>mix.effectsVolume;
@@ -96,6 +98,16 @@ namespace Remains.Presentation
             if(session.LocalActor?.level!=attack.level) return;
             if(NpcNaturalAttack.IsNatural(attack))
             {
+                var voices=ActorTypes.Get(attack.naturalAttackType).attackSounds;
+                if(voices is {Length:>0})
+                {
+                    if(!seen.Add(attack.id)) return;
+                    recent.Enqueue(attack.id);if(recent.Count>512) seen.Remove(recent.Dequeue());
+                    string voice=voices[gainRandom.Next(voices.Length)];
+                    if(!naturalClips.TryGetValue(voice,out var naturalClip)) naturalClips.Add(voice,naturalClip=AudioClipSource.Load(voice));
+                    if(Play(naturalClip,attack.level,attack.Origin,1)!=null) MeleeSounds++;
+                    return;
+                }
                 if(missing.Add("natural:"+attack.naturalAttackType))
                     Debug.LogWarning($"Звук естественной атаки пока не настроен: type={attack.naturalAttackType}, actor={attack.attacker}, attack={attack.id}. Оружейный звук не подставляется; см. CRAWLER_SPEC.md.",this);
                 return;

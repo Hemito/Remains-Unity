@@ -34,7 +34,7 @@ MonoBehaviour:
       eyeHeight: 0.40200004
       targetHeight: 0.25
     naturalAttack:
-      rid: 5813030384983867396
+      rid: 5813030385809096708
     behavior: bloat
     motion:
       walkSpeed: 4.2
@@ -42,12 +42,17 @@ MonoBehaviour:
       acceleration: 45
       dashRange: 14
       dashChance: 0.8
+    hitMaterial: flesh
+    attackSounds:
+    - exported:sound:63
+    - exported:sound:62
+    - exported:sound:61
   presentationSource: 1
   presentationPrefab: {fileID: 1321765757902534435, guid: 332dfc7e5023c474cb8070791c239b55, type: 3}
   references:
     version: 2
     RefIds:
-    - rid: 5813030384983867396
+    - rid: 5813030385809096708
       type: {class: NaturalAttackDefinition, ns: Remains.Domain, asm: Assembly-CSharp}
       data:
         approachSpeed: 4.2

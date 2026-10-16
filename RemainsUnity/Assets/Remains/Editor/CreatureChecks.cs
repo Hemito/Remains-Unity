@@ -41,6 +41,9 @@ namespace Remains.Editor
                 var spawned=creature.spawn.Create(new TrainingPlacement {id="check",type=creature.actorType,facing=1},"level");
                 Require(Mathf.Approximately(spawned.health,hp) && spawned.anatomy==creature.actorType,$"{creature.actorType}: здоровье {spawned.health} ≠ AllData {hp}");
                 Require(voices.TrySelect(creature.actorType,0,out _),"голос смерти "+creature.actorType);
+                Animates(creature.actorType,art);
+                Require(type.attackSounds is {Length:>0} && type.attackSounds.All(key=>AudioClipSource.Load(key)!=null),"звуки касания "+creature.actorType);
+                Require(type.hitMaterial is "flesh" or "metal" or "slime",$"{creature.actorType}: материал попадания {type.hitMaterial}");
             }
 
             var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
@@ -111,6 +114,30 @@ namespace Remains.Editor
                 if(crawling) Require(start.y-lowest<.5f,$"слизь упала с пола: {start.y} → {lowest}");
                 Debug.Log($"Поведение {kind} ({actor.actorType}): {start} → {actor.Position}, позы {string.Join(",",poses)}, режим {actor.creature.mode}.");
             }
+        }
+        // The generated prefab draws different frames as the walk pose time advances.
+        private static void Animates(string actorType,AtlasActorArtwork art)
+        {
+            var prefab=AssetDatabase.LoadAssetAtPath<Remains.Presentation.AtlasActorVisual>("Assets/Remains/Prefabs/Actors/Creatures/"+actorType+".prefab");
+            Require(prefab!=null,"нет префаба "+actorType);
+            var visual=UnityEngine.Object.Instantiate(prefab);
+            try
+            {
+                var state=new ActorState {id="check",actorType=actorType,anatomy=actorType,pose="walk",facing=1};
+                visual.Bind(state);var renderer=visual.GetComponent<SpriteRenderer>();
+                var seen=new System.Collections.Generic.HashSet<Sprite>();
+                for(int i=0;i<30;i++) {state.poseTime=i/30f;visual.Draw();seen.Add(renderer.sprite);}
+                // A snapshot rewinding the same pose does not restart the drawn animation.
+                if(art.Clip("walk").count>2)
+                {
+                    state.poseTime=.5f;visual.Draw();var before=renderer.sprite;
+                    state.poseTime=0;visual.Draw();
+                    Require(renderer.sprite==before,$"{actorType}: откат времени позы перезапустил анимацию");
+                }
+                int expected=Math.Min(art.Clip("walk").count,2);
+                Require(renderer.enabled && seen.Count>=expected,$"{actorType}: за секунду ходьбы кадров {seen.Count}, в клипе {art.Clip("walk").count}");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
         }
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Существа: "+message);}
     }

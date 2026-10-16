@@ -58,12 +58,14 @@ namespace Remains.Editor
                 foreach (var binding in skipped) skippedAppearances.Add($"{row["id"]}: {binding["role"]} {binding["resource"]}");
                 // Only imported bindings stay on the entry; the skipped ones are recorded as its issues.
                 row["issues"] = new JArray(Strings(row["issues"]).Concat(skipped.Select(binding =>
-                    $"Векторный вид {binding["resource"]} ({binding["role"]}) не импортирован: выгрузка вложенной анимации ещё не готова.")));
+                    $"Векторный вид {binding["resource"]} ({binding["role"]}) не импортирован кадрами: существо рисуется листом build_creature_sheets.py.")));
                 row["graphics"] = new JArray(Rows(row["graphics"]).Where(binding => CreatureSources.Imported(binding, false)));
             }
             var resourceMap = Rows(source["resources"]).ToDictionary(row => Required(row, "id"), StringComparer.Ordinal);
             var selected = new HashSet<string>(StringComparer.Ordinal);
             foreach (var definition in definitions) CollectBindings(definition, selected);
+            foreach (var resource in resourceMap.Values)
+                if ((string)resource["kind"] == "sound" && Strings(resource["names"]).Any(name => CreatureSources.Sounds.Contains(name))) selected.Add((string)resource["id"]);
             foreach (var weapon in Rows(source["weapons"]))
                 foreach (var grade in Rows(weapon["grades"])) CollectBindings(grade, selected);
             var pending = new Queue<string>(selected);
@@ -137,7 +139,7 @@ namespace Remains.Editor
             AssetDatabase.SaveAssets();
             foreach (var issue in issues) Debug.LogWarning(issue);
             if (skippedAppearances.Count > 0)
-                Debug.LogWarning($"Существа завода: векторные виды не импортированы (ждут выгрузки вложенной анимации): {string.Join("; ", skippedAppearances)}.");
+                Debug.Log($"Существа завода: векторные виды не импортируются как кадры — генератор берёт их листы (Tools/build_creature_sheets.py): {string.Join("; ", skippedAppearances)}.");
             Debug.Log($"Исходный контент установлен: {importedItems.Length} определений, {importedResources.Length} ресурсов, {prepared.Count} файлов, {issues.Count} пропусков с диагностикой; SHA256={catalogHash}.");
             return catalog;
         }

@@ -34,7 +34,7 @@ MonoBehaviour:
       eyeHeight: 0.40200004
       targetHeight: 0.25
     naturalAttack:
-      rid: 5813030384983867402
+      rid: 5813030385809096714
     behavior: slime
     motion:
       walkSpeed: 0.9
@@ -42,12 +42,15 @@ MonoBehaviour:
       acceleration: 7.2000003
       dashRange: 8
       dashChance: 0.4
+    hitMaterial: slime
+    attackSounds:
+    - exported:sound:107
   presentationSource: 1
   presentationPrefab: {fileID: 8042195050964854629, guid: 248a1e4e54ad2244096498296ac7ad3e, type: 3}
   references:
     version: 2
     RefIds:
-    - rid: 5813030384983867402
+    - rid: 5813030385809096714
       type: {class: NaturalAttackDefinition, ns: Remains.Domain, asm: Assembly-CSharp}
       data:
         approachSpeed: 0.9

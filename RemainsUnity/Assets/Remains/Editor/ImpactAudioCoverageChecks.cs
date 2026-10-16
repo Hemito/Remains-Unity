@@ -43,7 +43,9 @@ namespace Remains.Editor
                 Clip=(string)entry["clip"];Gain=(float?)entry["gain"]??float.NaN;
                 Require(!string.IsNullOrEmpty(Clip) && float.IsFinite(Gain) && Gain>0 && Gain<=1,
                     "Некорректное назначение: "+entry);
-                Require(Resources.Load<AudioClip>(Clip)?.samples>0,"Нет импортированного WAV: "+Clip);
+                AudioClip clip=null;
+                try {clip=Remains.Content.AudioClipSource.Load(Clip);} catch(InvalidOperationException) {}
+                Require(clip!=null,"Нет импортированного WAV: "+Clip);
             }
         }
         public static void Run()
@@ -135,7 +137,7 @@ namespace Remains.Editor
             foreach(var entry in (JArray)Read("Presentation/melee-impact-audio")["entries"])
             {
                 var sound=new Sound(entry);string weapon=(string)entry["weapon"];
-                foreach(string kind in new[]{"actors","surfaces","props"})
+                foreach(string kind in new[]{"actors","surfaces","props","materials"})
                     foreach(var key in entry[kind] as JArray??new JArray())
                         Add(result,weapon+":"+kind.Substring(0,kind.Length-1)+":"+(string)key,sound);
             }

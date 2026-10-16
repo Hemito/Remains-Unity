@@ -71,6 +71,10 @@ namespace Remains.Editor
             return result;
         }
 
+        // Original sounds the creature families play by name (Unit.udarUnit by damage type, Bullet.sound by material,
+        // UnitTrap): imported with the content package and referenced as "exported:<resource>".
+        public static readonly string[] Sounds={"fang_hit1","fang_hit2","fang_hit3","acid","hit_flesh","hit_slime","electro","hit_necr","trap_a","trap_reload"};
+
         // A unit's bindings that the pipeline imports: raster animation sheets, the class constructors' own vis symbol
         // (flat frame animation) and sounds. A vclass appearance animates through nested clips the export does not
         // flatten yet; it is listed, not imported.

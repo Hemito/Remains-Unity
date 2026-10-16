@@ -9,13 +9,25 @@ namespace Remains.Presentation
     public sealed class AtlasActorVisual : ActorVisual
     {
         private const float InvertedLift=.8f;
+        // A received snapshot replaces an unarmed creature's state with an older pose time (a sleeping creature does
+        // not send its state): the same pose then rewinds. The drawn phase keeps going from where it was; a new pose
+        // or a pause (time standing still) is followed exactly. Armed types keep the exact phase (weapon sockets).
+        private string phasePose;private uint phaseSequence;private float lastPoseTime,phaseOffset;
+        private float DrawnPoseTime(string pose)
+        {
+            if(ActorTypes.Get(state.actorType).hasWeapon) return state.poseTime;
+            if(pose!=phasePose || state.poseSequence!=phaseSequence) {phasePose=pose;phaseSequence=state.poseSequence;phaseOffset=0;}
+            else if(state.poseTime<lastPoseTime-.0001f && !state.climbing) phaseOffset+=lastPoseTime-state.poseTime;
+            lastPoseTime=state.poseTime;
+            return state.poseTime+phaseOffset;
+        }
         private bool wasInverted;
         private sealed class Clip
         {
             public Sprite[] frames;public AtlasActorClip definition;
-            public Sprite Sample(ActorState actor)
+            public Sprite Sample(ActorState actor,float time)
             {
-                return frames[definition.Sample(actor)];
+                return frames[definition.UsesMotion && !actor.down?definition.Sample(actor):definition.FrameIndex(time,ActorPose.StationaryClimb(actor))];
             }
         }
         private sealed class Artwork
@@ -99,7 +111,7 @@ namespace Remains.Presentation
                 if(missingPose!=pose) Debug.LogWarning($"Нет позы атласа: actor={state.id}, artwork={artworkKey}, pose={pose}. Отображение пропущено.",this);
                 missingPose=pose;view.enabled=false;return;
             }
-            missingPose=null;view.enabled=true;var sprite=clip.Sample(state);
+            missingPose=null;view.enabled=true;var sprite=clip.Sample(state,DrawnPoseTime(pose));
             if(view.sprite!=sprite)
             {if(generatedView) SpriteArtworkMaterial.Apply(view,sprite);else view.sprite=sprite;}
         }

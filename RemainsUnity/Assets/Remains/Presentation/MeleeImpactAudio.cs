@@ -2,13 +2,14 @@ using System;
 using System.Collections.Generic;
 using Remains.Domain;
 using Remains.Gameplay;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Presentation
 {
     public sealed class MeleeImpactAudio : MonoBehaviour
     {
-        [Serializable] private sealed class Entry {public string weapon,clip;public string[] actors,surfaces,props;public float gain;}
+        [Serializable] private sealed class Entry {public string weapon,clip;public string[] actors,surfaces,props,materials;public float gain;}
         [Serializable] private sealed class Catalog {public Entry[] entries;}
         private readonly Dictionary<string,(AudioClip clip,float gain)> sounds=new();
         private readonly HashSet<string> weapons=new(),seen=new(),missing=new();
@@ -28,11 +29,10 @@ namespace Remains.Presentation
             if(catalog?.entries==null) throw new InvalidOperationException("Нет записей звуков контакта ближнего оружия.");
             foreach(var entry in catalog.entries)
             {
-                if(string.IsNullOrEmpty(entry.weapon) || string.IsNullOrEmpty(entry.clip) || (entry.actors?.Length??0)+(entry.surfaces?.Length??0)+(entry.props?.Length??0)==0 ||
+                if(string.IsNullOrEmpty(entry.weapon) || string.IsNullOrEmpty(entry.clip) || (entry.actors?.Length??0)+(entry.surfaces?.Length??0)+(entry.props?.Length??0)+(entry.materials?.Length??0)==0 ||
                     !float.IsFinite(entry.gain) || entry.gain<=0 || entry.gain>1)
                     throw new InvalidOperationException($"Некорректный звук контакта: weapon={entry.weapon}, clip={entry.clip}.");
-                var clip=Resources.Load<AudioClip>(entry.clip);
-                if(clip==null || clip.samples<=0) throw new InvalidOperationException("Нет звука контакта: "+entry.clip);
+                var clip=AudioClipSource.Load(entry.clip);
                 weapons.Add(entry.weapon);
                 foreach(var actor in entry.actors??Array.Empty<string>())
                 {
@@ -44,6 +44,11 @@ namespace Remains.Presentation
                     if(string.IsNullOrEmpty(surface)) throw new InvalidOperationException("Пустая поверхность звука: weapon="+entry.weapon);
                     sounds.Add(entry.weapon+":surface:"+surface,(clip,entry.gain));
                 }
+                foreach(var material in entry.materials??Array.Empty<string>())
+                {
+                    if(string.IsNullOrEmpty(material)) throw new InvalidOperationException("Пустой материал звука: weapon="+entry.weapon);
+                    sounds.Add(entry.weapon+":material:"+material,(clip,entry.gain));
+                }
                 foreach(var prop in entry.props??Array.Empty<string>())
                 {
                     if(string.IsNullOrEmpty(prop)) throw new InvalidOperationException("Пустой тип объекта звука: weapon="+entry.weapon);
@@ -54,8 +59,10 @@ namespace Remains.Presentation
             combat.SurfaceContactObserved+=Surface;
             combat.PropContactObserved+=Prop;
         }
+        // A type without its own entry for the weapon sounds by its material (Unit.udarBullet).
         private void Contact(AttackEvent attack,ActorState actor)
-            =>Play(attack,"actor:"+actor.actorType,"actor:"+actor.id,attack.End);
+            =>Play(attack,!sounds.ContainsKey(attack.weapon+":actor:"+actor.actorType) && ActorTypes.Get(actor.actorType).hitMaterial is {Length:>0} material
+                ?"material:"+material:"actor:"+actor.actorType,"actor:"+actor.id,attack.End);
         private void Surface(AttackEvent attack,string texture,Vector2 position)
             =>Play(attack,"surface:"+texture,"surface:"+texture,position);
         private void Prop(AttackEvent attack,string id,string definition,Vector2 position)

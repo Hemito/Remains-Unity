@@ -18,6 +18,11 @@ namespace Remains.Content
         [SerializeReference,InspectorName("Естественная атака (пусто — оружейный AI)")] public Remains.Domain.NaturalAttackDefinition naturalAttack;
         [InspectorName("Поведение (семейство существа оригинала; пусто — ползун)")] public string behavior;
         [InspectorName("Движение существа (летуны, слизь)")] public Remains.Domain.CreatureMotionSettings motion;
+        // Original Unit.udarBullet material: flesh (10), metal (1), slime (12). Hit sounds are chosen by it when the
+        // audio catalogs have no entry for this very type. Empty: the type has its own entries.
+        [InspectorName("Материал попадания (flesh/metal/slime)")] public string hitMaterial;
+        // Original Unit.udarUnit by the attacker's damage type (fang_hit, acid, hit_flesh...): one is chosen per touch.
+        [InspectorName("Звуки атаки касанием (AudioClipSource)")] public string[] attackSounds;
     }
     [Serializable] public sealed class ActorTypeList {public ActorTypeDefinition[] actors;}
     public static class ActorTypes

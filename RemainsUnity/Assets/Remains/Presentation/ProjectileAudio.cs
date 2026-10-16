@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Remains.Gameplay;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Presentation
@@ -24,12 +25,10 @@ namespace Remains.Presentation
             foreach(string weapon in catalog.weapons) weapons.Add(weapon);
             foreach(var entry in catalog.entries)
             {
-                if(entry.kind is not ("actor" or "surface") || string.IsNullOrEmpty(entry.key) ||
+                if(entry.kind is not ("actor" or "surface" or "material") || string.IsNullOrEmpty(entry.key) ||
                     !float.IsFinite(entry.gain) || entry.gain<=0 || entry.gain>1)
                     throw new InvalidOperationException($"Некорректный звук попадания: {entry.kind}/{entry.key}.");
-                var clip=Resources.Load<AudioClip>(entry.clip);
-                if(clip==null || clip.samples<=0) throw new InvalidOperationException("Нет звука попадания: "+entry.clip);
-                sounds.Add(entry.kind+":"+entry.key,(clip,entry.gain));
+                sounds.Add(entry.kind+":"+entry.key,(AudioClipSource.Load(entry.clip),entry.gain));
             }
             controller.ContactObserved+=Contact;
         }
@@ -37,6 +36,8 @@ namespace Remains.Presentation
         {
             if(!weapons.Contains(contact.weapon)) return;
             string key=contact.target!=null?"actor:"+contact.targetType:"surface:"+contact.surfaceTexture;
+            // A type without its own entry sounds by its material (Bullet.sound by Unit.udarBullet).
+            if(contact.target!=null && !sounds.ContainsKey(key) && ActorTypes.Get(contact.targetType).hitMaterial is {Length:>0} material) key="material:"+material;
             if(!sounds.TryGetValue(key,out var sound))
             {
                 if(missing.Add(key)) Debug.LogWarning($"Нет звука контакта: {key}, снаряд={contact.projectile}, уровень={contact.level}.",this);

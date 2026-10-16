@@ -10,7 +10,7 @@ namespace Remains.Content
     public sealed class ActorDeathAudioCatalog
     {
         public const string Resource="Presentation/actor-death-audio";
-        public const string ExportedPrefix="exported:";
+        public const string ExportedPrefix=AudioClipSource.ExportedPrefix;
         [Serializable] public sealed class Entry {public string actorType,sourceBank;public string[] clips;public float gain;}
         [Serializable] public sealed class Settings {public int schema;public Entry[] entries;}
         public readonly struct Sound
@@ -28,8 +28,7 @@ namespace Remains.Content
             var text=Resources.Load<TextAsset>(Resource);
             if(text==null) throw new InvalidOperationException("Нет каталога голосов смерти NPC: "+Resource+".");
             // "exported:<resource>" is an original sound imported with the content package (generated creatures).
-            return Create(StateJson.FromJson<Settings>(text.text),key=>key.StartsWith(ExportedPrefix,StringComparison.Ordinal)?
-                ExportedContentCatalog.Load().Resource(key.Substring(ExportedPrefix.Length)).sounds?.FirstOrDefault():Resources.Load<AudioClip>(key));
+            return Create(StateJson.FromJson<Settings>(text.text),AudioClipSource.Load);
         }
         public static void Validate(Settings settings)
         {
