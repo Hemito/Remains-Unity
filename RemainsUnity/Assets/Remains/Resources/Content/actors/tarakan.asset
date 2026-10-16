@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccd87756f68648d428013d6b205d40a5, type: 3}
+  m_Name: tarakan
+  m_EditorClassIdentifier: 
+  definition:
+    id: tarakan
+    presentation: atlas
+    artwork: Original/Creatures/tarakan/artwork
+    combatAi: 1
+    hasWeapon: 0
+    bodyInventory: 1
+    atlasWeaponSocket: 0
+    canUseDoors: 0
+    bodyMassKg: 5
+    telekinesisMovable: 1
+    restoreHealthAfterHit: 0
+    hitProtection: 0
+    perception:
+      sightDistance: 20
+      closeDistance: 1.2
+      recognitionSeconds: 0.3
+      memorySeconds: 4
+      hearingDistance: 20
+      eyeHeight: 0.20100002
+      targetHeight: 0.25
+    naturalAttack:
+      rid: 5813030384002400258
+  presentationSource: 1
+  presentationPrefab: {fileID: 8715700903718006863, guid: 13b053cd33a51f84a87391a92c088a49, type: 3}
+  references:
+    version: 2
+    RefIds:
+    - rid: 5813030384002400258
+      type: {class: NaturalAttackDefinition, ns: Remains.Domain, asm: Assembly-CSharp}
+      data:
+        approachSpeed: 2.4
+        beginDistance: 0.90000004
+        verticalDistance: 0.66
+        preparationSeconds: 0.3
+        recoverySeconds: 1
+        damage: 4
+        originX: 0.19800001
+        originY: 0.159
+        reach: 0.75
+        radius: 0.120000005

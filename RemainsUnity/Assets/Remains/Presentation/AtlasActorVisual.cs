@@ -66,13 +66,13 @@ namespace Remains.Presentation
             foreach(var entry in data.clips)
             {
                 if(entry==null || string.IsNullOrEmpty(entry.pose) || result.clips.ContainsKey(entry.pose) || entry.row<0 ||
-                    entry.row>=data.height/data.cellHeight || entry.count<1 || entry.count>data.width/data.cellWidth ||
+                    entry.row>=data.height/data.cellHeight || entry.count<1 || entry.column<0 || entry.column+entry.count>data.width/data.cellWidth ||
                     !float.IsFinite(entry.framesPerSecond) || entry.framesPerSecond<=0)
                     throw new InvalidOperationException($"Некорректный клип атласа: {key}, pose={entry?.pose}.");
                 var clip=new Clip {frames=saved!=null?saved.Frames(entry.pose):new Sprite[entry.count],definition=entry};
                 for(int frame=0;saved==null && frame<entry.count;frame++)
                 {
-                    var sprite=Sprite.Create(texture,new Rect(frame*data.cellWidth,data.height-(entry.row+1)*data.cellHeight,data.cellWidth,data.cellHeight),
+                    var sprite=Sprite.Create(texture,new Rect((entry.column+frame)*data.cellWidth,data.height-(entry.row+1)*data.cellHeight,data.cellWidth,data.cellHeight),
                         new Vector2(data.pivotX,data.pivotY),data.pixelsPerUnit);
                     sprite.name=$"{entry.pose}:{frame}";clip.frames[frame]=sprite;
                 }

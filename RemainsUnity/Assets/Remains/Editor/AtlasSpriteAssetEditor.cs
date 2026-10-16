@@ -30,7 +30,7 @@ namespace Remains.Editor
             foreach(var clip in data.clips)
             {
                 if(clip==null || string.IsNullOrWhiteSpace(clip.pose) || !poses.Add(clip.pose) || clip.row<0 || clip.row>=data.height/data.cellHeight ||
-                    clip.count<1 || clip.count>data.width/data.cellWidth || !float.IsFinite(clip.framesPerSecond) || clip.framesPerSecond<=0 ||
+                    clip.count<1 || clip.column<0 || clip.column+clip.count>data.width/data.cellWidth || !float.IsFinite(clip.framesPerSecond) || clip.framesPerSecond<=0 ||
                     clip.loopStartFrame<0 || clip.loopStartFrame>=clip.count || (!clip.loop && clip.loopStartFrame!=0))
                     throw new InvalidOperationException($"Атлас {asset.name}: неверная поза {clip?.pose}.");
                 if(clip.UsesMotion) MotionFrameSampling.Validate(clip.verticalFrames,clip.count,asset.name+":"+clip.pose);
@@ -44,7 +44,7 @@ namespace Remains.Editor
             for(int index=0;index<clip.count;index++)
             {
                 string id=clip.pose+":"+index;
-                var sprite=Sprite.Create(texture,new Rect(index*data.cellWidth,data.height-(clip.row+1)*data.cellHeight,data.cellWidth,data.cellHeight),
+                var sprite=Sprite.Create(texture,new Rect((clip.column+index)*data.cellWidth,data.height-(clip.row+1)*data.cellHeight,data.cellWidth,data.cellHeight),
                     new Vector2(data.pivotX,data.pivotY),data.pixelsPerUnit);sprite.name=id;
                 if(existing.TryGetValue(id,out var saved))
                 {EditorUtility.CopySerialized(sprite,saved);UnityEngine.Object.DestroyImmediate(sprite);sprite=saved;EditorUtility.SetDirty(sprite);}

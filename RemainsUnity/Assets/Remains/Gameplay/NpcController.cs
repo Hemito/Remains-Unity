@@ -49,6 +49,7 @@ namespace Remains.Gameplay
                 bool natural=type.naturalAttack!=null;
                 if(!LevelActivity.HasConnectedPlayer(session.World,actor.level)) continue;
                 if(session.Pause.IsPaused(actor.level)) continue;
+                if(!NpcActivity.Awake(session.World,actor)) continue;
                 if(!movement.TryGetValue((actor.level,actor.actorType),out var controller))
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
                 senses.Step(actor,dt);

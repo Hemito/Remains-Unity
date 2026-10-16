@@ -13,6 +13,8 @@ namespace Remains.Content
     {
         [InspectorName("ID позы")] public string pose;
         [InspectorName("Строка атласа")] public int row;
+        // Original blit animations may start inside a row (BlitAnim ff): the first column of the clip.
+        [Min(0),InspectorName("Первый столбец")] public int column;
         [InspectorName("Количество кадров")] public int count;
         [InspectorName("Кадров в секунду")] public float framesPerSecond;
         [InspectorName("Зациклить")] public bool loop;
@@ -62,7 +64,7 @@ namespace Remains.Content
             var poses=new HashSet<string>();
             foreach(var clip in data.clips)
             {
-                if(clip==null || string.IsNullOrEmpty(clip.pose) || !poses.Add(clip.pose) || clip.count<1 ||
+                if(clip==null || string.IsNullOrEmpty(clip.pose) || !poses.Add(clip.pose) || clip.count<1 || clip.column<0 ||
                     !float.IsFinite(clip.framesPerSecond) || clip.framesPerSecond<=0 ||
                     clip.loopStartFrame<0 || clip.loopStartFrame>=clip.count || (!clip.loop && clip.loopStartFrame!=0))
                     throw new InvalidOperationException("Некорректная поза атласа: "+key);

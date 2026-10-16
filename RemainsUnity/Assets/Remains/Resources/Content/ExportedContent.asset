@@ -8493,6 +8493,623 @@ MonoBehaviour:
       frame: 0
     sounds: []
     issues: []
+  - key: unit:bloat
+    category: unit
+    sourceId: bloat
+    rawXml: "<unit id=\"bloat\" fraction=\"1\" cat=\"2\"><phis sX=\"30\" sY=\"30\"
+      massa=\"10\" /><move speed=\"5\" accel=\"2\" brake=\"0.3\" levit_max=\"90\"
+      /><comb hp=\"12\" damage=\"8\" tipdam=\"14\" vision=\"0.8\" /><param blood=\"2\"
+      trup=\"0\" acttrap=\"1\" insect=\"1\" /><vis visdam=\"1\" /><snd die=\"bloat\"
+      /><n>\u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442</n></unit>"
+    displayName: "\u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442"
+    description: 
+    graphics: []
+    sounds:
+    - role: die/bloat
+      resourceId: sound_unit:64
+      rule: snd/attribute symbol bloat1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:63
+      rule: snd/attribute symbol bloat2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:62
+      rule: snd/attribute symbol bloat3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:61
+      rule: snd/attribute symbol bloat4
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u041D\u0435\u0442 \u044F\u0432\u043D\u043E \u0441\u043E\u043F\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
+      \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
+      \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+  - key: unit:bloodwing
+    category: unit
+    sourceId: bloodwing
+    rawXml: "<unit id=\"bloodwing\" fraction=\"1\" xp=\"100\" cat=\"3\"><phis sX=\"38\"
+      sY=\"38\" massa=\"25\" /><move speed=\"5\" accel=\"2\" brake=\"0.3\" float=\"-0.3\"
+      damwall=\"15\" levit_max=\"45\" /><comb hp=\"40\" dexter=\"1.2\" damage=\"10\"
+      tipdam=\"14\" /><vulner fire=\"1.25\" /><param blood=\"1\" monster=\"1\" hero=\"bloodwing\"
+      acttrap=\"1\" /><snd die=\"bat\" /><vis vclass=\"visualBloodwing\" visdam=\"1\"
+      /><n>\u041A\u0440\u043E\u0432\u043E\u043A\u0440\u044B\u043B</n></unit>"
+    displayName: "\u041A\u0440\u043E\u0432\u043E\u043A\u0440\u044B\u043B"
+    description: 
+    graphics: []
+    sounds:
+    - role: die/bat
+      resourceId: sound_unit:66
+      rule: snd/attribute symbol bat1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bat
+      resourceId: sound_unit:65
+      rule: snd/attribute symbol bat2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2676 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:doctor
+    category: unit
+    sourceId: doctor
+    rawXml: <unit id="doctor" fraction="100"><phis sX="60" sY="75" massa="120" /><move
+      knocked="0" plav="0" levit="0" /><comb hp="10000" dexter="100" /><vis replic="doctor"
+      /><param invulner="1" acttrap="0" sats="0" npc="1" /></unit>
+    displayName: 
+    description: 
+    graphics: []
+    sounds: []
+    issues:
+    - "\u041D\u0435\u0442 \u044F\u0432\u043D\u043E \u0441\u043E\u043F\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
+      \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
+      \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+  - key: unit:ebloat
+    category: unit
+    sourceId: ebloat
+    rawXml: "<unit id=\"ebloat\" fraction=\"1\" xp=\"1000\" cat=\"3\"><phis sX=\"80\"
+      sY=\"120\" massa=\"500\" /><move fixed=\"1\" levit=\"0\" /><comb hp=\"300\"
+      dexter=\"0.5\" damage=\"30\" tipdam=\"10\" skin=\"3\" /><param blood=\"2\"
+      trup=\"0\" acttrap=\"1\" retdam=\"1\" /><snd die=\"nest\" /><vis vclass=\"visualBloatEmitter\"
+      visdam=\"1\" dkill=\"1\" /><vulner bul=\"0.5\" /><n>\u0433\u043D\u0435\u0437\u0434\u043E</n></unit>"
+    displayName: "\u0433\u043D\u0435\u0437\u0434\u043E"
+    description: 
+    graphics: []
+    sounds:
+    - role: die
+      resourceId: sound_unit:28
+      rule: snd/attribute symbol nest
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2606 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:gutsy
+    category: unit
+    sourceId: gutsy
+    rawXml: "<unit id=\"gutsy\" fraction=\"4\" xp=\"450\" cat=\"3\"><phis sX=\"60\"
+      sY=\"75\" massa=\"105\" /><move speed=\"4\" accel=\"1\" jump=\"10\" brake=\"1\"
+      plav=\"0\" float=\"-0.3\" levitaccel=\"1.6\" damwall=\"50\" levit_max=\"30\"
+      /><comb hp=\"140\" armor=\"12\" marmor=\"10\" krep=\"1\" aqual=\"0.85\" armorhp=\"350\"
+      damage=\"18\" tipdam=\"1\" observ=\"5\" /><vulner emp=\"1\" fire=\"0.5\" cryo=\"0.5\"
+      spark=\"1.25\" expl=\"0.7\" laser=\"0.7\" blade=\"0.5\" venom=\"0\" poison=\"0\"
+      bleed=\"0\" /><param robot=\"1\" hero=\"gutsy\" /><vis blit=\"sprGutsy\" noise=\"500\"
+      sprX=\"130\" replic=\"gutsy\" visdam=\"1\" /><snd music=\"combat_1\" die=\"expl1\"
+      /><n>\u0425\u0440\u0430\u0431\u0440\u0435\u0446</n><blit id=\"stay\" len=\"40\"
+      rep=\"0\" /><blit id=\"die\" y=\"1\" len=\"20\" /><blit id=\"death\" y=\"1\"
+      len=\"1\" /><w id=\"robofire\" f=\"1\" /><w id=\"roboplasma2\" ch=\"0.3\" dif=\"18\"
+      /><w id=\"roboplasma\" /></unit>"
+    displayName: "\u0425\u0440\u0430\u0431\u0440\u0435\u0446"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite1:14
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis blit="sprGutsy" noise="500" sprX="130" replic="gutsy" visdam="1"
+        />
+
+        <blit id="stay" len="40" rep="0" />
+
+        <blit id="die" y="1"
+        len="20" />
+
+        <blit id="death" y="1" len="1" />'
+      sheetJson: '{"cellWidth":130,"cellHeight":130,"originX":65,"originY":120,"clips":[{"id":"death","row":1,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"1\" len=\"1\" />"},{"id":"die","row":1,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"1\" len=\"20\" />"},{"id":"stay","row":0,"first":0,"length":40,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"stay\" len=\"40\" rep=\"0\" />"}]}'
+      frame: 0
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die
+      resourceId: sound_unit:58
+      rule: snd/attribute symbol expl1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:molerat
+    category: unit
+    sourceId: molerat
+    rawXml: "<unit id=\"molerat\" fraction=\"1\" xp=\"60\" cat=\"3\"><phis sX=\"55\"
+      sY=\"40\" massa=\"45\" /><move speed=\"2\" run=\"8\" accel=\"1\" jump=\"14\"
+      brake=\"0.5\" levitaccel=\"0.9\" levit_max=\"50\" porog=\"10\" damwall=\"12\"
+      /><comb hp=\"34\" damage=\"10\" tipdam=\"14\" /><param blood=\"1\" acttrap=\"1\"
+      overlook=\"0\" monster=\"1\" hero=\"rat\" /><vulner cryo=\"0.5\" /><vis blit=\"sprMolerat\"
+      sprX=\"85\" sprY=\"58\" sprDX=\"46\" sprDY=\"49\" visdam=\"1\" /><snd die=\"molerat\"
+      /><n>\u041A\u0440\u043E\u0442\u043E\u043A\u0440\u044B\u0441</n><blit id=\"stay\"
+      /><blit id=\"walk\" len=\"13\" ff=\"1\" rf=\"2\" df=\"0.5\" rep=\"1\" /><blit
+      id=\"run\" len=\"13\" ff=\"1\" rf=\"2\" rep=\"1\" /><blit id=\"jump\" y=\"1\"
+      len=\"10\" df=\"0.4\" /><blit id=\"plav\" y=\"2\" len=\"8\" df=\"0.5\" rep=\"1\"
+      /><blit id=\"die\" y=\"3\" len=\"10\" /><blit id=\"death\" y=\"3\" ff=\"9\"
+      /></unit>"
+    displayName: "\u041A\u0440\u043E\u0442\u043E\u043A\u0440\u044B\u0441"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite:31
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis blit="sprMolerat" sprX="85" sprY="58" sprDX="46" sprDY="49"
+        visdam="1" />
+
+        <blit id="stay" />
+
+        <blit id="walk" len="13"
+        ff="1" rf="2" df="0.5" rep="1" />
+
+        <blit id="run" len="13" ff="1"
+        rf="2" rep="1" />
+
+        <blit id="jump" y="1" len="10" df="0.4" />
+
+        <blit
+        id="plav" y="2" len="8" df="0.5" rep="1" />
+
+        <blit id="die" y="3"
+        len="10" />
+
+        <blit id="death" y="3" ff="9" />'
+      sheetJson: '{"cellWidth":85,"cellHeight":58,"originX":46,"originY":49,"clips":[{"id":"death","row":3,"first":9,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"3\" ff=\"9\" />"},{"id":"die","row":3,"first":0,"length":10,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"3\" len=\"10\" />"},{"id":"jump","row":1,"first":0,"length":10,"step":0.4,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"jump\" y=\"1\" len=\"10\" df=\"0.4\" />"},{"id":"plav","row":2,"first":0,"length":8,"step":0.5,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"plav\" y=\"2\" len=\"8\" df=\"0.5\" rep=\"1\" />"},{"id":"run","row":0,"first":1,"length":13,"step":1,"return":2,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" len=\"13\" ff=\"1\" rf=\"2\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"walk","row":0,"first":1,"length":13,"step":0.5,"return":2,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" len=\"13\" ff=\"1\" rf=\"2\" df=\"0.5\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: die
+      resourceId: sound_unit:29
+      rule: snd/attribute symbol molerat
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:msp
+    category: unit
+    sourceId: msp
+    rawXml: <unit id="msp" fraction="4" xp="50" cat="3"><phis sX="30" sY="30" massa="25"
+      /><move speed="11" accel="0.8" jump="16" brake="0.5" plav="0" damwall="15"
+      levitaccel="0.8" levit_max="90" /><comb hp="14" armor="5" aqual="1" armorhp="50"
+      damage="60" tipdam="4" /><param trup="0" robot="1" acttrap="1" /><vulner emp="0.25"
+      fire="0.5" cryo="0.5" expl="0.1" venom="0" poison="0" bleed="0" /><vis vclass="visualMsp"
+      visdam="1" /></unit>
+    displayName: 
+    description: 
+    graphics: []
+    sounds: []
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2358 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:raider
+    category: unit
+    sourceId: raider
+    rawXml: "<unit id=\"raider\" fraction=\"2\" cat=\"2\"><move brake=\"0.3\" levit_max=\"60\"
+      levitaccel=\"1.6\" damwall=\"25\" /><comb skill=\"0.8\" aqual=\"0.5\" damage=\"8\"
+      levitatk=\"0\" /><vis noise=\"600\" replic=\"raider\" visdam=\"1\" /><snd music=\"combat_1\"
+      die=\"rm\" /><param overlook=\"0\" blood=\"1\" pony=\"1\" hero=\"raider\" hbonus=\"1\"
+      izvrat=\"1\" /><un dist=\"500\" /><n>\u041E\u0431\u0449\u0438\u0435 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B
+      \u0440\u0435\u0439\u0434\u0435\u0440\u043E\u0432</n><blit id=\"stay\" /><blit
+      id=\"trot\" y=\"1\" len=\"17\" rf=\"1\" rep=\"1\" /><blit id=\"run\" y=\"2\"
+      len=\"8\" rep=\"1\" /><blit id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" /><blit
+      id=\"die\" y=\"4\" len=\"20\" /><blit id=\"death\" y=\"5\" /><blit id=\"fall\"
+      y=\"5\" len=\"13\" /><blit id=\"derg\" y=\"6\" len=\"8\" rep=\"1\" /><blit
+      id=\"plav\" y=\"7\" len=\"24\" rep=\"1\" /><blit id=\"laz\" y=\"8\" len=\"12\"
+      rep=\"1\" /><blit id=\"walk\" y=\"9\" len=\"24\" rep=\"1\" /></unit>"
+    displayName: "\u041E\u0431\u0449\u0438\u0435 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B
+      \u0440\u0435\u0439\u0434\u0435\u0440\u043E\u0432"
+    description: 
+    graphics: []
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/rm
+      resourceId: sound_unit:43
+      rule: snd/attribute symbol rm1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/rm
+      resourceId: sound_unit:42
+      rule: snd/attribute symbol rm2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/rm
+      resourceId: sound_unit:41
+      rule: snd/attribute symbol rm3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/rm
+      resourceId: sound_unit:40
+      rule: snd/attribute symbol rm4
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/rm
+      resourceId: sound_unit:39
+      rule: snd/attribute symbol rm5
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/rm
+      resourceId: sound_unit:38
+      rule: snd/attribute symbol rm6
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u041D\u0435\u0442 \u044F\u0432\u043D\u043E \u0441\u043E\u043F\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
+      \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
+      \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+  - key: unit:rat
+    category: unit
+    sourceId: rat
+    rawXml: "<unit id=\"rat\" fraction=\"1\" xp=\"20\" cat=\"3\"><phis sX=\"40\"
+      sY=\"15\" massa=\"6\" /><move speed=\"2.5\" run=\"6\" accel=\"1\" jump=\"8\"
+      brake=\"1\" levitaccel=\"1.5\" levit_max=\"50\" porog=\"10\" damwall=\"5\"
+      /><comb hp=\"15\" damage=\"6\" tipdam=\"14\" /><param blood=\"1\" trup=\"0\"
+      acttrap=\"1\" overlook=\"0\" hero=\"rat\" /><vis blit=\"sprRat\" sprX=\"70\"
+      sprY=\"30\" sprDX=\"43\" sprDY=\"27\" visdam=\"1\" /><snd die=\"rat\" /><n>\u041A\u0440\u044B\u0441\u0430</n><blit
+      id=\"stay\" /><blit id=\"walk\" len=\"9\" ff=\"1\" rf=\"2\" df=\"0.5\" rep=\"1\"
+      /><blit id=\"run\" len=\"9\" ff=\"1\" rf=\"2\" rep=\"1\" /><blit id=\"jump\"
+      ff=\"10\" /><blit id=\"plav\" len=\"9\" ff=\"1\" rf=\"2\" df=\"0.25\" rep=\"1\"
+      /></unit>"
+    displayName: "\u041A\u0440\u044B\u0441\u0430"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite:16
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis blit="sprRat" sprX="70" sprY="30" sprDX="43" sprDY="27"
+        visdam="1" />
+
+        <blit id="stay" />
+
+        <blit id="walk" len="9"
+        ff="1" rf="2" df="0.5" rep="1" />
+
+        <blit id="run" len="9" ff="1"
+        rf="2" rep="1" />
+
+        <blit id="jump" ff="10" />
+
+        <blit id="plav"
+        len="9" ff="1" rf="2" df="0.25" rep="1" />'
+      sheetJson: '{"cellWidth":70,"cellHeight":30,"originX":43,"originY":27,"clips":[{"id":"jump","row":0,"first":10,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"jump\" ff=\"10\" />"},{"id":"plav","row":0,"first":1,"length":9,"step":0.25,"return":2,"replay":true,"static":false,"rawXml":"<blit
+        id=\"plav\" len=\"9\" ff=\"1\" rf=\"2\" df=\"0.25\" rep=\"1\" />"},{"id":"run","row":0,"first":1,"length":9,"step":1,"return":2,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" len=\"9\" ff=\"1\" rf=\"2\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"walk","row":0,"first":1,"length":9,"step":0.5,"return":2,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" len=\"9\" ff=\"1\" rf=\"2\" df=\"0.5\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: die
+      resourceId: sound_unit:27
+      rule: snd/attribute symbol rat
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:robot
+    category: unit
+    sourceId: robot
+    rawXml: <unit id="robot" cat="1" />
+    displayName: 
+    description: 
+    graphics: []
+    sounds: []
+    issues:
+    - "\u041D\u0435\u0442 \u044F\u0432\u043D\u043E \u0441\u043E\u043F\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
+      \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
+      \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+  - key: unit:roller
+    category: unit
+    sourceId: roller
+    rawXml: <unit id="roller" fraction="4" xp="60" cat="3"><phis sX="30" sY="30"
+      massa="25" /><move speed="11" accel="0.8" jump="19" brake="0.5" knocked="1.5"
+      levitaccel="0" /><comb hp="20" armor="20" marmor="20" aqual="1" armorhp="120"
+      damage="18" ear="0" tipdam="9" /><param trup="0" robot="1" acttrap="1" retdam="1"
+      /><vulner emp="1" fire="0.5" cryo="0.5" spark="0" laser="0.5" expl="3" venom="0"
+      poison="0" bleed="0" /><snd die="expl3" /><vis vclass="visualRoller" visdam="1"
+      /></unit>
+    displayName: 
+    description: 
+    graphics: []
+    sounds:
+    - role: die
+      resourceId: sound_unit:56
+      rule: snd/attribute symbol expl3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2112 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:slime
+    category: unit
+    sourceId: slime
+    rawXml: "<unit id=\"slime\" fraction=\"1\" xp=\"50\" cat=\"3\"><phis sX=\"40\"
+      sY=\"30\" massa=\"15\" /><move speed=\"1.5\" accel=\"0.4\" knocked=\"0\" levit_max=\"35\"
+      float=\"-0.5\" /><comb hp=\"60\" damage=\"6\" tipdam=\"10\" /><snd die=\"slime\"
+      /><w id=\"slime\" no=\"1\" /><vis vclass=\"visualSlime\" noise=\"0\" visdam=\"1\"
+      /><vulner bul=\"0.05\" blade=\"0.25\" bleed=\"0\" phis=\"0.25\" acid=\"0\"
+      venom=\"0\" poison=\"0\" expl=\"0.7\" laser=\"0.7\" spark=\"0.5\" /><param
+      blood=\"2\" trup=\"0\" acttrap=\"1\" retdam=\"1\" /><n>\u0423\u0436\u0430\u0441\u043D\u0430\u044F
+      \u0441\u043B\u0438\u0437\u044C</n></unit>"
+    displayName: "\u0423\u0436\u0430\u0441\u043D\u0430\u044F \u0441\u043B\u0438\u0437\u044C"
+    description: 
+    graphics: []
+    sounds:
+    - role: die
+      resourceId: sound_unit:25
+      rule: snd/attribute symbol slime
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2049 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:spritebot
+    category: unit
+    sourceId: spritebot
+    rawXml: "<unit id=\"spritebot\" fraction=\"4\" xp=\"60\" cat=\"3\"><phis sX=\"30\"
+      sY=\"40\" massa=\"15\" /><move speed=\"8\" brake=\"1\" damwall=\"15\" levit_max=\"90\"
+      /><comb hp=\"30\" armor=\"3\" aqual=\"0.75\" armorhp=\"60\" dexter=\"1.2\"
+      vision=\"0.3\" ear=\"0\" /><param trup=\"0\" robot=\"1\" acttrap=\"1\" /><vis
+      vclass=\"visualSpriteBot\" /><snd die=\"expl2\" /><vulner emp=\"1\" fire=\"0.75\"
+      cryo=\"0.5\" spark=\"1.5\" venom=\"0\" poison=\"0\" bleed=\"0\" /><n>\u0421\u043F\u0440\u0430\u0439\u0442\u0431\u043E\u0442</n></unit>"
+    displayName: "\u0421\u043F\u0440\u0430\u0439\u0442\u0431\u043E\u0442"
+    description: 
+    graphics: []
+    sounds:
+    - role: die
+      resourceId: sound_unit:57
+      rule: snd/attribute symbol expl2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2046 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D:
+      \u0432\u044B\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u043E\u0439
+      \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438 \u0435\u0449\u0451 \u043D\u0435
+      \u0433\u043E\u0442\u043E\u0432\u0430."
+  - key: unit:tarakan
+    category: unit
+    sourceId: tarakan
+    rawXml: "<unit id=\"tarakan\" fraction=\"1\" xp=\"10\" cat=\"3\"><phis sX=\"30\"
+      sY=\"15\" massa=\"5\" /><move speed=\"1.2\" run=\"4\" accel=\"0.5\" jump=\"5\"
+      brake=\"1\" porog=\"0\" levitaccel=\"0.5\" levit_max=\"60\" damwall=\"4\" /><comb
+      hp=\"8\" damage=\"4\" tipdam=\"14\" /><param blood=\"2\" trup=\"0\" acttrap=\"1\"
+      overlook=\"0\" insect=\"1\" /><vis blit=\"sprTarakan\" sprX=\"60\" sprY=\"30\"
+      sprDX=\"27\" sprDY=\"27\" visdam=\"1\" /><snd die=\"bloat\" /><n>\u0420\u0430\u0434\u0442\u0430\u0440\u0430\u043A\u0430\u043D</n><blit
+      id=\"stay\" /><blit id=\"walk\" len=\"8\" rep=\"1\" /><blit id=\"run\" len=\"8\"
+      rep=\"1\" /><blit id=\"jump\" len=\"8\" rep=\"1\" /><blit id=\"plav\" len=\"8\"
+      rep=\"1\" /></unit>"
+    displayName: "\u0420\u0430\u0434\u0442\u0430\u0440\u0430\u043A\u0430\u043D"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite:6
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis blit="sprTarakan" sprX="60" sprY="30" sprDX="27" sprDY="27"
+        visdam="1" />
+
+        <blit id="stay" />
+
+        <blit id="walk" len="8"
+        rep="1" />
+
+        <blit id="run" len="8" rep="1" />
+
+        <blit id="jump"
+        len="8" rep="1" />
+
+        <blit id="plav" len="8" rep="1" />'
+      sheetJson: '{"cellWidth":60,"cellHeight":30,"originX":27,"originY":27,"clips":[{"id":"jump","row":0,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"jump\" len=\"8\" rep=\"1\" />"},{"id":"plav","row":0,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"plav\" len=\"8\" rep=\"1\" />"},{"id":"run","row":0,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" len=\"8\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"walk","row":0,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" len=\"8\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: die/bloat
+      resourceId: sound_unit:64
+      rule: snd/attribute symbol bloat1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:63
+      rule: snd/attribute symbol bloat2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:62
+      rule: snd/attribute symbol bloat3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/bloat
+      resourceId: sound_unit:61
+      rule: snd/attribute symbol bloat4
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:turret
+    category: unit
+    sourceId: turret
+    rawXml: <unit id="turret" cat="2" />
+    displayName: 
+    description: 
+    graphics: []
+    sounds: []
+    issues:
+    - "\u041D\u0435\u0442 \u044F\u0432\u043D\u043E \u0441\u043E\u043F\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
+      \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
+      \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+  - key: unit:vendor
+    category: unit
+    sourceId: vendor
+    rawXml: <unit id="vendor" fraction="100"><phis sX="60" sY="75" massa="120" /><move
+      knocked="0" plav="0" levit="0" /><comb hp="10000" dexter="100" /><vis replic="vendor"
+      /><param invulner="1" acttrap="0" sats="0" npc="1" /></unit>
+    displayName: 
+    description: 
+    graphics: []
+    sounds: []
+    issues:
+    - "\u041D\u0435\u0442 \u044F\u0432\u043D\u043E \u0441\u043E\u043F\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
+      \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
+      \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+  - key: unit:zombie
+    category: unit
+    sourceId: zombie
+    rawXml: "<unit id=\"zombie\" fraction=\"1\" cat=\"2\"><move brake=\"0.3\" levit_max=\"90\"
+      plav=\"0\" levitaccel=\"1.2\" damwall=\"25\" /><vis noise=\"600\" visdam=\"1\"
+      /><snd music=\"combat_1\" die=\"zw\" /><param overlook=\"0\" blood=\"2\" zombie=\"1\"
+      hero=\"zombie\" /><n>\u041E\u0431\u0449\u0438\u0435 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B
+      \u0437\u043E\u043C\u0431\u0438</n><blit id=\"stay\" /><blit id=\"trot\" y=\"1\"
+      len=\"17\" rf=\"1\" rep=\"1\" /><blit id=\"run\" y=\"2\" len=\"8\" rep=\"1\"
+      /><blit id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" /><blit id=\"die\" y=\"4\"
+      len=\"20\" /><blit id=\"death\" y=\"5\" /><blit id=\"fall\" y=\"5\" len=\"13\"
+      /><blit id=\"dig\" y=\"6\" len=\"24\" /><blit id=\"walk\" y=\"7\" len=\"24\"
+      rep=\"1\" /></unit>"
+    displayName: "\u041E\u0431\u0449\u0438\u0435 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B
+      \u0437\u043E\u043C\u0431\u0438"
+    description: 
+    graphics: []
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:3
+      rule: snd/attribute symbol zw1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:2
+      rule: snd/attribute symbol zw2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:1
+      rule: snd/attribute symbol zw3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues:
+    - "\u041D\u0435\u0442 \u044F\u0432\u043D\u043E \u0441\u043E\u043F\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043D\u043E\u0439
+      \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
+      \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
+      \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
   - key: weapon:a_energ
     category: weapon
     sourceId: a_energ
@@ -20420,6 +21037,14 @@ MonoBehaviour:
       \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044D\u0442\u043E\u0439 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438
       \u0435\u0449\u0451 \u043D\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u043E\u0432\u0430\u043D\u043E."
   resources:
+  - id: music:combat_1
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: ea502912e56eed04c81ddb545528431a, type: 3}
+    issues: []
   - id: pfeUI:1321
     kind: bitmap
     socketsJson: '[]'
@@ -82069,6 +82694,182 @@ MonoBehaviour:
     sounds:
     - {fileID: 8300000, guid: 0b7d7d6d006b44a41a174472a16b1358, type: 3}
     issues: []
+  - id: sound_unit:1
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 52c5598587921b74e8a624e5b63ac0be, type: 3}
+    issues: []
+  - id: sound_unit:2
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 54cbd2a66099a864f87a01f12ce18a53, type: 3}
+    issues: []
+  - id: sound_unit:25
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 88a8eb3bed694dc46926177e31cf037b, type: 3}
+    issues: []
+  - id: sound_unit:27
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 8f058d18d39d8e64bad53a5eb658bfb2, type: 3}
+    issues: []
+  - id: sound_unit:28
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: bf25f5d708ce5454eb28a31146f61197, type: 3}
+    issues: []
+  - id: sound_unit:29
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 1a5ee0bd1a8a867419c1d566bed1fc01, type: 3}
+    issues: []
+  - id: sound_unit:3
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 1dd3887805ad0a4449abdfae6b5c6764, type: 3}
+    issues: []
+  - id: sound_unit:38
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: f6869c90bb857c54bb95387743fabf53, type: 3}
+    issues: []
+  - id: sound_unit:39
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 25c5be123f1e24341bde83b71430a67a, type: 3}
+    issues: []
+  - id: sound_unit:40
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 464300195ba11f44bb69a0fce74bfb2d, type: 3}
+    issues: []
+  - id: sound_unit:41
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: e18a4f141aa00fd468b221d78e2f5b4a, type: 3}
+    issues: []
+  - id: sound_unit:42
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 613cde7165333d74fbfb7ca2eede360c, type: 3}
+    issues: []
+  - id: sound_unit:43
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: bb63465e758e5264d8d69a72b8c0fd4d, type: 3}
+    issues: []
+  - id: sound_unit:56
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 11dc33e95d062e0418c1285457818946, type: 3}
+    issues: []
+  - id: sound_unit:57
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 78d456dfb3930e04798ae43fa5e55e4e, type: 3}
+    issues: []
+  - id: sound_unit:58
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 16180d6fbc4b12a488ac517ab8cbe75a, type: 3}
+    issues: []
+  - id: sound_unit:61
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 0ad8dc40b89db05438e108e7a4445630, type: 3}
+    issues: []
+  - id: sound_unit:62
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 879edf642ebe22942b755794230e3c5e, type: 3}
+    issues: []
+  - id: sound_unit:63
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 6e1e56631711b944aae50b561f121cb2, type: 3}
+    issues: []
+  - id: sound_unit:64
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: fa3ff9d03e0eeda45be7d1bc691aa9de, type: 3}
+    issues: []
+  - id: sound_unit:65
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 6aee1c07bea08e6448123779500f3a1f, type: 3}
+    issues: []
+  - id: sound_unit:66
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: a11beb69fb23d0d4cbc43703a83218e0, type: 3}
+    issues: []
   - id: sound_weapon:1
     kind: sound
     socketsJson: '[]'
@@ -82589,6 +83390,13 @@ MonoBehaviour:
     sounds:
     - {fileID: 8300000, guid: e948376cd83516144925dbbb16da53b0, type: 3}
     issues: []
+  - id: sprite1:14
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
   - id: sprite1:17
     kind: bitmap
     socketsJson: '[]'
@@ -82604,6 +83412,27 @@ MonoBehaviour:
     sounds: []
     issues: []
   - id: sprite1:41
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite:16
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite:31
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite:6
     kind: bitmap
     socketsJson: '[]'
     labelsJson: '{}'

@@ -54,6 +54,7 @@ namespace Remains.Content
                 if(!root.TryGetComponent<FactoryContainerAdapter>(out var containers))throw new InvalidOperationException("Нет сериализованного адаптера контейнеров завода: "+level);
                 containers.Install(root,world);
                 FactoryMineAdapter.Install(root);
+                FactoryCreatureAdapter.Install(root);
                 sources[key]=new Entry {root=root,seed=world.seed,definition=factory.definition,fingerprint=factory.contentFingerprint,layout=factory.layout,
                     lootLedger=Remains.Serialization.StateJson.ToJson(world.factoryLootLimits)};
             }

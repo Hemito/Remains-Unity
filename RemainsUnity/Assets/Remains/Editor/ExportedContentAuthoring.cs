@@ -45,7 +45,20 @@ namespace Remains.Editor
             var existing = AssetDatabase.LoadAssetAtPath<ExportedContentCatalog>(CatalogPath);
             if (existing != null && existing.sourceHash != catalogHash)
                 throw new InvalidDataException($"Каталог {CatalogPath} принадлежит другому исходному пакету; автоматическая перезапись запрещена.");
-            var definitions = Rows(source["definitions"]).Where(row => new[] { "weapon", "weapon1", "item" }.Contains((string)row["category"])).ToArray();
+            // Creatures of the factory (CreatureSources): their definitions, animation sheets and sounds.
+            var unitIds = CreatureSources.FactoryUnitIds(source);
+            var definitions = Rows(source["definitions"]).Where(row => new[] { "weapon", "weapon1", "item" }.Contains((string)row["category"]) ||
+                (string)row["category"] == "unit" && unitIds.Contains((string)row["id"])).ToArray();
+            var skippedAppearances = new List<string>();
+            foreach (var row in definitions.Where(IsUnit))
+            {
+                var skipped = Rows(row["graphics"]).Where(binding => !CreatureSources.Imported(binding, false)).ToArray();
+                foreach (var binding in skipped) skippedAppearances.Add($"{row["id"]}: {binding["role"]} {binding["resource"]}");
+                // Only imported bindings stay on the entry; the skipped ones are recorded as its issues.
+                row["issues"] = new JArray(Strings(row["issues"]).Concat(skipped.Select(binding =>
+                    $"Векторный вид {binding["resource"]} ({binding["role"]}) не импортирован: выгрузка вложенной анимации ещё не готова.")));
+                row["graphics"] = new JArray(Rows(row["graphics"]).Where(binding => CreatureSources.Imported(binding, false)));
+            }
             var resourceMap = Rows(source["resources"]).ToDictionary(row => Required(row, "id"), StringComparer.Ordinal);
             var selected = new HashSet<string>(StringComparer.Ordinal);
             foreach (var definition in definitions) CollectBindings(definition, selected);
@@ -121,6 +134,8 @@ namespace Remains.Editor
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
             foreach (var issue in issues) Debug.LogWarning(issue);
+            if (skippedAppearances.Count > 0)
+                Debug.LogWarning($"Существа завода: векторные виды не импортированы (ждут выгрузки вложенной анимации): {string.Join("; ", skippedAppearances)}.");
             Debug.Log($"Исходный контент установлен: {importedItems.Length} определений, {importedResources.Length} ресурсов, {prepared.Count} файлов, {issues.Count} пропусков с диагностикой; SHA256={catalogHash}.");
             return catalog;
         }
@@ -227,6 +242,7 @@ namespace Remains.Editor
                 throw new InvalidDataException($"Путь выходит за пределы пакета: {relative}.");
             return path;
         }
+        private static bool IsUnit(JObject row) => (string)row["category"] == "unit";
         private static void CollectBindings(JObject row, HashSet<string> resources)
         {
             foreach (var binding in Rows(row["graphics"]).Concat(Rows(row["sounds"])))
