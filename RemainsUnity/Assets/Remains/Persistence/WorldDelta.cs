@@ -33,6 +33,7 @@ namespace Remains.Persistence
     {
         public static WorldDeltaPayload Build(string worldId,string baseId,SnapshotPartCache.Composition from,string snapshotId,SnapshotPartCache.Composition to)
         {
+            using var measure=Remains.Diagnostics.FrameHitchLog.Section("Снимок: построение изменения (хост)");
             if(from==null || to==null) throw new ArgumentNullException(from==null?nameof(from):nameof(to));
             var payload=new WorldDeltaPayload {world=worldId,baseSnapshot=baseId,snapshot=snapshotId,template=to.Template};
             foreach(var next in to.Lists)

@@ -13,7 +13,7 @@ namespace Remains.Runtime
         {
             var options=runtime.Options;
             if(options.Smoke?.StartsWith("actor-death")==true || options.Smoke?.StartsWith("legacy-doors")==true) return;
-            if(options.Smoke is "performance-audit" or "runtime-catalog-release" || options.Smoke?.StartsWith("office-opening")==true ||
+            if(options.Smoke is "performance-audit" or "seed104-baseline" or "runtime-catalog-release" || options.Smoke?.StartsWith("office-opening")==true ||
                 options.Smoke?.StartsWith("training")==true || options.Smoke?.StartsWith("shot-spread")==true ||
                 options.Smoke?.StartsWith("cosmetics")==true || options.Smoke?.StartsWith("held-prop-color")==true || options.Smoke?.StartsWith("weapon-reload")==true || options.Smoke?.StartsWith("direct-items")==true || options.Smoke?.StartsWith("slope-poses")==true) return;
             if(options.Smoke==null || options.Smoke.StartsWith("warehouse-furniture") || options.Smoke.StartsWith("warehouse-reload") || (options.Smoke.StartsWith("warehouse-seam") || options.Smoke.StartsWith("continuation-seam")) || options.Smoke.StartsWith("office-furniture") || options.Smoke.StartsWith("office-recovery") || options.Smoke.StartsWith("ladder-contact") || options.Smoke.StartsWith("mechanism") || options.Smoke.StartsWith("prop-body") || options.Smoke.StartsWith("factory-room") || options.Smoke.StartsWith("travel-points") || options.Smoke.StartsWith("contact-audio") || options.Smoke.StartsWith("crawler") || options.Role!="host") return;

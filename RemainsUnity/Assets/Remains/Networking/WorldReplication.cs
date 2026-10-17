@@ -32,6 +32,8 @@ namespace Remains.Networking
     }
     public sealed class WorldReplication
     {
+        // Diagnostic only: existing payload bytes, without materializing lazy snapshot JSON.
+        public static event Action<string,int> PayloadMeasured;
         private SnapshotTransfer incoming;
         private string incomingId,owner,actor,incomingBase;
         private WorldReplica replica;
@@ -42,6 +44,7 @@ namespace Remains.Networking
         internal static void SendParts(RecoverySnapshot snapshot,Action<WorldPartMessage> send)
         {
             byte[] bytes=snapshot.Utf8;
+            if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("full-send",bytes.Length);
             if(bytes.Length>SnapshotTransfer.MaximumBytes) throw new InvalidDataException("Снимок мира превышает текущий предел 32 МиБ.");
             // Enqueue this reliable snapshot contiguously. Later reliable actor events
             // must follow its final chunk, so an older snapshot cannot overwrite them.
@@ -55,6 +58,7 @@ namespace Remains.Networking
         // One encoded delta for every recipient on the same base.
         public static void SendDelta(NetworkConnectionToClient connection,string baseSnapshot,string snapshot,byte[] payload)
         {
+            if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("delta-send",payload.Length);
             if(payload.Length>SnapshotTransfer.MaximumBytes) throw new InvalidDataException("Изменение мира превышает текущий предел 32 МиБ.");
             for(int offset=0;offset<payload.Length;offset+=SnapshotTransfer.ChunkSize)
             {
@@ -96,6 +100,7 @@ namespace Remains.Networking
             {
                 var bytes=incoming.AppendRaw(message.total,message.offset,message.data);
                 if(bytes==null) return null;
+                if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("delta-receive",bytes.Length);
                 string baseId=incomingBase;var owned=owner;var acting=actor;Reset();
                 try
                 {
@@ -117,6 +122,7 @@ namespace Remains.Networking
             }
             var snapshot=incoming.Append(message.total,message.offset,message.data);
             if(snapshot==null) return null;
+            if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("full-receive",message.total);
             var result=new ReceivedWorld {snapshot=snapshot,owner=owner,actor=actor};Reset();
             // A full snapshot (join, resync, host without a base): the copy of parts that deltas advance from.
             try {using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: раскладка на части (клиент)")) replica=WorldReplica.FromSnapshot(snapshot);}

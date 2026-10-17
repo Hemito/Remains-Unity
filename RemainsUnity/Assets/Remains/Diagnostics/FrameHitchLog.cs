@@ -37,6 +37,31 @@ namespace Remains.Diagnostics
         private static readonly List<double> periodFrames=new(4096);
         private static readonly StringBuilder pending=new();
         private static long frameStart;
+        private static long baselineFrameAllocated;
+        private static bool baselineFrameActive;
+        private static int pendingBaselineFrames;
+        private static ProfilerRecorder baselineAllocations;
+        // Unity 6000.0 Mono returns zero from GC.GetAllocatedBytesForCurrentThread.
+        // This native byte counter is global even with CollectOnlyOnCurrentThread (verified
+        // by a worker allocation). Deltas describe all managed threads during the interval.
+        private static long BaselineAllocatedBytes=>baselineAllocations.CurrentValue;
+        public static void BeginCpuBaseline(int frames)
+        {
+            if(frames<=0) throw new ArgumentOutOfRangeException(nameof(frames));
+            baselineAllocations=ProfilerRecorder.StartNew(ProfilerCategory.Memory,"GC Allocated In Frame",1);
+            if(!baselineAllocations.Valid || baselineAllocations.UnitType.ToString()!="Bytes")
+                throw new InvalidOperationException("CPU-замер: недоступен байтовый счётчик GC Allocated In Frame.");
+            long before=BaselineAllocatedBytes;var check=new byte[4096];check[0]=1;
+            if(BaselineAllocatedBytes-before<4096) throw new InvalidOperationException("CPU-замер: счётчик Unity не видит известное выделение памяти.");
+            GC.KeepAlive(check);
+            CpuBaselineCapture.Enabled=false;pendingBaselineFrames=frames;
+        }
+        public static void EndCpuBaseline()
+        {
+            CpuBaselineCapture.Enabled=false;pendingBaselineFrames=0;
+            if(baselineAllocations.Valid) baselineAllocations.Dispose();
+            baselineAllocations=default;
+        }
         private static int gcAtFrameStart,gcAtPeriodStart;
         private static double periodStart;
         private static string path;
@@ -176,19 +201,31 @@ namespace Remains.Diagnostics
 
         public readonly struct Scope : IDisposable
         {
-            private readonly int index;private readonly long started;
-            internal Scope(int index,long started) {this.index=index;this.started=started;}
+            private readonly int index;private readonly long started,allocated;
+            private readonly bool baseline;
+            internal Scope(int index,long started)
+            {this.index=index;this.started=started;baseline=CpuBaselineCapture.Enabled;allocated=baseline?BaselineAllocatedBytes:0;}
             public void Dispose()
             {
                 if(started==0) return;
-                sectionMs[index]+=(Stopwatch.GetTimestamp()-started)*toMs;sectionCalls[index]++;
+                double elapsed=(Stopwatch.GetTimestamp()-started)*toMs;
+                sectionMs[index]+=elapsed;sectionCalls[index]++;
+                if(baseline && CpuBaselineCapture.Enabled)
+                    CpuBaselineCapture.Section(sectionNames[index],elapsed,BaselineAllocatedBytes-allocated);
             }
         }
 
         private static void BeginPhase(int phase)
         {
             long now=Stopwatch.GetTimestamp();
-            if(phase==0) {frameStart=now;gcAtFrameStart=GC.CollectionCount(0);}
+            if(phase==0)
+            {
+                if(pendingBaselineFrames>0)
+                {CpuBaselineCapture.Reset();CpuBaselineCapture.FrameLimit=pendingBaselineFrames;pendingBaselineFrames=0;CpuBaselineCapture.Enabled=true;}
+                now=Stopwatch.GetTimestamp();
+                frameStart=now;gcAtFrameStart=GC.CollectionCount(0);baselineFrameActive=CpuBaselineCapture.Enabled;
+                baselineFrameAllocated=baselineFrameActive?BaselineAllocatedBytes:0;
+            }
             phaseStart[phase]=now;
         }
 
@@ -202,6 +239,7 @@ namespace Remains.Diagnostics
         private static void EndFrame(long now)
         {
             double total=frameStart==0?0:(now-frameStart)*toMs;
+            double baselineWait=phaseMs[0];
             double time=Time.realtimeSinceStartupAsDouble;
             if(periodStart==0) periodStart=time;
             periodFrames.Add(total);
@@ -214,6 +252,11 @@ namespace Remains.Diagnostics
             Array.Clear(phaseMs,0,phaseMs.Length);
             Array.Clear(sectionMs,0,sectionIndex.Count);Array.Clear(sectionCalls,0,sectionIndex.Count);
             if(time-periodStart>=SummarySeconds) {WriteSummary(time);Flush();}
+            if(CpuBaselineCapture.Enabled && baselineFrameActive)
+            {
+                double measured=(Stopwatch.GetTimestamp()-frameStart)*toMs;
+                CpuBaselineCapture.Frame(measured,Math.Min(measured,baselineWait),BaselineAllocatedBytes-baselineFrameAllocated);
+            }
         }
 
         private static void ReadGpu()
