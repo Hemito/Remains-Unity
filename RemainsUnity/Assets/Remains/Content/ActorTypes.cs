@@ -26,6 +26,9 @@ namespace Remains.Content
         // Original Unit.activateTrap (AllData param acttrap): 2 springs traps (players and most units), 1 is a small
         // creature that only players' mines notice, 0 springs nothing. Unset in older assets: 2, the original default.
         [Range(0,2),InspectorName("Срабатывание ловушек (acttrap: 2 — да, 1 — мелкое, 0 — нет)")] public int activateTrap=2;
+        [InspectorName("Турель: наблюдение и поворот ствола")] public Remains.Domain.TurretSettings turret;
+        // A cosmetic blast where it dies (UnitTurret.expl: newPart "miniexpl"), as a fraction of the explosion picture; 0 — none.
+        [Min(0),InspectorName("Взрыв при гибели (доля изображения взрыва)")] public float deathBlastScale;
     }
     [Serializable] public sealed class ActorTypeList {public ActorTypeDefinition[] actors;}
     public static class ActorTypes
@@ -64,6 +67,12 @@ namespace Remains.Content
                 throw new InvalidOperationException($"Тип {definition.id}: неизвестное поведение {definition.behavior}.");
             if(Remains.Domain.NpcCreatureBehaviours.Fixed(definition.behavior) && (!definition.combatAi || !definition.hasWeapon || !definition.atlasWeaponSocket || definition.naturalAttack!=null))
                 throw new InvalidOperationException($"Тип {definition.id}: турель требует боевой ИИ с оружием на точке атласа.");
+            if(Remains.Domain.NpcCreatureBehaviours.Fixed(definition.behavior))
+            {
+                if(definition.turret==null) throw new InvalidOperationException($"Тип {definition.id}: нет настроек турели.");
+                definition.turret.Validate(definition.id);
+            }
+            if(!float.IsFinite(definition.deathBlastScale) || definition.deathBlastScale<0) throw new InvalidOperationException($"Тип {definition.id}: некорректный взрыв при гибели.");
             if(Remains.Domain.NpcCreatureBehaviours.Touches(definition.behavior))
             {
                 if(definition.naturalAttack==null || definition.motion==null) throw new InvalidOperationException($"Тип {definition.id}: поведение {definition.behavior} требует атаку касанием и движение.");

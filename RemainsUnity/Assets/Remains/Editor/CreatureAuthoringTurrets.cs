@@ -22,7 +22,27 @@ namespace Remains.Editor
     public static partial class CreatureAuthoring
     {
         private static readonly int[] TurretGuns={1,2,3};
-        private const int LampOff=1,LampWatching=2,LampAttacking=4;
+        private const int LampOff=1,LampWatching=2,LampNoticed=3,LampAttacking=4,LampSearching=5;
+
+        // UnitTurret.putLoc by turret tip: watch angles (aRot, y down → y up), watch turn rate (watchDrot rad per frame),
+        // the attack rate actDrot 0.1 rad per frame for all; period 120 frames; the armored turret keeps its side.
+        private static TurretSettings TurretWatch(string unitId)
+        {
+            const float PerFrame=FramesPerSecond*Mathf.Rad2Deg;
+            var settings=new TurretSettings {periodSeconds=120/FramesPerSecond,attackTurnDegreesPerSecond=.1f*PerFrame,
+                alertMinSeconds=30/FramesPerSecond,alertMaxSeconds=40/FramesPerSecond,searchSeconds=30*10/FramesPerSecond};
+            switch(unitId)
+            {
+                case "turret0": settings.patrolAngles=new[]{-30f,-150f};settings.watchTurnDegreesPerSecond=.015f*PerFrame;break;
+                case "turret1": settings.patrolAngles=new[]{15f,165f};settings.watchTurnDegreesPerSecond=.1f*PerFrame;break;
+                case "turret3": settings.patrolAngles=new[]{15f,-15f};settings.watchTurnDegreesPerSecond=.01f*PerFrame;settings.fixedFacing=true;break;
+                default: throw new InvalidDataException("Наблюдение турели не описано: "+unitId);
+            }
+            return settings;
+        }
+        // The gun starts full (UnitTurret: currentWeapon.hold = holder).
+        private static int WeaponCatalogMagazine(string weapon)=>
+            AssetDatabase.LoadAssetAtPath<WeaponAssetCatalog>(MineContentAuthoring.CatalogAsset).AllAssets().Single(a=>a.Id==weapon).CreateDefinition().magazineSize;
 
         private static string Turrets(CreatureSources.TemplateObject template,JObject[] rows,Dictionary<string,JObject> resources,string package,
             HashSet<string> owned,List<CreatureEntry> entries,List<string> types)
@@ -78,7 +98,7 @@ namespace Remains.Editor
             }
             var basePicture=Picture((string)appearance["resource"],1);float zoom=basePicture.zoom;
             int lampFrames=(int)Num(lampPlace,"frames");
-            if(lampFrames<LampAttacking) throw new InvalidDataException($"Турель {unitId}: у лампы {lampFrames} кадров, нужно не меньше {LampAttacking}.");
+            if(lampFrames<LampSearching) throw new InvalidDataException($"Турель {unitId}: у лампы {lampFrames} кадров, нужно не меньше {LampSearching}.");
             var lamps=Enumerable.Range(1,lampFrames).Select(f=>Picture((string)lamp["resource"],f)).ToArray();
             if(lamps.Any(l=>Mathf.Abs(l.zoom-zoom)>.0001f)) throw new InvalidDataException($"Турель {unitId}: лампа и основание выгружены в разном масштабе.");
             // Placements in pixels at this scale from the registration, y up (the export's are source pixels, y down).
@@ -124,7 +144,7 @@ namespace Remains.Editor
             AtlasActorClip Clip(string pose,int lampFrame)=>new() {pose=pose,row=0,column=lampFrame-1,count=1,framesPerSecond=FramesPerSecond,
                 weaponSockets=new[]{new AtlasWeaponSocketPoint {x=socket.x,y=socket.y}}};
             var clips=new[]{Clip("idle",LampWatching),Clip("walk",LampWatching),Clip("run",LampWatching),Clip("jump",LampWatching),
-                Clip("attack",LampAttacking),Clip("down",LampOff)};
+                Clip(Remains.Gameplay.NpcTurret.Alert,LampNoticed),Clip("attack",LampAttacking),Clip(Remains.Gameplay.NpcTurret.Search,LampSearching),Clip("down",LampOff)};
             var art=new AtlasActorArtwork {resource=ArtFolder.Substring("Assets/Remains/Resources/".Length)+"/"+unitId+"/sheet",width=texture.width,height=texture.height,
                 cellWidth=cellX,cellHeight=cellY,pixelsPerUnit=PixelsPerMetre*zoom,pivotX=origin.x/cellX,pivotY=origin.y/cellY,facesLeft=false,clips=clips};
             Debug.Log($"Турель {unitId}: лист {texture.width}×{texture.height} (собран {sheetWidth}×{cellY}), клетка {cellX}×{cellY}, опора ({origin.x},{origin.y}) → ({art.pivotX:F3},{art.pivotY:F3}), ствол ({socket.x:F1},{socket.y:F1}), масштаб {art.pixelsPerUnit}.");
@@ -158,10 +178,11 @@ namespace Remains.Editor
                 {
                     id=id,presentation="atlas",artwork=art.resource.Substring(0,art.resource.Length-"sheet".Length)+"artwork",
                     combatAi=true,hasWeapon=true,atlasWeaponSocket=true,bodyInventory=false,canUseDoors=false,bodyMassKg=mass,telekinesisMovable=false,
-                    // It watches all around (the original turns its gun between its watch angles), within vision × 1000 px.
-                    perception=new NpcPerceptionSettings {sightDistance=vision*1000/PixelsPerMetre,closeDistance=vision*1000/PixelsPerMetre,recognitionSeconds=.3f,
+                    // It sees the side its gun points to (NpcTurret turns it), within vision × 1000 px, and behind only within
+                    // Unit.detecting (80 px); the armored turret (noTurn, narrow cone) never behind.
+                    perception=new NpcPerceptionSettings {sightDistance=vision*1000/PixelsPerMetre,closeDistance=unitId=="turret3"?0:80/PixelsPerMetre,recognitionSeconds=.3f,
                         memorySeconds=4,hearingDistance=vision*1000/PixelsPerMetre,eyeHeight=Mathf.Max(0,eye),targetHeight=.25f},
-                    behavior=NpcCreatureBehaviours.Turret,hitMaterial="metal",hitProtection=armor,
+                    behavior=NpcCreatureBehaviours.Turret,hitMaterial="metal",hitProtection=armor,turret=TurretWatch(unitId),deathBlastScale=.5f,
                     activateTrap=(int)Num(unit.Element("param"),"acttrap",2)
                 };
                 string actorPath=ActorFolder+"/"+id+".asset";Guard(actorPath,id,owned);
@@ -177,7 +198,7 @@ namespace Remains.Editor
                 var inventory=AssetDatabase.LoadAssetAtPath<ContainerLootAsset>(inventoryPath);bool fresh=inventory==null;
                 if(fresh) inventory=ScriptableObject.CreateInstance<ContainerLootAsset>();
                 inventory.Configure(new ContainerLootTable {id=id+"-gun",version="1",entries=new[]{new ContainerLootEntry {id="gun",definition=weapon,minimum=1,maximum=1,
-                    weaponState=new WeaponItemState {rounds=0}}}});
+                    weaponState=new WeaponItemState {rounds=WeaponCatalogMagazine(weapon)}}}});
                 if(fresh) AssetDatabase.CreateAsset(inventory,inventoryPath);else EditorUtility.SetDirty(inventory);
                 string spawnPath=SpawnFolder+"/"+id+"-spawn.asset";Guard(spawnPath,id,owned);
                 var spawn=AssetDatabase.LoadAssetAtPath<NpcSpawnAsset>(spawnPath);bool newSpawn=spawn==null;

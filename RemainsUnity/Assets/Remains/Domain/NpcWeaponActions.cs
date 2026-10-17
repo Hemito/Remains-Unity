@@ -50,7 +50,7 @@ namespace Remains.Domain
             var item=ValidateEquipped(actor);if(item==null || !WeaponInventory.Available(actor,item.definition)) return null;
             var weapon=WeaponCatalog.Get(item.definition);
             string kind=Shot;
-            if(!string.IsNullOrEmpty(weapon.ammo) && item.weaponState.rounds<weapon.ammoPerShot)
+            if(weapon.UsesMagazine && item.weaponState.rounds<weapon.ammoPerShot)
             {
                 if(WeaponAmmunition.ReloadAmount(actor,weapon)==0) return null;
                 kind=Reload;

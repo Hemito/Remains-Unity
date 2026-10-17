@@ -99,7 +99,9 @@ namespace Remains.Editor
                 type.hitMaterial=="metal",$"{id}: турель — боевой ИИ с оружием на точке атласа, без добычи с тела");
             type.perception.Validate();
             var art=AtlasAnimationData.Get(type.artwork);
-            foreach(string pose in new[]{"idle","attack","down"}) Require(art.Clip(pose).count==1 && art.Clip(pose).weaponSockets?.Length==1,$"{id}: поза {pose} с точкой ствола");
+            foreach(string pose in new[]{"idle",Remains.Gameplay.NpcTurret.Alert,"attack",Remains.Gameplay.NpcTurret.Search,"down"})
+                Require(art.Clip(pose).count==1 && art.Clip(pose).weaponSockets?.Length==1,$"{id}: поза {pose} с точкой ствола");
+            Require(type.turret!=null && type.deathBlastScale>0,$"{id}: настройки наблюдения и взрыв при гибели");
             Require(art.Clip("idle").column!=art.Clip("attack").column && art.Clip("attack").column!=art.Clip("down").column,$"{id}: лампа различает наблюдение, атаку и выключение");
             var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
             float hp=float.Parse((string)unit.Element("comb").Attribute("hp"),System.Globalization.CultureInfo.InvariantCulture);
@@ -121,6 +123,34 @@ namespace Remains.Editor
             var target=new ActorState {id="p",player=true,connected=true,level="l",x=-6,y=0,health=100};
             Require(NpcAttackRules.TryBegin(actor,target,new GuardWeaponTiming()) && Mathf.Approximately(actor.attackRemaining,1f/30),$"{id}: турель стреляет без долгого прицеливания");
             Require(Mathf.Approximately(new GuardWeaponTiming().Recovery(actor,weapon),Mathf.Max(1f/30,weapon.cooldown)),$"{id}: темп турели — темп её ствола");
+
+            // Magazine with an endless supply: it empties, reloads to full and spends no items.
+            Require(weapon.unlimitedReserve && weapon.magazineSize>0 && gun.weaponState.rounds==weapon.magazineSize,$"{id}: полный магазин с бесконечным запасом");
+            NpcAttackRules.Cancel(actor);actor.attackCooldown=0;int items=actor.inventory.Count;
+            for(int i=0;i<weapon.magazineSize;i++) Require(WeaponAmmunition.SpendShot(actor,weapon,out _),$"{id}: выстрел {i} из магазина");
+            Require(!WeaponAmmunition.SpendShot(actor,weapon,out _) && NpcWeaponActions.Prepare(actor)?.kind==NpcWeaponActions.Reload,$"{id}: пустой магазин ведёт к перезарядке");
+            Require(WeaponAmmunition.CompleteReload(actor,weapon) && gun.weaponState.rounds==weapon.magazineSize && actor.inventory.Count==items,$"{id}: перезарядка без патронов до полного");
+
+            // The watch states on a target that appears, stays and leaves (no geometry: the line of sight is given).
+            var turret=new ActorState {id="w",actorType=id,anatomy=id,level="l",x=0,y=0,facing=1,health=hp,weapon=weapon.id};
+            var random=new System.Random(1);float dt=1f/30;
+            Require(!Remains.Gameplay.NpcTurret.Step(turret,type,null,false,null,null,dt,random) && turret.creature.mode==Remains.Gameplay.NpcTurret.Watch && turret.pose=="idle",$"{id}: начинает с наблюдения");
+            var settings=type.turret;float start=turret.weaponAngle;
+            Require(settings.patrolAngles.Any(a=>Mathf.Abs(Mathf.DeltaAngle(a,start))<.01f || Mathf.Abs(Mathf.DeltaAngle(180-a,start))<.01f),$"{id}: ствол на угле наблюдения");
+            for(float t=0;t<settings.periodSeconds+.1f;t+=dt) Remains.Gameplay.NpcTurret.Step(turret,type,null,false,null,null,dt,random);
+            float moved=Mathf.Abs(Mathf.DeltaAngle(turret.weaponAngle,start));
+            Require(settings.patrolAngles.Length==1 || moved>0 && moved<=settings.watchTurnDegreesPerSecond*(.1f+2*dt)+.01f,$"{id}: смена угла наблюдения плавная ({moved:F1}°)");
+            var intruder=new ActorState {id="p",player=true,connected=true,level="l",x=4,y=-1,health=100};
+            Require(!Remains.Gameplay.NpcTurret.Step(turret,type,intruder,true,intruder.Position,null,dt,random) && turret.creature.mode==Remains.Gameplay.NpcTurret.Alert && turret.pose==Remains.Gameplay.NpcTurret.Alert,$"{id}: замечает и не стреляет сразу");
+            bool fired=false;float before=turret.weaponAngle;
+            for(float t=0;t<settings.alertMaxSeconds+.1f;t+=dt) fired|=Remains.Gameplay.NpcTurret.Step(turret,type,intruder,true,intruder.Position,null,dt,random);
+            Require(fired && turret.creature.mode==Remains.Gameplay.NpcTurret.Attack && turret.pose=="attack",$"{id}: после тревоги атакует");
+            Require(Mathf.Abs(Mathf.DeltaAngle(before,turret.weaponAngle))<=settings.attackTurnDegreesPerSecond*(settings.alertMaxSeconds+.2f)+.01f,$"{id}: ствол поворачивается не быстрее своей скорости");
+            Require(!Remains.Gameplay.NpcTurret.Step(turret,type,intruder,false,intruder.Position,null,dt,random) && turret.creature.mode==Remains.Gameplay.NpcTurret.Search,$"{id}: потеряв цель, ищет");
+            for(float t=0;t<settings.searchSeconds+.1f;t+=dt) Remains.Gameplay.NpcTurret.Step(turret,type,intruder,false,null,null,dt,random);
+            Require(turret.creature.mode==Remains.Gameplay.NpcTurret.Watch,$"{id}: после поиска снова наблюдает");
+            if(settings.fixedFacing) Require(turret.facing==1,$"{id}: бронированная не разворачивается");
+            else Require(turret.facing==(Mathf.Cos(turret.weaponAngle*Mathf.Deg2Rad)<0?-1:1),$"{id}: смотрит туда, куда направлен ствол");
         }
 
         // A few seconds of each family on the real factory geometry with a target nearby: no NaN, never inside walls,

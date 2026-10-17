@@ -34,7 +34,7 @@ MonoBehaviour:
       eyeHeight: 0.40200004
       targetHeight: 0.25
     naturalAttack:
-      rid: 5813030405547491333
+      rid: 5813030406639583237
     behavior: bloat
     motion:
       walkSpeed: 3
@@ -48,12 +48,22 @@ MonoBehaviour:
     - exported:sound:62
     - exported:sound:61
     activateTrap: 1
+    turret:
+      patrolAngles: []
+      periodSeconds: 4
+      watchTurnDegreesPerSecond: 0
+      attackTurnDegreesPerSecond: 0
+      alertMinSeconds: 1
+      alertMaxSeconds: 1.3333334
+      searchSeconds: 10
+      fixedFacing: 0
+    deathBlastScale: 0
   presentationSource: 1
   presentationPrefab: {fileID: 3824219279354784601, guid: a7e7a03dddafa4344b44d865e3130de0, type: 3}
   references:
     version: 2
     RefIds:
-    - rid: 5813030405547491333
+    - rid: 5813030406639583237
       type: {class: NaturalAttackDefinition, ns: Remains.Domain, asm: Assembly-CSharp}
       data:
         approachSpeed: 3

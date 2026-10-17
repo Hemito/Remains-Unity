@@ -223,6 +223,14 @@ namespace Remains.Runtime
             CreateOwnedObject("Изображения снарядов").AddComponent<ProjectileVisuals>().Initialize(Session,Combat.Projectiles,visualOrders);
             CreateOwnedObject("Попадания лазера").AddComponent<LaserImpactEffects>().Initialize(Session,Combat.Projectiles,visualOrders);
             Explosions=CreateOwnedObject("Эффекты взрывов").AddComponent<ExplosionEffects>();Explosions.Initialize(Session,visualOrders);
+            // A type with a death blast (destroyed turrets) shows it where the body is, once per observed death.
+            DeathAudio.DeathObserved+=death=>
+            {
+                float scale=ActorTypes.Get(death.actorType).deathBlastScale;if(scale<=0) return;
+                var body=Session.World?.Find(death.actor);
+                var at=body!=null?body.BodyPosition+Vector2.up*(Anatomy.Movement(body).height*.5f):new Vector2(death.x,death.y);
+                Explosions.PlayCosmetic("death:"+death.actor+":"+death.lifecycleSequence,death.level,at,scale);
+            };
             Music=CreateOwnedObject("Музыка локации").AddComponent<AreaMusic>();Music.Initialize(Session);
             if(Application.isBatchMode && Options.Smoke!=null && string.IsNullOrEmpty(Options.SaveDirectory))
                 throw new System.InvalidOperationException("Фоновая проверка требует отдельного каталога --save-dir для настроек.");

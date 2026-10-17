@@ -38,6 +38,7 @@ namespace Remains.Gameplay
                 }
             };
         }
+        private readonly System.Random turretRandom=new();
         public void Step(float dt)
         {
             if(session.World==null) return;
@@ -63,7 +64,8 @@ namespace Remains.Gameplay
                 {
                     if(family && NpcCreatureBehaviours.Flies(type.behavior)) creatures.Coast(actor,type,controller.Room,dt);
                     else if(!NpcCreatureBehaviours.Fixed(type.behavior)) controller.Step(actor,Vector2.zero,false,dt,lookAtX:!natural && visible?target.x:(float?)null);
-                    if(!natural) NpcWeaponAim.Apply(actor,visible?target.BodyPosition+Vector2.up*.55f:null,controller.Room);
+                    if(NpcCreatureBehaviours.Fixed(type.behavior)) NpcTurret.Follow(actor,type,target,visible,controller.Room,dt);
+                    else if(!natural) NpcWeaponAim.Apply(actor,visible?target.BodyPosition+Vector2.up*.55f:null,controller.Room);
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
@@ -77,12 +79,9 @@ namespace Remains.Gameplay
                     actor.perception.hasKnownPosition?actor.perception.KnownPosition:null;
                 if(NpcCreatureBehaviours.Fixed(type.behavior))
                 {
-                    // A turret neither walks nor falls: it turns its gun to the target (or where it was last known) and
-                    // fires while it sees it; the lamp follows (watching or attacking).
-                    Vector2? aim=visible?target.BodyPosition+Vector2.up*.55f:destination.HasValue?destination.Value+Vector2.up*.55f:(Vector2?)null;
-                    NpcWeaponAim.Apply(actor,aim,controller.Room);
-                    ActorPose.Select(actor,visible?"attack":"idle");
-                    if(visible && target.connected && !target.down && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
+                    // A turret neither walks nor falls: it watches, notices, attacks and searches (NpcTurret).
+                    bool fire=NpcTurret.Step(actor,type,target,visible,actor.perception.hasKnownPosition?actor.perception.KnownPosition:(Vector2?)null,controller.Room,dt,turretRandom);
+                    if(fire && target.connected && !target.down && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
                         session.PublishActor(actor);
                     continue;
                 }

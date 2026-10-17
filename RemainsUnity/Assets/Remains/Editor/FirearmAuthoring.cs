@@ -261,6 +261,8 @@ namespace Remains.Editor
             if(!int.TryParse(wid.Substring("turret".Length),out int tr) || tr<1) return "не номер оружия турели";
             var character=root.Element("char");var phis=root.Element("phis");var vis=root.Element("vis");
             if(character==null || phis==null || vis==null) return "нет char, phis или vis";
+            var ammoNode=root.Element("ammo");
+            if(ammoNode?.Attribute("holder")==null || ammoNode.Attribute("reload")==null) return "нет магазина (ammo holder/reload)";
             if(Num(character,"damexpl",0)>0 || Num(character,"kol",1)>1 || phis.Attribute("grav")!=null) return "взрыв, дробь или навесной снаряд";
             string Binding(JObject[] bindings,string role)=>bindings.FirstOrDefault(b=>(string)b["role"]==role)?["resource"]?.ToString();
             string marker=Binding(graphics,"appearance-grade-0"),projectile=Binding(graphics,"projectile-grade-0"),shoot=Binding(sounds,"shoot");
@@ -278,7 +280,9 @@ namespace Remains.Editor
                 id=id,damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,
                 projectileSpeed=speed,projectileSpeedVariation=SpeedVariation,projectileLifetime=lifetime,range=speed*lifetime,
                 shotSpreadHalfAngleDegrees=Mathf.Min(90,Num(phis,"deviation",0)*.5f),recoil=WeaponRecoilProfile.Disabled(),
-                holdingArea=new HoldingArea(),stopAtFirstActor=true,stopAtTerrain=true
+                holdingArea=new HoldingArea(),stopAtFirstActor=true,stopAtTerrain=true,
+                // UnitTurret: currentWeapon.hold = holder; it reloads (ammo reload) from an endless supply.
+                magazineSize=(int)Num(ammoNode,"holder"),ammoPerShot=1,reloadSeconds=Mathf.Max(1,Num(ammoNode,"reload"))/FramesPerSecond,unlimitedReserve=true
             };
             var view=Prefab(id,Safe(wid),guns[tr-1],(float)emit["x"],(float)emit["y"],assets);
             bool beam=Num(vis,"spring",1)>=2;

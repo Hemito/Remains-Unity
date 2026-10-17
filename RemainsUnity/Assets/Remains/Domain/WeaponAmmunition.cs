@@ -37,7 +37,7 @@ namespace Remains.Domain
             if(actor.weaponInventoryVersion!=0 && !WeaponInventory.Available(actor,definition.id))
             {reason="Выбранное оружие отсутствует или ожидает передачи.";return false;}
             if(actor.mana<definition.manaCost) {reason="Недостаточно маны.";return false;}
-            if(!string.IsNullOrEmpty(definition.ammo))
+            if(definition.UsesMagazine)
             {
                 var magazine=Magazine(actor,definition.id);
                 if(magazine==null) {reason=$"Нет магазина оружия {definition.id}. Проверьте сохранение и набор модов.";return false;}
@@ -49,7 +49,7 @@ namespace Remains.Domain
         public static bool SpendShot(ActorState actor,WeaponDefinition definition,out string reason)
         {
             if(!CanSpendShot(actor,definition,out reason)) return false;
-            if(!string.IsNullOrEmpty(definition.ammo))
+            if(definition.UsesMagazine)
             {
                 var magazine=Magazine(actor,definition.id);
                 magazine.rounds-=definition.ammoPerShot;magazine.revision++;
@@ -62,7 +62,8 @@ namespace Remains.Domain
         {
             if(actor.weaponInventoryVersion!=0 && !WeaponInventory.Available(actor,definition.id)) return 0;
             var magazine=Magazine(actor,definition.id);
-            if(magazine==null || string.IsNullOrEmpty(definition.ammo)) return 0;
+            if(magazine==null || !definition.UsesMagazine) return 0;
+            if(definition.unlimitedReserve) return Math.Max(0,definition.magazineSize-magazine.rounds);
             return Math.Max(0,Math.Min(definition.magazineSize-magazine.rounds,InventoryJournal.Count(actor,definition.ammo)));
         }
 
@@ -72,7 +73,7 @@ namespace Remains.Domain
             if(count==0) return false;
             var magazine=Magazine(actor,definition.id);
             if(magazine.revision==long.MaxValue) throw new InvalidOperationException("Исчерпан номер состояния магазина.");
-            if(!InventoryJournal.Consume(actor,definition.ammo,count)) return false;
+            if(!definition.unlimitedReserve && !InventoryJournal.Consume(actor,definition.ammo,count)) return false;
             magazine.rounds+=count;magazine.revision++;
             actor.revision++;
             return true;

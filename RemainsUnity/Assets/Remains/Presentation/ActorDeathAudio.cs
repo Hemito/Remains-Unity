@@ -57,6 +57,8 @@ namespace Remains.Presentation
         public int Accepted {get;private set;}
         public int Played {get;private set;}
         public event Action<DamageResult,string,AudioClip> DeathPlayed;
+        // Every NPC death this client observes once (the same receipts as its voice), for other death effects.
+        public event Action<DamageResult> DeathObserved;
         public void Initialize(CoopSession session,DamageFeedback feedback,GameplayAudio playback,ActorDeathAudioCatalog catalog=null)
         {
             if(this.session!=null) throw new InvalidOperationException("Голоса смерти NPC уже привязаны к сессии.");
@@ -73,6 +75,7 @@ namespace Remains.Presentation
         {
             if(!receipts.TryObserve(session.World,result)) return;
             Accepted++;
+            DeathObserved?.Invoke(result);
             if(!catalog.TrySelect(result.actorType,random.Next(),out var sound))
             {
                 if(missing.Add(result.actorType)) Debug.LogWarning($"Не объявлен голос смерти NPC: type={result.actorType}, actor={result.actor}, world={result.world}, level={result.level}, attack={result.attack}; {ActorDeathAudioCatalog.Resource}. Реплика пропущена без подмены.",this);

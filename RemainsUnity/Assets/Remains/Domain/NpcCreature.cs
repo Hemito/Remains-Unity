@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 
 namespace Remains.Domain
@@ -32,6 +33,30 @@ namespace Remains.Domain
             if(!float.IsFinite(walkSpeed) || !float.IsFinite(runSpeed) || !float.IsFinite(acceleration) || walkSpeed<=0 || runSpeed<walkSpeed || acceleration<=0 ||
                 !float.IsFinite(dashRange) || dashRange<0 || !float.IsFinite(dashChance) || dashChance<0 || dashChance>1)
                 throw new InvalidOperationException($"Некорректное движение существа {type}: шаг {walkSpeed}, бег {runSpeed}, ускорение {acceleration}.");
+        }
+    }
+
+    // UnitTurret's watch and turn settings (UnitTurret.putLoc), seconds and degrees per second, angles with y up for a
+    // turret facing right: the watch angles it sweeps between (aRot), one per period; how fast the gun turns while
+    // watching or searching (watchDrot) and while attacking (actDrot); how long it takes after noticing a target
+    // (aiTCh 30–40 frames) and how long it searches (maxSpok × 10 frames); an armored turret keeps its side (noTurn).
+    [Serializable] public sealed class TurretSettings
+    {
+        [InspectorName("Углы наблюдения, °")] public float[] patrolAngles=Array.Empty<float>();
+        [Min(.01f),InspectorName("Смена угла наблюдения, с")] public float periodSeconds=4;
+        [Min(1),InspectorName("Поворот при наблюдении, °/с")] public float watchTurnDegreesPerSecond;
+        [Min(1),InspectorName("Поворот в атаке, °/с")] public float attackTurnDegreesPerSecond;
+        [Min(0),InspectorName("Тревога до атаки: от, с")] public float alertMinSeconds=1;
+        [Min(0),InspectorName("Тревога до атаки: до, с")] public float alertMaxSeconds=4f/3;
+        [Min(0),InspectorName("Поиск потерянной цели, с")] public float searchSeconds=10;
+        [InspectorName("Не поворачивается корпусом (бронированная)")] public bool fixedFacing;
+        public void Validate(string type)
+        {
+            if(patrolAngles==null || patrolAngles.Length==0 || patrolAngles.Any(a=>!float.IsFinite(a)) || !float.IsFinite(periodSeconds) || periodSeconds<=0 ||
+                !float.IsFinite(watchTurnDegreesPerSecond) || watchTurnDegreesPerSecond<=0 || !float.IsFinite(attackTurnDegreesPerSecond) || attackTurnDegreesPerSecond<=0 ||
+                !float.IsFinite(alertMinSeconds) || alertMinSeconds<0 || !float.IsFinite(alertMaxSeconds) || alertMaxSeconds<alertMinSeconds ||
+                !float.IsFinite(searchSeconds) || searchSeconds<0)
+                throw new InvalidOperationException($"Некорректные настройки турели {type}.");
         }
     }
 

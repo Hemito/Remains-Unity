@@ -21,9 +21,9 @@ MonoBehaviour:
     cooldown: 0.8333333
     manaCost: 0
     ammo: 
-    magazineSize: 0
-    ammoPerShot: 0
-    reloadSeconds: 0
+    magazineSize: 5
+    ammoPerShot: 1
+    reloadSeconds: 1
     projectileSpeed: 1200
     projectileSpeedVariation: 0.2
     projectileLifetime: 3.3333333
@@ -69,6 +69,7 @@ MonoBehaviour:
     stopAtFirstActor: 1
     stopAtTerrain: 1
     pellets: 0
+    unlimitedReserve: 1
   presentation: {fileID: 5689999726803982519, guid: 2bd81a5a1563a454fb592fe80d910cea, type: 3}
   shotAnimation: {fileID: 0}
   muzzleFlashGain: 1

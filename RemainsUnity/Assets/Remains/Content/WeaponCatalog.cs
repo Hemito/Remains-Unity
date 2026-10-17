@@ -48,6 +48,10 @@ namespace Remains.Content
         // with its own spread and damage. 0 or 1: a single projectile.
         public int pellets;
         public int Pellets=>Math.Max(1,pellets);
+        // A magazine refilled by reloading without ammunition items (original turret guns: holder and reload with an
+        // endless supply). Weapons with an ammo item use their magazine as well.
+        public bool unlimitedReserve;
+        public bool UsesMagazine=>!string.IsNullOrEmpty(ammo) || unlimitedReserve;
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }

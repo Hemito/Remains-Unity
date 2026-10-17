@@ -26,6 +26,16 @@ namespace Remains.Presentation
             effect.gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(orders,WorldVisualKind.Effect,"explosion:"+attack.id,null,renderer,attack.level);
             effect.Initialize(session,attack.level,attack.Origin);Shown++;Created?.Invoke(effect);
         }
+        // A blast picture without damage (a destroyed turret's "miniexpl"), scaled down; nothing is recorded in the world.
+        public void PlayCosmetic(string id,string level,Vector2 position,float scale)
+        {
+            if(level!=session.LocalActor?.level || !float.IsFinite(scale) || scale<=0 || !seen.Add(id)) return;
+            recent.Enqueue(id);if(recent.Count>512) seen.Remove(recent.Dequeue());
+            var effect=Instantiate(prefab,transform,false);effect.name="Взрыв (без урона) "+id;effect.transform.localScale=Vector3.one*scale;
+            var renderer=effect.GetComponentInChildren<SpriteRenderer>(true);
+            effect.gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(orders,WorldVisualKind.Effect,"explosion:"+id,null,renderer,level);
+            effect.Initialize(session,level,position);Shown++;Created?.Invoke(effect);
+        }
         private void OnDestroy() {if(session!=null) session.AttackReceived-=Attack;}
     }
 }

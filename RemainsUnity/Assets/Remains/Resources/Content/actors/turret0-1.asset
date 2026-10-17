@@ -27,7 +27,7 @@ MonoBehaviour:
     hitProtection: 5
     perception:
       sightDistance: 20
-      closeDistance: 20
+      closeDistance: 1.6
       recognitionSeconds: 0.3
       memorySeconds: 4
       hearingDistance: 20
@@ -45,6 +45,18 @@ MonoBehaviour:
     hitMaterial: metal
     attackSounds: []
     activateTrap: 1
+    turret:
+      patrolAngles:
+      - -30
+      - -150
+      periodSeconds: 4
+      watchTurnDegreesPerSecond: 25.7831
+      attackTurnDegreesPerSecond: 171.88734
+      alertMinSeconds: 1
+      alertMaxSeconds: 1.3333334
+      searchSeconds: 10
+      fixedFacing: 0
+    deathBlastScale: 0.5
   presentationSource: 1
   presentationPrefab: {fileID: 419042488007097559, guid: 063c3cbc56bd86b4898ed8f4ba31b1f3, type: 3}
   references:
