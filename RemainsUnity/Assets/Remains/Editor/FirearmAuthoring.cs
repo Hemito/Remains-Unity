@@ -72,6 +72,19 @@ namespace Remains.Editor
                 }
             }
 
+            // Turret guns: the gun art is the turrets' shared part "puha" (CatalogBuilder.Parts).
+            string puha=((JArray)catalog["definitions"]).OfType<JObject>().Where(r=>(string)r["category"]=="unit")
+                .SelectMany(r=>((JArray)r["graphics"]).OfType<JObject>()).FirstOrDefault(g=>(string)g["role"]=="part:puha")?["resource"]?.ToString();
+            foreach(var row in ((JArray)catalog["definitions"]).OfType<JObject>().Where(r=>(string)r["category"]=="weapon").OrderBy(r=>(string)r["id"],StringComparer.Ordinal))
+            {
+                string wid=(string)row["id"];var root=XElement.Parse((string)row["rawXml"]);
+                if((string)root.Attribute("tip")!="0" || !wid.StartsWith("turret",StringComparison.Ordinal) || (string)root.Element("vis")?.Attribute("vweap")!="viswturret") continue;
+                string id=$"weapon:{wid}:grade:0";
+                string reason=puha==null?"нет части puha у турелей в выгрузке":TurretGun(wid,root,((JArray)row["graphics"]).OfType<JObject>().ToArray(),
+                    ((JArray)row["sounds"]).OfType<JObject>().ToArray(),puha,resources,exported,list,shots,audio,assets);
+                if(reason==null) generated.Add(id);else gaps.Add($"{id}: {reason}");
+            }
+
             // Shot artwork per projectile symbol, beam and trace speed (the trace length follows the speed, as Bullet).
             foreach(var shot in shots.Values)
             {
@@ -153,21 +166,7 @@ namespace Remains.Editor
             // Presentation: prefab with the rest frame and the muzzle at the emit socket (source px, y down).
             string file=Safe(wid)+"-"+grade;
             var rest=frames[0];
-            string materialPath=PrefabFolder+"/"+file+".mat",prefabPath=PrefabFolder+"/"+file+".prefab";assets.Add(materialPath);assets.Add(prefabPath);
-            var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-            if(material==null) {material=WorldArtworkMaterial.Create(rest.texture);AssetDatabase.CreateAsset(material,materialPath);}
-            else {material.mainTexture=rest.texture;EditorUtility.SetDirty(material);}
-            WeaponView view;
-            var node=new GameObject(id);
-            try
-            {
-                var renderer=node.AddComponent<SpriteRenderer>();renderer.sprite=rest;renderer.sharedMaterial=material;renderer.sortingOrder=100;
-                var muzzle=new GameObject("Дуло").transform;muzzle.SetParent(node.transform,false);
-                muzzle.localPosition=new Vector3((float)emit["x"]/PixelsPerMetre,-(float)emit["y"]/PixelsPerMetre,0);
-                var component=node.AddComponent<WeaponView>();component.Configure(id,renderer,muzzle);
-                view=PrefabUtility.SaveAsPrefabAsset(node,prefabPath).GetComponent<WeaponView>();
-            }
-            finally {UnityEngine.Object.DestroyImmediate(node);}
+            var view=Prefab(id,file,rest,(float)emit["x"],(float)emit["y"],assets);
             if(view.ReadRig().muzzleX<=0) return "точка вылета позади рукояти";
 
             // The appearance's labels: a clip runs from its label to the next one (or the last frame).
@@ -231,6 +230,72 @@ namespace Remains.Editor
 
             audio.Add(new JObject {["weapon"]=id,["clip"]=AudioClipSource.ExportedPrefix+shootSound,["kind"]="shot",["minGain"]=1,["maxGain"]=1});
             if(reloadSound!=null) audio.Add(new JObject {["weapon"]=id,["clip"]=AudioClipSource.ExportedPrefix+reloadSound,["kind"]="reload",["minGain"]=1,["maxGain"]=1});
+            return null;
+        }
+
+        // A weapon prefab: the rest frame and the muzzle at the emit socket (source px from the registration, y down).
+        private static WeaponView Prefab(string id,string file,Sprite rest,float emitX,float emitY,HashSet<string> assets)
+        {
+            string materialPath=PrefabFolder+"/"+file+".mat",prefabPath=PrefabFolder+"/"+file+".prefab";assets.Add(materialPath);assets.Add(prefabPath);
+            var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if(material==null) {material=WorldArtworkMaterial.Create(rest.texture);AssetDatabase.CreateAsset(material,materialPath);}
+            else {material.mainTexture=rest.texture;EditorUtility.SetDirty(material);}
+            var node=new GameObject(id);
+            try
+            {
+                var renderer=node.AddComponent<SpriteRenderer>();renderer.sprite=rest;renderer.sharedMaterial=material;renderer.sortingOrder=100;
+                var muzzle=new GameObject("Дуло").transform;muzzle.SetParent(node.transform,false);
+                muzzle.localPosition=new Vector3(emitX/PixelsPerMetre,-emitY/PixelsPerMetre,0);
+                var component=node.AddComponent<WeaponView>();component.Configure(id,renderer,muzzle);
+                return PrefabUtility.SaveAsPrefabAsset(node,prefabPath).GetComponent<WeaponView>();
+            }
+            finally {UnityEngine.Object.DestroyImmediate(node);}
+        }
+
+        // Turret guns (UnitTurret: new Weapon(this, "turret" + tr), tip 0, vweap viswturret — an invisible clip that
+        // marks only the emit point): no ammunition; the gun drawn is frame tr of the turrets' part "puha", turned by the
+        // turret to its aim. Numbers as the firearms'.
+        private static string TurretGun(string wid,XElement root,JObject[] graphics,JObject[] sounds,string puha,Dictionary<string,JObject> resources,
+            ExportedContentCatalog exported,SerializedProperty list,Dictionary<string,Shot> shots,List<JObject> audio,HashSet<string> assets)
+        {
+            if(!int.TryParse(wid.Substring("turret".Length),out int tr) || tr<1) return "не номер оружия турели";
+            var character=root.Element("char");var phis=root.Element("phis");var vis=root.Element("vis");
+            if(character==null || phis==null || vis==null) return "нет char, phis или vis";
+            if(Num(character,"damexpl",0)>0 || Num(character,"kol",1)>1 || phis.Attribute("grav")!=null) return "взрыв, дробь или навесной снаряд";
+            string Binding(JObject[] bindings,string role)=>bindings.FirstOrDefault(b=>(string)b["role"]==role)?["resource"]?.ToString();
+            string marker=Binding(graphics,"appearance-grade-0"),projectile=Binding(graphics,"projectile-grade-0"),shoot=Binding(sounds,"shoot");
+            if(marker==null || projectile==null || shoot==null) return "нет маркера дула (vweap), снаряда или звука";
+            var emit=((JArray)resources[marker]["weaponSockets"]??new JArray()).OfType<JObject>().FirstOrDefault(s=>(int)s["frame"]==1 && (string)s["name"]=="emit");
+            if(emit==null) return "нет точки вылета у "+marker;
+            Sprite[] guns,projectileFrames;
+            try {guns=Frames(exported,puha);projectileFrames=Frames(exported,projectile);}
+            catch(InvalidDataException error) {return error.Message;}
+            if(tr>guns.Length) return $"у части puha нет кадра {tr}";
+            string id=$"weapon:{wid}:grade:0";
+            float speed=Num(phis,"speed")*FramesPerSecond/PixelsPerMetre,lifetime=BulletLifeFrames/FramesPerSecond;
+            var definition=new WeaponDefinition
+            {
+                id=id,damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,
+                projectileSpeed=speed,projectileSpeedVariation=SpeedVariation,projectileLifetime=lifetime,range=speed*lifetime,
+                shotSpreadHalfAngleDegrees=Mathf.Min(90,Num(phis,"deviation",0)*.5f),recoil=WeaponRecoilProfile.Disabled(),
+                holdingArea=new HoldingArea(),stopAtFirstActor=true,stopAtTerrain=true
+            };
+            var view=Prefab(id,Safe(wid),guns[tr-1],(float)emit["x"],(float)emit["y"],assets);
+            bool beam=Num(vis,"spring",1)>=2;
+            float native=projectileFrames[0].rect.width/(projectileFrames[0].pixelsPerUnit/PixelsPerMetre);
+            string shotKey=projectile+"|"+beam+"|"+(beam?0:Mathf.RoundToInt(speed));
+            if(!shots.TryGetValue(shotKey,out var shot))
+                shots.Add(shotKey,shot=new Shot {resource=projectile,beam=beam,speed=speed,length=native*Num(phis,"speed")/100/PixelsPerMetre});
+            shot.weapons.Add(id);
+            string assetPath=WeaponFolder+"/"+Safe(wid)+".asset";assets.Add(assetPath);
+            var asset=AssetDatabase.LoadAssetAtPath<WeaponAsset>(assetPath);bool fresh=asset==null;
+            if(fresh) asset=ScriptableObject.CreateInstance<WeaponAsset>();
+            asset.SetDefinition(definition);asset.SetPresentation(view);asset.SetShotAnimation(null);asset.SetReloadAnimation(null);asset.SetCasingProfile(null);
+            if(fresh) AssetDatabase.CreateAsset(asset,assetPath);else EditorUtility.SetDirty(asset);
+            bool listed=false;
+            for(int i=0;i<list.arraySize;i++) listed|=list.GetArrayElementAtIndex(i).objectReferenceValue==asset;
+            if(!listed) {list.arraySize++;list.GetArrayElementAtIndex(list.arraySize-1).objectReferenceValue=asset;}
+            audio.Add(new JObject {["weapon"]=id,["clip"]=AudioClipSource.ExportedPrefix+shoot,["kind"]="shot",["minGain"]=1,["maxGain"]=1});
             return null;
         }
 

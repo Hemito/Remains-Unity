@@ -22,13 +22,14 @@ namespace Remains.Editor
         }
         public static void Run()
         {
-            Anatomy.Load();WeaponCatalog.Load();
+            Anatomy.Load();WeaponCatalog.Load();Remains.Presentation.ShotArtwork.Prepare();
             var catalog=CreatureCatalog.Load();
             Require(catalog.Creatures.Count>0,"каталог пуст");
             var exported=ExportedContentCatalog.Load();var voices=ActorDeathAudioCatalog.Load();
             foreach(var creature in catalog.Creatures)
             {
                 var type=ActorTypes.Get(creature.actorType);
+                if(NpcCreatureBehaviours.Fixed(type.behavior)) {Turret(creature,type,exported);continue;}
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
                 var art=AtlasAnimationData.Get(type.artwork);
@@ -71,8 +72,10 @@ namespace Remains.Editor
                     int kept=older.actors.Count;
                     Require(lacking>0 && RoomContentInstaller.Apply(older,batch) && older.actors.Count==kept+lacking && older.actors.Count(a=>missing(a))==lacking,what);
                 }
-                Upgrade("base:factory-generated:creatures-v2",V3,"переход v2 → v3 добавляет только летунов и слизь");
-                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a),"переход v1 → v3 добавляет скорпионов, летунов и слизь");
+                bool V4(ActorState a)=>a.actorType.StartsWith("turret",StringComparison.Ordinal);
+                Upgrade("base:factory-generated:creatures-v3",V4,"переход v3 → v4 добавляет только турели");
+                Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a),"переход v2 → v4 добавляет летунов, слизь и турели");
+                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a) || V4(a),"переход v1 → v4 добавляет скорпионов, летунов, слизь и турели");
                 Behaviours(world,room.CreateLayout(false));
                 string saved=StateJson.ToJson(world);
                 Require(StateJson.ToJson(StateJson.FromJson<WorldState>(saved))==saved,"сохранение мира с существами");
@@ -87,6 +90,39 @@ namespace Remains.Editor
             }
             finally {FactoryContentSources.Clear();}
         }
+        // A turret: a fixed gun on the weapon AI with its gun as initial inventory, held at the part's mount (atlas
+        // socket) and fired at its weapon's rate; the lamp follows the AI state (watching / attacking / off).
+        private static void Turret(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported)
+        {
+            string id=creature.actorType;
+            Require(type.combatAi && type.hasWeapon && type.atlasWeaponSocket && type.naturalAttack==null && type.presentation=="atlas" && !type.bodyInventory &&
+                type.hitMaterial=="metal",$"{id}: турель — боевой ИИ с оружием на точке атласа, без добычи с тела");
+            type.perception.Validate();
+            var art=AtlasAnimationData.Get(type.artwork);
+            foreach(string pose in new[]{"idle","attack","down"}) Require(art.Clip(pose).count==1 && art.Clip(pose).weaponSockets?.Length==1,$"{id}: поза {pose} с точкой ствола");
+            Require(art.Clip("idle").column!=art.Clip("attack").column && art.Clip("attack").column!=art.Clip("down").column,$"{id}: лампа различает наблюдение, атаку и выключение");
+            var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
+            float hp=float.Parse((string)unit.Element("comb").Attribute("hp"),System.Globalization.CultureInfo.InvariantCulture);
+            var spawned=creature.spawn.Create(new TrainingPlacement {id="check",type=id,facing=1},"level");
+            var gun=creature.spawn.ReadInventory().Generate("check-world",spawned.id).Single();
+            Require(Mathf.Approximately(spawned.health,hp) && spawned.anatomy==id && gun.definition==spawned.weapon && gun.weaponState!=null && gun.count==1,
+                $"{id}: здоровье AllData и ствол в начальном инвентаре");
+            var weapon=WeaponCatalog.Get(spawned.weapon);
+            Require(weapon.projectileSpeed>0 && string.IsNullOrEmpty(weapon.ammo) && WeaponRigs.Get(weapon.id).HasMuzzle && Remains.Presentation.ShotArtwork.TryGet(weapon.id,out _),
+                $"{id}: ствол {weapon.id} без патронов, с дулом и графикой снаряда");
+            // The mount is the part's placement: the gun aims at a target from there and fires at its rate.
+            var actor=new ActorState {id="t",actorType=id,anatomy=id,level="l",x=0,y=0,facing=1,health=hp,weapon=weapon.id};
+            gun.id="gun";actor.inventory.Add(gun);actor.weaponInventoryVersion=1;actor.equippedWeaponItem="gun";
+            var mount=AtlasWeaponSockets.Anchor(actor);
+            Require(mount.y>0 && Mathf.Abs(mount.x)<.05f,$"{id}: точка ствола {mount} над основанием");
+            Remains.Gameplay.WeaponPose.Aim(actor,mount+new Vector2(-6,-2));
+            var direction=Remains.Gameplay.WeaponPose.Direction(actor);
+            Require(direction.x<0 && direction.y<0 && Vector2.Distance(Remains.Gameplay.WeaponPose.Mount(actor),mount)<.001f,$"{id}: ствол не повернулся к цели слева снизу");
+            var target=new ActorState {id="p",player=true,connected=true,level="l",x=-6,y=0,health=100};
+            Require(NpcAttackRules.TryBegin(actor,target,new GuardWeaponTiming()) && Mathf.Approximately(actor.attackRemaining,1f/30),$"{id}: турель стреляет без долгого прицеливания");
+            Require(Mathf.Approximately(new GuardWeaponTiming().Recovery(actor,weapon),Mathf.Max(1f/30,weapon.cooldown)),$"{id}: темп турели — темп её ствола");
+        }
+
         // A few seconds of each family on the real factory geometry with a target nearby: no NaN, never inside walls,
         // flyers move and change pose, a crawling slime stays on its floor.
         private static void Behaviours(WorldState world,RoomLayout room)

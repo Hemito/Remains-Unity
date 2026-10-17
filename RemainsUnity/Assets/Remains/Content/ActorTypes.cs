@@ -62,7 +62,9 @@ namespace Remains.Content
             }
             if(!Remains.Domain.NpcCreatureBehaviours.Valid(definition.behavior))
                 throw new InvalidOperationException($"Тип {definition.id}: неизвестное поведение {definition.behavior}.");
-            if(Remains.Domain.NpcCreatureBehaviours.IsFamily(definition.behavior))
+            if(Remains.Domain.NpcCreatureBehaviours.Fixed(definition.behavior) && (!definition.combatAi || !definition.hasWeapon || !definition.atlasWeaponSocket || definition.naturalAttack!=null))
+                throw new InvalidOperationException($"Тип {definition.id}: турель требует боевой ИИ с оружием на точке атласа.");
+            if(Remains.Domain.NpcCreatureBehaviours.Touches(definition.behavior))
             {
                 if(definition.naturalAttack==null || definition.motion==null) throw new InvalidOperationException($"Тип {definition.id}: поведение {definition.behavior} требует атаку касанием и движение.");
                 definition.motion.Validate(definition.id);

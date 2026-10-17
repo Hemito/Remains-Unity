@@ -22,7 +22,7 @@ namespace Remains.Editor
     // what the original does not define (contact geometry, timings) is the family's documented default.
     // Generated assets are owned by this tool: re-running replaces them; a hand-made asset at a generated path stops it.
     //   batch -executeMethod Remains.Editor.CreatureAuthoring.RunBatch
-    public static class CreatureAuthoring
+    public static partial class CreatureAuthoring
     {
 
         private const string ArtFolder="Assets/Remains/Resources/Original/Creatures";
@@ -72,7 +72,8 @@ namespace Remains.Editor
                 if(template.problem==null && template.units.All(u=>CreatureSources.HazardKind(template.className,CreatureSources.UnitXml(catalog,u))!=null)) continue;
                 string reason=template.problem;
                 var types=new List<string>();
-                foreach(string unitId in template.units)
+                if(reason==null && template.className==CreatureSources.TurretClass) reason=Turrets(template,rows,resources,package,owned,entries,types);
+                else foreach(string unitId in template.units)
                 {
                     if(reason!=null) break;
                     var existing=entries.FirstOrDefault(e=>e.actorType==unitId);

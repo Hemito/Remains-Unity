@@ -15,7 +15,8 @@ namespace Remains.Content
         {
             ("base:factory-generated:creatures-v1",new[]{"tarakan","rat","molerat"}),
             ("base:factory-generated:creatures-v2",new[]{"scorp"}),
-            ("base:factory-generated:creatures-v3",new[]{"bloodwing","bloat","slime"})
+            ("base:factory-generated:creatures-v3",new[]{"bloodwing","bloat","slime"}),
+            ("base:factory-generated:creatures-v4",new[]{"turret","landturret","armturret"})
         };
         public static string Patch=>versions[^1].patch;
         public static string PreviousPatch=>versions[^2].patch;

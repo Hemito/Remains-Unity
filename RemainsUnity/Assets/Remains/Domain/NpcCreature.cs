@@ -7,10 +7,15 @@ namespace Remains.Domain
     public static class NpcCreatureBehaviours
     {
         public const string Crawler="crawler",Bat="bat",Bloat="bloat",Slime="slime";
+        // UnitTurret: a fixed gun (no locomotion, no gravity) that turns its weapon to the target and fires at its rate.
+        public const string Turret="turret";
+        public static bool Fixed(string behavior)=>behavior==Turret;
+        // Families of touch attackers (natural attack and own motion), as opposed to the turret's weapon.
+        public static bool Touches(string behavior)=>behavior is Bat or Bloat or Slime;
         public static bool Flies(string behavior)=>behavior==Bat || behavior==Bloat;
         // Empty (Unity serializes a missing string as "") or crawler: the natural-attack crawler AI.
         public static bool IsFamily(string behavior)=>!string.IsNullOrEmpty(behavior) && behavior!=Crawler;
-        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime;
+        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret;
     }
 
     // Original Unit move data in metres and seconds (speed/run px per frame × 30 / 50, accel px per frame² × 900 / 50).

@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccd87756f68648d428013d6b205d40a5, type: 3}
+  m_Name: turret1-1
+  m_EditorClassIdentifier: 
+  definition:
+    id: turret1-1
+    presentation: atlas
+    artwork: Original/Creatures/turret1/artwork
+    combatAi: 1
+    hasWeapon: 1
+    bodyInventory: 0
+    atlasWeaponSocket: 1
+    canUseDoors: 0
+    bodyMassKg: 110
+    telekinesisMovable: 0
+    restoreHealthAfterHit: 0
+    hitProtection: 8
+    perception:
+      sightDistance: 20
+      closeDistance: 20
+      recognitionSeconds: 0.3
+      memorySeconds: 4
+      hearingDistance: 20
+      eyeHeight: 1.2
+      targetHeight: 0.25
+    naturalAttack:
+      rid: -2
+    behavior: turret
+    motion:
+      walkSpeed: 0
+      runSpeed: 0
+      acceleration: 0
+      dashRange: 0
+      dashChance: 0
+    hitMaterial: metal
+    attackSounds: []
+    activateTrap: 1
+  presentationSource: 1
+  presentationPrefab: {fileID: 6720469935566745045, guid: 310b59e9986e4e1418ad2aed0371016f, type: 3}
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
