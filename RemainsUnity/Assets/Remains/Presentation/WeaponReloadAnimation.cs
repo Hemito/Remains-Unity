@@ -54,6 +54,7 @@ namespace Remains.Presentation
             if(!clips.TryGetValue(message.weapon,out var clip))
             {Warn("clip:"+message.weapon,$"Нет анимации перезарядки: actor={actor.id}, weapon={message.weapon}, item={message.weaponItem}, token={message.token}. Кадры другого оружия не подставлены.");return;}
             if(!gate.Accept(message.actor,message.token,true)) return;
+            clip.Preload();
             playing[actor.id]=new Playing {message=message,clip=clip,owner=actor.owner,world=session.World.worldId,duration=Duration(message.weapon)};
         }
         private static float Duration(string weapon)
@@ -93,7 +94,7 @@ namespace Remains.Presentation
                 throw new InvalidOperationException($"Некорректное время изображения перезарядки: {context}, duration={duration}, remaining={remaining}.");
             return Mathf.Clamp01(1-remaining/duration);
         }
-        public Sprite Select(ActorState actor,Sprite rest)=>TryGet(actor,out var status)?clips[status.Weapon].Frame(status.Frame):rest;
+        public Sprite Select(ActorState actor,Sprite rest)=>TryGet(actor,out var status)?clips[status.Weapon].Frame(status.Frame)??rest:rest;
         public void Step(float dt)
         {
             if(!float.IsFinite(dt) || dt<0) throw new ArgumentOutOfRangeException(nameof(dt),"Некорректный шаг изображения перезарядки.");

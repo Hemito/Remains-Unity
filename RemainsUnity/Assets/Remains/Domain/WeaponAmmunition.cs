@@ -23,7 +23,8 @@ namespace Remains.Domain
             actor.inventoryUses ??= new List<InventoryUse>();
             foreach(var definition in WeaponCatalog.All)
             {
-                if(string.IsNullOrEmpty(definition.ammo) || Magazine(actor,definition.id)!=null) continue;
+                // The legacy loadout covers the prototype's own weapons, not the original's arsenal connected as items.
+                if(string.IsNullOrEmpty(definition.ammo) || Magazine(actor,definition.id)!=null || definition.id.StartsWith(ExportedWeaponItems.Prefix,StringComparison.Ordinal)) continue;
                 actor.magazines.Add(new WeaponMagazine {weapon=definition.id,rounds=starter?definition.magazineSize:0});
                 if(starter) InventoryStacks.Add(actor,SharedInventory.Create(definition.ammo,definition.magazineSize*3));
             }

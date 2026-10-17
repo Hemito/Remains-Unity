@@ -61,6 +61,7 @@ namespace Remains.Content
         public static string ModDescription { get; private set; }="";
         public static WeaponDefinition Get(string id)=>definitions.TryGetValue(id,out var value)?value:
             throw new InvalidOperationException($"Отсутствует определение оружия: {id}.");
+        public static bool Contains(string id)=>id!=null && definitions.ContainsKey(id);
         public static bool IsExplosive(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive;
         public static bool IsMine(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive && value.mine!=null && value.mine.Configured;
 

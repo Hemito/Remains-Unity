@@ -32,7 +32,7 @@ namespace Remains.Presentation
         private readonly Queue<string> recent=new();
         // Presentation randomness must not advance a gameplay random sequence.
         private readonly System.Random gainRandom=new();
-        private AudioClip reloadClip;
+        private readonly Dictionary<string,AudioClip> reloads=new(StringComparer.Ordinal);
         private ReloadSoundMessage? localReload;
         public int RemoteReloadStarts {get;private set;}
         public int RemoteReloadStops {get;private set;}
@@ -56,14 +56,16 @@ namespace Remains.Presentation
             if(catalog?.entries==null) throw new InvalidOperationException("Не заданы записи звуков боя.");
             foreach(var entry in catalog.entries)
             {
-                if(string.IsNullOrEmpty(entry.weapon) || string.IsNullOrEmpty(entry.clip) || entry.kind is not ("shot" or "melee" or "explosion") ||
+                if(string.IsNullOrEmpty(entry.weapon) || string.IsNullOrEmpty(entry.clip) || entry.kind is not ("shot" or "melee" or "explosion" or "reload") ||
                     !float.IsFinite(entry.minGain) || !float.IsFinite(entry.maxGain) || entry.minGain<=0 || entry.maxGain<entry.minGain || entry.maxGain>1)
                     throw new InvalidOperationException($"Некорректная звуковая привязка: weapon={entry.weapon}, clip={entry.clip}, kind={entry.kind}.");
                 // A Resources key under Original/Audio, or an original sound of the content package (AudioClipSource).
                 entry.audio=entry.clip.StartsWith(AudioClipSource.ExportedPrefix,StringComparison.Ordinal)?AudioClipSource.Load(entry.clip):Load(entry.clip);
-                sounds.Add(entry.weapon,entry);
+                // A weapon has one attack sound and at most one reload sound.
+                if(entry.kind=="reload") reloads.Add(entry.weapon,entry.audio);
+                else sounds.Add(entry.weapon,entry);
             }
-            reloadClip=Load("pistol-reload");
+
             if(camera.GetComponent<AudioListener>()==null) camera.gameObject.AddComponent<AudioListener>();
             session.ReloadAudio.Received+=RemoteReload;
             session.AttackReceived+=Attack;reload.Started+=ReloadStarted;reload.Finished+=ReloadFinished;
@@ -138,7 +140,7 @@ namespace Remains.Presentation
         }
         private bool PlayReload(ReloadSoundMessage message,ActorState actor)
         {
-            if(message.weapon is not ("pistol" or "energy"))
+            if(message.weapon==null || !reloads.TryGetValue(message.weapon,out var reloadClip))
             {Debug.LogWarning($"Нет звука перезарядки: actor={message.actor}, weapon={message.weapon}.",this);return false;}
             if(actor==null || session.LocalActor?.level!=message.level || actor.down || !actor.connected ||
                 !SessionReloadAudio.Matches(actor,message)) return false;

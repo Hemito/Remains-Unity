@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02a03fba3eeeaf84590034745b3664a0, type: 3}
+  m_Name: pfeUI-4270-beam
+  m_EditorClassIdentifier: 
+  weapons:
+  - weapon:blaster:grade:0
+  trace: {fileID: 21300000, guid: 4a0f56c697453d64ca7ee1a5075af7c6, type: 2}
+  impact: []
+  beam: 1
+  speed: 1200
+  length: 40
+  lifetime: 0.13333334
+  impactFramesPerSecond: 30

@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf493898d1690241a5bd26ce5bda2c9, type: 3}
+  m_Name: sparkl-1
+  m_EditorClassIdentifier: 
+  definition:
+    id: weapon:sparkl:grade:1
+    damage: 15
+    speedDamage: 0
+    maxSpeedDamage: 0
+    range: 4000
+    cooldown: 0.1
+    manaCost: 0
+    ammo: energ
+    magazineSize: 160
+    ammoPerShot: 4
+    reloadSeconds: 1.5
+    projectileSpeed: 1200
+    projectileSpeedVariation: 0.2
+    projectileLifetime: 3.3333333
+    shotSpreadHalfAngleDegrees: 1.5
+    recoil:
+      version: 1
+      enabled: 1
+      horizontalPeak: 0.032
+      anglePeakDegrees: 1.6
+      riseSeconds: 0.035
+      positionReturnSeconds: 0.22
+      angleReturnSeconds: 0.55
+      maxHorizontal: 0.064
+      maxAngleDegrees: 4.8
+    explosive: 0
+    mine:
+      sensitivity: 0
+      delaySeconds: 0
+      visibility: 0
+      width: 0
+      height: 0
+      mass: 0
+      artwork: 
+      beepSound: 
+      defuseSound: 
+      placeSound: 
+    grenadeFuseSeconds: 0
+    grenadeRestitution: 0
+    grenadeGroundRetention: 0
+    grenadeGravity: 0
+    grenadeMaxLaunchSpeed: 0
+    grenadeFullEffortDistance: 0
+    grenadeAimLift: 0
+    grenadeSpinRate: 0
+    grenadeAngularRetention: 0
+    meleeContactStart: 0
+    meleeContactEnd: 1
+    meleeMotion: []
+    holdingArea:
+      version: 0
+      radius: 0
+      climbingRadius: 0
+    stopAtFirstActor: 1
+    stopAtTerrain: 1
+  presentation: {fileID: 2817205859354807722, guid: 4ef38d3e46a3f884c935145243a1badc, type: 3}
+  shotAnimation: {fileID: 11400000, guid: f511df0cd9556b94b875f0a155245c3f, type: 2}
+  muzzleFlashGain: 1
+  reloadAnimation: {fileID: 11400000, guid: d1b8080dbd8e8614aa9cb568ec2cfd50, type: 2}
+  casingProfile: {fileID: 0}
+  grenadeFlight: {fileID: 0}

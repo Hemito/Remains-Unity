@@ -41,7 +41,7 @@ namespace Remains.Editor
                 weapon.name="Оружие "+actor.id;
                 var sprite=weapon.Artwork.sprite;
                 var definition=catalog.AnimatedWeapons().SingleOrDefault(entry=>entry.Id==actor.weapon);
-                if(firing && definition!=null) weapon.SetFrame(definition.ShotAnimation.CopyFrames()[0]);
+                if(firing && definition!=null) weapon.SetFrame(definition.ShotAnimation.LoadFrameNow(0));
                 bool ranged=WeaponRigs.Get(actor.weapon).HasMuzzle;
                 weapon.transform.position=ranged?WeaponPose.Mount(actor):WeaponPose.Origin(actor)+WeaponPose.Direction(actor)*(actor.weaponReach-sprite.bounds.max.x);
                 weapon.transform.rotation=Quaternion.Euler(0,0,actor.weaponAngle);weapon.SetMirrored(WeaponPose.Flip(actor));

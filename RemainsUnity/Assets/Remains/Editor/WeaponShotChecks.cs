@@ -100,7 +100,8 @@ namespace Remains.Editor
             Require(pistol.ShotAnimation!=null && npc.ShotAnimation==pistol.ShotAnimation,"NPC и пистолет потеряли общую анимацию");
             foreach(var weapon in Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog").AnimatedWeapons())
             {
-                var clip=weapon.ShotAnimation;var frames=clip.CopyFrames();var first=frames[0];
+                var clip=weapon.ShotAnimation;if(clip.Deferred) continue;   // frames of the export: FirearmChecks
+                var frames=clip.CopyFrames();var first=frames[0];
                 frames[0]=null;Require(clip.CopyFrames()[0]==first,"Рабочий массив изменил SO анимации");
             }
             var test=ScriptableObject.CreateInstance<WeaponShotClip>();

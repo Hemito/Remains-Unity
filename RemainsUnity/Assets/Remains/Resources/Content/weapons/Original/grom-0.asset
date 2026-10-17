@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf493898d1690241a5bd26ce5bda2c9, type: 3}
+  m_Name: grom-0
+  m_EditorClassIdentifier: 
+  definition:
+    id: weapon:grom:grade:0
+    damage: 76
+    speedDamage: 0
+    maxSpeedDamage: 0
+    range: 4000
+    cooldown: 0.6666667
+    manaCost: 0
+    ammo: crystal
+    magazineSize: 80
+    ammoPerShot: 8
+    reloadSeconds: 2
+    projectileSpeed: 1200
+    projectileSpeedVariation: 0.2
+    projectileLifetime: 3.3333333
+    shotSpreadHalfAngleDegrees: 1
+    recoil:
+      version: 1
+      enabled: 0
+      horizontalPeak: 0
+      anglePeakDegrees: 0
+      riseSeconds: 0
+      positionReturnSeconds: 0
+      angleReturnSeconds: 0
+      maxHorizontal: 0
+      maxAngleDegrees: 0
+    explosive: 0
+    mine:
+      sensitivity: 0
+      delaySeconds: 0
+      visibility: 0
+      width: 0
+      height: 0
+      mass: 0
+      artwork: 
+      beepSound: 
+      defuseSound: 
+      placeSound: 
+    grenadeFuseSeconds: 0
+    grenadeRestitution: 0
+    grenadeGroundRetention: 0
+    grenadeGravity: 0
+    grenadeMaxLaunchSpeed: 0
+    grenadeFullEffortDistance: 0
+    grenadeAimLift: 0
+    grenadeSpinRate: 0
+    grenadeAngularRetention: 0
+    meleeContactStart: 0
+    meleeContactEnd: 1
+    meleeMotion: []
+    holdingArea:
+      version: 0
+      radius: 0
+      climbingRadius: 0
+    stopAtFirstActor: 1
+    stopAtTerrain: 1
+  presentation: {fileID: 3091453763411382302, guid: 6bec54404a447e443b7e1daf523b3cc4, type: 3}
+  shotAnimation: {fileID: 11400000, guid: 81e68244b58dce741aeddb8ba527de68, type: 2}
+  muzzleFlashGain: 1
+  reloadAnimation: {fileID: 11400000, guid: 87b0b51af40f91c45bd5c55f6118d093, type: 2}
+  casingProfile: {fileID: 0}
+  grenadeFlight: {fileID: 0}

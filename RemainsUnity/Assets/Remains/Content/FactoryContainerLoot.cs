@@ -125,6 +125,8 @@ namespace Remains.Content
                     if(runtime!="grenade")item.weaponState=new WeaponItemState {rounds=0};
                 }
                 else item=workingAmmo?SharedInventory.Create(id,count):catalog.source.CreateFormalItem(key,grade,count);
+                // An original weapon connected from the export is working: its magazine starts empty, as above.
+                if(runtime==null && weapon && ExportedWeaponItems.Working(item.definition)) item.weaponState=new WeaponItemState {rounds=0};
                 if(!artwork.TryGet(item.definition,out _))
                     throw new NotSupportedException($"Не подготовлена графика предмета: source={key}, container={placement.Id}.");
                 // World-unique: a character carries its items into other worlds of the same seed, where the same

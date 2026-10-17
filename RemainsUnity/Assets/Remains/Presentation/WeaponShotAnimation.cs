@@ -10,7 +10,7 @@ namespace Remains.Presentation
     // Original shot frames share the resting sprite's authored origin. No gameplay pose changes.
     public sealed class WeaponShotAnimation : MonoBehaviour
     {
-        private sealed class Clip {public string weapon,ammo;public float fps,gain;public Sprite[] sprites,masks;public Vector2 offset;}
+        private sealed class Clip {public string weapon,ammo;public float fps,gain;public WeaponShotClip source;public int count;public Sprite[] masks;public Vector2 offset;}
         private sealed class Playing {public Clip clip;public string shot,world,level,owner,item;public long selection;public int generation,lifecycle;public float elapsed;}
         private CoopSession session;
         private string world,level;
@@ -29,9 +29,12 @@ namespace Remains.Presentation
             {
                 var animation=weapon.ShotAnimation;
                 var clip=new Clip {weapon=weapon.Id,ammo=weapon.CreateDefinition().ammo,gain=weapon.MuzzleFlashGain,
-                    fps=animation.FramesPerSecond,sprites=animation.CopyFrames(),masks=animation.EmissionFrames,offset=animation.EmissionOffset};
+                    fps=animation.FramesPerSecond,source=animation,count=animation.FrameCount,masks=animation.EmissionFrames,offset=animation.EmissionOffset};
+                // Authored frames are loaded with the catalog; frames of the export arrive when the weapon is in sight.
+                if(!animation.Deferred) for(int i=0;i<clip.count;i++) _=animation.Frame(i);
                 byAttack.Add(weapon.Id,clip);
             }
+            foreach(var weapon in catalog.ReloadAnimatedWeapons()) reloads.Add(weapon.Id,weapon.ReloadAnimation);
             var lightCatalog=Resources.Load<MuzzleFlashCatalog>("Content/MuzzleFlashCatalog");
             if(lightCatalog==null) throw new InvalidOperationException("Нет Content/MuzzleFlashCatalog для света выстрелов.");
             var lightProfiles=lightCatalog.Read();
@@ -42,7 +45,7 @@ namespace Remains.Presentation
                 {Debug.LogWarning($"Свет вспышки пропущен: оружие={clip.weapon}, патрон={clip.ammo ?? "<нет>"}, профиль патрона отсутствует.",this);clip.gain=0;}
                 else clip.gain*=gain;
             }
-            session.AttackReceived+=Observe;session.Projectiles.Rejected+=Rejected;session.Changed+=Reconcile;session.SessionStopped+=Stopped;Reconcile();
+            session.AttackReceived+=Observe;session.Projectiles.Rejected+=Rejected;session.Changed+=Reconcile;session.Changed+=PreloadInSight;session.SessionStopped+=Stopped;Reconcile();PreloadInSight();
         }
         public void Observe(AttackEvent attack)
         {
@@ -67,7 +70,7 @@ namespace Remains.Presentation
         {
             if(actor==null || !playing.TryGetValue(actor.id,out var effect) || !Matches(actor,effect)) return rest;
             int frame=Mathf.FloorToInt(effect.elapsed*effect.clip.fps);
-            return frame<effect.clip.sprites.Length?effect.clip.sprites[frame]:rest;
+            return frame<effect.clip.count?effect.clip.source.Frame(frame)??rest:rest;
         }
         // Shares the exact selection/time/lifecycle gate with the visible shot, including rejection and pause.
         public bool TryEmission(ActorState actor,Sprite drawn,Matrix4x4 weaponMatrix,out RoomRadianceField.SpriteEmission emission)
@@ -75,7 +78,7 @@ namespace Remains.Presentation
             emission=default;
             if(actor==null || !playing.TryGetValue(actor.id,out var effect) || !Matches(actor,effect))return false;
             var clip=effect.clip;int frame=Mathf.FloorToInt(effect.elapsed*clip.fps);
-            if(clip.gain<=0 || frame>=clip.sprites.Length || drawn!=clip.sprites[frame] || clip.masks==null || frame>=clip.masks.Length || clip.masks[frame]==null)return false;
+            if(clip.gain<=0 || frame>=clip.count || drawn!=clip.source.Frame(frame) || clip.masks==null || frame>=clip.masks.Length || clip.masks[frame]==null)return false;
             emission=new RoomRadianceField.SpriteEmission(clip.masks[frame],weaponMatrix*Matrix4x4.Translate(clip.offset),clip.gain);
             return true;
         }
@@ -107,7 +110,7 @@ namespace Remains.Presentation
                 var actor=session.World?.Find(pair.Key);var effect=pair.Value;
                 if(actor==null || !Matches(actor,effect)) {expired.Add(pair.Key);continue;}
                 if(!session.Pause.IsPaused(effect.level)) effect.elapsed+=dt;
-                if(effect.elapsed>=effect.clip.sprites.Length/effect.clip.fps) expired.Add(pair.Key);
+                if(effect.elapsed>=effect.clip.count/effect.clip.fps) expired.Add(pair.Key);
             }
             foreach(string id in expired) playing.Remove(id);
         }
@@ -116,6 +119,19 @@ namespace Remains.Presentation
             string nextWorld=session.World?.worldId,nextLevel=session.LocalActor?.level;
             if(world==nextWorld && level==nextLevel)return;
             playing.Clear();if(world!=nextWorld){seen.Clear();warnings.Clear();}world=nextWorld;level=nextLevel;
+        }
+        // Weapons in the hooves of the visible level's actors start loading their deferred frames (once per clip).
+        private readonly Dictionary<string,WeaponReloadClip> reloads=new(StringComparer.Ordinal);
+        private void PreloadInSight()
+        {
+            if(session.World==null || session.LocalActor==null || !session.LastChange.Any(WorldChangeKind.Actors)) return;
+            string visible=session.LocalActor.level;
+            foreach(var actor in session.World.actors)
+            {
+                if(actor.level!=visible || string.IsNullOrEmpty(actor.weapon)) continue;
+                if(byAttack.TryGetValue(actor.weapon,out var clip)) clip.source.Preload();
+                if(reloads.TryGetValue(actor.weapon,out var reload)) reload.Preload();
+            }
         }
         private void Stopped(){playing.Clear();seen.Clear();warnings.Clear();world=level=null;}
         private void Rejected(string id)
@@ -126,7 +142,7 @@ namespace Remains.Presentation
         }
         private void OnDestroy()
         {
-            if(session!=null){session.AttackReceived-=Observe;session.Projectiles.Rejected-=Rejected;session.Changed-=Reconcile;session.SessionStopped-=Stopped;}
+            if(session!=null){session.AttackReceived-=Observe;session.Projectiles.Rejected-=Rejected;session.Changed-=Reconcile;session.Changed-=PreloadInSight;session.SessionStopped-=Stopped;}
         }
     }
 }

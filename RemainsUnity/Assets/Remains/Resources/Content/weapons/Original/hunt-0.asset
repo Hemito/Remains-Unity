@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf493898d1690241a5bd26ce5bda2c9, type: 3}
+  m_Name: hunt-0
+  m_EditorClassIdentifier: 
+  definition:
+    id: weapon:hunt:grade:0
+    damage: 22
+    speedDamage: 0
+    maxSpeedDamage: 0
+    range: 600
+    cooldown: 0.8333333
+    manaCost: 0
+    ammo: p32
+    magazineSize: 5
+    ammoPerShot: 1
+    reloadSeconds: 1.6666666
+    projectileSpeed: 180
+    projectileSpeedVariation: 0.2
+    projectileLifetime: 3.3333333
+    shotSpreadHalfAngleDegrees: 1
+    recoil:
+      version: 1
+      enabled: 1
+      horizontalPeak: 0.16
+      anglePeakDegrees: 8
+      riseSeconds: 0.035
+      positionReturnSeconds: 0.22
+      angleReturnSeconds: 0.55
+      maxHorizontal: 0.32
+      maxAngleDegrees: 24
+    explosive: 0
+    mine:
+      sensitivity: 0
+      delaySeconds: 0
+      visibility: 0
+      width: 0
+      height: 0
+      mass: 0
+      artwork: 
+      beepSound: 
+      defuseSound: 
+      placeSound: 
+    grenadeFuseSeconds: 0
+    grenadeRestitution: 0
+    grenadeGroundRetention: 0
+    grenadeGravity: 0
+    grenadeMaxLaunchSpeed: 0
+    grenadeFullEffortDistance: 0
+    grenadeAimLift: 0
+    grenadeSpinRate: 0
+    grenadeAngularRetention: 0
+    meleeContactStart: 0
+    meleeContactEnd: 1
+    meleeMotion: []
+    holdingArea:
+      version: 0
+      radius: 0
+      climbingRadius: 0
+    stopAtFirstActor: 1
+    stopAtTerrain: 1
+  presentation: {fileID: 5112897231144970432, guid: aedc935e9d7a0784bba9286e88cb6bf0, type: 3}
+  shotAnimation: {fileID: 11400000, guid: 28cc7e32e4eb3b6459dc28b6e3f0cd3a, type: 2}
+  muzzleFlashGain: 1
+  reloadAnimation: {fileID: 11400000, guid: 51d9f1aacd2a1a146ad0237d2309996d, type: 2}
+  casingProfile: {fileID: 11400000, guid: f82f83870cbd73c42a511ac62f622de2, type: 2}
+  grenadeFlight: {fileID: 0}

@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf493898d1690241a5bd26ce5bda2c9, type: 3}
+  m_Name: dartgun-0
+  m_EditorClassIdentifier: 
+  definition:
+    id: weapon:dartgun:grade:0
+    damage: 5
+    speedDamage: 0
+    maxSpeedDamage: 0
+    range: 200
+    cooldown: 0.33333334
+    manaCost: 0
+    ammo: dart
+    magazineSize: 1
+    ammoPerShot: 1
+    reloadSeconds: 1.5
+    projectileSpeed: 60
+    projectileSpeedVariation: 0.2
+    projectileLifetime: 3.3333333
+    shotSpreadHalfAngleDegrees: 2.5
+    recoil:
+      version: 1
+      enabled: 0
+      horizontalPeak: 0
+      anglePeakDegrees: 0
+      riseSeconds: 0
+      positionReturnSeconds: 0
+      angleReturnSeconds: 0
+      maxHorizontal: 0
+      maxAngleDegrees: 0
+    explosive: 0
+    mine:
+      sensitivity: 0
+      delaySeconds: 0
+      visibility: 0
+      width: 0
+      height: 0
+      mass: 0
+      artwork: 
+      beepSound: 
+      defuseSound: 
+      placeSound: 
+    grenadeFuseSeconds: 0
+    grenadeRestitution: 0
+    grenadeGroundRetention: 0
+    grenadeGravity: 0
+    grenadeMaxLaunchSpeed: 0
+    grenadeFullEffortDistance: 0
+    grenadeAimLift: 0
+    grenadeSpinRate: 0
+    grenadeAngularRetention: 0
+    meleeContactStart: 0
+    meleeContactEnd: 1
+    meleeMotion: []
+    holdingArea:
+      version: 0
+      radius: 0
+      climbingRadius: 0
+    stopAtFirstActor: 1
+    stopAtTerrain: 1
+  presentation: {fileID: 8642388435323132368, guid: a79dd21912df196499e495234e15a099, type: 3}
+  shotAnimation: {fileID: 11400000, guid: e6782b8f6617536469f716e390a44c09, type: 2}
+  muzzleFlashGain: 1
+  reloadAnimation: {fileID: 11400000, guid: 61e5eaf4e59ce524e8d3ca25bc9c092b, type: 2}
+  casingProfile: {fileID: 0}
+  grenadeFlight: {fileID: 0}

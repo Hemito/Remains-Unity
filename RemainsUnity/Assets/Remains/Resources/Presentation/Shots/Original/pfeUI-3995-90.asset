@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02a03fba3eeeaf84590034745b3664a0, type: 3}
+  m_Name: pfeUI-3995-90
+  m_EditorClassIdentifier: 
+  weapons:
+  - weapon:railway:grade:0
+  - weapon:railway:grade:1
+  trace: {fileID: 21300000, guid: a0e30f84be7525945abc70bc9ce803fb, type: 2}
+  impact:
+  - {fileID: 21300000, guid: d08409527ff53eb4293fa04260d93e35, type: 2}
+  - {fileID: 21300000, guid: 4351ed7c2f54e184da6c0f7d62b6def6, type: 2}
+  - {fileID: 21300000, guid: fdc7a64a741bc4246a52b8d2e9691185, type: 2}
+  beam: 0
+  speed: 90
+  length: 3
+  lifetime: 0.13333334
+  impactFramesPerSecond: 30

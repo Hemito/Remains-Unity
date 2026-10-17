@@ -77,6 +77,13 @@ namespace Remains.Persistence
                 world=InventoryStackMigration.Prepare(world,out int removed);
                 Debug.LogWarning($"Стопки мира объединены: world={world.worldId}, убрано отдельных записей={removed}, старые ID сохранены как ссылки. Исходник: {backup}.");
             }
+            if(world.actors.Any(a=>ExportedWeaponItems.Needed(a.inventory)) || world.containers.Any(c=>ExportedWeaponItems.Needed(c.items)))
+            {
+                string backup=PreserveSource("world.json");
+                int activated=world.actors.Sum(a=>ExportedWeaponItems.Activate(a.inventory))+world.containers.Sum(c=>ExportedWeaponItems.Activate(c.items));
+                world.revision++;
+                Debug.LogWarning($"Оружие оригинала подключено: world={world.worldId}, формальных стопок стало рабочими {activated} (пустой магазин). Исходник: {backup}.");
+            }
             foreach(var actor in world.actors) {Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);}
             foreach(var actor in world.actors) CosmeticEquipment.ReconcileInventory(actor);
             foreach(var container in world.containers) InventoryStacks.Validate(container.items,container.itemAliases);
@@ -241,7 +248,7 @@ namespace Remains.Persistence
             var actor=JsonUtility.FromJson<ActorState>(source);
             Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
             string backup=null;
-            if(preserve || actor.loadoutVersion==0 || actor.weaponInventoryVersion==0 || InventoryStackMigration.Needed(actor))
+            if(preserve || actor.loadoutVersion==0 || actor.weaponInventoryVersion==0 || InventoryStackMigration.Needed(actor) || ExportedWeaponItems.Needed(actor.inventory))
             {
                 backup=Path.Combine("Recovery","character-"+Guid.NewGuid().ToString("N")+".json");
                 WriteCharacter(backup,source);
@@ -255,6 +262,8 @@ namespace Remains.Persistence
                 int removed=InventoryStackMigration.Apply(actor);
                 Debug.LogWarning($"Стопки персонажа объединены: actor={actor.id}, убрано отдельных записей={removed}, старые ID сохранены как ссылки. Исходник: {backup}.");
             }
+            if(ExportedWeaponItems.Needed(actor.inventory))
+                Debug.LogWarning($"Оружие оригинала подключено: actor={actor.id}, формальных стопок стало рабочими {ExportedWeaponItems.Activate(actor.inventory)} (пустой магазин). Исходник: {backup}.");
             InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);
             CosmeticEquipment.ReconcileInventory(actor);
             return actor;
