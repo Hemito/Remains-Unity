@@ -43,7 +43,8 @@ namespace Remains.Domain
                 (room==null || RoomVisibility.Clear(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),target.BodyPosition+Vector2.up*.55f)))
             {
                 var end=target.BodyPosition+new Vector2(0,.55f);
-                Remains.Gameplay.NpcWeaponAim.Apply(actor,end,room);
+                // A turret fires where its gun points (NpcTurret turns it at a limited rate); others aim at the shot.
+                if(!NpcCreatureBehaviours.Fixed(Remains.Content.ActorTypes.Get(actor.actorType).behavior)) Remains.Gameplay.NpcWeaponAim.Apply(actor,end,room);
                 var pose=Remains.Gameplay.WeaponPose.SampleRanged(actor);
                 var origin=pose.Muzzle;
                 end=origin+pose.Direction*weapon.range;

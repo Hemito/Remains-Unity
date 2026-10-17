@@ -124,10 +124,18 @@ namespace Remains.Editor
             Require(NpcAttackRules.TryBegin(actor,target,new GuardWeaponTiming()) && Mathf.Approximately(actor.attackRemaining,1f/30),$"{id}: турель стреляет без долгого прицеливания");
             Require(Mathf.Approximately(new GuardWeaponTiming().Recovery(actor,weapon),Mathf.Max(1f/30,weapon.cooldown)),$"{id}: темп турели — темп её ствола");
 
+            // The shot leaves where the gun points: completing it does not snap the gun to the target.
+            NpcAttackRules.Cancel(actor);actor.attackCooldown=0;Require(NpcAttackRules.TryBegin(actor,target,new GuardWeaponTiming()),$"{id}: второй выстрел");
+            actor.weaponAngle=60;actor.weaponFlipY=false;actor.attackRemaining=0;
+            var shot=NpcAttackRules.Complete(actor,target,null,new GuardWeaponTiming());
+            Require(shot!=null && Mathf.Approximately(actor.weaponAngle,60) && Vector2.Angle(shot.End-shot.Origin,new Vector2(Mathf.Cos(60*Mathf.Deg2Rad),Mathf.Sin(60*Mathf.Deg2Rad)))<.5f,
+                $"{id}: выстрел турели мгновенно довернул ствол");
             // Magazine with an endless supply: it empties, reloads to full and spends no items.
-            Require(weapon.unlimitedReserve && weapon.magazineSize>0 && gun.weaponState.rounds==weapon.magazineSize,$"{id}: полный магазин с бесконечным запасом");
+            Require(weapon.unlimitedReserve && weapon.magazineSize>0 && creature.spawn.ReadInventory().Generate("check-world",spawned.id).Single().weaponState.rounds==weapon.magazineSize,
+                $"{id}: полный магазин с бесконечным запасом при появлении");
             NpcAttackRules.Cancel(actor);actor.attackCooldown=0;int items=actor.inventory.Count;
-            for(int i=0;i<weapon.magazineSize;i++) Require(WeaponAmmunition.SpendShot(actor,weapon,out _),$"{id}: выстрел {i} из магазина");
+            int left=gun.weaponState.rounds;
+            for(int i=0;i<left;i++) Require(WeaponAmmunition.SpendShot(actor,weapon,out _),$"{id}: выстрел {i} из магазина");
             Require(!WeaponAmmunition.SpendShot(actor,weapon,out _) && NpcWeaponActions.Prepare(actor)?.kind==NpcWeaponActions.Reload,$"{id}: пустой магазин ведёт к перезарядке");
             Require(WeaponAmmunition.CompleteReload(actor,weapon) && gun.weaponState.rounds==weapon.magazineSize && actor.inventory.Count==items,$"{id}: перезарядка без патронов до полного");
 

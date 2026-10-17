@@ -85,6 +85,11 @@ namespace Remains.Editor
                 MineRules.Visible(mine,new ActorState {level="l",x=profile.visibility+5},profile),"удерживаемая мина: риск срабатывания, видна, не обезвреживается");
             var body=MineRules.TelekinesisBody(mine,profile);
             Require(body.mass>0 && body.movable && body.hasPhysicalBody && body.id==mine.id && Mathf.Approximately(body.mass,profile.mass),"мина для правил телекинеза");
+            // A new session turns a saved hold into a lost one (dropped by the host), never a mine hanging in the air.
+            var session=new WorldState {worldId="mines-session"};session.mines.Add(mine);
+            Remains.Networking.SessionMines.BeginSession(session);
+            Require(mine.holder==MineRules.LostHolder && !MineRules.CanTriggerHeld(mine) && MineRules.DisarmRejection(mine,player,profile)!=null,
+                "сохранённое удержание становится потерянным: не взрывается от телекинеза, не обезвреживается до падения");
             mine.holder=null;Require(!MineRules.CanTriggerHeld(mine),"лежащая мина не срабатывает от телекинеза");
             Require(MineRules.Trigger(mine,profile) && !MineRules.Trigger(mine,profile) && Mathf.Approximately(mine.remaining,profile.delaySeconds),"отсчёт с задержкой из оружия");
             Require(MineRules.DisarmRejection(mine,player,profile)!=null,"обезвреживание сработавшей мины");

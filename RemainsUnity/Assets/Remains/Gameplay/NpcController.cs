@@ -69,8 +69,10 @@ namespace Remains.Gameplay
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
                     {
-                        var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level),session.Rules.NpcWeaponTiming,session.PrepareProjectile);
-                        if(attack!=null) session.FirePrepared(attack);
+                        // The shot as its volley, as a player's (pellet weapons fire all their pellets).
+                        System.Collections.Generic.List<AttackEvent> volley=null;
+                        var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level),session.Rules.NpcWeaponTiming,shot=>(volley=session.PrepareVolley(shot))!=null);
+                        if(attack!=null) session.FireVolley(volley);
                         session.PublishActor(actor);
                     }
                     continue;

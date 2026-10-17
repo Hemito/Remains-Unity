@@ -65,6 +65,13 @@ namespace Remains.Editor
             Require(ExportedWeaponItems.Needed(items) && ExportedWeaponItems.Activate(items)==1 && items.Count==3 &&
                 items.Take(2).All(i=>i.count==1 && i.weaponState!=null && i.weaponState.rounds==0) && items[1].id=="a:2" && items[2].weaponState==null &&
                 !ExportedWeaponItems.Needed(items) && WeaponInventory.IsEquippable(items[0]),"формальные стволы становятся рабочими по одному");
+            // A split copy skips IDs taken by inventory aliases and keeps the stack's extensions.
+            var aliased=new List<ItemStack> {new() {id="c",definition="weapon:hunt:grade:0",count=3,extensions=new Dictionary<string,Newtonsoft.Json.Linq.JToken> {["mod"]="x"}}};
+            var aliases=new Dictionary<string,string>(StringComparer.Ordinal) {["c:2"]="c"};
+            ExportedWeaponItems.Activate(aliased,aliases);
+            Require(aliased.Select(i=>i.id).SequenceEqual(new[]{"c","c:3","c:4"}) && aliased.All(i=>i.extensions!=null && (string)i.extensions["mod"]=="x"),
+                "деление стопки обходит ссылки инвентаря и сохраняет данные предмета: "+string.Join(",",aliased.Select(i=>i.id)));
+            InventoryStacks.Validate(aliased,aliases);
 
             // Factory loot.
             var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};

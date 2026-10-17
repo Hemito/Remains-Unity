@@ -35,9 +35,15 @@ namespace Remains.Networking
         public bool Pending=>pending!=null;
         public event Action<MineDisarmedMessage> DisarmHeard;
         public SessionMines(CoopSession session) {this.session=session;}
-        public void ResetServer() {senseClocks.Clear();exploding.Clear();heldClocks.Clear();receivedPoses.Clear();}
-        // A new session: nobody holds anything any more (a saved holder is a stale hold).
-        public static void BeginSession(WorldState world) {foreach(var mine in world.mines) mine.holder=null;}
+        public void ResetServer() {senseClocks.Clear();exploding.Clear();heldClocks.Clear();receivedPoses.Clear();held.Clear();heldWorld=null;waiting.Clear();}
+        // Host: the mines held in telekinesis (a handful), checked every step whatever their level's activity, so a
+        // holder that left, fell or disconnected drops its mine (the rest of the world's mines cost nothing then).
+        private readonly HashSet<MineState> held=new();
+        private readonly HashSet<string> waiting=new(StringComparer.Ordinal);
+        private WorldState heldWorld;
+        // A new session: nobody holds anything any more. A saved hold becomes a lost one, dropped onto its support by the
+        // host as soon as its level's geometry is there (not left hanging where it was held).
+        public static void BeginSession(WorldState world) {foreach(var mine in world.mines) if(mine.holder!=null) mine.holder=MineRules.LostHolder;}
 
         public void RequestGrab(MineState mine,bool release,Vector2 position=default,float drop=0)
         {
@@ -77,7 +83,7 @@ namespace Remains.Networking
                 !MineRules.Visible(mine,actor,profile)?"Мина не видна.":
                 session.Rules.Telekinesis.Rejection(actor,MineRules.TelekinesisBody(mine,profile),false);
             if(reason!=null) {connection.Send(new NoticeMessage {text=reason});return;}
-            mine.holder=actor.id;heldClocks.Remove(mine.id);receivedPoses.Remove(mine.id);
+            mine.holder=actor.id;heldClocks.Remove(mine.id);receivedPoses.Remove(mine.id);held.Add(mine);
             WorldChanges.Mark(world,mine);session.CommitWorld();
         }
         private void ReceivePose(NetworkConnectionToClient connection,MinePoseMessage message)
@@ -98,16 +104,23 @@ namespace Remains.Networking
         }
         private void Release(MineState mine,Vector2 rest,float drop)
         {
-            mine.holder=null;mine.x=rest.x;mine.y=rest.y;heldClocks.Remove(mine.id);receivedPoses.Remove(mine.id);
+            mine.holder=null;mine.x=rest.x;mine.y=rest.y;heldClocks.Remove(mine.id);receivedPoses.Remove(mine.id);held.Remove(mine);waiting.Remove(mine.id);
             WorldChanges.Mark(session.ServerWorld,mine);session.CommitWorld();
             NetworkServer.SendToAll(new MinePoseMessage {mine=mine.id,level=mine.level,released=true,x=rest.x,y=rest.y,drop=drop});
         }
-        // The holder left, fell or changed level: the mine drops from where it was.
+        // The holder left, fell or changed level: the mine drops from where it was. Without its level's geometry yet the
+        // hold stays lost and waits (no full-world scan: only held mines are checked).
         private void LoseHolder(MineState mine)
         {
             var room=Geometry?.Invoke(mine.level);
-            if(room!=null && MineRules.TryDrop(room,mine.Position,MineRules.Profile(mine),out var rest)) {Release(mine,rest,Mathf.Max(0,mine.y-rest.y));return;}
-            Debug.LogWarning($"Мина {mine.id} потеряла удерживающего {mine.holder}, но геометрия уровня {mine.level} недоступна или опоры нет; мина остаётся на месте.");
+            if(room==null)
+            {
+                if(mine.holder!=MineRules.LostHolder) {mine.holder=MineRules.LostHolder;WorldChanges.Mark(session.ServerWorld,mine);session.CommitWorldAtFrameEnd();}
+                if(waiting.Add(mine.id)) Debug.LogWarning($"Мина {mine.id} потеряла удерживающего, геометрия уровня {mine.level} ещё не загружена: падение отложено до её загрузки.");
+                return;
+            }
+            if(MineRules.TryDrop(room,mine.Position,MineRules.Profile(mine),out var rest)) {Release(mine,rest,Mathf.Max(0,mine.y-rest.y));return;}
+            Debug.LogWarning($"Мина {mine.id} потеряла удерживающего {mine.holder}, но под ней нет опоры на уровне {mine.level}; мина остаётся на месте.");
             Release(mine,mine.Position,0);
         }
         public event Action<MinePlaceRequest> PlaceHeard;
@@ -237,14 +250,30 @@ namespace Remains.Networking
             var world=session.ServerWorld;
             if(!NetworkServer.active || world==null || world.mines.Count==0 || dt<=0) return;
             bool triggered=false;exploding.Clear();lost.Clear();
+            if(!ReferenceEquals(heldWorld,world))
+            {
+                // Once per server world: its saved holds (lost ones from the previous session too).
+                held.Clear();waiting.Clear();heldWorld=world;
+                foreach(var mine in world.mines) if(mine.holder!=null) held.Add(mine);
+            }
+            if(held.Count>0)
+            {
+                held.RemoveWhere(mine=>mine.holder==null || !world.mines.Contains(mine));
+                foreach(var mine in held)
+                {
+                    var holder=mine.holder==MineRules.LostHolder?null:world.Find(mine.holder);
+                    if(holder==null || !holder.connected || holder.down || holder.level!=mine.level) lost.Add(mine);
+                }
+                foreach(var mine in lost) LoseHolder(mine);
+                lost.Clear();
+            }
             foreach(var mine in world.mines)
             {
                 if(!LevelActivity.HasConnectedPlayer(world,mine.level) || session.Pause.IsServerPaused(mine.level)) continue;
                 var profile=MineRules.Profile(mine);
                 if(mine.holder!=null)
                 {
-                    var holder=world.Find(mine.holder);
-                    if(holder==null || !holder.connected || holder.down || holder.level!=mine.level) {lost.Add(mine);continue;}
+                    if(mine.holder==MineRules.LostHolder) continue;   // waiting for its drop (above)
                     if(MineRules.CanTriggerHeld(mine))
                     {
                         heldClocks.TryGetValue(mine.id,out float held);held+=dt;
@@ -276,7 +305,6 @@ namespace Remains.Networking
                     if(MineRules.Senses(mine,actor,profile))
                     {MineRules.Trigger(mine,profile);WorldChanges.Mark(world,mine);triggered=true;break;}
             }
-            foreach(var mine in lost) LoseHolder(mine);
             foreach(var mine in exploding)
             {
                 var attack=MineRules.Attack(mine,MineRules.Profile(mine));

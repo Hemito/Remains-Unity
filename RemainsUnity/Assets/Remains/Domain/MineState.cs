@@ -35,7 +35,9 @@ namespace Remains.Domain
         public const float PlaceDrop=6f,PlaceReach=3f;
         // Original Mine.control: an armed mine held in telekinesis sets itself off with 10% every 10 frames at 30 fps.
         public const float HeldTriggerPeriod=10f/30,HeldTriggerChance=.1f;
-        public static bool CanTriggerHeld(MineState mine)=>mine.holder!=null && !mine.triggered && mine.arming<=0;
+        // A hold whose holder is gone (a new session) waits as this holder for its drop onto the support (SessionMines).
+        public const string LostHolder="";
+        public static bool CanTriggerHeld(MineState mine)=>!string.IsNullOrEmpty(mine.holder) && !mine.triggered && mine.arming<=0;
         // The common telekinesis rules (reach, mana, mass, sight) see a mine as this light body; it never enters WorldProps.
         public static PropState TelekinesisBody(MineState mine,MineProfile profile)=>new()
         {

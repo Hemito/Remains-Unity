@@ -16,8 +16,9 @@ namespace Remains.Domain
             WeaponCatalog.Contains(definition) && !WeaponCatalog.IsExplosive(definition);
         public static bool Needed(IEnumerable<ItemStack> items)=>items!=null && items.Any(item=>item!=null && item.weaponState==null && Working(item.definition));
         // A formal stack gets an empty magazine; a merged stack of several weapons becomes one stack per weapon
-        // (the first keeps its ID, the others get "<id>:2", "<id>:3"...). Returns how many stacks changed.
-        public static int Activate(List<ItemStack> items)
+        // (the first keeps its ID, the others get "<id>:2", "<id>:3"... — the first such IDs that are neither a live
+        // stack nor an inventory alias key) as copies of it (its extensions too). Returns how many stacks changed.
+        public static int Activate(List<ItemStack> items,IReadOnlyDictionary<string,string> aliases=null)
         {
             if(items==null) return 0;
             int changed=0;
@@ -28,11 +29,13 @@ namespace Remains.Domain
                 int count=item.count;
                 if(count<=0) throw new InvalidOperationException($"Пустая стопка оружия: item={item.id}, definition={item.definition}.");
                 item.count=1;item.weaponState=new WeaponItemState {rounds=0};changed++;
+                int suffix=1;
                 for(int n=2;n<=count;n++)
                 {
-                    string id=item.id+":"+n;
-                    if(items.Exists(other=>other?.id==id)) throw new InvalidOperationException($"Нельзя разделить стопку оружия: ID {id} уже занят.");
-                    items.Insert(++i,new ItemStack {id=id,definition=item.definition,count=1,weaponState=new WeaponItemState {rounds=0}});
+                    string id;
+                    do id=item.id+":"+ ++suffix; while(items.Exists(other=>other?.id==id) || aliases!=null && aliases.ContainsKey(id));
+                    var copy=item.Copy();copy.id=id;copy.count=1;copy.weaponState=new WeaponItemState {rounds=0};
+                    items.Insert(++i,copy);
                 }
             }
             return changed;

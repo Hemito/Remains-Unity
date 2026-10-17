@@ -80,7 +80,7 @@ namespace Remains.Persistence
             if(world.actors.Any(a=>ExportedWeaponItems.Needed(a.inventory)) || world.containers.Any(c=>ExportedWeaponItems.Needed(c.items)))
             {
                 string backup=PreserveSource("world.json");
-                int activated=world.actors.Sum(a=>ExportedWeaponItems.Activate(a.inventory))+world.containers.Sum(c=>ExportedWeaponItems.Activate(c.items));
+                int activated=world.actors.Sum(a=>ExportedWeaponItems.Activate(a.inventory,a.inventoryAliases))+world.containers.Sum(c=>ExportedWeaponItems.Activate(c.items));
                 world.revision++;
                 Debug.LogWarning($"Оружие оригинала подключено: world={world.worldId}, формальных стопок стало рабочими {activated} (пустой магазин). Исходник: {backup}.");
             }
@@ -263,7 +263,7 @@ namespace Remains.Persistence
                 Debug.LogWarning($"Стопки персонажа объединены: actor={actor.id}, убрано отдельных записей={removed}, старые ID сохранены как ссылки. Исходник: {backup}.");
             }
             if(ExportedWeaponItems.Needed(actor.inventory))
-                Debug.LogWarning($"Оружие оригинала подключено: actor={actor.id}, формальных стопок стало рабочими {ExportedWeaponItems.Activate(actor.inventory)} (пустой магазин). Исходник: {backup}.");
+                Debug.LogWarning($"Оружие оригинала подключено: actor={actor.id}, формальных стопок стало рабочими {ExportedWeaponItems.Activate(actor.inventory,actor.inventoryAliases)} (пустой магазин). Исходник: {backup}.");
             InventoryStacks.Validate(actor.inventory,actor.inventoryAliases);
             CosmeticEquipment.ReconcileInventory(actor);
             return actor;
