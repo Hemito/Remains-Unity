@@ -54,12 +54,12 @@ namespace Remains.Editor
             var skippedAppearances = new List<string>();
             foreach (var row in definitions.Where(IsUnit))
             {
-                var skipped = Rows(row["graphics"]).Where(binding => !CreatureSources.Imported(binding, false)).ToArray();
+                var skipped = Rows(row["graphics"]).Where(binding => !CreatureSources.Imported(binding, row)).ToArray();
                 foreach (var binding in skipped) skippedAppearances.Add($"{row["id"]}: {binding["role"]} {binding["resource"]}");
                 // Only imported bindings stay on the entry; the skipped ones are recorded as its issues.
                 row["issues"] = new JArray(Strings(row["issues"]).Concat(skipped.Select(binding =>
                     $"Векторный вид {binding["resource"]} ({binding["role"]}) не импортирован кадрами: существо рисуется листом build_creature_sheets.py.")));
-                row["graphics"] = new JArray(Rows(row["graphics"]).Where(binding => CreatureSources.Imported(binding, false)));
+                row["graphics"] = new JArray(Rows(row["graphics"]).Where(binding => CreatureSources.Imported(binding, row)));
             }
             var resourceMap = Rows(source["resources"]).ToDictionary(row => Required(row, "id"), StringComparer.Ordinal);
             var selected = new HashSet<string>(StringComparer.Ordinal);

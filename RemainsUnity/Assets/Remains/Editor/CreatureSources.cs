@@ -19,6 +19,10 @@ namespace Remains.Editor
         // Classes with their own world systems, not actors (Mine: world.mines).
         private static readonly HashSet<string> separate=new(StringComparer.Ordinal) {"Mine"};
         private static readonly Dictionary<string,string> classDefaults=new(StringComparer.Ordinal) {{"UnitTrap","mtrap"},{"UnitDamager","damshot"}};
+        // UnitTurret: id = "turret" + turrettip, the tip chosen by the obj's cid (land 1, wall 2, arm 3, combat 4, boss 5;
+        // any other — floor, hidden, hidden2 — 0).
+        public const string TurretClass="UnitTurret";
+        public static string TurretUnit(string cid)=>"turret"+(cid switch {"land"=>1,"wall"=>2,"arm"=>3,"combat"=>4,"boss"=>5,_=>0});
         private static readonly Dictionary<string,string[]> randomVariants=new(StringComparer.Ordinal) {{"scorp",new[]{"scorp1","scorp2"}},
             {"bloat",new[]{"bloat0","bloat1","bloat2","bloat3","bloat4"}}};   // UnitBloat: tr = floor(random × 5) without a parameter
 
@@ -50,7 +54,8 @@ namespace Remains.Editor
                 if(separate.Contains(cls) || cls=="") continue;
                 string cid=(string)obj.Attribute("cid");
                 var entry=new TemplateObject {objectId=id,className=cls};
-                if(cid!=null && units.Contains(cid)) entry.units=new[]{cid};
+                if(cls==TurretClass && units.Contains(TurretUnit(cid))) entry.units=new[]{TurretUnit(cid)};
+                else if(cid!=null && units.Contains(cid)) entry.units=new[]{cid};
                 else if(randomVariants.TryGetValue(cid??id,out var variants) && variants.All(units.Contains)) entry.units=variants;
                 else if(cid==null && units.Contains(id)) entry.units=new[]{id};
                 else if(cid==null && classDefaults.TryGetValue(cls,out string fallback) && units.Contains(fallback)) entry.units=new[]{fallback};
@@ -87,7 +92,10 @@ namespace Remains.Editor
         // A unit's bindings that the pipeline imports: raster animation sheets, the class constructors' own vis symbol
         // (flat frame animation) and sounds. A vclass appearance animates through nested clips the export does not
         // flatten yet; it is listed, not imported.
+        // Turrets (CatalogBuilder.Parts): the base appearance and its moving parts are imported as frames.
         public static bool Imported(JObject binding,bool sound)=>sound || (string)binding["role"]=="animation-sheet" ||
-            ((string)binding["rule"]??"").Contains("Res.getVis");
+            ((string)binding["rule"]??"").Contains("Res.getVis") || ((string)binding["role"]??"").StartsWith("part:",StringComparison.Ordinal);
+        public static bool Imported(JObject binding,JObject definition)=>Imported(binding,false) ||
+            (string)binding["role"]=="appearance" && ((JArray)definition["graphics"]).OfType<JObject>().Any(b=>((string)b["role"]??"").StartsWith("part:",StringComparison.Ordinal));
     }
 }
