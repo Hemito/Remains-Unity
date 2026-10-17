@@ -58,6 +58,8 @@ namespace Remains.Editor
             var assr0=WeaponCatalog.Get("weapon:assr:grade:0");var assr1=WeaponCatalog.Get("weapon:assr:grade:1");
             Require(Mathf.Approximately(assr0.damage,9) && Mathf.Approximately(assr1.damage,11) && assr1.ammo==assr0.ammo,"улучшенный вариант поверх базового");
 
+            CheckVolley();
+
             // Formal stacks saved before the weapon was connected.
             var items=new List<ItemStack> {new() {id="a",definition="weapon:hunt:grade:0",count=2},new() {id="b",definition="weapon:knife:grade:0",count=1}};
             Require(ExportedWeaponItems.Needed(items) && ExportedWeaponItems.Activate(items)==1 && items.Count==3 &&
@@ -81,6 +83,43 @@ namespace Remains.Editor
             finally {FactoryContentSources.Clear();}
             Debug.Log($"PASS огнестрел: определений {generated.Length} ({generated.Select(a=>a.Id.Split(':')[1]).Distinct().Count()} моделей), "+
                 $"графика/дуло/кадры/снаряд/звук; охотничья винтовка и штурмовая по AllData; формальные стопки → рабочие; завод seed 104: рабочих стволов в луте {working}, формальных вещей оружия {formal}.");
+        }
+        // A shotgun shot through the real preparation: kol pellets fanned deviation/2 apart, each with its own spread,
+        // speed and ID, the others marked as the first one's volley.
+        private static void CheckVolley()
+        {
+            const string weapon="weapon:shotgun:grade:0";
+            var definition=WeaponCatalog.Get(weapon);
+            Require(definition.pellets==5,"дробовик: 5 дробин (kol)");
+            var root=new GameObject("Проверка залпа дроби");
+            using var geometry=new Remains.Gameplay.SimulationGeometry(_=>new RoomLayout {id="hub",platforms=Array.Empty<RoomSurface>()});
+            try
+            {
+                var session=root.AddComponent<Remains.Networking.CoopSession>();session.ConfigureRules(WeaponCatalog.Rules);
+                var world=new WorldState {worldId="volley"};var player=new ActorState {id="shooter",owner="a",player=true,connected=true,level="hub",weaponInventoryVersion=1};
+                NpcWeaponTestItems.Equip(player,weapon);world.actors.Add(player);
+                typeof(Remains.Networking.CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(Remains.Networking.CoopSession).GetProperty("LocalOwner").SetValue(session,"a");
+                geometry.Reconcile(world);
+                player.weapon=weapon;
+                Remains.Gameplay.WeaponPose.Aim(player,player.Position+new Vector2(10,1),geometry.Get("hub"));
+                var origin=Remains.Gameplay.WeaponPose.Muzzle(player);var aim=Remains.Gameplay.WeaponPose.Direction(player);
+                var pose=Remains.Gameplay.WeaponPose.SampleRanged(player);var end=origin+aim*definition.range;
+                var shot=new AttackEvent {id="first",attacker=player.id,weapon=weapon,level="hub",originX=origin.x,originY=origin.y,endX=end.x,endY=end.y,
+                    rangedPose=pose.Capture(player,world.worldId)};
+                var volley=session.PrepareVolley(shot);
+                Require(volley!=null && volley.Count==5 && volley[0]==shot && shot.volley==null && volley.Skip(1).All(p=>p.volley=="first") &&
+                    volley.Select(p=>p.id).Distinct().Count()==5,"залп: пять дробин, первая — сам выстрел, остальные помечены");
+                float half=definition.shotSpreadHalfAngleDegrees;
+                for(int i=0;i<5;i++)
+                {
+                    float angle=Vector2.SignedAngle(aim,volley[i].End-volley[i].Origin),fan=(i-2)*half;
+                    Require(Mathf.Abs(angle-fan)<=half+.001f && Vector2.Distance(volley[i].Origin,origin)<.0001f,$"дробина {i}: угол {angle:F2}° вне веера {fan:F2}±{half:F2}°");
+                    ProjectileLaunch.Create(volley[i],definition);
+                }
+                Require(volley.Max(p=>Vector2.SignedAngle(aim,p.End-p.Origin))-volley.Min(p=>Vector2.SignedAngle(aim,p.End-p.Origin))>half,"веер шире одного разброса");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
         }
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Огнестрел: "+message);}
     }

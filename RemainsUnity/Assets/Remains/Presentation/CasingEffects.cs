@@ -52,7 +52,7 @@ namespace Remains.Presentation
         }
         public void Observe(AttackEvent attack)
         {
-            if(attack==null || NpcNaturalAttack.IsNatural(attack))return;
+            if(attack==null || NpcNaturalAttack.IsNatural(attack) || attack.volley!=null)return;   // one casing per volley
             Reconcile();
             if(session.World==null || attack.level!=level || !CasingEffectCatalog.TryGet(attack.weapon,out var profile))return;
             if(attack.rangedPose==null)

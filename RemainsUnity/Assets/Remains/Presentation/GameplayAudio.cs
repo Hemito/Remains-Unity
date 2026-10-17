@@ -116,6 +116,7 @@ namespace Remains.Presentation
                     Debug.LogWarning($"Звук естественной атаки пока не настроен: type={attack.naturalAttackType}, actor={attack.attacker}, attack={attack.id}. Оружейный звук не подставляется; см. CRAWLER_SPEC.md.",this);
                 return;
             }
+            if(attack.volley!=null) return;   // a volley sounds once, with its first pellet
             if(!sounds.TryGetValue(attack.weapon,out var entry))
             {if(missing.Add(attack.weapon)) Debug.LogWarning($"Нет звука атаки: weapon={attack.weapon}, attack={attack.id}.",this);return;}
             if(!seen.Add(attack.id)) return;

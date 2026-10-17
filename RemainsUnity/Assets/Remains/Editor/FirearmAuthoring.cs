@@ -116,7 +116,6 @@ namespace Remains.Editor
             }
             var character=Merged("char");var phis=Merged("phis");var vis=Merged("vis");var ammoNode=Merged("ammo");var snd=Merged("snd");
             if(Num(character,"damexpl",0)>0) return "взрывающийся снаряд (damexpl)";
-            if(Num(character,"kol",1)>1) return $"несколько снарядов за выстрел (kol {Num(character,"kol",1)})";
             if(phis.Attribute("grav")!=null) return "навесной снаряд (grav)";
             if(phis.Attribute("flame")!=null) return "огнемёт (flame)";
             if(character.Attribute("prep")!=null) return "раскрутка перед стрельбой (prep)";
@@ -143,11 +142,11 @@ namespace Remains.Editor
             var definition=new WeaponDefinition
             {
                 id=id,damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,ammo=ammo,
-                magazineSize=(int)Num(ammoNode,"holder"),ammoPerShot=(int)Num(ammoNode,"rashod",1),reloadSeconds=Num(ammoNode,"reload")/FramesPerSecond,
+                magazineSize=(int)Num(ammoNode,"holder"),ammoPerShot=(int)Num(ammoNode,"rashod",1),reloadSeconds=Mathf.Max(1,Num(ammoNode,"reload"))/FramesPerSecond,   // reload 0 (buckshot): one frame, the shortest the rules allow
                 projectileSpeed=speed,projectileSpeedVariation=SpeedVariation,projectileLifetime=lifetime,range=speed*lifetime,
                 shotSpreadHalfAngleDegrees=Mathf.Min(90,Num(phis,"deviation",0)*.5f),
                 recoil=recoil>0?Scaled(WeaponRecoilProfile.PistolCalibration(),recoil):WeaponRecoilProfile.Disabled(),
-                holdingArea=new HoldingArea(),stopAtFirstActor=true,stopAtTerrain=true
+                holdingArea=new HoldingArea(),stopAtFirstActor=true,stopAtTerrain=true,pellets=(int)Num(character,"kol",1)
             };
             if(definition.damage<=0 || definition.cooldown<=0 || definition.magazineSize<=0 || speed<=0) return "нет урона, темпа, магазина или скорости снаряда";
 

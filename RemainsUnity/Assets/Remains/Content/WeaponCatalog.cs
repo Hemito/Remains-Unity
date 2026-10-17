@@ -44,6 +44,10 @@ namespace Remains.Content
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
         public float FlightRange(float speed)=>projectileLifetime>0?speed*projectileLifetime:range;
         public bool stopAtFirstActor,stopAtTerrain;
+        // Projectiles per shot (original kol): a volley fanned shotSpreadHalfAngleDegrees apart around the aim, each pellet
+        // with its own spread and damage. 0 or 1: a single projectile.
+        public int pellets;
+        public int Pellets=>Math.Max(1,pellets);
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }

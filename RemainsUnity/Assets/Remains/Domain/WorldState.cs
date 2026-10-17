@@ -199,6 +199,9 @@ namespace Remains.Domain
         public MeleeAttackAnchor meleeAnchor;
         public string naturalAttackType;
         public string naturalAttackTarget;
+        // A pellet of a volley (WeaponDefinition.pellets): the ID of the volley's first shot. The shot's own effects
+        // (sound, casing, recoil, firing frames) belong to that first shot only.
+        public string volley;
         public float originY;
         public float endX;
         public float endY;

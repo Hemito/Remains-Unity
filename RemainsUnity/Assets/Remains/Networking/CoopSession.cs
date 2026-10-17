@@ -908,7 +908,26 @@ namespace Remains.Networking
             if(PrepareProjectile(attack)) FirePrepared(attack);
         }
         // Gameplay callers prepare before spending ammunition/mana. Receivers never call this.
-        public bool PrepareProjectile(AttackEvent attack)
+        // A shot as its volley: the shot itself and, for a pellet weapon, its other pellets, each prepared (fanned
+        // around the aim, own spread and speed) before any ammunition is spent. Null when any pellet fails.
+        public System.Collections.Generic.List<AttackEvent> PrepareVolley(AttackEvent shot)
+        {
+            var definition=WeaponCatalog.Get(shot.weapon);int count=definition.projectileSpeed>0?definition.Pellets:1;
+            var template=count>1?JsonUtility.FromJson<AttackEvent>(JsonUtility.ToJson(shot)):null;
+            var volley=new System.Collections.Generic.List<AttackEvent>(count);
+            for(int i=0;i<count;i++)
+            {
+                var pellet=i==0?shot:JsonUtility.FromJson<AttackEvent>(JsonUtility.ToJson(template));
+                if(i>0) {pellet.id=Guid.NewGuid().ToString("N");pellet.volley=shot.id;}
+                // Weapon.shoot: pellet k leaves at (k − (kol − 1)/2) × deviation/2 from the aim.
+                if(!PrepareProjectile(pellet,(i-(count-1)*.5f)*definition.shotSpreadHalfAngleDegrees)) return null;
+                volley.Add(pellet);
+            }
+            return volley;
+        }
+        public void FireVolley(System.Collections.Generic.List<AttackEvent> volley) {foreach(var shot in volley) FirePrepared(shot);}
+        public bool PrepareProjectile(AttackEvent attack)=>PrepareProjectile(attack,0);
+        private bool PrepareProjectile(AttackEvent attack,float fanDegrees)
         {
             if(GameplayFailurePending) return false;
             if(NpcNaturalAttack.IsNatural(attack) || WeaponCatalog.Get(attack.weapon).projectileSpeed<=0) return true;
@@ -919,6 +938,11 @@ namespace Remains.Networking
             {
                 var definition=WeaponCatalog.Get(attack.weapon);
                 Remains.Gameplay.RangedShotPreparation.ValidateOwner(attack,actor,World.worldId,definition,Rules.WeaponRecoil);
+                if(fanDegrees!=0)
+                {
+                    var aim=(Vector2)(Quaternion.Euler(0,0,fanDegrees)*(Vector3)(attack.End-attack.Origin));
+                    attack.endX=attack.originX+aim.x;attack.endY=attack.originY+aim.y;
+                }
                 ProjectileLaunch.PrepareOwnerLaunch(attack,definition,UnityEngine.Random.value,UnityEngine.Random.value,Rules.ShotDirection);
                 return true;
             }
@@ -951,7 +975,7 @@ namespace Remains.Networking
             ProjectileLaunch.Create(attack,definition);
             // Reliable launch precedes progress and contact messages from its local simulation.
             NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});
-            Projectiles.BeginLocal(attack);Recoil.Commit(actor,attack);
+            Projectiles.BeginLocal(attack);if(attack.volley==null) Recoil.Commit(actor,attack);
             if(!GameplayFailurePending) AttackReceived?.Invoke(attack);
         }
         private void RelayAttack(NetworkConnectionToClient connection, AttackMessage message)

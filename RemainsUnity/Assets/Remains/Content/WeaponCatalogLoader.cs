@@ -164,6 +164,8 @@ namespace Remains.Content
                 throw new InvalidDataException($"Некорректное окно контакта ближнего оружия: источник={source}, id={weapon.id}.");
             foreach(float value in new[]{weapon.damage,weapon.speedDamage,weapon.maxSpeedDamage,weapon.range,weapon.cooldown,weapon.manaCost,weapon.reloadSeconds,weapon.projectileSpeed,weapon.projectileSpeedVariation,weapon.projectileLifetime})
                 if(!float.IsFinite(value) || value<0) throw new InvalidDataException($"Некорректное число оружия: источник={source}, id={weapon.id}.");
+            if(weapon.pellets<0 || weapon.pellets>20 || weapon.pellets>1 && weapon.projectileSpeed<=0)
+                throw new InvalidDataException($"Некорректное число снарядов залпа: источник={source}, weapon={weapon.id}, pellets={weapon.pellets}. Допустимо 0–20, только для снарядов.");
             var speeds=weapon.ProjectileSpeedRange;
             if(!float.IsFinite(weapon.shotSpreadHalfAngleDegrees) || weapon.shotSpreadHalfAngleDegrees<0 ||
                 weapon.shotSpreadHalfAngleDegrees>90 || (weapon.shotSpreadHalfAngleDegrees>0 && weapon.projectileSpeed<=0))

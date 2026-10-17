@@ -93,14 +93,15 @@ namespace Remains.Gameplay
                 {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice(unavailable);}
                 return false;
             }
-            AttackEvent ranged=null;
+            System.Collections.Generic.List<AttackEvent> ranged=null;
             if(!melee)
             {
                 var pose=WeaponPose.SampleRanged(attacker);
                 var end=origin+direction*definition.range;
-                ranged=new AttackEvent {id=Guid.NewGuid().ToString("N"),attacker=attacker.id,weapon=Weapon,level=attacker.level,
+                var shot=new AttackEvent {id=Guid.NewGuid().ToString("N"),attacker=attacker.id,weapon=Weapon,level=attacker.level,
                     originX=origin.x,originY=origin.y,endX=end.x,endY=end.y,rangedPose=pose.Capture(attacker,session.World.worldId)};
-                if(!session.PrepareProjectile(ranged)) return false;
+                ranged=session.PrepareVolley(shot);
+                if(ranged==null) return false;
             }
             if(!WeaponAmmunition.SpendShot(attacker,definition,out string reason))
             {
@@ -118,7 +119,7 @@ namespace Remains.Gameplay
                 swingId=Guid.NewGuid().ToString("N");swingSweep=new MeleeSweep(Weapon,WeaponPose.Origin(attacker),direction,attacker.weaponReach,geometry.Get(attacker.level));
                 return true;
             }
-            session.FirePrepared(ranged);
+            session.FireVolley(ranged);
             return true;
         }
 

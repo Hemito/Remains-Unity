@@ -49,7 +49,7 @@ namespace Remains.Presentation
         }
         public void Observe(AttackEvent attack)
         {
-            if(attack==null || NpcNaturalAttack.IsNatural(attack)) return;
+            if(attack==null || NpcNaturalAttack.IsNatural(attack) || attack.volley!=null) return;   // the volley's first pellet fires the frames
             Reconcile();
             if(attack.level!=session.LocalActor?.level || !byAttack.TryGetValue(attack.weapon,out var clip)) return;
             if(attack.rangedPose==null)
