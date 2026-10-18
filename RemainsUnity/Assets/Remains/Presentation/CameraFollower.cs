@@ -22,7 +22,24 @@ namespace Remains.Presentation
         public CameraFollower(Camera camera,RoomLayout room) {this.camera=RequireCamera(camera);Room=room;}
         // Explicit same-level teleports/recovery repairs must discard target history.
         // No distance/speed heuristic: fast continuous gameplay remains continuous.
-        public void ResetMotion()=>motion.Reset();
+        public void ResetMotion() {motion.Reset();hasContext=false;}
+        public const float AnimationMargin=4;
+        public Rect AnimationArea(ActorState actor)=>AnimationArea(PonyVisual.CameraBounds(actor),
+            camera.orthographicSize*camera.aspect,camera.orthographicSize,camera.transform.position,
+            hasContext && actorLevel==actor.level && actorId==actor.id && actorGeneration==actor.generation && actorLifecycle==actor.lifecycleSequence);
+        // FrameAxis keeps the local envelope on screen. Expanding it by two half-extents covers every
+        // possible clamped center, including room edges; retain the previous view during smooth following.
+        public static Rect AnimationArea(Bounds local,float halfWidth,float halfHeight,Vector2 center,bool includePrevious)
+        {
+            if(!float.IsFinite(halfWidth) || !float.IsFinite(halfHeight) || halfWidth<=0 || halfHeight<=0)
+                throw new System.ArgumentException($"Неверный размер области анимации камеры: {halfWidth}×{halfHeight}.");
+            float left=local.min.x-2*halfWidth,right=local.max.x+2*halfWidth;
+            float bottom=local.min.y-2*halfHeight,top=local.max.y+2*halfHeight;
+            if(includePrevious)
+            {left=Mathf.Min(left,center.x-halfWidth);right=Mathf.Max(right,center.x+halfWidth);
+                bottom=Mathf.Min(bottom,center.y-halfHeight);top=Mathf.Max(top,center.y+halfHeight);}
+            return Rect.MinMaxRect(left-AnimationMargin,bottom-AnimationMargin,right+AnimationMargin,top+AnimationMargin);
+        }
         public static Camera RequireCamera(Camera value)
         {
             if(value==null) throw new System.InvalidOperationException("В сцене не назначена активная камера с тегом MainCamera.");

@@ -538,6 +538,7 @@ namespace Remains.Runtime
                 foreach(string level in Geometry.LoadedLevels) BodyTopSurfaces.Update(Geometry.Get(level),Session.World,level);
             using(Remains.Diagnostics.FrameHitchLog.Section("Удалённое движение")) remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true);
             actorActivity.Refresh(Session.World);
+            actorActivity.SetVisibleArea(actor.level,cameraFollower.AnimationArea(actor));
             foreach(var body in Session.World.actors)
                 if(body.owner==Session.LocalOwner &&
                     LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
@@ -571,7 +572,7 @@ namespace Remains.Runtime
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))
             {
                 foreach (var owned in Session.World.actors)
-                    if (owned.owner==Session.LocalOwner && !Session.Pause.IsPaused(owned.level) && actorActivity.TakePosePublication(owned,out bool final))
+                    if (owned.owner==Session.LocalOwner && actorActivity.TakePosePublication(owned,out bool final,Session.Pause.IsPaused(owned.level)))
                         Session.PublishPose(owned,final);
             }
             // Follow the resolved body that the visuals will draw in LateUpdate.

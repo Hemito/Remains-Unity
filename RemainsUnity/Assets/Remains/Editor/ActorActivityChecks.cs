@@ -31,6 +31,29 @@ namespace Remains.Editor
             Require(!activity.TakePosePublication(npc,out _),"Спящий NPC продолжает повторную публикацию.");
             npc.x=0;activity.ObserveSimulation(npc);npc.x=100;
             Require(activity.TakePosePublication(npc,out bool shortFinal) && shortFinal,"Короткое пробуждение между сетевыми тиками потеряно.");
+            npc.x=0;activity.ObserveSimulation(npc);npc.x=100;
+            var pause=new LevelPauseCoordinator(new CooperativePauseRule());pause.SetManual(player,0,0,true);
+            Require(!activity.TakePosePublication(npc,out _,pause.IsPaused(world,npc.level)),"Поза отправлена во время паузы.");
+            pause.SetManual(player,0,0,false);
+            Require(activity.TakePosePublication(npc,out bool resumedFinal,pause.IsPaused(world,npc.level)) && resumedFinal,
+                "Пауза потеряла заключительную надёжную позу.");
+            Require(!activity.TakePosePublication(npc,out _),"Возобновление повторило заключительную позу.");
+            foreach(float aspect in new[]{4f/3,16f/9,32f/9,64f/9})
+            foreach(float zoom in new[]{5f,10f})
+            {
+                var bounds=new Bounds(new Vector3(0,1,0),new Vector3(2,3,0));
+                float halfWidth=zoom*aspect;
+                var area=Remains.Presentation.CameraFollower.AnimationArea(bounds,halfWidth,zoom,Vector2.zero,false);
+                activity.SetVisibleArea(player.level,area);
+                foreach(float center in new[]{bounds.max.x-halfWidth+.15f,bounds.min.x+halfWidth-.15f})
+                {
+                    npc.Position=new Vector2(center+halfWidth-0.01f,1);
+                    Require(activity.Active(npc),"Видимый NPC замёрз на краю широкого viewport.");
+                }
+                npc.Position=new Vector2(Mathf.Max(area.xMax,NpcActivity.HalfWidth)+1,1);
+                Require(!activity.Active(npc),"Визуальная область активирует весь уровень.");
+            }
+            activity.Refresh(world);
             npc.x=100;npc.attackBusy=true;Require(activity.Active(npc),"Начатая атака вне зоны не завершается.");
             npc.attackBusy=false;npc.down=true;Require(activity.Active(npc),"Оседающее тело исключено.");
             npc.down=false;npc.hold=new ActorHoldState {holder=player.id};Require(activity.Active(npc),"Удерживаемое тело исключено.");
