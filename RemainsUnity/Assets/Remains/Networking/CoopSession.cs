@@ -839,6 +839,7 @@ namespace Remains.Networking
                 !serverPoses.Accept(message.actor,message.generation,message.lifecycleSequence,message.sequence)) return;
             if(!ActorMotionReplication.IsNewer(message.sequence,actor.motionSequence)) return;
             ApplyPose(actor, message);
+            WorldChanges.Mark(ServerWorld,actor);
             NetworkServer.SendToAll(message, Channels.Unreliable);
         }
 

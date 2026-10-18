@@ -254,6 +254,7 @@ namespace Remains.Editor
             Require(restored.completedTransactions.Contains("claim-1") && File.Exists(Path.Combine(directory,"world.json.previous")),
                 "Сохранение сохраняет транзакцию и предыдущую версию");
             MovementChecks.Run();
+            ValidatedStateCopyChecks.Run();
             SessionChecks.Run();
             MeleeSweepChecks.Run();
             MeleeTerrainOcclusionChecks.Run();

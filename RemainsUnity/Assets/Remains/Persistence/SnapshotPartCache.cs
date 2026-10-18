@@ -21,7 +21,7 @@ namespace Remains.Persistence
         // Per composed world and list: the objects, keys and texts of its last composition, by list position. When a
         // list holds the same objects in the same order, its unmarked parts are taken by position (no per-part
         // dictionaries or key strings: ~10 ms per factory snapshot before); otherwise parts are matched by key.
-        private sealed class ListMemory {public object[] Objects;public string[] Keys,Texts;public uint[] Slots;public ActorText.Pieces[] Pieces;}
+        private sealed class ListMemory {public object[] Objects;public string[] Keys,Texts;public uint[] Slots;public ActorText.Pieces[] Pieces;public long[] ActorRevisions;}
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,Dictionary<string,ListMemory>> memories=new();
         private static readonly HashSet<string> warnedUnmarked=new(StringComparer.Ordinal);
         public static int LastUnmarked {get;private set;}
@@ -50,9 +50,9 @@ namespace Remains.Persistence
             public string Json=>Splice(Template,Lists);
         }
         public static readonly string[] ListNames={"containers","props","lamps","doors","actors","factories","projectiles","mines","hazards"};
-        // Lists serialized on every composition (their objects change without marks, e.g. local motion, flight
-        // progress); an unchanged text is still accepted by key without a strict parse, and deltas carry only changes.
-        internal static bool AlwaysSerialized(string list)=>list=="actors" || list=="projectiles";
+        // Flight progress changes without marks. Actors use object identity + revision + explicit pose/hold marks;
+        // a rolling audit detects a missing mutation signal, just as for other tracked world parts.
+        internal static bool AlwaysSerialized(string list)=>list=="projectiles";
         // Part key within its list: the stable ID (a factory by its level).
         internal static string PartId(object item)=>item switch
         {
@@ -253,6 +253,7 @@ namespace Remains.Persistence
             public string Report=>typeof(T).Name+" "+Parsed+"/"+Parts+(example==null?"":" ["+example+"]");
             private string[] keys=Array.Empty<string>(),texts=Array.Empty<string>();
             private ActorText.Pieces[] pieces;
+            private long[] actorRevisions;
             public PartSet Set=>new(Name,keys,texts,pieces);
             private static readonly string Name=ListName(typeof(T));
             private static readonly bool Always=AlwaysSerialized(Name);
@@ -287,13 +288,14 @@ namespace Remains.Persistence
                 }
                 var objects=new object[count];keys=new string[count];texts=new string[count];var slots=new uint[count];
                 bool actors=typeof(T)==typeof(ActorState);
-                if(actors) pieces=new ActorText.Pieces[count];
+                if(actors) {pieces=new ActorText.Pieces[count];actorRevisions=new long[count];}
                 // Actors: the previous pieces and text by key (the host replaces an actor object on every update).
-                Dictionary<string,(ActorText.Pieces pieces,string text)> previousActors=null;
+                Dictionary<string,(ActorState actor,long revision,ActorText.Pieces pieces,string text)> previousActors=null;
                 if(actors && reuse && before.Pieces!=null)
                 {
-                    previousActors=new Dictionary<string,(ActorText.Pieces,string)>(before.Keys.Length,StringComparer.Ordinal);
-                    for(int i=0;i<before.Keys.Length;i++) if(before.Pieces[i]!=null) previousActors[before.Keys[i]]=(before.Pieces[i],before.Texts[i]);
+                    previousActors=new Dictionary<string,(ActorState,long,ActorText.Pieces,string)>(before.Keys.Length,StringComparer.Ordinal);
+                    for(int i=0;i<before.Keys.Length;i++) if(before.Pieces[i]!=null)
+                        previousActors[before.Keys[i]]=((ActorState)before.Objects[i],before.ActorRevisions[i],before.Pieces[i],before.Texts[i]);
                 }
                 for(int i=0;i<count;i++)
                 {
@@ -342,21 +344,30 @@ namespace Remains.Persistence
                     }
                     keys[i]=key;texts[i]=text;slots[i]=slot;Parts++;
                 }
-                remembered?.Add(Name,new ListMemory {Objects=objects,Keys=keys,Texts=texts,Slots=slots,Pieces=pieces});
+                remembered?.Add(Name,new ListMemory {Objects=objects,Keys=keys,Texts=texts,Slots=slots,Pieces=pieces,ActorRevisions=actorRevisions});
             }
 
             // An actor as its template and cold texts (ActorText): only changed pieces get the strict check, and an
             // actor whose pieces are all unchanged keeps its previous text (no ~50 KB parse of a moving player).
-            private string ComposeActor(ActorState actor,string key,int index,Dictionary<string,(ActorText.Pieces pieces,string text)> previous)
+            private string ComposeActor(ActorState actor,string key,int index,Dictionary<string,(ActorState actor,long revision,ActorText.Pieces pieces,string text)> previous)
             {
+                actorRevisions[index]=actor.revision;
+                ActorText.Pieces prev=null;string previousText=null;
+                bool unchanged=false;
+                if(previous!=null && previous.TryGetValue(key,out var found))
+                {
+                    prev=found.pieces;previousText=found.text;
+                    unchanged=ReferenceEquals(actor,found.actor) && actor.revision==found.revision && !audit.Marked(actor);
+                    if(unchanged && !audit.VerifyNow(Audit.SlotOf(key)))
+                    {pieces[index]=prev;audit.Reused++;return previousText;}
+                }
                 var next=ActorText.Pieces.Of(actor);
                 pieces[index]=next;
-                ActorText.Pieces prev=null;string previousText=null;
-                if(previous!=null && previous.TryGetValue(key,out var found)) {prev=found.pieces;previousText=found.text;}
                 bool templateSame=prev!=null && prev.Template==next.Template;
                 bool coldSame=prev!=null;
                 for(int i=0;coldSame && i<next.Cold.Length;i++) coldSame=prev.Cold[i]==next.Cold[i];
                 if(templateSame && coldSame) return previousText;
+                if(unchanged) audit.ReportUnmarked(key,previousText,ActorText.Join(next.Template,next.Cold));
                 if(example==null && prev!=null && !templateSame) example=key+": "+Difference(prev.Template,next.Template);
                 ActorText.Verify(next.Template,!templateSame,next.Cold,i=>prev==null || prev.Cold[i]!=next.Cold[i]);
                 Parsed++;

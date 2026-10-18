@@ -92,6 +92,7 @@ namespace Remains.Networking
             if(holder==null || holder.id!=message.holder || holder.down || holder.level!=body?.level ||
                 session.Pause.IsServerPaused(holder.level)) return;
             if(!ActorHoldRules.SetTarget(body,holder.id,message.epoch,message.sequence,new Vector2(message.x,message.y))) return;
+            WorldChanges.Mark(session.ServerWorld,body);
             NetworkServer.SendToAll(message,Channels.Unreliable);
         }
         public void RegisterTargetClient()=>NetworkClient.RegisterHandler<ActorHoldTargetMessage>(Remains.Networking.MessageTiming.Client<ActorHoldTargetMessage>(message=>

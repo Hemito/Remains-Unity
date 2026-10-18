@@ -37,6 +37,24 @@ namespace Remains.Editor
             Require(first.Parsed==first.Parts,$"Первый снимок разобрал {first.Parsed} частей из {first.Parts}.");
             var second=SnapshotPartCache.Compose(world);
             Require(second.Json==first.Json && second.Parsed==0,$"Неизменный мир: разобрано {second.Parsed} частей.");
+            if(world.actors.Count>0)
+            {
+                var actor=world.actors[0];
+                actor.x+=.25f;WorldChanges.Mark(world,actor);
+                Require(SnapshotPartCache.Compose(world).Json==StateJson.ToJson(world),"Dirty-поза актёра потеряна.");
+                actor.health-=.25f;actor.revision++;
+                Require(SnapshotPartCache.Compose(world).Json==StateJson.ToJson(world),"Новая revision актёра потеряна.");
+                var replacement=actor.Copy();replacement.y+=.25f;world.actors[0]=replacement;
+                Require(SnapshotPartCache.Compose(world).Json==StateJson.ToJson(world),"Замена актёра с прежней revision потеряна.");
+                replacement.x+=.25f;bool actorCaught=false;
+                for(int round=0;round<=SnapshotPartCache.VerifyEvery && !actorCaught;round++)
+                {
+                    var checkedActor=SnapshotPartCache.Compose(world);
+                    actorCaught=SnapshotPartCache.LastUnmarked>0;
+                    if(actorCaught) Require(checkedActor.Json==StateJson.ToJson(world),"Сверка актёра не обновила текст.");
+                }
+                Require(actorCaught,"Непомеченное изменение актёра не обнаружено.");
+            }
 
             var container=world.containers[0];
             container.x+=0.5f;WorldChanges.Mark(world,container);

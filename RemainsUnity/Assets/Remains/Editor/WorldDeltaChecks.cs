@@ -19,7 +19,7 @@ namespace Remains.Editor
     {
         public static void RunBatch()
         {
-            try {Run();EditorApplication.Exit(0);}
+            try {ValidatedStateCopyChecks.Run();Run();EditorApplication.Exit(0);}
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
         }
 
@@ -43,7 +43,7 @@ namespace Remains.Editor
             if(host.lamps.Count>0) {host.lamps[0].broken=!host.lamps[0].broken;WorldChanges.Mark(host,host.lamps[0]);}
             int expected=1+(host.lamps.Count>0?1:0);
             if(host.doors.Count>0) {host.doors[0].open=!host.doors[0].open;host.doors[0].revision++;WorldChanges.Mark(host,host.doors[0]);expected++;}
-            if(host.actors.Count>0) {host.actors[0].x+=.5f;expected++;}   // actors: always serialized, no mark needed
+            if(host.actors.Count>0) {host.actors[0].x+=.5f;WorldChanges.Mark(host,host.actors[0]);expected++;}
             host.revision++;
             var composeTimer=System.Diagnostics.Stopwatch.StartNew();
             var b=RecoverySnapshot.FromWorld(host);double composeMs=composeTimer.Elapsed.TotalMilliseconds;
@@ -61,6 +61,12 @@ namespace Remains.Editor
                 "Изменённый контейнер не разобран заново.");
 
             // B2: the next change on the applied world (the replica's positional reuse of its own objects).
+            if(nextClient.actors.Count>0)
+            {
+                nextClient.actors[0].x+=123;
+                nextClient.actors[0].inventory.Clear();
+                nextClient.actors[0].perception.remainingSeconds=123;
+            }
             var second=host.containers[3];second.x+=1;WorldChanges.Mark(host,second);host.revision++;
             var b2=RecoverySnapshot.FromWorld(host);
             var delta2=WorldDelta.Build(host.worldId,b.Id,b.Composition,b2.Id,b2.Composition);
@@ -70,6 +76,12 @@ namespace Remains.Editor
             double apply2Ms=timer.Elapsed.TotalMilliseconds;
             Require(applied2.Id==b2.Id && applied2.Json==b2.Json,"Клиент собрал другой текст B2.");
             var client2=applied2.CreateLiveWorld();
+            if(client2.actors.Count>0)
+            {
+                Require(StateJson.ToJson(client2.actors[0])==StateJson.ToJson(host.actors[0]),"Локальные изменения повредили канонический кеш актёров.");
+                Require(!ReferenceEquals(client2.actors[0],nextClient.actors[0]) &&
+                    !ReferenceEquals(client2.actors[0].inventory,nextClient.actors[0].inventory),"Живые актёры разделяют изменяемые данные между снимками.");
+            }
             Require(ReferenceEquals(client2.containers[4],nextClient.containers[4]) && ReferenceEquals(client2.props.Count>0?client2.props[0]:null,nextClient.props.Count>0?nextClient.props[0]:null),
                 "Повторное изменение: неизменные объекты не переиспользованы по позиции.");
             Require(!ReferenceEquals(client2.containers[3],nextClient.containers[3]) && Mathf.Approximately(client2.containers[3].x,second.x),
@@ -84,6 +96,7 @@ namespace Remains.Editor
                 {
                     if(round==0) mover.x+=.25f;
                     else {mover.inventory.Add(new ItemStack {id="check:delta-item",definition="caps",count=1});coldIndex=2;}
+                    WorldChanges.Mark(host,mover);
                     host.revision++;
                     var next=RecoverySnapshot.FromWorld(host);
                     var baseSnapshot=round==0?b2:actorStep;
@@ -99,6 +112,7 @@ namespace Remains.Editor
                     if(round==0) actorBytes=StateJson.ToJson(actorDelta).Length;
                 }
                 mover.inventory.RemoveAll(item=>item.id=="check:delta-item");
+                WorldChanges.Mark(host,mover);
             }
             var lastBase=host.actors.Count>0?actorStep:b2;
 

@@ -45,6 +45,7 @@ namespace Remains.Serialization
             ObjectCreationHandling=ObjectCreationHandling.Replace,MaxDepth=128,
             Culture=System.Globalization.CultureInfo.InvariantCulture
         };
+        internal static JsonContract ContractFor(Type type)=>settings.ContractResolver.ResolveContract(type);
         public static string ToJson(object value,bool prettyPrint=false)=>
             JsonConvert.SerializeObject(value,prettyPrint?Formatting.Indented:Formatting.None,settings);
         // The same contract with extra converters (e.g. composing a large state from cached parts).
