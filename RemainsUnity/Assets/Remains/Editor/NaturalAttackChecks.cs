@@ -12,6 +12,7 @@ namespace Remains.Editor
         private sealed class OverrideDamage : INaturalAttackDamageRule {public float Calculate(string type)=>7;}
         public static void Run()
         {
+            ControllerCompletion();
             var source=new ActorState {id="natural-source",actorType="radroach",anatomy="radroach",level="check",health=8,facing=1,owner="one",weapon=null};
             var player=new ActorState {id="natural-player",actorType="pony",anatomy="pony",level="check",player=true,connected=true,owner="one",x=.8f,health=100};
             var other=player.Copy();other.id="natural-other";other.owner="two";other.x=2;
@@ -54,6 +55,57 @@ namespace Remains.Editor
             attack.naturalAttackTarget=other.id;attack.naturalAttackType="missing-natural-type";bool rejected=false;try {receiver.Apply(other,attack,true);} catch(InvalidOperationException) {rejected=true;}
             Require(rejected,"Неизвестный natural ID скрыт оружейным fallback.");
             Debug.Log("Естественные атаки: PASS — адресная капсула/terrain/contact, сосед и его труп не перехватывают укус, без предмета оружия, отдельный модовый урон, durable дедуп, finish-before-handoff и disconnect-cancel.");
+        }
+        // Exercise the controller-to-session route, including Mirror serialization, without opening a socket.
+        private static void ControllerCompletion()
+        {
+            Require(!Mirror.NetworkClient.active && !Mirror.NetworkServer.active,"Проверка контроллера требует отключённую сеть.");
+            var root=new GameObject("Проверка завершения укуса NPC");
+            var connection=typeof(Mirror.NetworkClient).GetProperty("connection");
+            var state=typeof(Mirror.NetworkClient).GetField("connectState",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+            var previousConnection=connection.GetValue(null);var previousState=state.GetValue(null);var previousTransport=Mirror.Transport.active;
+            AttackEvent sent=null;int sentCount=0;
+            void Observe(Mirror.NetworkDiagnostics.MessageInfo info)
+            {
+                if(info.message is Remains.Networking.AttackMessage message) {sent=StateJson.FromJson<AttackEvent>(message.json);sentCount++;}
+            }
+            using var geometry=new Remains.Gameplay.SimulationGeometry(_=>new RoomLayout {id="check",left=-10,right=10,bottom=-10,top=10,
+                platforms=Array.Empty<RoomSurface>(),ladders=Array.Empty<RoomLadder>()});
+            try
+            {
+                var session=root.AddComponent<Remains.Networking.CoopSession>();session.ConfigureRules(WeaponCatalog.Rules);
+                var world=new WorldState {worldId="controller-natural-check"};
+                var source=new ActorState {id="biter",actorType="radroach",anatomy="radroach",level="check",owner="one",health=8,facing=1};
+                var target=new ActorState {id="victim",actorType="pony",anatomy="pony",level="check",owner="one",player=true,connected=true,x=.8f,health=100};
+                world.actors.AddRange(new[]{source,target});
+                typeof(Remains.Networking.CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(Remains.Networking.CoopSession).GetProperty("LocalOwner").SetValue(session,"one");
+                geometry.Reconcile(world);var controller=new Remains.Gameplay.NpcController(session,geometry);
+                typeof(Remains.Networking.CoopSession).GetMethod("RaiseChanged",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)
+                    .Invoke(session,new object[]{WorldChangeKind.All,null});
+                Require(NpcAttackRules.TryBegin(source,target),"Контроллер: укус не начался.");
+                string attackId=source.attackId;source.attackRemaining=0;
+                typeof(Remains.Networking.CoopSession).Assembly.GetType("Mirror.GeneratedNetworkCode").GetMethod("InitReadWriters").Invoke(null,null);
+                var transport=root.AddComponent<kcp2k.KcpTransport>();
+                typeof(kcp2k.KcpTransport).GetMethod("Awake",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(transport,null);
+                Mirror.Transport.active=transport;
+                connection.SetValue(null,new Mirror.NetworkConnectionToServer());
+                state.SetValue(null,Enum.Parse(state.FieldType,"Connected"));
+                Mirror.NetworkDiagnostics.OutMessageEvent+=Observe;
+                controller.Step(1f/60);
+                Require(sentCount==1 && sent!=null && sent.id==attackId && NpcNaturalAttack.IsNatural(sent) && !source.attackBusy,
+                    "Контроллер не отправил ровно одно завершённое естественное действие.");
+                NpcNaturalAttack.ValidateEvent(sent,source);
+                Require(new DamageReceiver(new ForbiddenWeapon()).Apply(target,sent,true) && target.health==96,
+                    "Отправленный контроллером укус не наносит исходный урон.");
+                controller.Step(1f/60);Require(sentCount==1,"Контроллер повторно отправил завершённый укус.");
+            }
+            finally
+            {
+                Mirror.NetworkDiagnostics.OutMessageEvent-=Observe;
+                connection.SetValue(null,previousConnection);state.SetValue(null,previousState);
+                UnityEngine.Object.DestroyImmediate(root);Mirror.Transport.active=previousTransport;
+            }
         }
         private static void Require(bool valid,string reason)
         {if(!valid) throw new InvalidOperationException("Естественная атака: "+reason);}

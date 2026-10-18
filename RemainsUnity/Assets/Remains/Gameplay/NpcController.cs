@@ -72,7 +72,11 @@ namespace Remains.Gameplay
                         // The shot as its volley, as a player's (pellet weapons fire all their pellets).
                         System.Collections.Generic.List<AttackEvent> volley=null;
                         var attack=NpcAttackRules.Complete(actor,target,geometry.Get(actor.level),session.Rules.NpcWeaponTiming,shot=>(volley=session.PrepareVolley(shot))!=null);
-                        if(attack!=null) session.FireVolley(volley);
+                        if(attack!=null)
+                        {
+                            if(NpcNaturalAttack.IsNatural(attack)) session.FirePrepared(attack);
+                            else session.FireVolley(volley);
+                        }
                         session.PublishActor(actor);
                     }
                     continue;
