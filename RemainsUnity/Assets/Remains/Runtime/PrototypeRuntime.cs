@@ -77,6 +77,7 @@ namespace Remains.Runtime
         private readonly List<ProjectedLightShadow> projectedFlashShadows=new();
         private readonly PonyMagicActivitySource ponyMagic=new();
         private readonly RemoteActorMotion remoteMotion=new();
+        private readonly ActorActivity actorActivity=new();
         internal ActorVisual FindActorVisual(string id)=>visuals.TryGetValue(id,out var visual)?visual:null;
         private ActorVisualLayers visualLayers;
         private readonly WorldVisualOrderTable visualOrders=new();
@@ -536,6 +537,7 @@ namespace Remains.Runtime
             using(Remains.Diagnostics.FrameHitchLog.Section("Опоры на телах"))
                 foreach(string level in Geometry.LoadedLevels) BodyTopSurfaces.Update(Geometry.Get(level),Session.World,level);
             using(Remains.Diagnostics.FrameHitchLog.Section("Удалённое движение")) remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true);
+            actorActivity.Refresh(Session.World);
             foreach(var body in Session.World.actors)
                 if(body.owner==Session.LocalOwner &&
                     LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
@@ -546,8 +548,12 @@ namespace Remains.Runtime
             foreach(var animated in Session.World.actors)
             {
                 if(animated.owner==Session.LocalOwner) animated.poseCorrectionRemaining=0;
-                if(LevelActivity.HasConnectedPlayer(Session.World,animated.level) && !Session.Pause.IsPaused(animated.level) &&
-                    !remoteMotion.ControlsPosePhase(animated)) ActorPose.Advance(animated,Time.deltaTime);
+                if(actorActivity.Active(animated) && !Session.Pause.IsPaused(animated.level) &&
+                    !remoteMotion.ControlsPosePhase(animated))
+                {
+                    if(animated.owner==Session.LocalOwner) actorActivity.ObserveSimulation(animated);
+                    ActorPose.Advance(animated,Time.deltaTime);
+                }
             }
             Session.Recoil.Step(Time.deltaTime);
             Grenades.Step(Time.deltaTime);
@@ -564,7 +570,9 @@ namespace Remains.Runtime
             using(Remains.Diagnostics.FrameHitchLog.Section("Бой")) Combat.Step(Time.deltaTime);
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))
             {
-                foreach (var owned in Session.World.actors) if (owned.owner==Session.LocalOwner) Session.PublishPose(owned);
+                foreach (var owned in Session.World.actors)
+                    if (owned.owner==Session.LocalOwner && !Session.Pause.IsPaused(owned.level) && actorActivity.TakePosePublication(owned,out bool final))
+                        Session.PublishPose(owned,final);
             }
             // Follow the resolved body that the visuals will draw in LateUpdate.
             // Input above used the camera from the last displayed frame.

@@ -6,10 +6,11 @@ namespace Remains.Domain
     public static class NpcActivity
     {
         public const float HalfWidth=40,HalfHeight=22;
-        public static bool Awake(WorldState world,ActorState npc)
+        public static bool Awake(WorldState world,ActorState npc)=>Awake(world.actors,npc);
+        public static bool Awake(System.Collections.Generic.IReadOnlyList<ActorState> actors,ActorState npc)
         {
             if(npc.attackBusy) return true;
-            foreach(var player in world.actors)
+            foreach(var player in actors)
                 if(player.player && player.connected && player.level==npc.level &&
                     System.Math.Abs(player.x-npc.x)<=HalfWidth && System.Math.Abs(player.y-npc.y)<=HalfHeight) return true;
             return false;

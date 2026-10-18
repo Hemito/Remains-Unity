@@ -831,7 +831,7 @@ namespace Remains.Networking
             }
         }
 
-        private void UpdatePose(NetworkConnectionToClient connection, PoseMessage message)
+        private void UpdatePose(NetworkConnectionToClient connection, PoseMessage message,int channel)
         {
             var actor = ServerWorld.Find(message.actor);
             if (actor == null || !owners.TryGetValue(connection.connectionId, out string owner) || actor.owner != owner ||
@@ -840,7 +840,7 @@ namespace Remains.Networking
             if(!ActorMotionReplication.IsNewer(message.sequence,actor.motionSequence)) return;
             ApplyPose(actor, message);
             WorldChanges.Mark(ServerWorld,actor);
-            NetworkServer.SendToAll(message, Channels.Unreliable);
+            NetworkServer.SendToAll(message, channel);
         }
 
         private void ReceivePose(PoseMessage message)
@@ -888,7 +888,7 @@ namespace Remains.Networking
 
         private static void StampMotion(ActorState actor)
         {actor.motionSentAt=Time.unscaledTimeAsDouble;actor.motionClockGeneration=actor.generation;}
-        public void PublishPose(ActorState actor)
+        public void PublishPose(ActorState actor,bool final=false)
         {
             WeaponRecoilReplication.Normalize(actor,Pause.Revision,Pause.IsPaused(actor.level),"публикация позы");
             StampMotion(actor);
@@ -901,7 +901,7 @@ namespace Remains.Networking
             weaponSelectionRevision=actor.weaponSelectionRevision,weaponRecoil=actor.weaponRecoil.Copy(),heldItemPoseX=actor.heldItemPoseX,heldItemPoseY=actor.heldItemPoseY,heldItemPoseValid=actor.heldItemPoseValid,
             attackId=actor.attackId,attackBusy=actor.attackBusy,attackRemaining=actor.attackRemaining,attackCooldown=actor.attackCooldown,
             target=actor.player?null:actor.target,perception=actor.player?null:actor.perception.Copy()
-        }, Channels.Unreliable);
+        }, final?Channels.Reliable:Channels.Unreliable);
         }
 
         public void Fire(AttackEvent attack)
