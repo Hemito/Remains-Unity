@@ -17,6 +17,9 @@ namespace Remains.Gameplay
         private readonly SprintPreparation sprintPreparation=new();
         private readonly PassengerMotionRegistry passengers=new();
         private float? droppedSurface;
+        private RoomLadder heldLadder;
+        private string ladderActorId;
+        private long ladderGeneration;
         public MovementController(RoomLayout room,MovementSettings settings=null,LadderEntryPose ladderEntry=null)
         {
             this.room=room;this.settings=settings??MovementSettings.Load();this.settings.Validate();
@@ -36,7 +39,7 @@ namespace Remains.Gameplay
             if (ActorSessionRules.IsPassive(actor)) { PassiveActorMotion.Step(actor,room,dt,settings,passenger);return; }
             var previous=actor.Position;
             var hull=Anatomy.Movement(actor);
-            var selected=System.Array.Find(room.ladders,l=>Mathf.Abs(actor.x-l.x-l.movementOffset)<0.65f && actor.y>=l.bottom-0.1f && actor.y<l.top+0.2f);
+            var selected=SelectLadder(actor);
             bool wasClimbing=actor.climbing && selected!=null;
             bool detach=jump && input.y<=.1f;
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position) || PassengerMotion.PreviouslySupported(room,hull,actor.Position,dt);
@@ -101,8 +104,29 @@ namespace Remains.Gameplay
                 if(supported) actor.vy=0;
             }
             actor.climbing=ladder;
+            heldLadder=ladder?selected:null;ladderActorId=actor.id;ladderGeneration=actor.generation;
             if(!ladder && lookAtX.HasValue) actor.facing=lookAtX.Value>=actor.x?1:-1;
             StanceAnimation.Select(actor,actor.crouched?(Mathf.Abs(actor.vx)>.1f?"crawl":"crouch"):ladder ? ladderEntry.Select(actor,room) : !supported ? AirbornePose.Select(actor,launched,grounded || wasClimbing || drop) : Mathf.Abs(actor.vx) > 0.1f ? sprint ? "run" : "walk" : "idle",wasCrouched,standingPose,room,slopePose);
+        }
+        private RoomLadder SelectLadder(ActorState actor)
+        {
+            bool InReach(RoomLadder ladder)=>Mathf.Abs(actor.x-ladder.x-ladder.movementOffset)<.65f &&
+                actor.y>=ladder.bottom-.1f && actor.y<ladder.top+.2f;
+            // Overlapping entry envelopes at a Z junction must not change an existing grip.
+            if(actor.climbing && ladderActorId==actor.id && ladderGeneration==actor.generation &&
+                heldLadder!=null && System.Array.IndexOf(room.ladders,heldLadder)>=0 && InReach(heldLadder)) return heldLadder;
+            RoomLadder selected=null;float bestHeight=float.PositiveInfinity,bestAxis=float.PositiveInfinity;
+            foreach(var ladder in room.ladders)
+            {
+                if(!InReach(ladder)) continue;
+                float height=Mathf.Abs(actor.y-Mathf.Clamp(actor.y,ladder.bottom,ladder.top));
+                float axis=Mathf.Abs(actor.x-ladder.x-ladder.movementOffset);
+                if(height>bestHeight || height==bestHeight && axis>bestAxis) continue;
+                if(height==bestHeight && axis==bestAxis && selected!=null &&
+                    (ladder.bottom>selected.bottom || ladder.bottom==selected.bottom && ladder.x>=selected.x)) continue;
+                selected=ladder;bestHeight=height;bestAxis=axis;
+            }
+            return selected;
         }
     }
 }

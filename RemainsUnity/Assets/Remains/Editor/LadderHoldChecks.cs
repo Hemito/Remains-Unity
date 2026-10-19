@@ -16,6 +16,7 @@ namespace Remains.Editor
             var room=RoomLayout.Load();
             foreach(float dt in new[]{1f/30,1f/60,1f/144})
             {
+                CheckJunctionAndStance(dt);
                 var falling=new ActorState {id="ladder-air-down",x=4,y=1,vy=-1};
                 Require(!ActorTerrainMotion.Supported(room,Anatomy.Movement(falling),falling.Position),"Проверка захвата в воздухе ошибочно стоит на опоре");
                 var fallingMotion=new MovementController(room);
@@ -100,6 +101,38 @@ namespace Remains.Editor
                 motion.Step(actor,Vector2.zero,false,dt);
                 Require(!actor.climbing,"Нокдаун снимает захват лестницы");
                 Debug.Log($"Удержание лестницы: PASS, dt={dt}, остановка, загрузка, прыжок и выход.");
+            }
+        }
+        private static void CheckJunctionAndStance(float dt)
+        {
+            var settings=MovementSettings.Load();
+            foreach(bool reversed in new[]{false,true})
+            {
+                var lower=new RoomLadder {x=0,bottom=0,top=3,facing=LadderFacing.Right};
+                var upper=new RoomLadder {x=.5f,bottom=2.9f,top=6,facing=LadderFacing.Left};
+                var junction=new RoomLayout {id="ladder-z-junction",left=-5,right=5,bottom=-1,top=8,
+                    platforms=new[]{new RoomSurface {x=-5,y=-1,width=10,height=1},
+                        new RoomSurface {x=-2,y=2.8f,width=4,height=.2f,oneWay=true}},
+                    ladders=reversed?new[]{upper,lower}:new[]{lower,upper}};
+                var actor=new ActorState {id="junction",x=0,y=2.7f};
+                var motion=new MovementController(junction,settings);
+                motion.Step(actor,Vector2.up,false,dt);
+                Require(actor.climbing && actor.facing==1,"Вход выбрал соседнюю верхнюю лестницу по порядку массива");
+                for(int i=0;i<120 && actor.climbing;i++)
+                {
+                    float previous=actor.y;
+                    motion.Step(actor,Vector2.up,false,dt);
+                    Require(Mathf.Abs(actor.x)<.0001f && actor.facing==1,"Хват нижней лестницы перескочил на ось/направление верхней");
+                    Require(actor.y>=previous && actor.y-previous<=settings.climbSpeed*dt+.0001f,
+                        "Стык лестниц телепортировал тело по вертикали");
+                }
+                Require(!actor.climbing && Mathf.Abs(actor.y-3)<.0001f,"Нижняя лестница не выпустила на свою верхнюю опору");
+                var crouched=new ActorState {id="stand-under-ladder",x=0,y=0,crouched=true,pose="crouch"};
+                var stanceMotion=new MovementController(junction);
+                stanceMotion.Step(crouched,Vector2.up,false,dt);
+                Require(!crouched.crouched && crouched.climbing,"Подъём под лестницей сохранил лежачее состояние вместо стоячего хвата");
+                stanceMotion.Step(crouched,Vector2.right,true,dt);
+                Require(!crouched.crouched && !crouched.climbing,"Прыжок с лестницы вернул лежачее состояние");
             }
         }
         private static void CheckAnimation()

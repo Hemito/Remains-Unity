@@ -17,6 +17,7 @@ namespace Remains.Editor
             HorizontalMotionChecks.Run();
             VariableJumpChecks.Run();
             CheckSolidGeometry();
+            CheckSmallGaps();
             SavedPlacementChecks.Run();
             var factory=RoomLayout.Load();var movement=new MovementController(factory);
             var actor=new ActorState {x=0,y=0};movement.Step(actor,Vector2.zero,true,.05f);
@@ -79,6 +80,25 @@ namespace Remains.Editor
             Debug.Log("Проверки движения: PASS — появление в хабе, опоры, лестницы, восстановление старых позиций без потери состояния.");
         }
 
+        public static void CheckSmallGaps()
+        {
+            var hull=Anatomy.Movement("pony");var settings=Remains.Content.MovementSettings.Load();
+            RoomLayout Gap(float width)=>new() {id="gap-check",left=-6,right=6,bottom=-6,top=8,
+                platforms=new[]{new RoomSurface{x=-6,y=-1,width=6-width*.5f,height=1},new RoomSurface{x=width*.5f,y=-1,width=6-width*.5f,height=1}},
+                ladders=Array.Empty<RoomLadder>()};
+            foreach(int rate in new[]{30,60,144}) foreach(bool run in new[]{false,true}) foreach(float ratio in new[]{.2f,.5f,.8f})
+            {
+                var room=Gap(hull.width*ratio);var actor=new ActorState {id="gap-walker",player=true,connected=true,health=100,actorType="pony",anatomy="pony",x=-2,y=0};
+                var movement=new MovementController(room,settings);float lowest=0;
+                for(int frame=0;frame<rate*5 && actor.x<2;frame++)
+                {movement.Step(actor,Vector2.right,false,1f/rate,sprint:run);lowest=Mathf.Min(lowest,actor.y);}
+                Require(actor.x>=2 && lowest>=-.001f,$"Щель уже тела прервала опору: gap={hull.width*ratio}, width={hull.width}, rate={rate}, run={run}, y={lowest}");
+            }
+            var open=Gap(hull.width*1.5f);var falling=new ActorState {id="gap-fall",player=true,connected=true,health=100,actorType="pony",anatomy="pony",x=0,y=0};
+            new MovementController(open,settings).Step(falling,Vector2.zero,false,.1f);
+            Require(falling.y<-.01f,"Щель шире тела получила выдуманную физическую опору");
+            Debug.Log("Малые щели: PASS — ходьба/бег при 30/60/144 Гц сохраняют опору по ширине тела; широкая щель не создаёт мостик.");
+        }
         private static void CheckSolidGeometry()
         {
             var hull=Anatomy.Movement("pony");
