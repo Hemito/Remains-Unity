@@ -12,7 +12,7 @@ namespace Remains.Persistence
     // the snapshot ID (SHA-256 of that JSON) and strictly parses only the template and the changed parts.
     [Serializable] public sealed class WorldDeltaPayload
     {
-        public const int Format=2;   // 2: changed actors as template plus changed cold texts (ActorText)
+        public const int Format=3;   // 3: versioned manifest IDs instead of full-JSON SHA for delta bases/results.
         public int format=Format;
         public string world,baseSnapshot,snapshot;
         public string template;
@@ -113,7 +113,7 @@ namespace Remains.Persistence
             var split=SnapshotPartCache.Split(copy);
             if(SnapshotPartCache.Splice(split.Template,split.Lists)!=snapshot.Json)
                 throw new InvalidDataException($"Снимок мира не раскладывается на части без потерь: world={snapshot.WorldId}, snapshot={snapshot.Id}.");
-            var replica=new WorldReplica {WorldId=snapshot.WorldId,SnapshotId=snapshot.Id,template=split.Template};
+            var replica=new WorldReplica {WorldId=snapshot.WorldId,SnapshotId=snapshot.ReplicationId,template=split.Template};
             foreach(var set in split.Lists) replica.lists[set.Name]=List.Of(set.Keys,set.Texts);
             var actorSet=Array.Find(split.Lists,set=>set.Name=="actors");
             for(int i=0;i<actorSet.Keys.Length;i++) replica.canonicalActors.Add(actorSet.Keys[i],(actorSet.Texts[i],copy.actors[i]));
@@ -123,7 +123,18 @@ namespace Remains.Persistence
         // Applies a delta to this replica and returns the verified snapshot with its live world: the template and the
         // changed parts are strictly parsed; unchanged parts reuse the current live objects of the same keys.
         public RecoverySnapshot Apply(WorldDeltaPayload payload,WorldState current)
+            =>ApplyCore(payload,current,false,out _,out _);
+
+        // Runtime opt-in: unchanged canonical actors keep their existing live projections. Detached recovery
+        // consumers still read the immutable snapshot, never this graph or the replica's private actor cache.
+        public RecoverySnapshot ApplyLive(WorldDeltaPayload payload,WorldState current,out WorldState live,out HashSet<string> reusedActors)
+            =>ApplyCore(payload,current,true,out live,out reusedActors);
+
+        public ActorState CopyCanonicalActor(string id)=>id!=null && canonicalActors.TryGetValue("actors:"+id,out var entry)?ValidatedStateCopy.Copy(entry.actor):null;
+
+        private RecoverySnapshot ApplyCore(WorldDeltaPayload payload,WorldState current,bool reuseActors,out WorldState live,out HashSet<string> reusedActors)
         {
+            live=null;reusedActors=null;
             if(payload==null || payload.format!=WorldDeltaPayload.Format) throw new InvalidDataException("Неизвестный формат изменения мира.");
             if(payload.world!=WorldId || payload.baseSnapshot!=SnapshotId)
                 throw new InvalidDataException($"Изменение мира от другой базы: ожидалась {SnapshotId}, получена {payload.baseSnapshot}, world={payload.world}.");
@@ -132,12 +143,13 @@ namespace Remains.Persistence
             var changedAt=new Dictionary<string,bool[]>(StringComparer.Ordinal);   // same-order lists: changed positions
             var verified=new HashSet<string>(StringComparer.Ordinal);   // changed actors already checked by pieces
             var parsedActors=new Dictionary<string,ActorState>(StringComparer.Ordinal);
+            var nextPieces=new Dictionary<string,(ActorText.Pieces pieces,string text)>(actorPieces,StringComparer.Ordinal);
             foreach(var delta in payload.lists)
             {
                 if(!lists.TryGetValue(delta.name,out var before)) throw new InvalidDataException("Изменение неизвестного списка мира: "+delta.name);
                 if((delta.keys?.Length??0)!=(delta.texts?.Length??0)) throw new InvalidDataException("Изменение списка "+delta.name+": ключи и тексты не совпадают.");
                 int count=delta.keys?.Length??0;
-                if(delta.templates!=null || delta.cold!=null) ExpandActors(delta,before,verified,parsedActors);
+                if(delta.templates!=null || delta.cold!=null) ExpandActors(delta,before,verified,parsedActors,nextPieces);
                 for(int i=0;i<count;i++) changed.Add(delta.keys[i]);
                 List next;
                 if(delta.order==null)
@@ -191,7 +203,7 @@ namespace Remains.Persistence
                             var canonical=parsedActors.TryGetValue(key,out var parsed)?parsed:canonicalActors.TryGetValue(key,out var prior) && prior.text==text?prior.actor:
                                 changed.Contains(key) && !verified.Contains(key)?StateJson.FromJson<ActorState>(text):StateJson.FromTrustedJson<ActorState>(text);
                             nextActors.Add(key,(text,canonical));
-                            world.actors.Add(ValidatedStateCopy.Copy(canonical));
+                            world.actors.Add(reuseActors?canonical:ValidatedStateCopy.Copy(canonical));
                         }
                         break;
                     // Projectiles still change locally.
@@ -204,11 +216,34 @@ namespace Remains.Persistence
                     default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
                 }
             }
-            var snapshot=RecoverySnapshot.Assembled(payload.template,sets,payload.snapshot,world);
+            var snapshot=RecoverySnapshot.Assembled(payload.template,sets,payload.snapshot,world,retainPreparedLive:!reuseActors);
+            if(reuseActors)
+            {
+                // The snapshot has validated private canonical actors. Only after all checks succeed replace
+                // the temporary list with live references/copies; no failed delta can mutate the current graph.
+                var actors=new List<ActorState>(world.actors.Count);
+                var reused=new HashSet<string>(StringComparer.Ordinal);
+                Dictionary<string,ActorState> byId=null;
+                if(same)
+                {
+                    byId=new Dictionary<string,ActorState>(StringComparer.Ordinal);
+                    foreach(var actor in current.actors) if(actor!=null) byId.Add(actor.id,actor);
+                }
+                foreach(var canonical in world.actors)
+                {
+                    string key="actors:"+canonical.id;
+                    if(!changed.Contains(key) && byId!=null && byId.TryGetValue(canonical.id,out var candidate) &&
+                        ActorMotionReplication.SameLifetime(candidate,canonical))
+                    {actors.Add(candidate);reused.Add(canonical.id);}
+                    else actors.Add(ValidatedStateCopy.Copy(canonical));
+                }
+                world.actors=actors;live=world;reusedActors=reused;
+            }
             template=payload.template;SnapshotId=payload.snapshot;
             lists.Clear();foreach(var pair in nextLists) lists.Add(pair.Key,pair.Value);
             produced.Clear();foreach(var pair in outputs) produced.Add(pair.Key,pair.Value);
             canonicalActors=nextActors;
+            actorPieces.Clear();foreach(var pair in nextPieces) if(nextActors.ContainsKey(pair.Key)) actorPieces.Add(pair.Key,pair.Value);
             return snapshot;
         }
 
@@ -217,7 +252,8 @@ namespace Remains.Persistence
         // unchanged text is read by the trusted reader: it was strictly parsed when it reached this replica.
         // An actor sent as template plus changed cold texts: its full text from the base pieces, strictly checked by
         // pieces (the template and each changed cold text); the delta then carries the full text as any part.
-        private void ExpandActors(WorldDeltaList delta,List before,HashSet<string> verified,Dictionary<string,ActorState> parsed)
+        private void ExpandActors(WorldDeltaList delta,List before,HashSet<string> verified,Dictionary<string,ActorState> parsed,
+            Dictionary<string,(ActorText.Pieces pieces,string text)> nextPieces)
         {
             int count=delta.keys?.Length??0;
             if(delta.name!="actors" || delta.templates==null || delta.cold==null || delta.templates.Length!=count || delta.cold.Length!=count)
@@ -238,7 +274,7 @@ namespace Remains.Persistence
                 canonicalActors.TryGetValue(delta.keys[i],out var previousActor);
                 parsed.Add(delta.keys[i],ActorText.Read(delta.templates[i],merged,c=>sent[c]!=null,previousActor.text==before.Texts[position]?previousActor.actor:null));
                 delta.texts[i]=text;verified.Add(delta.keys[i]);
-                actorPieces[delta.keys[i]]=(new ActorText.Pieces(delta.templates[i],merged),text);
+                nextPieces[delta.keys[i]]=(new ActorText.Pieces(delta.templates[i],merged),text);
             }
         }
         // Pieces of the actor texts last expanded, by key (valid for that exact text).

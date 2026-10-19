@@ -128,7 +128,7 @@ namespace Remains.Editor
             var a=RecoverySnapshot.FromWorld(host);var replica=WorldReplica.FromSnapshot(a);var client=a.CreateLiveWorld();
             var hazard=host.hazards[0];hazard.closed=!hazard.closed;WorldChanges.Mark(host,hazard);host.revision++;
             var b=RecoverySnapshot.FromWorld(host);
-            var delta=WorldDelta.Build(host.worldId,a.Id,a.Composition,b.Id,b.Composition);
+            var delta=WorldDelta.Build(host.worldId,a.ReplicationId,a.Composition,b.ReplicationId,b.Composition);
             Require(WorldDelta.ChangedParts(delta)==1,"изменение ловушки — одна часть дельты, а не "+WorldDelta.ChangedParts(delta));
             var applied=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(delta)),client);
             Require(applied.Json==b.Json,"клиент собрал другой мир после изменения ловушки");
@@ -136,7 +136,7 @@ namespace Remains.Editor
             Require(next.hazards[0].closed==hazard.closed && (next.hazards.Count<2 || ReferenceEquals(next.hazards[1],client.hazards[1])),"изменённая ловушка разобрана, остальные переиспользованы");
             host.hazards.Remove(hazard);host.revision++;
             var c=RecoverySnapshot.FromWorld(host);
-            var removal=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(WorldDelta.Build(host.worldId,b.Id,b.Composition,c.Id,c.Composition))),next);
+            var removal=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(WorldDelta.Build(host.worldId,b.ReplicationId,b.Composition,c.ReplicationId,c.Composition))),next);
             Require(removal.Json==c.Json && removal.CreateLiveWorld().hazards.Count==host.hazards.Count,"удаление ловушки по дельте");
         }
 

@@ -15,6 +15,7 @@ namespace Remains.Editor
         public static void Run()
         {
             RoomCatalogLifetimeChecks.Run();
+            SnapshotManifestChecks.Run();
             ProjectStorageChecks.Run();LevelTimeReplicaChecks.Run();MechanismOperationsChecks.Run();
             ItemShortcutChecks.Run();
             InventoryItemActionChecks.Run();InventoryDescriptionChecks.Run();ItemLandingAudioChecks.Run();

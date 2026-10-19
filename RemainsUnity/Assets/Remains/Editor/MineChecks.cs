@@ -125,7 +125,7 @@ namespace Remains.Editor
             var a=RecoverySnapshot.FromWorld(host);var replica=WorldReplica.FromSnapshot(a);var client=a.CreateLiveWorld();
             var mine=host.mines[0];MineRules.Trigger(mine,MineRules.Profile(mine));WorldChanges.Mark(host,mine);host.revision++;
             var b=RecoverySnapshot.FromWorld(host);
-            var delta=WorldDelta.Build(host.worldId,a.Id,a.Composition,b.Id,b.Composition);
+            var delta=WorldDelta.Build(host.worldId,a.ReplicationId,a.Composition,b.ReplicationId,b.Composition);
             Require(WorldDelta.ChangedParts(delta)==1,"срабатывание мины — одна часть дельты, а не "+WorldDelta.ChangedParts(delta));
             var applied=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(delta)),client);
             Require(applied.Json==b.Json,"клиент собрал другой мир после срабатывания");
@@ -133,7 +133,7 @@ namespace Remains.Editor
             Require(next.mines[0].triggered && (next.mines.Count<2 || ReferenceEquals(next.mines[1],client.mines[1])),"сработавшая мина разобрана, остальные переиспользованы");
             MineRules.Detonate(host,mine,null);host.revision++;
             var c=RecoverySnapshot.FromWorld(host);
-            var removal=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(WorldDelta.Build(host.worldId,b.Id,b.Composition,c.Id,c.Composition))),next);
+            var removal=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(WorldDelta.Build(host.worldId,b.ReplicationId,b.Composition,c.ReplicationId,c.Composition))),next);
             Require(removal.Json==c.Json && removal.CreateLiveWorld().mines.Count==host.mines.Count,"удаление мины по дельте");
         }
 

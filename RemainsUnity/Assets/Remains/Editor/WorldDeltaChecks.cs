@@ -47,7 +47,7 @@ namespace Remains.Editor
             host.revision++;
             var composeTimer=System.Diagnostics.Stopwatch.StartNew();
             var b=RecoverySnapshot.FromWorld(host);double composeMs=composeTimer.Elapsed.TotalMilliseconds;
-            var delta=WorldDelta.Build(host.worldId,a.Id,a.Composition,b.Id,b.Composition);
+            var delta=BuildDelta(a,b);
             int changed=WorldDelta.ChangedParts(delta);
             Require(changed==expected,$"Изменение A→B: частей {changed}, ожидалось {expected}.");
             string encoded=StateJson.ToJson(delta);
@@ -69,7 +69,7 @@ namespace Remains.Editor
             }
             var second=host.containers[3];second.x+=1;WorldChanges.Mark(host,second);host.revision++;
             var b2=RecoverySnapshot.FromWorld(host);
-            var delta2=WorldDelta.Build(host.worldId,b.Id,b.Composition,b2.Id,b2.Composition);
+            var delta2=BuildDelta(b,b2);
             timer.Restart();
             RecoverySnapshot actorStep=null;int actorBytes=0;
             var applied2=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(delta2)),nextClient);
@@ -100,7 +100,7 @@ namespace Remains.Editor
                     host.revision++;
                     var next=RecoverySnapshot.FromWorld(host);
                     var baseSnapshot=round==0?b2:actorStep;
-                    var actorDelta=WorldDelta.Build(host.worldId,baseSnapshot.Id,baseSnapshot.Composition,next.Id,next.Composition);
+                    var actorDelta=BuildDelta(baseSnapshot,next);
                     var list=actorDelta.lists.Find(entry=>entry.name=="actors");
                     int at=Array.IndexOf(list.keys,"actors:"+mover.id);
                     Require(at>=0 && list.templates!=null && list.templates[at]!=null && list.texts[at]==null,"Персонаж передан целым текстом, а не шаблоном.");
@@ -120,7 +120,7 @@ namespace Remains.Editor
             var added=StateJson.Copy(host.containers[2]);added.id="check:delta-added";host.containers.Add(added);
             host.containers.RemoveAt(1);host.revision++;
             var c=RecoverySnapshot.FromWorld(host);
-            var orderDelta=WorldDelta.Build(host.worldId,lastBase.Id,lastBase.Composition,c.Id,c.Composition);
+            var orderDelta=BuildDelta(lastBase,c);
             Require(orderDelta.lists.Any(list=>list.name=="containers" && list.order!=null),"Смена состава контейнеров без порядка.");
             var appliedC=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(orderDelta)),nextClient);
             Require(appliedC.Id==c.Id && appliedC.Json==c.Json,"Клиент собрал другой текст C после смены состава.");
@@ -132,9 +132,59 @@ namespace Remains.Editor
             try {replica.Apply(StateJson.FromJson<WorldDeltaPayload>(encoded),clientC);}
             catch(InvalidDataException) {rejected=true;}
             Require(rejected,"Изменение от чужой базы применено.");
+            RunLiveChecks(host);
 
             Debug.Log($"Изменения мира: PASS — A→B частей {changed}, {encoded.Length} символов вместо {b.Json.Length} " +
                 $"({100.0*encoded.Length/b.Json.Length:F1}%), сборка у хоста {composeMs:F1} мс, применение {applyMs:F1} мс, следующее {apply2Ms:F1} мс, сдвиг персонажа {actorBytes} символов; смена состава, отказ чужой базе.");
+        }
+
+        private static WorldDeltaPayload BuildDelta(RecoverySnapshot before,RecoverySnapshot after)
+            =>WorldDelta.Build(after.WorldId,before.ReplicationId,before.Composition,after.ReplicationId,after.Composition);
+        private static WorldDeltaPayload Wire(WorldDeltaPayload delta)=>StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(delta));
+
+        // The production opt-in preserves runtime projections but keeps canonical/recovery graphs independent.
+        private static void RunLiveChecks(WorldState fixture)
+        {
+            var host=fixture.Copy();Require(host.actors.Count>1,"Для проверки live-реплики нужны два актёра.");
+            WorldChanges.Track(host);
+            var a=RecoverySnapshot.FromWorld(host);var replica=WorldReplica.FromSnapshot(a);var current=a.CreateLiveWorld();
+            var mover=host.actors[0];var stable=current.actors[1];
+            stable.x+=123;stable.perception.remainingSeconds=123;
+            stable.inventory.Add(new ItemStack {id="check:local-only",definition="caps",count=1});
+            mover.x+=.25f;WorldChanges.Mark(host,mover);host.revision++;
+            var b=RecoverySnapshot.FromWorld(host);var delta=BuildDelta(a,b);
+            string before=StateJson.ToJson(current),canonicalBefore=StateJson.ToJson(replica.CopyCanonicalActor(mover.id));
+            string baseId=replica.SnapshotId;
+            var corrupt=Wire(delta);corrupt.snapshot=new string('0',64);
+            bool rejected=false;
+            try {replica.ApplyLive(corrupt,current,out _,out _);} catch(InvalidDataException) {rejected=true;}
+            Require(rejected && replica.SnapshotId==baseId && StateJson.ToJson(current)==before &&
+                StateJson.ToJson(replica.CopyCanonicalActor(mover.id))==canonicalBefore,"Повреждённая live-дельта изменила базу, canonical или живой мир.");
+            var snapshot=replica.ApplyLive(Wire(delta),current,out var live,out var reused);
+            Require(reused.Contains(stable.id) && ReferenceEquals(live.actors[1],stable) && stable.perception.remainingSeconds==123 &&
+                stable.inventory.Any(item=>item.id=="check:local-only"),"Неизменённая live-проекция потеряла ссылку или локальное состояние.");
+            Require(!reused.Contains(mover.id) && !ReferenceEquals(live.actors[0],current.actors[0]) && live.actors[0].x==mover.x,
+                "Изменённый live-актёр не скопирован из canonical.");
+            Require(snapshot.Json==b.Json && StateJson.ToJson(snapshot.CreateLiveWorld())==b.Json,"Live-проекция попала в восстановительный снимок.");
+            live.actors[0].inventory.Clear();live.actors[0].inventoryAliases["check:alias"]="check:target";
+            live.actors[0].perception.remainingSeconds=999;
+            Require(StateJson.ToJson(replica.CopyCanonicalActor(mover.id))==StateJson.ToJson(mover),"Live-изменение загрязнило canonical, включая неизменённые cold-поля.");
+            var detached=replica.CopyCanonicalActor(mover.id);detached.inventory.Clear();detached.x=999;
+            Require(StateJson.ToJson(replica.CopyCanonicalActor(mover.id))==StateJson.ToJson(mover),"CopyCanonicalActor выдал внутренний граф.");
+            mover.inventory.Add(new ItemStack {id="check:changed-cold",definition="caps",count=2});
+            WorldChanges.Mark(host,mover);host.revision++;var c=RecoverySnapshot.FromWorld(host);
+            var snapshotC=replica.ApplyLive(Wire(BuildDelta(b,c)),live,out var liveC,out var reusedC);
+            Require(reusedC.Contains(stable.id) && ReferenceEquals(liveC.actors[1],stable) &&
+                StateJson.ToJson(liveC.actors[0].inventory)==StateJson.ToJson(mover.inventory),"Разреженная cold-дельта повредила inventory или unchanged-ссылку.");
+            liveC.actors[0].inventory.Clear();
+            Require(StateJson.ToJson(snapshotC.CreateLiveWorld())==c.Json && StateJson.ToJson(snapshot.CreateLiveWorld())==b.Json,
+                "Последующая live-мутация загрязнила текущий или предыдущий detached recovery.");
+            // Same ID is insufficient after a lifetime change; missing actors must also be reconstructed.
+            stable.generation++;liveC.actors.RemoveAt(0);host.revision++;var d=RecoverySnapshot.FromWorld(host);
+            replica.ApplyLive(Wire(BuildDelta(c,d)),liveC,out var liveD,out var reusedD);
+            Require(!reusedD.Contains(stable.id) && !ReferenceEquals(liveD.actors[1],stable) &&
+                StateJson.ToJson(liveD.actors[0])==StateJson.ToJson(host.actors[0]),"Несовместимый lifetime или отсутствующий live-актёр переиспользован.");
+            Debug.Log("Live-реплика: PASS — разреженные ссылки, hot/cold изоляция, detached recovery, rollback и lifetime.");
         }
 
         private static void Require(bool condition,string message) {if(!condition) throw new InvalidOperationException(message);}

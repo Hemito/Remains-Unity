@@ -692,7 +692,7 @@ namespace Remains.Networking
         private void SendFullWorld(NetworkConnectionToClient connection,RecoverySnapshot snapshot,string owner=null,string actor=null)
         {
             WorldReplication.Send(connection,snapshot,owner,actor);
-            deliveredSnapshots[connection.connectionId]=snapshot.Id;
+            deliveredSnapshots[connection.connectionId]=snapshot.ReplicationId;
         }
 
         private RecoverySnapshot PrepareRecovery()
@@ -1182,14 +1182,14 @@ namespace Remains.Networking
                 foreach(int id in owners.Keys)
                 {
                     if(!NetworkServer.connections.TryGetValue(id,out var connection)) continue;
-                    var baseSnapshot=deliveredSnapshots.TryGetValue(id,out string baseId)?recentSnapshots.Find(s=>s.Id==baseId):null;
-                    if(baseSnapshot?.Composition!=null && snapshot.Composition!=null && baseSnapshot.Id!=snapshot.Id)
+                    var baseSnapshot=deliveredSnapshots.TryGetValue(id,out string baseId)?recentSnapshots.Find(s=>s.ReplicationId==baseId):null;
+                    if(baseSnapshot?.Composition!=null && snapshot.Composition!=null && baseSnapshot.ReplicationId!=snapshot.ReplicationId)
                     {
-                        if(!payloads.TryGetValue(baseSnapshot.Id,out var payload))
-                            payloads.Add(baseSnapshot.Id,payload=new System.Text.UTF8Encoding(false).GetBytes(Remains.Serialization.StateJson.ToJson(
-                                WorldDelta.Build(snapshot.WorldId,baseSnapshot.Id,baseSnapshot.Composition,snapshot.Id,snapshot.Composition))));
-                        WorldReplication.SendDelta(connection,baseSnapshot.Id,snapshot.Id,payload);
-                        deliveredSnapshots[id]=snapshot.Id;deltas++;
+                        if(!payloads.TryGetValue(baseSnapshot.ReplicationId,out var payload))
+                            payloads.Add(baseSnapshot.ReplicationId,payload=new System.Text.UTF8Encoding(false).GetBytes(Remains.Serialization.StateJson.ToJson(
+                                WorldDelta.Build(snapshot.WorldId,baseSnapshot.ReplicationId,baseSnapshot.Composition,snapshot.ReplicationId,snapshot.Composition))));
+                        WorldReplication.SendDelta(connection,baseSnapshot.ReplicationId,snapshot.ReplicationId,payload);
+                        deliveredSnapshots[id]=snapshot.ReplicationId;deltas++;
                     }
                     else {SendFullWorld(connection,snapshot);full++;}
                 }

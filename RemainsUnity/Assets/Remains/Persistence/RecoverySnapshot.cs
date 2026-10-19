@@ -53,7 +53,28 @@ namespace Remains.Persistence
         private readonly string template;
         private readonly IReadOnlyList<SnapshotPartCache.PartSet> parts;
         private readonly object jsonGate=new();
-        public string Id { get; }
+        private string fileId;
+        // File identity stays SHA256 of the exact JSON. Periodic replication uses Manifest instead;
+        // durable writers calculate this property before their completion/ACK reaches the game thread.
+        public string Id
+        {
+            get
+            {
+                var ready=Volatile.Read(ref fileId);if(ready!=null) return ready;
+                lock(jsonGate)
+                {
+                    if(fileId==null)
+                        using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: хеш файла"))
+                            Volatile.Write(ref fileId,SnapshotPartCache.Fingerprint(template,parts));
+                    return fileId;
+                }
+            }
+        }
+        public bool TryFileId(out string value) {value=Volatile.Read(ref fileId);return value!=null;}
+        public SnapshotManifest Manifest {get;private set;}
+        public string ReplicationId=>Manifest.Id;
+        private sealed class ManifestMemory {public SnapshotManifest value;}
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState,ManifestMemory> manifestMemories=new();
         public string WorldId { get; }
         public long Revision { get; }
         private WorldState preparedLive;
@@ -77,32 +98,35 @@ namespace Remains.Persistence
             this.json = json;
             WorldId = world.worldId;
             Revision = world.revision;
-            Id = Fingerprint(json);
+            fileId = Fingerprint(json);
+            var split=SnapshotPartCache.Split(world);
+            Manifest=SnapshotManifest.Build(split.Template,split.Lists);
             preparedLive = world;
         }
 
         // From live state: the text is composed from cached parts (SnapshotPartCache), whose strict parse covers
         // what the whole-text round-trip covered; the world rules are checked on the live world the text was
         // written from. No parsed graph is kept: CreateLiveWorld parses the immutable Json when asked.
-        private RecoverySnapshot(WorldState world,string template,IReadOnlyList<SnapshotPartCache.PartSet> parts)
+        private RecoverySnapshot(WorldState world,string template,IReadOnlyList<SnapshotPartCache.PartSet> parts,SnapshotManifest previousManifest=null)
         {
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: правила мира")) Validate(world);
             this.template=template;this.parts=parts;
             WorldId = world.worldId;
             Revision = world.revision;
-            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: хеш")) Id = SnapshotPartCache.Fingerprint(template,parts);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: манифест")) Manifest=SnapshotManifest.Build(template,parts,previousManifest);
             producedHere = true;
         }
 
         // A delta-assembled snapshot (WorldReplica.Apply): the text must hash to the expected ID; the live world was
         // built from the strictly parsed template and changed parts plus unchanged live parts, and passes the rules.
-        internal static RecoverySnapshot Assembled(string template,IReadOnlyList<SnapshotPartCache.PartSet> parts,string expectedId,WorldState world)
+        internal static RecoverySnapshot Assembled(string template,IReadOnlyList<SnapshotPartCache.PartSet> parts,string expectedId,WorldState world,
+            bool retainPreparedLive=true,SnapshotManifest previousManifest=null)
         {
             if(template==null || parts==null || world==null) throw new ArgumentNullException(world==null?nameof(world):template==null?nameof(template):nameof(parts));
-            var snapshot=new RecoverySnapshot(world,template,parts);
-            if(snapshot.Id!=expectedId)
-                throw new System.IO.InvalidDataException($"Изменение мира собрано с другим хешем: ожидался {expectedId}, получен {snapshot.Id}.");
-            snapshot.preparedLive=world;
+            var snapshot=new RecoverySnapshot(world,template,parts,previousManifest);
+            if(snapshot.ReplicationId!=expectedId)
+                throw new System.IO.InvalidDataException($"Изменение мира собрано с другим манифестом: ожидался {expectedId}, получен {snapshot.ReplicationId}.");
+            if(retainPreparedLive) snapshot.preparedLive=world;
             return snapshot;
         }
 
@@ -173,7 +197,9 @@ namespace Remains.Persistence
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
             var composition=SnapshotPartCache.Compose(world);
-            var snapshot=new RecoverySnapshot(world,composition.Template,composition.Lists) {Composition=composition};
+            var memory=manifestMemories.GetOrCreateValue(world);
+            var snapshot=new RecoverySnapshot(world,composition.Template,composition.Lists,memory.value) {Composition=composition};
+            memory.value=snapshot.Manifest;
             lock(producedGate)
             {
                 produced.Enqueue(snapshot);
@@ -200,17 +226,28 @@ namespace Remains.Persistence
     // A revision alone cannot identify a snapshot: pose packets do not increment it.
     public sealed class RecoveryReceiptGate
     {
-        private readonly Dictionary<string, long> sent = new();
+        private readonly Dictionary<string,RecoverySnapshot> sent = new();
         private readonly Queue<string> order = new();
-        public void Clear() { sent.Clear(); order.Clear(); }
+        public void Clear() {sent.Clear();order.Clear();}
         public void Register(RecoverySnapshot snapshot)
         {
-            if (sent.ContainsKey(snapshot.Id)) return;
-            sent.Add(snapshot.Id, snapshot.Revision);
-            order.Enqueue(snapshot.Id);
+            if (sent.ContainsKey(snapshot.ReplicationId)) return;
+            sent.Add(snapshot.ReplicationId,snapshot);
+            order.Enqueue(snapshot.ReplicationId);
             while (order.Count > 256) sent.Remove(order.Dequeue());
         }
-        public bool Matches(string id, long revision) =>
-            id != null && sent.TryGetValue(id, out long actual) && actual == revision;
+        public bool Matches(string id,long revision)
+        {
+            if(id==null) return false;
+            foreach(var snapshot in sent.Values)
+                if(snapshot.Revision==revision && snapshot.TryFileId(out string actual) && actual==id) return true;
+            return false;
+        }
+        public bool HasPending(long revision)
+        {
+            foreach(var snapshot in sent.Values)
+                if(snapshot.Revision==revision && !snapshot.TryFileId(out _)) return true;
+            return false;
+        }
     }
 }
