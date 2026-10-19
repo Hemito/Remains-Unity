@@ -20,13 +20,14 @@ MonoBehaviour:
     range: 600
     cooldown: 0.5
     manaCost: 0
-    ammo: recharg
+    ammo: 
     magazineSize: 20
     ammoPerShot: 1
     reloadSeconds: 20
     projectileSpeed: 180
     projectileSpeedVariation: 0.2
     projectileLifetime: 3.3333333
+    rechargeSeconds: 1
     shotSpreadHalfAngleDegrees: 2.5
     recoil:
       version: 1
@@ -73,6 +74,6 @@ MonoBehaviour:
   presentation: {fileID: 8083812765450117422, guid: f3dcfe61e5d813442b30a2d114e17c99, type: 3}
   shotAnimation: {fileID: 11400000, guid: ddf1e955aaa49ba409ce55844a71cd24, type: 2}
   muzzleFlashGain: 1
-  reloadAnimation: {fileID: 11400000, guid: 4eec99523662fa74ea2fcc8af5100bf0, type: 2}
+  reloadAnimation: {fileID: 0}
   casingProfile: {fileID: 0}
   grenadeFlight: {fileID: 0}

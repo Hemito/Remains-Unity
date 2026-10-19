@@ -15,9 +15,11 @@ namespace Remains.Gameplay
         private readonly Remains.Content.MovementSettings movementSettings;
         private readonly Dictionary<(string level,string type),MovementController> movement=new();
         private readonly NpcCreatureController creatures=new();
+        private readonly WeaponRechargeController recharge;
         public NpcController(CoopSession session,SimulationGeometry geometry)
         {
             this.session=session;this.geometry=geometry;
+            recharge=new WeaponRechargeController(session);
             movementSettings=Remains.Content.MovementSettings.Load();
             senses=new NpcSenses(session,geometry);
             session.Changed+=()=>
@@ -58,6 +60,7 @@ namespace Remains.Gameplay
                 var target=session.World.Find(actor.attackBusy?actor.attackTarget:actor.target);
                 bool visible=target!=null && target.level==actor.level && RoomVisibility.Clear(geometry.Get(actor.level),
                     natural?NpcNaturalAttack.Origin(actor):WeaponPose.RangedAnchor(actor),target.BodyPosition+Vector2.up*(natural?type.perception.targetHeight:.55f));
+                if(!natural) recharge.Step(actor,dt,actor.attackBusy?dt:actor.attackCooldown);
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 bool family=NpcCreatureBehaviours.IsFamily(type.behavior);
                 if(actor.attackBusy)

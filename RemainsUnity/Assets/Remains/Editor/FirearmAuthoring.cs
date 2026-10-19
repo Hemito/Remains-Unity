@@ -154,7 +154,8 @@ namespace Remains.Editor
             float recoil=Num(phis,"recoil",0)/PistolRecoil;
             var definition=new WeaponDefinition
             {
-                id=id,damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,ammo=ammo,
+                id=id,damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,ammo=Num(ammoNode,"recharg",0)>0?null:"item:"+ammo,
+                rechargeSeconds=Num(ammoNode,"recharg",0)/FramesPerSecond,
                 magazineSize=(int)Num(ammoNode,"holder"),ammoPerShot=(int)Num(ammoNode,"rashod",1),reloadSeconds=Mathf.Max(1,Num(ammoNode,"reload"))/FramesPerSecond,   // reload 0 (buckshot): one frame, the shortest the rules allow
                 projectileSpeed=speed,projectileSpeedVariation=SpeedVariation,projectileLifetime=lifetime,range=speed*lifetime,
                 shotSpreadHalfAngleDegrees=Mathf.Min(90,Num(phis,"deviation",0)*.5f),
@@ -187,7 +188,7 @@ namespace Remains.Editor
                 shotClip.ConfigureDeferred(FramesPerSecond,FramePaths(exported,appearance,shotFrames,frames),rest.pixelsPerUnit);
                 if(created) AssetDatabase.CreateAsset(shotClip,path);else EditorUtility.SetDirty(shotClip);
             }
-            if(Range("reload") is {Length:>0} reloadFrames)
+            if(definition.rechargeSeconds<=0 && Range("reload") is {Length:>0} reloadFrames)
             {
                 string path=PrefabFolder+"/"+file+"-reload.asset";assets.Add(path);
                 reloadClip=AssetDatabase.LoadAssetAtPath<WeaponReloadClip>(path);bool created=reloadClip==null;

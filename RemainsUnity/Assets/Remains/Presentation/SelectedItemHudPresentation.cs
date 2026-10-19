@@ -76,7 +76,7 @@ namespace Remains.Presentation
                 {
                     counter=$"В стопке: {available}";action="ЛКМ — бросить";
                 }
-                else if(string.IsNullOrEmpty(weapon.ammo))
+                else if(!weapon.UsesMagazine)
                 {
                     action=weapon.speedDamage>0?"ЛКМ — удар · урон зависит от скорости":"ЛКМ — атака";
                 }
@@ -91,8 +91,14 @@ namespace Remains.Presentation
                     }
                     else
                     {
-                        int reserve=InventoryJournal.Count(actor,weapon.ammo);
+                        int reserve=WeaponAmmunition.Reserve(actor,weapon);
                         counter=$"{magazine.rounds} / {weapon.magazineSize}    Запас: {reserve}";
+                        if(weapon.rechargeSeconds>0)
+                        {
+                            counter=$"{magazine.rounds} / {weapon.magazineSize}";
+                            action=magazine.rounds<weapon.magazineSize?"Автоматическая подзарядка":"Заряд полный";
+                        }
+                        else
                         action=reloadRemaining.HasValue?$"Перезарядка · {Mathf.Max(0,reloadRemaining.Value):0.0} с":
                             magazine.rounds<weapon.ammoPerShot?(reserve>0?"Магазин пуст · R":"Нет боеприпасов"):
                             magazine.rounds<weapon.magazineSize && reserve>0?"R — перезарядить":"";

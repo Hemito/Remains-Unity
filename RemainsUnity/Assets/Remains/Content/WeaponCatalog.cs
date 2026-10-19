@@ -29,6 +29,7 @@ namespace Remains.Content
         public string ammo;
         public int magazineSize,ammoPerShot;
         public float reloadSeconds,projectileSpeed,projectileSpeedVariation,projectileLifetime;
+        [Min(0),InspectorName("Самоподзарядка одного заряда, с (0 — отключена)")] public float rechargeSeconds;
         public float shotSpreadHalfAngleDegrees;
         public WeaponRecoilProfile recoil;
         // An explosion (grenade, mine): resolved as a persisted ExplosionState around its position within `range`;
@@ -51,7 +52,7 @@ namespace Remains.Content
         // A magazine refilled by reloading without ammunition items (original turret guns: holder and reload with an
         // endless supply). Weapons with an ammo item use their magazine as well.
         public bool unlimitedReserve;
-        public bool UsesMagazine=>!string.IsNullOrEmpty(ammo) || unlimitedReserve;
+        public bool UsesMagazine=>!string.IsNullOrEmpty(ammo) || unlimitedReserve || rechargeSeconds>0;
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }

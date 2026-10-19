@@ -166,6 +166,9 @@ namespace Remains.Content
                 if(!float.IsFinite(value) || value<0) throw new InvalidDataException($"Некорректное число оружия: источник={source}, id={weapon.id}.");
             if(weapon.unlimitedReserve && (!string.IsNullOrEmpty(weapon.ammo) || weapon.magazineSize<=0 || weapon.ammoPerShot<=0 || weapon.ammoPerShot>weapon.magazineSize || weapon.reloadSeconds<=0))
                 throw new InvalidDataException($"Бесконечный запас требует магазин без патронов: источник={source}, weapon={weapon.id}.");
+            if(!float.IsFinite(weapon.rechargeSeconds) || weapon.rechargeSeconds<0 || weapon.rechargeSeconds>0 &&
+                (!string.IsNullOrEmpty(weapon.ammo) || weapon.unlimitedReserve || weapon.magazineSize<=0 || weapon.ammoPerShot<=0 || weapon.ammoPerShot>weapon.magazineSize))
+                throw new InvalidDataException($"Самоподзарядка требует магазин без патронов и без ручной перезарядки: источник={source}, weapon={weapon.id}.");
             if(weapon.pellets<0 || weapon.pellets>20 || weapon.pellets>1 && weapon.projectileSpeed<=0)
                 throw new InvalidDataException($"Некорректное число снарядов залпа: источник={source}, weapon={weapon.id}, pellets={weapon.pellets}. Допустимо 0–20, только для снарядов.");
             var speeds=weapon.ProjectileSpeedRange;

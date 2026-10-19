@@ -9,15 +9,15 @@ namespace Remains.Domain
 
     public static class InventoryJournal
     {
-        public static int Count(ActorState actor,string definition) => actor.inventory.Where(i=>i.definition==definition).Sum(i=>InventoryAvailability.Count(actor,i));
+        public static int Count(ActorState actor,string definition,string compatibleDefinition=null) => actor.inventory.Where(i=>i.definition==definition || compatibleDefinition!=null && i.definition==compatibleDefinition).Sum(i=>InventoryAvailability.Count(actor,i));
 
-        public static bool Consume(ActorState actor,string definition,int count)
+        public static bool Consume(ActorState actor,string definition,int count,string compatibleDefinition=null)
         {
             CosmeticEquipment.Validate(actor);
-            if(count<=0 || Count(actor,definition)<count) return false;
+            if(count<=0 || Count(actor,definition,compatibleDefinition)<count) return false;
             var use=new InventoryUse {id=Guid.NewGuid().ToString("N")};
             int remaining=count;
-            foreach(var item in actor.inventory.Where(i=>i.definition==definition && i.count>0))
+            foreach(var item in actor.inventory.Where(i=>(i.definition==definition || compatibleDefinition!=null && i.definition==compatibleDefinition) && i.count>0))
             {
                 int take=Math.Min(remaining,InventoryAvailability.Count(actor,item));
                 if(take==0) continue;

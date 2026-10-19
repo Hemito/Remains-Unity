@@ -33,6 +33,7 @@ namespace Remains.Gameplay
         public string ActiveMeleeId=>IsMeleeActive?swingId:null;
         public float MeleeRemaining=>IsMeleeActive?swingSweep.Duration-swingSweep.Elapsed:0;
         public WeaponReloadController Reload { get; }
+        private readonly WeaponRechargeController recharge;
         public ProjectileController Projectiles {get;}
         private float nextResourceNotice;
         private string selectedActor;
@@ -47,6 +48,7 @@ namespace Remains.Gameplay
             this.geometry=geometry;
             session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown,null,session.Rules.NaturalAttackDamage);damage.Applied+=result=>DamageApplied?.Invoke(result);AttackerDecidedHits=VictimDecidedHits=0;};
             Reload=new WeaponReloadController(session);
+            recharge=new WeaponRechargeController(session);
             Reload.Started+=(actor,_)=>session.Recoil.BeginReload(actor);
             Reload.Finished+=()=>session.Recoil.EndReload();
             Projectiles=new ProjectileController(session,geometry,ApplyAttackTarget);
@@ -109,7 +111,7 @@ namespace Remains.Gameplay
                 {nextResourceNotice=Time.unscaledTime+1;session.ShowNotice(reason);}
                 return false;
             }
-            if(definition.manaCost>0 || !string.IsNullOrEmpty(definition.ammo))
+            if(definition.manaCost>0 || definition.UsesMagazine)
             {attacker.revision++;session.PublishActor(attacker);}
             shotCooldown.Restart(definition.cooldown);
             if(melee)
@@ -128,6 +130,7 @@ namespace Remains.Gameplay
             pending.Drain(session.Pause.IsPaused);
             Projectiles.Step(dt);
             if(session.LocalActor!=null && session.Pause.IsPaused(session.LocalActor.level)) dt=0;
+            recharge.Step(session.LocalActor,dt,shotCooldown.Remaining);
             shotCooldown.Advance(dt);
             Reload.Step(Weapon,dt);
             if(swingActor==null) return;

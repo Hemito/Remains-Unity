@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Remains.Content;
 using Remains.Domain;
+using Remains.Serialization;
 using Remains.Presentation;
 using UnityEditor;
 using UnityEngine;
@@ -34,16 +35,16 @@ namespace Remains.Editor
             {
                 var weapon=WeaponCatalog.Get(asset.Id);
                 Require(ExportedWeaponItems.Working(asset.Id) && exported.TryItem(asset.Id,out _),"нет предмета "+asset.Id);
-                Require(weapon.projectileSpeed>0 && weapon.damage>0 && weapon.cooldown>0 && weapon.magazineSize>0 && !string.IsNullOrEmpty(weapon.ammo) &&
-                    weapon.meleeMotion==null && exported.TryItem(weapon.ammo,out _),"числа или патрон "+asset.Id);
+                Require(weapon.projectileSpeed>0 && weapon.damage>0 && weapon.cooldown>0 && weapon.magazineSize>0 &&
+                    weapon.meleeMotion==null && (weapon.rechargeSeconds>0?string.IsNullOrEmpty(weapon.ammo):weapon.ammo.StartsWith("item:",StringComparison.Ordinal) && exported.TryItem(weapon.ammo,out _)),"числа или патрон "+asset.Id);
                 var rig=WeaponRigs.Get(asset.Id);
                 Require(rig.HasMuzzle && WeaponRigs.PresentationId(asset.Id)==asset.Id,"нет дула или графики "+asset.Id);
                 asset.ShotAnimation?.ValidateAgainst(asset.Presentation.Artwork.sprite);
                 asset.ReloadAnimation?.ValidateAgainst(asset.Presentation.Artwork.sprite);
-                Require(asset.ShotAnimation!=null && asset.ReloadAnimation!=null && asset.ShotAnimation.Deferred && asset.ReloadAnimation.Deferred,"нет кадров выстрела или перезарядки по требованию "+asset.Id);
+                Require(asset.ShotAnimation!=null && asset.ShotAnimation.Deferred && (weapon.rechargeSeconds>0?asset.ReloadAnimation==null:asset.ReloadAnimation!=null && asset.ReloadAnimation.Deferred),"нет кадров выстрела или перезарядки по требованию "+asset.Id);
                 var restSprite=asset.Presentation.Artwork.sprite;
                 for(int i=0;i<asset.ShotAnimation.FrameCount;i++) Require(asset.ShotAnimation.LoadFrameNow(i) is {} s && Mathf.Approximately(s.pixelsPerUnit,restSprite.pixelsPerUnit),"кадр выстрела "+i+" "+asset.Id);
-                for(int i=0;i<asset.ReloadAnimation.FrameCount;i++) Require(asset.ReloadAnimation.LoadFrameNow(i) is {} s && Mathf.Approximately(s.pixelsPerUnit,restSprite.pixelsPerUnit),"кадр перезарядки "+i+" "+asset.Id);
+                for(int i=0;i<(asset.ReloadAnimation?.FrameCount??0);i++) Require(asset.ReloadAnimation.LoadFrameNow(i) is {} s && Mathf.Approximately(s.pixelsPerUnit,restSprite.pixelsPerUnit),"кадр перезарядки "+i+" "+asset.Id);
                 Require(ShotArtwork.TryGet(asset.Id,out _),"нет графики снаряда "+asset.Id);
                 // The catalog loads only the rest frame (and the casing): animation frames are named, not referenced.
                 int textures=AssetDatabase.GetDependencies(AssetDatabase.GetAssetPath(asset),true).Count(p=>AssetDatabase.GetMainAssetTypeAtPath(p)==typeof(Texture2D));
@@ -52,13 +53,14 @@ namespace Remains.Editor
             }
             var hunt=WeaponCatalog.Get("weapon:hunt:grade:0");
             Require(Mathf.Approximately(hunt.damage,22) && Mathf.Approximately(hunt.cooldown,25f/30) && hunt.magazineSize==5 &&
-                Mathf.Approximately(hunt.reloadSeconds,50f/30) && Mathf.Approximately(hunt.projectileSpeed,300*30f/50) && hunt.ammo=="p32" &&
+                Mathf.Approximately(hunt.reloadSeconds,50f/30) && Mathf.Approximately(hunt.projectileSpeed,300*30f/50) && hunt.ammo=="item:p32" &&
                 Mathf.Approximately(hunt.shotSpreadHalfAngleDegrees,1),"охотничья винтовка по AllData");
             Require(!WeaponCatalog.Contains("weapon:p10mm:grade:0") && !WeaponCatalog.Contains("weapon:lasp:grade:0"),"ручные пистолеты не заменены");
             var assr0=WeaponCatalog.Get("weapon:assr:grade:0");var assr1=WeaponCatalog.Get("weapon:assr:grade:1");
             Require(Mathf.Approximately(assr0.damage,9) && Mathf.Approximately(assr1.damage,11) && assr1.ammo==assr0.ammo,"улучшенный вариант поверх базового");
 
             CheckVolley();
+            CheckAmmunition(exported,hunt);
 
             // Formal stacks saved before the weapon was connected.
             var items=new List<ItemStack> {new() {id="a",definition="weapon:hunt:grade:0",count=2},new() {id="b",definition="weapon:knife:grade:0",count=1}};
@@ -90,6 +92,57 @@ namespace Remains.Editor
             finally {FactoryContentSources.Clear();}
             Debug.Log($"PASS огнестрел: определений {generated.Length} ({generated.Select(a=>a.Id.Split(':')[1]).Distinct().Count()} моделей), "+
                 $"графика/дуло/кадры/снаряд/звук; охотничья винтовка и штурмовая по AllData; формальные стопки → рабочие; завод seed 104: рабочих стволов в луте {working}, формальных вещей оружия {formal}.");
+        }
+        private static void CheckAmmunition(ExportedContentCatalog exported,WeaponDefinition hunt)
+        {
+            var actor=new ActorState {id="ammo-check",owner="one",player=true,connected=true,level="hub",health=100,weaponInventoryVersion=1};
+            var gun=SharedInventory.Create(hunt.id,1);ExportedWeaponItems.Activate(new List<ItemStack>{gun});actor.inventory.Add(gun);
+            Require(WeaponInventory.Select(actor,gun.id,out _),"выбор винтовки");
+            // The actual exported loot stack and a pre-import loadout stack must feed the same magazine.
+            actor.inventory.Add(exported.CreateFormalItem("item:p32",0,3));
+            actor.inventory.Add(SharedInventory.Create("p32",2));actor.inventory.Add(exported.CreateFormalItem("item:p10",0,20));
+            Require(WeaponAmmunition.Reserve(actor,hunt)==5 && WeaponAmmunition.CompleteReload(actor,hunt) && gun.weaponState.rounds==5 &&
+                WeaponAmmunition.Reserve(actor,hunt)==0 && InventoryJournal.Count(actor,"item:p10")==20 && actor.inventoryUses.Count==1,
+                "импортированные и старые патроны не расходуются одной операцией или расходуется чужой тип");
+            gun.weaponState.rounds=0;
+            var reserved=exported.CreateFormalItem("item:p32",0,5);actor.inventory.Add(reserved);actor.inventoryReservations[reserved.id]=2;
+            Require(WeaponAmmunition.Reserve(actor,hunt)==3 && WeaponAmmunition.CompleteReload(actor,hunt) && gun.weaponState.rounds==3 && reserved.count==2,
+                "перезарядка расходует зарезервированные для передачи патроны");
+            foreach(string id in new[]{"weapon:rech:grade:0","weapon:rechr:grade:0"})
+            {
+                var definition=WeaponCatalog.Get(id);
+                Require(definition.rechargeSeconds==1 && string.IsNullOrEmpty(definition.ammo) && definition.UsesMagazine,"ammo@recharg=30: "+id);
+                var items=new List<ItemStack>{new(){id=id,definition=id,count=2}};ExportedWeaponItems.Activate(items);
+                Require(items.All(i=>i.weaponState.rounds==definition.magazineSize),"зарядное оружие появляется заряженным: "+id);
+                actor.inventory.AddRange(items);Require(WeaponInventory.Select(actor,items[0].id,out _),"выбор зарядного оружия");
+                Require(WeaponAmmunition.SpendShot(actor,definition,out _) && WeaponAmmunition.ReloadAmount(actor,definition)==0,"расход/запрет ручной перезарядки");
+                var magazine=items[0].weaponState;long revision=magazine.revision;float remaining=1;
+                Require(!WeaponAmmunition.AdvanceRecharge(magazine,definition,ref remaining,.4f) && magazine.revision==revision,"ранний заряд/покадровая ревизия");
+                Require(WeaponAmmunition.AdvanceRecharge(magazine,definition,ref remaining,.6f) && magazine.rounds==definition.magazineSize && magazine.revision==revision+1,
+                    "заряд через 30 кадров");
+                magazine.rounds=0;remaining=1;
+                Require(WeaponAmmunition.AdvanceRecharge(magazine,definition,ref remaining,2.4f) && magazine.rounds==2 && Mathf.Abs(remaining-.6f)<.0001f &&
+                    items[1].weaponState.rounds==definition.magazineSize,"длинный шаг и независимые экземпляры");
+                var restored=StateJson.Copy(actor);Require(WeaponInventory.Selected(restored).weaponState.rounds==2,"сохранение восстановленного заряда");
+                Require(!WeaponAmmunition.AdvanceRecharge(magazine,definition,ref remaining,0),"пауза меняет заряд");
+            }
+            var root=new GameObject("Проверка часов самоподзарядки");
+            try
+            {
+                var session=root.AddComponent<Remains.Networking.CoopSession>();session.ConfigureRules(WeaponCatalog.Rules);
+                var world=new WorldState {worldId="recharge-clock"};world.actors.Add(actor);
+                typeof(Remains.Networking.CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(Remains.Networking.CoopSession).GetProperty("LocalOwner").SetValue(session,"one");
+                var clock=new Remains.Gameplay.WeaponRechargeController(session);var selected=WeaponInventory.Selected(actor);selected.weaponState.rounds=0;
+                clock.Step(actor,1,1);Require(selected.weaponState.rounds==0,"подзарядка идёт во время атаки");
+                clock.Step(actor,.6f,0);Require(selected.weaponState.rounds==0,"преждевременный заряд контроллера");
+                var other=actor.inventory.First(i=>i.id!=selected.id && i.definition==selected.definition);
+                Require(WeaponInventory.Select(actor,other.id,out _),"смена зарядного экземпляра");clock.Step(actor,4,0);
+                Require(selected.weaponState.rounds==0,"убранный ствол подзарядился");
+                Require(WeaponInventory.Select(actor,selected.id,out _),"возврат зарядного экземпляра");clock.Step(actor,.4f,0);
+                Require(selected.weaponState.rounds==1,"смена оружия потеряла частичный интервал");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
         }
         // A shotgun shot through the real preparation: kol pellets fanned deviation/2 apart, each with its own spread,
         // speed and ID, the others marked as the first one's volley.

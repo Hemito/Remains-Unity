@@ -28,13 +28,14 @@ namespace Remains.Domain
                 if(item==null || item.weaponState!=null || !Working(item.definition)) continue;
                 int count=item.count;
                 if(count<=0) throw new InvalidOperationException($"Пустая стопка оружия: item={item.id}, definition={item.definition}.");
-                item.count=1;item.weaponState=new WeaponItemState {rounds=0};changed++;
+                int initial=WeaponCatalog.Get(item.definition).rechargeSeconds>0?WeaponCatalog.Get(item.definition).magazineSize:0;
+                item.count=1;item.weaponState=new WeaponItemState {rounds=initial};changed++;
                 int suffix=1;
                 for(int n=2;n<=count;n++)
                 {
                     string id;
                     do id=item.id+":"+ ++suffix; while(items.Exists(other=>other?.id==id) || aliases!=null && aliases.ContainsKey(id));
-                    var copy=item.Copy();copy.id=id;copy.count=1;copy.weaponState=new WeaponItemState {rounds=0};
+                    var copy=item.Copy();copy.id=id;copy.count=1;copy.weaponState=new WeaponItemState {rounds=initial};
                     items.Insert(++i,copy);
                 }
             }
