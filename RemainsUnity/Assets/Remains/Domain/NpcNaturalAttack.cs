@@ -74,12 +74,13 @@ namespace Remains.Domain
             // A missed target does not extend the shape or teleport the attacker to it.
             var result=target!=null && target.id==actor.attackTarget && ActorPresence.IsPresent(target) && target.level==actor.level
                 ?new AttackEvent {id=actor.attackId,attacker=actor.id,level=actor.level,weapon="",naturalAttackType=actor.actorType,naturalAttackTarget=target.id,
-                    originX=start.x,originY=start.y,endX=end.x,endY=end.y,radius=data.radius}:null;
+                    factoryEnemy=FactoryEnemyScaling.Capture(actor.factoryEnemy),originX=start.x,originY=start.y,endX=end.x,endY=end.y,radius=data.radius}:null;
             actor.attackBusy=false;actor.attackRemaining=0;actor.attackTarget=null;
             actor.attackCooldown=data.recoverySeconds;actor.revision++;return result;
         }
         public static void ValidateEvent(AttackEvent attack,ActorState source=null)
         {
+            if(source!=null) FactoryEnemyScaling.ValidateCaptured(attack,source);
             var data=Definition(attack.naturalAttackType);
             if(string.IsNullOrWhiteSpace(attack.id) || string.IsNullOrWhiteSpace(attack.attacker) || string.IsNullOrWhiteSpace(attack.level) ||
                 string.IsNullOrWhiteSpace(attack.naturalAttackTarget) || attack.naturalAttackTarget==attack.attacker ||

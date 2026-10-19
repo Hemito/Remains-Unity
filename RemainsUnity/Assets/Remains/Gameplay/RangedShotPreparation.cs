@@ -9,6 +9,7 @@ namespace Remains.Gameplay
     {
         public static void ValidateOwner(AttackEvent shot,ActorState actor,string worldId,WeaponDefinition definition,IWeaponRecoilRule curve)
         {
+            FactoryEnemyScaling.ValidateCaptured(shot,actor);
             string context=$"world={worldId}, actor={actor.id}, shot={shot.id}, weapon={shot.weapon}";
             var profile=WeaponRecoilProfile.ValidateForWeapon(definition,context);
             if(profile?.enabled==true) WeaponRecoilSampling.ValidateSample(curve,profile,0,context);

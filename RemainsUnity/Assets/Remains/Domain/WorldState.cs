@@ -28,6 +28,7 @@ namespace Remains.Domain
     [Serializable]
     public sealed class ActorState : ExtensibleState
     {
+        public FactoryEnemyScaleState factoryEnemy;
         public Remains.Content.ContentManifest weaponContent;
         public List<Remains.Content.ContentManifest> weaponContentHistory=new();
         public string id;
@@ -187,6 +188,7 @@ namespace Remains.Domain
     [Serializable]
     public sealed class AttackEvent : ExtensibleState
     {
+        public FactoryEnemyScaleState factoryEnemy;
         public string friendlyFireDecision=FriendlyFireDecision.Victim;
         public string id;
         public string attacker;

@@ -82,7 +82,7 @@ namespace Remains.Networking
             var flight=session.ServerWorld?.projectiles.Find(p=>p.launch.id==attack.id);
             return flight!=null && flight.owner==owner && flight.launch.attacker==attack.attacker &&
                 flight.launch.weapon==attack.weapon && flight.launch.level==attack.level && flight.launch.sourcePlayer==attack.sourcePlayer &&
-                flight.launch.friendlyFireDecision==attack.friendlyFireDecision;
+                flight.launch.friendlyFireDecision==attack.friendlyFireDecision && FactoryEnemyScaling.Same(flight.launch.factoryEnemy,attack.factoryEnemy);
         }
         private void Progress(NetworkConnectionToClient connection,ProjectileProgressMessage message)
         {

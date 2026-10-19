@@ -11,7 +11,7 @@ namespace Remains.Domain
     {
         public float Resolve(ActorState target,AttackEvent attack,float incomingDamage)
         {
-            float absorbed=Mathf.Min(incomingDamage,ActorTypes.Get(target.actorType).hitProtection);
+            float absorbed=Mathf.Min(incomingDamage,ActorTypes.Get(target.actorType).hitProtection*FactoryEnemyScaling.Protection(target.factoryEnemy));
             return incomingDamage-absorbed;
         }
     }

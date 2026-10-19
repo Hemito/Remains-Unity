@@ -12,6 +12,7 @@ namespace Remains.Domain
     [Serializable]
     public sealed class MineState : Remains.Serialization.ExtensibleState
     {
+        public FactoryEnemyScaleState factoryEnemy;
         public string id,level,definition,side;
         public string author;          // the player actor who placed it (null for a level mine)
         public float x,y;              // bottom centre on its support
@@ -107,7 +108,7 @@ namespace Remains.Domain
 
         public static AttackEvent Attack(MineState mine,MineProfile profile)=>new()
         {
-            id=mine.id,attacker=mine.author??mine.id,level=mine.level,sourcePlayer=mine.side==PlayerSide,weapon=mine.definition,
+            id=mine.id,attacker=mine.author??mine.id,level=mine.level,sourcePlayer=mine.side==PlayerSide,weapon=mine.definition,factoryEnemy=FactoryEnemyScaling.Capture(mine.factoryEnemy),
             // The blast centre is the middle of the mine's body.
             originX=mine.x,originY=mine.y+profile.height*.5f,endX=mine.x,endY=mine.y+profile.height*.5f
         };

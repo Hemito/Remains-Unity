@@ -23,10 +23,12 @@ namespace Remains.Content
     }
     public static class RoomContentInstaller
     {
-        public static bool NeedsInstall(WorldState world,RoomContentBatch batch)=>batch!=null &&
+        private static bool NeedsAppend(WorldState world,RoomContentBatch batch)=>batch!=null &&
             (DoorContentInstaller.NeedsInstall(world,batch.doors) || PhysicalContentInstaller.NeedsInstall(world,batch.physical) ||
              NpcContentInstaller.NeedsInstall(world,batch.npcs) || MechanismContentInstaller.NeedsInstall(world,batch.mechanisms) ||
              MineContentInstaller.NeedsInstall(world,batch.mines) || HazardContentInstaller.NeedsInstall(world,batch.hazards));
+        public static bool NeedsInstall(WorldState world,RoomContentBatch batch)=>batch!=null &&
+            (NeedsAppend(world,batch) || FactoryEnemyScalingContent.NeedsApply(world,batch));
         public static bool Apply(WorldState world,RoomContentBatch batch)
         {
             if(world==null || batch==null) throw new InvalidOperationException("Нет мира или набора содержимого комнаты.");
@@ -44,13 +46,17 @@ namespace Remains.Content
             if(batch.mines!=null) Check(batch.mines.patch,batch.mines.level);
             if(batch.hazards!=null) Check(batch.hazards.patch,batch.hazards.level);
             if(!NeedsInstall(world,batch)) return false;
+            if(!NeedsAppend(world,batch))
+                return FactoryEnemyScalingContent.Prepare(world,batch).Apply(world);
             // Validate the whole batch on a detached world before touching any live objects.
             // Individual installers are the sole rule source, have no callbacks and perform no I/O.
             var publication=RoomContentPublication.Capture(world,level);
             using(TransitionTiming.Measure("content.stage-validation",level)) Install(publication.Staged,batch);
+            var scaleUpgrade=FactoryEnemyScalingContent.Prepare(publication.Staged,batch);
             using(TransitionTiming.Measure("content.stage-append-validation",level)) publication.Prepare();
             // Preserve references held by movement, travel and ownership consumers.
             using(TransitionTiming.Measure("content.publish",level)) publication.Publish(world);
+            scaleUpgrade.Apply(world);
             return true;
         }
         private static void Install(WorldState world,RoomContentBatch batch)

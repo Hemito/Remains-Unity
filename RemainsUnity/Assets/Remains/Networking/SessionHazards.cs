@@ -163,7 +163,7 @@ namespace Remains.Networking
         {
             var world=session.ServerWorld;
             if(world==null || blast==null) return;
-            float amount=WeaponCatalog.Get(blast.weapon).damage;
+            float amount=WeaponCatalog.Get(blast.weapon).damage*FactoryEnemyScaling.AttackFactor(blast);
             foreach(var hazard in world.hazards)
                 if(HazardRules.InBlast(hazard,HazardRules.Profile(hazard),blast)) damage.Enqueue((hazard,amount));
             Resolve();
@@ -191,7 +191,7 @@ namespace Remains.Networking
                 Explosions++;
                 session.CommitWorld();
                 NetworkServer.SendToAll(new AttackMessage {json=StateJson.ToJson(explosion.attack)});
-                float blastDamage=WeaponCatalog.Get(explosion.attack.weapon).damage;
+                float blastDamage=WeaponCatalog.Get(explosion.attack.weapon).damage*FactoryEnemyScaling.AttackFactor(explosion.attack);
                 foreach(var other in world.hazards)
                     if(HazardRules.InBlast(other,HazardRules.Profile(other),explosion.attack)) damage.Enqueue((other,blastDamage));
             }
@@ -249,7 +249,7 @@ namespace Remains.Networking
                 if(!resolvedHits.Add(request.attack.id+"|"+hazard.id)) return;
                 resolvedOrder.Enqueue(request.attack.id+"|"+hazard.id);if(resolvedOrder.Count>1024) resolvedHits.Remove(resolvedOrder.Dequeue());
                 Hits++;
-                damage.Enqueue((hazard,session.Rules.Damage.Calculate(request.attack.weapon,request.attack.speed)));
+                damage.Enqueue((hazard,session.Rules.Damage.Calculate(request.attack.weapon,request.attack.speed)*FactoryEnemyScaling.AttackFactor(request.attack)));
                 Resolve();
             }
             catch(Exception error) when(error is ArgumentException || error is InvalidOperationException || error is IOException)

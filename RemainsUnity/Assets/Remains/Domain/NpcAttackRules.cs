@@ -51,7 +51,7 @@ namespace Remains.Domain
                 if(room==null || !ShotObstacles.FirstContact(room,Remains.Gameplay.WeaponPose.RangedAnchor(actor),origin).HasValue)
                 {
                     var candidate=new AttackEvent {id=actor.attackId,attacker=actor.id,weapon=action.weapon,level=actor.level,
-                        originX=origin.x,originY=origin.y,endX=end.x,endY=end.y,rangedPose=pose.Capture(actor)};
+                        factoryEnemy=FactoryEnemyScaling.Capture(actor.factoryEnemy),originX=origin.x,originY=origin.y,endX=end.x,endY=end.y,rangedPose=pose.Capture(actor)};
                     if(WeaponAmmunition.CanSpendShot(actor,weapon,out _) && (prepareShot==null || prepareShot(candidate)) &&
                         WeaponAmmunition.SpendShot(actor,weapon,out _)) result=candidate;
                 }

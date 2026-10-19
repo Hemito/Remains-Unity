@@ -16,6 +16,7 @@ namespace Remains.Domain
     [Serializable]
     public sealed class HazardState : Remains.Serialization.ExtensibleState
     {
+        public FactoryEnemyScaleState factoryEnemy;
         public string id,level,definition,side;
         public string author;      // the player who rearmed a trap (null for a level hazard)
         public float x,y;          // bottom centre on its support
@@ -99,14 +100,14 @@ namespace Remains.Domain
         {
             var start=Center(trap,profile);var end=victim.Position+Vector2.up*(Anatomy.Movement(victim).height*.5f);
             return new AttackEvent {id=Guid.NewGuid().ToString("N"),attacker=trap.id,level=trap.level,sourceOwner=owner,sourcePlayer=trap.side==MineRules.PlayerSide,
-                weapon=profile.biteWeapon,originX=start.x,originY=start.y,endX=end.x,endY=end.y,radius=.1f};
+                weapon=profile.biteWeapon,factoryEnemy=FactoryEnemyScaling.Capture(trap.factoryEnemy),originX=start.x,originY=start.y,endX=end.x,endY=end.y,radius=.1f};
         }
 
         // Damage taken (Unit.damage): the skin is subtracted from every hit. True when this destroyed the hazard.
         public static bool Damage(HazardState hazard,HazardDefinition profile,float amount)
         {
             if(!float.IsFinite(amount) || amount<0) throw new InvalidOperationException($"Некорректный урон ловушке {hazard.id}: {amount}.");
-            hazard.health=Mathf.Max(0,hazard.health-Mathf.Max(0,amount-profile.skin));
+            hazard.health=Mathf.Max(0,hazard.health-Mathf.Max(0,amount-profile.skin*FactoryEnemyScaling.Protection(hazard.factoryEnemy)));
             return hazard.health<=0;
         }
 
@@ -121,7 +122,7 @@ namespace Remains.Domain
         {
             var centre=Center(charge,profile);
             return new AttackEvent {id=charge.id,attacker=charge.author??charge.id,level=charge.level,sourcePlayer=charge.side==MineRules.PlayerSide,
-                weapon=profile.blastWeapon,originX=centre.x,originY=centre.y,endX=centre.x,endY=centre.y};
+                weapon=profile.blastWeapon,factoryEnemy=FactoryEnemyScaling.Capture(charge.factoryEnemy),originX=centre.x,originY=centre.y,endX=centre.x,endY=centre.y};
         }
         // Whether an explosion reaches the hazard: its body within the blast weapon's range of the blast centre.
         public static bool InBlast(HazardState hazard,HazardDefinition profile,AttackEvent blast)

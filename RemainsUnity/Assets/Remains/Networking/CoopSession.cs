@@ -994,6 +994,8 @@ namespace Remains.Networking
             {Reject("Выстрел отменён: изменилась локация персонажа.");return;}
             attack.sourceOwner=owner;attack.sourcePlayer=ServerWorld.Find(attack.attacker).player;
             attack.friendlyFireDecision=ServerWorld.friendlyFireDecision;
+            try {FactoryEnemyScaling.ValidateCaptured(attack,ServerWorld.Find(attack.attacker));}
+            catch(InvalidOperationException error) {Reject(error.Message);return;}
             if(NpcNaturalAttack.IsNatural(attack))
             {
                 try {NpcNaturalAttack.ValidateEvent(attack,ServerWorld.Find(attack.attacker));}
@@ -1042,6 +1044,11 @@ namespace Remains.Networking
                 !owners.TryGetValue(connection.connectionId,out var owner) ||
                 !(!NpcNaturalAttack.IsNatural(attack) && WeaponCatalog.Get(attack.weapon).projectileSpeed>0?Projectiles.IsDecisionOwner(owner,attack):source!=null && source.player && source.owner==owner && attack.sourceOwner==owner) ||
                 !FriendlyFireDecision.UsesAttacker(attack,target) || !AttackScope.CanAffect(attack,target,ServerWorld.friendlyFire)) return;
+            if(NpcNaturalAttack.IsNatural(attack) || WeaponCatalog.Get(attack.weapon).projectileSpeed<=0)
+            {
+                try {FactoryEnemyScaling.ValidateCaptured(attack,source);}
+                catch(InvalidOperationException error) {Debug.LogWarning(error.Message);return;}
+            }
             foreach(var pair in owners)
                 if(pair.Value==target.owner && NetworkServer.connections.TryGetValue(pair.Key,out var destination))
                 {destination.Send(message);return;}
@@ -1056,6 +1063,11 @@ namespace Remains.Networking
             if(NpcNaturalAttack.IsNatural(attack))
             {
                 try {NpcNaturalAttack.ValidateEvent(attack,ServerWorld.Find(attack.attacker));}
+                catch(InvalidOperationException error) {Debug.LogWarning(error.Message);return;}
+            }
+            else if(WeaponCatalog.Get(attack.weapon).projectileSpeed<=0)
+            {
+                try {FactoryEnemyScaling.ValidateCaptured(attack,ServerWorld.Find(attack.attacker));}
                 catch(InvalidOperationException error) {Debug.LogWarning(error.Message);return;}
             }
             npcHits.Accept(message,attack);
