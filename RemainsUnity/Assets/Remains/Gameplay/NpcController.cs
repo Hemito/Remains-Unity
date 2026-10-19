@@ -47,8 +47,8 @@ namespace Remains.Gameplay
             foreach(var actor in session.World.actors)
             {
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
-                if(ActorHoldRules.Active(actor)) continue;
                 var type=Remains.Content.ActorTypes.Get(actor.actorType);
+                if(ActorHoldRules.Active(actor) && !NpcCreatureBehaviours.Fixed(type.behavior)) continue;
                 if(!type.combatAi) continue;
                 bool natural=type.naturalAttack!=null;
                 if(!LevelActivity.HasConnectedPlayer(session.World,actor.level)) continue;

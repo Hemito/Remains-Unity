@@ -10,6 +10,7 @@ namespace Remains.Presentation
     {
         private bool initialized;
         private readonly HeldPropColorSource colors=new();
+        public HeldPropColorSource Colors=>colors;
         public void Initialize(CoopSession value,InteractionVisuals views)
             =>Initialize(value,views,null);
         public void Initialize(CoopSession value,InteractionVisuals views,PonyMagicActivitySource magic)

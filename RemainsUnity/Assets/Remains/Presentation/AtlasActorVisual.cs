@@ -37,6 +37,32 @@ namespace Remains.Presentation
         [SerializeField,InspectorName("Основной спрайт")] private SpriteRenderer view;
         public void SetRenderer(SpriteRenderer renderer)=>view=renderer;
         private bool generatedView;
+        private HeldPropGlow heldGlow;
+        private string heldRejection;
+        public bool HeldGlowVisible=>heldGlow!=null && heldGlow.Visible;
+        public override void ApplyHeldAppearance(HeldPropColorSource colors)
+        {
+            bool active=state!=null && ActorHoldRules.Active(state);
+            if(!active) {heldGlow?.Draw(false);heldRejection=null;return;}
+            Color color=default;string reason=null;
+            if(colors==null || !colors.TryResolve(state,out color,out reason))
+            {
+                heldGlow?.Draw(false);
+                string rejection=colors==null?"Нет источника цвета держателя.":reason;
+                if(heldRejection!=rejection) Debug.LogWarning($"Свечение тела {state.id}, type={state.actorType}, holder={state.hold.holder}: {rejection} Свечение пропущено.",this);
+                heldRejection=rejection;return;
+            }
+            heldRejection=null;
+            color.a=.7f;
+            if(heldGlow==null)
+            {
+                var frames=new List<Sprite>();
+                foreach(var clip in artwork.clips.Values) frames.AddRange(clip.frames);
+                var child=new GameObject("Свечение удерживаемого тела");child.transform.SetParent(view.transform,false);
+                heldGlow=child.AddComponent<HeldPropGlow>();heldGlow.Initialize(view,color,.08f,frames.ToArray());
+            }
+            heldGlow.SetColor(color);heldGlow.SetFrame(view.sprite);heldGlow.Draw(view.enabled);
+        }
         [SerializeField,HideInInspector] private bool customDeadPresentation;
         [SerializeField,HideInInspector] private bool deadFlipY;
         [SerializeField,HideInInspector] private float deadLift;
@@ -59,6 +85,7 @@ namespace Remains.Presentation
             if(view==null) {view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=WorldVisualOrderPolicy.ActorPartOrder;generatedView=true;}
             if(artworkKey!=key)
             {
+                if(heldGlow!=null) {heldGlow.Draw(false);Destroy(heldGlow.gameObject);heldGlow=null;}
                 if(string.IsNullOrEmpty(key)) throw new InvalidOperationException($"Нет атласа актёра: {actor.id}, type={actor.actorType}.");
                 if(!cache.TryGetValue(key,out artwork)) {artwork=Load(key);cache.Add(key,artwork);}
                 artworkKey=key;
@@ -111,7 +138,7 @@ namespace Remains.Presentation
             if(!artwork.clips.TryGetValue(pose,out var clip))
             {
                 if(missingPose!=pose) Debug.LogWarning($"Нет позы атласа: actor={state.id}, artwork={artworkKey}, pose={pose}. Отображение пропущено.",this);
-                missingPose=pose;view.enabled=false;return;
+                missingPose=pose;view.enabled=false;heldGlow?.Draw(false);return;
             }
             missingPose=null;view.enabled=true;var sprite=clip.Sample(state,DrawnPoseTime(pose));
             if(state.down && fitDeadToFrame)
@@ -123,6 +150,11 @@ namespace Remains.Presentation
             }
             if(view.sprite!=sprite)
             {if(generatedView) SpriteArtworkMaterial.Apply(view,sprite);else view.sprite=sprite;}
+            if(heldGlow!=null)
+            {
+                heldGlow.SetFrame(sprite);heldGlow.Renderer.flipX=view.flipX;heldGlow.Renderer.flipY=view.flipY;
+                heldGlow.Draw(ActorHoldRules.Active(state) && heldRejection==null);
+            }
         }
         public static float DeadFrameOffset(Vector2 verticalBounds,bool flipped)=>flipped?verticalBounds.y:-verticalBounds.x;
     }

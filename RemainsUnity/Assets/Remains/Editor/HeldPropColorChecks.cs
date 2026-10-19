@@ -14,7 +14,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            PonyVisual.Prepare();PropCatalog.Load();RunSource();
+            PonyVisual.Prepare();PropCatalog.Load();RunSource();CheckHeldActor();
             var artwork=new PropArtwork();var world=World();var prop=new ContainerState
             {id="color-container",definition="trash",owner="a",level="hub",generation=3,held=true,width=.5f,height=.8f,
                 appearance=new ContainerAppearanceState {version=1}};
@@ -159,6 +159,40 @@ namespace Remains.Editor
         }
         private static void Reject(HeldPropColorSource colors,WorldState world,PropState prop,string condition)
         {colors.Rebuild(world);Require(!colors.TryResolve(prop,out _,out var reason) && !string.IsNullOrWhiteSpace(reason),"Нет явного отказа: "+condition);}
+        private static void CheckHeldActor()
+        {
+            var world=World();var colors=new HeldPropColorSource();colors.Rebuild(world);
+            var creature=System.Linq.Enumerable.First(CreatureCatalog.Load().Creatures);
+            var body=creature.spawn.Create(new TrainingPlacement {id="held-creature-color",type=creature.actorType,facing=1},"hub");
+            body.hold=new ActorHoldState {holder="holder-a",token="held-color-check"};
+            world.actors.Add(body);
+            var visual=(AtlasActorVisual)ActorVisualFactory.Create(body);
+            try
+            {
+                visual.Bind(body);visual.ApplyHeldAppearance(colors);
+                Require(visual.HeldGlowVisible,"Удерживаемое существо не получило свечение.");
+                var glow=visual.GetComponentInChildren<HeldPropGlow>();
+                int prepared=glow.PreparedFrameCount;
+                AssertColor(glow.Renderer,0x286CFF,.7f);
+                for(int i=0;i<100;i++) {body.poseTime+=1f/60;visual.Draw();}
+                Require(glow.PreparedFrameCount==prepared && glow.Visible,"Анимация существа пересоздаёт кадры свечения или теряет свечение.");
+                body.hold.holder="holder-b";visual.ApplyHeldAppearance(colors);AssertColor(glow.Renderer,0xE040D0,.7f);
+                var replacement=StateJson.Copy(world);replacement.Find(body.id).hold=null;colors.Rebuild(replacement);
+                visual.Bind(replacement.Find(body.id));visual.ApplyHeldAppearance(colors);visual.Draw();
+                Require(!visual.HeldGlowVisible,"Замена мира сохранила свечение отпущенного тела.");
+                replacement.Find(body.id).hold=new ActorHoldState {holder="holder-a",token="replacement-hold"};colors.Rebuild(replacement);
+                visual.Bind(replacement.Find(body.id));visual.ApplyHeldAppearance(colors);visual.Draw();
+                Require(visual.HeldGlowVisible,"Замена мира не включила свечение сразу после Bind.");AssertColor(glow.Renderer,0x286CFF,.7f);
+                colors.Rebuild(world);visual.Bind(body);visual.ApplyHeldAppearance(colors);
+                Require(glow.PreparedFrameCount==prepared,"Смена держателя пересоздаёт кадры существа.");
+                body.hold=null;visual.ApplyHeldAppearance(colors);visual.Draw();
+                Require(!visual.HeldGlowVisible,"Отпущенное существо сохранило свечение.");
+                body.hold=new ActorHoldState {holder="holder-a",token="held-color-check-2"};
+                world.Find("holder-a").level="other";colors.Rebuild(world);
+                Require(!colors.TryResolve(body,out _,out var reason) && !string.IsNullOrWhiteSpace(reason),"Нет отказа для держателя тела в другом уровне.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
+        }
         private static ActorState Player(string id,string owner,int magic)=>new()
         {id=id,owner=owner,level="hub",player=true,connected=true,health=100,appearance=new CharacterAppearance {version=1,magic=magic}};
         private static WorldState World()

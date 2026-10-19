@@ -62,5 +62,19 @@ namespace Remains.Presentation
             if(holder.actor.level!=prop.level) {reason="Держатель находится в другом уровне: "+holder.actor.id+"/"+holder.actor.level;return false;}
             color=new HeldPropColor(WorldId,prop,holder.actor,holder.magic);return true;
         }
+        public bool TryResolve(ActorState body,out Color color,out string reason)
+        {
+            color=default;reason=null;
+            if(!ActorHoldRules.Active(body)) return false;
+            foreach(var holder in holders.Values)
+            {
+                if(holder.actor.id!=body.hold.holder) continue;
+                reason=holder.rejection;
+                if(reason==null && holder.actor.level!=body.level) reason="Держатель тела находится в другом уровне: "+holder.actor.id;
+                if(reason!=null) return false;
+                color=PonyAppearance.FromRgb(holder.magic);return true;
+            }
+            reason="Нет активного подключённого держателя тела: "+body.hold.holder;return false;
+        }
     }
 }

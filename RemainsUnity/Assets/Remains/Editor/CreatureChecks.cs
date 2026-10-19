@@ -210,6 +210,14 @@ namespace Remains.Editor
             Require(turret.creature.mode==Remains.Gameplay.NpcTurret.Watch,$"{id}: после поиска снова наблюдает");
             if(settings.fixedFacing) Require(turret.facing==1,$"{id}: бронированная не разворачивается");
             else Require(turret.facing==(Mathf.Cos(turret.weaponAngle*Mathf.Deg2Rad)<0?-1:1),$"{id}: смотрит туда, куда направлен ствол");
+            turret.hold=new ActorHoldState {holder=intruder.id,token="turret-held-check"};
+            var heldPosition=turret.Position;float heldAngle=turret.weaponAngle;
+            Require(Remains.Gameplay.NpcTurret.Step(turret,type,intruder,true,intruder.Position,null,dt,random) &&
+                turret.creature.mode==Remains.Gameplay.NpcTurret.Attack && turret.Position==heldPosition,
+                $"{id}: удерживаемая турель не просыпается для атаки или её ИИ двигает удерживаемое тело");
+            Require(Mathf.Abs(Mathf.DeltaAngle(heldAngle,turret.weaponAngle))<=settings.attackTurnDegreesPerSecond*dt+.01f,
+                $"{id}: удержание отменило ограничение скорости поворота ствола");
+            turret.hold=null;
         }
 
         // A few seconds of each family on the real factory geometry with a target nearby: no NaN, never inside walls,

@@ -83,6 +83,7 @@ namespace Remains.Runtime
         private readonly WorldVisualOrderTable visualOrders=new();
         private readonly TravelPointVisuals travelPointVisuals=new();
         private PrototypeHud hud;
+        private HeldPropGlowPresentation heldAppearance;
         private SaveLibraries saveLibraries;
         private Camera cameraView;
         private readonly ReplicationCadence poseCadence=new(.05);
@@ -195,7 +196,8 @@ namespace Remains.Runtime
                 if(LevelPresentationReady && ActiveFactoryLighting!=null)
                     using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вспышки")) actorShadows.PrepareFlash(ActiveFactoryLighting,visuals,interactionVisuals,"flash:"+attack.id,emission);
             });
-            CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>().Initialize(Session,interactionVisuals,ponyMagic);
+            heldAppearance=CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>();
+            heldAppearance.Initialize(Session,interactionVisuals,ponyMagic);
             HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
             var room=RoomLayout.Load(shownLevel);
             movement=CreateMovement(room);
@@ -455,6 +457,7 @@ namespace Remains.Runtime
                 }
                 if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);
                 visual.Bind(actor);
+                visual.ApplyHeldAppearance(heldAppearance.Colors);
                 visual.SetVisible(actor.level==Session.LocalActor?.level);
             }
             var removed=new List<string>();

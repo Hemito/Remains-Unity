@@ -23,6 +23,9 @@ namespace Remains.Gameplay
         {
             var settings=type.turret;
             var state=actor.creature??=Initial(actor,settings);
+            // UnitTurret.control: a held hostile turret wakes straight into attack,
+            // without surrendering its body position to ordinary AI locomotion.
+            if(ActorHoldRules.Active(actor) && (state.mode==Watch || state.mode==Alert)) state.mode=Attack;
             state.timer=Mathf.Max(0,state.timer-dt);
             Vector2? seen=visible?target.BodyPosition+Vector2.up*.55f:(Vector2?)null;
             switch(state.mode)
