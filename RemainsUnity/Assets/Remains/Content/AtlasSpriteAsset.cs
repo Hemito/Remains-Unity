@@ -9,7 +9,9 @@ namespace Remains.Content
         [SerializeField,InspectorName("Описание кадров")] private AtlasActorArtwork definition;
         [SerializeField,HideInInspector] private Sprite[] frames;
         [SerializeField,HideInInspector] private string bakedDefinition;
+        [SerializeField,HideInInspector] private Vector2[] opaqueVerticalBounds;
         public Texture2D Texture=>texture;
+        public bool HasOpaqueVerticalBounds=>opaqueVerticalBounds!=null && frames!=null && opaqueVerticalBounds.Length==frames.Length;
         private void OnValidate()
         {
             if(definition?.clips==null) return;
@@ -19,6 +21,23 @@ namespace Remains.Content
         public AtlasActorArtwork CreateDefinition()=>JsonUtility.FromJson<AtlasActorArtwork>(JsonUtility.ToJson(definition));
         public void Configure(Texture2D source,AtlasActorArtwork data) {texture=source;definition=data;}
         public void SetFrames(Sprite[] value) {frames=(Sprite[])value.Clone();bakedDefinition=JsonUtility.ToJson(definition);}
+        public void SetOpaqueVerticalBounds(Vector2[] value)
+        {
+            if(value==null || frames==null || value.Length!=frames.Length) throw new InvalidOperationException("Границы графики не совпадают с кадрами: "+name);
+            opaqueVerticalBounds=(Vector2[])value.Clone();
+        }
+        public Vector2[] OpaqueVerticalBounds(string pose)
+        {
+            if(opaqueVerticalBounds==null || frames==null || opaqueVerticalBounds.Length!=frames.Length)
+                throw new InvalidOperationException("Атлас "+name+": не подготовлены непрозрачные границы; пересоберите кадры.");
+            int offset=0;
+            foreach(var clip in definition.clips)
+            {
+                if(clip.pose==pose) {var result=new Vector2[clip.count];Array.Copy(opaqueVerticalBounds,offset,result,0,clip.count);return result;}
+                offset+=clip.count;
+            }
+            throw new InvalidOperationException("Атлас "+name+": нет границ позы "+pose);
+        }
         public Sprite[] Frames(string pose)
         {
             // Normalize absent optional fields in an older bake; changed socket data still invalidates it.

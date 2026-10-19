@@ -100,9 +100,20 @@ namespace Remains.Presentation
             heldIntensity=float.IsFinite(heldIntensity)?Mathf.Clamp01(heldIntensity):.7f;
         }
         private bool hasDrawn,drawnMirrored;private Vector2 drawnPosition;private float drawnAngle;
+        private Remains.Content.DroppedItemShape droppedShape;
+        private bool shapeReady,shapeMirrored;private float shapeAngle;private Vector2 shapeCenter;
         public void DrawMotion(Remains.Domain.PropState state,string localOwner,bool paused,float dt)
         {
             var position=motion.Sample(state,localOwner,paused,dt);
+            if(droppedShape!=null && state is Remains.Domain.ContainerState item)
+            {
+                if(!shapeReady || shapeAngle!=item.presentationAngle || shapeMirrored!=item.presentationMirrored)
+                {
+                    shapeCenter=droppedShape.WorldBounds(item.presentationAngle,item.presentationMirrored).center;
+                    shapeAngle=item.presentationAngle;shapeMirrored=item.presentationMirrored;shapeReady=true;
+                }
+                position-=shapeCenter;
+            }
             if(visualAnchor==PropVisualAnchor.PlacementAnchor) position-=Vector2.up*(state.height*.5f-state.anchorHeight);
             else if(visualAnchor==PropVisualAnchor.Feet) position-=Vector2.up*state.anchorHeight;
             // Written only on change: ~1400 resting factory bodies otherwise dirtied their transforms every frame.
@@ -140,6 +151,12 @@ namespace Remains.Presentation
         public void ConfigurePlacementArtwork() {visualAnchor=PropVisualAnchor.PlacementAnchor;fitStateWidth=false;}
         // Artwork at world scale whose pivot is the object's feet (exported original units: mines).
         public void ConfigureFeetArtwork() {visualAnchor=PropVisualAnchor.Feet;fitStateWidth=false;}
+        public void ConfigureDroppedArtwork(Remains.Content.DroppedItemShape shape)
+        {
+            if(shape==null) throw new ArgumentNullException(nameof(shape));shape.Validate();
+            droppedShape=shape;visualAnchor=PropVisualAnchor.BodyCenter;fitStateWidth=false;
+            transform.localScale=new Vector3(shape.Scale,shape.Scale,1);shapeReady=false;
+        }
         public void FitWidth(float width)
         {
             if(artwork==null || artwork.sprite==null) throw new InvalidOperationException($"Объект {name}: нет основного спрайта.");

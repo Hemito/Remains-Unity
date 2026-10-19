@@ -178,7 +178,7 @@ namespace Remains.Presentation
         private void UpdateContainer(ContainerState container,string level)
         {
             if(!containers.TryGetValue(container.id,out var view))
-            {view=propArtwork.CreateContainerView(container);view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Container,container.id);containers.Add(container.id,view);}
+            {view=propArtwork.CreateContainerView(container);if(view==null)return;view.transform.SetParent(transform,true);view.BindOrder(layers.Orders,WorldVisualKind.Container,container.id);containers.Add(container.id,view);}
             view.ApplyContainerAppearance(container);
             view.ApplyHeldAppearance(container,heldColors);
             view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),0);view.SetVisible(container.level==level);

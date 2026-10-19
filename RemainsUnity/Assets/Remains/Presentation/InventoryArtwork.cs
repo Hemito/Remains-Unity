@@ -11,6 +11,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,Sprite> sprites;
         private readonly ExportedContentCatalog exported;
         private readonly HashSet<string> missing=new();
+        public IEnumerable<KeyValuePair<string,Sprite>> PreparedSprites=>sprites;
         public InventoryArtwork()
         {
             sprites=WeaponArtwork.Load();

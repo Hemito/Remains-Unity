@@ -69,7 +69,7 @@ namespace Remains.Editor
                 MineRules.PlacedWeapon("weapon:mine:grade:1")==null && MineRules.PlacedWeapon("grenade")==null && MineRules.PlacedWeapon("weapon:grenade:grade:0")==null,
                 "предметы, которые ставят мину");
             Require(DroppedItemTransfer.Size("weapon:hmine:grade:0")==new Vector2(profile.width,profile.height) &&
-                DroppedItemTransfer.Size("grenade")==new Vector2(DroppedItemTransfer.Width,DroppedItemTransfer.Height),"размер выброшенной мины — её собственный, остальных вещей — общий");
+                DroppedItemTransfer.Size("grenade")==DroppedItemShapeCatalog.Require("grenade").WorldBounds(0,false).size,"размер выброшенной мины — её собственный, остальных вещей — по непрозрачной графике");
             bool rejected=false;
             try {MineRules.Validate(new MineState {id="x",level="l",definition="hmine",side=MineRules.LevelSide,arming=1});}
             catch(InvalidOperationException) {rejected=true;}

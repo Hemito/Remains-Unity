@@ -1,4 +1,5 @@
 using System;
+using Remains.Content;
 using System.Reflection;
 using Remains.Domain;
 using Remains.Gameplay;
@@ -83,8 +84,9 @@ namespace Remains.Editor
             Require(DroppedItemTransfer.Prepare(world,actor,"held-drop",ammo.id,1,launchState.origin,launchState.velocity,new NearbyDepositRule(),out _,false,launchState.angle,launchState.mirrored),
                 "Не подготовлен бросок из выбранной 2D-позы");
             var drop=world.containers[0];
-            Require(drop.Position==launchState.origin && drop.presentationAngle==launchState.angle && drop.presentationMirrored==launchState.mirrored &&
-                drop.width==DroppedItemTransfer.Width && ammo.count==11 && world.grenades.Count==0,"Бросок изменил позу/масштаб, потратил всю стопку или создал гранату");
+            var looseBounds=DroppedItemShapeCatalog.Require(ammo.definition).WorldBounds(launchState.angle,launchState.mirrored);
+            Require(drop.Position==launchState.origin+looseBounds.center && drop.presentationAngle==launchState.angle && drop.presentationMirrored==launchState.mirrored &&
+                Mathf.Abs(drop.width-looseBounds.width)<.00001f && ammo.count==11 && world.grenades.Count==0,"Бросок изменил позу/форму, потратил всю стопку или создал гранату");
             var savedWorld=world.Copy();
             Require(savedWorld.containers[0].presentationAngle==drop.presentationAngle && savedWorld.containers[0].presentationMirrored==drop.presentationMirrored,
                 "Сохранение потеряло позу выпуска обычной вещи");
@@ -118,7 +120,7 @@ namespace Remains.Editor
                 {
                     var sprite=icons.Require(definition);SpriteArtworkMaterial.Apply(held,sprite);
                     float scale=DroppedItemTransfer.Width/sprite.bounds.size.x;
-                    held.transform.localScale=new Vector3(scale,scale,1);held.transform.position=state.Position;
+                    held.transform.localScale=new Vector3(scale,scale,1);held.transform.position=new Vector2(2,3);
                     held.transform.rotation=Quaternion.Euler(0,0,angle);held.flipY=mirrored;
                     dropped.DrawMotion(state,"local",false,0);
                     for(int corner=0;corner<4;corner++)

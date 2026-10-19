@@ -24,7 +24,7 @@ namespace Remains.Presentation
         private bool wasInverted;
         private sealed class Clip
         {
-            public Sprite[] frames;public AtlasActorClip definition;
+            public Sprite[] frames;public AtlasActorClip definition;public Vector2[] verticalBounds;
             public Sprite Sample(ActorState actor,float time)
             {
                 return frames[definition.UsesMotion && !actor.down?definition.Sample(actor):definition.FrameIndex(time,ActorPose.StationaryClimb(actor))];
@@ -40,11 +40,12 @@ namespace Remains.Presentation
         [SerializeField,HideInInspector] private bool customDeadPresentation;
         [SerializeField,HideInInspector] private bool deadFlipY;
         [SerializeField,HideInInspector] private float deadLift;
+        [SerializeField,HideInInspector] private bool fitDeadToFrame;
         [SerializeField,HideInInspector] private Color deadTint=Color.white;
         public void ConfigureDeadPresentation(bool flipY,float lift,Color tint)
         {
             if(!float.IsFinite(lift)) throw new InvalidOperationException("Некорректное смещение изображения тела: "+name);
-            customDeadPresentation=true;deadFlipY=flipY;deadLift=lift;deadTint=tint;
+            customDeadPresentation=true;deadFlipY=flipY;deadLift=lift;deadTint=tint;fitDeadToFrame=true;
         }
         private Artwork artwork;
         private string artworkKey,missingPose;
@@ -84,6 +85,7 @@ namespace Remains.Presentation
                     !float.IsFinite(entry.framesPerSecond) || entry.framesPerSecond<=0)
                     throw new InvalidOperationException($"Некорректный клип атласа: {key}, pose={entry?.pose}.");
                 var clip=new Clip {frames=saved!=null?saved.Frames(entry.pose):new Sprite[entry.count],definition=entry};
+                if(saved!=null && saved.HasOpaqueVerticalBounds) clip.verticalBounds=saved.OpaqueVerticalBounds(entry.pose);
                 for(int frame=0;saved==null && frame<entry.count;frame++)
                 {
                     var sprite=Sprite.Create(texture,new Rect((entry.column+frame)*data.cellWidth,data.height-(entry.row+1)*data.cellHeight,data.cellWidth,data.cellHeight),
@@ -112,8 +114,16 @@ namespace Remains.Presentation
                 missingPose=pose;view.enabled=false;return;
             }
             missingPose=null;view.enabled=true;var sprite=clip.Sample(state,DrawnPoseTime(pose));
+            if(state.down && fitDeadToFrame)
+            {
+                if(clip.verticalBounds==null) throw new InvalidOperationException($"Не подготовлена опора изображения тела: actor={state.id}, atlas={artworkKey}, pose={pose}.");
+                int frame=Array.IndexOf(clip.frames,sprite);
+                float offset=DeadFrameOffset(clip.verticalBounds[frame],view.flipY);
+                transform.position=state.Position+Vector2.up*offset;
+            }
             if(view.sprite!=sprite)
             {if(generatedView) SpriteArtworkMaterial.Apply(view,sprite);else view.sprite=sprite;}
         }
+        public static float DeadFrameOffset(Vector2 verticalBounds,bool flipped)=>flipped?verticalBounds.y:-verticalBounds.x;
     }
 }

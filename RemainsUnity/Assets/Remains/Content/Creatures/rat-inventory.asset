@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1897bacc50b3944d943418309220653, type: 3}
+  m_Name: rat-inventory
+  m_EditorClassIdentifier: 
+  table:
+    id: rat-inventory
+    version: source-lootDrop-v1
+    entries:
+    - id: ratliver
+      definition: item:ratliver
+      weaponState:
+        rid: -2
+      minimum: 1
+      maximum: 1
+      probability: 0.35
+      afterFailure: 
+    - id: rattail
+      definition: item:rattail
+      weaponState:
+        rid: -2
+      minimum: 1
+      maximum: 1
+      probability: 0.25
+      afterFailure: 
+    - id: meat
+      definition: item:meat
+      weaponState:
+        rid: -2
+      minimum: 1
+      maximum: 1
+      probability: 0.1
+      afterFailure: 
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }

@@ -47,6 +47,11 @@ namespace Remains.Networking
             var actor=session.LocalActor;var item=InventoryStacks.Find(actor,request.item);
             if(actor==null || item==null || !NetworkClient.isConnected) return false;
             if(session.Pause.IsPaused(actor.level)) {session.ShowNotice(InventoryTransactions.PausedReason);return false;}
+            if(request.toss && !DroppedItemTransfer.HasPreparedShape(item.definition))
+            {
+                Debug.LogWarning($"Бросок не отправлен: actor={actor.id}, item={item.id}, definition={item.definition}; нет подготовленной формы изображения.");
+                session.ShowNotice("Бросок недоступен: у предмета не подготовлена физическая форма. Подробности — в журнале.");return false;
+            }
             request.transaction=Guid.NewGuid().ToString("N");
             InventorySource container=request.toss?DroppedItemTransfer.Preview(actor,request.transaction,item.definition,new Vector2(request.x,request.y),new Vector2(request.vx,request.vy),request.angle,request.mirrored):
                 InventorySource.Resolve(session.World,request.container);

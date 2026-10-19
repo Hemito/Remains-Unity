@@ -22,6 +22,7 @@ namespace Remains.Editor
         }
         public static void Run()
         {
+            CheckCorpseFrameBounds();
             Anatomy.Load();WeaponCatalog.Load();Remains.Presentation.ShotArtwork.Prepare();
             var catalog=CreatureCatalog.Load();
             Require(catalog.Creatures.Count>0,"каталог пуст");
@@ -29,6 +30,7 @@ namespace Remains.Editor
             foreach(var creature in catalog.Creatures)
             {
                 var type=ActorTypes.Get(creature.actorType);
+                CheckCorpsePresentation(creature,type);
                 if(NpcCreatureBehaviours.Fixed(type.behavior)) {Turret(creature,type,exported);continue;}
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
@@ -89,6 +91,55 @@ namespace Remains.Editor
                 Debug.Log($"PASS существа: подключено {catalog.Creatures.Count} ({string.Join(", ",catalog.Creatures.Select(c=>c.actorType))}), пробелов {catalog.Gaps.Count}; завод seed104: {counts}; сон вдали.");
             }
             finally {FactoryContentSources.Clear();}
+        }
+        private static void CheckCorpseFrameBounds()
+        {
+            var pixels=new Color32[8*10];
+            // Transparent margins and a registration outside the opaque band.
+            pixels[3*8+2]=new Color32(255,255,255,1);
+            pixels[7*8+5]=new Color32(255,255,255,255);
+            var bounds=AtlasSpriteAssetEditor.MeasureOpaqueVerticalBounds(pixels,8,new Rect(1,1,6,8),6,10);
+            Require(Mathf.Approximately(bounds.x,-.4f) && Mathf.Approximately(bounds.y,.1f),"непрозрачные границы не учитывают rect/pivot/alpha");
+            foreach(int facing in new[]{-1,1})
+            foreach(bool flipped in new[]{false,true})
+            {
+                float offset=Remains.Presentation.AtlasActorVisual.DeadFrameOffset(bounds,flipped);
+                float bottom=flipped?-bounds.y:bounds.x;
+                Require(Mathf.Abs(offset+bottom)<.00001f,$"тело висит после отражения: facing={facing}, flipY={flipped}");
+            }
+            bool rejected=false;
+            try {AtlasSpriteAssetEditor.MeasureOpaqueVerticalBounds(new Color32[8*10],8,new Rect(1,1,6,8),6,10);}
+            catch(InvalidOperationException) {rejected=true;}
+            Require(rejected,"пустая графика тела молча получила фиктивную опору");
+        }
+        internal static void CheckCorpsePresentation(CreatureEntry creature,ActorTypeDefinition type)
+        {
+            var atlas=Resources.Load<AtlasSpriteAsset>(type.artwork);
+            Require(atlas!=null && atlas.HasOpaqueVerticalBounds,"не подготовлены границы тела "+creature.actorType);
+            var actor=creature.spawn.Create(new TrainingPlacement {id="corpse-support",type=creature.actorType,facing=1},"check");
+            actor.Position=new Vector2(2,4);
+            var visual=(Remains.Presentation.AtlasActorVisual)Remains.Presentation.ActorVisualFactory.Create(actor);
+            try
+            {
+                visual.Bind(actor);
+                Require((Vector2)visual.transform.position==actor.Position,"опора трупа сдвинула живое существо "+actor.actorType);
+                var view=visual.GetComponent<SpriteRenderer>();
+                var frames=atlas.Frames("down");var bounds=atlas.OpaqueVerticalBounds("down");
+                var clip=atlas.CreateDefinition().clips.Single(c=>c.pose=="down");
+                actor.down=true;actor.health=0;actor.pose="down";
+                foreach(int facing in new[]{-1,1})
+                for(int frame=0;frame<clip.count;frame++)
+                {
+                    actor.facing=facing;actor.poseTime=(frame+.01f)/clip.framesPerSecond;visual.Draw();
+                    int drawn=Array.IndexOf(frames,view.sprite);
+                    Require(drawn>=0,"труп рисует неизвестный кадр "+actor.actorType);
+                    float bottom=view.flipY?-bounds[drawn].y:bounds[drawn].x;
+                    Require(Mathf.Abs(visual.transform.position.y+bottom-actor.y)<.00001f,
+                        $"труп не на опоре: actor={actor.actorType}, frame={frame}, facing={facing}");
+                    Require(actor.Position==new Vector2(2,4) && actor.vx==0 && actor.vy==0,"изображение изменило физический источник тела "+actor.actorType);
+                }
+            }
+            finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
         }
         // A turret: a fixed gun on the weapon AI with its gun as initial inventory, held at the part's mount (atlas
         // socket) and fired at its weapon's rate; the lamp follows the AI state (watching / attacking / off).

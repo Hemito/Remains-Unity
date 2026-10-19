@@ -1,0 +1,5639 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: deae81410da90ab4481c757e97fff87a, type: 3}
+  m_Name: DroppedItemShapes
+  m_EditorClassIdentifier: 
+  shapes:
+  - id: acid
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: aero
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: antihim_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: antirad_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: armor.antirad
+    sprite: {fileID: 528508462247175330, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.7275
+      y: -0.8525
+      width: 1.565
+      height: 1.71
+  - id: armor.pip
+    sprite: {fileID: -3637144212821772418, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.7
+      y: -0.8425
+      width: 1.51
+      height: 1.69
+  - id: batt
+    sprite: {fileID: 430340192243463478, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: -0.1
+      width: 0.48
+      height: 0.2
+  - id: battle_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: caps
+    sprite: {fileID: 3120623307530642685, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27
+      y: -0.18125
+      width: 0.54
+      height: 0.3625
+  - id: chip
+    sprite: {fileID: 3821843152683224319, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.45625
+      y: -0.45625
+      width: 0.9125
+      height: 0.9125
+  - id: compress
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: condens
+    sprite: {fileID: -4745857870327070113, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.21
+      y: -0.12125
+      width: 0.42
+      height: 0.2425
+  - id: crowbar
+    sprite: {fileID: 21300000, guid: 700c62084914230488a1c50aabf7482f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3
+      y: -0.19
+      width: 1
+      height: 0.25
+  - id: dart
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: elcomp
+    sprite: {fileID: 5721092013286681971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.21875
+      y: -0.10875
+      width: 0.4375
+      height: 0.2175
+  - id: energy
+    sprite: {fileID: 21300000, guid: 939eb36e0673cf6459a3d0d42a4b45bf, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22
+      y: -0.225
+      width: 0.86
+      height: 0.54999995
+  - id: fblade
+    sprite: {fileID: 5744558058190326629, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.455
+      y: -0.09
+      width: 0.91
+      height: 0.18
+  - id: fcrystal
+    sprite: {fileID: 5830553420834906398, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.4525
+      y: -0.45125
+      width: 0.905
+      height: 0.9025
+  - id: frag
+    sprite: {fileID: -8163085102166845375, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.235
+      y: -0.14875
+      width: 0.47
+      height: 0.2975
+  - id: glue
+    sprite: {fileID: -486688760160931358, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.1275
+      y: -0.2025
+      width: 0.255
+      height: 0.405
+  - id: grenade
+    sprite: {fileID: -6318815283598357611, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.87
+      y: -0.87
+      width: 1.74
+      height: 1.74
+  - id: heal
+    sprite: {fileID: 7829607715288808501, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.2025
+      width: 0.495
+      height: 0.405
+  - id: intel_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: item:abssalt
+    sprite: {fileID: 21300000, guid: b43c3016015e4294181167d355bdc18b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.23050003
+      y: -0.001000061
+      width: 0.525
+      height: 0.49749997
+  - id: item:acid
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:acidgr
+    sprite: {fileID: 21300000, guid: a253a35fd101e5a4284e827755997037, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.051999997
+      y: -0.0059999847
+      width: 0.1075
+      height: 0.415
+  - id: item:acidslime
+    sprite: {fileID: 21300000, guid: eed6fc536104e064ebba40d4d07a4f5c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.21050003
+      y: -0.006000061
+      width: 0.4225
+      height: 0.22749999
+  - id: item:aero
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:alc1
+    sprite: {fileID: 21300000, guid: 90950eee75a8527459658f6da4783ee2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.45800003
+      y: -0.19600005
+      width: 0.90999997
+      height: 0.9025
+  - id: item:alc2
+    sprite: {fileID: 21300000, guid: c56c56db08138904ea139dd5639a3c02, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.45300004
+      y: -0.19350006
+      width: 0.90250003
+      height: 0.9
+  - id: item:alc3
+    sprite: {fileID: 21300000, guid: 400bb6fb845c79446af668185679a198, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.44800004
+      y: -0.18600006
+      width: 0.89
+      height: 0.8925
+  - id: item:alc4
+    sprite: {fileID: 21300000, guid: 69e0da05c7b766f4999aa88d5f8c3454, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.44300002
+      y: -0.18100005
+      width: 0.88
+      height: 0.87
+  - id: item:alc5
+    sprite: {fileID: 21300000, guid: 9c57f7aa1dd37094aad5b8a1418fa9fd, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.43050003
+      y: -0.17600006
+      width: 0.8625
+      height: 0.86
+  - id: item:alc6
+    sprite: {fileID: 21300000, guid: 1ed8e145b03c86e438b42cbbe85d994f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.42300004
+      y: -0.17350006
+      width: 0.8425
+      height: 0.85
+  - id: item:alc7
+    sprite: {fileID: 21300000, guid: 134fc9c0205e4854ba54b3f0b5959810, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.41800004
+      y: -0.17100006
+      width: 0.8425
+      height: 0.84250003
+  - id: item:amul_al
+    sprite: {fileID: 21300000, guid: ce7dcb8586ef35848b87707398f11a20, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.888
+      y: -0.63850003
+      width: 1.765
+      height: 1.7674999
+  - id: item:antidote
+    sprite: {fileID: 21300000, guid: 68d250c00b63c464e8852d87b5870662, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10300003
+      y: -0.006000061
+      width: 0.21000001
+      height: 0.44500002
+  - id: item:antihim_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:antirad_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:antiradin
+    sprite: {fileID: 21300000, guid: 2ab5be6bb3a909044a284fd745f801fe, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.36550003
+      y: -0.006000061
+      width: 0.71000004
+      height: 0.32750002
+  - id: item:apie
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:app
+    sprite: {fileID: 21300000, guid: 64faf4e7cd755d5499e188349b0744a2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12300003
+      y: -0.011000061
+      width: 0.2525
+      height: 0.3475
+  - id: item:apple
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:balemine
+    sprite: {fileID: 21300000, guid: 0eadd0c613172fe49bb983346cc51f4c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.3475
+  - id: item:bananas
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:barter
+    sprite: {fileID: 21300000, guid: f6bbd7b0ac51c224cba16760c88e709b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65550005
+      y: -0.19600005
+      width: 1.315
+      height: 1.325
+  - id: item:batt
+    sprite: {fileID: 21300000, guid: 1b4c103b54d61014692d7dc1b8d670ca, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.2
+  - id: item:batt_6
+    sprite: {fileID: 21300000, guid: 1b4c103b54d61014692d7dc1b8d670ca, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.2
+  - id: item:battle_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:bbatt
+    sprite: {fileID: 21300000, guid: 7eb71d2975dc2a847a31d53ee6a4cad7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.573
+      y: -0.32350007
+      width: 1.1424999
+      height: 1.1525
+  - id: item:bcell
+    sprite: {fileID: 21300000, guid: 43993d2aade900f4895bcc1abd1fdc11, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.2
+  - id: item:bdpass
+    sprite: {fileID: 21300000, guid: 8bcf846e1956f9047b30f1fa0099e1b9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.52550006
+      y: -0.10600006
+      width: 1.05
+      height: 1.0475
+  - id: item:beans
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:beer
+    sprite: {fileID: 21300000, guid: 2f99b94fb1d16bd42925511b1848a827, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.075500034
+      y: -0.006000061
+      width: 0.14500001
+      height: 0.53
+  - id: item:bit
+    sprite: {fileID: 21300000, guid: db9473fb1743fe04b8f5acde6ef11e4e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27550003
+      y: -0.006000061
+      width: 0.55
+      height: 0.37
+  - id: item:blackbook
+    sprite: {fileID: 21300000, guid: 00cc9ca3fb5b4f649a62291230dbefa4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.8805
+      y: -0.63100004
+      width: 1.7525
+      height: 1.75
+  - id: item:bloateye
+    sprite: {fileID: 21300000, guid: 0e0e342b38ccf57498ebad2bc75b2d48, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.16550003
+      y: -0.006000061
+      width: 0.37
+      height: 0.3725
+  - id: item:bloatwing
+    sprite: {fileID: 21300000, guid: f83506d6d2592d04b8c51b751e693b9c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25300002
+      y: -0.021000061
+      width: 0.595
+      height: 0.24249999
+  - id: item:bloodpak
+    sprite: {fileID: 21300000, guid: 83ca3b1610d74df47a6208cce742d8cd, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24300003
+      y: -0.006000061
+      width: 0.47750002
+      height: 0.3025
+  - id: item:bomb
+    sprite: {fileID: 21300000, guid: 1e85f2afbdd01ff44b74bb518a74e2d4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.46
+      y: -0.14650002
+      width: 0.83000004
+      height: 0.3075
+  - id: item:bong
+    sprite: {fileID: 21300000, guid: c4806008ecb96464f8fb51048a2dfcc5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.61800003
+      y: -0.29350007
+      width: 1.2275
+      height: 1.215
+  - id: item:book_cm
+    sprite: {fileID: 21300000, guid: 6920cf03006ae414e8f2c4e5ea56c90a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65550005
+      y: -0.34350005
+      width: 1.3025
+      height: 1.2975
+  - id: item:borsch
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:bottle
+    sprite: {fileID: 21300000, guid: dcfdc96d6dab68d4eab70d525eef98be, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.06050003
+      y: -0.008500061
+      width: 0.1175
+      height: 0.425
+  - id: item:box_nut
+    sprite: {fileID: 21300000, guid: 06d9e8c0ba4610345ba5c59e196e13e3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.60300004
+      y: -0.28350008
+      width: 1.2025
+      height: 1.19
+  - id: item:box_screw
+    sprite: {fileID: 21300000, guid: 969aa55e1b4551b40a95af6b40d4d962, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.61050004
+      y: -0.28850007
+      width: 1.2175
+      height: 1.2025
+  - id: item:braga
+    sprite: {fileID: 21300000, guid: 2f99b94fb1d16bd42925511b1848a827, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.075500034
+      y: -0.006000061
+      width: 0.14500001
+      height: 0.53
+  - id: item:bread
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:breakfast
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:buck
+    sprite: {fileID: 21300000, guid: 4f7c37b420a2b6740a8f66f281fd5ebd, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.33
+  - id: item:butter
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:butterbr
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:c_owl
+    sprite: {fileID: 21300000, guid: 29aa64409eebd2649acc271540374553, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.643
+      y: -0.40600005
+      width: 1.285
+      height: 1.285
+  - id: item:cabbage
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:can
+    sprite: {fileID: 21300000, guid: 7223a242f60ad3647aa401c78f6731eb, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12800004
+      y: -0.028500061
+      width: 0.2525
+      height: 0.275
+  - id: item:carrot
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:casser
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:cheese
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:chip
+    sprite: {fileID: 21300000, guid: 5498296b93909ef428d35c4c5508bdc6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.45550004
+      y: -0.22100006
+      width: 0.9125
+      height: 0.9125
+  - id: item:chips
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:chitin_comp
+    sprite: {fileID: 21300000, guid: 96e695cbcd7126d4ea954e39c2ec9ee8, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.33550003
+      y: -0.021000061
+      width: 0.69
+      height: 0.2725
+  - id: item:chpasta
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:cigars
+    sprite: {fileID: 21300000, guid: 9b3d2b07246e9f6469c6c0334c05d68a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.6355
+      y: -0.32600006
+      width: 1.265
+      height: 1.265
+  - id: item:coffee
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:col1
+    sprite: {fileID: 21300000, guid: 33b34a5c21474754eac7cedd9a53cc4a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30550003
+      y: -0.006000061
+      width: 0.61
+      height: 0.61249995
+  - id: item:col2
+    sprite: {fileID: 21300000, guid: 5822ea9dd76cabe4cb6f5ac84d7382f4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.7625
+  - id: item:compress
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:condens
+    sprite: {fileID: 21300000, guid: d5619c5cfecaf66498a9a4a081fa68d1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.21300003
+      y: -0.006000061
+      width: 0.425
+      height: 0.2475
+  - id: item:cordial
+    sprite: {fileID: 21300000, guid: 2f99b94fb1d16bd42925511b1848a827, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.075500034
+      y: -0.006000061
+      width: 0.14500001
+      height: 0.53
+  - id: item:corn
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:crackers
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:cryogr
+    sprite: {fileID: 21300000, guid: a025fe83c80860d4c9ae65697e140099, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12849998
+      y: -0.13150002
+      width: 0.2525
+      height: 0.275
+  - id: item:cryomine
+    sprite: {fileID: 21300000, guid: fcfe76c678b595a428db60785001996b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.26
+  - id: item:crystal
+    sprite: {fileID: 21300000, guid: cc9caabd5e0c0b241ac364b492c3a35d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:crystal_6
+    sprite: {fileID: 21300000, guid: cc9caabd5e0c0b241ac364b492c3a35d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:cucsand
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:cucumber
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:darkfrag
+    sprite: {fileID: 21300000, guid: b9877520520009f47861ae75060196f8, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.20800003
+      y: -0.05350006
+      width: 0.46
+      height: 0.625
+  - id: item:dart
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:dash
+    sprite: {fileID: 21300000, guid: 8aa19b43ede819146923bf0e945704a5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.33
+  - id: item:data
+    sprite: {fileID: 21300000, guid: b0b200b197650c84ca8fa5e7b67079f6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.021000061
+      width: 0.53
+      height: 0.5325
+  - id: item:data_eqd
+    sprite: {fileID: 21300000, guid: afa43004708810b4885fba2fe67abcd5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.66050005
+      y: -0.40850008
+      width: 1.31
+      height: 1.31
+  - id: item:datast
+    sprite: {fileID: 21300000, guid: b6d817c7f2e291b4b818f6f917164ed4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.021000061
+      width: 0.53
+      height: 0.5325
+  - id: item:dbomb
+    sprite: {fileID: 21300000, guid: 506d736a1b2196a489e60cdac34e3f95, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.46
+      y: -0.141
+      width: 0.82500005
+      height: 0.3025
+  - id: item:detonat
+    sprite: {fileID: 21300000, guid: e20786431f9ba174e9321950de958d05, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.19050004
+      y: -0.006000061
+      width: 0.3825
+      height: 0.41250002
+  - id: item:diary
+    sprite: {fileID: 21300000, guid: 86f69a1458a3a56468e2ed03a7489767, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.643
+      y: -0.16850007
+      width: 1.2874999
+      height: 1.285
+  - id: item:dinamit
+    sprite: {fileID: 21300000, guid: b0093cc80f43ce541985a6ff26ec03b1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2025
+      y: -0.0575
+      width: 0.46499997
+      height: 0.235
+  - id: item:dinner
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:disc
+    sprite: {fileID: 21300000, guid: b33e981eed2f5314a9f2713c89b47a11, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.021000061
+      width: 0.53
+      height: 0.5325
+  - id: item:doctor
+    sprite: {fileID: 21300000, guid: b46370bb627f3ed46992e8a56a17e838, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.31800002
+      y: -0.003500061
+      width: 0.61749995
+      height: 0.47500002
+  - id: item:dsoul
+    sprite: {fileID: 21300000, guid: 8f31ca28c2a306e43a37c05c4a3fc9b7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.36050004
+      y: -0.058500063
+      width: 0.68
+      height: 0.68
+  - id: item:egg
+    sprite: {fileID: 21300000, guid: 2133ebccf7089174ab34f63641145184, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2625
+      y: -0.0425
+      width: 0.525
+      height: 0.4025
+  - id: item:elcomp
+    sprite: {fileID: 21300000, guid: 9f2ab4b5d74ab434485385e2925219b9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22300003
+      y: -0.003500061
+      width: 0.4425
+      height: 0.225
+  - id: item:enclarmor
+    sprite: {fileID: 21300000, guid: debdb3bb3b5c17d498336f55a142f306, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.77550006
+      y: -0.44600007
+      width: 1.5475
+      height: 1.5600001
+  - id: item:energ
+    sprite: {fileID: 21300000, guid: 99774877750f2a54f94a064c09710dfe, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:energ_6
+    sprite: {fileID: 21300000, guid: 99774877750f2a54f94a064c09710dfe, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:energy
+    sprite: {fileID: 21300000, guid: 667465dcf2fd4e34b817e92f598f40d5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.6855
+      y: -0.21600007
+      width: 1.365
+      height: 1.3625001
+  - id: item:essence
+    sprite: {fileID: 21300000, guid: 963d7ac4843d5fe4c99f15500254c4d4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.36050004
+      y: -0.058500063
+      width: 0.68
+      height: 0.68
+  - id: item:exc4
+    sprite: {fileID: 21300000, guid: 2a77f01719c198446a2ab09accb664c9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3035
+      y: -0.15650001
+      width: 0.605
+      height: 0.3175
+  - id: item:explosives
+    sprite: {fileID: 21300000, guid: 5d78985ba59980646aab1001eec7444d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.7055
+      y: -0.23600006
+      width: 1.3975
+      height: 1.3975
+  - id: item:fan
+    sprite: {fileID: 21300000, guid: f8880842498668e489b45767b9e3a67a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.32050002
+      y: 0.001499939
+      width: 0.62
+      height: 0.7975
+  - id: item:fblade
+    sprite: {fileID: 21300000, guid: 614a5b008c37df741bebdcaa1cdf2fa0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.42050004
+      y: 0.001499939
+      width: 0.915
+      height: 0.185
+  - id: item:fcrystal
+    sprite: {fileID: 21300000, guid: 7717b2f98f6feca419043c6d4ceb48d5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.46300003
+      y: -0.22850007
+      width: 0.905
+      height: 0.90250003
+  - id: item:fgren
+    sprite: {fileID: 21300000, guid: 620def0d1f3e3a547bb28fbba96ec990, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12349998
+      y: -0.12400001
+      width: 0.2475
+      height: 0.2475
+  - id: item:firecrystal
+    sprite: {fileID: 21300000, guid: 7086c1922ba81d941b5db7a92245b5ed, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.23550004
+      y: -0.13350005
+      width: 0.43
+      height: 0.6875
+  - id: item:firegland
+    sprite: {fileID: 21300000, guid: bb893929228a7b74a97bacf5b0e3be51, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.02350006
+      width: 0.51750004
+      height: 0.225
+  - id: item:firstaid
+    sprite: {fileID: 21300000, guid: feedb44d4188f4548b70be1a76592f81, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.41000003
+  - id: item:fishfat
+    sprite: {fileID: 21300000, guid: da12049e2252f7e41a2ba4f13e76c965, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12550002
+      y: -0.008500061
+      width: 0.24499999
+      height: 0.37
+  - id: item:flour
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:frag
+    sprite: {fileID: 21300000, guid: 20fac0963c71fb442bad94c0003f4752, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22800003
+      y: -0.028500061
+      width: 0.475
+      height: 0.30499998
+  - id: item:frmeat
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:frpot
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:fuel
+    sprite: {fileID: 21300000, guid: 158aed78c6c155141a846a8b8c2ec429, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.4
+      y: 0
+      width: 0.8
+      height: 0.28
+  - id: item:fuel_7
+    sprite: {fileID: 21300000, guid: 158aed78c6c155141a846a8b8c2ec429, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.4
+      y: 0
+      width: 0.8
+      height: 0.28
+  - id: item:garlic
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:gasgr
+    sprite: {fileID: 21300000, guid: e0bf2f677370b974e96145151e0e066e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: item:gel
+    sprite: {fileID: 21300000, guid: cfc533f28393c9e43893e8f065911a84, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.14050002
+      y: -0.008500061
+      width: 0.27999997
+      height: 0.4275
+  - id: item:gem1
+    sprite: {fileID: 21300000, guid: 7cddbed387d7b934aa07a2e0563c785c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.20050003
+      y: -0.003500061
+      width: 0.4275
+      height: 0.425
+  - id: item:gem2
+    sprite: {fileID: 21300000, guid: 2e570da48e5a4de41812ca0137736dd1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17550004
+      y: 0.003999939
+      width: 0.3425
+      height: 0.5125
+  - id: item:gem3
+    sprite: {fileID: 21300000, guid: fafd626ab21a6b54fafcabcf164aa314, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.018500062
+      width: 0.5075
+      height: 0.48499998
+  - id: item:ghoulblood
+    sprite: {fileID: 21300000, guid: bb893929228a7b74a97bacf5b0e3be51, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.02350006
+      width: 0.51750004
+      height: 0.225
+  - id: item:gland
+    sprite: {fileID: 21300000, guid: bb893929228a7b74a97bacf5b0e3be51, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.02350006
+      width: 0.51750004
+      height: 0.225
+  - id: item:glue
+    sprite: {fileID: 21300000, guid: 1420954d03df0f54185fcabd4ab98480, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.13550003
+      y: -0.006000061
+      width: 0.2625
+      height: 0.41
+  - id: item:glycerol
+    sprite: {fileID: 21300000, guid: 87101b93d51d43342b1f0790fda22ee5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.33600006
+      width: 1.2925
+      height: 1.2875
+  - id: item:good
+    sprite: {fileID: 21300000, guid: bb893929228a7b74a97bacf5b0e3be51, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.02350006
+      width: 0.51750004
+      height: 0.225
+  - id: item:gren40
+    sprite: {fileID: 21300000, guid: 87d3c05582fe62a46b1cf3f2b8aa54fa, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.29
+      y: -0.01
+      width: 0.6
+      height: 0.22
+  - id: item:gren40_8
+    sprite: {fileID: 21300000, guid: 87d3c05582fe62a46b1cf3f2b8aa54fa, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.29
+      y: -0.01
+      width: 0.6
+      height: 0.22
+  - id: item:gren40_9
+    sprite: {fileID: 21300000, guid: 87d3c05582fe62a46b1cf3f2b8aa54fa, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.29
+      y: -0.01
+      width: 0.6
+      height: 0.22
+  - id: item:grenade
+    sprite: {fileID: 21300000, guid: 0b3a98fae1e7f1a47bf2992141ffcd59, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: item:halva
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:hcrystal
+    sprite: {fileID: 21300000, guid: 12ac071e78611bd41aab0b5bd39aec1a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.46300003
+      y: -0.22850007
+      width: 0.9075
+      height: 0.9075
+  - id: item:herbs
+    sprite: {fileID: 21300000, guid: db5b7c71be426a74b9f1773d620320c5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.19050004
+      y: -0.008500061
+      width: 0.3825
+      height: 0.3175
+  - id: item:hgren
+    sprite: {fileID: 21300000, guid: 3718c8f5b4ea70946907b3861773b398, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12849998
+      y: -0.13150002
+      width: 0.2525
+      height: 0.275
+  - id: item:hmine
+    sprite: {fileID: 21300000, guid: 6761f3459d849ea45add3b5e2e135114, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.26
+  - id: item:honey
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:hooch
+    sprite: {fileID: 21300000, guid: 2f99b94fb1d16bd42925511b1848a827, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.075500034
+      y: -0.006000061
+      width: 0.14500001
+      height: 0.53
+  - id: item:hydra
+    sprite: {fileID: 21300000, guid: cb77da42cd09d29488272de2eee3d956, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.47500002
+  - id: item:hydrablood
+    sprite: {fileID: 21300000, guid: 5b05f481d131c5c49bc54d2a5b091232, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.006000061
+      width: 0.35
+      height: 0.59999996
+  - id: item:impgen
+    sprite: {fileID: 21300000, guid: 40f069a100f57db45b9732b87a17e7bf, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.633
+      y: -0.39850006
+      width: 1.2525
+      height: 1.255
+  - id: item:impgr
+    sprite: {fileID: 21300000, guid: bfebf200e7a82204ea68636ce53d70fa, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: item:impmine
+    sprite: {fileID: 21300000, guid: 291703e8042d5cb4d8d7f8a32bfcd76d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.2825
+  - id: item:intel_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:ketchup
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:key_cat
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_encl
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_gruz
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_necr
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_raiders
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_ranger
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_rar
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_sewer
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_tumba
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:key_zebra
+    sprite: {fileID: 21300000, guid: 4e99d164d5694d14b99d565fb0b72f78, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.65050006
+      y: -0.28600007
+      width: 1.0375
+      height: 1.0375
+  - id: item:kofe
+    sprite: {fileID: 21300000, guid: 984e2cf149e66154da300c073a690bcd, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26050004
+      y: 0.001499939
+      width: 0.62
+      height: 0.6975
+  - id: item:kogit
+    sprite: {fileID: 21300000, guid: e9e71e1ef569c7d4eb87cd18f99dfd28, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.66550004
+      y: -0.46350005
+      width: 1.325
+      height: 1.3149999
+  - id: item:kogt
+    sprite: {fileID: 21300000, guid: 71e35ad2ab109bc44aa56c0d324a7db9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.42050004
+      y: -0.001000061
+      width: 0.895
+      height: 0.2325
+  - id: item:kombu_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:lamp
+    sprite: {fileID: 21300000, guid: 4ab875b830a98b24e90c6e5be9fe72ec, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.28050002
+      y: 0.001499939
+      width: 0.56
+      height: 0.7975
+  - id: item:lbook
+    sprite: {fileID: 21300000, guid: cee00f4ed09aa7b468dbae9e8f8d5a68, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.31300002
+      y: -0.001000061
+      width: 0.6275
+      height: 0.4125
+  - id: item:lighter
+    sprite: {fileID: 21300000, guid: 2285f18eb2a798b46aef6623da6af4cf, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.003500061
+      width: 0.205
+      height: 0.2825
+  - id: item:lockpick
+    sprite: {fileID: 21300000, guid: d2441782003990a4da90c4af2bca139e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.71550006
+      y: -0.24350005
+      width: 1.4125
+      height: 1.4100001
+  - id: item:lollipops
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:lp_item
+    sprite: {fileID: 21300000, guid: 0fa832f52897f654686cb52ec091b8a2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.5055
+      y: -0.16850007
+      width: 1.005
+      height: 1.02
+  - id: item:lunchbox
+    sprite: {fileID: 21300000, guid: aec3a885537a52c40969bba73229e1b0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.31800002
+      y: -0.013500061
+      width: 0.61249995
+      height: 0.2125
+  - id: item:maffin
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:magic
+    sprite: {fileID: 21300000, guid: 92e4d0441da0f384fb245a6ad0457939, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.693
+      y: -0.22100006
+      width: 1.375
+      height: 1.3725001
+  - id: item:magnit
+    sprite: {fileID: 21300000, guid: fa446b8082b1be54e897074088c9dc85, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30300003
+      y: -0.001000061
+      width: 0.6
+      height: 0.30249998
+  - id: item:magus_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:mano
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:mdust
+    sprite: {fileID: 21300000, guid: d7d1b5539d0aae74abc25db6cb0afa31, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.15800004
+      y: -0.02350006
+      width: 0.3125
+      height: 0.415
+  - id: item:meat
+    sprite: {fileID: 21300000, guid: a8bb06ef51f1ead458817a6d5ea4814a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.21050003
+      y: -0.013500061
+      width: 0.4625
+      height: 0.3375
+  - id: item:medic
+    sprite: {fileID: 21300000, guid: b7edef504b8631a4faad5015527148eb, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72050005
+      y: -0.25100005
+      width: 1.4175
+      height: 1.4175
+  - id: item:medx
+    sprite: {fileID: 21300000, guid: f7550b56ffd49374fa9651bac8f77062, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.33
+  - id: item:melee
+    sprite: {fileID: 21300000, guid: 6428ffdb0e3b90c40b55d9a77b74d60c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.67800003
+      y: -0.21100006
+      width: 1.35
+      height: 1.3525001
+  - id: item:metal_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:milk
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:mine
+    sprite: {fileID: 21300000, guid: 811dde8f4bea6f449be7a404566097ee, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.285
+  - id: item:mint
+    sprite: {fileID: 21300000, guid: c02478e641036ae4a9e80e97b123cb06, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.33
+  - id: item:molefat
+    sprite: {fileID: 21300000, guid: bb893929228a7b74a97bacf5b0e3be51, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.02350006
+      width: 0.51750004
+      height: 0.225
+  - id: item:molotov
+    sprite: {fileID: 21300000, guid: a675f393216f60d44a2a219caf2b6199, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.058000002
+      y: -0.009500008
+      width: 0.1425
+      height: 0.46249998
+  - id: item:money
+    sprite: {fileID: 21300000, guid: 40e9fa346ddc5564ea9d94f4cbf4cf4a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27550003
+      y: -0.006000061
+      width: 0.55
+      height: 0.37
+  - id: item:moonstone
+    sprite: {fileID: 21300000, guid: 7d3e0b596a32a084bb46d962da7d319c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18550003
+      y: -0.006000061
+      width: 0.35750002
+      height: 0.53749996
+  - id: item:motor
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:mpie
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:mushroom
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:noodles
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:nuts
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:oatmeal
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:oats
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:omelet
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:onion
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:p10
+    sprite: {fileID: 21300000, guid: bba7d44e382f16a45bc8147a611e52d4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p10_1
+    sprite: {fileID: 21300000, guid: bba7d44e382f16a45bc8147a611e52d4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p12
+    sprite: {fileID: 21300000, guid: 1145066206ecec5439c5194981b70787, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p127
+    sprite: {fileID: 21300000, guid: 1cb85c55e05407c4593be95447f49564, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p127_1
+    sprite: {fileID: 21300000, guid: 1cb85c55e05407c4593be95447f49564, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p127_2
+    sprite: {fileID: 21300000, guid: 1cb85c55e05407c4593be95447f49564, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p12_3
+    sprite: {fileID: 21300000, guid: 1145066206ecec5439c5194981b70787, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p12_4
+    sprite: {fileID: 21300000, guid: 1145066206ecec5439c5194981b70787, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p12_5
+    sprite: {fileID: 21300000, guid: 1145066206ecec5439c5194981b70787, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p145
+    sprite: {fileID: 21300000, guid: f0d48af395265bb40bad7bdbf9492f7c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3
+      y: 0
+      width: 0.6
+      height: 0.36
+  - id: item:p20
+    sprite: {fileID: 21300000, guid: 3129635c2ab4e5a45a36f12ee4468108, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p308
+    sprite: {fileID: 21300000, guid: 4f2e897e9ab4291499c36c9caa3b6566, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p308_1
+    sprite: {fileID: 21300000, guid: 4f2e897e9ab4291499c36c9caa3b6566, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p308_2
+    sprite: {fileID: 21300000, guid: 4f2e897e9ab4291499c36c9caa3b6566, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p32
+    sprite: {fileID: 21300000, guid: d0633563046a46c45859812ac7a788e4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p32_1
+    sprite: {fileID: 21300000, guid: d0633563046a46c45859812ac7a788e4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p32_2
+    sprite: {fileID: 21300000, guid: d0633563046a46c45859812ac7a788e4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p375
+    sprite: {fileID: 21300000, guid: fbd503a4a472e824496b9f35d483df09, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p375_1
+    sprite: {fileID: 21300000, guid: fbd503a4a472e824496b9f35d483df09, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p375_2
+    sprite: {fileID: 21300000, guid: fbd503a4a472e824496b9f35d483df09, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p44
+    sprite: {fileID: 21300000, guid: a3b15e440b3598a4fa016d2081718eea, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p44_1
+    sprite: {fileID: 21300000, guid: a3b15e440b3598a4fa016d2081718eea, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p44_2
+    sprite: {fileID: 21300000, guid: a3b15e440b3598a4fa016d2081718eea, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p5
+    sprite: {fileID: 21300000, guid: d913b55b41d9ee340a338400fd0bbbee, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p50mg
+    sprite: {fileID: 21300000, guid: de1856e2187f1ca4da92a4b99b6ad1c0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p50mg_1
+    sprite: {fileID: 21300000, guid: de1856e2187f1ca4da92a4b99b6ad1c0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p50mg_4
+    sprite: {fileID: 21300000, guid: de1856e2187f1ca4da92a4b99b6ad1c0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p556
+    sprite: {fileID: 21300000, guid: 457f7cdd68e039545a7dd2148fb835c3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p556_1
+    sprite: {fileID: 21300000, guid: 457f7cdd68e039545a7dd2148fb835c3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p556_2
+    sprite: {fileID: 21300000, guid: 457f7cdd68e039545a7dd2148fb835c3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p556_5
+    sprite: {fileID: 21300000, guid: 457f7cdd68e039545a7dd2148fb835c3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p5_1
+    sprite: {fileID: 21300000, guid: d913b55b41d9ee340a338400fd0bbbee, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p9
+    sprite: {fileID: 21300000, guid: 083dd71f8a77b6644924efb35dfd3105, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: 0
+      width: 0.48
+      height: 0.36
+  - id: item:p_beige
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_black
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_blue
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_brown
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_burgundy
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_crimson
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_cyan
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_dgreen
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_fire
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_gray
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_green
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_khaki
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_lblue
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_lime
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_orange
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_pink
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_purple
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_red
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_white
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:p_yellow
+    sprite: {fileID: 21300000, guid: f3746547597cece449456efb4b711fb7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10550003
+      y: -0.006000061
+      width: 0.19749999
+      height: 0.6225
+  - id: item:pasta
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:patty
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:pbatt
+    sprite: {fileID: 21300000, guid: f9deea7e590ae4d44838d347cfc97c0c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.29550004
+      y: -0.006000061
+      width: 0.59000003
+      height: 0.38750002
+  - id: item:pcryo
+    sprite: {fileID: 21300000, guid: d9a5ed7f27b97ee4db322a8ac5d9c350, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.13300003
+      y: -0.003500061
+      width: 0.265
+      height: 0.45250002
+  - id: item:pcrystal
+    sprite: {fileID: 21300000, guid: b2a171b7634e66e48baeb5be8f26f1e0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.46550003
+      y: -0.22850007
+      width: 0.90999997
+      height: 0.9075
+  - id: item:pin
+    sprite: {fileID: 21300000, guid: ee7cc1063ba9eb442a5bc6c82e2e6fd0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22050004
+      y: -0.006000061
+      width: 0.445
+      height: 0.205
+  - id: item:pinkslime
+    sprite: {fileID: 21300000, guid: e2f648343f6e4a24e8a52175e9f30c94, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.21050003
+      y: -0.006000061
+      width: 0.4225
+      height: 0.22749999
+  - id: item:pizza
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:plagr
+    sprite: {fileID: 21300000, guid: cc7a1272dceae814b937becc3af2d4f4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: item:plamine
+    sprite: {fileID: 21300000, guid: 11fb327e4c4946e4f986225c44cdb25c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.2825
+  - id: item:pmint
+    sprite: {fileID: 21300000, guid: 7fb7f535ed1bd9e4eaaf27018a08e2d5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.33
+  - id: item:polic_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:pot0
+    sprite: {fileID: 21300000, guid: dd4af06307018ca408a50889a0db5c97, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.14050002
+      y: -0.008500061
+      width: 0.2925
+      height: 0.3475
+  - id: item:pot1
+    sprite: {fileID: 21300000, guid: e6ba9b755044cf542952cd6df1d0053f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10300003
+      y: -0.006000061
+      width: 0.21000001
+      height: 0.44500002
+  - id: item:pot2
+    sprite: {fileID: 21300000, guid: 968252285970aff4fba64c613f37682d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.006000061
+      width: 0.35
+      height: 0.47
+  - id: item:pot3
+    sprite: {fileID: 21300000, guid: 0de6d2daca1100d4b9d435481eb45f05, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22800003
+      y: -0.006000061
+      width: 0.45749998
+      height: 0.53749996
+  - id: item:potHP
+    sprite: {fileID: 21300000, guid: cf3d73a3ebe579b409b54ce536fa364d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72300005
+      y: -0.47350007
+      width: 1.4475
+      height: 1.4449999
+  - id: item:potMP
+    sprite: {fileID: 21300000, guid: ac0526c697f7ab14184bcb5081e62280, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72300005
+      y: -0.47100008
+      width: 1.4200001
+      height: 1.415
+  - id: item:potato
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:potion_fly
+    sprite: {fileID: 21300000, guid: 46b8a0d78c4a6064ea6f67a5e9ea3287, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.01600006
+      width: 0.3425
+      height: 0.5175
+  - id: item:potion_infra
+    sprite: {fileID: 21300000, guid: a62aee17ccfeab0418fd7cb5d5c139cc, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.01600006
+      width: 0.3425
+      height: 0.5175
+  - id: item:potion_mage
+    sprite: {fileID: 21300000, guid: 6427986f8e04d244e8eb561c304e1e1f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.01600006
+      width: 0.3425
+      height: 0.5175
+  - id: item:potion_shadow
+    sprite: {fileID: 21300000, guid: 59ecb086a3bc4c244849173ec01d9258, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.01600006
+      width: 0.3425
+      height: 0.5175
+  - id: item:potion_stim
+    sprite: {fileID: 21300000, guid: ce3491469d58d234b939725344dfdcfa, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.01600006
+      width: 0.3425
+      height: 0.5175
+  - id: item:potion_swim
+    sprite: {fileID: 21300000, guid: d1dcff7f67d9adf4ea5157ab58b3ce59, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.01600006
+      width: 0.3425
+      height: 0.5175
+  - id: item:potm1
+    sprite: {fileID: 21300000, guid: de4497d3d4d2db54fb7ce24f59aa0f40, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.10300003
+      y: -0.006000061
+      width: 0.21000001
+      height: 0.44500002
+  - id: item:potm2
+    sprite: {fileID: 21300000, guid: b2fb4652547a4494d9b4e7c2956401e0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.006000061
+      width: 0.35
+      height: 0.47
+  - id: item:potm3
+    sprite: {fileID: 21300000, guid: 31316171cf8a43747ba419dbca9e6506, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22800003
+      y: -0.006000061
+      width: 0.45749998
+      height: 0.53749996
+  - id: item:powder
+    sprite: {fileID: 21300000, guid: e20786431f9ba174e9321950de958d05, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.19050004
+      y: -0.006000061
+      width: 0.3825
+      height: 0.41250002
+  - id: item:power_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:ppie
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:pro_armor
+    sprite: {fileID: 21300000, guid: 5db3e278e4d518b49aa741f58e4d86bd, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.643
+      y: -0.33100006
+      width: 1.2774999
+      height: 1.2775
+  - id: item:pulv
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:radcola
+    sprite: {fileID: 21300000, guid: 407b7b0ba25a4e74e8e478846898267c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.15300003
+      y: -0.14350006
+      width: 0.3075
+      height: 0.65999997
+  - id: item:radcookie
+    sprite: {fileID: 21300000, guid: 705f447e8a311a345a8924e30596c096, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18800002
+      y: -0.006000061
+      width: 0.3775
+      height: 0.285
+  - id: item:radslime
+    sprite: {fileID: 21300000, guid: d43b70e0a366783449baf31d6210d4a6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.43050003
+      y: -0.32600006
+      width: 0.8625
+      height: 0.865
+  - id: item:radx
+    sprite: {fileID: 21300000, guid: 616efbb4ee5cea84dbdee828c13efbce, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.11800003
+      y: -0.003500061
+      width: 0.24000001
+      height: 0.365
+  - id: item:rage
+    sprite: {fileID: 21300000, guid: a805126614c0fd3418e389c3133b0a70, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.33
+  - id: item:ragu
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:rainbow
+    sprite: {fileID: 21300000, guid: e002bfe312afbbb4fbceaea917ab05bc, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17050003
+      y: -0.003500061
+      width: 0.32999998
+      height: 0.48000002
+  - id: item:ratliver
+    sprite: {fileID: 21300000, guid: bb893929228a7b74a97bacf5b0e3be51, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.02350006
+      width: 0.51750004
+      height: 0.225
+  - id: item:rattail
+    sprite: {fileID: 21300000, guid: 1b3980a030130bc4e842f0bdd0b222e1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25550002
+      y: -0.031000061
+      width: 0.42499998
+      height: 0.2175
+  - id: item:reboot
+    sprite: {fileID: 21300000, guid: faab2cf0359b5ed4f9cfb9acd0c82a4e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.001000061
+      width: 0.6025
+      height: 0.30249998
+  - id: item:rep
+    sprite: {fileID: 21300000, guid: 4b5838b335f37eb4fba32bfacea9b435, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.29300004
+      y: -0.008500061
+      width: 0.58000004
+      height: 0.315
+  - id: item:repair
+    sprite: {fileID: 21300000, guid: c61052df1b7f5dc45931351a7d3ccba1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72300005
+      y: -0.25100005
+      width: 1.4200001
+      height: 1.415
+  - id: item:resscook
+    sprite: {fileID: 21300000, guid: ca22931bae4ad8e429a4b75d4e0af702, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18550003
+      y: -0.011000061
+      width: 0.57
+      height: 0.35
+  - id: item:retr
+    sprite: {fileID: 21300000, guid: 0b95c1c8316a53944a837a06d5bc4482, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.28300002
+      y: -0.003500061
+      width: 0.5625
+      height: 0.55
+  - id: item:rocket
+    sprite: {fileID: 21300000, guid: d85bb1454a46651458dc34fccd1fc555, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.55
+      y: -0.0675
+      width: 1.14
+      height: 0.24000001
+  - id: item:runa
+    sprite: {fileID: 21300000, guid: 9744d0bced0abce47b40c49a62bea3fe, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.28300002
+      y: -0.003500061
+      width: 0.5625
+      height: 0.55
+  - id: item:s_acid
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_acidgr
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_acidgun
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_apie
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_arson
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_balemine
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_bfg
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_bomb
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_borsch
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_breakfast
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_buckshot
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_butterbr
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_casser
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_cdagger
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_chitin
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_chpasta
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_cryogr
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_cryomine
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_cucsand
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_dartgun
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_dbomb
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_empbomb
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_friend
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_frmeat
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_frpot
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_fuel
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_hgren
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_hmine
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_hsword
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_maffin
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_mod_analis
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_mod_hacker
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_mod_holo
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_mod_metal
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_mod_reanim
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_mod_target
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_molotov
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_mpie
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_oatmeal
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_omelet
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_owl
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_owl_armor
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_owl_weapon
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_patty
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_pizza
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_pmint
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_chance
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_crit
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_dexter
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_dskel
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_elements
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_fly
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_immun
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_infra
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_mage
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_might
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_pink
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_prec
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_purif
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_shadow
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_speed
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_stim
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_potion_swim
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_ppie
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_ragu
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_railway
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_rollup
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_salad
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_sawgun
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_soup
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_spgren
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_spie
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_spsalad
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_stampede
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:s_ultradash
+    sprite: {fileID: 21300000, guid: 2ae516f2b73cf014091a7d839c1b61ae, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.37550002
+      y: -0.006000061
+      width: 0.76
+      height: 0.5025
+  - id: item:salad
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:sars
+    sprite: {fileID: 21300000, guid: 59a4c91fe0641f84aa008cec4d823b56, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.075500034
+      y: -0.006000061
+      width: 0.14500001
+      height: 0.53
+  - id: item:saw
+    sprite: {fileID: 21300000, guid: 641ab8e442de8ee429c5c21a02c571ba, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.31050003
+      y: -0.021000061
+      width: 0.62
+      height: 0.6225
+  - id: item:sbombs
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:schnapps
+    sprite: {fileID: 21300000, guid: 2f99b94fb1d16bd42925511b1848a827, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.075500034
+      y: -0.006000061
+      width: 0.14500001
+      height: 0.53
+  - id: item:science
+    sprite: {fileID: 21300000, guid: dbb21dd7b3043be4d8642102ae54c748, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.71300006
+      y: -0.24100006
+      width: 1.4075
+      height: 1.405
+  - id: item:scrap
+    sprite: {fileID: 21300000, guid: c8832921f5ee0a742a5c20a47619f908, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22800003
+      y: -0.013500061
+      width: 0.4525
+      height: 0.29
+  - id: item:screwdriver
+    sprite: {fileID: 21300000, guid: 077ae7bdd90e85d46bfeecf5db7493a6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.34550002
+      y: -0.006000061
+      width: 0.7575
+      height: 0.1475
+  - id: item:secret_doc
+    sprite: {fileID: 21300000, guid: f1e67080954f21c4fb53e955e5fe4b85, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.5655
+      y: -0.31600007
+      width: 1.1375
+      height: 1.1375
+  - id: item:sensor
+    sprite: {fileID: 21300000, guid: e20786431f9ba174e9321950de958d05, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.19050004
+      y: -0.006000061
+      width: 0.3825
+      height: 0.41250002
+  - id: item:skin_comp
+    sprite: {fileID: 21300000, guid: 466808ec3a4c918449dc4bf0346aa412, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27800003
+      y: -0.006000061
+      width: 0.5575
+      height: 0.31750003
+  - id: item:smallguns
+    sprite: {fileID: 21300000, guid: dee1fba6245be4545a0c972e69107fa1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.7005
+      y: -0.22850007
+      width: 1.3875
+      height: 1.3875
+  - id: item:sneak
+    sprite: {fileID: 21300000, guid: 5a0826b26c63ba24499b7159953e6d85, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.67300004
+      y: -0.20350006
+      width: 1.34
+      height: 1.3375
+  - id: item:soup
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:sp_moon
+    sprite: {fileID: 21300000, guid: 1ced1577aaab3784da012f53d0cdb0f1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72300005
+      y: -0.47100008
+      width: 1.4375
+      height: 1.435
+  - id: item:sparklecola
+    sprite: {fileID: 21300000, guid: a291c9ee6a61df84bab455d2a550595e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.075500034
+      y: -0.006000061
+      width: 0.14500001
+      height: 0.53
+  - id: item:spgren
+    sprite: {fileID: 21300000, guid: 648566c30b841da498b35987d798974f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12849998
+      y: -0.13150002
+      width: 0.2525
+      height: 0.275
+  - id: item:sphera
+    sprite: {fileID: 21300000, guid: 964c81c5a6a8bee4889ea46f5f6b9e6e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.48800004
+      y: -0.24600007
+      width: 0.97
+      height: 0.9575
+  - id: item:spie
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:spikenail
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:spirt
+    sprite: {fileID: 21300000, guid: 033777f8c1ad43043a21aa84e0fbd976, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.08550003
+      y: -0.003500061
+      width: 0.17
+      height: 0.38000003
+  - id: item:spring
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:spsalad
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:stampede
+    sprite: {fileID: 21300000, guid: df40e11c4d2b8e84b9c5a7cdacd6240f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.33
+  - id: item:stardust
+    sprite: {fileID: 21300000, guid: 6c0ade85fd9bf624ebd0748e0c01df14, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.32050002
+      y: -0.018500062
+      width: 0.66999996
+      height: 0.505
+  - id: item:stat_aj
+    sprite: {fileID: 21300000, guid: ebf88177d727f6b4989d2c90f0b5d2de, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.92050004
+      y: -0.67100006
+      width: 1.8425
+      height: 1.8399999
+  - id: item:stat_fl
+    sprite: {fileID: 21300000, guid: e258ba0609ae2d8459cc374b9a08f0b4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.91800004
+      y: -0.6635001
+      width: 1.81
+      height: 1.8075
+  - id: item:stat_pp
+    sprite: {fileID: 21300000, guid: 3ed640a5e2115884784b4212a48f4236, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.898
+      y: -0.6485001
+      width: 1.7825
+      height: 1.7825
+  - id: item:stat_rd
+    sprite: {fileID: 21300000, guid: bc03c3adbaeed0f4ca64ef7d5834fd33, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.91300005
+      y: -0.6585001
+      width: 1.8050001
+      height: 1.8000001
+  - id: item:stat_rr
+    sprite: {fileID: 21300000, guid: 77a5927e91be59c47be24605f8e2265a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.90550005
+      y: -0.6535001
+      width: 1.7950001
+      height: 1.79
+  - id: item:stat_tw
+    sprite: {fileID: 21300000, guid: 54fc25beae05a4244ac0bea9cb03b265, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.92300004
+      y: -0.66850007
+      width: 1.815
+      height: 1.8125
+  - id: item:stealth
+    sprite: {fileID: 21300000, guid: 5dce61a8b1d671b42a37baa12789a6fb, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.23050003
+      y: -0.02350006
+      width: 0.465
+      height: 0.4375
+  - id: item:strap
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:sugar
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:super_emerald
+    sprite: {fileID: 21300000, guid: 692c39310bfad114fbefc2a887f02cdc, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.91300005
+      y: -0.6585001
+      width: 1.8050001
+      height: 1.8000001
+  - id: item:super_ruby
+    sprite: {fileID: 21300000, guid: 14456ea4c2d57bc4aa8b2e78e1008d35, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.898
+      y: -0.6485001
+      width: 1.7825
+      height: 1.7825
+  - id: item:super_sapphire
+    sprite: {fileID: 21300000, guid: 0512055afce4dfa4491d55a492abeb21, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.90550005
+      y: -0.6535001
+      width: 1.7950001
+      height: 1.79
+  - id: item:superc
+    sprite: {fileID: 21300000, guid: a9773a5117b008848aa2366bb921ebdb, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30300003
+      y: -0.001000061
+      width: 0.6
+      height: 0.30249998
+  - id: item:surgeon
+    sprite: {fileID: 21300000, guid: e293e3117f64c944d8bcbe9172e63731, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.28300002
+      y: -0.006000061
+      width: 0.565
+      height: 0.47500002
+  - id: item:survival
+    sprite: {fileID: 21300000, guid: e486d7d095c06804b8dfbd446ab1171f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72300005
+      y: -0.25350007
+      width: 1.4475
+      height: 1.445
+  - id: item:tabak
+    sprite: {fileID: 21300000, guid: fb21b374022394e48b658612c5fe986a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.61550003
+      y: -0.31850007
+      width: 1.24
+      height: 1.2525
+  - id: item:taintextract
+    sprite: {fileID: 21300000, guid: 1db0f254da490bb46954de27b11e6052, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.23550004
+      y: -0.006000061
+      width: 0.47000003
+      height: 0.60249996
+  - id: item:tape
+    sprite: {fileID: 21300000, guid: 01d9697498c6f284c92413cebe898a79, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18050003
+      y: -0.001000061
+      width: 0.35750002
+      height: 0.3575
+  - id: item:tech1
+    sprite: {fileID: 21300000, guid: 8645396f80a1a4f4d8e38a3359b56c85, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.80300003
+      y: -0.55600005
+      width: 1.61
+      height: 1.6075001
+  - id: item:tech2
+    sprite: {fileID: 21300000, guid: 0979bee2532cf33458a9cd52d2f46b14, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.79800004
+      y: -0.55100006
+      width: 1.595
+      height: 1.595
+  - id: item:tech3
+    sprite: {fileID: 21300000, guid: 43cfd8d77282a1c49afda3720924815a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.79300004
+      y: -0.5360001
+      width: 1.585
+      height: 1.575
+  - id: item:tech4
+    sprite: {fileID: 21300000, guid: 692505e986f9d9a47be813fa507ded4a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.78800005
+      y: -0.5385001
+      width: 1.5725
+      height: 1.5825
+  - id: item:tech5
+    sprite: {fileID: 21300000, guid: d23488dad35a7454285ad935742a584c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.78300005
+      y: -0.5310001
+      width: 1.56
+      height: 1.5699999
+  - id: item:tegg
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:tele
+    sprite: {fileID: 21300000, guid: 0458a0d5a281e5147b0cac1bd350a093, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.648
+      y: -0.18850006
+      width: 1.3
+      height: 1.3125
+  - id: item:timer
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:tlaser
+    sprite: {fileID: 21300000, guid: c63bea00a9e276d45bc241c21fa2ca49, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.6205
+      y: -0.38850006
+      width: 1.2325001
+      height: 1.2375
+  - id: item:tmed
+    sprite: {fileID: 21300000, guid: 4f593b0d35f08394bb16162b9dfe6017, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.61800003
+      y: -0.38100007
+      width: 1.225
+      height: 1.225
+  - id: item:tnt
+    sprite: {fileID: 21300000, guid: e20786431f9ba174e9321950de958d05, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.19050004
+      y: -0.006000061
+      width: 0.3825
+      height: 0.41250002
+  - id: item:tomato
+    sprite: {fileID: 21300000, guid: 4fa3485abfa2663439ee21a45765863f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27300003
+      y: -0.001000061
+      width: 0.5375
+      height: 0.4775
+  - id: item:tool_boltcutter
+    sprite: {fileID: 21300000, guid: 6979fd4b7dd16fc4eb84cf97fea08d0e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.503
+      y: -0.39350006
+      width: 1.0475
+      height: 0.98249996
+  - id: item:tool_calipers
+    sprite: {fileID: 21300000, guid: 2a54c90ce7a8ea84f9db32aeb40f1e03, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.5005
+      y: -0.44850007
+      width: 1
+      height: 0.99750006
+  - id: item:tool_oscilloscope
+    sprite: {fileID: 21300000, guid: 6718975271bc9674188c413274e53efa, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.643
+      y: -0.39100006
+      width: 1.2574999
+      height: 1.2575
+  - id: item:tpipe
+    sprite: {fileID: 21300000, guid: 7e7f4a4a4257fad44b40e6da051b513e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.61050004
+      y: -0.31100005
+      width: 1.2275
+      height: 1.24
+  - id: item:tubing
+    sprite: {fileID: 21300000, guid: 156a14aadc47d144db3b6ba352a0819b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.35000002
+  - id: item:turp
+    sprite: {fileID: 21300000, guid: d0f79fe0d69a1c240842562847f5d43f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.13550003
+      y: -0.006000061
+      width: 0.2625
+      height: 0.51
+  - id: item:ultradash
+    sprite: {fileID: 21300000, guid: 2a49522f4fd33b84b9a6af59fd7bb95b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25050002
+      y: -0.003500061
+      width: 0.5
+      height: 0.33
+  - id: item:uscan
+    sprite: {fileID: 21300000, guid: 5be8d4e0da77bea4e8ef9cb36c15da3e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.628
+      y: -0.39350006
+      width: 1.2425001
+      height: 1.2475
+  - id: item:vampfang
+    sprite: {fileID: 21300000, guid: 12f28b1f79077cb4c88a940ad2aa7596, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.20550004
+      y: -0.001000061
+      width: 0.45
+      height: 0.21
+  - id: item:whorn
+    sprite: {fileID: 21300000, guid: 40313524899f36044a2e6e3a2ecb5b2c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.39550003
+      y: 0.003999939
+      width: 0.83000004
+      height: 0.215
+  - id: item:wingmembrane
+    sprite: {fileID: 21300000, guid: bb893929228a7b74a97bacf5b0e3be51, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.26550004
+      y: -0.02350006
+      width: 0.51750004
+      height: 0.225
+  - id: item:wtal
+    sprite: {fileID: 21300000, guid: 9f10120cfa11a3b4bb6a15155181d54e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.59050006
+      y: -0.32850006
+      width: 1.175
+      height: 1.165
+  - id: item:x37
+    sprite: {fileID: 21300000, guid: 2ef172e2d4de6dd42968596507a77e9c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2875
+      y: -0.002500019
+      width: 0.5575
+      height: 0.45250002
+  - id: item:zebmine
+    sprite: {fileID: 21300000, guid: 313453936843c4b4db5886c820bccd8c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.285
+  - id: kombu_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: lbook
+    sprite: {fileID: 6275692591376800312, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3075
+      y: -0.2
+      width: 0.615
+      height: 0.4
+  - id: lighter
+    sprite: {fileID: -6386299273968739437, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.0975
+      y: -0.13875
+      width: 0.195
+      height: 0.2775
+  - id: magnit
+    sprite: {fileID: 2884185306326564533, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2975
+      y: -0.1475
+      width: 0.595
+      height: 0.295
+  - id: magus_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: mano
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: metal_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: motor
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: p10
+    sprite: {fileID: -3222094573537247762, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: -0.18
+      width: 0.48
+      height: 0.36
+  - id: p_beige
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_black
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_blue
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_brown
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_burgundy
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_crimson
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_cyan
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_dgreen
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_fire
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_gray
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_green
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_khaki
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_lblue
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_lime
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_orange
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_pink
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_purple
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_red
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_white
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: p_yellow
+    sprite: {fileID: 1511538619287720759, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09625
+      y: -0.30875
+      width: 0.1925
+      height: 0.6175
+  - id: pbatt
+    sprite: {fileID: -386357563641279600, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2925
+      y: -0.19125
+      width: 0.585
+      height: 0.3825
+  - id: pcryo
+    sprite: {fileID: -8571251136690182421, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.13
+      y: -0.22375
+      width: 0.26
+      height: 0.4475
+  - id: pin
+    sprite: {fileID: 8368828861971257964, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.21875
+      y: -0.1
+      width: 0.4375
+      height: 0.2
+  - id: pistol
+    sprite: {fileID: 21300000, guid: cc722c8b63748ab43a9f5d99980283ab, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.16
+      y: -0.21
+      width: 0.76
+      height: 0.45
+  - id: polic_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: pulv
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: rep
+    sprite: {fileID: 8238010875513082141, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2875
+      y: -0.15375
+      width: 0.575
+      height: 0.3075
+  - id: resscook
+    sprite: {fileID: -7006657266694342429, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.28125
+      y: -0.1725
+      width: 0.5625
+      height: 0.345
+  - id: saw
+    sprite: {fileID: 3296319791600453718, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3075
+      y: -0.3075
+      width: 0.615
+      height: 0.615
+  - id: skin_comp
+    sprite: {fileID: -8990365569348416610, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.27625
+      y: -0.155
+      width: 0.5525
+      height: 0.31
+  - id: spear
+    sprite: {fileID: 21300000, guid: 224b4b6e97c18534ba0ee8601df0eda3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.635
+      y: -0.025
+      width: 1.95
+      height: 0.135
+  - id: spikenail
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: spring
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: strap
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: superc
+    sprite: {fileID: 5922580460516412846, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2975
+      y: -0.1475
+      width: 0.595
+      height: 0.295
+  - id: tape
+    sprite: {fileID: 8166683572011634405, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17625
+      y: -0.175
+      width: 0.3525
+      height: 0.35
+  - id: timer
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: tlevit
+    sprite: {fileID: -6661711228295416926, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.215
+      y: -0.215
+      width: 0.43
+      height: 0.43
+  - id: tubing
+    sprite: {fileID: 5152777759423558971, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2475
+      y: -0.1725
+      width: 0.495
+      height: 0.345
+  - id: turp
+    sprite: {fileID: 6464821959073760042, guid: 818607ac287c07b41b2e8e3ce2eca4e6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.1275
+      y: -0.2525
+      width: 0.255
+      height: 0.505
+  - id: weapon:a_energ:grade:0
+    sprite: {fileID: 21300000, guid: 67212487f8a5d134fa06ee8d7c355a74, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72
+      y: -0.36049998
+      width: 1.9
+      height: 0.53999996
+  - id: weapon:a_expl:grade:0
+    sprite: {fileID: 21300000, guid: 882680e6a1a9dc54dbbd109203949449, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.06
+      y: -0.3505
+      width: 1.8999999
+      height: 0.6
+  - id: weapon:a_fire:grade:0
+    sprite: {fileID: 21300000, guid: 63cfb918eaa431945a6f6d9691bbcfe8, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.82
+      y: -0.29
+      width: 1.8
+      height: 0.45
+  - id: weapon:a_melee:grade:0
+    sprite: {fileID: 21300000, guid: 059752b08c46ac3468017e455b633a5c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.4
+      y: -0.54
+      width: 3.2
+      height: 1.08
+  - id: weapon:acidgr:grade:0
+    sprite: {fileID: 21300000, guid: a253a35fd101e5a4284e827755997037, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.051999997
+      y: -0.0059999847
+      width: 0.1075
+      height: 0.415
+  - id: weapon:acidgun:grade:0
+    sprite: {fileID: 21300000, guid: d4a988a34d511744cb21e0a3951f3296, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3435
+      y: -0.19950001
+      width: 1.1
+      height: 0.32
+  - id: weapon:acidgun:grade:1
+    sprite: {fileID: 21300000, guid: d4a988a34d511744cb21e0a3951f3296, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3435
+      y: -0.19950001
+      width: 1.1
+      height: 0.32
+  - id: weapon:aglau:grade:0
+    sprite: {fileID: 21300000, guid: 030bdaafa50c9f34eb6edbd6e6933677, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.7289999
+      y: -0.41349998
+      width: 1.8525
+      height: 0.71000004
+  - id: weapon:anti:grade:0
+    sprite: {fileID: 21300000, guid: 9f2098ce7f38a294d9c0357428b916ee, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.89949995
+      y: -0.3395
+      width: 2.5774999
+      height: 0.6
+  - id: weapon:anti:grade:1
+    sprite: {fileID: 21300000, guid: 31afb278ff8b1c646b635c754572f85d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.88949996
+      y: -0.3385
+      width: 2.55
+      height: 0.5375
+  - id: weapon:antidrak:grade:0
+    sprite: {fileID: 21300000, guid: 0e41c5604cf90b341b56b27570635073, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.8900001
+      y: -0.31
+      width: 2.37
+      height: 0.6
+  - id: weapon:antidrak:grade:1
+    sprite: {fileID: 21300000, guid: 0e41c5604cf90b341b56b27570635073, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.8900001
+      y: -0.31
+      width: 2.37
+      height: 0.6
+  - id: weapon:armature:grade:0
+    sprite: {fileID: 21300000, guid: 21c9d301268be1441bf5cbdab4fa994d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.186
+      y: -0.028499998
+      width: 1.2775
+      height: 0.057499997
+  - id: weapon:arson:grade:0
+    sprite: {fileID: 21300000, guid: ba224a601c6d3a34384c5b47b187f755, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09850006
+      y: -0.42550004
+      width: 0.375
+      height: 0.615
+  - id: weapon:arson:grade:1
+    sprite: {fileID: 21300000, guid: ba224a601c6d3a34384c5b47b187f755, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.09850006
+      y: -0.42550004
+      width: 0.375
+      height: 0.615
+  - id: weapon:assr:grade:0
+    sprite: {fileID: 21300000, guid: 4b58363acc79cbd429b463097cd45bf5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.814
+      y: -0.3025
+      width: 1.775
+      height: 0.4225
+  - id: weapon:assr:grade:1
+    sprite: {fileID: 21300000, guid: 7c2dc0ec0851307418ff1b70a3035682, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.814
+      y: -0.3025
+      width: 1.775
+      height: 0.4225
+  - id: weapon:autoaxe:grade:0
+    sprite: {fileID: 21300000, guid: 59fe422160fde8a4cb56172c7266306f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.08
+      y: -0.46300003
+      width: 2.52
+      height: 0.91999996
+  - id: weapon:autor:grade:0
+    sprite: {fileID: 21300000, guid: 8984fee5a5ebf624db2c8a79dd256d21, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.94
+      y: -0.289
+      width: 2
+      height: 0.42
+  - id: weapon:axe:grade:0
+    sprite: {fileID: 21300000, guid: 97cc89cd291e4e0449e8f3365075d430, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.4
+      y: -0.36
+      width: 1.6
+      height: 0.54
+  - id: weapon:balemine:grade:0
+    sprite: {fileID: 21300000, guid: 0eadd0c613172fe49bb983346cc51f4c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.3475
+  - id: weapon:bat:grade:0
+    sprite: {fileID: 21300000, guid: 4fdae954aedcd6a4783f4b066831e6f2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18
+      y: -0.16
+      width: 1.28
+      height: 0.3
+  - id: weapon:bel:grade:0
+    sprite: {fileID: 21300000, guid: 888ec5c10a7955544b7448ec5bdef1b3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.46
+      y: -0.32
+      width: 2.5
+      height: 0.7
+  - id: weapon:bel:grade:1
+    sprite: {fileID: 21300000, guid: 888ec5c10a7955544b7448ec5bdef1b3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.46
+      y: -0.32
+      width: 2.5
+      height: 0.7
+  - id: weapon:bfg:grade:0
+    sprite: {fileID: 21300000, guid: 2057ac12f62adff4fb9437923916cf46, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.643
+      y: -0.32950005
+      width: 1.9599999
+      height: 0.73
+  - id: weapon:blaster:grade:0
+    sprite: {fileID: 21300000, guid: c5587fa56fbff4143802e9f68dfb60b0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18
+      y: -0.19849998
+      width: 0.8
+      height: 0.5175
+  - id: weapon:bomb:grade:0
+    sprite: {fileID: 21300000, guid: 1e85f2afbdd01ff44b74bb518a74e2d4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.46
+      y: -0.14650002
+      width: 0.83000004
+      height: 0.3075
+  - id: weapon:brushgun:grade:0
+    sprite: {fileID: 21300000, guid: 5b8e9db496a9b1a4c80c4f01113f464f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.84
+      y: -0.35
+      width: 2
+      height: 0.44
+  - id: weapon:brushgun:grade:1
+    sprite: {fileID: 21300000, guid: 5b8e9db496a9b1a4c80c4f01113f464f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.84
+      y: -0.35
+      width: 2
+      height: 0.44
+  - id: weapon:bsaw:grade:0
+    sprite: {fileID: 21300000, guid: 71e7eba275382a64fa32c4f4a1e8ae10, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.32
+      y: -0.58
+      width: 2.56
+      height: 0.88
+  - id: weapon:buckshot:grade:0
+    sprite: {fileID: 21300000, guid: 8badfa73ef352124d958a9fffa4275a9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.48999995
+      y: -0.17
+      width: 1.19
+      height: 0.3775
+  - id: weapon:buckshot:grade:1
+    sprite: {fileID: 21300000, guid: 8badfa73ef352124d958a9fffa4275a9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.48999995
+      y: -0.17
+      width: 1.19
+      height: 0.3775
+  - id: weapon:carbine:grade:0
+    sprite: {fileID: 21300000, guid: 71dcffea49119494c841a3e58b7cd4f1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3025
+      width: 1.5899999
+      height: 0.5625
+  - id: weapon:carbine:grade:1
+    sprite: {fileID: 21300000, guid: 71dcffea49119494c841a3e58b7cd4f1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3025
+      width: 1.5899999
+      height: 0.5625
+  - id: weapon:cdagger:grade:0
+    sprite: {fileID: 21300000, guid: a55bbc42101e42f44b3060cffd583c15, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3
+      y: -0.18
+      width: 1.3800001
+      height: 0.48000002
+  - id: weapon:cflamer:grade:0
+    sprite: {fileID: 21300000, guid: 86cecba235441414fb5f01d330b6777c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.2925
+      y: -0.3825
+      width: 2.53
+      height: 0.9875
+  - id: weapon:cflamer:grade:1
+    sprite: {fileID: 21300000, guid: 86cecba235441414fb5f01d330b6777c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.2925
+      y: -0.3825
+      width: 2.53
+      height: 0.9875
+  - id: weapon:chopper:grade:0
+    sprite: {fileID: 21300000, guid: 87ecb46b4d1c0e4469dda61da73e9816, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.28
+      y: -0.28
+      width: 1.16
+      height: 0.34
+  - id: weapon:cknife:grade:0
+    sprite: {fileID: 21300000, guid: dcc8af27892216b4883d761e49ba5d87, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2
+      y: -0.16
+      width: 0.97999996
+      height: 0.3
+  - id: weapon:cknife:grade:1
+    sprite: {fileID: 21300000, guid: dcc8af27892216b4883d761e49ba5d87, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2
+      y: -0.16
+      width: 0.97999996
+      height: 0.3
+  - id: weapon:cryo:grade:0
+    sprite: {fileID: 21300000, guid: 49672a506f5d05e49bb68f12de9ebd6c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3505
+      width: 1.56
+      height: 0.52
+  - id: weapon:cryogr:grade:0
+    sprite: {fileID: 21300000, guid: a025fe83c80860d4c9ae65697e140099, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12849998
+      y: -0.13150002
+      width: 0.2525
+      height: 0.275
+  - id: weapon:cryomine:grade:0
+    sprite: {fileID: 21300000, guid: fcfe76c678b595a428db60785001996b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.26
+  - id: weapon:dartgun:grade:0
+    sprite: {fileID: 21300000, guid: 7185c78ce036c6f4c9d46b8071226982, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18650001
+      y: -0.20799999
+      width: 0.815
+      height: 0.39
+  - id: weapon:dartgun:grade:1
+    sprite: {fileID: 21300000, guid: 7185c78ce036c6f4c9d46b8071226982, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18650001
+      y: -0.20799999
+      width: 0.815
+      height: 0.39
+  - id: weapon:dbomb:grade:0
+    sprite: {fileID: 21300000, guid: 506d736a1b2196a489e60cdac34e3f95, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.46
+      y: -0.141
+      width: 0.82500005
+      height: 0.3025
+  - id: weapon:dinamit:grade:0
+    sprite: {fileID: 21300000, guid: b0093cc80f43ce541985a6ff26ec03b1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2025
+      y: -0.0575
+      width: 0.46499997
+      height: 0.235
+  - id: weapon:drongr:grade:0
+    sprite: {fileID: 21300000, guid: 0dc93d80e5be9e14282d12d03a369869, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.19599998
+      y: -0.19650002
+      width: 0.39249998
+      height: 0.39249998
+  - id: weapon:edagger:grade:0
+    sprite: {fileID: 21300000, guid: 9e8c8b9cc3f329949b500fbb9f26466a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3
+      y: -0.14
+      width: 1.1800001
+      height: 0.3
+  - id: weapon:elsword:grade:0
+    sprite: {fileID: 21300000, guid: 19609cae2eaca83478c2728428d2d894, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25000003
+      y: -0.09
+      width: 1.76
+      height: 0.19
+  - id: weapon:elsword:grade:1
+    sprite: {fileID: 21300000, guid: 19609cae2eaca83478c2728428d2d894, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.25000003
+      y: -0.09
+      width: 1.76
+      height: 0.19
+  - id: weapon:exc4:grade:0
+    sprite: {fileID: 21300000, guid: 2a77f01719c198446a2ab09accb664c9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3035
+      y: -0.15650001
+      width: 0.605
+      height: 0.3175
+  - id: weapon:fgren:grade:0
+    sprite: {fileID: 21300000, guid: 620def0d1f3e3a547bb28fbba96ec990, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12349998
+      y: -0.12400001
+      width: 0.2475
+      height: 0.2475
+  - id: weapon:flamer:grade:0
+    sprite: {fileID: 21300000, guid: efc079b26de9600409a21b6152d04d31, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.0015
+      y: -0.475
+      width: 1.79
+      height: 0.53
+  - id: weapon:flamer:grade:1
+    sprite: {fileID: 21300000, guid: efc079b26de9600409a21b6152d04d31, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.0015
+      y: -0.475
+      width: 1.79
+      height: 0.53
+  - id: weapon:flaregun:grade:0
+    sprite: {fileID: 21300000, guid: 16f5a034763af924682739f2d1039c75, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.125
+      y: -0.21149999
+      width: 0.6
+      height: 0.4275
+  - id: weapon:friend:grade:0
+    sprite: {fileID: 21300000, guid: e0d047dbaec03ed44a4a4b5f0df3da59, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3005
+      width: 1.99
+      height: 0.47000003
+  - id: weapon:friend:grade:1
+    sprite: {fileID: 21300000, guid: e0d047dbaec03ed44a4a4b5f0df3da59, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3005
+      width: 1.99
+      height: 0.47000003
+  - id: weapon:gasgr:grade:0
+    sprite: {fileID: 21300000, guid: e0bf2f677370b974e96145151e0e066e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: weapon:gatl:grade:0
+    sprite: {fileID: 21300000, guid: aea2be37221c079408189f3f95e524dd, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.17
+      y: -0.35
+      width: 2.58
+      height: 0.82
+  - id: weapon:gatl:grade:1
+    sprite: {fileID: 21300000, guid: aea2be37221c079408189f3f95e524dd, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.17
+      y: -0.35
+      width: 2.58
+      height: 0.82
+  - id: weapon:gatp:grade:0
+    sprite: {fileID: 21300000, guid: 9947b7e4e4b28b342a5105f0700456a2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.1305
+      y: -0.3675
+      width: 2.5
+      height: 0.9975
+  - id: weapon:gatp:grade:1
+    sprite: {fileID: 21300000, guid: 9947b7e4e4b28b342a5105f0700456a2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.1305
+      y: -0.3675
+      width: 2.5
+      height: 0.9975
+  - id: weapon:glau1:grade:0
+    sprite: {fileID: 21300000, guid: 065e33f40793a894eb9cad4adbcffc28, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.9425
+      y: -0.19799995
+      width: 1.64
+      height: 0.44
+  - id: weapon:glau:grade:0
+    sprite: {fileID: 21300000, guid: a42f1bfce426b214f80fcbae436441d8, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.6535001
+      y: -0.38049996
+      width: 1.6324999
+      height: 0.675
+  - id: weapon:glau:grade:1
+    sprite: {fileID: 21300000, guid: a42f1bfce426b214f80fcbae436441d8, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.6535001
+      y: -0.38049996
+      width: 1.6324999
+      height: 0.675
+  - id: weapon:grenade:grade:0
+    sprite: {fileID: 21300000, guid: 0b3a98fae1e7f1a47bf2992141ffcd59, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: weapon:grom:grade:0
+    sprite: {fileID: 21300000, guid: 1b42782f1596a3241849e0c59a04cbc9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.90050006
+      y: -0.41799998
+      width: 2.38
+      height: 0.6975
+  - id: weapon:grom:grade:1
+    sprite: {fileID: 21300000, guid: 1b42782f1596a3241849e0c59a04cbc9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.90050006
+      y: -0.41799998
+      width: 2.38
+      height: 0.6975
+  - id: weapon:hammer:grade:0
+    sprite: {fileID: 21300000, guid: a2733e0c0f3e0e84abc31ad114711304, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.36
+      y: -0.28
+      width: 1.7
+      height: 0.53999996
+  - id: weapon:hammer:grade:1
+    sprite: {fileID: 21300000, guid: 8297cc7ad1373b249bcda582236cfae9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.36
+      y: -0.29999998
+      width: 1.7
+      height: 0.58000004
+  - id: weapon:hgren:grade:0
+    sprite: {fileID: 21300000, guid: 3718c8f5b4ea70946907b3861773b398, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12849998
+      y: -0.13150002
+      width: 0.2525
+      height: 0.275
+  - id: weapon:hmg:grade:0
+    sprite: {fileID: 21300000, guid: 332d78d47b3a09d419f474122583f122, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.86
+      y: -0.289
+      width: 2.2
+      height: 0.48
+  - id: weapon:hmine:grade:0
+    sprite: {fileID: 21300000, guid: 6761f3459d849ea45add3b5e2e135114, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.26
+  - id: weapon:hsword:grade:0
+    sprite: {fileID: 21300000, guid: 71efba7ae3fe57148be711742ff4a852, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18
+      y: -0.08
+      width: 1.3800001
+      height: 0.16
+  - id: weapon:hunt:grade:0
+    sprite: {fileID: 21300000, guid: bc5d844784ae9334c9b735eda842cdb9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.81
+      y: -0.32
+      width: 1.98
+      height: 0.38
+  - id: weapon:impgr:grade:0
+    sprite: {fileID: 21300000, guid: bfebf200e7a82204ea68636ce53d70fa, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: weapon:impmine:grade:0
+    sprite: {fileID: 21300000, guid: 291703e8042d5cb4d8d7f8a32bfcd76d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.2825
+  - id: weapon:incin:grade:0
+    sprite: {fileID: 21300000, guid: d90499d6e02a7be46a863a5f5ff38052, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.91
+      y: -0.38099998
+      width: 1.96
+      height: 0.65
+  - id: weapon:knife:grade:0
+    sprite: {fileID: 21300000, guid: 25eb8a4c88a592942bad96b285249e15, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2
+      y: -0.1
+      width: 1
+      height: 0.16
+  - id: weapon:kosa:grade:0
+    sprite: {fileID: 21300000, guid: 41312d320320ac048912889f291a0885, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.259
+      y: -0.746
+      width: 1.9549999
+      height: 1.5475
+  - id: weapon:lasp:grade:0
+    sprite: {fileID: 21300000, guid: 1e3f3abd4f7c02c4d9b6d25a1f9140f3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17099999
+      y: -0.23349999
+      width: 0.86
+      height: 0.5475
+  - id: weapon:lasp:grade:1
+    sprite: {fileID: 21300000, guid: 1e3f3abd4f7c02c4d9b6d25a1f9140f3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.17099999
+      y: -0.23349999
+      width: 0.86
+      height: 0.5475
+  - id: weapon:lasr:grade:0
+    sprite: {fileID: 21300000, guid: 5e0d0b5fe80377b4fb632a51d9053636, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3505
+      width: 1.54
+      height: 0.52
+  - id: weapon:lasr:grade:1
+    sprite: {fileID: 21300000, guid: 5e0d0b5fe80377b4fb632a51d9053636, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3505
+      width: 1.54
+      height: 0.52
+  - id: weapon:lassn:grade:0
+    sprite: {fileID: 21300000, guid: 0ea707b85ec506b4789730876bc9b383, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.92
+      y: -0.3505
+      width: 1.8900001
+      height: 0.53999996
+  - id: weapon:lassn:grade:1
+    sprite: {fileID: 21300000, guid: 0ea707b85ec506b4789730876bc9b383, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.92
+      y: -0.3505
+      width: 1.8900001
+      height: 0.53999996
+  - id: weapon:lmg:grade:0
+    sprite: {fileID: 21300000, guid: f9370df4162a56d47815c7969860b747, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.82
+      y: -0.29
+      width: 1.8
+      height: 0.45
+  - id: weapon:lmg:grade:1
+    sprite: {fileID: 21300000, guid: f9370df4162a56d47815c7969860b747, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.82
+      y: -0.29
+      width: 1.8
+      height: 0.45
+  - id: weapon:lshot:grade:0
+    sprite: {fileID: 21300000, guid: 77d4e70cb22647a4c9c8bfd5958a3307, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.513
+      y: -0.235
+      width: 1.26
+      height: 0.3
+  - id: weapon:lsword:grade:0
+    sprite: {fileID: 21300000, guid: fb9b14336a1a7304dbedfb55634a1976, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3
+      y: -0.09950001
+      width: 2.065
+      height: 0.2025
+  - id: weapon:lsword:grade:1
+    sprite: {fileID: 21300000, guid: 17e006cfccbb6e94cac6b8931ab966a0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3
+      y: -0.09950001
+      width: 2.065
+      height: 0.2025
+  - id: weapon:mace:grade:0
+    sprite: {fileID: 21300000, guid: 7ccfd4b7d1076ba4c96c703df9a7bc30, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.36
+      y: -0.3
+      width: 1.78
+      height: 0.54
+  - id: weapon:mach:grade:0
+    sprite: {fileID: 21300000, guid: 15677c9ae3ab05a4a8d301e6c6c6dfac, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2
+      y: -0.08
+      width: 1.4000001
+      height: 0.18
+  - id: weapon:mach:grade:1
+    sprite: {fileID: 21300000, guid: 15677c9ae3ab05a4a8d301e6c6c6dfac, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2
+      y: -0.08
+      width: 1.4000001
+      height: 0.18
+  - id: weapon:mercgr:grade:0
+    sprite: {fileID: 21300000, guid: cc7a1272dceae814b937becc3af2d4f4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: weapon:mine:grade:0
+    sprite: {fileID: 21300000, guid: 811dde8f4bea6f449be7a404566097ee, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.285
+  - id: weapon:minigun:grade:0
+    sprite: {fileID: 21300000, guid: 64dba277a9c0bbb4e93e2e33ed418e23, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.002
+      y: -0.58175004
+      width: 2.3600001
+      height: 1.0525
+  - id: weapon:minigun:grade:1
+    sprite: {fileID: 21300000, guid: 64dba277a9c0bbb4e93e2e33ed418e23, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.002
+      y: -0.58175004
+      width: 2.3600001
+      height: 1.0525
+  - id: weapon:mlau:grade:0
+    sprite: {fileID: 21300000, guid: a829d5ebe12f8574881546f99062a06c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.45
+      y: -0.49049994
+      width: 2.58
+      height: 0.62
+  - id: weapon:mlau:grade:1
+    sprite: {fileID: 21300000, guid: a829d5ebe12f8574881546f99062a06c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.45
+      y: -0.49049994
+      width: 2.58
+      height: 0.62
+  - id: weapon:molotov:grade:0
+    sprite: {fileID: 21300000, guid: a675f393216f60d44a2a219caf2b6199, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.058000002
+      y: -0.009500008
+      width: 0.1425
+      height: 0.46249998
+  - id: weapon:mont:grade:0
+    sprite: {fileID: 21300000, guid: 43ee7d6069c7f984a82e36f12a35d3e2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3
+      y: -0.2
+      width: 1
+      height: 0.24000001
+  - id: weapon:mont:grade:1
+    sprite: {fileID: 21300000, guid: 43ee7d6069c7f984a82e36f12a35d3e2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.3
+      y: -0.2
+      width: 1
+      height: 0.24000001
+  - id: weapon:mspear:grade:0
+    sprite: {fileID: 21300000, guid: b9e66a34b138f9d4d9be9fdce205eef0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -2.04
+      y: -0.195
+      width: 2.3425
+      height: 0.385
+  - id: weapon:mspear:grade:1
+    sprite: {fileID: 21300000, guid: 4cd137659b72f6541aeaf91f815afd44, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -2.02
+      y: -0.195
+      width: 2.3425
+      height: 0.385
+  - id: weapon:nova:grade:0
+    sprite: {fileID: 21300000, guid: 0772ac2ce209ca74abcfe7aecc4f3e57, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3505
+      width: 1.5899999
+      height: 0.53
+  - id: weapon:nova:grade:1
+    sprite: {fileID: 21300000, guid: 0772ac2ce209ca74abcfe7aecc4f3e57, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3505
+      width: 1.5899999
+      height: 0.53
+  - id: weapon:oldr:grade:0
+    sprite: {fileID: 21300000, guid: bc5d844784ae9334c9b735eda842cdb9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.81
+      y: -0.32
+      width: 1.98
+      height: 0.38
+  - id: weapon:oldr:grade:1
+    sprite: {fileID: 21300000, guid: bc5d844784ae9334c9b735eda842cdb9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.81
+      y: -0.32
+      width: 1.98
+      height: 0.38
+  - id: weapon:oldshot:grade:0
+    sprite: {fileID: 21300000, guid: c23489d1e0144ff43b04730176dc854f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.513
+      y: -0.23
+      width: 1.5
+      height: 0.32
+  - id: weapon:oldshot:grade:1
+    sprite: {fileID: 21300000, guid: c23489d1e0144ff43b04730176dc854f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.513
+      y: -0.23
+      width: 1.5
+      height: 0.32
+  - id: weapon:p10mm:grade:0
+    sprite: {fileID: 21300000, guid: 68bf21cf57e3989498f2fc6f7f9e8af6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.15949997
+      y: -0.20799999
+      width: 0.76
+      height: 0.4475
+  - id: weapon:p10mm:grade:1
+    sprite: {fileID: 21300000, guid: 68bf21cf57e3989498f2fc6f7f9e8af6, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.15949997
+      y: -0.20799999
+      width: 0.76
+      height: 0.4475
+  - id: weapon:p10s:grade:0
+    sprite: {fileID: 21300000, guid: 54d772417db37204f9f7cdc6171848fc, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.15949997
+      y: -0.20749998
+      width: 1.1675
+      height: 0.4475
+  - id: weapon:p127mm:grade:0
+    sprite: {fileID: 21300000, guid: 6124a5aa4c38f2c41b3d5ba002f342ab, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.11
+      y: -0.16
+      width: 0.68
+      height: 0.42
+  - id: weapon:p127mm:grade:1
+    sprite: {fileID: 21300000, guid: 6124a5aa4c38f2c41b3d5ba002f342ab, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.11
+      y: -0.16
+      width: 0.68
+      height: 0.42
+  - id: weapon:p308c:grade:0
+    sprite: {fileID: 21300000, guid: 0267162e4be7f4c47a9ccf869004957d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12
+      y: -0.1505
+      width: 0.73
+      height: 0.41
+  - id: weapon:p9mm:grade:0
+    sprite: {fileID: 21300000, guid: e62e7ac08587d53419ee4166e9f213ac, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18100005
+      y: -0.20799999
+      width: 0.73
+      height: 0.4475
+  - id: weapon:pipe:grade:0
+    sprite: {fileID: 21300000, guid: 5bca104d5dce1e1439edaa2ab7d43b5d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22
+      y: -0.1
+      width: 1.16
+      height: 0.22
+  - id: weapon:plagr:grade:0
+    sprite: {fileID: 21300000, guid: cc7a1272dceae814b937becc3af2d4f4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: weapon:plam:grade:0
+    sprite: {fileID: 21300000, guid: c62f260843f2507488213989eba6d6ff, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.89
+      y: -0.45049998
+      width: 1.7975
+      height: 0.65999997
+  - id: weapon:plam:grade:1
+    sprite: {fileID: 21300000, guid: 36d7988ccfddd0448a6ee486809b369d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.89
+      y: -0.45049998
+      width: 1.7975
+      height: 0.65999997
+  - id: weapon:plamg:grade:0
+    sprite: {fileID: 21300000, guid: 140ac105e0ce9cd4c9c5f3a66fd7c9ce, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3505
+      width: 1.5799999
+      height: 0.52
+  - id: weapon:plamg:grade:1
+    sprite: {fileID: 21300000, guid: 140ac105e0ce9cd4c9c5f3a66fd7c9ce, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3505
+      width: 1.5799999
+      height: 0.52
+  - id: weapon:plamine:grade:0
+    sprite: {fileID: 21300000, guid: 11fb327e4c4946e4f986225c44cdb25c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.2825
+  - id: weapon:plap:grade:0
+    sprite: {fileID: 21300000, guid: 27b577aa10ab754478c61accc1f698e7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.13299999
+      y: -0.1705
+      width: 0.78999996
+      height: 0.44
+  - id: weapon:plap:grade:1
+    sprite: {fileID: 21300000, guid: 27b577aa10ab754478c61accc1f698e7, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.13299999
+      y: -0.1705
+      width: 0.78999996
+      height: 0.44
+  - id: weapon:plar:grade:0
+    sprite: {fileID: 21300000, guid: c63d71efb2a9708428087c1bebd26d7d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.89
+      y: -0.45049998
+      width: 1.7975
+      height: 0.65999997
+  - id: weapon:plar:grade:1
+    sprite: {fileID: 21300000, guid: c63d71efb2a9708428087c1bebd26d7d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.89
+      y: -0.45049998
+      width: 1.7975
+      height: 0.65999997
+  - id: weapon:pp127mm:grade:0
+    sprite: {fileID: 21300000, guid: 10bbf70489b68764ebb7f177f983fd28, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.192
+      y: -0.16049999
+      width: 0.99
+      height: 0.39999998
+  - id: weapon:pp127mm:grade:1
+    sprite: {fileID: 21300000, guid: 10bbf70489b68764ebb7f177f983fd28, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.192
+      y: -0.16049999
+      width: 0.99
+      height: 0.39999998
+  - id: weapon:prism:grade:0
+    sprite: {fileID: 21300000, guid: b8d7de981e16c214e8be8c79c7d27665, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.639
+      y: -0.3405
+      width: 1.31
+      height: 0.5
+  - id: weapon:prism:grade:1
+    sprite: {fileID: 21300000, guid: b8d7de981e16c214e8be8c79c7d27665, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.639
+      y: -0.3405
+      width: 1.31
+      height: 0.5
+  - id: weapon:psc:grade:0
+    sprite: {fileID: 21300000, guid: a81dfff675e6e8443bf2305656bca4d2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.11
+      y: -0.16
+      width: 0.78000003
+      height: 0.42
+  - id: weapon:psc:grade:1
+    sprite: {fileID: 21300000, guid: a81dfff675e6e8443bf2305656bca4d2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.11
+      y: -0.16
+      width: 0.78000003
+      height: 0.42
+  - id: weapon:pshot:grade:0
+    sprite: {fileID: 21300000, guid: f70ab85228c91514a8b133f85aee7b3e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: -0.29
+      width: 1.25
+      height: 0.42
+  - id: weapon:pshot:grade:1
+    sprite: {fileID: 21300000, guid: f70ab85228c91514a8b133f85aee7b3e, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: -0.29
+      width: 1.25
+      height: 0.42
+  - id: weapon:pulsep:grade:0
+    sprite: {fileID: 21300000, guid: ca22052263f7628478fe11ab92abf2e1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24
+      y: -0.10900001
+      width: 0.88
+      height: 0.39
+  - id: weapon:pulser:grade:0
+    sprite: {fileID: 21300000, guid: 3d61100957d185344b58ed6c46265fcf, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.76
+      y: -0.42049998
+      width: 2
+      height: 0.6
+  - id: weapon:pulser:grade:1
+    sprite: {fileID: 21300000, guid: 3d61100957d185344b58ed6c46265fcf, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.76
+      y: -0.42049998
+      width: 2
+      height: 0.6
+  - id: weapon:quick:grade:0
+    sprite: {fileID: 21300000, guid: b9c1ab2ebecbbca40857b7ef655e1d1a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72
+      y: -0.36049998
+      width: 1.9
+      height: 0.53999996
+  - id: weapon:quick:grade:1
+    sprite: {fileID: 21300000, guid: b9c1ab2ebecbbca40857b7ef655e1d1a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.72
+      y: -0.36049998
+      width: 1.9
+      height: 0.53999996
+  - id: weapon:r32:grade:0
+    sprite: {fileID: 21300000, guid: 9e066467ad8ceff45a16a1cabc9632ff, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.13
+      y: -0.09
+      width: 0.68
+      height: 0.31
+  - id: weapon:r375:grade:0
+    sprite: {fileID: 21300000, guid: 68b7820519d0bf947849c782f5b1e84c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.16
+      y: -0.13
+      width: 0.88
+      height: 0.3
+  - id: weapon:rail:grade:0
+    sprite: {fileID: 21300000, guid: a42a377d8a2f7024392a4df16b396697, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.883
+      y: -0.317
+      width: 2
+      height: 0.53
+  - id: weapon:rail:grade:1
+    sprite: {fileID: 21300000, guid: a42a377d8a2f7024392a4df16b396697, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.883
+      y: -0.317
+      width: 2
+      height: 0.53
+  - id: weapon:railway:grade:0
+    sprite: {fileID: 21300000, guid: 97025e223e369d049b3076716da1bd5d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.88
+      y: -0.17
+      width: 2
+      height: 0.64
+  - id: weapon:railway:grade:1
+    sprite: {fileID: 21300000, guid: 97025e223e369d049b3076716da1bd5d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.88
+      y: -0.17
+      width: 2
+      height: 0.64
+  - id: weapon:rech:grade:0
+    sprite: {fileID: 21300000, guid: 62da05cd1f6780a489ba80d8b6e3fc73, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22
+      y: -0.13849999
+      width: 0.86
+      height: 0.3075
+  - id: weapon:rechr:grade:0
+    sprite: {fileID: 21300000, guid: cc91137380d08a6498997b2735a71fa8, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.77
+      y: -0.24049999
+      width: 1.56
+      height: 0.36
+  - id: weapon:revo:grade:0
+    sprite: {fileID: 21300000, guid: b444ead76ef14c54191c97ee4c63a5c2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.156
+      y: -0.1075
+      width: 0.98
+      height: 0.45999998
+  - id: weapon:revo:grade:1
+    sprite: {fileID: 21300000, guid: 8f6665046a983cf42a16429298cc0a08, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.16
+      y: -0.17999998
+      width: 0.9
+      height: 0.56
+  - id: weapon:ripper:grade:0
+    sprite: {fileID: 21300000, guid: ef33f06208a584342aad6e7c68ed2175, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.32
+      y: -0.18
+      width: 2
+      height: 0.34
+  - id: weapon:ripper:grade:1
+    sprite: {fileID: 21300000, guid: ef33f06208a584342aad6e7c68ed2175, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.32
+      y: -0.18
+      width: 2
+      height: 0.34
+  - id: weapon:roboplagr:grade:0
+    sprite: {fileID: 21300000, guid: cc7a1272dceae814b937becc3af2d4f4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.113499984
+      y: -0.11150002
+      width: 0.225
+      height: 0.225
+  - id: weapon:saf9:grade:0
+    sprite: {fileID: 21300000, guid: 23280b02e72f2384b8ca5f8171fab20f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.08900002
+      y: -0.492
+      width: 1.085
+      height: 0.485
+  - id: weapon:saf9:grade:1
+    sprite: {fileID: 21300000, guid: 23280b02e72f2384b8ca5f8171fab20f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.08900002
+      y: -0.492
+      width: 1.085
+      height: 0.485
+  - id: weapon:sawgun:grade:0
+    sprite: {fileID: 21300000, guid: 1e75954609e55844dbcba7919f5dd619, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.53050005
+      y: -0.385
+      width: 1.4575
+      height: 0.79999995
+  - id: weapon:sawgun:grade:1
+    sprite: {fileID: 21300000, guid: 1e75954609e55844dbcba7919f5dd619, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.53050005
+      y: -0.385
+      width: 1.4575
+      height: 0.79999995
+  - id: weapon:shok:grade:0
+    sprite: {fileID: 21300000, guid: 4c0f72422cbefb04ab1d1fba6e00f498, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.22099999
+      y: -0.16099998
+      width: 0.92999995
+      height: 0.32999998
+  - id: weapon:shotgun:grade:0
+    sprite: {fileID: 21300000, guid: d7e23d16e8bb30446b35186e125b2bf0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.268
+      y: -0.2045
+      width: 1.12
+      height: 0.34
+  - id: weapon:shotgun:grade:1
+    sprite: {fileID: 21300000, guid: d7e23d16e8bb30446b35186e125b2bf0, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.268
+      y: -0.2045
+      width: 1.12
+      height: 0.34
+  - id: weapon:shovel:grade:0
+    sprite: {fileID: 21300000, guid: d52104dd532f18942ba09c5913458a04, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.34
+      y: -0.16
+      width: 1.58
+      height: 0.34
+  - id: weapon:sledge:grade:0
+    sprite: {fileID: 21300000, guid: bfeafe4c489d83c4fa11eb83affa33f2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.34
+      y: -0.32
+      width: 1.9200001
+      height: 0.64
+  - id: weapon:sledge:grade:1
+    sprite: {fileID: 21300000, guid: bfeafe4c489d83c4fa11eb83affa33f2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.34
+      y: -0.32
+      width: 1.9200001
+      height: 0.64
+  - id: weapon:smg10:grade:0
+    sprite: {fileID: 21300000, guid: 1cd9831cf56516d419e8063c13c20ed1, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18949997
+      y: -0.28
+      width: 0.92
+      height: 0.56
+  - id: weapon:smg9:grade:0
+    sprite: {fileID: 21300000, guid: dfc2244b66a58c441b6577b6090a936a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.18949997
+      y: -0.185
+      width: 0.89
+      height: 0.465
+  - id: weapon:sniper:grade:0
+    sprite: {fileID: 21300000, guid: 6a859fa314e517b41b39603696fcf189, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.768
+      y: -0.23
+      width: 1.9599999
+      height: 0.4225
+  - id: weapon:sniper:grade:1
+    sprite: {fileID: 21300000, guid: 8ae203d3bfd503b468645bdd17dfeca4, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.768
+      y: -0.2675
+      width: 1.9599999
+      height: 0.46
+  - id: weapon:sparkl:grade:0
+    sprite: {fileID: 21300000, guid: 709080cc1396fdc4abe5a12017c87718, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3205
+      width: 1.5899999
+      height: 0.44
+  - id: weapon:sparkl:grade:1
+    sprite: {fileID: 21300000, guid: 709080cc1396fdc4abe5a12017c87718, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.75
+      y: -0.3205
+      width: 1.5899999
+      height: 0.44
+  - id: weapon:spear:grade:0
+    sprite: {fileID: 21300000, guid: 2307d78eacd3f834cbd5416d558fa587, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.633
+      y: -0.026999999
+      width: 1.95
+      height: 0.135
+  - id: weapon:spear:grade:1
+    sprite: {fileID: 21300000, guid: aa2f5dfa2114b8a40b101b6390abec42, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.913
+      y: -0.1
+      width: 2.2325
+      height: 0.2
+  - id: weapon:spgren:grade:0
+    sprite: {fileID: 21300000, guid: 648566c30b841da498b35987d798974f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.12849998
+      y: -0.13150002
+      width: 0.2525
+      height: 0.275
+  - id: weapon:sword:grade:0
+    sprite: {fileID: 21300000, guid: 57e3db893ebc5c449bbfd6a9d075d0b3, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.36
+      y: -0.26
+      width: 2.12
+      height: 0.53999996
+  - id: weapon:sword:grade:1
+    sprite: {fileID: 21300000, guid: 844a9d83ce8aeda42898df0a4ce766db, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.36
+      y: -0.26
+      width: 2.4
+      height: 0.53999996
+  - id: weapon:termo:grade:0
+    sprite: {fileID: 21300000, guid: 57dc8cd410da90344809f330f0014ffe, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.76
+      y: -0.33099997
+      width: 1.81
+      height: 0.51
+  - id: weapon:termo:grade:1
+    sprite: {fileID: 21300000, guid: 57dc8cd410da90344809f330f0014ffe, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.76
+      y: -0.33099997
+      width: 1.81
+      height: 0.51
+  - id: weapon:tlance:grade:0
+    sprite: {fileID: 21300000, guid: ab13846681676db4cbeeeb1c63daace9, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -1.85
+      y: -0.145
+      width: 2.1625
+      height: 0.3
+  - id: weapon:turret1:grade:0
+    sprite: {fileID: 21300000, guid: a965a8830d2edb94ead1c7ddff758e0c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30200002
+      y: -0.13050003
+      width: 1.175
+      height: 0.25
+  - id: weapon:turret2:grade:0
+    sprite: {fileID: 21300000, guid: 1045a72752472ab45a7f5f759056bd1d, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30200002
+      y: -0.13050003
+      width: 1.175
+      height: 0.25
+  - id: weapon:turret3:grade:0
+    sprite: {fileID: 21300000, guid: 626dc0c28cadf664197b5914666035d5, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30200002
+      y: -0.24800003
+      width: 1.2925
+      height: 0.46499997
+  - id: weapon:turret4:grade:0
+    sprite: {fileID: 21300000, guid: 23b01a6c061484a40b643a57b7032c6b, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30200002
+      y: -0.24800003
+      width: 1.34
+      height: 0.46499997
+  - id: weapon:turret5:grade:0
+    sprite: {fileID: 21300000, guid: f390b889a329c9c498f8fa3cd8fab183, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30200002
+      y: -0.16800003
+      width: 1.3
+      height: 0.33499998
+  - id: weapon:turret6:grade:0
+    sprite: {fileID: 21300000, guid: 2de0100425159844eb9c796bfaba8c0f, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30200002
+      y: -0.18050003
+      width: 1.175
+      height: 0.35500002
+  - id: weapon:turret7:grade:0
+    sprite: {fileID: 21300000, guid: 90b8147ef8380f84f8939b132b0e6c0a, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.30200002
+      y: -0.14550003
+      width: 1.5300001
+      height: 0.28750002
+  - id: weapon:winchester:grade:0
+    sprite: {fileID: 21300000, guid: 32c67665407d7934983dacaad9f2631c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.81
+      y: -0.33
+      width: 1.98
+      height: 0.3975
+  - id: weapon:winchester:grade:1
+    sprite: {fileID: 21300000, guid: 32c67665407d7934983dacaad9f2631c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.81
+      y: -0.33
+      width: 1.98
+      height: 0.3975
+  - id: weapon:x37:grade:0
+    sprite: {fileID: 21300000, guid: 2ef172e2d4de6dd42968596507a77e9c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2875
+      y: -0.002500019
+      width: 0.5575
+      height: 0.45250002
+  - id: weapon:zebmine:grade:0
+    sprite: {fileID: 21300000, guid: 313453936843c4b4db5886c820bccd8c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.305
+      y: -0.09750002
+      width: 0.61
+      height: 0.285
+  - id: weapon:zebr:grade:0
+    sprite: {fileID: 21300000, guid: a9116846e688f604c8f2abdb8829d6ea, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.79
+      y: -0.335
+      width: 1.8800001
+      height: 0.53
+  - id: weapon:zebr:grade:1
+    sprite: {fileID: 21300000, guid: a9116846e688f604c8f2abdb8829d6ea, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.79
+      y: -0.335
+      width: 1.8800001
+      height: 0.53
+  - id: weapon:zknife:grade:0
+    sprite: {fileID: 21300000, guid: 7a5420d9a26cb1740bbb90845f09a66c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2
+      y: -0.1
+      width: 0.97999996
+      height: 0.18
+  - id: weapon:zknife:grade:1
+    sprite: {fileID: 21300000, guid: 7a5420d9a26cb1740bbb90845f09a66c, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.2
+      y: -0.1
+      width: 0.97999996
+      height: 0.18
+  - id: weapon:zsword:grade:0
+    sprite: {fileID: 21300000, guid: 73a4882ca7c41f140a986948ea8f72c2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24000002
+      y: -0.08
+      width: 1.74
+      height: 0.14
+  - id: weapon:zsword:grade:1
+    sprite: {fileID: 21300000, guid: 73a4882ca7c41f140a986948ea8f72c2, type: 2}
+    opaqueBounds:
+      serializedVersion: 2
+      x: -0.24000002
+      y: -0.08
+      width: 1.74
+      height: 0.14

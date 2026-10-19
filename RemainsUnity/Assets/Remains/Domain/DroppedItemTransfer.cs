@@ -8,19 +8,22 @@ namespace Remains.Domain
     public static class DroppedItemTransfer
     {
         public const float Width=.35f,Height=.3f;
-        // A loose item's body: the small common box, or a mine's own size (its artwork is drawn at world scale).
-        public static Vector2 Size(string definition)
+        public static bool HasPreparedShape(string definition)=>MineRules.PlacedWeapon(definition)!=null || Remains.Content.DroppedItemShapeCatalog.TryGet(definition,out _);
+        // A loose body's opaque, oriented artwork bounds; mines retain their authored world-scale body.
+        public static Vector2 Size(string definition,float angle=0,bool mirrored=false)
         {
             string mine=MineRules.PlacedWeapon(definition);
-            if(mine==null) return new Vector2(Width,Height);
+            if(mine==null) return Remains.Content.DroppedItemShapeCatalog.Require(definition).WorldBounds(angle,mirrored).size;
             var profile=Remains.Content.WeaponCatalog.Get(mine).mine;
             return new Vector2(profile.width,profile.height);
         }
         public static ContainerState Preview(ActorState actor,string transaction,string definition,Vector2 origin,Vector2 velocity,float angle=0,bool mirrored=false)
         {
-            var size=Size(definition);
+            var size=Size(definition,angle,mirrored);
+            var centre=MineRules.PlacedWeapon(definition)==null?
+                Remains.Content.DroppedItemShapeCatalog.Require(definition).WorldBounds(angle,mirrored).center:Vector2.zero;
             return new ContainerState {id="drop:"+transaction,definition="loose-item",presentationItem=definition,level=actor.level,
-                x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,width=size.x,height=size.y,anchorHeight=size.y*.5f,presentationAngle=angle,presentationMirrored=mirrored,
+                x=origin.x+centre.x,y=origin.y+centre.y,vx=velocity.x,vy=velocity.y,width=size.x,height=size.y,anchorHeight=size.y*.5f,presentationAngle=angle,presentationMirrored=mirrored,
                 mass=.1f,owner=actor.owner,generation=1};
         }
         public static bool Prepare(WorldState world,ActorState actor,string transaction,string itemId,int quantity,
@@ -34,6 +37,12 @@ namespace Remains.Domain
             if(item==null || quantity<0) return false;
             int available=InventoryAvailability.Count(actor,item),amount=quantity==0?available:quantity;
             if(amount<=0 || amount>available) return false;
+            if(!HasPreparedShape(item.definition))
+            {
+                reason="Бросок недоступен: у предмета не подготовлена физическая форма. Подробности — в журнале.";
+                Debug.LogWarning($"Бросок отклонён без расхода предмета: actor={actor.id}, item={item.id}, definition={item.definition}, transaction={transaction}; нет формы изображения.");
+                return false;
+            }
             string id="drop:"+transaction;
             if(WorldProps.Find(world,id)!=null) return false;
             var drop=Preview(actor,transaction,item.definition,origin,velocity,angle,mirrored);

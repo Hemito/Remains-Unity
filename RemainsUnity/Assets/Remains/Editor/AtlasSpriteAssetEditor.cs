@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Remains.Content;
 using UnityEditor;
 using UnityEngine;
@@ -51,8 +52,24 @@ namespace Remains.Editor
                 else AssetDatabase.AddObjectToAsset(sprite,asset);
                 frames.Add(sprite);
             }
-            asset.SetFrames(frames.ToArray());EditorUtility.SetDirty(asset);AssetDatabase.SaveAssets();
+            var readable=new Texture2D(2,2,TextureFormat.RGBA32,false);
+            var bounds=new List<Vector2>();
+            try
+            {
+                if(!readable.LoadImage(File.ReadAllBytes(AssetDatabase.GetAssetPath(texture))))
+                    throw new InvalidOperationException("Не прочитана текстура атласа для границ: "+asset.name);
+                var pixels=readable.GetPixels32();
+                foreach(var sprite in frames)
+                    bounds.Add(MeasureOpaqueVerticalBounds(pixels,readable.width,sprite.rect,sprite.pivot.y,sprite.pixelsPerUnit));
+            }
+            finally {UnityEngine.Object.DestroyImmediate(readable);}
+            asset.SetFrames(frames.ToArray());asset.SetOpaqueVerticalBounds(bounds.ToArray());EditorUtility.SetDirty(asset);AssetDatabase.SaveAssets();
             Debug.Log($"Атлас {asset.name}: сохранено кадров {frames.Count}.",asset);
+        }
+        public static Vector2 MeasureOpaqueVerticalBounds(Color32[] pixels,int width,Rect rect,float pivotY,float pixelsPerUnit)
+        {
+            var bounds=SpriteOpaqueBoundsBaker.Measure(pixels,width,rect,new Vector2(0,pivotY),pixelsPerUnit);
+            return new Vector2(bounds.yMin,bounds.yMax);
         }
     }
 }

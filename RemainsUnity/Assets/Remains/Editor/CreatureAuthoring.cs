@@ -213,7 +213,7 @@ namespace Remains.Editor
                 var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=atlas.Frames("idle")[0];renderer.sortingOrder=20;renderer.sharedMaterial=material;
                 var visual=root.AddComponent<AtlasActorVisual>();visual.SetRenderer(renderer);
                 // A lying pose that is the standing frame (no die/death row) is drawn turned over and greyed, as the radroach.
-                visual.ConfigureDeadPresentation(lyingFrame,lyingFrame?height*1.4f:0,new Color(.55f,.55f,.55f,1));
+                visual.ConfigureDeadPresentation(lyingFrame,0,new Color(.55f,.55f,.55f,1));
                 type.SetPrefab(PrefabUtility.SaveAsPrefabAsset(root,prefabPath).GetComponent<AtlasActorVisual>());
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
@@ -227,7 +227,8 @@ namespace Remains.Editor
             if(spawn==null) {spawn=ScriptableObject.CreateInstance<NpcSpawnAsset>();spawn.Configure(id,id,hp,null);AssetDatabase.CreateAsset(spawn,spawnPath);}
             else spawn.Configure(id,id,hp,null);
             EditorUtility.SetDirty(spawn);
-            notes.Add("добыча с тела не перенесена");
+            string inventoryPath=SpawnFolder+"/"+id+"-inventory.asset";Guard(inventoryPath,id,owned);
+            CreatureLootAuthoring.Install(inventoryPath,id,source.unit,spawn);
             if(source.dieSounds.Length==0) notes.Add("нет голоса смерти в AllData");
             pendingAnatomy[id]=Anatomy(id,art,width,height);
             sounds[id]=source.dieSounds;

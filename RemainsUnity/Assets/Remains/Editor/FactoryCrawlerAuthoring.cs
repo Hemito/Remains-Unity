@@ -18,6 +18,28 @@ namespace Remains.Editor
         public const string SpawnPath="Assets/Remains/RoomDrafts/FactoryWorkshopRadroachSpawn.asset";
         public const string LootPath="Assets/Remains/RoomDrafts/FactoryWorkshopRadroachInventory.asset";
         [Serializable] private sealed class Source {public float health;public AtlasActorArtwork atlas;public ActorTypeDefinition actor;public AnatomyDefinition anatomy;}
+        // Narrow repair of the existing legacy type, preserving GUIDs, material, tint and reflection.
+        public static void RepairCorpsePresentation()
+        {
+            const string path="Assets/Remains/Prefabs/Actors/radroach.prefab";
+            var atlas=AssetDatabase.LoadAssetAtPath<AtlasSpriteAsset>(AtlasPath);
+            if(atlas==null || AssetDatabase.LoadAssetAtPath<GameObject>(path)==null)
+                throw new InvalidOperationException("Не найден сохранённый атлас или префаб старого радтаракана.");
+            AtlasSpriteAssetEditor.Rebuild(atlas);
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var visual=root.GetComponent<AtlasActorVisual>();
+                if(visual==null) throw new InvalidOperationException("В префабе радтаракана нет AtlasActorVisual.");
+                var saved=new SerializedObject(visual);
+                if(!saved.FindProperty("customDeadPresentation").boolValue)
+                    throw new InvalidOperationException("Оформление тела радтаракана не соответствует исходному авторингу.");
+                visual.ConfigureDeadPresentation(saved.FindProperty("deadFlipY").boolValue,0,saved.FindProperty("deadTint").colorValue);
+                if(PrefabUtility.SaveAsPrefabAsset(root,path)==null) throw new InvalidOperationException("Не сохранено исправление опоры тела радтаракана.");
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            Debug.Log("Радтаракан: изображение тела опирается на непрозрачные границы кадра; прежний подъём 0,42 м удалён.");
+        }
         // Explicit one-time import. No build, session launch or destructive prefab regeneration.
         public static void Install()
         {
@@ -50,7 +72,7 @@ namespace Remains.Editor
             {
                 var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=atlas.Frames("idle")[0];renderer.sortingOrder=20;
                 var material=WorldArtworkMaterial.Create(atlas.Texture);AssetDatabase.CreateAsset(material,"Assets/Remains/Prefabs/Actors/radroach.mat");renderer.sharedMaterial=material;
-                var visual=root.AddComponent<AtlasActorVisual>();visual.SetRenderer(renderer);visual.ConfigureDeadPresentation(true,.42f,new Color(.55f,.55f,.55f,1));
+                var visual=root.AddComponent<AtlasActorVisual>();visual.SetRenderer(renderer);visual.ConfigureDeadPresentation(true,0,new Color(.55f,.55f,.55f,1));
                 type.SetPrefab(PrefabUtility.SaveAsPrefabAsset(root,"Assets/Remains/Prefabs/Actors/radroach.prefab").GetComponent<AtlasActorVisual>());
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}

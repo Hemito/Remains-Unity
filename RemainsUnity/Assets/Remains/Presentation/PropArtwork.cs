@@ -11,6 +11,7 @@ namespace Remains.Presentation
         private readonly Dictionary<string,PropView> prefabs=new();
         private readonly InventoryArtwork items=new();
         private readonly PropView droppedPrefab;
+        private readonly HashSet<(string id,string item,string level)> warnedMissingDroppedShapes=new();
         public PropArtwork()
         {
             items.PrepareWorldMaterials();
@@ -45,12 +46,24 @@ namespace Remains.Presentation
                 var containerView=CreateView(state.definition,"Контейнер "+state.id,state.width);
                 containerView.ApplyContainerAppearance(state);return containerView;
             }
+            DroppedItemShape shape=null;
+            if(MineRules.PlacedWeapon(state.presentationItem)==null && !DroppedItemShapeCatalog.TryGet(state.presentationItem,out shape))
+            {
+                if(warnedMissingDroppedShapes.Add((state.id,state.presentationItem,state.level)))
+                    Debug.LogWarning($"Изображение сохранённого предмета пропущено: id={state.id}, level={state.level}, definition={state.definition}, item={state.presentationItem}; нет подготовленной непрозрачной формы. Физическое тело и содержимое сохранены, графическая подстановка не применяется.");
+                return null;
+            }
             var view=UnityEngine.Object.Instantiate(droppedPrefab);view.name="Брошенный предмет "+state.id;
             var renderer=view.Artwork;
             SpriteArtworkMaterial.Apply(renderer,items.Require(state.presentationItem));
             renderer.sortingOrder=ActorVisualLayers.RestingObjectOrder;view.SetArtwork(renderer);
             // A mine item is the mine itself (original artwork at world scale, pivot at its feet), not a shrunk icon.
             if(MineRules.PlacedWeapon(state.presentationItem)!=null) view.ConfigureFeetArtwork();
+            else
+            {
+                if(shape.sprite!=renderer.sprite) throw new InvalidOperationException("Форма предмета собрана для другой графики: "+state.presentationItem);
+                view.ConfigureDroppedArtwork(shape);
+            }
             view.FitWidth(state.width);view.PrepareHeldGlow();return view;
         }
         public PropView CreateView(string id,string name,float width)

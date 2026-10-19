@@ -27,6 +27,8 @@ namespace Remains.Editor
                     ActorTerrainMotion.IsClear(geometry,Anatomy.Movement(actor),actor.Position),"Неверны источник, вид, здоровье или геометрия: "+actor.id);
             }
             var type=ActorTypes.Get("radroach");Require(!type.hasWeapon && type.combatAi && type.bodyInventory && type.naturalAttack!=null,"Вид подменён оружейным/декоративным NPC.");
+            CreatureChecks.CheckCorpsePresentation(new CreatureEntry {actorType="radroach",
+                spawn=UnityEditor.AssetDatabase.LoadAssetAtPath<NpcSpawnAsset>(FactoryCrawlerAuthoring.SpawnPath)},type);
             var saved=Resources.Load<ActorTypeAsset>("Content/actors/radroach");Require(saved.TryGetPrefab(type,out var prefab) && prefab is Remains.Presentation.AtlasActorVisual,"Нет самостоятельного сохранённого префаба.");
             var atlas=Resources.Load<AtlasSpriteAsset>(type.artwork);Require(atlas.Texture.width==480 && atlas.Texture.height==30,"Не выбран отдельный исходный атлас.");
             foreach(var clip in atlas.CreateDefinition().clips) Require(atlas.Frames(clip.pose).Length==clip.count,"Не сохранены кадры: "+clip.pose);
