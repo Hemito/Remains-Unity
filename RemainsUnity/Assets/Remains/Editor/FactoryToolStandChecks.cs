@@ -19,6 +19,7 @@ namespace Remains.Editor
             var definition=asset.CreateDefinition();var sprite=asset.Prefab.Artwork.sprite;
             Require(definition.id=="instr2" && definition.mass==0 && !definition.movable && !definition.hasPhysicalBody &&
                 definition.width==1.46f && definition.height==.98f && sprite!=null && sprite.texture.width==73 && sprite.texture.height==49 &&
+                definition.interactionOffset==new Vector2(.01f,-.24f) &&
                 sprite.pixelsPerUnit==50 && Vector2.Distance(sprite.pivot,new Vector2(36,12))<.0001f &&
                 asset.Prefab.VisualAnchor==PropVisualAnchor.PlacementAnchor && !asset.Prefab.FitsStateWidth,"Изменена политика тела или исходная регистрация стенда.");
             var importer=(TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(sprite.texture));
@@ -38,23 +39,27 @@ namespace Remains.Editor
                 var world=new WorldState {worldId="tool-stand-check"};PhysicalContentInstaller.Apply(world,layout);
                 var actual=world.containers.Single(c=>c.id==stand.id);InventorySource source=actual;
                 Require(actual.items.Any(i=>i.definition=="pin") && actual.items.Any(i=>i.definition=="rep") && source.Mass==null &&
-                    Near(source.Bounds,new Rect(stand.x-.73f,1.62f,1.46f,.98f)),"Нет общего начального содержимого или курсорные границы заменены рисунком.");
+                    Near(source.Bounds,new Rect(stand.x-.72f,1.38f,1.46f,.98f)),"Нет общего начального содержимого или авторское смещение курсорных границ потеряно.");
                 var view=new PropArtwork().CreateContainerView(actual);
                 try
                 {
                     view.DrawMotion(actual,null,false,0);var art=view.Artwork.bounds;
+                    Require(Near(source.Bounds,new Rect(art.min.x,art.min.y,art.size.x,art.size.y)),"Общая область взаимодействия не покрывает весь рисунок стенда.");
+                    Require(source.Bounds.Contains(new Vector2(art.center.x,art.min.y+.02f)),"Нижняя часть стенда не доступна курсору.");
                     Require(Vector2.Distance(new Vector2(art.min.x,art.min.y),new Vector2(stand.x-.72f,1.38f))<.0001f &&
                         Vector2.Distance(new Vector2(art.max.x,art.max.y),new Vector2(stand.x+.74f,2.36f))<.0001f,"Рисунок принял нижний pivot/физическое смещение вместо исходной регистрации.");
                     Require(view.Order==ActorVisualLayers.RestingObjectOrder,"Закреплённый стенд перекрывает слой актёров.");
                 }
                 finally {UnityEngine.Object.DestroyImmediate(view.gameObject);}
                 var restored=StateJson.Copy(world);restored.containers.Single(c=>c.id==stand.id).items.Clear();
+                InventorySource savedStand=restored.containers.Single(c=>c.id==stand.id);
+                Require(Near(savedStand.Bounds,source.Bounds),"Сохранённый стенд потерял общую область взаимодействия.");
                 string before=StateJson.ToJson(restored);
                 Require(!PhysicalContentInstaller.Apply(restored,layout) && StateJson.ToJson(restored)==before,"Повторный вход пополнил пустой стенд.");
                 CheckExpansion(world,layout,false);CheckExpansion(world,layout,true);
             }
             var icons=new InventoryArtwork();foreach(string id in new[]{"pin","rep","metal_comp"}) Require(icons.Require(id)!=null,"Нет исходной иконки компонента: "+id);
-            Debug.Log("Стенд цеха: PASS — исходный PNG/registration, отдельный E rect, общий лут, неподвижность/отсутствие физического тела, v1/v2→v3, удалённые старые объекты и пустое сохранение без пополнения; vendor отложен.");
+            Debug.Log("Стенд цеха: PASS — исходный PNG/registration, авторская область взаимодействия покрывает весь рисунок и сохраняется после загрузки, общий лут, неподвижность/отсутствие физического тела, v1/v2→v3, удалённые старые объекты и пустое сохранение без пополнения; vendor отложен.");
         }
         private static void CheckExpansion(WorldState installed,PhysicalLayout layout,bool earliest)
         {

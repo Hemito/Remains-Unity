@@ -42,7 +42,11 @@ namespace Remains.Domain
         {
             get
             {
-                if(Body==null) return new Rect(container.x-container.width*.5f,container.y-container.anchorHeight,container.width,container.height);
+                if(Body==null)
+                {
+                    var offset=Remains.Content.PropCatalog.InteractionOffset(container.definition);
+                    return new Rect(container.x-container.width*.5f+offset.x,container.y-container.anchorHeight+offset.y,container.width,container.height);
+                }
                 return BodyBounds(Body);
             }
         }

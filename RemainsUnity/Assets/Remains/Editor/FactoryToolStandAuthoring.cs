@@ -29,7 +29,7 @@ namespace Remains.Editor
             var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(imagePath);
             if(texture==null || texture.width!=73 || texture.height!=49)
                 throw new InvalidOperationException("Стенд требует исходный RGBA рисунок 73×49 без изменения размера.");
-            // The image has an authored registration; it intentionally differs from the cursor rectangle.
+            // Preserve the image registration; the authored cursor offset includes its lower part.
             var sprite=AssetDatabase.LoadAssetAtPath<Sprite>(imagePath);
             if(sprite==null || sprite.pixelsPerUnit!=50 || Vector2.Distance(sprite.pivot,new Vector2(36,12))>.0001f)
                 throw new InvalidOperationException("Потеряна исходная регистрация стенда (36;12), 50 пикселей/м.");
@@ -37,7 +37,7 @@ namespace Remains.Editor
             var material=WorldArtworkMaterial.Create(texture);AssetDatabase.CreateAsset(material,Folder+"/tool-stand.mat");
             var definition=ScriptableObject.CreateInstance<PropAsset>();
             definition.SetDefinition(new PropDefinition {id="instr2",name="Стенд для инструментов",resource=Resource,
-                mass=0,width=1.46f,height=.98f,movable=false,hasPhysicalBody=false});
+                mass=0,width=1.46f,height=.98f,interactionOffset=new Vector2(.01f,-.24f),movable=false,hasPhysicalBody=false});
             var root=new GameObject("Стенд для инструментов");
             try
             {
