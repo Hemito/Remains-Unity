@@ -14,9 +14,14 @@ namespace Remains.Presentation
         private float distance,age;
         private bool contact;
         private string level;
+        private string attacker;
+        private BeamMuzzleAttachment beamMuzzle;
         public void Initialize(AttackEvent attack,float limit,ShotArtwork artwork,CoopSession session=null,WorldVisualOrderTable orders=null)
         {
             this.artwork=artwork;this.session=session;level=attack.level;
+            attacker=attack.attacker;
+            if(artwork.beam && session?.World?.Find(attacker) is ActorState actor)
+                beamMuzzle=new BeamMuzzleAttachment(attack,actor);
             origin=attack.Origin;var delta=Vector2.Lerp(attack.Origin,attack.End,Mathf.Clamp01(limit))-origin;
             distance=delta.magnitude;direction=delta.normalized;contact=limit<1;
             view=gameObject.AddComponent<SpriteRenderer>();view.sortingOrder=ActorVisualLayers.EffectOrder;
@@ -49,7 +54,8 @@ namespace Remains.Presentation
             if(!view.enabled) return elapsed==0;
             SpriteArtworkMaterial.Apply(view,sprite);view.color=new Color(1,1,1,alpha);
             transform.localScale=new Vector3(length/sprite.bounds.size.x,1,1);
-            transform.position=origin+direction*((head+tail)*.5f);return true;
+            var offset=beamMuzzle?.Offset(session?.World?.Find(attacker))??Vector2.zero;
+            transform.position=origin+direction*((head+tail)*.5f)+offset;return true;
         }
         private void Update()
         {

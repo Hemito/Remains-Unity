@@ -13,6 +13,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Remains.Content.WeaponRigs.Load();Anatomy.Load();
+            CheckMovingBeam();
             var wait=new ProjectileTrailJoin();
             var hidden=new ProjectileTrailJoin();
             hidden.Tail(Vector2.zero,Vector2.right,0,0,3,false,new Vector2(-.07f,0));
@@ -93,6 +94,43 @@ namespace Remains.Editor
             finally {UnityEngine.Object.DestroyImmediate(root);}
             }
             Debug.Log("Соединение следа: PASS — дуло, физический передний край, отсутствие обратного следа, завершение и неизменная точка попадания.");
+        }
+        private static void CheckMovingBeam()
+        {
+            var root=new GameObject("Проверка подвижного луча");
+            try
+            {
+                var session=root.AddComponent<CoopSession>();
+                var actor=new ActorState {id="beam-source",owner="local",player=true,connected=true,level="hub",weapon="energy"};
+                var world=new WorldState();world.actors.Add(actor);
+                typeof(CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
+                typeof(CoopSession).GetProperty("LocalOwner").SetValue(session,actor.owner);
+                var origin=WeaponPose.Muzzle(actor);
+                var attack=new AttackEvent {id="moving-beam",attacker=actor.id,sourceOwner=actor.owner,weapon="energy",level=actor.level,
+                    originX=origin.x,originY=origin.y,endX=origin.x+5,endY=origin.y};
+                ShotArtwork.Prepare();Require(ShotArtwork.TryGet("energy",out var artwork) && artwork.beam,"Проверке нужен энергетический луч");
+                var flight=new ProjectileFlight {state=new ProjectileState {launch=attack},path=new LinearProjectilePath(origin,Vector2.right,1000,5)};
+                var obj=new GameObject("Луч снаряда");obj.transform.SetParent(root.transform);
+                var view=obj.AddComponent<ProjectileVisual>();view.Initialize(flight,artwork,session);view.JoinRemoteMuzzle();
+                flight.path.Advance(.01f,(_,_)=>null);
+                void Draw()=>typeof(ProjectileVisual).GetMethod("LateUpdate",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(view,null);
+                foreach(var shift in new[]{new Vector2(.4f,.2f),new Vector2(-.6f,-.1f)})
+                {
+                    actor.Position+=shift;Draw();
+                    Require(Vector2.Distance(view.TrailStart,WeaponPose.Muzzle(actor))<.0001f,"Затухающий луч оторвался от движущегося дула");
+                    Require(Vector2.Distance(view.TrailEnd-view.TrailStart,Vector2.right*5)<.0001f,"Движение изменило длину или направление луча");
+                    Require(flight.path.Position==attack.End && attack.Origin==origin,"Луч изменил физическое попадание/исходную атаку");
+                }
+                flight.state.generation++;Draw();
+                Require(view.TrailStart==origin && view.TrailEnd==attack.End,"Восстановленный луч привязан к текущему дулу");
+                actor.weapon="pistol";
+                var attachment=new BeamMuzzleAttachment(attack,actor);
+                Require(attachment.Offset(actor)==Vector2.zero,"Луч привязан к другому оружию");
+                actor.weapon="energy";actor.lifecycleSequence++;
+                Require(attachment.Offset(actor)==Vector2.zero,"Луч привязан к другому состоянию тела");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException(reason);}
     }

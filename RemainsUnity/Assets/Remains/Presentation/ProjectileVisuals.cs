@@ -23,7 +23,7 @@ namespace Remains.Presentation
         }
         private void ObserveAttack(AttackEvent attack)
         {
-            if(attack.sourceOwner!=session.LocalOwner && views.TryGetValue(attack.id,out var view) && view!=null)
+            if(views.TryGetValue(attack.id,out var view) && view!=null)
                 view.JoinRemoteMuzzle();
         }
         private void Reconcile()
@@ -73,6 +73,8 @@ namespace Remains.Presentation
         public SpriteRenderer Artwork=>view;
         private CoopSession session;
         private ProjectileTrailJoin join;
+        private BeamMuzzleAttachment beamMuzzle;
+        private int beamGeneration;
         private int joinLifecycle,joinFlightGeneration;
         public Vector2 TrailStart {get;private set;}
         public Vector2 TrailEnd {get;private set;}
@@ -90,6 +92,11 @@ namespace Remains.Presentation
         public void JoinRemoteMuzzle()
         {
             var actor=session.World?.Find(flight.state.launch.attacker);
+            if(artwork.beam && actor!=null && actor.level==Level && flight.path.Traveled==0)
+            {
+                beamMuzzle=new BeamMuzzleAttachment(flight.state.launch,actor);
+                beamGeneration=flight.state.generation;
+            }
             MuzzleJoinState=join!=null?"already-joined":actor==null?"missing-actor":
                 flight.state.launch.sourceOwner==session.LocalOwner?"local-shot":actor.level!=Level?"other-level":
                 actor.weapon!=Remains.Content.WeaponRigs.PresentationId(flight.state.launch.weapon)?"other-weapon":
@@ -115,6 +122,7 @@ namespace Remains.Presentation
             var path=flight.path;
             // Recovery resumes a canonical flight, not a fresh muzzle departure.
             if(join!=null && joinFlightGeneration!=flight.state.generation) {join=null;MuzzlePoseState="flight-recovered";}
+            if(beamMuzzle!=null && beamGeneration!=flight.state.generation) beamMuzzle=null;
             if(path.Finished && !artwork.beam)
             {
                 int frame=Mathf.FloorToInt(flight.finishedAge*artwork.impactFramesPerSecond);
@@ -128,7 +136,12 @@ namespace Remains.Presentation
             float head=path.Traveled,tail=artwork.beam?0:Mathf.Max(0,head-artwork.length);
             TrailTailDistance=tail;
             TrailStart=path.Origin+path.Direction*tail;TrailEnd=path.Position;
-            if(join!=null)
+            if(artwork.beam && beamMuzzle!=null && path.Finished)
+            {
+                var offset=beamMuzzle.Offset(session.World?.Find(flight.state.launch.attacker));
+                TrailStart+=offset;TrailEnd+=offset;
+            }
+            else if(join!=null)
             {
                 var actor=session.World?.Find(flight.state.launch.attacker);
                 MuzzlePoseState=actor==null?"missing-actor":actor.level!=Level?"other-level":

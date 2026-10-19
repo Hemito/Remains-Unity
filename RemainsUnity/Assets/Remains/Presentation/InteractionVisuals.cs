@@ -92,7 +92,7 @@ namespace Remains.Presentation
         {
                 if(prepareMuzzleShadow!=null && shotAnimation.TryAttackEmission(attack,out var emission))
                     prepareMuzzleShadow(attack,emission);
-                if(NpcNaturalAttack.IsNatural(attack)) return;
+                if(NpcNaturalAttack.IsNatural(attack) || attack.weapon=="mtrap-bite") return;
                 if(attack.weapon is "spear" or "crowbar" || Remains.Content.WeaponCatalog.IsExplosive(attack.weapon) || attack.level!=session.LocalActor?.level) return;
                 if(Remains.Content.WeaponCatalog.Get(attack.weapon).projectileSpeed>0) return;
                 float limit=Remains.Content.WeaponCatalog.Get(attack.weapon).stopAtTerrain?
