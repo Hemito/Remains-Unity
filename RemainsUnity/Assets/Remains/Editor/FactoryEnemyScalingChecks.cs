@@ -18,7 +18,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();WeaponCatalog.Load();ActorTypes.Load();
-            CheckFloors();CheckMigration();CheckDamage();
+            CheckFloors();CheckMigration();CheckDamage();CheckTurrets();CheckProvenance();
             Debug.Log("Уровни противников завода: PASS — ряды 0–20, исходные множители, seed/ID, раненые/мёртвые/удалённые, повтор установки, независимые каталоги и исторические атаки.");
         }
         private static void CheckFloors()
@@ -119,6 +119,63 @@ namespace Remains.Editor
             Near(FactoryEnemyScaling.AttackFactor(mine),1.1f,"Множитель взрыва мины");
             mine.factoryEnemy.kind=FactoryEnemyScaling.Charge;
             Near(FactoryEnemyScaling.AttackFactor(mine),1,"Фиксированный взрыв UnitDamager ошибочно усилен");
+        }
+        private static void CheckTurrets()
+        {
+            Near(FactoryEnemyScaling.TurretHealthFactor(10),3,"HP турели");
+            Near(FactoryEnemyScaling.TurretProtectionFactor(10),2,"Кожа/броня турели");
+            Near(FactoryEnemyScaling.TurretDamageFactor(10),2.2f,"Урон оружия турели");
+            var creature=CreatureCatalog.Load().Creatures.First(c=>ActorTypes.Get(c.actorType).turret!=null);
+            const string level="factory:0";
+            var source=creature.spawn.Create(new TrainingPlacement {id="0,20:turret-upgrade",type=creature.actorType,facing=1},level);
+            var deadSource=source.Copy();deadSource.id=level+":0,20:dead-turret-upgrade";
+            var layout=new NpcLayout {patch=level+":"+FactoryCreatureAdapter.Patch,level=level,actors=new[]{source,deadSource}};
+            var old=FactoryEnemyScaling.Roll(104,source.id,20,FactoryEnemyScaling.Unit,source.health);old.version=1;
+            var historical=new AttackEvent {weapon=source.weapon,factoryEnemy=FactoryEnemyScaling.Capture(old)};
+            var actor=source.Copy();actor.factoryEnemy=old;actor.health=old.maxHealth*.4f;
+            var dead=deadSource.Copy();dead.factoryEnemy=FactoryEnemyScaling.Capture(old);dead.factoryEnemy.placement=dead.id;dead.health=0;dead.down=true;
+            var world=new WorldState {worldId="turret-scaling-v1-upgrade",seed=104};world.actors.Add(actor);world.actors.Add(dead);world.contentPatches.Add(layout.patch);
+            var batch=new RoomContentBatch {npcs=layout};
+            Require(RoomContentInstaller.NeedsInstall(world,batch) && RoomContentInstaller.Apply(world,batch),"Профиль турели v1 не мигрирует");
+            var current=actor.factoryEnemy;
+            Require(current.version==2 && current.kind==FactoryEnemyScaling.Turret && current.enemyLevel==old.enemyLevel && current.rolledChampion==old.rolledChampion && current.seed==old.seed,"Исправление турели перебросило уровень/чемпиона");
+            Near(current.maxHealth,source.health*(1+.2f*old.enemyLevel),"Исправленный максимум HP турели");
+            Near(actor.health/current.maxHealth,.4f,"Исправление турели вылечило рану");
+            Require(dead.health==0 && dead.down,"Исправление уровня воскресило турель");
+            var shot=new AttackEvent {weapon=source.weapon,factoryEnemy=FactoryEnemyScaling.Capture(current)};
+            Near(FactoryEnemyScaling.AttackFactor(shot),1+.12f*current.enemyLevel,"Снаряд турели не получил исходный рост урона");
+            Near(FactoryEnemyScaling.Protection(current),1+.1f*current.enemyLevel,"Защита турели использует общий Unit множитель");
+            Near(FactoryEnemyScaling.AttackFactor(historical),1,"Принятый исторический выстрел v1 изменился после миграции");
+            Require(!RoomContentInstaller.Apply(world,batch),"Повторный вход повторно усилил турель v2");
+            var unscaled=source.Copy();unscaled.factoryEnemy=null;
+            var newWorld=new WorldState {worldId="turret-scale-new",seed=104};newWorld.actors.Add(unscaled);newWorld.contentPatches.Add(layout.patch);
+            Require(RoomContentInstaller.Apply(newWorld,batch) && unscaled.factoryEnemy.kind==FactoryEnemyScaling.Turret,"Новая турель не выбрала профиль UnitTurret");
+        }
+        private static void CheckProvenance()
+        {
+            const string level="factory:0";
+            var first=new ActorState {id=level+":0,20:unscaled",actorType="tarakan",anatomy="tarakan",level=level,weapon="",health=100};
+            var second=first.Copy();second.id=level+":1,20:scaled";
+            var batch=new RoomContentBatch {npcs=new NpcLayout {patch=level+":"+FactoryCreatureAdapter.Patch,level=level,actors=new[]{first,second}}};
+            Action<FactoryEnemyScaleState>[] corruptions={s=>s.placement+="-wrong",s=>s.seed++,s=>s.floor--,s=>s.kind=FactoryEnemyScaling.Trap,
+                s=>s.baseHealth+=10,s=>s.maxHealth+=10};
+            foreach(var corrupt in corruptions)
+            {
+                var world=new WorldState {worldId="scaling-provenance",seed=104};world.contentPatches.Add(batch.npcs.patch);
+                var beforeFirst=first.Copy();beforeFirst.health=75;world.actors.Add(beforeFirst);
+                var invalid=second.Copy();invalid.factoryEnemy=FactoryEnemyScaling.Roll(world.seed,invalid.id,20,FactoryEnemyScaling.Unit,second.health);
+                corrupt(invalid.factoryEnemy);world.actors.Add(invalid);
+                string before=StateJson.ToJson(world);
+                Reject(()=>RoomContentInstaller.Apply(world,batch),"Сохранённый профиль другого источника принят");
+                Require(StateJson.ToJson(world)==before && beforeFirst.factoryEnemy==null && beforeFirst.health==75,"Отказ provenance частично изменил мир/здоровье");
+                // Validation must run even when there is no pending unscaled entity or version upgrade.
+                world.actors.Remove(beforeFirst);before=StateJson.ToJson(world);
+                Reject(()=>RoomContentInstaller.NeedsInstall(world,batch),"Профиль ошибочного источника молча пропущен как уже установленный");
+                Require(StateJson.ToJson(world)==before,"Проверка необходимости установки изменила профиль");
+            }
+            var rounded=FactoryEnemyScaling.Roll(104,second.id,20,FactoryEnemyScaling.Unit,second.health);
+            rounded.maxHealth*=1.000001f;
+            FactoryEnemyScaling.ValidatePlacement(rounded,104,second.id,20,FactoryEnemyScaling.Unit,second.health);
         }
         private static void Reject(Action action,string message)
         {try {action();} catch(InvalidOperationException) {return;}throw new InvalidOperationException(message);}

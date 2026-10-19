@@ -15,22 +15,8 @@ namespace Remains.Content
         public static bool NeedsApply(WorldState world,RoomContentBatch batch)
         {
             if(world==null || batch==null) return false;
-            if(Npcs(batch.npcs))
-            {
-                var ids=new HashSet<string>(batch.npcs.actors.Select(a=>a.id),StringComparer.Ordinal);
-                if(world.actors.Any(a=>ids.Contains(a.id) && a.factoryEnemy==null)) return true;
-            }
-            if(Hazards(batch.hazards))
-            {
-                var ids=new HashSet<string>(batch.hazards.hazards.Select(a=>a.id),StringComparer.Ordinal);
-                if(world.hazards.Any(a=>ids.Contains(a.id) && a.factoryEnemy==null)) return true;
-            }
-            if(Mines(batch.mines))
-            {
-                var ids=new HashSet<string>(batch.mines.mines.Select(a=>a.id),StringComparer.Ordinal);
-                if(world.mines.Any(a=>ids.Contains(a.id) && a.factoryEnemy==null)) return true;
-            }
-            return false;
+            // Even an unchanged version must validate its stored provenance before being skipped.
+            return new Plan(world,batch).HasChanges;
         }
         public sealed class Plan
         {
@@ -39,7 +25,8 @@ namespace Remains.Content
             private readonly List<ActorChange> actors=new();
             private readonly List<HazardChange> hazards=new();
             private readonly List<MineChange> mines=new();
-            private sealed class ActorChange {public string id,type,level;public float before,after;public FactoryEnemyScaleState scale;}
+            internal bool HasChanges=>actors.Count+hazards.Count+mines.Count>0;
+            private sealed class ActorChange {public string id,type,level;public float before,after;public FactoryEnemyScaleState scale,previousScale;}
             private sealed class HazardChange {public string id,type,level;public float before,after;public FactoryEnemyScaleState scale;}
             private sealed class MineChange {public string id,type,level;public FactoryEnemyScaleState scale;}
             internal Plan(WorldState world,RoomContentBatch batch)
@@ -53,19 +40,28 @@ namespace Remains.Content
                     if(!actorIndex.TryGetValue(source.id,out var actor)) continue; // Removed NPCs stay removed.
                     if(actor.player || actor.actorType!=source.actorType || actor.level!=source.level)
                         throw new InvalidOperationException("Масштабирование: конфликт сохранённого NPC "+source.id);
-                    if(actor.factoryEnemy!=null) {FactoryEnemyScaling.Validate(actor.factoryEnemy);continue;}
-                    var scale=FactoryEnemyScaling.Roll(seed,source.id,FactoryEnemyScaling.PlacementFloor(source.id,source.level),FactoryEnemyScaling.Unit,source.health);
+                    bool turret=ActorTypes.Get(source.actorType).turret!=null;
+                    int floor=FactoryEnemyScaling.PlacementFloor(source.id,source.level);
+                    if(actor.factoryEnemy!=null)
+                    {
+                        FactoryEnemyScaling.ValidatePlacement(actor.factoryEnemy,seed,source.id,floor,turret?FactoryEnemyScaling.Turret:FactoryEnemyScaling.Unit,source.health);
+                        if(!turret || actor.factoryEnemy.version!=1) continue;
+                    }
+                    var scale=actor.factoryEnemy!=null?FactoryEnemyScaling.UpgradeTurret(actor.factoryEnemy):
+                        FactoryEnemyScaling.Roll(seed,source.id,FactoryEnemyScaling.PlacementFloor(source.id,source.level),turret?FactoryEnemyScaling.Turret:FactoryEnemyScaling.Unit,source.health);
                     actors.Add(new ActorChange {id=source.id,type=source.actorType,level=source.level,before=actor.health,
-                        after=FactoryEnemyScaling.PreserveHealth(actor.health,source.health,scale.maxHealth),scale=scale});
+                        after=FactoryEnemyScaling.PreserveHealth(actor.health,actor.factoryEnemy?.maxHealth??source.health,scale.maxHealth),scale=scale,
+                        previousScale=FactoryEnemyScaling.Capture(actor.factoryEnemy)});
                 }
                 if(Hazards(batch.hazards)) foreach(var source in batch.hazards.hazards)
                 {
                     if(!hazardIndex.TryGetValue(source.id,out var hazard)) continue;
                     if(hazard.definition!=source.definition || hazard.level!=source.level)
                         throw new InvalidOperationException("Масштабирование: конфликт сохранённой ловушки "+source.id);
-                    if(hazard.factoryEnemy!=null) {FactoryEnemyScaling.Validate(hazard.factoryEnemy);continue;}
                     var definition=HazardRules.Profile(source);
                     var kind=definition.kind==HazardRules.Trap?FactoryEnemyScaling.Trap:FactoryEnemyScaling.Charge;
+                    if(hazard.factoryEnemy!=null)
+                    {FactoryEnemyScaling.ValidatePlacement(hazard.factoryEnemy,seed,source.id,FactoryEnemyScaling.PlacementFloor(source.id,source.level),kind,definition.health);continue;}
                     var scale=FactoryEnemyScaling.Roll(seed,source.id,FactoryEnemyScaling.PlacementFloor(source.id,source.level),kind,definition.health);
                     hazards.Add(new HazardChange {id=source.id,type=source.definition,level=source.level,before=hazard.health,
                         after=FactoryEnemyScaling.PreserveHealth(hazard.health,definition.health,scale.maxHealth),scale=scale});
@@ -75,7 +71,8 @@ namespace Remains.Content
                     if(!mineIndex.TryGetValue(source.id,out var mine)) continue;
                     if(mine.definition!=source.definition || mine.level!=source.level)
                         throw new InvalidOperationException("Масштабирование: конфликт сохранённой мины "+source.id);
-                    if(mine.factoryEnemy!=null) {FactoryEnemyScaling.Validate(mine.factoryEnemy);continue;}
+                    if(mine.factoryEnemy!=null)
+                    {FactoryEnemyScaling.ValidatePlacement(mine.factoryEnemy,seed,source.id,FactoryEnemyScaling.PlacementFloor(source.id,source.level),FactoryEnemyScaling.Mine,0);continue;}
                     var scale=FactoryEnemyScaling.Roll(seed,source.id,FactoryEnemyScaling.PlacementFloor(source.id,source.level),FactoryEnemyScaling.Mine,0);
                     mines.Add(new MineChange {id=source.id,type=source.definition,level=source.level,scale=scale});
                 }
@@ -88,7 +85,7 @@ namespace Remains.Content
                 var hazardIndex=world.hazards.ToDictionary(a=>a.id,StringComparer.Ordinal);
                 var mineIndex=world.mines.ToDictionary(a=>a.id,StringComparer.Ordinal);
                 foreach(var change in actors)
-                    if(!actorIndex.TryGetValue(change.id,out var actor) || actor.actorType!=change.type || actor.level!=change.level || actor.factoryEnemy!=null || actor.health!=change.before || actor.revision==long.MaxValue)
+                    if(!actorIndex.TryGetValue(change.id,out var actor) || actor.actorType!=change.type || actor.level!=change.level || !FactoryEnemyScaling.Same(actor.factoryEnemy,change.previousScale) || actor.health!=change.before || actor.revision==long.MaxValue)
                         throw new InvalidOperationException("Изменился NPC до публикации масштабирования: "+change.id);
                 foreach(var change in hazards)
                     if(!hazardIndex.TryGetValue(change.id,out var hazard) || hazard.definition!=change.type || hazard.level!=change.level || hazard.factoryEnemy!=null || hazard.health!=change.before)
