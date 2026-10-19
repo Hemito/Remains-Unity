@@ -10,6 +10,8 @@ namespace Remains.Content
         [InspectorName("Тип персонажа")] public string actorType;
         [InspectorName("Семейство поведения (класс оригинала)")] public string family;
         [InspectorName("Начальное состояние")] public NpcSpawnAsset spawn;
+        [InspectorName("Добыча после принятой гибели (отдельно от установленного оружия)")] public ContainerLootAsset deathLoot;
+        [InspectorName("Исходная высота scY для точки добычи, м")] public float deathLootHeight;
         [InspectorName("Замечания генерации")] public string[] notes=Array.Empty<string>();
     }
     // A template object (AllData obj) and the creatures it becomes; several = the original's random variant.

@@ -19,6 +19,7 @@ namespace Remains.Editor
             ProjectStorageChecks.Run();LevelTimeReplicaChecks.Run();MechanismOperationsChecks.Run();
             ItemShortcutChecks.Run();
             DroppedItemShapeChecks.Run();
+            CreatureDeathLootChecks.Run();
             InventoryItemActionChecks.Run();InventoryDescriptionChecks.Run();ItemLandingAudioChecks.Run();
             DoorStateChecks.Run();DoorContentChecks.Run();DoorBarrierChecks.Run();DoorDamageRequestChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
             FactoryLegacyDoorChecks.Run();ActorDeathAudioChecks.Run();HealingItemAudioChecks.Run();

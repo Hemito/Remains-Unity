@@ -21,13 +21,17 @@ namespace Remains.Content
     public static class ContentEntityIds
     {
         public static void ValidateCandidates(IEnumerable<ContentEntityIdentity> candidates,string context)
-            =>Index(candidates,context+"/расстановка");
+        {
+            var entries=candidates.ToArray();CreatureDeathLootIds.RejectForeignCreation(entries.Select(e=>e.Id),context);
+            Index(entries,context+"/расстановка");
+        }
 
         public static void Preflight(WorldState world,IEnumerable<ContentEntityIdentity> candidates,string context)
         {
             if(world==null) throw new InvalidOperationException("ID содержимого: отсутствует мир; "+context);
             var saved=Index(ReadWorld(world,context),context+"/мир="+world.worldId);
-            var incoming=Index(candidates,context+"/расстановка");
+            var entries=candidates.ToArray();CreatureDeathLootIds.RejectForeignCreation(entries.Select(e=>e.Id),context);
+            var incoming=Index(entries,context+"/расстановка");
             foreach(var entry in incoming)
                 if(saved.TryGetValue(entry.Key,out var kind) && kind!=entry.Value)
                     throw new InvalidOperationException($"ID содержимого занят другим типом: id={entry.Key}, сохранён={Name(kind)}, добавляется={Name(entry.Value)}; {context}, мир={world.worldId}.");

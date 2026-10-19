@@ -208,7 +208,9 @@ namespace Remains.Editor
 
                 pendingAnatomy[id]=Anatomy(id,art,width,height);
                 result.Add(new CreatureEntry {sourceId=unitId,actorType=id,family=NpcCreatureBehaviours.Turret,spawn=spawn,
-                    notes=new[]{$"ствол turret{tr}","добыча (cont) не перенесена","поворот ствола между углами наблюдения, прячущиеся турели и лампа «тревога/поиск» не перенесены"}});
+                    deathLoot=CreatureDeathLootAuthoring.Install(id,unit),
+                    deathLootHeight=(float)unit.Element("phis").Attribute("sY")/PixelsPerMetre,
+                    notes=new[]{$"ствол turret{tr}","поворот ствола между углами наблюдения, прячущиеся турели и лампа «тревога/поиск» не перенесены"}});
             }
             sounds[unitId]=dies;
             return result;

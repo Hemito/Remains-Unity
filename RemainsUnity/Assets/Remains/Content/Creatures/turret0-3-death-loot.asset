@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1897bacc50b3944d943418309220653, type: 3}
+  m_Name: turret0-3-death-loot
+  m_EditorClassIdentifier: 
+  table:
+    id: turret0-3-death-loot
+    version: source-lootDrop-v1
+    entries:
+    - id: scrap
+      definition: item:scrap
+      weaponState:
+        rid: -2
+      minimum: 3
+      maximum: 3
+      probability: 0.5
+      afterFailure: 
+    - id: frag
+      definition: item:frag
+      weaponState:
+        rid: -2
+      minimum: 1
+      maximum: 1
+      probability: 0.35
+      afterFailure: 
+    - id: batt
+      definition: item:batt
+      weaponState:
+        rid: -2
+      minimum: 20
+      maximum: 20
+      probability: 0.2
+      afterFailure: 
+    - id: energ
+      definition: item:energ
+      weaponState:
+        rid: -2
+      minimum: 50
+      maximum: 50
+      probability: 0.2
+      afterFailure: batt
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }

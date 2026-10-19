@@ -285,6 +285,7 @@ namespace Remains.Networking
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             NpcWeaponInventoryMigration.Apply(ServerWorld,source==null?null:()=>Debug.Log("Сохранена копия мира перед преобразованием оружия NPC: "+Saves.PreserveRecoverySource()));
             NpcWeaponActions.ValidateWorld(ServerWorld);
+            CreatureDeathLootIds.PrepareWorld(ServerWorld);
             PrepareDoorCapabilities(
                 contentLevels.SelectMany(level=>RoomDoorCapabilityContent.Read(RoomAuthoring.Load(level,ServerWorld),level)),
                 source!=null);
@@ -804,7 +805,15 @@ namespace Remains.Networking
             WeaponRecoilReplication.Normalize(incoming,Pause.ServerRevision,Pause.IsServerPaused(incoming.level),"сервер / входящий актёр");
             ActorMotionReplication.PreserveNewerMotion(actor,incoming);
             WeaponRecoilReplication.Reconcile(actor,incoming,null,Pause.ServerRevision,Pause.IsServerPaused(incoming.level),"сервер / состояние актёра");
-            ServerWorld.actors[ServerWorld.actors.IndexOf(actor)] = incoming;
+            CreatureDeathLoot.Plan deathLoot;
+            try {deathLoot=CreatureDeathLoot.Prepare(ServerWorld,actor,incoming);}
+            catch(InvalidOperationException error)
+            {
+                Debug.LogError($"Не принято состояние гибели NPC: world={ServerWorld.worldId}, actor={actor.id}, type={actor.actorType}. {error.Message}");
+                connection.Send(new NoticeMessage {text="Ошибка данных добычи NPC. Гибель не сохранена; подробности в журнале."});return;
+            }
+            if(deathLoot==null)ServerWorld.actors[ServerWorld.actors.IndexOf(actor)]=incoming;
+            else deathLoot.ApplyAccepted(ServerWorld);
             // Ordinary NPC deltas need not save and transmit the whole world.
             // Reassignment still runs at the same point, and all shared changes
             // or incapacitation transitions are checkpointed immediately.
