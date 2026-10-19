@@ -462,6 +462,7 @@ namespace Remains.Presentation
         {
             if(disposed) return;
             disposed=true;enabled=false;
+            NetworkLobby?.Dispose();
             containerHint?.Dispose();
             if(session is not null)
             {session.Changed-=Refresh;session.SessionStopped-=RefreshAfterSessionStop;session.Notice-=ShowMessage;}

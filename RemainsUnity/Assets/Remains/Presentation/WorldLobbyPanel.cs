@@ -10,10 +10,12 @@ using UnityEngine.UI;
 
 namespace Remains.Presentation
 {
-    public sealed class WorldLobbyPanel
+    public sealed class WorldLobbyPanel : IDisposable
     {
         private readonly Transform parent;
         private readonly CoopSession session;
+        private readonly Action refresh;
+        private bool disposed;
         private GameObject root;
         private int page;
         private readonly Dictionary<string,RectTransform> choices=new();
@@ -26,8 +28,14 @@ namespace Remains.Presentation
         public bool HasChoice(string key)=>choices.ContainsKey(key);
         public WorldLobbyPanel(Transform parent,CoopSession session,Action refresh)
         {
-            this.parent=parent;this.session=session;
-            session.Lobby.Changed+=()=>{Render();refresh();};
+            this.parent=parent;this.session=session;this.refresh=refresh;
+            session.Lobby.Changed+=OnChanged;
+        }
+        private void OnChanged() {if(disposed) return;Render();refresh();}
+        public void Dispose()
+        {
+            if(disposed) return;disposed=true;
+            session.Lobby.Changed-=OnChanged;
         }
         private void Render()
         {

@@ -748,6 +748,8 @@ namespace Remains.Runtime
         {
             if(disposed) return;
             automaticStartCancelled=true;enabled=false;StopAllCoroutines();
+            // Stop UI subscriptions before disconnect resets lobby state; children may already be destroyed at exit.
+            if(hud!=null) hud.Dispose();
             if(Session!=null) {Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;Session.Changed-=RefreshBodyBindings;Session.GameplayPreparationFailed-=GameplayPreparationFailed;}
             if(Geometry!=null) {Geometry.OcclusionChanged-=RefreshRoomOcclusion;Geometry.OcclusionChanged-=RefreshBodyGeometry;}
             if(AudioPreferences!=null) AudioPreferences.Changed-=ApplyAudioPreferences;

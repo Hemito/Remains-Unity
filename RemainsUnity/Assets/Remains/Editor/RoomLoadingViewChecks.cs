@@ -48,7 +48,33 @@ namespace Remains.Editor
             finally {UnityEngine.Object.DestroyImmediate(root);UnityEngine.Object.DestroyImmediate(foreign);}
             CheckPresentationGate();
             CheckEntryPreparationTeardown();
+            CheckLobbyTeardown();
             Debug.Log("Экран загрузки: PASS — непрозрачный Overlay, назначенный шрифт, Escape выше загрузки, повторный pending без новых объектов, ошибки Canvas/ссылок видимы; камера принимает только готовую пару своей комнаты, старый binding и Dispose не оставляют блокировку; teardown входа очищает staged geometry без callback уничтоженному UI.");
+        }
+        private static void CheckLobbyTeardown()
+        {
+            var owner=new GameObject("Проверка отписки HUD при выходе");owner.SetActive(false);
+            var viewObject=new GameObject("Уничтожаемый экран загрузки");
+            PrototypeHud hud=null;WorldLobbyPanel lobby=null;
+            try
+            {
+                var session=owner.AddComponent<CoopSession>();
+                var view=viewObject.AddComponent<RoomLoadingView>();int callbacks=0;
+                lobby=new WorldLobbyPanel(owner.transform,session,()=>{callbacks++;_ = view.IsVisible;});
+                session.Lobby.ResetClient();Require(callbacks==1,"живое лобби не обновляет HUD");
+                hud=owner.AddComponent<PrototypeHud>();
+                typeof(PrototypeHud).GetField("session",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(hud,session);
+                typeof(PrototypeHud).GetProperty(nameof(PrototypeHud.NetworkLobby)).SetValue(hud,lobby);
+                hud.Dispose();UnityEngine.Object.DestroyImmediate(viewObject);viewObject=null;
+                session.Lobby.ResetClient();hud.Dispose();lobby.Dispose();session.Lobby.ResetClient();
+                Require(callbacks==1,"сброс лобби после Dispose обращается к уничтоженному экрану загрузки");
+            }
+            finally
+            {
+                if(hud!=null) hud.Dispose();lobby?.Dispose();
+                if(viewObject!=null) UnityEngine.Object.DestroyImmediate(viewObject);
+                UnityEngine.Object.DestroyImmediate(owner);
+            }
         }
         private static void CheckEntryPreparationTeardown()
         {
