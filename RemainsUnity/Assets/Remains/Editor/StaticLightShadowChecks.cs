@@ -21,6 +21,7 @@ namespace Remains.Editor
 
         public static void Run()
         {
+            CheckWindowReplacementHistory();
             CheckCoincidentEmitterBlend();
             RoomRadianceField field=null;
             Texture2D emitterMask=null,shadowMask=null;
@@ -99,6 +100,24 @@ namespace Remains.Editor
                 if(emitterMask!=null) UnityEngine.Object.DestroyImmediate(emitterMask);
                 if(shadowMask!=null) UnityEngine.Object.DestroyImmediate(shadowMask);
             }
+        }
+
+        private static void CheckWindowReplacementHistory()
+        {
+            // Reproduce a new GPU cache after a window move, with an old actor crossfade.
+            using var cache=new SteadyLightShadowCache();
+            cache.Register(Array.Empty<SteadyLightEmitter>(),new[]{"window:previous"});
+            int builds=0,warnings=0;
+            void Log(string message,string trace,LogType type) {if(type==LogType.Warning) warnings++;}
+            Application.logMessageReceived+=Log;
+            try
+            {
+                cache.Prepare(new[]{"window:previous"},_=>{builds++;return null;});
+                Require(builds==0 && warnings==0 && cache.Count==0,"Предыдущий источник окна не распознан как выбывший после замены GPU-кеша.");
+                cache.Prepare(new[]{"window:unknown"},_=>{builds++;return null;});
+                Require(builds==0 && warnings==1,"Неизвестный ID источника перестал диагностироваться.");
+            }
+            finally {Application.logMessageReceived-=Log;}
         }
 
         public static void RunAuthoredWindow()

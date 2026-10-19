@@ -51,6 +51,7 @@ namespace Remains.Presentation
         private readonly ActorShadowSources shadowSources=new();
         private readonly List<ActorShadowSource> windowShadowLamps=new();
         private readonly Dictionary<RoomSpriteAuthoring,string> windowSourceIds=new();
+        private readonly HashSet<string> publishedShadowSourceIds=new(StringComparer.Ordinal);
         private float[,] shadowTerrain;
         private Vector2 shadowOrigin;
         private float shadowAmbient;
@@ -494,7 +495,8 @@ namespace Remains.Presentation
                 if(windowSourceIds.TryGetValue(picture,out string windowId)) AddEmitter(windowId,placement,true);
                 if(lampByPicture.TryGetValue(picture,out string lampId)) AddEmitter(lampId,placement,false);
             }
-            field.RegisterSteadyEmitters(emitters);
+            field.RegisterSteadyEmitters(emitters,publishedShadowSourceIds);
+            foreach(var emitter in emitters) publishedShadowSourceIds.Add(emitter.Id);
             shadowSources.Configure(shadowTerrain,shadowOrigin,1f/table.RadianceResolution,
                 transform.worldToLocalMatrix,windowShadowLamps,shadowAmbient);
             ShadowSourceRevision++;
@@ -568,7 +570,7 @@ namespace Remains.Presentation
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) {ambient.SetActive(false);Destroy(ambient);}
             terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);preparedWindows.Clear();
-            shadowSources.Clear();windowShadowLamps.Clear();windowSourceIds.Clear();shadowTerrain=null;ShadowSourceRevision++;
+            shadowSources.Clear();windowShadowLamps.Clear();windowSourceIds.Clear();publishedShadowSourceIds.Clear();shadowTerrain=null;ShadowSourceRevision++;
             Room=null;PresentationChanged?.Invoke(this);
         }
 

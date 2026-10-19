@@ -60,8 +60,8 @@ namespace Remains.Presentation
         public int SteadyShadowGeneration=>steadyShadows.Generation;
         public bool TryGetSteadyShadowField(string id,out Texture field)
         {bool found=steadyShadows.TryGet(id,out var target);field=target;return found;}
-        public void RegisterSteadyEmitters(IReadOnlyList<SteadyLightEmitter> sources)
-        {steadyShadows.Register(sources);hasBackgroundSignature=false;warnedSteadyIds.Clear();}
+        public void RegisterSteadyEmitters(IReadOnlyList<SteadyLightEmitter> sources,IReadOnlyCollection<string> previousSourceIds=null)
+        {steadyShadows.Register(sources,previousSourceIds);hasBackgroundSignature=false;warnedSteadyIds.Clear();}
         public bool HasStaleSteadyShadowFields=>steadyShadows.HasStale;
         // One stale direct field rebuilt after a scene change (FactoryLevelView spreads them over frames).
         public bool RebuildOneStaleSteadyShadowField()

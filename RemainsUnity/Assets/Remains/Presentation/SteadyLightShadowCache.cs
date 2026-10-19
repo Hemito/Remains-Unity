@@ -32,12 +32,19 @@ namespace Remains.Presentation
         public int Count => fields.Count;
         public int Generation { get; private set; }
 
-        public void Register(IReadOnlyList<SteadyLightEmitter> emitters)
+        public void Register(IReadOnlyList<SteadyLightEmitter> emitters,IReadOnlyCollection<string> previousSourceIds=null)
         {
             ThrowIfDisposed();
             if (emitters == null) throw new ArgumentNullException(nameof(emitters));
             ClearFields();
             foreach(string id in catalog.Keys) retired.Add(id);
+            // A light-window replacement owns a new GPU cache, but actor shadow crossfades
+            // can still reference sources published by the preceding window of this level.
+            if(previousSourceIds!=null) foreach(string id in previousSourceIds)
+            {
+                if(string.IsNullOrEmpty(id)) throw new ArgumentException("История источников тени содержит пустой ID.");
+                retired.Add(id);
+            }
             catalog.Clear();
             Generation++;
             for (int i = 0; i < emitters.Count; i++)

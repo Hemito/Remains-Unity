@@ -6,8 +6,10 @@ using Remains.Content;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Presentation;
+using Remains.RoomFormat;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Debug=UnityEngine.Debug;
 
 namespace Remains.Editor
@@ -30,6 +32,7 @@ namespace Remains.Editor
                 var room=source.CreateLayout(false);
                 visual=AuthoredRoomVisual.Create("factory:0",room,world);
                 var view=visual.GetComponent<FactoryLevelView>();
+                CheckFactoryConsumers(visual,world,room);
                 view.Synchronize(room,world,1);
                 view.Focus(new Vector2(room.spawnX,room.spawnY));
                 var field=(RoomRadianceField)typeof(FactoryLevelView).GetField("field",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(view);
@@ -63,6 +66,33 @@ namespace Remains.Editor
                 if(visual!=null) UnityEngine.Object.DestroyImmediate(visual);
                 FactoryContentSources.Clear();
             }
+        }
+        private static void CheckFactoryConsumers(GameObject visual,WorldState world,RoomLayout room)
+        {
+            var factory=visual.GetComponent<FactoryLevelRoot>();
+            var sourceDoors=RoomDoorContent.Read(FactoryContentSources.Require(world,room.id),room.id).doors;
+            var states=world.doors.Where(door=>door.level==room.id).ToArray();
+            var geometry=DoorGeometry.Compose(room.platforms,states,room.id);
+            foreach(var source in sourceDoors)
+            {
+                var door=states.SingleOrDefault(value=>value.id==source.id);
+                if(door==null || door.Bounds!=source.Bounds)
+                    throw new InvalidOperationException($"Дверь завода: источник и состояние расходятся: ID={source.id}, source={source.Bounds}, state={door?.Bounds}.");
+                var surfaces=geometry.Where(surface=>surface.sourceDoorId==door.id).ToArray();
+                if(surfaces.Length!=(door.Blocks?1:0) || door.Blocks &&
+                    (surfaces[0].x!=door.x || surfaces[0].y!=door.y || surfaces[0].width!=door.width || surfaces[0].height!=door.height))
+                    throw new InvalidOperationException($"Дверь завода: препятствие расходится с состоянием: ID={door.id}, bounds={door.Bounds}, open={door.open}, destroyed={door.Destroyed}, surfaces={surfaces.Length}.");
+            }
+            foreach(var picture in factory.Rooms.GetComponentsInChildren<RoomSpriteAuthoring>(true))
+            {
+                var renderer=picture.GetComponent<SpriteRenderer>();
+                var owner=RenderSorting.FindOwner(renderer);
+                if(owner==null || owner.gameObject!=visual || owner.sortingLayerID!=0 || owner.sortingOrder!=WorldVisualOrderPolicy.SceneryRoomOrder)
+                    throw new InvalidOperationException($"Порядок завода: картинка {picture.name}, type={picture.Definition}, index={picture.Index}, order={renderer.sortingOrder}, owner={owner?.name} вне общей группы декораций.");
+                if(picture.Kind!=RoomSpriteKind.Object || picture.Definition is not ("remains:obj:door1" or "remains:obj:door2" or "remains:obj:door3" or "remains:obj:hatch1")) continue;
+                if(renderer.enabled) throw new InvalidOperationException($"Дверь завода: статическое изображение не скрыто: {picture.Definition}, index={picture.Index}, room={picture.transform.parent.parent.name}.");
+            }
+            Debug.Log($"Источники завода: PASS — {sourceDoors.Length} дверей, включая левый столбец и зеркала: одинаковые ID/границы состояния и препятствий; все картинки декора в общей группе, статические двери скрыты.");
         }
         private static double ReadAlpha(RoomRadianceField field)
         {
