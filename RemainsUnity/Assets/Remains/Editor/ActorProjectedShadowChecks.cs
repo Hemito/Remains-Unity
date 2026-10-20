@@ -123,6 +123,7 @@ namespace Remains.Editor
     // Editor-only fixture: the supplied sprite is the actual drawn pose.
     public sealed class ActorShadowTimingVisual : ActorVisual
     {
+        public override void ApplyHeldAppearance(HeldPropColorSource colors)=>throw new InvalidOperationException("Диагностическое представление времени теней не поддерживает удержание.");
         public SpriteRenderer Artwork;
         public override string ActorId=>"timing";
         public override void Bind(ActorState actor) { }

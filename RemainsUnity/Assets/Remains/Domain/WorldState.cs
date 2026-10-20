@@ -54,6 +54,7 @@ namespace Remains.Domain
         public int holdEpoch;
         public ActorHoldState hold;
         [NonSerialized] public float crouchPressSeconds;
+        [NonSerialized] public bool crouchPressConsumed;
         public float jumpSupportRemaining;
         public int damageSequence;
         public List<string> resolvedExplosions = new();

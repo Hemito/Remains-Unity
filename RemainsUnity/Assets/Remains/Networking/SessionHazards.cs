@@ -106,23 +106,35 @@ namespace Remains.Networking
             else
             {
                 // UnitDamager.disarm (tip 3): removed; the dynamite lies where it stood (LootGen.lootCont "bomb").
-                world.hazards.Remove(hazard);kind=Disarm;
-                for(int i=0;i<profile.disarmCount;i++)
+                List<ContainerState> drops;
+                try {drops=PrepareDisarmDrops(world,hazard,profile);}
+                catch(InvalidOperationException error)
                 {
-                    string itemId=$"drop:hazard:{hazard.id}:{i}";
-                    if(WorldProps.Find(world,itemId)!=null) throw new InvalidOperationException("Предмет обезвреженной ловушки уже существует: "+itemId);
-                    var item=ExportedContentCatalog.Load().CreateFormalItem(profile.disarmItem,0,1);
-                    var size=DroppedItemTransfer.Size(item.definition);
-                    float x=hazard.x+(i-(profile.disarmCount-1)*.5f)*size.x;
-                    world.containers.Add(new ContainerState {id=itemId,definition="loose-item",presentationItem=item.definition,level=hazard.level,
-                        x=x,y=hazard.y+size.y*.5f,width=size.x,height=size.y,anchorHeight=size.y*.5f,
-                        mass=.1f,generation=1,items=new List<ItemStack> {item}});
+                    Debug.LogError($"Обезвреживание отменено: world={world.worldId}, hazard={hazard.id}, item={profile.disarmItem}. {error.Message}");
+                    connection.Send(new HazardActionReply {hazard=hazard.id,reason="Не подготовлены данные добычи ловушки. Объект сохранён; подробности в журнале."});return;
                 }
+                world.hazards.Remove(hazard);world.containers.AddRange(drops);kind=Disarm;
             }
             Actions++;
             session.CommitWorld();
             connection.Send(new HazardActionReply {hazard=hazard.id,accepted=true});
             Announce(hazard,kind);
+        }
+        public static List<ContainerState> PrepareDisarmDrops(WorldState world,HazardState hazard,HazardDefinition profile,Func<string,Vector2> sizeForItem=null)
+        {
+            var drops=new List<ContainerState>();
+            for(int i=0;i<profile.disarmCount;i++)
+            {
+                string itemId=$"drop:hazard:{hazard.id}:{i}";
+                if(WorldProps.Find(world,itemId)!=null)throw new InvalidOperationException("Предмет обезвреженной ловушки уже существует: "+itemId);
+                var item=ExportedContentCatalog.Load().CreateFormalItem(profile.disarmItem,0,1);
+                var size=sizeForItem==null?DroppedItemTransfer.Size(item.definition):sizeForItem(item.definition);
+                if(!float.IsFinite(size.x)||!float.IsFinite(size.y)||size.x<=0||size.y<=0)throw new InvalidOperationException("Неверный размер добычи ловушки: "+item.definition);
+                float x=hazard.x+(i-(profile.disarmCount-1)*.5f)*size.x;
+                drops.Add(new ContainerState {id=itemId,definition="loose-item",presentationItem=item.definition,level=hazard.level,
+                    x=x,y=hazard.y+size.y*.5f,width=size.x,height=size.y,anchorHeight=size.y*.5f,mass=.1f,generation=1,items=new List<ItemStack> {item}});
+            }
+            return drops;
         }
         private void Announce(HazardState hazard,string kind)=>
             NetworkServer.SendToAll(new HazardEventMessage {hazard=hazard.id,definition=hazard.definition,level=hazard.level,kind=kind,x=hazard.x,y=hazard.y});

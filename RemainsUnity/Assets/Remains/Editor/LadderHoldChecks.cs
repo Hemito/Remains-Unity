@@ -17,6 +17,7 @@ namespace Remains.Editor
             foreach(float dt in new[]{1f/30,1f/60,1f/144})
             {
                 CheckJunctionAndStance(dt);
+                CheckHeldDownLanding(dt);
                 var falling=new ActorState {id="ladder-air-down",x=4,y=1,vy=-1};
                 Require(!ActorTerrainMotion.Supported(room,Anatomy.Movement(falling),falling.Position),"Проверка захвата в воздухе ошибочно стоит на опоре");
                 var fallingMotion=new MovementController(room);
@@ -101,6 +102,33 @@ namespace Remains.Editor
                 motion.Step(actor,Vector2.zero,false,dt);
                 Require(!actor.climbing,"Нокдаун снимает захват лестницы");
                 Debug.Log($"Удержание лестницы: PASS, dt={dt}, остановка, загрузка, прыжок и выход.");
+            }
+        }
+        private static void CheckHeldDownLanding(float dt)
+        {
+            foreach(bool intermediate in new[]{false,true})
+            {
+                float landing=intermediate?2:0;
+                var room=new RoomLayout {id="ladder-held-down-landing",left=-5,right=5,bottom=-1,top=7,
+                    ladders=new[]{new RoomLadder {x=0,bottom=0,top=4}},
+                    platforms=intermediate?new[]{new RoomSurface {x=-5,y=-1,width=10,height=1},
+                        new RoomSurface {x=-2,y=1.8f,width=4,height=.2f}}:
+                        new[]{new RoomSurface {x=-5,y=-1,width=10,height=1}}};
+                var actor=new ActorState {id="descending-held-S",y=landing+1.2f,climbing=true,pose="climb",facing=1};
+                var motion=new MovementController(room);
+                for(int i=0;i<Mathf.CeilToInt(2/dt);i++) motion.Step(actor,Vector2.down,false,dt);
+                Require(!actor.climbing && !actor.crouched && actor.pose!="crouch" && actor.pose!="crouchLower" && Mathf.Abs(actor.y-landing)<.001f,
+                    $"Held S после схода {(intermediate?"на промежуточный твёрдый пол":"на нижний пол")} повторно захватывает лестницу или ложится: dt={dt}, y={actor.y}, climbing={actor.climbing}, crouched={actor.crouched}, pose={actor.pose}");
+                var replica=actor.Copy();ActorPose.CopyMotion(actor,replica);
+                new MovementController(room).Step(replica,Vector2.down,false,dt);
+                Require(replica.crouchPressConsumed && !replica.crouched,"Обновление snapshot повторно вооружило уже использованный S-жест");
+                var newLife=actor.Copy();newLife.lifecycleSequence++;ActorPose.CopyMotion(actor,newLife);
+                Require(!newLife.crouchPressConsumed,"Input-память лестницы перешла в другую жизнь актёра");
+                motion.Step(actor,Vector2.zero,false,dt);
+                for(int i=0;i<Mathf.CeilToInt(.25f/dt);i++) motion.Step(actor,Vector2.down,false,dt);
+                Require(actor.crouched && !actor.climbing,"Новый S после отпускания не разрешает обычное приседание на посадке");
+                motion.Step(actor,Vector2.up,false,dt);
+                Require(!actor.crouched,"W не выводит из приседания возле лестницы после нового S");
             }
         }
         private static void CheckJunctionAndStance(float dt)

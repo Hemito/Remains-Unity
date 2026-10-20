@@ -33,6 +33,14 @@ namespace Remains.Editor
                 var other=new RecoverySnapshot(JsonUtility.ToJson(new WorldState()));store.SaveRecovery(other);
                 Require(File.Exists(Path.Combine(directory,"Worlds",world.worldId,"Snapshots",predicted.Id+".json")),"Другой мир сохраняет архив первого");
                 gate.Clear();Require(!gate.Matches(snapshot.Id,17),"Новая сессия не принимает старые квитанции");
+                var lazy=RecoverySnapshot.FromWorld(new WorldState {revision=91});
+                string durableId=new RecoverySnapshot(lazy.Json).Id;
+                Require(!lazy.TryFileId(out _),"Fixture раннего ACK уже вычислил SHA источника");
+                gate.Register(lazy);
+                Require(!gate.Matches(lazy.ReplicationId,91) && gate.Matches(durableId,91),
+                    "ACK до завершения writer потерян либо manifest ID принят вместо точного SHA");
+                Require(lazy.TryFileId(out string ready) && ready==durableId && gate.Matches(durableId,91),
+                    "Раннее подтверждение не сохранило вычисленный SHA для writer/повтора");
                 var payload=System.Text.Encoding.UTF8.GetBytes(wire);
                 var receiver=new SnapshotTransfer(snapshot.Id);
                 var half=new byte[payload.Length/2];Array.Copy(payload,half,half.Length);

@@ -16,6 +16,7 @@ namespace Remains.Editor
         }
         public static void Run()
         {
+            CheckReplicaManifestReuse();
             const string template="{\"мир\":\"🌕\",\"части\":1}";
             var input=Fixture(1024);
             var original=SnapshotManifest.Build(template,input);
@@ -90,6 +91,18 @@ namespace Remains.Editor
             Debug.Log($"Манифест снимка: PASS — версия, строгий UTF-8, порядок, исправления/удаления, другая база, изоляция; одно исправление: {corrected.HashedTexts} текст, {corrected.HashedBranches} ветвей.");
         }
 
+        private static void CheckReplicaManifestReuse()
+        {
+            var world=new Remains.Domain.WorldState();
+            for(int i=0;i<64;i++) world.actors.Add(new Remains.Domain.ActorState {id="manifest-actor-"+i,health=100});
+            var before=RecoverySnapshot.FromWorld(world);var replica=WorldReplica.FromSnapshot(before);
+            world.actors[0].x=2;world.revision++;
+            var after=RecoverySnapshot.FromWorld(world);
+            var delta=WorldDelta.Build(world.worldId,before.ReplicationId,before.Composition,after.ReplicationId,after.Composition);
+            var assembled=replica.Apply(delta,before.CreateLiveWorld());
+            Require(assembled.Json==after.Json && assembled.Id==after.Id,"Переиспользование манифеста изменило точный снимок");
+            Require(assembled.Manifest.HashedTexts<10,"WorldReplica не передаёт предыдущий manifest и хеширует все неизменные части");
+        }
         private static SnapshotPartCache.PartSet[] Fixture(int count)
         {
             var keys=new string[count];var texts=new string[count];

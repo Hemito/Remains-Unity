@@ -20,7 +20,7 @@ namespace Remains.Domain
     // Instance state only; catalog definitions are shared and must never be scaled.
     public static class FactoryEnemyScaling
     {
-        public const int Version=2;
+        public const int Version=3;
         public const string Unit="unit",Trap="trap",Mine="mine",Charge="charge",Turret="turret";
         public static float HealthFactor(int level)=>1+.11f*Nonnegative(level);
         public static float TurretHealthFactor(int level)=>1+.20f*Nonnegative(level);
@@ -68,11 +68,13 @@ namespace Remains.Domain
             Validate(state);if(state==null) return;
             string expectedKind=state.version==1 && kind==Turret?Unit:kind;
             float factor=expectedKind==Turret?TurretHealthFactor(state.enemyLevel):expectedKind==Unit || expectedKind==Trap?HealthFactor(state.enemyLevel):1;
-            float maximum=baseHealth*factor;
-            // Tolerance covers persisted float round trips, not a changed authored stat profile.
+            // The saved instance owns its original baseline. A content rebalance changes new spawns,
+            // not an existing world's wounds or maximum health without an explicit migration.
+            float maximum=state.baseHealth*factor;
+            // Tolerance covers persisted float round trips, not an internally inconsistent profile.
             bool Near(float a,float b)=>Mathf.Abs(a-b)<=.0001f*Mathf.Max(1,Mathf.Abs(b));
             if(state.seed!=seed || state.placement!=placement || state.floor!=floor || state.kind!=expectedKind ||
-                !Near(state.baseHealth,baseHealth) || !Near(state.maxHealth,maximum))
+                (kind==Mine?state.baseHealth!=0:state.baseHealth<=0) || !Near(state.maxHealth,maximum))
                 throw new InvalidOperationException($"Сохранённый профиль уровня не соответствует источнику: id={placement}, storedId={state.placement}, seed={state.seed}/{seed}, floor={state.floor}/{floor}, kind={state.kind}/{expectedKind}, baseHP={state.baseHealth}/{baseHealth}, maxHP={state.maxHealth}/{maximum}, version={state.version}.");
         }
         public static float Protection(FactoryEnemyScaleState state)
@@ -97,6 +99,19 @@ namespace Remains.Domain
             var result=Capture(source);result.version=Version;result.kind=Turret;
             result.maxHealth=result.baseHealth*TurretHealthFactor(result.enemyLevel);
             return result; // Preserve level/champion/seed: the v1 random stream itself was correct.
+        }
+        public static bool MisclassifiedUnit(FactoryEnemyScaleState source,int seed,string id,int floor,float authoredHealth)
+        {
+            if(source?.version!=2 || source.kind!=Turret) return false;
+            // Only the exact internally consistent shape emitted by the former null-settings test.
+            ValidatePlacement(source,seed,id,floor,Turret,authoredHealth);
+            return true;
+        }
+        public static FactoryEnemyScaleState RepairMisclassifiedUnit(FactoryEnemyScaleState source)
+        {
+            Validate(source);
+            var result=Capture(source);result.version=Version;result.kind=Unit;
+            result.maxHealth=result.baseHealth*HealthFactor(result.enemyLevel);return result;
         }
         public static bool Same(FactoryEnemyScaleState a,FactoryEnemyScaleState b)=>a==null || b==null?a==null && b==null:
             a.version==b.version && a.seed==b.seed && a.floor==b.floor && a.enemyLevel==b.enemyLevel && a.rolledChampion==b.rolledChampion &&

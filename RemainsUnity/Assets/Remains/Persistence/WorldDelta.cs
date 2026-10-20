@@ -94,6 +94,7 @@ namespace Remains.Persistence
         public string WorldId {get;private set;}
         public string SnapshotId {get;private set;}
         private string template;
+        private SnapshotManifest manifest;
         private readonly Dictionary<string,List> lists=new(StringComparer.Ordinal);
         // The objects the last apply put into each reusable list, by position: the live list still holding them at the
         // same positions takes unchanged parts by reference, without key comparisons (~2200 parts per snapshot).
@@ -113,7 +114,7 @@ namespace Remains.Persistence
             var split=SnapshotPartCache.Split(copy);
             if(SnapshotPartCache.Splice(split.Template,split.Lists)!=snapshot.Json)
                 throw new InvalidDataException($"Снимок мира не раскладывается на части без потерь: world={snapshot.WorldId}, snapshot={snapshot.Id}.");
-            var replica=new WorldReplica {WorldId=snapshot.WorldId,SnapshotId=snapshot.ReplicationId,template=split.Template};
+            var replica=new WorldReplica {WorldId=snapshot.WorldId,SnapshotId=snapshot.ReplicationId,template=split.Template,manifest=snapshot.Manifest};
             foreach(var set in split.Lists) replica.lists[set.Name]=List.Of(set.Keys,set.Texts);
             var actorSet=Array.Find(split.Lists,set=>set.Name=="actors");
             for(int i=0;i<actorSet.Keys.Length;i++) replica.canonicalActors.Add(actorSet.Keys[i],(actorSet.Texts[i],copy.actors[i]));
@@ -216,7 +217,7 @@ namespace Remains.Persistence
                     default: throw new InvalidDataException("Неизвестный список мира: "+set.Name);
                 }
             }
-            var snapshot=RecoverySnapshot.Assembled(payload.template,sets,payload.snapshot,world,retainPreparedLive:!reuseActors);
+            var snapshot=RecoverySnapshot.Assembled(payload.template,sets,payload.snapshot,world,retainPreparedLive:!reuseActors,previousManifest:manifest);
             if(reuseActors)
             {
                 // The snapshot has validated private canonical actors. Only after all checks succeed replace
@@ -239,7 +240,7 @@ namespace Remains.Persistence
                 }
                 world.actors=actors;live=world;reusedActors=reused;
             }
-            template=payload.template;SnapshotId=payload.snapshot;
+            template=payload.template;SnapshotId=payload.snapshot;manifest=snapshot.Manifest;
             lists.Clear();foreach(var pair in nextLists) lists.Add(pair.Key,pair.Value);
             produced.Clear();foreach(var pair in outputs) produced.Add(pair.Key,pair.Value);
             canonicalActors=nextActors;

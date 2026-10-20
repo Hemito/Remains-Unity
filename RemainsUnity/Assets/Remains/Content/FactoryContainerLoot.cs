@@ -126,7 +126,7 @@ namespace Remains.Content
                 }
                 else item=workingAmmo?SharedInventory.Create(id,count):catalog.source.CreateFormalItem(key,grade,count);
                 // An original weapon connected from the export is working: its magazine starts empty, as above.
-                if(runtime==null && weapon && ExportedWeaponItems.Working(item.definition)) item.weaponState=new WeaponItemState {rounds=0};
+                if(runtime==null && weapon && ExportedWeaponItems.Working(item.definition)) item.weaponState=InitialWeaponState(item.definition);
                 if(!artwork.TryGet(item.definition,out _))
                     throw new NotSupportedException($"Не подготовлена графика предмета: source={key}, container={placement.Id}.");
                 // World-unique: a character carries its items into other worlds of the same seed, where the same
@@ -148,6 +148,11 @@ namespace Remains.Content
             double prize=xml.Attribute("prize")!=null?state.lockLevel+(lockTip is 1 or 2?tier*2:state.lockLevel*2)+state.mineLevel*2:50;
             FactoryLootRules.Generate(category,difficulty,1,prize,U,request=>Emit(request),reason=>throw new NotSupportedException(reason));
             return state;
+        }
+        public static WeaponItemState InitialWeaponState(string definition)
+        {
+            var weapon=WeaponCatalog.Get(definition);
+            return new WeaponItemState {rounds=weapon.rechargeSeconds>0?weapon.magazineSize:0};
         }
         private static double Number(XElement xml,string key,double absent)
         =>xml.Attribute(key) is XAttribute value?double.Parse(value.Value,CultureInfo.InvariantCulture):absent;

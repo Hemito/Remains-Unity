@@ -107,14 +107,26 @@ namespace Remains.Editor
                 typeof(CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
                 typeof(CoopSession).GetProperty("LocalOwner").SetValue(session,actor.owner);
                 var origin=WeaponPose.Muzzle(actor);
+                var remoteCaptureActor=actor.Copy();remoteCaptureActor.Position+=new Vector2(.3f,.2f);
+                var remoteCaptureAttack=new AttackEvent {weapon="energy",level=actor.level,originX=origin.x,originY=origin.y};
+                var remoteAttachment=new BeamMuzzleAttachment(remoteCaptureAttack,remoteCaptureActor);
+                Require(remoteAttachment.Offset(remoteCaptureActor)==Vector2.zero,"При начале затухания удалённый луч скачет на исходную сетевую разницу дула");
+                var remoteMovement=new Vector2(-.4f,.15f);remoteCaptureActor.Position+=remoteMovement;
+                Require(Vector2.Distance(remoteAttachment.Offset(remoteCaptureActor),remoteMovement)<.0001f,"Удалённый луч не следует только перемещению дула после создания");
                 var attack=new AttackEvent {id="moving-beam",attacker=actor.id,sourceOwner=actor.owner,weapon="energy",level=actor.level,
                     originX=origin.x,originY=origin.y,endX=origin.x+5,endY=origin.y};
                 ShotArtwork.Prepare();Require(ShotArtwork.TryGet("energy",out var artwork) && artwork.beam,"Проверке нужен энергетический луч");
                 var flight=new ProjectileFlight {state=new ProjectileState {launch=attack},path=new LinearProjectilePath(origin,Vector2.right,1000,5)};
                 var obj=new GameObject("Луч снаряда");obj.transform.SetParent(root.transform);
-                var view=obj.AddComponent<ProjectileVisual>();view.Initialize(flight,artwork,session);view.JoinRemoteMuzzle();
-                flight.path.Advance(.01f,(_,_)=>null);
+                var view=obj.AddComponent<ProjectileVisual>();view.Initialize(flight,artwork,session);
+                attack.sourceOwner="remote";view.JoinRemoteMuzzle();
                 void Draw()=>typeof(ProjectileVisual).GetMethod("LateUpdate",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(view,null);
+                actor.Position+=new Vector2(.1f,.2f);
+                flight.path.Advance(.001f,(_,_)=>null);Draw();
+                Require(view.TrailStart==origin && view.TrailEnd==flight.path.Position &&
+                    Vector2.Distance(view.TrailEnd-view.TrailStart,Vector2.right*flight.path.Traveled)<.0001f,
+                    "Удалённый незавершённый луч получил смещение только хвоста и изменил угол/длину");
+                flight.path.Advance(.01f,(_,_)=>null);
                 foreach(var shift in new[]{new Vector2(.4f,.2f),new Vector2(-.6f,-.1f)})
                 {
                     actor.Position+=shift;Draw();

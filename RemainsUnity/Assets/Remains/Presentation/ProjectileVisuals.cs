@@ -141,7 +141,7 @@ namespace Remains.Presentation
                 var offset=beamMuzzle.Offset(session.World?.Find(flight.state.launch.attacker));
                 TrailStart+=offset;TrailEnd+=offset;
             }
-            else if(join!=null)
+            else if(join!=null && !artwork.beam)
             {
                 var actor=session.World?.Find(flight.state.launch.attacker);
                 MuzzlePoseState=actor==null?"missing-actor":actor.level!=Level?"other-level":

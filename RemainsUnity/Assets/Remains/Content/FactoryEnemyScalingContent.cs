@@ -40,14 +40,15 @@ namespace Remains.Content
                     if(!actorIndex.TryGetValue(source.id,out var actor)) continue; // Removed NPCs stay removed.
                     if(actor.player || actor.actorType!=source.actorType || actor.level!=source.level)
                         throw new InvalidOperationException("Масштабирование: конфликт сохранённого NPC "+source.id);
-                    bool turret=ActorTypes.Get(source.actorType).turret!=null;
+                    bool turret=NpcCreatureBehaviours.Fixed(ActorTypes.Get(source.actorType).behavior);
                     int floor=FactoryEnemyScaling.PlacementFloor(source.id,source.level);
+                    bool repair=!turret && FactoryEnemyScaling.MisclassifiedUnit(actor.factoryEnemy,seed,source.id,floor,source.health);
                     if(actor.factoryEnemy!=null)
                     {
-                        FactoryEnemyScaling.ValidatePlacement(actor.factoryEnemy,seed,source.id,floor,turret?FactoryEnemyScaling.Turret:FactoryEnemyScaling.Unit,source.health);
-                        if(!turret || actor.factoryEnemy.version!=1) continue;
+                        if(!repair) FactoryEnemyScaling.ValidatePlacement(actor.factoryEnemy,seed,source.id,floor,turret?FactoryEnemyScaling.Turret:FactoryEnemyScaling.Unit,source.health);
+                        if(!repair && (!turret || actor.factoryEnemy.version!=1)) continue;
                     }
-                    var scale=actor.factoryEnemy!=null?FactoryEnemyScaling.UpgradeTurret(actor.factoryEnemy):
+                    var scale=repair?FactoryEnemyScaling.RepairMisclassifiedUnit(actor.factoryEnemy):actor.factoryEnemy!=null?FactoryEnemyScaling.UpgradeTurret(actor.factoryEnemy):
                         FactoryEnemyScaling.Roll(seed,source.id,FactoryEnemyScaling.PlacementFloor(source.id,source.level),turret?FactoryEnemyScaling.Turret:FactoryEnemyScaling.Unit,source.health);
                     actors.Add(new ActorChange {id=source.id,type=source.actorType,level=source.level,before=actor.health,
                         after=FactoryEnemyScaling.PreserveHealth(actor.health,actor.factoryEnemy?.maxHealth??source.health,scale.maxHealth),scale=scale,
@@ -95,7 +96,11 @@ namespace Remains.Content
                         throw new InvalidOperationException("Изменилась мина до публикации масштабирования: "+change.id);
                 if(world.revision==long.MaxValue) throw new InvalidOperationException("Исчерпана ревизия мира при масштабировании противников.");
                 foreach(var change in actors)
-                {var actor=actorIndex[change.id];actor.factoryEnemy=change.scale;actor.health=change.after;actor.revision++;WorldChanges.Mark(world,actor);}
+                {
+                    var actor=actorIndex[change.id];actor.factoryEnemy=change.scale;actor.health=change.after;actor.revision++;WorldChanges.Mark(world,actor);
+                    if(change.previousScale?.version==2 && change.previousScale.kind==FactoryEnemyScaling.Turret && change.scale.kind==FactoryEnemyScaling.Unit)
+                        Debug.LogWarning($"Исправлена ошибочная классификация существа как турели: world={worldId}, id={actor.id}, type={actor.actorType}, version=2→3; причина=пустые сериализованные настройки turret не определяют семейство; уровень, baseline и доля HP сохранены.");
+                }
                 foreach(var change in hazards)
                 {var hazard=hazardIndex[change.id];hazard.factoryEnemy=change.scale;hazard.health=change.after;WorldChanges.Mark(world,hazard);}
                 foreach(var change in mines)

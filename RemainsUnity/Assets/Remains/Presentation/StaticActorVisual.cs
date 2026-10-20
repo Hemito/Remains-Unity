@@ -16,6 +16,20 @@ namespace Remains.Presentation
         [SerializeField,InspectorName("ID ресурса")] private string authoredResource;
         public void Configure(SpriteRenderer renderer,string key,string resource) {view=renderer;authoredArtwork=key;authoredResource=resource;}
         private string artwork;
+        private HeldPropGlow heldGlow;
+        private readonly HeldActorAppearance heldAppearance=new();
+        public bool HeldGlowVisible=>heldGlow!=null && heldGlow.Visible;
+        public override void ApplyHeldAppearance(HeldPropColorSource colors)
+        {
+            heldAppearance.Apply(state,colors,this);
+            if(!heldAppearance.Active){heldGlow?.Draw(false);return;}
+            if(heldGlow==null)
+            {
+                var child=new GameObject("Свечение удерживаемого тела");child.transform.SetParent(view.transform,false);
+                heldGlow=child.AddComponent<HeldPropGlow>();heldGlow.Initialize(view,heldAppearance.Color,.08f);
+            }
+            var color=heldAppearance.Color;color.a=.7f;heldGlow.SetColor(color);heldGlow.SetFrame(view.sprite);heldGlow.Draw(view.enabled);
+        }
         public string Resource {get;private set;}
         public override string ActorId=>state?.id;
         public override void AppendLightOccluders(List<RoomRadianceField.LightOccluder> output)=>AppendSpriteOccluder(view,output);

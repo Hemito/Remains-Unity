@@ -25,6 +25,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();WeaponCatalog.Load();
+            CheckDisarmPreflight();
             var trap=HazardCatalog.All.Single(d=>d.kind==HazardRules.Trap);var charge=HazardCatalog.All.Single(d=>d.kind==HazardRules.Charge);
             Require(trap.id=="mtrap" && trap.objects.Contains("trap") && Mathf.Approximately(trap.health,10) && Mathf.Approximately(trap.skin,10) &&
                 Mathf.Approximately(WeaponCatalog.Get(trap.biteWeapon).damage,24),"капкан из AllData (mtrap: здоровье 10, кожа 10, укус 24)");
@@ -140,6 +141,17 @@ namespace Remains.Editor
             Require(removal.Json==c.Json && removal.CreateLiveWorld().hazards.Count==host.hazards.Count,"удаление ловушки по дельте");
         }
 
+        private static void CheckDisarmPreflight()
+        {
+            var profile=HazardCatalog.All.Single(d=>d.kind==HazardRules.Charge);
+            var world=new WorldState {worldId="disarm-preflight"};var hazard=HazardRules.Create("charge", "factory:0",profile,Vector2.zero);world.hazards.Add(hazard);
+            string before=StateJson.ToJson(world);int calls=0;bool failed=false;
+            try {Remains.Networking.SessionHazards.PrepareDisarmDrops(world,hazard,profile,_=>++calls==2?throw new InvalidOperationException("Нет подготовленной формы второй строки."):Vector2.one);}
+            catch(InvalidOperationException){failed=true;}
+            Require(failed && calls==2 && before==StateJson.ToJson(world),"Сбой второй формы удалил заряд или частично выдал динамит.");
+            var drops=Remains.Networking.SessionHazards.PrepareDisarmDrops(world,hazard,profile);
+            Require(drops.Count==profile.disarmCount && drops.All(d=>d.items.Count==1) && before==StateJson.ToJson(world),"Preflight добычи изменил мир до принятия действия.");
+        }
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Ловушки: "+message);}
     }
 }

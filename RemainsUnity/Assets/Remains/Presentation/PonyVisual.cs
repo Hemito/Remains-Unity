@@ -18,6 +18,18 @@ namespace Remains.Presentation
         [SerializeField,HideInInspector] private bool authoredStructure;
         public void UseAuthoredStructure()=>authoredStructure=true;
         private ActorState state;
+        private readonly HeldActorAppearance heldAppearance=new();
+        public bool HeldGlowVisible=>heldAppearance.Active && hasDrawnBounds && gameObject.activeInHierarchy;
+        public override void ApplyHeldAppearance(HeldPropColorSource colors)
+        {
+            if(!heldAppearance.Apply(state,colors,this) || drawnParts==null || !appearance.HasValue)return;
+            for(int i=0;i<drawnParts.Length;i++)
+            {
+                if(PonyMagicRenderRoles.Contains(drawnParts[i]))continue;
+                properties.SetColor("_Color",heldAppearance.Tint(PonyAppearance.Tint(drawnParts[i].slot,appearance.Value)));
+                properties.SetFloat("_Emission",heldAppearance.Active || drawnParts[i].slot=="magic"?1:0);renderers[i].SetPropertyBlock(properties);
+            }
+        }
         private string pose;
         private int frame = -1;
         private MaterialPropertyBlock properties;
@@ -162,8 +174,8 @@ namespace Remains.Presentation
                 filters[i].sharedMesh = parts[i].mesh;
                 renderers[i].sharedMaterial = parts[i].material;
                 renderers[i].sortingOrder = i + WorldVisualOrderPolicy.ActorPartOrder;
-                properties.SetColor("_Color", PonyAppearance.Tint(parts[i].slot,nextAppearance));
-                properties.SetFloat("_Emission",parts[i].slot=="magic"?1:0);
+                properties.SetColor("_Color", heldAppearance.Tint(PonyAppearance.Tint(parts[i].slot,nextAppearance)));
+                properties.SetFloat("_Emission",parts[i].slot=="magic" || heldAppearance.Active?1:0);
                 renderers[i].SetPropertyBlock(properties);
             }
             drawPlanDirty=false;

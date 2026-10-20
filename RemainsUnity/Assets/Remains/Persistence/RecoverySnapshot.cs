@@ -240,13 +240,9 @@ namespace Remains.Persistence
         {
             if(id==null) return false;
             foreach(var snapshot in sent.Values)
-                if(snapshot.Revision==revision && snapshot.TryFileId(out string actual) && actual==id) return true;
-            return false;
-        }
-        public bool HasPending(long revision)
-        {
-            foreach(var snapshot in sent.Values)
-                if(snapshot.Revision==revision && !snapshot.TryFileId(out _)) return true;
+                // An ACK may beat the background writer. Validate exact bytes now instead of losing
+                // the only durable receipt; Id shares the writer's lock and caches the result.
+                if(snapshot.Revision==revision && snapshot.Id==id) return true;
             return false;
         }
     }

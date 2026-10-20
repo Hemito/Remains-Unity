@@ -7,7 +7,7 @@ namespace Remains.Presentation
     {
         public abstract string ActorId {get;}
         public abstract void Bind(ActorState actor);
-        public virtual void ApplyHeldAppearance(HeldPropColorSource colors) {}
+        public abstract void ApplyHeldAppearance(HeldPropColorSource colors);
         public abstract void AppendLightOccluders(List<RoomRadianceField.LightOccluder> output);
         protected static void AppendSpriteOccluder(SpriteRenderer renderer,List<RoomRadianceField.LightOccluder> output)
         {

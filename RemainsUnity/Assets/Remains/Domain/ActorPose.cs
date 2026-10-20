@@ -11,6 +11,12 @@ namespace Remains.Domain
             destination.poseSequence=source.poseSequence;destination.poseCorrectionRemaining=source.poseCorrectionRemaining;
             destination.climbing=source.climbing;
             destination.crouched=source.crouched;
+            if(!string.IsNullOrEmpty(source.id) && source.id==destination.id && source.owner==destination.owner &&
+                source.level==destination.level && source.generation==destination.generation && source.lifecycleSequence==destination.lifecycleSequence)
+            {
+                destination.crouchPressSeconds=source.crouchPressSeconds;
+                destination.crouchPressConsumed=source.crouchPressConsumed;
+            }
             destination.jumpSupportRemaining=source.jumpSupportRemaining;
             if(source.weaponSelectionRevision==destination.weaponSelectionRevision)
             {

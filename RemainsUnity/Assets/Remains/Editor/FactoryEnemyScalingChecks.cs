@@ -125,7 +125,7 @@ namespace Remains.Editor
             Near(FactoryEnemyScaling.TurretHealthFactor(10),3,"HP турели");
             Near(FactoryEnemyScaling.TurretProtectionFactor(10),2,"Кожа/броня турели");
             Near(FactoryEnemyScaling.TurretDamageFactor(10),2.2f,"Урон оружия турели");
-            var creature=CreatureCatalog.Load().Creatures.First(c=>ActorTypes.Get(c.actorType).turret!=null);
+            var creature=CreatureCatalog.Load().Creatures.OrderBy(c=>c.actorType,StringComparer.Ordinal).First(c=>NpcCreatureBehaviours.Fixed(ActorTypes.Get(c.actorType).behavior));
             const string level="factory:0";
             var source=creature.spawn.Create(new TrainingPlacement {id="0,20:turret-upgrade",type=creature.actorType,facing=1},level);
             var deadSource=source.Copy();deadSource.id=level+":0,20:dead-turret-upgrade";
@@ -138,7 +138,7 @@ namespace Remains.Editor
             var batch=new RoomContentBatch {npcs=layout};
             Require(RoomContentInstaller.NeedsInstall(world,batch) && RoomContentInstaller.Apply(world,batch),"Профиль турели v1 не мигрирует");
             var current=actor.factoryEnemy;
-            Require(current.version==2 && current.kind==FactoryEnemyScaling.Turret && current.enemyLevel==old.enemyLevel && current.rolledChampion==old.rolledChampion && current.seed==old.seed,"Исправление турели перебросило уровень/чемпиона");
+            Require(current.version==FactoryEnemyScaling.Version && current.kind==FactoryEnemyScaling.Turret && current.enemyLevel==old.enemyLevel && current.rolledChampion==old.rolledChampion && current.seed==old.seed,"Исправление турели перебросило уровень/чемпиона");
             Near(current.maxHealth,source.health*(1+.2f*old.enemyLevel),"Исправленный максимум HP турели");
             Near(actor.health/current.maxHealth,.4f,"Исправление турели вылечило рану");
             Require(dead.health==0 && dead.down,"Исправление уровня воскресило турель");
@@ -155,6 +155,7 @@ namespace Remains.Editor
         {
             const string level="factory:0";
             var first=new ActorState {id=level+":0,20:unscaled",actorType="tarakan",anatomy="tarakan",level=level,weapon="",health=100};
+            Require(!NpcCreatureBehaviours.Fixed(ActorTypes.Get(first.actorType).behavior),"Provenance fixture требует явный тип обычного существа");
             var second=first.Copy();second.id=level+":1,20:scaled";
             var batch=new RoomContentBatch {npcs=new NpcLayout {patch=level+":"+FactoryCreatureAdapter.Patch,level=level,actors=new[]{first,second}}};
             Action<FactoryEnemyScaleState>[] corruptions={s=>s.placement+="-wrong",s=>s.seed++,s=>s.floor--,s=>s.kind=FactoryEnemyScaling.Trap,
@@ -176,6 +177,26 @@ namespace Remains.Editor
             var rounded=FactoryEnemyScaling.Roll(104,second.id,20,FactoryEnemyScaling.Unit,second.health);
             rounded.maxHealth*=1.000001f;
             FactoryEnemyScaling.ValidatePlacement(rounded,104,second.id,20,FactoryEnemyScaling.Unit,second.health);
+            var saved=new WorldState {worldId="authored-rebalance",seed=104};saved.contentPatches.Add(batch.npcs.patch);
+            var wounded=second.Copy();wounded.factoryEnemy=FactoryEnemyScaling.Roll(104,second.id,20,FactoryEnemyScaling.Unit,100);
+            wounded.health=wounded.factoryEnemy.maxHealth*.3f;saved.actors.Add(wounded);
+            second.health=200; // A later content release rebalances the same source type.
+            string beforeRebalance=StateJson.ToJson(saved);
+            Require(!RoomContentInstaller.NeedsInstall(saved,batch) && !RoomContentInstaller.Apply(saved,batch) && StateJson.ToJson(saved)==beforeRebalance,
+                "Авторский ребаланс переписал максимум/ранение существующего профиля или заблокировал загрузку");
+            var newSpawn=new WorldState {worldId="after-authored-rebalance",seed=104};
+            Require(RoomContentInstaller.Apply(newSpawn,batch),"Не установлена новая расстановка после ребаланса");
+            Require(newSpawn.Find(second.id).factoryEnemy.baseHealth==200,"Новая расстановка не использует текущий авторский HP");
+            var badWorld=new WorldState {worldId="wrong-v2-turret-repair",seed=104};badWorld.contentPatches.Add(batch.npcs.patch);
+            var bad=second.Copy();bad.factoryEnemy=FactoryEnemyScaling.Roll(104,bad.id,20,FactoryEnemyScaling.Turret,100);bad.factoryEnemy.version=2;
+            bad.health=bad.factoryEnemy.maxHealth*.35f;int oldLevel=bad.factoryEnemy.enemyLevel;badWorld.actors.Add(bad);
+            Require(RoomContentInstaller.Apply(badWorld,batch) && bad.factoryEnemy.version==3 && bad.factoryEnemy.kind==FactoryEnemyScaling.Unit && bad.factoryEnemy.enemyLevel==oldLevel,
+                "Точный ошибочный v2 профиль не исправлен без переброса");
+            Near(bad.health/bad.factoryEnemy.maxHealth,.35f,"Исправление ошибочного v2 профиля изменило ранение");
+            Require(bad.factoryEnemy.baseHealth==100 && !RoomContentInstaller.Apply(badWorld,batch),"Исправление взяло новый baseline или повторилось");
+            var corruptWorld=StateJson.Copy(badWorld);var corruptActor=corruptWorld.actors.Single();
+            corruptActor.factoryEnemy.kind=FactoryEnemyScaling.Turret;corruptActor.factoryEnemy.version=2; // maxHP still Unit: not the known old bug.
+            Reject(()=>RoomContentInstaller.Apply(corruptWorld,batch),"Несогласованный wrongkind профиль выдан за известную ошибку v2");
         }
         private static void Reject(Action action,string message)
         {try {action();} catch(InvalidOperationException) {return;}throw new InvalidOperationException(message);}

@@ -12,7 +12,9 @@ namespace Remains.Presentation
         private readonly int lifecycle;
         public BeamMuzzleAttachment(Remains.Domain.AttackEvent attack,Remains.Domain.ActorState actor)
         {
-            origin=attack.Origin;weapon=Remains.Content.WeaponRigs.PresentationId(attack.weapon);
+            // A remote visual can arrive after the muzzle has already moved. Its initial
+            // discrepancy must not translate the whole canonical ray when fading starts.
+            origin=WeaponPose.Muzzle(actor);weapon=Remains.Content.WeaponRigs.PresentationId(attack.weapon);
             level=attack.level;lifecycle=actor.lifecycleSequence;
         }
         public Vector2 Offset(Remains.Domain.ActorState actor)

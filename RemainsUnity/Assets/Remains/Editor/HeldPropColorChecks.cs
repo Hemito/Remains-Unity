@@ -12,9 +12,11 @@ namespace Remains.Editor
 {
     public static class HeldPropColorChecks
     {
+        public static void RunBatch()
+        {try {Anatomy.Load();WeaponCatalog.Load();ActorTypes.Load();Run();UnityEditor.EditorApplication.Exit(0);}catch(Exception error){Debug.LogException(error);UnityEditor.EditorApplication.Exit(1);}}
         public static void Run()
         {
-            PonyVisual.Prepare();PropCatalog.Load();RunSource();CheckHeldActor();
+            PonyVisual.Prepare();PropCatalog.Load();RunSource();CheckHeldActor();CheckHeldPonyAndStatic();
             var artwork=new PropArtwork();var world=World();var prop=new ContainerState
             {id="color-container",definition="trash",owner="a",level="hub",generation=3,held=true,width=.5f,height=.8f,
                 appearance=new ContainerAppearanceState {version=1}};
@@ -192,6 +194,66 @@ namespace Remains.Editor
                 Require(!colors.TryResolve(body,out _,out var reason) && !string.IsNullOrWhiteSpace(reason),"Нет отказа для держателя тела в другом уровне.");
             }
             finally {UnityEngine.Object.DestroyImmediate(visual.gameObject);}
+        }
+        private static void CheckHeldPonyAndStatic()
+        {
+            var world=World();var colors=new HeldPropColorSource();colors.Rebuild(world);
+            var body=Player("held-pony","npc-owner",0xFFFFFF);body.player=false;
+            body.hold=new ActorHoldState {holder="holder-a",token="pony-held"};world.actors.Add(body);
+            var pony=(PonyVisual)ActorVisualFactory.Create(body);
+            try
+            {
+                pony.Bind(body);string before=StateJson.ToJson(body);pony.ApplyHeldAppearance(colors);
+                // Bind prepares the pool; DrawPose publishes actual parts. Hold may arrive before that first draw.
+                pony.DrawPose(0);AssertPonyHeldParts(pony,true,0x286CFF);
+                Require(pony.HeldGlowVisible,"Пони NPC не получил подтверждённое свечение удержания.");
+                pony.DrawPose(.2f);pony.ApplyHeldAppearance(colors);AssertPonyHeldParts(pony,true,0x286CFF);
+                body.hold.holder="holder-b";pony.ApplyHeldAppearance(colors);AssertPonyHeldParts(pony,true,0xE040D0);
+                body.hold.holder="holder-a";pony.ApplyHeldAppearance(colors);
+                Require(before==StateJson.ToJson(body),"Представление удержания пони изменило источник состояния.");
+                body.hold=null;pony.ApplyHeldAppearance(colors);AssertPonyHeldParts(pony,false,0);Require(!pony.HeldGlowVisible,"Пони сохранил свечение после отпускания.");
+                pony.DrawPose(.3f);AssertPonyHeldParts(pony,false,0);
+            }
+            finally {UnityEngine.Object.DestroyImmediate(pony.gameObject);}
+            var root=new GameObject("Проверка удержания статического тела");
+            var texture=new Texture2D(2,2);var sprite=Sprite.Create(texture,new Rect(0,0,2,2),new Vector2(.5f,.5f),2);
+            try
+            {
+                var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=sprite;
+                var visual=root.AddComponent<StaticActorVisual>();
+                var staticType=System.Linq.Enumerable.First(EntityAssetCatalog.Load().CreateActors(),t=>t.presentation=="static");body.actorType=staticType.id;
+                visual.Configure(renderer,staticType.artwork,"diagnostic");
+                body.hold=new ActorHoldState {holder="holder-a",token="static-held"};visual.Bind(body);visual.ApplyHeldAppearance(colors);
+                Require(visual.HeldGlowVisible,"Статическое тело не получило свечение.");
+                body.hold=null;visual.ApplyHeldAppearance(colors);Require(!visual.HeldGlowVisible,"Статическое тело сохранило свечение после отпускания.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);UnityEngine.Object.DestroyImmediate(sprite);UnityEngine.Object.DestroyImmediate(texture);}
+        }
+        private static void AssertPonyHeldParts(PonyVisual pony,bool held,int holderRgb)
+        {
+            var fields=BindingFlags.Instance|BindingFlags.NonPublic;
+            var parts=(PonyRenderPart[])typeof(PonyVisual).GetField("drawnParts",fields).GetValue(pony);
+            var renderers=(System.Collections.Generic.List<MeshRenderer>)typeof(PonyVisual).GetField("renderers",fields).GetValue(pony);
+            var state=(ActorState)typeof(PonyVisual).GetField("state",fields).GetValue(pony);
+            Require(parts!=null && parts.Length>0,"Проверка удержания не получила завершённый DrawPose.");
+            int checkedParts=0;
+            for(int i=0;i<parts.Length;i++)
+            {
+                if(!renderers[i].enabled || PonyMagicRenderRoles.Contains(parts[i]))continue;
+                var block=new MaterialPropertyBlock();renderers[i].GetPropertyBlock(block);
+                Require(block.GetFloat("_Emission")== (held || parts[i].slot=="magic"?1:0),$"Фактическая часть пони не сохранила emission: index={i}, slot={parts[i].slot}, held={held}.");
+                var original=PonyAppearance.Tint(parts[i].slot,PonyAppearance.Snapshot(state));
+                var expected=original;
+                if(held)
+                {
+                    var color=PonyAppearance.FromRgb(holderRgb);
+                    expected=new Color(Mathf.Lerp(original.r,color.r,.6f),Mathf.Lerp(original.g,color.g,.6f),Mathf.Lerp(original.b,color.b,.6f),original.a);
+                }
+                var actual=block.GetColor("_Color");
+                Require((new Vector4(actual.r,actual.g,actual.b,actual.a)-new Vector4(expected.r,expected.g,expected.b,expected.a)).sqrMagnitude<.000001f,
+                    $"Фактическая часть пони не получила/не сняла цвет удержания: index={i}, held={held}.");checkedParts++;
+            }
+            Require(checkedParts>0,"Проверка удержания не исследовала ни одной видимой части тела пони.");
         }
         private static ActorState Player(string id,string owner,int magic)=>new()
         {id=id,owner=owner,level="hub",player=true,connected=true,health=100,appearance=new CharacterAppearance {version=1,magic=magic}};

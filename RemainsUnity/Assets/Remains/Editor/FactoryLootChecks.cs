@@ -19,6 +19,8 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();WeaponCatalog.Load();FactoryContainerLockChecks.Run();
+            foreach(var weapon in WeaponCatalog.All)
+                if(weapon.rechargeSeconds>0)Require(FactoryContainerLoot.InitialWeaponState(weapon.id).rounds==weapon.magazineSize,"Самозарядное оружие из контейнера появилось пустым: "+weapon.id);
             int count=0,amount=0;
             FactoryLootRules.Generate("case",4,1,50,()=>.5,request=>{count++;amount=request.count;return true;},message=>throw new Exception(message));
             Require(count==1&&amount==19,"исходная формула денег case");

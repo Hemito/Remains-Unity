@@ -218,6 +218,12 @@ namespace Remains.Editor
             Require(Mathf.Abs(Mathf.DeltaAngle(heldAngle,turret.weaponAngle))<=settings.attackTurnDegreesPerSecond*dt+.01f,
                 $"{id}: удержание отменило ограничение скорости поворота ствола");
             turret.hold=null;
+            turret.creature.mode=Remains.Gameplay.NpcTurret.Alert;turret.creature.timer=settings.alertMinSeconds;
+            turret.hold=new ActorHoldState {holder=intruder.id,token="turret-held-alert-check"};
+            Require(!Remains.Gameplay.NpcTurret.Step(turret,type,intruder,true,intruder.Position,null,dt,random) &&
+                turret.creature.mode==Remains.Gameplay.NpcTurret.Alert && turret.creature.timer>0,
+                $"{id}: захват отменяет уже начатую задержку тревоги (исходный aiState=2)");
+            turret.hold=null;
         }
 
         // A few seconds of each family on the real factory geometry with a target nearby: no NaN, never inside walls,

@@ -45,9 +45,13 @@ namespace Remains.Gameplay
             bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position) || PassengerMotion.PreviouslySupported(room,hull,actor.Position,dt);
             bool endpoint=selected!=null && (actor.y<=selected.bottom+.001f || actor.y>=selected.top-.001f);
             bool stepOff=wasClimbing && (grounded || endpoint) && Mathf.Abs(input.x)>.1f && Mathf.Abs(input.y)<.1f;
+            // Unit.checkStairs(2) rejects a solid tile below the feet. A ladder drawn above
+            // an intermediate floor must not reattach a descending actor through that floor.
+            bool downEntry=grounded && input.y<-.1f && selected!=null && actor.y>selected.bottom+.001f &&
+                ActorTerrainMotion.IsClear(room,hull,actor.Position+Vector2.down*RoomSupport.ContactTolerance);
             // Up can catch a ladder in flight; down starts from support or continues an existing hold.
             bool ladder = selected!=null && !detach && !stepOff && (wasClimbing ||
-                input.y>.1f && actor.y<selected.top-.001f || grounded && input.y<-.1f && actor.y>selected.bottom+.001f);
+                input.y>.1f && actor.y<selected.top-.001f || downEntry);
             bool drop=dropPressed && grounded && ActorTerrainMotion.CanDrop(room,hull,actor.Position);
             bool wasCrouched=actor.crouched;
             CrouchMotion.Step(actor,room,settings,input,jump,grounded,ladder,drop,dt);
