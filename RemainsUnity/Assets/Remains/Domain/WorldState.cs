@@ -60,6 +60,7 @@ namespace Remains.Domain
         public List<string> resolvedExplosions = new();
         public List<string> resolvedAttacks = new();
         public double boxImpactUntil;
+        public string boxImpactLevel;
         public float health = 100;
         public float mana = 100;
         public float x;
@@ -169,6 +170,7 @@ namespace Remains.Domain
         public string owner;
         public int generation;
         public float x,y,vx,vy;
+        [NonSerialized] public string impactAuthorityEpoch;
         public float mass = 8;
         public bool movable=true;
         public bool hasPhysicalBody=true;

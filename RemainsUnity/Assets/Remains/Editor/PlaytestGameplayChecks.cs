@@ -18,6 +18,7 @@ namespace Remains.Editor
                 CreatureChecks.Run();FactoryCrawlerChecks.Run();ContainerLootChecks.Run();
                 CreatureDeathLootChecks.Run();
                 PropImpactChecks.Run();
+                PropImpactPlausibilityChecks.Run();PropImpactRecoveryChecks.Run();PropImpactIndexChecks.Run();
                 RoomLoadingViewChecks.Run();StaticLightShadowChecks.Run();
                 Debug.Log("Целевые проверки playtest 2026-10-18: PASS; полный ContractChecks и Windows build проверяются отдельно.");
                 EditorApplication.Exit(0);

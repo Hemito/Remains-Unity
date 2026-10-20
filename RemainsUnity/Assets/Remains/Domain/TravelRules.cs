@@ -17,6 +17,7 @@ namespace Remains.Domain
         public static void Apply(ActorState actor, string level, RoomLayout destination)
         {
             ActorHoldRules.Release(actor);
+            PropImpactCooldown.Clear(actor);
             actor.level = level;
             actor.x = destination.spawnX;
             actor.y = destination.spawnY;

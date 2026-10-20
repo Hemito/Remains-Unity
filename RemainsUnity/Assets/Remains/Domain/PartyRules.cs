@@ -22,7 +22,7 @@ namespace Remains.Domain
             for(int i=0;i<players.Length;i++)
             {
                 var actor=players[i];var recovery=recoveries[i];
-                actor.health=recovery.health;actor.down=false;actor.level=recovery.level;
+                actor.health=recovery.health;actor.down=false;PropImpactCooldown.Clear(actor);actor.level=recovery.level;
                 actor.Position=recovery.position;actor.Velocity=UnityEngine.Vector2.zero;ActorPose.Select(actor,"idle");
                 if(recovery.removePeriodicInjuries) actor.injuries.RemoveAll(injury=>injury.periodicDamage);
                 actor.lifecycleSequence++;actor.revision++;

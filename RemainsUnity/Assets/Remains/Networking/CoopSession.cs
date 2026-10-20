@@ -287,6 +287,7 @@ namespace Remains.Networking
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             NpcWeaponInventoryMigration.Apply(ServerWorld,source==null?null:()=>Debug.Log("Сохранена копия мира перед преобразованием оружия NPC: "+Saves.PreserveRecoverySource()));
             NpcWeaponActions.ValidateWorld(ServerWorld);
+            foreach(string level in contentLevels) PropImpacts.PrepareLevel(level,RoomLayout.Load(level,ServerWorld));
             CreatureDeathLootIds.PrepareWorld(ServerWorld);
             PrepareDoorCapabilities(
                 contentLevels.SelectMany(level=>RoomDoorCapabilityContent.Read(RoomAuthoring.Load(level,ServerWorld),level)),
@@ -579,7 +580,7 @@ namespace Remains.Networking
                 var localBodies=new Dictionary<string,PropState>(StringComparer.Ordinal);
                 foreach(var prop in WorldProps.All(World)) localBodies[prop.id]=prop;
                 foreach(var prop in WorldProps.All(incoming))
-                    PropReplication.PreserveNewerPose(localBodies.TryGetValue(prop.id,out var local)?local:null,prop,LocalOwner);
+                    PropReplication.PreserveNewerPose(localBodies.TryGetValue(prop.id,out var local)?local:null,prop,LocalOwner,PropImpacts.ClientImpulseEpoch);
                 // A full backup must not rewind locally-owned pose or an unacknowledged health change.
                 for(int actorIndex=0;actorIndex<incoming.actors.Count;actorIndex++)
                 {

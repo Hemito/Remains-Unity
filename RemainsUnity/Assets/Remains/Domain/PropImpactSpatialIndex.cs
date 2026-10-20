@@ -19,7 +19,7 @@ namespace Remains.Domain
             if(!samples.TryGetValue(prop,out var sample) || sample.id!=sampleId) return false;
             samples.Remove(prop);var bounds=sample.Bounds;
             for(int cell=Cell(bounds.xMin);cell<=Cell(bounds.xMax);cell++)
-                if(buckets.TryGetValue((sample.level,cell),out var list)) list.Remove(sample);
+                if(buckets.TryGetValue((sample.level,cell),out var list)) {list.Remove(sample);if(list.Count==0) buckets.Remove((sample.level,cell));}
             return true;
         }
         public void Add(PropImpactSample sample)
@@ -29,7 +29,7 @@ namespace Remains.Domain
                 if(sample.generation<previous.generation || sample.generation==previous.generation && !PropReplication.IsNewer(sample.sequence,previous.sequence)) return;
                 var old=previous.Bounds;
                 for(int cell=Cell(old.xMin);cell<=Cell(old.xMax);cell++)
-                    if(buckets.TryGetValue((previous.level,cell),out var list)) list.Remove(previous);
+                    if(buckets.TryGetValue((previous.level,cell),out var list)) {list.Remove(previous);if(list.Count==0) buckets.Remove((previous.level,cell));}
             }
             samples[sample.prop]=sample;var bounds=sample.Bounds;
             for(int cell=Cell(bounds.xMin);cell<=Cell(bounds.xMax);cell++)

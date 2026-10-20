@@ -31,6 +31,8 @@ namespace Remains.Networking
         private readonly PropImpactSourceInbox newSources=new();
         private double nextRetry;
         private Func<ActorState,PropImpactContact,bool> apply;
+        private PropImpactPlausibility plausibility;
+        public void PrepareLevel(string level,RoomLayout room)=>plausibility.Prepare(level,room);
         public IReadOnlyDictionary<string,PropImpactSample> Samples=>accepted;
         public SessionPropImpacts(CoopSession session)
         {
@@ -48,12 +50,15 @@ namespace Remains.Networking
         public void Configure(Func<ActorState,PropImpactContact,bool> receiver)=>apply=receiver??throw new ArgumentNullException(nameof(receiver));
         public void RegisterServer()
         {
+            var settings=TelekinesisSettings.Load();
+            plausibility=new PropImpactPlausibility(settings.range,settings.releaseRange,level=>RoomLayout.Load(level,session.ServerWorld));
             serverGraph=null;pending.Clear();serverExpirations.Clear();nextRetry=0;
             NetworkServer.RegisterHandler<PropImpactSampleMessage>(MessageTiming.Server<PropImpactSampleMessage>(Sample));
             NetworkServer.RegisterHandler<PropImpactRequest>(MessageTiming.Server<PropImpactRequest>(Contact));
         }
         public void RegisterClient()
         {
+            ClientImpulseEpoch=Guid.NewGuid().ToString("N");
             accepted.Clear();Spatial.Clear();expirations.Clear();newSources.Clear();localPending.Clear();clientWorld=null;
             NetworkClient.RegisterHandler<PropImpactSampleAccepted>(MessageTiming.Client<PropImpactSampleAccepted>(message=>
             {
@@ -84,10 +89,11 @@ namespace Remains.Networking
                 if(session.World==null || contact?.source?.world!=session.World.worldId) return;
                 ResetWorld();
                 var prop=WorldProps.Find(session.World,contact.source.prop);
-                PropImpactRules.AdoptImpulse(prop,contact);
+                PropImpactRules.AdoptImpulse(prop,contact,ClientImpulseEpoch);
                 Put(localPending,contact);
             }));
         }
+        public string ClientImpulseEpoch {get;private set;}
         private void ResetWorld()
         {
             if(clientWorld==session.World?.worldId) return;
@@ -121,6 +127,8 @@ namespace Remains.Networking
             if(prop==null || !PropPoseScope.CanPublish(world,actor,prop,session.Pause.IsServerPaused(prop.level)) ||
                 !session.LevelTime.HasLocal(prop.level)) return;
             bool duplicate=prop.impacts?.samples.Exists(value=>value.id==incoming.id)==true;
+            if(!duplicate && !plausibility.Sample(prop,incoming,out string sampleReason))
+            {Debug.LogWarning($"Отклонён неправдоподобный образец Box: prop={prop.id}, owner={actor.owner}, sample={incoming?.id}; {sampleReason}");return;}
             if(!PropImpactRules.AcceptSample(world,prop,actor.owner,incoming,session.LevelTime.ReadServer(prop.level),out var sample))
             {Debug.LogWarning($"Отклонён образец Box: id={incoming?.id}, prop={prop.id}, owner={actor.owner}, generation={prop.generation}/{incoming?.generation}.");return;}
             WorldChanges.Mark(world,prop);
@@ -144,7 +152,9 @@ namespace Remains.Networking
             if(previous!=null) {connection.Send(new PropImpactAccepted {json=StateJson.ToJson(previous)});return;}
             if(!PropImpactCatalog.ResolveBody(target,out var profile))
             {Debug.LogWarning($"Нет профиля физического контакта Box: target={target.id}, type={target.actorType}, prop={prop.id}; контакт пропущен.");return;}
-            var contact=PropImpactRules.Prepare(world,prop,sample,target,profile,new Vector2(request.targetVx,request.targetVy),session.LevelTime.ReadServer(prop.level));
+            if(!plausibility.Target(target,new Vector2(request.targetVx,request.targetVy),profile.knocked,out var targetVelocity,out string targetReason))
+            {Debug.LogWarning($"Отклонён неправдоподобный контакт Box: prop={prop.id}, target={target.id}, sample={sample.id}; {targetReason}");return;}
+            var contact=PropImpactRules.Prepare(world,prop,sample,target,profile,targetVelocity,session.LevelTime.ReadServer(prop.level));
             if(contact==null) return;
             PropImpactRules.Commit(world,prop,target,contact);Put(pending,contact);
             NetworkServer.SendToAll(new PropImpactAccepted {json=StateJson.ToJson(contact)});

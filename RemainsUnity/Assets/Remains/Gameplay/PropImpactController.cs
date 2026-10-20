@@ -32,6 +32,7 @@ namespace Remains.Gameplay
             if(state==null || string.IsNullOrEmpty(session.LocalOwner)) return;
             if(world!=state.worldId || owner!=session.LocalOwner)
             {world=state.worldId;owner=session.LocalOwner;publishers.Clear();}
+            Targets.SynchronizeActive();
             foreach(string level in Targets.Levels) if(context.Running(level) && session.LevelTime.HasLocal(level))
                 session.PropImpacts.Expire(level,session.LevelTime.ReadLocal(level));
             // Only sources stepped by the existing free-body dispatcher can publish a sample.
@@ -64,7 +65,7 @@ namespace Remains.Gameplay
                     Targets.Query(level,sample.Bounds,bodies);
                     foreach(var actor in bodies)
                         if(actor.health>0 && PropImpactRules.CanReport(sample,actor,owner) &&
-                            actor.boxImpactUntil<=session.LevelTime.ReadLocal(level) && PropImpactRules.Contact(sample,actor))
+                            !PropImpactCooldown.Active(actor,session.LevelTime.ReadLocal(level)) && PropImpactRules.Contact(sample,actor))
                             session.PropImpacts.Report(sample,actor);
                 }
             }

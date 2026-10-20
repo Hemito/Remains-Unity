@@ -33,6 +33,31 @@ namespace Remains.Domain
                 {LastVisited++;if(active.TryGetValue(id,out var actor)) output.Add(actor);}
         }
         private float maxHalfWidth;
+        private readonly List<ActorState> moving=new();
+        public int LastSynchronized {get;private set;}
+        // Simulation mutates actor positions before publishing Changed. Refresh only active bodies
+        // immediately before collision sampling, so crossing a bucket cannot miss a current contact.
+        public void SynchronizeActive()
+        {
+            moving.Clear();LastSynchronized=0;
+            foreach(var actor in active.Values) moving.Add(actor);
+            bool playerMoved=false;
+            foreach(var actor in moving)
+            {
+                LastSynchronized++;
+                var next=(actor.level,Cell(actor.x));
+                if(keys.TryGetValue(actor.id,out var previous) && previous!=next)
+                {
+                    var bucket=buckets[previous];bucket.Remove(actor.id);if(bucket.Count==0) buckets.Remove(previous);
+                    keys[actor.id]=next;
+                    if(!buckets.TryGetValue(next,out var destination)) buckets.Add(next,destination=new HashSet<string>(StringComparer.Ordinal));
+                    destination.Add(actor.id);
+                }
+                playerMoved|=actor.player;
+            }
+            // Player movement can expose neighbouring sleepers; selection visits neighbouring buckets only.
+            if(playerMoved) SelectActive();
+        }
         public int LastVisited {get;private set;}
         private static int Cell(float x)=>Mathf.FloorToInt(x/PropSupportIndex.CellWidth);
         public void Refresh(WorldState world,IReadOnlyCollection<string> parts=null)
@@ -67,7 +92,7 @@ namespace Remains.Domain
         }
         private void Remove(string id)
         {
-            if(keys.TryGetValue(id,out var key)) {buckets[key].Remove(id);keys.Remove(id);}
+            if(keys.TryGetValue(id,out var key)) {var bucket=buckets[key];bucket.Remove(id);if(bucket.Count==0) buckets.Remove(key);keys.Remove(id);}
             actors.Remove(id);players.Remove(id);
         }
         private bool Eligible(ActorState actor)

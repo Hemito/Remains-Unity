@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using Remains.Content;
 
@@ -59,8 +59,8 @@ namespace Remains.Domain
             bool applied=ApplyAmount(actor,contact.id,amount);
             if(applied)
             {
-                actor.vx=contact.targetVx;actor.vy=contact.targetVy;actor.climbing=false;
-                actor.boxImpactUntil=System.Math.Max(actor.boxImpactUntil,contact.until);
+                if(!contact.targetFixed) {actor.vx=contact.targetVx;actor.vy=contact.targetVy;actor.climbing=false;}
+                PropImpactCooldown.Record(actor,contact.source.level,contact.until);
                 // Unit.damage calls alarma; a hanging bat wakes before its control can zero the received momentum.
                 if(!actor.down && ActorTypes.Get(actor.actorType).behavior==NpcCreatureBehaviours.Bat && actor.creature?.mode=="hang")
                     actor.creature.mode="return";

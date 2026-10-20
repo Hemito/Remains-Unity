@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Remains.Content;
 using Remains.Domain;
@@ -13,7 +13,7 @@ namespace Remains.Editor
     {
         public static void RunBatch()
         {
-            try {Run();EditorApplication.Exit(0);}
+            try {Run();PropImpactPlausibilityChecks.Run();PropImpactRecoveryChecks.Run();PropImpactIndexChecks.Run();EditorApplication.Exit(0);}
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
         }
         private sealed class NeverWeapon : IDamageRule
@@ -26,7 +26,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();ActorTypes.Load();WeaponCatalog.Load();PropCatalog.Load();PropImpactCatalog.Load();
-            UnitsAndProfiles();AuthorityAndRecovery();SpatialAndScheduling();FullFactoryBudget();
+            UnitsAndProfiles();AuthorityAndRecovery();MultipleVictims();SpatialAndScheduling();FullFactoryBudget();
             Debug.Log("PropImpactChecks: PASS — исходные единицы/пороги/две скорости, player-victim и Box-owner authority, source journal, epoch, cooldown, повтор/смена владельца/recovery, spatial pruning и неактивный уровень.");
         }
         private static void Require(bool value,string reason)
@@ -113,12 +113,12 @@ namespace Remains.Editor
             var replicaBefore=StateJson.Copy(box);
             PropImpactRules.Commit(world,box,npc,contact);
             Require(box.generation==4 && npc.boxImpactUntil==10+20d/30,"Epoch/cooldown не опубликованы вместе");
-            Require(PropImpactRules.AdoptImpulse(replicaBefore,contact) && !PropImpactRules.AdoptImpulse(replicaBefore,contact),"Impulse не идемпотентен");
+            Require(PropImpactRules.AdoptImpulse(replicaBefore,contact,"active-session") && !PropImpactRules.AdoptImpulse(replicaBefore,contact),"Impulse не идемпотентен");
             var stale=StateJson.Copy(world.props[0]);stale.generation=3;stale.impacts=null;stale.vx=6;
-            PropReplication.PreserveNewerPose(replicaBefore,stale,"thrower");
+            PropReplication.PreserveNewerPose(replicaBefore,stale,"thrower","active-session");
             Require(stale.generation==4 && stale.vx==contact.propVx,"Старый snapshot откатил подтверждённый impulse epoch");
             replicaBefore.generation=5;replicaBefore.held=true;replicaBefore.vx=99;
-            Require(!PropImpactRules.AdoptImpulse(replicaBefore,contact) && replicaBefore.vx==99,"Поздний impulse перезаписал новый захват");
+            Require(!PropImpactRules.AdoptImpulse(replicaBefore,contact,"active-session") && replicaBefore.vx==99,"Поздний impulse перезаписал новый захват");
             Require(!PropReplication.Accept(box,3,999,0,0,99,0),"Старая motion sequence пересекла новую generation");
             var recovered=StateJson.Copy(world);var recoveredBox=recovered.props[0];var recoveredNpc=recovered.Find("npc");
             Require(recoveredBox.impacts.contacts.Count==1 && recoveredNpc.boxImpactUntil==npc.boxImpactUntil,"Save/restore потеряли контакт/cooldown");
@@ -139,6 +139,56 @@ namespace Remains.Editor
             recoveredNpc.lifecycleSequence=contact.lifecycle;
             Require(PropImpactRules.Prepare(recovered,recoveredBox,nextSource,recoveredNpc,profile,Vector2.zero,10.1)==null,"Контакт обошёл сохранённый cooldown");
             Require(PropImpactRules.Prepare(recovered,recoveredBox,nextSource,recoveredNpc,profile,Vector2.zero,10.8)!=null,"Cooldown не истёк по времени активного уровня");
+        }
+        private static void MultipleVictims()
+        {
+            var world=World();var box=world.props[0];var first=world.Find("npc");var second=world.Find("player");
+            Require(PropImpactRules.AcceptSample(world,box,box.owner,Source(world),10,out var source),"Multi-victim source rejected");
+            var replica=StateJson.Copy(box);var body=new PropImpactBody(50,1,20d/30);
+            var a=PropImpactRules.Prepare(world,box,source,first,body,Vector2.zero,10);
+            // Actual old JSON: protocol 75/76 had neither generationBefore nor targetFixed.
+            var legacyJson=Newtonsoft.Json.Linq.JObject.Parse(StateJson.ToJson(a));
+            legacyJson.Remove("generationBefore");legacyJson.Remove("targetFixed");
+            var legacy=StateJson.FromJson<PropImpactContact>(legacyJson.ToString());
+            PropImpactRules.Validate(legacy);
+            Require(legacy.generationBefore==source.generation && !legacy.targetFixed && legacy.damage==a.damage,
+                "Legacy JSON потерял принятый контакт или переинтерпретировал исторический fixed effect");
+            var restoredLegacy=StateJson.Copy(legacy);PropImpactRules.Validate(restoredLegacy);
+            Require(restoredLegacy.generationBefore==3,"Нормализованный legacy contact не прошёл roundtrip");
+            PropImpactRules.Commit(world,box,first,a);
+            var b=PropImpactRules.Prepare(world,box,source,second,body,Vector2.zero,10);
+            Require(b!=null,"Первый victim generation запретил второй overlap того же attDrop");
+            Equal(b.damage,a.damage,"attDrop должен использовать один cached vel2 для всех victims");
+            Equal(b.targetVx,2.25f,"Второй victim не использует momentum после первого udarBox");
+            Equal(b.propVx,.84375f,"Второй sequential Box response неверен");
+            var superseded=StateJson.Copy(box);
+            // Samples are transient, explicitly restore the accepted old sample for this server fixture.
+            superseded.impacts.samples.Add(StateJson.Copy(source));superseded.vx=6;
+            var newer=Source(world,2);newer.generation=superseded.generation;newer.vx=6;
+            newer.id=PropImpactRules.SampleId(world.worldId,superseded.id,newer.generation,newer.sequence);
+            Require(PropImpactRules.AcceptSample(world,superseded,superseded.owner,newer,10,out _),"Новый source текущего response generation не принят");
+            Require(PropImpactRules.Prepare(world,superseded,source,second,body,Vector2.zero,10)==null,
+                "Принятый новый source не закрыл продолжение прежнего batch");
+            PropImpactRules.Commit(world,box,second,b);
+            Require(box.generation==5 && b.generationBefore==4,"Контакты не получили последовательные response epochs");
+            Require(PropImpactRules.AdoptImpulse(replica,a,"live") && PropImpactRules.AdoptImpulse(replica,b,"live"),"Replica потеряла второй response");
+            Require(!PropImpactRules.AdoptImpulse(replica,a,"live") && !PropImpactRules.AdoptImpulse(replica,b,"live"),"Retry перезаписал поздний response");
+            var third=new ActorState {id="third",level="l",health=1000};world.actors.Add(third);
+            box.generation++;box.held=true;box.vx=99;
+            Require(PropImpactRules.Prepare(world,box,source,third,body,Vector2.zero,10)==null,"Новый grab не отсёк продолжение старого batch");
+            box.held=false;
+            Require(PropImpactRules.Prepare(world,box,source,third,body,Vector2.zero,10)==null,"Новый throw generation восстановил старый batch");
+            var receiver=new DamageReceiver(new NeverWeapon(),null,new NoProtection());
+            var fixedWorld=World();var fixedBox=fixedWorld.props[0];var fixedActor=fixedWorld.Find("npc");
+            PropImpactRules.AcceptSample(fixedWorld,fixedBox,fixedBox.owner,Source(fixedWorld),10,out var fixedSource);
+            var fixedContact=PropImpactRules.Prepare(fixedWorld,fixedBox,fixedSource,fixedActor,new PropImpactBody(0,1,1,true),Vector2.zero,10);
+            fixedActor.vx=7;fixedActor.vy=8;fixedActor.climbing=true;
+            Require(receiver.ApplyPhysical(fixedActor,fixedContact),"Fixed victim lost damage");
+            Equal(fixedActor.health,990,"Fixed victim damage incorrect");
+            Require(fixedActor.vx==7 && fixedActor.vy==8 && fixedActor.climbing,"Fixed udarBox overwrote current target movement");
+            var restored=StateJson.Copy(world);
+            Require(restored.props[0].impacts.samples.Count==0 && restored.props[0].impacts.contacts.Count==2 && restored.props[0].impacts.sampleSequence==1,
+                "Recovery сохранил transient sources или потерял durable watermark/contact receipts");
         }
         private static PropImpactSample NextSample(PropImpactSample source)
         {var next=StateJson.Copy(source);next.sequence++;next.id=PropImpactRules.SampleId(next.world,next.prop,next.generation,next.sequence);return next;}
