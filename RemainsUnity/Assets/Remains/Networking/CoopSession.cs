@@ -166,6 +166,8 @@ namespace Remains.Networking
         public SessionContainerInspection ContainerInspection=>containerInspection ??= new SessionContainerInspection(this);
         private SessionActorHolds actorHolds;
         public SessionActorHolds ActorHolds=>actorHolds ??= new SessionActorHolds(this);
+        private SessionPropImpacts propImpacts;
+        public SessionPropImpacts PropImpacts=>propImpacts ??= new SessionPropImpacts(this);
         private SessionPause pause;
         public SessionPause Pause=>pause ??= new SessionPause(this);
         private SessionLevelTime levelTime;
@@ -205,7 +207,7 @@ namespace Remains.Networking
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();Mines.RegisterServer();Hazards.RegisterServer();
-            DoorDamage.RegisterServer();Lamps.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();HealingAudio.RegisterServer();
+            DoorDamage.RegisterServer();Lamps.RegisterServer();Doors.RegisterServer();ActorHolds.RegisterServer();PropImpacts.RegisterServer();Pause.RegisterServer();Deposits.RegisterServer();Projectiles.RegisterServer();ReloadAudio.RegisterServer();HealingAudio.RegisterServer();
             Admission.RegisterServer();EntryPreparation.RegisterServer();
             InvokeRepeating(nameof(ExpireEntryPreparation),1,1);
             ServerWorld=null;
@@ -338,7 +340,7 @@ namespace Remains.Networking
             Travel.RegisterClient();
             ContainerInspection.RegisterClient();
             Mechanisms.RegisterClient();Mines.RegisterClient();Hazards.RegisterClient();
-            DoorDamage.RegisterClient();Lamps.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
+            DoorDamage.RegisterClient();Lamps.RegisterClient();Doors.RegisterClient();ActorHolds.RegisterClient();PropImpacts.RegisterClient();Pause.RegisterClient();LevelTime.RegisterClient();Deposits.RegisterClient();ReloadAudio.RegisterClient();HealingAudio.RegisterClient();
             worldReplication.Forget();
             NetworkClient.RegisterHandler<WorldPartMessage>(Remains.Networking.MessageTiming.Client<WorldPartMessage>(message=>
             {
@@ -586,6 +588,7 @@ namespace Remains.Networking
                     if(selfHealing.DiscardPreHealingState(incoming.worldId,local,actor,LocalOwner))
                     {incoming.actors[actorIndex]=local.Copy();continue;}
                     ActorHoldRules.PreserveNewerTarget(local,actor);
+                    PropImpactRules.PreserveTarget(local,actor);
                     selfHealing.Observe(World.worldId,local);
                     if(selfHealing.TryApply(incoming.worldId,incoming.completedTransactions,local,ref actor,LocalOwner))
                     {PreserveOwnerInventory(actor,local);WeaponInventory.PreserveSelection(local,actor);incoming.actors[actorIndex]=actor;publishHealing|=actor.id==LocalActorId;continue;}
@@ -725,6 +728,7 @@ namespace Remains.Networking
             var current = World.Find(actor.id);
             WeaponRecoilReplication.Normalize(actor,Pause.Revision,Pause.IsPaused(actor.level),"состояние актёра / входящий");
             ActorHoldRules.PreserveNewerTarget(current,actor);
+            PropImpactRules.PreserveTarget(current,actor);
             if (current != null && ActorVersion.IsOlder(actor,current)) return;
             selfHealing.Observe(World.worldId,current);
             bool selfHealTransition=selfHealing.TryApply(World.worldId,World.completedTransactions,current,ref actor,LocalOwner);
@@ -746,7 +750,7 @@ namespace Remains.Networking
             ObservePoseCorrection("actor",current,actor.pose,actor.poseTime);
             if (current != null) World.actors.Remove(current);
             World.actors.Add(actor);
-            if(selfHealTransition) PublishActor(actor);else RaiseChanged(WorldChangeKind.Actors);
+            if(selfHealTransition) PublishActor(actor);else RaiseChanged(WorldChangeKind.Actors,new[]{"actors:"+actor.id});
         }
 
         private static void PreserveOwnerInventory(ActorState incoming,ActorState current)
@@ -796,6 +800,7 @@ namespace Remains.Networking
             // Hold grants belong to the shared coordinator; pose/health still belong to this client.
             incoming.hold=actor.hold;incoming.holdEpoch=actor.holdEpoch;
             incoming.connected = actor.connected;
+            PropImpactRules.PreserveTarget(actor,incoming);
             if(incoming.level!=actor.level)
             {
                 Debug.LogWarning($"Отклонена смена локации через состояние: actor={actor.id}, source={actor.level}, destination={incoming.level}. Требуется запрос перехода.");
@@ -831,7 +836,7 @@ namespace Remains.Networking
         private void PublishActor(ActorState actor,WorldChangeKind changes)
         {
             selfHealing.Observe(World?.worldId,actor);
-            RaiseChanged(changes);
+            RaiseChanged(changes,changes==WorldChangeKind.Actors?new[]{"actors:"+actor.id}:null);
             if (NetworkClient.isConnected)
             {
                 actor.motionSequence=unchecked(actor.motionSequence+1);

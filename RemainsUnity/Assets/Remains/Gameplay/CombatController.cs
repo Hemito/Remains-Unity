@@ -13,6 +13,11 @@ namespace Remains.Gameplay
         private readonly CoopSession session;
         private readonly SimulationGeometry geometry;
         private DamageReceiver damage;
+        public bool ApplyPhysicalContact(ActorState actor,PropImpactContact contact)
+        {
+            if(damage==null) throw new InvalidOperationException("Получатель физического урона не готов: "+actor?.id);
+            return damage.ApplyPhysical(actor,contact);
+        }
         public int AttackerDecidedHits {get;private set;}
         public int VictimDecidedHits {get;private set;}
         public event Action<string> NpcReplayRejected;

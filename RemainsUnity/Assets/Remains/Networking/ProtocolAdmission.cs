@@ -11,7 +11,7 @@ namespace Remains.Networking
     public struct ProtocolReply : NetworkMessage {public int version;public bool accepted;public string reason;}
     public static class SessionProtocol
     {
-        public const int Version=74;   // 74: manifest IDs for delta bases/results; full snapshots and recovery ACK retain exact JSON SHA.
+        public const int Version=75;   // 75: authoritative prop impacts; 74 introduced manifest delta IDs, retaining exact JSON SHA for files/recovery ACK.
         public static string Rejection(int offered)=>offered==Version?null:
             $"Несовместимый сетевой протокол: у клиента {offered}, у хоста {Version}. Используйте совместимые сборки. Сохранения не загружены.";
     }

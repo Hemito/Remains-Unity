@@ -27,7 +27,7 @@ namespace Remains.Networking
                 {
                     var prop=WorldProps.Find(session.World,message.prop);
                     if(prop==null || prop.generation!=message.generation || !PropReplication.CanAcceptPose(prop) || prop.owner==session.LocalOwner) return;
-                    PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy);
+                    if(PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy)) prop.impactFriendlyPlayers=message.impactFriendlyPlayers;
                 }));
                 NetworkClient.RegisterHandler<GrenadePoseMessage>(Remains.Networking.MessageTiming.Client<GrenadePoseMessage>(message=>
                 {
@@ -58,7 +58,7 @@ namespace Remains.Networking
                 {connection.Send(new NoticeMessage {text="Сначала завершите захват тела."});return;}
                 if(!prop.movable || !prop.hasPhysicalBody) {connection.Send(new NoticeMessage {text="Этот объект закреплён."});return;}
                 if(prop.held && prop.owner!=actor.owner) {connection.Send(new NoticeMessage {text="Объект уже удерживает другой игрок."});return;}
-                prop.owner=actor.owner;prop.generation++;prop.held=true;WorldChanges.Mark(session.ServerWorld,prop);
+                prop.owner=actor.owner;prop.generation++;prop.held=true;prop.impactFriendlyPlayers=true;WorldChanges.Mark(session.ServerWorld,prop);
             }
             session.CommitWorld();
         }
@@ -69,6 +69,7 @@ namespace Remains.Networking
             if(prop!=null && !PropReplication.CanAcceptPose(prop)) return;
             if(!PropPoseScope.CanPublish(session.ServerWorld,actor,prop,prop!=null && session.Pause.IsServerPaused(prop.level)) ||
                 !PropReplication.Accept(prop,message.generation,message.sequence,message.x,message.y,message.vx,message.vy)) return;
+            prop.impactFriendlyPlayers=message.impactFriendlyPlayers;
             WorldChanges.Mark(session.ServerWorld,prop);
             NetworkServer.SendToAll(message,Channels.Unreliable);
         }
@@ -132,7 +133,7 @@ namespace Remains.Networking
         {
             if(!PropReplication.CanAcceptPose(prop)) return;
             if(newPose) prop.sequence++;
-            NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy },Channels.Unreliable);
+            NetworkClient.Send(new PropPoseMessage { prop=prop.id,generation=prop.generation,sequence=prop.sequence,x=prop.x,y=prop.y,vx=prop.vx,vy=prop.vy,impactFriendlyPlayers=prop.impactFriendlyPlayers },Channels.Unreliable);
         }
         public bool ThrowGrenade(Vector2 aim,RoomLayout room=null)
         {

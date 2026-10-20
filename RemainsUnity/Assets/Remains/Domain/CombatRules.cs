@@ -45,13 +45,38 @@ namespace Remains.Domain
             if(float.IsNaN(amount) || float.IsInfinity(amount) || amount<0)
                 throw new System.InvalidOperationException($"Правило урона вернуло некорректное значение: actor={actor.id}, attack={attack.id}, damage={amount}.");
             amount=protection.Resolve(actor,attack,amount);
+            return ApplyAmount(actor,attack.id,amount);
+        }
+        public bool ApplyPhysical(ActorState actor,PropImpactContact contact)
+        {
+            PropImpactRules.Validate(contact);
+            if(actor==null || contact==null || actor.id!=contact.target || actor.level!=contact.source.level ||
+                actor.lifecycleSequence!=contact.lifecycle || actor.health<=0 || actor.resolvedAttacks.Contains(contact.id)) return false;
+            if(protection is not IPhysicalHitProtectionRule physical)
+                throw new System.InvalidOperationException("Правило защиты не поддерживает физический контакт Box: "+actor.id);
+            float amount=physical.ResolvePhysical(actor,contact.damage);
+            // Capture body placement before momentum changes and possible knockdown, just as ordinary damage does.
+            bool applied=ApplyAmount(actor,contact.id,amount);
+            if(applied)
+            {
+                actor.vx=contact.targetVx;actor.vy=contact.targetVy;actor.climbing=false;
+                actor.boxImpactUntil=System.Math.Max(actor.boxImpactUntil,contact.until);
+                // Unit.damage calls alarma; a hanging bat wakes before its control can zero the received momentum.
+                if(!actor.down && ActorTypes.Get(actor.actorType).behavior==NpcCreatureBehaviours.Bat && actor.creature?.mode=="hang")
+                    actor.creature.mode="return";
+            }
+            return applied;
+        }
+        private bool ApplyAmount(ActorState actor,string attackId,float amount)
+        {
+            var bodyPosition=actor.BodyPosition;float previousHealth=actor.health;bool previouslyDown=actor.down;
             if(!float.IsFinite(amount) || amount<0)
-                throw new System.InvalidOperationException($"Правило защиты вернуло некорректный урон: actor={actor.id}, attack={attack.id}, damage={amount}.");
+                throw new System.InvalidOperationException($"Правило защиты вернуло некорректный урон: actor={actor.id}, attack={attackId}, damage={amount}.");
             float remaining=Mathf.Max(0,previousHealth-amount);
             float lost=previousHealth-remaining;
             float restore=ActorTypes.Get(actor.actorType).restoreHealthAfterHit;
             bool enter=restore<=0 && knockdown.ShouldEnter(new KnockdownContext(previousHealth,remaining,actor.player));
-            actor.resolvedAttacks.Add(attack.id);actor.health=restore>0?restore:remaining;
+            actor.resolvedAttacks.Add(attackId);actor.health=restore>0?restore:remaining;
             if(lost>0) actor.damageSequence++;
             actor.down |= enter;
             actor.revision++;
@@ -64,7 +89,7 @@ namespace Remains.Domain
                     if(actor.attackBusy) NpcAttackRules.Cancel(actor);
                 }
             }
-            if(lost>0) Applied?.Invoke(new DamageResult {attack=attack.id,actor=actor.id,level=actor.level,
+            if(lost>0) Applied?.Invoke(new DamageResult {attack=attackId,actor=actor.id,level=actor.level,
                 generation=actor.generation,actorType=actor.actorType,lifecycleSequence=actor.lifecycleSequence,
                 damageSequence=actor.damageSequence,
                 confirmedNpcDeath=!actor.player && !previouslyDown && previousHealth>0 && actor.health==0 && actor.down,

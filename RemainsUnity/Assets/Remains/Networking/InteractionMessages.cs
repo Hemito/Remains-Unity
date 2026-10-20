@@ -3,7 +3,7 @@ using Mirror;
 namespace Remains.Networking
 {
     public struct PropGrabMessage : NetworkMessage { public string prop; public bool release; }
-    public struct PropPoseMessage : NetworkMessage { public string prop; public int generation; public uint sequence; public float x,y,vx,vy; }
+    public struct PropPoseMessage : NetworkMessage { public string prop; public int generation; public uint sequence; public float x,y,vx,vy;public bool impactFriendlyPlayers; }
     public struct ThrowRequest : NetworkMessage
     {
         public string transaction,level,item;

@@ -22,6 +22,7 @@ namespace Remains.Content
     {
         public static void ValidateCandidates(IEnumerable<ContentEntityIdentity> candidates,string context)
         {
+            if(candidates==null) throw new InvalidOperationException("ID содержимого: отсутствует список; "+context);
             var entries=candidates.ToArray();CreatureDeathLootIds.RejectForeignCreation(entries.Select(e=>e.Id),context);
             Index(entries,context+"/расстановка");
         }
@@ -29,6 +30,7 @@ namespace Remains.Content
         public static void Preflight(WorldState world,IEnumerable<ContentEntityIdentity> candidates,string context)
         {
             if(world==null) throw new InvalidOperationException("ID содержимого: отсутствует мир; "+context);
+            if(candidates==null) throw new InvalidOperationException("ID содержимого: отсутствует список; "+context);
             var saved=Index(ReadWorld(world,context),context+"/мир="+world.worldId);
             var entries=candidates.ToArray();CreatureDeathLootIds.RejectForeignCreation(entries.Select(e=>e.Id),context);
             var incoming=Index(entries,context+"/расстановка");

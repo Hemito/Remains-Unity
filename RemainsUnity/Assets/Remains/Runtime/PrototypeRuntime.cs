@@ -171,6 +171,7 @@ namespace Remains.Runtime
             Geometry.OcclusionChanged+=RefreshBodyGeometry;
             MechanismInteraction=new MechanismInteraction(Session);
             Combat=new CombatController(Session,Geometry);
+            Session.PropImpacts.Configure(Combat.ApplyPhysicalContact);
             DamageFeedback=new DamageFeedback(Session);
             DamageNumbers=CreateOwnedObject("Числа урона").AddComponent<DamageNumbers>();DamageNumbers.Initialize(Session,DamageFeedback);
             if(Options.Diagnostics || Options.Smoke!=null)
@@ -520,6 +521,7 @@ namespace Remains.Runtime
             using(Remains.Diagnostics.FrameHitchLog.Section("Сохранения: очередь")) Session.PumpSaveWrites();
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             Session.LevelTime.Step(Time.deltaTime);
+            Session.PropImpacts.Step();
             Session.Mechanisms.Step();Platforms.Step(Time.deltaTime);
             using(Remains.Diagnostics.FrameHitchLog.Section("Мины")) {Session.Mines.Step(Time.deltaTime);Session.Mines.StepClient();}
             using(Remains.Diagnostics.FrameHitchLog.Section("Ловушки")) {Session.Hazards.Step(Time.deltaTime);Session.Hazards.StepClient();}

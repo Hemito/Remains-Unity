@@ -9,18 +9,23 @@ namespace Remains.Domain
     // live positions remain authoritative, and stepped bodies update their bucket.
     public sealed class PropSupportIndex : IEnumerable<PropState>
     {
-        private const float CellWidth=4;
+        internal const float CellWidth=4;
         private readonly Dictionary<(string level,int cell),List<PropState>> buckets=new();
         private readonly Dictionary<string,float> halfWidths=new(StringComparer.Ordinal);
         private WorldPropView source;
+        private readonly Dictionary<string,PropState> byId=new(StringComparer.Ordinal);
+        public PropState Find(string id)=>id!=null && byId.TryGetValue(id,out var prop)?prop:null;
+        public int CandidateVisits {get;private set;}
         public void Prepare(WorldPropView props,Func<string,bool> includeLevel=null)
         {
             source=props;
+            byId.Clear();CandidateVisits=0;
             foreach(var bucket in buckets.Values) bucket.Clear();
             halfWidths.Clear();
             foreach(var prop in props)
             {
                 if(!prop.hasPhysicalBody || includeLevel!=null && !includeLevel(prop.level)) continue;
+                byId.Add(prop.id,prop);
                 Add(prop,Cell(prop.x));
                 halfWidths.TryGetValue(prop.level,out float width);
                 halfWidths[prop.level]=Mathf.Max(width,prop.width*.5f);
@@ -46,7 +51,7 @@ namespace Remains.Domain
             int first=Cell(x-reach),last=Cell(x+reach);
             for(int cell=first;cell<=last;cell++)
                 if(buckets.TryGetValue((moving.level,cell),out var bucket))
-                    for(int i=0;i<bucket.Count;i++) yield return bucket[i];
+                    for(int i=0;i<bucket.Count;i++) {CandidateVisits++;yield return bucket[i];}
         }
         public IEnumerator<PropState> GetEnumerator()=>source.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator()=>GetEnumerator();

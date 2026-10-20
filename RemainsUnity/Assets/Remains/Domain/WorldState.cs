@@ -58,6 +58,7 @@ namespace Remains.Domain
         public int damageSequence;
         public List<string> resolvedExplosions = new();
         public List<string> resolvedAttacks = new();
+        public double boxImpactUntil;
         public float health = 100;
         public float mana = 100;
         public float x;
@@ -159,6 +160,8 @@ namespace Remains.Domain
     [Serializable]
     public class PropState : ExtensibleState
     {
+        public PropImpactJournal impacts;
+        public bool impactFriendlyPlayers;
         public string definition="prototype-crate";
         public uint sequence;
         public string id;

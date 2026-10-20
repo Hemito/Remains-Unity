@@ -32,6 +32,8 @@ namespace Remains.Gameplay
                 if(context.Sleeping(prop,room)) {sleeping++;publish?.Invoke(prop);continue;}   // pose heartbeat continues
                 float previousX=prop.x,previousY=prop.y;
                 PropMotion.Step(prop,room,dt,null,context.Support,passenger,context.Hull);
+                if(PropImpactRules.IsBox(prop) && PropImpactRules.Dangerous(new Vector2(prop.vx,prop.vy)))
+                    context.ImpactSources.Add((prop,prop.Position,new Vector2(prop.vx,prop.vy)));
                 context.Support.Moved(prop,previousX);
                 context.Settle(prop,room,previousX,previousY,passenger);
                 stepped++;
@@ -99,9 +101,11 @@ namespace Remains.Gameplay
         private readonly Dictionary<string,RoomLayout> rooms=new(StringComparer.Ordinal);
         internal readonly MovementHull Hull=new();
         internal readonly PropSupportIndex Support=new();
+        internal readonly List<(PropState prop,Vector2 position,Vector2 velocity)> ImpactSources=new();
         internal WorldPropView Props {get;private set;}
         internal void Prepare(WorldState world,Func<string,bool> isPaused)
         {
+            ImpactSources.Clear();
             if(Props?.World!=world) Props=new WorldPropView(world);
             levels.Clear();rooms.Clear();
             foreach(var actor in world.actors)

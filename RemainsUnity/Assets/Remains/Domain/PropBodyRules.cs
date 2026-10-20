@@ -17,6 +17,7 @@ namespace Remains.Domain
             if(prop==null) throw new InvalidOperationException("Отсутствует состояние объекта при проверке физического тела.");
             string context=$"id={prop.id}, type={prop.definition}, level={prop.level}";
             Validate(prop.movable,prop.hasPhysicalBody,prop.mass,context);
+            PropImpactRules.ValidateJournal(prop);
             if(!prop.movable && prop.held)
                 throw new InvalidOperationException($"Закреплённый объект не может удерживаться: {context}, held={prop.held}.");
             if(!prop.hasPhysicalBody && (prop.vx!=0 || prop.vy!=0))

@@ -15,6 +15,7 @@ namespace Remains.Gameplay
         private readonly PassengerMotionRegistry passengers=new();
         private readonly FreePropMotionContext motion=new();
         private readonly FreePropPoseCadence poses=new();
+        private readonly PropImpactController impacts;
         private readonly Action<PropState> publishChanged;
         private readonly Action<PropState,bool> publishPose;
         private string poseWorld;
@@ -22,6 +23,7 @@ namespace Remains.Gameplay
         public FreePropSimulation(CoopSession session,SimulationGeometry geometry,InteractionAdapter interactions)
         {
             this.session=session??throw new ArgumentNullException(nameof(session));
+            Remains.Content.PropImpactCatalog.Load();impacts=new PropImpactController(session);
             roomForLevel=(geometry??throw new ArgumentNullException(nameof(geometry))).Get;
             publishPose=(interactions??throw new ArgumentNullException(nameof(interactions))).SendProp;
             publishChanged=prop=> {if(poses.ShouldPublish(prop,Time.unscaledTimeAsDouble,out bool changed)) publishPose(prop,changed);};
@@ -37,6 +39,7 @@ namespace Remains.Gameplay
             {poses.Reset();poseWorld=session.World.worldId;poseOwner=session.LocalOwner;}
             FreePropMotion.Step(session.World,session.LocalOwner,delta,roomForLevel,isPaused,
                 cadence.TryAdvance(Time.unscaledTimeAsDouble)?publishChanged:null,passengers,motion);
+            impacts.Step(motion);
         }
     }
 }
