@@ -226,23 +226,35 @@ namespace Remains.Persistence
     // A revision alone cannot identify a snapshot: pose packets do not increment it.
     public sealed class RecoveryReceiptGate
     {
-        private readonly Dictionary<string,RecoverySnapshot> sent = new();
+        private sealed class Receipt {public long revision;public string fileId;}
+        private readonly Dictionary<string,Receipt> sent = new();
         private readonly Queue<string> order = new();
+        public int Count=>sent.Count;
         public void Clear() {sent.Clear();order.Clear();}
         public void Register(RecoverySnapshot snapshot)
         {
             if (sent.ContainsKey(snapshot.ReplicationId)) return;
-            sent.Add(snapshot.ReplicationId,snapshot);
+            snapshot.TryFileId(out string ready);
+            sent.Add(snapshot.ReplicationId,new Receipt {revision=snapshot.Revision,fileId=ready});
             order.Enqueue(snapshot.ReplicationId);
             while (order.Count > 256) sent.Remove(order.Dequeue());
+        }
+        // Called on the game thread after the canonical save worker completed. No old payload is retained.
+        public void Complete(RecoverySnapshot snapshot)
+        {
+            if(!snapshot.TryFileId(out string ready)) throw new InvalidOperationException("Запись снимка завершена без точного SHA: "+snapshot.ReplicationId);
+            if(sent.TryGetValue(snapshot.ReplicationId,out var receipt)) receipt.fileId=ready;
+        }
+        public bool Pending(long revision)
+        {
+            foreach(var receipt in sent.Values) if(receipt.revision==revision && receipt.fileId==null) return true;
+            return false;
         }
         public bool Matches(string id,long revision)
         {
             if(id==null) return false;
-            foreach(var snapshot in sent.Values)
-                // An ACK may beat the background writer. Validate exact bytes now instead of losing
-                // the only durable receipt; Id shares the writer's lock and caches the result.
-                if(snapshot.Revision==revision && snapshot.Id==id) return true;
+            foreach(var receipt in sent.Values)
+                if(receipt.revision==revision && receipt.fileId==id) return true;
             return false;
         }
     }

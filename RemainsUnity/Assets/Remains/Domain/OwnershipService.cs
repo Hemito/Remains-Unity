@@ -96,7 +96,10 @@ namespace Remains.Domain
                 // this level active. Use its real connection ID when nobody stands.
                 var candidate=connected.Where(a=>a.level==prop.level).OrderBy(a=>a.down?1:0)
                     .ThenBy(a=>Vector2.Distance(a.Position,prop.Position)).ThenBy(a=>a.id).FirstOrDefault();
-                string next=candidate?.owner;
+                // An empty level has no simulator, but a still-connected owner can retain its dormant lease.
+                // PropPoseScope rejects late traffic until the level is active again. Release a held object once;
+                // only a real transfer/disconnect should invalidate every resting body's generation.
+                string next=candidate?.owner ?? (connected.Any(a=>a.owner==prop.owner)?prop.owner:null);
                 if(prop.owner==next && !prop.held) continue;
                 prop.owner=next;prop.held=false;prop.generation++;WorldChanges.Mark(world,prop);
                 changed=true;

@@ -37,10 +37,15 @@ namespace Remains.Editor
                 string durableId=new RecoverySnapshot(lazy.Json).Id;
                 Require(!lazy.TryFileId(out _),"Fixture раннего ACK уже вычислил SHA источника");
                 gate.Register(lazy);
-                Require(!gate.Matches(lazy.ReplicationId,91) && gate.Matches(durableId,91),
-                    "ACK до завершения writer потерян либо manifest ID принят вместо точного SHA");
-                Require(lazy.TryFileId(out string ready) && ready==durableId && gate.Matches(durableId,91),
-                    "Раннее подтверждение не сохранило вычисленный SHA для writer/повтора");
+                Require(!gate.Matches(lazy.ReplicationId,91) && !gate.Matches(durableId,91) && gate.Pending(91) && !lazy.TryFileId(out _),
+                    "Ранний ACK вычисляет SHA на главном потоке либо принимает манифест");
+                System.Threading.Tasks.Task.Run(()=>store.SaveRecovery(lazy)).GetAwaiter().GetResult();
+                gate.Complete(lazy);
+                Require(lazy.TryFileId(out string ready) && ready==durableId && gate.Matches(durableId,91) && !gate.Pending(91),
+                    "Завершение writer не позволяет повторно проверить ранний ACK");
+                foreach(var field in typeof(RecoveryReceiptGate).GetNestedType("Receipt",System.Reflection.BindingFlags.NonPublic)
+                    .GetFields(System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Instance))
+                    Require(field.FieldType==typeof(string) || field.FieldType==typeof(long),"Журнал ACK удерживает граф снимка: "+field.Name);
                 var payload=System.Text.Encoding.UTF8.GetBytes(wire);
                 var receiver=new SnapshotTransfer(snapshot.Id);
                 var half=new byte[payload.Length/2];Array.Copy(payload,half,half.Length);

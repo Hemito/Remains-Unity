@@ -92,9 +92,10 @@ namespace Remains.Persistence
                 Node tree;
                 if(aligned)
                 {
-                    tree=previous.listTree;
+                    var changed=new List<int>();
                     for(int i=0;i<lists.Length;i++)
-                        if(!ReferenceEquals(descriptors[i],previous.lists[i].Descriptor)) tree=Replace(tree,0,lists.Length,i,descriptors[i]);
+                        if(!ReferenceEquals(descriptors[i],previous.lists[i].Descriptor)) changed.Add(i);
+                    tree=ReplaceMany(previous.listTree,0,lists.Length,descriptors,changed,0,changed.Count);
                 }
                 else tree=Tree(descriptors,0,descriptors.Length);
                 // If absolutely nothing changed, even the final root hash is reused.
@@ -141,8 +142,7 @@ namespace Remains.Persistence
                 Node tree;
                 if(aligned)
                 {
-                    tree=old.Tree;
-                    foreach(int at in changed) tree=Replace(tree,0,keys.Length,at,leaves[at]);
+                    tree=ReplaceMany(old.Tree,0,keys.Length,leaves,changed,0,changed.Count);
                 }
                 else tree=Tree(leaves,0,leaves.Length);
                 var descriptor=new Node(Hash("list",set.Name,Count(keys.Length),tree?.Hash??""));
@@ -156,12 +156,17 @@ namespace Remains.Persistence
                 int left=count/2;
                 return Branch(Tree(leaves,start,left),Tree(leaves,start+left,count-left));
             }
-            private Node Replace(Node node,int start,int count,int index,Node replacement)
+            // Sorted changed positions partition along the existing tree. Shared ancestors are hashed once,
+            // after both children are final, rather than once per changed leaf. Untouched subtrees retain identity.
+            private Node ReplaceMany(Node node,int start,int count,Node[] replacements,List<int> changed,int from,int to)
             {
-                if(count==1) return replacement;
+                if(from==to) return node;
+                if(count==1) return replacements[start];
                 int left=count/2;
-                return index<start+left?Branch(Replace(node.Left,start,left,index,replacement),node.Right):
-                    Branch(node.Left,Replace(node.Right,start+left,count-left,index,replacement));
+                int split=from;
+                while(split<to && changed[split]<start+left) split++;
+                return Branch(ReplaceMany(node.Left,start,left,replacements,changed,from,split),
+                    ReplaceMany(node.Right,start+left,count-left,replacements,changed,split,to));
             }
             private Node Branch(Node left,Node right)=>new(Hash("branch",left.Hash,right.Hash),left,right);
 

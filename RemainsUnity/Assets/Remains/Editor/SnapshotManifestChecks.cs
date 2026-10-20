@@ -20,6 +20,7 @@ namespace Remains.Editor
             const string template="{\"мир\":\"🌕\",\"части\":1}";
             var input=Fixture(1024);
             var original=SnapshotManifest.Build(template,input);
+            Require(original.Id=="m1:f929411effa172820851cd343a60525ade9b700301dcd18dc7cea5398085c8e7","Изменён исходный m1 digest.");
             Require(original.Id.StartsWith("m1:",StringComparison.Ordinal) && original.Id.Length==67,"Нет явной версии манифеста.");
             EqualFresh(template,input,original);
             var unchanged=SnapshotManifest.Build(new string(template.ToCharArray()),Copy(input),original);
@@ -31,6 +32,20 @@ namespace Remains.Editor
             Require(corrected.Id!=original.Id && corrected.HashedTexts==1 && corrected.HashedBranches<=16,
                 $"Одно исправление хеширует лишнее: тексты={corrected.HashedTexts}, ветви={corrected.HashedBranches}.");
             EqualFresh(template,changed,corrected);
+            var clustered=Copy(input);
+            for(int i=0;i<38;i++) clustered[0].Texts[i]="changed:"+i;
+            var batch=SnapshotManifest.Build(template,clustered,original);
+            Require(batch.Id=="m1:65b030ef08ccaf8b907772153b9c69a079fbb84b6233e2bfe558e107d33900ac","Пакетное обновление изменило прежний m1 digest.");
+            Require(batch.HashedTexts==38 && batch.HashedBranches<110,
+                $"Общие ветви хешируются повторно: {batch.HashedBranches} вместо менее 110 (прежний путь: 421).");
+            EqualFresh(template,clustered,batch);
+            var scattered=Copy(input);
+            for(int i=0;i<38;i++) scattered[0].Texts[i*27]="scattered:"+i;
+            var scatteredBatch=SnapshotManifest.Build(template,scattered,original);
+            Require(scatteredBatch.HashedTexts==38 && scatteredBatch.HashedBranches<350,"Разнесённые изменения повторно хешируют общих предков.");
+            EqualFresh(template,scattered,scatteredBatch);
+            var batchUnchanged=SnapshotManifest.Build(template,Copy(clustered),batch);
+            Require(batchUnchanged.Id==batch.Id && batchUnchanged.HashedTexts==0 && batchUnchanged.HashedBranches==0,"Пакетное обновление не переиспользуется.");
             var retemplate=SnapshotManifest.Build(template+" ",input,original);
             Require(retemplate.Id!=original.Id && retemplate.HashedTexts==1 && retemplate.HashedBranches==1,
                 "Изменение шаблона затрагивает неизменные списки.");

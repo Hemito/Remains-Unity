@@ -37,10 +37,12 @@ namespace Remains.Diagnostics
         private static readonly List<double> periodFrames=new(4096);
         private static readonly StringBuilder pending=new();
         private static long frameStart;
+        private static int frameThread;
         private static long baselineFrameAllocated;
         private static bool baselineFrameActive;
         private static int pendingBaselineFrames;
         private static ProfilerRecorder baselineAllocations;
+        public static bool BaselineAllocationsAvailable {get;private set;}
         // Unity 6000.0 Mono returns zero from GC.GetAllocatedBytesForCurrentThread.
         // This native byte counter is global even with CollectOnlyOnCurrentThread (verified
         // by a worker allocation). Deltas describe all managed threads during the interval.
@@ -48,6 +50,7 @@ namespace Remains.Diagnostics
         public static void BeginCpuBaseline(int frames)
         {
             if(frames<=0) throw new ArgumentOutOfRangeException(nameof(frames));
+            BaselineAllocationsAvailable=true;
             baselineAllocations=ProfilerRecorder.StartNew(ProfilerCategory.Memory,"GC Allocated In Frame",1);
             if(!baselineAllocations.Valid || baselineAllocations.UnitType.ToString()!="Bytes")
                 throw new InvalidOperationException("CPU-замер: недоступен байтовый счётчик GC Allocated In Frame.");
@@ -110,6 +113,7 @@ namespace Remains.Diagnostics
         public static void Install()
         {
             if(installed) return;
+            frameThread=System.Threading.Thread.CurrentThread.ManagedThreadId;
             installed=true;
             toMs=1000.0/Stopwatch.Frequency;
             var loop=PlayerLoop.GetCurrentPlayerLoop();
@@ -168,7 +172,7 @@ namespace Remains.Diagnostics
 
         // Editor benches: sections are timed without the player loop, file or summaries; TakeSections reads and
         // clears the accumulated totals.
-        public static void MeasureOnly() {if(installed) return;installed=true;toMs=1000.0/Stopwatch.Frequency;}
+        public static void MeasureOnly() {if(installed) return;frameThread=System.Threading.Thread.CurrentThread.ManagedThreadId;installed=true;toMs=1000.0/Stopwatch.Frequency;}
         public static List<(string Name,double Milliseconds,int Calls)> TakeSections()
         {
             var result=new List<(string,double,int)>();
@@ -179,7 +183,7 @@ namespace Remains.Diagnostics
 
         public static Scope Section(string name)
         {
-            if(!installed) return default;
+            if(!installed || System.Threading.Thread.CurrentThread.ManagedThreadId!=frameThread) return default;
             int index=SectionIndex(name);
             return index<0?default:new Scope(index,Stopwatch.GetTimestamp());
         }
@@ -211,7 +215,7 @@ namespace Remains.Diagnostics
                 double elapsed=(Stopwatch.GetTimestamp()-started)*toMs;
                 sectionMs[index]+=elapsed;sectionCalls[index]++;
                 if(baseline && CpuBaselineCapture.Enabled)
-                    CpuBaselineCapture.Section(sectionNames[index],elapsed,BaselineAllocatedBytes-allocated);
+                    CpuBaselineCapture.Section(sectionNames[index],elapsed,AllocationDelta(allocated));
             }
         }
 
@@ -255,8 +259,17 @@ namespace Remains.Diagnostics
             if(CpuBaselineCapture.Enabled && baselineFrameActive)
             {
                 double measured=(Stopwatch.GetTimestamp()-frameStart)*toMs;
-                CpuBaselineCapture.Frame(measured,Math.Min(measured,baselineWait),BaselineAllocatedBytes-baselineFrameAllocated);
+                CpuBaselineCapture.Frame(measured,Math.Min(measured,baselineWait),AllocationDelta(baselineFrameAllocated));
             }
+        }
+        private static long AllocationDelta(long before)
+        {
+            if(!BaselineAllocationsAvailable) return 0;
+            long delta=BaselineAllocatedBytes-before;
+            if(delta>=0) return delta;
+            BaselineAllocationsAvailable=false;
+            Debug.LogWarning("CPU-замер: счётчик аллокаций сбросился между фазами Player. Метрики allocatedBytes/allocationsPerFrame недостоверны и должны быть отброшены; CPU-время продолжает измеряться. Смотрите allocationMetricAvailable в отчёте.");
+            return 0;
         }
 
         private static void ReadGpu()

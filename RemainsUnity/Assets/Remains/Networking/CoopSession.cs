@@ -178,6 +178,7 @@ namespace Remains.Networking
         private readonly Dictionary<int,long> backupRevisions = new();
         private long canonicalPersistedRevision=-1;
         private readonly RecoveryReceiptGate recoveryReceipts = new();
+        private readonly Dictionary<int,List<BackupAckMessage>> pendingRecoveryAcks=new();
         private readonly WorldReplication worldReplication=new();
         // Delta replication (host-migration.md): the snapshot each connection holds, and the recent host snapshots
         // a delta can start from. A connection on another base gets a full snapshot.
@@ -203,7 +204,7 @@ namespace Remains.Networking
                 return NetworkServer.connections.TryGetValue(recipient.Key,out var connection)?connection:null;
             });
             serverPoses.Clear();
-            backupRevisions.Clear();recoveryReceipts.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();
+            backupRevisions.Clear();recoveryReceipts.Clear();pendingRecoveryAcks.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();Mines.RegisterServer();Hazards.RegisterServer();
@@ -238,14 +239,7 @@ namespace Remains.Networking
             {
                 if(ServerWorld==null) return;
                 if (ack.world != ServerWorld.worldId) Debug.LogWarning($"Подтверждение чужого мира: клиент={connection.connectionId}, мир={ack.world}, ожидается={ServerWorld.worldId}.");
-                else if(!recoveryReceipts.Matches(ack.snapshot,ack.revision))
-                    Debug.LogWarning($"Неизвестное подтверждение снимка: клиент={connection.connectionId}, снимок={ack.snapshot}, ревизия={ack.revision}.");
-                else
-                {
-                    backupRevisions[connection.connectionId]=Math.Max(backupRevisions.GetValueOrDefault(connection.connectionId),ack.revision);
-                    RecoveryAcknowledged?.Invoke(connection.connectionId,ack.snapshot,ack.revision);
-                    CompleteBackedUpGrants();
-                }
+                else AcceptRecoveryAck(connection.connectionId,ack,true);
             }));
             ServerReady?.Invoke();
         }
@@ -508,7 +502,7 @@ namespace Remains.Networking
             Lobby.Disconnected(connection.connectionId);EntryPreparation.Disconnected(connection.connectionId);
             if (owners.Remove(connection.connectionId, out string owner))
             {
-                backupRevisions.Remove(connection.connectionId);deliveredSnapshots.Remove(connection.connectionId);
+                backupRevisions.Remove(connection.connectionId);pendingRecoveryAcks.Remove(connection.connectionId);deliveredSnapshots.Remove(connection.connectionId);
                 RecoveryPeerLeft?.Invoke(connection.connectionId);
                 var actor = ServerWorld.Find(playerIds[owner]);
                 ActorSessionRules.Disconnect(actor);
@@ -700,6 +694,33 @@ namespace Remains.Networking
             deliveredSnapshots[connection.connectionId]=snapshot.ReplicationId;
         }
 
+        private void AcceptRecoveryAck(int peer,BackupAckMessage ack,bool allowPending)
+        {
+            if(!owners.ContainsKey(peer)) return;
+            if(recoveryReceipts.Matches(ack.snapshot,ack.revision))
+            {
+                backupRevisions[peer]=Math.Max(backupRevisions.GetValueOrDefault(peer),ack.revision);
+                RecoveryAcknowledged?.Invoke(peer,ack.snapshot,ack.revision);
+                CompleteBackedUpGrants();return;
+            }
+            if(allowPending && recoveryReceipts.Pending(ack.revision))
+            {
+                if(!pendingRecoveryAcks.TryGetValue(peer,out var pending)) pendingRecoveryAcks.Add(peer,pending=new());
+                if(pending.Exists(value=>value.snapshot==ack.snapshot && value.revision==ack.revision)) return;
+                if(pending.Count<256) {pending.Add(ack);return;}
+            }
+            Debug.LogWarning($"Неизвестное подтверждение снимка: клиент={peer}, снимок={ack.snapshot}, ревизия={ack.revision}.");
+        }
+        private void RetryRecoveryAcks()
+        {
+            // Remove before callbacks: accepting a receipt can enqueue another checkpoint.
+            var completed=new List<(int peer,BackupAckMessage ack)>();
+            foreach(var pair in pendingRecoveryAcks)
+                for(int i=pair.Value.Count-1;i>=0;i--)
+                    if(!recoveryReceipts.Pending(pair.Value[i].revision))
+                    {completed.Add((pair.Key,pair.Value[i]));pair.Value.RemoveAt(i);}
+            foreach(var value in completed) AcceptRecoveryAck(value.peer,value.ack,false);
+        }
         private RecoverySnapshot PrepareRecovery()
         {
             using var timing=TransitionTiming.Measure("snapshot.prepare",ServerWorld?.worldId);
@@ -708,6 +729,8 @@ namespace Remains.Networking
             var store=Saves;
             saveWrites.Enqueue(()=>store.SaveRecovery(snapshot),()=>
             {
+                recoveryReceipts.Complete(snapshot);
+                RetryRecoveryAcks();
                 if(ServerWorld?.worldId==snapshot.WorldId) canonicalPersistedRevision=Math.Max(canonicalPersistedRevision,snapshot.Revision);
                 RecoveryPersisted?.Invoke(snapshot);
                 if(ServerWorld?.worldId==snapshot.WorldId) CompleteBackedUpGrants();
@@ -718,6 +741,7 @@ namespace Remains.Networking
                 recentSnapshots.Add(snapshot);
                 while(recentSnapshots.Count>RecentSnapshotsKept) recentSnapshots.RemoveAt(0);
             }
+            // Legacy diagnostic subscribers explicitly request the file SHA. Ordinary replication never does.
             RecoveryPrepared?.Invoke(snapshot.Id,snapshot.Revision);
             FinishRecoveryMeasurement("recovery-prepared",started,snapshot);
             return snapshot;

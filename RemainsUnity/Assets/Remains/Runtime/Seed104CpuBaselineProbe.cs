@@ -3,10 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
+using Remains.Content;
 using Remains.Diagnostics;
 using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
+using Remains.Persistence;
+using Remains.Serialization;
 using UnityEngine;
 
 namespace Remains.Runtime
@@ -18,15 +22,19 @@ namespace Remains.Runtime
         private PrototypeRuntime runtime;
         private string scenario,revision,assemblyHash,fixtureHash;
         private int warmFrames,sampleFrames,readyFrame=-1,phase,shots,warmShots;
-        private bool finished;
+        private bool finished,createdPlayerFixture;
         private double deadline,nextShot,started,nextDiagnostic;
         private readonly List<PayloadSample> payloads=new();
+        private readonly List<MemorySample> memory=new();
+        private double nextMemory;
         private readonly HashSet<string> attacks=new(StringComparer.Ordinal);
         private int initialNpcs,initialContainers,initialMines,initialHazards;
 
         public void Initialize(PrototypeRuntime value)
         {
             runtime=value;scenario=Argument("--baseline-scenario","idle");revision=Argument("--baseline-revision","unknown");
+            if(Environment.GetCommandLineArgs().Contains("--baseline-create-fixture"))
+                CreatePlayerFixture(value.Options);
             fixtureHash=File.ReadAllText(Path.Combine(value.Options.SaveDirectory,"baseline-input.sha256"));
             // Unity's Editor may load assemblies from bytes, leaving Assembly.Location empty.
             string assemblyPath=Application.isEditor?Path.GetFullPath(Path.Combine(Application.dataPath,"../Library/ScriptAssemblies/Assembly-CSharp.dll")):
@@ -39,11 +47,56 @@ namespace Remains.Runtime
                 throw new InvalidOperationException("CPU-замер: нужен idle/combat/inactive, прогрев >=60 кадров и выборка >=120.");
             if(value.Options.Role!="host" || string.IsNullOrEmpty(value.Options.SaveDirectory))
                 throw new InvalidOperationException("CPU-замер допускается только с изолированным хостом.");
-            deadline=Time.realtimeSinceStartupAsDouble+480;
+            deadline=Time.realtimeSinceStartupAsDouble+Math.Max(480,(warmFrames+sampleFrames)/30d+180);
             value.CommandSource=Command;
             WorldReplication.PayloadMeasured+=Payload;
             value.Session.AttackReceived+=Attack;
             Debug.Log($"CPU seed104: сценарий={scenario}, прогрев={warmFrames}, выборка={sampleFrames}, исходник={revision}.");
+        }
+        private void CreatePlayerFixture(LaunchOptions options)
+        {
+            string directory=Argument("--baseline-create-fixture",null);
+            if(Application.isEditor || Application.platform!=RuntimePlatform.WindowsPlayer || !Application.isBatchMode ||
+                options.Role!="host" || options.Smoke!="seed104-baseline" || string.IsNullOrWhiteSpace(directory) ||
+                directory.StartsWith("--",StringComparison.Ordinal) || string.IsNullOrWhiteSpace(options.SaveDirectory) || string.IsNullOrEmpty(options.Report))
+                throw new InvalidOperationException("Создание Player fixture требует Windows Player batchmode, host, seed104-baseline, --baseline-create-fixture <dir>, пустого save-dir и report.");
+            string fixtureDirectory=Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            string saveDirectory=Path.GetFullPath(options.SaveDirectory).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
+            if(fixtureDirectory.Equals(saveDirectory,StringComparison.OrdinalIgnoreCase) ||
+                fixtureDirectory.StartsWith(saveDirectory+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) ||
+                saveDirectory.StartsWith(fixtureDirectory+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Player fixture и save-dir должны быть отдельными, невложенными каталогами.");
+            foreach(string path in new[]{fixtureDirectory,saveDirectory})
+                if(File.Exists(path) || Directory.Exists(path) && Directory.EnumerateFileSystemEntries(path).Any())
+                    throw new InvalidOperationException("Создание Player fixture запрещено: каталог не пуст или занят файлом: "+path);
+            var world=new WorldState {seed=104,worldId="64ab04d6f71844dba014ce97fa6f347b",branchId="1b17fa9845504183a40af0e0151fbb7a",
+                weaponContent=WeaponCatalog.ManifestCopy()};
+            FactoryPreparation.Create(world,Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
+            try
+            {
+                FactoryContentSources.Prepare(world,new[]{"hub","factory:0"});
+                foreach(string level in new[]{"hub","factory:0"})
+                    RoomContentInstaller.Apply(world,RoomContentBatch.Read(RoomAuthoring.Load(level,world),level));
+                var actor=new ActorState {id="player:"+options.Character,character=options.Character,level="hub",player=true,
+                    weaponContent=WeaponCatalog.ManifestCopy()};
+                PlayerStarterInventory.Give(actor);
+                InventoryStacks.Add(actor,SharedInventory.Create("p10",300));
+                string worldText=StateJson.ToJson(world),actorText=StateJson.ToJson(actor);
+                Directory.CreateDirectory(fixtureDirectory);
+                File.WriteAllText(Path.Combine(fixtureDirectory,"world.json"),worldText);
+                File.WriteAllText(Path.Combine(fixtureDirectory,"character.json"),actorText);
+                var saves=new SaveStore(saveDirectory);
+                using(var hash=SHA256.Create())
+                {
+                    string digest=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(worldText+"\n"+actorText))).Replace("-","").ToLowerInvariant();
+                    File.WriteAllText(Path.Combine(saveDirectory,"baseline-input.sha256"),digest);
+                }
+                saves.SaveWorld(StateJson.FromJson<WorldState>(worldText));
+                saves.SaveCharacter(StateJson.FromJson<ActorState>(actorText));
+                createdPlayerFixture=true;
+                Debug.Log($"CPU seed104: создан новый Windows Player fixture: {fixtureDirectory}. Совпадение с hash прежнего Editor baseline3 не заявляется.");
+            }
+            finally {FactoryContentSources.Clear();}
         }
         public static string Argument(string key,string fallback)
         {
@@ -78,6 +131,8 @@ namespace Remains.Runtime
         }
         private void Tick()
         {
+            if(Time.realtimeSinceStartupAsDouble>=nextMemory)
+            {nextMemory=Time.realtimeSinceStartupAsDouble+10;memory.Add(new MemorySample {seconds=Time.realtimeSinceStartupAsDouble,managedBytes=GC.GetTotalMemory(false)});}
             if(Time.realtimeSinceStartupAsDouble>deadline) {Finish(false,$"Таймаут: фаза={phase}.");return;}
             var session=runtime.Session;var actor=session.LocalActor;
             if((phase<2 || phase==3 && CpuBaselineCapture.FrameCount==0) && Time.realtimeSinceStartupAsDouble>=nextDiagnostic)
@@ -128,15 +183,18 @@ namespace Remains.Runtime
             if(finished) return;finished=true;FrameHitchLog.EndCpuBaseline();
             var summary=CpuBaselineCapture.Summarize();
             var report=new Report {success=success,detail=detail,scenario=scenario,sourceRevision=revision,
-                assemblySha256=assemblyHash,
+                assemblySha256=assemblyHash,allocationMetricAvailable=FrameHitchLog.BaselineAllocationsAvailable,
                 fixtureSha256=fixtureHash,
                 unity=Application.unityVersion,processor=SystemInfo.processorType,gpu=SystemInfo.graphicsDeviceName,
                 graphicsApi=SystemInfo.graphicsDeviceType.ToString(),editor=Application.isEditor,batch=Application.isBatchMode,
                 width=Screen.width,height=Screen.height,vSync=QualitySettings.vSyncCount,targetFps=Application.targetFrameRate,
                 warmFrames=warmFrames,sampleFrames=sampleFrames,seconds=started==0?0:Time.realtimeSinceStartupAsDouble-started,
                 factoryNpcs=initialNpcs,containers=initialContainers,mines=initialMines,hazards=initialHazards,
-                level=runtime.Session.LocalActor?.level,shots=shots-warmShots,payloads=payloads.ToArray(),cpu=summary,
+                level=runtime.Session.LocalActor?.level,shots=shots-warmShots,payloads=payloads.ToArray(),cpu=summary,memory=memory.ToArray(),
                 limitations="Секции вложены и считаются включительно. Allocations — глобальный счётчик Unity GC Allocated In Frame: все managed-потоки за интервал, включая диагностику; это не атрибуция выделений конкретной системе. Фоновое CPU-время не измерено. work=кадр−TimeUpdate, не чистое CPU-время; ожидания в других фазах остаются. Combat — стрельба из пистолета от входа, не нагрузочный бой четырёх игроков. Новые данные мира и кадры выстрела могут загружаться асинхронно."};
+            if(createdPlayerFixture)
+                report.limitations+=" Создан новый Windows Player fixture; его SHA-256 не объявляется совпадающим с прежним Editor baseline3. Последующие сравнения требуют этих же world.json/character.json и fixtureSha256.";
+            if(!report.allocationMetricAvailable) report.limitations+=" allocatedBytes/allocationsPerFrame недостоверны: счётчик сбросился; эти поля нельзя использовать. memory — GC.GetTotalMemory(false), не native/GPU память.";
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(runtime.Options.Report)));
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(report,true));
             Debug.Log($"CPU seed104 {scenario}: success={success}, кадров={summary.frameCount}, work p95={summary.work.p95:F2}, p99={summary.work.p99:F2}, max={summary.work.max:F2} мс. {detail}");
@@ -149,11 +207,13 @@ namespace Remains.Runtime
             WorldReplication.PayloadMeasured-=Payload;runtime.Session.AttackReceived-=Attack;
         }
         [Serializable] private sealed class PayloadSample {public string kind;public int bytes,frame;}
+        [Serializable] private sealed class MemorySample {public double seconds;public long managedBytes;}
         [Serializable] private sealed class Report
         {
-            public bool success,editor,batch;public string detail,scenario,sourceRevision,assemblySha256,fixtureSha256,unity,processor,gpu,graphicsApi,level,limitations;
+            public bool success,editor,batch,allocationMetricAvailable;public string detail,scenario,sourceRevision,assemblySha256,fixtureSha256,unity,processor,gpu,graphicsApi,level,limitations;
             public int width,height,vSync,targetFps,warmFrames,sampleFrames,factoryNpcs,containers,mines,hazards,shots;
             public double seconds;public CpuBaselineSummary cpu;public PayloadSample[] payloads;
+            public MemorySample[] memory;
         }
     }
 }
