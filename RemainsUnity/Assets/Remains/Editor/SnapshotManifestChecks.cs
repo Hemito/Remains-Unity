@@ -88,6 +88,18 @@ namespace Remains.Editor
             Invalid(()=>SnapshotManifest.Build(template,new[]{new SnapshotPartCache.PartSet("x",new[]{"k"},new[]{"\ud800"})},original),"surrogate в тексте");
             Require(SnapshotManifest.Build(template,input,original).Id==original.Id,"Ошибка построения изменила предыдущий манифест.");
 
+            // The same mutable arrays must be checked again after a prior successful build.
+            var mutable=Copy(input);var mutableBase=SnapshotManifest.Build(template,mutable);
+            mutable[0].Keys[1]=mutable[0].Keys[0];
+            Invalid(()=>SnapshotManifest.Build(template,mutable,mutableBase),"дубликат в изменённом входном массиве");
+            mutable[0].Keys[1]="\ud800";
+            Invalid(()=>SnapshotManifest.Build(template,mutable,mutableBase),"surrogate в изменённом входном ключе");
+            mutable[0].Keys[1]=input[0].Keys[1];mutable[0].Texts[1]=null;
+            Invalid(()=>SnapshotManifest.Build(template,mutable,mutableBase),"null text при прежних ключах");
+            mutable[0].Texts[1]="\ud800";
+            Invalid(()=>SnapshotManifest.Build(template,mutable,mutableBase),"surrogate text при прежних ключах");
+            Require(SnapshotManifest.Build(template,input,mutableBase).Id==original.Id,"Ошибочный fastpath изменил базу.");
+
             // Framing must distinguish boundaries and Unicode lengths, including names/keys containing delimiters.
             string a=SnapshotManifest.Build("т",new[]{new SnapshotPartCache.PartSet("a:b",new[]{"c"},new[]{"null"})}).Id;
             string b=SnapshotManifest.Build("т",new[]{new SnapshotPartCache.PartSet("a",new[]{"b:c"},new[]{"null"})}).Id;

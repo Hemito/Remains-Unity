@@ -349,7 +349,7 @@ namespace Remains.Networking
                 }
                 // The verified snapshot is passed itself; its whole text is not needed here (built lazily for the save).
                 if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor},received.snapshot);
-                else ReceiveWorld(new WorldMessage(),received.snapshot,received.changes,received.changedParts);
+                else ReceiveWorld(new WorldMessage(),received.snapshot,received.changes,received.changedParts,received.live,received.reusedActors,received.copyCanonicalActor);
             }));
             clientActors.Clear();clientActorsReceived.Clear();
             NetworkClient.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Client<ActorMessage>(message =>
@@ -552,33 +552,41 @@ namespace Remains.Networking
             if(ReferenceEquals(World,welcomed) && !GameplayFailurePending) EntryPreparation.CompleteAdmission();
         }
 
-        private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null,WorldChangeKind changes=WorldChangeKind.All,IReadOnlyCollection<string> changedParts=null)
+        private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null,WorldChangeKind changes=WorldChangeKind.All,IReadOnlyCollection<string> changedParts=null,
+            WorldState live=null,HashSet<string> reusedActors=null,Func<string,ActorState> copyCanonicalActor=null)
         {
             if(World==null || LocalActorId==null) throw new InvalidOperationException("Получен игровой снимок до фактического входа в мир.");
             using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Снимок: приём (клиент)");
             var snapshot=verified??new RecoverySnapshot(message.json);
             WorldState incoming;
-            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: копия мира (клиент)")) incoming=snapshot.CreateLiveWorld();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: копия мира (клиент)")) incoming=live??snapshot.CreateLiveWorld();
+            selfHealing.MaterializeCanonical(incoming,reusedActors,copyCanonicalActor);
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: контент (клиент)")) FactoryContentSources.Prepare(incoming,incoming.actors.Where(a=>a.player && a.connected).Select(a=>a.level).Distinct());
             incoming=PersistCopy(snapshot,incoming);
             bool sameWorld=World!=null && World.worldId==incoming.worldId;
             // Validate before motion/selection helpers can replace an incoming sample.
             foreach(var actor in incoming.actors)
+                if(!(reusedActors?.Contains(actor.id)??false))
                 WeaponRecoilReplication.Normalize(actor,Pause.Revision,Pause.IsPaused(actor.level),"снимок мира / входящий");
             if(!sameWorld) WeaponRecoilReplication.NeutralizeWorld(incoming,Pause.Revision);
             bool publishHealing=false;
             if (World != null && World.worldId == incoming.worldId)
             {
                 // By ID dictionary: the former WorldProps.Find per body was O(bodies²) per snapshot (~2M compares).
-                var localBodies=new Dictionary<string,PropState>(StringComparer.Ordinal);
-                foreach(var prop in WorldProps.All(World)) localBodies[prop.id]=prop;
-                foreach(var prop in WorldProps.All(incoming))
-                    PropReplication.PreserveNewerPose(localBodies.TryGetValue(prop.id,out var local)?local:null,prop,LocalOwner,PropImpacts.ClientImpulseEpoch);
+                // Unchanged delta bodies already are the live objects reused by WorldReplica.Fill.
+                if(changes.Any(WorldChangeKind.Containers|WorldChangeKind.Props))
+                {
+                    var localBodies=new Dictionary<string,PropState>(StringComparer.Ordinal);
+                    foreach(var prop in WorldProps.All(World)) localBodies[prop.id]=prop;
+                    foreach(var prop in WorldProps.All(incoming))
+                        PropReplication.PreserveNewerPose(localBodies.TryGetValue(prop.id,out var local)?local:null,prop,LocalOwner,PropImpacts.ClientImpulseEpoch);
+                }
                 // A full backup must not rewind locally-owned pose or an unacknowledged health change.
                 for(int actorIndex=0;actorIndex<incoming.actors.Count;actorIndex++)
                 {
                     var actor=incoming.actors[actorIndex];
+                    if(reusedActors?.Contains(actor.id)??false) continue;
                     var local = World.Find(actor.id);
                     if(selfHealing.DiscardPreHealingState(incoming.worldId,local,actor,LocalOwner))
                     {incoming.actors[actorIndex]=local.Copy();continue;}
@@ -612,6 +620,7 @@ namespace Remains.Networking
             }
             foreach(var actor in incoming.actors)
             {
+                if(reusedActors?.Contains(actor.id)??false) continue;
                 CosmeticEquipment.Reconcile(sameWorld?World.Find(actor.id):null,actor);
                 WeaponRecoilReplication.Reconcile(sameWorld?World.Find(actor.id):null,actor,LocalOwner,Pause.Revision,
                     Pause.IsPaused(actor.level),"снимок мира / публикация");

@@ -61,13 +61,20 @@ namespace Remains.Persistence
             private readonly SnapshotManifest previous;
             private readonly Dictionary<string,string> textHashes=new(ReferenceStrings.Instance);
             private int texts,branches;
-            public Builder(SnapshotManifest previous)
+            private Dictionary<string,string> previousTextHashes;
+            public Builder(SnapshotManifest previous) {this.previous=previous;}
+            private bool PreviousTextHash(string value,out string hash)
             {
-                this.previous=previous;
-                if(previous==null) return;
-                textHashes[previous.template]=previous.templateHash;
-                foreach(var list in previous.lists)
-                    for(int i=0;i<list.Texts.Length;i++) textHashes[list.Texts[i]]=list.TextHashes[i];
+                hash=null;
+                if(previous==null) return false;
+                if(previousTextHashes==null)
+                {
+                    previousTextHashes=new Dictionary<string,string>(ReferenceStrings.Instance);
+                    previousTextHashes[previous.template]=previous.templateHash;
+                    foreach(var list in previous.lists)
+                        for(int i=0;i<list.Texts.Length;i++) previousTextHashes[list.Texts[i]]=list.TextHashes[i];
+                }
+                return previousTextHashes.TryGetValue(value,out hash);
             }
 
             public SnapshotManifest Build(string template,IReadOnlyList<SnapshotPartCache.PartSet> input)
@@ -108,6 +115,33 @@ namespace Remains.Persistence
             {
                 if(set.Keys==null || set.Texts==null || set.Keys.Length!=set.Texts.Length)
                     throw Invalid("список "+set.Name+": массивы ключей/текстов отсутствуют или имеют разную длину");
+                // Exact equality to private validated keys proves uniqueness and Unicode validity again.
+                // Public input arrays are never retained; callers still own and may mutate them between builds.
+                bool sameKeys=old!=null && old.Keys.Length==set.Keys.Length;
+                for(int i=0;sameKeys && i<set.Keys.Length;i++) sameKeys=string.Equals(set.Keys[i],old.Keys[i],StringComparison.Ordinal);
+                if(sameKeys)
+                {
+                    List<int> changedPositions=null;
+                    for(int i=0;i<set.Texts.Length;i++)
+                    {
+                        if(set.Texts[i]==null) throw Invalid("список "+set.Name+", ключ "+old.Keys[i]+": отсутствует текст (JSON null передаётся строкой)");
+                        if(!string.Equals(set.Texts[i],old.Texts[i],StringComparison.Ordinal))
+                            (changedPositions??=new List<int>()).Add(i);
+                    }
+                    if(changedPositions==null) return old;
+                    var nextValues=(string[])old.Texts.Clone();
+                    var nextHashes=(string[])old.TextHashes.Clone();
+                    var nextLeaves=(Node[])old.Leaves.Clone();
+                    foreach(int i in changedPositions)
+                    {
+                        nextValues[i]=set.Texts[i];
+                        nextHashes[i]=TextHash(nextValues[i],"список "+set.Name+", ключ "+old.Keys[i]);
+                        nextLeaves[i]=new Node(Hash("leaf",old.Keys[i],nextHashes[i]));
+                    }
+                    var nextTree=ReplaceMany(old.Tree,0,old.Keys.Length,nextLeaves,changedPositions,0,changedPositions.Count);
+                    return new ListState(set.Name,old.Keys,nextValues,nextHashes,nextLeaves,nextTree,
+                        new Node(Hash("list",set.Name,Count(old.Keys.Length),nextTree?.Hash??"")));
+                }
                 var keys=(string[])set.Keys.Clone();var values=(string[])set.Texts.Clone();
                 var unique=new HashSet<string>(StringComparer.Ordinal);
                 bool aligned=old!=null && old.Keys.Length==keys.Length;
@@ -133,7 +167,7 @@ namespace Remains.Persistence
                     {hashes[i]=old.TextHashes[at];leaves[i]=old.Leaves[at];}
                     else
                     {
-                        hashes[i]=TextHash(values[i],"список "+set.Name+", ключ "+keys[i]);
+                        hashes[i]=TextHash(values[i],"список "+set.Name+", ключ "+keys[i],true);
                         leaves[i]=new Node(Hash("leaf",keys[i],hashes[i]));
                     }
                     if(aligned && !ReferenceEquals(leaves[i],old.Leaves[i])) changed.Add(i);
@@ -170,9 +204,10 @@ namespace Remains.Persistence
             }
             private Node Branch(Node left,Node right)=>new(Hash("branch",left.Hash,right.Hash),left,right);
 
-            private string TextHash(string value,string context)
+            private string TextHash(string value,string context,bool reusePrevious=false)
             {
                 if(textHashes.TryGetValue(value,out string cached)) return cached;
+                if(reusePrevious && PreviousTextHash(value,out cached)) return cached;
                 try {strictUtf8.GetByteCount(value);}
                 catch(EncoderFallbackException error) {throw new InvalidDataException("Некорректный UTF-16 в манифесте: "+context+".",error);}
                 texts++;

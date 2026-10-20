@@ -11,7 +11,7 @@ namespace Remains.Networking
     public struct ProtocolReply : NetworkMessage {public int version;public bool accepted;public string reason;}
     public static class SessionProtocol
     {
-        public const int Version=77;   // 77: multi-victim Box contacts, level-qualified cooldown and session-bound impulse proof.
+        public const int Version=78;   // 78: bounded transport-sized delta messages; full recovery transfer stays unchanged.
         public static string Rejection(int offered)=>offered==Version?null:
             $"Несовместимый сетевой протокол: у клиента {offered}, у хоста {Version}. Используйте совместимые сборки. Сохранения не загружены.";
     }

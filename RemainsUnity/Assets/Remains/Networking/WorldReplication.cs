@@ -24,6 +24,9 @@ namespace Remains.Networking
     public sealed class ReceivedWorld
     {
         public RecoverySnapshot snapshot;
+        public WorldState live;
+        public HashSet<string> reusedActors;
+        public Func<string,ActorState> copyCanonicalActor;
         public string owner,actor;
         public bool resync;   // a delta could not be applied: ask the host for a full snapshot
         public WorldChangeKind changes=WorldChangeKind.All;   // a delta: its changed part lists, the skeleton and actors
@@ -57,14 +60,25 @@ namespace Remains.Networking
         }
         // One encoded delta for every recipient on the same base.
         public static void SendDelta(NetworkConnectionToClient connection,string baseSnapshot,string snapshot,byte[] payload)
+            =>SendDeltaParts(baseSnapshot,snapshot,payload,NetworkMessages.MaxContentSize(Channels.Reliable),part=>connection.Send(part));
+        public static void SendDeltaParts(string baseSnapshot,string snapshot,byte[] payload,int maximumContentBytes,Action<WorldPartMessage> send)
         {
+            if(payload==null || payload.Length==0 || send==null || string.IsNullOrEmpty(baseSnapshot) || string.IsNullOrEmpty(snapshot))
+                throw new ArgumentException("Изменение мира: нет данных, получателя или идентификатора базы/результата.");
             if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("delta-send",payload.Length);
             if(payload.Length>SnapshotTransfer.MaximumBytes) throw new InvalidDataException("Изменение мира превышает текущий предел 32 МиБ.");
-            for(int offset=0;offset<payload.Length;offset+=SnapshotTransfer.ChunkSize)
+            // Exact string/int envelope, plus the largest possible varuint byte-array length prefix.
+            // Transport still fragments the reliable message at MTU; only Mirror envelopes are coalesced.
+            using var header=NetworkWriterPool.Get();
+            header.WriteString(snapshot);header.WriteString(null);header.WriteString(null);header.WriteString(baseSnapshot);
+            header.WriteInt(payload.Length);header.WriteInt(0);
+            int chunkSize=Math.Min(SnapshotTransfer.MaximumChunkBytes,maximumContentBytes-header.Position-9);
+            if(chunkSize<=0) throw new InvalidDataException("Транспорт не вмещает заголовок изменения мира: "+maximumContentBytes);
+            for(int offset=0;offset<payload.Length;offset+=chunkSize)
             {
-                var data=new byte[Math.Min(SnapshotTransfer.ChunkSize,payload.Length-offset)];
+                var data=new byte[Math.Min(chunkSize,payload.Length-offset)];
                 Buffer.BlockCopy(payload,offset,data,0,data.Length);
-                connection.Send(new WorldPartMessage {snapshot=snapshot,baseSnapshot=baseSnapshot,total=payload.Length,offset=offset,data=data});
+                send(new WorldPartMessage {snapshot=snapshot,baseSnapshot=baseSnapshot,total=payload.Length,offset=offset,data=data});
             }
         }
         // Actors and projectiles are always included: their objects are replaced on every applied delta (WorldReplica.Apply).
@@ -93,7 +107,8 @@ namespace Remains.Networking
             if(incoming==null)
             {
                 if(message.offset!=0) throw new InvalidDataException("Снимок мира начался с неполного пакета.");
-                incomingId=message.snapshot;incoming=new SnapshotTransfer(incomingId);owner=message.owner;actor=message.actor;incomingBase=message.baseSnapshot;
+                incomingId=message.snapshot;owner=message.owner;actor=message.actor;incomingBase=message.baseSnapshot;
+                incoming=new SnapshotTransfer(incomingId,incomingBase==null?SnapshotTransfer.ChunkSize:SnapshotTransfer.MaximumChunkBytes);
             }
             if(message.snapshot!=incomingId || message.baseSnapshot!=incomingBase) throw new InvalidDataException("Получен другой снимок до завершения текущего.");
             if(incomingBase!=null)
@@ -109,10 +124,12 @@ namespace Remains.Networking
                     using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: разбор изменения (клиент)"))
                         payload=Remains.Serialization.StateJson.FromJson<WorldDeltaPayload>(new UTF8Encoding(false,true).GetString(bytes));
                     if(payload.snapshot!=message.snapshot || payload.baseSnapshot!=baseId) throw new InvalidDataException("Заголовок изменения мира не совпадает с пакетом.");
-                    RecoverySnapshot applied;
-                    using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: применение изменения (клиент)")) applied=replica.Apply(payload,current());
+                    RecoverySnapshot applied;WorldState live;HashSet<string> reusedActors;
+                    var appliedReplica=replica;
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: применение изменения (клиент)")) applied=appliedReplica.ApplyLive(payload,current(),out live,out reusedActors);
                     Remains.Diagnostics.FrameHitchLog.Note($"изменение мира: частей {WorldDelta.ChangedParts(payload)}, байт {bytes.Length}");
-                    return new ReceivedWorld {snapshot=applied,owner=owned,actor=acting,changes=Changes(payload),changedParts=ChangedParts(payload)};
+                    return new ReceivedWorld {snapshot=applied,live=live,reusedActors=reusedActors,copyCanonicalActor=appliedReplica.CopyCanonicalActor,
+                        owner=owned,actor=acting,changes=Changes(payload),changedParts=ChangedParts(payload)};
                 }
                 catch(Exception error) when (error is InvalidDataException || error is InvalidOperationException)
                 {

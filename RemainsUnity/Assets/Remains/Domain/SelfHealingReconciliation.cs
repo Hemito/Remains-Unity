@@ -20,6 +20,26 @@ namespace Remains.Domain
         {this.diagnostic=diagnostic??throw new ArgumentNullException(nameof(diagnostic));}
         private readonly Dictionary<string,Request> pending=new(StringComparer.Ordinal);
         private readonly Dictionary<string,Request> acknowledged=new(StringComparer.Ordinal);
+        public bool RequiresCanonical(string actorId)
+        {
+            if(acknowledged.ContainsKey(actorId)) return true;
+            foreach(var request in pending.Values) if(request.actor==actorId) return true;
+            return false;
+        }
+        // A journal-only delta can complete a heal even when its actor text did not change. Materialize only
+        // those exceptional projections before any normalization/reconciliation touches the incoming graph.
+        public void MaterializeCanonical(WorldState incoming,HashSet<string> reused,Func<string,ActorState> copyCanonical)
+        {
+            if(reused==null || reused.Count==0 || pending.Count==0 && acknowledged.Count==0) return;
+            for(int i=0;i<incoming.actors.Count;i++)
+            {
+                string id=incoming.actors[i].id;
+                if(!reused.Contains(id) || !RequiresCanonical(id)) continue;
+                var actor=copyCanonical?.Invoke(id);
+                if(actor==null || actor.id!=id) throw new InvalidOperationException("Нет канонического актёра для согласования самолечения: actor="+id);
+                incoming.actors[i]=actor;reused.Remove(id);
+            }
+        }
         public void Capture(string worldId,string transaction,ActorState actor)
         {
             if(string.IsNullOrWhiteSpace(worldId) || string.IsNullOrWhiteSpace(transaction) || actor==null ||

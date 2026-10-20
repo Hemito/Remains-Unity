@@ -8,12 +8,19 @@ namespace Remains.Persistence
     public sealed class SnapshotTransfer
     {
         public const int ChunkSize=8192;
+        public const int MaximumChunkBytes=256*1024;
         public const int MaximumBytes=32*1024*1024;
         private readonly string expected;
         private byte[] buffer;
         private int received;
+        private readonly int chunkLimit;
         public int ReceivedBytes=>received;
-        public SnapshotTransfer(string expectedHash) {expected=expectedHash;}
+        public SnapshotTransfer(string expectedHash,int maximumChunkSize=ChunkSize)
+        {
+            if(maximumChunkSize<=0 || maximumChunkSize>MaximumChunkBytes)
+                throw new ArgumentOutOfRangeException(nameof(maximumChunkSize),"Недопустимый предел части снимка.");
+            expected=expectedHash;chunkLimit=maximumChunkSize;
+        }
         public RecoverySnapshot Append(int total,int offset,byte[] chunk)
         {
             var bytes=AppendRaw(total,offset,chunk);
@@ -25,7 +32,7 @@ namespace Remains.Persistence
         // The complete payload once all chunks arrived (null before); same bounds, order and repeat checks.
         public byte[] AppendRaw(int total,int offset,byte[] chunk)
         {
-            if(total<=0 || total>MaximumBytes || chunk==null || chunk.Length==0 || chunk.Length>ChunkSize ||
+            if(total<=0 || total>MaximumBytes || chunk==null || chunk.Length==0 || chunk.Length>chunkLimit ||
                 offset<0 || offset>total-chunk.Length)
                 throw new InvalidDataException("Некорректные границы пакета сохранения.");
             if(buffer==null) buffer=new byte[total];

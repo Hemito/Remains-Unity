@@ -1,9 +1,12 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
+using Mirror;
 using Remains.Content;
 using Remains.Domain;
 using Remains.Persistence;
+using Remains.Networking;
 using Remains.Serialization;
 using UnityEditor;
 using UnityEngine;
@@ -25,9 +28,10 @@ namespace Remains.Editor
 
         public static void Run()
         {
+            CheckDeltaTransport();
             string input=null;var args=Environment.GetCommandLineArgs();
             for(int i=0;i+1<args.Length;i++) if(args[i]=="-recoveryPerfWorld") input=args[i+1];
-            if(input==null) throw new ArgumentException("Нужен -recoveryPerfWorld <мир.json>.");
+            if(input==null) {Debug.Log("Изменения мира: транспорт проверен; fixture-проверка требует -recoveryPerfWorld <мир.json>.");return;}
             Anatomy.Load();WeaponCatalog.Load();
             var host=StateJson.FromJson<WorldState>(File.ReadAllText(input));
             Require(host.containers.Count>2,"В мире мало контейнеров.");
@@ -136,6 +140,58 @@ namespace Remains.Editor
 
             Debug.Log($"Изменения мира: PASS — A→B частей {changed}, {encoded.Length} символов вместо {b.Json.Length} " +
                 $"({100.0*encoded.Length/b.Json.Length:F1}%), сборка у хоста {composeMs:F1} мс, применение {applyMs:F1} мс, следующее {apply2Ms:F1} мс, сдвиг персонажа {actorBytes} символов; смена состава, отказ чужой базе.");
+        }
+
+        private static void CheckDeltaTransport()
+        {
+            typeof(CoopSession).Assembly.GetType("Mirror.GeneratedNetworkCode").GetMethod("InitReadWriters").Invoke(null,null);
+            var payload=new byte[100*1024];
+            for(int i=0;i<payload.Length;i++) payload[i]=(byte)(i*31+i/251);
+            string baseId=new string('a',64),id=new string('b',64);
+            foreach(int budget in new[]{256*1024,1024})
+            {
+                var parts=new List<WorldPartMessage>();
+                WorldReplication.SendDeltaParts(baseId,id,payload,budget,parts.Add);
+                Require(budget==1024?parts.Count>1:parts.Count==1,"Число сообщений не соответствует бюджету дельты.");
+                var receiver=new SnapshotTransfer(id,SnapshotTransfer.MaximumChunkBytes);byte[] assembled=null;
+                foreach(var part in parts)
+                {
+                    using var writer=NetworkWriterPool.Get();writer.Write(part);
+                    Require(writer.Position<=budget,"Сериализованное Mirror-сообщение превышает бюджет: "+writer.Position+"/"+budget);
+                    Require(part.snapshot==id && part.baseSnapshot==baseId && part.total==payload.Length,"Потеряна идентичность транспорта дельты.");
+                    assembled=receiver.AppendRaw(part.total,part.offset,part.data);
+                }
+                Require(assembled!=null && assembled.SequenceEqual(payload) && receiver.ReceivedBytes==payload.Length,"Сборка транспорта изменила байты дельты.");
+                if(budget==1024)
+                {
+                    var first=parts[0];var next=parts[1];var last=parts[parts.Count-1];
+                    var ordered=new SnapshotTransfer(id,SnapshotTransfer.MaximumChunkBytes);
+                    Reject(()=>ordered.AppendRaw(next.total,next.offset,next.data),"Пропуск первой части принят.");
+                    Require(ordered.ReceivedBytes==0,"Неверный порядок продвинул позицию приёмника.");
+                    ordered.AppendRaw(first.total,first.offset,first.data);
+                    Require(ordered.AppendRaw(first.total,first.offset,first.data)==null && ordered.ReceivedBytes==first.data.Length,"Идентичный повтор изменил позицию.");
+                    var corrupt=(byte[])first.data.Clone();corrupt[0]^=1;
+                    Reject(()=>ordered.AppendRaw(first.total,first.offset,corrupt),"Повреждённый повтор принят.");
+                    Reject(()=>ordered.AppendRaw(next.total+1,next.offset,next.data),"Подмена полного размера принята.");
+                    Reject(()=>ordered.AppendRaw(first.total,first.data.Length-1,next.data),"Перекрытие принято.");
+                    Reject(()=>ordered.AppendRaw(SnapshotTransfer.MaximumBytes+1,0,first.data),"Превышение размера снимка принято.");
+                    Reject(()=>ordered.AppendRaw(SnapshotTransfer.MaximumChunkBytes+1,0,new byte[SnapshotTransfer.MaximumChunkBytes+1]),"Превышение размера части принято.");
+                    Reject(()=>ordered.AppendRaw(last.total,last.offset,last.data),"Пропуск промежуточных частей принят.");
+                    Require(ordered.ReceivedBytes==first.data.Length,"Отказ повреждённым частям изменил позицию.");
+                    byte[] completed=null;
+                    foreach(var part in parts.Skip(1)) completed=ordered.AppendRaw(part.total,part.offset,part.data);
+                    Require(completed!=null && completed.SequenceEqual(payload),"Отказ повреждённым частям испортил последующую сборку.");
+                }
+                else Reject(()=>new SnapshotTransfer(id).AppendRaw(parts[0].total,0,parts[0].data),"Приёмник полного снимка принял часть больше 8192 байт.");
+            }
+            Reject(()=>WorldReplication.SendDeltaParts(baseId,id,payload,1,_=>throw new InvalidOperationException("Невместимый заголовок был отправлен.")),
+                "Бюджет меньше заголовка принят.");
+            Debug.Log("Транспорт дельты: PASS — 100 КиБ одним сообщением, бюджет Mirror, части 1024, точные байты, порядок, повторы, повреждения и пределы.");
+        }
+        private static void Reject(Action action,string message)
+        {
+            bool rejected=false;try {action();} catch(InvalidDataException) {rejected=true;}
+            Require(rejected,message);
         }
 
         private static WorldDeltaPayload BuildDelta(RecoverySnapshot before,RecoverySnapshot after)
