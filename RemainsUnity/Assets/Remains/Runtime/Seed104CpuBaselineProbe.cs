@@ -29,6 +29,9 @@ namespace Remains.Runtime
         private double nextMemory;
         private readonly HashSet<string> attacks=new(StringComparer.Ordinal);
         private int initialNpcs,initialContainers,initialMines,initialHazards;
+        private PropState bodyProbeProp,bodyProbeContainer;
+        private float bodyProbePropX,bodyProbeContainerX;
+        private int bodyChanges;
 
         public void Initialize(PrototypeRuntime value)
         {
@@ -43,8 +46,8 @@ namespace Remains.Runtime
                 assemblyHash=BitConverter.ToString(hash.ComputeHash(input)).Replace("-","").ToLowerInvariant();
             warmFrames=int.Parse(Argument("--baseline-warm-frames","600"));
             sampleFrames=int.Parse(Argument("--baseline-frames","900"));
-            if(scenario!="idle" && scenario!="combat" && scenario!="inactive" || warmFrames<60 || sampleFrames<120)
-                throw new InvalidOperationException("CPU-замер: нужен idle/combat/inactive, прогрев >=60 кадров и выборка >=120.");
+            if(scenario!="idle" && scenario!="combat" && scenario!="inactive" && scenario!="bodies" || warmFrames<60 || sampleFrames<120)
+                throw new InvalidOperationException("CPU-замер: нужен idle/combat/inactive/bodies, прогрев >=60 кадров и выборка >=120.");
             if(value.Options.Role!="host" || string.IsNullOrEmpty(value.Options.SaveDirectory))
                 throw new InvalidOperationException("CPU-замер допускается только с изолированным хостом.");
             deadline=Time.realtimeSinceStartupAsDouble+Math.Max(480,(warmFrames+sampleFrames)/30d+180);
@@ -166,6 +169,16 @@ namespace Remains.Runtime
             }
             if(phase==2 && Time.frameCount-readyFrame>=warmFrames)
             {
+                if(scenario=="bodies")
+                {
+                    var host=session.ServerWorld;
+                    bodyProbeProp=host.props.FirstOrDefault(p=>p.level==actor.level && Vector2.Distance(p.Position,actor.Position)>64);
+                    bodyProbeContainer=host.containers.FirstOrDefault(p=>p.level==actor.level && Vector2.Distance(p.Position,actor.Position)>64);
+                    if(bodyProbeProp==null || bodyProbeContainer==null) throw new InvalidOperationException("Body-замер: нет дальнего prop/контейнера в полном fixture.");
+                    bodyProbePropX=bodyProbeProp.x;bodyProbeContainerX=bodyProbeContainer.x;
+                    Debug.LogWarning($"Body-замер: диагностическое смещение данных изолированного fixture, не игровой тест физики: prop={bodyProbeProp.id}, container={bodyProbeContainer.id}.");
+                    InvokeRepeating(nameof(ChangeBodies),.1f,3f);
+                }
                 payloads.Clear();warmShots=shots;started=Time.realtimeSinceStartupAsDouble;
                 Debug.Log($"CPU seed104: начало захвата, level={actor.level}, ready={runtime.LevelPresentationReady}, frame={Time.frameCount}.");
                 FrameHitchLog.BeginCpuBaseline(sampleFrames);phase=3;return;
@@ -174,9 +187,19 @@ namespace Remains.Runtime
             {
                 // Names are persisted in the report; the real receive path is separately timed by FrameHitchLog.
                 double seconds=Time.realtimeSinceStartupAsDouble-started;
-                bool sustained=scenario!="combat" || shots-warmShots>=Math.Max(3,(int)(seconds*.8));
-                Finish(sustained,sustained?"CPU-замер завершён; время Editor batch не является временем кадра Windows Player.":"Недостаточная частота подтверждённых выстрелов; боевой замер недействителен.");
+                bool sustained=(scenario!="combat" || shots-warmShots>=Math.Max(3,(int)(seconds*.8))) &&
+                    (scenario!="bodies" || bodyChanges>=Math.Max(3,(int)(seconds/3*.8)));
+                Finish(sustained,sustained?"CPU-замер завершён; время Editor batch не является временем кадра Windows Player.":"Недостаточная частота событий сценария; замер недействителен.");
             }
+        }
+        private void ChangeBodies()
+        {
+            if(finished || phase!=3) return;
+            bodyChanges++;
+            float offset=bodyChanges%2==1?.25f:0;
+            bodyProbeProp.x=bodyProbePropX+offset;bodyProbeContainer.x=bodyProbeContainerX+offset;
+            var host=runtime.Session.ServerWorld;
+            WorldChanges.Mark(host,bodyProbeProp);WorldChanges.Mark(host,bodyProbeContainer);host.revision++;
         }
         private void Finish(bool success,string detail)
         {
@@ -188,12 +211,14 @@ namespace Remains.Runtime
                 unity=Application.unityVersion,processor=SystemInfo.processorType,gpu=SystemInfo.graphicsDeviceName,
                 graphicsApi=SystemInfo.graphicsDeviceType.ToString(),editor=Application.isEditor,batch=Application.isBatchMode,
                 width=Screen.width,height=Screen.height,vSync=QualitySettings.vSyncCount,targetFps=Application.targetFrameRate,
-                warmFrames=warmFrames,sampleFrames=sampleFrames,seconds=started==0?0:Time.realtimeSinceStartupAsDouble-started,
+                warmFrames=warmFrames,sampleFrames=sampleFrames,seconds=started==0?0:Time.realtimeSinceStartupAsDouble-started,captureStartedSeconds=started,
                 factoryNpcs=initialNpcs,containers=initialContainers,mines=initialMines,hazards=initialHazards,
-                level=runtime.Session.LocalActor?.level,shots=shots-warmShots,payloads=payloads.ToArray(),cpu=summary,memory=memory.ToArray(),
+                level=runtime.Session.LocalActor?.level,shots=shots-warmShots,bodyChanges=bodyChanges,payloads=payloads.ToArray(),cpu=summary,memory=memory.ToArray(),
                 limitations="Секции вложены и считаются включительно. Allocations — глобальный счётчик Unity GC Allocated In Frame: все managed-потоки за интервал, включая диагностику; это не атрибуция выделений конкретной системе. Фоновое CPU-время не измерено. work=кадр−TimeUpdate, не чистое CPU-время; ожидания в других фазах остаются. Combat — стрельба из пистолета от входа, не нагрузочный бой четырёх игроков. Новые данные мира и кадры выстрела могут загружаться асинхронно."};
             if(createdPlayerFixture)
                 report.limitations+=" Создан новый Windows Player fixture; его SHA-256 не объявляется совпадающим с прежним Editor baseline3. Последующие сравнения требуют этих же world.json/character.json и fixtureSha256.";
+            if(scenario=="bodies") report.limitations+=" Bodies — смещение двух дальних записей host fixture каждые 3 секунды с dirty marks; это нагрузка snapshot body delta, не игровая проверка физики/владения.";
+            report.limitations+=" "+FrameHitchLog.SectionTimingScope;
             if(!report.allocationMetricAvailable) report.limitations+=" allocatedBytes/allocationsPerFrame недостоверны: счётчик сбросился; эти поля нельзя использовать. memory — GC.GetTotalMemory(false), не native/GPU память.";
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(runtime.Options.Report)));
             File.WriteAllText(runtime.Options.Report,JsonUtility.ToJson(report,true));
@@ -211,8 +236,8 @@ namespace Remains.Runtime
         [Serializable] private sealed class Report
         {
             public bool success,editor,batch,allocationMetricAvailable;public string detail,scenario,sourceRevision,assemblySha256,fixtureSha256,unity,processor,gpu,graphicsApi,level,limitations;
-            public int width,height,vSync,targetFps,warmFrames,sampleFrames,factoryNpcs,containers,mines,hazards,shots;
-            public double seconds;public CpuBaselineSummary cpu;public PayloadSample[] payloads;
+            public int width,height,vSync,targetFps,warmFrames,sampleFrames,factoryNpcs,containers,mines,hazards,shots,bodyChanges;
+            public double seconds,captureStartedSeconds;public CpuBaselineSummary cpu;public PayloadSample[] payloads;
             public MemorySample[] memory;
         }
     }

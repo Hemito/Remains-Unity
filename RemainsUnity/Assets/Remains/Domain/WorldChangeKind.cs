@@ -3,8 +3,8 @@ using System;
 namespace Remains.Domain
 {
     // What a world notification (CoopSession.Changed) changed, so a consumer recomputes only its part. A received
-    // delta names its changed part lists; every other notification is All. Actors are always Actors: their objects
-    // are replaced on every received world (the client changes its own actors locally).
+    // delta names its changed part lists and all replaced live actor projections, including journal healing.
+    // Full snapshots/composition changes use null part keys so consumers rebuild their dependent state.
     [Flags] public enum WorldChangeKind
     {
         None=0,

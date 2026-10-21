@@ -64,12 +64,15 @@ namespace Remains.Domain
         {
             LastVisited=0;
             if(world==null) {graph=null;actors.Clear();players.Clear();active.Clear();keys.Clear();buckets.Clear();levels.Clear();return;}
-            if(graph!=world || parts==null)
+            // Non-null parts are authoritative publication keys, including replacements caused by client
+            // reconciliation. Unlisted actors retain their live references across same-world replica roots.
+            if(graph==null || graph.worldId!=world.worldId || parts==null)
             {
                 graph=world;actors.Clear();players.Clear();active.Clear();keys.Clear();buckets.Clear();maxHalfWidth=0;
                 foreach(var actor in world.actors) {Add(actor);LastVisited++;}
                 SelectActive();return;
             }
+            graph=world;
             bool playerChanged=false;
             foreach(string part in parts)
             {

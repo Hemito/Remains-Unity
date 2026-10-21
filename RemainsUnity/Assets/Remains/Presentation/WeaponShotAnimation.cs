@@ -122,18 +122,30 @@ namespace Remains.Presentation
         }
         // Weapons in the hooves of the visible level's actors start loading their deferred frames (once per clip).
         private readonly Dictionary<string,WeaponReloadClip> reloads=new(StringComparer.Ordinal);
+        private string preloadedWorld,preloadedLevel;
         private void PreloadInSight()
         {
-            if(session.World==null || session.LocalActor==null || !session.LastChange.Any(WorldChangeKind.Actors)) return;
+            if(session.World==null || session.LocalActor==null) {preloadedWorld=preloadedLevel=null;return;}
             string visible=session.LocalActor.level;
-            foreach(var actor in session.World.actors)
+            bool same=preloadedWorld==session.World.worldId && preloadedLevel==visible;
+            preloadedWorld=session.World.worldId;preloadedLevel=visible;
+            if(same && !session.LastChange.Any(WorldChangeKind.Actors|WorldChangeKind.Identity)) return;
+            if(same && session.LastChangedParts!=null && !session.LastChange.Any(WorldChangeKind.Identity))
             {
-                if(actor.level!=visible || string.IsNullOrEmpty(actor.weapon)) continue;
-                if(byAttack.TryGetValue(actor.weapon,out var clip)) clip.source.Preload();
-                if(reloads.TryGetValue(actor.weapon,out var reload)) reload.Preload();
+                foreach(string part in session.LastChangedParts)
+                    if(part.StartsWith("actors:",StringComparison.Ordinal)) PreloadActor(session.World.Find(part.Substring(7)),visible);
+                return;
             }
+            foreach(var actor in session.World.actors)
+                PreloadActor(actor,visible);
         }
-        private void Stopped(){playing.Clear();seen.Clear();warnings.Clear();world=level=null;}
+        private void PreloadActor(ActorState actor,string visible)
+        {
+            if(actor==null || actor.level!=visible || string.IsNullOrEmpty(actor.weapon)) return;
+            if(byAttack.TryGetValue(actor.weapon,out var clip)) clip.source.Preload();
+            if(reloads.TryGetValue(actor.weapon,out var reload)) reload.Preload();
+        }
+        private void Stopped(){playing.Clear();seen.Clear();warnings.Clear();world=level=preloadedWorld=preloadedLevel=null;}
         private void Rejected(string id)
         {
             if(string.IsNullOrWhiteSpace(id))return;seen.Add(id);expired.Clear();

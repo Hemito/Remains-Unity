@@ -21,6 +21,7 @@ namespace Remains.Diagnostics
     public static class FrameHitchLog
     {
         public const double SlowMilliseconds=50;
+        public const string SectionTimingScope="Участки Section измеряют прошедшее время только главного потока. Вызовы с рабочих потоков (включая фоновый SHA-256 и запись сохранений) не учитываются; отсутствие участка не означает отсутствие фоновой работы. Это не измерение суммарного CPU всех потоков.";
         private const double SummarySeconds=10;
         private const int MaxSections=256;
 
@@ -143,6 +144,7 @@ namespace Remains.Diagnostics
             Directory.CreateDirectory(directory);
             path=System.IO.Path.Combine(directory,"frames-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".txt");
             pending.Append("# Журнал медленных кадров (>").Append(SlowMilliseconds).Append(" мс). Фазы Unity и участки кода в мс; gc — сборки мусора за кадр. Кадр — от TimeUpdate (ожидание видеокарты и предела кадров) до конца PostLateUpdate.\n");
+            pending.Append("# ").Append(SectionTimingScope).Append('\n');
             pending.Append("# ").Append(Application.version).Append(", ").Append(SystemInfo.processorType).Append(", ").Append(SystemInfo.graphicsDeviceName).Append('\n');
             InstallGpu();
             Application.quitting+=Flush;
@@ -172,7 +174,12 @@ namespace Remains.Diagnostics
 
         // Editor benches: sections are timed without the player loop, file or summaries; TakeSections reads and
         // clears the accumulated totals.
-        public static void MeasureOnly() {if(installed) return;frameThread=System.Threading.Thread.CurrentThread.ManagedThreadId;installed=true;toMs=1000.0/Stopwatch.Frequency;}
+        public static void MeasureOnly()
+        {
+            if(installed) return;
+            frameThread=System.Threading.Thread.CurrentThread.ManagedThreadId;installed=true;toMs=1000.0/Stopwatch.Frequency;
+            Debug.Log("Диагностика участков без PlayerLoop: "+SectionTimingScope);
+        }
         public static List<(string Name,double Milliseconds,int Calls)> TakeSections()
         {
             var result=new List<(string,double,int)>();

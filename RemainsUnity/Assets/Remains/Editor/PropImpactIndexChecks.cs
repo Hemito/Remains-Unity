@@ -31,6 +31,31 @@ namespace Remains.Editor
             int synchronized=index.LastSynchronized;
             var propOnly=new HashSet<string> {"props:unrelated"};index.Refresh(world,propOnly);
             Require(index.LastVisited==0,"Несвязанное событие пересобирает actor index");
+            // Replica publication replaces the root and only declared actor objects. The 5000 sleepers
+            // must stay untouched; a reconciliation-only actor replacement has the same addressing contract.
+            var next=new WorldState {worldId=world.worldId,actors=new List<ActorState>(world.actors)};
+            index.Refresh(next,new HashSet<string> {"props:unrelated","actorsExtra:moving"});
+            Require(index.LastVisited==0,"Новый корень или похожий префикс вызвал полный actor rebuild");
+            var replacement=StateJson.Copy(moving);replacement.x=12.2f;next.actors[1]=replacement;
+            index.Refresh(next,new HashSet<string> {"actors:moving"});
+            Require(index.LastVisited==1,"Замена одного actor обошла весь мир");
+            index.Query("l",new Rect(12,0,.5f,1),hits);
+            Require(hits.Contains(replacement) && !hits.Contains(moving),"Адресная замена оставила старую ссылку цели");
+            next.actors.RemoveAt(1);index.Refresh(next,new HashSet<string> {"actors:moving"});
+            index.Query("l",new Rect(12,0,.5f,1),hits);
+            Require(!hits.Contains(replacement),"Адресное удаление оставило цель в bucket");
+            next.actors.Insert(1,moving);index.Refresh(next,null);
+            Require(index.LastVisited>=next.actors.Count,"Null parts не пересобрал состав актёров");
+            var disconnected=StateJson.Copy(player);disconnected.connected=false;next.actors[0]=disconnected;
+            index.Refresh(next,new HashSet<string> {"actors:player"});
+            Require(!index.HasLevel("l"),"Отключение последнего игрока оставило активный уровень");
+            var connected=StateJson.Copy(player);next.actors[0]=connected;
+            index.Refresh(next,new HashSet<string> {"actors:player"});
+            Require(index.HasLevel("l"),"Возвращение игрока не восстановило активный уровень");
+            var other=new WorldState {actors=new List<ActorState> {player,moving}};
+            index.Refresh(other,new HashSet<string>());
+            Require(index.LastVisited>=other.actors.Count,"Другой worldId ошибочно принят за разреженное продолжение");
+            index.Refresh(world); // Restore the original fixture for repeated moving queries below.
             var area=new Rect(-4.5f,0,.5f,1);
             for(int i=0;i<1000;i++) {index.SynchronizeActive();index.Query("l",area,hits);Require(hits.Contains(moving),"Повтор запроса потерял actor");}
             Debug.Log($"PropImpactIndexChecks: PASS — 5002 actors, active synchronized={synchronized}, near candidates={index.LastVisited}; in-place crossing before Changed, inactive level excluded, unrelated event visits=0.");

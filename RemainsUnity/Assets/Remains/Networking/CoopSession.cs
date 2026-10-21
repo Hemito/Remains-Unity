@@ -233,7 +233,13 @@ namespace Remains.Networking
                 if(ServerWorld==null || !owners.ContainsKey(connection.connectionId)) return;
                 Debug.LogWarning($"Клиент запросил полный снимок: connection={connection.connectionId}, snapshot={request.snapshot}, причина: {request.reason}");
                 deliveredSnapshots.Remove(connection.connectionId);
-                if(recentSnapshots.Count>0) SendFullWorld(connection,recentSnapshots[recentSnapshots.Count-1]);
+                if(recentSnapshots.Count>0)
+                {
+                    // Framing may fail before Welcome. Replay the server-assigned admission identity then.
+                    if(string.IsNullOrEmpty(request.world) && owners.TryGetValue(connection.connectionId,out var owner) && playerIds.TryGetValue(owner,out var actor))
+                        SendFullWorld(connection,recentSnapshots[recentSnapshots.Count-1],owner,actor);
+                    else SendFullWorld(connection,recentSnapshots[recentSnapshots.Count-1]);
+                }
             }));
             NetworkServer.RegisterHandler<BackupAckMessage>(Remains.Networking.MessageTiming.Server<BackupAckMessage>((connection, ack) =>
             {
@@ -339,7 +345,12 @@ namespace Remains.Networking
             worldReplication.Forget();
             NetworkClient.RegisterHandler<WorldPartMessage>(Remains.Networking.MessageTiming.Client<WorldPartMessage>(message=>
             {
-                var received=worldReplication.Receive(message,()=>World);
+                var received=worldReplication.ReceiveAndPublish(message,()=>World,published=>
+                {
+                    // Canonical advance and runtime reconciliation share the failure/reset boundary.
+                    if(published.owner!=null) Welcome(new WelcomeMessage {owner=published.owner,actor=published.actor},published.snapshot);
+                    else ReceiveWorld(new WorldMessage(),published.snapshot,published.changes,published.changedParts,published.live,published.reusedActors,published.copyCanonicalActor,published.findBody);
+                });
                 if(received==null) return;
                 if(received.resync)
                 {
@@ -347,9 +358,6 @@ namespace Remains.Networking
                     NetworkClient.Send(new WorldResyncRequest {world=World?.worldId,snapshot=message.snapshot,reason=received.reason});
                     return;
                 }
-                // The verified snapshot is passed itself; its whole text is not needed here (built lazily for the save).
-                if(received.owner!=null) Welcome(new WelcomeMessage {owner=received.owner,actor=received.actor},received.snapshot);
-                else ReceiveWorld(new WorldMessage(),received.snapshot,received.changes,received.changedParts,received.live,received.reusedActors,received.copyCanonicalActor);
             }));
             clientActors.Clear();clientActorsReceived.Clear();
             NetworkClient.RegisterHandler<ActorMessage>(Remains.Networking.MessageTiming.Client<ActorMessage>(message =>
@@ -553,7 +561,7 @@ namespace Remains.Networking
         }
 
         private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null,WorldChangeKind changes=WorldChangeKind.All,IReadOnlyCollection<string> changedParts=null,
-            WorldState live=null,HashSet<string> reusedActors=null,Func<string,ActorState> copyCanonicalActor=null)
+            WorldState live=null,HashSet<string> reusedActors=null,Func<string,ActorState> copyCanonicalActor=null,Func<WorldState,string,PropState> findBody=null)
         {
             if(World==null || LocalActorId==null) throw new InvalidOperationException("Получен игровой снимок до фактического входа в мир.");
             using var timing=TransitionTiming.Measure("snapshot.apply",LocalActor?.level);
@@ -568,7 +576,12 @@ namespace Remains.Networking
             // Validate before motion/selection helpers can replace an incoming sample.
             foreach(var actor in incoming.actors)
                 if(!(reusedActors?.Contains(actor.id)??false))
-                WeaponRecoilReplication.Normalize(actor,Pause.Revision,Pause.IsPaused(actor.level),"снимок мира / входящий");
+                {
+                    // Consumer keys describe replaced live objects, including journal-only healing and lifetime changes.
+                    if(changedParts is HashSet<string> parts) parts.Add("actors:"+actor.id);
+                    changes|=WorldChangeKind.Actors;
+                    WeaponRecoilReplication.Normalize(actor,Pause.Revision,Pause.IsPaused(actor.level),"снимок мира / входящий");
+                }
             if(!sameWorld) WeaponRecoilReplication.NeutralizeWorld(incoming,Pause.Revision);
             bool publishHealing=false;
             if (World != null && World.worldId == incoming.worldId)
@@ -577,10 +590,23 @@ namespace Remains.Networking
                 // Unchanged delta bodies already are the live objects reused by WorldReplica.Fill.
                 if(changes.Any(WorldChangeKind.Containers|WorldChangeKind.Props))
                 {
-                    var localBodies=new Dictionary<string,PropState>(StringComparer.Ordinal);
-                    foreach(var prop in WorldProps.All(World)) localBodies[prop.id]=prop;
-                    foreach(var prop in WorldProps.All(incoming))
-                        PropReplication.PreserveNewerPose(localBodies.TryGetValue(prop.id,out var local)?local:null,prop,LocalOwner,PropImpacts.ClientImpulseEpoch);
+                    if(changedParts!=null && findBody!=null)
+                    {
+                        foreach(string key in changedParts)
+                        {
+                            if(!key.StartsWith("props:",StringComparison.Ordinal) && !key.StartsWith("containers:",StringComparison.Ordinal)) continue;
+                            var prop=findBody(incoming,key);
+                            if(prop==null) throw new InvalidOperationException("Нет изменённого физического тела: "+key);
+                            PropReplication.PreserveNewerPose(findBody(World,key),prop,LocalOwner,PropImpacts.ClientImpulseEpoch);
+                        }
+                    }
+                    else
+                    {
+                        var localBodies=new Dictionary<string,PropState>(StringComparer.Ordinal);
+                        foreach(var prop in WorldProps.All(World)) localBodies[prop.id]=prop;
+                        foreach(var prop in WorldProps.All(incoming))
+                            PropReplication.PreserveNewerPose(localBodies.TryGetValue(prop.id,out var local)?local:null,prop,LocalOwner,PropImpacts.ClientImpulseEpoch);
+                    }
                 }
                 // A full backup must not rewind locally-owned pose or an unacknowledged health change.
                 for(int actorIndex=0;actorIndex<incoming.actors.Count;actorIndex++)
@@ -705,7 +731,11 @@ namespace Remains.Networking
 
         private void AcceptRecoveryAck(int peer,BackupAckMessage ack,bool allowPending)
         {
-            if(!owners.ContainsKey(peer)) return;
+            if(!owners.ContainsKey(peer))
+            {
+                Debug.LogWarning($"Подтверждение снимка от клиента без назначенного владельца: клиент={peer}, снимок={ack.snapshot}, ревизия={ack.revision}.",this);
+                return;
+            }
             if(recoveryReceipts.Matches(ack.snapshot,ack.revision))
             {
                 backupRevisions[peer]=Math.Max(backupRevisions.GetValueOrDefault(peer),ack.revision);

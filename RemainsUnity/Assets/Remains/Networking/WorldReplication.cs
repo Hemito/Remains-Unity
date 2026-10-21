@@ -27,6 +27,7 @@ namespace Remains.Networking
         public WorldState live;
         public HashSet<string> reusedActors;
         public Func<string,ActorState> copyCanonicalActor;
+        public Func<WorldState,string,PropState> findBody;
         public string owner,actor;
         public bool resync;   // a delta could not be applied: ask the host for a full snapshot
         public WorldChangeKind changes=WorldChangeKind.All;   // a delta: its changed part lists, the skeleton and actors
@@ -81,10 +82,10 @@ namespace Remains.Networking
                 send(new WorldPartMessage {snapshot=snapshot,baseSnapshot=baseSnapshot,total=payload.Length,offset=offset,data=data});
             }
         }
-        // Actors and projectiles are always included: their objects are replaced on every applied delta (WorldReplica.Apply).
+        // Projectiles are rebuilt; actors only notify consumers when their live projection was replaced.
         private static WorldChangeKind Changes(WorldDeltaPayload payload)
         {
-            var kinds=WorldChangeKind.Skeleton|WorldChangeKind.Actors|WorldChangeKind.Projectiles;
+            var kinds=WorldChangeKind.Skeleton|WorldChangeKind.Projectiles;
             foreach(var list in payload.lists)
                 if((list.keys?.Length??0)>0 || list.order!=null) kinds|=WorldChangeKinds.ForList(list.name);
             return kinds;
@@ -101,6 +102,39 @@ namespace Remains.Networking
             return keys;
         }
         public ReceivedWorld Receive(WorldPartMessage message,Func<WorldState> current)
+        {
+            try {return ReceivePart(message,current);}
+            catch(Exception error) when(error is InvalidDataException || error is InvalidOperationException || error is DecoderFallbackException)
+            {return Reject(message,error);}
+        }
+        // Advancing the canonical replica and publishing its live projection form one admission boundary.
+        // A reconciliation/event failure must never leave the next delta based on an unpublished graph.
+        public ReceivedWorld ReceiveAndPublish(WorldPartMessage message,Func<WorldState> current,Action<ReceivedWorld> publish)
+        {
+            ReceivedWorld received=null;
+            try
+            {
+                received=Receive(message,current);
+                if(received!=null && !received.resync) publish(received);
+                return received;
+            }
+            catch(Exception error)
+            {
+                Forget();
+                // Admission owns a separate preparation/profile contract. A failed Welcome must abort loudly,
+                // not retry ordinary ReceiveWorld against partially assigned owner/actor state.
+                if(received?.owner!=null) throw;
+                if(error is InvalidDataException || error is InvalidOperationException || error is DecoderFallbackException)
+                    return Reject(message,error);
+                throw; // Unexpected programming failures remain visible; their replica is invalidated too.
+            }
+        }
+        private ReceivedWorld Reject(WorldPartMessage message,Exception error)
+        {
+            Forget();
+            return new ReceivedWorld {resync=true,reason=$"base={message.baseSnapshot}, snapshot={message.snapshot}, offset={message.offset}, total={message.total}: {error.Message}"};
+        }
+        private ReceivedWorld ReceivePart(WorldPartMessage message,Func<WorldState> current)
         {
             using var timing=TransitionTiming.Measure("snapshot.assemble",message.snapshot);
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Снимок: сборка частей (клиент)");
@@ -128,7 +162,7 @@ namespace Remains.Networking
                     var appliedReplica=replica;
                     using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: применение изменения (клиент)")) applied=appliedReplica.ApplyLive(payload,current(),out live,out reusedActors);
                     Remains.Diagnostics.FrameHitchLog.Note($"изменение мира: частей {WorldDelta.ChangedParts(payload)}, байт {bytes.Length}");
-                    return new ReceivedWorld {snapshot=applied,live=live,reusedActors=reusedActors,copyCanonicalActor=appliedReplica.CopyCanonicalActor,
+                    return new ReceivedWorld {snapshot=applied,live=live,reusedActors=reusedActors,copyCanonicalActor=appliedReplica.CopyCanonicalActor,findBody=appliedReplica.FindLiveBody,
                         owner=owned,actor=acting,changes=Changes(payload),changedParts=ChangedParts(payload)};
                 }
                 catch(Exception error) when (error is InvalidDataException || error is InvalidOperationException)

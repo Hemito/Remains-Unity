@@ -28,6 +28,7 @@ namespace Remains.Editor
 
         public static void Run()
         {
+            CheckSparsePartBuild();
             CheckDeltaTransport();
             string input=null;var args=Environment.GetCommandLineArgs();
             for(int i=0;i+1<args.Length;i++) if(args[i]=="-recoveryPerfWorld") input=args[i+1];
@@ -140,6 +141,28 @@ namespace Remains.Editor
 
             Debug.Log($"Изменения мира: PASS — A→B частей {changed}, {encoded.Length} символов вместо {b.Json.Length} " +
                 $"({100.0*encoded.Length/b.Json.Length:F1}%), сборка у хоста {composeMs:F1} мс, применение {applyMs:F1} мс, следующее {apply2Ms:F1} мс, сдвиг персонажа {actorBytes} символов; смена состава, отказ чужой базе.");
+        }
+
+        private static void CheckSparsePartBuild()
+        {
+            var keys=new string[4096];var texts=new string[keys.Length];
+            for(int i=0;i<keys.Length;i++) {keys[i]="containers:"+i;texts[i]="{\"id\":\""+i+"\",\"x\":0}";}
+            var before=new SnapshotPartCache.Composition("{}",new[]{new SnapshotPartCache.PartSet("containers",keys,texts)},keys.Length,0);
+            var afterTexts=(string[])texts.Clone();afterTexts[2048]="{\"id\":\"2048\",\"x\":1}";
+            var after=new SnapshotPartCache.Composition("{}",new[]{new SnapshotPartCache.PartSet("containers",(string[])keys.Clone(),afterTexts)},keys.Length,1);
+            var delta=WorldDelta.Build("world","base",before,"next",after);
+            Require(delta.lists[0].order==null && delta.lists[0].keys.SequenceEqual(new[]{keys[2048]}) &&
+                delta.lists[0].texts.SequenceEqual(new[]{afterTexts[2048]}),"Разреженное изменение контейнера потеряло позицию или текст.");
+            var unchanged=WorldDelta.Build("world","next",after,"same",after);
+            Require(unchanged.lists[0].order==null && unchanged.lists[0].keys.Length==0,"Неизменный список передан повторно.");
+            // Slow path: reorder, removal, new key; unchanged text must still be matched by key.
+            var reordered=new SnapshotPartCache.Composition("{}",new[]{new SnapshotPartCache.PartSet("containers",
+                new[]{keys[2048],keys[3],"containers:new"},new[]{afterTexts[2048],texts[3],"null"})},3,1);
+            var orderDelta=WorldDelta.Build("world","next",after,"reordered",reordered);
+            Require(orderDelta.lists[0].order.SequenceEqual(reordered.Lists[0].Keys) &&
+                orderDelta.lists[0].keys.SequenceEqual(new[]{"containers:new"}) && orderDelta.lists[0].texts.SequenceEqual(new[]{"null"}),
+                "Перестановка/удаление повторно передаёт неизменные части или теряет новую.");
+            Debug.Log("Разреженная дельта: PASS — 4096 контейнеров, одна изменённая часть, неизменный список, перестановка/удаление/добавление.");
         }
 
         private static void CheckDeltaTransport()

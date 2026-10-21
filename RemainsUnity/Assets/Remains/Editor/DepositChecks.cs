@@ -14,6 +14,7 @@ namespace Remains.Editor
          public string Rejection(DepositContext context)=>"Тест: контейнер не принимает предмет.";}
         public static void Run()
         {
+            CheckReconcileNotifications();
             var world=new WorldState();var source=new ActorState {id="donor",player=true,connected=true};
             world.actors.Add(source);var container=new ContainerState {x=0};world.containers.Add(container);
             var item=SharedInventory.Create("heal",5);source.inventory.Add(item);
@@ -57,6 +58,34 @@ namespace Remains.Editor
             }
             finally {if(Directory.Exists(directory)) Directory.Delete(directory,true);}
             UnityEngine.Debug.Log("DepositChecks PASS: резерв, отказ, журнал, перезапуск, commit/отмена и неизвестные поля.");
+        }
+        private static void CheckReconcileNotifications()
+        {
+            var root=new UnityEngine.GameObject("Проверка уведомлений внесения");
+            try
+            {
+                var session=root.AddComponent<Remains.Networking.CoopSession>();
+                var world=new WorldState();var actor=new ActorState {id="deposit-notifications",player=true,connected=true};world.actors.Add(actor);
+                typeof(Remains.Networking.CoopSession).GetProperty("World").SetValue(session,world);
+                typeof(Remains.Networking.CoopSession).GetProperty("LocalActorId").SetValue(session,actor.id);
+                var deposits=session.Deposits;int notifications=0;deposits.Reconciled+=()=>notifications++;
+                var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+                var changed=typeof(Remains.Networking.CoopSession).GetMethod("RaiseChanged",flags);
+                void Publish()=>changed.Invoke(session,new object[] {WorldChangeKind.Actors,null});
+                Publish();Require(notifications==0,"Пустое Changed дублирует уведомление внесения");
+                var requests=(System.Collections.Generic.Dictionary<string,Remains.Networking.DepositRequest>)typeof(Remains.Networking.SessionDeposits).GetField("requests",flags).GetValue(deposits);
+                requests.Add("proof",new Remains.Networking.DepositRequest {transaction="proof",item="stack",quantity=2});
+                Publish();Require(notifications==1 && actor.inventoryReservations["stack"]==2,"Pending не создал reservation/уведомление");
+                world.completedTransactions.Add("proof");Publish();
+                Require(notifications==2 && !deposits.Pending && actor.inventoryReservations.Count==0,"Журнальный proof не снял reservation/уведомление");
+                requests.Add("rejected",new Remains.Networking.DepositRequest {transaction="rejected",item="stack",quantity=2});
+                typeof(Remains.Networking.SessionDeposits).GetMethod("ReceiveReply",flags).Invoke(deposits,new object[] {new Remains.Networking.DepositReply {transaction="rejected",accepted=false,reason="Тестовый отказ"}});
+                Require(notifications==3 && !deposits.Pending,"Последний отказ с пустыми reservations потерял уведомление");
+                actor.inventoryReservations["stale"]=1;Publish();
+                Require(notifications==4 && actor.inventoryReservations.Count==0,"Устаревшая reservation не очищена/не опубликована");
+                Publish();Require(notifications==4,"Повторный пустой Changed вызвал уведомление");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
         }
         private static void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException("DepositChecks: "+reason);}
     }

@@ -404,6 +404,7 @@ namespace Remains.Runtime
 
         private void RefreshVisuals()
         {
+            using(Remains.Diagnostics.FrameHitchLog.Section("Представления: пассажиры"))
             passengers.Reconcile(Session.World,Session.LocalOwner);
             if (Session.World==null || Session.LocalActor==null)
             {
@@ -442,11 +443,14 @@ namespace Remains.Runtime
             travelPointVisuals.Bind(roomObject);
             var activeRoom=Geometry.Get(Session.LocalActor.level);
             if(ActiveLevelLighting==null) throw new System.InvalidOperationException("Нет света видимой локации: "+Session.LocalActor.level);
-            ActiveLevelLighting.Synchronize(activeRoom,Session.World,Geometry.OcclusionRevision(Session.LocalActor.level));
+            using(Remains.Diagnostics.FrameHitchLog.Section("Представления: свет"))
+                ActiveLevelLighting.Synchronize(activeRoom,Session.World,Geometry.OcclusionRevision(Session.LocalActor.level));
             roomPresentation.SetEntryPending(false);
             roomPresentation.SetContext(true,activeRoom);
             if(!ReferenceEquals(movement.Room,activeRoom)) movement=CreateMovement(activeRoom);
             cameraFollower.Room=activeRoom;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Представления: актёры и удаление"))
+            {
             foreach (var actor in Session.World.actors)
             {
                 if (!ActorPresence.IsPresent(actor) || actor.level!=Session.LocalActor.level) continue;
@@ -469,6 +473,8 @@ namespace Remains.Runtime
                 {pair.Value.SetVisible(false);Destroy(pair.Value.gameObject);removed.Add(pair.Key);}
             }
             foreach (var id in removed) visuals.Remove(id);
+            }
+            using(Remains.Diagnostics.FrameHitchLog.Section("Представления: слои"))
             visualLayers.Synchronize(Session.World,Session.LocalActor?.level);
         }
         private void BindEntryPresentation(IRoomLighting lighting,RoomLayout room,bool pending)

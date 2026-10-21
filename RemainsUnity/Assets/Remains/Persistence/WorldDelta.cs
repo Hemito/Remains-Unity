@@ -39,22 +39,26 @@ namespace Remains.Persistence
             foreach(var next in to.Lists)
             {
                 var previous=Array.Find(from.Lists,list=>list.Name==next.Name);
-                var before=new Dictionary<string,string>(StringComparer.Ordinal);
-                if(previous!=null) for(int i=0;i<previous.Keys.Length;i++) before[previous.Keys[i]]=previous.Texts[i];
-                var keys=new List<string>();var texts=new List<string>();
-                List<string> templates=null;List<string[]> cold=null;
-                Dictionary<string,ActorText.Pieces> basePieces=null;
-                if(next.Pieces!=null && previous?.Pieces!=null)
+                bool sameOrder=previous!=null && previous.Keys.Length==next.Keys.Length;
+                if(sameOrder) for(int i=0;i<next.Keys.Length && sameOrder;i++) sameOrder=previous.Keys[i]==next.Keys[i];
+                Dictionary<string,int> before=null;
+                if(previous!=null && !sameOrder)
                 {
-                    basePieces=new Dictionary<string,ActorText.Pieces>(StringComparer.Ordinal);
-                    for(int i=0;i<previous.Keys.Length;i++) if(previous.Pieces[i]!=null) basePieces[previous.Keys[i]]=previous.Pieces[i];
-                    templates=new List<string>();cold=new List<string[]>();
+                    before=new Dictionary<string,int>(previous.Keys.Length,StringComparer.Ordinal);
+                    for(int i=0;i<previous.Keys.Length;i++) before.Add(previous.Keys[i],i);
                 }
+                var keys=new List<string>();var texts=new List<string>();
+                bool actorPieces=next.Pieces!=null && previous?.Pieces!=null;
+                List<string> templates=actorPieces?new List<string>():null;
+                List<string[]> cold=actorPieces?new List<string[]>():null;
                 for(int i=0;i<next.Keys.Length;i++)
                 {
-                    if(before.TryGetValue(next.Keys[i],out var text) && text==next.Texts[i]) continue;
+                    int at=sameOrder?i:-1;
+                    if(!sameOrder && before!=null && before.TryGetValue(next.Keys[i],out int found)) at=found;
+                    if(at>=0 && previous.Texts[at]==next.Texts[i]) continue;
                     keys.Add(next.Keys[i]);
-                    if(basePieces!=null && next.Pieces[i]!=null && basePieces.TryGetValue(next.Keys[i],out var prior))
+                    var prior=actorPieces && at>=0?previous.Pieces[at]:null;
+                    if(prior!=null && next.Pieces[i]!=null)
                     {
                         var changed=new string[next.Pieces[i].Cold.Length];
                         for(int c=0;c<changed.Length;c++) changed[c]=next.Pieces[i].Cold[c]==prior.Cold[c]?null:next.Pieces[i].Cold[c];
@@ -62,8 +66,6 @@ namespace Remains.Persistence
                     }
                     else {texts.Add(next.Texts[i]);templates?.Add(null);cold?.Add(null);}
                 }
-                bool sameOrder=previous!=null && previous.Keys.Length==next.Keys.Length;
-                if(sameOrder) for(int i=0;i<next.Keys.Length && sameOrder;i++) sameOrder=previous.Keys[i]==next.Keys[i];
                 payload.lists.Add(new WorldDeltaList {name=next.Name,order=sameOrder?null:next.Keys,keys=keys.ToArray(),texts=texts.ToArray(),
                     templates=templates?.ToArray(),cold=cold?.ToArray()});
             }
@@ -103,8 +105,8 @@ namespace Remains.Persistence
         private Dictionary<string,(string text,ActorState actor)> canonicalActors=new(StringComparer.Ordinal);
         private sealed class Positions
         {
-            public readonly object[] Last;public readonly bool[] Changed;
-            public Positions(object[] last,bool[] changed) {Last=last;Changed=changed;}
+            public readonly object[] Last;public readonly HashSet<int> Changed;
+            public Positions(object[] last,HashSet<int> changed) {Last=last;Changed=changed;}
         }
 
         public static WorldReplica FromSnapshot(RecoverySnapshot snapshot)
@@ -133,6 +135,21 @@ namespace Remains.Persistence
 
         public ActorState CopyCanonicalActor(string id)=>id!=null && canonicalActors.TryGetValue("actors:"+id,out var entry)?ValidatedStateCopy.Copy(entry.actor):null;
 
+        // The verified canonical order supplies positions without rebuilding an index for every live root.
+        // A locally reordered list is still supported by the checked live-world index.
+        public PropState FindLiveBody(WorldState world,string key)
+        {
+            if(world==null || world.worldId!=WorldId || key==null) return null;
+            bool container=key.StartsWith("containers:",StringComparison.Ordinal);
+            string name=container?"containers":key.StartsWith("props:",StringComparison.Ordinal)?"props":null;
+            if(name==null || !lists.TryGetValue(name,out var list) || !list.Index.TryGetValue(key,out int at)) return null;
+            PropState body=container?(at<world.containers.Count?world.containers[at]:null):(at<world.props.Count?world.props[at]:null);
+            string id=key.Substring(name.Length+1);
+            if(body?.id==id) return body;
+            body=WorldProps.Find(world,id);
+            return body!=null && (body is ContainerState)==container?body:null;
+        }
+
         private RecoverySnapshot ApplyCore(WorldDeltaPayload payload,WorldState current,bool reuseActors,out WorldState live,out HashSet<string> reusedActors)
         {
             live=null;reusedActors=null;
@@ -141,7 +158,7 @@ namespace Remains.Persistence
                 throw new InvalidDataException($"Изменение мира от другой базы: ожидалась {SnapshotId}, получена {payload.baseSnapshot}, world={payload.world}.");
             var sets=new List<SnapshotPartCache.PartSet>();var nextLists=new Dictionary<string,List>(StringComparer.Ordinal);
             var changed=new HashSet<string>(StringComparer.Ordinal);
-            var changedAt=new Dictionary<string,bool[]>(StringComparer.Ordinal);   // same-order lists: changed positions
+            var changedAt=new Dictionary<string,HashSet<int>>(StringComparer.Ordinal);   // same-order lists: changed positions
             var verified=new HashSet<string>(StringComparer.Ordinal);   // changed actors already checked by pieces
             var parsedActors=new Dictionary<string,ActorState>(StringComparer.Ordinal);
             var nextPieces=new Dictionary<string,(ActorText.Pieces pieces,string text)>(actorPieces,StringComparer.Ordinal);
@@ -156,16 +173,16 @@ namespace Remains.Persistence
                 if(delta.order==null)
                 {
                     // Same keys in the same order: the changed texts replace theirs by position.
-                    var ordered=(string[])before.Texts.Clone();
-                    var at=new bool[ordered.Length];
+                    var ordered=count==0?before.Texts:(string[])before.Texts.Clone();
+                    var at=new HashSet<int>();
                     for(int i=0;i<count;i++)
                     {
                         if(!before.Index.TryGetValue(delta.keys[i],out int position))
                             throw new InvalidDataException("Изменение списка "+delta.name+": новая часть "+delta.keys[i]+" без нового порядка.");
-                        ordered[position]=delta.texts[i];at[position]=true;
+                        ordered[position]=delta.texts[i];at.Add(position);
                     }
                     changedAt[delta.name]=at;
-                    next=new List {Keys=before.Keys,Texts=ordered,Index=before.Index};
+                    next=count==0?before:new List {Keys=before.Keys,Texts=ordered,Index=before.Index};
                 }
                 else
                 {
@@ -288,11 +305,11 @@ namespace Remains.Persistence
             if(target.Capacity<set.Keys.Length) target.Capacity=set.Keys.Length;
             int prefix=set.Name.Length+1;
             Dictionary<string,T> byKey=null;
-            bool aligned=positions!=null && live!=null && positions.Last.Length==set.Keys.Length && positions.Changed.Length==set.Keys.Length;
+            bool aligned=positions!=null && live!=null && positions.Last.Length==set.Keys.Length;
             for(int i=0;i<set.Keys.Length;i++)
             {
                 // The object this replica put here last time, still in the live list at this position and unchanged.
-                if(aligned && !positions.Changed[i] && i<live.Count && live[i]!=null && ReferenceEquals(live[i],positions.Last[i]))
+                if(aligned && !positions.Changed.Contains(i) && i<live.Count && live[i]!=null && ReferenceEquals(live[i],positions.Last[i]))
                 {target.Add(live[i]);continue;}
                 string key=set.Keys[i];T item=null;
                 if(live!=null && !changed.Contains(key))
@@ -314,6 +331,10 @@ namespace Remains.Persistence
                 // A changed part is strictly parsed unless its pieces were already checked (actors by template).
                 target.Add(item??(changed.Contains(key) && !(verified?.Contains(key)??false)?StateJson.FromJson<T>(set.Texts[i]):StateJson.FromTrustedJson<T>(set.Texts[i])));
             }
+            // Preserve the positional cache when every output reference is unchanged.
+            bool identical=positions!=null && positions.Last.Length==target.Count;
+            for(int i=0;identical && i<target.Count;i++) identical=ReferenceEquals(positions.Last[i],target[i]);
+            if(identical) return positions.Last;
             var result=new object[target.Count];for(int i=0;i<result.Length;i++) result[i]=target[i];
             return result;
         }

@@ -23,12 +23,13 @@ namespace Remains.Networking
         public void RegisterClient()
         {
             requests.Clear();
-            NetworkClient.RegisterHandler<DepositReply>(Remains.Networking.MessageTiming.Client<DepositReply>(reply=>
-            {
-                if(!requests.ContainsKey(reply.transaction)) return;
-                if(!reply.accepted) {requests.Remove(reply.transaction);Reconcile();}
-                session.ShowNotice(reply.reason);
-            }));
+            NetworkClient.RegisterHandler<DepositReply>(Remains.Networking.MessageTiming.Client<DepositReply>(ReceiveReply));
+        }
+        private void ReceiveReply(DepositReply reply)
+        {
+            if(!requests.ContainsKey(reply.transaction)) return;
+            if(!reply.accepted) {requests.Remove(reply.transaction);Reconcile(true);}
+            session.ShowNotice(reply.reason);
         }
         public bool Request(string containerId,string itemId,int quantity=0)
             =>Send(new DepositRequest {container=containerId,item=itemId,quantity=quantity});
@@ -75,10 +76,13 @@ namespace Remains.Networking
             nextRetry=Time.unscaledTime+2;
             foreach(var request in requests.Values) NetworkClient.Send(request);
         }
-        private void Reconcile()
+        private void Reconcile()=>Reconcile(false);
+        private void Reconcile(bool forceNotification)
         {
             var actor=session.LocalActor;
             if(actor==null) {requests.Clear();Reconciled?.Invoke();return;}
+            // World subscribers already receive Changed; preserve explicit rejection notifications.
+            if(!forceNotification && requests.Count==0 && actor.inventoryReservations.Count==0) return;
             actor.inventoryReservations.Clear();
             foreach(var pair in requests.ToArray())
             {

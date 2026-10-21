@@ -13,6 +13,8 @@ namespace Remains.Gameplay
         private readonly SimulationGeometry geometry;
         private readonly Dictionary<string,NpcPerception> policies=new(StringComparer.Ordinal);
         private readonly Dictionary<string,float> elapsed=new(StringComparer.Ordinal);
+        private string reconciledWorld,reconciledOwner;
+        private bool initialized;
         public NpcSenses(CoopSession session,SimulationGeometry geometry)
         {
             this.session=session;this.geometry=geometry;
@@ -22,6 +24,21 @@ namespace Remains.Gameplay
         }
         private void Reconcile()
         {
+            string world=session.World?.worldId,owner=session.LocalOwner;
+            bool same=initialized && reconciledWorld==world && reconciledOwner==owner;
+            initialized=true;reconciledWorld=world;reconciledOwner=owner;
+            if(!same) elapsed.Clear();
+            if(same && session.World!=null && session.LastChangedParts!=null && !session.LastChange.Any(WorldChangeKind.Identity))
+            {
+                foreach(string part in session.LastChangedParts)
+                {
+                    if(!part.StartsWith("actors:",StringComparison.Ordinal)) continue;
+                    string id=part.Substring(7);var actor=session.World.Find(id);
+                    if(actor==null || actor.owner!=session.LocalOwner || actor.down) elapsed.Remove(id);
+                    PreparePolicy(actor);
+                }
+                return;
+            }
             var remove=new List<string>();
             foreach(var id in elapsed.Keys)
             {
@@ -31,11 +48,13 @@ namespace Remains.Gameplay
             foreach(var id in remove) elapsed.Remove(id);
             if(session.World==null) return;
             foreach(var actor in session.World.actors)
-                if(!actor.player && !policies.ContainsKey(actor.actorType))
-                {
-                    var definition=ActorTypes.Get(actor.actorType);
-                    if(definition.combatAi) policies.Add(definition.id,new NpcPerception(definition.perception));
-                }
+                PreparePolicy(actor);
+        }
+        private void PreparePolicy(ActorState actor)
+        {
+            if(actor==null || actor.player || policies.ContainsKey(actor.actorType)) return;
+            var definition=ActorTypes.Get(actor.actorType);
+            if(definition.combatAi) policies.Add(definition.id,new NpcPerception(definition.perception));
         }
         public void Step(ActorState actor,float dt)
         {

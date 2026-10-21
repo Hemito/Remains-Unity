@@ -27,6 +27,16 @@ namespace Remains.Editor
                 var room=new RoomLayout {left=-10,right=20,bottom=-.4f,top=5,platforms=new[]{floor},ladders=Array.Empty<RoomLadder>()};
                 var geometry=new SimulationGeometry(_=>room);
                 geometry.Reconcile(world);
+                // Construct during a sparse event that mentions only a player. The NPC's initial policy
+                // must still be prepared; exercise the ordinary Step rather than only inspecting the cache.
+                typeof(CoopSession).GetProperty("LastChange").SetValue(session,WorldChangeKind.Actors);
+                typeof(CoopSession).GetProperty("LastChangedParts").SetValue(session,new HashSet<string> {"actors:player"});
+                var initialSenses=new NpcSenses(session,geometry);
+                initialSenses.Step(npc,.1f);
+                Require(npc.perception.exposureSeconds>0,"Инициализация на sparse-событии пропустила политику NPC.");
+                npc.perception=new NpcPerceptionMemory();
+                typeof(CoopSession).GetProperty("LastChange").SetValue(session,WorldChangeKind.All);
+                typeof(CoopSession).GetProperty("LastChangedParts").SetValue(session,null);
                 var controller=new NpcController(session,geometry);
                 ((Dictionary<(string level,string type),MovementController>)typeof(NpcController).GetField("movement",BindingFlags.Instance|BindingFlags.NonPublic)
                     .GetValue(controller)).Add((npc.level,npc.actorType),new MovementController(room));
