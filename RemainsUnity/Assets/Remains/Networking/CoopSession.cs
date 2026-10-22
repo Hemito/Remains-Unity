@@ -183,6 +183,22 @@ namespace Remains.Networking
         // Delta replication (host-migration.md): the snapshot each connection holds, and the recent host snapshots
         // a delta can start from. A connection on another base gets a full snapshot.
         private readonly Dictionary<int,string> deliveredSnapshots=new();
+        private readonly ResyncLimit resyncLimit=new();
+        // Full-snapshot requests per connection within a sliding window.
+        private sealed class ResyncLimit
+        {
+            public const int Count=5;public const double WindowSeconds=60;
+            private readonly Dictionary<int,Queue<double>> times=new();
+            public bool Allow(int connection,double now)
+            {
+                if(!times.TryGetValue(connection,out var queue)) times[connection]=queue=new Queue<double>();
+                while(queue.Count>0 && now-queue.Peek()>WindowSeconds) queue.Dequeue();
+                if(queue.Count>=Count) return false;
+                queue.Enqueue(now);return true;
+            }
+            public void Forget(int connection)=>times.Remove(connection);
+            public void Clear()=>times.Clear();
+        }
         private readonly List<RecoverySnapshot> recentSnapshots=new();
         private const int RecentSnapshotsKept=4;
         private OwnershipService ownership = new();
@@ -205,7 +221,7 @@ namespace Remains.Networking
                 return NetworkServer.connections.TryGetValue(recipient.Key,out var connection)?connection:null;
             });
             serverPoses.Clear();
-            backupRevisions.Clear();recoveryReceipts.Clear();pendingRecoveryAcks.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();
+            backupRevisions.Clear();recoveryReceipts.Clear();pendingRecoveryAcks.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();resyncLimit.Clear();
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();Mines.RegisterServer();Hazards.RegisterServer();
@@ -231,7 +247,15 @@ namespace Remains.Networking
             NetworkServer.RegisterHandler<ReviveMessage>(Remains.Networking.MessageTiming.Server<ReviveMessage>(Revive));
             NetworkServer.RegisterHandler<WorldResyncRequest>(Remains.Networking.MessageTiming.Server<WorldResyncRequest>((connection,request)=>
             {
-                if(ServerWorld==null || !owners.ContainsKey(connection.connectionId)) return;
+                if(ServerWorld==null) return;
+                if(!owners.ContainsKey(connection.connectionId))
+                {Debug.LogWarning($"Запрос полного снимка от неподключённого игрока отклонён: connection={connection.connectionId}, snapshot={request.snapshot}.");return;}
+                // A client that keeps failing the same data would make every broadcast a full snapshot: bound it.
+                if(!resyncLimit.Allow(connection.connectionId,Time.unscaledTimeAsDouble))
+                {
+                    Debug.LogError($"Клиент слишком часто запрашивает полный снимок ({ResyncLimit.Count} за {ResyncLimit.WindowSeconds} с), соединение закрыто: connection={connection.connectionId}, snapshot={request.snapshot}, причина: {request.reason}");
+                    connection.Disconnect();return;
+                }
                 Debug.LogWarning($"Клиент запросил полный снимок: connection={connection.connectionId}, snapshot={request.snapshot}, причина: {request.reason}");
                 deliveredSnapshots.Remove(connection.connectionId);
                 if(recentSnapshots.Count>0)
@@ -370,12 +394,24 @@ namespace Remains.Networking
             worldReplication.Forget();
             NetworkClient.RegisterHandler<WorldPartMessage>(Remains.Networking.MessageTiming.Client<WorldPartMessage>(message=>
             {
-                var received=worldReplication.ReceiveAndPublish(message,()=>World,published=>
+                ReceivedWorld received;
+                try
                 {
-                    // Canonical advance and runtime reconciliation share the failure/reset boundary.
-                    if(published.owner!=null) Welcome(new WelcomeMessage {owner=published.owner,actor=published.actor},published.snapshot);
-                    else ReceiveWorld(new WorldMessage(),published.snapshot,published.changes,published.changedParts,published.live,published.reusedActors,published.copyCanonicalActor,published.findBody);
-                });
+                    received=worldReplication.ReceiveAndPublish(message,()=>World,published=>
+                    {
+                        // Canonical advance and runtime reconciliation share the failure/reset boundary.
+                        if(published.owner!=null) Welcome(new WelcomeMessage {owner=published.owner,actor=published.actor},published.snapshot);
+                        else ReceiveWorld(new WorldMessage(),published.snapshot,published.changes,published.changedParts,published.live,published.reusedActors,published.copyCanonicalActor,published.findBody);
+                    });
+                }
+                catch(Exception failure) when(WorldReplication.IsPublishFailure(failure))
+                {
+                    // Not repairable by a resync (admission or an unexpected error): stop loudly, never loop full snapshots.
+                    Debug.LogError($"Принятый мир не опубликован, сессия остановлена: snapshot={failure.Data[WorldReplication.PublishFailureKey]}. {failure}");
+                    ShowNotice("Ошибка применения мира. Сессия остановлена; подробности — в журнале игры.");
+                    if(NetworkServer.active) StopHost();else if(NetworkClient.active) StopClient();
+                    return;
+                }
                 if(received==null) return;
                 if(received.resync)
                 {
@@ -535,7 +571,7 @@ namespace Remains.Networking
             Lobby.Disconnected(connection.connectionId);EntryPreparation.Disconnected(connection.connectionId);
             if (owners.Remove(connection.connectionId, out string owner))
             {
-                backupRevisions.Remove(connection.connectionId);pendingRecoveryAcks.Remove(connection.connectionId);deliveredSnapshots.Remove(connection.connectionId);
+                backupRevisions.Remove(connection.connectionId);pendingRecoveryAcks.Remove(connection.connectionId);deliveredSnapshots.Remove(connection.connectionId);resyncLimit.Forget(connection.connectionId);
                 RecoveryPeerLeft?.Invoke(connection.connectionId);
                 var actor = ServerWorld.Find(playerIds[owner]);
                 ActorSessionRules.Disconnect(actor);

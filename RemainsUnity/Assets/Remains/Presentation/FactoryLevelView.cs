@@ -95,7 +95,45 @@ namespace Remains.Presentation
         public void PrepareActorShadowFields(IReadOnlyCollection<string> ids)
         {
             requestedShadowIds.Clear();foreach(string id in ids) requestedShadowIds.Add(id);
-            if(IsReady) field.PrepareSteadyShadowFields(ids);
+            if(!IsReady) return;
+            // Nothing to build (only unused fields to release): immediate and cheap.
+            if(field.HasRequiredSteadyFields(requestedShadowIds)) {StopShadowFieldWork();field.PrepareSteadyShadowFields(requestedShadowIds);return;}
+            // Missing direct fields (a new window's lamps): one build stage per frame, never a whole cascade set in
+            // one frame. Until a field lands, its lamp casts no actor shadow (TryGetSteadyShadowField is false).
+            if(shadowFieldWork!=null && ReferenceEquals(shadowFieldOwner,field) && shadowFieldIds.SetEquals(requestedShadowIds)) return;
+            StopShadowFieldWork();
+            shadowFieldOwner=field;shadowFieldIds.Clear();shadowFieldIds.UnionWith(requestedShadowIds);
+            shadowFieldSteps=field.PrepareSteadyShadowFieldsSteps(new List<string>(shadowFieldIds));
+            shadowFieldWork=StartCoroutine(RunShadowFieldWork(shadowFieldOwner,shadowFieldSteps));
+        }
+        private Coroutine shadowFieldWork;
+        private System.Collections.IEnumerator shadowFieldSteps;
+        private RoomRadianceField shadowFieldOwner;
+        private readonly HashSet<string> shadowFieldIds=new(StringComparer.Ordinal);
+        private System.Collections.IEnumerator RunShadowFieldWork(RoomRadianceField owner,System.Collections.IEnumerator steps)
+        {
+            while(true)
+            {
+                if(!ReferenceEquals(owner,field) || !IsReady) break;   // the window changed: its field is no longer ours
+                bool more;
+                try {using(Remains.Diagnostics.FrameHitchLog.Section("Свет: поле прямого света для теней (по кадрам)")) more=steps.MoveNext();}
+                catch(Exception error)
+                {
+                    Debug.LogError($"Поля прямого света для теней не построены: окно {windowRooms}, источников {shadowFieldIds.Count}. {error}",this);
+                    break;
+                }
+                if(!more) break;
+                yield return null;
+            }
+            (steps as IDisposable)?.Dispose();
+            if(ReferenceEquals(shadowFieldSteps,steps)) {shadowFieldSteps=null;shadowFieldWork=null;shadowFieldOwner=null;}
+        }
+        // StopCoroutine does not dispose the nested iterator: release its unfinished texture explicitly.
+        private void StopShadowFieldWork()
+        {
+            if(shadowFieldWork!=null) StopCoroutine(shadowFieldWork);
+            var steps=shadowFieldSteps;shadowFieldWork=null;shadowFieldSteps=null;shadowFieldOwner=null;
+            (steps as IDisposable)?.Dispose();
         }
         public IReadOnlyList<LampState> LampPlacements=>lampPlacements;
         public string LampWorldLevel=>root is HubTemplateLevel?"hub":root?.Level;
@@ -404,6 +442,17 @@ namespace Remains.Presentation
             finally {(steps as IDisposable)?.Dispose();}
         }
 
+        // A failed candidate (budget, resource creation) never takes down the active window: the level keeps its
+        // light, the failure is reported with its stack and that window is not retried for a while.
+        private const float FailedCandidateRetrySeconds=5;
+        private RectInt failedCandidate=new(-1,-1,0,0);
+        private float failedCandidateUntil;
+        private void CandidateFailed(RectInt rooms,Exception failure)
+        {
+            failedCandidate=rooms;failedCandidateUntil=Time.unscaledTime+FailedCandidateRetrySeconds;
+            Debug.LogWarning($"Окно света {rooms}: подготовка не удалась, активное окно {windowRooms} сохранено, повтор через {FailedCandidateRetrySeconds} с. {failure}",this);
+        }
+
         public void RequestLightWindow(Vector2 focus,bool commit,RectInt? predictedRooms=null)
         {
             if(!IsReady) return;
@@ -411,6 +460,7 @@ namespace Remains.Presentation
             if(rooms.width!=windowRooms.width || rooms.height!=windowRooms.height || rooms.x<0 || rooms.y<0 || rooms.xMax>roomsWide || rooms.yMax>roomsDeep)
                 throw new ArgumentException("Окно света: прогноз вне границ уровня.");
             if(rooms==windowRooms) {if(commit) CancelWindowPreparation();return;}
+            if(rooms==failedCandidate && Time.unscaledTime<failedCandidateUntil) return;
             requestedWindow=rooms;requestedFocus=focus;requestedCommit=commit;windowRequested=true;
             if(candidateWindow!=null && (candidateWindow.Rooms!=rooms || !candidateWindow.Matches(AppliedDoorRevision,AppliedLampRevision)))
                 CancelWindowPreparation();
@@ -458,7 +508,7 @@ namespace Remains.Presentation
                 if(failure!=null)
                 {
                     context.Dispose();candidateWindow=null;preparingWindow=null;preparationWork=null;windowRequested=false;
-                    ReportFailure(failure);yield break;
+                    CandidateFailed(context.Rooms,failure);yield break;
                 }
                 if(!context.Ready || !context.Matches(AppliedDoorRevision,AppliedLampRevision) || !PictureStateMatches(context))
                 {context.Dispose();candidateWindow=null;continue;}
@@ -483,7 +533,7 @@ namespace Remains.Presentation
                     if(extraFailure!=null)
                     {
                         context.Dispose();candidateWindow=null;preparingWindow=null;preparationWork=null;windowRequested=false;
-                        ReportFailure(extraFailure);yield break;
+                        CandidateFailed(context.Rooms,extraFailure);yield break;
                     }
                     if(!context.Matches(AppliedDoorRevision,AppliedLampRevision) || !PictureStateMatches(context)) break;
                     if(!requestedCommit || !context.Field.HasRequiredSteadyFields(requestedShadowIds)) continue;
@@ -759,6 +809,7 @@ namespace Remains.Presentation
 
         public void Release()
         {
+            StopShadowFieldWork();
             CancelWindowPreparation();
             DestroyWindow();
             if(terrain!=null) Destroy(terrain);

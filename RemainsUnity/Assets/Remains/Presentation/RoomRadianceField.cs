@@ -75,6 +75,14 @@ namespace Remains.Presentation
         public void PrepareSteadyShadowFields(IReadOnlyCollection<string> ids)
         {using(Remains.Diagnostics.FrameHitchLog.Section("Свет: поля прямого света для теней")) steadyShadows.Prepare(ids,BuildSteadyDirect);hasBackgroundSignature=false;}
 
+        // The same fields as PrepareSteadyShadowFields, one build stage per MoveNext (the caller spreads them over frames).
+        public IEnumerator PrepareSteadyShadowFieldsSteps(IReadOnlyCollection<string> ids)
+        {
+            var steps=steadyShadows.PrepareSteps(ids,BuildSteadyDirectSteps);
+            try {while(steps.MoveNext()) {hasBackgroundSignature=false;yield return null;}}
+            finally {(steps as IDisposable)?.Dispose();}
+            hasBackgroundSignature=false;
+        }
         public bool HasRequiredSteadyFields(IReadOnlyCollection<string> ids)
         {
             foreach(string id in ids) if(steadyShadows.IsRegistered(id) && !steadyShadows.TryGet(id,out _)) return false;

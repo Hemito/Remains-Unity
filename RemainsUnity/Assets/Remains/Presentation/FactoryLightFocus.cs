@@ -13,6 +13,10 @@ namespace Remains.Presentation
         private bool hasPosition;
         private const float PrefetchSeconds=4f;
         private const float TargetHysteresisSeconds=.2f;
+        // The staged candidate restarts on every door/lamp revision of the level; the camera must not stay in rooms
+        // without light/art indefinitely: after this long outside the active window it is built synchronously.
+        private const float OutsideWindowDeadlineSeconds=2f;
+        private float outsideSince=-1;
         private readonly LightWindowPrefetchGate prefetchGate=new();
         public void Configure(FactoryLevelView source)=>view=source;
         public void Bind(Camera source)
@@ -27,9 +31,19 @@ namespace Remains.Presentation
             requested=camera.transform.position;
             Vector2 velocity=hasPosition && Time.unscaledDeltaTime>0?(requested-previousPosition)/Time.unscaledDeltaTime:Vector2.zero;
             previousPosition=requested;hasPosition=true;
-            if(view.WindowFor(requested)!=view.LightWindowRooms) view.RequestLightWindow(requested,true);
+            if(view.WindowFor(requested)!=view.LightWindowRooms)
+            {
+                if(outsideSince<0) outsideSince=Time.unscaledTime;
+                if(Time.unscaledTime-outsideSince>OutsideWindowDeadlineSeconds)
+                {
+                    Debug.LogWarning($"Окно света: камера {OutsideWindowDeadlineSeconds} с вне подготовленного окна {view.LightWindowRooms} (цель {view.WindowFor(requested)}); поэтапная подготовка не успела, окно строится сразу.",this);
+                    outsideSince=-1;view.Focus(requested);return;
+                }
+                view.RequestLightWindow(requested,true);
+            }
             else
             {
+                outsideSince=-1;
                 view.DeferLightWindowSwitch();
                 Vector2 predicted=requested+Vector2.ClampMagnitude(velocity*PrefetchSeconds,24);
                 var current=view.LightWindowRooms;var target=view.WindowFor(predicted);
@@ -45,6 +59,6 @@ namespace Remains.Presentation
                 // A stable different target replaces it after hysteresis; level/revision/disabling cancel explicitly.
             }
         }
-        private void OnDisable() {hasPosition=false;prefetchGate.Reset();if(view!=null) view.CancelWindowPreparation();}
+        private void OnDisable() {hasPosition=false;outsideSince=-1;prefetchGate.Reset();if(view!=null) view.CancelWindowPreparation();}
     }
 }

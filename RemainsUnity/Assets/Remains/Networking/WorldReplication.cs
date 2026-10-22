@@ -111,24 +111,39 @@ namespace Remains.Networking
         // A reconciliation/event failure must never leave the next delta based on an unpublished graph.
         public ReceivedWorld ReceiveAndPublish(WorldPartMessage message,Func<WorldState> current,Action<ReceivedWorld> publish)
         {
-            ReceivedWorld received=null;
-            try
-            {
-                received=Receive(message,current);
-                if(received!=null && !received.resync) publish(received);
-                return received;
-            }
+            ReceivedWorld received;
+            try {received=Receive(message,current);}
             catch(Exception error)
             {
                 Forget();
-                // Admission owns a separate preparation/profile contract. A failed Welcome must abort loudly,
-                // not retry ordinary ReceiveWorld against partially assigned owner/actor state.
-                if(received?.owner!=null) throw;
+                // Damaged or mismatched data: a full snapshot repairs it.
                 if(error is InvalidDataException || error is InvalidOperationException || error is DecoderFallbackException)
                     return Reject(message,error);
                 throw; // Unexpected programming failures remain visible; their replica is invalidated too.
             }
+            if(received==null || received.resync) return received;
+            try {publish(received);}
+            catch(Exception error)
+            {
+                Forget();
+                // Reconciliation conflicts (an ordinary update) may be transient: a full snapshot can repair them. The
+                // full exception is logged here (only its message travels as the reason); the host bounds repeated
+                // requests per connection, so a persistent failure ends the connection instead of looping.
+                // A failed admission (Welcome) or an unexpected exception type is a session failure.
+                if(received.owner==null && (error is InvalidDataException || error is InvalidOperationException))
+                {
+                    UnityEngine.Debug.LogWarning($"Публикация принятого мира не удалась, запрашивается полный снимок: snapshot={message.snapshot}. {error}");
+                    return Reject(message,error);
+                }
+                // The original exception propagates (its type and stack); the mark tells the session to stop.
+                error.Data[PublishFailureKey]=message.snapshot;
+                throw;
+            }
+            return received;
         }
+        // Exception.Data key on a publish failure that a resync cannot repair (the session must stop).
+        public const string PublishFailureKey="remains.world-publish-failed";
+        public static bool IsPublishFailure(Exception error)=>error.Data.Contains(PublishFailureKey);
         private ReceivedWorld Reject(WorldPartMessage message,Exception error)
         {
             Forget();
