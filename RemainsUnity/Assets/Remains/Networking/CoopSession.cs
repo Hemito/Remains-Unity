@@ -311,11 +311,24 @@ namespace Remains.Networking
             GrenadeRules.BeginSession(ServerWorld);SessionMines.BeginSession(ServerWorld);
             recoveredActors.Clear();
             using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: позиции актёров"))
-            foreach(var actor in ServerWorld.actors)
             {
-                var room=RoomLayout.Load(actor.level,ServerWorld);
-                Remains.Gameplay.PlatformSimulation.RestoreSupport(ServerWorld,room,actor.level,LevelTime.ReadServer(actor.level));
-                if(SavedActorPlacement.Repair(actor,room,"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
+                // One explicit geometry/support source per level for this load only. Every actor still
+                // repairs in original list order, against supports restored at that level's saved clock.
+                var placementRooms=new Dictionary<string,RoomLayout>(StringComparer.Ordinal);
+                foreach(var actor in ServerWorld.actors)
+                {
+                    if(!placementRooms.TryGetValue(actor.level,out var room))
+                    {
+                        using(Remains.Diagnostics.FrameHitchLog.Section("Позиции актёров: загрузка уровня"))
+                            room=RoomLayout.Load(actor.level,ServerWorld);
+                        using(Remains.Diagnostics.FrameHitchLog.Section("Позиции актёров: восстановление платформ"))
+                            Remains.Gameplay.PlatformSimulation.RestoreSupport(ServerWorld,room,actor.level,LevelTime.ReadServer(actor.level));
+                        placementRooms.Add(actor.level,room);
+                    }
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Позиции актёров: проверка актёра"))
+                        if(SavedActorPlacement.Repair(actor,room,"загрузка мира "+ServerWorld.worldId)) recoveredActors.Add(actor.id);
+                }
+                Remains.Diagnostics.FrameHitchLog.Note($"Восстановление позиций: world={ServerWorld.worldId}, actors={ServerWorld.actors.Count}, preparedLevels={placementRooms.Count}, repaired={recoveredActors.Count}.");
             }
             if(recoveredActors.Count>0)
             {
