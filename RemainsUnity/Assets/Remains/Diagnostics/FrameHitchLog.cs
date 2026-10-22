@@ -101,7 +101,7 @@ namespace Remains.Diagnostics
         private static bool frameTimings;
         private static ulong lastTimingStamp;
         private static double periodGpuMax;
-        private static int periodGpuSlow;
+        private static int periodGpuSlow,periodGpuSamples;
 
         private static string note;
         // Extra detail for the current frame's line (e.g. what changed in a snapshot); kept only if the frame is slow.
@@ -165,6 +165,9 @@ namespace Remains.Diagnostics
             }
             }
             frameTimings=FrameTimingManager.IsFeatureEnabled();
+            pending.Append("# FrameTiming clock Hz: CPU=").Append(FrameTimingManager.GetCpuTimerFrequency())
+                .Append(", GPU=").Append(FrameTimingManager.GetGpuTimerFrequency())
+                .Append(" (0 — частота недоступна). Timestamp ниже — необработанные CPU clock ticks; не Stopwatch ticks. Последние завершённые записи не сопоставлены текущему кадру журнала; времена CPU включают ожидания.\n");
             pending.Append("# Видеокарта: ").Append(SystemInfo.graphicsDeviceType).Append(", время кадров видеокарты ")
                 .Append(frameTimings?"измеряется":"недоступно (FrameTimingManager выключен или не поддержан)")
                 .Append(counters==null?", счётчики отрисовки Unity только в отладочной сборке":missing.Count==0?"":", недоступные счётчики: "+string.Join(", ",missing)).Append('\n');
@@ -287,6 +290,8 @@ namespace Remains.Diagnostics
             if(FrameTimingManager.GetLatestTimings(1,timings)==0 || timings[0].frameStartTimestamp==lastTimingStamp) return;
             lastTimingStamp=timings[0].frameStartTimestamp;
             double gpu=timings[0].gpuFrameTime;
+            if(double.IsNaN(gpu) || double.IsInfinity(gpu) || gpu<=0) return;
+            periodGpuSamples++;
             if(gpu>periodGpuMax) periodGpuMax=gpu;
             if(gpu>SlowMilliseconds) periodGpuSlow++;
         }
@@ -297,14 +302,43 @@ namespace Remains.Diagnostics
             if(frameTimings)
             {
                 uint count=FrameTimingManager.GetLatestTimings((uint)timings.Length,timings);
-                line.Append(" время последних кадров");
-                for(int i=0;i<count;i++) line.Append(' ').Append(timings[i].gpuFrameTime.ToString("F1"));
-                line.Append(" мс;");
+                line.Append(" последние завершённые FrameTiming (без привязки к текущему кадру):");
+                if(count==0) line.Append(" записи недоступны;");
+                for(int i=0;i<count;i++)
+                {
+                    var timing=timings[i];
+                    line.Append(" [frameStartTimestamp=").Append(timing.frameStartTimestamp)
+                        .Append(", cpuTimePresentCalled=").Append(timing.cpuTimePresentCalled)
+                        .Append(", cpuTimeFrameComplete=").Append(timing.cpuTimeFrameComplete)
+                        .Append(", firstSubmitTimestamp=").Append(timing.firstSubmitTimestamp)
+                        .Append(", cpuFrameTime=").Append(timing.cpuFrameTime.ToString("F2"))
+                        .Append(", cpuMainThreadFrameTime=").Append(timing.cpuMainThreadFrameTime.ToString("F2"))
+                        .Append(", cpuMainThreadPresentWaitTime=").Append(timing.cpuMainThreadPresentWaitTime.ToString("F2"))
+                        .Append(", cpuRenderThreadFrameTime=").Append(timing.cpuRenderThreadFrameTime.ToString("F2"))
+                        .Append(", gpuFrameTime=");
+                    double gpu=timing.gpuFrameTime;
+                    if(double.IsNaN(gpu) || double.IsInfinity(gpu) || gpu<=0) line.Append("недоступно/невалидно (").Append(gpu).Append(')');
+                    else line.Append(gpu.ToString("F2"));
+                    line.Append(" мс, syncInterval=").Append(timing.syncInterval).Append("];");
+                }
             }
+            else line.Append(" FrameTiming недоступен;");
             AppendCalls(line," наше в этом кадре",gpuCalls);AppendCalls(line," наше в прошлом",previousGpuCalls);
             if(counters==null) return;
             AppendCounters(line," этот кадр",counterValues);AppendCounters(line," прошлый",previousCounterValues);
         }
+        // Read actual current settings only when an existing diagnostic record is written (not during Install).
+        private static void AppendPresentationState(StringBuilder line)
+        {
+            var display=Screen.currentResolution;var refresh=display.refreshRateRatio;
+            line.Append(" | настройки сейчас: targetFps=").Append(Application.targetFrameRate)
+                .Append(", vsync=").Append(QualitySettings.vSyncCount).Append(", batch=").Append(Application.isBatchMode)
+                .Append(", focus=").Append(Application.isFocused).Append(", API=").Append(SystemInfo.graphicsDeviceType)
+                .Append(", device=").Append(SystemInfo.graphicsDeviceName).Append(", окно=").Append(Screen.width).Append('×').Append(Screen.height)
+                .Append(", display=").Append(display.width).Append('×').Append(display.height)
+                .Append(", refresh=").Append(refresh.numerator).Append('/').Append(refresh.denominator).Append(" Hz");
+        }
+
         private static void AppendCalls(StringBuilder line,string label,int[] calls)
         {
             line.Append(label).Append(':');bool any=false;
@@ -336,6 +370,7 @@ namespace Remains.Diagnostics
             int gc=GC.CollectionCount(0)-gcAtFrameStart;
             if(gc>0) line.Append(" | gc ").Append(gc);
             if(note!=null) line.Append(" | ").Append(note);
+            AppendPresentationState(line);
             AppendGpu(line);
             if(!string.IsNullOrEmpty(Context)) line.Append(" | ").Append(Context);
             line.Append('\n');
@@ -352,8 +387,9 @@ namespace Remains.Diagnostics
                 .Append(", медленных ").Append(periodFrames.FindAll(f=>f>SlowMilliseconds).Count)
                 .Append(", сборок мусора ").Append(GC.CollectionCount(0)-gcAtPeriodStart)
                 .Append(", память ").Append((GC.GetTotalMemory(false)/1048576.0).ToString("F0")).Append(" МБ")
-                .Append(frameTimings?", видеокарта макс "+periodGpuMax.ToString("F1")+" мс, кадров видеокарты >"+SlowMilliseconds+" мс "+periodGpuSlow:"")
+                .Append(periodGpuSamples>0?", видеокарта макс "+periodGpuMax.ToString("F1")+" мс, валидных завершённых записей "+periodGpuSamples+", записей >"+SlowMilliseconds+" мс "+periodGpuSlow:", GPU-время недоступно/невалидно: нет положительных конечных завершённых записей")
                 .Append(string.IsNullOrEmpty(Context)?"":" | "+Context).Append('\n');
+            pending.Append("   ");AppendPresentationState(pending);pending.Append('\n');
             // Steady load: the costliest own sections per frame over the period (Unity phases excluded).
             var order=new List<int>();
             for(int i=0;i<sectionIndex.Count;i++) if(periodSectionMs[i]>0 && sectionNames[i].IndexOf('.')<0) order.Add(i);
@@ -371,7 +407,7 @@ namespace Remains.Diagnostics
                 pending.Append(' ').Append(sectionNames[engine[k]]).Append(' ').Append((periodSectionMs[engine[k]]/Math.Max(1,n)).ToString("F2")).Append(';');
             pending.Append('\n');
             Array.Clear(periodSectionMs,0,periodSectionMs.Length);
-            periodFrames.Clear();periodStart=time;gcAtPeriodStart=GC.CollectionCount(0);periodGpuMax=0;periodGpuSlow=0;
+            periodFrames.Clear();periodStart=time;gcAtPeriodStart=GC.CollectionCount(0);periodGpuMax=0;periodGpuSlow=0;periodGpuSamples=0;
         }
 
         private static void Flush()
