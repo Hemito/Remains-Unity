@@ -39,23 +39,24 @@ namespace Remains.Content
                 return;
             }
             // Create validates the stored selection and content before replacing a source.
-            var root=FactoryLevelRoot.Create(world,level);
+            FactoryLevelRoot root;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: создание корня")) root=FactoryLevelRoot.Create(world,level);
             try
             {
                 root.name=$"Подготовленные данные {world.worldId}: {level}";
                 root.gameObject.SetActive(false);
-                root.InstantiateRooms();
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: инстансы комнат")) root.InstantiateRooms();
                 if(!root.TryGetComponent<FactoryDoorAdapter>(out var doors))
                     throw new InvalidOperationException("Нет сериализованного адаптера дверей корня: "+level);
-                doors.Install(root);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: двери")) doors.Install(root);
                 if(!root.TryGetComponent<FactoryPropAdapter>(out var props))
                     throw new InvalidOperationException("Нет сериализованного адаптера физических объектов корня: "+level);
-                props.Install(root);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: тела")) props.Install(root);
                 if(!root.TryGetComponent<FactoryContainerAdapter>(out var containers))throw new InvalidOperationException("Нет сериализованного адаптера контейнеров завода: "+level);
-                containers.Install(root,world);
-                FactoryMineAdapter.Install(root);
-                FactoryHazardAdapter.Install(root);
-                FactoryCreatureAdapter.Install(root);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: контейнеры")) containers.Install(root,world);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: мины")) FactoryMineAdapter.Install(root);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: ловушки")) FactoryHazardAdapter.Install(root);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: существа")) FactoryCreatureAdapter.Install(root);
                 sources[key]=new Entry {root=root,seed=world.seed,definition=factory.definition,fingerprint=factory.contentFingerprint,layout=factory.layout,
                     lootLedger=Remains.Serialization.StateJson.ToJson(world.factoryLootLimits)};
             }

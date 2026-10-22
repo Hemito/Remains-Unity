@@ -29,13 +29,14 @@ namespace Remains.Presentation
 
         // glowThresholds: definition -> luminance threshold of self-lit pixels (screens; lighting table "glow").
         // withoutPicture: decor art drawn only by light (DecorWithoutPicture); any other missing picture is reported.
-        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,IReadOnlyDictionary<string,string> withoutPicture,Vector2 origin,Transform terrainRoot,List<RoomSpritePlacement> placements=null,IReadOnlyDictionary<string,double> glowThresholds=null)
+        public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,IReadOnlyDictionary<string,string> withoutPicture,Vector2 origin,Transform terrainRoot,List<RoomSpritePlacement> placements=null,IReadOnlyDictionary<string,double> glowThresholds=null,LightShaderContext lightContext=null)
         {
             if(room==null || definitions==null || lands==null || art==null || terrainRoot==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):art==null?nameof(art):nameof(terrainRoot));
             var spriteShader=Resources.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
             var root=new GameObject("Декор и объекты: "+room.Template);
             root.transform.SetParent(terrainRoot,false);   // inside the room's SortingGroup
             var holder=root.AddComponent<RoomDecorResources>();
+            if(lightContext!=null) holder.BindLightContext(lightContext);
             var materials=new Dictionary<string,Material>(StringComparer.Ordinal);
             Material MaterialFor(RoomDefinition d)
             {
@@ -124,22 +125,35 @@ namespace Remains.Presentation
     {
         public readonly List<Material> Materials=new();
         private RenderTexture erase;
+        private Vector4 eraseRect;
+        private LightShaderContext shaderContext;
+        private bool ownsStandaloneContext;
+        public void BindLightContext(LightShaderContext context)=>shaderContext=context??throw new ArgumentNullException(nameof(context));
+        public void PublishErase()
+        {
+            if(shaderContext==null || !shaderContext.IsActive) return;
+            Shader.SetGlobalTexture("_RemainsErase",erase);
+            Shader.SetGlobalVector("_RemainsEraseRect",eraseRect);
+            Shader.SetGlobalFloat("_RemainsEraseEnabled",erase!=null?1:0);
+        }
         private Mesh quad;
 
         // Renders the erase clips (world matrices) into a room-sized mask, 1:1 with the original pixels,
         // once at build time; WorldTerrain/WorldSprite layers flagged _EraseAffected read it.
-        public void BuildErase(List<(Sprite sprite,Matrix4x4 matrix)> clips,Vector2 origin,Vector2 size,Shader shader)
+        public void BuildErase(List<(Sprite sprite,Matrix4x4 matrix)> clips,Vector2 origin,Vector2 size,Shader shader,bool publish=true)
         {
+            if(shaderContext==null) {shaderContext=new LightShaderContext();shaderContext.Activate();ownsStandaloneContext=true;}
             const float pixelsPerMeter=50;
             erase=new RenderTexture(Mathf.CeilToInt(size.x*pixelsPerMeter),Mathf.CeilToInt(size.y*pixelsPerMeter),0,RenderTextureFormat.R8){name="Стирание фона",filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
-            erase.Create();
+            try {LightTextureBudget.Track(erase,LightTextureBudget.Size(erase.width,erase.height,1));if(!erase.Create()) throw new InvalidOperationException("Не создана текстура стирания фона.");}
+            catch {LightTextureBudget.Release(erase);erase=null;throw;}
             var material=new Material(shader){name="Стирание фона"};
             Materials.Add(material);
             quad=new Mesh{name="Квадрат стирания"};
             quad.SetVertices(new[]{new Vector3(0,0,0),new Vector3(1,0,0),new Vector3(0,1,0),new Vector3(1,1,0)});
             quad.SetUVs(0,new[]{new Vector2(0,0),new Vector2(1,0),new Vector2(0,1),new Vector2(1,1)});
             quad.SetTriangles(new[]{0,2,1,1,2,3},0);
-            var cmd=new CommandBuffer{name="Стирание фона комнаты"};
+            using var cmd=new CommandBuffer{name="Стирание фона комнаты"};
             cmd.SetRenderTarget(erase);
             cmd.ClearRenderTarget(false,true,Color.black);
             cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(origin.x,origin.x+size.x,origin.y,origin.y+size.y,-1,1),false));
@@ -151,18 +165,21 @@ namespace Remains.Presentation
                 cmd.DrawMesh(quad,matrix*Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),material,0,0,block);
             }
             Graphics.ExecuteCommandBuffer(cmd);
-            cmd.Release();
-            Shader.SetGlobalTexture("_RemainsErase",erase);
-            Shader.SetGlobalVector("_RemainsEraseRect",new Vector4(origin.x,origin.y,size.x,size.y));
-            Shader.SetGlobalFloat("_RemainsEraseEnabled",1);
+            eraseRect=new Vector4(origin.x,origin.y,size.x,size.y);
+            if(publish) PublishErase();
         }
 
-        private void OnDestroy()
+        private bool resourcesReleased;
+        public void ReleaseResources()
         {
-            if(erase!=null) {Shader.SetGlobalFloat("_RemainsEraseEnabled",0);erase.Release();Destroy(erase);}
+            if(resourcesReleased) return;
+            resourcesReleased=true;
+            if(erase!=null) {if(shaderContext!=null && shaderContext.IsActive) Shader.SetGlobalFloat("_RemainsEraseEnabled",0);LightTextureBudget.Release(erase);}
+            if(ownsStandaloneContext) shaderContext?.Release();
             foreach(var m in Materials) if(m!=null) Destroy(m);
             if(quad!=null) Destroy(quad);
         }
+        private void OnDestroy()=>ReleaseResources();
 
         private new static void Destroy(UnityEngine.Object o) {if(Application.isPlaying) UnityEngine.Object.Destroy(o);else DestroyImmediate(o);}
     }

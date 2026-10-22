@@ -137,6 +137,7 @@ namespace Remains.Editor
             MainMenuPrefabChecks.Run();
             SessionStartupChecks.Run();
             WorldVisualOrderChecks.Run();
+            ActorVisualRefreshChecks.Run();
             InteractionOutlineChecks.Run();
             var worldLobby=Resources.Load<Remains.Presentation.WorldLobbyView>("Presentation/WorldLobby");
             if(worldLobby==null) throw new InvalidOperationException("Нет префаба сетевого лобби.");

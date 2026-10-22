@@ -191,6 +191,7 @@ namespace Remains.Networking
 
         public override void OnStartServer()
         {
+            using var serverStartupTiming=Remains.Diagnostics.FrameHitchLog.Section("Запуск сервера: всего");
             CancelStopNotification();
             savingFailed=false;
             BeginJoinSelection();
@@ -252,6 +253,7 @@ namespace Remains.Networking
 
         internal void StartSelectedWorld(RecoverySnapshot snapshot,bool createNew,bool acceptContentMismatch=false)
         {
+            using var startupTiming=Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: всего");
             var source=createNew?null:snapshot??Saves.SelectedSnapshot();
             if(source!=null)
             {
@@ -262,7 +264,8 @@ namespace Remains.Networking
                     throw new InvalidOperationException($"Формат манифеста не поддерживается: schema={content.schema}, scope={content.scope}. Исходный мир сохранён.");
             }
             if(snapshot!=null) Saves.SelectContinuation(snapshot);
-            ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: загрузка сохранения"))
+                ServerWorld = createNew?CreateWorld():Saves.LoadWorld() ?? CreateWorld();
             WorldChanges.Track(ServerWorld);   // shared mutations of the session world are marked (delta replication)
             DoorDamage.ResetServer();Lamps.ResetServer();
             ContainerAppearancePersistence.Prepare(ServerWorld,source==null?()=>{}:
@@ -273,13 +276,18 @@ namespace Remains.Networking
             npcHits?.Reset();
             var contentLevels=ServerWorld.actors.Select(a=>a.level).Concat(ServerWorld.containers.Select(c=>c.level))
                 .Concat(ServerWorld.props.Select(p=>p.level)).Concat(ServerWorld.doors.Select(d=>d.level)).Append("hub").Distinct().ToArray();
-            FactoryContentSources.Prepare(ServerWorld,contentLevels);
-            foreach(var level in contentLevels) LampOperations.Install(ServerWorld,level,LampContent.Read(ServerWorld,level));
-            var roomContent=contentLevels.Select(level=>RoomContentBatch.Read(RoomAuthoring.Load(level,ServerWorld),level)).ToArray();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: источники заводов"))
+                FactoryContentSources.Prepare(ServerWorld,contentLevels);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: лампы"))
+                foreach(var level in contentLevels) LampOperations.Install(ServerWorld,level,LampContent.Read(ServerWorld,level));
+            RoomContentBatch[] roomContent;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: чтение комнат"))
+                roomContent=contentLevels.Select(level=>RoomContentBatch.Read(RoomAuthoring.Load(level,ServerWorld),level)).ToArray();
             if(HubTrainingContent.NeedsInstall(ServerWorld) || FactoryRaiderContent.NeedsInstall(ServerWorld) ||
                 roomContent.Any(batch=>RoomContentInstaller.NeedsInstall(ServerWorld,batch)))
             {
                 if(source!=null) Debug.Log("Сохранена копия мира перед обновлением базового контента: "+Saves.PreserveRecoverySource());
+                using var installTiming=Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: установка комнат");
                 HubTrainingContent.Install(ServerWorld);FactoryRaiderContent.Install(ServerWorld);
                 foreach(var batch in roomContent) RoomContentInstaller.Apply(ServerWorld,batch);
             }
@@ -287,8 +295,11 @@ namespace Remains.Networking
             FriendlyFireDecision.Validate(ServerWorld.friendlyFireDecision);
             NpcWeaponInventoryMigration.Apply(ServerWorld,source==null?null:()=>Debug.Log("Сохранена копия мира перед преобразованием оружия NPC: "+Saves.PreserveRecoverySource()));
             NpcWeaponActions.ValidateWorld(ServerWorld);
-            foreach(string level in contentLevels) PropImpacts.PrepareLevel(level,RoomLayout.Load(level,ServerWorld));
-            CreatureDeathLootIds.PrepareWorld(ServerWorld);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: геометрия контактов"))
+                foreach(string level in contentLevels) PropImpacts.PrepareLevel(level,RoomLayout.Load(level,ServerWorld));
+            using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: идентичность лута"))
+                CreatureDeathLootIds.PrepareWorld(ServerWorld);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: контракты дверей"))
             PrepareDoorCapabilities(
                 contentLevels.SelectMany(level=>RoomDoorCapabilityContent.Read(RoomAuthoring.Load(level,ServerWorld),level)),
                 source!=null);
@@ -299,6 +310,7 @@ namespace Remains.Networking
             Mechanisms.ReconcileServer();
             GrenadeRules.BeginSession(ServerWorld);SessionMines.BeginSession(ServerWorld);
             recoveredActors.Clear();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Запуск мира: позиции актёров"))
             foreach(var actor in ServerWorld.actors)
             {
                 var room=RoomLayout.Load(actor.level,ServerWorld);

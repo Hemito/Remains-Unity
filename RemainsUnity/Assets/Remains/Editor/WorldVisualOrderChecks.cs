@@ -16,7 +16,44 @@ namespace Remains.Editor
         }
         public static void RunPure()
         {
-            CheckPriorityAndStability();CheckStateTransitions();CheckTransientLifecycle();
+            CheckPriorityAndStability();CheckStateTransitions();CheckTransientLifecycle();CheckSparseReconcile();
+        }
+        private static void CheckSparseReconcile()
+        {
+            var world=new WorldState();var actor=new ActorState {id="sparse-player",player=true,connected=true,level="hub"};
+            var npc=new ActorState {id="sparse-npc",actorType="sparse-order-policy",level="hub"};
+            world.actors.Add(actor);world.actors.Add(npc);world.props.Add(new PropState {id="sparse-prop",level="hub"});
+            var fast=new WorldVisualOrderTable();var full=new WorldVisualOrderTable();fast.Reconcile(world,"hub");full.Reconcile(world,"hub");
+            void Compare(string visible,params string[] parts)
+            {
+                fast.Reconcile(world,visible,parts);full.Reconcile(world,visible);
+                foreach(WorldVisualKind kind in Enum.GetValues(typeof(WorldVisualKind)))
+                    foreach(string id in new[]{actor.id,npc.id,"sparse-prop","grenade-a","grenade-b"})
+                    {
+                        bool actual=fast.TryGet(kind,id,out int order,out var category),expected=full.TryGet(kind,id,out int expectedOrder,out var expectedCategory);
+                        Require(actual==expected && (!actual || order==expectedOrder && category==expectedCategory),"Sparse/full порядок расходится: "+kind+":"+id);
+                    }
+            }
+            actor.x+=3;actor.owner="changed-owner";actor.pose="walk";Compare("hub","actors:"+actor.id);
+            Require(fast.SparseReconciles==1,"Motion/owner вызвали полный reconcile");
+            world=new WorldState {worldId=world.worldId,actors=world.actors,props=world.props};Compare("hub","actorsExtra:"+actor.id);
+            Require(fast.SparseReconciles==2,"Новый root/похожее имя списка отменили безопасный sparse");
+            actor.down=true;Compare("hub","actors:"+actor.id);
+            actor.hold=new ActorHoldState {holder="holder"};world.props[0].held=true;Compare("hub","actors:"+actor.id,"props:sparse-prop");
+            actor.hold=null;actor.down=false;actor.connected=false;Compare("hub","actors:"+actor.id);
+            actor.level="factory:0";Compare("factory:0","actors:"+actor.id);
+            actor.connected=true;Compare("factory:0","actors:"+actor.id);
+            world.actors.Remove(npc);Compare("factory:0","actors:"+npc.id);
+            world.actors.Insert(0,npc);Compare("hub","actors:"+npc.id);
+            WorldVisualOrderPolicy.RegisterActorCategory(npc.actorType,WorldVisualCategory.Scenery,true);Compare("hub");
+            Require(fast.GetCategory(WorldVisualKind.Actor,npc.id)==WorldVisualCategory.Scenery,"Policy generation не инвалидировал sparse");
+            WorldVisualOrderPolicy.RegisterActorCategory(npc.actorType,WorldVisualCategory.Npc,true);Compare("hub");
+            world.grenades.Add(new GrenadeState {id="grenade-a",level="hub"});Compare("hub");
+            world.grenades[0]=new GrenadeState {id="grenade-b",level="hub"};Compare("hub");
+            Require(!fast.TryGet(WorldVisualKind.Grenade,"grenade-a",out _,out _) && fast.TryGet(WorldVisualKind.Grenade,"grenade-b",out _,out _),"Same-count skeleton замена пропущена");
+            world.grenades.Clear();Compare("hub");Compare("hub");
+            world.actors.Reverse();fast.Reconcile(world,"hub",null);full.Reconcile(world,"hub");Compare("hub");
+            world.worldId=Guid.NewGuid().ToString("N");Compare("hub");
         }
         private static void CheckPriorityAndStability()
         {

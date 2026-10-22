@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -36,7 +37,7 @@ namespace Remains.Presentation
         {
             ThrowIfDisposed();
             if (emitters == null) throw new ArgumentNullException(nameof(emitters));
-            ClearFields();
+            var previous=new Dictionary<string,SteadyLightEmitter>(catalog,StringComparer.Ordinal);
             foreach(string id in catalog.Keys) retired.Add(id);
             // A light-window replacement owns a new GPU cache, but actor shadow crossfades
             // can still reference sources published by the preceding window of this level.
@@ -59,9 +60,27 @@ namespace Remains.Presentation
                     Debug.LogWarning($"SteadyLightShadowCache: повторный ID='{emitter.Id}', источник #{i}, поколение {Generation}; повторная запись пропущена.");
                 retired.Remove(emitter.Id);
             }
+            inactive.Clear();
+            foreach(var pair in fields)
+            {
+                if(!catalog.TryGetValue(pair.Key,out var next) || !previous.TryGetValue(pair.Key,out var old) ||
+                    old.Sprite!=next.Sprite || old.LocalToWorld!=next.LocalToWorld || old.Radiance!=next.Radiance)
+                    inactive.Add(pair.Key);
+            }
+            foreach(string id in inactive) {Release(fields[id]);fields.Remove(id);stale.Remove(id);}
+            inactive.Clear();
         }
 
-        public void Prepare(IReadOnlyCollection<string> ids, Func<SteadyLightEmitter, RenderTexture> build)
+        public void Prepare(IReadOnlyCollection<string> ids,Func<SteadyLightEmitter,RenderTexture> build)
+        {
+            var steps=PrepareSteps(ids,build);
+            try {while(steps.MoveNext()) {}} finally {(steps as IDisposable)?.Dispose();}
+        }
+        public IEnumerator PrepareSteps(IReadOnlyCollection<string> ids,Func<SteadyLightEmitter,RenderTexture> build)
+            =>PrepareSteps(ids,(source,done)=>ImmediateBuild(source,done,build));
+        private static IEnumerator ImmediateBuild(SteadyLightEmitter source,Action<RenderTexture> done,Func<SteadyLightEmitter,RenderTexture> build)
+        {done(build(source));yield break;}
+        public IEnumerator PrepareSteps(IReadOnlyCollection<string> ids, Func<SteadyLightEmitter,Action<RenderTexture>,IEnumerator> build)
         {
             ThrowIfDisposed();
             if (ids == null) throw new ArgumentNullException(nameof(ids));
@@ -94,13 +113,22 @@ namespace Remains.Presentation
             foreach (string id in requested)
             {
                 if (fields.ContainsKey(id)) continue;
-                RenderTexture texture = build(catalog[id]);
-                if (texture == null)
+                RenderTexture texture=null;bool transferred=false;
+                try
                 {
-                    Debug.LogWarning($"SteadyLightShadowCache: построение поля вернуло пустую текстуру для ID='{id}', поколение {Generation}; поле пропущено.");
-                    continue;
+                    var steps=build(catalog[id],result=>texture=result);
+                    if(steps==null) throw new InvalidOperationException("Подготовка прямого света не вернула этапы: ID="+id);
+                    try {while(steps.MoveNext()) yield return null;}
+                    finally {(steps as IDisposable)?.Dispose();}
+                    if (texture == null)
+                    {
+                        Debug.LogWarning($"SteadyLightShadowCache: построение поля вернуло пустую текстуру для ID='{id}', поколение {Generation}; поле пропущено.");
+                        continue;
+                    }
+                    fields.Add(id, texture);transferred=true;
                 }
-                fields.Add(id, texture);
+                finally {if(!transferred && !ReferenceEquals(texture,null)) Release(texture);}
+                yield return null;
             }
         }
 
@@ -157,13 +185,7 @@ namespace Remains.Presentation
             stale.Clear();
         }
 
-        private static void Release(RenderTexture texture)
-        {
-            if (texture == null) return;
-            texture.Release();
-            if (Application.isPlaying) UnityEngine.Object.Destroy(texture);
-            else UnityEngine.Object.DestroyImmediate(texture);
-        }
+        private static void Release(RenderTexture texture)=>LightTextureBudget.Release(texture);
 
         private void ThrowIfDisposed()
         {

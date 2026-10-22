@@ -394,7 +394,7 @@ namespace Remains.Runtime
             else if (Options.Role=="client") Session.StartClient();
         }
 
-        private void RefreshVisualOrders()=>visualOrders.Reconcile(Session.World,Session.LocalActor?.level);
+        private void RefreshVisualOrders()=>visualOrders.Reconcile(Session.World,Session.LocalActor?.level,Session.LastChangedParts);
 
         private void RefreshRoomOcclusion(string level,RoomLayout room,long revision)
         {
@@ -411,6 +411,7 @@ namespace Remains.Runtime
                 roomPresentation.SetContext(false,null);
                 ActiveLevelLighting?.Release();
                 foreach(var visual in visuals.Values) {visual.SetVisible(false);Destroy(visual.gameObject);}
+                actorVisualWorld=actorVisualLevel=null;
                 visuals.Clear();visualLayers.Synchronize(Session.World,Session.LocalActor?.level);travelPointVisuals.Clear();return;
             }
             string definition=WorldRooms.Definition(Session.World,Session.LocalActor.level);
@@ -451,31 +452,57 @@ namespace Remains.Runtime
             cameraFollower.Room=activeRoom;
             using(Remains.Diagnostics.FrameHitchLog.Section("Представления: актёры и удаление"))
             {
-            foreach (var actor in Session.World.actors)
-            {
-                if (!ActorPresence.IsPresent(actor) || actor.level!=Session.LocalActor.level) continue;
-                if (!visuals.TryGetValue(actor.id,out var visual))
-                {
-                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: визуал актёров")) visual=ActorVisualFactory.Create(actor);
-                    visuals.Add(actor.id,visual);
-                    visualLayers.Attach(actor.id,visual.transform);
-                }
-                if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);
-                visual.Bind(actor);
-                visual.ApplyHeldAppearance(heldAppearance.Colors);
-                visual.SetVisible(actor.level==Session.LocalActor?.level);
-            }
-            var removed=new List<string>();
-            foreach (var pair in visuals)
-            {
-                var actor=Session.World.Find(pair.Key);
-                if (!ActorPresence.IsPresent(actor) || actor.level!=Session.LocalActor.level)
-                {pair.Value.SetVisible(false);Destroy(pair.Value.gameObject);removed.Add(pair.Key);}
-            }
-            foreach (var id in removed) visuals.Remove(id);
+            RefreshActorVisuals(Session.World,Session.LocalActor.level,Session.LastChangedParts,adoptEntry || Session.LastChange.Any(WorldChangeKind.Identity),heldAppearance.Colors);
             }
             using(Remains.Diagnostics.FrameHitchLog.Section("Представления: слои"))
             visualLayers.Synchronize(Session.World,Session.LocalActor?.level);
+        }
+        private void RefreshActorVisuals(WorldState world,string visibleLevel,IReadOnlyCollection<string> changedParts,bool forceFull,HeldPropColorSource colors)
+        {
+            bool sparse=actorVisualWorld==world.worldId && actorVisualLevel==visibleLevel &&
+                !forceFull && changedParts!=null;
+            string visible=visibleLevel;
+            if(sparse)
+            {
+                foreach(string part in changedParts)
+                    if(part.StartsWith("actors:",System.StringComparison.Ordinal))
+                    {
+                        string id=part.Substring(7);
+                        RefreshActorVisual(id,world.Find(id),visible);
+                    }
+            }
+            else
+            {
+                foreach(var actor in world.actors) RefreshActorVisual(actor.id,actor,visible);
+                var removed=new List<string>();
+                foreach(var pair in visuals)
+                {
+                    var actor=world.Find(pair.Key);
+                    if(!ActorPresence.IsPresent(actor) || actor.level!=visible) removed.Add(pair.Key);
+                }
+                foreach(string id in removed) RefreshActorVisual(id,null,visible);
+            }
+            // A holder's appearance can change an unchanged held target. Keep this shared-source pass
+            // independent of sparse actor binding; a wire key is not the complete tint dependency set.
+            foreach(var visual in visuals.Values) visual.ApplyHeldAppearance(colors);
+            actorVisualWorld=world.worldId;actorVisualLevel=visible;
+        }
+        private string actorVisualWorld,actorVisualLevel;
+        private void RefreshActorVisual(string id,ActorState actor,string visibleLevel)
+        {
+            if(!ActorPresence.IsPresent(actor) || actor.level!=visibleLevel)
+            {
+                if(visuals.TryGetValue(id,out var removed))
+                {removed.SetVisible(false);if(Application.isPlaying) Destroy(removed.gameObject);else DestroyImmediate(removed.gameObject);visuals.Remove(id);}
+                return;
+            }
+            if(!visuals.TryGetValue(id,out var visual))
+            {
+                using(Remains.Diagnostics.FrameHitchLog.Section("Переход: визуал актёров")) visual=ActorVisualFactory.Create(actor);
+                visuals.Add(id,visual);visualLayers.Attach(id,visual.transform);
+            }
+            if(visual is PonyVisual pony) pony.ConfigureMagicSource(ponyMagic);
+            visual.Bind(actor);visual.SetVisible(true);
         }
         private void BindEntryPresentation(IRoomLighting lighting,RoomLayout room,bool pending)
         {
@@ -602,10 +629,16 @@ namespace Remains.Runtime
                 yield return null;yield return null;
                 // Measure the issuing call only: the asynchronous operation's wait must not
                 // become a nested main-thread timing scope spanning multiple frames.
+                double unloadStart=Options.Smoke!=null?Time.realtimeSinceStartupAsDouble:0;
                 AsyncOperation unloading;
                 using(TransitionTiming.Measure("runtime.unload-unused-call",shownLevel))
                     unloading=Resources.UnloadUnusedAssets();
                 yield return unloading;
+                if(Options.Smoke!=null)
+                {
+                    double unloadEnd=Time.realtimeSinceStartupAsDouble;
+                    Debug.Log($"Диагностика выгрузки: level={shownLevel}, начало={unloadStart:F3}с, конец={unloadEnd:F3}с, elapsed={(unloadEnd-unloadStart)*1000:F1}мс; включает ожидание операции и возобновления coroutine, не CPU кадра.");
+                }
             } while(releaseRequested);
             ReleasingUnusedAssets=false;
         }

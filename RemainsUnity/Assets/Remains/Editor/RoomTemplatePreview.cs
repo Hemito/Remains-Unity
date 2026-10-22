@@ -264,9 +264,14 @@ namespace Remains.Editor
                 }
             }
             var levelSize=new Vector2(level.Width*cell,levelHeight);
-            if(erases.Count>0) new GameObject("Стирание фона уровня").AddComponent<RoomDecorResources>().BuildErase(erases,Vector2.zero,levelSize,Resources.Load<Shader>(RoomDecorView.EraseShaderResource));
+            var lightContext=new LightShaderContext();lightContext.Activate();
+            if(erases.Count>0)
+            {
+                var erase=new GameObject("Стирание фона уровня").AddComponent<RoomDecorResources>();
+                erase.BindLightContext(lightContext);erase.BuildErase(erases,Vector2.zero,levelSize,Resources.Load<Shader>(RoomDecorView.EraseShaderResource));
+            }
             RoomLightingView.Build(level,definitions,lands,table,Vector2.zero,null,false);
-            var field=RoomRadianceField.Build(level,definitions,lands,table,Vector2.zero,null,sprites);
+            var field=RoomRadianceField.Build(level,definitions,lands,table,Vector2.zero,null,sprites,lightContext:lightContext);
             for(int i=0;i<RadianceSettleUpdates;i++) field.Render();
             string file=Path.Combine(outDir,$"factory-{seed}-{width}x{depth}.png");
             Render(levelSize,file,camera=>FarBackground(rooms[layout.Cell(0,0).Template],camera));
@@ -354,15 +359,16 @@ namespace Remains.Editor
             var lightingAsset=AssetDatabase.LoadAssetAtPath<TextAsset>(Lighting)??throw new InvalidOperationException("Нет таблицы света "+Lighting);
             var table=RoomLightingTable.Read(lightingAsset.text,Lighting);
             var view=RoomTerrainView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),origin,table.ShadowEdge);
-            Shader.SetGlobalFloat("_RemainsEraseEnabled",0);
+            var lightContext=new LightShaderContext();lightContext.Activate();
+            lightContext.Publish(()=>Shader.SetGlobalFloat("_RemainsEraseEnabled",0));
             var sprites=new List<RoomSpritePlacement>();
             var glow=new Dictionary<string,double>();
             foreach(var e in table.Glow) glow.Add(e.Key,e.Value.Threshold);
-            RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),RoomPrefabGenerator.LoadWithoutPicture(),origin,view.transform,sprites,glow);
+            RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),RoomPrefabGenerator.LoadWithoutPicture(),origin,view.transform,sprites,glow,lightContext);
             if(dummy) PlaceDummies(room,view.transform,sprites);
-            Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);
+            lightContext.Publish(()=>Shader.SetGlobalFloat("_RemainsRadianceEnabled",0));
             if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,!radiance);
-            if(radiance) MeasureRadiance(RoomRadianceField.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,sprites),room.Template);
+            if(radiance) MeasureRadiance(RoomRadianceField.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,sprites,lightContext:lightContext),room.Template);
             return view;
         }
 

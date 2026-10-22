@@ -13,12 +13,13 @@ namespace Remains.Presentation
         public const int SceneryRoomOrder=0,ActorShadowOrder=1,ActorPartOrder=20,WeaponPartOrder=100,OutlineLocalOrder=short.MaxValue;
         private static readonly Dictionary<string,WorldVisualCategory> actorCategories=new(StringComparer.Ordinal)
         {{"training-dummy",WorldVisualCategory.Scenery},{"training-armored-dummy",WorldVisualCategory.Scenery}};
+        public static long Generation {get;private set;}
         public static void RegisterActorCategory(string actorType,WorldVisualCategory category,bool replace=false)
         {
             if(string.IsNullOrWhiteSpace(actorType) || category is not (WorldVisualCategory.Scenery or WorldVisualCategory.Npc))
                 throw new ArgumentException("Тип актёра может явно выбирать категорию декорации или живого NPC: "+actorType);
             if(!replace && actorCategories.ContainsKey(actorType)) throw new InvalidOperationException("Повтор категории изображения актёра: "+actorType);
-            actorCategories[actorType]=category;
+            actorCategories[actorType]=category;Generation++;
         }
         public static WorldVisualCategory Category(ActorState actor)
         {
@@ -68,9 +69,55 @@ namespace Remains.Presentation
         private string level,worldId;
         public string WorldId=>worldId;
         public int Rebuilds {get;private set;}
+        public int SparseReconciles {get;private set;}
+        private long reconciledPolicy=-1;
+        private bool emptySkeleton;
         public event Action Changed;
+        // A sparse notification is authoritative for all replaced live parts. Skeleton mechanisms/grenades
+        // deliberately remain on the full path until they have an explicit change contract of their own.
+        public void Reconcile(WorldState world,string visibleLevel,IReadOnlyCollection<string> changedParts)
+        {
+            if(world!=null && visibleLevel!=null && worldId==world.worldId && level==visibleLevel && changedParts!=null &&
+                reconciledPolicy==WorldVisualOrderPolicy.Generation && emptySkeleton && EmptySkeleton(world))
+            {
+                bool same=true;
+                foreach(string part in changedParts) if(!SamePart(world,part)) {same=false;break;}
+                if(same) {SparseReconciles++;return;}
+            }
+            Reconcile(world,visibleLevel);
+        }
+        private static bool EmptySkeleton(WorldState world)=>world.movingPlatforms.Count==0 && world.mechanismButtons.Count==0 && world.grenades.Count==0;
+        private bool SamePart(WorldState world,string part)
+        {
+            int colon=part.IndexOf(':');if(colon<0) return true;
+            string name=part.Substring(0,colon),id=part.Substring(colon+1);
+            WorldVisualKind kind;bool visible=false;WorldVisualCategory category=WorldVisualCategory.OrdinaryObject;
+            switch(name)
+            {
+                case "actors":
+                    kind=WorldVisualKind.Actor;var actor=world.Find(id);
+                    visible=actor!=null && actor.level==level && ActorPresence.IsPresent(actor);
+                    if(visible) category=WorldVisualOrderPolicy.Category(actor);break;
+                case "props":
+                case "containers":
+                    kind=name=="props"?WorldVisualKind.Prop:WorldVisualKind.Container;
+                    PropState prop=name=="props"?world.props.Find(value=>value.id==id):world.containers.Find(value=>value.id==id);
+                    visible=prop!=null && prop.level==level;if(visible) category=WorldVisualOrderPolicy.Category(prop);break;
+                case "doors":
+                    kind=WorldVisualKind.Door;var door=world.doors.Find(value=>value.id==id);visible=door!=null && door.level==level;break;
+                case "mines":
+                    kind=WorldVisualKind.Mine;var mine=world.mines.Find(value=>value.id==id);visible=mine!=null && mine.level==level;break;
+                case "hazards":
+                    kind=WorldVisualKind.Hazard;var hazard=world.hazards.Find(value=>value.id==id);visible=hazard!=null && hazard.level==level;break;
+                default:return true;
+            }
+            var key=new Key(kind,id);
+            if(!visible) return !worldKeys.Contains(key);
+            return worldKeys.Contains(key) && categories.TryGetValue(key,out var old) && category==old;
+        }
         public void Reconcile(WorldState world,string visibleLevel)
         {
+            reconciledPolicy=WorldVisualOrderPolicy.Generation;emptySkeleton=world!=null && EmptySkeleton(world);
             bool identityChanged=worldId!=world?.worldId || level!=visibleLevel;
             worldId=world?.worldId;level=visibleLevel;desired.Clear();worldKeys.Clear();
             if(world!=null && visibleLevel!=null)

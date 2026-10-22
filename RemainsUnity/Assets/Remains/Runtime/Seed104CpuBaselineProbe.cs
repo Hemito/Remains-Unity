@@ -32,6 +32,7 @@ namespace Remains.Runtime
         private PropState bodyProbeProp,bodyProbeContainer;
         private float bodyProbePropX,bodyProbeContainerX;
         private int bodyChanges;
+        private Seed104LightWindowRoute lightRoute;
 
         public void Initialize(PrototypeRuntime value)
         {
@@ -46,8 +47,8 @@ namespace Remains.Runtime
                 assemblyHash=BitConverter.ToString(hash.ComputeHash(input)).Replace("-","").ToLowerInvariant();
             warmFrames=int.Parse(Argument("--baseline-warm-frames","600"));
             sampleFrames=int.Parse(Argument("--baseline-frames","900"));
-            if(scenario!="idle" && scenario!="combat" && scenario!="inactive" && scenario!="bodies" || warmFrames<60 || sampleFrames<120)
-                throw new InvalidOperationException("CPU-замер: нужен idle/combat/inactive/bodies, прогрев >=60 кадров и выборка >=120.");
+            if(scenario!="idle" && scenario!="combat" && scenario!="inactive" && scenario!="bodies" && scenario!="light-windows" || warmFrames<60 || sampleFrames<120)
+                throw new InvalidOperationException("CPU-замер: нужен idle/combat/inactive/bodies/light-windows, прогрев >=60 кадров и выборка >=120.");
             if(value.Options.Role!="host" || string.IsNullOrEmpty(value.Options.SaveDirectory))
                 throw new InvalidOperationException("CPU-замер допускается только с изолированным хостом.");
             deadline=Time.realtimeSinceStartupAsDouble+Math.Max(480,(warmFrames+sampleFrames)/30d+180);
@@ -179,9 +180,16 @@ namespace Remains.Runtime
                     Debug.LogWarning($"Body-замер: диагностическое смещение данных изолированного fixture, не игровой тест физики: prop={bodyProbeProp.id}, container={bodyProbeContainer.id}.");
                     InvokeRepeating(nameof(ChangeBodies),.1f,3f);
                 }
+                if(scenario=="light-windows") lightRoute=new Seed104LightWindowRoute(runtime);
                 payloads.Clear();warmShots=shots;started=Time.realtimeSinceStartupAsDouble;
                 Debug.Log($"CPU seed104: начало захвата, level={actor.level}, ready={runtime.LevelPresentationReady}, frame={Time.frameCount}.");
                 FrameHitchLog.BeginCpuBaseline(sampleFrames);phase=3;return;
+            }
+            if(phase==3 && lightRoute!=null)
+            {
+                if(!CpuBaselineCapture.Enabled && CpuBaselineCapture.FrameCount==0) return;
+                if(!CpuBaselineCapture.Enabled) {Finish(false,"Свет: исчерпан лимит кадров до окончания маршрута.");return;}
+                if(lightRoute.Tick()) {Finish(true,"Свет: шесть соседних переходов и прямой возврат завершены; синтетические запросы, не приёмка движения камеры.");return;}
             }
             if(phase==3 && !CpuBaselineCapture.Enabled && CpuBaselineCapture.FrameCount>=sampleFrames)
             {
@@ -204,6 +212,7 @@ namespace Remains.Runtime
         private void Finish(bool success,string detail)
         {
             if(finished) return;finished=true;FrameHitchLog.EndCpuBaseline();
+            lightRoute?.Dispose();
             var summary=CpuBaselineCapture.Summarize();
             var report=new Report {success=success,detail=detail,scenario=scenario,sourceRevision=revision,
                 assemblySha256=assemblyHash,allocationMetricAvailable=FrameHitchLog.BaselineAllocationsAvailable,
@@ -213,11 +222,12 @@ namespace Remains.Runtime
                 width=Screen.width,height=Screen.height,vSync=QualitySettings.vSyncCount,targetFps=Application.targetFrameRate,
                 warmFrames=warmFrames,sampleFrames=sampleFrames,seconds=started==0?0:Time.realtimeSinceStartupAsDouble-started,captureStartedSeconds=started,
                 factoryNpcs=initialNpcs,containers=initialContainers,mines=initialMines,hazards=initialHazards,
-                level=runtime.Session.LocalActor?.level,shots=shots-warmShots,bodyChanges=bodyChanges,payloads=payloads.ToArray(),cpu=summary,memory=memory.ToArray(),
+                level=runtime.Session.LocalActor?.level,shots=shots-warmShots,bodyChanges=bodyChanges,payloads=payloads.ToArray(),cpu=summary,memory=memory.ToArray(),lightWindows=lightRoute?.Samples,lightWindowFrames=lightRoute?.Frames,actualSampleFrames=summary.frameCount,
                 limitations="Секции вложены и считаются включительно. Allocations — глобальный счётчик Unity GC Allocated In Frame: все managed-потоки за интервал, включая диагностику; это не атрибуция выделений конкретной системе. Фоновое CPU-время не измерено. work=кадр−TimeUpdate, не чистое CPU-время; ожидания в других фазах остаются. Combat — стрельба из пистолета от входа, не нагрузочный бой четырёх игроков. Новые данные мира и кадры выстрела могут загружаться асинхронно."};
             if(createdPlayerFixture)
                 report.limitations+=" Создан новый Windows Player fixture; его SHA-256 не объявляется совпадающим с прежним Editor baseline3. Последующие сравнения требуют этих же world.json/character.json и fixtureSha256.";
             if(scenario=="bodies") report.limitations+=" Bodies — смещение двух дальних записей host fixture каждые 3 секунды с dirty marks; это нагрузка snapshot body delta, не игровая проверка физики/владения.";
+            if(lightRoute!=null) report.limitations+=" Light-windows: синтетические запросы окна без перемещения персонажа/камеры; FactoryLightFocus временно отключён. Шесть соседних окон и прямой возврат; не проверка camera lookahead. sampleFrames — предел, actualSampleFrames — фактический захват. Времена секций включительные; frame timestamps дают корреляцию, не атрибуцию всего кадра свету. RT — учтённые RenderTexture, не полная память драйвера. Нулевой GPU timing не доказывает 16,67 мс.";
             report.limitations+=" "+FrameHitchLog.SectionTimingScope;
             if(!report.allocationMetricAvailable) report.limitations+=" allocatedBytes/allocationsPerFrame недостоверны: счётчик сбросился; эти поля нельзя использовать. memory — GC.GetTotalMemory(false), не native/GPU память.";
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(runtime.Options.Report)));
@@ -227,6 +237,7 @@ namespace Remains.Runtime
         }
         private void OnDestroy()
         {
+            lightRoute?.Dispose();
             FrameHitchLog.EndCpuBaseline();
             if(runtime?.Session==null) return;
             WorldReplication.PayloadMeasured-=Payload;runtime.Session.AttackReceived-=Attack;
@@ -239,6 +250,8 @@ namespace Remains.Runtime
             public int width,height,vSync,targetFps,warmFrames,sampleFrames,factoryNpcs,containers,mines,hazards,shots,bodyChanges;
             public double seconds,captureStartedSeconds;public CpuBaselineSummary cpu;public PayloadSample[] payloads;
             public MemorySample[] memory;
+            public int actualSampleFrames;public Seed104LightWindowRoute.Sample[] lightWindows;
+            public Seed104LightWindowRoute.FrameSample[] lightWindowFrames;
         }
     }
 }
