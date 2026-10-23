@@ -15,6 +15,7 @@ namespace Remains.Networking
         public string baseSnapshot;   // delta replication: null = full snapshot; else a WorldDeltaPayload from this base
         public int total,offset;
         public byte[] data;
+        public long tickSeq;          // transport v2: the world tick this full snapshot includes (later ticks follow it)
     }
     // A client whose delta failed (other base, hash mismatch, no replica) asks for a full snapshot.
     public struct WorldResyncRequest : NetworkMessage
@@ -33,6 +34,8 @@ namespace Remains.Networking
         public WorldChangeKind changes=WorldChangeKind.All;   // a delta: its changed part lists, the skeleton and actors
         public HashSet<string> changedParts;   // a delta keeping every list's composition: the changed part keys; else null
         public string reason;
+        public long tickSeq;          // a full snapshot: the world tick it includes
+        public bool receiptOnly;      // transport v2: a recovery delta (the live world follows ticks, not snapshots)
     }
     public sealed class WorldReplication
     {
@@ -43,8 +46,10 @@ namespace Remains.Networking
         private WorldReplica replica;
         public void Reset() {incoming=null;incomingId=null;owner=null;actor=null;incomingBase=null;}
         public void Forget() {Reset();replica=null;}
-        public static void Send(NetworkConnectionToClient connection,RecoverySnapshot snapshot,string owner=null,string actor=null)
-            =>SendParts(snapshot,part=> {part.owner=part.offset==0?owner:null;part.actor=part.offset==0?actor:null;connection.Send(part);});
+        // Transport v2: deltas keep the recovery copy only; the live world is advanced by world ticks.
+        public bool LiveFromTicks;
+        public static void Send(NetworkConnectionToClient connection,RecoverySnapshot snapshot,string owner=null,string actor=null,long tickSeq=0)
+            =>SendParts(snapshot,part=> {part.owner=part.offset==0?owner:null;part.actor=part.offset==0?actor:null;part.tickSeq=tickSeq;connection.Send(part);});
         internal static void SendParts(RecoverySnapshot snapshot,Action<WorldPartMessage> send)
         {
             byte[] bytes=snapshot.Utf8;
@@ -175,6 +180,11 @@ namespace Remains.Networking
                     if(payload.snapshot!=message.snapshot || payload.baseSnapshot!=baseId) throw new InvalidDataException("Заголовок изменения мира не совпадает с пакетом.");
                     RecoverySnapshot applied;WorldState live;HashSet<string> reusedActors;
                     var appliedReplica=replica;
+                    if(LiveFromTicks)
+                    {
+                        using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: копия восстановления (клиент)")) applied=appliedReplica.Apply(payload,current());
+                        return new ReceivedWorld {snapshot=applied,owner=owned,actor=acting,receiptOnly=true};
+                    }
                     using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: применение изменения (клиент)")) applied=appliedReplica.ApplyLive(payload,current(),out live,out reusedActors);
                     Remains.Diagnostics.FrameHitchLog.Note($"изменение мира: частей {WorldDelta.ChangedParts(payload)}, байт {bytes.Length}");
                     return new ReceivedWorld {snapshot=applied,live=live,reusedActors=reusedActors,copyCanonicalActor=appliedReplica.CopyCanonicalActor,findBody=appliedReplica.FindLiveBody,
@@ -189,7 +199,7 @@ namespace Remains.Networking
             var snapshot=incoming.Append(message.total,message.offset,message.data);
             if(snapshot==null) return null;
             if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("full-receive",message.total);
-            var result=new ReceivedWorld {snapshot=snapshot,owner=owner,actor=actor};Reset();
+            var result=new ReceivedWorld {snapshot=snapshot,owner=owner,actor=actor,tickSeq=message.tickSeq};Reset();
             // A full snapshot (join, resync, host without a base): the copy of parts that deltas advance from.
             try {using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: раскладка на части (клиент)")) replica=WorldReplica.FromSnapshot(snapshot);}
             catch(InvalidDataException error)

@@ -32,8 +32,9 @@ namespace Remains.Editor
             int ticks=0,next=1000;
             for(int round=0;round<300;round++)
             {
-                switch(random.Next(7))
+                switch(random.Next(8))
                 {
+                    case 7: {var a=host.actors[random.Next(host.actors.Count)];a.owner="o"+round;a.revision++;break;}   // revision only, no mark
                     case 0: {var c=host.containers[random.Next(host.containers.Count)];c.x+=1;WorldChanges.Mark(host,c);break;}
                     case 1: {int i=random.Next(host.actors.Count);var a=host.actors[i].Copy();a.health-=1;host.actors[i]=a;break;}   // replaced object, no mark
                     case 2: host.props.Add(new PropState {id="p"+(next++),x=round});break;
