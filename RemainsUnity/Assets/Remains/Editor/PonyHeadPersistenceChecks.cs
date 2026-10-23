@@ -29,8 +29,8 @@ namespace Remains.Editor
                 var copy=actor.Copy();RequireAppearance(actor,copy,"независимая копия / "+head);
                 copy.appearance.headStyleId="head.test.unregistered";
                 Require(actor.appearance.headStyleId==head,"копия изменила выбор исходного персонажа / "+head);
-                var join=new JoinMessage {character=actor.character,characterJson=StateJson.ToJson(actor)};
-                RequireAppearance(actor,StateJson.FromJson<ActorState>(join.characterJson),"JSON подключения / "+head);
+                var join=new JoinMessage {character=actor.character,characterUtf8=JoinCharacter.Encode(StateJson.ToJson(actor))};
+                RequireAppearance(actor,StateJson.FromJson<ActorState>(JoinCharacter.Decode(join.characterUtf8)),"JSON подключения / "+head);
                 var message=new ActorMessage {json=StateJson.ToJson(actor)};
                 RequireAppearance(actor,StateJson.FromJson<ActorState>(message.json),"JSON состояния другого игрока / "+head);
                 world.actors.Add(actor);

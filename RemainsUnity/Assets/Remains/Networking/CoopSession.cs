@@ -472,9 +472,11 @@ namespace Remains.Networking
                 joinSelection.RequireCurrent(CharacterId,Saves);
                 if(!CharacterContent.TryPrepare(joinSelection.Saves,joinSelection.CharacterId,acceptCharacter,out var character)) return;
                 Lobby.PublishOffers();
-                NetworkClient.Send(new JoinMessage { character = joinSelection.CharacterId, displayName = joinSelection.CharacterId,
-                    characterJson=character==null?null:JsonUtility.ToJson(character),
-                    modFingerprint=WeaponCatalog.ModFingerprint,acceptMismatch=acceptMismatch });
+                var join=new JoinMessage { character = joinSelection.CharacterId, displayName = joinSelection.CharacterId,
+                    characterUtf8=JoinCharacter.Encode(character==null?null:JsonUtility.ToJson(character)),
+                    modFingerprint=WeaponCatalog.ModFingerprint,acceptMismatch=acceptMismatch };
+                JoinCharacter.RequireFits(join,Transport.active.GetMaxPacketSize(Channels.Reliable));
+                NetworkClient.Send(join);
             }
             catch(Exception failure)
             {
@@ -513,7 +515,8 @@ namespace Remains.Networking
             if(matching.Length>1) throw new InvalidOperationException($"В мире {world.worldId} несколько тел персонажа {message.character}. Вход отменён без выбора произвольного тела.");
             var actor=matching.FirstOrDefault();
             if(actor?.connected==true) throw new InvalidOperationException("Персонаж уже подключён: "+message.character);
-            var profile=string.IsNullOrEmpty(message.characterJson)?null:JsonUtility.FromJson<ActorState>(message.characterJson);
+            string characterJson=JoinCharacter.Decode(message.characterUtf8);
+            var profile=string.IsNullOrEmpty(characterJson)?null:JsonUtility.FromJson<ActorState>(characterJson);
             if(profile!=null && profile.character!=message.character)
                 throw new InvalidOperationException($"Персонаж в пакете не соответствует ID: {profile.character}, ожидается {message.character}.");
             PonyAppearance.ValidateSettings(profile?.appearance,message.character);

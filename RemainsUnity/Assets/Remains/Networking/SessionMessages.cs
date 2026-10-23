@@ -2,8 +2,21 @@ using Mirror;
 
 namespace Remains.Networking
 {
+    // The character profile travels as UTF-8 bytes (JoinCharacter): a Mirror string is limited to 64 KB.
     public struct JoinMessage : NetworkMessage
-    { public string character; public string displayName; public string characterJson; public string modFingerprint; public bool acceptMismatch; }
+    { public string character; public string displayName; public byte[] characterUtf8; public string modFingerprint; public bool acceptMismatch; }
+    public static class JoinCharacter
+    {
+        public static byte[] Encode(string json)=>json==null?null:new System.Text.UTF8Encoding(false,true).GetBytes(json);
+        public static string Decode(byte[] utf8)=>utf8==null || utf8.Length==0?null:new System.Text.UTF8Encoding(false,true).GetString(utf8);
+        // The whole message must fit one reliable transport message; fail with a clear reason before sending.
+        public static void RequireFits(JoinMessage message,int maxBytes)
+        {
+            int size=(message.characterUtf8?.Length??0)+(message.character?.Length??0)*3+(message.displayName?.Length??0)*3+(message.modFingerprint?.Length??0)*3+64;
+            if(size>maxBytes)
+                throw new System.InvalidOperationException($"Профиль персонажа слишком велик для подключения: около {size} байт при пределе транспорта {maxBytes}. Персонаж={message.character}.");
+        }
+    }
     public struct ModMismatchMessage : NetworkMessage { public byte[] manifest; }
     public struct WelcomeMessage : NetworkMessage { public string owner; public string actor; public string worldJson; }
     public struct WorldMessage : NetworkMessage { public string json; }
