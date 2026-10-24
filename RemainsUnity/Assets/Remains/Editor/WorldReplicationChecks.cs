@@ -85,7 +85,7 @@ namespace Remains.Editor
         }
         private static void Full(WorldReplication receiver,RecoverySnapshot snapshot,Action<ReceivedWorld> publish=null,string owner=null)
         {
-            byte[] bytes=snapshot.Utf8;ReceivedWorld result=null;
+            byte[] bytes=PayloadCodec.Pack(snapshot.Utf8);ReceivedWorld result=null;   // as WorldReplication.SendParts sends it
             for(int offset=0;offset<bytes.Length;offset+=SnapshotTransfer.ChunkSize)
             {
                 var data=new byte[Math.Min(SnapshotTransfer.ChunkSize,bytes.Length-offset)];Buffer.BlockCopy(bytes,offset,data,0,data.Length);

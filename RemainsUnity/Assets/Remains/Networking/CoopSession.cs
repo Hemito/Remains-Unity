@@ -203,6 +203,11 @@ namespace Remains.Networking
         // a delta can start from. A connection on another base gets a full snapshot.
         private readonly Dictionary<int,string> deliveredSnapshots=new();
         private readonly ResyncLimit resyncLimit=new();
+        // The reliable backlog per connection (null without a KCP transport): a peer behind by PauseBacklog segments
+        // (~3.5 MB) gets no world ticks until its link drains below ResumeBacklog, then one full world re-bases it.
+        public RemainsKcpTransport Backlog;
+        private const int PauseBacklog=3000,ResumeBacklog=300;
+        private readonly HashSet<int> tickPaused=new();
         // Full-snapshot requests per connection within a sliding window.
         private sealed class ResyncLimit
         {
@@ -240,7 +245,7 @@ namespace Remains.Networking
                 return NetworkServer.connections.TryGetValue(recipient.Key,out var connection)?connection:null;
             });
             serverPoses.Clear();
-            backupRevisions.Clear();recoveryReceipts.Clear();pendingRecoveryAcks.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();resyncLimit.Clear();tickReady.Clear();snapshotTickSeq.Clear();lastRecoveryAt=double.NegativeInfinity;
+            backupRevisions.Clear();recoveryReceipts.Clear();pendingRecoveryAcks.Clear();owners.Clear();playerIds.Clear();deliveredSnapshots.Clear();recentSnapshots.Clear();resyncLimit.Clear();tickReady.Clear();tickPaused.Clear();snapshotTickSeq.Clear();lastRecoveryAt=double.NegativeInfinity;
             Travel.RegisterServer();
             ContainerInspection.RegisterServer();
             Mechanisms.RegisterServer();Mines.RegisterServer();Hazards.RegisterServer();
@@ -602,7 +607,7 @@ namespace Remains.Networking
             Lobby.Disconnected(connection.connectionId);EntryPreparation.Disconnected(connection.connectionId);
             if (owners.Remove(connection.connectionId, out string owner))
             {
-                backupRevisions.Remove(connection.connectionId);pendingRecoveryAcks.Remove(connection.connectionId);deliveredSnapshots.Remove(connection.connectionId);resyncLimit.Forget(connection.connectionId);tickReady.Remove(connection.connectionId);
+                backupRevisions.Remove(connection.connectionId);pendingRecoveryAcks.Remove(connection.connectionId);deliveredSnapshots.Remove(connection.connectionId);resyncLimit.Forget(connection.connectionId);tickReady.Remove(connection.connectionId);tickPaused.Remove(connection.connectionId);
                 RecoveryPeerLeft?.Invoke(connection.connectionId);
                 var actor = ServerWorld.Find(playerIds[owner]);
                 ActorSessionRules.Disconnect(actor);
@@ -1484,9 +1489,20 @@ namespace Remains.Networking
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Тик мира: отправка");
             byte[] payload=WorldTickSender.Encode(tick);
             int budget=NetworkMessages.MaxContentSize(Channels.Reliable);
+            List<int> paused=null;
             foreach(int id in tickReady)
-                if(NetworkServer.connections.TryGetValue(id,out var connection))
-                    WorldTickSender.Send(payload,tick,budget,part=>connection.Send(part));
+            {
+                if(!NetworkServer.connections.TryGetValue(id,out var connection)) continue;
+                int backlog=Backlog!=null?Backlog.ServerBacklog(id):0;
+                if(backlog>=PauseBacklog) {(paused??=new List<int>()).Add(id);continue;}
+                WorldTickSender.Send(payload,tick,budget,part=>connection.Send(part));
+            }
+            if(paused!=null) foreach(int id in paused)
+            {
+                tickReady.Remove(id);tickPaused.Add(id);
+                Debug.LogWarning($"Тики мира к клиенту {id} приостановлены: в очереди отправки {Backlog.ServerBacklog(id)} пакетов, канал не успевает. "+
+                    $"После разгрузки (меньше {ResumeBacklog}) клиент получит полный мир.",this);
+            }
         }
         public ActorState ConnectedActor(NetworkConnectionToClient connection) =>
             owners.TryGetValue(connection.connectionId,out var owner) && playerIds.TryGetValue(owner,out var id)?ServerWorld.Find(id):null;
@@ -1501,10 +1517,26 @@ namespace Remains.Networking
             {
                 double now=Time.unscaledTimeAsDouble;
                 if(now-lastTickAt>=TickIntervalSeconds) FlushTick(now-lastSlowTickAt>=SlowTickIntervalSeconds);
+                if(tickPaused.Count>0) ResumeDrainedTicks();
             }
             if(!commitAtFrameEnd) return;
             commitAtFrameEnd=false;
             if(NetworkServer.active && ServerWorld!=null) CommitWorld();
+        }
+        private void ResumeDrainedTicks()
+        {
+            List<int> drained=null;
+            foreach(int id in tickPaused) if(Backlog==null || Backlog.ServerBacklog(id)<=ResumeBacklog) (drained??=new List<int>()).Add(id);
+            if(drained==null) return;
+            RecoverySnapshot snapshot=null;
+            foreach(int id in drained)
+            {
+                tickPaused.Remove(id);
+                if(!NetworkServer.connections.TryGetValue(id,out var connection)) continue;
+                snapshot??=PrepareRecovery();
+                Debug.Log($"Тики мира к клиенту {id} возобновлены: очередь разгружена, отправлен полный мир {snapshot.Id}.",this);
+                SendFullWorld(connection,snapshot);
+            }
         }
         public void CommitWorld()
         {

@@ -11,7 +11,7 @@ namespace Remains.Networking
     public struct ProtocolReply : NetworkMessage {public int version;public bool accepted;public string reason;}
     public static class SessionProtocol
     {
-        public const int Version=80;   // 80: world ticks (transport v2). 79: the join profile as UTF-8 bytes. 78: bounded delta messages.
+        public const int Version=81;   // 81: packed (deflate) ticks and world parts. 80: world ticks (transport v2). 79: the join profile as UTF-8 bytes. 78: bounded delta messages.
         public static string Rejection(int offered)=>offered==Version?null:
             $"Несовместимый сетевой протокол: у клиента {offered}, у хоста {Version}. Используйте совместимые сборки. Сохранения не загружены.";
     }

@@ -77,8 +77,37 @@ namespace Remains.Editor
             try {WorldTickApplier.Apply(client,broken);} catch(Exception) {rejected=true;}
             Require(rejected && StateJson.ToJson(client)==before,"Повреждённый тик изменил мир.");
             int spread=MotionSpread();
+            int packed=PackingChecks();
             Debug.Log($"Тики мира: PASS — {ticks} тиков, мир получателя совпадает с миром хоста побайтно; повреждённый тик отклонён без изменений; "+
-                $"движение 40 актёров разложено по тикам (не более {spread} в тике) и доходит целиком за {WorldTickComposer.MotionSlots} тиков.");
+                $"движение 40 актёров разложено по тикам (не более {spread} в тике) и доходит целиком за {WorldTickComposer.MotionSlots} тиков; "+
+                $"сжатие пакетов: мир {packed}% исходного, короткий пакет без сжатия, ложная длина и повреждение отклонены.");
+        }
+        // PayloadCodec (protocol 81): round trips, the raw form of short payloads, bounded and checked lengths.
+        private static int PackingChecks()
+        {
+            var small=System.Text.Encoding.UTF8.GetBytes("{\"seq\":1}");
+            var smallPacked=PayloadCodec.Pack(small);
+            Require(smallPacked[0]==0 && smallPacked.Length==small.Length+1,"Короткий пакет сжат или изменён.");
+            Require(System.Linq.Enumerable.SequenceEqual(PayloadCodec.Unpack(smallPacked,1024),small),"Короткий пакет не восстановлен.");
+            var world=new WorldState {worldId="pack-check"};
+            for(int i=0;i<400;i++) world.containers.Add(new ContainerState {id="c"+i,x=i});
+            var raw=System.Text.Encoding.UTF8.GetBytes(StateJson.ToJson(world));
+            var packed=PayloadCodec.Pack(raw);
+            Require(packed[0]==1 && packed.Length<raw.Length/3,$"Мир не сжат: {raw.Length} → {packed.Length} байт.");
+            Require(System.Linq.Enumerable.SequenceEqual(PayloadCodec.Unpack(packed,raw.Length),raw),"Сжатый мир не восстановлен побайтно.");
+            void Rejects(Action action,string what)
+            {
+                bool rejected=false;
+                try {action();} catch(System.IO.InvalidDataException) {rejected=true;}
+                Require(rejected,"Не отклонено: "+what);
+            }
+            Rejects(()=>PayloadCodec.Unpack(packed,raw.Length-1),"длина больше предела");
+            var lying=(byte[])packed.Clone();lying[1]^=0x10;
+            Rejects(()=>PayloadCodec.Unpack(lying,raw.Length*2),"ложная длина");
+            var truncated=new byte[packed.Length-8];Buffer.BlockCopy(packed,0,truncated,0,truncated.Length);
+            Rejects(()=>PayloadCodec.Unpack(truncated,raw.Length),"обрезанный поток");
+            Rejects(()=>PayloadCodec.Unpack(new byte[]{7,1,2},16),"неизвестное сжатие");
+            return packed.Length*100/raw.Length;
         }
         // Motion-only changes (poses) are refreshed spread over MotionSlots ticks, fast or slow, with the marks handled as
         // CoopSession.FlushTick does; a state mark still travels whole on the next slow tick.

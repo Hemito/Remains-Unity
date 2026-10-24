@@ -29,6 +29,15 @@ namespace Remains.Persistence
             if(snapshot.Id!=expected) throw new InvalidDataException("Хеш переданного сохранения не совпадает с выбранной копией.");
             return snapshot;
         }
+        // The same for a PayloadCodec-packed snapshot (network world parts, protocol 81).
+        public RecoverySnapshot AppendPacked(int total,int offset,byte[] chunk)
+        {
+            var bytes=AppendRaw(total,offset,chunk);
+            if(bytes==null) return null;
+            var snapshot=RecoverySnapshot.FromReceived(new UTF8Encoding(false,true).GetString(PayloadCodec.Unpack(bytes,MaximumBytes)));
+            if(snapshot.Id!=expected) throw new InvalidDataException("Хеш переданного сохранения не совпадает с выбранной копией.");
+            return snapshot;
+        }
         // The complete payload once all chunks arrived (null before); same bounds, order and repeat checks.
         public byte[] AppendRaw(int total,int offset,byte[] chunk)
         {

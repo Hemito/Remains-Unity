@@ -103,8 +103,9 @@ namespace Remains.Persistence
         public readonly List<object> MotionConsumed=new();
         // A motion-only change (WorldChanges.MarkMotion: the sample already reached clients in its PoseMessage) is
         // refreshed in one call of MotionSlots by the key's slot, fast or slow: each moving actor reaches the
-        // canonical copies within MotionSlots ticks (about a second) and no tick carries every moving actor at once.
-        public const int MotionSlots=20;
+        // canonical copies within MotionSlots ticks and no tick carries every moving actor at once.
+        // 100 ticks (~5 s): the text only serves recovery copies, and each refresh costs every client a whole actor.
+        public const int MotionSlots=100;
         private long passes;
         private bool InSlot(uint hash)=>((ulong)hash+(ulong)passes)%MotionSlots==0;
         private static uint Hash(string key)=>(uint)StringComparer.Ordinal.GetHashCode(key);

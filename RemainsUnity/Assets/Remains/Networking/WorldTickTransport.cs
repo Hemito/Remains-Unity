@@ -9,7 +9,7 @@ using Remains.Serialization;
 
 namespace Remains.Networking
 {
-    // Transport v2: a world tick (WorldTick as UTF-8 JSON) in one or more reliable parts.
+    // Transport v2: a world tick (WorldTick as UTF-8 JSON, PayloadCodec-packed) in one or more reliable parts.
     public struct WorldTickMessage : NetworkMessage
     {
         public string world;
@@ -21,7 +21,7 @@ namespace Remains.Networking
     public static class WorldTickSender
     {
         public const int MaximumBytes=8*1024*1024;
-        public static byte[] Encode(WorldTick tick)=>new UTF8Encoding(false).GetBytes(StateJson.ToJson(tick));
+        public static byte[] Encode(WorldTick tick)=>PayloadCodec.Pack(new UTF8Encoding(false).GetBytes(StateJson.ToJson(tick)));
         public static void Send(byte[] payload,WorldTick tick,int maximumContentBytes,Action<WorldTickMessage> send)
         {
             if(payload.Length>MaximumBytes) throw new InvalidDataException($"Тик мира {tick.seq} превышает предел {MaximumBytes} байт: {payload.Length}.");
@@ -67,7 +67,7 @@ namespace Remains.Networking
             Buffer.BlockCopy(message.data,0,buffer,message.offset,message.data.Length);received+=message.data.Length;
             if(received<message.total) return Result.Pending;
             var bytes=buffer;buffer=null;
-            tick=StateJson.FromJson<WorldTick>(new UTF8Encoding(false,true).GetString(bytes));
+            tick=StateJson.FromJson<WorldTick>(new UTF8Encoding(false,true).GetString(PayloadCodec.Unpack(bytes,SnapshotTransfer.MaximumBytes)));
             if(tick.seq!=message.seq || tick.world!=message.world) throw new InvalidDataException("Заголовок тика не совпадает с пакетом.");
             LastParsed=WorldTickApplier.Parse(Canonical,tick);
             WorldTickApplier.Apply(Canonical,LastParsed,null);

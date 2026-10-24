@@ -6,9 +6,9 @@ namespace Remains.Networking
 {
     public static class TransportSetup
     {
-        public static Transport Create(GameObject root,ushort port,bool stress)
+        public static Transport Create(GameObject root,ushort port,bool stress,out RemainsKcpTransport backlog)
         {
-            var kcp=root.AddComponent<KcpTransport>();kcp.port=port;kcp.statisticsGUI=false;
+            var kcp=root.AddComponent<RemainsKcpTransport>();kcp.port=port;kcp.statisticsGUI=false;backlog=kcp;
             if(!stress) return kcp;
             var simulationObject=new GameObject("Проверка задержек сети");
             simulationObject.SetActive(false);

@@ -189,7 +189,7 @@ namespace Remains.Networking
                 }
                 if(message.token!=header.token || message.snapshot!=header.snapshot)
                     throw new InvalidDataException("Контекст подготовки заменён до завершения передачи.");
-                var snapshot=incoming.Append(message.total,message.offset,message.data);
+                var snapshot=incoming.AppendPacked(message.total,message.offset,message.data);
                 if(snapshot==null) return;
                 var context=new EntryPreparationContext(header.token,snapshot.CreateLiveWorld(),header.actor,header.character,header.level);
                 if(context.WorldId!=header.world || context.CharacterId!=session.CharacterId || context.GeometryFingerprint!=header.fingerprint)

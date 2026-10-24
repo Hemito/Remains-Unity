@@ -52,7 +52,8 @@ namespace Remains.Networking
             =>SendParts(snapshot,part=> {part.owner=part.offset==0?owner:null;part.actor=part.offset==0?actor:null;part.tickSeq=tickSeq;connection.Send(part);});
         internal static void SendParts(RecoverySnapshot snapshot,Action<WorldPartMessage> send)
         {
-            byte[] bytes=snapshot.Utf8;
+            // Packed (PayloadCodec): receivers assemble with SnapshotTransfer.AppendPacked.
+            byte[] bytes=PayloadCodec.Pack(snapshot.Utf8);
             if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("full-send",bytes.Length);
             if(bytes.Length>SnapshotTransfer.MaximumBytes) throw new InvalidDataException("Снимок мира превышает текущий предел 32 МиБ.");
             // Enqueue this reliable snapshot contiguously. Later reliable actor events
@@ -196,7 +197,7 @@ namespace Remains.Networking
                     return new ReceivedWorld {resync=true,reason=$"base={baseId}, snapshot={message.snapshot}: {error.Message}"};
                 }
             }
-            var snapshot=incoming.Append(message.total,message.offset,message.data);
+            var snapshot=incoming.AppendPacked(message.total,message.offset,message.data);
             if(snapshot==null) return null;
             if(CpuBaselineCapture.Enabled) PayloadMeasured?.Invoke("full-receive",message.total);
             var result=new ReceivedWorld {snapshot=snapshot,owner=owner,actor=actor,tickSeq=message.tickSeq};Reset();

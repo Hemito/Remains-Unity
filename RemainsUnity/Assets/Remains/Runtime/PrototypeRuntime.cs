@@ -138,8 +138,8 @@ namespace Remains.Runtime
             Application.targetFrameRate=Options.Smoke==null?60:Options.ProbeFrameRate;
             networkObject=new GameObject("Сетевая сессия");
             networkObject.SetActive(false);
-            var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress);
-            Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;
+            var transport=TransportSetup.Create(networkObject,Options.Port,Options.NetworkStress,out var backlog);
+            Session=networkObject.AddComponent<CoopSession>(); Session.transport=transport;Session.Backlog=backlog;
             Pickup=new LooseItemPickup(Session);
             // Mirror configures headless frame rate during StartClient/StartHost.
             // Apply the requested probe limit after that, including reconnections.
