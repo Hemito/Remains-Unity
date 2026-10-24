@@ -29,6 +29,7 @@ namespace Remains.Editor
         private static DateTime stamp;
         private static bool rebuildQueued;
         public override int GetPostprocessOrder()=>10000;
+        public static IEnumerable<Entry> Entries()=>Read().Values;
         private static Dictionary<string,Entry> Read()
         {
             if(!File.Exists(TablePath)) return new Dictionary<string,Entry>();

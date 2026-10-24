@@ -101,7 +101,10 @@ namespace Remains.Editor
             foreach (var file in prepared.Values)
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(file.destination));
-                if (!File.Exists(file.destination)) File.Copy(file.source, file.destination);
+                if (File.Exists(file.destination)) continue;
+                // Art sides not multiples of 4 would stay uncompressed (BC7 blocks): install a padded copy.
+                byte[] bytes = File.ReadAllBytes(file.source);
+                File.WriteAllBytes(file.destination, file.image ? ImportedArtPadding.Pad(bytes, out _, out _) ?? bytes : bytes);
             }
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             foreach (var file in prepared.Values) ConfigureImporter(file);
@@ -163,10 +166,14 @@ namespace Remains.Editor
             if (prepared.TryGetValue(signature, out var shared))
                 return new PreparedFile { metadata = metadata, source = shared.source, destination = shared.destination, signature = signature, image = image };
             string input = Resolve(package, Required(metadata, "path"));
-            if (File.Exists(destination) && Hash(destination) != Required(metadata, "sha256"))
-                throw new InvalidDataException($"Существующий импортированный файл изменён: {destination}. Перезапись запрещена.");
             var importer = AssetImporter.GetAtPath(destination);
-            if (importer != null && !string.IsNullOrEmpty(importer.userData) && importer.userData != "ExportedContent:" + signature)
+            // A padded copy (ImportedArtPadding) is checked against its recorded hash and re-derived from the source.
+            var (installedSignature, paddedHash) = ImportedArtPadding.Parse(importer?.userData);
+            if (File.Exists(destination) && Hash(destination) != (paddedHash ?? Required(metadata, "sha256")))
+                throw new InvalidDataException($"Существующий импортированный файл изменён: {destination}. Перезапись запрещена.");
+            if (paddedHash != null && ImportedArtPadding.Hash(ImportedArtPadding.Pad(File.ReadAllBytes(input), out _, out _) ?? Array.Empty<byte>()) != paddedHash)
+                throw new InvalidDataException($"Дополненная копия {destination} не выводится из исходного файла {input}.");
+            if (importer != null && !string.IsNullOrEmpty(importer.userData) && installedSignature != signature)
                 throw new InvalidDataException($"Параметры происхождения не совпадают: {destination}.");
             var result = new PreparedFile { metadata = metadata, source = input, destination = destination, signature = signature, image = image };
             prepared.Add(signature, result);
@@ -175,6 +182,7 @@ namespace Remains.Editor
 
         private static void ConfigureImporter(PreparedFile file)
         {
+            string padded = null;
             var importer = AssetImporter.GetAtPath(file.destination);
             if (importer == null) throw new InvalidDataException($"Импортёр Unity отсутствует: {file.destination}.");
             if (file.image)
@@ -185,7 +193,10 @@ namespace Remains.Editor
                 texture.textureType = TextureImporterType.Sprite;
                 texture.spriteImportMode = SpriteImportMode.Single;
                 texture.spritePixelsPerUnit = 50 * zoom;
-                texture.spritePivot = new Vector2((float)file.metadata["originX"] * zoom / (int)file.metadata["width"], 1 - (float)file.metadata["originY"] * zoom / (int)file.metadata["height"]);
+                texture.GetSourceTextureWidthAndHeight(out int textureWidth, out int textureHeight);
+                texture.spritePivot = ImportedArtPadding.Pivot((float)file.metadata["originX"], (float)file.metadata["originY"], zoom, textureWidth, textureHeight);
+                if (textureWidth != (int)file.metadata["width"] || textureHeight != (int)file.metadata["height"])
+                    padded = ImportedArtPadding.UserData(file.signature, (int)file.metadata["width"], (int)file.metadata["height"], Hash(file.destination));
                 var settings = new TextureImporterSettings();
                 texture.ReadTextureSettings(settings);
                 settings.spriteAlignment = (int)SpriteAlignment.Custom;
@@ -199,7 +210,7 @@ namespace Remains.Editor
                 texture.filterMode = FilterMode.Bilinear;
                 texture.wrapMode = TextureWrapMode.Clamp;
             }
-            importer.userData = "ExportedContent:" + file.signature;
+            importer.userData = padded ?? "ExportedContent:" + file.signature;
             importer.SaveAndReimport();
         }
 
