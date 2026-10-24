@@ -94,13 +94,15 @@ namespace Remains.Persistence
         }
 
         // Capture on the simulation owner thread before handing immutable bytes to disk I/O.
-        public RecoverySnapshot CaptureWorldSnapshot(WorldState world)
+        public RecoverySnapshot CaptureWorldSnapshot(WorldState world,Func<WorldState,SnapshotPartCache.Composition> compose=null)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
-            foreach(var actor in world.actors) Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
-            ContentProvenance.Record(ref world.weaponContent,ref world.weaponContentHistory);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: внешний вид"))
+                foreach(var actor in world.actors) Remains.Content.PonyAppearance.ValidateSettings(actor.appearance,actor.id);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: происхождение контента"))
+                ContentProvenance.Record(ref world.weaponContent,ref world.weaponContentHistory);
             if(world.historyVersion==1) world.checkpointSequence++;
-            return RecoverySnapshot.FromWorld(world);
+            return compose==null?RecoverySnapshot.FromWorld(world):RecoverySnapshot.FromComposition(world,compose(world));
         }
         public RecoverySnapshot SaveWorld(WorldState world)
         {

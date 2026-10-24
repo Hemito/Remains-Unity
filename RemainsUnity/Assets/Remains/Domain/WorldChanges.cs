@@ -32,6 +32,10 @@ namespace Remains.Domain
         public static bool IsMarked(WorldState world,object part)=>world!=null && part!=null &&
             marks.TryGetValue(world,out var set) && set.Contains(part);
 
+        public static void Unmark(WorldState world,object part)
+        {
+            if(world!=null && part!=null && marks.TryGetValue(world,out var set)) set.Remove(part);
+        }
         // After a composition consumed the marks.
         public static void Clear(WorldState world)
         {

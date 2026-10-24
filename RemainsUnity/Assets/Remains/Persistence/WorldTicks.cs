@@ -15,6 +15,7 @@ namespace Remains.Persistence
         public string world;
         public long seq;
         public string skeleton;           // the world without its part lists (null: unchanged)
+        public string recovery;           // a recovery point: the world template (part lists as markers) of this tick
         public List<WorldTickList> lists=new();
     }
     [Serializable] public sealed class WorldTickList
@@ -45,6 +46,20 @@ namespace Remains.Persistence
         }
         internal static Type ItemType(int index)=>ListFields[index].FieldType.GetGenericArguments()[0];
         internal static string Key(string list,object item,int position)=>list+":"+(SnapshotPartCache.PartId(item)??"#"+position);
+        // The world JSON with each part list as its SnapshotPartCache marker (a composition's template).
+        public static string Template(WorldState world)=>StateJson.ToJson(world,MarkerLists);
+        private static readonly JsonConverter[] MarkerLists={new MarkerList()};
+        private sealed class MarkerList : JsonConverter
+        {
+            public override bool CanRead=>false;
+            public override bool CanConvert(Type type)=>Array.Exists(ListFields,field=>field.FieldType==type);
+            public override object ReadJson(JsonReader reader,Type type,object existing,JsonSerializer serializer)=>throw new NotSupportedException();
+            public override void WriteJson(JsonWriter writer,object value,JsonSerializer serializer)
+            {
+                var field=Array.Find(ListFields,f=>f.FieldType==value.GetType());
+                writer.WriteRawValue(SnapshotPartCache.Marker(field.Name));
+            }
+        }
         // The world with every part list written as [] (the skeleton both sides compare and apply).
         public static string Skeleton(WorldState world)=>StateJson.ToJson(world,EmptyLists);
         // The same without the per-frame fields that have their own messages (level clocks, moving platforms, grenade
@@ -64,15 +79,38 @@ namespace Remains.Persistence
         }
     }
 
+    internal sealed class ReferenceComparer : IEqualityComparer<object>
+    {
+        public static readonly ReferenceComparer Instance=new();
+        public new bool Equals(object a,object b)=>ReferenceEquals(a,b);
+        public int GetHashCode(object value)=>System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(value);
+    }
     // Host side: remembers each list's objects, keys and texts of the previous tick.
     public sealed class WorldTickComposer
     {
-        private sealed class ListMemory {public object[] Objects=Array.Empty<object>();public string[] Keys=Array.Empty<string>(),Texts=Array.Empty<string>();public long[] Revisions=Array.Empty<long>();}
+        private sealed class ListMemory {public object[] Objects=Array.Empty<object>();public string[] Keys=Array.Empty<string>(),Texts=Array.Empty<string>();public long[] Revisions=Array.Empty<long>();public bool[] Finished=Array.Empty<bool>();}
         private readonly ListMemory[] memory=new ListMemory[WorldTickLists.Names.Length];
         private string worldId,skeleton,stable;
         private long seq;
         public long Seq=>seq;
         public int LastChangedParts {get;private set;}
+        // Marked parts this call serialized (the caller unmarks them: this composer is the marks' only consumer).
+        public readonly List<object> Consumed=new();
+        // Rolling audit (as SnapshotPartCache did): each slow tick re-serializes the unmarked parts of one slot in
+        // AuditEvery; a changed text is a mutation without WorldChanges.Mark, reported and sent.
+        public const int AuditEvery=30;
+        private long round;
+        public int LastUnmarked {get;private set;}
+        private static readonly HashSet<string> warnedUnmarked=new(StringComparer.Ordinal);
+        // The world at the last tick as a snapshot composition: the template and the remembered part texts.
+        public SnapshotPartCache.Composition Composition(string template)
+        {
+            if(worldId==null) throw new InvalidOperationException("Состав тиков ещё не видел мир.");
+            var sets=new SnapshotPartCache.PartSet[memory.Length];int parts=0;
+            for(int i=0;i<memory.Length;i++) {sets[i]=new SnapshotPartCache.PartSet(WorldTickLists.Names[i],memory[i].Keys,memory[i].Texts);parts+=memory[i].Keys.Length;}
+            Array.Sort(sets,(a,b)=>template.IndexOf(SnapshotPartCache.Marker(a.Name),StringComparison.Ordinal).CompareTo(template.IndexOf(SnapshotPartCache.Marker(b.Name),StringComparison.Ordinal)));
+            return new SnapshotPartCache.Composition(template,sets,parts,0);
+        }
 
         public WorldTickComposer() {for(int i=0;i<memory.Length;i++) memory[i]=new ListMemory();}
 
@@ -80,18 +118,19 @@ namespace Remains.Persistence
         // Afterwards: the tick since the previous call, or null when nothing changed.
         // slow=false skips the lists that have their own fast messages (actors: ActorMessage/PoseMessage, projectiles:
         // their flight messages); their state still reaches the receiver's world on the next slow tick.
-        public WorldTick Next(WorldState world,Func<object,bool> marked,bool slow=true)
+        public WorldTick Next(WorldState world,Func<object,bool> marked,bool slow=true,bool force=false)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
             bool fresh=worldId!=world.worldId;
             if(fresh) slow=true;
             var tick=new WorldTick {world=world.worldId,seq=seq+1};
-            int changed=0;
+            int changed=0;Consumed.Clear();LastUnmarked=0;
+            if(slow) round++;
             for(int index=0;index<memory.Length;index++)
             {
                 if(!slow && WorldTickLists.Slow(index)) continue;
                 var list=WorldTickLists.List(world,index);
-                var entry=Diff(WorldTickLists.Names[index],list,memory[index],fresh,marked,ref changed);
+                var entry=Diff(WorldTickLists.Names[index],list,memory[index],fresh,marked,slow,ref changed);
                 if(entry!=null) tick.lists.Add(entry);
             }
             // The skeleton travels whole; a fast tick sends it only when more than the per-frame fields changed.
@@ -103,13 +142,23 @@ namespace Remains.Persistence
                 stable=nextStable;
             }
             LastChangedParts=changed;
-            if(fresh) {worldId=world.worldId;seq=0;return null;}
-            if(tick.skeleton==null && tick.lists.Count==0) return null;
+            if(fresh) {worldId=world.worldId;seq=0;tick.seq=1;if(!force) return null;}
+            if(tick.skeleton==null && tick.lists.Count==0 && !force) return null;
             seq=tick.seq;
             return tick;
         }
 
-        private static WorldTickList Diff(string name,System.Collections.IList list,ListMemory before,bool fresh,Func<object,bool> marked,ref int changed)
+        private void ReportUnmarked(string key,string was,string now)
+        {
+            LastUnmarked++;
+            int at=0;while(at<was.Length && at<now.Length && was[at]==now[at]) at++;
+            int quote=was.LastIndexOf("\":",Math.Max(0,at-1),StringComparison.Ordinal);
+            int start=quote<0?-1:was.LastIndexOf('"',Math.Max(0,quote-1));
+            string field=start<0?"?":was.Substring(start+1,quote-start-1);
+            if(warnedUnmarked.Add(key.Substring(0,key.IndexOf(':'))+"."+field))
+                UnityEngine.Debug.LogWarning($"Непомеченное изменение части мира (аудит тиков): {key}, поле {field} — нет WorldChanges.Mark в месте изменения; часть отправлена.");
+        }
+        private WorldTickList Diff(string name,System.Collections.IList list,ListMemory before,bool fresh,Func<object,bool> marked,bool slow,ref int changed)
         {
             int count=list.Count;
             var objects=new object[count];
@@ -124,26 +173,48 @@ namespace Remains.Persistence
             // snapshot composition treats them (SnapshotPartCache.ComposeActor).
             bool actors=name=="actors";
             var revisions=actors?new long[count]:null;
+            // Flights: serialized while flying and once more when they finish (the landing state), then no longer.
+            var finished=always?new bool[count]:null;
             Dictionary<string,string> previousText=null;
+            Dictionary<object,int> previousIndex=null;
             if(!aligned && !fresh)
             {
                 previousText=new Dictionary<string,string>(before.Keys.Length,StringComparer.Ordinal);
                 for(int i=0;i<before.Keys.Length;i++) previousText[before.Keys[i]]=before.Texts[i];
+                // The same object elsewhere in the list keeps its text unless marked or revised (no re-serialization of a
+                // whole list because one actor object was replaced).
+                previousIndex=new Dictionary<object,int>(before.Objects.Length,ReferenceComparer.Instance);
+                for(int i=0;i<before.Objects.Length;i++) if(before.Objects[i]!=null) previousIndex[before.Objects[i]]=i;
             }
             for(int i=0;i<count;i++)
             {
                 var item=list[i];objects[i]=item;
                 if(actors) revisions[i]=((ActorState)item)?.revision??0;
+                if(always) finished[i]=item is ProjectileState done && done.finished;
                 if(aligned)
                 {
                     bool revised=actors && before.Revisions.Length==count && revisions[i]!=before.Revisions[i];
-                    if(!always && !revised && !marked(item)) continue;
+                    bool isMarked=item!=null && marked(item);
+                    if(isMarked) Consumed.Add(item);
+                    // Flights progress without marks; a finished flight no longer changes.
+                    bool flying=always && !(finished[i] && before.Finished.Length==count && before.Finished[i]);
+                    bool audited=slow && !isMarked && !revised && !flying && ((ulong)(uint)StringComparer.Ordinal.GetHashCode(keys[i])+(ulong)round)%AuditEvery==0;
+                    if(!flying && !revised && !isMarked && !audited) continue;
                     string text=item==null?"null":StateJson.ToJson(item);
                     if(text==texts[i]) continue;
+                    if(audited) ReportUnmarked(keys[i],texts[i],text);
                     texts[i]=text;changedKeys.Add(keys[i]);changedTexts.Add(text);
                     continue;
                 }
+                bool markedItem=item!=null && marked(item);
+                if(markedItem) Consumed.Add(item);
                 keys[i]=WorldTickLists.Key(name,item,i);
+                int at=-1;
+                bool known=!fresh && item!=null && previousIndex.TryGetValue(item,out at);
+                bool flyingItem=always && !(finished[i] && known && before.Finished.Length>at && before.Finished[at]);
+                if(known && !flyingItem && !markedItem &&
+                    (!actors || before.Revisions.Length>at && before.Revisions[at]==revisions[i]) && before.Keys[at]==keys[i])
+                {texts[i]=before.Texts[at];continue;}
                 texts[i]=item==null?"null":StateJson.ToJson(item);
                 if(fresh) continue;
                 if(previousText!=null && previousText.TryGetValue(keys[i],out var was) && was==texts[i]) continue;
@@ -160,23 +231,70 @@ namespace Remains.Persistence
                 for(int i=0;sameOrder && i<keys.Length;i++) sameOrder=before.Keys[i]==keys[i];
                 if(!sameOrder) order=keys;
             }
-            before.Objects=objects;before.Keys=keys;before.Texts=texts;if(actors) before.Revisions=revisions;
+            before.Objects=objects;before.Keys=keys;before.Texts=texts;if(actors) before.Revisions=revisions;if(always) before.Finished=finished;
             changed+=changedKeys.Count;
             if(fresh || changedKeys.Count==0 && removed==null && order==null) return null;
             return new WorldTickList {name=name,keys=changedKeys.ToArray(),texts=changedTexts.ToArray(),removed=removed,order=order};
         }
     }
 
+    // Receiver side: the part texts of a world kept by its ticks, so a recovery copy is composed exactly as the host's
+    // (the same texts and template) without serializing the world.
+    public sealed class WorldTickTexts
+    {
+        private readonly List<string>[] keys=new List<string>[WorldTickLists.Names.Length];
+        private readonly Dictionary<string,string>[] texts=new Dictionary<string,string>[WorldTickLists.Names.Length];
+        public WorldTickTexts(WorldState world)
+        {
+            var split=SnapshotPartCache.Split(world);
+            foreach(var set in split.Lists)
+            {
+                int index=Array.IndexOf(WorldTickLists.Names,set.Name);
+                keys[index]=new List<string>(set.Keys);texts[index]=new Dictionary<string,string>(set.Keys.Length,StringComparer.Ordinal);
+                for(int i=0;i<set.Keys.Length;i++) texts[index][set.Keys[i]]=set.Texts[i];
+            }
+        }
+        public void Apply(WorldTick tick)
+        {
+            foreach(var entry in tick.lists)
+            {
+                int index=Array.IndexOf(WorldTickLists.Names,entry.name);
+                if(entry.removed!=null) foreach(string key in entry.removed) texts[index].Remove(key);
+                for(int i=0;i<(entry.keys?.Length??0);i++) texts[index][entry.keys[i]]=entry.texts[i];
+                if(entry.order!=null) {keys[index].Clear();keys[index].AddRange(entry.order);}
+            }
+        }
+        public SnapshotPartCache.Composition Composition(string template)
+        {
+            var sets=new SnapshotPartCache.PartSet[keys.Length];int parts=0;
+            for(int i=0;i<keys.Length;i++)
+            {
+                var list=keys[i];var values=new string[list.Count];
+                for(int k=0;k<values.Length;k++)
+                    if(!texts[i].TryGetValue(list[k],out values[k])) throw new System.IO.InvalidDataException("Тексты тиков: нет части "+list[k]);
+                sets[i]=new SnapshotPartCache.PartSet(WorldTickLists.Names[i],list.ToArray(),values);parts+=values.Length;
+            }
+            Array.Sort(sets,(a,b)=>template.IndexOf(SnapshotPartCache.Marker(a.Name),StringComparison.Ordinal).CompareTo(template.IndexOf(SnapshotPartCache.Marker(b.Name),StringComparison.Ordinal)));
+            return new SnapshotPartCache.Composition(template,sets,parts,0);
+        }
+    }
+
     // Receiver side: applies a tick to a world by part keys. The whole tick is checked before anything changes.
     public static class WorldTickApplier
     {
-        public static void Apply(WorldState world,WorldTick tick)
+        public sealed class Parsed
+        {
+            internal WorldState Skeleton;
+            internal readonly List<(int index,WorldTickList entry,object[] items)> Lists=new();
+        }
+        public static void Apply(WorldState world,WorldTick tick)=>Apply(world,Parse(world,tick),null);
+        // Parse everything first: a malformed part leaves every world untouched.
+        public static Parsed Parse(WorldState world,WorldTick tick)
         {
             if(world==null || tick==null) throw new ArgumentNullException(world==null?nameof(world):nameof(tick));
             if(tick.world!=world.worldId) throw new System.IO.InvalidDataException($"Тик другого мира: {tick.world}, ожидается {world.worldId}.");
-            // Parse everything first: a malformed part leaves the world untouched.
-            WorldState skeleton=tick.skeleton==null?null:StateJson.FromJson<WorldState>(tick.skeleton);
-            var parsed=new List<(int index,WorldTickList entry,object[] items)>();
+            var result=new Parsed {Skeleton=tick.skeleton==null?null:StateJson.FromJson<WorldState>(tick.skeleton)};
+            var parsed=result.Lists;
             foreach(var entry in tick.lists)
             {
                 int index=Array.IndexOf(WorldTickLists.Names,entry.name);
@@ -187,8 +305,16 @@ namespace Remains.Persistence
                 for(int i=0;i<items.Length;i++) items[i]=entry.texts[i]=="null"?null:StateJson.FromJson(entry.texts[i],type);
                 parsed.Add((index,entry,items));
             }
-            foreach(var (index,entry,items) in parsed)
+            return result;
+        }
+        // copy=null: the parsed objects themselves (once); otherwise detached copies (a second world from one parse).
+        public static void Apply(WorldState world,Parsed tick,Func<object,Type,object> copy)
+        {
+            WorldState skeleton=tick.Skeleton==null?null:copy==null?tick.Skeleton:(WorldState)copy(tick.Skeleton,typeof(WorldState));
+            foreach(var (index,source,parts) in tick.Lists)
             {
+                var entry=source;var type=WorldTickLists.ItemType(index);
+                var items=copy==null?parts:Array.ConvertAll(parts,item=>item==null?null:copy(item,type));
                 var list=WorldTickLists.List(world,index);
                 var byKey=new Dictionary<string,object>(list.Count,StringComparer.Ordinal);
                 for(int i=0;i<list.Count;i++) byKey[WorldTickLists.Key(entry.name,list[i],i)]=list[i];

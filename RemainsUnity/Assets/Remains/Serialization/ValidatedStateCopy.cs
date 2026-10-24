@@ -23,6 +23,7 @@ namespace Remains.Serialization
         private static readonly ConcurrentDictionary<Type,Shape> shapes=new();
 
         public static T Copy<T>(T validated)=> (T)Clone(validated,typeof(T),0);
+        public static object Copy(object validated,Type type)=>Clone(validated,type,0);
 
         private static object Clone(object value,Type declared,int depth)
         {

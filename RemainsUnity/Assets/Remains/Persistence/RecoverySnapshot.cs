@@ -196,7 +196,12 @@ namespace Remains.Persistence
         public static RecoverySnapshot FromWorld(WorldState world)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
-            var composition=SnapshotPartCache.Compose(world);
+            return FromComposition(world,SnapshotPartCache.Compose(world));
+        }
+        // Transport v2: the composition comes from the world tick composer's part texts (no world serialization).
+        public static RecoverySnapshot FromComposition(WorldState world,SnapshotPartCache.Composition composition)
+        {
+            if(world==null || composition==null) throw new ArgumentNullException(world==null?nameof(world):nameof(composition));
             var memory=manifestMemories.GetOrCreateValue(world);
             var snapshot=new RecoverySnapshot(world,composition.Template,composition.Lists,memory.value) {Composition=composition};
             memory.value=snapshot.Manifest;

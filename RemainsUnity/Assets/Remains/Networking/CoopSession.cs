@@ -378,7 +378,7 @@ namespace Remains.Networking
             {
                 string backup=Saves.PreserveRecoverySource();
                 Debug.LogWarning($"Исходный сейв сохранён перед восстановлением позиций: world={ServerWorld.worldId}, actors={recoveredActors.Count}, backup={backup}.");
-                ServerWorld.revision++;Saves.SaveWorld(ServerWorld);
+                ServerWorld.revision++;Saves.SaveRecovery(CaptureServerSnapshot());
             }
             ownership.BeginSession(ServerWorld);
             inventory = new SharedInventory(ServerWorld,Rules.Loot);
@@ -572,7 +572,7 @@ namespace Remains.Networking
         internal WorldState CreateEntryView(JoinMessage message,out ActorState actor)
         {
             if(ServerWorld==null) throw new InvalidOperationException("Нет выбранного мира для подготовки входа.");
-            var view=RecoverySnapshot.FromWorld(ServerWorld).CreateLiveWorld();
+            var view=(TransportV2?RecoverySnapshot.FromComposition(ServerWorld,ComposeFromTicks(ServerWorld,false)):RecoverySnapshot.FromWorld(ServerWorld)).CreateLiveWorld();
             actor=PrepareEntryActor(view,message,out _);
             actor.connected=false;
             return EntryPreparationContext.NarrowView(view,actor.id,actor.level);
@@ -681,14 +681,14 @@ namespace Remains.Networking
             using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: рабочая копия (клиент)"))
             {
                 live=WorldTickLists.ShallowCopy(World);
-                WorldTickApplier.Apply(live,tick);
+                WorldTickApplier.Apply(live,tickReceiver.LastParsed,Remains.Serialization.ValidatedStateCopy.Copy);
             }
             var reused=new HashSet<string>(StringComparer.Ordinal);
             var changedActors=new HashSet<string>(StringComparer.Ordinal);
             foreach(var list in tick.lists) if(list.name=="actors" && list.keys!=null) foreach(string key in list.keys) changedActors.Add(key.Substring("actors:".Length));
             var current=new HashSet<ActorState>(World.actors);   // reference identity: the shallow copy keeps unchanged objects
             foreach(var actor in live.actors) if(!changedActors.Contains(actor.id) && current.Contains(actor)) reused.Add(actor.id);
-            if(ticksLogged<5 || tick.lists.Exists(l=>l.name=="actors") && ticksLogged<60)
+            if(ticksLogged<3)   // the first ticks of a session, for diagnosis
             {
                 ticksLogged++;
                 var summary=string.Join(", ",tick.lists.Select(l=>$"{l.name} {l.keys?.Length??0}/-{l.removed?.Length??0}{(l.order!=null?" порядок "+l.order.Length:"")}"));
@@ -696,6 +696,17 @@ namespace Remains.Networking
             }
             ReceiveWorld(new WorldMessage(),null,WorldTickReceiver.Changes(tick),WorldTickReceiver.ChangedParts(tick),live,reused,
                 tickReceiver.CopyCanonicalActor,WorldTickReceiver.FindBody,true);
+            if(tick.recovery!=null)
+            {
+                // The host's recovery point: the same copy from this client's tick texts, written and acknowledged.
+                RecoverySnapshot copy;
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: копия восстановления (клиент)"))
+                    copy=RecoverySnapshot.FromComposition(tickReceiver.Canonical,tickReceiver.Texts.Composition(tick.recovery));
+                // REMAINS_TICK_DUMP=<folder>: the client's recovery copy by revision, to compare with the host's archive.
+                string dump=Environment.GetEnvironmentVariable("REMAINS_TICK_DUMP");
+                if(!string.IsNullOrEmpty(dump)) System.IO.File.WriteAllText(System.IO.Path.Combine(dump,$"client-{LocalOwner?.Replace(':','_')}-r{copy.Revision}.json"),copy.Json);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подтверждение (клиент)")) QueueRecoveryReceipt(copy);
+            }
         }
 
         private void ReceiveWorld(WorldMessage message,RecoverySnapshot verified=null,WorldChangeKind changes=WorldChangeKind.All,IReadOnlyCollection<string> changedParts=null,
@@ -819,6 +830,7 @@ namespace Remains.Networking
             // canonical archive is queued first; its local replica must not rewind the head.
             saveWrites.Enqueue(()=>
             {
+                _=snapshot.Id;   // the file SHA for the acknowledgement, on the save thread (not in the main-thread callback)
                 store.SaveRecoveryWithCharacter(snapshot,actor,!localHost);timeCheckpoint.Persist();
                 if(captureReceipt) characterJson=store.ReadCharacterSource();
             },()=>
@@ -905,7 +917,8 @@ namespace Remains.Networking
         {
             using var timing=TransitionTiming.Measure("snapshot.prepare",ServerWorld?.worldId);
             long started=BeginRecoveryMeasurement();
-            var snapshot=Saves.CaptureWorldSnapshot(ServerWorld);
+            RecoverySnapshot snapshot;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: захват")) snapshot=CaptureServerSnapshot();
             var store=Saves;
             saveWrites.Enqueue(()=>store.SaveRecovery(snapshot),()=>
             {
@@ -915,7 +928,7 @@ namespace Remains.Networking
                 RecoveryPersisted?.Invoke(snapshot);
                 if(ServerWorld?.worldId==snapshot.WorldId) CompleteBackedUpGrants();
             },SaveWriteFailed);
-            recoveryReceipts.Register(snapshot);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: регистрация")) recoveryReceipts.Register(snapshot);
             if(snapshot.Composition!=null)
             {
                 recentSnapshots.Add(snapshot);
@@ -1403,7 +1416,13 @@ namespace Remains.Networking
             RecoverySnapshot snapshot;
             using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: подготовка")) snapshot=PrepareRecovery();
             Remains.Diagnostics.FrameHitchLog.Note(SnapshotPartCache.LastReport);
-            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: отправка"))
+            if(TransportV2)
+            {
+                // Clients compose this copy from the recovery-point tick; only a connection without any full world gets one.
+                foreach(int id in owners.Keys)
+                    if(!deliveredSnapshots.ContainsKey(id) && NetworkServer.connections.TryGetValue(id,out var connection)) SendFullWorld(connection,snapshot);
+            }
+            else using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: отправка"))
             {
                 // One encoded delta per base for all connections holding that base; others get the full snapshot.
                 var payloads=new Dictionary<string,byte[]>(StringComparer.Ordinal);int deltas=0,full=0;
@@ -1431,13 +1450,32 @@ namespace Remains.Networking
         // A recovery copy (snapshot to disk and to clients) is due periodically and while a pickup waits for durable copies.
         private bool RecoveryDue()=>ServerWorld.pendingGrants.Count>0 || Time.unscaledTimeAsDouble-lastRecoveryAt>=RecoveryIntervalSeconds ||
             owners.Keys.Any(id=>!deliveredSnapshots.ContainsKey(id));
-        private void FlushTick(bool slow)
+        // A server-world snapshot: v2 composes it from the tick composer after a slow tick (no world serialization);
+        // the previous transport composes it from the world (SnapshotPartCache).
+        private RecoverySnapshot CaptureServerSnapshot()=>TransportV2?Saves.CaptureWorldSnapshot(ServerWorld,ComposeFromTicks):Saves.CaptureWorldSnapshot(ServerWorld);
+        // The capture is a recovery point: its tick carries the template, and each client composes the same copy from
+        // its tick texts, writes it in the background and acknowledges it (no snapshot deltas are sent).
+        // recoveryPoint=false: a view that is not persisted (an entry preparation); clients must not write a copy the
+        // host never archives (their acknowledgement requires the host's exact archive).
+        private SnapshotPartCache.Composition ComposeFromTicks(WorldState world)=>ComposeFromTicks(world,true);
+        private SnapshotPartCache.Composition ComposeFromTicks(WorldState world,bool recoveryPoint)
+        {
+            string template;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: шаблон")) template=WorldTickLists.Template(world);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: тик")) FlushTick(true,recoveryPoint?template:null);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Снимок: из тиков")) return tickComposer.Composition(template);
+        }
+        private void FlushTick(bool slow,string recovery=null)
         {
             if(ServerWorld==null) return;
             double now=Time.unscaledTimeAsDouble;
             lastTickAt=now;if(slow) lastSlowTickAt=now;
             WorldTick tick;
-            using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: сборка")) tick=tickComposer.Next(ServerWorld,part=>WorldChanges.IsMarked(ServerWorld,part),slow);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: сборка")) tick=tickComposer.Next(ServerWorld,part=>WorldChanges.IsMarked(ServerWorld,part),slow,recovery!=null);
+            if(tick!=null) tick.recovery=recovery;
+            // The composer is the only consumer of marks (every server-world snapshot is composed from its texts).
+            if(slow) WorldChanges.Clear(ServerWorld);
+            else foreach(var part in tickComposer.Consumed) WorldChanges.Unmark(ServerWorld,part);
             if(tick==null || tickReady.Count==0) return;
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Тик мира: отправка");
             byte[] payload=WorldTickSender.Encode(tick);
@@ -1487,7 +1525,7 @@ namespace Remains.Networking
             if(npcHits!=null) {Destroy(npcHits);npcHits=null;}
             Pause.ResetServer();
             CancelInvoke(nameof(CheckpointWorld));CancelInvoke(nameof(ExpireEntryPreparation));EntryPreparation.ResetServer();
-            if (ServerWorld != null) Saves.SaveWorld(ServerWorld);
+            if (ServerWorld != null) Saves.SaveRecovery(CaptureServerSnapshot());
             LevelTime.ResetServer();
             Mechanisms.ResetServer();DoorDamage.ResetServer();Lamps.ResetServer();
             QueueStopNotification();

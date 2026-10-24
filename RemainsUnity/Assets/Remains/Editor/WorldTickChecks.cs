@@ -24,16 +24,20 @@ namespace Remains.Editor
             for(int i=0;i<20;i++) host.props.Add(new PropState {id="p"+i,x=i});
             for(int i=0;i<10;i++) host.actors.Add(new ActorState {id="a"+i,health=100,x=i});
             for(int i=0;i<10;i++) host.doors.Add(new DoorState {id="d"+i});
+            for(int i=0;i<6;i++) host.projectiles.Add(new ProjectileState {launch=new AttackEvent {id="f"+i},flightSpeed=10});
             WorldChanges.Track(host);
             var client=StateJson.FromJson<WorldState>(StateJson.ToJson(host));
             var composer=new WorldTickComposer();
+            var clientTexts=new WorldTickTexts(client);
+            var live=StateJson.FromJson<WorldState>(StateJson.ToJson(host));   // the client's live world (detached copies)
             Require(composer.Next(host,part=>WorldChanges.IsMarked(host,part))==null,"Первый вызов должен только запомнить мир.");
             Require(composer.Next(host,part=>WorldChanges.IsMarked(host,part))==null,"Тик без изменений не пуст.");
             int ticks=0,next=1000;
             for(int round=0;round<300;round++)
             {
-                switch(random.Next(8))
+                switch(random.Next(9))
                 {
+                    case 8: {var f=host.projectiles[random.Next(host.projectiles.Count)];if(!f.finished) {f.traveled+=1;if(f.traveled>=3) f.finished=true;}break;}   // flight progress and landing, no mark
                     case 7: {var a=host.actors[random.Next(host.actors.Count)];a.owner="o"+round;a.revision++;break;}   // revision only, no mark
                     case 0: {var c=host.containers[random.Next(host.containers.Count)];c.x+=1;WorldChanges.Mark(host,c);break;}
                     case 1: {int i=random.Next(host.actors.Count);var a=host.actors[i].Copy();a.health-=1;host.actors[i]=a;break;}   // replaced object, no mark
@@ -50,9 +54,18 @@ namespace Remains.Editor
                 Require(tick.seq==ticks+1,$"Номер тика {tick.seq}, ожидается {ticks+1}.");
                 ticks++;
                 // Through the wire format, as the transport will send it.
-                WorldTickApplier.Apply(client,StateJson.FromJson<WorldTick>(StateJson.ToJson(tick)));
+                var wire=StateJson.FromJson<WorldTick>(StateJson.ToJson(tick));
+                var parsed=WorldTickApplier.Parse(client,wire);
+                WorldTickApplier.Apply(client,parsed,null);clientTexts.Apply(wire);
+                var nextLive=WorldTickLists.ShallowCopy(live);WorldTickApplier.Apply(nextLive,parsed,Remains.Serialization.ValidatedStateCopy.Copy);live=nextLive;
                 string expected=StateJson.ToJson(host),actual=StateJson.ToJson(client);
                 Require(expected==actual,$"Мир по тикам разошёлся с миром хоста после тика {tick.seq}.");
+                Require(StateJson.ToJson(live)==expected,$"Живой мир по тикам разошёлся с миром хоста после тика {tick.seq}.");
+                foreach(var actor in live.actors) Require(!client.actors.Exists(a=>ReferenceEquals(a,actor)),"Живой мир делит объект актёра с каноническим.");
+                // A snapshot composed from the composer's texts is exactly the world's text (after a slow tick).
+                Require(composer.Composition(WorldTickLists.Template(host)).Json==expected,$"Снимок из тиков разошёлся с миром хоста после тика {tick.seq}.");
+                // The receiver's copy from its tick texts is byte-identical (its SHA acknowledges the host's recovery copy).
+                Require(clientTexts.Composition(WorldTickLists.Template(host)).Json==expected,$"Копия получателя из текстов тиков разошлась с хостом после тика {tick.seq}.");
             }
             Require(ticks>40,"Слишком мало тиков для проверки: "+ticks);
 

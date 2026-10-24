@@ -41,12 +41,15 @@ namespace Remains.Networking
     public sealed class WorldTickReceiver
     {
         public WorldState Canonical {get;private set;}
+        public WorldTickTexts Texts {get;private set;}
+        // The last applied tick's parsed parts (now the canonical objects): the live world takes detached copies.
+        public WorldTickApplier.Parsed LastParsed {get;private set;}
         public long Seq {get;private set;}
         public bool Ready=>Canonical!=null;
         private byte[] buffer;private long bufferSeq;private int received;
 
-        public void Reset(WorldState canonical,long seq) {Canonical=canonical;Seq=seq;buffer=null;}
-        public void Forget() {Canonical=null;Seq=0;buffer=null;}
+        public void Reset(WorldState canonical,long seq) {Canonical=canonical;Texts=new WorldTickTexts(canonical);Seq=seq;buffer=null;}
+        public void Forget() {Canonical=null;Texts=null;Seq=0;buffer=null;}
 
         public enum Result {Pending,Ignored,Applied,Gap}
         // A whole tick is parsed and applied to the canonical world, or nothing changes (InvalidDataException).
@@ -66,7 +69,9 @@ namespace Remains.Networking
             var bytes=buffer;buffer=null;
             tick=StateJson.FromJson<WorldTick>(new UTF8Encoding(false,true).GetString(bytes));
             if(tick.seq!=message.seq || tick.world!=message.world) throw new InvalidDataException("Заголовок тика не совпадает с пакетом.");
-            WorldTickApplier.Apply(Canonical,tick);
+            LastParsed=WorldTickApplier.Parse(Canonical,tick);
+            WorldTickApplier.Apply(Canonical,LastParsed,null);
+            Texts.Apply(tick);
             Seq=tick.seq;
             return Result.Applied;
         }
