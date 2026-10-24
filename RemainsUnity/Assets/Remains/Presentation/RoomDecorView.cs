@@ -32,7 +32,7 @@ namespace Remains.Presentation
         public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,IReadOnlyDictionary<string,string> withoutPicture,Vector2 origin,Transform terrainRoot,List<RoomSpritePlacement> placements=null,IReadOnlyDictionary<string,double> glowThresholds=null,LightShaderContext lightContext=null)
         {
             if(room==null || definitions==null || lands==null || art==null || terrainRoot==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):art==null?nameof(art):nameof(terrainRoot));
-            var spriteShader=Resources.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
+            var spriteShader=GameAssets.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
             var root=new GameObject("Декор и объекты: "+room.Template);
             root.transform.SetParent(terrainRoot,false);   // inside the room's SortingGroup
             var holder=root.AddComponent<RoomDecorResources>();
@@ -71,7 +71,7 @@ namespace Remains.Presentation
                 if(placed.EraseArtId!=null) erases.Add((art.Tile(placed.EraseArtId).sprite,obj.transform.localToWorldMatrix));
             }
 
-            if(erases.Count>0) holder.BuildErase(erases,origin,new Vector2((float)(room.Width*room.Cell),(float)(room.Height*room.Cell)),Resources.Load<Shader>(EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+EraseShaderResource));
+            if(erases.Count>0) holder.BuildErase(erases,origin,new Vector2((float)(room.Width*room.Cell),(float)(room.Height*room.Cell)),GameAssets.Load<Shader>(EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+EraseShaderResource));
             if(lightZones.Count>0) issues.Add($"{room.Template}: декор-светозоны не рисуются (свет/тень новой системы, не картинка): {Join(lightZones)}.");
             if(otherObjects.Count>0) issues.Add($"{room.Template}: объекты без рисунка vis (своя отрисовка, этап позже): {Join(otherObjects)}.");
             foreach(string issue in issues) Debug.LogWarning(issue);

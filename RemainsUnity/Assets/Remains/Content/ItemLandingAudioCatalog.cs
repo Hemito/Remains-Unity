@@ -24,9 +24,9 @@ namespace Remains.Content
         public int Count=>sounds.Count;
         public static ItemLandingAudioCatalog Load()
         {
-            var asset=Resources.Load<TextAsset>(Resource);
+            var asset=GameAssets.Load<TextAsset>(Resource);
             if(asset==null) throw new InvalidOperationException("Нет каталога звуков личных вещей: "+Resource+".");
-            return Create(JsonUtility.FromJson<Settings>(asset.text),Resources.Load<AudioClip>);
+            return Create(JsonUtility.FromJson<Settings>(asset.text),GameAssets.Load<AudioClip>);
         }
         public static ItemLandingAudioCatalog Create(Settings settings,Func<string,AudioClip> loadClip)
         {

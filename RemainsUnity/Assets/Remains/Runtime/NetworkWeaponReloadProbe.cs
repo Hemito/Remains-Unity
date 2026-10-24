@@ -90,7 +90,7 @@ namespace Remains.Runtime
                 "Нужны weapon-reload-frames, отдельное сохранение, HUD и1–2 участника.");
             visuals=FindFirstObjectByType<InteractionVisuals>();Require(visuals?.ReloadAnimation!=null,"Нет сервиса изображения перезарядки.");
             foreach(string weapon in new[]{"pistol","energy"})
-            {var asset=Resources.Load<WeaponAsset>("Content/weapons/"+weapon);Require(asset?.ReloadAnimation!=null,"Нет кадров перезарядки: "+weapon);assets.Add(weapon,asset);}
+            {var asset=GameAssets.Load<WeaponAsset>("Content/weapons/"+weapon);Require(asset?.ReloadAnimation!=null,"Нет кадров перезарядки: "+weapon);assets.Add(weapon,asset);}
             value.CommandSource=Command;value.Session.ServerReady+=RegisterServer;value.Session.ClientReady+=RegisterClient;
             value.Session.ReloadAudio.Sent+=Observe;value.Session.ReloadAudio.Received+=Observe;value.Session.AttackReceived+=Attack;
         }

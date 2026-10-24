@@ -54,7 +54,7 @@ namespace Remains.Editor
                 }
                 foreach(var sprite in record.sprites)
                 {
-                    var texture=Resources.Load<Texture2D>(sprite.resource)??throw new InvalidOperationException($"Нет ресурса {sprite.resource}: {file}.");
+                    var texture=GameAssets.Load<Texture2D>(sprite.resource)??throw new InvalidOperationException($"Нет ресурса {sprite.resource}: {file}.");
                     var view=new GameObject(sprite.name).AddComponent<SpriteRenderer>();
                     view.sprite=Sprite.Create(texture,new Rect(sprite.rectX,sprite.rectY,sprite.rectWidth,sprite.rectHeight),sprite.pivot,sprite.pixelsPerUnit);
                     SpriteArtworkMaterial.Prepare(view.sprite);SpriteArtworkMaterial.Apply(view,view.sprite);

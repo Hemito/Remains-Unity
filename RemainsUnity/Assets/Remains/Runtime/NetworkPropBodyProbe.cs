@@ -197,11 +197,11 @@ namespace Remains.Runtime
                 if(Cargo==null || Victim==null) throw new InvalidOperationException("Подготовленный актёр или авторский контейнер отсутствует в реальной реплике.");
                 cargoRoom=runtime.Geometry.Get("factory:0");landingBaseline=runtime.PropAudio.Landings;
                 foreach(var voice in runtime.Audio.GetComponentsInChildren<AudioSource>()) voiceIds.Add(voice.GetInstanceID());
-                var asset=Resources.Load<TextAsset>("Presentation/prop-audio");
+                var asset=GameAssets.Load<TextAsset>("Presentation/prop-audio");
                 if(asset==null) throw new InvalidOperationException("Нет настроек звуков физических объектов.");
                 var settings=JsonUtility.FromJson<PropContactAudio.Settings>(asset.text);
                 var entry=settings?.entries?.SingleOrDefault(e=>e.definition==Cargo.definition);
-                expectedClip=entry==null?null:Resources.Load<AudioClip>(entry.clip);
+                expectedClip=entry==null?null:GameAssets.Load<AudioClip>(entry.clip);
                 if(expectedClip==null || expectedClip.samples<=0) throw new InvalidOperationException("Нет реального звука приземления для "+Cargo.definition);
             }
             catch(Exception error) {Fail(error.Message+" "+Context());}

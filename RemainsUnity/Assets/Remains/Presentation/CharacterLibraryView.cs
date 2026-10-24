@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 namespace Remains.Presentation
 {
     public sealed class CharacterLibraryView : MonoBehaviour
@@ -27,7 +28,7 @@ namespace Remains.Presentation
         }
         public static CharacterLibraryView CreateView(Transform parent)
         {
-            var prefab=Resources.Load<CharacterLibraryView>("Presentation/CharacterLibrary");
+            var prefab=GameAssets.Load<CharacterLibraryView>("Presentation/CharacterLibrary");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/CharacterLibrary.");
             prefab.Validate();return Instantiate(prefab,parent,false);
         }

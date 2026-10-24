@@ -22,7 +22,7 @@ namespace Remains.Content
         public static PonyPaletteAsset Load()
         {
             if(loaded!=null) return loaded;
-            var asset=Resources.Load<PonyPaletteAsset>("Content/pony-palette");
+            var asset=GameAssets.Load<PonyPaletteAsset>("Content/pony-palette");
             if(asset==null) throw new InvalidOperationException("Нет палитры Content/pony-palette.");
             asset.Validate();loaded=asset;return loaded;
         }

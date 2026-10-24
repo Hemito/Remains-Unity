@@ -34,7 +34,7 @@ namespace Remains.Editor
             Require(ActorTypes.Get("pony").activateTrap==HazardRules.SpringsTraps && ActorTypes.Get("tarakan").activateTrap==1,"acttrap: пони 2 по умолчанию, таракан 1 из AllData");
             CheckRules(trap,charge);CheckArtwork(trap,charge);
             var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
-            FactoryPreparation.Create(world,Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
+            FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {
                 FactoryContentSources.Prepare(world,"factory:0");
@@ -118,7 +118,7 @@ namespace Remains.Editor
             foreach(string sound in new[] {trap.snapSound,trap.rearmSound})
                 Require(exported.Resource(sound).sounds?.FirstOrDefault()!=null,"звук капкана "+sound);
             Require(exported.TryIcon(charge.disarmItem,0,out _),"значок динамита");
-            string audio=Resources.Load<TextAsset>("Presentation/combat-audio").text;
+            string audio=GameAssets.Load<TextAsset>("Presentation/combat-audio").text;
             Require(audio.Contains("{\"weapon\":\""+trap.biteWeapon+"\",\"clip\":\"exported:"+trap.snapSound+"\",\"kind\":\"melee\"") &&
                 audio.Contains("{\"weapon\":\""+charge.blastWeapon+"\",\"clip\":\"grenade-explosion\",\"kind\":\"explosion\""),"звуки укуса (trap_a) и взрыва заряда");
         }

@@ -8,11 +8,11 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            var prefab=Resources.Load<ExplosionVisual>("Presentation/Explosion");
+            var prefab=GameAssets.Load<ExplosionVisual>("Presentation/Explosion");
             if(prefab==null) throw new InvalidOperationException("Нет префаба взрыва.");
             prefab.Validate();
             var source=prefab.GetComponent<SpriteRenderer>();var original=source.sprite;
-            var data=Resources.Load<ExplosionAnimationAsset>("Presentation/explosion-animation").CreateArtwork();
+            var data=GameAssets.Load<ExplosionAnimationAsset>("Presentation/explosion-animation").CreateArtwork();
             var instance=UnityEngine.Object.Instantiate(prefab);
             try
             {

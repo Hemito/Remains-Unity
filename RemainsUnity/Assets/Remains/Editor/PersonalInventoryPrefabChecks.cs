@@ -2,13 +2,14 @@ using System;
 using Remains.Domain;
 using Remains.Presentation;
 using UnityEngine;
+using Remains.Content;
 namespace Remains.Editor
 {
     public static class PersonalInventoryPrefabChecks
     {
         public static void Run()
         {
-            var source=Resources.Load<PersonalInventoryView>("Presentation/PersonalInventory");
+            var source=GameAssets.Load<PersonalInventoryView>("Presentation/PersonalInventory");
             if(source==null) throw new InvalidOperationException("Нет личной страницы инвентаря.");source.Validate();
             var first=UnityEngine.Object.Instantiate(source);var second=UnityEngine.Object.Instantiate(source);
             try

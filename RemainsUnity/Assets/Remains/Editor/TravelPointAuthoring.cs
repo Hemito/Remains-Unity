@@ -38,7 +38,7 @@ namespace Remains.Editor
         {
             string path=Folder+"/"+name+".asset";var sprite=AssetDatabase.LoadAssetAtPath<Sprite>(path);
             if(sprite!=null) return sprite;
-            var texture=Resources.Load<Texture2D>("Original/Travel/"+name);
+            var texture=GameAssets.Load<Texture2D>("Original/Travel/"+name);
             sprite=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,world?0:.5f),world?200:100,0,SpriteMeshType.FullRect);
             AssetDatabase.CreateAsset(sprite,path);return sprite;
         }

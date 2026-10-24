@@ -48,8 +48,8 @@ namespace Remains.Editor
                 var declared=new RoomArtwork {x=surface.x,y=surface.y,width=surface.width,height=surface.height,texture=surface.texture,order=-4,repeat=true};
                 var mesh=marker.GetComponent<MeshFilter>().sharedMesh;
                 var block=new MaterialPropertyBlock();renderer.GetPropertyBlock(block);
-                if(!FactoryLadderLandingChecks.SameArtwork(artwork,declared) || material.shader!=Resources.Load<Shader>("Presentation/WorldLit") ||
-                    material.mainTexture!=Resources.Load<Texture2D>("Original/Room/"+surface.texture) || material.color!=Color.white ||
+                if(!FactoryLadderLandingChecks.SameArtwork(artwork,declared) || material.shader!=GameAssets.Load<Shader>("Presentation/WorldLit") ||
+                    material.mainTexture!=GameAssets.Load<Texture2D>("Original/Room/"+surface.texture) || material.color!=Color.white ||
                     material.mainTextureScale!=Vector2.one || material.mainTextureOffset!=Vector2.zero || renderer.sortingLayerID!=0 ||
                     WorldArtworkMaterial.ReadFloat(renderer,"_Emission")!=0 || WorldArtworkMaterial.ReadFloat(renderer,"_BackgroundLighting")!=0 ||
                     !marker.enabled || !marker.gameObject.activeSelf || !renderer.enabled || !block.isEmpty || material.renderQueue!=3000 ||

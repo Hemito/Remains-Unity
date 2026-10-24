@@ -2,6 +2,7 @@ using System;
 using Remains.Domain;
 using Remains.Presentation;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -9,7 +10,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            var settings=JsonUtility.FromJson<MovementAudio.Settings>(Resources.Load<TextAsset>("Presentation/movement-audio").text);
+            var settings=JsonUtility.FromJson<MovementAudio.Settings>(GameAssets.Load<TextAsset>("Presentation/movement-audio").text);
             foreach(var pattern in settings.rhythms)
             {
                 pattern.Validate();

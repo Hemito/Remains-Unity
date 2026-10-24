@@ -155,7 +155,7 @@ namespace Remains.Editor
                     // Matching the correctly registered new canvas restores source mask602's top edge.
                     var canvas=actual.Read(room);shift=new Vector2(canvas.x,canvas.y+canvas.height)-new Vector2(fixture.x,fixture.y+fixture.height);
                 }
-                var texture=Resources.Load<Texture2D>(mask);
+                var texture=GameAssets.Load<Texture2D>(mask);
                 if(texture==null || !texture.isReadable) throw new InvalidOperationException("Офисы53: нет читаемой исходной маски, record="+record.recordId+", mask="+mask);
                 var node=new GameObject("Светильник · "+record.recordId);node.transform.SetParent(root.GetComponentInChildren<RoomMeshLifetime>().transform,false);
                 // Keep the previous Office field selection, including RoomLight defaults.

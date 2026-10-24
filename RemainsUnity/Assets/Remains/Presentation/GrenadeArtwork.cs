@@ -8,7 +8,7 @@ namespace Remains.Presentation
     {
         public static SpriteRenderer LoadPrefab()
         {
-            var definition=Resources.Load<WeaponAsset>("Content/weapons/grenade");
+            var definition=GameAssets.Load<WeaponAsset>("Content/weapons/grenade");
             if(definition==null || definition.GrenadeFlight==null)
                 throw new InvalidOperationException("Граната grenade: не назначен префаб полёта в Content/weapons/grenade.");
             var prefab=definition.GrenadeFlight;

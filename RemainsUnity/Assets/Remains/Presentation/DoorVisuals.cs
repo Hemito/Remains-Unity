@@ -4,6 +4,7 @@ using System.Linq;
 using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -74,7 +75,7 @@ namespace Remains.Presentation
                 {
                     if(!prefabs.TryGetValue(door.definition,out var prefab))
                     {
-                        prefab=Resources.Load<DoorView>("Presentation/Doors/"+door.definition);
+                        prefab=GameAssets.Load<DoorView>("Presentation/Doors/"+door.definition);
                         if(prefab==null || prefab.Definition==null || prefab.Definition.Id!=door.definition)
                             throw new InvalidOperationException($"Нет префаба двери: id={door.id}, type={door.definition}, level={door.level}.");
                         prefab.Definition.Validate();prefabs.Add(door.definition,prefab);

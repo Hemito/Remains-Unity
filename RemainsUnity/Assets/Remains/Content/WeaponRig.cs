@@ -34,7 +34,7 @@ namespace Remains.Content
             throw new InvalidOperationException($"Нет графической позы оружия: {id}.");
         public static void Load()
         {
-            var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            var catalog=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(catalog==null) throw new InvalidOperationException("Нет Content/WeaponCatalog.");
             catalog.OrdinaryHoldingArea.Validate("Content/WeaponCatalog, обычные вещи");
             OrdinaryHoldingArea=catalog.OrdinaryHoldingArea;

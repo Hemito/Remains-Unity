@@ -30,7 +30,7 @@ namespace Remains.Content
         public static void Load()
         {
             if(IsLoaded) return;
-            var asset=Resources.Load<TextAsset>(Resource);
+            var asset=GameAssets.Load<TextAsset>(Resource);
             if(asset==null) throw new InvalidOperationException("Нет каталога форм головы: "+Resource+".");
             var source=JsonUtility.FromJson<PonyHeadStyleList>(asset.text);
             Validate(source,Resource);

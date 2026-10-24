@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -19,7 +20,7 @@ namespace Remains.Presentation
         public event Action<HealingSoundCue,AudioClip> HealingPlayed;
         public static Catalog Load()
         {
-            var data=Resources.Load<TextAsset>(Resource);
+            var data=GameAssets.Load<TextAsset>(Resource);
             if(data==null) throw new InvalidOperationException("Нет каталога звуков лечебных предметов: "+Resource);
             var catalog=JsonUtility.FromJson<Catalog>(data.text);Validate(catalog);return catalog;
         }
@@ -41,7 +42,7 @@ namespace Remains.Presentation
             catalog??=Load();Validate(catalog);
             foreach(var entry in catalog.entries)
             {
-                var clip=Resources.Load<AudioClip>(entry.clip);
+                var clip=GameAssets.Load<AudioClip>(entry.clip);
                 if(clip==null || clip.samples<=0 || clip.frequency<=0 || clip.channels<=0)
                     throw new InvalidOperationException($"Нет лечебного звука: definition={entry.definition}, clip={entry.clip}.");
                 prepared.Add(entry.definition,(clip,entry.gain));

@@ -41,7 +41,7 @@ namespace Remains.Editor
                 CheckSupportIndex();
                 CheckPoseCadence();
                 Anatomy.Load();WeaponCatalog.Load();
-                var catalog=Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
+                var catalog=GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
                 if(catalog==null) throw new InvalidOperationException("Нет каталога завода.");
                 var world=new WorldState {worldId="factory-physics-benchmark",seed=104};
                 FactoryPreparation.Create(world,catalog,0);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Remains.Gameplay;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -17,7 +18,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession session,ProjectileController controller,WorldVisualOrderTable orderTable)
         {
             this.session=session;this.controller=controller;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));
-            prefab=Resources.Load<LaserImpactView>("Presentation/Effects/laser-impact");
+            prefab=GameAssets.Load<LaserImpactView>("Presentation/Effects/laser-impact");
             if(prefab==null) throw new InvalidOperationException("Не назначен префаб Presentation/Effects/laser-impact.");
             prefab.Validate();
             controller.ContactObserved+=Contact;

@@ -11,7 +11,7 @@ namespace Remains.Editor
         public static void Run()
         {
             const string path="Assets/Remains/Prefabs/Weapons/grenade.prefab";
-            var definition=Resources.Load<WeaponAsset>("Content/weapons/grenade");
+            var definition=GameAssets.Load<WeaponAsset>("Content/weapons/grenade");
             if(definition==null || definition.GrenadeFlight==null)
                 throw new InvalidOperationException("Для удерживаемой гранаты нужны определение и назначенный префаб полёта.");
             if(definition.Presentation!=null || AssetDatabase.LoadMainAssetAtPath(path)!=null)

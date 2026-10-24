@@ -127,7 +127,7 @@ namespace Remains.Runtime
                 "Неверный initial baseline одежды.");
             baseline=value;foreach(var entry in value.actors) actors.Add(entry.actor,entry);
             Require(actors.ContainsKey(Actor.id),"Baseline не содержит локального игрока.");
-            bare=Resources.Load<PonyRenderAsset>("Original/Pony/render")??throw new InvalidOperationException("Нет native базового asset пони.");
+            bare=GameAssets.Load<PonyRenderAsset>("Original/Pony/render")??throw new InvalidOperationException("Нет native базового asset пони.");
             foreach(string definition in new[]{"armor.pip","armor.antirad"})
             {
                 var data=CosmeticCatalog.Current.Get(definition);

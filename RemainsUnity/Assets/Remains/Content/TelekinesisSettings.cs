@@ -19,7 +19,7 @@ namespace Remains.Content
         }
         public static TelekinesisSettings Load()
         {
-            var asset=Resources.Load<TextAsset>("Content/telekinesis");
+            var asset=GameAssets.Load<TextAsset>("Content/telekinesis");
             if(asset==null) throw new InvalidOperationException("Нет параметров телекинеза Content/telekinesis.");
             var result=JsonUtility.FromJson<TelekinesisSettings>(asset.text);
             if(result==null) throw new InvalidOperationException("Не удалось прочитать Content/telekinesis.");

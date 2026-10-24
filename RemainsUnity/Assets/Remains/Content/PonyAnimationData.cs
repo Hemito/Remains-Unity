@@ -21,7 +21,7 @@ namespace Remains.Content
         public static void Load()
         {
             if(Library!=null) return;
-            var json=Resources.Load<TextAsset>("Original/Pony/pony");
+            var json=GameAssets.Load<TextAsset>("Original/Pony/pony");
             if(json==null) throw new InvalidOperationException("Нет данных анимации Original/Pony/pony.");
             var parsed=JsonUtility.FromJson<PonyLibrary>(json.text);
             if(parsed?.clips==null || parsed.clips.Length==0 || parsed.appearanceVersion!=1 || parsed.hairStyles<1 || parsed.eyeStyles<1)

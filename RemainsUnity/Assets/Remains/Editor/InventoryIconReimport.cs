@@ -10,7 +10,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            var catalog=Resources.Load<InventoryIconAsset>("Original/Inventory/icons").CreateLookup();
+            var catalog=GameAssets.Load<InventoryIconAsset>("Original/Inventory/icons").CreateLookup();
             foreach(string id in new[]{"heal","caps","p10","batt"})
             {
                 string path=$"Assets/Remains/Resources/Original/Inventory/{id}.png";

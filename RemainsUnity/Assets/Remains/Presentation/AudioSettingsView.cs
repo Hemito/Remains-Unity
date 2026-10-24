@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 namespace Remains.Presentation
 {
     public sealed class AudioSettingsView : MonoBehaviour
@@ -26,7 +27,7 @@ namespace Remains.Presentation
         }
         public static AudioSettingsView Create(Transform parent)
         {
-            var prefab=Resources.Load<AudioSettingsView>("Presentation/AudioSettings");
+            var prefab=GameAssets.Load<AudioSettingsView>("Presentation/AudioSettings");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/AudioSettings.");
             prefab.Validate();return Instantiate(prefab,parent,false);
         }

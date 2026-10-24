@@ -41,7 +41,7 @@ namespace Remains.Editor
             WeaponCatalog.Load();Anatomy.Load();PonyVisual.Prepare();
             var actor=new ActorState {id="head-render-check",appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion},weapon=null};
             var visual=(PonyVisual)ActorVisualFactory.Create(actor);
-            var inventory=UnityEngine.Object.Instantiate(Resources.Load<PersonalInventoryView>("Presentation/PersonalInventory"));
+            var inventory=UnityEngine.Object.Instantiate(GameAssets.Load<PersonalInventoryView>("Presentation/PersonalInventory"));
             var portrait=new InventoryPortrait(inventory.Portrait,inventory.PortraitParts);
             int drawn=0;var structure=visual.transform.childCount;
             try

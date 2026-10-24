@@ -7,6 +7,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -107,7 +108,7 @@ namespace Remains.Editor
         }
         private static void WriteReserveEvidence(string path,Vector2Int size,int sample,ActorState actor,CombatHudView view,Camera camera,Canvas canvas)
         {
-            var saved=Resources.Load<CombatHudView>("Presentation/CombatHud");
+            var saved=GameAssets.Load<CombatHudView>("Presentation/CombatHud");
             bool healthMatches=sample==1?System.Array.Exists(saved.HealthWarningFrames,s=>s==view.Health.sprite):view.Health.sprite==saved.Health.sprite;
             if(!healthMatches || view.Mana.sprite!=saved.Mana.sprite || Mathf.Abs(view.Health.fillAmount-actor.health/100)>1e-7f ||
                 Mathf.Abs(view.Mana.fillAmount-actor.mana/100)>1e-7f)

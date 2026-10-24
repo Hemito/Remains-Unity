@@ -78,7 +78,7 @@ namespace Remains.Content
         {
             WeaponRigs.Load();
             ActorTypes.Load();PropCatalog.Load();HazardCatalog.Load();
-            var asset=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            var asset=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
             CasingEffectCatalog.Load();
             FootSupportCatalog.Load();
@@ -88,7 +88,7 @@ namespace Remains.Content
             var rules=Rules??GameplayCodeMods.Compose(loaded.codeMods);
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
             inputs.Add(ExportedContentCatalog.ResourcePath,ExportedContentCatalog.Load().sourceHash);
-            var factoryLoot=Resources.Load<FactoryLootCatalog>("Content/FactoryLoot")??throw new InvalidOperationException("Нет каталога исходного лута завода.");
+            var factoryLoot=GameAssets.Load<FactoryLootCatalog>("Content/FactoryLoot")??throw new InvalidOperationException("Нет каталога исходного лута завода.");
             inputs.Add("Content/FactoryLoot",factoryLoot.sourceHash+"|"+FactoryContainerLoot.Version+"|"+
                 factoryLoot.baseDifficulty.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+"|"+
                 factoryLoot.depthDifficulty.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+"|"+factoryLoot.gameStage);
@@ -101,7 +101,7 @@ namespace Remains.Content
             inputs.Add("Rules/factory-enemy-scaling","floor-v3|unit:hp=.11,damage=.07,protection=.05|turret:hp=.20,damage=.12,protection=.10|mine:after10=.10|saved-baseline-v1");
             foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/standing-edge-poses",SlopePoseCatalog.Resource,"Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
             {
-                var data=Resources.Load<TextAsset>(path);
+                var data=GameAssets.Load<TextAsset>(path);
                 if(data==null) throw new InvalidOperationException($"Нет данных игрового манифеста: {path}.");
                 inputs.Add(path,data.text);
             }

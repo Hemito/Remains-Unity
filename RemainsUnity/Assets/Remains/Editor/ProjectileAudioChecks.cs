@@ -135,7 +135,7 @@ namespace Remains.Editor
                 var sources=root.GetComponentsInChildren<AudioSource>();
                 Require(contacts==1 && hits==(actorBlocks?1:0) && audio.Played==1 && sources.Length==1,
                     "Пропущен или повторён контакт/звук; стена за актёром не должна звучать");
-                Require(sources[0].clip==Resources.Load<AudioClip>("Original/Audio/"+expected),"Выбран неверный WAV");
+                Require(sources[0].clip==GameAssets.Load<AudioClip>("Original/Audio/"+expected),"Выбран неверный WAV");
                 Require(!Application.isBatchMode || sources[0].mute,"Фоновая проверка не заглушена");
                 Require(sources[0].panStereo>0,"Правый источник не слышен справа.");
                 camera.transform.position=new Vector3(20,0,-10);

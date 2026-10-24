@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Remains.Domain;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -43,7 +44,7 @@ namespace Remains.Presentation
         }
         private static GameObject Quad(Transform parent,string name,float x,float y,float width,float height,string key,int order,bool repeat=true,float shade=1,bool nativeScale=false,bool stretchY=false,bool selfIlluminated=false,float pixelsPerUnit=50,bool localUv=false,bool backgroundLighting=false,int slopeDirection=0)
         {
-            var texture=Resources.Load<Texture2D>("Original/Room/"+key);
+            var texture=GameAssets.Load<Texture2D>("Original/Room/"+key);
             if(texture==null) throw new InvalidOperationException($"Отсутствует текстура комнаты: {key}, объект={name}.");
             if(repeat)
             {

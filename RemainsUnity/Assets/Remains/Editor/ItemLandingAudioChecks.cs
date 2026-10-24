@@ -27,19 +27,19 @@ namespace Remains.Editor
             {
                 string item=assignment.Item1;
                 Require(catalog.TryGet(item,out var clip,out var reason) && reason==null &&
-                    clip==Resources.Load<AudioClip>("Original/Audio/ItemLandings/"+assignment.Item2),"Неверный WAV: "+item);
+                    clip==GameAssets.Load<AudioClip>("Original/Audio/ItemLandings/"+assignment.Item2),"Неверный WAV: "+item);
                 foreach(int fps in new[]{30,60,144}) CheckConsumer(catalog,item,clip,fps);
             }
             Require(!catalog.TryGet("spear",out var unresolved,out var detail) && unresolved==null && detail.Contains("falll_item"),
                 "Неоднозначный исходный ключ копья получил неподтверждённую подстановку");
             Require(!catalog.TryGet("mod:missing",out var unknown,out var missing) && unknown==null && missing.Contains("action=landing"),
                 "Неизвестный предмет получил универсальный звук");
-            var settings=JsonUtility.FromJson<ItemLandingAudioCatalog.Settings>(Resources.Load<TextAsset>(ItemLandingAudioCatalog.Resource).text);
+            var settings=JsonUtility.FromJson<ItemLandingAudioCatalog.Settings>(GameAssets.Load<TextAsset>(ItemLandingAudioCatalog.Resource).text);
             int assetLoads=0;
-            var cached=ItemLandingAudioCatalog.Create(settings,path=>{assetLoads++;return Resources.Load<AudioClip>(path);});
+            var cached=ItemLandingAudioCatalog.Create(settings,path=>{assetLoads++;return GameAssets.Load<AudioClip>(path);});
             Require(assetLoads==4,"Общий банк двух ammo был загружен повторно");
             settings.entries[0].clip="missing-after-build";
-            Require(cached.TryGet("crowbar",out var retained,out _) && retained==Resources.Load<AudioClip>("Original/Audio/ItemLandings/crowbar"),
+            Require(cached.TryGet("crowbar",out var retained,out _) && retained==GameAssets.Load<AudioClip>("Original/Audio/ItemLandings/crowbar"),
                 "Mutable declaration изменила уже подготовленный каталог");
             CheckDeclarationFailures();CheckResources();
             Debug.Log("Звуки приземления личных вещей: PASS — 5 типов/4 исходных WAV, actual AudioSource, один физический контакт при30/60/144FPS; удержание/пауза/загрузка/дубликаты/поколение, без изменения инвентаря; spear явно не сопоставлен.");
@@ -69,7 +69,7 @@ namespace Remains.Editor
                 reconcile.Invoke(contact,null);step.Invoke(contact,null);
                 Require(contact.Landings==0,"Первичная загрузка создала удар");
                 Require(contact.TryGetLandingClip(new PropState {id="box",definition="mcrate1"},out var box,out _) &&
-                    box==Resources.Load<AudioClip>("Original/Audio/crate-metal-fall"),"Личный каталог заменил банк обычного ящика");
+                    box==GameAssets.Load<AudioClip>("Original/Audio/crate-metal-fall"),"Личный каталог заменил банк обычного ящика");
                 Require(!contact.TryGetLandingClip(new ContainerState {id="bad-drop",definition="loose-item"},out var bad,out var badReason) &&
                     bad==null && badReason.Contains("presentationItem"),"Сломанный drop получил банк по внешнему типу");
                 int callbacks=0;

@@ -27,7 +27,7 @@ namespace Remains.Editor
             {
                 var placement=data.manifest.decorPlacements.Single(p=>p.recordId==record.recordId);
                 var artwork=FactoryContinuationArtwork.Find(room,data.decor.artwork[placement.artworkIndex]);
-                var lamp=Expected(record);var texture=Resources.Load<Texture2D>(lamp.mask);
+                var lamp=Expected(record);var texture=GameAssets.Load<Texture2D>(lamp.mask);
                 FactoryContinuationSource.Require(texture!=null && texture.isReadable,"Нет читаемой shared light mask="+lamp.mask+", record="+record.recordId);
                 var node=new GameObject("Светильник · "+record.recordId);node.transform.SetParent(artwork.transform.parent,false);
                 node.AddComponent<RoomLightAuthoring>().Configure(lamp,texture);artwork.transform.SetParent(node.transform,true);

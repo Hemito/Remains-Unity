@@ -166,7 +166,7 @@ namespace Remains.Editor
                 {
                     var art=part.Read(room);if(art.texture!="Hub/floor") continue;
                     var material=part.GetComponent<MeshRenderer>().sharedMaterial;var original=material.mainTexture;
-                    var replacement=Resources.Load<Texture2D>("Original/Room/Hub/concrete");
+                    var replacement=GameAssets.Load<Texture2D>("Original/Room/Hub/concrete");
                     if(replacement==null) throw new InvalidOperationException("Нет бетона для основания тира.");
                     var mesh=part.GetComponent<MeshFilter>().sharedMesh;var uv=mesh.uv;
                     var ratio=new Vector2((float)original.width/replacement.width,(float)original.height/replacement.height);

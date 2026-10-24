@@ -324,7 +324,7 @@ namespace Remains.Editor
             {
                 erase=root.AddComponent<RoomDecorResources>();erase.BindLightContext(owner);
                 erase.BuildErase(new List<(Sprite,Matrix4x4)>{(sprite,Matrix4x4.identity)},Vector2.zero,new Vector2(4,3),
-                    Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет shader erase для проверки"));
+                    GameAssets.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет shader erase для проверки"));
                 var mask=Shader.GetGlobalTexture("_RemainsErase");
                 field.RenderReferenceForChecks();
                 Require(Shader.GetGlobalFloat("_RemainsEraseEnabled")==1 && ReferenceEquals(mask,Shader.GetGlobalTexture("_RemainsErase")) &&

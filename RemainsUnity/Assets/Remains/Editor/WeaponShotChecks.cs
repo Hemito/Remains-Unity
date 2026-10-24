@@ -66,8 +66,8 @@ namespace Remains.Editor
                     {
                         var matrix=Matrix4x4.TRS(new Vector3(3,4,0),Quaternion.Euler(0,0,90),new Vector3(1,-1,1));
                         Require(animation.TryEmission(actor,frame,matrix,out var emission),"Нет отдельной маски света пистолета");
-                        var asset=Resources.Load<WeaponAsset>("Content/weapons/pistol");
-                        float expected=Resources.Load<MuzzleFlashCatalog>("Content/MuzzleFlashCatalog").Read()[asset.CreateDefinition().ammo]*asset.MuzzleFlashGain;
+                        var asset=GameAssets.Load<WeaponAsset>("Content/weapons/pistol");
+                        float expected=GameAssets.Load<MuzzleFlashCatalog>("Content/MuzzleFlashCatalog").Read()[asset.CreateDefinition().ammo]*asset.MuzzleFlashGain;
                         Require(emission.Gain==expected && emission.Sprite!=frame,"Свет получил корпус оружия или неверный профиль патрона");
                         Require(Vector3.Distance(emission.LocalToWorld.MultiplyPoint3x4(Vector3.zero),matrix.MultiplyPoint3x4(new Vector3(.602f,.122f,0)))<.00001f,
                             "Маска света потеряла поворот, зеркальность или исходную привязку");
@@ -95,10 +95,10 @@ namespace Remains.Editor
                 rangedPose=Remains.Gameplay.WeaponPose.SampleRanged(actor).Capture(actor,world.worldId)};
         private static void CheckAssets()
         {
-            var pistol=Resources.Load<WeaponAsset>("Content/weapons/pistol");
-            var npc=Resources.Load<WeaponAsset>("Content/weapons/npc-shot");
+            var pistol=GameAssets.Load<WeaponAsset>("Content/weapons/pistol");
+            var npc=GameAssets.Load<WeaponAsset>("Content/weapons/npc-shot");
             Require(pistol.ShotAnimation!=null && npc.ShotAnimation==pistol.ShotAnimation,"NPC и пистолет потеряли общую анимацию");
-            foreach(var weapon in Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog").AnimatedWeapons())
+            foreach(var weapon in GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog").AnimatedWeapons())
             {
                 var clip=weapon.ShotAnimation;if(clip.Deferred) continue;   // frames of the export: FirearmChecks
                 var frames=clip.CopyFrames();var first=frames[0];

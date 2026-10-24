@@ -338,7 +338,7 @@ namespace Remains.Presentation
         {
             if(level==null) throw new ArgumentNullException(nameof(level));
             if(root!=null) throw new InvalidOperationException("Вид уровня уже подготовлен: повторная подготовка запрещена.");
-            brokenLampArt=Resources.Load<BrokenLampArt>(BrokenLampArt.ResourcePath)??throw new InvalidOperationException("Нет каталога разбитой графики ламп: "+BrokenLampArt.ResourcePath);
+            brokenLampArt=GameAssets.Load<BrokenLampArt>(BrokenLampArt.ResourcePath)??throw new InvalidOperationException("Нет каталога разбитой графики ламп: "+BrokenLampArt.ResourcePath);
             brokenLampArt.Validate();
             Room=geometry??level.Physics;
             if(Room.id!=level.Level) throw new InvalidOperationException("Вид уровня: игровая геометрия другого уровня: "+Room.id);
@@ -361,7 +361,7 @@ namespace Remains.Presentation
             foreach(string issue in scene.Issues) Debug.LogWarning("Вид уровня: "+issue,this);
             // From an authored prefab: Light2D fills its target sorting layers only in the Editor, so one added by
             // code in a player build has none (FactoryAmbientLightAuthoring).
-            var light=Instantiate(Resources.Load<Light2D>(AmbientResource)??throw new InvalidOperationException("Нет префаба общего света завода: Resources/"+AmbientResource),transform,false);
+            var light=Instantiate(GameAssets.Load<Light2D>(AmbientResource)??throw new InvalidOperationException("Нет префаба общего света завода: Resources/"+AmbientResource),transform,false);
             ambient=light.gameObject;
             if(light.lightType!=Light2D.LightType.Global) throw new InvalidOperationException("Префаб общего света завода: свет не общий (Global).");
             light.intensity=(float)table.Ambient(scene.Darkness);
@@ -619,7 +619,7 @@ namespace Remains.Presentation
             if(erases.Count>0)
             {
                 context.Erase=context.Root.AddComponent<RoomDecorResources>();context.Erase.BindLightContext(context.Shader);
-                context.Erase.BuildErase(erases,origin,size,Resources.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource),publish:false);
+                context.Erase.BuildErase(erases,origin,size,GameAssets.Load<Shader>(RoomDecorView.EraseShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.EraseShaderResource),publish:false);
             }
             yield return null;
             var initialize=RoomRadianceField.BuildSteps(data.Scene,root.Lands,origin,context.Root.transform,value=>context.Field=value,

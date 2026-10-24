@@ -1,6 +1,7 @@
 using System;
 using UnityEditor;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -15,7 +16,7 @@ namespace Remains.Editor
 
         public static void Run()
         {
-            var compute=Resources.Load<ComputeShader>("Presentation/RadianceCascades");
+            var compute=GameAssets.Load<ComputeShader>("Presentation/RadianceCascades");
             if(compute==null) throw new InvalidOperationException("Отсутствует compute-шейдер освещения мебели.");
             foreach(int mode in new[]{0,1})
             {

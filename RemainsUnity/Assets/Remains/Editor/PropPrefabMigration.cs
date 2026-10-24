@@ -17,7 +17,7 @@ namespace Remains.Editor
             {
                 var asset=AssetDatabase.LoadAssetAtPath<PropAsset>(AssetDatabase.GUIDToAssetPath(guid));
                 if(asset.Prefab!=null) continue;
-                var definition=asset.CreateDefinition();var texture=Resources.Load<Texture2D>(definition.resource);
+                var definition=asset.CreateDefinition();var texture=GameAssets.Load<Texture2D>(definition.resource);
                 if(texture==null) throw new InvalidOperationException("Нет текстуры объекта "+definition.id);
                 string path=folder+"/"+definition.id;
                 if(AssetDatabase.LoadMainAssetAtPath(path+".prefab")!=null) throw new InvalidOperationException("Префаб уже существует: "+path);

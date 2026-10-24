@@ -34,7 +34,7 @@ namespace Remains.Editor
                 var anchor=new Vector2(FactoryWarehouseSource.Number(record,"x")*.8f,(25-FactoryWarehouseSource.Number(record,"y"))*.8f);
                 float x=anchor.x+canvas[0]/resource.sourcePixelsPerMetre,y=anchor.y-canvas[3]/resource.sourcePixelsPerMetre;
                 var actual=artwork.Single(a=>{var d=a.Read(room);return d.texture==key && Mathf.Abs(d.x-x)<.001f && Mathf.Abs(d.y-y)<.001f;});
-                var lamp=Expected(template,record);var texture=Resources.Load<Texture2D>(lamp.mask);
+                var lamp=Expected(template,record);var texture=GameAssets.Load<Texture2D>(lamp.mask);
                 FactoryWarehouseSource.Require(texture!=null && texture.isReadable,"Нет читаемой mask="+lamp.mask+", record="+record.recordId);
                 var node=new GameObject("Светильник · "+record.recordId);node.transform.SetParent(parent,false);
                 node.AddComponent<RoomLightAuthoring>().Configure(lamp,texture);actual.transform.SetParent(node.transform,true);

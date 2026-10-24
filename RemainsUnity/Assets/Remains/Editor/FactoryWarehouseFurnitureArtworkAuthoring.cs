@@ -182,7 +182,7 @@ namespace Remains.Editor
                 profile.Select(false)==closed && profile.Select(true)==(opened??closed),"Профиль расходится с actual source frames: "+entry.id);
             var view=asset.Prefab;var renderer=view?.Artwork;
             Require(view!=null && view.gameObject==prefab && renderer!=null && renderer.transform==prefab.transform && view.ContainerArtwork==profile &&
-                renderer.sprite==closed && renderer.sharedMaterial==material && material.mainTexture==closed.texture && material.shader==Resources.Load<Shader>("Presentation/WorldLit") &&
+                renderer.sprite==closed && renderer.sharedMaterial==material && material.mainTexture==closed.texture && material.shader==GameAssets.Load<Shader>("Presentation/WorldLit") &&
                 view.VisualAnchor==(entry.unity.hasPhysicalBody?PropVisualAnchor.BodyCenter:PropVisualAnchor.PlacementAnchor) && view.FitsStateWidth==entry.unity.hasPhysicalBody &&
                 renderer.sortingOrder==ActorVisualLayers.RestingObjectOrder && prefab.transform.localPosition==Vector3.zero && prefab.transform.localRotation==Quaternion.identity &&
                 prefab.transform.localScale==Vector3.one && prefab.GetComponentsInChildren<PropView>(true).Length==1 && prefab.GetComponentsInChildren<SpriteRenderer>(true).Length==1 &&

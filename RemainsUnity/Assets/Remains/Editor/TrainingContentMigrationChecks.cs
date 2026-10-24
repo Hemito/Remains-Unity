@@ -30,7 +30,7 @@ namespace Remains.Editor
                     }).ToArray()};
                 var fresh=new WorldState();TrainingContentInstaller.Apply(fresh,layout);
                 Require(fresh.containers.Count==5 && fresh.containers.Select(c=>c.mass).OrderBy(m=>m).SequenceEqual(new[]{15f,25f,75f,120f,1000f}),"Новый мир не получил исходные пять ящиков.");
-                var world=new WorldState();TrainingContentInstaller.Apply(world,UnityEngine.JsonUtility.FromJson<TrainingLayout>(Resources.Load<TextAsset>("Content/hub-training").text));
+                var world=new WorldState();TrainingContentInstaller.Apply(world,UnityEngine.JsonUtility.FromJson<TrainingLayout>(GameAssets.Load<TextAsset>("Content/hub-training").text));
                 var legacy=world.containers.Single(c=>c.id=="training:crate:1");var spare=world.containers.Single(c=>c.id=="training:crate:2");
                 var item=SharedInventory.Create("heal",7);legacy.items.Add(item);legacy.vx=3;legacy.vy=-2;
                 world.pendingGrants.Add(new PendingGrant {transaction="pending-training",containerId=legacy.id,item=item.Copy(),recipient="player"});
@@ -42,7 +42,7 @@ namespace Remains.Editor
                 Require(world.containers.Contains(spare) && spare.mass==50 && world.pendingGrants.Single().containerId==legacy.id,"Потерян старый 50-кг ящик или ссылка незавершённой выдачи.");
                 legacy.x+=2;var saved=world.Copy();string before=StateJson.ToJson(saved);
                 TrainingContentInstaller.Apply(saved,layout);Require(StateJson.ToJson(saved)==before,"Повтор после сохранения сбросил перемещённый игроком ящик или продублировал содержимое.");
-                var conflict=new WorldState();TrainingContentInstaller.Apply(conflict,UnityEngine.JsonUtility.FromJson<TrainingLayout>(Resources.Load<TextAsset>("Content/hub-training").text));
+                var conflict=new WorldState();TrainingContentInstaller.Apply(conflict,UnityEngine.JsonUtility.FromJson<TrainingLayout>(GameAssets.Load<TextAsset>("Content/hub-training").text));
                 var final=layout.containers.Last();conflict.props.Add(new PropState {id=final.id});before=StateJson.ToJson(conflict);
                 bool rejected=false;try {TrainingContentInstaller.Apply(conflict,layout);} catch(InvalidOperationException) {rejected=true;}
                 Require(rejected && StateJson.ToJson(conflict)==before,"Поздний конфликт оставил частичную миграцию.");

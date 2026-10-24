@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 namespace Remains.Presentation
 {
     public sealed class InventoryWindowView : MonoBehaviour
@@ -20,7 +21,7 @@ namespace Remains.Presentation
         }
         public static InventoryWindowView Create(Transform parent)
         {
-            var prefab=Resources.Load<InventoryWindowView>("Presentation/InventoryWindow");
+            var prefab=GameAssets.Load<InventoryWindowView>("Presentation/InventoryWindow");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/InventoryWindow.");
             prefab.Validate();return UnityEngine.Object.Instantiate(prefab,parent,false);
         }

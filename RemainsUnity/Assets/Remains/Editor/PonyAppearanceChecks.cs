@@ -29,7 +29,7 @@ namespace Remains.Editor
             CheckInvalid(new CharacterAppearance {version=1,eyeStyle=0});CheckInvalid(new CharacterAppearance {version=1,fur=-1});CheckInvalid(new CharacterAppearance {version=1,magic=0x1000000});
             var first=(PonyVisual)ActorVisualFactory.Create(actor);copy.id="appearance-second";
             var second=(PonyVisual)ActorVisualFactory.Create(copy);
-            var page=UnityEngine.Object.Instantiate(Resources.Load<PersonalInventoryView>("Presentation/PersonalInventory"));
+            var page=UnityEngine.Object.Instantiate(GameAssets.Load<PersonalInventoryView>("Presentation/PersonalInventory"));
             try
             {
                 first.Bind(actor);second.Bind(copy);first.DrawPose(0);second.DrawPose(0);

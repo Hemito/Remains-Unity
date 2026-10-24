@@ -54,7 +54,7 @@ namespace Remains.Editor
             var glow=table.Glow.ToDictionary(e=>e.Key,e=>e.Value.Threshold,StringComparer.Ordinal);
             var art=AssetDatabase.LoadAssetAtPath<RoomTileArtAsset>(RoomTileArtAuthoring.AssetPath)
                 ??throw new InvalidOperationException("Нет набора графики клеток: выполните «Remains/Комнаты/Обновить набор графики клеток».");
-            var spriteShader=Resources.Load<Shader>(RoomDecorView.SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.SpriteShaderResource);
+            var spriteShader=GameAssets.Load<Shader>(RoomDecorView.SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+RoomDecorView.SpriteShaderResource);
             Directory.CreateDirectory(Materials);
             var materials=new Dictionary<string,Material>(StringComparer.Ordinal);
             Material MaterialFor(RoomDefinition d,string context)

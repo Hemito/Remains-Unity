@@ -61,7 +61,7 @@ namespace Remains.Editor
             {
                 CaptureInputs(project,proof);
                 string sourceResource="Original/Pony/Wearables/pip";
-                var source=Resources.Load<TextAsset>(sourceResource);
+                var source=GameAssets.Load<TextAsset>(sourceResource);
                 Require(source!=null,"нет проверенного исходного банка "+sourceResource);
                 proof.sourceBankSha256=Hash(File.ReadAllBytes(AssetDatabase.GetAssetPath(source)));
                 proof.basePonySha256=Hash(File.ReadAllBytes(Path.Combine(project,"Assets/Remains/Resources/Original/Pony/pony.json")));
@@ -106,7 +106,7 @@ namespace Remains.Editor
                 File.WriteAllText(Path.Combine(pack,"definitions.json"),definitionJson);
                 File.WriteAllText(Path.Combine(pack,"texts.json"),textJson);
                 File.Copy(bundlePath,Path.Combine(pack,"accessory.bundle"));
-                var weapons=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");Require(weapons!=null,"нет базового WeaponAssetCatalog");
+                var weapons=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");Require(weapons!=null,"нет базового WeaponAssetCatalog");
                 string baseWeapons=weapons.CreateJson();
                 var loaded=WeaponCatalogLoader.Load(baseWeapons,mods);
                 Require(loaded.cosmetics.Count==1 && loaded.cosmetics[0].id==PackId && loaded.cosmetics[0].position==1 &&
@@ -212,7 +212,7 @@ namespace Remains.Editor
         }
         private static InventoryIconAsset CreateIcon(string path)
         {
-            var texture=Resources.Load<Texture2D>("Original/Pony/Wearables/preview-pip");
+            var texture=GameAssets.Load<Texture2D>("Original/Pony/Wearables/preview-pip");
             Require(texture!=null && texture.width==342 && texture.height==357,"нет точного generated pip actor preview");
             var asset=ScriptableObject.CreateInstance<InventoryIconAsset>();AssetDatabase.CreateAsset(asset,path);
             var sprite=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,.5f),200,0,SpriteMeshType.FullRect);

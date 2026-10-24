@@ -277,7 +277,7 @@ namespace Remains.Editor
                 string afterDown=StateJson.ToJson(victim);var historical=result;
                 Require(!receiver.Apply(victim,down,true) && applied==2 && StateJson.ToJson(victim)==afterDown &&
                     result.x==historical.x && result.y==historical.y,"Повтор нокаута изменил историческую квитанцию.");
-                var prefab=Resources.Load<FloatingDamageNumber>("Presentation/DamageNumber");
+                var prefab=GameAssets.Load<FloatingDamageNumber>("Presentation/DamageNumber");
                 Require(prefab!=null,"Нет настоящего Presentation/DamageNumber для body origin.");
                 number=UnityEngine.Object.Instantiate(prefab);number.Initialize(historical);
                 Near(number.transform.position,(Vector3)(expected+Vector2.up*1.7f),"Actual число урона использовало поздний down anchor");
@@ -315,9 +315,9 @@ namespace Remains.Editor
                     "Bound аудио не создало один действительный шаг или подменило его landing.");
                 var position=(Vector2)voices[0].GetType().GetField("position").GetValue(voices[0]);
                 Near(position,sample.ContactPoint,"Голос поставлен на устаревший anchor/body вместо фактического контакта");
-                var settings=JsonUtility.FromJson<MovementAudio.Settings>(Resources.Load<TextAsset>("Presentation/movement-audio").text);
+                var settings=JsonUtility.FromJson<MovementAudio.Settings>(GameAssets.Load<TextAsset>("Presentation/movement-audio").text);
                 var bank=Array.Find(settings.banks,b=>b.id==sample.MovementSound);
-                Require(bank!=null && sources[0].clip==Resources.Load<AudioClip>(bank.clips[0]) && sources[0].volume>0,
+                Require(bank!=null && sources[0].clip==GameAssets.Load<AudioClip>(bank.clips[0]) && sources[0].volume>0,
                     "Actual AudioSource не использует material/clips подтверждённого контакта.");
                 step.Invoke(audio,null);Require(voices.Count==1,"Повторный confirmed sample продублировал шаг.");
             }

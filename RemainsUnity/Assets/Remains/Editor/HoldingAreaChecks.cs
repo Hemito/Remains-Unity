@@ -13,7 +13,7 @@ namespace Remains.Editor
         public static void Run()
         {
             int count=RunPure();
-            var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            var catalog=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(catalog==null) throw new InvalidOperationException("Нет каталога для проверки областей удержания.");
             catalog.OrdinaryHoldingArea.Validate("native Content/WeaponCatalog");
             var profile=WeaponRigs.OrdinaryHoldingArea;
@@ -23,7 +23,7 @@ namespace Remains.Editor
                 throw new InvalidOperationException("Реальный ассет, кэш и манифест обычного удержания расходятся.");
             foreach(string id in new[]{"grenade","spear","crowbar"})
             {
-                var asset=Resources.Load<WeaponAsset>("Content/weapons/"+id);
+                var asset=GameAssets.Load<WeaponAsset>("Content/weapons/"+id);
                 if(asset==null) throw new InvalidOperationException("Нет реального ассета удержания: "+id);
                 var data=asset.CreateDefinition();var copy=asset.CreateDefinition();
                 data.holdingArea.radius+=7;

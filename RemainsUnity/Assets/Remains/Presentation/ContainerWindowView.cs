@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -213,7 +214,7 @@ namespace Remains.Presentation
         private void OnValidate() {anchorGap=Mathf.Max(0,anchorGap);screenMargin=Mathf.Max(0,screenMargin);clearance=Mathf.Max(0,clearance);cached=false;}
         public static ContainerWindowView Create(Transform parent)
         {
-            var source=Resources.Load<ContainerWindowView>("Presentation/ContainerWindow");
+            var source=GameAssets.Load<ContainerWindowView>("Presentation/ContainerWindow");
             if(source==null) throw new InvalidOperationException("Нет префаба Presentation/ContainerWindow.");
             source.Validate();var instance=Instantiate(source,parent,false);instance.InitializePointerCapture();return instance;
         }

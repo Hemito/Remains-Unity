@@ -13,11 +13,11 @@ namespace Remains.Editor
         {
             RunMotion();
             PropCatalog.Load();
-            var settings=JsonUtility.FromJson<PropContactAudio.Settings>(Resources.Load<TextAsset>("Presentation/prop-audio").text);
+            var settings=JsonUtility.FromJson<PropContactAudio.Settings>(GameAssets.Load<TextAsset>("Presentation/prop-audio").text);
             foreach(var definition in PropCatalog.All.Where(d=>d.hasPhysicalBody && d.movable))
             {
                 var entry=settings.entries.SingleOrDefault(e=>e.definition==definition.id);
-                Require(entry!=null && Resources.Load<AudioClip>(entry.clip)?.samples>0,"Нет банка зарегистрированного объекта: "+definition.id);
+                Require(entry!=null && GameAssets.Load<AudioClip>(entry.clip)?.samples>0,"Нет банка зарегистрированного объекта: "+definition.id);
             }
             foreach(var expected in new[]{("woodbox","crate-wood-fall"),("case","crate-metal-small-fall"),
                 ("chest","crate-metal-fall"),("ammobox","crate-metal-small-fall"),("bigbox","crate-metal-fall"),

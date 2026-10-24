@@ -67,14 +67,14 @@ namespace Remains.Editor
             {
                 var existing=AssetDatabase.LoadAssetAtPath<Sprite>($"{Folder}/{id}-{state}.asset");
                 if(existing!=null) return existing;
-                var texture=Resources.Load<Texture2D>("Original/Doors/"+id+"-"+state);
+                var texture=GameAssets.Load<Texture2D>("Original/Doors/"+id+"-"+state);
                 if(texture==null) throw new InvalidOperationException("Нет изображения двери "+id+" "+state);
                 var sprite=UnityEngine.Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(pivotX,0),200,0,SpriteMeshType.FullRect);
                 AssetDatabase.CreateAsset(sprite,$"{Folder}/{id}-{state}.asset");return sprite;
             }
             var asset=ScriptableObject.CreateInstance<DoorAsset>();
             asset.Configure(id,new Vector2(.8f,height),Sprite("closed"),Sprite("open"),
-                Resources.Load<AudioClip>("Original/Doors/"+opening),Resources.Load<AudioClip>("Original/Doors/"+closing));
+                GameAssets.Load<AudioClip>("Original/Doors/"+opening),GameAssets.Load<AudioClip>("Original/Doors/"+closing));
             AssetDatabase.CreateAsset(asset,$"{Folder}/{id}.asset");
             var material=WorldArtworkMaterial.Create(asset.Closed.texture);AssetDatabase.CreateAsset(material,$"{Folder}/{id}.mat");
             var root=new GameObject(id);

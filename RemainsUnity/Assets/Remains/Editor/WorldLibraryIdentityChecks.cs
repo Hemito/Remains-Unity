@@ -3,6 +3,7 @@ using System.IO;
 using Remains.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -62,13 +63,13 @@ namespace Remains.Editor
                     var scaler=root.AddComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;
                     scaler.referenceResolution=new Vector2(1280,720);scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
                     var menu=new MainMenuPanel(root.transform,()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{});
-                    var sourceMenu=Resources.Load<MainMenuView>("Presentation/MainMenu");
+                    var sourceMenu=GameAssets.Load<MainMenuView>("Presentation/MainMenu");
                     menu.World.text=MainMenuPanel.DescribeWorld(new string('Ш',48),new string('a',32),long.MaxValue,new string('f',64))+"\n"+LibraryWarning;
                     Canvas.ForceUpdateCanvases();camera.Render();Canvas.ForceUpdateCanvases();
                     CheckCanvas(canvas,camera,size);
                     CheckText(menu.World,size);CheckCorners(menu.Controls.GetComponent<RectTransform>(),camera,size);
                     var picker=WorldPickerView.Create(root.transform);picker.Empty.gameObject.SetActive(false);picker.Warning.gameObject.SetActive(false);
-                    var original=Resources.Load<WorldPickerView>("Presentation/WorldPicker");
+                    var original=GameAssets.Load<WorldPickerView>("Presentation/WorldPicker");
                     for(int i=0;i<picker.Choices.Length;i++)
                     {
                         picker.ShowChoice(i,new string('Ш',48),new string('a',31)+i,new string('f',63)+i,long.MaxValue,

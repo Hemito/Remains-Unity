@@ -106,7 +106,7 @@ namespace Remains.Editor
         }
         private static void CheckVisualRelease()
         {
-            var prefab=Resources.Load<SpriteRenderer>("Presentation/HeldItem");
+            var prefab=GameAssets.Load<SpriteRenderer>("Presentation/HeldItem");
             Require(prefab!=null,"Не найден сохранённый префаб обычной вещи");
             var icons=new InventoryArtwork();icons.PrepareWorldMaterials();var props=new PropArtwork();
             foreach(string definition in new[]{"p10","caps"})

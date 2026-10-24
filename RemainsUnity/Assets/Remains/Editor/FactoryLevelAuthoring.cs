@@ -154,7 +154,7 @@ namespace Remains.Editor
                 try {FactoryPreparation.Prepare(invalid,catalog,"factory:0");} catch(System.IO.InvalidDataException) {pointRejected=true;}
                 if(!pointRejected || invalid.factories[0].layout!=legacy) throw new InvalidOperationException("Старая версия генератора не отклонена или была перезаписана.");
                 Debug.Log($"Точки ролей завода: PASS; генератор {layout.GeneratorVersion}, точек {root.RolePoints.Count}, выходов {root.RolePoints.Count(point=>point.Cell.Role==Remains.RoomFormat.FactoryCellRole.Exit)}; выбор сохранён, отсутствующий/чужой маркер и старая версия отклонены без перегенерации.");
-                var anatomy=StateJson.FromJson<AnatomyCatalog>(Resources.Load<TextAsset>("Content/anatomy").text).anatomies.Single(value=>value.id=="pony");
+                var anatomy=StateJson.FromJson<AnatomyCatalog>(GameAssets.Load<TextAsset>("Content/anatomy").text).anatomies.Single(value=>value.id=="pony");
                 var arrival=FactoryArrival.Require(root.Prepared,root.Objects);
                 string arrivalError=FactoryArrival.Rejection(geometry,anatomy.movement,new Vector2(geometry.spawnX,geometry.spawnY));
                 if(arrivalError!=null || new Vector2(geometry.spawnX,geometry.spawnY)!=arrival.Position)

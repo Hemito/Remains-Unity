@@ -27,7 +27,7 @@ namespace Remains.Editor
             count=0;FactoryLootRules.Generate("ammo",4,1,50,()=>.5,request=>{count++;return true;},message=>throw new Exception(message));
             Require(count==1,"три независимые попытки ammo .7/.25/.15");
             var world=new WorldState {worldId="factory-loot-verification-v1",seed=104};
-            var catalog=Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
+            var catalog=GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
             FactoryPreparation.Create(world,catalog,0);
             FactoryContentSources.Prepare(world,"factory:0");
             var room=FactoryContentSources.Require(world,"factory:0");
@@ -40,7 +40,7 @@ namespace Remains.Editor
             {
                 placement.Source.Params["lock"]="0";placement.Source.Params["mine"]="3";placement.Source.Params["cont"]="empty";
                 placement.Source.Items.Add(new System.Collections.Generic.SortedDictionary<string,string>{{"id","p10"},{"kol","2"},{"imp","1"}});
-                var loot=Resources.Load<FactoryLootCatalog>("Content/FactoryLoot");
+                var loot=GameAssets.Load<FactoryLootCatalog>("Content/FactoryLoot");
                 var state=FactoryContainerLoot.Generate(loot,world,placement,loot.definitions.Single(value=>value.id=="ammobox"),0,
                     new System.Collections.Generic.Dictionary<string,int>(),new Remains.Presentation.InventoryArtwork());
                 Require(state.lockLevel==0&&state.mineLevel==3&&state.items.Count==0,"явный lock0, последующая mine3 и contempty до вложенных предметов");
@@ -81,7 +81,7 @@ namespace Remains.Editor
             var replaced=roomInstance.GetComponentsInChildren<RoomSpriteAuthoring>(true)
                 .Single(value=>value.Kind==Remains.RoomFormat.RoomSpriteKind.Object && value.Index==placement.Index).GetComponent<SpriteRenderer>();
             Require(!replaced.enabled,"исходный instr2 должен быть скрыт после замены контейнерным видом: "+state.id);
-            var asset=Resources.Load<FactoryLootCatalog>("Content/FactoryLoot").definitions.Single(value=>value.id=="instr2").physical;
+            var asset=GameAssets.Load<FactoryLootCatalog>("Content/FactoryLoot").definitions.Single(value=>value.id=="instr2").physical;
             var view=UnityEngine.Object.Instantiate(asset.Prefab);
             try
             {

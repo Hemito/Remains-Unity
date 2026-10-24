@@ -38,7 +38,7 @@ namespace Remains.Editor
             typeof(ProjectileController).GetMethod("Reconcile",Private).Invoke(controller,null);
             controller.Step(.01f);controller.Step(.01f);
             var sprites=root.GetComponentsInChildren<SpriteRenderer>();
-            var prefab=Resources.Load<LaserImpactView>("Presentation/Effects/laser-impact");
+            var prefab=GameAssets.Load<LaserImpactView>("Presentation/Effects/laser-impact");
             Require(prefab!=null && sprites.Length==1 && sprites[0].sprite==prefab.Frames[0] &&
                 sprites[0].sharedMaterial==prefab.Artwork.sharedMaterial && !string.IsNullOrEmpty(UnityEditor.AssetDatabase.GetAssetPath(prefab.Frames[0])),
                 "Вспышка не использует сохранённые ресурсы префаба");

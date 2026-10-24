@@ -5,6 +5,7 @@ using Remains.RoomFormat;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -468,7 +469,7 @@ namespace Remains.Presentation
 
             if(prepared==null) throw new ArgumentNullException(nameof(prepared));
             if(!SystemInfo.supportsComputeShaders) throw new InvalidOperationException("Поле излучения: видеокарта/API без compute-шейдеров.");
-            var compute=Resources.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
+            var compute=GameAssets.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
             var room=prepared.Room;var light=prepared.Light;var table=prepared.Table;
             int resolution=table.RadianceResolution;
             var buildWalls=Remains.Diagnostics.FrameHitchLog.Section("Поле света: стены");
@@ -671,7 +672,7 @@ namespace Remains.Presentation
         private void EnsureSceneDrawing()
         {
             if(sceneMaterial!=null) return;
-            var shader=Resources.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource);
+            var shader=GameAssets.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource);
             sceneMaterial=new Material(shader){name="Сцена света"};
             emissionBlock=new MaterialPropertyBlock();
             quad=new Mesh{name="Квадрат спрайта"};

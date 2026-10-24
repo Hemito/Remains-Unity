@@ -158,7 +158,7 @@ namespace Remains.Editor
         {
             string id=entry.id;var prefab=Load<GameObject>(PrefabPath(id));var material=Load<Material>(MaterialPath(id));var renderer=prefab.GetComponent<SpriteRenderer>();
             Require(renderer!=null && renderer.sprite==NativeSprite(entry.states[0]) && renderer.sharedMaterial==material &&
-                material.mainTexture==renderer.sprite.texture && material.shader==Resources.Load<Shader>("Presentation/WorldLit") &&
+                material.mainTexture==renderer.sprite.texture && material.shader==GameAssets.Load<Shader>("Presentation/WorldLit") &&
                 prefab.transform.localPosition==Vector3.zero && prefab.transform.localRotation==Quaternion.identity && prefab.transform.localScale==Vector3.one &&
                 prefab.GetComponentsInChildren<SpriteRenderer>(true).Length==1 && prefab.GetComponentsInChildren<Collider2D>(true).Length==0 && prefab.GetComponentsInChildren<Rigidbody2D>(true).Length==0,
                 "Изменён prefab/material либо добавлена независимая физика: "+id);

@@ -15,7 +15,7 @@ namespace Remains.Presentation
         public PropArtwork()
         {
             items.PrepareWorldMaterials();
-            droppedPrefab=Resources.Load<PropView>("Presentation/DroppedItem");
+            droppedPrefab=GameAssets.Load<PropView>("Presentation/DroppedItem");
             if(droppedPrefab==null || droppedPrefab.Artwork==null)
                 throw new InvalidOperationException("Нет сохранённого префаба брошенного предмета Presentation/DroppedItem или ссылки на его спрайт.");
             var builtIn=EntityAssetCatalog.Load();
@@ -32,7 +32,7 @@ namespace Remains.Presentation
                     }
                     prefabs.Add(definition.id,prefab);sprites.Add(definition.id,prefab.Artwork.sprite);continue;
                 }
-                var texture=Resources.Load<Texture2D>(definition.resource);
+                var texture=GameAssets.Load<Texture2D>(definition.resource);
                 if(texture==null) throw new InvalidOperationException($"Нет графики объекта: type={definition.id}, resource={definition.resource}.");
                 var sprite=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,.5f),50);
                 SpriteArtworkMaterial.Prepare(sprite);sprites.Add(definition.id,sprite);

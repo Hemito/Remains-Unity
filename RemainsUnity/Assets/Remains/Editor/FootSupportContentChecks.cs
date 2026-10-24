@@ -30,8 +30,8 @@ namespace Remains.Editor
         private sealed class Pixels {public int Width,Height;public Color32[] Data;}
         public static void Run()
         {
-            string raw=Resources.Load<TextAsset>("Original/Pony/pony").text;
-            var declaration=Array.Find(StateJson.FromJson<AnatomyCatalog>(Resources.Load<TextAsset>("Content/anatomy").text).anatomies,a=>a.id=="pony").supportContacts;
+            string raw=GameAssets.Load<TextAsset>("Original/Pony/pony").text;
+            var declaration=Array.Find(StateJson.FromJson<AnatomyCatalog>(GameAssets.Load<TextAsset>("Content/anatomy").text).anatomies,a=>a.id=="pony").supportContacts;
             var library=JsonConvert.DeserializeObject<Library>(raw,new JsonSerializerSettings {FloatParseHandling=FloatParseHandling.Double});
             var native=new Dictionary<string,Pixels>(StringComparer.Ordinal);
             var textures=new Dictionary<string,FootSupportTexture>(StringComparer.Ordinal);
@@ -54,7 +54,7 @@ namespace Remains.Editor
                     }
                     finally {UnityEngine.Object.DestroyImmediate(texture);}
                 }
-            var bytes=Resources.Load<TextAsset>(FootSupportCatalog.Resource).bytes;
+            var bytes=GameAssets.Load<TextAsset>(FootSupportCatalog.Resource).bytes;
             var expected=FootSupportSourceExpectation.Create("pony",raw,declaration.alphaMinimum,declaration.shapes,textures);
             var watch=Stopwatch.StartNew();var data=FootSupportCatalog.Create(bytes,expected);double loadMs=watch.Elapsed.TotalMilliseconds;
             Require(data.ClipCount==61 && data.FrameCount==347 && data.PointCount==513580 && data.Textures.Count==4,"Неполный production foot-support набор");

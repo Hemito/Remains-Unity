@@ -50,7 +50,7 @@ namespace Remains.Presentation
         {
             this.session=session;this.reload=reload;
             mix=AudioMixSettings.Load();view=camera;Volume=BaseVolume;
-            var asset=Resources.Load<TextAsset>("Presentation/combat-audio");
+            var asset=GameAssets.Load<TextAsset>("Presentation/combat-audio");
             if(asset==null) throw new InvalidOperationException("Отсутствует Presentation/combat-audio.");
             var catalog=JsonUtility.FromJson<SoundCatalog>(asset.text);
             if(catalog?.entries==null) throw new InvalidOperationException("Не заданы записи звуков боя.");
@@ -72,7 +72,7 @@ namespace Remains.Presentation
         }
         private static AudioClip Load(string key)
         {
-            var clip=Resources.Load<AudioClip>("Original/Audio/"+key);
+            var clip=GameAssets.Load<AudioClip>("Original/Audio/"+key);
             if(clip==null || clip.samples<=0) throw new InvalidOperationException("Отсутствует или пуст звук Original/Audio/"+key);
             return clip;
         }

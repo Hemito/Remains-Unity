@@ -14,7 +14,7 @@ namespace Remains.Editor
         public static void Install()
         {
             RoomAuthoringScenes.ValidateSavedOverrides();
-            var texture=Resources.Load<Texture2D>("Original/Room/"+TextureKey);
+            var texture=GameAssets.Load<Texture2D>("Original/Room/"+TextureKey);
             if(texture==null || texture.width!=40 || texture.height!=80)
                 throw new InvalidOperationException("Не импортирована исходная графика ступеней 40×80: "+TextureKey);
             var root=PrefabUtility.LoadPrefabContents(FactoryWorkshopDraft.Path);
@@ -62,7 +62,7 @@ namespace Remains.Editor
             var workshop=room.GetComponentsInChildren<RoomAuthoring>(true).Single(r=>r.GetComponent<RoomImportAudit>()?.Report.SourceId=="original:plant:18");
             var parts=workshop.GetComponentsInChildren<RoomArtworkAuthoring>(true).Where(part=>part.Read(room).texture==TextureKey).OrderBy(part=>part.Read(room).x).ToArray();
             if(parts.Length!=4) throw new InvalidOperationException("Нет четырёх исходных ступеней: "+room.name);
-            var texture=Resources.Load<Texture2D>("Original/Room/"+TextureKey);
+            var texture=GameAssets.Load<Texture2D>("Original/Room/"+TextureKey);
             if(texture.width!=40 || texture.height!=80 || texture.wrapModeU!=TextureWrapMode.Clamp || texture.wrapModeV!=TextureWrapMode.Clamp)
                 throw new InvalidOperationException("Ступени потеряли нативный размер или Clamp sampler: "+TextureKey);
             var supports=workshop.GetComponentsInChildren<RoomSurfaceAuthoring>(true).Select(s=>s.Read(room)).Where(s=>s.texture==TextureKey).OrderBy(s=>s.x).ToArray();

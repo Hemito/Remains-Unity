@@ -18,7 +18,7 @@ namespace Remains.Editor
         {
             CheckNativeSprite();CasingEffectCatalog.Load();
             Require(CasingEffectCatalog.TryGet("pistol",out var profile),"Не установлен явный профиль пистолета");
-            Require(!CasingEffectCatalog.TryGet("energy",out _) && Resources.Load<WeaponAsset>("Content/weapons/energy").CasingProfile==null,"Energy получила неподтверждённую гильзу");
+            Require(!CasingEffectCatalog.TryGet("energy",out _) && GameAssets.Load<WeaponAsset>("Content/weapons/energy").CasingProfile==null,"Energy получила неподтверждённую гильзу");
             Require(profile.Sprite==AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath),"Профиль не использует исходную гильзу");
             Reject(()=>CasingEffectCatalog.TryGet("missing:casing-weapon",out _),"Неизвестное оружие молча получило no-casing");
             CheckInvalidProfile(profile.Sprite);
@@ -137,7 +137,7 @@ namespace Remains.Editor
             try
             {
                 var actor=Actor();var session=Session(root,actor);var animation=root.AddComponent<WeaponShotAnimation>();animation.Initialize(session);
-                var rest=Resources.Load<WeaponAsset>("Content/weapons/pistol").Presentation.Artwork.sprite;var shot=Shot(session);animation.Observe(shot);
+                var rest=GameAssets.Load<WeaponAsset>("Content/weapons/pistol").Presentation.Artwork.sprite;var shot=Shot(session);animation.Observe(shot);
                 Require(animation.Select(actor,rest)!=rest,"Captured выстрел не показал кадр: "+reason);
                 Pause(session,true,1);animation.Step(.4f);Require(animation.Select(actor,rest)!=rest,"Pause продвинула captured clip");Pause(session,false,2);
                 mutate(actor,session);Require(animation.Select(actor,rest)==rest,"Старый кадр при новом "+reason);

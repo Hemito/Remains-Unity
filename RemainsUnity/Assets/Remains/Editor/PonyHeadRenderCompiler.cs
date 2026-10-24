@@ -19,7 +19,7 @@ namespace Remains.Editor
             foreach(var definition in PonyHeadCatalog.Styles)
             {
                 if(definition.id==Domain.CharacterAppearance.OriginalHeadStyleId) continue;
-                var texture=Resources.Load<Texture2D>(definition.texture);
+                var texture=GameAssets.Load<Texture2D>(definition.texture);
                 if(texture==null)
                     throw new InvalidOperationException($"Нет текстуры формы головы: id={definition.id}, texture={definition.texture}.");
                 var material=WorldArtworkMaterial.Create(texture);

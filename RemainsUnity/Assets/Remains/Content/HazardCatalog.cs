@@ -51,7 +51,7 @@ namespace Remains.Content
         // Loaded with the weapons (WeaponCatalog.Load): the definitions name their bite and blast weapons.
         public static void Load()
         {
-            var asset=Resources.Load<HazardCatalog>(Resource)??throw new InvalidOperationException("Нет каталога ловушек "+Resource+".");
+            var asset=GameAssets.Load<HazardCatalog>(Resource)??throw new InvalidOperationException("Нет каталога ловушек "+Resource+".");
             var definitions=new Dictionary<string,HazardDefinition>(StringComparer.Ordinal);
             var objects=new Dictionary<string,HazardDefinition>(StringComparer.Ordinal);
             foreach(var definition in asset.definitions)

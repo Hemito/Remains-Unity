@@ -2,6 +2,7 @@ using System;
 using Remains.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 namespace Remains.Editor
 {
     public static class MainMenuPrefabChecks
@@ -34,7 +35,7 @@ namespace Remains.Editor
                 view.Host.onClick.Invoke();view.Join.onClick.Invoke();view.Worlds.onClick.Invoke();view.Settings.onClick.Invoke();view.NewGame.onClick.Invoke();view.CompareCopies.onClick.Invoke();
                 foreach(int count in calls) if(count!=1) throw new InvalidOperationException("Действие меню не привязано ровно один раз.");
                 second.Host.onClick.Invoke();first.Character.text="Проверка";
-                if(calls[0]!=1 || second.Character.text==first.Character.text || Resources.Load<MainMenuView>("Presentation/MainMenu").Character.text==first.Character.text)
+                if(calls[0]!=1 || second.Character.text==first.Character.text || GameAssets.Load<MainMenuView>("Presentation/MainMenu").Character.text==first.Character.text)
                     throw new InvalidOperationException("Экземпляры меню изменяют друг друга или исходный префаб.");
                 Debug.Log("Префаб главного меню: PASS — действия кнопок и независимость экземпляров.");
             }

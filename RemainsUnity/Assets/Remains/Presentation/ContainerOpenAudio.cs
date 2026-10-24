@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Remains.Domain;
 using Remains.Serialization;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -19,7 +20,7 @@ namespace Remains.Presentation
 
         public static Catalog Load()
         {
-            var text=Resources.Load<TextAsset>("Presentation/container-open-audio");
+            var text=GameAssets.Load<TextAsset>("Presentation/container-open-audio");
             if(text==null) throw new InvalidOperationException("Нет каталога Presentation/container-open-audio.");
             var catalog=StateJson.FromJson<Catalog>(text.text);Validate(catalog);return catalog;
         }
@@ -43,7 +44,7 @@ namespace Remains.Presentation
             {
                 if(!banks.TryGetValue(entry.clip,out var clip))
                 {
-                    clip=Resources.Load<AudioClip>(entry.clip);
+                    clip=GameAssets.Load<AudioClip>(entry.clip);
                     if(clip==null || clip.samples<=0 || clip.frequency<=0 || clip.channels<=0)
                         throw new InvalidOperationException("Нет звука открывания: definition="+entry.definition+", action=open, clip="+entry.clip);
                     banks.Add(entry.clip,clip);

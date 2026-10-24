@@ -23,7 +23,7 @@ namespace Remains.Presentation
         {
             if(session!=null)throw new InvalidOperationException("Кадры выстрела уже инициализированы.");
             session=value??throw new ArgumentNullException(nameof(value));WeaponRigs.Load();
-            var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            var catalog=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(catalog==null) throw new InvalidOperationException("Нет Content/WeaponCatalog для анимаций оружия.");
             foreach(var weapon in catalog.AnimatedWeapons())
             {
@@ -35,7 +35,7 @@ namespace Remains.Presentation
                 byAttack.Add(weapon.Id,clip);
             }
             foreach(var weapon in catalog.ReloadAnimatedWeapons()) reloads.Add(weapon.Id,weapon.ReloadAnimation);
-            var lightCatalog=Resources.Load<MuzzleFlashCatalog>("Content/MuzzleFlashCatalog");
+            var lightCatalog=GameAssets.Load<MuzzleFlashCatalog>("Content/MuzzleFlashCatalog");
             if(lightCatalog==null) throw new InvalidOperationException("Нет Content/MuzzleFlashCatalog для света выстрелов.");
             var lightProfiles=lightCatalog.Read();
             foreach(var clip in byAttack.Values)

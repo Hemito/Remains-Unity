@@ -13,7 +13,7 @@ namespace Remains.Content
             if(string.IsNullOrWhiteSpace(key)) throw new InvalidOperationException("Пустой ключ звука.");
             var clip=key.StartsWith(ExportedPrefix,StringComparison.Ordinal)
                 ?ExportedContentCatalog.Load().Resource(key.Substring(ExportedPrefix.Length)).sounds is {Length:>0} sounds?sounds[0]:null
-                :Resources.Load<AudioClip>(key);
+                :GameAssets.Load<AudioClip>(key);
             if(clip==null || clip.samples<=0) throw new InvalidOperationException("Нет или пуст звук "+key);
             return clip;
         }

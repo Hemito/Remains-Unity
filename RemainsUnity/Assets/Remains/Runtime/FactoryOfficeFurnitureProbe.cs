@@ -382,7 +382,7 @@ namespace Remains.Runtime
                 string resource=OpeningResource;
                 if(resource==null || definition!=expected.type || Target?.definition!=definition ||
                     !runtime.ContainerAudio.TryGet(definition,out var mapped,out float gain) || mapped!=clip ||
-                    Resources.Load<AudioClip>(resource)!=clip || gain!=.5f || phase is not (0 or 5))
+                    GameAssets.Load<AudioClip>(resource)!=clip || gain!=.5f || phase is not (0 or 5))
                     throw new InvalidOperationException($"Нет исходного банка/фазы E мебели: source={source}, type={definition}, phase={phase}.");
                 var voice=runtime.Audio.GetComponentsInChildren<AudioSource>().LastOrDefault(v=>v.clip==clip &&
                     !openingVoices.Any(observed=>observed.voice==v.GetInstanceID()));

@@ -38,11 +38,11 @@ namespace Remains.Editor
             Require(JToken.DeepEquals(JArray.Parse(catalog.attachmentsJson),source["weaponAttachments"]),"крепления владельцев");
             // Player consumers share the same imported icon for inventory and world items.
             WeaponCatalog.Load();var artwork=new InventoryArtwork();var texts=ItemTextCatalog.Load();
-            File.WriteAllText("../.reference/content-existing-weapons.json",ExportedWeaponAdapter.ExistingAliasReport(catalog,Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog")).ToString());
+            File.WriteAllText("../.reference/content-existing-weapons.json",ExportedWeaponAdapter.ExistingAliasReport(catalog,GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog")).ToString());
             foreach(string id in new[]{"p10mm","p9mm","p10","p10_1","energ","medx"})
             {
                 Require(catalog.TryIcon(id,0,out var original),"исходная иконка "+id);
-                var authored=Resources.Load<InventoryIconAsset>("Original/Inventory/icons").CreateLookup();
+                var authored=GameAssets.Load<InventoryIconAsset>("Original/Inventory/icons").CreateLookup();
                 var expectedIcon=authored.TryGetValue(id,out var previous)?previous:original;
                 Require(artwork.TryGet(id,out var inventory)&&inventory==expectedIcon,"иконка потребителя "+id);
                 Require(artwork.Require(id)==expectedIcon,"иконка лежащего предмета "+id);

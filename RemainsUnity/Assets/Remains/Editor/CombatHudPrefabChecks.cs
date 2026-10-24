@@ -57,7 +57,7 @@ namespace Remains.Editor
                     view.Weapons[i].onClick.Invoke();Require(selected==ItemShortcuts.Keys[i] && calls==before+i+1,"HUD подменяет или дублирует универсальное действие");
                 }
                 hud.Refresh(actor,false);Require(!view.Vitals.activeSelf && !view.Loadout.activeSelf,"HUD не скрылся");
-                Require(Resources.Load<CombatHudView>("Presentation/CombatHud").Health.fillAmount==1,"Обновление изменило исходный префаб");
+                Require(GameAssets.Load<CombatHudView>("Presentation/CombatHud").Health.fillAmount==1,"Обновление изменило исходный префаб");
                 Debug.Log("Префаб HUD: PASS — показатели, предупреждение/лечение, кнопки, бессознательное состояние, видимость.");
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}

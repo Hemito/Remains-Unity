@@ -27,7 +27,7 @@ namespace Remains.Content
             throw new InvalidOperationException("Каталог механизмов "+name+": нет кнопки "+id);
         public static MechanismCatalogAsset Load()
         {
-            var catalog=Resources.Load<MechanismCatalogAsset>("Content/mechanisms");
+            var catalog=GameAssets.Load<MechanismCatalogAsset>("Content/mechanisms");
             if(catalog==null) throw new InvalidOperationException("Нет каталога механизмов Content/mechanisms.");
             catalog.Validate();return catalog;
         }

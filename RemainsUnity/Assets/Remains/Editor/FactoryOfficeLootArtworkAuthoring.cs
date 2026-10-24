@@ -122,7 +122,7 @@ namespace Remains.Editor
             var sprite=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Remains/Resources/"+Resource(entry.id)+".png");
             var anchor=entry.body?PropVisualAnchor.BodyCenter:PropVisualAnchor.PlacementAnchor;
             if(renderer==null || renderer.transform!=prefab.transform || view.transform!=prefab.transform || renderer.sprite!=sprite || renderer.sharedMaterial!=material ||
-                material.mainTexture!=asset.Texture || material.shader!=Resources.Load<Shader>("Presentation/WorldLit") || view.VisualAnchor!=anchor ||
+                material.mainTexture!=asset.Texture || material.shader!=GameAssets.Load<Shader>("Presentation/WorldLit") || view.VisualAnchor!=anchor ||
                 view.FitsStateWidth!=entry.body || renderer.sortingOrder!=ActorVisualLayers.RestingObjectOrder ||
                 prefab.transform.localPosition!=Vector3.zero || prefab.transform.localRotation!=Quaternion.identity || prefab.transform.localScale!=Vector3.one ||
                 prefab.GetComponentsInChildren<PropView>(true).Length!=1 || prefab.GetComponentsInChildren<SpriteRenderer>(true).Length!=1)

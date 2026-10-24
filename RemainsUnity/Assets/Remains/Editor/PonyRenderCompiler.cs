@@ -16,7 +16,7 @@ namespace Remains.Editor
             var asset=AssetDatabase.LoadAssetAtPath<PonyRenderAsset>(path);
             if(asset==null) {asset=ScriptableObject.CreateInstance<PonyRenderAsset>();AssetDatabase.CreateAsset(asset,path);}
             var old=AssetDatabase.LoadAllAssetsAtPath(path).Where(value=>value is Mesh || value is Material).ToDictionary(value=>value.name);
-            var source=Resources.Load<TextAsset>("Original/Pony/pony");
+            var source=GameAssets.Load<TextAsset>("Original/Pony/pony");
             var library=JsonUtility.FromJson<PonyLibrary>(source.text);
             var clips=new List<PonyRenderClip>();var materials=new Dictionary<string,Material>();int meshCount=0;
             T Save<T>(T value) where T:UnityEngine.Object
@@ -41,7 +41,7 @@ namespace Remains.Editor
                             throw new InvalidOperationException($"Неизвестная область пони: {part.slot}, {part.path}.");
                         if(!materials.TryGetValue(part.texture,out var material))
                         {
-                            var texture=Resources.Load<Texture2D>("Original/Pony/"+part.texture);
+                            var texture=GameAssets.Load<Texture2D>("Original/Pony/"+part.texture);
                             if(texture==null) throw new InvalidOperationException("Нет текстуры пони: "+part.texture);
                             material=WorldArtworkMaterial.Create(texture);material.name="material:"+part.texture;material=Save(material);materials.Add(part.texture,material);
                         }

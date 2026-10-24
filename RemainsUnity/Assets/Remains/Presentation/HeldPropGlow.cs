@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -23,7 +24,7 @@ namespace Remains.Presentation
                 throw new InvalidOperationException("Некорректные настройки свечения предмета: "+artwork.name);
             var sprite=artwork.sprite;
             if(sprite==null || sprite.packed) throw new InvalidOperationException("Свечение предмета требует отдельного непакованного спрайта: "+artwork.name);
-            var shader=Resources.Load<Shader>("Presentation/HeldPropGlow");
+            var shader=GameAssets.Load<Shader>("Presentation/HeldPropGlow");
             if(shader==null) throw new InvalidOperationException("Нет шейдера Presentation/HeldPropGlow.");
             foreach(var frame in preparedFrames??new[]{sprite})
             {

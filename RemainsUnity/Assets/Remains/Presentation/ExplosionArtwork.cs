@@ -10,7 +10,7 @@ namespace Remains.Presentation
         public float Duration=>frames.Length/framesPerSecond;
         public static ExplosionArtwork Load()
         {
-            var asset=Resources.Load<ExplosionAnimationAsset>("Presentation/explosion-animation");
+            var asset=GameAssets.Load<ExplosionAnimationAsset>("Presentation/explosion-animation");
             if(asset==null) throw new InvalidOperationException("Нет каталога Presentation/explosion-animation.");
             var result=asset.CreateArtwork();
             foreach(var sprite in result.frames) SpriteArtworkMaterial.Prepare(sprite);

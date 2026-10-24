@@ -107,7 +107,7 @@ namespace Remains.Content
         }
         public static FactoryLevelRoot Create(WorldState world,string level)
         {
-            var asset=Resources.Load<GameObject>(ResourceKey)??throw new InvalidOperationException("Нет авторского корня завода: "+ResourceKey);
+            var asset=GameAssets.Load<GameObject>(ResourceKey)??throw new InvalidOperationException("Нет авторского корня завода: "+ResourceKey);
             var prefab=asset.GetComponent<FactoryLevelRoot>()??throw new InvalidOperationException("Нет FactoryLevelRoot в "+ResourceKey);
             var root=Instantiate(prefab);
             try {root.Initialize(world,level);return root;}

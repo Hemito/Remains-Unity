@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -52,7 +53,7 @@ namespace Remains.Editor
                 importer.SaveAndReimport();
             }
             ContractChecks.Run();
-            var inventoryShell=Resources.Load<Texture2D>("Original/Inventory/shell");
+            var inventoryShell=GameAssets.Load<Texture2D>("Original/Inventory/shell");
             if(inventoryShell==null || inventoryShell.width!=2097 || inventoryShell.height!=1080)
                 throw new InvalidOperationException("Корпус инвентаря должен сохранять исходный размер 2097×1080 после импорта.");
             var enabledScenes=EditorBuildSettings.scenes.Where(scene=>scene.enabled).ToArray();

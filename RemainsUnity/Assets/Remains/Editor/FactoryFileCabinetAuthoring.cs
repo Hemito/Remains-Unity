@@ -84,7 +84,7 @@ namespace Remains.Editor
             FactoryFileCabinetChecks.CheckDefinition(asset.CreateDefinition());
             var view=asset.Prefab;var renderer=view.Artwork;
             if(renderer==null || renderer.transform!=prefab.transform || view.transform!=prefab.transform || renderer.sprite!=AssetDatabase.LoadAssetAtPath<Sprite>(ImagePath) || renderer.sharedMaterial!=material ||
-                material.mainTexture!=asset.Texture || material.shader!=Resources.Load<Shader>("Presentation/WorldLit") ||
+                material.mainTexture!=asset.Texture || material.shader!=GameAssets.Load<Shader>("Presentation/WorldLit") ||
                 view.VisualAnchor!=PropVisualAnchor.BodyCenter || !view.FitsStateWidth || renderer.sortingOrder!=ActorVisualLayers.RestingObjectOrder ||
                 prefab.transform.localPosition!=Vector3.zero || prefab.transform.localRotation!=Quaternion.identity || prefab.transform.localScale!=Vector3.one ||
                 prefab.GetComponentsInChildren<PropView>(true).Length!=1 || prefab.GetComponentsInChildren<SpriteRenderer>(true).Length!=1)

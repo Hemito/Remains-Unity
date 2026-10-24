@@ -56,8 +56,8 @@ namespace Remains.Content
         public static AtlasActorArtwork Get(string key)
         {
             if(cache.TryGetValue(key,out var cached)) return cached;
-            var saved=Resources.Load<AtlasSpriteAsset>(key);
-            var asset=saved==null?Resources.Load<TextAsset>(key):null;
+            var saved=GameAssets.Load<AtlasSpriteAsset>(key);
+            var asset=saved==null?GameAssets.Load<TextAsset>(key):null;
             if(saved==null && asset==null) throw new InvalidOperationException("Нет описания атласа: "+key);
             var data=saved!=null?saved.CreateDefinition():JsonUtility.FromJson<AtlasActorArtwork>(asset.text);
             if(data?.clips==null || data.clips.Length==0) throw new InvalidOperationException("Нет клипов атласа: "+key);

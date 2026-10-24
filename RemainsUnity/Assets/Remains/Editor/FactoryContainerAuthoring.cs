@@ -101,7 +101,7 @@ namespace Remains.Editor
         private static PropAsset Create(string id,string title,float mass,Rect rect)
         {
             string resource="Original/Containers/"+id+"-closed";
-            var texture=Resources.Load<Texture2D>(resource);
+            var texture=GameAssets.Load<Texture2D>(resource);
             if(texture==null || rect.xMax>texture.width || rect.yMax>texture.height) throw new InvalidOperationException("Некорректные границы изображения "+id);
             var sprite=Sprite.Create(texture,rect,new Vector2(.5f,.5f),200,0,SpriteMeshType.FullRect);
             AssetDatabase.CreateAsset(sprite,Folder+"/"+id+"-closed.asset");

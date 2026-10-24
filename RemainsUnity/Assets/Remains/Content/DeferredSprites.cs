@@ -11,7 +11,7 @@ namespace Remains.Content
         [SerializeField,InspectorName("Кадры (пути Resources)")] private string[] resources=Array.Empty<string>();
         [SerializeField,InspectorName("Пикселей на метр кадров")] private float pixelsPerUnit;
         [NonSerialized] private Sprite[] loaded;
-        [NonSerialized] private ResourceRequest[] requests;
+        [NonSerialized] private GameAssets.Request[] requests;
         [NonSerialized] private bool warned;
         public int Count=>resources?.Length??0;
         public float PixelsPerUnit=>pixelsPerUnit;
@@ -29,18 +29,18 @@ namespace Remains.Content
         public void Preload()
         {
             if(requests!=null || Count==0) return;
-            loaded=new Sprite[resources.Length];requests=new ResourceRequest[resources.Length];
-            for(int i=0;i<resources.Length;i++) requests[i]=Resources.LoadAsync<Sprite>(resources[i]);
+            loaded=new Sprite[resources.Length];requests=new GameAssets.Request[resources.Length];
+            for(int i=0;i<resources.Length;i++) requests[i]=GameAssets.LoadAsync<Sprite>(resources[i]);
         }
         public Sprite Get(int index)
         {
             if(requests==null) return null;
-            if(loaded[index]!=null || !requests[index].isDone) return loaded[index];
-            loaded[index]=requests[index].asset as Sprite;
+            if(loaded[index]!=null || !requests[index].IsDone) return loaded[index];
+            loaded[index]=requests[index].Asset as Sprite;
             if(loaded[index]==null && !warned) {warned=true;Debug.LogWarning($"Нет кадра {resources[index]} (кадр {index}); рисуется кадр покоя.");}
             return loaded[index];
         }
         // Editor checks: the frame itself, synchronously.
-        public Sprite LoadNow(int index)=>Resources.Load<Sprite>(resources[index]);
+        public Sprite LoadNow(int index)=>GameAssets.Load<Sprite>(resources[index]);
     }
 }

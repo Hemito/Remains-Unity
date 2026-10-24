@@ -50,7 +50,7 @@ namespace Remains.Editor
             }
 
             var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
-            FactoryPreparation.Create(world,Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
+            FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {
                 FactoryContentSources.Prepare(world,"factory:0");
@@ -114,7 +114,7 @@ namespace Remains.Editor
         }
         internal static void CheckCorpsePresentation(CreatureEntry creature,ActorTypeDefinition type)
         {
-            var atlas=Resources.Load<AtlasSpriteAsset>(type.artwork);
+            var atlas=GameAssets.Load<AtlasSpriteAsset>(type.artwork);
             Require(atlas!=null && atlas.HasOpaqueVerticalBounds,"не подготовлены границы тела "+creature.actorType);
             var actor=creature.spawn.Create(new TrainingPlacement {id="corpse-support",type=creature.actorType,facing=1},"check");
             actor.Position=new Vector2(2,4);

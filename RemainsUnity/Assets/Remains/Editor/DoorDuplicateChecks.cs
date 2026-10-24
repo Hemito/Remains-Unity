@@ -21,7 +21,7 @@ namespace Remains.Editor
             Require(DoorDuplicates.Remove(saved,()=>backups++).Count==0 && backups==1,"повторная миграция ничего не меняет");
 
             var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
-            FactoryPreparation.Create(world,Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
+            FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {
                 FactoryContentSources.Prepare(world,"factory:0");

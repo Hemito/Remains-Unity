@@ -185,7 +185,7 @@ namespace Remains.Editor
                 level.SyncLamps(new[]{middle},3,new[]{middle});
                 var parts=new List<RoomRadianceField.LightOccluder>();visual.AppendLightOccluders(parts);
                 parts.Add(new RoomRadianceField.LightOccluder(weapon.sprite,weaponRoot.transform.localToWorldMatrix));
-                shadow=UnityEngine.Object.Instantiate(Resources.Load<ActorCastShadowView>(ActorCastShadowView.ResourcePath)
+                shadow=UnityEngine.Object.Instantiate(GameAssets.Load<ActorCastShadowView>(ActorCastShadowView.ResourcePath)
                     ??throw new InvalidOperationException("Нет авторского префаба тени для проверки ванной."));shadow.Prepare(parts,2);
                 level.PrepareActorShadowFields(twoSources.Select(item=>item.Id).ToArray());
                 var masks=new List<ProjectedLightShadow>();

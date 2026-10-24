@@ -28,7 +28,7 @@ namespace Remains.Editor
                 var hub=LampContent.Read(world,"hub");
                 if(hub.Count==0 || hub.Any(lamp=>lamp.level!="hub" || !lamp.id.StartsWith("hub-room-0-0:")))
                     throw new InvalidOperationException("ID ламп хаба не согласованы с игровым уровнем.");
-                var prefab=Resources.Load<LampBreakEffectView>("Presentation/Effects/lamp-break");
+                var prefab=GameAssets.Load<LampBreakEffectView>("Presentation/Effects/lamp-break");
                 prefab.Validate();
                 Debug.Log($"LampContentChecks: PASS — {source.Count} ламп завода совпадают с изображениями, {hub.Count} ламп хаба, авторский эффект готов.");
                 EditorApplication.Exit(0);

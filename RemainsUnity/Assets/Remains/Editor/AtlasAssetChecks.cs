@@ -8,7 +8,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            var asset=Resources.Load<AtlasSpriteAsset>("Original/Raider/artwork");
+            var asset=GameAssets.Load<AtlasSpriteAsset>("Original/Raider/artwork");
             if(asset==null) throw new InvalidOperationException("Нет сохранённого атласа рейдера.");
             var data=asset.CreateDefinition();int count=0;
             foreach(var clip in data.clips)
@@ -35,7 +35,7 @@ namespace Remains.Editor
         }
         public static void RebuildAndVerify()
         {
-            var asset=Resources.Load<AtlasSpriteAsset>("Original/Raider/artwork");
+            var asset=GameAssets.Load<AtlasSpriteAsset>("Original/Raider/artwork");
             var before=asset.Frames("idle")[0];AssetDatabase.TryGetGUIDAndLocalFileIdentifier(before,out string guid,out long id);
             AtlasSpriteAssetEditor.Rebuild(asset);
             AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset.Frames("idle")[0],out string afterGuid,out long afterId);
@@ -44,7 +44,7 @@ namespace Remains.Editor
         }
         public static void ApplyRaiderWalkAndBuild()
         {
-            var asset=Resources.Load<AtlasSpriteAsset>("Original/Raider/artwork");
+            var asset=GameAssets.Load<AtlasSpriteAsset>("Original/Raider/artwork");
             if(asset==null) throw new InvalidOperationException("Нет атласа рейдера для уточнения цикла.");
             var data=asset.CreateDefinition();var walk=data.Clip("walk");
             if(walk.row!=1 || walk.count!=17 || !walk.loop)
@@ -55,7 +55,7 @@ namespace Remains.Editor
         }
         public static void ApplyRaiderAirborneAndBuild()
         {
-            var asset=Resources.Load<AtlasSpriteAsset>("Original/Raider/artwork");
+            var asset=GameAssets.Load<AtlasSpriteAsset>("Original/Raider/artwork");
             if(asset==null) throw new InvalidOperationException("Нет атласа рейдера для настройки воздушной позы.");
             var data=asset.CreateDefinition();var jump=data.Clip("jump");
             if(jump.row!=3 || jump.count!=16) throw new InvalidOperationException("Изменился воздушный ряд рейдера; требуется сверка.");

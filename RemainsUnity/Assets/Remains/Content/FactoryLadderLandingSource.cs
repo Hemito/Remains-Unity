@@ -15,7 +15,7 @@ namespace Remains.Content
         public FactoryLadderLandingRecord[] Room(int sourceRoom)=>records.Where(r=>r.sourceRoom==sourceRoom).ToArray();
         public static FactoryLadderLandingSource Load()
         {
-            var asset=Resources.Load<TextAsset>(ResourceKey);
+            var asset=GameAssets.Load<TextAsset>(ResourceKey);
             if(asset==null) throw new InvalidOperationException("Нет явных определений верхних посадок: "+ResourceKey);
             var result=JsonUtility.FromJson<FactoryLadderLandingSource>(asset.text);
             if(result==null) throw new InvalidOperationException("Верхние посадки: пустой JSON источника "+ResourceKey);

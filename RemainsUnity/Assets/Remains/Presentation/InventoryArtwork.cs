@@ -15,7 +15,7 @@ namespace Remains.Presentation
         public InventoryArtwork()
         {
             sprites=WeaponArtwork.Load();
-            var catalog=Resources.Load<InventoryIconAsset>("Original/Inventory/icons");
+            var catalog=GameAssets.Load<InventoryIconAsset>("Original/Inventory/icons");
             if(catalog==null) throw new InvalidOperationException("Нет каталога иконок Original/Inventory/icons.");
             foreach(var entry in catalog.CreateLookup())
             {

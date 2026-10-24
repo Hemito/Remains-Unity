@@ -101,8 +101,8 @@ namespace Remains.Runtime
         }
         private void ValidateMappings()
         {
-            var projectileAsset=Resources.Load<TextAsset>("Presentation/projectile-audio");
-            var meleeAsset=Resources.Load<TextAsset>("Presentation/melee-impact-audio");
+            var projectileAsset=GameAssets.Load<TextAsset>("Presentation/projectile-audio");
+            var meleeAsset=GameAssets.Load<TextAsset>("Presentation/melee-impact-audio");
             Require(projectileAsset!=null && meleeAsset!=null,"Нет каталогов ударных звуков.");
             var p=JsonUtility.FromJson<ProjectileCatalog>(projectileAsset.text);
             var m=JsonUtility.FromJson<MeleeCatalog>(meleeAsset.text);
@@ -114,7 +114,7 @@ namespace Remains.Runtime
                 Require(pe.Length==1 && me.Length==1 && pe[0].clip=="Original/Audio/"+f.Clip && me[0].clip==pe[0].clip &&
                     Mathf.Abs(pe[0].gain-f.Gain)<.00001f && Mathf.Abs(me[0].gain-f.Gain)<.00001f,
                     "Нет единственного точного назначения pistol/"+f.MeleeWeapon+": texture="+f.Texture);
-                var audio=Resources.Load<AudioClip>(pe[0].clip);
+                var audio=GameAssets.Load<AudioClip>(pe[0].clip);
                 Require(audio!=null && audio.samples>0 && audio.channels>0 && audio.frequency>0,"Нет непустого импортированного WAV: "+pe[0].clip);
             }
         }
@@ -153,7 +153,7 @@ namespace Remains.Runtime
             Require(next is >=1 and <=6 && next==phase+1,"Нарушен порядок фаз: "+next+" после "+phase);
             phase=next;source=sender;current=Fixtures[(phase-1)/2];phaseAt=Time.unscaledTime;evidenceAt=-1;
             placed=travelRequested=ready=released=action=captured=reported=capturePending=false;
-            clip=Resources.Load<AudioClip>("Original/Audio/"+current.Clip);
+            clip=GameAssets.Load<AudioClip>("Original/Audio/"+current.Clip);
             receipts.Clear();voices.Clear();
             foreach(var voice in runtime.Audio.GetComponentsInChildren<AudioSource>())voices.Add(voice.GetInstanceID());
             baseline=lastAudio=Count;

@@ -1,6 +1,7 @@
 using System;
 using Remains.Presentation;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -11,7 +12,7 @@ namespace Remains.Editor
         private static void CheckEdgeTravel(Camera camera)
         {
             var room=new Remains.Domain.RoomLayout {id="camera-edge-travel",left=0,right=80,bottom=0,top=30};
-            var clips=Resources.Load<Remains.Content.PonyRenderAsset>("Original/Pony/render").Clips;
+            var clips=GameAssets.Load<Remains.Content.PonyRenderAsset>("Original/Pony/render").Clips;
             foreach(float aspect in new[]{16f/9,4f/3,1280f/534})
             foreach(float dt in new[]{1f/30,1f/60,1f/144})
             foreach(int edge in new[]{0,1,2,3})
@@ -71,7 +72,7 @@ namespace Remains.Editor
                 var follower=new CameraFollower(camera,new Remains.Domain.RoomLayout {id="camera-edge",left=0,right=80,bottom=0,top=30});
                 var actor=new Remains.Domain.ActorState {id="edge-climber",x=.1f,y=25,climbing=true,pose="climb"};
                 follower.Step(actor,10);var stable=camera.transform.position;
-                var render=Resources.Load<Remains.Content.PonyRenderAsset>("Original/Pony/render");
+                var render=GameAssets.Load<Remains.Content.PonyRenderAsset>("Original/Pony/render");
                 foreach(var clip in render.Clips) foreach(var frame in clip.frames)
                 {
                     actor.pose=clip.id;actor.poseTime+=.1f;actor.facing=-actor.facing;

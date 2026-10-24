@@ -35,7 +35,7 @@ namespace Remains.Content
             PonyAppearance.Prepare();
             if(selections.Count!=0) return;
             var timer=Stopwatch.StartNew();
-            var asset=Resources.Load<PonyRenderAsset>("Original/Pony/render");
+            var asset=GameAssets.Load<PonyRenderAsset>("Original/Pony/render");
             if(asset==null) throw new InvalidOperationException("Нет сохранённой графики пони Original/Pony/render.");
             asset.Validate();PonyAnimationData.Load();
             var resolver=new PonyHeadRenderResolver(asset);

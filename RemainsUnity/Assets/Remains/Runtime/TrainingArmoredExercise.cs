@@ -135,7 +135,7 @@ namespace Remains.Runtime
             Require(shooter.inventory.Any(i=>i.definition=="spear" && i.weaponState!=null),"В стартовом профиле нет реального копья.");
             Evidence.pistolItem=pistol.id;Evidence.pistolMagazineBefore=pistol.weaponState.rounds;
             Require(Evidence.pistolMagazineBefore>0,"Нет оставшегося настоящего патрона после прежних выстрелов.");
-            metalClip=Resources.Load<AudioClip>("Original/Audio/hit-metal");
+            metalClip=GameAssets.Load<AudioClip>("Original/Audio/hit-metal");
             Require(metalClip!=null && metalClip.samples>0,"Нет установленного реального hit-metal.");
             foreach(var voice in runtime.Audio.GetComponentsInChildren<AudioSource>()) voiceIds.Add(voice.GetInstanceID());
             phase=0;phaseAt=Time.unscaledTime;

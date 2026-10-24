@@ -18,7 +18,7 @@ namespace Remains.Presentation
         public void Initialize(ProjectileController controller,GameplayAudio playback)
         {
             this.controller=controller;this.playback=playback;
-            var asset=Resources.Load<TextAsset>("Presentation/projectile-audio");
+            var asset=GameAssets.Load<TextAsset>("Presentation/projectile-audio");
             if(asset==null) throw new InvalidOperationException("Нет каталога Presentation/projectile-audio.");
             var catalog=JsonUtility.FromJson<Catalog>(asset.text);
             if(catalog?.entries==null || catalog.weapons==null) throw new InvalidOperationException("Неполный каталог звуков попадания.");

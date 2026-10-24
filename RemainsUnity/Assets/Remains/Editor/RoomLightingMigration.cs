@@ -39,13 +39,13 @@ namespace Remains.Editor
                 {
                     if(root.GetComponent<RoomLightingAuthoring>()!=null) throw new InvalidOperationException("Свет уже перенесён: "+key);
                     var room=root.GetComponent<RoomAuthoring>();var layout=room.CreateLayout();
-                    var profile=JsonUtility.FromJson<RoomLightProfile>(Resources.Load<TextAsset>(layout.lightingProfile).text);
+                    var profile=JsonUtility.FromJson<RoomLightProfile>(GameAssets.Load<TextAsset>(layout.lightingProfile).text);
                     var lighting=root.AddComponent<RoomLightingAuthoring>();lighting.SetAmbient(profile.ambient);
                     var group=new GameObject("Источники света");group.transform.SetParent(root.transform,false);
                     foreach(var light in profile.lights)
                     {
                         var node=new GameObject("Свет: "+light.id);node.transform.SetParent(group.transform,false);
-                        var mask=string.IsNullOrEmpty(light.mask)?null:Resources.Load<Texture2D>(light.mask);
+                        var mask=string.IsNullOrEmpty(light.mask)?null:GameAssets.Load<Texture2D>(light.mask);
                         if(!string.IsNullOrEmpty(light.mask) && mask==null) throw new InvalidOperationException("Нет маски: "+light.mask);
                         node.AddComponent<RoomLightAuthoring>().Configure(light,mask);
                         var fixture=root.GetComponentsInChildren<MeshRenderer>(true).SingleOrDefault(item=>item.name=="Светильник: "+light.id);

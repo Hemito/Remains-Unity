@@ -22,11 +22,11 @@ namespace Remains.Editor
         public static void Run()
         {
             WeaponCatalog.Load();PonyVisual.Prepare();
-            var baseline=Resources.Load<PonyRenderAsset>("Original/Pony/render");string sourceHash=PonyRenderAsset.SourceHash();
+            var baseline=GameAssets.Load<PonyRenderAsset>("Original/Pony/render");string sourceHash=PonyRenderAsset.SourceHash();
             var actor=Actor("первый");var other=Actor("второй");
             var view=(PonyVisual)ActorVisualFactory.Create(actor);var otherView=(PonyVisual)ActorVisualFactory.Create(other);
-            var page=UnityEngine.Object.Instantiate(Resources.Load<PersonalInventoryView>("Presentation/PersonalInventory"));
-            var cards=UnityEngine.Object.Instantiate(Resources.Load<CharacterLibraryView>("Presentation/CharacterLibrary"));
+            var page=UnityEngine.Object.Instantiate(GameAssets.Load<PersonalInventoryView>("Presentation/PersonalInventory"));
+            var cards=UnityEngine.Object.Instantiate(GameAssets.Load<CharacterLibraryView>("Presentation/CharacterLibrary"));
             int drawings=0,frameChecks=0,headWitnesses=0;
             try
             {
@@ -138,7 +138,7 @@ namespace Remains.Editor
             Require(selectedPlan.HasEquipment && selectedPlan.Capacity>barePlan.Capacity,"Нет настоящего более вместительного compiled plan для проверки provision");
             var view=(PonyVisual)ActorVisualFactory.Create(equipped);
             var broken=(PonyVisual)ActorVisualFactory.Create(equipped);
-            var page=UnityEngine.Object.Instantiate(Resources.Load<PersonalInventoryView>("Presentation/PersonalInventory"));
+            var page=UnityEngine.Object.Instantiate(GameAssets.Load<PersonalInventoryView>("Presentation/PersonalInventory"));
             try
             {
                 var data=new UnityEditor.SerializedObject(view);var filters=data.FindProperty("filters");var renderers=data.FindProperty("renderers");

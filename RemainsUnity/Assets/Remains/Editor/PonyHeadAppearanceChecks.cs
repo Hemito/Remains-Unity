@@ -34,7 +34,7 @@ namespace Remains.Editor
 
             PonyRenderSelection.Prepare();
             CheckExplicitPreparation();
-            var asset=Resources.Load<PonyRenderAsset>("Original/Pony/render");
+            var asset=GameAssets.Load<PonyRenderAsset>("Original/Pony/render");
             PonyAppearanceKey? previous=null;int frames=0;
             foreach(var style in PonyHeadCatalog.Styles)
             {

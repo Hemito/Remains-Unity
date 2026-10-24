@@ -30,7 +30,7 @@ namespace Remains.Presentation
         public static GameObject Build(RoomFile room,RoomDefinitionCatalog definitions,RoomLandCatalog lands,RoomTileArtAsset art,Vector2 origin,double litEdge,Transform parent=null,IReadOnlyList<(RoomFile options,Vector2 offset)> backdrops=null,bool ownSortingGroup=true)
         {
             if(room==null || definitions==null || lands==null || art==null) throw new ArgumentNullException(room==null?nameof(room):definitions==null?nameof(definitions):lands==null?nameof(lands):nameof(art));
-            var shader=Resources.Load<Shader>(ShaderResource)??throw new InvalidOperationException("Нет шейдера "+ShaderResource);
+            var shader=GameAssets.Load<Shader>(ShaderResource)??throw new InvalidOperationException("Нет шейдера "+ShaderResource);
             var root=new GameObject("Оформление комнаты: "+room.Template);
             if(parent!=null) root.transform.SetParent(parent,false);
             root.transform.localPosition=origin;
@@ -229,7 +229,7 @@ namespace Remains.Presentation
             {
                 const string key="спрайты";
                 if(lifetime.Materials.TryGetValue(key,out var material)) return material;
-                var spriteShader=Resources.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
+                var spriteShader=GameAssets.Load<Shader>(SpriteShaderResource)??throw new InvalidOperationException("Нет шейдера "+SpriteShaderResource);
                 material=new Material(spriteShader){name="Sprites:"+room.Template};
                 lifetime.Materials.Add(key,material);
                 return material;

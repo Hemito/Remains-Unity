@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Remains.Domain;
 using UnityEditor;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -22,7 +23,7 @@ namespace Remains.Editor
                 if(!string.IsNullOrEmpty(ladder.artwork)) keys[ladder.artwork]=true;
             foreach(var entry in keys)
             {
-                var texture=Resources.Load<Texture2D>("Original/Room/"+entry.Key);
+                var texture=GameAssets.Load<Texture2D>("Original/Room/"+entry.Key);
                 string path=texture==null?null:AssetDatabase.GetAssetPath(texture);
                 if(string.IsNullOrEmpty(path) || AssetImporter.GetAtPath(path) is not TextureImporter importer)
                     throw new InvalidOperationException($"Повторяемое оформление комнаты {layout.id}: нет импортёра текстуры {entry.Key}.");

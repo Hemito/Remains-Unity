@@ -4,6 +4,7 @@ using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -23,7 +24,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession value,ActorVisualLayers visualLayers)
         {
             session=value;layers=visualLayers;artwork=new InventoryArtwork();artwork.PrepareWorldMaterials();
-            prefab=Resources.Load<SpriteRenderer>("Presentation/HeldItem");
+            prefab=GameAssets.Load<SpriteRenderer>("Presentation/HeldItem");
             if(prefab==null) throw new InvalidOperationException("Нет сохранённого префаба удерживаемой вещи Presentation/HeldItem.");
             session.Changed+=Refresh;session.Deposits.Reconciled+=Refresh;
             Refresh();

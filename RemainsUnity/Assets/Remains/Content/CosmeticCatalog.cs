@@ -46,7 +46,7 @@ namespace Remains.Content
         public static CosmeticCatalog Load()
         {
             if(loaded!=null) return loaded;
-            var asset=Resources.Load<TextAsset>(Resource);
+            var asset=GameAssets.Load<TextAsset>(Resource);
             if(asset==null) throw new InvalidOperationException("Нет каталога визуального снаряжения: "+Resource+".");
             return loaded=new CosmeticCatalog(asset.text);
         }

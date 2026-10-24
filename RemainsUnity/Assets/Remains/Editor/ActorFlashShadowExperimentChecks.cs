@@ -88,7 +88,7 @@ namespace Remains.Editor
                 var emission=new[]{new RoomRadianceField.SpriteEmission(flashSprite,flashRoot.transform.localToWorldMatrix,8)};
                 var parts=new List<RoomRadianceField.LightOccluder>();visual.AppendLightOccluders(parts);
                 parts.Add(new RoomRadianceField.LightOccluder(weapon.sprite,weaponRoot.transform.localToWorldMatrix));
-                shadow=UnityEngine.Object.Instantiate(Resources.Load<ActorCastShadowView>(ActorCastShadowView.ResourcePath)
+                shadow=UnityEngine.Object.Instantiate(GameAssets.Load<ActorCastShadowView>(ActorCastShadowView.ResourcePath)
                     ??throw new InvalidOperationException("Нет авторского префаба проекции тени."));
                 const string sourceId="experiment:actual-pistol-flash";
                 var sources=new[]{new ActorShadowSource(sourceId,sourcePosition,flashSprite.bounds.size.magnitude*.25f,8f/9f,true,

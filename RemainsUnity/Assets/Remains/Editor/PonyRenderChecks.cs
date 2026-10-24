@@ -8,7 +8,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            var asset=Resources.Load<PonyRenderAsset>("Original/Pony/render");asset.Validate();PonyAnimationData.Load();
+            var asset=GameAssets.Load<PonyRenderAsset>("Original/Pony/render");asset.Validate();PonyAnimationData.Load();
             var source=PonyAnimationData.Library;
             if(asset.Clips.Length!=source.clips.Length) throw new InvalidOperationException("Количество сохранённых поз пони расходится с исходными данными.");
             int count=0;

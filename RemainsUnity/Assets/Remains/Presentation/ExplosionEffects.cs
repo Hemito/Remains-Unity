@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -16,7 +17,7 @@ namespace Remains.Presentation
         public int Shown {get;private set;}
         public event Action<ExplosionVisual> Created;
         public void Initialize(CoopSession session,WorldVisualOrderTable orderTable)
-        {this.session=session;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));prefab=Resources.Load<ExplosionVisual>("Presentation/Explosion");if(prefab==null) throw new InvalidOperationException("Нет префаба взрыва Presentation/Explosion.");prefab.Validate();session.AttackReceived+=Attack;}
+        {this.session=session;orders=orderTable??throw new ArgumentNullException(nameof(orderTable));prefab=GameAssets.Load<ExplosionVisual>("Presentation/Explosion");if(prefab==null) throw new InvalidOperationException("Нет префаба взрыва Presentation/Explosion.");prefab.Validate();session.AttackReceived+=Attack;}
         private void Attack(AttackEvent attack)
         {
             if(!Remains.Content.WeaponCatalog.IsExplosive(attack.weapon) || attack.level!=session.LocalActor?.level || !seen.Add(attack.id)) return;

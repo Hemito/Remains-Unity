@@ -15,9 +15,9 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();StandingEdgePoseCatalog.Load();PonyVisual.Prepare();
-            var manifest=StateJson.FromJson<StandingEdgePoseManifest>(Resources.Load<TextAsset>("Content/standing-edge-poses").text);
+            var manifest=StateJson.FromJson<StandingEdgePoseManifest>(GameAssets.Load<TextAsset>("Content/standing-edge-poses").text);
             CheckSelection(manifest);
-            var audio=StateJson.FromJson<MovementAudio.Settings>(Resources.Load<TextAsset>("Presentation/movement-audio").text);
+            var audio=StateJson.FromJson<MovementAudio.Settings>(GameAssets.Load<TextAsset>("Presentation/movement-audio").text);
             foreach(var profile in manifest.profiles)
             foreach(var pose in profile.candidates)
                 Require(audio.quietPoses.Count(id=>id==pose.poseId)==1 && audio.rhythms.All(rhythm=>rhythm.pose!=pose.poseId),

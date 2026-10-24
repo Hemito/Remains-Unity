@@ -7,6 +7,7 @@ using Remains.Networking;
 using Remains.Presentation;
 using Remains.Serialization;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -134,7 +135,7 @@ namespace Remains.Editor
             {
                 var playback=root.AddComponent<GameplayAudio>();playback.Initialize(session,new WeaponReloadController(session),root.AddComponent<Camera>());
                 var consumer=root.AddComponent<HealingItemAudio>();var declaration=HealingItemAudio.Load();consumer.Initialize(source,playback,declaration);
-                Require(consumer.TryGet("heal",out var clip,out var gain) && clip==Resources.Load<AudioClip>(HealingItemAudioAuthoring.Resource) && gain==.5f,
+                Require(consumer.TryGet("heal",out var clip,out var gain) && clip==GameAssets.Load<AudioClip>(HealingItemAudioAuthoring.Resource) && gain==.5f,
                     "Consumer потерял фактический исходный WAV");
                 declaration.entries[0].clip="changed-after-initialize";
                 Require(consumer.TryGet("heal",out var retained,out _) && retained==clip,"Mutable declaration изменила prepared bank");

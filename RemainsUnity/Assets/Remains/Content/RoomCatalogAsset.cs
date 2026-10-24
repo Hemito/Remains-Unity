@@ -55,7 +55,7 @@ namespace Remains.Content
         }
         private static RoomCatalogAsset LoadResource()
         {
-            var catalog=Resources.Load<RoomCatalogAsset>(ResourceKey);
+            var catalog=GameAssets.Load<RoomCatalogAsset>(ResourceKey);
             if(catalog==null) throw new InvalidOperationException("Не найден каталог "+ResourceKey+".");
             return catalog;
         }

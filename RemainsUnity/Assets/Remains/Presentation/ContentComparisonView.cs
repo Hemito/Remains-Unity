@@ -10,7 +10,7 @@ namespace Remains.Presentation
         public static (RectTransform confirm,RectTransform cancel) Draw(Transform root,
             IReadOnlyList<ContentDifference> rows,string title,int page,Action<int> turnPage,Action<bool> decide,string leftTitle="В сохранении",string rightTitle="Сейчас",string confirmTitle="Попробовать загрузить с этим набором")
         {
-            var prefab=Resources.Load<ContentComparisonLayout>("Presentation/ContentComparison");
+            var prefab=GameAssets.Load<ContentComparisonLayout>("Presentation/ContentComparison");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/ContentComparison.");
             prefab.Validate();var view=UnityEngine.Object.Instantiate(prefab,root,false);
             int capacity=view.Ids.Length;int pages=Math.Max(1,(rows.Count+capacity-1)/capacity);page=Math.Clamp(page,0,pages-1);

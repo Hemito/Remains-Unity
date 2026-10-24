@@ -27,7 +27,7 @@ namespace Remains.Editor
             if(importer==null) throw new InvalidOperationException("Не импортирован исходный рисунок большого ящика.");
             importer.textureType=TextureImporterType.Default;importer.textureCompression=TextureImporterCompression.Uncompressed;
             importer.npotScale=TextureImporterNPOTScale.None;importer.mipmapEnabled=false;importer.maxTextureSize=4096;importer.SaveAndReimport();
-            var texture=Resources.Load<Texture2D>(Resource);
+            var texture=GameAssets.Load<Texture2D>(Resource);
             if(texture==null || texture.width!=source.imageWidth || texture.height!=source.imageHeight)
                 throw new InvalidOperationException("Изменены исходные размеры рисунка большого ящика.");
             if(!AssetDatabase.IsValidFolder(Folder)) AssetDatabase.CreateFolder("Assets/Remains/RoomDrafts","FactoryProps");

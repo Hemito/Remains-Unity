@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -19,7 +20,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession session,DamageFeedback feedback)
         {
             this.session=session;this.feedback=feedback;
-            prefab=Resources.Load<FloatingDamageNumber>("Presentation/DamageNumber");
+            prefab=GameAssets.Load<FloatingDamageNumber>("Presentation/DamageNumber");
             if(prefab==null) throw new System.InvalidOperationException("Нет префаба Presentation/DamageNumber.");
             prefab.Validate();
             // Подготовка первого текста выполняется при загрузке, без фиктивного урона/событий.

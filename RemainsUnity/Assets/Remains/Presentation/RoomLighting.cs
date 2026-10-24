@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Remains.Domain;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -85,7 +86,7 @@ namespace Remains.Presentation
         {
             string path=room.lightingProfile;
             if(string.IsNullOrEmpty(path)) throw new InvalidOperationException("Не задан профиль освещения: "+room.id);
-            var asset=Resources.Load<TextAsset>(path);
+            var asset=GameAssets.Load<TextAsset>(path);
             if(asset==null) throw new InvalidOperationException("Нет описания света: "+path);
             Profile=JsonUtility.FromJson<RoomLightProfile>(asset.text);
             if(Profile?.lights==null) throw new InvalidOperationException("Нет источников света: "+path);

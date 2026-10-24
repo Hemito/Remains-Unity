@@ -28,7 +28,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession session)
         {
             this.session=session;
-            var asset=Resources.Load<MusicCatalogAsset>("Content/area-music");
+            var asset=GameAssets.Load<MusicCatalogAsset>("Content/area-music");
             if(asset==null) throw new InvalidOperationException("Нет каталога Content/area-music.");
             tracks=asset.CreateTracks();fadeSeconds=asset.FadeSeconds;Volume=asset.Volume;
             foreach(var track in tracks) clips.Add(track.id,track.clip);

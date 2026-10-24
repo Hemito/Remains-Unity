@@ -24,7 +24,7 @@ namespace Remains.Editor
         }
         public static ContainerLootTable Table(string actor,string category,ContainerLootTable initial=null)
         {
-            var catalog=Resources.Load<FactoryLootCatalog>("Content/FactoryLoot");
+            var catalog=GameAssets.Load<FactoryLootCatalog>("Content/FactoryLoot");
             if(catalog==null) throw new InvalidOperationException("Нет исходного каталога предметов для добычи существ.");
             var rows=new List<ContainerLootEntry>(initial?.entries??Array.Empty<ContainerLootEntry>());
             void Add(string item,float chance,string row=null,string failure=null)

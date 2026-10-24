@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 namespace Remains.Presentation
 {
     public static class OriginalButtonStyle
@@ -18,7 +19,7 @@ namespace Remains.Presentation
             {
                 // The saved Sprite is the one density/PPU/border source for both
                 // authored and dynamically created buttons, including old1×.
-                sprite=Resources.Load<Sprite>("Presentation/MainMenuArtwork/button-glow");
+                sprite=GameAssets.Load<Sprite>("Presentation/MainMenuArtwork/button-glow");
                 if(sprite==null) throw new InvalidOperationException("Нет сохранённой оригинальной графики кнопки: Presentation/MainMenuArtwork/button-glow.");
             }
             var image=button.GetComponent<Image>();image.sprite=sprite;image.type=Image.Type.Sliced;image.color=Color.white;button.targetGraphic=image;

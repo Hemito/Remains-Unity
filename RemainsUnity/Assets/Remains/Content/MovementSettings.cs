@@ -25,7 +25,7 @@ namespace Remains.Content
         }
         public static MovementSettings Load()
         {
-            var asset=Resources.Load<TextAsset>("Content/movement");
+            var asset=GameAssets.Load<TextAsset>("Content/movement");
             if(asset==null) throw new InvalidOperationException("Нет параметров движения Content/movement.");
             var result=JsonUtility.FromJson<MovementSettings>(asset.text);
             if(result==null) throw new InvalidOperationException("Не удалось прочитать параметры движения Content/movement.");

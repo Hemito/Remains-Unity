@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -9,7 +10,7 @@ namespace Remains.Presentation
         public float Pan(float sourceX,float cameraX)=>Mathf.Lerp(-1,1,Mathf.InverseLerp(-panDistance,panDistance,sourceX-cameraX));
         public static AudioMixSettings Load()
         {
-            var asset=Resources.Load<TextAsset>("Presentation/audio-mix");
+            var asset=GameAssets.Load<TextAsset>("Presentation/audio-mix");
             if(asset==null) throw new InvalidOperationException("Нет настроек Presentation/audio-mix.");
             var mix=JsonUtility.FromJson<AudioMixSettings>(asset.text);
             if(mix==null || !float.IsFinite(mix.effectsVolume) || mix.effectsVolume<0 || mix.effectsVolume>1 ||

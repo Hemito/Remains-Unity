@@ -14,7 +14,7 @@ namespace Remains.Content
         public static void Load(PonyLibrary animation)
         {
             if(library!=null) return;
-            var asset=Resources.Load<TextAsset>("Original/Pony/motion-frames");
+            var asset=GameAssets.Load<TextAsset>("Original/Pony/motion-frames");
             if(asset==null) throw new InvalidOperationException("Нет кривых поз Original/Pony/motion-frames.");
             var parsed=JsonUtility.FromJson<MotionFrameLibrary>(asset.text);
             if(parsed?.curves==null) throw new InvalidOperationException("Нет списка кривых поз пони.");

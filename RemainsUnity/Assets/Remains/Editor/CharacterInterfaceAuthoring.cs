@@ -2,6 +2,7 @@ using Remains.Presentation;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -33,7 +34,7 @@ namespace Remains.Editor
         private static Button Button(Transform parent,string text,Vector2 point,Vector2 size)
         {
             // Reuse the saved original texture hierarchy, not a transient Sprite.Create result.
-            var source=Resources.Load<MainMenuView>("Presentation/MainMenu");
+            var source=GameAssets.Load<MainMenuView>("Presentation/MainMenu");
             if(source==null || source.Host==null) throw new System.InvalidOperationException("Нет подготовленной оригинальной кнопки меню.");
             var button=Object.Instantiate(source.Host,parent,false);button.name=text;button.onClick=new Button.ButtonClickedEvent();
             HudElements.Rect(button.GetComponent<RectTransform>(),point,size);button.interactable=true;
@@ -109,7 +110,7 @@ namespace Remains.Editor
             var root=new GameObject("Превью персонажа",typeof(RectTransform));root.transform.SetParent(parent,false);
             HudElements.Rect((RectTransform)root.transform,point,size);
             var view=root.AddComponent<CharacterPortraitView>();
-            var inventory=Resources.Load<PersonalInventoryView>("Presentation/PersonalInventory");
+            var inventory=GameAssets.Load<PersonalInventoryView>("Presentation/PersonalInventory");
             if(inventory==null) throw new System.InvalidOperationException("Нет подготовленного портрета инвентаря.");
             var pony=Object.Instantiate(inventory.Portrait,root.transform,false);pony.name="Составной портрет";pony.SetActive(true);
             HudElements.Rect((RectTransform)pony.transform,Vector2.zero,new Vector2(size.x-(weapon?75:0),size.y));

@@ -31,7 +31,7 @@ namespace Remains.Content
         public static ItemTextCatalog Load()
         {
             if(loaded!=null) return loaded;
-            var asset=Resources.Load<TextAsset>(Resource);
+            var asset=GameAssets.Load<TextAsset>(Resource);
             if(asset==null) throw new InvalidOperationException("Нет каталога русских текстов предметов: "+Resource);
             return loaded=new ItemTextCatalog(asset.text);
         }

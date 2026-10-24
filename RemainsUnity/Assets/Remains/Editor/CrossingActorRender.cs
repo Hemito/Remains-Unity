@@ -20,7 +20,7 @@ namespace Remains.Editor
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
             Anatomy.Load();WeaponCatalog.Load();PonyVisual.Prepare();
-            var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            var catalog=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             var layers=new ActorVisualLayers();
             var groups=new ActorVisualGroup[3];
             var actors=new[]

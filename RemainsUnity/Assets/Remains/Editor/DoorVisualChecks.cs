@@ -2,6 +2,7 @@ using System;
 using Remains.Domain;
 using Remains.Presentation;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -18,7 +19,7 @@ namespace Remains.Editor
                 Require(view!=null && view.Artwork.sprite==view.Definition.Closed && visuals.SoundChanges==0,"Начальная загрузка не молчит или не рисует дверь.");
                 foreach(string id in new[]{"door1","door2","door3"})
                 {
-                    var prefab=Resources.Load<DoorView>("Presentation/Doors/"+id);
+                    var prefab=GameAssets.Load<DoorView>("Presentation/Doors/"+id);
                     Require(prefab!=null && prefab.Artwork.sortingOrder==ActorVisualLayers.RestingObjectOrder,
                         "Обычная дверь перекрывает персонажа: "+id);
                 }

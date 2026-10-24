@@ -7,6 +7,7 @@ using Remains.Networking;
 using Remains.Presentation;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -32,7 +33,7 @@ namespace Remains.Editor
         }
         private static List<FloatingDamageNumber> CreateBurst()
         {
-            var prefab=Resources.Load<FloatingDamageNumber>("Presentation/DamageNumber");
+            var prefab=GameAssets.Load<FloatingDamageNumber>("Presentation/DamageNumber");
             if(prefab==null) throw new Exception("Нет префаба числа урона.");prefab.Validate();
             var result=new List<FloatingDamageNumber>();
             foreach(float amount in new[]{11f,11f,1f,70f,.5f,1000f})
@@ -81,7 +82,7 @@ namespace Remains.Editor
                 layers.Attach(actor.id,visual.transform);
             }
             layers.Synchronize(world,world.actors[0].level);
-            var explosion=UnityEngine.Object.Instantiate(Resources.Load<ExplosionVisual>("Presentation/Explosion"));
+            var explosion=UnityEngine.Object.Instantiate(GameAssets.Load<ExplosionVisual>("Presentation/Explosion"));
             explosion.Initialize(null,"hub",new Vector2(0,.8f));explosion.Draw(.1f);
             var numbers=CreateBurst();
             int effectOrder=explosion.GetComponentInChildren<SpriteRenderer>().sortingOrder;

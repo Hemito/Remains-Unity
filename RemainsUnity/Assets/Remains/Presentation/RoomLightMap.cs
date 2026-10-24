@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Remains.Domain;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -135,7 +136,7 @@ namespace Remains.Presentation
                 if(light.maskTexture!=null) return light.maskTexture;
                 if(!resources.TryGetValue(light.mask,out var texture))
                 {
-                    texture=Resources.Load<Texture2D>(light.mask);
+                    texture=GameAssets.Load<Texture2D>(light.mask);
                     if(texture==null) throw new InvalidOperationException($"Нет маски света: light={light.id}, resource={light.mask}.");
                     resources.Add(light.mask,texture);
                 }

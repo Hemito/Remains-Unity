@@ -76,7 +76,7 @@ namespace Remains.Content
             }
             prefab=null;return false;
         }
-        public static EntityAssetCatalog Load()=>Resources.Load<EntityAssetCatalog>("Content/EntityCatalog")??
+        public static EntityAssetCatalog Load()=>GameAssets.Load<EntityAssetCatalog>("Content/EntityCatalog")??
             throw new InvalidOperationException("Нет каталога Content/EntityCatalog.");
     }
 }

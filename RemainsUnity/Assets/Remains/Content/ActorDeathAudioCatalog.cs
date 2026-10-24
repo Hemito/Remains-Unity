@@ -25,7 +25,7 @@ namespace Remains.Content
         private ActorDeathAudioCatalog() { }
         public static ActorDeathAudioCatalog Load()
         {
-            var text=Resources.Load<TextAsset>(Resource);
+            var text=GameAssets.Load<TextAsset>(Resource);
             if(text==null) throw new InvalidOperationException("Нет каталога голосов смерти NPC: "+Resource+".");
             // "exported:<resource>" is an original sound imported with the content package (generated creatures).
             return Create(StateJson.FromJson<Settings>(text.text),AudioClipSource.Load);

@@ -12,7 +12,7 @@ namespace Remains.Content
         {
             if(profiles!=null) return;
             PonyAnimationData.Load();
-            var asset=Resources.Load<TextAsset>("Content/standing-edge-poses");
+            var asset=GameAssets.Load<TextAsset>("Content/standing-edge-poses");
             if(asset==null) throw new InvalidOperationException("Нет декларации стоячих краевых поз Content/standing-edge-poses.");
             var manifest=JsonUtility.FromJson<StandingEdgePoseManifest>(asset.text);
             if(manifest==null || manifest.schema!=1 || manifest.sourceHash!=PonyRenderAsset.SourceHash() ||

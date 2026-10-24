@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -13,7 +14,7 @@ namespace Remains.Presentation
         }
         public static Material Create(Texture texture)
         {
-            if(shader==null) shader=Resources.Load<Shader>("Presentation/WorldLit");
+            if(shader==null) shader=GameAssets.Load<Shader>("Presentation/WorldLit");
             if(shader==null) throw new InvalidOperationException("Нет шейдера освещения Presentation/WorldLit.");
             return new Material(shader) {mainTexture=texture};
         }

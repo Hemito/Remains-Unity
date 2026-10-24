@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 namespace Remains.Presentation
 {
     public sealed class WorldPickerView : MonoBehaviour
@@ -35,7 +36,7 @@ namespace Remains.Presentation
         }
         public static WorldPickerView Create(Transform parent)
         {
-            var prefab=Resources.Load<WorldPickerView>("Presentation/WorldPicker");
+            var prefab=GameAssets.Load<WorldPickerView>("Presentation/WorldPicker");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/WorldPicker.");
             prefab.Validate();return Instantiate(prefab,parent,false);
         }

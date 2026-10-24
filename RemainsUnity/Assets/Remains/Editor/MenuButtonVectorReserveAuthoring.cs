@@ -10,6 +10,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.U2D;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -165,7 +166,7 @@ namespace Remains.Editor
                 Require(Identity(sprite,i) && sprite.texture==texture,"Изменены actual saved Sprite GUID/localID/Texture: "+SpritePaths[i]);
                 CheckSprite(sprite,entry.sprites[i],baseline.sprites[i]);
             }
-            var main=Resources.Load<Sprite>("Presentation/MainMenuArtwork/button-glow");
+            var main=GameAssets.Load<Sprite>("Presentation/MainMenuArtwork/button-glow");
             Require(main==AssetDatabase.LoadAssetAtPath<Sprite>(SpritePaths[0]),"Runtime resource кнопки не совпадает с единственным сохранённым источником.");
         }
 

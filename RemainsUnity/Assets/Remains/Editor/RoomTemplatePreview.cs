@@ -268,7 +268,7 @@ namespace Remains.Editor
             if(erases.Count>0)
             {
                 var erase=new GameObject("Стирание фона уровня").AddComponent<RoomDecorResources>();
-                erase.BindLightContext(lightContext);erase.BuildErase(erases,Vector2.zero,levelSize,Resources.Load<Shader>(RoomDecorView.EraseShaderResource));
+                erase.BindLightContext(lightContext);erase.BuildErase(erases,Vector2.zero,levelSize,GameAssets.Load<Shader>(RoomDecorView.EraseShaderResource));
             }
             RoomLightingView.Build(level,definitions,lands,table,Vector2.zero,null,false);
             var field=RoomRadianceField.Build(level,definitions,lands,table,Vector2.zero,null,sprites,lightContext:lightContext);
@@ -377,7 +377,7 @@ namespace Remains.Editor
         {
             if(!DummySpots.TryGetValue(room.Template,out var spots)) {Debug.LogWarning($"Манекен: нет тестовых мест для {room.Template}.");return;}
             var source=AssetDatabase.LoadAssetAtPath<GameObject>(DummyPrefab)?.GetComponent<SpriteRenderer>()??throw new InvalidOperationException("Нет спрайта манекена в "+DummyPrefab);
-            var material=new Material(Resources.Load<Shader>("Presentation/WorldSprite")){name="Манекен"};
+            var material=new Material(GameAssets.Load<Shader>("Presentation/WorldSprite")){name="Манекен"};
             var definition=new RoomDefinition{Id="remains:test:training-dummy",Kind=RoomDefinitionKind.Object,ObjectType="unit",ObjectSize=2};
             foreach(var spot in spots)
             {

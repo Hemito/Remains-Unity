@@ -94,13 +94,13 @@ namespace Remains.Presentation
         }
         private static Artwork Load(string key)
         {
-            var saved=Resources.Load<AtlasSpriteAsset>(key);
+            var saved=GameAssets.Load<AtlasSpriteAsset>(key);
             var data=AtlasAnimationData.Get(key);
             if(data==null || string.IsNullOrEmpty(data.resource) || data.clips==null || data.clips.Length==0 ||
                 data.cellWidth<=0 || data.cellHeight<=0 || !float.IsFinite(data.pixelsPerUnit) || data.pixelsPerUnit<=0 ||
                 !float.IsFinite(data.pivotX) || !float.IsFinite(data.pivotY) || data.pivotX<0 || data.pivotX>1 || data.pivotY<0 || data.pivotY>1)
                 throw new InvalidOperationException("Некорректное описание атласа: "+key);
-            var texture=saved!=null?saved.Texture:Resources.Load<Texture2D>(data.resource);
+            var texture=saved!=null?saved.Texture:GameAssets.Load<Texture2D>(data.resource);
             if(texture==null || texture.width!=data.width || texture.height!=data.height ||
                 data.width%data.cellWidth!=0 || data.height%data.cellHeight!=0)
                 throw new InvalidOperationException($"Неверный размер атласа: {key}, resource={data.resource}, expected={data.width}x{data.height}.");

@@ -26,7 +26,7 @@ namespace Remains.Editor
             Anatomy.Load();WeaponCatalog.Load();
             CheckRules();CheckArtwork();
             var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
-            FactoryPreparation.Create(world,Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
+            FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {
                 FactoryContentSources.Prepare(world,"factory:0");
@@ -114,7 +114,7 @@ namespace Remains.Editor
                     Require(exported.Resource(sound).sounds?.FirstOrDefault()!=null,$"звук {sound} мины {id}");
                 Require(exported.TryIcon("weapon:"+id,0,out _),"значок предмета мины "+id);
                 // The blast is heard through the combat sound table by weapon (GameplayAudio): a missing entry is silent.
-                Require(Resources.Load<TextAsset>("Presentation/combat-audio").text.Contains("{\"weapon\":\""+id+"\",\"clip\":\"grenade-explosion\",\"kind\":\"explosion\""),
+                Require(GameAssets.Load<TextAsset>("Presentation/combat-audio").text.Contains("{\"weapon\":\""+id+"\",\"clip\":\"grenade-explosion\",\"kind\":\"explosion\""),
                     "звук взрыва мины "+id+" (expl_e, как у гранаты)");
             }
         }

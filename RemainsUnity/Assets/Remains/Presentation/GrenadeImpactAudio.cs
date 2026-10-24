@@ -5,6 +5,7 @@ using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -28,13 +29,13 @@ namespace Remains.Presentation
         public void Initialize(CoopSession session,GrenadeController controller,GameplayAudio playback)
         {
             this.session=session;this.controller=controller;this.playback=playback;
-            var data=Resources.Load<TextAsset>("Presentation/grenade-audio");
+            var data=GameAssets.Load<TextAsset>("Presentation/grenade-audio");
             if(data==null) throw new InvalidOperationException("Нет настроек Presentation/grenade-audio.");
             settings=JsonUtility.FromJson<Settings>(data.text);
             if(settings==null || !float.IsFinite(settings.minimumSpeed) || settings.minimumSpeed<=0 ||
                 !float.IsFinite(settings.fullGainSpeed) || settings.fullGainSpeed<settings.minimumSpeed)
                 throw new InvalidOperationException("Некорректные пороги звука удара гранаты.");
-            clip=Resources.Load<AudioClip>(settings.clip);
+            clip=GameAssets.Load<AudioClip>(settings.clip);
             if(clip==null || clip.samples<=0) throw new InvalidOperationException("Нет звука удара гранаты: "+settings.clip);
             controller.Impact+=Contact;session.ServerReady+=RegisterServer;session.ClientReady+=RegisterClient;
         }

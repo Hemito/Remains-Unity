@@ -33,7 +33,7 @@ namespace Remains.Presentation
         {
             if(session!=null) throw new InvalidOperationException("Изображение перезарядки уже инициализировано.");
             session=value??throw new ArgumentNullException(nameof(value));localReload=reload;
-            var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            var catalog=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(catalog==null) throw new InvalidOperationException("Нет Content/WeaponCatalog для изображения перезарядки.");
             foreach(var weapon in catalog.ReloadAnimatedWeapons()) clips.Add(weapon.Id,weapon.ReloadAnimation);
             session.ReloadAudio.Sent+=Observe;

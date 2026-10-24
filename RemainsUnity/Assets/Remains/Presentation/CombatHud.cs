@@ -25,7 +25,7 @@ namespace Remains.Presentation
         public IReadOnlyList<RectTransform> LayoutReservations {get;}
         public CombatHud(Transform parent,Action<string> equip,Action<string> equipItem=null,Action<string> activateShortcut=null)
         {
-            var prefab=Resources.Load<CombatHudView>("Presentation/CombatHud");
+            var prefab=GameAssets.Load<CombatHudView>("Presentation/CombatHud");
             if(prefab==null) throw new InvalidOperationException("Нет префаба HUD Presentation/CombatHud.");
             prefab.Validate();var view=UnityEngine.Object.Instantiate(prefab,parent,false);
             vitals=view.Vitals;loadout=view.Loadout;name=view.CharacterName;healthText=view.HealthText;manaText=view.ManaText;

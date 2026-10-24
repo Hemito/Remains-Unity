@@ -2,6 +2,7 @@ using System;
 using Remains.Domain;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -14,7 +15,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession value,GameplayAudio playback,WorldVisualOrderTable orderTable)
         {
             session=value;audio=playback;orders=orderTable;
-            prefab=Resources.Load<LampBreakEffectView>("Presentation/Effects/lamp-break");
+            prefab=GameAssets.Load<LampBreakEffectView>("Presentation/Effects/lamp-break");
             if(prefab==null) throw new InvalidOperationException("Нет авторского эффекта Presentation/Effects/lamp-break.");
             prefab.Validate();session.Lamps.Broken+=Broken;
         }

@@ -75,7 +75,7 @@ namespace Remains.Runtime
                     throw new InvalidOperationException("Создание Player fixture запрещено: каталог не пуст или занят файлом: "+path);
             var world=new WorldState {seed=104,worldId="64ab04d6f71844dba014ce97fa6f347b",branchId="1b17fa9845504183a40af0e0151fbb7a",
                 weaponContent=WeaponCatalog.ManifestCopy()};
-            FactoryPreparation.Create(world,Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
+            FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {
                 FactoryContentSources.Prepare(world,new[]{"hub","factory:0"});

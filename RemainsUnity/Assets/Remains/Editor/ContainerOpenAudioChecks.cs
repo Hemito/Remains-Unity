@@ -89,7 +89,7 @@ namespace Remains.Editor
                 Require(source.TryGetValue(sound.definition,out var declaration) && declaration.sourceOpen!=null && declaration.clip==sound.clip,
                     "Каталог содержит неподтверждённое source open: type="+sound.definition);
                 Require(authored.Any(e=>e.container.definition==sound.definition),"Банк не имеет actual saved container binding: "+sound.definition);
-                var clip=Resources.Load<AudioClip>(sound.clip);
+                var clip=GameAssets.Load<AudioClip>(sound.clip);
                 Require(clip!=null && clip.samples>0 && clip.frequency>0 && clip.channels>0,"Нет импортированного банка: "+sound.clip);
             }
             foreach(string type in new[]{"safe","locker","cup","wallcab"})

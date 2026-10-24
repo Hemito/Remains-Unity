@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Remains.RoomFormat;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -48,7 +49,7 @@ namespace Remains.Presentation
         {
             this.runner=runner??throw new ArgumentNullException(nameof(runner));
             this.parent=parent;
-            prefab=Resources.Load<ActorCastShadowView>("Presentation/ActorCastShadow")??
+            prefab=GameAssets.Load<ActorCastShadowView>("Presentation/ActorCastShadow")??
                 throw new InvalidOperationException("Нет авторского префаба проецируемой тени персонажа.");
         }
         public void CollectProjectedLightShadows(List<ProjectedLightShadow> output)

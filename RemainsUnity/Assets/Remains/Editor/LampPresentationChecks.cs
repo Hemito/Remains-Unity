@@ -40,7 +40,7 @@ namespace Remains.Editor
                 view.Synchronize(room,world,1);
                 Require(view.LightFieldInstanceId==original && view.AppliedLampRevision==world.lampRevision,"Пустое изменение ревизии пересоздало поле.");
                 view.SyncLamps(view.LampIds.ToArray(),++world.lampRevision);
-                var brokenArt=Resources.Load<BrokenLampArt>(BrokenLampArt.ResourcePath);
+                var brokenArt=GameAssets.Load<BrokenLampArt>(BrokenLampArt.ResourcePath);
                 foreach(var picture in view.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                     if(brokenArt.TryGet(picture.Definition,out _))
                     {
@@ -89,7 +89,7 @@ namespace Remains.Editor
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException(message);}
         private static void CheckBrokenArtwork(FactoryLevelView view)
         {
-            var catalog=Resources.Load<BrokenLampArt>(BrokenLampArt.ResourcePath);
+            var catalog=GameAssets.Load<BrokenLampArt>(BrokenLampArt.ResourcePath);
             Require(catalog!=null,"Нет каталога разбитых ламп.");
             int checkedPictures=0;
             foreach(var picture in view.GetComponentsInChildren<RoomSpriteAuthoring>(true))

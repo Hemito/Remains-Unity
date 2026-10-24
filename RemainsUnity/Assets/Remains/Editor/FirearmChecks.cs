@@ -26,10 +26,10 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();WeaponCatalog.Load();ShotArtwork.Prepare();CasingEffectCatalog.Load();
-            var catalog=Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
+            var catalog=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             var generated=catalog.AllAssets().Where(a=>a.Id.StartsWith(ExportedWeaponItems.Prefix,StringComparison.Ordinal) && !a.Id.StartsWith("weapon:turret",StringComparison.Ordinal) && !WeaponCatalog.IsExplosive(a.Id)).ToArray();   // turret guns: TurretChecks
             Require(generated.Length>=50,"подключено меньше 50 определений: "+generated.Length);
-            string audio=Resources.Load<TextAsset>("Presentation/combat-audio").text;
+            string audio=GameAssets.Load<TextAsset>("Presentation/combat-audio").text;
             var exported=ExportedContentCatalog.Load();
             foreach(var asset in generated)
             {
@@ -77,7 +77,7 @@ namespace Remains.Editor
 
             // Factory loot.
             var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
-            FactoryPreparation.Create(world,Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
+            FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             int working=0,formal=0;
             try
             {

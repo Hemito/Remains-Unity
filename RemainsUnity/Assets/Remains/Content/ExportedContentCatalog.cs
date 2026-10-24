@@ -50,7 +50,7 @@ namespace Remains.Content
         public static ExportedContentCatalog Load()
         {
             if(loaded!=null)return loaded;
-            var asset=Resources.Load<ExportedContentCatalog>(ResourcePath);
+            var asset=GameAssets.Load<ExportedContentCatalog>(ResourcePath);
             if(asset==null)throw new InvalidOperationException("Не установлен исходный каталог: "+ResourcePath);
             asset.Validate();return loaded=asset;
         }
@@ -124,7 +124,7 @@ namespace Remains.Content
         {
             if(frame.sprite!=null)return frame.sprite;
             if(string.IsNullOrWhiteSpace(frame.spriteResource))return null;
-            frame.sprite=Resources.Load<Sprite>(frame.spriteResource);
+            frame.sprite=GameAssets.Load<Sprite>(frame.spriteResource);
             if(frame.sprite==null)throw new InvalidOperationException("Нет импортированного спрайта: "+frame.spriteResource);
             return frame.sprite;
         }

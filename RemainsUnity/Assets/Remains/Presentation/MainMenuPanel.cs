@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -28,7 +29,7 @@ namespace Remains.Presentation
         public RectTransform SoundRect=>view.Settings.GetComponent<RectTransform>();
         public MainMenuPanel(Transform parent,Action host,Action join,Action worlds,Action settings,Action newGame,Action characters=null,Action compareCopies=null)
         {
-            var prefab=Resources.Load<MainMenuView>("Presentation/MainMenu");
+            var prefab=GameAssets.Load<MainMenuView>("Presentation/MainMenu");
             if(prefab==null) throw new InvalidOperationException("Нет префаба главного меню Presentation/MainMenu.");
             prefab.Validate();view=UnityEngine.Object.Instantiate(prefab,parent,false);
             view.Host.onClick.AddListener(()=>host());view.Join.onClick.AddListener(()=>join());

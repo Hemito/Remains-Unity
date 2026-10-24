@@ -23,7 +23,7 @@ namespace Remains.Presentation
         public void Initialize(CombatController combat,GameplayAudio playback)
         {
             this.combat=combat;this.playback=playback;
-            var asset=Resources.Load<TextAsset>("Presentation/melee-impact-audio");
+            var asset=GameAssets.Load<TextAsset>("Presentation/melee-impact-audio");
             if(asset==null) throw new InvalidOperationException("Нет каталога Presentation/melee-impact-audio.");
             var catalog=JsonUtility.FromJson<Catalog>(asset.text);
             if(catalog?.entries==null) throw new InvalidOperationException("Нет записей звуков контакта ближнего оружия.");

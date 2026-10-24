@@ -12,7 +12,7 @@ namespace Remains.Content
         private static CasingEffectProfile[] profiles=Array.Empty<CasingEffectProfile>();
         public static IReadOnlyList<CasingEffectProfile> Profiles=>loaded!=null?profiles:
             throw new InvalidOperationException("Каталог гильз ещё не подготовлен.");
-        public static void Load()=>Load(Resources.Load<WeaponAssetCatalog>("Content/WeaponCatalog")??
+        public static void Load()=>Load(GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog")??
             throw new InvalidOperationException("Нет Content/WeaponCatalog для эффектов гильз."));
         public static void Load(WeaponAssetCatalog catalog)
         {

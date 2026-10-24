@@ -42,11 +42,11 @@ namespace Remains.Editor
                 if(fixUvZoom>0)
                 {
                     shapeBounds=new Dictionary<string,float[]>();
-                    var library=JsonUtility.FromJson<PonyLibrary>(Resources.Load<TextAsset>("Original/Pony/pony").text);
+                    var library=JsonUtility.FromJson<PonyLibrary>(GameAssets.Load<TextAsset>("Original/Pony/pony").text);
                     foreach(var c in library.clips) foreach(var f in c.frames) foreach(var p in f.parts) shapeBounds[p.texture]=p.bounds;
                 }
                 PonyAppearance.Prepare();
-                var asset=Resources.Load<PonyRenderAsset>("Original/Pony/render")??throw new InvalidOperationException("Нет Original/Pony/render.");
+                var asset=GameAssets.Load<PonyRenderAsset>("Original/Pony/render")??throw new InvalidOperationException("Нет Original/Pony/render.");
                 var clip=asset.Clips.FirstOrDefault(c=>c.id==clipId)??throw new InvalidOperationException("Нет позы "+clipId);
                 var frame=clip.frames[frameIndex];
                 var parts=frame.parts.Where(p=>p.visible && PonyAppearance.Matches(p.hairStyle,p.eyeStyle,p.slot,1,1,false)).OrderBy(p=>p.drawOrder).ToArray();

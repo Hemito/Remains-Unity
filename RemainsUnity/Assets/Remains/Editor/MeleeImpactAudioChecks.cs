@@ -51,7 +51,7 @@ namespace Remains.Editor
                     expected++;
                     Require(audio.Played==expected,"Контакт пропущен или повторён: "+attack.id);
                     var source=root.GetComponentsInChildren<AudioSource>().Last();
-                    var clip=Resources.Load<AudioClip>("Original/Audio/"+(type=="training-armored-dummy"?"hit-metal":weapon=="spear"?"hit-blade":"hit-flesh"));
+                    var clip=GameAssets.Load<AudioClip>("Original/Audio/"+(type=="training-armored-dummy"?"hit-metal":weapon=="spear"?"hit-blade":"hit-flesh"));
                     Require(source.clip==clip,"Неверный WAV: "+attack.id);
                     float gain=type=="training-armored-dummy"?.4f:weapon=="spear"?.8f:.5f;
                     Require(Mathf.Abs(source.volume-playback.Volume*gain*GameplayAudio.Attenuation(Vector2.Distance(attack.End,observer.Position)))<.00001f,"Неверная громкость: "+attack.id);
@@ -81,7 +81,7 @@ namespace Remains.Editor
                     bool metal=texture is "floor" or "door:metal";
                     string clip=metal?"hit-metal":"hit-concrete";
                     float gain=metal?.4f:.5f;
-                    Require(source.clip==Resources.Load<AudioClip>("Original/Audio/"+clip),"Неверный материал звука стены.");
+                    Require(source.clip==GameAssets.Load<AudioClip>("Original/Audio/"+clip),"Неверный материал звука стены.");
                     float attenuation=GameplayAudio.Attenuation(Vector2.Distance(new Vector2(1,.7f),observer.Position));
                     Require(Mathf.Abs(source.volume-playback.Volume*gain*attenuation)<.00001f,"Звук стены использует конец взмаха вместо точки контакта.");
                     wall.id+="-miss";wall.originY=wall.endY=3;
@@ -105,7 +105,7 @@ namespace Remains.Editor
                     int beforePlayed=audio.PropPlayed;
                     ReceiveSynthetic(receive,combat,strike);ReceiveSynthetic(receive,combat,strike);
                     Require(audio.PropPlayed==beforePlayed+2,"Объект/контейнер пропущен, повторён или озвучен в другом уровне.");
-                    Require(root.GetComponentsInChildren<AudioSource>().Any(s=>s.clip==Resources.Load<AudioClip>("Original/Audio/hit-wood")),
+                    Require(root.GetComponentsInChildren<AudioSource>().Any(s=>s.clip==GameAssets.Load<AudioClip>("Original/Audio/hit-wood")),
                         "Деревянный ящик не использует исходный звук дерева.");
                     strike.id+="-miss";strike.originY=strike.endY=4;
                     ReceiveSynthetic(receive,combat,strike);
@@ -127,7 +127,7 @@ namespace Remains.Editor
                     Require(audio.PropPlayed==beforePlayed+1,"Заводской объект пропущен или озвучен дважды: "+strike.id);
                     var source=root.GetComponentsInChildren<AudioSource>().Last();
                     bool wood=definition=="woodbox";
-                    Require(source.clip==Resources.Load<AudioClip>("Original/Audio/"+(wood?"hit-wood":"hit-metal")),"Неверный материал заводского объекта: "+definition);
+                    Require(source.clip==GameAssets.Load<AudioClip>("Original/Audio/"+(wood?"hit-wood":"hit-metal")),"Неверный материал заводского объекта: "+definition);
                     float gain=wood?.5f:.4f;
                     var point=new Vector2(prop.x-prop.width*.5f,1);
                     Require(Mathf.Abs(source.volume-playback.Volume*gain*GameplayAudio.Attenuation(Vector2.Distance(point,observer.Position)))<.00001f,
@@ -164,7 +164,7 @@ namespace Remains.Editor
                     ReceiveSynthetic(receive,combat,attack);ReceiveSynthetic(receive,combat,attack);expected++;
                     Require(audio.SurfacePlayed==expected,"Новое назначение потеряло/повторило реальный контакт: "+attack.id);
                     var source=root.GetComponentsInChildren<AudioSource>().Last();
-                    Require(source.clip==Resources.Load<AudioClip>("Original/Audio/"+assignment.clip),"Неверный WAV нового материала: "+assignment.key);
+                    Require(source.clip==GameAssets.Load<AudioClip>("Original/Audio/"+assignment.clip),"Неверный WAV нового материала: "+assignment.key);
                     float attenuation=GameplayAudio.Attenuation(Vector2.Distance(new Vector2(1,.7f),observer.Position));
                     Require(Mathf.Abs(source.volume-playback.Volume*assignment.gain*attenuation)<.00001f,"Неверный уровень нового материала: "+assignment.key);
                     Require(!Application.isBatchMode || source.mute,"Фоновый контакт не заглушен: "+attack.id);

@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 namespace Remains.Presentation
 {
     public sealed class CharacterEditorView : MonoBehaviour
@@ -44,7 +45,7 @@ namespace Remains.Presentation
         }
         public static CharacterEditorView CreateView(Transform parent)
         {
-            var prefab=Resources.Load<CharacterEditorView>("Presentation/CharacterEditor");
+            var prefab=GameAssets.Load<CharacterEditorView>("Presentation/CharacterEditor");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/CharacterEditor.");
             prefab.Validate();return Instantiate(prefab,parent,false);
         }

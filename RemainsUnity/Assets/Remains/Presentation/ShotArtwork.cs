@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -23,7 +24,7 @@ namespace Remains.Presentation
         public static void Prepare()
         {
             var catalog=new Dictionary<string,ShotArtwork>(StringComparer.Ordinal);
-            foreach(var artwork in Resources.LoadAll<ShotArtwork>("Presentation/Shots"))
+            foreach(var artwork in GameAssets.LoadAll<ShotArtwork>("Presentation/Shots"))
             {
                 artwork.Validate();
                 foreach(string weapon in artwork.weapons)

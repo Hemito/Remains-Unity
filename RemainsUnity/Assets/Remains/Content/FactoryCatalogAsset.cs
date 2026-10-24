@@ -97,7 +97,7 @@ namespace Remains.Content
             if(!byId.TryGetValue(template,out var entry)) throw new InvalidOperationException($"Каталог завода {name}: нет префаба {template}, mirror={mirror}.");
             return mirror?entry.mirrored:entry.normal;
         }
-        public static FactoryCatalogAsset Load()=>Resources.Load<FactoryCatalogAsset>(ResourceKey)
+        public static FactoryCatalogAsset Load()=>GameAssets.Load<FactoryCatalogAsset>(ResourceKey)
             ??throw new InvalidOperationException("Не подготовлен каталог завода: "+ResourceKey+". Выполните команду подготовки каталога в Editor.");
     }
 }

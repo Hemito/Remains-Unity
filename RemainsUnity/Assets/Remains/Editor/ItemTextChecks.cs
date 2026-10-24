@@ -20,7 +20,7 @@ namespace Remains.Editor
         }
         public static void Run()
         {
-            var text=Resources.Load<TextAsset>(ItemTextCatalog.Resource);
+            var text=GameAssets.Load<TextAsset>(ItemTextCatalog.Resource);
             if(text==null) throw new InvalidOperationException("Нет данных проверки текстов предметов.");
             CheckText(text.text);ToolStandIconAuthoring.CheckAuthored();OfficeValuableIconAuthoring.CheckAuthored();
             var manifest=ToolStandIconAuthoring.ReadManifest();var catalog=ItemTextCatalog.Load();

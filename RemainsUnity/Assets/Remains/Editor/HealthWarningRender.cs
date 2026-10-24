@@ -3,6 +3,7 @@ using Remains.Presentation;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -16,9 +17,9 @@ namespace Remains.Editor
             var canvas=new GameObject("Шкалы").AddComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;
             canvas.worldCamera=camera;canvas.planeDistance=1;
             var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
-            var texture=Resources.Load<Texture2D>("Original/Hud/health");
+            var texture=GameAssets.Load<Texture2D>("Original/Hud/health");
             var normal=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(.5f,.5f));
-            var warning=new HealthBarWarning(normal,Resources.Load<CombatHudView>("Presentation/CombatHud").HealthWarningFrames);
+            var warning=new HealthBarWarning(normal,GameAssets.Load<CombatHudView>("Presentation/CombatHud").HealthWarningFrames);
             foreach(var sample in new[]{(0, .2f,0f,"20% · обычный"),(1,.19f,.26667f,"19% · предупреждение"),(2,.2f,.3f,"20% · после лечения")})
             {
                 ui.Label(canvas.transform,sample.Item4,new Vector2(20+sample.Item1*320,-30),new Vector2(300,40));

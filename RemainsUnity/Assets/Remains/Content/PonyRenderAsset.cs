@@ -28,7 +28,7 @@ namespace Remains.Content
         public PonyRenderHeadStyle[] HeadStyles=>headStyles;
         public static string SourceHash()
         {
-            var source=Resources.Load<TextAsset>("Original/Pony/pony");
+            var source=GameAssets.Load<TextAsset>("Original/Pony/pony");
             if(source==null) throw new InvalidOperationException("Нет исходной анимации пони.");
             using var hash=SHA256.Create();return Convert.ToBase64String(hash.ComputeHash(Encoding.UTF8.GetBytes(source.text)));
         }

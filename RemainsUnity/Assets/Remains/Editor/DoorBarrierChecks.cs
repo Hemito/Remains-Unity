@@ -128,12 +128,12 @@ namespace Remains.Editor
         private static void RunNative()
         {
             void Require(bool valid,string reason) {if(!valid) throw new InvalidOperationException("Представление преград: "+reason);}
-            var closed=Resources.Load<Sprite>("Original/Room/OfficeOpenings/door1-close");
-            var opened=Resources.Load<Sprite>("Original/Room/OfficeOpenings/door1-open");
-            var destroyed=Resources.Load<Sprite>("Original/Room/OfficeOpenings/door1-die");
-            var openSound=Resources.Load<AudioClip>("Original/Room/OfficeOpenings/Audio/wood_door_open");
-            var closeSound=Resources.Load<AudioClip>("Original/Room/OfficeOpenings/Audio/wood_door_close");
-            var destroySound=Resources.Load<AudioClip>("Original/Room/OfficeOpenings/Audio/break_wood");
+            var closed=GameAssets.Load<Sprite>("Original/Room/OfficeOpenings/door1-close");
+            var opened=GameAssets.Load<Sprite>("Original/Room/OfficeOpenings/door1-open");
+            var destroyed=GameAssets.Load<Sprite>("Original/Room/OfficeOpenings/door1-die");
+            var openSound=GameAssets.Load<AudioClip>("Original/Room/OfficeOpenings/Audio/wood_door_open");
+            var closeSound=GameAssets.Load<AudioClip>("Original/Room/OfficeOpenings/Audio/wood_door_close");
+            var destroySound=GameAssets.Load<AudioClip>("Original/Room/OfficeOpenings/Audio/break_wood");
             Require(closed!=null && opened!=null && destroyed!=null && openSound!=null && closeSound!=null && destroySound!=null,"Нет точных исходных Sprite/AudioClip fixtures.");
             var asset=ScriptableObject.CreateInstance<DoorAsset>();var legacy=ScriptableObject.CreateInstance<DoorAsset>();
             var root=new GameObject("Проверка разрушения проёма");var prefab=new GameObject("Префаб проверки проёма");var roomObject=new GameObject("Комната проверки проёма");

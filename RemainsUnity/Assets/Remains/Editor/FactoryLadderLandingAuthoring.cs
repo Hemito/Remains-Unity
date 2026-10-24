@@ -64,7 +64,7 @@ namespace Remains.Editor
                 caps[i]=Unique(root.GetComponentsInChildren<RoomArtworkAuthoring>(true).Where(p=>FactoryLadderLandingChecks.SameArtwork(p.Read(room),record.artwork)),record.id,"верхушка");
                 var collisions=before.platforms.Where(p=>Mathf.Abs(p.x-record.surface.x)<.001f && Mathf.Abs(p.y-record.surface.y)<.001f);
                 if(surfaces[i]==null && collisions.Any()) throw new InvalidOperationException("Посадка "+record.id+": существующая опора отличается; авторские изменения не заменены.");
-                var texture=Resources.Load<Texture2D>("Original/Room/"+record.rungTexture);
+                var texture=GameAssets.Load<Texture2D>("Original/Room/"+record.rungTexture);
                 if(texture==null) throw new InvalidOperationException("Посадка "+record.id+": отсутствует прежний ресурс лестницы "+record.rungTexture);
                 rungs[i]=Unique(root.GetComponentsInChildren<MeshFilter>(true).Where(p=>
                     p.GetComponent<MeshRenderer>()?.sharedMaterial?.mainTexture==texture &&

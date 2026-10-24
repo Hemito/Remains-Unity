@@ -2,6 +2,7 @@ using System;
 using Remains.Presentation;
 using UnityEditor;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -27,7 +28,7 @@ namespace Remains.Editor
                 var shape=particles.shape;shape.shapeType=ParticleSystemShapeType.Circle;shape.radius=.04f;
                 var renderer=particles.GetComponent<ParticleSystemRenderer>();renderer.sharedMaterial=material;
                 var view=root.AddComponent<LampBreakEffectView>();view.Particles=particles;
-                view.Sound=Resources.Load<AudioClip>("Original/Audio/hit-glass")??throw new InvalidOperationException("Нет звука Original/Audio/hit-glass.");
+                view.Sound=GameAssets.Load<AudioClip>("Original/Audio/hit-glass")??throw new InvalidOperationException("Нет звука Original/Audio/hit-glass.");
                 view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);AssetDatabase.SaveAssets();
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}

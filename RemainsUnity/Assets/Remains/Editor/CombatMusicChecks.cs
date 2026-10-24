@@ -12,7 +12,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            var catalog=Resources.Load<MusicCatalogAsset>("Content/area-music");
+            var catalog=GameAssets.Load<MusicCatalogAsset>("Content/area-music");
             var state=new CombatMusicState(catalog.CreateCombatTracks());
             var world=new WorldState();
             var player=new ActorState {id="player",player=true,connected=true,level="factory:0"};

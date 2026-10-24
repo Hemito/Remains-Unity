@@ -3,6 +3,7 @@ using Remains.Presentation;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -36,7 +37,7 @@ namespace Remains.Editor
                 view.Status=ui.Label(contents,"",new Vector2(20,-577),new Vector2(1100,40));
                 view.StartGame=ui.Button(contents,"Начать с выбранной копией",new Vector2(20,-625),new Vector2(720,45),()=>{});
                 view.Disconnect=ui.Button(contents,"Отключиться",new Vector2(780,-625),new Vector2(340,45),()=>{});
-                var original=Resources.Load<MainMenuView>("Presentation/MainMenu").Worlds.GetComponent<Image>().sprite;
+                var original=GameAssets.Load<MainMenuView>("Presentation/MainMenu").Worlds.GetComponent<Image>().sprite;
                 foreach(var button in root.GetComponentsInChildren<Button>()) button.GetComponent<Image>().sprite=original;
                 view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);AssetDatabase.SaveAssets();
             }

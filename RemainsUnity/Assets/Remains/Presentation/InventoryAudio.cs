@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -22,7 +23,7 @@ namespace Remains.Presentation
         }
         private static AudioClip Load(string key)
         {
-            var clip=Resources.Load<AudioClip>("Original/Audio/"+key);
+            var clip=GameAssets.Load<AudioClip>("Original/Audio/"+key);
             if(clip==null || clip.samples<=0)
                 throw new InvalidOperationException("Отсутствует или пуст звук интерфейса Original/Audio/"+key);
             return clip;

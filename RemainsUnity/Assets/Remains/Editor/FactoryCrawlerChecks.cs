@@ -29,8 +29,8 @@ namespace Remains.Editor
             var type=ActorTypes.Get("radroach");Require(!type.hasWeapon && type.combatAi && type.bodyInventory && type.naturalAttack!=null,"Вид подменён оружейным/декоративным NPC.");
             CreatureChecks.CheckCorpsePresentation(new CreatureEntry {actorType="radroach",
                 spawn=UnityEditor.AssetDatabase.LoadAssetAtPath<NpcSpawnAsset>(FactoryCrawlerAuthoring.SpawnPath)},type);
-            var saved=Resources.Load<ActorTypeAsset>("Content/actors/radroach");Require(saved.TryGetPrefab(type,out var prefab) && prefab is Remains.Presentation.AtlasActorVisual,"Нет самостоятельного сохранённого префаба.");
-            var atlas=Resources.Load<AtlasSpriteAsset>(type.artwork);Require(atlas.Texture.width==480 && atlas.Texture.height==30,"Не выбран отдельный исходный атлас.");
+            var saved=GameAssets.Load<ActorTypeAsset>("Content/actors/radroach");Require(saved.TryGetPrefab(type,out var prefab) && prefab is Remains.Presentation.AtlasActorVisual,"Нет самостоятельного сохранённого префаба.");
+            var atlas=GameAssets.Load<AtlasSpriteAsset>(type.artwork);Require(atlas.Texture.width==480 && atlas.Texture.height==30,"Не выбран отдельный исходный атлас.");
             foreach(var clip in atlas.CreateDefinition().clips) Require(atlas.Frames(clip.pose).Length==clip.count,"Не сохранены кадры: "+clip.pose);
             CheckUpgrade(layout);NaturalAttackChecks.Run();
             Debug.Log($"Радтараканы цеха: PASS — два стабильных ID, самостоятельные ресурсы/анатомия/префаб, v1/v2/v3 без возвращения смерти/лута; не подключено записей: {records.Count(r=>!r.installed)}.");

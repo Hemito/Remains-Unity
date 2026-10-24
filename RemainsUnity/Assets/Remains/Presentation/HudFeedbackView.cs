@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -45,7 +46,7 @@ namespace Remains.Presentation
         }
         public static HudFeedbackView Create(Transform parent)
         {
-            var prefab=Resources.Load<HudFeedbackView>("Presentation/HudFeedback");
+            var prefab=GameAssets.Load<HudFeedbackView>("Presentation/HudFeedback");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/HudFeedback.");
             prefab.Validate();return Instantiate(prefab,parent,false);
         }

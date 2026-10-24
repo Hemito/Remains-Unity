@@ -2,6 +2,7 @@ using System;
 using Remains.Presentation;
 using UnityEditor;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -23,7 +24,7 @@ namespace Remains.Editor
         }
         private static Sprite Frame(string id,Rect region,bool tip=false)
         {
-            var texture=Resources.Load<Texture2D>("Original/Shots/"+id);
+            var texture=GameAssets.Load<Texture2D>("Original/Shots/"+id);
             if(texture==null) throw new InvalidOperationException("Нет исходной графики выстрела: "+id);
             var sprite=Sprite.Create(texture,region,new Vector2(tip?1:.5f,.5f),50);sprite.name=id;
             AssetDatabase.CreateAsset(sprite,Folder+"/"+id+"-sprite.asset");return sprite;

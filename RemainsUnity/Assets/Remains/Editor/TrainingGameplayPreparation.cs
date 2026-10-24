@@ -51,7 +51,7 @@ namespace Remains.Editor
             try
             {
                 var room=root.GetComponent<RoomAuthoring>();var layout=RoomTrainingContent.Read(room,"check:complete-training-layout","hub");
-                var world=new WorldState();TrainingContentInstaller.Apply(world,UnityEngine.JsonUtility.FromJson<TrainingLayout>(Resources.Load<TextAsset>("Content/hub-training").text));
+                var world=new WorldState();TrainingContentInstaller.Apply(world,UnityEngine.JsonUtility.FromJson<TrainingLayout>(GameAssets.Load<TextAsset>("Content/hub-training").text));
                 var old=world.Find("training:hub:1");old.resolvedAttacks.Add("kept-hit");
                 TrainingContentInstaller.Apply(world,layout);
                 if(world.actors.Count!=5 || world.containers.Count!=6 || world.actors.Count(a=>a.actorType=="training-armored-dummy")!=2 ||

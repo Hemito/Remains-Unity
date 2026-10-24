@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Remains.Domain;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -78,7 +79,7 @@ namespace Remains.Presentation
         }
         public static WorldLobbyView Create(Transform parent,bool showChoices=true)
         {
-            var prefab=Resources.Load<WorldLobbyView>("Presentation/WorldLobby");
+            var prefab=GameAssets.Load<WorldLobbyView>("Presentation/WorldLobby");
             if(prefab==null) throw new InvalidOperationException("Нет префаба Presentation/WorldLobby.");
             prefab.Validate();var view=Instantiate(prefab,parent,false);
             view.Contents.SetActive(showChoices);return view;

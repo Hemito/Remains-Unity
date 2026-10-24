@@ -233,7 +233,7 @@ namespace Remains.Runtime
             }
             if(views.Count!=runtime.Options.ProbePeers || !views.ContainsKey(Actor.id))
                 throw new InvalidOperationException("Нет независимых визуальных представлений всех участников лестницы.");
-            var asset=Resources.Load<TextAsset>("Content/anatomy")??throw new InvalidOperationException("Нет Content/anatomy для записи источника контактов.");
+            var asset=GameAssets.Load<TextAsset>("Content/anatomy")??throw new InvalidOperationException("Нет Content/anatomy для записи источника контактов.");
             var catalog=StateJson.FromJson<AnatomyCatalog>(asset.text);
             contactSources=views.Keys.Select(id=>runtime.Session.World.Find(id).anatomy).Distinct().Select(id=>
             {

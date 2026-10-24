@@ -48,10 +48,10 @@ namespace Remains.Presentation
                 if(string.IsNullOrEmpty(key)) throw new InvalidOperationException($"Не задана графика статического актёра: {actor.id}, type={actor.actorType}.");
                 if(!cache.TryGetValue(key,out var entry))
                 {
-                    var asset=Resources.Load<TextAsset>(key);
+                    var asset=GameAssets.Load<TextAsset>(key);
                     if(asset==null) throw new InvalidOperationException("Нет описания графики актёра: "+key);
                     var data=JsonUtility.FromJson<StaticActorArtwork>(asset.text);
-                    var texture=Resources.Load<Texture2D>(data.resource);
+                    var texture=GameAssets.Load<Texture2D>(data.resource);
                     if(texture==null || texture.width!=data.width || texture.height!=data.height || data.pixelsPerUnit<=0)
                         throw new InvalidOperationException($"Некорректная графика актёра: {actor.id}, resource={data.resource}.");
                     entry=(Sprite.Create(texture,new Rect(0,0,data.width,data.height),new Vector2(data.pivotX,data.pivotY),data.pixelsPerUnit),data.resource);

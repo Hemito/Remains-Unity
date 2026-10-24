@@ -472,7 +472,7 @@ namespace Remains.Presentation
         private void LateUpdate() {using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeHud.LateUpdate");containerPanel?.Step(RoomPresentationPending || InventoryOpen || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen);}
         private static void ApplyOriginalImage(Image image,string key,bool filled)
         {
-            var texture=Resources.Load<Texture2D>("Original/Hud/"+key);
+            var texture=GameAssets.Load<Texture2D>("Original/Hud/"+key);
             if(texture==null) throw new InvalidOperationException($"Не найдена графика интерфейса: {key}.");
             image.color=Color.white;
             image.sprite=Sprite.Create(texture,new Rect(0,0,texture.width,texture.height),new Vector2(0.5f,0.5f));

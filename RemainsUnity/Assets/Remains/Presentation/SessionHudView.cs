@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -19,7 +20,7 @@ namespace Remains.Presentation
         }
         public static SessionHudView Create(Transform parent)
         {
-            var prefab=Resources.Load<SessionHudView>("Presentation/SessionHud");
+            var prefab=GameAssets.Load<SessionHudView>("Presentation/SessionHud");
             if(prefab==null) throw new InvalidOperationException("Нет префаба панели сессии Presentation/SessionHud.");
             prefab.Validate();return Instantiate(prefab,parent,false);
         }

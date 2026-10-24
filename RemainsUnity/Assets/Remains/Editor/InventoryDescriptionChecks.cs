@@ -39,7 +39,7 @@ namespace Remains.Editor
                 var window=InventoryWindowView.Create(Root.transform);var rect=(RectTransform)window.transform;
                 rect.anchorMin=rect.anchorMax=rect.pivot=new Vector2(.5f,.5f);rect.anchoredPosition=Vector2.zero;
                 View=window.PersonalContents;
-                Texts=new ItemTextCatalog(Resources.Load<TextAsset>(ItemTextCatalog.Resource).text);
+                Texts=new ItemTextCatalog(GameAssets.Load<TextAsset>(ItemTextCatalog.Resource).text);
                 var actions=new ItemShortcutActions(session,_=>throw new InvalidOperationException("Описание выбрало оружие."));
                 Panel=new PersonalInventoryPanel(View,session,id=>Texts.Name(id,"InventoryDescriptionChecks"),()=>0,
                     _=>throw new InvalidOperationException("Описание выбрало старое оружие."),new InventoryArtwork(),itemText:Texts,itemActions:()=>actions);
@@ -91,7 +91,7 @@ namespace Remains.Editor
         }
         private static void CheckCurrentTips()
         {
-            var entries=StateJson.FromJson<ItemTextManifest>(Resources.Load<TextAsset>(ItemTextCatalog.Resource).text).items;
+            var entries=StateJson.FromJson<ItemTextManifest>(GameAssets.Load<TextAsset>(ItemTextCatalog.Resource).text).items;
             var actions=new StandardItemActions();int count=0;
             foreach(var entry in entries.Where(entry=>entry.description.Contains("Взять в копыта") || entry.description.Contains("Возьмите в копыта")))
             {
@@ -140,7 +140,7 @@ namespace Remains.Editor
                     var center=camera.WorldToViewportPoint(((RectTransform)root.transform).TransformPoint(((RectTransform)root.transform).rect.center));
                     Require(Mathf.Abs(center.x-.5f)<.001f && Mathf.Abs(center.y-.5f)<.001f && Mathf.Abs(center.z-1)<.001f,"native Canvas не подготовлен камерой");
                     // The actual catalog includes ordinary factory items; do not test only short starter/armor descriptions.
-                    var entries=StateJson.FromJson<ItemTextManifest>(Resources.Load<TextAsset>(ItemTextCatalog.Resource).text).items;
+                    var entries=StateJson.FromJson<ItemTextManifest>(GameAssets.Load<TextAsset>(ItemTextCatalog.Resource).text).items;
                     foreach(var entry in entries.Where(entry=>new StandardItemActions().Action(new ItemStack {id=entry.id,definition=entry.id,count=1})==StandardItemActions.Hold))
                     {
                         string full=$"{entry.name}\nВ наличии: 2\nДоступно: 2\n\n{entry.description}";

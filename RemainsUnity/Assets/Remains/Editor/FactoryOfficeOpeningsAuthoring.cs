@@ -235,7 +235,7 @@ namespace Remains.Editor
                     Require(AssetDatabase.LoadMainAssetAtPath(materialPath)==null,"Путь материала занят: "+materialPath);
                     material=WorldArtworkMaterial.Create(closed.texture);AssetDatabase.CreateAsset(material,materialPath);
                 }
-                Require(material.mainTexture==closed.texture && material.shader==Resources.Load<Shader>("Presentation/WorldLit"),"Авторский материал отличается, замена запрещена: "+materialPath);
+                Require(material.mainTexture==closed.texture && material.shader==GameAssets.Load<Shader>("Presentation/WorldLit"),"Авторский материал отличается, замена запрещена: "+materialPath);
                 var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath(definition.id));
                 if(prefab==null)
                 {

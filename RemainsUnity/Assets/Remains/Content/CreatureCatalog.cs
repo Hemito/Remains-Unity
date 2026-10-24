@@ -56,7 +56,7 @@ namespace Remains.Content
             return null;
         }
 
-        public static CreatureCatalog Load()=>Resources.Load<CreatureCatalog>(Resource)??
+        public static CreatureCatalog Load()=>GameAssets.Load<CreatureCatalog>(Resource)??
             throw new InvalidOperationException("Нет каталога существ "+Resource+"; запустите генерацию существ (CreatureAuthoring).");
     }
 }

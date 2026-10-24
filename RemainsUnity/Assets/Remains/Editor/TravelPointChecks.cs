@@ -31,7 +31,7 @@ namespace Remains.Editor
                 var layout=entry.room.CreateLayout();actor.level="factory:0";actor.Position=new Vector2(layout.spawnX,layout.spawnY);
                 if(exits[0].Rejection(actor)!=null) throw new InvalidOperationException("Вход уровня не имеет доступного выхода: "+entry.id);
             }
-            Resources.Load<WorldMapView>("Presentation/WorldMap").Validate();Resources.Load<SessionHudView>("Presentation/SessionHud").Validate();
+            GameAssets.Load<WorldMapView>("Presentation/WorldMap").Validate();GameAssets.Load<SessionHudView>("Presentation/SessionHud").Validate();
             foreach(var entry in RoomCatalogAsset.Load().Entries)
                 foreach(var point in entry.room.GetComponentsInChildren<RoomTravelPointAuthoring>(true))
                 {
@@ -40,7 +40,7 @@ namespace Remains.Editor
                         throw new InvalidOperationException("Карта/выход должна лежать на стене позади составных актёров: "+entry.id+"/"+point.name);
                 }
             foreach(string prefab in new[]{"Presentation/SessionHud","Presentation/PauseMenu"})
-                if(Resources.Load<GameObject>(prefab).GetComponentsInChildren<UnityEngine.UI.Button>(true)
+                if(GameAssets.Load<GameObject>(prefab).GetComponentsInChildren<UnityEngine.UI.Button>(true)
                     .Any(b=>b.GetComponentInChildren<UnityEngine.UI.Text>(true)?.text is "На завод 0" or "Вернуться в хаб"))
                     throw new InvalidOperationException("В интерфейсе сохранилась кнопка телепорта: "+prefab);
             Debug.Log("Карта и выход: PASS — авторские точки, поддержанная позиция прибытия, выбор E/дальность, оба завода и отсутствие кнопок телепорта.");

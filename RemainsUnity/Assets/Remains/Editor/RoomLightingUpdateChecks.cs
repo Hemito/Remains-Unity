@@ -285,7 +285,7 @@ namespace Remains.Editor
             var result=new Dictionary<string,string>(StringComparer.Ordinal);
             foreach(var light in profile.lights)
             {
-                var texture=light.maskTexture??(string.IsNullOrEmpty(light.mask)?null:Resources.Load<Texture2D>(light.mask));
+                var texture=light.maskTexture??(string.IsNullOrEmpty(light.mask)?null:GameAssets.Load<Texture2D>(light.mask));
                 if(texture==null) continue;
                 string path=AssetDatabase.GetAssetPath(texture);Require(!string.IsNullOrEmpty(path),"actual source mask не является сохранённым asset: "+light.id);
                 result[path]=FileDigest(path);

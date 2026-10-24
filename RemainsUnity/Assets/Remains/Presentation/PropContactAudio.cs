@@ -31,7 +31,7 @@ namespace Remains.Presentation
         {
             session=value;this.geometry=geometry;this.playback=playback;
             this.itemSounds=itemSounds??ItemLandingAudioCatalog.Load();
-            var asset=Resources.Load<TextAsset>("Presentation/prop-audio");
+            var asset=GameAssets.Load<TextAsset>("Presentation/prop-audio");
             if(asset==null) throw new InvalidOperationException("Нет настроек Presentation/prop-audio.");
             settings=JsonUtility.FromJson<Settings>(asset.text);
             if(!float.IsFinite(settings.volume) || settings.volume<=0 || settings.volume>1 ||
@@ -39,7 +39,7 @@ namespace Remains.Presentation
                 throw new InvalidOperationException("Некорректные настройки звуков физических объектов.");
             foreach(var entry in settings.entries)
             {
-                var clip=Resources.Load<AudioClip>(entry.clip);
+                var clip=GameAssets.Load<AudioClip>(entry.clip);
                 if(clip==null || clip.samples<=0) throw new InvalidOperationException($"Нет звука падения: definition={entry.definition}, clip={entry.clip}.");
                 clips.Add(entry.definition,clip);
             }

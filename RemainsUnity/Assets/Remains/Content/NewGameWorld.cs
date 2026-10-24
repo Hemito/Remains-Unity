@@ -10,7 +10,7 @@ namespace Remains.Content
         public static WorldState Create()
         {
             var world=new WorldState();
-            var catalog=Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey)
+            var catalog=GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey)
                 ??throw new InvalidOperationException("Новый мир: отсутствует каталог игрового завода.");
             FactoryPreparation.Create(world,catalog,0);
             return world;

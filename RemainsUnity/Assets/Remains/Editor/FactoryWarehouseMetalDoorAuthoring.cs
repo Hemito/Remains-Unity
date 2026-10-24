@@ -79,7 +79,7 @@ namespace Remains.Editor
             for(int i=0;i<ids.Length;i++)
                 Require(clips[i]==Load<AudioClip>(FactoryOfficeOpeningsAuthoring.SoundAssetPath(sounds,ids[i])),"Изменён audio binding: "+ids[i]);
             var material=Load<Material>(MaterialPath);var prefab=Load<GameObject>(PrefabPath);var view=prefab.GetComponent<DoorView>();
-            Require(material.mainTexture==asset.Closed.texture && material.shader==Resources.Load<Shader>("Presentation/WorldLit"),"Изменён общий lit material: "+MaterialPath);
+            Require(material.mainTexture==asset.Closed.texture && material.shader==GameAssets.Load<Shader>("Presentation/WorldLit"),"Изменён общий lit material: "+MaterialPath);
             Require(view!=null && view.Definition==asset && view.Artwork!=null && view.Artwork.transform==prefab.transform &&
                 view.Artwork.sprite==asset.Closed && view.Artwork.sharedMaterial==material && view.Artwork.sortingOrder==ActorVisualLayers.RestingObjectOrder &&
                 prefab.transform.localPosition==Vector3.zero && prefab.transform.localRotation==Quaternion.identity && prefab.transform.localScale==Vector3.one &&

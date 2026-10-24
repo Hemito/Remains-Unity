@@ -57,7 +57,7 @@ namespace Remains.Content
             shape=null;if(string.IsNullOrEmpty(id)) return false;
             if(loaded==null)
             {
-                var catalog=Resources.Load<DroppedItemShapeCatalog>(Resource);
+                var catalog=GameAssets.Load<DroppedItemShapeCatalog>(Resource);
                 if(catalog==null) throw new InvalidOperationException("Нет подготовленных форм брошенных предметов: "+Resource);
                 loaded=catalog.CreateLookup();
             }

@@ -90,7 +90,7 @@ namespace Remains.Editor
         }
         private static void CheckVisibleFeet()
         {
-            var catalog=Remains.Serialization.StateJson.FromJson<AnatomyCatalog>(Resources.Load<TextAsset>("Content/anatomy").text);
+            var catalog=Remains.Serialization.StateJson.FromJson<AnatomyCatalog>(GameAssets.Load<TextAsset>("Content/anatomy").text);
             var pony=Array.Find(catalog.anatomies,value=>value.id=="pony");
             var shapes=pony.supportContacts.shapes;
             Require(shapes.Length==4 && Array.TrueForAll(new[]{"3","102","275","298"},shape=>Array.IndexOf(shapes,shape)>=0),

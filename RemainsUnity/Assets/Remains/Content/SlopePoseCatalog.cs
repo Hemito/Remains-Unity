@@ -35,8 +35,8 @@ namespace Remains.Content
         {
             if(profiles!=null) return;
             PonyAnimationData.Load();
-            var asset=Resources.Load<TextAsset>(Resource);
-            var anatomy=Resources.Load<TextAsset>("Content/anatomy");
+            var asset=GameAssets.Load<TextAsset>(Resource);
+            var anatomy=GameAssets.Load<TextAsset>("Content/anatomy");
             if(asset==null || anatomy==null) throw new InvalidOperationException("Нет декларации наклонных поз или анатомии: "+Resource+", Content/anatomy.");
             profiles=Create(StateJson.FromJson<SlopePoseManifest>(asset.text),StateJson.FromJson<AnatomyCatalog>(anatomy.text),PonyAnimationData.Library);
         }

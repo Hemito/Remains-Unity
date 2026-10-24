@@ -60,7 +60,7 @@ namespace Remains.Editor
             try
             {
                 Anatomy.Load();WeaponCatalog.Load();
-                var catalog=Resources.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
+                var catalog=GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
                 var world=new WorldState {worldId="door-toggle-bench",seed=104};
                 FactoryPreparation.Create(world,catalog,0);
                 root=FactoryLevelRoot.Create(world,"factory:0");root.gameObject.SetActive(false);

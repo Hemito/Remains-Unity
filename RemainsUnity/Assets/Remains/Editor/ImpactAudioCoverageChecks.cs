@@ -145,7 +145,7 @@ namespace Remains.Editor
         }
         private static JObject Read(string path)
         {
-            var asset=Resources.Load<TextAsset>(path);Require(asset!=null,"Нет каталога "+path);
+            var asset=GameAssets.Load<TextAsset>(path);Require(asset!=null,"Нет каталога "+path);
             var value=JObject.Parse(asset.text);Require(value["entries"] is JArray,"Нет entries: "+path);return value;
         }
         private static void Add(Dictionary<string,Sound> values,string key,Sound sound)

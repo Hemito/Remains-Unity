@@ -23,7 +23,7 @@ namespace Remains.Editor
         public const string CatalogPath="Assets/Remains/Resources/Original/Inventory/icons.asset";
         public static InventoryIconManifest ReadManifest(string manifestResource)
         {
-            var asset=Resources.Load<TextAsset>(manifestResource);
+            var asset=GameAssets.Load<TextAsset>(manifestResource);
             if(asset==null) throw new InvalidOperationException("Нет декларации набора иконок: "+manifestResource);
             var manifest=StateJson.FromJson<InventoryIconManifest>(asset.text);
             if(manifest==null || manifest.schema!=1 || !float.IsFinite(manifest.pixelsPerUnit) || manifest.pixelsPerUnit<=0 ||
@@ -115,14 +115,14 @@ namespace Remains.Editor
         }
         public static void CheckAuthored(string manifestResource,string spritePrefix)
         {
-            var manifest=ReadManifest(manifestResource);CheckSpriteNames(manifest,spritePrefix);var catalog=Resources.Load<InventoryIconAsset>("Original/Inventory/icons");
+            var manifest=ReadManifest(manifestResource);CheckSpriteNames(manifest,spritePrefix);var catalog=GameAssets.Load<InventoryIconAsset>("Original/Inventory/icons");
             if(catalog==null) throw new InvalidOperationException("Нет каталога иконок для проверки набора иконок.");
             var lookup=catalog.CreateLookup();
-            foreach(var entry in manifest.resources) CheckTexture(entry,Resources.Load<Texture2D>(entry.resource));
+            foreach(var entry in manifest.resources) CheckTexture(entry,GameAssets.Load<Texture2D>(entry.resource));
             foreach(var entry in manifest.items)
             {
                 if(!lookup.TryGetValue(entry.id,out var sprite) || sprite.name!=SpriteName(entry.resource,spritePrefix) ||
-                    sprite.texture!=Resources.Load<Texture2D>(entry.resource) || sprite.pixelsPerUnit!=manifest.pixelsPerUnit ||
+                    sprite.texture!=GameAssets.Load<Texture2D>(entry.resource) || sprite.pixelsPerUnit!=manifest.pixelsPerUnit ||
                     sprite.rect!=new Rect(0,0,sprite.texture.width,sprite.texture.height) || sprite.pivot!=new Vector2(sprite.texture.width*.5f,sprite.texture.height*.5f))
                     throw new InvalidOperationException("Не зарегистрирована точная иконка: id="+entry.id+", resource="+entry.resource);
             }

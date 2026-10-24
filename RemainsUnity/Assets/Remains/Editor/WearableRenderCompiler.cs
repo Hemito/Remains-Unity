@@ -22,7 +22,7 @@ namespace Remains.Editor
             foreach(string name in new[]{"pip","antirad"})
             {
                 string resource="Original/Pony/Wearables/"+name;
-                var json=Resources.Load<TextAsset>(resource);
+                var json=GameAssets.Load<TextAsset>(resource);
                 if(json==null) throw new InvalidOperationException("Нет исходного банка снаряжения: "+resource+".");
                 assets.Add(BuildAsset(json.text,"Assets/Remains/Resources/Original/Pony/Wearables/"+name+"-render.asset",resource));
             }
@@ -53,7 +53,7 @@ namespace Remains.Editor
             {
                 if(declaration==null || string.IsNullOrWhiteSpace(declaration.key) || string.IsNullOrWhiteSpace(declaration.resource) || textures.ContainsKey(declaration.key))
                     throw new InvalidOperationException("Повтор/пустая текстура снаряжения: source="+source+".");
-                var texture=Resources.Load<Texture2D>(declaration.resource);
+                var texture=GameAssets.Load<Texture2D>(declaration.resource);
                 if(texture==null || texture.width!=declaration.width || texture.height!=declaration.height ||
                     Hash(File.ReadAllBytes(AssetDatabase.GetAssetPath(texture)))!=declaration.sha256)
                     throw new InvalidOperationException($"Текстура снаряжения отсутствует/изменена: source={source}, key={declaration.key}, resource={declaration.resource}.");

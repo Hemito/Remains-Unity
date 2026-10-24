@@ -16,9 +16,9 @@ namespace Remains.Editor
         {
             Anatomy.Load();PonyVisual.Prepare();
             var library=PonyAnimationData.Library;
-            var compiled=Resources.Load<PonyRenderAsset>("Original/Pony/render");
+            var compiled=GameAssets.Load<PonyRenderAsset>("Original/Pony/render");
             Require(compiled!=null,"Нет запечённого каталога пони");compiled.Validate();
-            var catalog=Remains.Serialization.StateJson.FromJson<AnatomyCatalog>(Resources.Load<TextAsset>("Content/anatomy").text);
+            var catalog=Remains.Serialization.StateJson.FromJson<AnatomyCatalog>(GameAssets.Load<TextAsset>("Content/anatomy").text);
             var contacts=Array.Find(catalog.anatomies,a=>a.id=="pony").supportContacts;
             var pixelCache=new Dictionary<string,(int width,int height,Color32[] pixels)>();
             int frames=0,selections=0,drawn=0;

@@ -20,7 +20,7 @@ namespace Remains.Domain
             definitions.Clear();
             poseCenters.Clear();supportContacts.Clear();
             PonyAnimationData.Load();
-            var asset=Resources.Load<TextAsset>("Content/anatomy");
+            var asset=GameAssets.Load<TextAsset>("Content/anatomy");
             if(asset==null) throw new InvalidOperationException("Не найдены определения анатомии Content/anatomy.");
             // Missing optional definitions must remain null, rather than empty Unity-serialized classes.
             var catalog=Remains.Serialization.StateJson.FromJson<AnatomyCatalog>(asset.text);

@@ -41,7 +41,7 @@ namespace Remains.Editor
                     {var a=art.Read(room);return a.texture==key && Mathf.Abs(a.x-lamp.x)<.001f && Mathf.Abs(a.y+a.height-lamp.y)<.001f;});
                     var bounds=fixture.Read(room);
                     string mask="Original/Room/Factory46/light-mask-"+lamp.kind+"-1";
-                    var texture=Resources.Load<Texture2D>(mask);
+                    var texture=GameAssets.Load<Texture2D>(mask);
                     if(texture==null || !texture.isReadable || Mathf.Abs(texture.width/200f-lamp.maskWidth)>.001f || Mathf.Abs(texture.height/200f-lamp.maskHeight)>.001f)
                         throw new InvalidOperationException("Маска светильника потеряла исходный размер: "+lamp.id);
                     var node=new GameObject(lamp.kind+" · "+lamp.id);node.transform.SetParent(group.transform,false);

@@ -23,7 +23,7 @@ namespace Remains.Editor
         public static void Run()
         {
             Anatomy.Load();
-            var settings=JsonUtility.FromJson<MovementAudio.Settings>(Resources.Load<TextAsset>("Presentation/movement-audio").text);
+            var settings=JsonUtility.FromJson<MovementAudio.Settings>(GameAssets.Load<TextAsset>("Presentation/movement-audio").text);
             CheckDeclarations(settings);
             int cases=0;
             foreach(string path in Paths)
@@ -153,7 +153,7 @@ namespace Remains.Editor
                 Require(bank!=null,"Нет действительного банка опоры: "+fixture.bank);
                 var sources=root.GetComponentsInChildren<AudioSource>();
                 for(int i=0;i<sources.Length;i++)
-                    Require(sources[i].clip==Resources.Load<AudioClip>(bank.clips[i%bank.clips.Length]) && sources[i].volume>0 &&
+                    Require(sources[i].clip==GameAssets.Load<AudioClip>(bank.clips[i%bank.clips.Length]) && sources[i].volume>0 &&
                         Mathf.Abs(sources[i].volume-playback.Volume*settings.volume)<.00001f && (!Application.isBatchMode || sources[i].mute),
                         "Actual voice потерял WAV/громкость/подавление batchmode: "+i);
                 Sample(actor.poseTime);Expect(0,"Повторный снимок");

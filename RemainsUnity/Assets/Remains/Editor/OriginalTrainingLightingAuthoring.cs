@@ -40,7 +40,7 @@ namespace Remains.Editor
                     {var d=a.Read(room);return d.texture==key && Mathf.Abs(d.x-x)<.001f && Mathf.Abs(d.y+d.height-y)<.001f;});
                     var data=art.Read(room);
                     string mask=ceiling?"Original/Room/Hub/light-mask-light4-1":"Original/Room/TrainingRoom/light-mask-light5-1";
-                    var texture=Resources.Load<Texture2D>(mask);
+                    var texture=GameAssets.Load<Texture2D>(mask);
                     if(texture==null || !texture.isReadable) throw new InvalidOperationException("Нет читаемой маски: "+mask);
                     var node=new GameObject("Светильник "+kind+" · "+index);node.transform.SetParent(group.transform,false);
                     node.AddComponent<RoomLightAuthoring>().Configure(new RoomLight {

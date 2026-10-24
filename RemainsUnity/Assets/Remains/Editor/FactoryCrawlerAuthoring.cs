@@ -64,7 +64,7 @@ namespace Remains.Editor
             importer.textureType=TextureImporterType.Default;importer.textureCompression=TextureImporterCompression.Uncompressed;
             importer.npotScale=TextureImporterNPOTScale.None;importer.mipmapEnabled=false;importer.filterMode=FilterMode.Point;
             importer.maxTextureSize=4096;importer.SaveAndReimport();
-            var atlas=ScriptableObject.CreateInstance<AtlasSpriteAsset>();atlas.Configure(Resources.Load<Texture2D>(data.atlas.resource),data.atlas);
+            var atlas=ScriptableObject.CreateInstance<AtlasSpriteAsset>();atlas.Configure(GameAssets.Load<Texture2D>(data.atlas.resource),data.atlas);
             AssetDatabase.CreateAsset(atlas,AtlasPath);AtlasSpriteAssetEditor.Rebuild(atlas);
             var type=ScriptableObject.CreateInstance<ActorTypeAsset>();type.SetDefinition(data.actor);
             var root=new GameObject("Радтаракан");

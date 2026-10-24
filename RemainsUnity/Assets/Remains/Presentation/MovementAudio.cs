@@ -4,6 +4,7 @@ using Remains.Domain;
 using Remains.Gameplay;
 using Remains.Networking;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Presentation
 {
@@ -39,7 +40,7 @@ namespace Remains.Presentation
         public void Initialize(CoopSession session,SimulationGeometry geometry,GameplayAudio audio)
         {
             this.session=session;this.geometry=geometry;this.audio=audio;
-            var asset=Resources.Load<TextAsset>("Presentation/movement-audio");
+            var asset=GameAssets.Load<TextAsset>("Presentation/movement-audio");
             if(asset==null) throw new InvalidOperationException("Нет настроек Presentation/movement-audio.");
             settings=JsonUtility.FromJson<Settings>(asset.text);
             if(settings.teleportDistance<=0 || settings.rhythms==null || settings.quietPoses==null ||
@@ -56,7 +57,7 @@ namespace Remains.Presentation
                 var clips=new AudioClip[bank.clips.Length];
                 for(int i=0;i<clips.Length;i++)
                 {
-                    clips[i]=Resources.Load<AudioClip>(bank.clips[i]);
+                    clips[i]=GameAssets.Load<AudioClip>(bank.clips[i]);
                     if(clips[i]==null || clips[i].samples<=0) throw new InvalidOperationException("Нет записи шагов: "+bank.clips[i]);
                 }
                 banks.Add(bank.id,clips);

@@ -4,6 +4,7 @@ using Remains.Domain;
 using Remains.Persistence;
 using Remains.Serialization;
 using UnityEngine;
+using Remains.Content;
 
 namespace Remains.Editor
 {
@@ -198,7 +199,7 @@ namespace Remains.Editor
                     "Экземпляры гранаты должны читать ресурсы префаба и сохранять независимость состояния");
             }
             finally {UnityEngine.Object.DestroyImmediate(first.gameObject);UnityEngine.Object.DestroyImmediate(second.gameObject);}
-            var asset=Resources.Load<Remains.Content.WeaponAsset>("Content/weapons/grenade");
+            var asset=GameAssets.Load<Remains.Content.WeaponAsset>("Content/weapons/grenade");
             Require(asset.Presentation!=null && asset.Presentation.Id=="grenade" &&
                 asset.Presentation.Artwork.sprite==prefab.sprite && asset.Presentation.Artwork.sharedMaterial==prefab.sharedMaterial &&
                 !asset.Presentation.ReadRig().HasMuzzle && asset.Presentation.Artwork.sortingOrder==100,
@@ -208,7 +209,7 @@ namespace Remains.Editor
             {
                 var icon=iconRoot.GetComponent<UnityEngine.UI.Image>();
                 new Remains.Presentation.InventoryArtwork().Set(icon,"grenade");
-                var expected=Resources.Load<Remains.Content.InventoryIconAsset>("Original/Inventory/icons").CreateLookup()["grenade"];
+                var expected=GameAssets.Load<Remains.Content.InventoryIconAsset>("Original/Inventory/icons").CreateLookup()["grenade"];
                 Require(icon.sprite==expected,"Удерживаемый префаб не должен подменять авторскую иконку инвентаря");
             }
             finally {UnityEngine.Object.DestroyImmediate(iconRoot);}

@@ -73,9 +73,9 @@ namespace Remains.Editor
                 var caps=marker.GetComponentsInChildren<RoomArtworkAuthoring>(true);Require(caps.Length==1 && SameArtwork(caps[0].Read(room),record.artwork,offset),"Графика/границы не соответствуют исходной верхушке: "+record.id);
                 var mesh=caps[0].GetComponent<MeshFilter>().sharedMesh;var uv=mesh.uv;
                 Require(AssetDatabase.Contains(mesh) && uv.Length==4 && uv[0]==Vector2.zero && uv[1]==Vector2.right && uv[2]==Vector2.up && uv[3]==Vector2.one,"Верхушка не имеет сохранённых full-quad UV: "+record.id);
-                Require(caps[0].GetComponent<MeshRenderer>().sharedMaterial.mainTexture==Resources.Load<Texture2D>("Original/Room/"+record.artwork.texture),"Материал верхушки использует другой ресурс: "+record.id);
+                Require(caps[0].GetComponent<MeshRenderer>().sharedMaterial.mainTexture==GameAssets.Load<Texture2D>("Original/Room/"+record.artwork.texture),"Материал верхушки использует другой ресурс: "+record.id);
                 var ladder=layout.ladders.Single(l=>Mathf.Abs(l.x-record.ladderX-offset)<.001f && Mathf.Abs(l.top-record.ladderTop)<.001f);
-                var texture=Resources.Load<Texture2D>("Original/Room/"+record.rungTexture);
+                var texture=GameAssets.Load<Texture2D>("Original/Room/"+record.rungTexture);
                 var rungs=room.GetComponentsInChildren<MeshFilter>(true).Where(p=>p.GetComponent<MeshRenderer>()?.sharedMaterial?.mainTexture==texture &&
                     SameRect(MeshRect(p,room),record.artwork.x+offset,ladder.bottom,record.artwork.width,ladder.top-ladder.bottom-record.surface.height)).ToArray();
                 Require(rungs.Length==1,"Нет отдельного нижнего rung без верхнего наложения: "+record.id);
@@ -87,7 +87,7 @@ namespace Remains.Editor
         }
         internal static void ValidateTexture(string key)
         {
-            var texture=Resources.Load<Texture2D>("Original/Room/"+key);string path=texture==null?null:AssetDatabase.GetAssetPath(texture);
+            var texture=GameAssets.Load<Texture2D>("Original/Room/"+key);string path=texture==null?null:AssetDatabase.GetAssetPath(texture);
             var importer=string.IsNullOrEmpty(path)?null:AssetImporter.GetAtPath(path) as TextureImporter;
             Require(texture!=null && texture.width==100 && texture.height==140 && texture.wrapModeU==TextureWrapMode.Clamp && texture.wrapModeV==TextureWrapMode.Clamp &&
                 importer!=null && importer.wrapModeU==TextureWrapMode.Clamp && importer.wrapModeV==TextureWrapMode.Clamp &&

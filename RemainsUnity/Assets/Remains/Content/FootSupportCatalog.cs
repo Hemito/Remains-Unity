@@ -271,8 +271,8 @@ namespace Remains.Content
         public static void Load()
         {
             if(fingerprint!=null) return;
-            var asset=Resources.Load<TextAsset>(Resource);var pony=Resources.Load<TextAsset>("Original/Pony/pony");
-            var anatomy=Resources.Load<TextAsset>("Content/anatomy");
+            var asset=GameAssets.Load<TextAsset>(Resource);var pony=GameAssets.Load<TextAsset>("Original/Pony/pony");
+            var anatomy=GameAssets.Load<TextAsset>("Content/anatomy");
             if(asset==null || pony==null || anatomy==null) throw new InvalidOperationException("Нет ресурса foot-support/pony/anatomy: "+Resource+".");
             var definitions=StateJson.FromJson<AnatomyCatalog>(anatomy.text);
             if(definitions?.anatomies==null) throw new InvalidOperationException("Нет анатомий для foot-support: Content/anatomy.");

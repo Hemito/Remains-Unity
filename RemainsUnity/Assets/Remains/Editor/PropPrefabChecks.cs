@@ -76,7 +76,7 @@ namespace Remains.Editor
                 }
                 finally {if(dropped!=null) UnityEngine.Object.DestroyImmediate(dropped.gameObject);}
             }
-            var asset=Resources.Load<PropAsset>("Content/props/mcrate1");var original=asset.Prefab;
+            var asset=GameAssets.Load<PropAsset>("Content/props/mcrate1");var original=asset.Prefab;
             try
             {
                 asset.SetPrefab(null);bool rejected=false;

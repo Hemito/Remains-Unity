@@ -19,7 +19,7 @@ namespace Remains.Content
         {
             if(prepared) return;
             PonyAnimationData.Load();
-            var asset=Resources.Load<WearableRenderCatalogAsset>(Resource);
+            var asset=GameAssets.Load<WearableRenderCatalogAsset>(Resource);
             if(asset==null || asset.Profiles==null) throw new InvalidOperationException("Нет подготовленного каталога рисунков снаряжения: "+Resource+".");
             // Validate the complete native set before publishing any entry.
             var ids=new HashSet<string>(StringComparer.Ordinal);string hash=PonyRenderAsset.SourceHash();

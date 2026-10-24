@@ -110,7 +110,7 @@ namespace Remains.Runtime
             phase=next;source=sender;phaseAt=Time.unscaledTime;evidenceAt=-1;
             ready=released=action=captured=capturePending=reported=false;receipts.Clear();voiceIds.Clear();
             foreach(var voice in runtime.Audio.GetComponentsInChildren<AudioSource>()) voiceIds.Add(voice.GetInstanceID());
-            expectedClip=Resources.Load<AudioClip>("Original/Audio/"+(Projectile || Attack && !Targets?"hit-metal":Attack?"hit-wood":"crate-metal-fall"));
+            expectedClip=GameAssets.Load<AudioClip>("Original/Audio/"+(Projectile || Attack && !Targets?"hit-metal":Attack?"hit-wood":"crate-metal-fall"));
             if(expectedClip==null || expectedClip.samples<=0) {Fail("Нет ожидаемого импортированного WAV для "+Label);return;}
             baseline=lastObservedAudio=AudioCount;
             witness=new Witness {phase=phase,label=Label,target=TargetId,expectedClip=expectedClip.name,baseline=baseline,source=source};
