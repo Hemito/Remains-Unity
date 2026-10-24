@@ -59,8 +59,22 @@ namespace Remains.Editor
             var zoomed=rasterizer.Render(document,Resource(document,"hole"),Frame(document,"hole"),4);
             if(zoomed.width!=Mathf.CeilToInt(Frame(document,"hole").size[0]*4)) throw new InvalidOperationException("RVG растеризатор: размер холста при увеличении.");
             Near(At(zoomed,80,80).a,0,0,"дырка при ×4");Near(At(zoomed,20,20).a,255,0,"кольцо при ×4");
+            // 10. Groups: screen of green over blue is cyan; overlay of white over grey is white.
+            var screen=rasterizer.Render(document,Resource(document,"screen"),Frame(document,"screen"),1);
+            Near(At(screen,10,10).g,255,2,"screen: зелёный");Near(At(screen,10,10).b,255,2,"screen: синий сохранён");Near(At(screen,30,30).g,0,0,"screen вне наложения");
+            var overlay=rasterizer.Render(document,Resource(document,"overlay"),Frame(document,"overlay"),1);
+            Near(At(overlay,10,10).r,255,3,"overlay белого над серым");Near(At(overlay,30,30).r,128,2,"overlay: фон вне объекта");
+            // 11. Filters: outer red glow (blur 8) around a white 10..20 square; blur softens an edge; drop shadow moves right.
+            var glow=rasterizer.Render(document,Resource(document,"glow"),Frame(document,"glow"),1);
+            var near=At(glow,22,15);if(near.a==0 || near.r<near.g) throw new InvalidOperationException($"RVG растеризатор: свечение рядом с квадратом: {near}.");
+            Near(At(glow,15,15).g,255,2,"свечение: источник поверх");Near(At(glow,38,15).a,0,0,"свечение вдали");
+            var blur=rasterizer.Render(document,Resource(document,"blur"),Frame(document,"blur"),1);
+            int edge20=At(blur,20,20).a;if(edge20<60 || edge20>200) throw new InvalidOperationException($"RVG растеризатор: размытый край: альфа {edge20}.");
+            Near(At(blur,5,20).a,255,3,"размытие: середина заливки");
+            var shadow=rasterizer.Render(document,Resource(document,"shadow"),Frame(document,"shadow"),1);
+            if(At(shadow,24,15).a==0 || At(shadow,6,15).a!=0) throw new InvalidOperationException($"RVG растеризатор: тень не сдвинута вправо: справа {At(shadow,24,15).a}, слева {At(shadow,6,15).a}.");
             if(rasterizer.Approximations.Count>0) throw new InvalidOperationException("RVG растеризатор: неожиданные приближения в простых случаях: "+string.Join(", ",rasterizer.Approximations.Keys));
-            Debug.Log("RVG растеризатор: PASS — even-odd, ориентация, градиент, цветовое преобразование, маска, линия, вложенный спрайт, растровая заливка, сглаживание, увеличение.");
+            Debug.Log("RVG растеризатор: PASS — even-odd, ориентация, градиент, цветовое преобразование, маска, линия, вложенный спрайт, растровая заливка, сглаживание, увеличение, screen/overlay, свечение, размытие, тень.");
         }
 
         private static RvgResource Resource(RvgDocument d,string id)=>d.TryResource(id,out var r)?r:throw new InvalidOperationException(id);
@@ -79,11 +93,14 @@ namespace Remains.Editor
                 Shape(7,Rect(0,0,10,10),Solid(255,255,255,255)),
                 Shape(8,Rect(0,0,40,40),new {type="bitmap",bitmap=1,matrix=new[]{20f*T,0,0,20f*T,0,0},repeat=false,smooth=false}),
                 Shape(9,new[]{0,0,0,1,(int)(20.5f*T),0,1,(int)(20.5f*T),20*T,1,0,20*T,3},Solid(255,255,255,255)),
+                Shape(10,Rect(0,0,20,20),Solid(0,0,255,255)),Shape(11,Rect(0,0,20,20),Solid(0,255,0,255)),
+                Shape(12,Rect(0,0,40,40),Solid(128,128,128,255)),Shape(13,Rect(0,0,20,20),Solid(255,255,255,255)),
+                Shape(14,Rect(10,10,20,20),Solid(255,255,255,255)),Shape(15,Rect(0,0,20,40),Solid(255,255,255,255)),
                 new {id=6,bounds=new[]{0,0,40*T,40*T},fills=new object[0],lines=new[]{new {width=4f*T,color=new[]{255,255,255,255},startCap="none",endCap="none",join="miter"}},
                     paths=new[]{new {line=0,commands=new[]{0,0,20*T,1,40*T,20*T}}}},
             };
-            object Place(int depth,string kind,int character,float tx=0,float ty=0,object color=null,int clipDepth=0,int spriteFrame=0)
-                =>new {depth,character,kind,matrix=new[]{1f,0,0,1f,tx*T,ty*T},color,clipDepth,spriteFrame};
+            object Place(int depth,string kind,int character,float tx=0,float ty=0,object color=null,int clipDepth=0,int spriteFrame=0,string blend="normal",object[] filters=null)
+                =>new {depth,character,kind,matrix=new[]{1f,0,0,1f,tx*T,ty*T},color,clipDepth,spriteFrame,blend,filters=filters??new object[0]};
             var sprites=new List<object>
             {
                 Sprite(101,Place(1,"shape",1)),Sprite(102,Place(1,"shape",2)),
@@ -92,6 +109,11 @@ namespace Remains.Editor
                 Sprite(105,Place(1,"shape",6)),
                 Sprite(106,Place(1,"shape",7)),Sprite(107,Place(1,"sprite",106,50,10)),
                 Sprite(108,Place(1,"shape",8)),Sprite(109,Place(1,"shape",9)),
+                Sprite(110,Place(1,"shape",10),Place(2,"shape",11,blend:"screen")),
+                Sprite(111,Place(1,"shape",12),Place(2,"shape",13,blend:"overlay")),
+                Sprite(112,Place(1,"shape",14,filters:new object[]{new {type="glow",color=new[]{255,0,0,255},blurX=8f,blurY=8f,strength=2f,passes=1,inner=false,knockout=false,compositeSource=true}})),
+                Sprite(113,Place(1,"shape",15,filters:new object[]{new {type="blur",blurX=9f,blurY=1f,passes=1}})),
+                Sprite(114,Place(1,"shape",14,filters:new object[]{new {type="dropShadow",color=new[]{0,0,0,255},angle=0f,distance=8f,blurX=1f,blurY=1f,strength=1f,passes=1,inner=false,knockout=false,compositeSource=true}})),
             };
             object Res(string id,int sprite,float w,float h)=>new {id,kind="vector",sprite,frames=new[]{new {frame=1,origin=new[]{0f,0f},size=new[]{w,h}}}};
             var json=Newtonsoft.Json.JsonConvert.SerializeObject(new
@@ -100,7 +122,8 @@ namespace Remains.Editor
                 bitmaps=new[]{new {id=1,width=2,height=2,file="checker.png",sha256=""}},
                 shapes,sprites,
                 resources=new[]{Res("hole",101,60,60),Res("gradient",102,100,10),Res("tinted",103,20,20),Res("masked",104,40,40),Res("stroke",105,40,40),
-                    Res("nested",107,70,30),Res("bitmap",108,40,40),Res("edge",109,40,20)},
+                    Res("nested",107,70,30),Res("bitmap",108,40,40),Res("edge",109,40,20),Res("screen",110,40,40),Res("overlay",111,40,40),
+                    Res("glow",112,40,30),Res("blur",113,40,40),Res("shadow",114,40,30)},
                 unsupported=new object[0]
             });
             return RvgDocument.Parse(json,"проверка растеризатора");

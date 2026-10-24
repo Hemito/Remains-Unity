@@ -9,7 +9,8 @@ namespace Remains.Content.VectorArt
     // Rasterizes an RVG resource frame on the GPU (docs/pipelines/vector-format.md, «Растеризация»):
     // stencil-then-cover. Every fill path is drawn as triangle fans that invert stencil bit 0 (even-odd parity), then a
     // bounding quad paints where the bit is set and clears it. Strokes are stencil-replaced, so overlaps blend once.
-    // Masks (clipDepth) live in stencil bits 1–7, one per nesting level. Antialiasing: MSAA on the canvas. Geometry is
+    // Masks (clipDepth) live in stencil bits 1–7, one per nesting level. An object with filters or a blend mode is a
+    // group: drawn into its own texture, filtered, then composited onto its parent (as Flash does). Antialiasing: MSAA. Geometry is
     // transformed on the CPU into canvas pixels (Y up inside, top-left registration outside). Values are raw sRGB bytes:
     // linear textures and canvas, so blending happens in gamma space as in Flash.
     public sealed class RvgRasterizer : IDisposable
@@ -18,12 +19,18 @@ namespace Remains.Content.VectorArt
         // is drawn at this width; a zero-width stroke is a hairline of this width.
         public float MinLinePixels=1;
         public int Msaa=8;
-        // Effects not yet rasterized (group blend modes, filters): counted and reported, never silently dropped.
+        // Filter sizes are stage pixels: at zoom N the stage is N times larger (contract: confirmed by the converter probe).
+        public bool FiltersScaleWithZoom=true;
+        // Approximations (a mask inside a mask): counted and reported, never silently dropped.
         public readonly Dictionary<string,int> Approximations=new(StringComparer.Ordinal);
 
         private const int MaskLevels=7;
         private readonly Func<RvgBitmap,Texture2D> loadBitmap;
-        private readonly Shader stencilShader,paintShader,finalShader;
+        private readonly Shader stencilShader,paintShader,finalShader,filterShader,compositeShader;
+        private readonly Dictionary<(string,int),Material> compositeMaterials=new();
+        private readonly List<RenderTexture> temporaries=new();
+        private Material filterMaterial;
+        private RenderTexture current;
         private readonly Dictionary<(int,int,int,int,int),Material> stencilMaterials=new();
         private readonly Dictionary<(string,int,int,int,int,int,string),Material> paintMaterials=new();
         private readonly Dictionary<RvgFill,Texture2D> ramps=new();
@@ -42,6 +49,8 @@ namespace Remains.Content.VectorArt
             stencilShader=GameAssets.Load<Shader>("Presentation/RvgStencil")??throw new InvalidOperationException("Нет шейдера Presentation/RvgStencil.");
             paintShader=GameAssets.Load<Shader>("Presentation/RvgPaint")??throw new InvalidOperationException("Нет шейдера Presentation/RvgPaint.");
             finalShader=GameAssets.Load<Shader>("Presentation/RvgFinal")??throw new InvalidOperationException("Нет шейдера Presentation/RvgFinal.");
+            filterShader=GameAssets.Load<Shader>("Presentation/RvgFilter")??throw new InvalidOperationException("Нет шейдера Presentation/RvgFilter.");
+            compositeShader=GameAssets.Load<Shader>("Presentation/RvgComposite")??throw new InvalidOperationException("Нет шейдера Presentation/RvgComposite.");
         }
 
         // The frame as a straight-alpha RGBA32 texture (sRGB) of ceil(size × zoom); registration at origin × zoom from the top-left.
@@ -57,15 +66,14 @@ namespace Remains.Content.VectorArt
             if(index<0 || index>=sprite.frameCount) throw new InvalidDataException($"RVG {resource.id}: кадр {frame.frame} вне 1…{sprite.frameCount}.");
             // twips → top-left pixels → canvas (Y up).
             var root=Affine.Scale(zoom/20f).Then(Affine.Translate(frame.origin[0]*zoom,frame.origin[1]*zoom)).Then(new Affine(1,0,0,-1,0,height));
-            var canvas=RenderTexture.GetTemporary(new RenderTextureDescriptor(width,height,RenderTextureFormat.ARGB32,24) {msaaSamples=Msaa,sRGB=false});
-            var resolved=RenderTexture.GetTemporary(new RenderTextureDescriptor(width,height,RenderTextureFormat.ARGB32,0) {sRGB=false});
+            var canvas=Temporary(true);
+            var resolved=Temporary(false);
             try
             {
                 cmd.Clear();
-                cmd.SetRenderTarget(canvas);
-                cmd.ClearRenderTarget(RTClearFlags.All,Color.clear,1,0);
                 cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(0,width,0,height,-1,1),false));
-                DrawSprite(sprite,index,root,ColorTransform.Identity,0,"normal");
+                Target(canvas,true);
+                DrawSprite(sprite,index,root,ColorTransform.Identity,0);
                 // Resolve (MSAA) and un-premultiply into the readable target.
                 finalMaterial??=new Material(finalShader) {hideFlags=HideFlags.HideAndDontSave};
                 cmd.SetRenderTarget(resolved);
@@ -82,14 +90,15 @@ namespace Remains.Content.VectorArt
             finally
             {
                 cmd.Clear();
-                RenderTexture.ReleaseTemporary(canvas);RenderTexture.ReleaseTemporary(resolved);
+                foreach(var texture in temporaries) RenderTexture.ReleaseTemporary(texture);
+                temporaries.Clear();current=null;
                 foreach(var mesh in meshes) UnityEngine.Object.DestroyImmediate(mesh);
                 meshes.Clear();
             }
         }
 
         // Objects in depth order; a clipDepth object starts a mask level for the depths up to its clipDepth.
-        private void DrawSprite(RvgSprite sprite,int frameIndex,in Affine m,in ColorTransform color,int maskBits,string inherited)
+        private void DrawSprite(RvgSprite sprite,int frameIndex,in Affine m,in ColorTransform color,int maskBits)
         {
             var clips=new List<(int End,int Bit)>();
             foreach(var placed in sprite.frames[frameIndex])
@@ -107,35 +116,28 @@ namespace Remains.Content.VectorArt
                     continue;
                 }
                 var oc=color.After(placed.color);
-                // A sprite's blend applies to its shapes one by one (approximation of the group, counted below).
-                string blend=placed.blend is "normal" or "layer"?inherited:placed.blend;
-                if(placed.filters.Count>0) Count("фильтры: "+string.Join(",",placed.filters.ConvertAll(f=>f.type)));
-                if(Unsupported(blend)) {Count("наложение "+blend);blend="normal";}
-                DrawObject(placed,om,oc,maskBits,blend);
+                if(placed.filters.Count>0 || placed.blend!="normal") DrawGroup(placed,om,oc,maskBits);
+                else DrawObject(placed,om,oc,maskBits);
             }
             for(int i=clips.Count-1;i>=0;i--) ClearBit(clips[i].Bit);
         }
-        private void DrawObject(RvgObject placed,in Affine m,in ColorTransform color,int maskBits,string blend)
+        private void DrawObject(RvgObject placed,in Affine m,in ColorTransform color,int maskBits)
         {
             switch(placed.kind)
             {
-                case "shape": DrawShape(document.Shape(placed.character),m,color,maskBits,blend);break;
-                case "sprite":
-                    var child=document.Sprite(placed.character);
-                    if(blend!="normal") Count("наложение спрайта "+blend+" по фигурам");
-                    DrawSprite(child,placed.spriteFrame,m,color,maskBits,blend);
-                    break;
+                case "shape": DrawShape(document.Shape(placed.character),m,color,maskBits);break;
+                case "sprite": DrawSprite(document.Sprite(placed.character),placed.spriteFrame,m,color,maskBits);break;
                 case "bitmap":
                     var bitmap=document.Bitmap(placed.character);
                     var fill=new RvgFill {type="bitmap",bitmap=bitmap.id,matrix=new float[]{20,0,0,20,0,0},repeat=false,smooth=true};
                     var shape=new RvgShape {id=-bitmap.id,bounds=new[]{0,0,bitmap.width*20,bitmap.height*20}};
                     shape.fills.Add(fill);
                     shape.paths.Add(new RvgPath {fill=0,commands=new[]{0,0,0,1,bitmap.width*20,0,1,bitmap.width*20,bitmap.height*20,1,0,bitmap.height*20,3}});
-                    DrawShape(shape,m,color,maskBits,blend);
+                    DrawShape(shape,m,color,maskBits);
                     break;
             }
         }
-        private void DrawShape(RvgShape shape,in Affine m,in ColorTransform color,int maskBits,string blend)
+        private void DrawShape(RvgShape shape,in Affine m,in ColorTransform color,int maskBits)
         {
             if(shape.rule=="non-zero") throw new NotSupportedException($"RVG: фигура {shape.id} требует правила non-zero; растеризатор v1 поддерживает even-odd.");
             foreach(var path in shape.paths)
@@ -159,7 +161,7 @@ namespace Remains.Content.VectorArt
                     Stencil(Mesh(vertices,indices),maskBits==0?CompareFunction.Always:CompareFunction.Equal,maskBits|1,maskBits,1,StencilOp.Replace);
                     fill=line.fill??new RvgFill {type="solid",color=line.color};
                 }
-                Paint(fill,m,color,bounds,maskBits,blend);
+                Paint(fill,m,color,bounds,maskBits);
             }
         }
         private float LineWidth(RvgLine line,in Affine m)
@@ -211,10 +213,10 @@ namespace Remains.Content.VectorArt
         }
         private void ClearBit(int bit)=>Stencil(Mesh(QuadVertices(new Rect(-1,-1,width+2,height+2)),QuadIndices),CompareFunction.Always,0,0,bit,StencilOp.Zero);
 
-        private void Paint(RvgFill fill,in Affine m,in ColorTransform color,Rect bounds,int maskBits,string blend)
+        private void Paint(RvgFill fill,in Affine m,in ColorTransform color,Rect bounds,int maskBits)
         {
             bounds=Rect.MinMaxRect(bounds.xMin-1,bounds.yMin-1,bounds.xMax+1,bounds.yMax+1);
-            var material=PaintMaterial(fill.type,maskBits,blend);
+            var material=PaintMaterial(fill.type,maskBits);
             block.Clear();
             block.SetVector("_Mul",color.Mul);block.SetVector("_Add",color.Add);
             switch(fill.type)
@@ -246,32 +248,127 @@ namespace Remains.Content.VectorArt
             block.SetVector("_Inv0",new Vector4(inverse.a,inverse.c,inverse.tx,0));
             block.SetVector("_Inv1",new Vector4(inverse.b,inverse.d,inverse.ty,0));
         }
-        private Material PaintMaterial(string type,int maskBits,string blend)
+        private Material PaintMaterial(string type,int maskBits)
         {
-            // Paint where the active masks and parity are set; clear parity.
-            var key=(type,maskBits|1,maskBits|1,1,(int)CompareFunction.Equal,(int)StencilOp.Zero,blend);
+            // Paint (premultiplied over) where the active masks and parity are set; clear parity.
+            var key=(type,maskBits|1,maskBits|1,1,(int)CompareFunction.Equal,(int)StencilOp.Zero,"normal");
             if(paintMaterials.TryGetValue(key,out var material)) return material;
             material=new Material(paintShader) {hideFlags=HideFlags.HideAndDontSave};
             material.EnableKeyword("_FILL_"+type.ToUpperInvariant());
             material.SetFloat("_Ref",key.Item2);material.SetFloat("_ReadMask",key.Item3);material.SetFloat("_WriteMask",1);
             material.SetFloat("_Comp",(int)CompareFunction.Equal);material.SetFloat("_Pass",(int)StencilOp.Zero);
-            var (src,dst,op)=Blend(blend);
-            material.SetFloat("_SrcBlend",(int)src);material.SetFloat("_DstBlend",(int)dst);material.SetFloat("_BlendOp",(int)op);
+            material.SetFloat("_SrcBlend",(int)BlendMode.One);material.SetFloat("_DstBlend",(int)BlendMode.OneMinusSrcAlpha);material.SetFloat("_BlendOp",(int)BlendOp.Add);
             paintMaterials.Add(key,material);
             return material;
         }
-        // Premultiplied blending; group-only modes (difference, overlay, hardlight, invert, alpha, erase) are approximated.
-        private static bool Unsupported(string blend)=>blend is "difference" or "overlay" or "hardlight" or "invert" or "alpha" or "erase";
-        private static (BlendMode,BlendMode,BlendOp) Blend(string blend)=>blend switch
+        // A group: the object alone in its own texture (own stencil), its filters, then onto the parent with its blend mode.
+        private void DrawGroup(RvgObject placed,in Affine m,in ColorTransform color,int maskBits)
         {
-            "screen"=>(BlendMode.One,BlendMode.OneMinusSrcColor,BlendOp.Add),
-            "multiply"=>(BlendMode.DstColor,BlendMode.OneMinusSrcAlpha,BlendOp.Add),
-            "add"=>(BlendMode.One,BlendMode.One,BlendOp.Add),
-            "lighten"=>(BlendMode.One,BlendMode.One,BlendOp.Max),
-            "darken"=>(BlendMode.One,BlendMode.One,BlendOp.Min),
-            "subtract"=>(BlendMode.One,BlendMode.One,BlendOp.ReverseSubtract),
-            _=>(BlendMode.One,BlendMode.OneMinusSrcAlpha,BlendOp.Add)
-        };
+            var parent=current;
+            var group=Temporary(true);
+            Target(group,true);
+            DrawObject(placed,m,color,0);
+            RenderTexture source=group;
+            if(placed.filters.Count>0)
+            {
+                source=Pass(group,0,0);   // resolve the multisampled group (a radius 0 copy)
+                foreach(var filter in placed.filters) source=Filter(filter,source);
+            }
+            RenderTexture backdrop=null;
+            if(placed.blend is "overlay" or "hardlight" or "difference") backdrop=Pass(parent,0,0);
+            Target(parent,false);
+            block.Clear();block.SetTexture("_Group",source);if(backdrop!=null) block.SetTexture("_Backdrop",backdrop);
+            cmd.DrawMesh(Quad(new Rect(0,0,width,height),true),Matrix4x4.identity,CompositeMaterial(placed.blend,maskBits),0,0,block);
+        }
+        private RenderTexture Filter(RvgFilter filter,RenderTexture source)
+        {
+            float scale=FiltersScaleWithZoom?zoom:1;
+            switch(filter.type)
+            {
+                case "blur": return Blur(source,filter.blurX*scale,filter.blurY*scale,filter.passes);
+                case "glow": case "dropShadow":
+                {
+                    var blurred=Blur(source,filter.blurX*scale,filter.blurY*scale,filter.passes);
+                    var offset=Vector2.zero;
+                    if(filter.type=="dropShadow") offset=new Vector2(Mathf.Cos(filter.angle),-Mathf.Sin(filter.angle))*filter.distance*scale;   // image Y down, texture Y up
+                    var target=Temporary(false);Target(target,false,true);
+                    block.Clear();block.SetTexture("_MainTex",source);block.SetTexture("_Blurred",blurred);
+                    block.SetVector("_TexelSize",new Vector4(1f/width,1f/height,0,0));block.SetVector("_Offset",offset);
+                    block.SetVector("_GlowColor",ToColor(filter.color));block.SetFloat("_Strength",filter.strength);
+                    block.SetFloat("_Inner",filter.inner?1:0);block.SetFloat("_Knockout",filter.knockout?1:0);block.SetFloat("_Composite",filter.compositeSource?1:0);
+                    cmd.DrawMesh(Quad(new Rect(0,0,width,height),true),Matrix4x4.identity,FilterMaterial,0,2,block);
+                    return target;
+                }
+                case "colorMatrix":
+                {
+                    var m=filter.matrix;
+                    var target=Temporary(false);Target(target,false,true);
+                    block.Clear();block.SetTexture("_MainTex",source);
+                    block.SetVector("_Matrix0",new Vector4(m[0],m[1],m[2],m[3]));block.SetVector("_Matrix1",new Vector4(m[5],m[6],m[7],m[8]));
+                    block.SetVector("_Matrix2",new Vector4(m[10],m[11],m[12],m[13]));block.SetVector("_Matrix3",new Vector4(m[15],m[16],m[17],m[18]));
+                    block.SetVector("_MatrixOffset",new Vector4(m[4],m[9],m[14],m[19])/255f);
+                    cmd.DrawMesh(Quad(new Rect(0,0,width,height),true),Matrix4x4.identity,FilterMaterial,0,3,block);
+                    return target;
+                }
+                default: throw new NotSupportedException("RVG: фильтр "+filter.type);
+            }
+        }
+        // Flash blur: a box of the given width along each axis, repeated passes times.
+        private RenderTexture Blur(RenderTexture source,float blurX,float blurY,int passes)
+        {
+            int rx=Mathf.Max(0,Mathf.RoundToInt((blurX-1)*.5f)),ry=Mathf.Max(0,Mathf.RoundToInt((blurY-1)*.5f));
+            for(int p=0;p<passes;p++) {source=Pass(source,0,rx);source=Pass(source,1,ry);}
+            return source;
+        }
+        // One full-canvas filter pass into a new temporary texture.
+        private RenderTexture Pass(RenderTexture source,int pass,int radius)
+        {
+            var target=Temporary(false);Target(target,false,true);
+            block.Clear();block.SetTexture("_MainTex",source);block.SetFloat("_Radius",radius);block.SetVector("_TexelSize",new Vector4(1f/width,1f/height,0,0));
+            cmd.DrawMesh(Quad(new Rect(0,0,width,height),true),Matrix4x4.identity,FilterMaterial,0,pass,block);
+            return target;
+        }
+        private Material FilterMaterial=>filterMaterial??=new Material(filterShader) {hideFlags=HideFlags.HideAndDontSave};
+        private Material CompositeMaterial(string blend,int maskBits)
+        {
+            if(compositeMaterials.TryGetValue((blend,maskBits),out var material)) return material;
+            material=new Material(compositeShader) {hideFlags=HideFlags.HideAndDontSave};
+            string keyword=blend switch {"overlay"=>"_MODE_OVERLAY","hardlight"=>"_MODE_HARDLIGHT","difference"=>"_MODE_DIFFERENCE","invert"=>"_MODE_INVERT",_=>"_MODE_FIXED"};
+            material.EnableKeyword(keyword);
+            var (src,dst,op)=blend switch
+            {
+                "screen"=>(BlendMode.One,BlendMode.OneMinusSrcColor,BlendOp.Add),
+                "multiply"=>(BlendMode.DstColor,BlendMode.OneMinusSrcAlpha,BlendOp.Add),
+                "add"=>(BlendMode.One,BlendMode.One,BlendOp.Add),
+                "lighten"=>(BlendMode.One,BlendMode.One,BlendOp.Max),
+                "darken"=>(BlendMode.One,BlendMode.One,BlendOp.Min),
+                "subtract"=>(BlendMode.One,BlendMode.One,BlendOp.ReverseSubtract),
+                "alpha"=>(BlendMode.Zero,BlendMode.SrcAlpha,BlendOp.Add),
+                "erase"=>(BlendMode.Zero,BlendMode.OneMinusSrcAlpha,BlendOp.Add),
+                "invert"=>(BlendMode.OneMinusDstColor,BlendMode.OneMinusSrcAlpha,BlendOp.Add),
+                "overlay" or "hardlight" or "difference"=>(BlendMode.One,BlendMode.Zero,BlendOp.Add),
+                _=>(BlendMode.One,BlendMode.OneMinusSrcAlpha,BlendOp.Add)   // normal, layer
+            };
+            material.SetFloat("_SrcBlend",(int)src);material.SetFloat("_DstBlend",(int)dst);material.SetFloat("_BlendOp",(int)op);
+            material.SetFloat("_Ref",maskBits);material.SetFloat("_ReadMask",maskBits);
+            material.SetFloat("_Comp",(int)(maskBits==0?CompareFunction.Always:CompareFunction.Equal));
+            compositeMaterials.Add((blend,maskBits),material);
+            return material;
+        }
+        private RenderTexture Temporary(bool multisampled)
+        {
+            var texture=RenderTexture.GetTemporary(multisampled?new RenderTextureDescriptor(width,height,RenderTextureFormat.ARGB32,24) {msaaSamples=Msaa,sRGB=false}
+                :new RenderTextureDescriptor(width,height,RenderTextureFormat.ARGB32,0) {sRGB=false});
+            temporaries.Add(texture);
+            return texture;
+        }
+        private void Target(RenderTexture target,bool clearAll,bool clearColor=false)
+        {
+            cmd.SetRenderTarget(target);current=target;
+            if(clearAll) cmd.ClearRenderTarget(RTClearFlags.All,Color.clear,1,0);
+            else if(clearColor) cmd.ClearRenderTarget(RTClearFlags.Color,Color.clear,1,0);
+        }
+
         private void Stencil(Mesh mesh,CompareFunction compare,int reference,int readMask,int writeMask,StencilOp op)
         {
             var key=(reference,readMask,writeMask,(int)compare,(int)op);
@@ -340,9 +437,11 @@ namespace Remains.Content.VectorArt
             cmd.Release();
             foreach(var material in stencilMaterials.Values) UnityEngine.Object.DestroyImmediate(material);
             foreach(var material in paintMaterials.Values) UnityEngine.Object.DestroyImmediate(material);
+            foreach(var material in compositeMaterials.Values) UnityEngine.Object.DestroyImmediate(material);
+            if(filterMaterial!=null) UnityEngine.Object.DestroyImmediate(filterMaterial);
             foreach(var ramp in ramps.Values) UnityEngine.Object.DestroyImmediate(ramp);
             if(finalMaterial!=null) UnityEngine.Object.DestroyImmediate(finalMaterial);
-            stencilMaterials.Clear();paintMaterials.Clear();ramps.Clear();bitmaps.Clear();
+            stencilMaterials.Clear();paintMaterials.Clear();compositeMaterials.Clear();ramps.Clear();bitmaps.Clear();
         }
     }
 
