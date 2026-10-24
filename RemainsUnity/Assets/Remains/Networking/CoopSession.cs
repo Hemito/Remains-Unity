@@ -1073,7 +1073,8 @@ namespace Remains.Networking
                 !serverPoses.Accept(message.actor,message.generation,message.lifecycleSequence,message.sequence)) return;
             if(!ActorMotionReplication.IsNewer(message.sequence,actor.motionSequence)) return;
             ApplyPose(actor, message);
-            WorldChanges.Mark(ServerWorld,actor);
+            // The sample reaches every client in this message; ticks refresh the actor's text spread over a second.
+            WorldChanges.MarkMotion(ServerWorld,actor);
             NetworkServer.SendToAll(message, channel);
         }
 
@@ -1471,11 +1472,14 @@ namespace Remains.Networking
             double now=Time.unscaledTimeAsDouble;
             lastTickAt=now;if(slow) lastSlowTickAt=now;
             WorldTick tick;
-            using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: сборка")) tick=tickComposer.Next(ServerWorld,part=>WorldChanges.IsMarked(ServerWorld,part),slow,recovery!=null);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Тик мира: сборка")) tick=tickComposer.Next(ServerWorld,part=>WorldChanges.IsMarked(ServerWorld,part),slow,recovery!=null,
+                part=>WorldChanges.IsMotionMarked(ServerWorld,part));
             if(tick!=null) tick.recovery=recovery;
             // The composer is the only consumer of marks (every server-world snapshot is composed from its texts).
-            if(slow) WorldChanges.Clear(ServerWorld);
+            if(slow) WorldChanges.ClearState(ServerWorld);
             else foreach(var part in tickComposer.Consumed) WorldChanges.Unmark(ServerWorld,part);
+            foreach(var part in tickComposer.MotionConsumed) WorldChanges.UnmarkMotion(ServerWorld,part);
+            if(slow) WorldChanges.RetainMotion(ServerWorld,ServerWorld.actors);
             if(tick==null || tickReady.Count==0) return;
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Тик мира: отправка");
             byte[] payload=WorldTickSender.Encode(tick);

@@ -213,7 +213,7 @@ namespace Remains.Persistence
                 if(Verify || (slot+(ulong)Round)%VerifyEvery!=0) return false;
                 Verified++;return true;
             }
-            public bool Marked(object part)=>WorldChanges.IsMarked(World,part);
+            public bool Marked(object part)=>WorldChanges.IsMarked(World,part) || WorldChanges.IsMotionMarked(World,part);
             // A part that is the same object as before changed its text without a mark: a mutation site misses
             // WorldChanges.Mark. Always-serialized parts change unmarked by design and are not reported.
             public void ReportUnmarked(string key,string was,string now)

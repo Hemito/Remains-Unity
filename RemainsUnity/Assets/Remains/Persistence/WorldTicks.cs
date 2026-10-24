@@ -49,10 +49,12 @@ namespace Remains.Persistence
         // The world JSON with each part list as its SnapshotPartCache marker (a composition's template).
         public static string Template(WorldState world)=>StateJson.ToJson(world,MarkerLists);
         private static readonly JsonConverter[] MarkerLists={new MarkerList()};
+        // Converter checks run for every value written; a set lookup instead of a scan.
+        private static readonly HashSet<Type> ListTypes=new(Array.ConvertAll(ListFields,field=>field.FieldType));
         private sealed class MarkerList : JsonConverter
         {
             public override bool CanRead=>false;
-            public override bool CanConvert(Type type)=>Array.Exists(ListFields,field=>field.FieldType==type);
+            public override bool CanConvert(Type type)=>ListTypes.Contains(type);
             public override object ReadJson(JsonReader reader,Type type,object existing,JsonSerializer serializer)=>throw new NotSupportedException();
             public override void WriteJson(JsonWriter writer,object value,JsonSerializer serializer)
             {
@@ -65,7 +67,7 @@ namespace Remains.Persistence
         // The same without the per-frame fields that have their own messages (level clocks, moving platforms, grenade
         // flights): it tells whether a fast tick must carry the skeleton; a slow tick compares the whole one.
         public static string StableSkeleton(WorldState world)=>StateJson.ToJson(world,EmptyStable);
-        private static readonly Type[] Volatile={typeof(List<LevelSimulationTime>),typeof(List<MovingPlatformState>),typeof(List<GrenadeState>)};
+        private static readonly HashSet<Type> Volatile=new() {typeof(List<LevelSimulationTime>),typeof(List<MovingPlatformState>),typeof(List<GrenadeState>)};
         private static readonly JsonConverter[] EmptyLists={new Empty(false)};
         private static readonly JsonConverter[] EmptyStable={new Empty(true)};
         private sealed class Empty : JsonConverter
@@ -73,7 +75,7 @@ namespace Remains.Persistence
             private readonly bool volatileToo;
             public Empty(bool volatileToo) {this.volatileToo=volatileToo;}
             public override bool CanRead=>false;
-            public override bool CanConvert(Type type)=>Array.Exists(ListFields,field=>field.FieldType==type) || volatileToo && Array.IndexOf(Volatile,type)>=0;
+            public override bool CanConvert(Type type)=>ListTypes.Contains(type) || volatileToo && Volatile.Contains(type);
             public override object ReadJson(JsonReader reader,Type type,object existing,JsonSerializer serializer)=>throw new NotSupportedException();
             public override void WriteJson(JsonWriter writer,object value,JsonSerializer serializer) {writer.WriteStartArray();writer.WriteEndArray();}
         }
@@ -88,17 +90,30 @@ namespace Remains.Persistence
     // Host side: remembers each list's objects, keys and texts of the previous tick.
     public sealed class WorldTickComposer
     {
-        private sealed class ListMemory {public object[] Objects=Array.Empty<object>();public string[] Keys=Array.Empty<string>(),Texts=Array.Empty<string>();public long[] Revisions=Array.Empty<long>();public bool[] Finished=Array.Empty<bool>();}
+        private sealed class ListMemory {public object[] Objects=Array.Empty<object>();public string[] Keys=Array.Empty<string>(),Texts=Array.Empty<string>();public long[] Revisions=Array.Empty<long>();public bool[] Finished=Array.Empty<bool>();public uint[] Hashes=Array.Empty<uint>();}
         private readonly ListMemory[] memory=new ListMemory[WorldTickLists.Names.Length];
         private string worldId,skeleton,stable;
+        private long stableRevision=long.MinValue;
         private long seq;
         public long Seq=>seq;
         public int LastChangedParts {get;private set;}
         // Marked parts this call serialized (the caller unmarks them: this composer is the marks' only consumer).
         public readonly List<object> Consumed=new();
+        // Motion-marked actors this call serialized (the caller drops their motion marks).
+        public readonly List<object> MotionConsumed=new();
+        // A motion-only change (WorldChanges.MarkMotion: the sample already reached clients in its PoseMessage) is
+        // refreshed in one call of MotionSlots by the key's slot, fast or slow: each moving actor reaches the
+        // canonical copies within MotionSlots ticks (about a second) and no tick carries every moving actor at once.
+        public const int MotionSlots=20;
+        private long passes;
+        private bool InSlot(uint hash)=>((ulong)hash+(ulong)passes)%MotionSlots==0;
+        private static uint Hash(string key)=>(uint)StringComparer.Ordinal.GetHashCode(key);
         // Rolling audit (as SnapshotPartCache did): each slow tick re-serializes the unmarked parts of one slot in
         // AuditEvery; a changed text is a mutation without WorldChanges.Mark, reported and sent.
         public const int AuditEvery=30;
+        // Passes per slow tick in the session cadence (50 ms ticks, 1 s slow ticks): the lists diffed by every tick
+        // audit one slot of AuditEvery*SlowEvery per pass, so no slow tick audits a thirtieth of the world at once.
+        public const int SlowEvery=20;
         private long round;
         public int LastUnmarked {get;private set;}
         private static readonly HashSet<string> warnedUnmarked=new(StringComparer.Ordinal);
@@ -117,29 +132,41 @@ namespace Remains.Persistence
         // The first call (or a new world) remembers the world and returns null: the receiver starts from a full copy.
         // Afterwards: the tick since the previous call, or null when nothing changed.
         // slow=false skips the lists that have their own fast messages (actors: ActorMessage/PoseMessage, projectiles:
-        // their flight messages); their state still reaches the receiver's world on the next slow tick.
-        public WorldTick Next(WorldState world,Func<object,bool> marked,bool slow=true,bool force=false)
+        // their flight messages); their state still reaches the receiver's world on the next slow tick. A fast tick
+        // still refreshes the actors of its motion slot (motionMarked).
+        public WorldTick Next(WorldState world,Func<object,bool> marked,bool slow=true,bool force=false,Func<object,bool> motionMarked=null)
         {
             if(world==null) throw new ArgumentNullException(nameof(world));
             bool fresh=worldId!=world.worldId;
             if(fresh) slow=true;
             var tick=new WorldTick {world=world.worldId,seq=seq+1};
-            int changed=0;Consumed.Clear();LastUnmarked=0;
+            int changed=0;Consumed.Clear();MotionConsumed.Clear();LastUnmarked=0;
             if(slow) round++;
+            passes++;
             for(int index=0;index<memory.Length;index++)
             {
-                if(!slow && WorldTickLists.Slow(index)) continue;
                 var list=WorldTickLists.List(world,index);
-                var entry=Diff(WorldTickLists.Names[index],list,memory[index],fresh,marked,slow,ref changed);
+                WorldTickList entry;
+                if(!slow && WorldTickLists.Slow(index))
+                {
+                    if(WorldTickLists.Names[index]!="actors" || motionMarked==null || fresh) continue;
+                    entry=RefreshMotion(list,memory[index],marked,motionMarked,ref changed);
+                }
+                else entry=Diff(WorldTickLists.Names[index],list,memory[index],fresh,marked,motionMarked,slow,ref changed);
                 if(entry!=null) tick.lists.Add(entry);
             }
-            // The skeleton travels whole; a fast tick sends it only when more than the per-frame fields changed.
-            string nextStable=WorldTickLists.StableSkeleton(world);
-            if(slow || nextStable!=stable)
+            // The skeleton travels whole; a fast tick sends it only when more than the per-frame fields changed, and
+            // looks only after a world revision (shared operations commit one); anything else reaches the slow tick.
+            if(slow || world.revision!=stableRevision)
             {
-                string nextSkeleton=WorldTickLists.Skeleton(world);
-                if(nextSkeleton!=skeleton) {tick.skeleton=nextSkeleton;skeleton=nextSkeleton;}
-                stable=nextStable;
+                string nextStable=WorldTickLists.StableSkeleton(world);
+                if(slow || nextStable!=stable)
+                {
+                    string nextSkeleton=WorldTickLists.Skeleton(world);
+                    if(nextSkeleton!=skeleton) {tick.skeleton=nextSkeleton;skeleton=nextSkeleton;}
+                    stable=nextStable;
+                }
+                stableRevision=world.revision;
             }
             LastChangedParts=changed;
             if(fresh) {worldId=world.worldId;seq=0;tick.seq=1;if(!force) return null;}
@@ -148,6 +175,8 @@ namespace Remains.Persistence
             return tick;
         }
 
+        private bool Audited(bool slowList,uint hash,bool slow)=>slowList?slow && ((ulong)hash+(ulong)round)%AuditEvery==0:
+            ((ulong)hash+(ulong)passes)%(AuditEvery*SlowEvery)==0;
         private void ReportUnmarked(string key,string was,string now)
         {
             LastUnmarked++;
@@ -158,7 +187,30 @@ namespace Remains.Persistence
             if(warnedUnmarked.Add(key.Substring(0,key.IndexOf(':'))+"."+field))
                 UnityEngine.Debug.LogWarning($"Непомеченное изменение части мира (аудит тиков): {key}, поле {field} — нет WorldChanges.Mark в месте изменения; часть отправлена.");
         }
-        private WorldTickList Diff(string name,System.Collections.IList list,ListMemory before,bool fresh,Func<object,bool> marked,bool slow,ref int changed)
+        // Fast tick: the motion-slot actors of an unchanged actor list. Marked, revised or replaced actors wait for the
+        // slow tick, which serializes them whole (their state keeps the timing it had).
+        private WorldTickList RefreshMotion(System.Collections.IList list,ListMemory before,Func<object,bool> marked,Func<object,bool> motionMarked,ref int changed)
+        {
+            int count=list.Count;
+            if(before.Objects.Length!=count || before.Revisions.Length!=count || before.Hashes.Length!=count) return null;
+            for(int i=0;i<count;i++) if(!ReferenceEquals(before.Objects[i],list[i])) return null;
+            string[] texts=null;List<string> changedKeys=null,changedTexts=null;
+            for(int i=0;i<count;i++)
+            {
+                var item=list[i];
+                if(item==null || !InSlot(before.Hashes[i]) || !motionMarked(item) || marked(item) || ((ActorState)item).revision!=before.Revisions[i]) continue;
+                MotionConsumed.Add(item);
+                string text=StateJson.ToJson(item);
+                if(text==before.Texts[i]) continue;
+                texts??=(string[])before.Texts.Clone();   // a returned composition may still hold the previous array
+                texts[i]=text;
+                (changedKeys??=new List<string>()).Add(before.Keys[i]);(changedTexts??=new List<string>()).Add(text);
+            }
+            if(texts==null) return null;
+            before.Texts=texts;changed+=changedKeys.Count;
+            return new WorldTickList {name="actors",keys=changedKeys.ToArray(),texts=changedTexts.ToArray()};
+        }
+        private WorldTickList Diff(string name,System.Collections.IList list,ListMemory before,bool fresh,Func<object,bool> marked,Func<object,bool> motionMarked,bool slow,ref int changed)
         {
             int count=list.Count;
             var objects=new object[count];
@@ -167,6 +219,8 @@ namespace Remains.Persistence
             bool aligned=!fresh && before.Objects.Length==count;
             for(int i=0;aligned && i<count;i++) aligned=ReferenceEquals(before.Objects[i],list[i]);
             var keys=aligned?before.Keys:new string[count];
+            var hashes=aligned?before.Hashes:new uint[count];
+            bool slowList=WorldTickLists.Slow(Array.IndexOf(WorldTickLists.Names,name));
             var texts=aligned?(string[])before.Texts.Clone():new string[count];
             var changedKeys=new List<string>();var changedTexts=new List<string>();
             // Actors also change through their own revision (ownership, health, generation) without a mark, as the
@@ -198,8 +252,12 @@ namespace Remains.Persistence
                     if(isMarked) Consumed.Add(item);
                     // Flights progress without marks; a finished flight no longer changes.
                     bool flying=always && !(finished[i] && before.Finished.Length==count && before.Finished[i]);
-                    bool audited=slow && !isMarked && !revised && !flying && ((ulong)(uint)StringComparer.Ordinal.GetHashCode(keys[i])+(ulong)round)%AuditEvery==0;
-                    if(!flying && !revised && !isMarked && !audited) continue;
+                    // A motion-only change waits for its slot; its stale text is not an unmarked change.
+                    bool moved=actors && item!=null && motionMarked!=null && motionMarked(item);
+                    bool refresh=moved && InSlot(hashes[i]);
+                    bool audited=!isMarked && !revised && !flying && !moved && Audited(slowList,hashes[i],slow);
+                    if(!flying && !revised && !isMarked && !audited && !refresh) continue;
+                    if(moved) MotionConsumed.Add(item);
                     string text=item==null?"null":StateJson.ToJson(item);
                     if(text==texts[i]) continue;
                     if(audited) ReportUnmarked(keys[i],texts[i],text);
@@ -208,13 +266,15 @@ namespace Remains.Persistence
                 }
                 bool markedItem=item!=null && marked(item);
                 if(markedItem) Consumed.Add(item);
-                keys[i]=WorldTickLists.Key(name,item,i);
+                keys[i]=WorldTickLists.Key(name,item,i);hashes[i]=Hash(keys[i]);
                 int at=-1;
                 bool known=!fresh && item!=null && previousIndex.TryGetValue(item,out at);
                 bool flyingItem=always && !(finished[i] && known && before.Finished.Length>at && before.Finished[at]);
-                if(known && !flyingItem && !markedItem &&
+                bool movedItem=actors && item!=null && motionMarked!=null && motionMarked(item);
+                if(known && !flyingItem && !markedItem && !(movedItem && InSlot(hashes[i])) &&
                     (!actors || before.Revisions.Length>at && before.Revisions[at]==revisions[i]) && before.Keys[at]==keys[i])
                 {texts[i]=before.Texts[at];continue;}
+                if(movedItem) MotionConsumed.Add(item);
                 texts[i]=item==null?"null":StateJson.ToJson(item);
                 if(fresh) continue;
                 if(previousText!=null && previousText.TryGetValue(keys[i],out var was) && was==texts[i]) continue;
@@ -231,7 +291,7 @@ namespace Remains.Persistence
                 for(int i=0;sameOrder && i<keys.Length;i++) sameOrder=before.Keys[i]==keys[i];
                 if(!sameOrder) order=keys;
             }
-            before.Objects=objects;before.Keys=keys;before.Texts=texts;if(actors) before.Revisions=revisions;if(always) before.Finished=finished;
+            before.Objects=objects;before.Keys=keys;before.Hashes=hashes;before.Texts=texts;if(actors) before.Revisions=revisions;if(always) before.Finished=finished;
             changed+=changedKeys.Count;
             if(fresh || changedKeys.Count==0 && removed==null && order==null) return null;
             return new WorldTickList {name=name,keys=changedKeys.ToArray(),texts=changedTexts.ToArray(),removed=removed,order=order};

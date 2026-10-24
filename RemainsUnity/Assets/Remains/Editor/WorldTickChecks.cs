@@ -76,19 +76,71 @@ namespace Remains.Editor
             bool rejected=false;
             try {WorldTickApplier.Apply(client,broken);} catch(Exception) {rejected=true;}
             Require(rejected && StateJson.ToJson(client)==before,"Повреждённый тик изменил мир.");
-            Debug.Log($"Тики мира: PASS — {ticks} тиков, мир получателя совпадает с миром хоста побайтно; повреждённый тик отклонён без изменений.");
+            int spread=MotionSpread();
+            Debug.Log($"Тики мира: PASS — {ticks} тиков, мир получателя совпадает с миром хоста побайтно; повреждённый тик отклонён без изменений; "+
+                $"движение 40 актёров разложено по тикам (не более {spread} в тике) и доходит целиком за {WorldTickComposer.MotionSlots} тиков.");
+        }
+        // Motion-only changes (poses) are refreshed spread over MotionSlots ticks, fast or slow, with the marks handled as
+        // CoopSession.FlushTick does; a state mark still travels whole on the next slow tick.
+        private static int MotionSpread()
+        {
+            var host=new WorldState {worldId="motion-check"};
+            for(int i=0;i<40;i++) host.actors.Add(new ActorState {id="m"+i,health=100,x=i});
+            WorldChanges.Track(host);
+            var client=StateJson.FromJson<WorldState>(StateJson.ToJson(host));
+            var composer=new WorldTickComposer();
+            int passes=0,most=0;
+            WorldTick Flush(bool slow)
+            {
+                passes++;
+                var tick=composer.Next(host,part=>WorldChanges.IsMarked(host,part),slow,false,part=>WorldChanges.IsMotionMarked(host,part));
+                if(slow) WorldChanges.ClearState(host); else foreach(var part in composer.Consumed) WorldChanges.Unmark(host,part);
+                foreach(var part in composer.MotionConsumed) WorldChanges.UnmarkMotion(host,part);
+                if(slow) WorldChanges.RetainMotion(host,host.actors);
+                Require(composer.LastUnmarked==0,"Ожидающее обновление позы принято аудитом за непомеченное изменение.");
+                if(tick!=null) WorldTickApplier.Apply(client,StateJson.FromJson<WorldTick>(StateJson.ToJson(tick)));
+                return tick;
+            }
+            Require(Flush(true)==null,"Первый вызов должен только запомнить мир.");
+            for(int round=0;round<3;round++)
+            {
+                foreach(var actor in host.actors) {actor.x+=.5f;actor.poseTime+=.05f;WorldChanges.MarkMotion(host,actor);}
+                for(int i=0;i<WorldTickComposer.MotionSlots;i++)
+                {
+                    var tick=Flush(passes%WorldTickComposer.MotionSlots==0);
+                    int actors=0;if(tick!=null) foreach(var list in tick.lists) if(list.name=="actors") actors+=list.keys.Length;
+                    most=Math.Max(most,actors);
+                }
+                Require(StateJson.ToJson(client)==StateJson.ToJson(host),$"Движение не дошло целиком за {WorldTickComposer.MotionSlots} тиков (круг {round}).");
+                foreach(var actor in host.actors) Require(!WorldChanges.IsMotionMarked(host,actor),"Пометка движения осталась после обновления: "+actor.id);
+            }
+            Require(most<=10,$"Движение не разложено: {most} из 40 актёров в одном тике.");
+            // A state change of a moving actor: a fast tick leaves it to the slow tick, which sends the whole actor.
+            var hit=host.actors[3];hit.x+=1;WorldChanges.MarkMotion(host,hit);hit.health=50;WorldChanges.Mark(host,hit);
+            for(int i=0;i<WorldTickComposer.MotionSlots;i++)
+            {
+                var tick=Flush(false);
+                Require(tick==null || !tick.lists.Exists(l=>l.name=="actors" && Array.IndexOf(l.keys,"actors:m3")>=0),"Быстрый тик отправил актёра с изменением состояния.");
+            }
+            var slowTick=Flush(true);
+            Require(slowTick!=null && slowTick.lists.Exists(l=>l.name=="actors" && Array.IndexOf(l.keys,"actors:m3")>=0),"Медленный тик не отправил изменённое состояние актёра.");
+            Require(StateJson.ToJson(client)==StateJson.ToJson(host) && !WorldChanges.IsMotionMarked(host,hit),"Состояние и поза актёра не дошли медленным тиком.");
+            return most;
         }
         // Cost on the seed104 factory world: a tick with a typical change set versus a snapshot composition.
         public static void BenchBatch()
         {
             try
             {
-                string path=System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../../.reference/cpu104-baseline3/fixture/world.json"));
+                // -tickBenchWorld <world.json>: another world (a playtest snapshot) instead of the seed104 fixture.
+                var args=Environment.GetCommandLineArgs();int at=Array.IndexOf(args,"-tickBenchWorld");
+                string path=at>=0 && at+1<args.Length?args[at+1]:System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../../.reference/cpu104-baseline3/fixture/world.json"));
                 var world=StateJson.FromTrustedJson<WorldState>(System.IO.File.ReadAllText(path));
                 WorldChanges.Track(world);
                 var composer=new WorldTickComposer();var watch=new System.Diagnostics.Stopwatch();
                 composer.Next(world,part=>WorldChanges.IsMarked(world,part));
                 var client=StateJson.FromTrustedJson<WorldState>(StateJson.ToJson(world));
+                var clientTexts=new WorldTickTexts(client);
                 double tickMs=0,applyMs=0,composeMs=0,idleMs=0;int rounds=20,bytes=0;
                 SnapshotPartCache.Compose(world);   // warm its memory as the game does
                 for(int round=0;round<rounds;round++)
@@ -99,11 +151,30 @@ namespace Remains.Editor
                     world.revision++;
                     watch.Restart();var tick=composer.Next(world,part=>WorldChanges.IsMarked(world,part));watch.Stop();tickMs+=watch.Elapsed.TotalMilliseconds;
                     string wire=StateJson.ToJson(tick);bytes+=wire.Length;
-                    watch.Restart();WorldTickApplier.Apply(client,StateJson.FromJson<WorldTick>(wire));watch.Stop();applyMs+=watch.Elapsed.TotalMilliseconds;
+                    watch.Restart();var received=StateJson.FromJson<WorldTick>(wire);WorldTickApplier.Apply(client,received);watch.Stop();applyMs+=watch.Elapsed.TotalMilliseconds;
+                    clientTexts.Apply(received);
                     watch.Restart();SnapshotPartCache.Compose(world);watch.Stop();composeMs+=watch.Elapsed.TotalMilliseconds;   // also clears the marks
                     watch.Restart();composer.Next(world,part=>WorldChanges.IsMarked(world,part));watch.Stop();idleMs+=watch.Elapsed.TotalMilliseconds;
                 }
-                Require(StateJson.ToJson(client)==StateJson.ToJson(world),"Мир по тикам разошёлся с миром завода.");
+                {
+                    // The receiver's copy from its tick texts, as the game composes it (re-serializing parsed objects is not
+                    // byte-stable: Mono's round-trip double format can change the last digits of a playtest's clock values).
+                    string template=WorldTickLists.Template(world);
+                    string expected=composer.Composition(template).Json,actual=clientTexts.Composition(template).Json;
+                    int diff=0;while(diff<expected.Length && diff<actual.Length && expected[diff]==actual[diff]) diff++;
+                    Require(expected==actual,$"Мир по тикам разошёлся с миром завода с символа {diff}: хост «{expected.Substring(Math.Max(0,diff-300),Math.Min(500,expected.Length-Math.Max(0,diff-300)))}», получатель «{actual.Substring(Math.Max(0,diff-300),Math.Min(500,actual.Length-Math.Max(0,diff-300)))}».");
+                }
+                // Parts of a tick without changes: the skeletons it compares and the slow (audit) and fast passes.
+                double skeletonMs=0,stableMs=0,slowMs=0,fastMs=0;int skeletonChars=0;
+                for(int round=0;round<rounds;round++)
+                {
+                    watch.Restart();skeletonChars=WorldTickLists.Skeleton(world).Length;watch.Stop();skeletonMs+=watch.Elapsed.TotalMilliseconds;
+                    watch.Restart();WorldTickLists.StableSkeleton(world);watch.Stop();stableMs+=watch.Elapsed.TotalMilliseconds;
+                    watch.Restart();composer.Next(world,part=>WorldChanges.IsMarked(world,part),true);watch.Stop();slowMs+=watch.Elapsed.TotalMilliseconds;
+                    watch.Restart();composer.Next(world,part=>WorldChanges.IsMarked(world,part),false);watch.Stop();fastMs+=watch.Elapsed.TotalMilliseconds;
+                }
+                Debug.Log($"Тик без изменений по частям: скелет {skeletonMs/rounds:F2} мс ({skeletonChars} символов), устойчивый скелет {stableMs/rounds:F2} мс, "+
+                    $"медленный тик {slowMs/rounds:F2} мс, быстрый тик {fastMs/rounds:F2} мс.");
                 Debug.Log($"Тики на заводе seed104 ({world.containers.Count} контейнеров, {world.actors.Count} актёров, {world.props.Count} тел): "+
                     $"тик {tickMs/rounds:F2} мс, применение {applyMs/rounds:F2} мс, тик без изменений {idleMs/rounds:F2} мс, {bytes/rounds} символов; "+
                     $"для сравнения снимок (Compose) {composeMs/rounds:F2} мс. Editor batch, не Player.");

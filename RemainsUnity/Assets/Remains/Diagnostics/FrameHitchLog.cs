@@ -23,7 +23,9 @@ namespace Remains.Diagnostics
         public const double SlowMilliseconds=50;
         public const string SectionTimingScope="Участки Section измеряют прошедшее время только главного потока. Вызовы с рабочих потоков (включая фоновый SHA-256 и запись сохранений) не учитываются; отсутствие участка не означает отсутствие фоновой работы. Это не измерение суммарного CPU всех потоков.";
         private const double SummarySeconds=10;
-        private const int MaxSections=256;
+        // Unity's own subsystems take ~130 names; a long session adds a few hundred code sections.
+        private const int MaxSections=1024;
+        private static bool sectionsOverflowWarned;
 
         // TimeUpdate first: it holds the wait for the previous frame's presentation (GPU-bound frames) and the frame
         // rate limit, so a frame's total is its real duration.
@@ -201,7 +203,11 @@ namespace Remains.Diagnostics
         private static int SectionIndex(string name)
         {
             if(sectionIndex.TryGetValue(name,out int index)) return index;
-            if(sectionIndex.Count>=MaxSections) return -1;
+            if(sectionIndex.Count>=MaxSections)
+            {
+                if(!sectionsOverflowWarned) {sectionsOverflowWarned=true;Debug.LogWarning($"Журнал медленных кадров: исчерпан предел участков ({MaxSections}); участок «{name}» и следующие новые не измеряются.");}
+                return -1;
+            }
             index=sectionIndex.Count;sectionIndex.Add(name,index);sectionNames[index]=name;
             return index;
         }
