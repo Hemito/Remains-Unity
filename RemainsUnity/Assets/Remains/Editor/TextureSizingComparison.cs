@@ -58,39 +58,50 @@ namespace Remains.Editor
             var report=new Report{before=before,after=after};
             foreach(string relative in left)
             {
-                Texture2D a=null,b=null,diff=null;
+                Texture2D a=null,b=null;
                 try
                 {
                     a=Read(Path.Combine(before,relative));b=Read(Path.Combine(after,relative));
-                    if(a.width!=b.width || a.height!=b.height) throw new InvalidOperationException($"Размер кадров различается: {relative}: {a.width}×{a.height} и {b.width}×{b.height}.");
-                    var x=a.GetPixels32();var y=b.GetPixels32();var differences=new Color32[x.Length];
-                    var sum=new double[4];var squares=new double[4];var maximum=new int[4];int above=0,alpha=0;
-                    for(int i=0;i<x.Length;i++)
-                    {
-                        int r=Math.Abs(x[i].r-y[i].r),g=Math.Abs(x[i].g-y[i].g),bl=Math.Abs(x[i].b-y[i].b),al=Math.Abs(x[i].a-y[i].a);
-                        Add(0,r);Add(1,g);Add(2,bl);Add(3,al);
-                        if(Math.Max(Math.Max(r,g),Math.Max(bl,al))>report.threshold) above++;
-                        if(al!=0) alpha++;
-                        // Alpha error is also made visible in the opaque RGB diagnostic.
-                        differences[i]=new Color32(Boost(Math.Max(r,al)),Boost(Math.Max(g,al)),Boost(Math.Max(bl,al)),255);
-                    }
-                    string diffPath=Path.Combine(output,"differences",relative);Directory.CreateDirectory(Path.GetDirectoryName(diffPath));
-                    diff=new Texture2D(a.width,a.height,TextureFormat.RGBA32,false,false);diff.SetPixels32(differences);diff.Apply();
-                    File.WriteAllBytes(diffPath,diff.EncodeToPNG());
-                    report.frames.Add(new Frame{path=relative,width=a.width,height=a.height,
-                        mae=sum.Sum()/(x.Length*4d*255),rmse=Math.Sqrt(squares.Sum()/(x.Length*4d))/255,
-                        channelMae=sum.Select(v=>v/x.Length/255).ToArray(),channelRmse=squares.Select(v=>Math.Sqrt(v/x.Length)/255).ToArray(),
-                        channelMax=maximum,pixelsAboveThreshold=above/(double)x.Length,alphaMismatchFraction=alpha/(double)x.Length,difference=diffPath});
-                    void Add(int channel,int error) {sum[channel]+=error;squares[channel]+=error*error;maximum[channel]=Math.Max(maximum[channel],error);}
-                    byte Boost(int error)=>(byte)Math.Min(255,error*report.differenceAmplification);
+                    report.frames.Add(Measure(a,b,relative,Path.Combine(output,"differences",relative),report.threshold,report.differenceAmplification));
                 }
-                finally {if(a!=null) UnityEngine.Object.DestroyImmediate(a);if(b!=null) UnityEngine.Object.DestroyImmediate(b);if(diff!=null) UnityEngine.Object.DestroyImmediate(diff);}
+                finally {if(a!=null) UnityEngine.Object.DestroyImmediate(a);if(b!=null) UnityEngine.Object.DestroyImmediate(b);}
             }
             File.WriteAllText(Path.Combine(output,"comparison.json"),JsonUtility.ToJson(report,true));
             return report;
         }
 
-        private static Texture2D Read(string path)
+        // Metrics of one frame pair (shared by the texture sizing comparison and RvgReferenceComparison) and its amplified
+        // difference image written to diffPath (null: metrics only).
+        public static Frame Measure(Texture2D a,Texture2D b,string relative,string diffPath,int threshold=8,int amplification=8)
+        {
+            if(a.width!=b.width || a.height!=b.height) throw new InvalidOperationException($"Размер кадров различается: {relative}: {a.width}×{a.height} и {b.width}×{b.height}.");
+            var x=a.GetPixels32();var y=b.GetPixels32();var differences=new Color32[x.Length];
+            var sum=new double[4];var squares=new double[4];var maximum=new int[4];int above=0,alpha=0;
+            for(int i=0;i<x.Length;i++)
+            {
+                int r=Math.Abs(x[i].r-y[i].r),g=Math.Abs(x[i].g-y[i].g),bl=Math.Abs(x[i].b-y[i].b),al=Math.Abs(x[i].a-y[i].a);
+                Add(0,r);Add(1,g);Add(2,bl);Add(3,al);
+                if(Math.Max(Math.Max(r,g),Math.Max(bl,al))>threshold) above++;
+                if(al!=0) alpha++;
+                // Alpha error is also made visible in the opaque RGB diagnostic.
+                differences[i]=new Color32(Boost(Math.Max(r,al)),Boost(Math.Max(g,al)),Boost(Math.Max(bl,al)),255);
+            }
+            Texture2D diff=null;
+            if(diffPath!=null) try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(diffPath));
+                diff=new Texture2D(a.width,a.height,TextureFormat.RGBA32,false,false);diff.SetPixels32(differences);diff.Apply();
+                File.WriteAllBytes(diffPath,diff.EncodeToPNG());
+            }
+            finally {if(diff!=null) UnityEngine.Object.DestroyImmediate(diff);}
+            return new Frame{path=relative,width=a.width,height=a.height,
+                mae=sum.Sum()/(x.Length*4d*255),rmse=Math.Sqrt(squares.Sum()/(x.Length*4d))/255,
+                channelMae=sum.Select(v=>v/x.Length/255).ToArray(),channelRmse=squares.Select(v=>Math.Sqrt(v/x.Length)/255).ToArray(),
+                channelMax=maximum,pixelsAboveThreshold=above/(double)x.Length,alphaMismatchFraction=alpha/(double)x.Length,difference=diffPath};
+            void Add(int channel,int error) {sum[channel]+=error;squares[channel]+=error*error;maximum[channel]=Math.Max(maximum[channel],error);}
+            byte Boost(int error)=>(byte)Math.Min(255,error*amplification);
+        }
+        public static Texture2D Read(string path)
         {
             var texture=new Texture2D(2,2,TextureFormat.RGBA32,false,false);
             try
