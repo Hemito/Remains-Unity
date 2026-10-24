@@ -21,6 +21,7 @@ namespace Remains.Networking
     {
         private readonly CoopSession session;
         private readonly DoorDamageAttackLedger ledger=new();
+        private readonly DoorDamageAttackLedger predictedLedger=new();   // the client's own copy for its predictions
         private readonly HashSet<string> reported=new();
         private readonly Queue<string> order=new();
         private string clientWorld;
@@ -34,11 +35,11 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<DoorDamageReply>(Remains.Networking.MessageTiming.Client<DoorDamageReply>(reply=>
             {
                 if(!reply.accepted)
-                {reported.Remove(Key(reply.door,reply.attack));session.ShowNotice(reply.reason);}
+                {reported.Remove(Key(reply.door,reply.attack));session.ShowNotice(reply.reason);session.RejectPrediction("doors:"+reply.door,reply.reason);}
                 Finished?.Invoke(reply);
             }));
         }
-        public void ResetClient() {reported.Clear();order.Clear();clientWorld=null;}
+        public void ResetClient() {reported.Clear();order.Clear();clientWorld=null;predictedLedger.Clear();}
         public void ResetServer()=>ledger.Clear();
         internal string RecordAccepted(AttackEvent attack,ActorState source)
         {
@@ -71,7 +72,24 @@ namespace Remains.Networking
                 sourceGeneration=source?.generation??0,sourceLifecycle=source?.lifecycleSequence??0,
                 projectileGeneration=projectileGeneration,attack=StateJson.Copy(attack),contact=contact};
             NetworkClient.Send(new DoorDamageRequest {json=StateJson.ToJson(request)});
+            PredictDamage(request,door.revision);
             Reported?.Invoke(request);return true;
+        }
+        // The hitting client damages or breaks the door at once with the host's own rule (decisions.md, 2026-10-24);
+        // the host's tick confirms it (the door revision moved past this hit), a rejection restores the host's door.
+        private void PredictDamage(DoorDamageRequestData request,long revision)
+        {
+            var copy=StateJson.Copy(request);
+            session.Predict("doors:"+request.door,WorldChangeKind.Doors,
+                live=>
+                {
+                    // A melee contact must belong to an accepted attack segment: this client's own attack is accepted here.
+                    var source=live.Find(copy.attack.attacker);
+                    if(source!=null && WeaponCatalog.Get(copy.attack.weapon).projectileSpeed<=0) predictedLedger.Record(live.worldId,source,copy.attack);
+                    return DoorDamageRequestRules.Apply(live,live.Find(copy.decisionActor),copy,false,predictedLedger,session.Rules.DoorDamage,WeaponCatalog.Get,out _)==DoorChange.Changed;
+                },
+                canonical=>{var door=canonical.doors.Find(d=>d.id==copy.door);return door!=null && door.revision>revision;},
+                (canonical,live)=>SessionDoors.RestoreDoor(canonical,live,copy.door));
         }
         private static string Key(string door,string attack)=>(door?.Length??0)+":"+door+attack;
         private void Receive(NetworkConnectionToClient connection,DoorDamageRequest message)

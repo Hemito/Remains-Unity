@@ -91,11 +91,17 @@ namespace Remains.Domain
             foreach(var prop in WorldProps.All(world))
             {
                 if(!prop.hasPhysicalBody) continue;
-                if(active.Any(a=>a.owner==prop.owner && a.level==prop.level)) continue;
+                // The player holding a body right now keeps it (decisions.md, 2026-10-24); otherwise the nearest player
+                // simulates it, as an untargeted NPC, so the one who bumps or shoots a box usually owns it already.
+                var current=active.FirstOrDefault(a=>a.owner==prop.owner && a.level==prop.level);
+                if(prop.held && current!=null) continue;
                 // An incapacitated connected player still runs a client and keeps
                 // this level active. Use its real connection ID when nobody stands.
                 var candidate=connected.Where(a=>a.level==prop.level).OrderBy(a=>a.down?1:0)
                     .ThenBy(a=>Vector2.Distance(a.Position,prop.Position)).ThenBy(a=>a.id).FirstOrDefault();
+                // The current owner keeps it within the proximity margin: walking players do not flip bodies back and forth.
+                if(current!=null && (candidate==null || candidate.owner==current.owner || candidate.down ||
+                    proximity.KeepCurrent(Vector2.Distance(current.Position,prop.Position),Vector2.Distance(candidate.Position,prop.Position)))) continue;
                 // An empty level has no simulator, but a still-connected owner can retain its dormant lease.
                 // PropPoseScope rejects late traffic until the level is active again. Release a held object once;
                 // only a real transfer/disconnect should invalidate every resting body's generation.

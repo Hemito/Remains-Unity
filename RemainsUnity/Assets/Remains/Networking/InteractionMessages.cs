@@ -3,6 +3,8 @@ using Mirror;
 namespace Remains.Networking
 {
     public struct PropGrabMessage : NetworkMessage { public string prop; public bool release; }
+    // The host did not accept a grab or release: the requesting client undoes its prediction (ClientPredictions).
+    public struct PropGrabRejected : NetworkMessage { public string prop,reason; }
     public struct PropPoseMessage : NetworkMessage { public string prop; public int generation; public uint sequence; public float x,y,vx,vy;public bool impactFriendlyPlayers; }
     public struct ThrowRequest : NetworkMessage
     {

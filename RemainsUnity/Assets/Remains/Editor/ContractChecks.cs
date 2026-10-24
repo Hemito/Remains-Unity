@@ -15,7 +15,7 @@ namespace Remains.Editor
         public static void Run()
         {
             RoomCatalogLifetimeChecks.Run();
-            SnapshotManifestChecks.Run();JoinCharacterChecks.Run();WorldTickChecks.Run();
+            SnapshotManifestChecks.Run();JoinCharacterChecks.Run();WorldTickChecks.Run();ClientPredictionChecks.Run();
             WorldReplicationChecks.Run();
             WorldDeltaChecks.Run();
             ProjectStorageChecks.Run();LevelTimeReplicaChecks.Run();MechanismOperationsChecks.Run();

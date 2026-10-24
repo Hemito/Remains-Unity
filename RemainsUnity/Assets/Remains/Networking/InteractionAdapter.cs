@@ -23,6 +23,12 @@ namespace Remains.Networking
             };
             session.ClientReady+=()=>
             {
+                NetworkClient.RegisterHandler<PropGrabRejected>(Remains.Networking.MessageTiming.Client<PropGrabRejected>(reply=>
+                {
+                    var body=WorldProps.Find(session.World,reply.prop);
+                    if(body!=null) session.RejectPrediction(BodyKey(body),reply.reason);
+                    if(!string.IsNullOrEmpty(reply.reason)) session.ShowNotice(reply.reason);
+                }));
                 NetworkClient.RegisterHandler<PropPoseMessage>(Remains.Networking.MessageTiming.Client<PropPoseMessage>(message=>
                 {
                     var prop=WorldProps.Find(session.World,message.prop);
@@ -42,22 +48,21 @@ namespace Remains.Networking
         {
             var actor=session.ConnectedActor(connection);
             var prop=WorldProps.Find(session.ServerWorld,message.prop);
-            if(actor==null || prop==null || actor.level!=prop.level) return;
+            void Reject(string reason)=>connection.Send(new PropGrabRejected {prop=message.prop,reason=reason});
+            if(actor==null || prop==null || actor.level!=prop.level) {Reject(null);return;}
             PropBodyRules.Validate(prop);
-            if(session.Pause.IsServerPaused(actor.level))
-            {connection.Send(new NoticeMessage {text="Захват/отпускание отменено: уровень остановлен."});return;}
+            if(session.Pause.IsServerPaused(actor.level)) {Reject("Захват/отпускание отменено: уровень остановлен.");return;}
             if(message.release)
             {
-                if(prop.owner!=actor.owner || !prop.held) return;
+                if(prop.owner!=actor.owner || !prop.held) {Reject(null);return;}
                 prop.held=false;prop.generation++;WorldChanges.Mark(session.ServerWorld,prop);
             }
             else
             {
-                if(actor.down) return;
-                if(actor.hold!=null || session.ServerWorld.actors.Any(a=>a.hold?.holder==actor.id))
-                {connection.Send(new NoticeMessage {text="Сначала завершите захват тела."});return;}
-                if(!prop.movable || !prop.hasPhysicalBody) {connection.Send(new NoticeMessage {text="Этот объект закреплён."});return;}
-                if(prop.held && prop.owner!=actor.owner) {connection.Send(new NoticeMessage {text="Объект уже удерживает другой игрок."});return;}
+                if(actor.down) {Reject(null);return;}
+                if(actor.hold!=null || session.ServerWorld.actors.Any(a=>a.hold?.holder==actor.id)) {Reject("Сначала завершите захват тела.");return;}
+                if(!prop.movable || !prop.hasPhysicalBody) {Reject("Этот объект закреплён.");return;}
+                if(prop.held && prop.owner!=actor.owner) {Reject("Объект уже удерживает другой игрок.");return;}
                 prop.owner=actor.owner;prop.generation++;prop.held=true;prop.impactFriendlyPlayers=true;WorldChanges.Mark(session.ServerWorld,prop);
             }
             session.CommitWorld();
@@ -125,7 +130,35 @@ namespace Remains.Networking
                 x=state.x,y=state.y,vx=state.vx,vy=state.vy,remaining=state.remaining,simulationRemainder=state.simulationRemainder,
                 angle=state.angle,angularVelocity=state.angularVelocity,mirrored=state.mirrored,detonate=detonate,enemyHits=enemyHits});
         }
-        public void GrabProp(string prop,bool release) => NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });
+        public void GrabProp(string prop,bool release)
+        {
+            NetworkClient.Send(new PropGrabMessage { prop=prop,release=release });
+            PredictGrab(prop,release);
+        }
+        private static string BodyKey(PropState body)=>(body is ContainerState?"containers:":"props:")+body.id;
+        // The grabbing client holds the body at once (decisions.md, 2026-10-24) with the generation the host will give
+        // it; the host's tick confirms ownership, a rejection or a missing confirmation restores the host's body.
+        private void PredictGrab(string id,bool release)
+        {
+            var body=WorldProps.Find(session.World,id);string owner=session.LocalOwner;
+            if(body==null || owner==null) return;
+            session.Predict(BodyKey(body),body is ContainerState?WorldChangeKind.Containers:WorldChangeKind.Props,
+                live=>
+                {
+                    var local=WorldProps.Find(live,id);
+                    if(local==null) return false;
+                    if(release) {if(!local.held || local.owner!=owner) return false;local.held=false;}
+                    else {if(local.held && local.owner!=owner || !local.movable || !local.hasPhysicalBody) return false;local.owner=owner;local.held=true;local.impactFriendlyPlayers=true;}
+                    local.generation++;return true;
+                },
+                canonical=>{var host=WorldProps.Find(canonical,id);return host!=null && (release?!host.held || host.owner!=owner:host.held && host.owner==owner);},
+                (canonical,live)=>
+                {
+                    var host=WorldProps.Find(canonical,id);
+                    if(host is ContainerState container) {int at=live.containers.FindIndex(c=>c.id==id);if(at>=0) live.containers[at]=JsonUtility.Copy(container);}
+                    else if(host!=null) {int at=live.props.FindIndex(p=>p.id==id);if(at>=0) live.props[at]=JsonUtility.Copy(host);}
+                });
+        }
         public void SendProp(PropState prop)=>SendProp(prop,true);
         // newPose=false: a resting heartbeat resends the current pose version unchanged (PropReplication.Accept
         // takes only newer sequences, so a receiver that missed the last pose still accepts it).

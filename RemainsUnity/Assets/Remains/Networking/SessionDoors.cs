@@ -14,7 +14,7 @@ namespace Remains.Networking
     public sealed class SessionDoors
     {
         private readonly CoopSession session;
-        private string pending;
+        private string pending,pendingDoor;
         private readonly Dictionary<string,(string actor,string door)> npcRequests=new();
         private readonly HashSet<string> pendingNpcs=new();
         private readonly Dictionary<string,float> nextNpcRequest=new();
@@ -31,14 +31,16 @@ namespace Remains.Networking
                 if(npcRequests.Remove(reply.request,out var context))
                 {
                     pendingNpcs.Remove(context.actor);
+                    if(!reply.accepted) session.RejectPrediction("doors:"+context.door,reply.reason);
                     if(!reply.accepted) Debug.LogWarning($"NPC не открыл дверь: actor={context.actor}, door={context.door}, request={reply.request}, reason={reply.reason}.");
                     NpcFinished?.Invoke(context.actor,context.door,reply);return;
                 }
                 if(reply.request!=pending) return;
-                pending=null;session.ShowNotice(reply.reason);Finished?.Invoke(reply);
+                if(!reply.accepted && pendingDoor!=null) session.RejectPrediction("doors:"+pendingDoor,reply.reason);
+                pending=null;pendingDoor=null;session.ShowNotice(reply.reason);Finished?.Invoke(reply);
             }));
         }
-        public void ResetClient() {pending=null;npcRequests.Clear();pendingNpcs.Clear();nextNpcRequest.Clear();}
+        public void ResetClient() {pending=null;pendingDoor=null;npcRequests.Clear();pendingNpcs.Clear();nextNpcRequest.Clear();}
         public bool RequestNpcOpen(ActorState actor,string doorId)
         {
             if(actor==null || actor.player || actor.owner!=session.LocalOwner || !NetworkClient.isConnected || pendingNpcs.Contains(actor.id) ||
@@ -57,7 +59,7 @@ namespace Remains.Networking
             string reason=door==null?"Дверь больше недоступна.":session.Rules.DoorAccess.Rejection(actor,door);
             if(session.Pause.IsPaused(actor.level)) reason="Локация на паузе: взаимодействие с дверью недоступно.";
             if(reason!=null) {session.ShowNotice(reason);return false;}
-            pending=Guid.NewGuid().ToString("N");
+            pending=Guid.NewGuid().ToString("N");pendingDoor=door.id;
             Send(actor,door,pending,open);
             return true;
         }
@@ -67,6 +69,26 @@ namespace Remains.Networking
             session.PublishActor(actor);
             NetworkClient.Send(new DoorRequest {request=request,world=session.World.worldId,door=door.id,actor=actor.id,
                 generation=actor.generation,lifecycle=actor.lifecycleSequence,revision=door.revision,open=open});
+            PredictOpen(actor.id,door.id,door.revision,open);
+        }
+        // The requesting client opens or closes the door at once (decisions.md, 2026-10-24) with the host's own rule and
+        // revision step; the host's tick confirms it, a rejection or a missing confirmation restores the host's door.
+        private void PredictOpen(string actorId,string doorId,long revision,bool open)
+        {
+            session.Predict("doors:"+doorId,WorldChangeKind.Doors,
+                live=>
+                {
+                    var door=live.doors.Find(d=>d.id==doorId);var actor=live.Find(actorId);
+                    bool occupied=door!=null && door.open && !open && DoorOccupancy.IsOccupied(live,door);
+                    return DoorOperations.SetOpen(door,actor,revision,open,session.Rules.DoorAccess,occupied,out _)==DoorChange.Changed;
+                },
+                canonical=>{var door=canonical.doors.Find(d=>d.id==doorId);return door!=null && door.revision>revision;},
+                (canonical,live)=>RestoreDoor(canonical,live,doorId));
+        }
+        internal static void RestoreDoor(WorldState canonical,WorldState live,string doorId)
+        {
+            int at=live.doors.FindIndex(d=>d.id==doorId);var source=canonical.doors.Find(d=>d.id==doorId);
+            if(at>=0 && source!=null) live.doors[at]=Remains.Serialization.StateJson.Copy(source);
         }
         private void Receive(NetworkConnectionToClient connection,DoorRequest request)
         {

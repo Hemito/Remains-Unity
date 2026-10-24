@@ -27,7 +27,11 @@ namespace Remains.Networking
         public void RegisterClient()
         {
             ResetClient();
-            NetworkClient.RegisterHandler<LampBreakRejected>(Remains.Networking.MessageTiming.Client<LampBreakRejected>(reply=>{reported.Remove(reply.lamp);Debug.LogWarning($"Контакт лампы отклонён: lamp={reply.lamp}, reason={reply.reason}.");}));
+            NetworkClient.RegisterHandler<LampBreakRejected>(Remains.Networking.MessageTiming.Client<LampBreakRejected>(reply=>
+            {
+                reported.Remove(reply.lamp);Debug.LogWarning($"Контакт лампы отклонён: lamp={reply.lamp}, reason={reply.reason}.");
+                session.RejectPrediction("lamps:"+reply.lamp,reply.reason);
+            }));
             NetworkClient.RegisterHandler<LampBrokenMessage>(Remains.Networking.MessageTiming.Client<LampBrokenMessage>(message=>
             {
                 if(session.World?.worldId!=message.world)return;
@@ -58,6 +62,7 @@ namespace Remains.Networking
             }
             else if(source==null||source.owner!=session.LocalOwner||attack.sourceOwner!=session.LocalOwner)return;
             if(clientWorld!=session.World.worldId){ResetClient();clientWorld=session.World.worldId;}
+            List<string> hit=null;
             foreach(var lamp in session.World.lamps)
             {
                 if(lamp.broken||lamp.level!=attack.level)continue;
@@ -70,8 +75,27 @@ namespace Remains.Networking
                         decisionActor=participant.id,decisionGeneration=participant.generation,decisionLifecycle=participant.lifecycleSequence,
                         sourceGeneration=source?.generation??0,sourceLifecycle=source?.lifecycleSequence??0,projectileGeneration=projectileGeneration,
                         attack=StateJson.Copy(attack)})});
+                    (hit??=new List<string>()).Add(lamp.id);
                 }
             }
+            if(hit!=null) foreach(string id in hit) PredictBreak(id,attack.id);
+        }
+        // The breaking client sees its lamp go out at once (decisions.md, 2026-10-24); the host's tick confirms it,
+        // a rejection or a missing confirmation lights it again from the host's state.
+        private void PredictBreak(string id,string attack)
+        {
+            bool predicted=session.Predict("lamps:"+id,WorldChangeKind.Lamps,
+                live=>{var local=live.lamps.Find(l=>l.id==id);return local!=null && LampOperations.Break(live,local,attack);},
+                canonical=>canonical.lamps.Find(l=>l.id==id)?.broken==true,
+                (canonical,live)=>
+                {
+                    int at=live.lamps.FindIndex(l=>l.id==id);var source=canonical.lamps.Find(l=>l.id==id);
+                    if(at>=0 && source!=null) live.lamps[at]=StateJson.Copy(source);
+                    live.lampRevision=Math.Max(live.lampRevision,canonical.lampRevision)+1;   // the light view resynchronizes
+                });
+            if(!predicted) return;
+            var lamp=session.World.lamps.Find(l=>l.id==id);
+            if(lamp!=null && effects.Add(lamp.id+":"+lamp.revision)) Broken?.Invoke(lamp);   // the host's LampBrokenMessage has the same revision
         }
 
         private void Receive(NetworkConnectionToClient connection,LampBreakRequest message)

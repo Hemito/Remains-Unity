@@ -92,6 +92,36 @@ namespace Remains.Networking
             }
             finally {LastChange=WorldChangeKind.All;LastChangedParts=null;}
         }
+        // Interacting client first (decisions.md, 2026-10-24; ClientPredictions). Undone when the canonical copy does not
+        // confirm it within PredictionSeconds (a reliable request normally confirms in a round trip).
+        private readonly ClientPredictions predictions=new();
+        public const float PredictionSeconds=8;
+        // apply changes the live world (false: nothing to predict); confirmed reads the canonical world; revert puts the
+        // canonical part back into the live world. Needs the canonical copy of transport v2.
+        public bool Predict(string key,WorldChangeKind kind,Func<WorldState,bool> apply,Func<WorldState,bool> confirmed,Action<WorldState,WorldState> revert)
+        {
+            if(!TransportV2 || World==null || !tickReceiver.Ready || !apply(World)) return false;
+            predictions.Add(new ClientPredictions.Entry {Key=key,Kind=kind,Confirmed=confirmed,Revert=revert,Deadline=Time.unscaledTime+PredictionSeconds});
+            RaiseChanged(kind,new[]{key});
+            return true;
+        }
+        public void RejectPrediction(string key,string reason)
+        {
+            if(predictions.Count==0) return;
+            SettlePredictions(null,new[]{key},reason);
+        }
+        private void SettlePredictions(float? now,ICollection<string> rejected=null,string reason=null)
+        {
+            var undo=predictions.Settle(tickReceiver.Ready?tickReceiver.Canonical:null,now,rejected);
+            if(undo==null || World==null || !tickReceiver.Ready) return;
+            var kind=WorldChangeKind.None;var keys=new List<string>();
+            foreach(var entry in undo)
+            {
+                entry.Revert(tickReceiver.Canonical,World);kind|=entry.Kind;keys.Add(entry.Key);
+                Debug.LogWarning($"Локальное действие отменено: {entry.Key} — {(reason!=null?"хост отклонил: "+reason:$"хост не подтвердил за {PredictionSeconds} с")}; возвращено состояние хоста.",this);
+            }
+            RaiseChanged(kind,keys);
+        }
         public event Action SessionStopped;
         public event Action<string,string,float,float> RemotePoseCorrection;
         private void ObservePoseCorrection(string source,ActorState current,string nextPose,float nextTime)
@@ -433,6 +463,7 @@ namespace Remains.Networking
                         if(TransportV2 && published.live==null)
                         {
                             tickReceiver.Reset(published.snapshot.CreateLiveWorld(),published.tickSeq);
+                            predictions.Clear();   // the live world was replaced by the host's
                             Debug.Log($"Тики мира: основа — полный снимок на тике {published.tickSeq}, актёров {tickReceiver.Canonical.actors.Count}.");
                         }
                     });
@@ -701,6 +732,7 @@ namespace Remains.Networking
             }
             ReceiveWorld(new WorldMessage(),null,WorldTickReceiver.Changes(tick),WorldTickReceiver.ChangedParts(tick),live,reused,
                 tickReceiver.CopyCanonicalActor,WorldTickReceiver.FindBody,true);
+            if(predictions.Count>0) SettlePredictions(null);
             if(tick.recovery!=null)
             {
                 // The host's recovery point: the same copy from this client's tick texts, written and acknowledged.
@@ -1519,6 +1551,7 @@ namespace Remains.Networking
                 if(now-lastTickAt>=TickIntervalSeconds) FlushTick(now-lastSlowTickAt>=SlowTickIntervalSeconds);
                 if(tickPaused.Count>0) ResumeDrainedTicks();
             }
+            if(predictions.Count>0 && NetworkClient.active) SettlePredictions(Time.unscaledTime);
             if(!commitAtFrameEnd) return;
             commitAtFrameEnd=false;
             if(NetworkServer.active && ServerWorld!=null) CommitWorld();
@@ -1572,7 +1605,7 @@ namespace Remains.Networking
             selfHealing.Reset();
             CharacterContent.Reset();ModMismatch?.Invoke(null);
             Admission.EndClient();
-            EntryPreparation.ResetClient();Travel.ResetClient();Lobby.ResetClient();worldReplication.Forget();tickReceiver.Forget();
+            EntryPreparation.ResetClient();Travel.ResetClient();Lobby.ResetClient();worldReplication.Forget();tickReceiver.Forget();predictions.Clear();
             Projectiles.ResetClient();
             SaveLocalCharacter();
             FlushSaveWrites();joinSelection=null;
