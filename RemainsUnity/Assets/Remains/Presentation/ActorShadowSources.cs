@@ -27,6 +27,7 @@ namespace Remains.Presentation
     public sealed class ActorShadowSources
     {
         private float[,] absorption;
+        private int width,height;   // cached: GetLength is a call per trace step in Mono
         private Vector2 origin;
         private float texel,ambient;
         private Matrix4x4 worldToLevel;
@@ -46,6 +47,7 @@ namespace Remains.Presentation
             IReadOnlyList<ActorShadowSource> sources,float ambientContribution)
         {
             absorption=terrain??throw new ArgumentNullException(nameof(terrain));
+            width=terrain.GetLength(0);height=terrain.GetLength(1);
             if(texelSize<=0 || !float.IsFinite(texelSize)) throw new ArgumentOutOfRangeException(nameof(texelSize));
             if(sources==null) throw new ArgumentNullException(nameof(sources));
             var copy=new ActorShadowSource[sources.Count];for(int i=0;i<copy.Length;i++) copy[i]=sources[i];
@@ -54,7 +56,7 @@ namespace Remains.Presentation
         }
 
         // An immutable copy of the prepared window for a worker-thread Select.
-        public ActorShadowSources Detached()=>new() {absorption=absorption,origin=origin,texel=texel,worldToLevel=worldToLevel,lamps=lamps,ambient=ambient};
+        public ActorShadowSources Detached()=>new() {absorption=absorption,width=width,height=height,origin=origin,texel=texel,worldToLevel=worldToLevel,lamps=lamps,ambient=ambient};
 
         public void Select(Vector2 actor,ISet<string> dark,IReadOnlyList<(Rect bounds,double opacity)> doors,
             int maxSources,List<ActorShadowSource> output)
@@ -110,7 +112,7 @@ namespace Remains.Presentation
             float tx=delta.x==0?float.PositiveInfinity:(sx>0?x+1-a.x:a.x-x)*dx;
             float ty=delta.y==0?float.PositiveInfinity:(sy>0?y+1-a.y:a.y-y)*dy;
             float result=1;
-            int limit=absorption.GetLength(0)+absorption.GetLength(1)+1;
+            int limit=width+height+1;
             for(int step=0;step<limit;step++)
             {
                 if(!Inside(x,y)) return 0;
@@ -129,7 +131,7 @@ namespace Remains.Presentation
             }
             throw new InvalidOperationException("Выбор источников тени: трассировка не достигла лампы в границах кешированной сетки.");
         }
-        private bool Inside(int x,int y)=>x>=0 && y>=0 && x<absorption.GetLength(0) && y<absorption.GetLength(1);
+        private bool Inside(int x,int y)=>x>=0 && y>=0 && x<width && y<height;
 
         private static bool SegmentIntersects(Vector2 a,Vector2 b,Rect rect)
         {

@@ -129,12 +129,6 @@ namespace Remains.Editor
                     finally {renderer.enabled=enabled;}
                     Require(stalePictureRejected && view.LightFieldInstanceId==oldField,"Изменение видимости картинки не инвалидировало кандидата.");
                 }
-                // A new canonical lamp revision makes the ready candidate unpublishable.
-                var dark=world.lamps.Where(lamp=>lamp.level==view.LampWorldLevel && lamp.broken).Select(lamp=>lamp.id).ToArray();
-                view.SyncLamps(dark,view.AppliedLampRevision+1,dark);
-                bool rejected=false;
-                try {commit.Invoke(view,new object[]{context});} catch(TargetInvocationException error) when(error.InnerException is InvalidOperationException) {rejected=true;}
-                Require(rejected && view.LightFieldInstanceId==oldField && view.LightWindowRooms==oldRooms,"Устаревший кандидат опубликован.");
                 context.Dispose();context=null;
                 RoomRadianceField.ClearSpareTextures();long beforeCancel=LightTextureBudget.Bytes;
                 context=make();steps=(IEnumerator)prepare.Invoke(view,new object[]{context});
@@ -146,10 +140,16 @@ namespace Remains.Editor
                 Require(LightTextureBudget.Bytes==beforeCancel && view.LightFieldInstanceId==oldField && view.LightWindowRooms==oldRooms,
                     "CancelWindowPreparation потеряла iterator/текстуры или переключила active context.");
                 context=make();steps=(IEnumerator)prepare.Invoke(view,new object[]{context});while(steps.MoveNext()) {}
-                (steps as IDisposable)?.Dispose();steps=null;commit.Invoke(view,new object[]{context});context=null; // view owns the committed context
+                (steps as IDisposable)?.Dispose();steps=null;
+                // A lamp revision during preparation no longer discards the candidate: the commit catches up with it.
+                var dark=world.lamps.Where(lamp=>lamp.level==view.LampWorldLevel && lamp.broken).Select(lamp=>lamp.id).ToArray();
+                view.SyncLamps(dark,view.AppliedLampRevision+1,dark);
+                var committed=context;commit.Invoke(view,new object[]{context});context=null; // view owns the committed context
                 Require(view.LightWindowRooms==view.WindowFor(target) && view.LightFieldInstanceId!=oldField,"Готовый кандидат не опубликован атомарно.");
+                Require((bool)type.GetMethod("Matches").Invoke(committed,new object[]{view.AppliedDoorRevision,view.AppliedLampRevision}),
+                    "Опубликованное окно не догнало ревизию ламп, изменённую во время подготовки.");
                 Require(LightTextureBudget.Bytes<=LightTextureBudget.MaximumBytes,"Полный завод превысил суммарный GPU-бюджет.");
-                Debug.Log($"Свет Phase A seed104: PASS — {count} этапов без раннего переключения, устаревшая ревизия отклонена, atomic commit; RenderTexture={LightTextureBudget.Bytes} байт.");
+                Debug.Log($"Свет Phase A seed104: PASS — {count} этапов без раннего переключения, изменение картинки отклонено, ревизия ламп во время подготовки догнана при публикации, atomic commit; RenderTexture={LightTextureBudget.Bytes} байт.");
                 EditorApplication.Exit(0);
             }
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}

@@ -16,6 +16,11 @@ namespace Remains.Presentation
             public readonly List<RoomRadianceField.LightOccluder> Parts=new();
             public readonly List<ActorShadowSource> Lamps=new(),Sources=new();
             public readonly List<ActorShadowSource> DisplayLamps=new();
+            // A new selection waits here until its sources' direct fields exist (or PendingDeadlineSeconds), so a lamp
+            // never takes over a shadow it cannot cast yet: the previous lamps keep it meanwhile.
+            public readonly List<ActorShadowSource> PendingLamps=new();
+            public bool HasPending;
+            public float PendingSince;
             public readonly List<ActorShadowSource> Flashes=new();
             public readonly Dictionary<string,(Vector2 Position,Vector2 ActorPosition,float Transmission,long Revision,int Frame)> FlashVisibility=new();
             public readonly List<string> ExpiredFlashes=new();
@@ -32,7 +37,12 @@ namespace Remains.Presentation
         private readonly HashSet<string> steadySources=new(StringComparer.Ordinal);
         private FactoryLevelView level;
         private Coroutine refresh;
-        private readonly List<(Entry Entry,Vector2 At,long Revision,System.Threading.Tasks.Task<List<ActorShadowSource>> Task)> jobs=new();
+        private readonly List<(Entry Entry,Vector2 At)> batch=new();
+        private readonly HashSet<string> warnedPending=new(StringComparer.Ordinal);
+        private const float PendingDeadlineSeconds=1;
+        // One worker task selects for every queued actor, on a few threads: a task per actor crowded the cores and
+        // the round waited for the slowest, so shadows took a new selection only a few times a second.
+        private static readonly int SelectionThreads=Mathf.Clamp(Environment.ProcessorCount/4,1,4);
 
         public ActorShadowPresentation(MonoBehaviour runner,Transform parent)
         {
@@ -82,6 +92,7 @@ namespace Remains.Presentation
                 if(entry.Revision!=level.ShadowSourceRevision ||
                     (entry.Position-entry.SelectedAt).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)
                     entry.Queued=true;
+                AdoptPending(entry);
                 BlendLampSources(entry.DisplayLamps,entry.Lamps,Time.deltaTime,settings.ActorShadowMaxSources);
                 entry.Sources.Clear();entry.Sources.AddRange(entry.DisplayLamps);entry.Flashes.Clear();
                 if(flashes!=null) for(int i=0;i<flashes.Count;i++)
@@ -141,11 +152,9 @@ namespace Remains.Presentation
                 weapons.AppendWeaponLightOccluders(actor.Key,entry.Parts);
                 if(entry.Parts.Count==0) continue;
                 entry.Position=actor.Value.TryGetDrawnBounds(out var bounds)?(Vector2)bounds.center:PartsCenter(entry.Parts);
-                if(entry.Revision!=level.ShadowSourceRevision)
-                {
-                    level.SelectActorShadowSources(entry.Position,entry.Lamps);
-                    entry.SelectedAt=entry.Position;entry.Revision=level.ShadowSourceRevision;
-                }
+                // Lamp selection stays with the background rebuild (a synchronous selection of every actor here cost
+                // tens of milliseconds per shot); the flash needs only its own visibility.
+                if(entry.Revision!=level.ShadowSourceRevision) entry.Queued=true;
                 entry.FlashVisibility[id]=(sourcePosition,entry.Position,
                     level.ActorShadowTransmission(entry.Position,sourcePosition),level.ShadowSourceRevision,Time.frameCount);
                 entry.View.Prepare(entry.Parts,2*level.ShadowSettings.ActorShadowMaxSources+entry.FlashVisibility.Count);
@@ -204,23 +213,45 @@ namespace Remains.Presentation
             var owner=level;
             if(owner!=null && owner.IsReady)
             {
-                jobs.Clear();
+                batch.Clear();
+                System.Threading.Tasks.Task<List<ActorShadowSource>[]> task=null;long revision=owner.ShadowSourceRevision;
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: запуск выбора ламп"))
-                foreach(var pair in entries)
                 {
-                    var entry=pair.Value;
-                    if(entry.Queued && (entry.Revision!=owner.ShadowSourceRevision ||
-                        (entry.Position-entry.SelectedAt).sqrMagnitude>=owner.ShadowSettings.ActorShadowMoveThreshold*owner.ShadowSettings.ActorShadowMoveThreshold))
-                        jobs.Add((entry,entry.Position,owner.ShadowSourceRevision,owner.SelectActorShadowSourcesAsync(entry.Position)));
+                    foreach(var pair in entries)
+                    {
+                        var entry=pair.Value;
+                        if(entry.Queued && (entry.Revision!=revision ||
+                            (entry.Position-entry.SelectedAt).sqrMagnitude>=owner.ShadowSettings.ActorShadowMoveThreshold*owner.ShadowSettings.ActorShadowMoveThreshold))
+                            batch.Add((entry,entry.Position));
+                    }
+                    if(batch.Count>0)
+                    {
+                        var select=owner.CaptureActorShadowSelector();
+                        var positions=new Vector2[batch.Count];for(int i=0;i<positions.Length;i++) positions[i]=batch[i].At;
+                        task=System.Threading.Tasks.Task.Run(()=>
+                        {
+                            var results=new List<ActorShadowSource>[positions.Length];
+                            System.Threading.Tasks.Parallel.For(0,positions.Length,new System.Threading.Tasks.ParallelOptions {MaxDegreeOfParallelism=SelectionThreads},
+                                i=>results[i]=select(positions[i]));
+                            return results;
+                        });
+                    }
                 }
-                foreach(var job in jobs) while(!job.Task.IsCompleted) yield return null;
-                if(level!=owner || !owner.IsReady) {refresh=null;yield break;}
-                foreach(var job in jobs)
+                if(task!=null)
                 {
-                    var selected=job.Task.GetAwaiter().GetResult();   // a failed selection throws here, as the synchronous call did
-                    if(job.Revision!=owner.ShadowSourceRevision || !entries.ContainsValue(job.Entry)) continue;   // stale: reselected next frame
-                    job.Entry.Lamps.Clear();job.Entry.Lamps.AddRange(selected);
-                    job.Entry.SelectedAt=job.At;job.Entry.Revision=job.Revision;
+                    while(!task.IsCompleted) yield return null;
+                    if(level!=owner || !owner.IsReady) {refresh=null;yield break;}
+                    var results=task.GetAwaiter().GetResult();   // a failed selection throws here, as the synchronous call did
+                    if(revision==owner.ShadowSourceRevision)   // otherwise stale: reselected next frame
+                        for(int i=0;i<batch.Count;i++)
+                        {
+                            var entry=batch[i].Entry;
+                            if(!entries.ContainsValue(entry)) continue;
+                            entry.PendingLamps.Clear();entry.PendingLamps.AddRange(results[i]);
+                            if(!entry.HasPending) entry.PendingSince=Time.unscaledTime;
+                            entry.HasPending=true;
+                            entry.SelectedAt=batch[i].At;entry.Revision=revision;
+                        }
                 }
             }
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Тени: источники персонажей");
@@ -245,8 +276,22 @@ namespace Remains.Presentation
             {
                 foreach(var source in entry.Lamps) steadySources.Add(source.Id);
                 foreach(var source in entry.DisplayLamps) steadySources.Add(source.Id);
+                if(entry.HasPending) foreach(var source in entry.PendingLamps) steadySources.Add(source.Id);
             }
             level.PrepareActorShadowFields(steadySources);
+        }
+        private void AdoptPending(Entry entry)
+        {
+            if(!entry.HasPending) return;
+            if(!level.ActorShadowFieldsReady(entry.PendingLamps))
+            {
+                if(Time.unscaledTime-entry.PendingSince<PendingDeadlineSeconds) return;
+                foreach(var source in entry.PendingLamps)
+                    if(warnedPending.Add(source.Id))
+                        Debug.LogWarning($"Тени: поле прямого света {source.Id} не готово за {PendingDeadlineSeconds} с после выбора; выбор принят, тень от этого источника появится, когда поле будет построено.");
+            }
+            entry.Lamps.Clear();entry.Lamps.AddRange(entry.PendingLamps);
+            entry.PendingLamps.Clear();entry.HasPending=false;
         }
         private static Vector2 PartsCenter(List<RoomRadianceField.LightOccluder> parts)
         {

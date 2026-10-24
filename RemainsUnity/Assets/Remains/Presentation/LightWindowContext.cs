@@ -8,7 +8,8 @@ namespace Remains.Presentation
     internal sealed class LightWindowContext : IDisposable
     {
         public readonly RectInt Rooms;
-        public readonly long DoorRevision,LampRevision;
+        public long DoorRevision {get;private set;}
+        public long LampRevision {get;private set;}
         public readonly LightShaderContext Shader=new();
         public GameObject Root;
         public RoomRadianceField Field;
@@ -22,6 +23,8 @@ namespace Remains.Presentation
         public bool Synchronous;
         public LightWindowContext(RectInt rooms,long door,long lamp) {Rooms=rooms;DoorRevision=door;LampRevision=lamp;}
         public bool Matches(long door,long lamp)=>DoorRevision==door && LampRevision==lamp;
+        // A candidate brought up to date with later door/lamp events (FactoryLevelView.ReconcileCandidateSteps).
+        public void Revise(long door,long lamp) {DoorRevision=door;LampRevision=lamp;}
         public void Dispose()
         {
             Shader.Release();

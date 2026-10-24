@@ -80,16 +80,31 @@ namespace Remains.Presentation
         // the window, dark lamps and doors are captured now; the result belongs to the current ShadowSourceRevision.
         public System.Threading.Tasks.Task<List<ActorShadowSource>> SelectActorShadowSourcesAsync(Vector2 actor)
         {
-            if(!IsReady) return System.Threading.Tasks.Task.FromResult(new List<ActorShadowSource>());
+            var select=CaptureActorShadowSelector();
+            return System.Threading.Tasks.Task.Run(()=>select(actor));
+        }
+        // One capture of the window, dark lamps and doors for any number of worker-thread selections (the inputs of
+        // SelectActorShadowSources at the current ShadowSourceRevision); the capture itself is cheap.
+        public Func<Vector2,List<ActorShadowSource>> CaptureActorShadowSelector()
+        {
+            if(!IsReady) return _=>new List<ActorShadowSource>();
             var window=shadowSources.Detached();
             var dark=new HashSet<string>(darkLamps,StringComparer.Ordinal);
             var blocking=doors.ToArray();int max=table.ActorShadowMaxSources;
-            return System.Threading.Tasks.Task.Run(()=>
+            return actor=>
             {
                 var output=new List<ActorShadowSource>(max);
                 window.Select(actor,dark,blocking,max,output);
                 return output;
-            });
+            };
+        }
+        // Whether every source of a selection can cast its shadow now (its direct field exists; a source without a
+        // registered emitter never gets one and does not hold the selection back).
+        public bool ActorShadowFieldsReady(IReadOnlyList<ActorShadowSource> sources)
+        {
+            if(!IsReady) return false;
+            for(int i=0;i<sources.Count;i++) if(!field.HasSteadyShadowFieldOrNone(sources[i].Id)) return false;
+            return true;
         }
         public IReadOnlyCollection<string> LampIds=>lamps.Keys;
         public void PrepareActorShadowFields(IReadOnlyCollection<string> ids)
@@ -462,8 +477,8 @@ namespace Remains.Presentation
             if(rooms==windowRooms) {if(commit) CancelWindowPreparation();return;}
             if(rooms==failedCandidate && Time.unscaledTime<failedCandidateUntil) return;
             requestedWindow=rooms;requestedFocus=focus;requestedCommit=commit;windowRequested=true;
-            if(candidateWindow!=null && (candidateWindow.Rooms!=rooms || !candidateWindow.Matches(AppliedDoorRevision,AppliedLampRevision)))
-                CancelWindowPreparation();
+            // A door/lamp revision does not discard the candidate; its commit catches up (CommitWindow).
+            if(candidateWindow!=null && candidateWindow.Rooms!=rooms) CancelWindowPreparation();
             // Cancel clears old intent as well; restore the new request.
             requestedWindow=rooms;requestedFocus=focus;requestedCommit=commit;windowRequested=true;
             if(preparingWindow==null)
@@ -501,7 +516,6 @@ namespace Remains.Presentation
                         try {more=steps.MoveNext();} catch(Exception error) {failure=error;}
                         if(failure!=null || !more) break;
                         if(++submitted>=PreparationStagesPerFrame) {submitted=0;yield return null;}
-                        if(!context.Matches(AppliedDoorRevision,AppliedLampRevision)) break;
                     }
                 }
                 finally {(steps as IDisposable)?.Dispose();}
@@ -510,11 +524,13 @@ namespace Remains.Presentation
                     context.Dispose();candidateWindow=null;preparingWindow=null;preparationWork=null;windowRequested=false;
                     CandidateFailed(context.Rooms,failure);yield break;
                 }
-                if(!context.Ready || !context.Matches(AppliedDoorRevision,AppliedLampRevision) || !PictureStateMatches(context))
-                {context.Dispose();candidateWindow=null;continue;}
+                if(!context.Ready) {context.Dispose();candidateWindow=null;continue;}
                 bool committed=false;
-                while(windowRequested && context.Matches(AppliedDoorRevision,AppliedLampRevision))
+                while(windowRequested)
                 {
+                    // Door and lamp events during preparation do not discard it: the committed window catches up with
+                    // them (CommitWindow). Other picture changes (visibility, placement) still start over.
+                    if(!CanCatchUp(context)) break;
                     if(!requestedCommit) {yield return null;continue;}
                     // Selection may have advanced while a ready neighbor waited at a boundary.
                     var extra=context.Field.PrepareRegisteredShadowFieldsSteps(requestedShadowIds,retainPrepared:true);
@@ -535,7 +551,7 @@ namespace Remains.Presentation
                         context.Dispose();candidateWindow=null;preparingWindow=null;preparationWork=null;windowRequested=false;
                         CandidateFailed(context.Rooms,extraFailure);yield break;
                     }
-                    if(!context.Matches(AppliedDoorRevision,AppliedLampRevision) || !PictureStateMatches(context)) break;
+                    if(!CanCatchUp(context)) break;
                     if(!requestedCommit || !context.Field.HasRequiredSteadyFields(requestedShadowIds)) continue;
                     Exception commitFailure=null;
                     try {CommitWindow(context);committed=true;} catch(Exception error) {commitFailure=error;}
@@ -622,6 +638,36 @@ namespace Remains.Presentation
             try {while(direct.MoveNext()) yield return null;} finally {(direct as IDisposable)?.Dispose();}
             context.Ready=true;
         }
+        // Only door and lamp state differs from the preparation (revisions, lamp art and darkness); visibility,
+        // placement, frame and erase of every picture are the same.
+        private bool CanCatchUp(LightWindowContext context)
+        {
+            foreach(var saved in context.Signatures)
+            {
+                var source=saved.source;
+                if(source==null || ShownForPreparation(source)!=saved.shown || source.Erase!=saved.erase || source.Frame!=saved.frame ||
+                    source.transform.localToWorldMatrix!=saved.matrix) return false;
+            }
+            return true;
+        }
+        // A window committed after door/lamp events it was not prepared with gets them through the active event path
+        // (occluders, lamp pictures, settle over frames, stale shadow fields), as if they arrived after the switch.
+        private void CatchUpWindow(LightWindowContext context)
+        {
+            using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Окно света: события во время подготовки");
+            var sprites=new List<RoomSpritePlacement>(windowPictures.Count);bool changed=false;
+            foreach(var (picture,placement) in windowPictures)
+            {
+                var sprite=picture.GetComponent<SpriteRenderer>().sprite;bool isDark=IsDark(picture);
+                changed|=placement.Sprite!=sprite || placement.Dark!=isDark;
+                placement.Sprite=sprite;placement.Dark=isDark;sprites.Add(placement);
+            }
+            if(changed) field.UpdateSprites(sprites,WorldDoorOccluders());
+            else field.UpdateOccluders(WorldDoorOccluders());
+            SettleOverFrames();
+            if(changed) RefreshShadowEmitters();
+            context.Revise(AppliedDoorRevision,AppliedLampRevision);
+        }
         private bool ShownForPreparation(RoomSpriteAuthoring authored)
         {
             if(!authored.enabled) return false;
@@ -646,9 +692,9 @@ namespace Remains.Presentation
         }
         private void CommitWindow(LightWindowContext context)
         {
-            if(context==null || !context.Ready || context.Root==null || context.Field==null ||
-                !context.Matches(AppliedDoorRevision,AppliedLampRevision) || !PictureStateMatches(context))
+            if(context==null || !context.Ready || context.Root==null || context.Field==null || !CanCatchUp(context))
                 throw new InvalidOperationException("Окно света: публикация неподготовленной или устаревшей ревизии.");
+            bool outdated=!context.Matches(AppliedDoorRevision,AppliedLampRevision) || !PictureStateMatches(context);
             if(root.RoomInstances.childCount!=root.Rooms.Count)
                 throw new InvalidOperationException("Окно света: состав комнат изменился до публикации.");
             var previous=activeWindow;
@@ -664,6 +710,7 @@ namespace Remains.Presentation
             if(ReferenceEquals(candidateWindow,context)) candidateWindow=null;
             // Publication is now committed. Cleanup/subscriber exceptions must not dispose the new active context.
             previous?.Dispose();
+            if(outdated) CatchUpWindow(context);
             PrefetchNeighbours();PresentationChanged?.Invoke(this);
         }
         private void PublishWindow(LightWindowContext context)

@@ -83,6 +83,7 @@ namespace Remains.Presentation
             finally {(steps as IDisposable)?.Dispose();}
             hasBackgroundSignature=false;
         }
+        public bool HasSteadyShadowFieldOrNone(string id)=>!steadyShadows.IsRegistered(id) || steadyShadows.TryGet(id,out _);
         public bool HasRequiredSteadyFields(IReadOnlyCollection<string> ids)
         {
             foreach(string id in ids) if(steadyShadows.IsRegistered(id) && !steadyShadows.TryGet(id,out _)) return false;
@@ -819,8 +820,9 @@ namespace Remains.Presentation
         {
             Remains.Diagnostics.FrameHitchLog.Gpu("Свет: поле излучения");
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("Свет: проход поля");
+            // The shadowed background is recomposed by the next RenderTransient (every frame, LateUpdate); it is not
+            // switched off here: a pass after LateUpdate (a door from the network) drew a whole frame without shadows.
             staticScene=scene;steadyShadows.InvalidateFields();hasBackgroundSignature=false;warnedSteadyIds.Clear();
-            if(shaderContext!=null && shaderContext.IsActive) Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);
             transientActive=false;freeReady=false;
             StaticRenderUpdates++;
             RenderField(false);
