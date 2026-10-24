@@ -175,7 +175,7 @@ namespace Remains.Editor
                 }
                 var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);
                 if(texture==null || texture.width!=r.pixelWidth || texture.height!=r.pixelHeight || importer.textureCompression!=TextureImporterCompression.Uncompressed || importer.npotScale!=TextureImporterNPOTScale.None || importer.mipmapEnabled || importer.wrapModeU!=u || importer.wrapModeV!=v || create && importer.alphaIsTransparency ||
-                    UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsCompressedFormat(texture.graphicsFormat))
+                    (UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsCompressedFormat(texture.graphicsFormat) && !TextureSizingPolicy.IsApprovedCompression(path)))
                     throw new InvalidOperationException("Импорт ресурса модуля теряет размер/формат/sampler; key="+r.textureKey+", file="+path);
             }
         }

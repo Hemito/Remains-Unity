@@ -15,6 +15,7 @@ namespace Remains.Editor
             GameObject visual=null;
             try
             {
+                Anatomy.Load();WeaponCatalog.Load();
                 var world=new WorldState{seed=104};
                 var catalog=AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath);
                 FactoryPreparation.Create(world,catalog,0);

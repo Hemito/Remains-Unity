@@ -17,7 +17,7 @@ namespace Remains.Editor
                 var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);
                 importer.GetSourceTextureWidthAndHeight(out int width,out int height);
                 if(importer.textureCompression!=TextureImporterCompression.Uncompressed || texture.width!=width || texture.height!=height ||
-                    UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsCompressedFormat(texture.graphicsFormat))
+                    (UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsCompressedFormat(texture.graphicsFormat) && !TextureSizingPolicy.IsApprovedCompression(path)))
                     throw new InvalidOperationException($"Потеря качества текстуры комнаты: {path}, исходник={width}×{height}, импорт={texture.width}×{texture.height}, формат={texture.graphicsFormat}.");
                 count++;
             }
@@ -42,7 +42,7 @@ namespace Remains.Editor
                 }
             }
             if(meshes==0) throw new InvalidOperationException("Не найдены сохранённые меши оформления комнат для проверки sampler/UV.");
-            Debug.Log($"Текстуры комнат: {count}, исходные размеры сохранены, сжатия GPU нет.");
+            Debug.Log($"Текстуры комнат: {count}, исходные размеры сохранены; сжатие GPU разрешено только явной таблицей размеров.");
             Debug.Log($"Сохранённое оформление: {meshes} мешей, UV и оси импортированных sampler согласованы без генерации комнаты.");
         }
     }
