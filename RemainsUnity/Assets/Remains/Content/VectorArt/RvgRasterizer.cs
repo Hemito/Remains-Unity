@@ -19,7 +19,11 @@ namespace Remains.Content.VectorArt
         // is drawn at this width; a zero-width stroke is a hairline of this width.
         public float MinLinePixels=1;
         public int Msaa=8;
-        // Filter sizes are stage pixels: at zoom N the stage is N times larger (contract: confirmed by the converter probe).
+        // Supersampling: the canvas is drawn this many times larger and box-averaged down, so edge coverage gets
+        // Msaa × Supersample² levels instead of Msaa + 1. Line widths and filter sizes stay in output pixels.
+        public int Supersample=1;
+        // Filter sizes are stage pixels: at zoom N the stage is N times larger, the object's own transform does not scale
+        // them (Flash; against the catalog references better than unscaled and than object-scaled on the whole, 2026-10-25).
         public bool FiltersScaleWithZoom=true;
         // Approximations (a mask inside a mask): counted and reported, never silently dropped.
         public readonly Dictionary<string,int> Approximations=new(StringComparer.Ordinal);
@@ -28,7 +32,11 @@ namespace Remains.Content.VectorArt
         private readonly Func<RvgBitmap,Texture2D> loadBitmap;
         private readonly Shader stencilShader,paintShader,finalShader,filterShader,compositeShader;
         private readonly Dictionary<(string,int),Material> compositeMaterials=new();
-        private readonly List<RenderTexture> temporaries=new();
+        // Render targets of the current frame. Owned here, not taken from RenderTexture.GetTemporary: its pool frees only as
+        // player frames pass, so a loading screen or batch run would keep every size alive. Commands run in recorded order,
+        // so a target a finished group no longer reads goes back to the free list for the next group of the same frame.
+        private readonly List<RenderTexture> allocated=new(),inUse=new();
+        private readonly Stack<RenderTexture> freeMultisampled=new(),freePlain=new();
         private Material filterMaterial;
         private RenderTexture current;
         private readonly Dictionary<(int,int,int,int,int),Material> stencilMaterials=new();
@@ -42,6 +50,7 @@ namespace Remains.Content.VectorArt
         private RvgDocument document;
         private int width,height;
         private float zoom;
+        private int supersample=1;
 
         public RvgRasterizer(Func<RvgBitmap,Texture2D> loadBitmap)
         {
@@ -58,16 +67,19 @@ namespace Remains.Content.VectorArt
         {
             if(source==null || resource==null || frame==null) throw new ArgumentNullException(nameof(source));
             if(!float.IsFinite(scale) || scale<=0) throw new ArgumentOutOfRangeException(nameof(scale));
-            document=source;zoom=scale;
-            width=Mathf.CeilToInt(frame.size[0]*zoom-1e-4f);height=Mathf.CeilToInt(frame.size[1]*zoom-1e-4f);
-            if(width<1 || height<1 || width>16384 || height>16384) throw new InvalidDataException($"RVG {resource.id}, кадр {frame.frame}: холст {width}×{height}.");
+            if(Supersample<1 || Supersample>4) throw new ArgumentOutOfRangeException(nameof(Supersample),Supersample,"RVG: суперсэмплинг 1…4.");
+            document=source;supersample=Supersample;zoom=scale*supersample;
+            int outputWidth=Mathf.CeilToInt(frame.size[0]*scale-1e-4f),outputHeight=Mathf.CeilToInt(frame.size[1]*scale-1e-4f);
+            width=outputWidth*supersample;height=outputHeight*supersample;
+            if(outputWidth<1 || outputHeight<1 || width>16384 || height>16384) throw new InvalidDataException($"RVG {resource.id}, кадр {frame.frame}: холст {width}×{height}.");
             var sprite=document.Sprite(resource.sprite);
             int index=frame.frame-1;
             if(index<0 || index>=sprite.frameCount) throw new InvalidDataException($"RVG {resource.id}: кадр {frame.frame} вне 1…{sprite.frameCount}.");
             // twips → top-left pixels → canvas (Y up).
             var root=Affine.Scale(zoom/20f).Then(Affine.Translate(frame.origin[0]*zoom,frame.origin[1]*zoom)).Then(new Affine(1,0,0,-1,0,height));
             var canvas=Temporary(true);
-            var resolved=Temporary(false);
+            var resolved=new RenderTexture(new RenderTextureDescriptor(outputWidth,outputHeight,RenderTextureFormat.ARGB32,0) {sRGB=false}) {hideFlags=HideFlags.HideAndDontSave};
+            Create(resolved);
             try
             {
                 cmd.Clear();
@@ -78,20 +90,20 @@ namespace Remains.Content.VectorArt
                 finalMaterial??=new Material(finalShader) {hideFlags=HideFlags.HideAndDontSave};
                 cmd.SetRenderTarget(resolved);
                 cmd.ClearRenderTarget(RTClearFlags.Color,Color.clear,1,0);
-                block.Clear();block.SetTexture("_MainTex",canvas);
+                block.Clear();block.SetTexture("_MainTex",canvas);block.SetFloat("_Supersample",supersample);
                 cmd.DrawMesh(Quad(new Rect(0,0,width,height),true),Matrix4x4.identity,finalMaterial,0,0,block);
                 Graphics.ExecuteCommandBuffer(cmd);
-                var result=new Texture2D(width,height,TextureFormat.RGBA32,false,false) {name=$"{resource.id}#{frame.frame}@{zoom}"};
+                var result=new Texture2D(outputWidth,outputHeight,TextureFormat.RGBA32,false,false) {name=$"{resource.id}#{frame.frame}@{scale}"};
                 var previous=RenderTexture.active;
-                try {RenderTexture.active=resolved;result.ReadPixels(new Rect(0,0,width,height),0,0,false);result.Apply(false);}
+                try {RenderTexture.active=resolved;result.ReadPixels(new Rect(0,0,outputWidth,outputHeight),0,0,false);result.Apply(false);}
                 finally {RenderTexture.active=previous;}
                 return result;
             }
             finally
             {
                 cmd.Clear();
-                foreach(var texture in temporaries) RenderTexture.ReleaseTemporary(texture);
-                temporaries.Clear();current=null;
+                foreach(var texture in allocated) {texture.Release();UnityEngine.Object.DestroyImmediate(texture);}
+                allocated.Clear();inUse.Clear();freeMultisampled.Clear();freePlain.Clear();current=null;
                 foreach(var mesh in meshes) UnityEngine.Object.DestroyImmediate(mesh);
                 meshes.Clear();
             }
@@ -167,7 +179,7 @@ namespace Remains.Content.VectorArt
         private float LineWidth(RvgLine line,in Affine m)
         {
             float pixels=line.noHScale && line.noVScale?line.width/20f*zoom:line.width*Mathf.Sqrt(Mathf.Abs(m.Determinant));
-            return Mathf.Max(pixels,MinLinePixels);
+            return Mathf.Max(pixels,MinLinePixels*supersample);
         }
         // Mask geometry (fills and strokes of a shape, or of every object of a sprite) into bit; bit 0 is used and cleared.
         private void DrawMask(RvgObject placed,in Affine m,int maskBits,int bit)
@@ -265,6 +277,7 @@ namespace Remains.Content.VectorArt
         private void DrawGroup(RvgObject placed,in Affine m,in ColorTransform color,int maskBits)
         {
             var parent=current;
+            int mark=inUse.Count;
             var group=Temporary(true);
             Target(group,true);
             DrawObject(placed,m,color,0);
@@ -279,10 +292,13 @@ namespace Remains.Content.VectorArt
             Target(parent,false);
             block.Clear();block.SetTexture("_Group",source);if(backdrop!=null) block.SetTexture("_Backdrop",backdrop);
             cmd.DrawMesh(Quad(new Rect(0,0,width,height),true),Matrix4x4.identity,CompositeMaterial(placed.blend,maskBits),0,0,block);
+            // Everything this group took (its texture, filter passes, backdrop) is free for later commands.
+            for(int i=inUse.Count-1;i>=mark;i--) (inUse[i].depth>0?freeMultisampled:freePlain).Push(inUse[i]);
+            inUse.RemoveRange(mark,inUse.Count-mark);
         }
         private RenderTexture Filter(RvgFilter filter,RenderTexture source)
         {
-            float scale=FiltersScaleWithZoom?zoom:1;
+            float scale=FiltersScaleWithZoom?zoom:supersample;
             switch(filter.type)
             {
                 case "blur": return Blur(source,filter.blurX*scale,filter.blurY*scale,filter.passes);
@@ -357,10 +373,21 @@ namespace Remains.Content.VectorArt
         }
         private RenderTexture Temporary(bool multisampled)
         {
-            var texture=RenderTexture.GetTemporary(multisampled?new RenderTextureDescriptor(width,height,RenderTextureFormat.ARGB32,24) {msaaSamples=Msaa,sRGB=false}
-                :new RenderTextureDescriptor(width,height,RenderTextureFormat.ARGB32,0) {sRGB=false});
-            temporaries.Add(texture);
+            var free=multisampled?freeMultisampled:freePlain;
+            if(!free.TryPop(out var texture))
+            {
+                texture=new RenderTexture(multisampled?new RenderTextureDescriptor(width,height,RenderTextureFormat.ARGB32,24) {msaaSamples=Msaa,sRGB=false}
+                    :new RenderTextureDescriptor(width,height,RenderTextureFormat.ARGB32,0) {sRGB=false}) {hideFlags=HideFlags.HideAndDontSave};
+                Create(texture);
+            }
+            inUse.Add(texture);
             return texture;
+        }
+        // A target the GPU could not allocate renders nothing and reads back garbage: fail with its size instead.
+        private void Create(RenderTexture texture)
+        {
+            allocated.Add(texture);
+            if(!texture.Create()) throw new InvalidDataException($"RVG: видеокарта не выделила холст {texture.width}×{texture.height}, MSAA {texture.antiAliasing}.");
         }
         private void Target(RenderTexture target,bool clearAll,bool clearColor=false)
         {
@@ -408,7 +435,16 @@ namespace Remains.Content.VectorArt
         private Texture2D Bitmap(int id)
         {
             if(bitmaps.TryGetValue((document,id),out var texture)) return texture;
-            texture=loadBitmap(document.Bitmap(id))??throw new InvalidDataException($"RVG {document.source.archive}: растр {id} не загружен.");
+            var source=loadBitmap(document.Bitmap(id))??throw new InvalidDataException($"RVG {document.source.archive}: растр {id} не загружен.");
+            // A premultiplied copy owned by the rasterizer: the SWF keeps bitmaps premultiplied and smoothing filters them so.
+            var pixels=source.GetPixels32();
+            for(int i=0;i<pixels.Length;i++)
+            {
+                var c=pixels[i];
+                pixels[i]=new Color32((byte)((c.r*c.a+127)/255),(byte)((c.g*c.a+127)/255),(byte)((c.b*c.a+127)/255),c.a);
+            }
+            texture=new Texture2D(source.width,source.height,TextureFormat.RGBA32,false,true) {hideFlags=HideFlags.HideAndDontSave,name=source.name};
+            texture.SetPixels32(pixels);texture.Apply(false,true);
             bitmaps.Add((document,id),texture);
             return texture;
         }
@@ -441,6 +477,7 @@ namespace Remains.Content.VectorArt
             if(filterMaterial!=null) UnityEngine.Object.DestroyImmediate(filterMaterial);
             foreach(var ramp in ramps.Values) UnityEngine.Object.DestroyImmediate(ramp);
             if(finalMaterial!=null) UnityEngine.Object.DestroyImmediate(finalMaterial);
+            foreach(var bitmap in bitmaps.Values) UnityEngine.Object.DestroyImmediate(bitmap);
             stencilMaterials.Clear();paintMaterials.Clear();compositeMaterials.Clear();ramps.Clear();bitmaps.Clear();
         }
     }

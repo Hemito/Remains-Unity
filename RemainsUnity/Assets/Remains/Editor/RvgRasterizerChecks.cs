@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Remains.Content.VectorArt;
 using UnityEditor;
 using UnityEngine;
@@ -73,8 +74,16 @@ namespace Remains.Editor
             Near(At(blur,5,20).a,255,3,"размытие: середина заливки");
             var shadow=rasterizer.Render(document,Resource(document,"shadow"),Frame(document,"shadow"),1);
             if(At(shadow,24,15).a==0 || At(shadow,6,15).a!=0) throw new InvalidOperationException($"RVG растеризатор: тень не сдвинута вправо: справа {At(shadow,24,15).a}, слева {At(shadow,6,15).a}.");
+            // 12. Game render profile: strokes under 5 px widened (the 4 px line), glow dropped in listed sprites, a named part leaves the first frame.
+            var profiled=Document();
+            var applied=new RvgRenderProfile(5*T,new[]{112},new[]{new RvgRenderProfile.Part(110,2)}).Apply(profiled);
+            if(profiled.shapes.SelectMany(x=>x.lines).Any(l=>l.width<5*T) || applied.WidenedStrokes!=1) throw new InvalidOperationException("RVG профиль: тонкие линии не расширены.");
+            if(profiled.Sprite(112).frames.SelectMany(f=>f).Any(o=>o.filters.Count>0) || applied.GlowFiltersRemoved!=1) throw new InvalidOperationException("RVG профиль: свечение не снято.");
+            var partless=rasterizer.Render(profiled,Resource(profiled,"screen"),Frame(profiled,"screen"),1);
+            Near(At(partless,10,10).g,0,0,"профиль: часть убрана из первого кадра");Near(At(partless,10,10).b,255,2,"профиль: основа осталась");
+            if(applied.PartPlacementsRemoved!=1) throw new InvalidOperationException("RVG профиль: убрано частей "+applied.PartPlacementsRemoved+".");
             if(rasterizer.Approximations.Count>0) throw new InvalidOperationException("RVG растеризатор: неожиданные приближения в простых случаях: "+string.Join(", ",rasterizer.Approximations.Keys));
-            Debug.Log("RVG растеризатор: PASS — even-odd, ориентация, градиент, цветовое преобразование, маска, линия, вложенный спрайт, растровая заливка, сглаживание, увеличение, screen/overlay, свечение, размытие, тень.");
+            Debug.Log("RVG растеризатор: PASS — even-odd, ориентация, градиент, цветовое преобразование, маска, линия, вложенный спрайт, растровая заливка, сглаживание, увеличение, screen/overlay, свечение, размытие, тень, профиль рендера.");
         }
 
         private static RvgResource Resource(RvgDocument d,string id)=>d.TryResource(id,out var r)?r:throw new InvalidOperationException(id);

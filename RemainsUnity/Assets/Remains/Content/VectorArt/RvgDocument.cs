@@ -79,7 +79,7 @@ namespace Remains.Content.VectorArt
 
     public sealed class RvgSource {public string archive,xml,xmlSha256,swfSha256,catalogSha256;}
     public sealed class RvgBitmap {public int id,width,height;public string file,sha256;public string source;}
-    public sealed class RvgUnsupported {public string resource,feature,detail;public int frame;}
+    public sealed class RvgUnsupported {public string resource,feature,detail;public int frame;public int? character;}
 
     public sealed class RvgShape
     {
@@ -94,15 +94,18 @@ namespace Remains.Content.VectorArt
             string where=$"{origin}: фигура {id}";
             if(bounds==null || bounds.Length!=4) throw new InvalidDataException($"RVG {where}: нет границ.");
             if(rule!=null && rule!="even-odd" && rule!="non-zero") throw new InvalidDataException($"RVG {where}: неизвестное правило заполнения {rule}.");
-            for(int i=0;i<fills.Count;i++) fills[i].Validate(document,$"{where}, заливка {i}");
-            for(int i=0;i<lines.Count;i++) lines[i].Validate(document,$"{where}, линия {i}");
+            // Only styles that paths use are resolved: the source keeps unused bitmap styles pointing at no bitmap (id 65535).
+            var usedFills=new HashSet<int>();var usedLines=new HashSet<int>();
             foreach(var path in paths)
             {
                 if((path.fill==null)==(path.line==null)) throw new InvalidDataException($"RVG {where}: путь должен иметь ровно одну заливку или линию.");
                 if(path.fill!=null && (path.fill<0 || path.fill>=fills.Count)) throw new InvalidDataException($"RVG {where}: путь ссылается на заливку {path.fill}.");
                 if(path.line!=null && (path.line<0 || path.line>=lines.Count)) throw new InvalidDataException($"RVG {where}: путь ссылается на линию {path.line}.");
                 RvgPath.Check(path.commands,where);
+                if(path.fill!=null) usedFills.Add(path.fill.Value);else usedLines.Add(path.line.Value);
             }
+            foreach(int i in usedFills) fills[i].Validate(document,$"{where}, заливка {i}");
+            foreach(int i in usedLines) lines[i].Validate(document,$"{where}, линия {i}");
         }
     }
     public sealed class RvgPath

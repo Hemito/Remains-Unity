@@ -53,7 +53,9 @@ Shader "Hidden/Remains/RvgPaint"
                 float2 q=Inverse(p)/_BitmapSize.xy;            // bitmap pixels (Y down) → 0..1
                 if(_Repeat>0.5) q=frac(q);
                 float2 uv=float2(q.x,1-q.y);
-                return _Smooth>0.5?SAMPLE_TEXTURE2D_LOD(_Bitmap,rvg_linear_clamp_sampler,uv,0):SAMPLE_TEXTURE2D_LOD(_Bitmap,rvg_point_clamp_sampler,uv,0);
+                // The bitmap is stored premultiplied (as in the SWF) so smoothing never bleeds the color of transparent texels.
+                float4 b=_Smooth>0.5?SAMPLE_TEXTURE2D_LOD(_Bitmap,rvg_linear_clamp_sampler,uv,0):SAMPLE_TEXTURE2D_LOD(_Bitmap,rvg_point_clamp_sampler,uv,0);
+                return b.a>0?float4(b.rgb/b.a,b.a):0;
             #else
                 float2 g=Inverse(p)/16384.0;                   // the Flash gradient square → −1..1
             #if defined(_FILL_LINEAR)
