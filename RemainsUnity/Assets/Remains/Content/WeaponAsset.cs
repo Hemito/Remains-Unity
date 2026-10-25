@@ -57,7 +57,7 @@ namespace Remains.Content
                 {
                     if(string.IsNullOrEmpty(definition.ammo) || definition.reloadSeconds<=0)
                         throw new System.InvalidOperationException($"Оружие {definition.id}: анимация перезарядки задана без боеприпаса/положительного времени.");
-                    reloadAnimation.ValidateAgainst(presentation==null?null:presentation.Artwork.sprite);
+                    reloadAnimation.ValidateAgainst(presentation==null?(CatalogSpriteReference)null:presentation.RestReference);
                 }
                 catch(System.InvalidOperationException error) {Debug.LogWarning(error.Message,this);}
             }

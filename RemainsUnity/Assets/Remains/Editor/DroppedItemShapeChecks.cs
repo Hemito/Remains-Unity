@@ -11,8 +11,27 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            CheckSynthetic(false);CheckSynthetic(true);CheckCreationAndMigration();CheckUnsupportedDrop();
+            CheckSynthetic(false);CheckSynthetic(true);CheckGeometryWithoutArtworkLoad();CheckCreationAndMigration();CheckUnsupportedDrop();
             Debug.Log("Формы брошенных предметов: PASS — плоские/высокие изображения, прозрачные поля, pivot, отражение/повороты, опора и сохранённые тела.");
+        }
+        private static void CheckGeometryWithoutArtworkLoad()
+        {
+            var texture=new Texture2D(20,10,TextureFormat.RGBA32,false);
+            var sprite=Sprite.Create(texture,new Rect(0,0,20,10),new Vector2(.2f,.7f),10,0,SpriteMeshType.FullRect);
+            var catalog=ScriptableObject.CreateInstance<DroppedItemShapeCatalog>();
+            try
+            {
+                var direct=new DroppedItemShape {id="direct-geometry",sprite=sprite,opaqueBounds=new Rect(-.1f,-.2f,.8f,.3f)};
+                var keyed=new DroppedItemShape {id="keyed-geometry",opaqueBounds=direct.opaqueBounds};
+                // Deliberately absent: a physics lookup must not load or rasterize any artwork.
+                keyed.ConfigureReference(CatalogSpriteReference.FromSprite(sprite,"Imported/Art/0000000000000000000000000000000000000000000000000000000000000000"));
+                catalog.Configure(new[]{keyed});
+                Require(catalog.CreateLookup()[keyed.id]==keyed,"Поиск формы требует загруженного изображения.");
+                foreach(float angle in new[]{-135f,0,45,90,180})foreach(bool mirrored in new[]{false,true})
+                    Require(keyed.WorldBounds(angle,mirrored)==direct.WorldBounds(angle,mirrored),"Ключ графики изменил подготовленную физическую форму.");
+            }
+            finally
+            {UnityEngine.Object.DestroyImmediate(catalog);UnityEngine.Object.DestroyImmediate(sprite);UnityEngine.Object.DestroyImmediate(texture);}
         }
         private static void CheckSynthetic(bool tall)
         {

@@ -15,13 +15,14 @@ namespace Remains.Editor
             foreach(var rig in WeaponRigs.All)
             {
                 var source=WeaponRigs.Prefab(rig.id);
-                var sprite=source.Artwork.sprite;
+                var registration=source.RestReference;registration.Validate("Контракт префаба "+rig.id);
                 var minimum=new Vector2(-rig.width*rig.pivotX,-rig.height*rig.pivotY)/rig.pixelsPerUnit;
                 var maximum=minimum+new Vector2(rig.width,rig.height)/rig.pixelsPerUnit;
-                if(rig.pixelsPerUnit!=sprite.pixelsPerUnit || Vector2.Distance(minimum,sprite.bounds.min)>.00001f ||
-                    Vector2.Distance(maximum,sprite.bounds.max)>.00001f)
+                if(rig.pixelsPerUnit!=registration.PixelsPerUnit || Vector2.Distance(minimum,registration.Bounds.min)>.00001f ||
+                    Vector2.Distance(maximum,registration.Bounds.max)>.00001f)
                     throw new InvalidOperationException("Каталог изменил плотность пикселей или размеры оружия в мире: "+rig.id);
                 var view=UnityEngine.Object.Instantiate(source);
+                view.SetFrame(view.ResolveRestSprite()); // Edit-mode instances do not execute Awake.
                 try
                 {
                     foreach(bool flip in new[]{false,true})

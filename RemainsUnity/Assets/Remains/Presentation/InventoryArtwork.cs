@@ -40,7 +40,7 @@ namespace Remains.Presentation
         {
             sprite=null;if(id==null)return false;
             if(sprites.TryGetValue(id,out sprite))return true;
-            if(!exported.TryIcon(id,0,out sprite))return false;
+            if(!WeaponArtwork.TryGet(id,out sprite) && !exported.TryIcon(id,0,out sprite))return false;
             SpriteArtworkMaterial.Prepare(sprite);sprites.Add(id,sprite);return true;
         }
         public Sprite Require(string id)=>TryGet(id,out var sprite)?sprite:

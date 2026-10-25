@@ -15,11 +15,79 @@ MonoBehaviour:
   weapons:
   - weapon:railway:grade:0
   - weapon:railway:grade:1
-  trace: {fileID: 21300000, guid: a0e30f84be7525945abc70bc9ce803fb, type: 2}
-  impact:
-  - {fileID: 21300000, guid: d08409527ff53eb4293fa04260d93e35, type: 2}
-  - {fileID: 21300000, guid: 4351ed7c2f54e184da6c0f7d62b6def6, type: 2}
-  - {fileID: 21300000, guid: fdc7a64a741bc4246a52b8d2e9691185, type: 2}
+  legacyTrace: {fileID: 0}
+  legacyImpact: []
+  traceReference:
+    key: Imported/Art/775749fd3e5bdb10330789776f8aa065c590d6a3e90d640cf7d892dec0d43a33
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 100
+      height: 22
+    pivot: {x: 50, y: 11}
+    pixelsPerUnit: 50
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 1, y: 0.22, z: 0.1}
+    rasterReason: "\u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u0440\u0430\u0441\u0442\u0440
+      1\xD7: pfeUI:3995"
+    reframe: 1
+    sourceCanvas: {x: 100, y: 24}
+  impactReferences:
+  - key: Imported/Art/15fadd57a702b7d6bebbc5fc45a902d38b5e45ac916ff9e88fc6e32e3cb205a4
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 100
+      height: 24
+    pivot: {x: 95, y: 11}
+    pixelsPerUnit: 50
+    bounds:
+      m_Center: {x: -0.9, y: 0.019999996, z: 0}
+      m_Extent: {x: 1, y: 0.24, z: 0.1}
+    rasterReason: "\u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u0440\u0430\u0441\u0442\u0440
+      1\xD7: pfeUI:3995"
+    reframe: 0
+    sourceCanvas: {x: 100, y: 24}
+  - key: Imported/Art/ca5441f426f191ba2f77570127599814edd261eaeb9582a5e34ca316c22966fd
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 100
+      height: 24
+    pivot: {x: 95, y: 11}
+    pixelsPerUnit: 50
+    bounds:
+      m_Center: {x: -0.9, y: 0.019999996, z: 0}
+      m_Extent: {x: 1, y: 0.24, z: 0.1}
+    rasterReason: "\u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u0440\u0430\u0441\u0442\u0440
+      1\xD7: pfeUI:3995"
+    reframe: 0
+    sourceCanvas: {x: 100, y: 24}
+  - key: Imported/Art/f86fdc3d7cb3d62e58a0fca569e962ee56f76ab2cbba68d0a3cf6b51b2352d7b
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 100
+      height: 24
+    pivot: {x: 95, y: 11}
+    pixelsPerUnit: 50
+    bounds:
+      m_Center: {x: -0.9, y: 0.019999996, z: 0}
+      m_Extent: {x: 1, y: 0.24, z: 0.1}
+    rasterReason: "\u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u0440\u0430\u0441\u0442\u0440
+      1\xD7: pfeUI:3995"
+    reframe: 0
+    sourceCanvas: {x: 100, y: 24}
+  keyedImpacts: 1
   beam: 0
   speed: 90
   length: 3

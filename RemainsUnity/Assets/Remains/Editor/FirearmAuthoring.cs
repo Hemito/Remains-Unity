@@ -91,12 +91,16 @@ namespace Remains.Editor
                 string name=Safe(shot.resource)+(shot.beam?"-beam":"-"+Mathf.RoundToInt(shot.speed));
                 string path=ShotFolder+"/"+name+".asset";assets.Add(path);
                 var frames=Frames(exported,shot.resource);
-                var trace=CenteredSprite(frames[0],ShotFolder+"/"+name+"-trace.asset",assets);
+                var trace=Sprite.Create(frames[0].texture,frames[0].rect,new Vector2(.5f,.5f),frames[0].pixelsPerUnit,0,SpriteMeshType.FullRect);
+                CatalogSpriteReference traceReference;
+                try {traceReference=CatalogSpriteAuthoring.Reference(trace);}
+                finally {UnityEngine.Object.DestroyImmediate(trace);}
                 var artwork=AssetDatabase.LoadAssetAtPath<ShotArtwork>(path);bool created=artwork==null;
                 if(created) artwork=ScriptableObject.CreateInstance<ShotArtwork>();
-                artwork.weapons=shot.weapons.ToArray();artwork.trace=trace;artwork.beam=shot.beam;
-                artwork.impact=shot.beam?Array.Empty<Sprite>():frames.Skip(1).ToArray();
+                artwork.weapons=shot.weapons.ToArray();artwork.beam=shot.beam;
                 artwork.speed=shot.speed;artwork.length=shot.length;artwork.lifetime=4f/FramesPerSecond;artwork.impactFramesPerSecond=FramesPerSecond;
+                artwork.ConfigureReferences(traceReference,
+                    (shot.beam?Array.Empty<Sprite>():frames.Skip(1).ToArray()).Select(CatalogSpriteAuthoring.Reference).ToArray());
                 artwork.Validate();
                 if(created) AssetDatabase.CreateAsset(artwork,path);else EditorUtility.SetDirty(artwork);
             }
@@ -205,6 +209,7 @@ namespace Remains.Editor
                     casing=AssetDatabase.LoadAssetAtPath<CasingEffectProfile>(path);bool created=casing==null;
                     if(created) casing=ScriptableObject.CreateInstance<CasingEffectProfile>();
                     casing.Configure(casingFrames[0],Vector2.zero);
+                    casing.ConfigureReference(CatalogSpriteAuthoring.Reference(casingFrames[0]));
                     if(created) AssetDatabase.CreateAsset(casing,path);else EditorUtility.SetDirty(casing);
                     casings.Add(casingResource,casing);
                 }
@@ -248,6 +253,7 @@ namespace Remains.Editor
                 var muzzle=new GameObject("Дуло").transform;muzzle.SetParent(node.transform,false);
                 muzzle.localPosition=new Vector3(emitX/PixelsPerMetre,-emitY/PixelsPerMetre,0);
                 var component=node.AddComponent<WeaponView>();component.Configure(id,renderer,muzzle);
+                component.ConfigureRest(CatalogSpriteAuthoring.Reference(rest));
                 return PrefabUtility.SaveAsPrefabAsset(node,prefabPath).GetComponent<WeaponView>();
             }
             finally {UnityEngine.Object.DestroyImmediate(node);}
@@ -323,16 +329,6 @@ namespace Remains.Editor
         {
             var frames=exported.Resource(resource).frames.OrderBy(f=>f.frame).ToArray();
             return wanted.Select(sprite=>frames[Array.IndexOf(all,sprite)].spriteResource).ToArray();
-        }
-        private static Sprite CenteredSprite(Sprite frame,string path,HashSet<string> assets)
-        {
-            assets.Add(path);
-            var existing=AssetDatabase.LoadAssetAtPath<Sprite>(path);
-            if(existing!=null && existing.texture==frame.texture && existing.rect==frame.rect && Mathf.Approximately(existing.pixelsPerUnit,frame.pixelsPerUnit)) return existing;
-            if(existing!=null) AssetDatabase.DeleteAsset(path);
-            var sprite=Sprite.Create(frame.texture,frame.rect,new Vector2(.5f,.5f),frame.pixelsPerUnit,0,SpriteMeshType.FullRect);
-            sprite.name=Path.GetFileNameWithoutExtension(path);AssetDatabase.CreateAsset(sprite,path);
-            return sprite;
         }
         private static void WriteAudio(List<JObject> generated)
         {

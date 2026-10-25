@@ -16,8 +16,27 @@ MonoBehaviour:
   - weapon:termo:grade:0
   - weapon:termo:grade:1
   - weapon:turret4:grade:0
-  trace: {fileID: 21300000, guid: 540629408339a684a98349a7337bf67b, type: 2}
-  impact: []
+  legacyTrace: {fileID: 0}
+  legacyImpact: []
+  traceReference:
+    key: Imported/Art/41bca411720d8006ab37fd1382a20e99545683c90ec235bbf821046429b15adc
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 800
+      height: 184
+    pivot: {x: 400, y: 92}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 1, y: 0.23, z: 0.1}
+    rasterReason: 
+    reframe: 1
+    sourceCanvas: {x: 800, y: 184}
+  impactReferences: []
+  keyedImpacts: 1
   beam: 1
   speed: 1200
   length: 40

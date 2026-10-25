@@ -44,7 +44,8 @@ namespace Remains.Editor
                 }
                 catch(Exception error)
                 {throw new InvalidOperationException($"Не удалось запечь форму: definition={pair.Key}, sprite={pair.Value.name}, path={AssetDatabase.GetAssetPath(pair.Value.texture)}, rect={pair.Value.rect}.",error);}
-                rows.Add(new DroppedItemShape {id=pair.Key,sprite=pair.Value,opaqueBounds=opaque});
+                var shape=new DroppedItemShape {id=pair.Key,opaqueBounds=opaque};
+                shape.ConfigureReference(CatalogSpriteAuthoring.Reference(pair.Value));rows.Add(shape);
             }
             var catalog=AssetDatabase.LoadAssetAtPath<DroppedItemShapeCatalog>(Path);bool fresh=catalog==null;
             if(fresh)catalog=ScriptableObject.CreateInstance<DroppedItemShapeCatalog>();

@@ -163,9 +163,14 @@ namespace Remains.Presentation
             foreach(var prop in session.World.props) if(prop.level==level) UpdateProp(prop,level);
             }
             foreach(var actor in session.World.actors)
-                if(ActorPresence.IsPresent(actor) && !string.IsNullOrEmpty(actor.weapon) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level && !weapons.ContainsKey(actor.id))
+                if(ActorPresence.IsPresent(actor) && !string.IsNullOrEmpty(actor.weapon) && Remains.Content.ActorTypes.Get(actor.actorType).hasWeapon && actor.level==level)
                 {
-                    weapons.Add(actor.id,CreateWeapon(actor));
+                    if(weapons.TryGetValue(actor.id,out var previous))
+                    {
+                        if(previous.Id==actor.weapon) continue;
+                        previous.gameObject.SetActive(false);Destroy(previous.gameObject);
+                    }
+                    weapons[actor.id]=CreateWeapon(actor);
                 }
             foreach(var flight in grenades.Flights)
                 if(flight.state.level==level && !flights.ContainsKey(flight.state.id))
@@ -204,6 +209,8 @@ namespace Remains.Presentation
         private WeaponView CreateWeapon(ActorState actor)
         {
             var view=Instantiate(Remains.Content.WeaponRigs.Prefab(actor.weapon));view.name="Оружие "+actor.id;
+            var rest=view.ResolveRestSprite();SpriteArtworkMaterial.Prepare(rest);view.SetFrame(rest);
+            sprites[actor.weapon]=rest;
             layers.Attach(actor.id,view.transform);return view;
         }
         private void Update()
@@ -224,7 +231,11 @@ namespace Remains.Presentation
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.SetVisible(false);continue; }
                 if(view.Id!=actor.weapon)
-                {view.gameObject.SetActive(false);Destroy(view.gameObject);view=CreateWeapon(actor);weapons[actor.id]=view;}
+                {
+                    if(missingGraphics.Add("binding:"+actor.id+":"+actor.weapon))
+                        Debug.LogWarning($"Представление оружия не обновлено событием: actor={actor.id}, view={view.Id}, weapon={actor.weapon}.",this);
+                    view.SetVisible(false);continue;
+                }
                 view.SetVisible(ActorPresence.IsPresent(actor) && !ActorSessionRules.IsPassive(actor) && actor.level==session.LocalActor?.level);
                 sprite=shotAnimation.Select(actor,sprite);
                 sprite=reloadAnimation.Select(actor,sprite);

@@ -38,14 +38,16 @@ namespace Remains.Editor
         {
             serializedObject.Update();
             EditorGUILayout.PropertyField(serializedObject.FindProperty("weapons"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("trace"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty(
+                serializedObject.FindProperty("legacyTrace").objectReferenceValue!=null?"legacyTrace":"traceReference"));
             var beam=serializedObject.FindProperty("beam");EditorGUILayout.PropertyField(beam);
             if(beam.boolValue) EditorGUILayout.PropertyField(serializedObject.FindProperty("lifetime"));
             else
             {
                 EditorGUILayout.HelpBox("Скорость здесь задаёт только визуальный след мгновенной атаки. Скорость физического снаряда задаётся в определении оружия.",MessageType.Info);
-                foreach(string field in new[]{"speed","length","impact","impactFramesPerSecond"})
+                foreach(string field in new[]{"speed","length",serializedObject.FindProperty("keyedImpacts").boolValue?"impactReferences":"legacyImpact","impactFramesPerSecond"})
                     EditorGUILayout.PropertyField(serializedObject.FindProperty(field));
+
             }
             serializedObject.ApplyModifiedProperties();
         }

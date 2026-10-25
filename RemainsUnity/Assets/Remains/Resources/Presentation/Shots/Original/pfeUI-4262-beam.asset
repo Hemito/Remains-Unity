@@ -16,8 +16,30 @@ MonoBehaviour:
   - weapon:grom:grade:0
   - weapon:grom:grade:1
   - weapon:turret7:grade:0
-  trace: {fileID: 21300000, guid: c5b88b44fed761e4990480994d2ab747, type: 2}
-  impact: []
+  legacyTrace: {fileID: 0}
+  legacyImpact: []
+  traceReference:
+    key: Imported/Art/ca40dc8cbbeae2cd52e64bfe7bef8ab583990ea8bced1f36f146385ac730ae69
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 800
+      height: 84
+    pivot: {x: 400, y: 42}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 1, y: 0.105, z: 0.1}
+    rasterReason: "\u043A\u0430\u0434\u0440\u043E\u0432 \u0441 MAE > 0.01 \u043F\u0440\u043E\u0442\u0438\u0432
+      \u044D\u0442\u0430\u043B\u043E\u043D\u0430: 1, \u0445\u0443\u0434\u0448\u0438\u0439
+      0.0171 (\u0441\u0440\u0430\u0432\u043D\u0435\u043D\u0438\u0435 \u0438\u0433\u0440\u043E\u0432\u043E\u0433\u043E
+      \u0440\u0430\u0441\u0442\u0435\u0440\u0438\u0437\u0430\u0442\u043E\u0440\u0430)"
+    reframe: 1
+    sourceCanvas: {x: 800, y: 84}
+  impactReferences: []
+  keyedImpacts: 1
   beam: 1
   speed: 1200
   length: 40

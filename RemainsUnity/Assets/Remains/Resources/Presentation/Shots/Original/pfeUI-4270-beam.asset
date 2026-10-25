@@ -15,8 +15,28 @@ MonoBehaviour:
   weapons:
   - weapon:blaster:grade:0
   - weapon:turret5:grade:0
-  trace: {fileID: 21300000, guid: 4a0f56c697453d64ca7ee1a5075af7c6, type: 2}
-  impact: []
+  legacyTrace: {fileID: 0}
+  legacyImpact: []
+  traceReference:
+    key: Imported/Art/4a117139f658e08a669fa36fe43764b7b56053fd7c7c4ad6430aef6cc597b05b
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 100
+      height: 13
+    pivot: {x: 50, y: 6.5}
+    pixelsPerUnit: 50
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 1, y: 0.13, z: 0.1}
+    rasterReason: "\u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u0440\u0430\u0441\u0442\u0440
+      1\xD7: pfeUI:4270"
+    reframe: 1
+    sourceCanvas: {x: 100, y: 16}
+  impactReferences: []
+  keyedImpacts: 1
   beam: 1
   speed: 1200
   length: 40

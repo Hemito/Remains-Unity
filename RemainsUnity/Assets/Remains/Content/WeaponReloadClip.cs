@@ -34,21 +34,23 @@ namespace Remains.Content
             for(int i=0;i<frames.Length;i++) if(frames[i]==null)
                 throw new InvalidOperationException($"Перезарядка {name}: отсутствует кадр {i}.");
         }
-        public void ValidateAgainst(Sprite rest)
+        public void ValidateAgainst(Sprite rest)=>ValidateAgainst(rest==null?null:CatalogSpriteReference.FromSprite(rest));
+        public void ValidateAgainst(CatalogSpriteReference rest)
         {
             Validate();
             if(rest==null) throw new InvalidOperationException($"Перезарядка {name}: отсутствует спрайт покоя.");
+            rest.Validate("Кадр покоя "+name);
             if(Deferred)
             {
-                if(Mathf.Abs(deferred.PixelsPerUnit-rest.pixelsPerUnit)>.0001f)
-                    throw new InvalidOperationException($"Перезарядка {name}: масштаб кадров выгрузки расходится с {rest.name}.");
+                if(Mathf.Abs(deferred.PixelsPerUnit-rest.PixelsPerUnit)>.0001f)
+                    throw new InvalidOperationException($"Перезарядка {name}: масштаб кадров выгрузки расходится с {rest.Key}.");
                 return;
             }
-            Vector2 origin=rest.rect.position+rest.pivot;
+            Vector2 origin=rest.Rect.position+rest.Pivot;
             for(int i=0;i<frames.Length;i++)
-                if(Mathf.Abs(frames[i].pixelsPerUnit-rest.pixelsPerUnit)>.0001f ||
+                if(Mathf.Abs(frames[i].pixelsPerUnit-rest.PixelsPerUnit)>.0001f ||
                     Vector2.Distance(frames[i].rect.position+frames[i].pivot,origin)>.001f)
-                    throw new InvalidOperationException($"Перезарядка {name}, кадр {i}: масштаб/точка привязки расходится с {rest.name}.");
+                    throw new InvalidOperationException($"Перезарядка {name}, кадр {i}: масштаб/точка привязки расходится с {rest.Key}.");
         }
         private void OnValidate()
         {try {Validate();} catch(InvalidOperationException error) {Debug.LogWarning(error.Message,this);}}

@@ -60,7 +60,7 @@ namespace Remains.Content
                 if(asset==null) throw new InvalidOperationException("Нет ссылки на оружие в "+name);
                 if(asset.ShotAnimation==null) continue;
                 if(asset.Presentation==null) throw new InvalidOperationException("Нет префаба анимированного оружия: "+asset.Id);
-                asset.ShotAnimation.ValidateAgainst(asset.Presentation.Artwork.sprite);
+                asset.ShotAnimation.ValidateAgainst(asset.Presentation.RestReference);
                 yield return asset;
             }
         }
@@ -73,7 +73,7 @@ namespace Remains.Content
                 var definition=asset.CreateDefinition();
                 if(asset.Presentation==null || string.IsNullOrEmpty(definition.ammo) || definition.reloadSeconds<=0)
                     throw new InvalidOperationException("Нет префаба/правила перезарядки у анимированного оружия: "+asset.Id);
-                asset.ReloadAnimation.ValidateAgainst(asset.Presentation.Artwork.sprite);
+                asset.ReloadAnimation.ValidateAgainst(asset.Presentation.RestReference);
                 yield return asset;
             }
         }

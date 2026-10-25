@@ -78,7 +78,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 100
-  m_Sprite: {fileID: 21300000, guid: dfc2244b66a58c441b6577b6090a936a, type: 2}
+  m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -86,7 +86,7 @@ SpriteRenderer:
   m_Size: {x: 1.945, y: 0.8275}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!114 &5984232168817014494
@@ -104,6 +104,23 @@ MonoBehaviour:
   id: weapon:smg9:grade:0
   artwork: {fileID: 8634546098558183612}
   muzzle: {fileID: 5871876962452516683}
+  restReference:
+    key: Imported/Art/0bbb988d58113ecd6f89fa4df4b05d7332c6e4d6d3668163091fecbcf0dc6786
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 780
+      height: 332
+    pivot: {x: 286.8, y: 150}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: 0.25800002, y: 0.03999999, z: 0}
+      m_Extent: {x: 0.975, y: 0.415, z: 0.1}
+    rasterReason: 
+    reframe: 0
+    sourceCanvas: {x: 780, y: 332}
 --- !u!1 &8413146537053116511
 GameObject:
   m_ObjectHideFlags: 0

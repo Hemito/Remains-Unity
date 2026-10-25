@@ -19,7 +19,7 @@ namespace Remains.Editor
             {
                 var asset=GameAssets.Load<WeaponAsset>("Content/weapons/"+weapon);var clip=asset.ReloadAnimation;
                 Require(clip!=null && clip.FrameCount==(weapon=="pistol"?31:51),"Нет полной исходной последовательности: "+weapon);
-                clip.ValidateAgainst(asset.Presentation.Artwork.sprite);
+                clip.ValidateAgainst(asset.Presentation.RestReference);
                 CheckMuzzle(asset);
                 foreach(int fps in new[]{30,60,144}) CheckLocal(weapon,fps);
                 CheckContextCancellation(weapon);
@@ -55,7 +55,7 @@ namespace Remains.Editor
             {
                 var actor=Actor(weapon);var session=Session(root,actor,true);var reload=new WeaponReloadController(session);
                 var animation=root.AddComponent<WeaponReloadAnimation>();animation.Initialize(session,reload);
-                var asset=GameAssets.Load<WeaponAsset>("Content/weapons/"+weapon);var clip=asset.ReloadAnimation;var rest=asset.Presentation.Artwork.sprite;
+                var asset=GameAssets.Load<WeaponAsset>("Content/weapons/"+weapon);var clip=asset.ReloadAnimation;var rest=asset.Presentation.ResolveRestSprite();
                 var message=Message(actor,"local-token");reload.Started+=(a,w)=>animation.Observe(message);
                 reload.Finished+=()=>{var stop=message;stop.started=false;animation.Observe(stop);};
                 Require(reload.Start(actor,weapon),"Обычная неполная обойма не начала перезарядку");
@@ -93,7 +93,7 @@ namespace Remains.Editor
             try
             {
                 var actor=Actor(weapon);var session=Session(root,actor,false);var animation=root.AddComponent<WeaponReloadAnimation>();animation.Initialize(session,null);
-                var rest=GameAssets.Load<WeaponAsset>("Content/weapons/"+weapon).Presentation.Artwork.sprite;var first=Message(actor,"remote-first");
+                var rest=GameAssets.Load<WeaponAsset>("Content/weapons/"+weapon).Presentation.ResolveRestSprite();var first=Message(actor,"remote-first");
                 animation.Observe(first);animation.Step(WeaponCatalog.Get(weapon).reloadSeconds*.5f);
                 Require(animation.TryGet(actor,out var middle) && middle.Progress>.49f,"Удалённый actual intent не показал середину");
                 animation.Observe(first);Require(animation.TryGet(actor,out var duplicate) && duplicate.Frame==middle.Frame,"Дубликат перезапустил клип");
@@ -120,7 +120,7 @@ namespace Remains.Editor
             {
                 var actor=Actor(weapon,false);WeaponInventory.Selected(actor).weaponState.rounds=0;
                 var session=Session(root,actor,false);var animation=root.AddComponent<WeaponReloadAnimation>();animation.Initialize(session,null);
-                var rest=GameAssets.Load<WeaponAsset>("Content/weapons/"+weapon).Presentation.Artwork.sprite;
+                var rest=GameAssets.Load<WeaponAsset>("Content/weapons/"+weapon).Presentation.ResolveRestSprite();
                 var action=NpcWeaponActions.Prepare(actor);Require(action?.kind==NpcWeaponActions.Reload,"Actual NPC action не выбрал reload");
                 actor.npcWeaponAction=action;actor.attackBusy=true;actor.attackId="npc-reload";actor.attackRemaining=WeaponCatalog.Get(weapon).reloadSeconds*.5f;
                 Require(animation.TryGet(actor,out var state) && state.Token==actor.attackId && state.Progress>.49f,"NPC не читает actual action/remaining");

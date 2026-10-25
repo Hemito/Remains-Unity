@@ -2,22 +2,39 @@ using System;
 using System.Collections.Generic;
 using Remains.Domain;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Remains.Content
 {
     [Serializable] public sealed class DroppedItemShape
     {
         public string id;
-        public Sprite sprite;
+        [SerializeField,FormerlySerializedAs("sprite")] private Sprite legacySprite;
+        [SerializeField,InspectorName("Графика предмета")] private CatalogSpriteReference artwork;
+        public CatalogSpriteReference Reference=>artwork!=null && artwork.IsConfigured?artwork:
+            legacySprite!=null?CatalogSpriteReference.FromSprite(legacySprite):null;
+        public Sprite sprite
+        {
+            get=>Reference?.Resolve();
+            set {artwork=value==null?null:CatalogSpriteReference.FromSprite(value);legacySprite=null;}
+        }
+        public void ConfigureReference(CatalogSpriteReference value)
+        {
+            if(value==null) throw new ArgumentNullException(nameof(value));
+            value.Validate("Форма брошенного предмета: "+id);artwork=value;legacySprite=null;
+        }
         // Opaque pixel-cell bounds relative to the sprite's actual registration, in sprite units.
         public Rect opaqueBounds;
-        public float Scale=>DroppedItemTransfer.Width/sprite.bounds.size.x;
+        // Physics uses authored geometry, never the screen-dependent vector raster dimensions.
+        public float Scale=>DroppedItemTransfer.Width/Reference.Bounds.size.x;
         public void Validate()
         {
-            if(string.IsNullOrWhiteSpace(id) || sprite==null || !float.IsFinite(sprite.bounds.size.x) || sprite.bounds.size.x<=0 ||
+            var reference=Reference;
+            if(string.IsNullOrWhiteSpace(id) || reference==null || !float.IsFinite(reference.Bounds.size.x) || reference.Bounds.size.x<=0 ||
                 !float.IsFinite(opaqueBounds.x) || !float.IsFinite(opaqueBounds.y) || !float.IsFinite(opaqueBounds.width) ||
                 !float.IsFinite(opaqueBounds.height) || opaqueBounds.width<=0 || opaqueBounds.height<=0)
                 throw new InvalidOperationException("Не подготовлена форма брошенного предмета: "+id);
+            reference.Validate("Форма брошенного предмета: "+id);
         }
         public Rect WorldBounds(float angle,bool mirrored)
         {

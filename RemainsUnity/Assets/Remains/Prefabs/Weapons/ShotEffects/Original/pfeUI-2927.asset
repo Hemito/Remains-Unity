@@ -12,7 +12,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e2e721efefb347b0988fa224eb32f794, type: 3}
   m_Name: pfeUI-2927
   m_EditorClassIdentifier: 
-  sprite: {fileID: 21300000, guid: 6fe3829df2e800f48bcb9740e4cd2b18, type: 2}
+  legacySprite: {fileID: 0}
+  spriteReference:
+    key: Imported/Art/cd1e063eb3ef68695f2102965c1892a10897aec04d0bab6960cf79309faeac0f
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 68
+      height: 24
+    pivot: {x: 33.2, y: 14.4}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: 0.0019999966, y: -0.005999999, z: 0}
+      m_Extent: {x: 0.085, y: 0.03, z: 0.1}
+    rasterReason: 
+    reframe: 0
+    sourceCanvas: {x: 68, y: 24}
   socket: {x: 0, y: 0}
   lifetime: 0.65
   horizontalSpeed: 1.2

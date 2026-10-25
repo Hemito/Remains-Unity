@@ -45,21 +45,23 @@ namespace Remains.Content
             if(!float.IsFinite(emissionOffset.x) || !float.IsFinite(emissionOffset.y))
                 throw new InvalidOperationException($"Анимация {name}: неконечное смещение вспышки.");
         }
-        public void ValidateAgainst(Sprite rest)
+        public void ValidateAgainst(Sprite rest)=>ValidateAgainst(rest==null?null:CatalogSpriteReference.FromSprite(rest));
+        public void ValidateAgainst(CatalogSpriteReference rest)
         {
             Validate();
             if(rest==null) throw new InvalidOperationException($"Анимация {name}: нет исходного спрайта оружия.");
+            rest.Validate("Кадр покоя "+name);
             if(Deferred)
             {
-                if(Mathf.Abs(deferred.PixelsPerUnit-rest.pixelsPerUnit)>.0001f)
-                    throw new InvalidOperationException($"Анимация {name}: масштаб кадров выгрузки расходится со спрайтом {rest.name}.");
+                if(Mathf.Abs(deferred.PixelsPerUnit-rest.PixelsPerUnit)>.0001f)
+                    throw new InvalidOperationException($"Анимация {name}: масштаб кадров выгрузки расходится со спрайтом {rest.Key}.");
                 return;
             }
-            var origin=rest.rect.position+rest.pivot;
+            var origin=rest.Rect.position+rest.Pivot;
             for(int i=0;i<frames.Length;i++)
-                if(Mathf.Abs(frames[i].pixelsPerUnit-rest.pixelsPerUnit)>.0001f ||
+                if(Mathf.Abs(frames[i].pixelsPerUnit-rest.PixelsPerUnit)>.0001f ||
                     Vector2.Distance(frames[i].rect.position+frames[i].pivot,origin)>.001f)
-                    throw new InvalidOperationException($"Анимация {name}, кадр {i}: масштаб или точка привязки расходится со спрайтом {rest.name}.");
+                    throw new InvalidOperationException($"Анимация {name}, кадр {i}: масштаб или точка привязки расходится со спрайтом {rest.Key}.");
         }
         private void OnValidate()
         {

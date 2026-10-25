@@ -22,6 +22,7 @@ namespace Remains.Content
         public static string PresentationId(string attack)=>attackPresentations.TryGetValue(attack,out var id)?id:
             throw new InvalidOperationException("Нет связи атаки с префабом оружия: "+attack);
         public static Remains.Presentation.WeaponView Prefab(string id)=>prefabs.TryGetValue(id,out var value)?value:throw new InvalidOperationException("Нет префаба оружия: "+id);
+        public static bool TryPrefab(string id,out Remains.Presentation.WeaponView prefab)=>prefabs.TryGetValue(id,out prefab);
         public static string ManifestJson()=>JsonUtility.ToJson(new Library {aimRadius=AimRadius,climbingAimRadius=ClimbingAimRadius,anchorHeight=AnchorHeight,raiseHeight=RaiseHeight,raiseDelay=RaiseDelay,ordinaryHoldingArea=OrdinaryHoldingArea,weapons=rigs.Values.ToArray()});
         public static float AimRadius {get;private set;}
         public static float ClimbingAimRadius {get;private set;}

@@ -14,8 +14,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weapons:
   - weapon:rechr:grade:0
-  trace: {fileID: 21300000, guid: b2f318d409311a84d8007fcd6e90f793, type: 2}
-  impact: []
+  legacyTrace: {fileID: 0}
+  legacyImpact: []
+  traceReference:
+    key: Imported/Art/a56129cb195cef458ea54457f6e7c3d14a122037d0c3ce1657e8f0743945de83
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 547
+      height: 109
+    pivot: {x: 273.5, y: 54.5}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0.68375, y: 0.13625, z: 0.1}
+    rasterReason: 
+    reframe: 1
+    sourceCanvas: {x: 548, y: 112}
+  impactReferences: []
+  keyedImpacts: 1
   beam: 0
   speed: 180
   length: 4.1025

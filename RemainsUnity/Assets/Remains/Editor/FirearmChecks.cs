@@ -39,10 +39,10 @@ namespace Remains.Editor
                     weapon.meleeMotion==null && (weapon.rechargeSeconds>0?string.IsNullOrEmpty(weapon.ammo):weapon.ammo.StartsWith("item:",StringComparison.Ordinal) && exported.TryItem(weapon.ammo,out _)),"числа или патрон "+asset.Id);
                 var rig=WeaponRigs.Get(asset.Id);
                 Require(rig.HasMuzzle && WeaponRigs.PresentationId(asset.Id)==asset.Id,"нет дула или графики "+asset.Id);
-                asset.ShotAnimation?.ValidateAgainst(asset.Presentation.Artwork.sprite);
-                asset.ReloadAnimation?.ValidateAgainst(asset.Presentation.Artwork.sprite);
+                asset.ShotAnimation?.ValidateAgainst(asset.Presentation.RestReference);
+                asset.ReloadAnimation?.ValidateAgainst(asset.Presentation.RestReference);
                 Require(asset.ShotAnimation!=null && asset.ShotAnimation.Deferred && (weapon.rechargeSeconds>0?asset.ReloadAnimation==null:asset.ReloadAnimation!=null && asset.ReloadAnimation.Deferred),"нет кадров выстрела или перезарядки по требованию "+asset.Id);
-                var restSprite=asset.Presentation.Artwork.sprite;
+                var restSprite=asset.Presentation.ResolveRestSprite();
                 for(int i=0;i<asset.ShotAnimation.FrameCount;i++) Require(asset.ShotAnimation.LoadFrameNow(i) is {} s && Mathf.Approximately(s.pixelsPerUnit,restSprite.pixelsPerUnit),"кадр выстрела "+i+" "+asset.Id);
                 for(int i=0;i<(asset.ReloadAnimation?.FrameCount??0);i++) Require(asset.ReloadAnimation.LoadFrameNow(i) is {} s && Mathf.Approximately(s.pixelsPerUnit,restSprite.pixelsPerUnit),"кадр перезарядки "+i+" "+asset.Id);
                 Require(ShotArtwork.TryGet(asset.Id,out _),"нет графики снаряда "+asset.Id);

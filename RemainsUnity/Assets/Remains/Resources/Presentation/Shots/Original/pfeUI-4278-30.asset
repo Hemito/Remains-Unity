@@ -14,8 +14,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weapons:
   - weapon:flaregun:grade:0
-  trace: {fileID: 21300000, guid: dcee32d53a9624b4fa8a70f061727006, type: 2}
-  impact: []
+  legacyTrace: {fileID: 0}
+  legacyImpact: []
+  traceReference:
+    key: Imported/Art/4f39e561530380a9f9ffbc1a1d3e26b1a54c31eb6a15db06685fb6261caa8496
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 27
+      height: 9
+    pivot: {x: 13.5, y: 4.5}
+    pixelsPerUnit: 50
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0.27, y: 0.09, z: 0.1}
+    rasterReason: "\u0438\u0441\u0445\u043E\u0434\u043D\u044B\u0439 \u0440\u0430\u0441\u0442\u0440
+      1\xD7: pfeUI:4278"
+    reframe: 1
+    sourceCanvas: {x: 28, y: 12}
+  impactReferences: []
+  keyedImpacts: 1
   beam: 0
   speed: 30
   length: 0.27

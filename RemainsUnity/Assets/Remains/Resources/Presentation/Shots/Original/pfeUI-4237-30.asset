@@ -14,8 +14,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weapons:
   - weapon:turret3:grade:0
-  trace: {fileID: 21300000, guid: 88cc412b99d5d1b4fae9029e6887dd13, type: 2}
-  impact: []
+  legacyTrace: {fileID: 0}
+  legacyImpact: []
+  traceReference:
+    key: Imported/Art/1aad4acb8298c2cf4e89f6d08ee5b212fcdfca50022ddf9fbd33a5f6664d807f
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 916
+      height: 173
+    pivot: {x: 458, y: 86.5}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 1.145, y: 0.21625, z: 0.1}
+    rasterReason: 
+    reframe: 1
+    sourceCanvas: {x: 916, y: 176}
+  impactReferences: []
+  keyedImpacts: 1
   beam: 0
   speed: 30
   length: 1.145

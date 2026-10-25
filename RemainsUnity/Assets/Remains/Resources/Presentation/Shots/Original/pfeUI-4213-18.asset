@@ -14,11 +14,75 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weapons:
   - weapon:shok:grade:0
-  trace: {fileID: 21300000, guid: f3c336dc318459c4fad01783729359d9, type: 2}
-  impact:
-  - {fileID: 21300000, guid: cd7ccff2e2004d540b1403da9569592f, type: 2}
-  - {fileID: 21300000, guid: 8bc55e3dc76b79a46aad155e07b90dd0, type: 2}
-  - {fileID: 21300000, guid: 87f34c7481c5d04469d8658690a00014, type: 2}
+  legacyTrace: {fileID: 0}
+  legacyImpact: []
+  traceReference:
+    key: Imported/Art/ed42aac8ab419e0a9adfab8113500a7202da2e42f58a001299ff87a59a824d99
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 399
+      height: 109
+    pivot: {x: 199.5, y: 54.5}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0.49875, y: 0.13625, z: 0.1}
+    rasterReason: 
+    reframe: 1
+    sourceCanvas: {x: 400, y: 112}
+  impactReferences:
+  - key: Imported/Art/2b4933a1f6f03dce0efa7c7643667138bdf6d9a9d8fe630bde0a682d237cc869
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 400
+      height: 112
+    pivot: {x: 201.6, y: 58.799995}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: -0.004000008, y: -0.0069999844, z: 0}
+      m_Extent: {x: 0.5, y: 0.14, z: 0.1}
+    rasterReason: 
+    reframe: 0
+    sourceCanvas: {x: 400, y: 112}
+  - key: Imported/Art/5098948245cb09c817d88ecfd4d7064d3c13dc9f4d4b117e4ac523dafa77c2f6
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 400
+      height: 112
+    pivot: {x: 201.6, y: 58.799995}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: -0.004000008, y: -0.0069999844, z: 0}
+      m_Extent: {x: 0.5, y: 0.14, z: 0.1}
+    rasterReason: 
+    reframe: 0
+    sourceCanvas: {x: 400, y: 112}
+  - key: Imported/Art/cb228534275434bcbd05ce416b86f13016ee0fd7d735744c9dbe24e4197004bd
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 400
+      height: 112
+    pivot: {x: 201.6, y: 58.799995}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: -0.004000008, y: -0.0069999844, z: 0}
+      m_Extent: {x: 0.5, y: 0.14, z: 0.1}
+    rasterReason: 
+    reframe: 0
+    sourceCanvas: {x: 400, y: 112}
+  keyedImpacts: 1
   beam: 0
   speed: 18
   length: 0.29925

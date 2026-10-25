@@ -26,11 +26,11 @@ namespace Remains.Editor
                 if(entry.firstFrame!=10 || entry.finalFrame!=last || entry.frames?.Length!=last-9 || entry.originPixels?.Length!=2)
                     throw new InvalidOperationException("Неверная последовательность перезарядки: "+entry.weapon);
                 var asset=AssetDatabase.LoadAssetAtPath<WeaponAsset>("Assets/Remains/Resources/Content/weapons/"+entry.weapon+".asset");
-                if(asset==null || asset.Presentation?.Artwork.sprite==null) throw new InvalidOperationException("Нет исходного оружия: "+entry.weapon);
+                if(asset==null || asset.Presentation?.RestReference==null) throw new InvalidOperationException("Нет исходного оружия: "+entry.weapon);
                 var expected=AssetDatabase.LoadAssetAtPath<WeaponReloadClip>(ClipPath(entry.weapon));
                 if(asset.ReloadAnimation!=null && asset.ReloadAnimation!=expected)
                     throw new InvalidOperationException("Сохранена пользовательская анимация перезарядки; замена запрещена: "+entry.weapon);
-                Vector2 origin=new(entry.originPixels[0],entry.originPixels[1]);var rest=asset.Presentation.Artwork.sprite;
+                Vector2 origin=new(entry.originPixels[0],entry.originPixels[1]);var rest=asset.Presentation.ResolveRestSprite();
                 if(rest.pixelsPerUnit!=export.pixelsPerUnit || Vector2.Distance(rest.rect.position+rest.pivot,origin)>.001f)
                     throw new InvalidOperationException("Ресурс перезарядки не совпадает с текущей привязкой оружия: "+entry.weapon);
                 for(int i=0;i<entry.frames.Length;i++)
@@ -76,7 +76,7 @@ namespace Remains.Editor
                     for(int i=0;i<frames.Length;i++) if(clip.Frame(i)!=frames[i]) throw new InvalidOperationException("Изменён кадр анимации: "+clip.name+"/"+i);
                 }
                 var weapon=AssetDatabase.LoadAssetAtPath<WeaponAsset>("Assets/Remains/Resources/Content/weapons/"+entry.weapon+".asset");
-                clip.ValidateAgainst(weapon.Presentation.Artwork.sprite);
+                clip.ValidateAgainst(weapon.Presentation.RestReference);
                 if(weapon.ReloadAnimation==null) {weapon.SetReloadAnimation(clip);EditorUtility.SetDirty(weapon);}
                 else if(weapon.ReloadAnimation!=clip)
                     throw new InvalidOperationException("Сохранена другая анимация перезарядки; установка остановлена: "+entry.weapon);

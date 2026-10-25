@@ -105,7 +105,7 @@ namespace Remains.Editor
                 frames[0]=null;Require(clip.CopyFrames()[0]==first,"Рабочий массив изменил SO анимации");
             }
             var test=ScriptableObject.CreateInstance<WeaponShotClip>();
-            var rest=pistol.Presentation.Artwork.sprite;
+            var rest=pistol.Presentation.ResolveRestSprite();
             var wrong=Sprite.Create(rest.texture,rest.rect,Vector2.zero,rest.pixelsPerUnit*2);
             try
             {
