@@ -63,7 +63,11 @@ namespace Remains.Content.VectorArt
         }
 
         // The frame as a straight-alpha RGBA32 texture (sRGB) of ceil(size × zoom); registration at origin × zoom from the top-left.
-        public Texture2D Render(RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale)
+        // Render reads the pixels back (checks, the disk cache); RenderGpu keeps them on the GPU only — a non-readable texture
+        // filled by a GPU copy, without a pipeline stall — for sprites the game draws straight away.
+        public Texture2D Render(RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale)=>Draw(source,resource,frame,scale,true);
+        public Texture2D RenderGpu(RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale)=>Draw(source,resource,frame,scale,false);
+        private Texture2D Draw(RvgDocument source,RvgResource resource,RvgResourceFrame frame,float scale,bool readable)
         {
             if(source==null || resource==null || frame==null) throw new ArgumentNullException(nameof(source));
             if(!float.IsFinite(scale) || scale<=0) throw new ArgumentOutOfRangeException(nameof(scale));
@@ -93,7 +97,13 @@ namespace Remains.Content.VectorArt
                 block.Clear();block.SetTexture("_MainTex",canvas);block.SetFloat("_Supersample",supersample);
                 cmd.DrawMesh(Quad(new Rect(0,0,width,height),true),Matrix4x4.identity,finalMaterial,0,0,block);
                 Graphics.ExecuteCommandBuffer(cmd);
-                var result=new Texture2D(outputWidth,outputHeight,TextureFormat.RGBA32,false,false) {name=$"{resource.id}#{frame.frame}@{scale}"};
+                var result=new Texture2D(outputWidth,outputHeight,TextureFormat.RGBA32,false,false,!readable) {name=$"{resource.id}#{frame.frame}@{scale}"};
+                if(!readable)
+                {
+                    result.Apply(false,true);   // drop the CPU copy; the GPU copy below fills the texture
+                    Graphics.CopyTexture(resolved,0,0,result,0,0);
+                    return result;
+                }
                 var previous=RenderTexture.active;
                 try {RenderTexture.active=resolved;result.ReadPixels(new Rect(0,0,outputWidth,outputHeight),0,0,false);result.Apply(false);}
                 finally {RenderTexture.active=previous;}

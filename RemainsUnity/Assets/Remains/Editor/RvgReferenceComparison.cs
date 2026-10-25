@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json.Linq;
 using Remains.Content.VectorArt;
 using UnityEditor;
 using UnityEngine;
@@ -71,7 +70,7 @@ namespace Remains.Editor
             if(profile)
                 foreach(var document in documents)
                 {
-                    var rules=Profile(catalogDir,document.source.archive);
+                    var rules=VectorArtPackaging.CatalogProfile(catalogDir,document.source.archive);
                     var applied=rules.Apply(document);
                     report.profiles.Add($"{document.source.archive}: линий {rules.HairlineTwips} twips — расширено {applied.WidenedStrokes}, свечений снято {applied.GlowFiltersRemoved} (по кадрам), частей убрано {applied.PartPlacementsRemoved}");
                 }
@@ -144,19 +143,6 @@ namespace Remains.Editor
             finally {foreach(var texture in loaded.Values) UnityEngine.Object.DestroyImmediate(texture);}
             File.WriteAllText(Path.Combine(output,"report.json"),JsonUtility.ToJson(report,true));
             return report;
-        }
-        // The profile the catalog references were rendered with: catalog.json `renders` for the archive, parts from the
-        // part:* bindings (Tools/ContentExport/RenderSource.cs).
-        private static RvgRenderProfile Profile(string catalogDir,string archive)
-        {
-            var catalog=JObject.Parse(File.ReadAllText(Path.Combine(catalogDir,"catalog.json")));
-            var render=catalog["renders"]?.FirstOrDefault(r=>(string)r["archive"]==archive)
-                ??throw new InvalidDataException($"В каталоге нет профиля рендера для {archive}.");
-            var parts=catalog["definitions"].SelectMany(d=>d["graphics"]??new JArray())
-                .Where(g=>((string)g["role"])?.StartsWith("part:",StringComparison.Ordinal)==true && ((string)g["resource"])?.StartsWith(archive+":",StringComparison.Ordinal)==true)
-                .Select(g=>System.Xml.Linq.XElement.Parse((string)g["metadataXml"]))
-                .Select(m=>new RvgRenderProfile.Part((int)m.Attribute("osn"),(int)m.Attribute("depth")));
-            return new RvgRenderProfile((int)render["hairlineTwips"],render["glowFreeSprites"].Select(t=>(int)t),parts);
         }
         private static string Argument(string name)
         {

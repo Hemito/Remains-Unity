@@ -1,4 +1,5 @@
 using System;
+using Remains.Content.VectorArt;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
@@ -8,12 +9,14 @@ namespace Remains.Content
     // replacing Resources (user decision 2026-10-24, docs/history/assets-addressables-20261024.md): every load goes
     // through here while it is still backed by Resources; step 2 switches this class to Addressables, so the build
     // carries only the content the game data references instead of every file under a Resources folder.
+    // Catalog art keys with a verified vector frame are drawn by VectorArtLibrary in play (docs/pipelines/vector-format.md).
     public static class GameAssets
     {
         // The asset, or null when the key names nothing of this type (callers report a missing asset themselves).
         public static T Load<T>(string key) where T:Object
         {
             if(string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Пустой ключ ассета игры.",nameof(key));
+            if(typeof(T)==typeof(Sprite) && VectorArtLibrary.TryLoad(key,out var sprite)) return sprite as T;
             return Resources.Load<T>(key);
         }
         public static T[] LoadAll<T>(string folder) where T:Object
@@ -24,15 +27,18 @@ namespace Remains.Content
         public static Request LoadAsync<T>(string key) where T:Object
         {
             if(string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Пустой ключ ассета игры.",nameof(key));
+            if(typeof(T)==typeof(Sprite) && VectorArtLibrary.TryLoad(key,out var sprite)) return new Request(sprite);
             return new Request(Resources.LoadAsync<T>(key));
         }
         // An asynchronous load: IsDone, then Asset (null when the key names nothing of the requested type).
         public sealed class Request
         {
             private readonly ResourceRequest request;
+            private readonly Object ready;
             internal Request(ResourceRequest request)=>this.request=request;
-            public bool IsDone=>request.isDone;
-            public Object Asset=>request.asset;
+            internal Request(Object asset)=>ready=asset;
+            public bool IsDone=>request==null || request.isDone;
+            public Object Asset=>request==null?ready:request.asset;
         }
     }
 }
