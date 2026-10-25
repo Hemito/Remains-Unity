@@ -19,7 +19,7 @@ namespace Remains.Gameplay
             if(roomForLevel==null) throw new ArgumentNullException(nameof(roomForLevel));
             if(isPaused==null) throw new ArgumentNullException(nameof(isPaused));
             if(context==null) throw new ArgumentNullException(nameof(context));
-            context.Prepare(world,isPaused);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Тела: подготовка опор")) context.Prepare(world,isPaused);
             context.Frame++;
             int stepped=0,sleeping=0;
             foreach(var prop in context.Props)

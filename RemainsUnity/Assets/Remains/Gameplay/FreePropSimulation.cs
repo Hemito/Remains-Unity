@@ -39,7 +39,7 @@ namespace Remains.Gameplay
             {poses.Reset();poseWorld=session.World.worldId;poseOwner=session.LocalOwner;}
             FreePropMotion.Step(session.World,session.LocalOwner,delta,roomForLevel,isPaused,
                 cadence.TryAdvance(Time.unscaledTimeAsDouble)?publishChanged:null,passengers,motion);
-            impacts.Step(motion);
+            using(Remains.Diagnostics.FrameHitchLog.Section("Тела: удары ящиков")) impacts.Step(motion);
         }
     }
 }

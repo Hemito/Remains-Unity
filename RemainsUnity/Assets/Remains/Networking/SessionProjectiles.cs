@@ -15,8 +15,15 @@ namespace Remains.Networking
     {
         private readonly CoopSession session;
         private readonly HashSet<string> pending=new(),localEffects=new();
+        // Host only: when each flight finished (transient; a flight loaded finished is stamped when first seen).
+        private readonly Dictionary<string,double> finishedAt=new(StringComparer.Ordinal);
+        private readonly List<ProjectileState> expired=new();
+        // A finished flight stays long enough for late hit reports of other peers (cross-connection, about a round trip);
+        // the count cap bounds a burst. Both used to be only a 256-flight cap: ~2 minutes of shots in every tick and copy.
+        private const double FinishedRetentionSeconds=10;
+        private const int FinishedRetentionCap=256;
         public SessionProjectiles(CoopSession session) {this.session=session;}
-        public void RegisterServer()=>NetworkServer.RegisterHandler<ProjectileProgressMessage>(Remains.Networking.MessageTiming.Server<ProjectileProgressMessage>(Progress));
+        public void RegisterServer() {finishedAt.Clear();NetworkServer.RegisterHandler<ProjectileProgressMessage>(Remains.Networking.MessageTiming.Server<ProjectileProgressMessage>(Progress));}
         public event Action Launched;
         public event Action<string> Confirmed;
         public event Action<string> Rejected;
@@ -91,12 +98,20 @@ namespace Remains.Networking
             if(actor==null || flight==null || session.Pause.IsServerPaused(flight.launch.level) ||
                 !ProjectileLifecycle.AcceptProgress(flight,actor.owner,message.generation,message.sequence,message.traveled,message.finished)) return;
             NetworkServer.SendToAll(message);
-            if(message.finished)
+            if(message.finished) {PruneFinished(session.ServerWorld,Time.unscaledTimeAsDouble);session.ServerWorld.revision++;}
+        }
+        // Drops finished flights past the retention, with their launch key: while the flight exists Launch already refuses
+        // the same attack, and no other code reads projectile keys, so the journal no longer grows by one entry per shot.
+        private void PruneFinished(WorldState world,double now)
+        {
+            int finished=0;
+            foreach(var flight in world.projectiles) if(flight.finished) {finished++;if(!finishedAt.ContainsKey(flight.launch.id)) finishedAt.Add(flight.launch.id,now);}
+            expired.Clear();
+            foreach(var flight in world.projectiles)
+                if(flight.finished && (now-finishedAt[flight.launch.id]>=FinishedRetentionSeconds || finished-expired.Count>FinishedRetentionCap)) expired.Add(flight);
+            foreach(var flight in expired)
             {
-                // Completed receipts remain long enough for in-flight reliable hit messages.
-                var old=session.ServerWorld.projectiles.Where(p=>p.finished).Take(Math.Max(0,session.ServerWorld.projectiles.Count(p=>p.finished)-256)).ToArray();
-                foreach(var item in old) session.ServerWorld.projectiles.Remove(item);
-                session.ServerWorld.revision++;
+                world.projectiles.Remove(flight);world.completedTransactions.Remove("projectile:"+flight.launch.id);finishedAt.Remove(flight.launch.id);
             }
         }
         public void Publish(ProjectileState state,float traveled,bool finished)

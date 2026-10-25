@@ -23,6 +23,8 @@ namespace Remains.Runtime
         private string scenario,revision,assemblyHash,fixtureHash;
         private int warmFrames,sampleFrames,readyFrame=-1,phase,shots,warmShots;
         private bool finished,createdPlayerFixture;
+        // Memory run: no section capture (its own per-call lists grow ~2 million samples in 2 minutes and would read as a leak).
+        private readonly bool forcedMemory=Environment.GetCommandLineArgs().Contains("--baseline-forced-memory");
         private double deadline,nextShot,started,nextDiagnostic;
         private readonly List<PayloadSample> payloads=new();
         private readonly List<MemorySample> memory=new();
@@ -136,7 +138,15 @@ namespace Remains.Runtime
         private void Tick()
         {
             if(Time.realtimeSinceStartupAsDouble>=nextMemory)
-            {nextMemory=Time.realtimeSinceStartupAsDouble+10;memory.Add(new MemorySample {seconds=Time.realtimeSinceStartupAsDouble,managedBytes=GC.GetTotalMemory(false)});}
+            {
+                // --baseline-forced-memory: live managed memory after a full collection every 30 s (a leak shows as a slope);
+                // the forced collection itself lands in the frame timings, so such a run is a memory run, not a timing run.
+                bool forced=forcedMemory;
+                nextMemory=Time.realtimeSinceStartupAsDouble+(forced?30:10);
+                memory.Add(new MemorySample {seconds=Time.realtimeSinceStartupAsDouble,managedBytes=GC.GetTotalMemory(forced),forced=forced,
+                    collections=GC.CollectionCount(0),level=runtime.Session.LocalActor?.level,
+                    serverCounts=forced?CollectionCounts(runtime.Session.ServerWorld):null,clientCounts=forced?CollectionCounts(runtime.Session.World):null});
+            }
             if(Time.realtimeSinceStartupAsDouble>deadline) {Finish(false,$"Таймаут: фаза={phase}.");return;}
             var session=runtime.Session;var actor=session.LocalActor;
             if((phase<2 || phase==3 && CpuBaselineCapture.FrameCount==0) && Time.realtimeSinceStartupAsDouble>=nextDiagnostic)
@@ -183,6 +193,7 @@ namespace Remains.Runtime
                 if(scenario=="light-windows") lightRoute=new Seed104LightWindowRoute(runtime);
                 payloads.Clear();warmShots=shots;started=Time.realtimeSinceStartupAsDouble;
                 Debug.Log($"CPU seed104: начало захвата, level={actor.level}, ready={runtime.LevelPresentationReady}, frame={Time.frameCount}.");
+                if(forcedMemory) {Debug.Log("CPU seed104: замер памяти без записи участков.");phase=3;return;}
                 FrameHitchLog.BeginCpuBaseline(sampleFrames);phase=3;return;
             }
             if(phase==3 && lightRoute!=null)
@@ -191,7 +202,8 @@ namespace Remains.Runtime
                 if(!CpuBaselineCapture.Enabled) {Finish(false,"Свет: исчерпан лимит кадров до окончания маршрута.");return;}
                 if(lightRoute.Tick()) {Finish(true,"Свет: шесть соседних переходов и прямой возврат завершены; синтетические запросы, не приёмка движения камеры.");return;}
             }
-            if(phase==3 && !CpuBaselineCapture.Enabled && CpuBaselineCapture.FrameCount>=sampleFrames)
+            if(phase==3 && (forcedMemory?Time.realtimeSinceStartupAsDouble-started>=sampleFrames/60d:
+                !CpuBaselineCapture.Enabled && CpuBaselineCapture.FrameCount>=sampleFrames))
             {
                 // Names are persisted in the report; the real receive path is separately timed by FrameHitchLog.
                 double seconds=Time.realtimeSinceStartupAsDouble-started;
@@ -243,7 +255,26 @@ namespace Remains.Runtime
             WorldReplication.PayloadMeasured-=Payload;runtime.Session.AttackReceived-=Attack;
         }
         [Serializable] private sealed class PayloadSample {public string kind;public int bytes,frame;}
-        [Serializable] private sealed class MemorySample {public double seconds;public long managedBytes;}
+        [Serializable] private sealed class MemorySample {public double seconds;public long managedBytes;public bool forced;public int collections;public string level,serverCounts,clientCounts;}
+        // Memory run: element counts of every list/dictionary in the world graph (world fields, and per field name summed over
+        // their elements one level down), to see which journal grows.
+        private static string CollectionCounts(WorldState world)
+        {
+            if(world==null) return null;
+            var counts=new SortedDictionary<string,long>(StringComparer.Ordinal);
+            void Visit(object owner,string prefix,int depth)
+            {
+                foreach(var field in owner.GetType().GetFields(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic))
+                {
+                    if(field.GetValue(owner) is not System.Collections.ICollection items) continue;
+                    string key=prefix+field.Name;counts[key]=(counts.TryGetValue(key,out long n)?n:0)+items.Count;
+                    if(depth>0 && items is System.Collections.IList list)
+                        foreach(var item in list) if(item!=null && !item.GetType().IsPrimitive && item is not string) Visit(item,key+".",depth-1);
+                }
+            }
+            Visit(world,"",1);
+            return string.Join(";",counts.Select(pair=>pair.Key+"="+pair.Value));
+        }
         [Serializable] private sealed class Report
         {
             public bool success,editor,batch,allocationMetricAvailable;public string detail,scenario,sourceRevision,assemblySha256,fixtureSha256,unity,processor,gpu,graphicsApi,level,limitations;
