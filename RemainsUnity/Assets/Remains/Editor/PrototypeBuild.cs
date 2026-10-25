@@ -13,7 +13,10 @@ namespace Remains.Editor
     {
         public static void Build()
             =>BuildTo("Builds/Windows/Remains.exe");
-        public static void BuildTo(string outputPath)
+        // A player without the Development flag (no dev console or profiler hooks): the build that is packaged for other machines.
+        public static void BuildRelease()
+            =>BuildTo("Builds/Release/Remains.exe",development:false);
+        public static void BuildTo(string outputPath,bool development=true)
         {
             foreach(string guid in AssetDatabase.FindAssets("t:Texture2D",new[]{"Assets/Remains/Resources/Original/Pony","Assets/Remains/Resources/Original/Room","Assets/Remains/Resources/Original/Shots","Assets/Remains/Resources/Original/Menu","Assets/Remains/Resources/Original/Hud","Assets/Remains/Resources/Original/Inventory","Assets/Remains/Resources/Original/Training","Assets/Remains/Resources/Original/Props","Assets/Remains/Resources/Original/Raider"}))
             {
@@ -77,10 +80,10 @@ namespace Remains.Editor
                 Path.GetFileName(absoluteOutput)!="Remains.exe")
                 throw new InvalidOperationException("Путь сборки должен находиться внутри проекта и завершаться Remains.exe: "+outputPath);
             var options=new BuildPlayerOptions { scenes=new[]{path}, locationPathName=absoluteOutput,
-                target=BuildTarget.StandaloneWindows64, options=BuildOptions.Development };
+                target=BuildTarget.StandaloneWindows64, options=development?BuildOptions.Development:BuildOptions.None };
             var report=BuildPipeline.BuildPlayer(options);
             if(report.summary.result!=BuildResult.Succeeded) throw new InvalidOperationException($"Сборка не завершена: {report.summary.result}, ошибок: {report.summary.totalErrors}.");
-            Debug.Log($"Сборка проверена: {report.summary.outputPath}, размер={report.summary.totalSize}.");
+            Debug.Log($"Сборка проверена: {report.summary.outputPath}, размер={report.summary.totalSize}, Development={development}.");
         }
     }
 }
