@@ -18,5 +18,8 @@ namespace Remains.Presentation
             if(shader==null) throw new InvalidOperationException("Нет шейдера освещения Presentation/WorldLit.");
             return new Material(shader) {mainTexture=texture};
         }
+        // SpriteRenderer supplies _MainTex per renderer; a serialized material must not retain its source PNG.
+        // Mesh-based artwork still uses Create(texture), since its texture belongs to the material.
+        public static Material CreateForSpriteRenderer()=>Create(null);
     }
 }

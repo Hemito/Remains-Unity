@@ -36,6 +36,8 @@ namespace Remains.Editor
             foreach(string key in keys)
             {
                 var sprite=GameAssets.Load<Sprite>(key)??throw new InvalidOperationException("Нет PNG-спрайта для ключа "+key);
+                if(AssetDatabase.GetAssetPath(sprite)!=CatalogArtBuildSplit.SpritePath(key))
+                    throw new InvalidOperationException("Editor получил векторный исходник не из подготовленного расположения: "+key);
                 var frame=library.Frame(key);
                 float left=-frame.origin[0]/VectorArtLibrary.SourcePixelsPerUnit,top=frame.origin[1]/VectorArtLibrary.SourcePixelsPerUnit;
                 float width=frame.size[0]/VectorArtLibrary.SourcePixelsPerUnit,height=frame.size[1]/VectorArtLibrary.SourcePixelsPerUnit;

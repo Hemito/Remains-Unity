@@ -61,7 +61,7 @@ namespace Remains.Editor
             foreach(var resource in catalog.resources)
                 foreach(var frame in resource.frames??Array.Empty<ExportedFrame>())
                 {
-                    string path="Assets/Remains/Resources/"+frame.spriteResource+".asset";
+                    string path=CatalogArtBuildSplit.SpritePath(frame.spriteResource);
                     var sprite=AssetDatabase.LoadAssetAtPath<Sprite>(path);
                     Require(sprite!=null,"спрайт "+resource.id+"/"+frame.frame);
                     Require(Mathf.Abs(sprite.pixelsPerUnit-50*frame.zoom)<.001f,"PPU "+path);

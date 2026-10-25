@@ -124,7 +124,7 @@ namespace Remains.Editor
                 sounds = soundsByResource[id].Select(file => AssetDatabase.LoadAssetAtPath<AudioClip>(file.destination)).ToArray()
             }).ToArray();
             foreach (var resource in importedResources)
-                if (resource.frames.Any(frame => AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Remains/Resources/" + frame.spriteResource + ".asset") == null) || resource.sounds.Any(sound => sound == null))
+                if (resource.frames.Any(frame => AssetDatabase.LoadAssetAtPath<Sprite>(CatalogArtBuildSplit.ExistingSpritePath(frame.spriteResource)) == null) || resource.sounds.Any(sound => sound == null))
                     throw new InvalidDataException($"Unity не импортировал обязательный ресурс {resource.id}.");
             var importedItems = definitions.Select(row => new ExportedItemEntry
             {
@@ -140,6 +140,10 @@ namespace Remains.Editor
             if (existing == null) AssetDatabase.CreateAsset(catalog, CatalogPath);
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
+            // The newly published catalog is the source for coverage. Re-imports must retain the player/editor split.
+            CatalogArtBuildSplit.ResetCoverage();
+            CatalogSpriteAuthoring.ResetCoverage();
+            CatalogArtBuildSplit.EnsureSplit();
             foreach (var issue in issues) Debug.LogWarning(issue);
             if (skippedAppearances.Count > 0)
                 Debug.Log($"Существа завода: векторные виды не импортируются как кадры — генератор берёт их листы (Tools/build_creature_sheets.py): {string.Join("; ", skippedAppearances)}.");
@@ -217,7 +221,9 @@ namespace Remains.Editor
         private static string SpriteResource(PreparedFile file) => "Imported/Art/" + Path.GetFileNameWithoutExtension(file.destination);
         private static void CreateLazySprite(PreparedFile file)
         {
-            string path = "Assets/Remains/Resources/" + SpriteResource(file) + ".asset";
+            // During first install/new-package import the new catalog is not published yet. Preserve an existing
+            // GUID here; EnsureSplit after catalog publication places every sprite using the final coverage rule.
+            string path = CatalogArtBuildSplit.ExistingSpritePath(SpriteResource(file));
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(file.destination);
             if (sprite == null) throw new InvalidDataException($"Спрайт не импортирован: {file.destination}.");
             var existing = AssetDatabase.LoadAssetAtPath<Sprite>(path);
@@ -235,7 +241,7 @@ namespace Remains.Editor
 
         private static void ValidateLazySprite(PreparedFile file)
         {
-            string path = "Assets/Remains/Resources/" + SpriteResource(file) + ".asset";
+            string path = CatalogArtBuildSplit.ExistingSpritePath(SpriteResource(file));
             if (!File.Exists(path)) return;
             var existing = AssetDatabase.LoadAssetAtPath<Sprite>(path);
             var source = AssetDatabase.LoadAssetAtPath<Sprite>(file.destination);

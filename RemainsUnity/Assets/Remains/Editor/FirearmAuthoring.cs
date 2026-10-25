@@ -44,6 +44,22 @@ namespace Remains.Editor
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
         }
 
+        // Reapply only the material rule to existing assets: leave prefab/clip/domain authoring untouched.
+        public static void RegenerateSpriteMaterials()
+        {
+            int count=0;
+            foreach(string path in Directory.GetFiles(PrefabFolder,"*.mat",SearchOption.TopDirectoryOnly).Select(path=>path.Replace('\\','/')))
+            {
+                var material=AssetDatabase.LoadAssetAtPath<Material>(path);
+                if(material==null || material.shader==null || material.shader.name!="Remains/WorldLit")
+                    throw new InvalidOperationException("Не подготовлен материал оружия WorldLit: "+path);
+                material.mainTexture=null;EditorUtility.SetDirty(material);count++;
+            }
+            if(count==0) throw new InvalidOperationException("Не найдены материалы оружия: "+PrefabFolder);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"Материалы оружия: восстановлено {count}; _MainTex задаёт SpriteRenderer, ссылки на PNG убраны.");
+        }
+
         private sealed class Shot {public string resource;public bool beam;public float speed,length;public readonly List<string> weapons=new();}
 
         public static void Run()
@@ -244,8 +260,8 @@ namespace Remains.Editor
         {
             string materialPath=PrefabFolder+"/"+file+".mat",prefabPath=PrefabFolder+"/"+file+".prefab";assets.Add(materialPath);assets.Add(prefabPath);
             var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-            if(material==null) {material=WorldArtworkMaterial.Create(rest.texture);AssetDatabase.CreateAsset(material,materialPath);}
-            else {material.mainTexture=rest.texture;EditorUtility.SetDirty(material);}
+            if(material==null) {material=WorldArtworkMaterial.CreateForSpriteRenderer();AssetDatabase.CreateAsset(material,materialPath);}
+            else {material.mainTexture=null;EditorUtility.SetDirty(material);}
             var node=new GameObject(id);
             try
             {

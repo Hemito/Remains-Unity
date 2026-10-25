@@ -24,44 +24,99 @@ namespace Remains.Content.VectorArt
         private static VectorArtLibrary active;
         private static Task<VectorArtPackage> loading;
         private static bool unavailable;
+        private static bool initialized;
+        private static string failureReason,coverageFailure;
+        private static Coverage coverage;
+        private static HashSet<string> coveredPlayerKeys;
+        // Generated from this library's Keys by the Editor split. It remains available even when the RVG package is damaged,
+        // so the player can distinguish intentionally shipped raster keys from missing vector-only graphics.
+        [Serializable] private sealed class Coverage {public int version;public string manifestSha256;public string[] keys;}
 
         // Starts reading the package off the main thread as the player starts (play mode in the Editor); edit mode keeps the
         // PNG assets, which authoring code serializes into scenes and prefabs.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Begin()
         {
-            active?.Dispose();active=null;unavailable=false;loading=null;
-            if(Array.IndexOf(Environment.GetCommandLineArgs(),"-noVectorArt")>=0) {Debug.Log("Векторная графика отключена (-noVectorArt): каталог рисуется из PNG.");unavailable=true;return;}
+            active?.Dispose();active=null;unavailable=false;loading=null;initialized=true;
+            failureReason=coverageFailure=null;coverage=null;coveredPlayerKeys=null;
+            ReadCoverage();
+            if(!Application.isEditor && coverageFailure!=null) {failureReason=coverageFailure;unavailable=true;return;}
+            if(Array.IndexOf(Environment.GetCommandLineArgs(),"-noVectorArt")>=0)
+            {
+                failureReason="указан -noVectorArt; отключение векторов поддерживается только в Editor, покрытые PNG не входят в Player";
+                Debug.Log(Application.isEditor?"Векторная графика отключена (-noVectorArt): редактор использует PNG.":
+                    "Векторная графика отключена (-noVectorArt): запрос покрытого ключа завершится явной ошибкой, PNG в Player отсутствует.");
+                unavailable=true;return;
+            }
             string root=Path.Combine(Application.streamingAssetsPath,VectorArtPackage.Folder);
             if(!File.Exists(VectorArtPackage.ManifestPath(root)))
             {
-                Debug.LogWarning("Нет пакета векторной графики "+root+": графика каталога рисуется из PNG (запасной путь до установки пакета).");
+                failureReason="нет пакета векторной графики: "+VectorArtPackage.ManifestPath(root);
+                if(Application.isEditor) Debug.LogWarning(failureReason+"; редактор использует исходные PNG.");
                 unavailable=true;return;
             }
-            loading=Task.Run(()=>VectorArtPackage.Load(root));
+            string expectedManifest=coverage?.manifestSha256;
+            loading=Task.Run(()=>
+            {
+                if(expectedManifest!=null && VectorArtPackage.Sha256(File.ReadAllBytes(VectorArtPackage.ManifestPath(root)))!=expectedManifest)
+                    throw new InvalidDataException("Хеш манифеста RVG не совпадает с индексом покрытия сборки.");
+                return VectorArtPackage.Load(root);
+            });
+        }
+
+        private static void ReadCoverage()
+        {
+            try
+            {
+                var text=GameAssets.Load<TextAsset>("Content/VectorCoverage");
+                if(text==null) throw new InvalidDataException("нет Content/VectorCoverage");
+                coverage=JsonUtility.FromJson<Coverage>(text.text);
+                if(coverage==null || coverage.version!=1 || coverage.keys==null || coverage.keys.Length==0 ||
+                    string.IsNullOrEmpty(coverage.manifestSha256) || coverage.manifestSha256.Length!=64)
+                    throw new InvalidDataException("некорректная версия, список ключей или SHA-256 индекса покрытия");
+                coveredPlayerKeys=new HashSet<string>(StringComparer.Ordinal);
+                foreach(string key in coverage.keys)
+                    if(string.IsNullOrEmpty(key) || !key.StartsWith("Imported/Art/",StringComparison.Ordinal) || !coveredPlayerKeys.Add(key))
+                        throw new InvalidDataException("пустой, повторный или некорректный ключ покрытия: "+key);
+            }
+            catch(Exception error)
+            {coverage=null;coveredPlayerKeys=null;coverageFailure="не прочитан индекс покрытия графики: "+error.Message;}
+        }
+
+        private static bool UnavailableKey(string key)
+        {
+            if(Application.isEditor) return false;
+            if(coverageFailure==null && coveredPlayerKeys!=null && !coveredPlayerKeys.Contains(key)) return false;
+            string message=$"Не удалось получить графику {key}: {failureReason??coverageFailure??"векторный кадр отсутствует в пакете"}. Покрытый PNG не поставляется в Player; подстановка изображения запрещена.";
+            Debug.LogError(message);
+            throw new InvalidOperationException(message);
         }
 
         // The vector sprite of an imported art key, or false when the key has no verified vector frame.
         public static bool TryLoad(string key,out Sprite sprite)
         {
             sprite=null;
-            if(unavailable || !Application.isPlaying || !key.StartsWith("Imported/Art/",StringComparison.Ordinal)) return false;
+            if(!Application.isPlaying || !key.StartsWith("Imported/Art/",StringComparison.Ordinal)) return false;
+            if(!initialized) Begin();
+            if(unavailable) return UnavailableKey(key);
+            // A raster key must keep working without waiting on (or requiring) the vector package.
+            if(!Application.isEditor && coveredPlayerKeys!=null && !coveredPlayerKeys.Contains(key)) return false;
             if(active==null)
             {
-                if(loading==null) Begin();
-                if(unavailable) return false;
                 var watch=Stopwatch.StartNew();
                 VectorArtPackage package;
                 try {package=loading.GetAwaiter().GetResult();}
                 catch(Exception error)
                 {
-                    Debug.LogError("Пакет векторной графики не загружен, графика каталога рисуется из PNG: "+error);
-                    unavailable=true;return false;
+                    failureReason="пакет векторной графики не загружен: "+error.Message;
+                    if(Application.isEditor) Debug.LogError(failureReason+"; редактор использует исходные PNG.\n"+error);
+                    unavailable=true;return UnavailableKey(key);
                 }
                 active=new VectorArtLibrary(package,ExportedContentCatalog.Load(),Screen.height/ScreenHeightPerZoom*DefaultQuality);
                 Debug.Log($"Векторная графика: {active.Covered} ключей каталога из векторов, масштаб {active.Zoom:F2}, ожидание пакета {watch.ElapsedMilliseconds} мс; "+string.Join("; ",package.ProfileReport));
             }
-            return active.TryGet(key,out sprite);
+            if(active.TryGet(key,out sprite)) return true;
+            return UnavailableKey(key);
         }
 
         public readonly VectorArtPackage Package;

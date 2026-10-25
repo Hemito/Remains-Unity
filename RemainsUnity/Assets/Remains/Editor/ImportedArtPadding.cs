@@ -163,11 +163,11 @@ namespace Remains.Editor
             Debug.Log($"Регистрация дополненных картинок: исправлено {repaired.Count}, уже верных {correct}.");
             return repaired.Count;
         }
-        // The installed lazy sprite (Resources/Imported/Art/<name>.asset) takes the reimported sprite's geometry in place.
+        // The installed lazy sprite keeps its GUID and its current Editor/player location when geometry is refreshed.
         public static void RefreshLazySprite(string texturePath)
         {
             string name=Path.GetFileNameWithoutExtension(texturePath);
-            string lazyPath="Assets/Remains/Resources/Imported/Art/"+name+".asset";
+            string lazyPath=CatalogArtBuildSplit.ExistingSpritePath("Imported/Art/"+name);
             var sprite=AssetDatabase.LoadAssetAtPath<Sprite>(texturePath)??throw new InvalidDataException("Спрайт не импортирован: "+texturePath);
             var lazy=AssetDatabase.LoadAssetAtPath<Sprite>(lazyPath);
             if(lazy==null) return;   // not every frame has a lazy copy

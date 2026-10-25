@@ -11,24 +11,28 @@ namespace Remains.Editor
 {
     public static class CatalogSpriteAuthoring
     {
-        public const string Textures="Assets/Remains/ImportedContent/Art/",Lazy="Assets/Remains/Resources/Imported/Art/";
+        public const string Textures="Assets/Remains/ImportedContent/Art/",Lazy="Assets/Remains/Resources/Imported/Art/",
+            EditorLazy=CatalogArtBuildSplit.EditorFolder;
         private static HashSet<string> covered;
         private static Dictionary<string,string> reasons;
+        public static void ResetCoverage() {covered=null;reasons=null;}
         public static string Key(Sprite sprite)
         {
             string path=AssetDatabase.GetAssetPath(sprite);
-            if(!path.StartsWith(Textures,StringComparison.Ordinal) && !path.StartsWith(Lazy,StringComparison.Ordinal))
+            if(!IsCanonical(path))
                 path=AssetDatabase.GetAssetPath(sprite.texture);
-            return path.StartsWith(Textures,StringComparison.Ordinal) || path.StartsWith(Lazy,StringComparison.Ordinal)
+            return IsCanonical(path)
                 ?"Imported/Art/"+Path.GetFileNameWithoutExtension(path):null;
         }
         public static CatalogSpriteReference Reference(Sprite sprite)
         {
             string key=Key(sprite);
             string path=AssetDatabase.GetAssetPath(sprite);
-            bool reframe=key!=null && !path.StartsWith(Textures,StringComparison.Ordinal) && !path.StartsWith(Lazy,StringComparison.Ordinal);
+            bool reframe=key!=null && !IsCanonical(path);
             return CatalogSpriteReference.FromSprite(sprite,key,key==null?null:RasterReason(key),reframe);
         }
+        private static bool IsCanonical(string path)=>path.StartsWith(Textures,StringComparison.Ordinal) ||
+            path.StartsWith(Lazy,StringComparison.Ordinal) || path.StartsWith(EditorLazy,StringComparison.Ordinal);
         public static string RasterReason(string key)
         {
             if(covered==null)

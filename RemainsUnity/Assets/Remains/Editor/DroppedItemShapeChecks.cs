@@ -11,8 +11,27 @@ namespace Remains.Editor
     {
         public static void Run()
         {
-            CheckSynthetic(false);CheckSynthetic(true);CheckGeometryWithoutArtworkLoad();CheckCreationAndMigration();CheckUnsupportedDrop();
+            CheckSynthetic(false);CheckSynthetic(true);CheckGeometryWithoutArtworkLoad();CheckImportedArtworkPaths();CheckCreationAndMigration();CheckUnsupportedDrop();
             Debug.Log("Формы брошенных предметов: PASS — плоские/высокие изображения, прозрачные поля, pivot, отражение/повороты, опора и сохранённые тела.");
+        }
+        private static void CheckImportedArtworkPaths()
+        {
+            var catalog=GameAssets.Load<DroppedItemShapeCatalog>(DroppedItemShapeCatalog.Resource);
+            var checkedKeys=new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            foreach(var shape in catalog.CreateLookup().Values)
+            {
+                var key=shape.Reference?.Key;
+                if(string.IsNullOrEmpty(key) || !checkedKeys.Add(key)) continue;
+                var source=GameAssets.Load<Sprite>(key);
+                Require(source!=null,"Нет Editor PNG для формы "+shape.id+", key="+key);
+                Require(UnityEditor.AssetDatabase.GetAssetPath(source)==CatalogArtBuildSplit.SpritePath(key),
+                    "Форма загружена из устаревшего расположения: "+shape.id+", key="+key);
+                // Moved lazy sprites are canonical, not cropped adapters. Re-authoring must not change their pivot.
+                var reference=CatalogSpriteAuthoring.Reference(source);
+                Require(reference.Key==key && reference.Resolve()==source && reference.Bounds==source.bounds,
+                    "Авторинг принял перемещённый спрайт за отдельную обрезку: "+shape.id+", key="+key);
+            }
+            Require(checkedKeys.Count>0,"Нет форм по ключам для проверки разделения Editor/player.");
         }
         private static void CheckGeometryWithoutArtworkLoad()
         {

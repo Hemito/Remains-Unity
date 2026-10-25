@@ -17,6 +17,13 @@ namespace Remains.Content
         {
             if(string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Пустой ключ ассета игры.",nameof(key));
             if(typeof(T)==typeof(Sprite) && VectorArtLibrary.TryLoad(key,out var sprite)) return sprite as T;
+#if UNITY_EDITOR
+            if(typeof(T)==typeof(Sprite) && key.StartsWith("Imported/Art/",StringComparison.Ordinal))
+            {
+                var source=UnityEditor.AssetDatabase.LoadAssetAtPath<T>("Assets/Remains/Editor/VectorArtSources/Art/"+key.Substring("Imported/Art/".Length)+".asset");
+                if(source!=null) return source;
+            }
+#endif
             return Resources.Load<T>(key);
         }
         public static T[] LoadAll<T>(string folder) where T:Object
@@ -28,6 +35,13 @@ namespace Remains.Content
         {
             if(string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Пустой ключ ассета игры.",nameof(key));
             if(typeof(T)==typeof(Sprite) && VectorArtLibrary.TryLoad(key,out var sprite)) return new Request(sprite);
+#if UNITY_EDITOR
+            if(typeof(T)==typeof(Sprite) && key.StartsWith("Imported/Art/",StringComparison.Ordinal))
+            {
+                var source=UnityEditor.AssetDatabase.LoadAssetAtPath<T>("Assets/Remains/Editor/VectorArtSources/Art/"+key.Substring("Imported/Art/".Length)+".asset");
+                if(source!=null) return new Request(source);
+            }
+#endif
             return new Request(Resources.LoadAsync<T>(key));
         }
         // An asynchronous load: IsDone, then Asset (null when the key names nothing of the requested type).
