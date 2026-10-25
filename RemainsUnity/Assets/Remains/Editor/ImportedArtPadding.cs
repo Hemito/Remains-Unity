@@ -100,8 +100,7 @@ namespace Remains.Editor
                     foreach(var item in migrated)
                     {
                         var importer=(TextureImporter)AssetImporter.GetAtPath(item.Path);
-                        var parts=item.Signature.Split('|');
-                        float originX=float.Parse(parts[1],CultureInfo.InvariantCulture),originY=float.Parse(parts[2],CultureInfo.InvariantCulture),zoom=float.Parse(parts[3],CultureInfo.InvariantCulture);
+                        var (originX,originY,zoom)=SignatureOrigin(item.Signature);
                         importer.spritePivot=Pivot(originX,originY,zoom,Up(item.Width),Up(item.Height));
                         importer.userData=UserData(item.Signature,item.Width,item.Height,item.Hash);
                         importer.SaveAndReimport();
@@ -113,6 +112,56 @@ namespace Remains.Editor
             }
             Debug.Log($"Дополнение картинок до кратного 4: дополнено {migrated.Count}, уже дополнено ранее {already}, кратные 4 без изменений {aligned}.");
             AuditFormats();
+        }
+        // Registration in an install signature "<sha>|originX|originY|zoom". The installer writes the origins with the Editor's
+        // culture ("36,8" on a Russian system), so a decimal comma is a decimal point here (no thousands separators occur).
+        public static (float X,float Y,float Zoom) SignatureOrigin(string signature)
+        {
+            var parts=signature.Split('|');
+            if(parts.Length<4) throw new InvalidDataException("Подпись импорта без регистрации: "+signature);
+            float Number(string text)=>float.Parse(text.Replace(',','.'),NumberStyles.Float,CultureInfo.InvariantCulture);
+            return (Number(parts[1]),Number(parts[2]),Number(parts[3]));
+        }
+
+        // Repair of the 2026-10-24 migration, which read "36,8" as 368 and moved the registration of every padded sprite with a
+        // fractional origin. The pivot is recomputed from the signature and must agree with the catalog's own origin.
+        public static void RepairPivotsBatch()
+        {
+            try {RepairPivots();EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+        public static int RepairPivots()
+        {
+            var origins=new Dictionary<string,Vector2>(StringComparer.Ordinal);
+            foreach(var entry in Remains.Content.ExportedContentCatalog.Load().resources)
+                foreach(var frame in entry.frames??Array.Empty<Remains.Content.ExportedFrame>())
+                    if(!string.IsNullOrEmpty(frame.spriteResource)) origins[Path.GetFileName(frame.spriteResource)]=frame.sourceOrigin;
+            var repaired=new List<string>();int correct=0;
+            AssetDatabase.StartAssetEditing();
+            try
+            {
+                foreach(string path in Directory.GetFiles(ArtRoot,"*.png").Select(p=>p.Replace('\\','/')).OrderBy(p=>p,StringComparer.Ordinal))
+                {
+                    var importer=AssetImporter.GetAtPath(path) as TextureImporter??throw new InvalidDataException("Нет TextureImporter: "+path);
+                    var (signature,paddedHash)=Parse(importer.userData);
+                    if(signature==null || paddedHash==null || signature.Split('|').Length<4) continue;
+                    var (originX,originY,zoom)=SignatureOrigin(signature);
+                    string name=Path.GetFileNameWithoutExtension(path);
+                    if(origins.TryGetValue(name,out var catalog) && (Mathf.Abs(catalog.x-originX)>1e-3f || Mathf.Abs(catalog.y-originY)>1e-3f))
+                        throw new InvalidDataException($"Регистрация {path}: подпись {originX},{originY}, каталог {catalog}.");
+                    importer.GetSourceTextureWidthAndHeight(out int width,out int height);
+                    var pivot=Pivot(originX,originY,zoom,width,height);
+                    if((importer.spritePivot-pivot).sqrMagnitude<1e-10f) {correct++;continue;}
+                    importer.spritePivot=pivot;
+                    importer.SaveAndReimport();
+                    repaired.Add(path);
+                }
+            }
+            finally {AssetDatabase.StopAssetEditing();}
+            foreach(string path in repaired) RefreshLazySprite(path);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"Регистрация дополненных картинок: исправлено {repaired.Count}, уже верных {correct}.");
+            return repaired.Count;
         }
         // The installed lazy sprite (Resources/Imported/Art/<name>.asset) takes the reimported sprite's geometry in place.
         public static void RefreshLazySprite(string texturePath)
