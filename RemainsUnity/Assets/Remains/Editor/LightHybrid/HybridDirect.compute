@@ -1,0 +1,97 @@
+// Editor-only decision prototype. Direct flatland light, area-sampled shape, exact fine absorption grid.
+#pragma kernel Direct
+#pragma kernel Clear
+#pragma kernel AddSource
+#pragma kernel AddBounce
+
+Texture2D<float4> _FineScene;
+StructuredBuffer<float4> _Samples;
+RWTexture2D<float4> _Output;
+Texture2D<float4> _SourceField;
+RWTexture2D<float4> _Whole;
+Texture2D<float4> _Bounce;
+SamplerState sampler_Bounce;
+int2 _FineSize,_TargetSize,_WholeSize,_Offset;
+float4 _WorldRect,_TargetRect,_SourceBounds,_Radiance;
+float _FinePPU,_Radius,_ProjectedWidth;
+int _SampleCount;
+
+bool InsideFine(int2 p) {return all(p>=0) && all(p<_FineSize);}
+int2 FinePoint(float2 world) {return int2(floor((world-_WorldRect.xy)*_FinePPU));}
+bool InEmitterBounds(float2 world) {return all(world>=_SourceBounds.xy) && all(world<=_SourceBounds.zw);}
+
+float Transmission(float2 from,float2 to)
+{
+    float2 delta=to-from;float lengthWorld=length(delta);
+    if(lengthWorld<0.5/_FinePPU) return 1;
+    float2 direction=delta/lengthWorld;float stepWorld=0.75/_FinePPU;
+    // The receiver is sampled at its surface; do not count its own endpoint as an occluding wall.
+    float finish=max(0,lengthWorld-0.6/_FinePPU);float transmission=1;bool leavingEmitter=true;
+    [loop] for(float at=stepWorld*0.5;at<finish;at+=stepWorld)
+    {
+        float2 world=from+direction*at;int2 p=FinePoint(world);
+        if(!InsideFine(p)) return 0;
+        float alpha=saturate(_FineScene[p].a);
+        // An emitting shape is itself opaque in the existing scene. Ignore only its connected initial segment.
+        if(leavingEmitter && InEmitterBounds(world) && alpha>=0.99) continue;
+        leavingEmitter=false;
+        if(alpha>=0.99) return 0;
+        if(alpha>0.0001) transmission*=pow(max(0,1-alpha),stepWorld*_FinePPU);
+        if(transmission<0.0001) return 0;
+    }
+    return transmission;
+}
+float3 Irradiance(float2 target)
+{
+    float3 light=0;
+    [loop] for(int i=0;i<_SampleCount;i++)
+    {
+        float4 sourcePoint=_Samples[i];float distanceWorld=distance(target,sourcePoint.xy);
+        float edge=1-smoothstep(_Radius*0.9,_Radius,distanceWorld);
+        if(edge<=0) continue;
+        // Finite angular extent of this area patch. Far field approaches width/distance;
+        // unlike a point 1/r approximation it cannot diverge next to a sample centre.
+        float patchWidth=sourcePoint.z*_ProjectedWidth;
+        float value=2*atan(patchWidth/(2*max(distanceWorld,0.5/_FinePPU)))*edge;
+        light+=_Radiance.rgb*(value*Transmission(sourcePoint.xy,target));
+    }
+    return light;
+}
+[numthreads(8,8,1)]
+void Direct(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_TargetSize))) return;
+    float2 target=_TargetRect.xy+(float2(id.xy)+0.5)/_FinePPU;int2 p=FinePoint(target);
+    if(!InsideFine(p)) {_Output[id.xy]=0;return;}
+    float3 light=0;
+    if(_FineScene[p].a<0.99) light=Irradiance(target);
+    else
+    {
+        // Match the existing notion of an illuminated wall rim. Directional wall-face GI is separate production work.
+        const int2 sides[4]={int2(1,0),int2(-1,0),int2(0,1),int2(0,-1)};
+        [unroll] for(int s=0;s<4;s++)
+        {
+            int2 q=p+sides[s];
+            if(InsideFine(q) && _FineScene[q].a<0.99)
+                light=max(light,Irradiance(_WorldRect.xy+(float2(q)+0.5)/_FinePPU));
+        }
+    }
+    _Output[id.xy]=float4(light,1);
+}
+[numthreads(8,8,1)]
+void Clear(uint3 id:SV_DispatchThreadID)
+{if(all(id.xy<uint2(_WholeSize))) _Whole[id.xy]=0;}
+[numthreads(8,8,1)]
+void AddSource(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_TargetSize))) return;
+    int2 p=int2(id.xy)+_Offset;if(any(p<0) || any(p>=_WholeSize)) return;
+    _Whole[p]=float4(_Whole[p].rgb+_SourceField[id.xy].rgb,1);
+}
+[numthreads(8,8,1)]
+void AddBounce(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_WholeSize))) return;
+    float2 uv=(float2(id.xy)+0.5)/float2(_WholeSize);
+    _Whole[id.xy]=float4(_Whole[id.xy].rgb+_Bounce.SampleLevel(sampler_Bounce,uv,0).rgb,1);
+}

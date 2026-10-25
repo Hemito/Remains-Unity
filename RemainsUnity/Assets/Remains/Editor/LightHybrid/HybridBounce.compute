@@ -1,0 +1,52 @@
+#pragma kernel DownsampleAndSeed
+#pragma kernel InjectSeed
+
+Texture2D<float4> _FineScene;
+Texture2D<float4> _FineDirect;
+RWTexture2D<float4> _CoarseScene;
+RWTexture2D<float4> _FirstBounce;
+RWTexture2D<float4> _BounceNext;
+int2 _FineSize,_CoarseSize;
+int _Divisor;
+float _WallGain;
+
+bool FineInside(int2 p) { return all(p>=0) && all(p<_FineSize); }
+
+[numthreads(8,8,1)]
+void DownsampleAndSeed(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=int2(id.xy);if(any(p>=_CoarseSize)) return;
+    float absorption=0;float3 incident=0;bool emitter=false;
+    const int2 sides[4]={int2(1,0),int2(-1,0),int2(0,1),int2(0,-1)};
+    for(int y=0;y<_Divisor;y++)for(int x=0;x<_Divisor;x++)
+    {
+        int2 q=p*_Divisor+int2(x,y);if(!FineInside(q)) continue;
+        float4 scene=_FineScene[q];float a=scene.a;absorption=max(absorption,a);
+        emitter=emitter||any(scene.rgb>0);
+        if(a<0.99 || any(scene.rgb>0)) continue;
+        for(int k=0;k<4;k++)
+        {
+            int2 neighbour=q+sides[k];
+            if(FineInside(neighbour) && _FineScene[neighbour].a<0.99)
+                incident=max(incident,max(0,_FineDirect[neighbour].rgb));
+        }
+    }
+    // Any fine opaque cell keeps the coarse cell opaque. Partial absorption is scaled for the longer
+    // coarse march step; using the maximum is deliberately conservative and may close thin gaps.
+    // Keep furniture in the original partial-absorption class rather than rounding a dense object
+    // into an opaque wall at half precision; only an actual fine opaque texel makes a coarse wall.
+    absorption=absorption>=0.99?1:min(0.985,1-pow(max(0,1-saturate(absorption)),_Divisor));
+    _CoarseScene[p]=float4(0,0,0,absorption);
+    // Original transport does not reflect emitting surfaces. Alpha of this diagnostic seed is a
+    // coarse emitter mask, not transport absorption; RGB is the constant first-bounce radiance.
+    _FirstBounce[p]=float4(absorption>=0.99 && !emitter?incident*_WallGain:0,emitter?1:0);
+}
+
+[numthreads(8,8,1)]
+void InjectSeed(uint3 id:SV_DispatchThreadID)
+{
+    if(any(int2(id.xy)>=_CoarseSize)) return;
+    float4 bounce=_BounceNext[id.xy];
+    float4 first=_FirstBounce[id.xy];
+    _BounceNext[id.xy]=float4(first.a>0?0:bounce.rgb+first.rgb,bounce.a);
+}
