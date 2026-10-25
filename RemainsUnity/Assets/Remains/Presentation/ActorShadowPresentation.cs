@@ -27,7 +27,7 @@ namespace Remains.Presentation
             public readonly List<string> ExpiredFlashes=new();
             public Vector2 Position,SelectedAt;
             public long Revision=-1;
-            public bool Queued;
+            public bool Queued,Culled;
         }
         private readonly MonoBehaviour runner;
         private readonly Transform parent;
@@ -69,8 +69,10 @@ namespace Remains.Presentation
                 1,(float)settings.ActorShadowMaxScale);
         }
 
+        // area: where shadows can be seen (the camera's animation area); actors outside it keep their entry but draw nothing,
+        // so a level of ~240 NPCs costs only the few near the camera. Null draws every actor (checks, previews).
         public void Present(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
-            InteractionVisuals weapons,IReadOnlyList<RoomRadianceField.SpriteEmission> flashes,IReadOnlyList<string> flashIds=null)
+            InteractionVisuals weapons,IReadOnlyList<RoomRadianceField.SpriteEmission> flashes,IReadOnlyList<string> flashIds=null,Rect? area=null)
         {
             if(current!=level) {Clear();level=current;}
             if(level==null || !level.IsReady) {Clear();return;}
@@ -80,13 +82,20 @@ namespace Remains.Presentation
             {
                 if(pair.Value==null || !pair.Value.gameObject.activeInHierarchy) continue;
                 retained.Add(pair.Key);
+                if(Outside(area,pair.Value))
+                {
+                    if(entries.TryGetValue(pair.Key,out var hidden) && !hidden.Culled) {hidden.View.Clear();hidden.Culled=true;}
+                    continue;
+                }
                 if(!entries.TryGetValue(pair.Key,out var entry))
                 {
                     entry=new Entry{View=UnityEngine.Object.Instantiate(prefab,parent,false)};
                     entry.View.name="Проецируемая тень: "+pair.Key;entries.Add(pair.Key,entry);
                 }
-                entry.Parts.Clear();pair.Value.AppendLightOccluders(entry.Parts);
-                weapons.AppendWeaponLightOccluders(pair.Key,entry.Parts);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: силуэты частей"))
+                {entry.Parts.Clear();pair.Value.AppendLightOccluders(entry.Parts);
+                weapons.AppendWeaponLightOccluders(pair.Key,entry.Parts);}
+                entry.Culled=false;
                 if(entry.Parts.Count==0) {entry.View.Clear();continue;}
                 entry.Position=pair.Value.TryGetDrawnBounds(out var bounds)?(Vector2)bounds.center:
                     PartsCenter(entry.Parts);
@@ -95,7 +104,8 @@ namespace Remains.Presentation
                     entry.Queued=true;
                 AdoptPending(entry);
                 BlendLampSources(entry.DisplayLamps,entry.Lamps,Time.deltaTime,settings.ActorShadowMaxSources);
-                entry.Sources.Clear();entry.Sources.AddRange(entry.DisplayLamps);entry.Flashes.Clear();
+                // Element copy: Mono's List.AddRange(ICollection) allocates a temporary array (~240 actors every frame).
+                entry.Sources.Clear();foreach(var source in entry.DisplayLamps) entry.Sources.Add(source);entry.Flashes.Clear();
                 if(flashes!=null) for(int i=0;i<flashes.Count;i++)
                 {
                     var flash=flashes[i];
@@ -124,7 +134,7 @@ namespace Remains.Presentation
                     if(Time.frameCount-cached.Value.Frame>4) entry.ExpiredFlashes.Add(cached.Key);
                 foreach(string id in entry.ExpiredFlashes) entry.FlashVisibility.Remove(id);
                 if(entry.View.NeedsPreparation(entry.Parts,entry.Sources.Count)) entry.Queued=true;
-                entry.View.Draw(entry.Position,entry.Parts,entry.Sources,settings);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: рисование проекции")) entry.View.Draw(entry.Position,entry.Parts,entry.Sources,settings);
             }
             foreach(var pair in entries) if(!retained.Contains(pair.Key)) removed.Add(pair.Key);
             foreach(var id in removed) {Destroy(entries[id]);entries.Remove(id);}
@@ -134,8 +144,11 @@ namespace Remains.Presentation
 
         // Shot event preparation keeps CPU visibility and pool allocation out of LateUpdate,
         // while making the first visible flash use a ready cache and target slot immediately.
+        private static bool Outside(Rect? area,ActorVisual visual)=>area is Rect seen &&
+            !seen.Contains(visual.TryGetDrawnBounds(out var drawn)?(Vector2)drawn.center:(Vector2)visual.transform.position);
+        // area as in Present: a shot prepares flash shadows only for actors that can be seen.
         public void PrepareFlash(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
-            InteractionVisuals weapons,string id,RoomRadianceField.SpriteEmission flash)
+            InteractionVisuals weapons,string id,RoomRadianceField.SpriteEmission flash,Rect? area=null)
         {
             if(current!=level) {Clear();level=current;}
             if(level==null || !level.IsReady || flash.Sprite==null) return;
@@ -143,7 +156,7 @@ namespace Remains.Presentation
             Vector2 sourcePosition=flash.LocalToWorld.MultiplyPoint3x4(flash.Sprite.bounds.center);
             foreach(var actor in actors)
             {
-                if(actor.Value==null || !actor.Value.gameObject.activeInHierarchy) continue;
+                if(actor.Value==null || !actor.Value.gameObject.activeInHierarchy || Outside(area,actor.Value)) continue;
                 if(!entries.TryGetValue(actor.Key,out var entry))
                 {
                     entry=new Entry{View=UnityEngine.Object.Instantiate(prefab,parent,false)};

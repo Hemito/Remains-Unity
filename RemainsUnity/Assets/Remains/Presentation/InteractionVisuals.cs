@@ -219,11 +219,13 @@ namespace Remains.Presentation
             muzzleEmissions.Clear();
             muzzleSourceIds.Clear();
             if(session?.World==null) return;
+            // Read once: both are per-frame constants for ~1400 body views.
+            string shownLevel=session.LocalActor?.level,localOwner=session.LocalOwner;
             foreach(var prop in session.World.props)
-                if(props.TryGetValue(prop.id,out var view)) {view.DrawMotion(prop,session.LocalOwner,session.Pause.IsPaused(prop.level),Time.deltaTime);view.SetVisible(prop.level==session.LocalActor?.level);}
+                if(props.TryGetValue(prop.id,out var view)) {view.DrawMotion(prop,localOwner,session.Pause.IsPaused(prop.level),Time.deltaTime);view.SetVisible(prop.level==shownLevel);}
             foreach(var container in session.World.containers)
                 if(containers.TryGetValue(container.id,out var view))
-                {view.DrawMotion(container,session.LocalOwner,session.Pause.IsPaused(container.level),Time.deltaTime);view.SetVisible(container.level==session.LocalActor?.level);}
+                {view.DrawMotion(container,localOwner,session.Pause.IsPaused(container.level),Time.deltaTime);view.SetVisible(container.level==shownLevel);}
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;
@@ -236,7 +238,7 @@ namespace Remains.Presentation
                         Debug.LogWarning($"Представление оружия не обновлено событием: actor={actor.id}, view={view.Id}, weapon={actor.weapon}.",this);
                     view.SetVisible(false);continue;
                 }
-                view.SetVisible(ActorPresence.IsPresent(actor) && !ActorSessionRules.IsPassive(actor) && actor.level==session.LocalActor?.level);
+                view.SetVisible(ActorPresence.IsPresent(actor) && !ActorSessionRules.IsPassive(actor) && actor.level==shownLevel);
                 sprite=shotAnimation.Select(actor,sprite);
                 sprite=reloadAnimation.Select(actor,sprite);
                 view.SetFrame(sprite);
@@ -252,7 +254,7 @@ namespace Remains.Presentation
             foreach(var pair in flights) pair.Value.enabled=false;
             foreach(var flight in grenades.Flights) if(flights.TryGetValue(flight.message.id,out var view))
             {
-                view.enabled=flight.message.level==session.LocalActor?.level;view.transform.position=flight.position;
+                view.enabled=flight.message.level==shownLevel;view.transform.position=flight.position;
                 view.transform.rotation=Quaternion.Euler(0,0,flight.state.angle);view.flipY=flight.state.mirrored;
             }
             shotAnimation.Step(Time.deltaTime);

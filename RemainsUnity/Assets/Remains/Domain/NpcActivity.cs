@@ -10,9 +10,13 @@ namespace Remains.Domain
         public static bool Awake(System.Collections.Generic.IReadOnlyList<ActorState> actors,ActorState npc)
         {
             if(npc.attackBusy) return true;
-            foreach(var player in actors)
+            // Indexed: foreach over the interface boxes an enumerator, and this runs for every NPC every frame.
+            for(int i=0;i<actors.Count;i++)
+            {
+                var player=actors[i];
                 if(player.player && player.connected && player.level==npc.level &&
                     System.Math.Abs(player.x-npc.x)<=HalfWidth && System.Math.Abs(player.y-npc.y)<=HalfHeight) return true;
+            }
             return false;
         }
     }

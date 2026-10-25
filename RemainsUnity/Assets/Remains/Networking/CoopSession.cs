@@ -19,7 +19,20 @@ namespace Remains.Networking
         public WorldState ServerWorld { get; private set; }
         public string LocalOwner { get; private set; }
         public string LocalActorId { get; private set; }
-        public ActorState LocalActor => World?.Find(LocalActorId);
+        // Read many times per frame (every body view, every system step): check the remembered slot first, scan only when the
+        // list changed under it. The id is compared on every read, so a replaced or moved actor is never returned stale.
+        public ActorState LocalActor
+        {
+            get
+            {
+                var actors=World?.actors;string id=LocalActorId;
+                if(actors==null || id==null) return null;
+                if((uint)localActorSlot<(uint)actors.Count && actors[localActorSlot].id==id) return actors[localActorSlot];
+                for(int i=0;i<actors.Count;i++) if(actors[i].id==id) {localActorSlot=i;return actors[i];}
+                return null;
+            }
+        }
+        private int localActorSlot=-1;
         private readonly CharacterPlayTime playTime=new(()=>Time.unscaledTimeAsDouble);
         public SaveStore Saves { get; set; }
         public CharacterContentGate CharacterContent {get;}=new();

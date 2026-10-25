@@ -189,13 +189,15 @@ namespace Remains.Runtime
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
             {
                 if(!LevelPresentationReady || ActiveFactoryLighting==null) {actorShadows.Clear();return;}
-                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: персонажи")) actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Тени: персонажи")) actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds,
+                    Session.LocalActor is {} viewer?(Rect?)cameraFollower.AnimationArea(viewer):null);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: проекции вспышек")) actorShadows.CollectProjectedLightShadows(projectedFlashShadows);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Свет: вспышки и тени")) ActiveFactoryLighting.RenderMuzzleFlashes(emissions,projectedFlashShadows,interactionVisuals.MuzzleSourceIds);
             },(attack,emission)=>
             {
                 if(LevelPresentationReady && ActiveFactoryLighting!=null)
-                    using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вспышки")) actorShadows.PrepareFlash(ActiveFactoryLighting,visuals,interactionVisuals,"flash:"+attack.id,emission);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Тени: подготовка вспышки")) actorShadows.PrepareFlash(ActiveFactoryLighting,visuals,interactionVisuals,"flash:"+attack.id,emission,
+                        Session.LocalActor is {} viewer?(Rect?)cameraFollower.AnimationArea(viewer):null);
             });
             heldAppearance=CreateOwnedObject("Цвет удерживаемых предметов").AddComponent<HeldPropGlowPresentation>();
             heldAppearance.Initialize(Session,interactionVisuals,ponyMagic);
@@ -552,14 +554,17 @@ namespace Remains.Runtime
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PrototypeRuntime.Update");
             if(roomFailurePending) return;
             using(Remains.Diagnostics.FrameHitchLog.Section("Сохранения: очередь")) Session.PumpSaveWrites();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Сессия: шаги служб"))
+            {
             Session.Admission.Step();Session.Travel.Step();Session.Lobby.Step();Session.Pause.Step();Session.Deposits.Step();Session.ActorHolds.Step();
             Session.LevelTime.Step(Time.deltaTime);
             Session.PropImpacts.Step();
             Session.Mechanisms.Step();Platforms.Step(Time.deltaTime);
+            }
             using(Remains.Diagnostics.FrameHitchLog.Section("Мины")) {Session.Mines.Step(Time.deltaTime);Session.Mines.StepClient();}
             using(Remains.Diagnostics.FrameHitchLog.Section("Ловушки")) {Session.Hazards.Step(Time.deltaTime);Session.Hazards.StepClient();}
             var actor=Session.LocalActor;
-            Pickup.Step();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Подбор")) Pickup.Step();
             if (actor==null || !NetworkClient.isConnected)
             {
                 if(Session.EntryPreparation.ClientPending && Application.isFocused && Keyboard.current?.escapeKey.wasPressedThisFrame==true)
@@ -575,8 +580,11 @@ namespace Remains.Runtime
             using(Remains.Diagnostics.FrameHitchLog.Section("Опоры на телах"))
                 foreach(string level in Geometry.LoadedLevels) BodyTopSurfaces.Update(Geometry.Get(level),Session.World,level);
             using(Remains.Diagnostics.FrameHitchLog.Section("Удалённое движение")) remoteMotion.Step(Session.World,Session.LocalOwner,Time.deltaTime,Session.Pause.IsPaused,Time.unscaledTimeAsDouble,true);
-            actorActivity.Refresh(Session.World);
-            actorActivity.SetVisibleArea(actor.level,cameraFollower.AnimationArea(actor));
+            using(Remains.Diagnostics.FrameHitchLog.Section("Актёры: активность"))
+            {actorActivity.Refresh(Session.World);
+            actorActivity.SetVisibleArea(actor.level,cameraFollower.AnimationArea(actor));}
+            using(Remains.Diagnostics.FrameHitchLog.Section("Актёры: движение и позы"))
+            {
             foreach(var body in Session.World.actors)
                 if(body.owner==Session.LocalOwner &&
                     LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
@@ -594,8 +602,8 @@ namespace Remains.Runtime
                     ActorPose.Advance(animated,Time.deltaTime);
                 }
             }
-            Session.Recoil.Step(Time.deltaTime);
-            Grenades.Step(Time.deltaTime);
+            }
+            using(Remains.Diagnostics.FrameHitchLog.Section("Отдача и гранаты")) {Session.Recoil.Step(Time.deltaTime);Grenades.Step(Time.deltaTime);}
             if (Options.Smoke==null || Options.Smoke.StartsWith("actor-death") || Options.Smoke.StartsWith("legacy-doors") || Options.Smoke.StartsWith("cosmetics") || Options.Smoke.StartsWith("lighting-preparation") || (Options.Smoke is "performance-audit" or "seed104-baseline") || Options.Smoke.StartsWith("warehouse-furniture") || Options.Smoke.StartsWith("warehouse-metal-doors") || Options.Smoke.StartsWith("warehouse-reload") || Options.Smoke.StartsWith("raid-entry") || (Options.Smoke.StartsWith("warehouse-seam") || Options.Smoke.StartsWith("continuation-seam")) || Options.Smoke.StartsWith("office-furniture") || Options.Smoke.StartsWith("office-opening") || Options.Smoke.StartsWith("office-recovery") || Options.Smoke.StartsWith("tool-stand") || Options.Smoke.StartsWith("office-cabinet") || Options.Smoke.StartsWith("ladder-contact") || Options.Smoke.StartsWith("mechanism") || Options.Smoke.StartsWith("crawler") || Options.Smoke.StartsWith("surface-audio") || Options.Smoke.StartsWith("contact-audio") || Options.Smoke.StartsWith("prop-body") || Options.Smoke.StartsWith("factory-room") || Options.Smoke.StartsWith("raid-reload") || Options.Smoke.StartsWith("travel-points") || Options.Smoke.StartsWith("door") || Options.Smoke.StartsWith("ladder-body") || Options.Smoke.StartsWith("weapon-transfer") || Options.Smoke.StartsWith("projectile-handoff") || Options.Smoke.StartsWith("training") || Options.Smoke.StartsWith("shot-spread") || Options.Smoke.StartsWith("weapon-reload") || Options.Smoke.StartsWith("held-prop-color") || Options.Smoke.StartsWith("obstacle") || Options.Smoke.StartsWith("journey") || Options.Smoke.StartsWith("session") || Options.Smoke.StartsWith("ammo") || Options.Smoke.StartsWith("revival") || Options.Smoke.StartsWith("grenade") || Options.Smoke.StartsWith("npc") || Options.Smoke.StartsWith("container") || Options.Smoke.StartsWith("receipt") || Options.Smoke.StartsWith("shortcuts") || Options.Smoke.StartsWith("direct-items") || Options.Smoke.StartsWith("slope-poses") || Options.Smoke.StartsWith("body") || Options.Smoke.StartsWith("extensions") || Options.Smoke.StartsWith("freeze") || Options.Smoke.StartsWith("telekinesis") || Options.Smoke.StartsWith("actor-hold") || Options.Smoke.StartsWith("melee") || Options.Smoke.StartsWith("rules") || Options.Smoke.StartsWith("pause"))
             {
                 using(Remains.Diagnostics.FrameHitchLog.Section("NPC")) npcs.Step(Time.deltaTime);
@@ -608,6 +616,7 @@ namespace Remains.Runtime
             using(Remains.Diagnostics.FrameHitchLog.Section("Физические тела")) freeProps.Step(Time.deltaTime);
             using(Remains.Diagnostics.FrameHitchLog.Section("Бой")) Combat.Step(Time.deltaTime);
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))
+            using(Remains.Diagnostics.FrameHitchLog.Section("Актёры: публикация поз"))
             {
                 foreach (var owned in Session.World.actors)
                     if (owned.owner==Session.LocalOwner && actorActivity.TakePosePublication(owned,out bool final,Session.Pause.IsPaused(owned.level)))
@@ -616,7 +625,7 @@ namespace Remains.Runtime
             // Follow the resolved body that the visuals will draw in LateUpdate.
             // Input above used the camera from the last displayed frame.
             if(Session.LocalActor is {} renderedActor && NetworkClient.isConnected)
-                cameraFollower.Step(renderedActor,Time.deltaTime);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Камера")) cameraFollower.Step(renderedActor,Time.deltaTime);
         }
 
         private IEnumerator ReleaseUnusedAssets()

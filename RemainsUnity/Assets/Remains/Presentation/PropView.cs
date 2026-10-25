@@ -164,6 +164,7 @@ namespace Remains.Presentation
             if(!fitStateWidth) return;
             transform.localScale*=width/artwork.bounds.size.x;
         }
-        public void SetVisible(bool visible)=>gameObject.SetActive(visible);
+        // Called every frame for every body view; touch the engine only on a change.
+        public void SetVisible(bool visible) {if(gameObject.activeSelf!=visible) gameObject.SetActive(visible);}
     }
 }
