@@ -84,7 +84,12 @@ namespace Remains.Presentation
                 retained.Add(pair.Key);
                 if(Outside(area,pair.Value))
                 {
-                    if(entries.TryGetValue(pair.Key,out var hidden) && !hidden.Culled) {hidden.View.Clear();hidden.Culled=true;}
+                    // A hidden shadow keeps no lamp selection: its direct fields are released, and nothing is reselected for it.
+                    if(entries.TryGetValue(pair.Key,out var hidden) && !hidden.Culled)
+                    {
+                        hidden.View.Clear();hidden.Culled=true;hidden.Queued=false;hidden.Revision=-1;   // forces a reselection on return
+                        hidden.Lamps.Clear();hidden.DisplayLamps.Clear();hidden.PendingLamps.Clear();hidden.HasPending=false;
+                    }
                     continue;
                 }
                 if(!entries.TryGetValue(pair.Key,out var entry))
@@ -95,7 +100,8 @@ namespace Remains.Presentation
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: силуэты частей"))
                 {entry.Parts.Clear();pair.Value.AppendLightOccluders(entry.Parts);
                 weapons.AppendWeaponLightOccluders(pair.Key,entry.Parts);}
-                entry.Culled=false;
+                // Back in view: select lamps again and wait for their fields (the pending rule), as for a new actor.
+                if(entry.Culled) {entry.Culled=false;entry.Queued=true;}
                 if(entry.Parts.Count==0) {entry.View.Clear();continue;}
                 entry.Position=pair.Value.TryGetDrawnBounds(out var bounds)?(Vector2)bounds.center:
                     PartsCenter(entry.Parts);
@@ -260,7 +266,7 @@ namespace Remains.Presentation
                         for(int i=0;i<batch.Count;i++)
                         {
                             var entry=batch[i].Entry;
-                            if(!entries.ContainsValue(entry)) continue;
+                            if(!entries.ContainsValue(entry) || entry.Culled) continue;
                             entry.PendingLamps.Clear();entry.PendingLamps.AddRange(results[i]);
                             if(!entry.HasPending) entry.PendingSince=Time.unscaledTime;
                             entry.HasPending=true;
@@ -288,6 +294,7 @@ namespace Remains.Presentation
             steadySources.Clear();
             foreach(var entry in entries.Values)
             {
+                if(entry.Culled) continue;   // a selection finished after the actor left view must not hold fields
                 foreach(var source in entry.Lamps) steadySources.Add(source.Id);
                 foreach(var source in entry.DisplayLamps) steadySources.Add(source.Id);
                 if(entry.HasPending) foreach(var source in entry.PendingLamps) steadySources.Add(source.Id);
