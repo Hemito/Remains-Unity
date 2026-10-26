@@ -13,9 +13,10 @@ using Object=UnityEngine.Object;
 
 namespace Remains.Editor
 {
-    // Whole-level direct light (stage 1 of the hybrid light) on the seed104 factory: a door or lamp event rebuilds
-    // only what it should, and the summed light after the event equals a full rebuild bit for bit; a small cache
-    // still gives the same light. Timings are submission plus a blocking one-pixel readback, not GPU timestamps.
+    // Whole-level hybrid light on the seed104 factory. Direct light: a door or lamp event rebuilds only what it should,
+    // and the summed light after the event equals a full rebuild bit for bit; a small cache still gives the same light.
+    // Bounce: the event window's difference stays within a share of the change against a full bounce rebuild.
+    // Timings are submission plus a blocking one-pixel readback, not GPU timestamps.
     public static class LevelLightChecks
     {
         public static void RunBatch()
@@ -44,16 +45,20 @@ namespace Remains.Editor
                 light=view.CreateLevelLight();
                 double prepareMs=clock.Elapsed.TotalMilliseconds;
                 clock.Restart();light.Direct.BuildAll();Fence(light.Direct.Sum,fence);double buildMs=clock.Elapsed.TotalMilliseconds;
+                clock.Restart();light.Bounce.BuildAll();Fence(light.Bounce.Indirect,fence);double bounceMs=clock.Elapsed.TotalMilliseconds;
                 light.Direct.WaitForMeasurements();
                 var sources=light.Sources.All;
                 int enabled=sources.Count(s=>s.Enabled);
                 Debug.Log($"Свет уровня: подготовка {prepareMs:F0} мс (стены, формы, сцена), прямой свет всех {enabled} включённых источников {buildMs:F0} мс "+
                     $"({buildMs/Math.Max(1,enabled):F2} мс на источник). Ламп {sources.Count(s=>s.Kind==LevelLightSourceKind.Lamp)}, окон {sources.Count(s=>s.Kind==LevelLightSourceKind.Window)}, "+
                     $"экранов {sources.Count(s=>s.Kind==LevelLightSourceKind.Screen)}. Кеш полей {light.Direct.CacheBytes/1048576.0:F1} МиБ ({light.Direct.CachedFields} полей, вытеснено {light.Direct.Evictions}), "+
-                    $"сумма {light.Direct.SumBytes/1048576.0:F1} МиБ, сцена {light.Scene.Bytes/1048576.0:F1} МиБ.");
+                    $"сумма {light.Direct.SumBytes/1048576.0:F1} МиБ, сцена {light.Scene.Bytes/1048576.0:F1} МиБ. "+
+                    $"Отражения всего уровня {light.Bounce.Width}×{light.Bounce.Height}: {bounceMs:F0} мс, постоянно {light.Bounce.Bytes/1048576.0:F1} МиБ.");
+                var indirect0=ReadFloat(light.Bounce.Indirect);
                 var initial=Read(light.Direct.Sum);
                 if(!initial.Any(value=>value!=0)) throw new InvalidOperationException("Сумма прямого света пуста.");
-                WritePreview(light,initial,new Vector2(room.spawnX,room.spawnY),"spawn");
+                WritePreview(light,initial,null,new Vector2(room.spawnX,room.spawnY),"spawn-direct");
+                WritePreview(light,initial,indirect0,new Vector2(room.spawnX,room.spawnY),"spawn-hybrid");
 
                 // Door: the closed door lit by the most sources; opening it rebuilds only its subscribers.
                 var doors=light.Scene.Doors.Values.ToList();
@@ -71,6 +76,8 @@ namespace Remains.Editor
                 reference=Rebuilt(light,fence,"после двери");
                 Require(afterDoor,Read(reference.Sum),"дверь: событие против полной пересборки");
                 reference.Dispose();reference=null;
+                var indirectDoor=ReadFloat(light.Bounce.Indirect);
+                CompareBounce(light,indirect0,indirectDoor,fence,"дверь",light.Scene.Texels(door.Bounds));
 
                 // Lamp: switching off and on again restores the initial light exactly.
                 var lamp=sources.First(s=>s.Kind==LevelLightSourceKind.Lamp && s.Enabled);
@@ -80,6 +87,7 @@ namespace Remains.Editor
                 reference=Rebuilt(light,fence,"после лампы");
                 Require(afterLamp,Read(reference.Sum),"лампа: событие против полной пересборки");
                 reference.Dispose();reference=null;
+                CompareBounce(light,indirectDoor,ReadFloat(light.Bounce.Indirect),fence,"лампа",lamp.Texels);
                 var restored=Event("лампа снова",()=>light.SetDark(new HashSet<string>(StringComparer.Ordinal)),light,fence,out int relitBuilds,out double relitMs);
                 Require(restored,afterDoor,"лампа: включение возвращает прежний свет");
                 Debug.Log($"Лампа {lamp.Id}: выключение — полей {lampBuilds}, {lampMs:F1} мс; включение — полей {relitBuilds}, {relitMs:F1} мс.");
@@ -88,13 +96,13 @@ namespace Remains.Editor
 
                 // A small cache: fields are evicted and rebuilt on demand, the light stays the same.
                 light.Dispose();light=null;
-                light=view.CreateLevelLight(24L*1024*1024);light.Direct.BuildAll();light.Direct.WaitForMeasurements();
+                light=view.CreateLevelLight(24L*1024*1024);light.BuildAll();light.Direct.WaitForMeasurements();
                 if(light.Direct.Evictions==0) throw new InvalidOperationException("Малый кеш не вытеснил ни одного поля.");
                 Require(Read(light.Direct.Sum),initial,"малый кеш: полная сборка");
                 var smallDoor=Event("дверь при малом кеше",()=>light.SetDoors(opened),light,fence,out int smallBuilds,out _);
                 Require(smallDoor,afterDoor,"малый кеш: событие двери");
                 Debug.Log($"Малый кеш 24 МиБ: вытеснено {light.Direct.Evictions}, событие двери построило {smallBuilds} полей.");
-                Debug.Log("LevelLightChecks: PASS — события пересобирают только свои источники, сумма совпадает с полной пересборкой бит в бит, малый кеш даёт тот же свет.");
+                Debug.Log("LevelLightChecks: PASS — события пересобирают только свои источники, сумма прямого света совпадает с полной пересборкой бит в бит, малый кеш даёт тот же свет, отражения окна события отличаются от полного пересчёта не больше чем на "+MaxBounceError.ToString("P0")+" изменения.");
             }
             finally
             {
@@ -110,11 +118,52 @@ namespace Remains.Editor
             int before=light.Direct.Builds;var clock=Stopwatch.StartNew();
             change();
             int steps=0;
-            while(light.Step(2)) {if(++steps>10000) throw new InvalidOperationException("Событие не завершилось: "+name);light.Direct.WaitForMeasurements();}
+            while(light.Step(2,4)) {if(++steps>10000) throw new InvalidOperationException("Событие не завершилось: "+name);light.Direct.WaitForMeasurements();}
             Fence(light.Direct.Sum,fence);milliseconds=clock.Elapsed.TotalMilliseconds;
             light.Direct.WaitForMeasurements();
             builds=light.Direct.Builds-before;
             return Read(light.Direct.Sum);
+        }
+        // The local difference against a full rebuild of the bounce on the same inputs; the error is the light the
+        // window's margin misses. Reported against the size of the change itself.
+        private static void CompareBounce(LevelLight light,float[] before,float[] local,Texture2D fence,string name,RectInt around)
+        {
+            using var full=new BounceLight(light.Scene,light.Direct,light.Bounce.Albedo);
+            var clock=Stopwatch.StartNew();full.BuildAll();Fence(full.Indirect,fence);double ms=clock.Elapsed.TotalMilliseconds;
+            var reference=ReadFloat(full.Indirect);
+            double maxChange=0,maxError=0,sumError=0,maxLevel=0;int changed=0,far=0;
+            int w=light.Bounce.Width;var worst=Vector2Int.zero;
+            for(int i=0;i<reference.Length;i+=4)
+            {
+                for(int k=0;k<3;k++)
+                {
+                    double change=Math.Abs(reference[i+k]-before[i+k]),error=Math.Abs(local[i+k]-reference[i+k]);
+                    maxLevel=Math.Max(maxLevel,reference[i+k]);
+                    if(change>maxChange) maxChange=change;
+                    if(error>maxError) {maxError=error;worst=new Vector2Int(i/4%w,i/4/w);}
+                    if(k==0 && change>1e-4) {changed++;sumError+=error;}
+                    if(k==0 && error>1e-3) far++;
+                }
+            }
+            var center=new Vector2Int((around.xMin+around.xMax)/2/BounceLight.Divisor,(around.yMin+around.yMax)/2/BounceLight.Divisor);
+            Debug.Log($"Отражения, {name}: полный пересчёт {ms:F0} мс; изменение до {maxChange:F4} (текселей {changed}), ошибка окна до {maxError:F4} "+
+                $"({(maxChange>0?maxError/maxChange*100:0):F1}% изменения), средняя по изменённым {(changed>0?sumError/changed:0):F5}, текселей с ошибкой >0,001: {far}; "+
+                $"худшая точка в {Vector2Int.Distance(worst,center)*BounceLight.Divisor/(float)light.Scene.Resolution:F1} м от события; максимум отражений уровня {maxLevel:F3}; окон {light.Bounce.Windows}.");
+            if(!(maxChange>0)) throw new InvalidOperationException($"Отражения, {name}: событие не изменило отражения.");
+            if(maxError>MaxBounceError*maxChange) throw new InvalidOperationException($"Отражения, {name}: ошибка окна {maxError} больше {MaxBounceError:P0} изменения {maxChange}.");
+        }
+        // The window's difference may miss far light passing through the change; measured 0.2–0.4% on seed104.
+        private const double MaxBounceError=.02;
+        private static float[] ReadFloat(Texture texture)
+        {
+            var target=(RenderTexture)texture;var previous=RenderTexture.active;
+            var image=new Texture2D(target.width,target.height,TextureFormat.RGBAFloat,false,true);
+            try
+            {
+                RenderTexture.active=target;image.ReadPixels(new Rect(0,0,target.width,target.height),0,0,false);
+                return image.GetRawTextureData<float>().ToArray();
+            }
+            finally {RenderTexture.active=previous;Object.DestroyImmediate(image);}
         }
         private static DirectLight Rebuilt(LevelLight light,Texture2D fence,string name)
         {
@@ -154,7 +203,7 @@ namespace Remains.Editor
             finally {RenderTexture.active=previous;}
         }
         // A 60×34 m crop of the sum around a point, Reinhard-mapped, for a look by eye.
-        private static void WritePreview(LevelLight light,ushort[] sum,Vector2 center,string name)
+        private static void WritePreview(LevelLight light,ushort[] sum,float[] bounce,Vector2 center,string name)
         {
             var scene=light.Scene;int w=600,h=340;
             int cx=Mathf.FloorToInt((center.x-scene.WorldRect.x)*scene.Resolution),cy=Mathf.FloorToInt((center.y-scene.WorldRect.y)*scene.Resolution);
@@ -168,6 +217,11 @@ namespace Remains.Editor
                 {
                     int i=((y0+y)*scene.Width+x0+x)*4;
                     var c=new Vector3(Mathf.HalfToFloat(sum[i]),Mathf.HalfToFloat(sum[i+1]),Mathf.HalfToFloat(sum[i+2]));
+                    if(bounce!=null)
+                    {
+                        int b=(((y0+y)/BounceLight.Divisor)*light.Bounce.Width+(x0+x)/BounceLight.Divisor)*4;
+                        c+=new Vector3(bounce[b],bounce[b+1],bounce[b+2]);
+                    }
                     pixels[y*w+x]=new Color(c.x/(1+c.x),c.y/(1+c.y),c.z/(1+c.z),1);
                 }
                 image.SetPixels32(pixels);image.Apply(false);

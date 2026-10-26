@@ -881,8 +881,12 @@ namespace Remains.Presentation
             {
                 scene=new LevelLightScene(walls,origin,resolution,objects);
                 scene.SetDoors(lightDoors,null);
-                var result=new LevelLight(scene,new LevelLightSources(list,scene.Width,scene.Height),directCacheBytes);
-                Debug.Log($"Свет уровня {root.Level}: сетка {scene.Width}×{scene.Height}, источников {list.Count}, поглощающих предметов {objects.Count}, дверей {lightDoors.Count}.",this);
+                var result=new LevelLight(scene,new LevelLightSources(list,scene.Width,scene.Height),(float)table.RadianceAlbedo,directCacheBytes);
+                var names=new List<string>(objects.Count);
+                foreach(var item in objects) names.Add($"{item.Sprite.name}@{item.LocalToWorld.GetColumn(3)}:{item.Absorption:R}");
+                names.Sort(StringComparer.Ordinal);
+                Debug.Log($"Свет уровня {root.Level}: сетка {scene.Width}×{scene.Height}, источников {list.Count}, поглощающих предметов {objects.Count} "+
+                    $"(отпечаток {Fingerprint(string.Join("|",names))}), дверей {lightDoors.Count}.",this);
                 return result;
             }
             catch {scene?.Dispose();throw;}
@@ -901,6 +905,12 @@ namespace Remains.Presentation
                 int y0=Mathf.Clamp(Mathf.FloorToInt((form.yMin-reach-origin.y)*resolution),0,levelHeight),y1=Mathf.Clamp(Mathf.CeilToInt((form.yMax+reach-origin.y)*resolution),0,levelHeight);
                 return new LevelLightSource(id,kind,LevelLightSources.Normalise(points,id),radiance,width,reach,form,new RectInt(x0,y0,x1-x0,y1-y0),enabled);
             }
+        }
+
+        private static string Fingerprint(string text)
+        {
+            using var sha=System.Security.Cryptography.SHA256.Create();
+            return BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(text)),0,8).Replace("-","").ToLowerInvariant();
         }
 
         private bool IsDark(RoomSpriteAuthoring picture)

@@ -64,6 +64,8 @@ namespace Remains.Presentation
         public int Recompositions {get;private set;}
         public int PendingMeasurements {get;private set;}
         public bool HasWork=>dirtyCount>0 || pendingRegions.Count>0;
+        // A region of the sum changed (after an event, not the full build): bounce light follows it.
+        public event Action<RectInt> Recomposed;
         public int CachedFields {get;private set;}
 
         public DirectLight(LevelLightScene scene,LevelLightSources sources,long cacheBudget=DefaultCacheBytes)
@@ -175,6 +177,7 @@ namespace Remains.Presentation
             using(Remains.Diagnostics.FrameHitchLog.Section("Свет уровня: пересборка суммы прямого света"))
             {
                 foreach(var region in pendingRegions) Recompose(region);
+                foreach(var region in pendingRegions) Recomposed?.Invoke(region);
                 pendingRegions.Clear();
             }
             EvictOverBudget(null);

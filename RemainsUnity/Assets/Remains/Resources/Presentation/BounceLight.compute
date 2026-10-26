@@ -1,0 +1,253 @@
+// Bounce light of a level on a half grid (BounceLight.cs): walls lit by direct light reflect it, several times,
+// carried by radiance cascades (the transport of RadianceCascades.compute without emitters in the scene).
+// Each wall face reflects to its own side only: a face's emission is the light falling on that face, and a ray
+// hitting a wall texel sees the faces turned towards it. A thin wall lit on one side stays dark on the other.
+// Runs on a window (local coordinates, _Size); BounceLight copies the level's inputs in and the result out.
+#pragma kernel Downsample
+#pragma kernel Seed
+#pragma kernel Jump
+#pragma kernel Distance
+#pragma kernel SeedFaces
+#pragma kernel Cascade
+#pragma kernel Fluence
+#pragma kernel BounceFaces
+#pragma kernel Accumulate
+
+#define FAR 1e6
+#define TAU 6.28318530718
+
+// Downsample: level inputs of one coarse rectangle.
+Texture2D<float> _FineScene;
+Texture2D<float4> _FineDirect;
+RWTexture2D<float> _CoarseSceneOut;
+RWTexture2D<float4> _CoarseDirectOut;
+int2 _FineSize;
+int4 _Clip;              // coarse x0, y0, x1, y1 (exclusive)
+int _Divisor;
+
+// Window transport.
+Texture2D<float> _Scene;             // coarse absorption
+Texture2D<float4> _Direct;           // coarse direct fluence (mean of the open fine texels)
+Texture2D<float2> _SeedsIn;
+RWTexture2D<float2> _SeedsOut;
+Texture2D<float2> _SeedsFinal;
+RWTexture2D<float> _DistanceOut;
+Texture2D<float> _Distance;
+Texture2D<float4> _Upper;
+RWTexture2D<float4> _Cascade;
+Texture2D<float4> _Cascade0;
+RWTexture2D<float4> _Fluence;
+// Face emission, index = side: +x, -x, +y, -y.
+Texture2D<float3> _FaceIn0,_FaceIn1,_FaceIn2,_FaceIn3;
+RWTexture2D<float3> _FaceOut0,_FaceOut1,_FaceOut2,_FaceOut3;
+// Accumulate.
+Texture2D<float4> _New,_Old;
+RWTexture2D<float4> _Indirect;
+int2 _Origin;            // window origin in level coarse texels
+int _HasOld;
+float _Albedo;
+int2 _Size;
+int _Step,_Level,_Top;
+
+bool Inside(int2 p) {return all(p>=0) && all(p<_Size);}
+static const int2 Sides[4]={int2(1,0),int2(-1,0),int2(0,1),int2(0,-1)};
+
+// Any fine opaque texel keeps the coarse texel opaque; partial absorption is scaled to the longer step and stays
+// below the wall threshold. Direct light: mean over the block's open fine texels (walls carry only rim light).
+[numthreads(8,8,1)]
+void Downsample(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=_Clip.xy+int2(id.xy);
+    if(any(p>=_Clip.zw)) return;
+    float absorption=0;float3 direct=0;float open=0;
+    for(int y=0;y<_Divisor;y++) for(int x=0;x<_Divisor;x++)
+    {
+        int2 q=p*_Divisor+int2(x,y);
+        if(any(q>=_FineSize)) continue;
+        float a=_FineScene[q];absorption=max(absorption,a);
+        if(a<0.99) {direct+=_FineDirect[q].rgb;open++;}
+    }
+    _CoarseSceneOut[p]=absorption>=0.99?1:min(0.985,1-pow(max(0,1-saturate(absorption)),_Divisor));
+    _CoarseDirectOut[p]=float4(open>0?direct/open:0,1);
+}
+
+[numthreads(8,8,1)]
+void Seed(uint3 id:SV_DispatchThreadID)
+{
+    if(!Inside(int2(id.xy))) return;
+    _SeedsOut[id.xy]=_Scene[id.xy]>0.004?float2(id.xy):float2(-FAR,-FAR);
+}
+[numthreads(8,8,1)]
+void Jump(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=int2(id.xy);
+    if(!Inside(p)) return;
+    float2 best=_SeedsIn[p];
+    float bestDistance=best.x<-FAR*0.5?FAR:distance(best,float2(p));
+    for(int dy=-1;dy<=1;dy++) for(int dx=-1;dx<=1;dx++)
+    {
+        int2 q=p+int2(dx,dy)*_Step;
+        if(!Inside(q)) continue;
+        float2 s=_SeedsIn[q];
+        if(s.x<-FAR*0.5) continue;
+        float d=distance(s,float2(p));
+        if(d<bestDistance) {bestDistance=d;best=s;}
+    }
+    _SeedsOut[p]=best;
+}
+[numthreads(8,8,1)]
+void Distance(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=int2(id.xy);
+    if(!Inside(p)) return;
+    float2 s=_SeedsFinal[p];
+    _DistanceOut[p]=s.x<-FAR*0.5?FAR:distance(s,float2(p));
+}
+
+bool Wall(int2 p) {return _Scene[p]>=0.99;}
+// First reflection: a wall face beside open space reflects the direct light falling on it (flatland Lambert,
+// albedo / 2 × incident fluence of the open texel in front of it).
+[numthreads(8,8,1)]
+void SeedFaces(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=int2(id.xy);
+    if(!Inside(p)) return;
+    float3 face[4]={float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
+    if(Wall(p))
+        [unroll] for(int i=0;i<4;i++)
+        {
+            int2 q=p+Sides[i];
+            if(Inside(q) && !Wall(q)) face[i]=_Direct[q].rgb*(_Albedo*0.5);
+        }
+    _FaceOut0[p]=face[0];_FaceOut1[p]=face[1];_FaceOut2[p]=face[2];_FaceOut3[p]=face[3];
+}
+// Radiance a ray of direction d sees on a wall texel: its faces turned towards the ray, by projected width.
+float3 FaceEmission(int2 texel,float2 d)
+{
+    float wx=abs(d.x),wy=abs(d.y);
+    float3 x=d.x<0?_FaceIn0[texel]:_FaceIn1[texel];   // a ray going -x meets the +x face
+    float3 y=d.y<0?_FaceIn2[texel]:_FaceIn3[texel];
+    return (x*wx+y*wy)/max(wx+wy,1e-4);
+}
+float ProbeVisibility(float2 from,float2 to)
+{
+    float2 delta=to-from;
+    float lengthOfPath=length(delta);
+    if(lengthOfPath<0.001) return 1;
+    float2 direction=delta/lengthOfPath;
+    float transmission=1,travelled=0;
+    int2 previous=int2(-1,-1);
+    for(int i=0;i<256 && travelled<lengthOfPath && transmission>0.002;i++)
+    {
+        int2 p=int2(floor(from+direction*travelled));
+        if(!Inside(p)) return 0;
+        float distanceToScene=_Distance[p];
+        if(distanceToScene<0.5)
+        {
+            if(any(p!=previous)) transmission*=1-_Scene[p];
+            previous=p;
+            travelled+=0.5;
+        }
+        else travelled+=max(distanceToScene-1.0,0.5);
+    }
+    return travelled>=lengthOfPath?transmission:0;
+}
+[numthreads(8,8,1)]
+void Cascade(uint3 id:SV_DispatchThreadID)
+{
+    int c=_Level;
+    int block=1<<(c+1),directions=block*block,spacing=1<<c;
+    int2 probes=(_Size+spacing-1)/spacing;
+    int2 probe=int2(id.xy)/block,local=int2(id.xy)%block;
+    if(any(probe>=probes)) return;
+    int dir=local.x+local.y*block;
+    float2 origin=(float2(probe)+0.5)*spacing;
+    float angle=(dir+0.5)/directions*TAU;
+    float2 d=float2(cos(angle),sin(angle));
+    float start=((1<<(2*c))-1)/3.0,end=((1<<(2*(c+1)))-1)/3.0;
+    float4 result=float4(0,0,0,1);
+    float t=start;
+    for(int i=0;i<256 && t<end && result.a>0.002;i++)
+    {
+        float2 p=origin+d*t;
+        int2 texel=int2(floor(p));
+        if(!Inside(texel)) {result.a=0;break;}
+        float sd=_Distance[texel];
+        if(sd<0.5)
+        {
+            float a=_Scene[texel];
+            if(a>=0.99) result.rgb+=result.a*FaceEmission(texel,d);
+            result.a*=1-a;
+            t+=1.0;
+        }
+        else t+=max(sd-1.0,0.5);
+    }
+    if(result.a>0.002 && c<_Top)
+    {
+        int upperSpacing=spacing*2,upperBlock=block*2;
+        int2 upperProbes=(_Size+upperSpacing-1)/upperSpacing;
+        float2 f=origin/upperSpacing-0.5;
+        int2 q0=int2(floor(f));
+        float2 w=f-q0;
+        float3 merged=0;
+        for(int k=0;k<4;k++)
+        {
+            int j=dir*4+k;
+            int2 jl=int2(j%upperBlock,j/upperBlock);
+            float upperAngle=(j+0.5)/(directions*4)*TAU;
+            float2 upperDirection=float2(cos(upperAngle),sin(upperAngle));
+            for(int corner=0;corner<4;corner++)
+            {
+                int2 o=int2(corner&1,corner>>1);
+                int2 q=clamp(q0+o,int2(0,0),upperProbes-1);
+                float weight=(o.x?w.x:1-w.x)*(o.y?w.y:1-w.y);
+                float2 upperOrigin=(float2(q)+0.5)*upperSpacing;
+                merged+=_Upper[q*upperBlock+jl].rgb*weight*ProbeVisibility(origin+d*end,upperOrigin+upperDirection*end);
+            }
+        }
+        result.rgb+=merged*0.25*result.a;
+    }
+    _Cascade[id.xy]=result;
+}
+[numthreads(8,8,1)]
+void Fluence(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=int2(id.xy);
+    if(!Inside(p)) return;
+    float3 sum=_Cascade0[p*2].rgb+_Cascade0[p*2+int2(1,0)].rgb+_Cascade0[p*2+int2(0,1)].rgb+_Cascade0[p*2+int2(1,1)].rgb;
+    _Fluence[p]=float4(sum*(TAU/4),1);
+}
+// Next generation of every face: its first reflection plus the reflection of the light now falling on it
+// (cascade-0 directions leaving the face, E = Σ L(d)(d·n)Δθ, Δθ = π/2).
+[numthreads(8,8,1)]
+void BounceFaces(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=int2(id.xy);
+    if(!Inside(p)) return;
+    float3 face[4]={float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
+    if(Wall(p))
+        [unroll] for(int i=0;i<4;i++)
+        {
+            int2 q=p+Sides[i];
+            if(!Inside(q) || Wall(q)) continue;
+            float3 e=0;
+            for(int k=0;k<4;k++)
+            {
+                float angle=(k+0.5)/4*TAU;
+                float c=dot(float2(cos(angle),sin(angle)),float2(Sides[i]));
+                if(c>0) e+=_Cascade0[q*2+int2(k%2,k/2)].rgb*c*(TAU/4);
+            }
+            face[i]=(_Direct[q].rgb+e)*(_Albedo*0.5);
+        }
+    _FaceOut0[p]=face[0];_FaceOut1[p]=face[1];_FaceOut2[p]=face[2];_FaceOut3[p]=face[3];
+}
+// Level indirect light += new window result − old window result (both runs clip the same window).
+[numthreads(8,8,1)]
+void Accumulate(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=int2(id.xy);
+    if(!Inside(p)) return;
+    float3 change=_New[p].rgb-(_HasOld!=0?_Old[p].rgb:0);
+    int2 level=_Origin+p;
+    _Indirect[level]=float4(_Indirect[level].rgb+change,1);
+}
