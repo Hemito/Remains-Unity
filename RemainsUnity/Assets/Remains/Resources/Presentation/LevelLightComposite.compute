@@ -1,0 +1,33 @@
+// The light around the camera (LevelLightView): the level's direct light cropped to the camera area, actor shadows
+// taken out of their lamps' own direct light (background), muzzle flashes added for one frame.
+#pragma kernel SubtractField
+#pragma kernel AddFlash
+
+RWTexture2D<float4> _Front;           // what actors and props receive (flashes, no shadows)
+RWTexture2D<float4> _Back;            // what walls and the background receive (with actor shadows)
+Texture2D<float4> _FieldIn;           // a source's direct field, aligned to the level grid at _FieldOrigin
+Texture2D<float4> _Mask;              // projected shadow mask of that source over the area (alpha)
+int2 _AreaOrigin,_FieldOrigin,_FieldSize;
+int4 _Clip;                           // area-local x0, y0, x1, y1 (exclusive)
+
+bool FieldTexel(int2 p,out int2 f)
+{
+    f=p+_AreaOrigin-_FieldOrigin;
+    return all(f>=0) && all(f<_FieldSize);
+}
+[numthreads(8,8,1)]
+void SubtractField(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=_Clip.xy+int2(id.xy);int2 f;
+    if(any(p>=_Clip.zw) || !FieldTexel(p,f)) return;
+    _Back[p]=float4(max(0,_Back[p].rgb-_FieldIn[f].rgb*saturate(_Mask[p].a)),1);
+}
+[numthreads(8,8,1)]
+void AddFlash(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=_Clip.xy+int2(id.xy);int2 f;
+    if(any(p>=_Clip.zw) || !FieldTexel(p,f)) return;
+    float3 flash=_FieldIn[f].rgb;
+    _Front[p]=float4(_Front[p].rgb+flash,1);
+    _Back[p]=float4(_Back[p].rgb+flash*(1-saturate(_Mask[p].a)),1);
+}

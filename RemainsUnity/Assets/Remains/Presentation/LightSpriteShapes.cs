@@ -91,19 +91,21 @@ namespace Remains.Presentation
             }
         }
 
-        // Bright pixels of a glowing screen (luminance above the threshold, smoothed over 0.15) on a sprite downscaled
-        // to at most 128×128: the light scene shader glows the same pixels.
+        // Bright pixels of a glowing screen or a flash (luminance above the threshold, smoothed over 0.15) on the sprite's
+        // own rectangle of its texture, downscaled to at most 128×128: the light scene shader glows the same pixels.
         public static Glow MeasureGlow(Sprite sprite,float threshold)
         {
             if(sprite==null) throw new ArgumentNullException(nameof(sprite));
             if(glows.TryGetValue((sprite,threshold),out var cached)) return cached;
             Remains.Diagnostics.FrameHitchLog.Gpu("Свет: яркие пиксели экрана (чтение с видеокарты)");
-            int width=Mathf.Min(128,sprite.texture.width),height=Mathf.Min(128,sprite.texture.height);
+            var rect=sprite.textureRect;var texture=sprite.texture;
+            int width=Mathf.Clamp(Mathf.RoundToInt(rect.width),1,128),height=Mathf.Clamp(Mathf.RoundToInt(rect.height),1,128);
             var target=RenderTexture.GetTemporary(width,height,0,RenderTextureFormat.ARGBHalf,RenderTextureReadWrite.Linear);
             var image=new Texture2D(width,height,TextureFormat.RGBAFloat,false,true);var previous=RenderTexture.active;
             try
             {
-                Graphics.Blit(sprite.texture,target);RenderTexture.active=target;image.ReadPixels(new Rect(0,0,width,height),0,0);Readbacks++;
+                Graphics.Blit(texture,target,new Vector2(rect.width/texture.width,rect.height/texture.height),new Vector2(rect.x/texture.width,rect.y/texture.height));
+                RenderTexture.active=target;image.ReadPixels(new Rect(0,0,width,height),0,0);Readbacks++;
                 var pixels=image.GetPixels();var sums=new Vector2[8];var energies=new float[8];float energy=0,area=0;Color color=Color.clear;
                 for(int y=0;y<height;y++) for(int x=0;x<width;x++)
                 {

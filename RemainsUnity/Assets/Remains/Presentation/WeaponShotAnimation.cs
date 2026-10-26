@@ -73,19 +73,19 @@ namespace Remains.Presentation
             return frame<effect.clip.count?effect.clip.source.Frame(frame)??rest:rest;
         }
         // Shares the exact selection/time/lifecycle gate with the visible shot, including rejection and pause.
-        public bool TryEmission(ActorState actor,Sprite drawn,Matrix4x4 weaponMatrix,out RoomRadianceField.SpriteEmission emission)
+        public bool TryEmission(ActorState actor,Sprite drawn,Matrix4x4 weaponMatrix,out SpriteEmission emission)
         {
             emission=default;
             if(actor==null || !playing.TryGetValue(actor.id,out var effect) || !Matches(actor,effect))return false;
             var clip=effect.clip;int frame=Mathf.FloorToInt(effect.elapsed*clip.fps);
             if(clip.gain<=0 || frame>=clip.count || drawn!=clip.source.Frame(frame) || clip.masks==null || frame>=clip.masks.Length || clip.masks[frame]==null)return false;
-            emission=new RoomRadianceField.SpriteEmission(clip.masks[frame],weaponMatrix*Matrix4x4.Translate(clip.offset),clip.gain);
+            emission=new SpriteEmission(clip.masks[frame],weaponMatrix*Matrix4x4.Translate(clip.offset),clip.gain);
             return true;
         }
         public string EmissionId(ActorState actor)=>actor!=null && playing.TryGetValue(actor.id,out var effect) && Matches(actor,effect)?effect.shot:null;
         // AttackReceived runs after Observe registered the shot. Warm shadow visibility from
         // its captured pose before the first drawn muzzle frame, outside the pose callback.
-        public bool TryAttackEmission(AttackEvent attack,out RoomRadianceField.SpriteEmission emission)
+        public bool TryAttackEmission(AttackEvent attack,out SpriteEmission emission)
         {
             emission=default;
             if(attack?.rangedPose==null) return false;

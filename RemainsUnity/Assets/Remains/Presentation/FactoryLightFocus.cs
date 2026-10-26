@@ -1,64 +1,36 @@
 using System;
-using System.Collections;
 using UnityEngine;
 
 namespace Remains.Presentation
 {
-    // Observe only the local camera per frame. A changed window queues an explicit cached rebuild.
+    // Observe only the local camera per frame: its visible rectangle for the level light, and the room window
+    // (pictures, background erase) once the camera has settled in another one.
     public sealed class FactoryLightFocus : MonoBehaviour
     {
         [SerializeField,InspectorName("Вид завода")] private FactoryLevelView view;
         private Camera camera;
-        private Vector2 requested,previousPosition;
-        private bool hasPosition;
-        private const float PrefetchSeconds=4f;
-        private const float TargetHysteresisSeconds=.2f;
-        // The staged candidate restarts on every door/lamp revision of the level; the camera must not stay in rooms
-        // without light/art indefinitely: after this long outside the active window it is built synchronously.
-        private const float OutsideWindowDeadlineSeconds=2f;
-        private float outsideSince=-1;
-        private readonly LightWindowPrefetchGate prefetchGate=new();
+        // A camera on a room boundary would flip the window every frame: a new window must hold this long.
+        private const float WindowHysteresisSeconds=.25f;
+        private RectInt candidate=new(-1,-1,0,0);
+        private float candidateSince;
         public void Configure(FactoryLevelView source)=>view=source;
         public void Bind(Camera source)
         {
-            if(view==null || source==null) throw new InvalidOperationException("Окно света завода: нужны вид уровня и локальная камера.");
+            if(view==null || source==null) throw new InvalidOperationException("Свет завода: нужны вид уровня и локальная камера.");
             camera=source;
         }
         private void LateUpdate()
         {
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("FactoryLightFocus.LateUpdate");
             if(camera==null || view==null || !view.IsReady) return;
-            requested=camera.transform.position;
-            Vector2 velocity=hasPosition && Time.unscaledDeltaTime>0?(requested-previousPosition)/Time.unscaledDeltaTime:Vector2.zero;
-            previousPosition=requested;hasPosition=true;
-            if(view.WindowFor(requested)!=view.LightWindowRooms)
-            {
-                if(outsideSince<0) outsideSince=Time.unscaledTime;
-                if(Time.unscaledTime-outsideSince>OutsideWindowDeadlineSeconds)
-                {
-                    Debug.LogWarning($"Окно света: камера {OutsideWindowDeadlineSeconds} с вне подготовленного окна {view.LightWindowRooms} (цель {view.WindowFor(requested)}); поэтапная подготовка не успела, окно строится сразу.",this);
-                    outsideSince=-1;view.Focus(requested);return;
-                }
-                view.RequestLightWindow(requested,true);
-            }
-            else
-            {
-                outsideSince=-1;
-                view.DeferLightWindowSwitch();
-                Vector2 predicted=requested+Vector2.ClampMagnitude(velocity*PrefetchSeconds,24);
-                var current=view.LightWindowRooms;var target=view.WindowFor(predicted);
-                int dx=Mathf.Clamp(target.x-current.x,-1,1),dy=Mathf.Clamp(target.y-current.y,-1,1);
-                if(dx!=0 && dy!=0) {if(Mathf.Abs(velocity.x)>=Mathf.Abs(velocity.y)) dy=0;else dx=0;}
-                target=new RectInt(current.x+dx,current.y+dy,current.width,current.height);
-                if(target!=current)
-                {
-                    if(prefetchGate.ShouldRequest(current,target,Time.unscaledTime,TargetHysteresisSeconds)) view.RequestLightWindow(predicted,false,target);
-                }
-                else prefetchGate.ShouldRequest(current,current,Time.unscaledTime,TargetHysteresisSeconds);
-                // A stop or a noisy prediction inside the active window retains useful prepared work.
-                // A stable different target replaces it after hysteresis; level/revision/disabling cancel explicitly.
-            }
+            Vector2 position=camera.transform.position;
+            float height=2*camera.orthographicSize,width=height*camera.aspect;
+            view.SetViewArea(new Rect(position.x-width*.5f,position.y-height*.5f,width,height));
+            var target=view.WindowFor(position);
+            if(target==view.RoomWindow) {candidate=new RectInt(-1,-1,0,0);return;}
+            if(target!=candidate) {candidate=target;candidateSince=Time.unscaledTime;return;}
+            if(Time.unscaledTime-candidateSince>=WindowHysteresisSeconds) view.Focus(position);
         }
-        private void OnDisable() {hasPosition=false;outsideSince=-1;prefetchGate.Reset();if(view!=null) view.CancelWindowPreparation();}
+        private void OnDisable() {candidate=new RectInt(-1,-1,0,0);}
     }
 }

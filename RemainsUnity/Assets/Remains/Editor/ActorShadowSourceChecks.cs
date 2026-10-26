@@ -13,7 +13,8 @@ namespace Remains.Editor
         // The worker-thread selection (ActorShadowPresentation) must equal the in-frame one exactly.
         private static void RequireSameAsync(FactoryLevelView view,Vector2 actor,List<ActorShadowSource> expected)
         {
-            var background=view.SelectActorShadowSourcesAsync(actor).GetAwaiter().GetResult();
+            var select=view.CaptureActorShadowSelector();
+            var background=System.Threading.Tasks.Task.Run(()=>select(actor)).GetAwaiter().GetResult();
             bool same=background.Count==expected.Count;
             for(int i=0;same && i<expected.Count;i++)
                 same=background[i].Id==expected[i].Id && background[i].Strength==expected[i].Strength && background[i].Position==expected[i].Position;

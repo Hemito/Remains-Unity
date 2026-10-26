@@ -20,13 +20,12 @@ namespace Remains.Editor
     //   -executeMethod Remains.Editor.RoomTemplatePreview.RenderBatch -roomPreviewOut <dir> [-roomPreviewFiles <a;b>] [-roomPreviewUnlit]
     // -roomPreviewUnlit: templates only, no lights at all (plain colours, "<name>-albedo.png") — input
     // for the reference light tracer (RoomConvert trace --albedo-image).
-    // -roomPreviewRadiance: lamps by RoomRadianceField (radiance cascades) instead of URP lamp lights.
     // -roomPreviewPrefabs: the generated room prefabs (RoomPrefabGenerator), normal and mirrored, over the
     // template's walls from a one-room level grid (FactoryGridBuilder; edge walls become the land border),
     // unlit: "<name>-prefab-n.png" / "<name>-prefab-m.png".
     // -factoryPreview [-factorySeed 1 -factorySize 2x3]: a generated factory of that size (FactoryLayoutGenerator)
     // as the level would be prepared: walls from the composed grid (FactoryGridBuilder), room prefab instances
-    // (RoomPrefabGenerator), their sprites into the radiance field: "factory-<seed>-<W>x<D>.png".
+    // (RoomPrefabGenerator), lit by URP lamp lights: "factory-<seed>-<W>x<D>.png".
     // -factoryRootPreview [-factorySeed 1]: the game path — a world with a created factory 0, FactoryLevelRoot,
     // installed rooms, FactoryLevelView focused on the start room; renders the light window
     // ("factory-root-<seed>.png").
@@ -43,7 +42,7 @@ namespace Remains.Editor
             ("Assets/Remains/Rooms/Original/plant/vkhod2.room.json","Assets/Remains/RoomDrafts/FactoryEntry46.prefab"),
         };
 
-        private static bool unlit,radiance,dummy;
+        private static bool unlit,dummy;
         private const string Prefabs="Assets/Remains/Rooms/Original/Prefabs/plant";
         private const string DummyPrefab="Assets/Remains/Prefabs/Actors/training-dummy.prefab";
         // Test positions (m, foot point) per template: between the lamps of the lower rooms.
@@ -53,7 +52,6 @@ namespace Remains.Editor
             ["remains:plant:tsekh1"]=new[]{new Vector2(5.2f,0.8f)},
             ["remains:plant:lighttest"]=new[]{new Vector2(9.6f,0.8f)},
         };
-        private const int RadianceSettleUpdates=8;
 
         [MenuItem("Remains/Комнаты/Предпросмотр выбранного шаблона")]
         public static void PreviewSelected()
@@ -74,7 +72,6 @@ namespace Remains.Editor
                 Directory.CreateDirectory(outDir);
                 RoomTileArtAuthoring.Build();
                 unlit=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewUnlit")>=0;
-                radiance=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewRadiance")>=0;
                 dummy=Array.IndexOf(Environment.GetCommandLineArgs(),"-roomPreviewDummy")>=0;
                 if(Array.IndexOf(Environment.GetCommandLineArgs(),"-hubPreview")>=0)
                 {
@@ -84,21 +81,10 @@ namespace Remains.Editor
                     var visual=AuthoredRoomVisual.Create("hub",room);
                     var view=visual.GetComponent<FactoryLevelView>()??throw new InvalidOperationException("Хаб не получил вид уровня из шаблонов.");
                     view.Focus(new Vector2(room.spawnX,room.spawnY));
-                    Debug.Log($"Хаб из шаблонов: готов {view.IsReady}, окно {view.LightWindowRooms}.");
-                    if(Argument("-lightDiagPony")!=null)
-                    {
-                        // Diagnostics: a real pony visual (as MuzzleFlashLightingChecks) at the given point, its silhouette in the light.
-                        var at=Argument("-lightDiagPony").Split(',');
-                        Remains.Content.ActorTypes.Load();Remains.Content.PropCatalog.Load();PonyVisual.Prepare();
-                        var actor=new Remains.Domain.ActorState {id="diag-pony",actorType="pony",anatomy="pony",player=true,connected=true,level="hub",pose="idle",
-                            x=float.Parse(at[0],System.Globalization.CultureInfo.InvariantCulture),y=float.Parse(at[1],System.Globalization.CultureInfo.InvariantCulture),
-                            appearance=new Remains.Domain.CharacterAppearance {version=Remains.Domain.CharacterAppearance.CurrentVersion}};
-                        var pony=(PonyVisual)ActorVisualFactory.Create(actor);
-                        pony.Bind(actor);pony.DrawPose(0);
-                        var silhouettes=new List<RoomRadianceField.LightOccluder>();pony.AppendLightOccluders(silhouettes);
-                        view.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),silhouettes);
-                        Debug.Log($"Диагностика света: пони в ({actor.x},{actor.y}), частей силуэта {silhouettes.Count}.");
-                    }
+                    Debug.Log($"Хаб из шаблонов: готов {view.IsReady}, окно комнат {view.RoomWindow}.");
+                    // The light is composed over the camera's view: here the whole hub in one frame.
+                    view.SetViewArea(new Rect(0,0,room.right+0.8f,room.top));
+                    view.RenderMuzzleFlashes(Array.Empty<SpriteEmission>(),Array.Empty<ProjectedLightShadow>(),Array.Empty<string>());
                     Render(new Vector2(room.right+0.8f,room.top),Path.Combine(outDir,"hub-game.png"),null);
                     if(Array.IndexOf(Environment.GetCommandLineArgs(),"-lightDiagField")>=0)
                     {
@@ -159,8 +145,8 @@ namespace Remains.Editor
                 {
                     var template=AssetDatabase.LoadAssetAtPath<RoomTemplateAsset>(templatePath)??throw new InvalidOperationException("Нет шаблона "+templatePath);
                     string name=Path.GetFileName(templatePath).Replace(".room.json","");
-                    RenderRoom(template.Room,Path.Combine(outDir,name+(unlit?"-albedo.png":radiance?"-radiance.png":"-template.png")));
-                    if(unlit || radiance) continue;
+                    RenderRoom(template.Room,Path.Combine(outDir,name+(unlit?"-albedo.png":"-template.png")));
+                    if(unlit) continue;
 
                     EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
                     var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)??throw new InvalidOperationException("Нет префаба "+prefabPath);
@@ -270,9 +256,7 @@ namespace Remains.Editor
                 var erase=new GameObject("Стирание фона уровня").AddComponent<RoomDecorResources>();
                 erase.BindLightContext(lightContext);erase.BuildErase(erases,Vector2.zero,levelSize,GameAssets.Load<Shader>(RoomDecorView.EraseShaderResource));
             }
-            RoomLightingView.Build(level,definitions,lands,table,Vector2.zero,null,false);
-            var field=RoomRadianceField.Build(level,definitions,lands,table,Vector2.zero,null,sprites,lightContext:lightContext);
-            for(int i=0;i<RadianceSettleUpdates;i++) field.Render();
+            RoomLightingView.Build(level,definitions,lands,table,Vector2.zero,null,true);
             string file=Path.Combine(outDir,$"factory-{seed}-{width}x{depth}.png");
             Render(levelSize,file,camera=>FarBackground(rooms[layout.Cell(0,0).Template],camera));
             Debug.Log($"Предпросмотр завода: {file}; комнат {grid.Rooms.Count}, картинок {sprites.Count}, окон {erases.Count}.");
@@ -292,62 +276,12 @@ namespace Remains.Editor
             var center=root.Offset(start)+new Vector2(start.Template.Width,start.Template.Height)*(float)start.Template.Cell/2;
             view.Focus(root.transform.TransformPoint(center));
             var grid=root.Prepared.Grid;float cell=(float)grid.Level.Cell;
-            var w=view.LightWindowRooms;
+            var w=view.RoomWindow;
             var origin=new Vector2(w.x*grid.StepX*cell,(grid.Level.Height-w.y*grid.StepY-(w.height*grid.StepY+1))*cell);
             var size=new Vector2((w.width*grid.StepX+1)*cell,(w.height*grid.StepY+1)*cell);
             string file=Path.Combine(outDir,$"factory-root-{seed}.png");
             Render(size,file,camera=>{camera.transform.position=new Vector3(origin.x+size.x/2,origin.y+size.y/2,-10);FarBackground(start.Template,camera);});
             Debug.Log($"Предпросмотр корня завода: {file}; окно {w}, готов {view.IsReady}.");
-            // Door transition: a closed door1 in the start room occludes, opening it stops occluding; same revision is a no-op.
-            var door=new Remains.Domain.DoorState{id="check:door",definition="door1",level=root.Prepared.Level,surfaceTexture="door:wood",
-                x=center.x,y=root.Offset(start).y+(float)start.Template.Cell,width=.4f,height=2.4f};
-            view.SyncDoors(new[]{door},1);
-            int closed=view.DoorOccluderTexels;
-            door.open=true;
-            view.SyncDoors(new[]{door},1);
-            int unchanged=view.DoorOccluderTexels;
-            // Timing (GPU included: a 1-texel readback waits for the queued light passes).
-            float Sync(){var t=Shader.GetGlobalTexture("_RemainsRadiance") as RenderTexture;var prev=RenderTexture.active;RenderTexture.active=t;
-                var one=new Texture2D(1,1,TextureFormat.RGBAFloat,false,true);one.ReadPixels(new Rect(0,0,1,1),0,0);RenderTexture.active=prev;
-                float v=one.GetPixel(0,0).r;UnityEngine.Object.DestroyImmediate(one);return v;}
-            Sync();
-            var doorTimer=System.Diagnostics.Stopwatch.StartNew();
-            view.SyncDoors(new[]{door},2);
-            double doorCpu=doorTimer.Elapsed.TotalMilliseconds;Sync();double doorAll=doorTimer.Elapsed.TotalMilliseconds;
-            var fieldTimer=System.Diagnostics.Stopwatch.StartNew();
-            var fieldObject=(RoomRadianceField)typeof(FactoryLevelView).GetField("field",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(view);
-            fieldObject.Render();Sync();double oneRender=fieldTimer.Elapsed.TotalMilliseconds;
-            Debug.Log($"Замер двери: SyncDoors {doorCpu:F1} мс процессора, {doorAll:F1} мс вместе с видеокартой; один проход поля {oneRender:F1} мс; проходов при смене двери {FactoryLevelView.SettleUpdates}.");
-            int opened=view.DoorOccluderTexels;
-            if(closed<=0 || unchanged!=closed || opened!=0 || view.AppliedDoorRevision!=2)
-                throw new InvalidOperationException($"Заслонка двери: закрыта {closed}, та же ревизия {unchanged}, открыта {opened}, ревизия {view.AppliedDoorRevision}.");
-            Debug.Log($"Двери в свете завода: PASS; закрытая дверь — {closed} текселей заслонки, открытая — 0, повтор ревизии не пересобирает.");
-            // Lamps: all lamps of the level dark -> the window's lamp light is gone; lit again -> back; same revision no-op.
-            float LampLight(){var t=Shader.GetGlobalTexture("_RemainsRadiance") as RenderTexture;var prev=RenderTexture.active;RenderTexture.active=t;
-                var copy=new Texture2D(t.width,t.height,TextureFormat.RGBAFloat,false,true);copy.ReadPixels(new Rect(0,0,t.width,t.height),0,0);copy.Apply();RenderTexture.active=prev;
-                float sum=0;foreach(var p in copy.GetPixels()) sum+=p.r+p.g+p.b;UnityEngine.Object.DestroyImmediate(copy);return sum;}
-            float litSum=LampLight();
-            var allLamps=new List<string>(view.LampIds);
-            view.SyncLamps(allLamps,1);float darkSum=LampLight();
-            view.SyncLamps(allLamps,1);
-            view.SyncLamps(Array.Empty<string>(),2);float againSum=LampLight();
-            if(allLamps.Count==0 || darkSum>litSum*.9f || Mathf.Abs(againSum-litSum)>litSum*.01f)
-                throw new InvalidOperationException($"Лампы в свете завода: ламп {allLamps.Count}, свет {litSum} → выключены {darkSum} → снова {againSum}.");
-            Debug.Log($"Лампы в свете завода: PASS; ламп на уровне {allLamps.Count}, свет окна {litSum:0} → все выключены {darkSum:0} (окна остаются) → снова {againSum:0}.");
-            // Cost of the per-frame dynamic pass (lamp shadows of moving silhouettes) on the full light window.
-            var mask=new Texture2D(4,4,TextureFormat.RGBA32,false,true);
-            var white=new Color[16];for(int i=0;i<16;i++) white[i]=Color.white;mask.SetPixels(white);mask.Apply();
-            var dummy=Sprite.Create(mask,new Rect(0,0,4,4),new Vector2(.5f,.5f),4);
-            var occluders=new List<RoomRadianceField.LightOccluder>();
-            void Place(int step){occluders.Clear();occluders.Add(new RoomRadianceField.LightOccluder(dummy,Matrix4x4.TRS(new Vector3(center.x+step*.1f,center.y,0),Quaternion.identity,new Vector3(.8f,1.6f,1))));}
-            Place(0);view.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),occluders);Sync();
-            var watch=System.Diagnostics.Stopwatch.StartNew();
-            const int runs=30;
-            for(int i=1;i<=runs;i++) {Place(i);view.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),occluders);}
-            Sync();
-            Debug.Log($"Тени от ламп в окне завода: {watch.Elapsed.TotalMilliseconds/runs:0.00} мс на динамический пересчёт (среднее из {runs}, с ожиданием GPU).");
-            view.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),null);
-            UnityEngine.Object.DestroyImmediate(dummy);UnityEngine.Object.DestroyImmediate(mask);
             view.Release();
             UnityEngine.Object.DestroyImmediate(root.gameObject);
         }
@@ -367,8 +301,7 @@ namespace Remains.Editor
             RoomDecorView.Build(room,LoadDefinitions(),LoadLands(),LoadArt(),RoomPrefabGenerator.LoadWithoutPicture(),origin,view.transform,sprites,glow,lightContext);
             if(dummy) PlaceDummies(room,view.transform,sprites);
             lightContext.Publish(()=>Shader.SetGlobalFloat("_RemainsRadianceEnabled",0));
-            if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,!radiance);
-            if(radiance) MeasureRadiance(RoomRadianceField.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,sprites,lightContext:lightContext),room.Template);
+            if(!unlit) RoomLightingView.Build(room,LoadDefinitions(),LoadLands(),table,origin,view.transform.parent,true);
             return view;
         }
 
@@ -391,29 +324,6 @@ namespace Remains.Editor
                 sprites.Add(new RoomSpritePlacement{Definition=definition,Sprite=source.sprite,Frame=1,LocalToWorld=obj.transform.localToWorldMatrix});
             }
             Debug.Log($"Манекен: {spots.Length} шт. в {room.Template}, спрайт {source.sprite.name} {source.sprite.bounds.size.x:0.##}×{source.sprite.bounds.size.y:0.##} м, точка {source.sprite.pivot}.");
-        }
-
-        // Diagnostics: GPU cost of one field update (30 updates, then a readback waits for the GPU).
-        private static void MeasureRadiance(RoomRadianceField field,string template)
-        {
-            // Settle the bounce light (one bounce per update), like a few game frames.
-            for(int i=0;i<RadianceSettleUpdates;i++) field.Render();
-            Sync();
-            var watch=System.Diagnostics.Stopwatch.StartNew();
-            const int runs=30;
-            for(int i=0;i<runs;i++) field.Render();
-            Sync();
-            Debug.Log($"Поле излучения {template}: {watch.Elapsed.TotalMilliseconds/runs:0.00} мс на пересчёт (среднее из {runs}, с ожиданием GPU).");
-        }
-
-        private static void Sync()
-        {
-            var probe=Shader.GetGlobalTexture("_RemainsRadiance") as RenderTexture;
-            var previous=RenderTexture.active;RenderTexture.active=probe;
-            var pixel=new Texture2D(1,1,TextureFormat.RGBAHalf,false);
-            pixel.ReadPixels(new Rect(0,0,1,1),0,0);
-            RenderTexture.active=previous;
-            UnityEngine.Object.DestroyImmediate(pixel);
         }
 
         // Original: the land's fon, "fonDefault" when the land names none.

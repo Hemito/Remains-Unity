@@ -40,7 +40,7 @@ namespace Remains.Editor
                 runnerObject=new GameObject("Проверка времени тени");var weapons=runnerObject.AddComponent<InteractionVisuals>();
                 presentation=new ActorShadowPresentation(weapons,runnerObject.transform);
                 var actors=new Dictionary<string,ActorVisual>{{"timing",actor}};
-                var flash=new RoomRadianceField.SpriteEmission(sprite,
+                var flash=new SpriteEmission(sprite,
                     Matrix4x4.Translate(lights[0].Position),8);
                 const string id="flash:stable-shot-1";
                 presentation.PrepareFlash(level,actors,weapons,id,flash);
@@ -98,18 +98,19 @@ namespace Remains.Editor
             try
             {
                 ActorCastShadowAuthoring.Check();ActorShadowSourceChecks.Run();
-                LampShadowChecks.Run();MuzzleFlashLightingChecks.Run();BeamTransportChecks.Run();
                 foreach(WorldVisualCategory category in Enum.GetValues(typeof(WorldVisualCategory)))
                     if(WorldVisualOrderPolicy.FirstOrder(category)<=WorldVisualOrderPolicy.ActorShadowOrder)
                         throw new InvalidOperationException("Тень рисуется поверх категории: "+category);
                 var layout=RoomLayout.Load("hub");room=AuthoredRoomVisual.Create("hub",layout);
                 var view=room.GetComponent<FactoryLevelView>();view.Focus(new Vector2(10,5));
                 var sources=new List<ActorShadowSource>();Vector2 actor=default;
-                for(float y=2;y<(float)layout.top-1 && sources.Count==0;y+=3)
-                    for(float x=2;x<(float)layout.right-1 && sources.Count==0;x+=4)
-                        {actor=new Vector2(x,y);view.SelectActorShadowSources(actor,sources);}
-                if(sources.Count==0) throw new InvalidOperationException("Ни одна настоящая лампа хаба не выбрана для проекции тени.");
-                string lamp=sources[0].Id;long before=view.ShadowSourceRevision;
+                var lampIds=new HashSet<string>(view.LampIds,StringComparer.Ordinal);string lamp=null;
+                // Windows are shadow sources too; the broken-lamp case needs a lamp.
+                for(float y=2;y<(float)layout.top-1 && lamp==null;y+=3)
+                    for(float x=2;x<(float)layout.right-1 && lamp==null;x+=4)
+                        {actor=new Vector2(x,y);view.SelectActorShadowSources(actor,sources);lamp=sources.Find(source=>lampIds.Contains(source.Id)).Id;}
+                if(lamp==null) throw new InvalidOperationException("Ни одна настоящая лампа хаба не выбрана для проекции тени.");
+                long before=view.ShadowSourceRevision;
                 view.SyncLamps(new[]{lamp},1,new[]{lamp});view.SelectActorShadowSources(actor,sources);
                 if(view.ShadowSourceRevision<=before || sources.Exists(source=>source.Id==lamp))
                     throw new InvalidOperationException("Разбитая лампа хаба сохранила свою проецируемую тень: "+lamp);
@@ -127,6 +128,6 @@ namespace Remains.Editor
         public SpriteRenderer Artwork;
         public override string ActorId=>"timing";
         public override void Bind(ActorState actor) { }
-        public override void AppendLightOccluders(List<RoomRadianceField.LightOccluder> output)=>AppendSpriteOccluder(Artwork,output);
+        public override void AppendLightOccluders(List<LightOccluder> output)=>AppendSpriteOccluder(Artwork,output);
     }
 }

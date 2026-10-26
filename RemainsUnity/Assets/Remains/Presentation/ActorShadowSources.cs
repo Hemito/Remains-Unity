@@ -15,12 +15,14 @@ namespace Remains.Presentation
         // Samples of the actual emitted sprite silhouette: world X/Y and emitted area weight in Z.
         // Null denotes an explicitly point-like source (for example a muzzle flash).
         public readonly IReadOnlyList<Vector3> EmissionPoints;
+        // Distance from Position beyond which the source sends no light (its direct field ends); 0 = unlimited.
+        public readonly float Reach;
         public ActorShadowSource(string id,Vector2 position,float radius,float strength,bool isTransient=false,float projectionScale=1,
-            IReadOnlyList<Vector3> emissionPoints=null,float coverage=1)
-        {Id=id;Position=position;Radius=radius;Strength=strength;IsTransient=isTransient;ProjectionScale=projectionScale;EmissionPoints=emissionPoints;Coverage=coverage;}
+            IReadOnlyList<Vector3> emissionPoints=null,float coverage=1,float reach=0)
+        {Id=id;Position=position;Radius=radius;Strength=strength;IsTransient=isTransient;ProjectionScale=projectionScale;EmissionPoints=emissionPoints;Coverage=coverage;Reach=reach;}
     }
 
-    // Prepared once per light window. Select is called explicitly by the actor coordinator,
+    // Prepared once per level light. Select is called explicitly by the actor coordinator,
     // never from Update here; it reads canonical cached terrain and current door rectangles.
     // Configure only swaps references (the terrain array is new per window and never written after; the lamp list
     // is copied), so a Detached copy plus copied dark/door sets can select on a worker thread.
@@ -64,11 +66,12 @@ namespace Remains.Presentation
             if(output==null) throw new ArgumentNullException(nameof(output));
             if(maxSources<1 || maxSources>3) throw new ArgumentOutOfRangeException(nameof(maxSources));
             output.Clear();
-            if(absorption==null) return; // No light window has been prepared; no sources exist yet.
+            if(absorption==null) return; // No level light has been prepared; no sources exist yet.
             float total=ambient;
             foreach(var source in lamps)
             {
                 if(dark.Contains(source.Id) || source.Strength<=0) continue;
+                if(source.Reach>0 && (actor-source.Position).sqrMagnitude>(source.Reach+source.Radius)*(source.Reach+source.Radius)) continue;
                 float strength=0,totalWeight=0;Vector2 position=Vector2.zero;
                 int count=source.EmissionPoints?.Count??1;
                 if(count==0) throw new InvalidOperationException($"Источник тени {source.Id}: пустой набор излучающих точек.");

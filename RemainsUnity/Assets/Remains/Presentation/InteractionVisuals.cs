@@ -17,13 +17,13 @@ namespace Remains.Presentation
         private ActorVisualLayers layers;
         private PropArtwork propArtwork;
         private WeaponShotAnimation shotAnimation;
-        private Action<IReadOnlyList<RoomRadianceField.SpriteEmission>> muzzleLighting;
-        private readonly List<RoomRadianceField.SpriteEmission> muzzleEmissions=new();
+        private Action<IReadOnlyList<SpriteEmission>> muzzleLighting;
+        private readonly List<SpriteEmission> muzzleEmissions=new();
         private readonly List<string> muzzleSourceIds=new();
-        private Action<AttackEvent,RoomRadianceField.SpriteEmission> prepareMuzzleShadow;
+        private Action<AttackEvent,SpriteEmission> prepareMuzzleShadow;
         public IReadOnlyList<string> MuzzleSourceIds=>muzzleSourceIds;
-        public void ConfigureMuzzleLighting(Action<IReadOnlyList<RoomRadianceField.SpriteEmission>> publish,
-            Action<AttackEvent,RoomRadianceField.SpriteEmission> prepare=null)
+        public void ConfigureMuzzleLighting(Action<IReadOnlyList<SpriteEmission>> publish,
+            Action<AttackEvent,SpriteEmission> prepare=null)
         {muzzleLighting=publish;prepareMuzzleShadow=prepare;}
         private WeaponReloadAnimation reloadAnimation;
         private CasingEffects casingEffects;
@@ -41,9 +41,9 @@ namespace Remains.Presentation
         private readonly HashSet<string> retainedProps=new(),retainedContainers=new(),retainedWeapons=new(),retainedFlights=new();
         private readonly List<string> removed=new();
         public WeaponView FindWeapon(string actorId)=>weapons.TryGetValue(actorId,out var view)?view:null;
-        public void AppendWeaponLightOccluders(List<RoomRadianceField.LightOccluder> output)
+        public void AppendWeaponLightOccluders(List<LightOccluder> output)
             =>AppendWeaponLightOccluders(null,output);
-        public void AppendWeaponLightOccluders(string actorId,List<RoomRadianceField.LightOccluder> output)
+        public void AppendWeaponLightOccluders(string actorId,List<LightOccluder> output)
         {
             foreach(var pair in weapons)
             {
@@ -55,7 +55,7 @@ namespace Remains.Presentation
                 // silhouette absorbs; use the same actual weapon transform, not another pose sample.
                 if(!sprites.TryGetValue(view.Id,out var sprite))
                 {if(missingGraphics.Add("shadow:"+view.Id)) Debug.LogWarning($"Нет силуэта оружия для тени: actor={pair.Key}, weapon={view.Id}.",this);continue;}
-                output.Add(new RoomRadianceField.LightOccluder(sprite,renderer.transform.localToWorldMatrix,renderer.color.a));
+                output.Add(new LightOccluder(sprite,renderer.transform.localToWorldMatrix,renderer.color.a));
             }
         }
         public PropView FindProp(string id)=>props.TryGetValue(id,out var view)?view:null;

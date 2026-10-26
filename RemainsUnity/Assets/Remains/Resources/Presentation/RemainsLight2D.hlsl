@@ -1,8 +1,9 @@
 #ifndef REMAINS_LIGHT_2D_INCLUDED
 #define REMAINS_LIGHT_2D_INCLUDED
 // Shared 2D lighting of Remains world shaders (WorldTerrain, WorldSprite), one implementation:
-// ambient = URP blend style 0 (global light); lamps = the radiance field (RoomRadianceField) when
-// enabled, otherwise URP blend style 1 "Lamps" (multiply). Include after SHAPE_LIGHT(0..3).
+// ambient = URP blend style 0 (global light); lamps = the level light (LevelLightView: direct light over the camera
+// area plus the level's bounce light) when enabled, otherwise URP blend style 1 "Lamps" (multiply).
+// Include after SHAPE_LIGHT(0..3).
 #include "Packages/com.unity.render-pipelines.universal/Shaders/2D/Include/ShapeLightVariables.hlsl"
 
 TEXTURE2D(_RemainsRadiance); SAMPLER(sampler_RemainsRadiance);
@@ -11,6 +12,18 @@ float _RemainsRadianceTexel;
 float _RemainsRadianceEnabled;
 TEXTURE2D(_RemainsBackgroundRadiance); SAMPLER(sampler_RemainsBackgroundRadiance);
 float _RemainsBackgroundRadianceEnabled;
+TEXTURE2D(_RemainsIndirect); SAMPLER(sampler_RemainsIndirect);
+float4 _RemainsIndirectRect;   // origin xy, size zw (m); the whole level
+float _RemainsIndirectEnabled;
+
+// Bounce light of the level (half grid, bilinear); added to either direct light.
+half4 RemainsSampleIndirect(float2 world)
+{
+    if(_RemainsIndirectEnabled<0.5) return 0;
+    float2 uv=(world-_RemainsIndirectRect.xy)/_RemainsIndirectRect.zw;
+    if(any(uv<0) || any(uv>1)) return 0;
+    return half4(SAMPLE_TEXTURE2D_LOD(_RemainsIndirect,sampler_RemainsIndirect,uv,0).rgb,0);
+}
 
 half2 RemainsLightingUV(float2 world)
 {
@@ -32,8 +45,8 @@ half4 RemainsSampleLamp(float2 world)
     if(_RemainsRadianceEnabled>0.5)
     {
         float2 uv=(world-_RemainsRadianceRect.xy)/_RemainsRadianceRect.zw;
-        if(any(uv<0) || any(uv>1)) return 0;
-        return SAMPLE_TEXTURE2D_LOD(_RemainsRadiance,sampler_RemainsRadiance,uv,0);
+        if(any(uv<0) || any(uv>1)) return RemainsSampleIndirect(world);
+        return SAMPLE_TEXTURE2D_LOD(_RemainsRadiance,sampler_RemainsRadiance,uv,0)+RemainsSampleIndirect(world);
     }
     #if USE_SHAPE_LIGHT_TYPE_1
     return SAMPLE_TEXTURE2D(_ShapeLightTexture1,sampler_ShapeLightTexture1,RemainsLightingUV(world));
@@ -48,8 +61,8 @@ half4 RemainsSampleBackgroundLamp(float2 world)
     if(_RemainsRadianceEnabled>0.5 && _RemainsBackgroundRadianceEnabled>0.5)
     {
         float2 uv=(world-_RemainsRadianceRect.xy)/_RemainsRadianceRect.zw;
-        if(any(uv<0) || any(uv>1)) return 0;
-        return SAMPLE_TEXTURE2D_LOD(_RemainsBackgroundRadiance,sampler_RemainsBackgroundRadiance,uv,0);
+        if(any(uv<0) || any(uv>1)) return RemainsSampleIndirect(world);
+        return SAMPLE_TEXTURE2D_LOD(_RemainsBackgroundRadiance,sampler_RemainsBackgroundRadiance,uv,0)+RemainsSampleIndirect(world);
     }
     return RemainsSampleLamp(world);
 }

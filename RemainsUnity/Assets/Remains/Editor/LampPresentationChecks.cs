@@ -22,6 +22,7 @@ namespace Remains.Editor
                 LampGameplayChecks.Run();
                 var catalog=AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath);
                 var world=new WorldState{seed=104};
+                Anatomy.Load();WeaponCatalog.Load();   // the factory content (mines, loot) reads the weapon catalog
                 FactoryPreparation.Create(world,catalog,0);
                 FactoryContentSources.Prepare(world,"factory:0");
                 var source=RoomAuthoring.Load("factory:0",world);
@@ -33,12 +34,12 @@ namespace Remains.Editor
                 Require(world.lamps.Count>0 && world.lamps.All(lamp=>lamp.width>0 && lamp.height>0),"Нет полных размещений ламп.");
                 var focus=world.lamps[0].Bounds.center;
                 view.Synchronize(room,world,1);view.Focus(focus);
-                int original=view.LightFieldInstanceId;
-                int readbacks=view.LightSilhouetteReadbacks;
+                int original=Id(view);
+                int readbacks=LightSpriteShapes.Readbacks;
                 double lit=Emission(view);
                 world.lampRevision++;
                 view.Synchronize(room,world,1);
-                Require(view.LightFieldInstanceId==original && view.AppliedLampRevision==world.lampRevision,"Пустое изменение ревизии пересоздало поле.");
+                Require(Id(view)==original && view.AppliedLampRevision==world.lampRevision,"Пустое изменение ревизии пересоздало свет уровня.");
                 view.SyncLamps(view.LampIds.ToArray(),++world.lampRevision);
                 var brokenArt=GameAssets.Load<BrokenLampArt>(BrokenLampArt.ResourcePath);
                 foreach(var picture in view.GetComponentsInChildren<RoomSpriteAuthoring>(true))
@@ -53,11 +54,11 @@ namespace Remains.Editor
                 view.Synchronize(room,world,1);
                 double dark=Emission(view);
                 CheckBrokenArtwork(view);
-                Require(view.LightFieldInstanceId==original && view.LightSilhouetteReadbacks==readbacks,"Разрушение лампы пересоздало поле или повторило чтение силуэтов.");
+                Require(Id(view)==original && LightSpriteShapes.Readbacks==readbacks,"Разрушение лампы пересоздало свет уровня или повторило чтение форм.");
                 Require(view.AppliedDoorRevision==1 && view.AppliedLampRevision==world.lampRevision && lit>dark,"Лампы не выключились при неизменной ревизии дверей.");
-                int broken=view.LightFieldInstanceId;
+                int broken=Id(view);
                 view.Synchronize(room,world,1);
-                Require(view.LightFieldInstanceId==broken,"Повторный снимок ламп пересоздал поле.");
+                Require(Id(view)==broken,"Повторный снимок ламп пересоздал свет уровня.");
                 view.Focus(focus+new Vector2(0,-60));view.Focus(focus);
                 CheckBrokenArtwork(view);
                 Require(Math.Abs(Emission(view)-dark)<.01,"Смена окна воскресила свет лампы.");
@@ -73,16 +74,19 @@ namespace Remains.Editor
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
             finally {if(visual!=null) UnityEngine.Object.DestroyImmediate(visual);FactoryContentSources.Clear();}
         }
+        // The level light's identity: an event must change the existing light, not build another.
+        private static int Id(FactoryLevelView view)=>System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(view.Light);
+        // All direct light of the level (lamps, windows, screens).
         private static double Emission(FactoryLevelView view)
         {
-            var field=(RoomRadianceField)typeof(FactoryLevelView).GetField("field",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(view);
-            var scene=(RenderTexture)typeof(RoomRadianceField).GetField("scene",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(field);
+            var sum=(RenderTexture)view.Light.Direct.Sum;
             var previous=RenderTexture.active;
-            var pixels=new Texture2D(scene.width,scene.height,TextureFormat.RGBAHalf,false,true);
+            var pixels=new Texture2D(sum.width,sum.height,TextureFormat.RGBAHalf,false,true);
             try
             {
-                RenderTexture.active=scene;pixels.ReadPixels(new Rect(0,0,scene.width,scene.height),0,0);
-                return pixels.GetPixels().Sum(color=>(double)color.r+color.g+color.b);
+                RenderTexture.active=sum;pixels.ReadPixels(new Rect(0,0,sum.width,sum.height),0,0);
+                double total=0;foreach(var color in pixels.GetPixels()) total+=(double)color.r+color.g+color.b;
+                return total;
             }
             finally {RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(pixels);}
         }

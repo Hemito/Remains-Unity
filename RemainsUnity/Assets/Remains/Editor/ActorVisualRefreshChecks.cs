@@ -16,7 +16,7 @@ namespace Remains.Editor
         public override string ActorId=>Bound?.id;
         public override void Bind(ActorState actor) {Bound=actor;Binds++;}
         public override void ApplyHeldAppearance(HeldPropColorSource colors) {Colors=colors;HeldUpdates++;}
-        public override void AppendLightOccluders(List<RoomRadianceField.LightOccluder> output) {}
+        public override void AppendLightOccluders(List<LightOccluder> output) {}
     }
     public static class ActorVisualRefreshChecks
     {

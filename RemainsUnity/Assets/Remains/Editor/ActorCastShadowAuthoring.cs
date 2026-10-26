@@ -59,7 +59,7 @@ namespace Remains.Editor
             try
             {
                 var original=Matrix4x4.Scale(new Vector3(-1,1,1));
-                var part=new RoomRadianceField.LightOccluder(mesh,texture,original);
+                var part=new LightOccluder(mesh,texture,original);
                 var parts=new[]{part,part};
                 var sources=new[]{new ActorShadowSource("check",new Vector2(-2,0),.1f,1)};
                 var settings=new RoomLightingTable{ActorShadowDepth=.1,ActorShadowMaxOffset=.5,ActorShadowMaxOpacity=.4,ActorShadowMaxSources=3,ActorShadowMaxScale=3};
@@ -102,7 +102,7 @@ namespace Remains.Editor
             var mesh=new Mesh{name="Силуэт проверки отдельной проекции стены"};
             mesh.vertices=new[]{new Vector3(-.1f,-.5f),new Vector3(.1f,-.5f),new Vector3(.1f,.5f),new Vector3(-.1f,.5f)};
             mesh.uv=new[]{Vector2.zero,Vector2.right,Vector2.one,Vector2.up};mesh.colors=new[]{Color.white,Color.white,Color.white,Color.white};mesh.triangles=new[]{0,1,2,0,2,3};mesh.RecalculateBounds();
-            var parts=new[]{new RoomRadianceField.LightOccluder(mesh,texture,Matrix4x4.identity)};
+            var parts=new[]{new LightOccluder(mesh,texture,Matrix4x4.identity)};
             var settings=new RoomLightingTable{ActorShadowMaxOffset=1,ActorShadowMaxOpacity=.65,ActorShadowMaxScale=3};
             Texture2D read=null;var previous=RenderTexture.active;
             try
@@ -134,7 +134,7 @@ namespace Remains.Editor
             var narrow=new Mesh{name="Узкий силуэт для проверки непрерывной тени"};
             narrow.vertices=new[]{new Vector3(-.02f,-.5f),new Vector3(.02f,-.5f),new Vector3(.02f,.5f),new Vector3(-.02f,.5f)};
             narrow.uv=new[]{Vector2.zero,Vector2.right,Vector2.one,Vector2.up};narrow.colors=new[]{Color.white,Color.white,Color.white,Color.white};narrow.triangles=new[]{0,1,2,0,2,3};narrow.RecalculateBounds();
-            var parts=new[]{new RoomRadianceField.LightOccluder(narrow,texture,Matrix4x4.identity)};
+            var parts=new[]{new LightOccluder(narrow,texture,Matrix4x4.identity)};
             var source=new[]{new ActorShadowSource("left",new Vector2(-3,0),.03f,1)};
             var settings=new RoomLightingTable{ActorShadowDepth=.25,ActorShadowMaxOffset=.6,ActorShadowMaxOpacity=.4,ActorShadowMaxSources=3,ActorShadowMaxScale=3};
             Texture2D read=null;var previous=RenderTexture.active;

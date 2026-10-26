@@ -183,8 +183,8 @@ namespace Remains.Editor
                 // Restore the identical lighting for both images: this comparison measures
                 // the rendered shadow masks, rather than the brighter/darker room itself.
                 level.SyncLamps(new[]{middle},3,new[]{middle});
-                var parts=new List<RoomRadianceField.LightOccluder>();visual.AppendLightOccluders(parts);
-                parts.Add(new RoomRadianceField.LightOccluder(weapon.sprite,weaponRoot.transform.localToWorldMatrix));
+                var parts=new List<LightOccluder>();visual.AppendLightOccluders(parts);
+                parts.Add(new LightOccluder(weapon.sprite,weaponRoot.transform.localToWorldMatrix));
                 shadow=UnityEngine.Object.Instantiate(GameAssets.Load<ActorCastShadowView>(ActorCastShadowView.ResourcePath)
                     ??throw new InvalidOperationException("Нет авторского префаба тени для проверки ванной."));shadow.Prepare(parts,2);
                 level.PrepareActorShadowFields(twoSources.Select(item=>item.Id).ToArray());
@@ -198,11 +198,11 @@ namespace Remains.Editor
                 camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.black;camera.allowHDR=false;camera.allowMSAA=false;
                 target=new RenderTexture(1024,512,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear);target.Create();camera.targetTexture=target;
                 shadow.Draw(body.center,parts,twoSources,level.ShadowSettings);
-                shadow.AppendProjectedLightShadows(masks);level.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),masks,Array.Empty<string>());
+                shadow.AppendProjectedLightShadows(masks);level.RenderMuzzleFlashes(Array.Empty<SpriteEmission>(),masks,Array.Empty<string>());
                 both=Capture(camera,target);
                 if(shadow.ActiveSourceCount!=2) throw new InvalidOperationException("Вид тени не сохранил обе выбранные лампы.");
                 shadow.Draw(body.center,parts,oneSource,level.ShadowSettings);
-                masks.Clear();shadow.AppendProjectedLightShadows(masks);level.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),masks,Array.Empty<string>());
+                masks.Clear();shadow.AppendProjectedLightShadows(masks);level.RenderMuzzleFlashes(Array.Empty<SpriteEmission>(),masks,Array.Empty<string>());
                 leftOnly=Capture(camera,target);
                 if(shadow.ActiveSourceCount!=1) throw new InvalidOperationException("Вид тени не отключил проекцию правой лампы.");
                 var a=both.GetPixels32();var b=leftOnly.GetPixels32();int changed=0;
@@ -210,7 +210,7 @@ namespace Remains.Editor
                 // Also remove only the right slot without reweighting the left slot.
                 // Otherwise a strength change of the surviving shadow alone could pass.
                 shadow.Draw(body.center,parts,new[]{twoSources.Single(item=>item.Id==left)},level.ShadowSettings);
-                masks.Clear();shadow.AppendProjectedLightShadows(masks);level.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),masks,Array.Empty<string>());
+                masks.Clear();shadow.AppendProjectedLightShadows(masks);level.RenderMuzzleFlashes(Array.Empty<SpriteEmission>(),masks,Array.Empty<string>());
                 matchedLeft=Capture(camera,target);var matched=matchedLeft.GetPixels32();int rightPixels=0;
                 for(int i=0;i<a.Length;i++) if(Math.Abs(a[i].r-matched[i].r)>2 || Math.Abs(a[i].g-matched[i].g)>2 || Math.Abs(a[i].b-matched[i].b)>2) rightPixels++;
                 sheet=new Texture2D(2048,512,TextureFormat.RGBA32,false,true);sheet.SetPixels(0,0,1024,512,both.GetPixels());sheet.SetPixels(1024,0,1024,512,leftOnly.GetPixels());sheet.Apply();

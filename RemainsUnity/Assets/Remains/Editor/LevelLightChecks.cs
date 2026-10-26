@@ -109,7 +109,7 @@ namespace Remains.Editor
                 reference?.Dispose();light?.Dispose();
                 if(visual!=null) Object.DestroyImmediate(visual);
                 Object.DestroyImmediate(fence);
-                FactoryContentSources.Clear();RoomRadianceField.ClearSpareTextures();
+                FactoryContentSources.Clear();
             }
         }
 

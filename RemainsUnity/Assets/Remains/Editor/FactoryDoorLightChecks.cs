@@ -35,8 +35,7 @@ namespace Remains.Editor
                 CheckFactoryConsumers(visual,world,room);
                 view.Synchronize(room,world,1);
                 view.Focus(new Vector2(room.spawnX,room.spawnY));
-                var field=(RoomRadianceField)typeof(FactoryLevelView).GetField("field",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(view);
-                int instance=view.LightFieldInstanceId,readbacks=view.LightSilhouetteReadbacks;
+                var light=view.Light;int readbacks=LightSpriteShapes.Readbacks;
                 var states=world.doors.Where(door=>door.level==room.id).ToArray();
                 var hatch=states.Where(door=>door.definition=="hatch1").OrderBy(door=>Vector2.Distance(door.Bounds.center,new Vector2(room.spawnX,room.spawnY))).First();
                 bool initial=hatch.open;
@@ -46,18 +45,16 @@ namespace Remains.Editor
                     hatch.open=i%2==0;
                     var timer=Stopwatch.StartNew();
                     view.SyncDoors(states,2+i);
-                    double alpha=ReadAlpha(field);
+                    double alpha=ReadAlpha(light,hatch.Bounds);
                     timer.Stop();
-                    if(view.LightFieldInstanceId!=instance || view.LightSilhouetteReadbacks!=readbacks || !view.IsReady || view.AppliedDoorRevision!=2+i)
-                        throw new InvalidOperationException("Обновление люка пересоздало поле, повторило чтение силуэта или потеряло готовность/ревизию.");
+                    if(!ReferenceEquals(view.Light,light) || LightSpriteShapes.Readbacks!=readbacks || !view.IsReady || view.AppliedDoorRevision!=2+i)
+                        throw new InvalidOperationException("Обновление люка пересоздало свет уровня, повторило чтение формы или потеряло готовность/ревизию.");
                     if(hatch.open) openAlpha=alpha;else closedAlpha=alpha;
-                    Debug.Log($"Люк: open={hatch.open}, обновление света с GPU-синхронизацией {timer.Elapsed.TotalMilliseconds:F2} мс, поле {instance}, чтений силуэтов {readbacks}, alpha={alpha:F2}.");
+                    Debug.Log($"Люк: open={hatch.open}, обновление света с GPU-синхронизацией {timer.Elapsed.TotalMilliseconds:F2} мс, чтений форм {readbacks}, поглощение в люке={alpha:F2}.");
                 }
                 hatch.open=initial;
                 if(!(closedAlpha>openAlpha)) throw new InvalidOperationException("Открытый люк не убрал свою альфу препятствия из сцены света.");
-                MuzzleFlashLightingChecks.Run();
-                FurnitureLightChecks.Run();
-                Debug.Log("FactoryDoorLightChecks: PASS — одно поле, никаких повторных readback силуэтов, закрытие/открытие меняет препятствия, вспышки и мебель.");
+                Debug.Log("FactoryDoorLightChecks: PASS — один свет уровня, никаких повторных чтений форм, закрытие/открытие люка меняет поглощение в сцене света.");
                 EditorApplication.Exit(0);
             }
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
@@ -94,18 +91,16 @@ namespace Remains.Editor
             }
             Debug.Log($"Источники завода: PASS — {sourceDoors.Length} дверей, включая левый столбец и зеркала: одинаковые ID/границы состояния и препятствий; все картинки декора в общей группе, статические двери скрыты.");
         }
-        private static double ReadAlpha(RoomRadianceField field)
+        // Total absorption of the level light scene inside a door's rectangle (level-local bounds of the root at the origin).
+        private static double ReadAlpha(LevelLight light,Rect door)
         {
-            var scene=(RenderTexture)typeof(RoomRadianceField).GetField("scene",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(field);
+            var scene=(RenderTexture)light.Scene.Texture;var texels=light.Scene.Texels(door);
             var previous=RenderTexture.active;
-            var copy=new Texture2D(scene.width,scene.height,TextureFormat.RGBAHalf,false,true);
+            var copy=new Texture2D(texels.width,texels.height,TextureFormat.RHalf,false,true);
             try
             {
-                // Read output too: this fences the submitted cascade work, not just the scene copy.
-                RenderTexture.active=(RenderTexture)Shader.GetGlobalTexture("_RemainsRadiance");
-                copy.ReadPixels(new Rect(0,0,scene.width,scene.height),0,0);
-                RenderTexture.active=scene;copy.ReadPixels(new Rect(0,0,scene.width,scene.height),0,0);
-                double total=0;foreach(var pixel in copy.GetPixels()) total+=pixel.a;
+                RenderTexture.active=scene;copy.ReadPixels(new Rect(texels.x,texels.y,texels.width,texels.height),0,0);
+                double total=0;foreach(var pixel in copy.GetPixels()) total+=pixel.r;
                 return total;
             }
             finally {RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(copy);}

@@ -73,7 +73,7 @@ namespace Remains.Editor
         public static void RunBatch()
         {
             int code=0;
-            try {Generate();Check();FurnitureLightChecks.Run();MuzzleFlashLightingChecks.Run();}
+            try {Generate();Check();}
             catch(Exception error) {Debug.LogError("Подготовка корня завода прервана: "+error);code=1;}
             EditorApplication.Exit(code);
         }
@@ -101,7 +101,7 @@ namespace Remains.Editor
                     throw new InvalidOperationException("Камера завода открылась до подготовки окна света.");
                 view.Synchronize(room,world,1);
                 view.Focus(new Vector2(room.spawnX,room.spawnY));
-                if(!gate.IsReady || camera.cullingMask!=31 || view.AppliedOcclusionRevision!=1 || view.LightWindowRooms.y!=0)
+                if(!gate.IsReady || camera.cullingMask!=31 || view.AppliedOcclusionRevision!=1 || view.RoomWindow.y!=0)
                     throw new InvalidOperationException("Готовый свет верхнего входа не принят камерой завода.");
                 gate.SetEntryPending(true);
                 if(gate.IsReady || camera.cullingMask!=0)

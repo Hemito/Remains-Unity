@@ -93,7 +93,7 @@ namespace Remains.Presentation
             }
         }
 
-        public bool NeedsPreparation(IReadOnlyList<RoomRadianceField.LightOccluder> parts,int sourceCount)
+        public bool NeedsPreparation(IReadOnlyList<LightOccluder> parts,int sourceCount)
         {
             if(parts==null) throw new ArgumentNullException(nameof(parts));
             if(sourceCount<0) throw new ArgumentOutOfRangeException(nameof(sourceCount));
@@ -103,7 +103,7 @@ namespace Remains.Presentation
             return false;
         }
         // Explicit cached rebuild, queued by the coordinator outside the pose/drawing callback.
-        public void Prepare(IReadOnlyList<RoomRadianceField.LightOccluder> parts,int sourceCount)
+        public void Prepare(IReadOnlyList<LightOccluder> parts,int sourceCount)
         {
             Validate();
             if(parts==null) throw new ArgumentNullException(nameof(parts));
@@ -128,7 +128,7 @@ namespace Remains.Presentation
             hasSignature=false;
         }
 
-        public void Draw(Vector2 actorPosition,IReadOnlyList<RoomRadianceField.LightOccluder> parts,IReadOnlyList<ActorShadowSource> sources,RoomLightingTable settings)
+        public void Draw(Vector2 actorPosition,IReadOnlyList<LightOccluder> parts,IReadOnlyList<ActorShadowSource> sources,RoomLightingTable settings)
         {
             Validate();
             if(parts==null || sources==null || settings==null) throw new ArgumentNullException("Нет силуэтов, источников или настроек проекции тени.");
@@ -182,7 +182,7 @@ namespace Remains.Presentation
             for(int i=ActiveSourceCount;i<slots.Count;i++) slots[i].renderer.enabled=false;
             lastSignature=signature;hasSignature=true;MaskRebuilds++;
         }
-        private int Signature(Vector2 actorPosition,IReadOnlyList<RoomRadianceField.LightOccluder> parts,IReadOnlyList<ActorShadowSource> sources,RoomLightingTable settings)
+        private int Signature(Vector2 actorPosition,IReadOnlyList<LightOccluder> parts,IReadOnlyList<ActorShadowSource> sources,RoomLightingTable settings)
         {
             var hash=new HashCode();hash.Add(actorPosition);hash.Add(transform.localToWorldMatrix);
             hash.Add(settings.ActorShadowDepth);hash.Add(settings.ActorShadowMaxOffset);hash.Add(settings.ActorShadowMaxOpacity);
@@ -198,7 +198,7 @@ namespace Remains.Presentation
             for(int i=0;i<sources.Count;i++) {var source=sources[i];hash.Add(source.Id);hash.Add(source.Position);hash.Add(source.Radius);hash.Add(source.Strength);hash.Add(source.Coverage);hash.Add(source.IsTransient);hash.Add(source.ProjectionScale);}
             return hash.ToHashCode();
         }
-        private static int PoseSignature(IReadOnlyList<RoomRadianceField.LightOccluder> parts)
+        private static int PoseSignature(IReadOnlyList<LightOccluder> parts)
         {
             var hash=new HashCode();hash.Add(parts.Count);
             for(int i=0;i<parts.Count;i++)
@@ -210,7 +210,7 @@ namespace Remains.Presentation
             }
             return hash.ToHashCode();
         }
-        private bool TryMesh(RoomRadianceField.LightOccluder part,out Mesh mesh,out Texture texture)
+        private bool TryMesh(LightOccluder part,out Mesh mesh,out Texture texture)
         {
             mesh=part.Mesh;texture=part.Texture;
             if(part.Opacity<=0) return false;
@@ -224,7 +224,7 @@ namespace Remains.Presentation
             if(warned.Add(key)) Debug.LogWarning($"Проекция тени {name}: пропущена часть {key}; отсутствует mesh или texture, исходная графика не подменяется.",this);
             return false;
         }
-        private void DrawMask(RenderTexture target,IReadOnlyList<RoomRadianceField.LightOccluder> parts,Bounds bounds)
+        private void DrawMask(RenderTexture target,IReadOnlyList<LightOccluder> parts,Bounds bounds)
         {
             Remains.Diagnostics.FrameHitchLog.Gpu("Тени: маска позы персонажа");
             var previous=RenderTexture.active;

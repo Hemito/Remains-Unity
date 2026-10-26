@@ -32,7 +32,7 @@ namespace Remains.Presentation
         }
         public string Resource {get;private set;}
         public override string ActorId=>state?.id;
-        public override void AppendLightOccluders(List<RoomRadianceField.LightOccluder> output)=>AppendSpriteOccluder(view,output);
+        public override void AppendLightOccluders(List<LightOccluder> output)=>AppendSpriteOccluder(view,output);
         public override void Bind(ActorState actor)
         {
             state=actor;string key=ActorTypes.Get(actor.actorType).artwork;

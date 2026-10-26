@@ -14,7 +14,7 @@ namespace Remains.Presentation
         private sealed class Entry
         {
             public ActorCastShadowView View;
-            public readonly List<RoomRadianceField.LightOccluder> Parts=new();
+            public readonly List<LightOccluder> Parts=new();
             public readonly List<ActorShadowSource> Lamps=new(),Sources=new();
             public readonly List<ActorShadowSource> DisplayLamps=new();
             // A new selection waits here until its sources' direct fields exist (or PendingDeadlineSeconds), so a lamp
@@ -72,7 +72,7 @@ namespace Remains.Presentation
         // area: where shadows can be seen (the camera's animation area); actors outside it keep their entry but draw nothing,
         // so a level of ~240 NPCs costs only the few near the camera. Null draws every actor (checks, previews).
         public void Present(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
-            InteractionVisuals weapons,IReadOnlyList<RoomRadianceField.SpriteEmission> flashes,IReadOnlyList<string> flashIds=null,Rect? area=null)
+            InteractionVisuals weapons,IReadOnlyList<SpriteEmission> flashes,IReadOnlyList<string> flashIds=null,Rect? area=null)
         {
             if(current!=level) {Clear();level=current;}
             if(level==null || !level.IsReady) {Clear();return;}
@@ -154,7 +154,7 @@ namespace Remains.Presentation
             !seen.Contains(visual.TryGetDrawnBounds(out var drawn)?(Vector2)drawn.center:(Vector2)visual.transform.position);
         // area as in Present: a shot prepares flash shadows only for actors that can be seen.
         public void PrepareFlash(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
-            InteractionVisuals weapons,string id,RoomRadianceField.SpriteEmission flash,Rect? area=null)
+            InteractionVisuals weapons,string id,SpriteEmission flash,Rect? area=null)
         {
             if(current!=level) {Clear();level=current;}
             if(level==null || !level.IsReady || flash.Sprite==null) return;
@@ -314,7 +314,7 @@ namespace Remains.Presentation
             entry.Lamps.Clear();entry.Lamps.AddRange(entry.PendingLamps);
             entry.PendingLamps.Clear();entry.HasPending=false;
         }
-        private static Vector2 PartsCenter(List<RoomRadianceField.LightOccluder> parts)
+        private static Vector2 PartsCenter(List<LightOccluder> parts)
         {
             // Exact bounds of the supplied drawing, also for sprite actors that do not expose pony bounds.
             Vector2 min=new(float.PositiveInfinity,float.PositiveInfinity),max=new(float.NegativeInfinity,float.NegativeInfinity);

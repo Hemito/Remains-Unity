@@ -63,7 +63,11 @@ namespace Remains.Presentation
         public int Evictions {get;private set;}
         public int Recompositions {get;private set;}
         public int PendingMeasurements {get;private set;}
-        public bool HasWork=>dirtyCount>0 || pendingRegions.Count>0;
+        public bool HasWork=>dirtyCount>0 || pendingRegions.Count>0 || MissingRequested();
+        // Changes whenever the sum changes (a full build or a recomposed region).
+        public long Revision {get;private set;}
+        // Fields kept for actor shadows: built when missing, never evicted while requested.
+        private readonly HashSet<int> requested=new();
         // A region of the sum changed (after an event, not the full build): bounce light follows it.
         public event Action<RectInt> Recomposed;
         public int CachedFields {get;private set;}
@@ -109,7 +113,7 @@ namespace Remains.Presentation
                 EvictOverBudget(null);
                 yield return null;
             }
-            built=true;
+            built=true;Revision++;
         }
         public void BuildAll()
         {
@@ -155,6 +159,13 @@ namespace Remains.Presentation
             if(maxBuilds<=0) throw new ArgumentOutOfRangeException(nameof(maxBuilds));
             if(!built) throw new InvalidOperationException("Прямой свет: шаг события до полной сборки уровня.");
             int budget=maxBuilds;
+            // Requested fields first: an actor's shadow waits for them; an event's region waits anyway.
+            foreach(int index in requested)
+            {
+                if(budget==0) break;
+                if(!sources.All[index].Enabled || fields[index]!=null && !fields[index].Stale || dirty[index]) continue;
+                Build(index);budget--;
+            }
             for(int i=0;i<sources.Count && dirtyCount>0 && budget>0;i++)
             {
                 if(!dirty[i]) continue;
@@ -178,11 +189,44 @@ namespace Remains.Presentation
             {
                 foreach(var region in pendingRegions) Recompose(region);
                 foreach(var region in pendingRegions) Recomposed?.Invoke(region);
-                pendingRegions.Clear();
+                pendingRegions.Clear();Revision++;
             }
-            EvictOverBudget(null);
+            EvictOverBudget(requested);
             return HasWork;
         }
+
+        // The sources whose fields actor shadows need now (ids of other kinds or unknown ids are ignored).
+        public void Request(IReadOnlyCollection<string> ids)
+        {
+            ThrowIfDisposed();
+            requested.Clear();
+            foreach(string id in ids) if(sources.TryGet(id,out int index)) requested.Add(index);
+        }
+        // Whether a source can cast its shadow now: its field is ready, or it emits nothing / is not a level source.
+        public bool ReadyOrNone(string id)=>!sources.TryGet(id,out int index) || !sources.All[index].Enabled || fields[index]!=null && !fields[index].Stale;
+        private bool MissingRequested()
+        {
+            foreach(int index in requested) if(sources.All[index].Enabled && (fields[index]==null || fields[index].Stale)) return true;
+            return false;
+        }
+
+        // A one-frame source (a muzzle flash) into a caller's target at least its reach rectangle in size; no cache,
+        // no subscription. Up to TransientSlots per frame keep their own form points.
+        public void BuildTransient(LevelLightSource source,RenderTexture target)
+        {
+            ThrowIfDisposed();
+            if(source==null || target==null) throw new ArgumentNullException(source==null?nameof(source):nameof(target));
+            var texels=source.Texels;
+            if(texels.width>target.width || texels.height>target.height) throw new ArgumentException($"Вспышка {source.Id}: поле {texels.width}×{texels.height} больше цели {target.width}×{target.height}.");
+            if(source.Samples.Length>MaximumSamples) throw new ArgumentException("Вспышка: слишком много точек формы "+source.Id);
+            int slot=transientSlot;transientSlot=(transientSlot+1)%TransientSlots;
+            transientSamples??=new ComputeBuffer(TransientSlots*MaximumSamples,16);
+            transientSamples.SetData(source.Samples,0,slot*MaximumSamples,source.Samples.Length);
+            Dispatch(source,texels,target,transientSamples,slot*MaximumSamples);
+        }
+        private const int TransientSlots=16;
+        private ComputeBuffer transientSamples;
+        private int transientSlot;
 
         public bool TryGetField(string id,out Texture texture,out RectInt texels)
         {
@@ -224,23 +268,25 @@ namespace Remains.Presentation
                 fields[index]=field;cacheBytes+=LightTextureBudget.Size(texels.width,texels.height,8);CachedFields++;
             }
             Remains.Diagnostics.FrameHitchLog.Gpu("Свет уровня: прямой свет источника");
-            using(Remains.Diagnostics.FrameHitchLog.Section("Свет уровня: прямой свет источника"))
-            {
-                compute.SetTexture(directKernel,"_Scene",scene.Texture);
-                compute.SetBuffer(directKernel,"_Samples",samples);
-                compute.SetTexture(directKernel,"_Field",field.Texture);
-                compute.SetInts("_SceneSize",scene.Width,scene.Height);
-                compute.SetVector("_SceneRect",new Vector4(scene.WorldRect.x,scene.WorldRect.y,scene.WorldRect.width,scene.WorldRect.height));
-                compute.SetFloat("_PPU",scene.Resolution);
-                compute.SetInts("_FieldOrigin",texels.x,texels.y);compute.SetInts("_FieldSize",texels.width,texels.height);
-                compute.SetVector("_SourceBounds",new Vector4(source.Bounds.xMin,source.Bounds.yMin,source.Bounds.xMax,source.Bounds.yMax));
-                compute.SetVector("_Radiance",source.Radiance);compute.SetFloat("_Radius",source.Reach);
-                compute.SetFloat("_ProjectedWidth",source.Width);compute.SetInt("_SampleCount",source.Samples.Length);compute.SetInt("_SampleOffset",sampleOffsets[index]);
-                compute.Dispatch(directKernel,(texels.width+7)/8,(texels.height+7)/8,1);
-            }
+            using(Remains.Diagnostics.FrameHitchLog.Section("Свет уровня: прямой свет источника")) Dispatch(source,texels,field.Texture,samples,sampleOffsets[index]);
             field.Stale=false;field.LastUse=++useClock;Builds++;
             Measure(index,field);
             return field;
+        }
+
+        private void Dispatch(LevelLightSource source,RectInt texels,RenderTexture target,ComputeBuffer points,int offset)
+        {
+            compute.SetTexture(directKernel,"_Scene",scene.Texture);
+            compute.SetBuffer(directKernel,"_Samples",points);
+            compute.SetTexture(directKernel,"_Field",target);
+            compute.SetInts("_SceneSize",scene.Width,scene.Height);
+            compute.SetVector("_SceneRect",new Vector4(scene.WorldRect.x,scene.WorldRect.y,scene.WorldRect.width,scene.WorldRect.height));
+            compute.SetFloat("_PPU",scene.Resolution);
+            compute.SetInts("_FieldOrigin",texels.x,texels.y);compute.SetInts("_FieldSize",texels.width,texels.height);
+            compute.SetVector("_SourceBounds",new Vector4(source.Bounds.xMin,source.Bounds.yMin,source.Bounds.xMax,source.Bounds.yMax));
+            compute.SetVector("_Radiance",source.Radiance);compute.SetFloat("_Radius",source.Reach);
+            compute.SetFloat("_ProjectedWidth",source.Width);compute.SetInt("_SampleCount",source.Samples.Length);compute.SetInt("_SampleOffset",offset);
+            compute.Dispatch(directKernel,(texels.width+7)/8,(texels.height+7)/8,1);
         }
 
         // Which doors this field lights: read back asynchronously; until then the source counts as subscribed to
@@ -358,7 +404,7 @@ namespace Remains.Presentation
             cacheBytes=0;CachedFields=0;
             LightTextureBudget.Release(sum);sum=null;
             AsyncGPUReadback.WaitAllRequests();
-            samples?.Release();doorRects?.Release();lit?.Release();samples=doorRects=lit=null;
+            samples?.Release();doorRects?.Release();lit?.Release();transientSamples?.Release();samples=doorRects=lit=transientSamples=null;
             foreach(var buffer in retired) buffer.Release();
             retired.Clear();
         }

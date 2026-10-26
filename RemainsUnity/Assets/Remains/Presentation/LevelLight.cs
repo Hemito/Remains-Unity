@@ -70,6 +70,7 @@ namespace Remains.Presentation
             return false;
         }
         // Event work of one frame: field builds of direct light first; bounce windows once direct light is final.
+        public bool HasWork=>Direct.HasWork || Bounce.HasWork;
         public bool Step(int maxBuilds,int bounceStages)
         {
             if(Direct.HasWork) Direct.Step(maxBuilds);

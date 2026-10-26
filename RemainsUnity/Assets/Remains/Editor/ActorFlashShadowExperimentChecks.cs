@@ -18,11 +18,8 @@ namespace Remains.Editor
             try
             {
                 ActorShadowSourceChecks.Run();
-                StaticLightShadowChecks.Run();
-                StaticLightShadowChecks.RunAuthoredWindow();
                 WindowActorCompositeChecks.RunGroupedWindows();
                 WindowActorCompositeChecks.RunLampProjection();
-                MuzzleFlashLightingChecks.Run();
                 // Includes ActorCastShadowAuthoring.Check and the queued-first-frame timing proof.
                 ActorProjectedShadowChecks.RunTimingChecks();
                 RenderHubExperiment();
@@ -85,9 +82,9 @@ namespace Remains.Editor
                 flashRoot.transform.position=weaponRoot.transform.TransformPoint(new Vector3(.602f,.122f,0));
                 flashRoot.transform.rotation=weaponRoot.transform.rotation;flashRoot.transform.localScale=weaponRoot.transform.localScale;
                 var sourcePosition=(Vector2)flashRoot.transform.TransformPoint(flashSprite.bounds.center);
-                var emission=new[]{new RoomRadianceField.SpriteEmission(flashSprite,flashRoot.transform.localToWorldMatrix,8)};
-                var parts=new List<RoomRadianceField.LightOccluder>();visual.AppendLightOccluders(parts);
-                parts.Add(new RoomRadianceField.LightOccluder(weapon.sprite,weaponRoot.transform.localToWorldMatrix));
+                var emission=new[]{new SpriteEmission(flashSprite,flashRoot.transform.localToWorldMatrix,8)};
+                var parts=new List<LightOccluder>();visual.AppendLightOccluders(parts);
+                parts.Add(new LightOccluder(weapon.sprite,weaponRoot.transform.localToWorldMatrix));
                 shadow=UnityEngine.Object.Instantiate(GameAssets.Load<ActorCastShadowView>(ActorCastShadowView.ResourcePath)
                     ??throw new InvalidOperationException("Нет авторского префаба проекции тени."));
                 const string sourceId="experiment:actual-pistol-flash";
@@ -119,7 +116,7 @@ namespace Remains.Editor
                 var labelRenderer=label.GetComponent<MeshRenderer>();labelRenderer.sharedMaterial=label.font.material;labelRenderer.sortingOrder=short.MaxValue;
                 labelRoot.transform.position=camera.transform.position+new Vector3(-camera.orthographicSize*1.94f,camera.orthographicSize*.92f,10);
                 flash.enabled=false;label.text="До выстрела";
-                level.RenderMuzzleFlashes(Array.Empty<RoomRadianceField.SpriteEmission>(),Array.Empty<ProjectedLightShadow>(),Array.Empty<string>());
+                level.RenderMuzzleFlashes(Array.Empty<SpriteEmission>(),Array.Empty<ProjectedLightShadow>(),Array.Empty<string>());
                 frames[0]=Capture(camera,target);
                 flash.enabled=true;label.text="Вспышка без тени";
                 level.RenderMuzzleFlashes(emission,Array.Empty<ProjectedLightShadow>(),new[]{sourceId});
