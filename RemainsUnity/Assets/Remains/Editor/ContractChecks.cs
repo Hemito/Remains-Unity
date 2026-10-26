@@ -17,7 +17,6 @@ namespace Remains.Editor
             RoomCatalogLifetimeChecks.Run();
             SnapshotManifestChecks.Run();JoinCharacterChecks.Run();WorldTickChecks.Run();ClientPredictionChecks.Run();RvgRasterizerChecks.Run();
             WorldReplicationChecks.Run();
-            WorldDeltaChecks.Run();
             ProjectStorageChecks.Run();LevelTimeReplicaChecks.Run();MechanismOperationsChecks.Run();
             ItemShortcutChecks.Run();
             DroppedItemShapeChecks.Run();

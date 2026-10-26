@@ -123,22 +123,23 @@ namespace Remains.Editor
                 audio.Contains("{\"weapon\":\""+charge.blastWeapon+"\",\"clip\":\"grenade-explosion\",\"kind\":\"explosion\""),"звуки укуса (trap_a) и взрыва заряда");
         }
 
+        // Transport v2: a changed trap reaches clients as one part of a world tick; unchanged traps keep their live objects.
         private static void CheckDelta(WorldState host)
         {
             WorldChanges.Track(host);
-            var a=RecoverySnapshot.FromWorld(host);var replica=WorldReplica.FromSnapshot(a);var client=a.CreateLiveWorld();
+            var composer=new WorldTickComposer();composer.Next(host,part=>WorldChanges.IsMarked(host,part));
+            var client=StateJson.FromJson<WorldState>(StateJson.ToJson(host));
             var hazard=host.hazards[0];hazard.closed=!hazard.closed;WorldChanges.Mark(host,hazard);host.revision++;
-            var b=RecoverySnapshot.FromWorld(host);
-            var delta=WorldDelta.Build(host.worldId,a.ReplicationId,a.Composition,b.ReplicationId,b.Composition);
-            Require(WorldDelta.ChangedParts(delta)==1,"изменение ловушки — одна часть дельты, а не "+WorldDelta.ChangedParts(delta));
-            var applied=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(delta)),client);
-            Require(applied.Json==b.Json,"клиент собрал другой мир после изменения ловушки");
-            var next=applied.CreateLiveWorld();
+            var tick=composer.Next(host,part=>WorldChanges.IsMarked(host,part));WorldChanges.Clear(host);
+            int parts=tick?.lists.Sum(list=>list.keys?.Length??0)??0;
+            Require(parts==1,"изменение ловушки — одна часть тика, а не "+parts);
+            var next=WorldTickLists.ShallowCopy(client);WorldTickApplier.Apply(next,WorldTickApplier.Parse(next,tick),ValidatedStateCopy.Copy);
+            Require(StateJson.ToJson(next)==StateJson.ToJson(host),"клиент собрал другой мир после изменения ловушки");
             Require(next.hazards[0].closed==hazard.closed && (next.hazards.Count<2 || ReferenceEquals(next.hazards[1],client.hazards[1])),"изменённая ловушка разобрана, остальные переиспользованы");
             host.hazards.Remove(hazard);host.revision++;
-            var c=RecoverySnapshot.FromWorld(host);
-            var removal=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(WorldDelta.Build(host.worldId,b.ReplicationId,b.Composition,c.ReplicationId,c.Composition))),next);
-            Require(removal.Json==c.Json && removal.CreateLiveWorld().hazards.Count==host.hazards.Count,"удаление ловушки по дельте");
+            var removal=composer.Next(host,part=>WorldChanges.IsMarked(host,part));WorldChanges.Clear(host);
+            var after=WorldTickLists.ShallowCopy(next);WorldTickApplier.Apply(after,WorldTickApplier.Parse(after,removal),ValidatedStateCopy.Copy);
+            Require(StateJson.ToJson(after)==StateJson.ToJson(host) && after.hazards.Count==host.hazards.Count,"удаление ловушки по тику");
         }
 
         private static void CheckDisarmPreflight()

@@ -119,22 +119,23 @@ namespace Remains.Editor
             }
         }
 
+        // Transport v2: a triggered mine reaches clients as one part of a world tick; unchanged mines keep their live objects.
         private static void CheckDelta(WorldState host)
         {
             WorldChanges.Track(host);
-            var a=RecoverySnapshot.FromWorld(host);var replica=WorldReplica.FromSnapshot(a);var client=a.CreateLiveWorld();
+            var composer=new WorldTickComposer();composer.Next(host,part=>WorldChanges.IsMarked(host,part));
+            var client=StateJson.FromJson<WorldState>(StateJson.ToJson(host));
             var mine=host.mines[0];MineRules.Trigger(mine,MineRules.Profile(mine));WorldChanges.Mark(host,mine);host.revision++;
-            var b=RecoverySnapshot.FromWorld(host);
-            var delta=WorldDelta.Build(host.worldId,a.ReplicationId,a.Composition,b.ReplicationId,b.Composition);
-            Require(WorldDelta.ChangedParts(delta)==1,"срабатывание мины — одна часть дельты, а не "+WorldDelta.ChangedParts(delta));
-            var applied=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(delta)),client);
-            Require(applied.Json==b.Json,"клиент собрал другой мир после срабатывания");
-            var next=applied.CreateLiveWorld();
+            var tick=composer.Next(host,part=>WorldChanges.IsMarked(host,part));WorldChanges.Clear(host);
+            int parts=tick?.lists.Sum(list=>list.keys?.Length??0)??0;
+            Require(parts==1,"срабатывание мины — одна часть тика, а не "+parts);
+            var next=WorldTickLists.ShallowCopy(client);WorldTickApplier.Apply(next,WorldTickApplier.Parse(next,tick),ValidatedStateCopy.Copy);
+            Require(StateJson.ToJson(next)==StateJson.ToJson(host),"клиент собрал другой мир после срабатывания");
             Require(next.mines[0].triggered && (next.mines.Count<2 || ReferenceEquals(next.mines[1],client.mines[1])),"сработавшая мина разобрана, остальные переиспользованы");
             MineRules.Detonate(host,mine,null);host.revision++;
-            var c=RecoverySnapshot.FromWorld(host);
-            var removal=replica.Apply(StateJson.FromJson<WorldDeltaPayload>(StateJson.ToJson(WorldDelta.Build(host.worldId,b.ReplicationId,b.Composition,c.ReplicationId,c.Composition))),next);
-            Require(removal.Json==c.Json && removal.CreateLiveWorld().mines.Count==host.mines.Count,"удаление мины по дельте");
+            var removal=composer.Next(host,part=>WorldChanges.IsMarked(host,part));WorldChanges.Clear(host);
+            var after=WorldTickLists.ShallowCopy(next);WorldTickApplier.Apply(after,WorldTickApplier.Parse(after,removal),ValidatedStateCopy.Copy);
+            Require(StateJson.ToJson(after)==StateJson.ToJson(host) && after.mines.Count==host.mines.Count,"удаление мины по тику");
         }
 
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Мины: "+message);}

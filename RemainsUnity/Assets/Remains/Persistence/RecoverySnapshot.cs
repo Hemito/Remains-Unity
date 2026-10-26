@@ -117,19 +117,6 @@ namespace Remains.Persistence
             producedHere = true;
         }
 
-        // A delta-assembled snapshot (WorldReplica.Apply): the text must hash to the expected ID; the live world was
-        // built from the strictly parsed template and changed parts plus unchanged live parts, and passes the rules.
-        internal static RecoverySnapshot Assembled(string template,IReadOnlyList<SnapshotPartCache.PartSet> parts,string expectedId,WorldState world,
-            bool retainPreparedLive=true,SnapshotManifest previousManifest=null)
-        {
-            if(template==null || parts==null || world==null) throw new ArgumentNullException(world==null?nameof(world):template==null?nameof(template):nameof(parts));
-            var snapshot=new RecoverySnapshot(world,template,parts,previousManifest);
-            if(snapshot.ReplicationId!=expectedId)
-                throw new System.IO.InvalidDataException($"Изменение мира собрано с другим манифестом: ожидался {expectedId}, получен {snapshot.ReplicationId}.");
-            if(retainPreparedLive) snapshot.preparedLive=world;
-            return snapshot;
-        }
-
         // A received text: the snapshot object itself when this process produced exactly this text, otherwise the
         // strict parse (any foreign or altered text).
         public static RecoverySnapshot FromReceived(string json)

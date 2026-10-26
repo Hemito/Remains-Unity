@@ -183,10 +183,12 @@ namespace Remains.Editor
             f.Server.actors.Add(stranger);
             f.Accept(); // The actor already carries the accepted heal; only its durable proof is delayed.
             f.Server.completedTransactions.Remove(Transaction);
+            // Transport v2: the journal entry arrives as a world tick; the client's live world is a shallow copy with the tick
+            // applied, and unchanged actors keep their live objects (as CoopSession.ReceiveTick).
             WorldChanges.Track(f.Server);
-            var a=Remains.Persistence.RecoverySnapshot.FromWorld(f.Server);
-            var replica=Remains.Persistence.WorldReplica.FromSnapshot(a);
-            var current=a.CreateLiveWorld();
+            var composer=new Remains.Persistence.WorldTickComposer();
+            Require(composer.Next(f.Server,part=>WorldChanges.IsMarked(f.Server,part))==null,"Первый тик должен только запомнить мир.");
+            var current=StateJson.FromJson<WorldState>(StateJson.ToJson(f.Server));
             // A later owner-decided fall has the accepted lifetime, but must retain its down state.
             f.Local.health=0;f.Local.down=true;f.Local.damageSequence++;
             f.Local.lifecycleSequence=f.Server.actors[0].lifecycleSequence;
@@ -194,12 +196,18 @@ namespace Remains.Editor
             current.actors[0]=f.Local;
             var unrelated=current.actors[1];unrelated.x+=123;
             f.Server.completedTransactions.Add(Transaction);f.Server.revision++;
-            var b=Remains.Persistence.RecoverySnapshot.FromWorld(f.Server);
-            var delta=Remains.Persistence.WorldDelta.Build(world,a.ReplicationId,a.Composition,b.ReplicationId,b.Composition);
-            Require(Remains.Persistence.WorldDelta.ChangedParts(delta)==0,"Журнальный ack неожиданно изменил части актёров.");
-            var snapshot=replica.ApplyLive(StateJson.Copy(delta),current,out var live,out var reused);
+            string hostBefore=StateJson.ToJson(f.Server);
+            var tick=composer.Next(f.Server,part=>WorldChanges.IsMarked(f.Server,part));
+            Require(tick!=null,"Журнальный ack не дал тика.");
+            foreach(var list in tick.lists) Require(list.name!="actors" || (list.keys?.Length??0)==0,"Журнальный ack неожиданно изменил части актёров.");
+            var live=Remains.Persistence.WorldTickLists.ShallowCopy(current);
+            Remains.Persistence.WorldTickApplier.Apply(live,Remains.Persistence.WorldTickApplier.Parse(live,tick),ValidatedStateCopy.Copy);
+            var reused=new HashSet<string>(StringComparer.Ordinal);
+            var held=new HashSet<ActorState>(current.actors);
+            foreach(var actor in live.actors) if(held.Contains(actor)) reused.Add(actor.id);
             Require(reused.Contains(f.Local.id) && reused.Contains(unrelated.id),"Журнальный ack не проверяет настоящий unchanged reuse.");
-            f.Tracker.MaterializeCanonical(live,reused,replica.CopyCanonicalActor);
+            Func<string,ActorState> canonical=id=>StateJson.Copy(f.Server.Find(id));
+            f.Tracker.MaterializeCanonical(live,reused,canonical);
             Require(!reused.Contains(f.Local.id) && reused.Contains(unrelated.id) && ReferenceEquals(live.actors[1],unrelated),
                 "MaterializeCanonical затронул постороннюю проекцию или пропустил pending.");
             var incoming=live.actors[0];
@@ -208,12 +216,12 @@ namespace Remains.Editor
             live.actors[0]=incoming;
             Require(f.Tracker.RequiresCanonical(incoming.id),"Acknowledged-состояние потеряло canonical guard.");
             string accepted=StateJson.ToJson(incoming);
-            var duplicate=replica.CopyCanonicalActor(incoming.id);
+            var duplicate=canonical(incoming.id);
             Require(!f.Tracker.TryApply(world,live.completedTransactions,incoming,ref duplicate,Owner) && StateJson.ToJson(incoming)==accepted,
                 "Повторный ack изменил здоровье или повторил расход.");
-            Require(snapshot.Json==b.Json && StateJson.ToJson(snapshot.CreateLiveWorld())==b.Json,"Live ack загрязнил detached recovery.");
-            var detached=snapshot.CreateLiveWorld();detached.actors[0].inventory.Clear();
-            Require(StateJson.ToJson(snapshot.CreateLiveWorld())==b.Json,"Повторный detached recovery разделяет inventory.");
+            Require(StateJson.ToJson(f.Server)==hostBefore,"Live ack изменил каноническую копию хоста.");
+            canonical(incoming.id).inventory.Clear();
+            Require(StateJson.ToJson(f.Server)==hostBefore,"Каноническая копия актёра разделяет inventory с живым миром.");
         }
         private static void Require(bool valid,string reason)
         {if(!valid) throw new InvalidOperationException("Проверка подтверждения самолечения: "+reason);}
