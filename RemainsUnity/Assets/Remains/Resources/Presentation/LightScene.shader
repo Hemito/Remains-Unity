@@ -106,5 +106,30 @@ Shader "Hidden/Remains/LightScene"
             { return float4(0,0,0,SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a*_OccluderOpacity); }
             ENDHLSL
         }
+        // Level light scene (LevelLightScene, single-channel R16F): object absorption by sprite alpha, maximum wins.
+        Pass
+        {
+            BlendOp Max
+            Blend One One
+            ColorMask R
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment AbsorptionFrag
+            float4 AbsorptionFrag(Varyings i) : SV_Target
+            { return float4(SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,i.uv).a*_Absorption,0,0,0); }
+            ENDHLSL
+        }
+        // Level light scene: a door rectangle of constant absorption, already snapped to the grid.
+        Pass
+        {
+            BlendOp Max
+            Blend One One
+            ColorMask R
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment RectFrag
+            float4 RectFrag(Varyings i) : SV_Target { return float4(_Absorption,0,0,0); }
+            ENDHLSL
+        }
     }
 }

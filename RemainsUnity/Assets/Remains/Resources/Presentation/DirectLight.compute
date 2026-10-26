@@ -1,0 +1,115 @@
+// Direct light of one steady source on the full level grid (DirectLight.cs): rays from up to eight points of the
+// emitting form to every texel of the source's reach rectangle, marched through the level absorption scene.
+#pragma kernel Direct
+#pragma kernel ClearRect
+#pragma kernel AddField
+#pragma kernel LitRects
+
+Texture2D<float> _Scene;                 // per-texel absorption (LevelLightScene)
+StructuredBuffer<float4> _Samples;       // xy world point, z normalised weight; this source's from _SampleOffset
+RWTexture2D<float4> _Field;              // the source's field, aligned to the level grid at _FieldOrigin
+Texture2D<float4> _FieldIn;
+RWTexture2D<float4> _Sum;                // the level's direct light
+StructuredBuffer<int4> _Rects;           // LitRects: door texel rectangles (x, y, width, height) in level coordinates
+RWStructuredBuffer<uint> _Lit;           // LitRects: maximum light inside each rectangle (float bits), from _LitOffset
+int2 _SceneSize,_FieldOrigin,_FieldSize;
+int4 _Clip;                              // x0, y0, x1, y1 (exclusive) in level texels
+float4 _SceneRect,_SourceBounds,_Radiance;
+float _PPU,_Radius,_ProjectedWidth;
+int _SampleCount,_SampleOffset,_LitOffset;
+
+bool Inside(int2 p) {return all(p>=0) && all(p<_SceneSize);}
+int2 ScenePoint(float2 world) {return int2(floor((world-_SceneRect.xy)*_PPU));}
+float2 WorldOf(int2 p) {return _SceneRect.xy+(float2(p)+0.5)/_PPU;}
+bool InEmitterBounds(float2 world) {return all(world>=_SourceBounds.xy) && all(world<=_SourceBounds.zw);}
+
+float Transmission(float2 from,float2 to)
+{
+    float2 delta=to-from;float lengthWorld=length(delta);
+    if(lengthWorld<0.5/_PPU) return 1;
+    float2 direction=delta/lengthWorld;float stepWorld=0.75/_PPU;
+    // The receiver is sampled at its surface; its own endpoint is not an occluding wall.
+    float finish=max(0,lengthWorld-0.6/_PPU);float transmission=1;bool leaving=true;
+    [loop] for(float at=stepWorld*0.5;at<finish;at+=stepWorld)
+    {
+        float2 world=from+direction*at;int2 p=ScenePoint(world);
+        if(!Inside(p)) return 0;
+        float alpha=saturate(_Scene[p]);
+        // A lamp mounted on a wall starts inside it: the connected opaque start inside the form's bounds is skipped.
+        if(leaving && InEmitterBounds(world) && alpha>=0.99) continue;
+        leaving=false;
+        if(alpha>=0.99) return 0;
+        if(alpha>0.0001) transmission*=pow(max(0,1-alpha),stepWorld*_PPU);
+        if(transmission<0.0001) return 0;
+    }
+    return transmission;
+}
+float3 Irradiance(float2 target)
+{
+    float3 light=0;
+    [loop] for(int i=0;i<_SampleCount;i++)
+    {
+        float4 source=_Samples[_SampleOffset+i];float distanceWorld=distance(target,source.xy);
+        float edge=1-smoothstep(_Radius*0.9,_Radius,distanceWorld);
+        if(edge<=0) continue;
+        // Finite angular extent of this part of the form: far field width/distance, no divergence at the point.
+        float patchWidth=source.z*_ProjectedWidth;
+        float value=2*atan(patchWidth/(2*max(distanceWorld,0.5/_PPU)))*edge;
+        light+=_Radiance.rgb*(value*Transmission(source.xy,target));
+    }
+    return light;
+}
+[numthreads(8,8,1)]
+void Direct(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_FieldSize))) return;
+    int2 p=_FieldOrigin+int2(id.xy);
+    float3 light=0;
+    if(_Scene[p]<0.99) light=Irradiance(WorldOf(p));
+    else
+    {
+        // An opaque texel takes the light of its brightest open neighbour (the lit rim of a wall or a closed door).
+        const int2 sides[4]={int2(1,0),int2(-1,0),int2(0,1),int2(0,-1)};
+        [unroll] for(int s=0;s<4;s++)
+        {
+            int2 q=p+sides[s];
+            if(Inside(q) && _Scene[q]<0.99) light=max(light,Irradiance(WorldOf(q)));
+        }
+    }
+    _Field[id.xy]=float4(light,1);
+}
+[numthreads(8,8,1)]
+void ClearRect(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=_Clip.xy+int2(id.xy);
+    if(any(p>=_Clip.zw)) return;
+    _Sum[p]=0;
+}
+// Adds a source's field over the clip rectangle (the caller clips it to the field and the level).
+[numthreads(8,8,1)]
+void AddField(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=_Clip.xy+int2(id.xy);
+    if(any(p>=_Clip.zw)) return;
+    _Sum[p]=float4(_Sum[p].rgb+_FieldIn[p-_FieldOrigin].rgb,1);
+}
+// One group per door: the brightest channel of the field inside the door's rectangle (0 outside the field).
+// Door subscriptions of a source.
+groupshared uint litMaximum;
+[numthreads(64,1,1)]
+void LitRects(uint3 group:SV_GroupID,uint index:SV_GroupIndex)
+{
+    if(index==0) litMaximum=0;
+    GroupMemoryBarrierWithGroupSync();
+    int4 rect=_Rects[group.x];
+    int2 low=max(rect.xy,_FieldOrigin),high=min(rect.xy+rect.zw,_FieldOrigin+_FieldSize);
+    int2 size=max(0,high-low);
+    int area=size.x*size.y;
+    for(int i=(int)index;i<area;i+=64)
+    {
+        float3 c=_FieldIn[low+int2(i%size.x,i/size.x)-_FieldOrigin].rgb;
+        InterlockedMax(litMaximum,asuint(max(0,max(c.r,max(c.g,c.b)))));
+    }
+    GroupMemoryBarrierWithGroupSync();
+    if(index==0) _Lit[_LitOffset+group.x]=litMaximum;
+}

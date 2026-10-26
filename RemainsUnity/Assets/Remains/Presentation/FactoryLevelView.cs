@@ -53,6 +53,7 @@ namespace Remains.Presentation
         private readonly List<(RoomSpriteAuthoring sprite,RoomSpritePlacement placement)> windowPictures=new();
         private readonly List<List<int>> picturesByRoom=new();
         private readonly List<(Rect bounds,double opacity)> doors=new();   // blocking doors, level-local rectangles
+        private readonly List<LevelLightScene.Door> lightDoors=new();      // every door of the level, world rectangles
         // Lamps of the level by world ID (<level>:<room x>,<room y>:<decor id>): their picture, lit frame and sprite.
         private readonly Dictionary<string,(RoomSpriteAuthoring picture,int frame,Sprite sprite,RoomDefinition definition)> lamps=new(StringComparer.Ordinal);
         private readonly HashSet<string> darkLamps=new(StringComparer.Ordinal);
@@ -275,7 +276,7 @@ namespace Remains.Presentation
             if(states==null) throw new ArgumentNullException(nameof(states));
             if(revision<0) throw new ArgumentOutOfRangeException(nameof(revision),"Ревизия дверей отрицательная.");
             if(revision==AppliedDoorRevision) return;
-            var next=new List<(Rect,double)>();
+            var next=new List<(Rect,double)>();var nextLight=new List<LevelLightScene.Door>(states.Count);
             foreach(var door in states)
             {
                 if(door==null) throw new ArgumentException("Вид завода: пустое состояние двери.");
@@ -284,9 +285,11 @@ namespace Remains.Presentation
                 var definition=root.Definitions.Require("remains:obj:"+door.definition,$"вид завода, дверь {door.id}");
                 if(definition.Kind!=RoomDefinitionKind.Object || definition.ObjectType!="door")
                     throw new ArgumentException($"Вид завода: дверь {door.id}, определение {definition.Id} — не дверь ({definition.Kind}, {definition.ObjectType}).");
-                if(door.Blocks) next.Add((door.Bounds,definition.Opacity>0?definition.Opacity:OriginalDoorOpacity));
+                double opacity=definition.Opacity>0?definition.Opacity:OriginalDoorOpacity;
+                if(door.Blocks) next.Add((door.Bounds,opacity));
+                nextLight.Add(new LevelLightScene.Door(door.id,new Rect((Vector2)transform.TransformPoint(door.Bounds.position),door.Bounds.size),opacity,door.Blocks));
             }
-            doors.Clear();doors.AddRange(next);
+            doors.Clear();doors.AddRange(next);lightDoors.Clear();lightDoors.AddRange(nextLight);
             if(field!=null)
             {
                 field.UpdateOccluders(WorldDoorOccluders());
@@ -812,6 +815,94 @@ namespace Remains.Presentation
             }
         }
 
+        // The light of the whole level from the installed pictures, doors and lamps (hybrid light, built next to the
+        // light window until it replaces it). Heavy: wall raster of the whole level, one readback per new sprite.
+        public LevelLight CreateLevelLight(long directCacheBytes=DirectLight.DefaultCacheBytes)
+        {
+            if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
+            if(AppliedDoorRevision<0) throw new InvalidOperationException("Свет уровня: двери ещё не синхронизированы.");
+            var grid=root.Grid;var definitions=root.Definitions;int resolution=table.RadianceResolution;float texel=1f/resolution;
+            float[,] walls;
+            using(Remains.Diagnostics.FrameHitchLog.Section("Свет уровня: стены"))
+                walls=RoomLightScene.Absorption(grid,RoomGeometryBuilder.Build(grid,definitions),resolution,table.BeamTransmittance,LightRules.MaxObjectTexelAbsorption,table.BeamHeight);
+            var light=RoomLightScene.Build(grid,definitions,root.Lands,table,table.RadiancePower,table.RadianceLampSize);
+            bool hasWindowLight=LightRules.TryWindowEmission(table,root.Lands,grid,light.Tint,out var windowEmission,out string fon);
+            if(!hasWindowLight) Debug.LogWarning($"Свет уровня {root.Level}: нет света окон для дальнего фона «{fon}» в таблице света — окна не светят.",this);
+            Vector2 origin=transform.TransformPoint(Vector3.zero);
+            int levelWidth=walls.GetLength(0),levelHeight=walls.GetLength(1);
+            var roomOf=new int[pictures.Count];
+            for(int r=0;r<picturesByRoom.Count;r++) foreach(int p in picturesByRoom[r]) roomOf[p]=r;
+            var objects=new List<LevelLightScene.ObjectSprite>();var list=new List<LevelLightSource>();
+            for(int p=0;p<pictures.Count;p++)
+            {
+                var (picture,definition)=pictures[p];
+                if(!ShownForPreparation(picture)) continue;
+                var renderer=picture.GetComponent<SpriteRenderer>();var matrix=picture.transform.localToWorldMatrix;
+                var scale=matrix.lossyScale;float areaScale=Mathf.Abs(scale.x*scale.y);
+                if(definition.Kind==RoomDefinitionKind.Object)
+                {
+                    double absorption=1-table.ObjectTransmittance(definition,LightSpriteShapes.Measure(renderer.sprite,texel).Area*areaScale);
+                    if(absorption>0) objects.Add(new LevelLightScene.ObjectSprite(renderer.sprite,matrix,absorption));
+                }
+                if(lampByPicture.TryGetValue(picture,out string lampId))
+                {
+                    var (_,frame,sprite,_)=lamps[lampId];
+                    double share=table.LampFrameShare(definition,frame);
+                    if(share>0)
+                    {
+                        var shape=LightSpriteShapes.Measure(sprite,texel);double area=shape.Area*areaScale;
+                        list.Add(Source(lampId,LevelLightSourceKind.Lamp,sprite,matrix,shape.Strata,
+                            LightRules.LampRadiance(table,table.Lamps[definition.Id],light.Tint,share,area,texel),(float)LightRules.EmitterWidth(area,texel),
+                            (float)(LevelLightSources.LampReachScale*table.Lamps[definition.Id].Radius),!darkLamps.Contains(lampId)));
+                    }
+                }
+                if(hasWindowLight && windowSourceIds.TryGetValue(picture,out string windowId))
+                {
+                    var shape=LightSpriteShapes.Measure(picture.Erase,texel);
+                    list.Add(Source(windowId,LevelLightSourceKind.Window,picture.Erase,matrix,shape.Strata,windowEmission,
+                        (float)LightRules.EmitterWidth(shape.Area*areaScale,texel),LevelLightSources.WindowReach,true));
+                }
+                // The light scene glows a lamp decor through its lamp emission only (LightScene: lamp branch first).
+                if(!(definition.Kind==RoomDefinitionKind.Decor && table.Lamps.ContainsKey(definition.Id)) && table.Glow.TryGetValue(definition.Id,out var glow) && glow.Gain>0)
+                {
+                    var bright=LightSpriteShapes.MeasureGlow(renderer.sprite,(float)glow.Threshold);
+                    if(bright.Points.Length==0) continue;
+                    var bounds=renderer.sprite.bounds;var points=new Vector3[bright.Points.Length];
+                    for(int i=0;i<points.Length;i++)
+                        points[i]=new Vector3(bounds.min.x+bright.Points[i].x*bounds.size.x,bounds.min.y+bright.Points[i].y*bounds.size.y,bright.Points[i].z);
+                    double area=bright.AreaFraction*bounds.size.x*bounds.size.y*areaScale;
+                    var room=root.Rooms[roomOf[p]];
+                    list.Add(Source($"screen:{root.Level}:{room.X},{room.Y}:{picture.Kind}:{picture.Index}",LevelLightSourceKind.Screen,renderer.sprite,matrix,points,
+                        bright.Color*(float)glow.Gain,(float)LightRules.EmitterWidth(area,texel),LevelLightSources.ScreenReach,true));
+                }
+            }
+            LevelLightScene scene=null;
+            try
+            {
+                scene=new LevelLightScene(walls,origin,resolution,objects);
+                scene.SetDoors(lightDoors,null);
+                var result=new LevelLight(scene,new LevelLightSources(list,scene.Width,scene.Height),directCacheBytes);
+                Debug.Log($"Свет уровня {root.Level}: сетка {scene.Width}×{scene.Height}, источников {list.Count}, поглощающих предметов {objects.Count}, дверей {lightDoors.Count}.",this);
+                return result;
+            }
+            catch {scene?.Dispose();throw;}
+
+            LevelLightSource Source(string id,LevelLightSourceKind kind,Sprite sprite,Matrix4x4 matrix,Vector3[] local,Color radiance,float width,float reach,bool enabled)
+            {
+                var points=new Vector4[local.Length];
+                for(int i=0;i<local.Length;i++)
+                {
+                    var world=matrix.MultiplyPoint3x4(new Vector3(local[i].x,local[i].y,0));
+                    points[i]=new Vector4(world.x,world.y,local[i].z,0);
+                }
+                var spriteBounds=sprite.bounds;Vector2 a=matrix.MultiplyPoint3x4(spriteBounds.min),b=matrix.MultiplyPoint3x4(spriteBounds.max);
+                var form=Rect.MinMaxRect(Mathf.Min(a.x,b.x),Mathf.Min(a.y,b.y),Mathf.Max(a.x,b.x),Mathf.Max(a.y,b.y));
+                int x0=Mathf.Clamp(Mathf.FloorToInt((form.xMin-reach-origin.x)*resolution),0,levelWidth),x1=Mathf.Clamp(Mathf.CeilToInt((form.xMax+reach-origin.x)*resolution),0,levelWidth);
+                int y0=Mathf.Clamp(Mathf.FloorToInt((form.yMin-reach-origin.y)*resolution),0,levelHeight),y1=Mathf.Clamp(Mathf.CeilToInt((form.yMax+reach-origin.y)*resolution),0,levelHeight);
+                return new LevelLightSource(id,kind,LevelLightSources.Normalise(points,id),radiance,width,reach,form,new RectInt(x0,y0,x1-x0,y1-y0),enabled);
+            }
+        }
+
         private bool IsDark(RoomSpriteAuthoring picture)
         {
             if(darkLamps.Count==0) return false;
@@ -861,7 +952,7 @@ namespace Remains.Presentation
             DestroyWindow();
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) {ambient.SetActive(false);Destroy(ambient);}
-            terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);preparedWindows.Clear();
+            terrain=ambient=null;root=null;pictures.Clear();windowPictures.Clear();doors.Clear();lightDoors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);preparedWindows.Clear();
             shadowSources.Clear();windowShadowLamps.Clear();windowSourceIds.Clear();publishedShadowSourceIds.Clear();shadowTerrain=null;ShadowSourceRevision++;
             Room=null;PresentationChanged?.Invoke(this);
         }

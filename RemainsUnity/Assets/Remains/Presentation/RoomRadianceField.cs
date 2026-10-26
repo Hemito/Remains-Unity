@@ -20,7 +20,7 @@ namespace Remains.Presentation
     // WorldTerrain instead of URP lamp lights (_RemainsRadiance*, one room at a time for now).
     public sealed class RoomRadianceField : MonoBehaviour
     {
-        private const double MaxObjectTexelAbsorption=0.985;
+        private const double MaxObjectTexelAbsorption=LightRules.MaxObjectTexelAbsorption;
         private const string ComputeResource="Presentation/RadianceCascades",SceneShaderResource="Presentation/LightScene";
         private ComputeShader compute;
         private Texture scene;
@@ -370,11 +370,8 @@ namespace Remains.Presentation
 
         private Color LampRadiance(RoomSpritePlacement placement,RoomLightingTable table,RoomLightScene light,double share)
         {
-            var lamp=table.Lamps[placement.Definition.Id];var scale=placement.LocalToWorld.lossyScale;
-            double area=SilhouetteArea(placement.Sprite)*Math.Abs(scale.x*scale.y);
-            double width=Math.Max(texel,2*Math.Sqrt(area/Math.PI));
-            double l=share*table.RadiancePower*lamp.Intensity/width;
-            return new Color((float)(l*lamp.Color[0]*light.Tint[0]),(float)(l*lamp.Color[1]*light.Tint[1]),(float)(l*lamp.Color[2]*light.Tint[2]),1);
+            var scale=placement.LocalToWorld.lossyScale;
+            return LightRules.LampRadiance(table,table.Lamps[placement.Definition.Id],light.Tint,share,SilhouetteArea(placement.Sprite)*Math.Abs(scale.x*scale.y),texel);
         }
         public bool TryCreateSteadyEmitter(string id,RoomSpritePlacement placement,bool window,out SteadyLightEmitter emitter)
         {
@@ -392,7 +389,7 @@ namespace Remains.Presentation
         public float SteadyEmitterWidth(SteadyLightEmitter emitter)
         {
             var scale=emitter.LocalToWorld.lossyScale;
-            return Mathf.Max(texel,(float)(2*Math.Sqrt(SilhouetteArea(emitter.Sprite)*Math.Abs(scale.x*scale.y)/Math.PI)));
+            return (float)LightRules.EmitterWidth(SilhouetteArea(emitter.Sprite)*Math.Abs(scale.x*scale.y),texel);
         }
 
         // occluders: world rectangles that stop a share of light (closed doors: original Box door_opac); 1 = a wall.
@@ -564,14 +561,12 @@ namespace Remains.Presentation
                 cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(rect.x,rect.x+rect.z,rect.y,rect.y+rect.w,-1,1),false));
                 if(occluders!=null) foreach(var (bounds,opacity) in occluders)
                 {
-                    if(!(opacity>0 && opacity<=1)) throw new ArgumentOutOfRangeException(nameof(occluders),$"Поле света {name}: непрозрачность заслонки {opacity} вне (0,1].");
                     int left=Mathf.Clamp(Mathf.FloorToInt((bounds.xMin-rect.x)/texel),0,width);
                     int right=Mathf.Clamp(Mathf.CeilToInt((bounds.xMax-rect.x)/texel),0,width);
                     int bottom=Mathf.Clamp(Mathf.FloorToInt((bounds.yMin-rect.y)/texel),0,height);
                     int top=Mathf.Clamp(Mathf.CeilToInt((bounds.yMax-rect.y)/texel),0,height);
                     if(right<=left || top<=bottom) continue;
-                    double thickness=Math.Max(1,Math.Min(bounds.width,bounds.height)/texel);
-                    float alpha=opacity>=1?1:(float)Math.Min(MaxObjectTexelAbsorption,1-Math.Pow(1-opacity,1/thickness));
+                    float alpha=LightRules.DoorTexelAbsorption(opacity,Math.Min(bounds.width,bounds.height)/texel);
                     emissionBlock.Clear();emissionBlock.SetFloat("_Absorption",alpha);
                     cmd.DrawMesh(quad,Matrix4x4.TRS(new Vector3(rect.x+left*texel,rect.y+bottom*texel,0),Quaternion.identity,new Vector3((right-left)*texel,(top-bottom)*texel,1)),sceneMaterial,0,3,emissionBlock);
                     OccluderTexels+=(right-left)*(top-bottom);
@@ -598,13 +593,8 @@ namespace Remains.Presentation
             var block=new MaterialPropertyBlock();
             // Windows: the erase clip emits the far background's radiance (table "windows" by the land's fon);
             // a bigger opening sends more light. An unknown background is reported, its windows stay dark.
-            var issues=new List<string>();
-            string fon=lands.Option(room,"fon",issues);
-            if(string.IsNullOrEmpty(fon)) fon="fonDefault";
-            foreach(string issue in issues) Debug.LogWarning(issue);
-            bool hasWindowLight=table.WindowRadiance.TryGetValue(fon,out var sky);
+            bool hasWindowLight=LightRules.TryWindowEmission(table,lands,room,light.Tint,out windowEmission,out string fon);
             hasWindowEmission=hasWindowLight;
-            windowEmission=hasWindowLight?new Color((float)(sky[0]*light.Tint[0]),(float)(sky[1]*light.Tint[1]),(float)(sky[2]*light.Tint[2]),1):Color.clear;
             int windowCount=0;
             foreach(var placement in sprites)
             {
@@ -633,8 +623,6 @@ namespace Remains.Presentation
                 {
                     double share=placement.Dark?0:table.LampFrameShare(d,placement.Frame);
                     if(share<=0) {dark++;continue;}   // the "off" frame or a dark lamp
-                    // Flatland: fluence 1 m away ≈ radiance × apparent width; width = diameter of the disk
-                    // with the silhouette's area, so every lamp sends the table's power whatever its shape.
                     block.SetColor("_Emission",LampRadiance(placement,table,light,share));
                     block.SetFloat("_Absorption",0);
                     emitters++;
@@ -650,13 +638,8 @@ namespace Remains.Presentation
                         absorption=1-table.ObjectTransmittance(d,silhouette);
                     }
                     if(absorption<=0 && !glows) continue;
-                    // The table gives what the whole object stops; per texel so that crossing its
-                    // thickness (smaller side) stops that much: 1 - (1 - A)^(1 / thickness).
                     var scale=placement.LocalToWorld.lossyScale;
-                    double thickness=Math.Max(1,Math.Min(Math.Abs(bounds.size.x*scale.x),Math.Abs(bounds.size.y*scale.y))/texel);
-                    // Capped below the wall threshold (0.99): an object stays an object (lit through its
-                    // body, no wall bounce) even when it stops all light across its thickness.
-                    double perTexel=absorption<=0?0:Math.Min(MaxObjectTexelAbsorption,1-Math.Pow(1-Math.Min(absorption,0.9999),1/thickness));
+                    double perTexel=LightRules.ObjectTexelAbsorption(absorption,Math.Min(Math.Abs(bounds.size.x*scale.x),Math.Abs(bounds.size.y*scale.y))/texel);
                     block.SetColor("_Emission",Color.clear);
                     block.SetFloat("_Absorption",(float)perTexel);
                     if(absorption>0) absorbers++;
@@ -682,18 +665,11 @@ namespace Remains.Presentation
             quad.SetTriangles(new[]{0,2,1,1,2,3},0);
         }
 
-        // Silhouette measurements depend only on the (immutable) sprite and the grid texel, not on the window: shared
-        // by every field of the session. Per field they cost a GPU render + synchronous ReadPixels per lamp sprite on
-        // every light window change (~60 ms of the ~90 ms factory window rebuild).
-        private static readonly Dictionary<(Sprite sprite,float texel),(double area,Vector3[] footprint)> measured=new();
-
-        // Uses the same alpha-threshold raster as the lamp's emitted light, prepared at rebuild time.
+        // Uses the same alpha-threshold raster as the lamp's emitted light (LightSpriteShapes, measured once per sprite).
         // Eight weighted columns retain the extent of a long lamp without tracing every lit pixel.
         public Vector3[] PrepareLampShadowSamples(Sprite sprite,Matrix4x4 localToWorld)
         {
-            Remains.Diagnostics.FrameHitchLog.Gpu("Свет: площадь лампы (чтение с видеокарты)");
-            SilhouetteArea(sprite);
-            var local=measured[(sprite,texel)].footprint;var output=new Vector3[local.Length];
+            var local=Measure(sprite).Columns;var output=new Vector3[local.Length];
             for(int i=0;i<local.Length;i++)
             {
                 var world=localToWorld.MultiplyPoint3x4(new Vector3(local[i].x,local[i].y,0));
@@ -702,43 +678,14 @@ namespace Remains.Presentation
             return output;
         }
 
-        // Area (m²) a sprite's silhouette (alpha > 0.4) covers in the light grid (lamp emission, object size): the sprite drawn alone with
-        // the scene shader into a grid-sized target, lit texels counted (once per sprite, at build).
-        private double SilhouetteArea(Sprite sprite)
+        // Area (m²) a sprite's silhouette covers in the light grid (lamp emission, object size).
+        private double SilhouetteArea(Sprite sprite)=>Measure(sprite).Area;
+        private LightSpriteShapes.Shape Measure(Sprite sprite)
         {
-            if(measured.TryGetValue((sprite,texel),out var cached)) return cached.area;
-            var bounds=sprite.bounds;
-            int w=Mathf.CeilToInt(bounds.size.x/texel)+2,h=Mathf.CeilToInt(bounds.size.y/texel)+2;
-            var target=RenderTexture.GetTemporary(w,h,0,RenderTextureFormat.ARGBHalf,RenderTextureReadWrite.Linear);
-            var cmd=new CommandBuffer{name="Площадь лампы"};
-            cmd.SetRenderTarget(target);
-            cmd.ClearRenderTarget(false,true,Color.clear);
-            cmd.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(bounds.min.x-texel,bounds.min.x-texel+w*texel,bounds.min.y-texel,bounds.min.y-texel+h*texel,-1,1),false));
-            var block=new MaterialPropertyBlock();
-            block.SetTexture("_MainTex",sprite.texture);
-            block.SetColor("_Emission",Color.white);
-            cmd.DrawMesh(quad,Matrix4x4.TRS(bounds.min,Quaternion.identity,bounds.size),sceneMaterial,0,0,block);
-            Graphics.ExecuteCommandBuffer(cmd);
-            cmd.Release();
-            var previous=RenderTexture.active;RenderTexture.active=target;
-            var copy=new Texture2D(w,h,TextureFormat.RGBAHalf,false,true);
-            copy.ReadPixels(new Rect(0,0,w,h),0,0);
-            SilhouetteReadbacks++;
-            RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);
-            int count=0;var pixels=copy.GetPixels();
-            var sums=new Vector2[8];var counts=new int[8];
-            for(int y=0;y<h;y++) for(int x=0;x<w;x++) if(pixels[y*w+x].r>.5f)
-            {
-                count++;int column=Mathf.Min(7,x*8/w);counts[column]++;
-                sums[column]+=new Vector2(bounds.min.x-texel+(x+.5f)*texel,bounds.min.y-texel+(y+.5f)*texel);
-            }
-            var footprint=new List<Vector3>(8);
-            for(int i=0;i<8;i++) if(counts[i]>0)
-                footprint.Add(new Vector3(sums[i].x/counts[i],sums[i].y/counts[i],(float)counts[i]/count));
-            UnityEngine.Object.DestroyImmediate(copy);
-            double area=Math.Max(1,count)*texel*texel;
-            measured[(sprite,texel)]=(area,footprint.ToArray());
-            return area;
+            int before=LightSpriteShapes.Readbacks;
+            var shape=LightSpriteShapes.Measure(sprite,texel);
+            SilhouetteReadbacks+=LightSpriteShapes.Readbacks-before;
+            return shape;
         }
 
         private IEnumerator AllocateSteps()
