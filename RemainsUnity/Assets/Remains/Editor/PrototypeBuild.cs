@@ -55,7 +55,10 @@ namespace Remains.Editor
                 if(importer.assetPath.Contains("/Original/Raider/") || importer.assetPath.Contains("/Original/Shots/")) importer.maxTextureSize=4096;
                 importer.SaveAndReimport();
             }
-            ContractChecks.Run();
+            // The contract checks compare resources with their research sources (Tools/Research), which only the full
+            // working repository has; the public game copy builds without them, with a warning.
+            if(Directory.Exists(Path.GetFullPath(Path.Combine(Application.dataPath,"../../Tools/Research")))) ContractChecks.Run();
+            else Debug.LogWarning("Сборка: нет Tools/Research (публичная копия без исследовательских материалов); общие проверки контрактов ContractChecks пропущены, сборка ими не проверена.");
             var inventoryShell=GameAssets.Load<Texture2D>("Original/Inventory/shell");
             if(inventoryShell==null || inventoryShell.width!=2097 || inventoryShell.height!=1080)
                 throw new InvalidOperationException("Корпус инвентаря должен сохранять исходный размер 2097×1080 после импорта.");
