@@ -118,7 +118,7 @@ namespace Remains.Networking
                 var explosion=GrenadeRules.Detonate(session.ServerWorld,grenade,message.enemyHits);
                 if(explosion==null) return;
                 session.CommitWorld();
-                NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(explosion.attack)});
+                NetworkServer.SendToAll(AttackMessage.From(explosion.attack));
                 session.Hazards.Blast(explosion.attack);
             }
             else NetworkServer.SendToAll(message);

@@ -165,7 +165,7 @@ namespace Remains.Networking
                 world.hazards.Remove(trap);senseClocks.Remove(trap.id);Bites++;
             }
             session.CommitWorld();
-            foreach(var attack in attacks) NetworkServer.SendToAll(new AttackMessage {json=StateJson.ToJson(attack)});
+            foreach(var attack in attacks) NetworkServer.SendToAll(AttackMessage.From(attack));
             foreach(var (trap,_) in bites) Announce(trap,Bite);
         }
 
@@ -202,7 +202,7 @@ namespace Remains.Networking
                 var explosion=HazardRules.Detonate(world,hazard,hits);
                 Explosions++;
                 session.CommitWorld();
-                NetworkServer.SendToAll(new AttackMessage {json=StateJson.ToJson(explosion.attack)});
+                NetworkServer.SendToAll(AttackMessage.From(explosion.attack));
                 float blastDamage=WeaponCatalog.Get(explosion.attack.weapon).damage*FactoryEnemyScaling.AttackFactor(explosion.attack);
                 foreach(var other in world.hazards)
                     if(HazardRules.InBlast(other,HazardRules.Profile(other),explosion.attack)) damage.Enqueue((other,blastDamage));

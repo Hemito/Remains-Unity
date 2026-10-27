@@ -59,7 +59,14 @@ namespace Remains.Networking
         public string target;
         public Remains.Domain.NpcPerceptionMemory perception;
     }
-    public struct AttackMessage : NetworkMessage { public string json; }
+    // Every sender and receiver goes through From/Read (StateJson). UnityEngine.JsonUtility writes an absent string as ""
+    // and an absent object as a default one: a re-sent grenade explosion arrived as a natural attack of type "".
+    public struct AttackMessage : NetworkMessage
+    {
+        public string json;
+        public static AttackMessage From(Remains.Domain.AttackEvent attack)=>new() {json=Remains.Serialization.StateJson.ToJson(attack)};
+        public Remains.Domain.AttackEvent Read()=>Remains.Serialization.StateJson.FromJson<Remains.Domain.AttackEvent>(json);
+    }
     public struct NpcHitMessage : NetworkMessage { public string target; public int generation; public string attackJson; }
     public struct FriendlyHitMessage : NetworkMessage {public string target;public int generation,lifecycle;public string attackJson;}
     public struct ClaimMessage : NetworkMessage { public string transaction; public string container;public string item;public int quantity;public int actorGeneration,actorLifecycle; }

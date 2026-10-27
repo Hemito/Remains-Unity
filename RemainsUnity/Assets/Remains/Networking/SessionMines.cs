@@ -312,7 +312,7 @@ namespace Remains.Networking
                 var explosion=MineRules.Detonate(world,mine,hits);
                 senseClocks.Remove(mine.id);Explosions++;
                 session.CommitWorld();
-                NetworkServer.SendToAll(new AttackMessage {json=StateJson.ToJson(explosion.attack)});
+                NetworkServer.SendToAll(AttackMessage.From(explosion.attack));
                 session.Hazards.Blast(explosion.attack);
             }
             if(exploding.Count==0 && triggered) session.CommitWorldAtFrameEnd();

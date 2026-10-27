@@ -129,7 +129,7 @@ namespace Remains.Runtime
                 originX=target.x-1,originY=target.y+.7f,endX=target.x+1,endY=target.y+.7f};
             var definition=Remains.Content.WeaponCatalog.Get(attack.weapon);
             ProjectileLaunch.Prepare(attack,definition,definition.projectileSpeed);
-            var message=new AttackMessage {json=Remains.Serialization.StateJson.ToJson(attack)};
+            var message=AttackMessage.From(attack);
             // Inject delivery, not a new firing command: normal Fire correctly rejects paused input.
             NetworkClient.Send(message);NetworkClient.Send(message);
         }

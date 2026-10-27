@@ -67,7 +67,7 @@ namespace Remains.Editor
             AttackEvent sent=null;int sentCount=0;
             void Observe(Mirror.NetworkDiagnostics.MessageInfo info)
             {
-                if(info.message is Remains.Networking.AttackMessage message) {sent=StateJson.FromJson<AttackEvent>(message.json);sentCount++;}
+                if(info.message is Remains.Networking.AttackMessage message) {sent=message.Read();sentCount++;}
             }
             using var geometry=new Remains.Gameplay.SimulationGeometry(_=>new RoomLayout {id="check",left=-10,right=10,bottom=-10,top=10,
                 platforms=Array.Empty<RoomSurface>(),ladders=Array.Empty<RoomLadder>()});

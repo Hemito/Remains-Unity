@@ -51,7 +51,7 @@ namespace Remains.Runtime
                 if(attack.weapon!="grenade" || !explosionIds.Add(attack.id)) return;
                 explosions++;
                 // Replay only the notification. The persisted detonation is not repeated.
-                if(Host) NetworkServer.SendToAll(new Remains.Networking.AttackMessage {json=JsonUtility.ToJson(attack)});
+                if(Host) NetworkServer.SendToAll(Remains.Networking.AttackMessage.From(attack));
             };
             value.Explosions.Created+=effect=>
             {if(Host && value.Options.Smoke.Contains("-frames-")) StartCoroutine(CaptureExplosion(effect));};

@@ -21,6 +21,12 @@ namespace Remains.Editor
                 Debug.Log($"Граната через 2 с, FPS={rate}: x={state.x:R}, y={state.y:R}, vx={state.vx:R}, vy={state.vy:R}, запал={state.remaining:R}");
             }
         }
+        //   batch -executeMethod Remains.Editor.GrenadeChecks.RunMessageBatch
+        public static void RunMessageBatch()
+        {
+            try {CheckExplosionMessage();UnityEditor.EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);UnityEditor.EditorApplication.Exit(1);}
+        }
         public static void Run()
         {
             CheckArtwork();
@@ -34,6 +40,7 @@ namespace Remains.Editor
             CheckFreeFlight();
             CheckBounceFrameRates();
             CheckRotation();
+            CheckExplosionMessage();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
@@ -429,6 +436,29 @@ namespace Remains.Editor
             Require(ActorPresence.IsPresent(waiting) && !GrenadeRules.Resolve(waiting,explosion,new DamageReceiver(new PrototypeDamageRule()),Vector2.zero),"Вход в хаб не превращает прошлый взрыв в новое попадание");
             explosion.attack.level=body.level;
             Require(AttackScope.Includes(explosion.attack,body),"Отключённое тело вне хаба остаётся доступно урону");
+        }
+        // The explosion as clients receive it, including the grenade probe's repeat of a received one: AttackMessage on
+        // the wire, then the client handler's Read. A natural type or a volley here broke the client in GameplayAudio.
+        private static void CheckExplosionMessage()
+        {
+            var world=new WorldState();
+            var grenade=new GrenadeState {id="message",attacker="thrower",sourcePlayer=true,level="hub",owner="a",generation=1,x=1};
+            world.grenades.Add(grenade);var sent=GrenadeRules.Detonate(world,grenade,Array.Empty<string>()).attack;
+            static AttackEvent Hop(AttackEvent attack)
+            {
+                var writer=new Mirror.NetworkWriter();writer.Write(Remains.Networking.AttackMessage.From(attack));
+                var reader=new Mirror.NetworkReader(writer.ToArraySegment());var message=reader.Read<Remains.Networking.AttackMessage>();
+                Require(reader.Position==writer.Position,"AttackMessage оставил непрочитанные bytes");
+                return message.Read();
+            }
+            foreach(var received in new[]{Hop(sent),Hop(Hop(sent))})
+            {
+                Require(!NpcNaturalAttack.IsNatural(received) && received.naturalAttackType==null && received.naturalAttackTarget==null && received.volley==null,
+                    $"Взрыв гранаты после AttackMessage стал естественной атакой или дробиной залпа: type='{received.naturalAttackType}', volley='{received.volley}'");
+                Require(received.id==sent.id && received.weapon=="grenade" && received.level==sent.level && received.attacker==sent.attacker &&
+                    received.rangedPose==null && received.meleeAnchor==null && received.factoryEnemy==null,"AttackMessage изменил взрыв гранаты");
+            }
+            Debug.Log("GrenadeChecks PASS: взрыв гранаты через AttackMessage и повтор пробы — не естественная атака, не залп, отсутствующие поля остаются null.");
         }
         private static void Require(bool condition,string reason) {if(!condition) throw new InvalidOperationException("GrenadeChecks: "+reason);}
     }

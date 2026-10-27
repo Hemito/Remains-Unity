@@ -505,7 +505,7 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<PoseMessage>(Remains.Networking.MessageTiming.Client<PoseMessage>(ReceivePose));
             NetworkClient.RegisterHandler<AttackMessage>(Remains.Networking.MessageTiming.Client<AttackMessage>(message =>
             {
-                var attack=JsonUtility.FromJson<AttackEvent>(message.json);
+                var attack=message.Read();
                 if(NpcNaturalAttack.IsNatural(attack) || WeaponCatalog.Get(attack.weapon).projectileSpeed<=0 || Projectiles.AcceptEcho(attack.id)) AttackReceived?.Invoke(attack);
             }));
             NetworkClient.RegisterHandler<NpcHitMessage>(Remains.Networking.MessageTiming.Client<NpcHitMessage>(message =>
@@ -1238,22 +1238,22 @@ namespace Remains.Networking
                 var source=World?.Find(attack.attacker);
                 if(source==null || source.owner!=LocalOwner || Pause.IsPaused(attack.level)) return;
                 NpcNaturalAttack.ValidateEvent(attack,source);
-                NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});return;
+                NetworkClient.Send(AttackMessage.From(attack));return;
             }
             var definition=WeaponCatalog.Get(attack.weapon);
-            if(definition.projectileSpeed<=0) {NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});return;}
+            if(definition.projectileSpeed<=0) {NetworkClient.Send(AttackMessage.From(attack));return;}
             var actor=World?.Find(attack.attacker);
             if(actor==null || actor.owner!=LocalOwner || actor.level!=attack.level || Pause.IsPaused(attack.level)) return;
             attack.sourceOwner=LocalOwner;attack.sourcePlayer=actor.player;attack.friendlyFireDecision=World.friendlyFireDecision;
             ProjectileLaunch.Create(attack,definition);
             // Reliable launch precedes progress and contact messages from its local simulation.
-            NetworkClient.Send(new AttackMessage {json=JsonUtility.ToJson(attack)});
+            NetworkClient.Send(AttackMessage.From(attack));
             Projectiles.BeginLocal(attack);if(attack.volley==null) Recoil.Commit(actor,attack);
             if(!GameplayFailurePending) AttackReceived?.Invoke(attack);
         }
         private void RelayAttack(NetworkConnectionToClient connection, AttackMessage message)
         {
-            var attack = JsonUtility.FromJson<AttackEvent>(message.json);
+            var attack = message.Read();
             if(Remains.Content.WeaponCatalog.IsExplosive(attack.weapon)) {Debug.LogWarning($"Взрыв без сохраняемой сущности отклонён: {attack.id}.");return;}
             void Reject(string reason)
             {
@@ -1291,7 +1291,7 @@ namespace Remains.Networking
             if(contactReason!=null) {Reject(contactReason);return;}
             contactReason=Hazards.RecordAccepted(attack,ServerWorld.Find(attack.attacker));
             if(contactReason!=null) {Reject(contactReason);return;}
-            NetworkServer.SendToAll(new AttackMessage {json=JsonUtility.ToJson(attack)});
+            NetworkServer.SendToAll(AttackMessage.From(attack));
         }
 
         public void ReportNpcHit(NpcHitMessage message)
