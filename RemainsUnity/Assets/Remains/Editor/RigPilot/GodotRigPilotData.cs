@@ -38,7 +38,7 @@ namespace Remains.Editor
             {"pipbuckNear","frleg3"},{"pipbuckFar","flleg3"}
         };
 
-        public GodotRigPilotData(string folder)
+        public GodotRigPilotData(string folder,bool includeRise=false)
         {
             var index=Read(folder,"index.json");
             var hierarchy=Read(folder,"hierarchy.json");RootScale=Required(hierarchy,"scale");
@@ -59,7 +59,7 @@ namespace Remains.Editor
                 for(int p=0;p<16;p++)HierarchyMatrixMaxError=Math.Max(HierarchyMatrixMaxError,Math.Abs(expected[p]-Rest[i][p]));
             }
             if(HierarchyMatrixMaxError>.00005f)throw new InvalidDataException("Пилот rig: разложенные матрицы расходятся с raw hierarchy: "+HierarchyMatrixMaxError);
-            foreach(string id in SourceIds)
+            foreach(string id in includeRise?SourceIds.Concat(new[]{"body_sit_up"}):SourceIds)
             {
                 var data=Read(folder,id+".json");var tracks=(JObject)data["bones"];
                 int count=checked((int)data["frame_end"]-(int)data["frame_start"]+1);

@@ -106,7 +106,7 @@ namespace Remains.Editor
                     Require(parts.Count(part=>part.sourceShape==PonyHeadRenderResolver.SourceShape)==1 &&
                         sample.PartIndex!=parts.Single(part=>part.sourceShape==PonyHeadRenderResolver.SourceShape).sourceIndex,
                         $"Декоративная голова стала опорной частью: head={head}, footPart={sample.PartIndex}.");
-                    var actual=visual.GetComponentsInChildren<MeshFilter>().Where(filter=>filter.GetComponent<MeshRenderer>().enabled).ToArray();
+                    var actual=visual.GetComponentsInChildren<MeshFilter>().Where(filter=>filter.GetComponent<MeshRenderer>().enabled).OrderBy(filter=>filter.GetComponent<MeshRenderer>().sortingOrder).ToArray();
                     Require(actual.Select(filter=>filter.sharedMesh).SequenceEqual(parts.Select(part=>part.mesh)) &&
                         actual.Select(filter=>filter.GetComponent<MeshRenderer>().sharedMaterial).SequenceEqual(parts.Select(part=>part.material)),
                         $"Меши/материалы наклонной стойки расходятся с выбранной головой: head={head}, pose={expectedPose}.");

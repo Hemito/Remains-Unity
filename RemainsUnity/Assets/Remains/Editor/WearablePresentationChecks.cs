@@ -189,9 +189,13 @@ namespace Remains.Editor
                 var renderer=enabled[i];renderer.GetPropertyBlock(block);
                 Require(renderer.GetComponent<MeshFilter>().sharedMesh==parts[i].mesh && renderer.sharedMaterial==parts[i].material,"Фактический renderer подменил part/material");
                 Require(block.GetColor("_Color")==PonyAppearance.Tint(parts[i].slot,PonyAppearance.Snapshot(actor)),"Фактический tint неверен");
-                foreach(var point in parts[i].points)
+                var localBounds=parts[i].mesh.bounds;
+                for(int corner=0;corner<4;corner++)
                 {
-                    var world=actor.BodyPosition+new Vector2(point.x*actor.facing,point.y);
+                    var point=new Vector3((corner&1)==0?localBounds.min.x:localBounds.max.x,(corner&2)==0?localBounds.min.y:localBounds.max.y,0);
+                    var rig=PonyRigDrawPlan.For(view.CurrentDrawPlan).Get(view.DrawnClip,view.DrawnFrame);
+                    var moved=rig.Nodes[rig.PartNodes[i]].transform.Matrix.MultiplyPoint3x4(point);
+                    var world=actor.BodyPosition+new Vector2(moved.x*actor.facing,moved.y);
                     if(!found) {expected=new Bounds(new Vector3(world.x,world.y,0),Vector3.zero);found=true;}else expected.Encapsulate(new Vector3(world.x,world.y,0));
                 }
             }

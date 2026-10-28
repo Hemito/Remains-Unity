@@ -126,7 +126,7 @@ namespace Remains.Editor
             var material=WorldArtworkMaterial.Create(texture);owned.Add(material);materials.Add(key,material);return material;
         }
         private static Color ColorOf(float[] c)=>new(c[0],c[1],c[2],c[3]);
-        private static Matrix4x4 Affine(float[] m)
+        public static Matrix4x4 Affine(float[] m)
         {
             if(m==null || m.Length!=6 || m.Any(v=>!float.IsFinite(v)))throw new InvalidDataException("Пилот: неверная own affine matrix.");
             var result=Matrix4x4.identity;result.m00=m[0];result.m10=-m[1];result.m01=-m[2];result.m11=m[3];result.m03=m[4]/1000;result.m13=-m[5]/1000;
@@ -138,8 +138,8 @@ namespace Remains.Editor
             if(socket.StartsWith("hindLower",StringComparison.Ordinal))return parts.Any(p=>p.shape=="298")?"sleg3":"sleg3a";
             return normal;
         }
-        private sealed class Group {public string Top,Socket;public int[] Indices;}
-        private static IEnumerable<Group> Groups(PonyFrame frame)
+        public sealed class Group {public string Top,Socket;public int[] Indices;}
+        public static IEnumerable<Group> Groups(PonyFrame frame)
         {
             var paired=new HashSet<string>(StringComparer.Ordinal);
             foreach(var grouping in frame.parts.Select((p,i)=>(Part:p,Index:i)).GroupBy(p=>p.Part.path.Split('/')[0]).OrderBy(g=>g.Min(p=>p.Part.drawOrder)))

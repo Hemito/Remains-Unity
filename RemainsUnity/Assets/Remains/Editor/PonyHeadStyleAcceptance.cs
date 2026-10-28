@@ -73,7 +73,7 @@ namespace Remains.Editor
                             Require(visual.DrawnClip==clip.id && visual.DrawnFrame==f,$"кадр/поза: head={style.id}, clip={clip.id}, frame={f}");
                             Require(visual.transform.localScale.x==facing,"направление: "+style.id);
                             Require(visual.transform.childCount==structure,"пул частей пересоздан при отрисовке: "+style.id);
-                            var actual=visual.GetComponentsInChildren<MeshFilter>().Where(filter=>filter.GetComponent<MeshRenderer>().enabled).ToArray();
+                            var actual=visual.GetComponentsInChildren<MeshFilter>().Where(filter=>filter.GetComponent<MeshRenderer>().enabled).OrderBy(filter=>filter.GetComponent<MeshRenderer>().sortingOrder).ToArray();
                             Require(actual.Select(filter=>filter.sharedMesh).SequenceEqual(frames[f].Select(part=>part.mesh)),
                                 $"меши мира: head={style.id}, clip={clip.id}, frame={f}, facing={facing}");
                             drawn++;

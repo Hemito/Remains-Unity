@@ -11,7 +11,7 @@ namespace Remains.Editor
     {
         public static readonly Dictionary<string,string> Labels=new(StringComparer.Ordinal)
         {
-            {"body_stay","Стойка"},{"body_trot","Ходьба"},{"body_sit","Лёжа"},{"body_sit_down","Переход в приседание"},
+            {"body_stay","Стойка"},{"body_trot","Ходьба"},{"body_sit","Лёжа"},{"body_sit_down","Переход в приседание"},{"body_sit_up","Подняться из приседания"},
             {"ladder_hold","Лестница: держаться"},{"ladder_up","Лестница: вверх"},{"ladder_down","Лестница: вниз"},
             {"edge_stand_front","Край: свисание спереди, стоя"},{"edge_stand_back","Край: свисание сзади, стоя"},
             {"edge_crouch_front","Край: свисание спереди, лёжа"},{"edge_crouch_back","Край: свисание сзади, лёжа"},

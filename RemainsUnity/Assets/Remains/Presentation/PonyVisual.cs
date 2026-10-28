@@ -35,6 +35,8 @@ namespace Remains.Presentation
         private MaterialPropertyBlock properties;
         private PonyAppearanceKey? appearance;
         private WearableDrawPlan drawPlan;
+        private PonyRigDrawPlan rigPlan;
+        [SerializeField,HideInInspector] private Transform[] rigOuter=new Transform[17],rigInner=new Transform[17];
         private bool drawPlanDirty;
         public WearableDrawPlan CurrentDrawPlan=>drawPlan;
         private Bounds drawnBounds;
@@ -102,6 +104,8 @@ namespace Remains.Presentation
             // frame/mesh metadata truthful until the next actual DrawPose, while
             // ensuring a stationary pose still applies the new plan then.
             if(!ReferenceEquals(drawPlan,prepared)) {drawPlan=prepared;drawPlanDirty=true;}
+            if(prepared!=null)rigPlan=PonyRigDrawPlan.Prepare(prepared);
+            if(rigOuter?.Length!=17 || rigInner?.Length!=17)throw new InvalidOperationException($"Префаб пони {name}: требуется 17 пар гнёзд куклы.");
             int capacity = drawPlan?.Capacity??0;
             if(actor!=null && capacity==0) throw new InvalidOperationException("Графика пони не подготовлена перед созданием экземпляра.");
             if(authoredStructure)
@@ -121,6 +125,16 @@ namespace Remains.Presentation
                 filters.Add(child.AddComponent<MeshFilter>());
                 var renderer=child.AddComponent<MeshRenderer>();renderer.enabled=false;renderers.Add(renderer);
             }
+            // Node composition is provisioned on Bind, never during pose sampling.
+            for(int n=0;n<rigOuter.Length;n++)if(rigOuter[n]==null)
+            {
+                if(authoredStructure)throw new InvalidOperationException($"Префаб пони {name}: нет сохранённого гнезда куклы {n}.");
+                var outer=new GameObject("Гнездо куклы "+n).transform;outer.SetParent(transform,false);
+                var inner=new GameObject("Наклон гнезда").transform;inner.SetParent(outer,false);
+                rigOuter[n]=outer;rigInner[n]=inner;
+            }
+            for(int n=0;n<17;n++)if(rigInner[n]==null || rigInner[n].parent!=rigOuter[n] || rigOuter[n].parent!=transform)
+                throw new InvalidOperationException($"Префаб пони {name}: повреждена affine-пара гнезда {n}.");
         }
         public override void SetVisible(bool visible) => gameObject.SetActive(visible);
         private void Awake()
@@ -166,11 +180,24 @@ namespace Remains.Presentation
             if (nextFrame == frame && !drawPlanDirty && magicRoleVersion==PonyMagicRenderRoles.Version) {RefreshMagic(nextAppearance);RefreshDrawnBounds();return;}
             frame = nextFrame;
             var parts = frames[frame];
+            var rig=drawPlan.HasEquipment?rigPlan.Get(pose,frame):PonyRenderSelection.RigFrame(nextAppearance,pose,frame);
+            for(int n=0;n<rig.Nodes.Length;n++)
+            {
+                var node=rig.Nodes[n].transform;
+                rigOuter[n].SetLocalPositionAndRotation(node.position,node.rotation);rigOuter[n].localScale=node.scale;
+                rigInner[n].localRotation=node.innerRotation;
+            }
             drawnParts=parts;
             for (int i = 0; i < renderers.Count; i++)
             {
                 renderers[i].enabled = i < parts.Length && parts[i].visible;
                 if (i >= parts.Length) continue;
+                var parent=rigInner[rig.PartNodes[i]];
+                if(filters[i].transform.parent!=parent)
+                {
+                    filters[i].transform.SetParent(parent,false);
+                    filters[i].transform.SetLocalPositionAndRotation(Vector3.zero,Quaternion.identity);filters[i].transform.localScale=Vector3.one;
+                }
                 filters[i].sharedMesh = parts[i].mesh;
                 renderers[i].sharedMaterial = parts[i].material;
                 renderers[i].sortingOrder = i + WorldVisualOrderPolicy.ActorPartOrder;

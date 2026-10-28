@@ -15,6 +15,7 @@ namespace Remains.Content
         {
             public PonyRenderPart[][] frames;
             public Bounds[] bounds;
+            public PonyRigDrawPlan.Frame[] rig;
         }
         private static readonly Dictionary<(int,int,bool,string),Dictionary<string,Clip>> selections=new();
         private static Bounds cameraEnvelope;
@@ -43,6 +44,7 @@ namespace Remains.Content
             cameraEnvelope=asset.Clips[0].frames[0].bounds;Capacity=0;
             foreach(var clip in asset.Clips) foreach(var frame in clip.frames) cameraEnvelope.Encapsulate(frame.bounds);
             foreach(var style in asset.HeadStyles) foreach(var clip in style.clips) foreach(var frame in clip.frames) cameraEnvelope.Encapsulate(frame.bounds);
+            cameraEnvelope.Encapsulate(PonyRigDrawPlan.CameraBounds(asset));
             float extent=Mathf.Max(Mathf.Abs(cameraEnvelope.min.x),Mathf.Abs(cameraEnvelope.max.x));
             cameraEnvelope.SetMinMax(new Vector3(-extent,cameraEnvelope.min.y,cameraEnvelope.min.z),new Vector3(extent,cameraEnvelope.max.y,cameraEnvelope.max.z));
             // Publish only after the complete cache passes validation.
@@ -52,15 +54,15 @@ namespace Remains.Content
                 var clips=new Dictionary<string,Clip>();
                 foreach(var source in asset.Clips)
                 {
-                    var clip=new Clip {frames=new PonyRenderPart[source.frames.Length][],bounds=new Bounds[source.frames.Length]};
+                    var clip=new Clip {frames=new PonyRenderPart[source.frames.Length][],bounds=new Bounds[source.frames.Length],rig=new PonyRigDrawPlan.Frame[source.frames.Length]};
                     for(int f=0;f<source.frames.Length;f++)
                     {
                         var parts=source.frames[f].parts.Where(part=>part.visible && PonyAppearance.Matches(part.hairStyle,part.eyeStyle,part.slot,hair,eyes,secondary==1)).OrderBy(part=>part.drawOrder).ToArray();
                         if(parts.Length==0) throw new InvalidOperationException($"Пустой кадр внешности: head={CharacterAppearance.OriginalHeadStyleId}, hair={hair}, eyes={eyes}, secondary={secondary}, clip={source.id}, frame={f}.");
                         for(int p=1;p<parts.Length;p++) if(parts[p-1].drawOrder>=parts[p].drawOrder)
                             throw new InvalidOperationException($"Перемешаны слои внешности: head={CharacterAppearance.OriginalHeadStyleId}, hair={hair}, eyes={eyes}, clip={source.id}, frame={f}, order={parts[p].drawOrder}.");
-                        var bounds=parts[0].mesh.bounds;foreach(var part in parts) bounds.Encapsulate(part.mesh.bounds);
-                        clip.frames[f]=parts;clip.bounds[f]=bounds;Capacity=Math.Max(Capacity,parts.Length);
+                        clip.rig[f]=PonyRigDrawPlan.PrepareFrame(source.id,f,parts);
+                        clip.frames[f]=parts;clip.bounds[f]=clip.rig[f].Bounds;Capacity=Math.Max(Capacity,parts.Length);
                     }
                     clips.Add(source.id,clip);
                 }
@@ -73,6 +75,7 @@ namespace Remains.Content
         }
         public static bool HasClip(string clip)=>selections.Count>0 && selections[(1,1,false,CharacterAppearance.OriginalHeadStyleId)].ContainsKey(clip);
         public static PonyRenderPart[][] Frames(PonyAppearanceKey key,string clip)=>Get(key,clip).frames;
+        public static PonyRigDrawPlan.Frame RigFrame(PonyAppearanceKey key,string clip,int frame)=>Get(key,clip).rig[frame];
         private static Clip Get(PonyAppearanceKey key,string clip)
         {
             if(!selections.TryGetValue((key.HairStyle,key.EyeStyle,key.SecondaryEnabled,key.HeadStyleId),out var clips) || !clips.TryGetValue(clip,out var result))
@@ -90,15 +93,15 @@ namespace Remains.Content
             var timer=Stopwatch.StartNew();var prepared=new Dictionary<string,Clip>(StringComparer.Ordinal);
             foreach(var entry in original)
             {
-                var source=entry.Value;var clip=new Clip {frames=new PonyRenderPart[source.frames.Length][],bounds=new Bounds[source.frames.Length]};
+                var source=entry.Value;var clip=new Clip {frames=new PonyRenderPart[source.frames.Length][],bounds=new Bounds[source.frames.Length],rig=new PonyRigDrawPlan.Frame[source.frames.Length]};
                 for(int f=0;f<source.frames.Length;f++)
                 {
                     var parts=(PonyRenderPart[])source.frames[f].Clone();int replaced=0;
                     for(int p=0;p<parts.Length;p++) if(parts[p].sourceShape==PonyHeadRenderResolver.SourceShape)
                     {parts[p]=headResolver.Resolve(appearance.HeadStyleId,entry.Key,f,parts[p]);replaced++;}
                     if(replaced!=1) throw new InvalidOperationException($"Нет единственной головы в исходном сочетании: head={appearance.HeadStyleId}, clip={entry.Key}, frame={f}, matches={replaced}.");
-                    var bounds=parts[0].mesh.bounds;foreach(var part in parts) bounds.Encapsulate(part.mesh.bounds);
-                    clip.frames[f]=parts;clip.bounds[f]=bounds;
+                    clip.rig[f]=PonyRigDrawPlan.PrepareFrame(entry.Key,f,parts);
+                    clip.frames[f]=parts;clip.bounds[f]=clip.rig[f].Bounds;
                 }
                 prepared.Add(entry.Key,clip);
             }
@@ -108,13 +111,14 @@ namespace Remains.Content
         {
             if(selections.Count==0) throw new InvalidOperationException("Графика пони не подготовлена перед расчётом камеры.");
             var body=actor.BodyPosition;
-            var bounds=Prepared(actor)?.CameraEnvelope??cameraEnvelope;bounds.center+=new Vector3(body.x,body.y,0);return bounds;
+            var plan=Prepared(actor);
+            var bounds=plan?.HasEquipment==true?PonyRigDrawPlan.For(plan).CameraEnvelope:cameraEnvelope;bounds.center+=new Vector3(body.x,body.y,0);return bounds;
         }
         public static Bounds WorldBounds(ActorState actor)
         {
             string pose=ActorPose.Clip(actor);int frame=PonyMotionFrames.Sample(actor,actor.poseTime);
             var plan=Prepared(actor);
-            var bounds=plan?.HasEquipment==true?plan.FrameBounds(pose,frame):Get(PonyAppearance.Snapshot(actor),pose).bounds[frame];
+            var bounds=plan?.HasEquipment==true?PonyRigDrawPlan.For(plan).Get(pose,frame).Bounds:Get(PonyAppearance.Snapshot(actor),pose).bounds[frame];
             var body=actor.BodyPosition;
             bounds.center=new Vector3(body.x+bounds.center.x*actor.facing,body.y+bounds.center.y,bounds.center.z);return bounds;
         }
@@ -152,6 +156,7 @@ namespace Remains.Content
                 plans[cacheKey]=new WeakReference<WearableDrawPlan>(plan);
                 while(plans.Count>128) plans.Remove(planOrder.Dequeue());
             }
+            PonyRigDrawPlan.Prepare(plan);
             binding.appearance=appearance;binding.equipment=equipment;binding.revision=equipment?.revision??0;binding.plan=plan;return plan;
         }
         public static bool TryGetPrepared(ActorState actor,out WearableDrawPlan plan)
@@ -169,6 +174,6 @@ namespace Remains.Content
             if(warnings.Add(key)) Debug.LogWarning($"{reason}: actor={actor.id}, anatomy={actor.anatomy}, visual={visual??"<не указан>"}, item={item??"<не указан>"}. Данные сохранены; неподключённый слой пропущен.");
         }
         public static void ResetPrepared()
-        {selections.Clear();plans.Clear();planOrder.Clear();bindings=new();baseline=null;headResolver=null;Capacity=0;PrepareElapsedMilliseconds=0;LastShapePrepareMilliseconds=0;}
+        {selections.Clear();plans.Clear();planOrder.Clear();bindings=new();baseline=null;headResolver=null;PonyRigDrawPlan.Reset();Capacity=0;PrepareElapsedMilliseconds=0;LastShapePrepareMilliseconds=0;}
     }
 }
