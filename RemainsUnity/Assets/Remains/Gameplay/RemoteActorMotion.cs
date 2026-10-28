@@ -35,10 +35,11 @@ namespace Remains.Gameplay
             sample.level==actor.level && sample.generation==actor.generation && sample.lifecycle==actor.lifecycleSequence &&
             sample.pose==actor.pose && sample.poseSequence==actor.poseSequence;
 
+        private readonly ConnectedPlayers connected=new();
         public void Step(WorldState world,string localOwner,float dt,System.Func<string,bool> paused,double now,bool pairBoundBodyPhase=false)
         {
             if(worldId!=world.worldId) {Clear();worldId=world.worldId;}
-            tick++;dt=Mathf.Max(0,dt);
+            tick++;dt=Mathf.Max(0,dt);connected.Refresh(world);
             foreach(var actor in world.actors)
             {
                 if(actor.owner==localOwner || !ActorPresence.IsPresent(actor)) {samples.Remove(actor.id);continue;}
@@ -82,7 +83,7 @@ namespace Remains.Gameplay
                     sample.climbing=climbing;sample.pairedBody=pairedBody;sample.pose=actor.pose;sample.poseSequence=actor.poseSequence;sample.receivedPhase=actor.poseTime;
                 }
                 sample.seen=tick;
-                bool running=sample.clockReady && !paused(actor.level) && LevelActivity.HasConnectedPlayer(world,actor.level);
+                bool running=sample.clockReady && !paused(actor.level) && connected.OnLevel(actor.level);
                 if(running)
                 {
                     // Bodies interpolate toward confirmed positions only: predicting their

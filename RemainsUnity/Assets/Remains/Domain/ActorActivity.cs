@@ -8,8 +8,7 @@ namespace Remains.Domain
     // queries inspect connected players only, not the entire actor list for each actor.
     public sealed class ActorActivity
     {
-        private readonly List<ActorState> players=new();
-        private readonly HashSet<string> levels=new(StringComparer.Ordinal);
+        private readonly ConnectedPlayers connected=new();
         private readonly HashSet<string> pendingPoses=new(StringComparer.Ordinal);
         private string worldId;
         private string visibleLevel;
@@ -17,16 +16,15 @@ namespace Remains.Domain
         public void Refresh(WorldState world)
         {
             if(worldId!=world.worldId) {pendingPoses.Clear();worldId=world.worldId;}
-            players.Clear();levels.Clear();
+            connected.Refresh(world);
             visibleLevel=null;
-            foreach(var actor in world.actors)
-                if(actor.player && actor.connected) {players.Add(actor);levels.Add(actor.level);}
         }
+        public ConnectedPlayers Connected=>connected;
         // Visual coverage may exceed the AI room on an unusually wide viewport. It affects animation/pose
         // writers only; NpcController continues to use NpcActivity's gameplay rectangle.
         public void SetVisibleArea(string level,Rect area) {visibleLevel=level;visibleArea=area;}
-        public bool Active(ActorState actor)=>ActorPresence.IsPresent(actor) && levels.Contains(actor.level) &&
-            (actor.player || ActorSessionRules.IsPassive(actor) || ActorHoldRules.Active(actor) || NpcActivity.Awake(players,actor) ||
+        public bool Active(ActorState actor)=>ActorPresence.IsPresent(actor) && connected.OnLevel(actor.level) &&
+            (actor.player || ActorSessionRules.IsPassive(actor) || ActorHoldRules.Active(actor) || NpcActivity.Awake(connected.Players,actor) ||
                 actor.level==visibleLevel && visibleArea.Contains(actor.Position));
         // Remember activity until the next transport cadence, even when the actor/player crosses the room boundary
         // in this frame. The final real pose is sent once; its sleeping successors do not advance transport clocks.

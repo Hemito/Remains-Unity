@@ -28,6 +28,7 @@ namespace Remains.Networking
         private readonly CoopSession session;
         private readonly Dictionary<string,float> senseClocks=new(StringComparer.Ordinal);   // host-local, not saved
         private readonly List<(HazardState trap,ActorState victim)> bites=new();
+        private readonly ConnectedPlayers connected=new();
         private readonly Queue<(HazardState hazard,float amount)> damage=new();
         private readonly DoorDamageAttackLedger ledger=new();
         private readonly HashSet<string> resolvedHits=new(StringComparer.Ordinal);private readonly Queue<string> resolvedOrder=new();
@@ -144,17 +145,19 @@ namespace Remains.Networking
         {
             var world=session.ServerWorld;
             if(!NetworkServer.active || world==null || world.hazards.Count==0 || dt<=0) return;
-            bites.Clear();
+            bites.Clear();connected.Refresh(world);
             foreach(var hazard in world.hazards)
             {
-                if(hazard.closed || !LevelActivity.HasConnectedPlayer(world,hazard.level) || session.Pause.IsServerPaused(hazard.level)) continue;
+                if(hazard.closed || !connected.OnLevel(hazard.level) || session.Pause.IsServerPaused(hazard.level)) continue;
                 var profile=HazardRules.Profile(hazard);
                 if(profile.kind!=HazardRules.Trap) continue;
                 senseClocks.TryGetValue(hazard.id,out float clock);clock+=dt;
                 if(clock<HazardRules.TrapSensePeriod) {senseClocks[hazard.id]=clock;continue;}
                 senseClocks[hazard.id]=clock%HazardRules.TrapSensePeriod;
-                foreach(var actor in world.actors)
-                    if(HazardRules.Springs(hazard,actor,profile)) {bites.Add((hazard,actor));break;}
+                // A level trap catches players only (HazardRules.Springs): ask the players, not every NPC of the level.
+                var candidates=hazard.side==MineRules.LevelSide?connected.AllPlayers:world.actors;
+                for(int i=0;i<candidates.Count;i++)
+                    if(HazardRules.Springs(hazard,candidates[i],profile)) {bites.Add((hazard,candidates[i]));break;}
             }
             if(bites.Count==0) return;
             var attacks=new List<AttackEvent>();

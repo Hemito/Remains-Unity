@@ -28,6 +28,7 @@ namespace Remains.Networking
         private readonly CoopSession session;
         private readonly Dictionary<string,float> senseClocks=new(StringComparer.Ordinal);   // host-local, not saved
         private readonly List<MineState> exploding=new(),lost=new();
+        private readonly ConnectedPlayers connected=new();
         private string pending;
         private double deadline;
         public int Explosions {get;private set;}
@@ -267,9 +268,10 @@ namespace Remains.Networking
                 foreach(var mine in lost) LoseHolder(mine);
                 lost.Clear();
             }
+            connected.Refresh(world);
             foreach(var mine in world.mines)
             {
-                if(!LevelActivity.HasConnectedPlayer(world,mine.level) || session.Pause.IsServerPaused(mine.level)) continue;
+                if(!connected.OnLevel(mine.level) || session.Pause.IsServerPaused(mine.level)) continue;
                 var profile=MineRules.Profile(mine);
                 if(mine.holder!=null)
                 {
@@ -301,8 +303,10 @@ namespace Remains.Networking
                 senseClocks.TryGetValue(mine.id,out float clock);clock+=dt;
                 if(clock<MineRules.SensePeriod) {senseClocks[mine.id]=clock;continue;}
                 senseClocks[mine.id]=clock%MineRules.SensePeriod;
-                foreach(var actor in world.actors)
-                    if(MineRules.Senses(mine,actor,profile))
+                // A level mine senses players only (MineRules.Senses): ask the players, not every NPC of the level.
+                var candidates=mine.side==MineRules.LevelSide?connected.AllPlayers:world.actors;
+                for(int i=0;i<candidates.Count;i++)
+                    if(MineRules.Senses(mine,candidates[i],profile))
                     {MineRules.Trigger(mine,profile);WorldChanges.Mark(world,mine);triggered=true;break;}
             }
             foreach(var mine in exploding)

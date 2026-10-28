@@ -41,19 +41,21 @@ namespace Remains.Gameplay
             };
         }
         private readonly System.Random turretRandom=new();
+        private readonly ConnectedPlayers connected=new();
         public void Step(float dt)
         {
             if(session.World==null) return;
+            connected.Refresh(session.World);
             foreach(var actor in session.World.actors)
             {
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
+                // The cheap activity filters first: most NPCs of a factory sleep far from every player.
+                if(!connected.OnLevel(actor.level) || !NpcActivity.Awake(connected.Players,actor)) continue;
                 var type=Remains.Content.ActorTypes.Get(actor.actorType);
                 if(ActorHoldRules.Active(actor) && !NpcCreatureBehaviours.Fixed(type.behavior)) continue;
                 if(!type.combatAi) continue;
                 bool natural=type.naturalAttack!=null;
-                if(!LevelActivity.HasConnectedPlayer(session.World,actor.level)) continue;
                 if(session.Pause.IsPaused(actor.level)) continue;
-                if(!NpcActivity.Awake(session.World,actor)) continue;
                 if(!movement.TryGetValue((actor.level,actor.actorType),out var controller))
                     throw new InvalidOperationException($"Не загружена геометрия симуляции NPC: actor={actor.id}, level={actor.level}.");
                 senses.Step(actor,dt);

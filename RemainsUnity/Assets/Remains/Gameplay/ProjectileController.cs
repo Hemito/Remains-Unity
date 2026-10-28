@@ -69,14 +69,15 @@ namespace Remains.Gameplay
                 flights.Add(state.launch.id,flight);Created?.Invoke(flight);
             }
         }
+        private readonly ConnectedPlayers connected=new();
         public void Step(float dt)
         {
             if(session.World==null) return;
-            expired.Clear();
+            expired.Clear();connected.Refresh(session.World);
             foreach(var pair in flights)
             {
                 var flight=pair.Value;var state=flight.state;
-                if(state.owner==null || !LevelActivity.HasConnectedPlayer(session.World,state.launch.level) || session.Pause.IsPaused(state.launch.level)) continue;
+                if(state.owner==null || !connected.OnLevel(state.launch.level) || session.Pause.IsPaused(state.launch.level)) continue;
                 if(!flight.awaitingConfirmation && flight.pendingContacts.Count>0)
                 {
                     foreach(var pending in flight.pendingContacts)

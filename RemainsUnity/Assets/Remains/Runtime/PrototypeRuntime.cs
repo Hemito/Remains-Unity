@@ -588,7 +588,7 @@ namespace Remains.Runtime
             {
             foreach(var body in Session.World.actors)
                 if(body.owner==Session.LocalOwner &&
-                    LevelActivity.HasConnectedPlayer(Session.World,body.level) && !Session.Pause.IsPaused(body.level))
+                    actorActivity.Connected.OnLevel(body.level) && !Session.Pause.IsPaused(body.level))
                 {
                     if(ActorHoldRules.Active(body)) ActorHoldMotion.Step(body,Geometry.Get(body.level),Time.deltaTime);
                     else if(body!=actor && ActorSessionRules.IsPassive(body)) PassiveActorMotion.Step(body,Geometry.Get(body.level),Time.deltaTime,passiveMovementSettings,passengers.ForActor(body));
