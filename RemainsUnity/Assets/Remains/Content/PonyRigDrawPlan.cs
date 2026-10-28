@@ -10,10 +10,11 @@ namespace Remains.Content
     {
         public sealed class Frame {public PonyRigNode[] Nodes;public int[] PartNodes;public Bounds Bounds;}
         private readonly Dictionary<string,Frame[]> clips=new(StringComparer.Ordinal);
+        private readonly Dictionary<string,Frame[]> closedClips=new(StringComparer.Ordinal);
         private static PonyRigMotionAsset motion;
         private static ConditionalWeakTable<WearableDrawPlan,PonyRigDrawPlan> prepared=new();
         public Bounds CameraEnvelope {get;private set;}
-        public Frame Get(string clip,int frame)=>clips[clip][frame];
+        public Frame Get(string clip,int frame,bool closed=false)=>(closed?closedClips:clips)[clip][frame];
         public static void Load()
         {
             if(motion!=null)return;
@@ -79,14 +80,15 @@ namespace Remains.Content
             bool envelopeFound=false;Bounds envelope=default;
             foreach(var clip in motion.Clips)
             {
-                var parts=plan.Frames(clip.id);var frames=new Frame[parts.Length];
+                var parts=plan.Frames(clip.id);var closed=plan.Frames(clip.id,true);var frames=new Frame[parts.Length];var closedFrames=new Frame[parts.Length];
                 for(int f=0;f<frames.Length;f++)
                 {
                     var frame=PrepareFrame(clip.frames[f].nodes,parts[f],clip.id+"/"+f);
                     frames[f]=frame;
+                    closedFrames[f]=ReferenceEquals(parts[f],closed[f])?frame:PrepareFrame(clip.frames[f].nodes,closed[f],clip.id+"/closed/"+f);
                     if(!envelopeFound){envelope=frame.Bounds;envelopeFound=true;}else envelope.Encapsulate(frame.Bounds);
                 }
-                clips.Add(clip.id,frames);
+                clips.Add(clip.id,frames);closedClips.Add(clip.id,closedFrames);
             }
             float x=Mathf.Max(Mathf.Abs(envelope.min.x),Mathf.Abs(envelope.max.x));
             envelope.SetMinMax(new Vector3(-x,envelope.min.y,envelope.min.z),new Vector3(x,envelope.max.y,envelope.max.z));CameraEnvelope=envelope;

@@ -48,6 +48,8 @@ namespace Remains.Presentation
         private bool magicDirty=true;
         private int magicRoleVersion=-1;
         private PonyRenderPart[] drawnParts;
+        private readonly PonyNestedBlinkClock blink=new();
+        public bool DrawnEyeClosed {get;private set;}
         public bool UsesMagicPreview=>magicSource==null;
         public PonyMagicActivity DrawnMagicActivity {get;private set;}
         public void ConfigureMagicSource(IPonyMagicActivitySource source)
@@ -99,6 +101,7 @@ namespace Remains.Presentation
             if(string.IsNullOrEmpty(actor?.id) || actor.id!=state?.id)
             {appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;drawnParts=null;magicDirty=true;}
             state = actor;
+            if(actor!=null)blink.Bind(actor.id);
             var prepared=actor==null?null:PonyRenderSelection.PrepareEquipment(actor);
             // Preparing a different wardrobe does not draw it. Keep the published
             // frame/mesh metadata truthful until the next actual DrawPose, while
@@ -147,7 +150,15 @@ namespace Remains.Presentation
         private void LateUpdate()
         {
             using var frameSection=Remains.Diagnostics.FrameHitchLog.Section("PonyVisual.LateUpdate");
+            if(state!=null)AdvanceNestedAnimation(Time.deltaTime);
             DrawPose(state?.poseTime??0);
+        }
+        public void AdvanceNestedAnimation(float seconds)
+        {
+            if(state==null)return;
+            bool allowed=!ActorSessionRules.IsPassive(state) && state.health>0 && !state.down &&
+                !(state.pose?.StartsWith("hide",StringComparison.Ordinal)??false);
+            blink.Advance(seconds,allowed);
         }
 
         public void DrawPose(float sampleTime,bool rawClip=false)
@@ -175,12 +186,14 @@ namespace Remains.Presentation
                 throw new InvalidOperationException($"Внешность снаряжения изменена без подготовки: actor={state.id}, head={nextAppearance.HeadStyleId}, hair={nextAppearance.HairStyle}, eyes={nextAppearance.EyeStyle}, secondary={nextAppearance.SecondaryEnabled}. Вызовите Bind при событии смены формы.");
             // Original-head bare selections retain all 60 precompiled choices.
             // Custom head/style and equipment events prepare their plans in Bind.
-            var frames = drawPlan.HasEquipment?drawPlan.Frames(pose):PonyRenderSelection.Frames(nextAppearance,pose);
+            bool closed=!rawClip && blink.Closed;
+            var frames = drawPlan.HasEquipment?drawPlan.Frames(pose,closed):PonyRenderSelection.Frames(nextAppearance,pose,closed);
             int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorSessionRules.IsPassive(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
-            if (nextFrame == frame && !drawPlanDirty && magicRoleVersion==PonyMagicRenderRoles.Version) {RefreshMagic(nextAppearance);RefreshDrawnBounds();return;}
+            if (nextFrame == frame && DrawnEyeClosed==closed && !drawPlanDirty && magicRoleVersion==PonyMagicRenderRoles.Version) {RefreshMagic(nextAppearance);RefreshDrawnBounds();return;}
             frame = nextFrame;
+            DrawnEyeClosed=closed;
             var parts = frames[frame];
-            var rig=drawPlan.HasEquipment?rigPlan.Get(pose,frame):PonyRenderSelection.RigFrame(nextAppearance,pose,frame);
+            var rig=drawPlan.HasEquipment?rigPlan.Get(pose,frame,closed):PonyRenderSelection.RigFrame(nextAppearance,pose,frame,closed);
             for(int n=0;n<rig.Nodes.Length;n++)
             {
                 var node=rig.Nodes[n].transform;

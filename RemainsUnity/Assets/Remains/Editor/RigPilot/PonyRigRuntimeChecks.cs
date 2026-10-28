@@ -41,7 +41,7 @@ namespace Remains.Editor
                         for(int p=0;p<parts.Length;p++)
                         {
                             Require(actual[p].GetComponent<MeshFilter>().sharedMesh==parts[p].mesh,"Подмена artwork "+clip.id);
-                            foreach(var point in parts[p].points)
+                            foreach(var point in parts[p].mesh.vertices)
                             {
                                 var expected=view.transform.TransformPoint(frame.Nodes[frame.PartNodes[p]].transform.Matrix.MultiplyPoint3x4(point));
                                 error=Math.Max(error,(actual[p].transform.TransformPoint(point)-expected).magnitude);
@@ -66,7 +66,7 @@ namespace Remains.Editor
                 timer.Stop();long allocated=GC.GetAllocatedBytesForCurrentThread()-before;
                 Require(Resources.FindObjectsOfTypeAll<Mesh>().Length==meshes,"Пересоздание геометрии при проигрывании");
                 Debug.Log($"Игровая кукла: 1000 смен кадров antirad={timer.Elapsed.TotalMilliseconds:F1} мс, managed={allocated} байт; это Editor, без замера всего завода/Player.");
-                Debug.Log($"Игровая кукла: PASS — {checkedFrames} кадров/направлений, без одежды/pip/antirad, общий mesh, полные affine, bounds и состав теней; max error={error:G6}. Геометрия ещё из старого банка; LAN и новые механики укрытия не проверялись.");
+                Debug.Log($"Игровая кукла: PASS — {checkedFrames} кадров/направлений, без одежды/pip/antirad, общие локальные символы, полные affine, bounds и состав теней; max error={error:G6}. LAN и новые механики укрытия не проверялись этим прогоном.");
             }
             finally{Object.DestroyImmediate(view.gameObject);}
         }

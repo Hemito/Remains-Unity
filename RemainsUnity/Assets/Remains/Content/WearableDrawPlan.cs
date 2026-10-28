@@ -6,6 +6,7 @@ namespace Remains.Content
     public sealed class WearableDrawPlan
     {
         private readonly Dictionary<string,PonyRenderPart[][]> frames;
+        private readonly Dictionary<string,PonyRenderPart[][]> closedFrames=new(StringComparer.Ordinal);
         private readonly Dictionary<string,Bounds[]> bounds;
         private readonly int hairStyle,eyeStyle;
         private readonly string headStyleId;
@@ -18,9 +19,10 @@ namespace Remains.Content
         public PonyRenderPart[] PortraitFrame=>Frames("idle")[0];
         private WearableDrawPlan(Dictionary<string,PonyRenderPart[][]> values,Dictionary<string,Bounds[]> frameBounds,Bounds envelope,int capacity,string[] ids,PonyAppearanceKey appearance)
         {frames=values;bounds=frameBounds;CameraEnvelope=envelope;Capacity=capacity;HasEquipment=ids.Length!=0;VisualIds=Array.AsReadOnly(ids);
+            foreach(var entry in values){var closed=new PonyRenderPart[entry.Value.Length][];for(int f=0;f<closed.Length;f++)closed[f]=PonyNestedEyeFrames.Prepare(entry.Value[f]).Closed;closedFrames.Add(entry.Key,closed);}
             hairStyle=appearance.HairStyle;eyeStyle=appearance.EyeStyle;secondaryEnabled=appearance.SecondaryEnabled;headStyleId=appearance.HeadStyleId;}
         public bool MatchesShape(PonyAppearanceKey appearance)=>hairStyle==appearance.HairStyle && eyeStyle==appearance.EyeStyle && secondaryEnabled==appearance.SecondaryEnabled && headStyleId==appearance.HeadStyleId;
-        public PonyRenderPart[][] Frames(string clip)=>frames.TryGetValue(clip,out var value)?value:
+        public PonyRenderPart[][] Frames(string clip,bool closed=false)=>(closed?closedFrames:frames).TryGetValue(clip,out var value)?value:
             throw new InvalidOperationException("Нет подготовленного кадра визуального снаряжения: clip="+clip+".");
         public Bounds FrameBounds(string clip,int frame)=>bounds[clip][frame];
         public static WearableDrawPlan Create(PonyRenderAsset baseline,PonyAppearanceKey appearance,IReadOnlyList<WearableRenderAsset> equipment,Bounds bareCameraEnvelope,PonyHeadRenderResolver headResolver=null)
@@ -53,16 +55,19 @@ namespace Remains.Content
                         if(part.visible && !hidden.Contains(part.sourceIndex) && PonyAppearance.Matches(part.hairStyle,part.eyeStyle,part.slot,appearance.HairStyle,appearance.EyeStyle,appearance.SecondaryEnabled))
                             list.Add((part,baseOrder==null?new[]{part.drawOrder}:baseOrder[part.sourceIndex].path));
                     }
-                    foreach(var equipped in equippedClips) foreach(var part in equipped.frames[f].parts)
+                    foreach(var equipped in equippedClips) foreach(var source in equipped.frames[f].parts)
+                    {
+                        var part=headResolver.ResolveWearable(appearance.HeadStyleId,clip.id,f,source);
                         if(part.visible && PonyAppearance.Matches(part.hairStyle,part.eyeStyle,part.slot,appearance.HairStyle,appearance.EyeStyle,appearance.SecondaryEnabled)) list.Add((part,part.orderPath));
+                    }
                     list.Sort((a,b)=>ComparePath(a.order,b.order));
                     if(list.Count==0) throw new InvalidOperationException($"Пустой составной рисунок: clip={clip.id}, frame={f}.");
-                    var parts=new PonyRenderPart[list.Count];var bounds=list[0].part.mesh.bounds;
+                    var parts=new PonyRenderPart[list.Count];var bounds=list[0].part.ActorBounds;
                     for(int p=0;p<parts.Length;p++)
                     {
                         if(p>0 && ComparePath(list[p-1].order,list[p].order)==0)
                             throw new InvalidOperationException($"Неоднозначные слои снаряжения: clip={clip.id}, frame={f}, paths={list[p-1].part.sourcePath}/{list[p].part.sourcePath}.");
-                        parts[p]=list[p].part;bounds.Encapsulate(parts[p].mesh.bounds);
+                        parts[p]=list[p].part;bounds.Encapsulate(parts[p].ActorBounds);
                     }
                     result[f]=parts;frameBounds[f]=bounds;capacity=Math.Max(capacity,parts.Length);
                     if(!hasEnvelope) {envelope=bounds;hasEnvelope=true;}else envelope.Encapsulate(bounds);

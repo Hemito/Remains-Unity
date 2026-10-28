@@ -18,16 +18,18 @@ namespace Remains.Editor
             var old=AssetDatabase.LoadAllAssetsAtPath(path).Where(value=>value is Mesh || value is Material).ToDictionary(value=>value.name);
             var source=GameAssets.Load<TextAsset>("Original/Pony/pony");
             var library=JsonUtility.FromJson<PonyLibrary>(source.text);
+            var layout=new PonySymbolLayout(library);var retained=new HashSet<UnityEngine.Object>();
             var clips=new List<PonyRenderClip>();var materials=new Dictionary<string,Material>();int meshCount=0;
             T Save<T>(T value) where T:UnityEngine.Object
             {
                 if(old.TryGetValue(value.name,out var saved))
                 {
                     if(saved is not T) throw new InvalidOperationException("Конфликт типа ресурса пони: "+value.name);
-                    EditorUtility.CopySerialized(value,saved);UnityEngine.Object.DestroyImmediate(value);EditorUtility.SetDirty(saved);return (T)saved;
+                    EditorUtility.CopySerialized(value,saved);UnityEngine.Object.DestroyImmediate(value);EditorUtility.SetDirty(saved);retained.Add(saved);return (T)saved;
                 }
-                AssetDatabase.AddObjectToAsset(value,asset);return value;
+                AssetDatabase.AddObjectToAsset(value,asset);retained.Add(value);return value;
             }
+            var symbols=new PonySymbolMeshCompiler(mesh=>Save(mesh));
             foreach(var clip in library.clips)
             {
                 var result=new PonyRenderClip {id=clip.id,frames=new PonyRenderFrame[clip.frames.Length]};
@@ -47,13 +49,12 @@ namespace Remains.Editor
                         }
                         var tint=new Color(part.color[0],part.color[1],part.color[2],part.color[3]);
                         var points=PonyAnimationData.Quad(part);
-                        var mesh=new Mesh {name=$"mesh:{clip.id}:{f}:{p}",vertices=points,
-                            uv=new[]{Vector2.zero,Vector2.right,Vector2.up,Vector2.one},triangles=new[]{0,2,1,2,3,1},colors=new[]{tint,tint,tint,tint}};
-                        mesh.RecalculateBounds();mesh=Save(mesh);meshCount++;
+                        string top=part.path.Split('/')[0];var placement=layout.Get(clip.id,f,top);
+                        var mesh=symbols.Piece(placement,PonySymbolLayout.LocalPath(part.path)+":"+part.shape+":"+part.hairStyle+":"+part.eyeStyle,points,tint);meshCount++;
                         bool visible=!part.path.StartsWith("pip2/");frame.parts[p]=new PonyRenderPart {mesh=mesh,material=material,slot=part.slot,visible=visible,
                             hairStyle=part.hairStyle,eyeStyle=part.eyeStyle,drawOrder=part.drawOrder,sourceIndex=p,
-                            sourcePath=part.path,sourceShape=part.shape,points=points,baseColor=tint};
-                        if(visible) {if(!hasBounds){frame.bounds=mesh.bounds;hasBounds=true;}else frame.bounds.Encapsulate(mesh.bounds);}
+                            sourcePath=part.path,sourceShape=part.shape,points=points,baseColor=tint,symbolId=placement.Id,symbolPose=placement.Transform};
+                        if(visible) {var bounds=frame.parts[p].ActorBounds;if(!hasBounds){frame.bounds=bounds;hasBounds=true;}else frame.bounds.Encapsulate(bounds);}
                     }
                     if(!hasBounds) throw new InvalidOperationException($"Нет видимых частей: {clip.id}:{f}.");
                     result.frames[f]=frame;
@@ -61,9 +62,11 @@ namespace Remains.Editor
                 clips.Add(result);
             }
             PonyHeadCatalog.Reset();
-            var heads=PonyHeadRenderCompiler.Compile(library,mesh=>Save(mesh),material=>Save(material));
-            asset.Configure(clips.ToArray(),heads);EditorUtility.SetDirty(asset);AssetDatabase.SaveAssets();asset.Validate();
-            Debug.Log($"Графика пони сохранена: базовых мешей {meshCount}, материалов {materials.Count}, поз {clips.Count}, дополнительных форм головы {heads.Length}.");
+            var heads=PonyHeadRenderCompiler.Compile(library,layout,symbols,material=>Save(material));
+            asset.Configure(clips.ToArray(),heads);asset.ConfigureSymbols(symbols.Symbols);EditorUtility.SetDirty(asset);
+            foreach(var previous in old.Values)if(!retained.Contains(previous))UnityEngine.Object.DestroyImmediate(previous,true);
+            AssetDatabase.SaveAssets();asset.Validate();
+            Debug.Log($"Библиотека символов пони: узловых символов={layout.SymbolCount}, общих meshes={symbols.MeshCount}, ссылок частей={meshCount}, материалов={materials.Count}, поз={clips.Count}, форм головы={heads.Length}, max error={symbols.MaximumError:G6} м.");
         }
     }
 }

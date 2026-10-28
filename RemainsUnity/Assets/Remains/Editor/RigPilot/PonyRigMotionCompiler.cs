@@ -21,6 +21,7 @@ namespace Remains.Editor
             var rig=new GodotRigPilotData(Path.GetFullPath("../.reference/rig-pilot/source"),includeRise:true);
             var bank=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/pip").text);
             var own=PonyAnimationData.Library.clips;var idle=own.Single(c=>c.id=="idle").frames[0];
+            var symbolLayout=new PonySymbolLayout(PonyAnimationData.Library);
             var restGroups=PonyRigPilotArt.Groups(idle).ToDictionary(g=>g.Socket,StringComparer.Ordinal);
             var idleWear=bank.clips.Single(c=>c.id=="idle").frames[0];
             var result=new List<PonyRigClip>();float maxError=0;int imported=0,libraryDifferences=0;
@@ -61,6 +62,7 @@ namespace Remains.Editor
                                 {libraryDifferences++;Debug.Log($"Выбор символа 1.04 сохранён: {clip.id}/{f}/{group.Socket}; source={donor.Libraries[bone]}, alternate={alternate}.");}
                             }
                         }
+                        delta*=symbolLayout.Get(clip.id,f,group.Top).Matrix;
                         var transform=PonyRigTransform.FromMatrix(delta);var rebuilt=transform.Matrix;
                         for(int i=0;i<16;i++)maxError=Math.Max(maxError,Math.Abs(rebuilt[i]-delta[i]));
                         nodes.Add(new PonyRigNode {top=group.Top,socket=group.Socket,transform=transform});

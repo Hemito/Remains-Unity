@@ -16,6 +16,8 @@ namespace Remains.Content
             public PonyRenderPart[][] frames;
             public Bounds[] bounds;
             public PonyRigDrawPlan.Frame[] rig;
+            public PonyRenderPart[][] closed;
+            public PonyRigDrawPlan.Frame[] closedRig;
         }
         private static readonly Dictionary<(int,int,bool,string),Dictionary<string,Clip>> selections=new();
         private static Bounds cameraEnvelope;
@@ -54,7 +56,7 @@ namespace Remains.Content
                 var clips=new Dictionary<string,Clip>();
                 foreach(var source in asset.Clips)
                 {
-                    var clip=new Clip {frames=new PonyRenderPart[source.frames.Length][],bounds=new Bounds[source.frames.Length],rig=new PonyRigDrawPlan.Frame[source.frames.Length]};
+                    var clip=new Clip {frames=new PonyRenderPart[source.frames.Length][],bounds=new Bounds[source.frames.Length],rig=new PonyRigDrawPlan.Frame[source.frames.Length],closed=new PonyRenderPart[source.frames.Length][],closedRig=new PonyRigDrawPlan.Frame[source.frames.Length]};
                     for(int f=0;f<source.frames.Length;f++)
                     {
                         var parts=source.frames[f].parts.Where(part=>part.visible && PonyAppearance.Matches(part.hairStyle,part.eyeStyle,part.slot,hair,eyes,secondary==1)).OrderBy(part=>part.drawOrder).ToArray();
@@ -62,6 +64,7 @@ namespace Remains.Content
                         for(int p=1;p<parts.Length;p++) if(parts[p-1].drawOrder>=parts[p].drawOrder)
                             throw new InvalidOperationException($"Перемешаны слои внешности: head={CharacterAppearance.OriginalHeadStyleId}, hair={hair}, eyes={eyes}, clip={source.id}, frame={f}, order={parts[p].drawOrder}.");
                         clip.rig[f]=PonyRigDrawPlan.PrepareFrame(source.id,f,parts);
+                        var eye=PonyNestedEyeFrames.Prepare(parts);clip.closed[f]=eye.Closed;clip.closedRig[f]=eye.CanBlink?PonyRigDrawPlan.PrepareFrame(source.id,f,eye.Closed):clip.rig[f];
                         clip.frames[f]=parts;clip.bounds[f]=clip.rig[f].Bounds;Capacity=Math.Max(Capacity,parts.Length);
                     }
                     clips.Add(source.id,clip);
@@ -74,8 +77,8 @@ namespace Remains.Content
             Debug.Log($"Графика пони подготовлена: исходных сочетаний={PreparedSelectionCount}, форм головы={PonyHeadCatalog.Styles.Count}, кадров={asset.Clips.Sum(clip=>clip.frames.Length)}, вместимость={Capacity}, время={PrepareElapsedMilliseconds:F1} мс. Дополнительные сочетания головы готовятся при выборе внешности.");
         }
         public static bool HasClip(string clip)=>selections.Count>0 && selections[(1,1,false,CharacterAppearance.OriginalHeadStyleId)].ContainsKey(clip);
-        public static PonyRenderPart[][] Frames(PonyAppearanceKey key,string clip)=>Get(key,clip).frames;
-        public static PonyRigDrawPlan.Frame RigFrame(PonyAppearanceKey key,string clip,int frame)=>Get(key,clip).rig[frame];
+        public static PonyRenderPart[][] Frames(PonyAppearanceKey key,string clip,bool closed=false)=>closed?Get(key,clip).closed:Get(key,clip).frames;
+        public static PonyRigDrawPlan.Frame RigFrame(PonyAppearanceKey key,string clip,int frame,bool closed=false)=>closed?Get(key,clip).closedRig[frame]:Get(key,clip).rig[frame];
         private static Clip Get(PonyAppearanceKey key,string clip)
         {
             if(!selections.TryGetValue((key.HairStyle,key.EyeStyle,key.SecondaryEnabled,key.HeadStyleId),out var clips) || !clips.TryGetValue(clip,out var result))
@@ -93,7 +96,7 @@ namespace Remains.Content
             var timer=Stopwatch.StartNew();var prepared=new Dictionary<string,Clip>(StringComparer.Ordinal);
             foreach(var entry in original)
             {
-                var source=entry.Value;var clip=new Clip {frames=new PonyRenderPart[source.frames.Length][],bounds=new Bounds[source.frames.Length],rig=new PonyRigDrawPlan.Frame[source.frames.Length]};
+                var source=entry.Value;var clip=new Clip {frames=new PonyRenderPart[source.frames.Length][],bounds=new Bounds[source.frames.Length],rig=new PonyRigDrawPlan.Frame[source.frames.Length],closed=new PonyRenderPart[source.frames.Length][],closedRig=new PonyRigDrawPlan.Frame[source.frames.Length]};
                 for(int f=0;f<source.frames.Length;f++)
                 {
                     var parts=(PonyRenderPart[])source.frames[f].Clone();int replaced=0;
@@ -101,6 +104,7 @@ namespace Remains.Content
                     {parts[p]=headResolver.Resolve(appearance.HeadStyleId,entry.Key,f,parts[p]);replaced++;}
                     if(replaced!=1) throw new InvalidOperationException($"Нет единственной головы в исходном сочетании: head={appearance.HeadStyleId}, clip={entry.Key}, frame={f}, matches={replaced}.");
                     clip.rig[f]=PonyRigDrawPlan.PrepareFrame(entry.Key,f,parts);
+                    var eye=PonyNestedEyeFrames.Prepare(parts);clip.closed[f]=eye.Closed;clip.closedRig[f]=eye.CanBlink?PonyRigDrawPlan.PrepareFrame(entry.Key,f,eye.Closed):clip.rig[f];
                     clip.frames[f]=parts;clip.bounds[f]=clip.rig[f].Bounds;
                 }
                 prepared.Add(entry.Key,clip);
@@ -174,6 +178,6 @@ namespace Remains.Content
             if(warnings.Add(key)) Debug.LogWarning($"{reason}: actor={actor.id}, anatomy={actor.anatomy}, visual={visual??"<не указан>"}, item={item??"<не указан>"}. Данные сохранены; неподключённый слой пропущен.");
         }
         public static void ResetPrepared()
-        {selections.Clear();plans.Clear();planOrder.Clear();bindings=new();baseline=null;headResolver=null;PonyRigDrawPlan.Reset();Capacity=0;PrepareElapsedMilliseconds=0;LastShapePrepareMilliseconds=0;}
+        {selections.Clear();plans.Clear();planOrder.Clear();bindings=new();baseline=null;headResolver=null;PonyRigDrawPlan.Reset();PonyNestedEyeFrames.Reset();Capacity=0;PrepareElapsedMilliseconds=0;LastShapePrepareMilliseconds=0;}
     }
 }

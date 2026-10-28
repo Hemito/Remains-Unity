@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Remains.Domain;
+using UnityEngine;
 
 namespace Remains.Content
 {
@@ -10,10 +11,17 @@ namespace Remains.Content
     {
         public const string SourceShape="196";
         private readonly Dictionary<string,Dictionary<string,PonyRenderPart[]>> styles=new(StringComparer.Ordinal);
+        private readonly Dictionary<string,PonyRenderPart[]> originals=new(StringComparer.Ordinal);
         public PonyHeadRenderResolver(PonyRenderAsset asset)
         {
             if(asset?.Clips==null || asset.HeadStyles==null)
                 throw new InvalidOperationException("Нет подготовленного банка форм головы.");
+            foreach(var clip in asset.Clips)
+            {
+                var parts=new PonyRenderPart[clip.frames.Length];
+                for(int f=0;f<parts.Length;f++)parts[f]=Array.Find(clip.frames[f].parts,p=>p.sourceShape==SourceShape)??throw new InvalidOperationException("Нет базовой головы: "+clip.id);
+                originals.Add(clip.id,parts);
+            }
             foreach(var style in asset.HeadStyles)
             {
                 if(style==null || string.IsNullOrWhiteSpace(style.id) || style.id==CharacterAppearance.OriginalHeadStyleId || style.clips==null || styles.ContainsKey(style.id))
@@ -45,6 +53,21 @@ namespace Remains.Content
             if(replacement==null || replacement.sourceShape!=SourceShape || replacement.sourceIndex!=baselinePart.sourceIndex)
                 throw new InvalidOperationException($"Замена головы не соответствует исходной части: head={headStyleId}, clip={clip}, frame={frame}, sourceIndex={baselinePart.sourceIndex}.");
             return replacement;
+        }
+        public PonyRenderPart ResolveWearable(string headStyleId,string clip,int frame,PonyRenderPart part)
+        {
+            if(part.sourceShape!=SourceShape || headStyleId==CharacterAppearance.OriginalHeadStyleId)return part;
+            var source=originals[clip][frame];var replacement=Resolve(headStyleId,clip,frame,source);
+            var originalPoints=source.mesh.vertices;var wearablePoints=part.mesh.vertices;
+            for(int p=0;p<4;p++)if(Vector3.Distance(originalPoints[p],wearablePoints[p])>.00001f)
+                throw new InvalidOperationException($"Голова комплекта требует явной регистрации формы: head={headStyleId}, clip={clip}, path={part.sourcePath}, point={p}.");
+            if(part.baseColor!=replacement.baseColor)throw new InvalidOperationException("Голова комплекта требует адаптера цвета: "+part.sourcePath);
+            var vertices=replacement.mesh.vertices;var points=new Vector3[4];
+            for(int p=0;p<4;p++)points[p]=part.symbolPose.Matrix.MultiplyPoint3x4(vertices[p]);
+            return new PonyRenderPart {mesh=replacement.mesh,material=replacement.material,slot=part.slot,visible=part.visible,
+                hairStyle=part.hairStyle,eyeStyle=part.eyeStyle,drawOrder=part.drawOrder,sourceIndex=part.sourceIndex,
+                sourcePath=part.sourcePath,sourceShape=part.sourceShape,points=points,baseColor=part.baseColor,orderPath=part.orderPath,
+                symbolId=part.symbolId,symbolPose=part.symbolPose};
         }
     }
 }

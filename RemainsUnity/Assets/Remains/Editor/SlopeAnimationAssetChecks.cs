@@ -41,12 +41,13 @@ namespace Remains.Editor
                     for(int part=0;part<parts.Length;part++)
                     {
                         var source=parts[part];var mesh=cached[part].mesh;
-                        Require(mesh.name==$"mesh:{id}:{frame}:{part}" && cached[part].material.mainTexture.name==source.texture,
+                        Require(mesh.name.StartsWith("symbol:",StringComparison.Ordinal) && !string.IsNullOrEmpty(cached[part].symbolId) &&
+                            cached[part].sourcePath==source.path && cached[part].material.mainTexture.name==source.texture,
                             $"Изменена ресурсная привязка: pose={id}, frame={frame}, part={part}");
                         var quad=PonyAnimationData.Quad(source);var vertices=mesh.vertices;
                         Require(vertices.Length==4,"Неверный quad: "+mesh.name);
-                        for(int corner=0;corner<4;corner++) Require((vertices[corner]-quad[corner]).sqrMagnitude<1e-12f,
-                            $"Запечённая матрица не совпала с источником: pose={id}, frame={frame}, part={part}, corner={corner}");
+                        for(int corner=0;corner<4;corner++) Require((cached[part].symbolPose.Matrix.MultiplyPoint3x4(vertices[corner])-quad[corner]).sqrMagnitude<1e-10f,
+                            $"Матрица символа не совпала с источником: pose={id}, frame={frame}, part={part}, corner={corner}");
                         if(Array.IndexOf(contacts.shapes,source.shape)<0) continue;
                         var lowest=LowestPixel(source,contacts.alphaMinimum,pixelCache);
                         Require(foot<track.frames[frame].points.Length &&

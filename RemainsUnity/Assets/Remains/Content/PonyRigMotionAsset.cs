@@ -28,14 +28,15 @@ namespace Remains.Content
     public sealed class PonyRigMotionAsset:ScriptableObject
     {
         [SerializeField] private string baseSourceHash,sourceCommit;
+        [SerializeField] private int schema;
         [SerializeField] private PonyRigClip[] clips;
         public PonyRigClip[] Clips=>clips;
         public string SourceCommit=>sourceCommit;
-        public void Configure(string hash,string commit,PonyRigClip[] value){baseSourceHash=hash;sourceCommit=commit;clips=value;}
+        public void Configure(string hash,string commit,PonyRigClip[] value){schema=2;baseSourceHash=hash;sourceCommit=commit;clips=value;}
         public void Validate()
         {
             PonyAnimationData.Load();
-            if(baseSourceHash!=PonyRenderAsset.SourceHash() || string.IsNullOrEmpty(sourceCommit) || clips?.Length!=PonyAnimationData.Library.clips.Length)
+            if(schema!=2 || baseSourceHash!=PonyRenderAsset.SourceHash() || string.IsNullOrEmpty(sourceCommit) || clips?.Length!=PonyAnimationData.Library.clips.Length)
                 throw new InvalidOperationException("Банк движений куклы пони устарел; пересоберите его в Remains → Собрать игровые движения куклы.");
             var ids=new HashSet<string>(StringComparer.Ordinal);
             foreach(var clip in clips)

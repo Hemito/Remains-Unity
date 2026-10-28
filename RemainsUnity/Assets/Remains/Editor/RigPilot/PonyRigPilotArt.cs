@@ -77,10 +77,10 @@ namespace Remains.Editor
                     foreach(int index in group.Indices)
                     {
                         var part=meshes.frames[f].parts[index];if(!part.visible || !PonyAppearance.Matches(part.hairStyle,part.eyeStyle,part.slot,1,1,false))continue;
-                        var mesh=Clone(part.mesh,registration);var order=state.baseDepthPaths[index];
+                        var mesh=Clone(part.mesh,registration*part.symbolPose.Matrix);var order=state.baseDepthPaths[index];
                         var piece=new Piece {Mesh=mesh,Material=part.material,Tint=PonyAppearance.Tint(part.slot,1),Slot=part.slot,Order=order,
                             BodyVisibleWhenWorn=!hidden.Contains(index),Name=part.sourcePath};body.Add(piece);
-                        if(clip.id=="idle")for(int p=0;p<mesh.vertexCount;p++)RestError=Math.Max(RestError,(mesh.vertices[p]-part.mesh.vertices[p]).magnitude);
+                        if(clip.id=="idle")for(int p=0;p<mesh.vertexCount;p++)RestError=Math.Max(RestError,(mesh.vertices[p]-part.points[p]).magnitude);
                     }
                     foreach(var instance in instances)
                     {
@@ -99,7 +99,7 @@ namespace Remains.Editor
                             if(clip.id=="idle")
                             {
                                 if(!referenceWear.TryGetValue(sourcePath,out var reference))throw new InvalidDataException("Пилот: нет контрольной детали костюма "+sourcePath);
-                                for(int p=0;p<registered.vertexCount;p++)WearableRestError=Math.Max(WearableRestError,(registered.vertices[p]-reference.mesh.vertices[p]).magnitude);
+                                for(int p=0;p<registered.vertexCount;p++)WearableRestError=Math.Max(WearableRestError,(registered.vertices[p]-reference.points[p]).magnitude);
                             }
                             worn.Add(new Piece {Mesh=registered,Material=Material(part.texture),Tint=PonyAppearance.Tint(part.slot,1),Slot=part.slot,
                                 Order=instance.depthPath.Concat(part.depthPath).ToArray(),Name=sourcePath});

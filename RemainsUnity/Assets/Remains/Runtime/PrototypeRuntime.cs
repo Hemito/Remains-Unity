@@ -55,6 +55,7 @@ namespace Remains.Runtime
         public PrototypeHud Hud => hud;
         private IRoomLighting ActiveLevelLighting {get;set;}
         public RoomLighting ActiveRoomLighting=>ActiveLevelLighting as RoomLighting;
+        public IRoomLighting CurrentLevelLighting=>ActiveLevelLighting;
         public FactoryLevelView ActiveFactoryLighting=>ActiveLevelLighting as FactoryLevelView;
         public bool LevelPresentationReady=>roomPresentation?.IsReady==true;
         public bool IsLevelPreparing=>roomPresentation?.IsPreparing==true;
@@ -767,6 +768,8 @@ namespace Remains.Runtime
 
         private void OnApplicationQuit()
         {
+            // Children may be destroyed before this runtime; stop light→HUD callbacks before either disappears.
+            roomPresentation?.Dispose();
             Session?.SaveLocalCharacter();
             Session?.FlushSaveWrites();
         }
@@ -801,6 +804,7 @@ namespace Remains.Runtime
         {
             if(disposed) return;
             automaticStartCancelled=true;enabled=false;StopAllCoroutines();
+            roomPresentation?.Dispose();
             // Stop UI subscriptions before disconnect resets lobby state; children may already be destroyed at exit.
             if(hud!=null) hud.Dispose();
             if(Session!=null) {Session.Changed-=RefreshVisualOrders;Session.Changed-=RefreshVisuals;Session.Changed-=RefreshBodyBindings;Session.GameplayPreparationFailed-=GameplayPreparationFailed;}
@@ -820,7 +824,7 @@ namespace Remains.Runtime
             }
             entryRoom?.Dispose();entryRoom=null;EntryPresentationPrepared=null;
             actorShadows?.Dispose();actorShadows=null;
-            roomPresentation?.Dispose();ActiveLevelLighting?.Release();
+            ActiveLevelLighting?.Release();
             Pickup?.Dispose();MechanismInteraction?.Dispose();
             if(Platforms!=null) {Platforms.TopologyChanged-=ActorBodySupport.InvalidateRoom;Platforms.Dispose();}
             Geometry?.Dispose();

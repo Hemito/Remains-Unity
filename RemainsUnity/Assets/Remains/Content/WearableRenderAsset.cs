@@ -10,10 +10,13 @@ namespace Remains.Content
     {public string id;public WearableRenderFrame[] frames;}
     public sealed class WearableRenderAsset : ScriptableObject
     {
-        public const int Schema=1;
+        public const int Schema=2;
         [SerializeField,HideInInspector] private int schema;
         [SerializeField,HideInInspector] private string visualId,anatomy,sourceHash,baseSourceHash,contentFingerprint;
         [SerializeField,HideInInspector] private WearableRenderClip[] clips;
+        [SerializeField,HideInInspector] private PonyRenderSymbol[] symbols;
+        public PonyRenderSymbol[] Symbols=>symbols;
+        public void ConfigureSymbols(PonyRenderSymbol[] value)=>symbols=value;
         public string VisualId=>visualId;public string Anatomy=>anatomy;public string SourceHash=>sourceHash;
         public string BaseSourceHash=>baseSourceHash;public string ContentFingerprint=>contentFingerprint;
         public WearableRenderClip[] Clips=>clips;
@@ -49,7 +52,7 @@ namespace Remains.Content
                             throw new InvalidOperationException($"Повреждена часть снаряжения: visual={visualId}, clip={clip.id}, frame={f}, path={part?.sourcePath}.");
                         ValidatePath(part.orderPath,visualId+"/"+clip.id+"/"+f+"/"+part.sourcePath);
                         PonyRenderAsset.ValidatePart(part,visualId+"/"+clip.id+"/"+f);
-                        if(!hasBounds) {expectedBounds=part.mesh.bounds;hasBounds=true;}else expectedBounds.Encapsulate(part.mesh.bounds);
+                        if(!hasBounds) {expectedBounds=part.ActorBounds;hasBounds=true;}else expectedBounds.Encapsulate(part.ActorBounds);
                     }
                     if(!hasBounds) throw new InvalidOperationException($"Пустой кадр снаряжения: visual={visualId}, clip={clip.id}, frame={f}.");
                     PonyRenderAsset.ValidateBounds(frame.bounds,expectedBounds,visualId+"/"+clip.id+"/"+f);

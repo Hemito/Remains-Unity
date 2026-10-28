@@ -218,6 +218,8 @@ namespace Remains.Editor
             Invalid(clone=>clone.Configure(clone.VisualId,clone.Anatomy,clone.SourceHash,"stale",clone.ContentFingerprint,clone.Clips),"stale base hash");
             Invalid(clone=>clone.Clips[0].frames[0].parts[0].points[0]+=Vector3.right,"portrait/world vertex mismatch");
             Invalid(clone=>clone.Clips[0].frames[0].parts[0].baseColor=Color.clear,"portrait/world color mismatch");
+            Invalid(clone=>{var part=clone.Clips[0].frames[0].parts[0];var pose=part.symbolPose;pose.position.x=float.NaN;part.symbolPose=pose;},"nonfinite symbol pose");
+            Invalid(clone=>{var part=clone.Clips[0].frames[0].parts[0];var pose=part.symbolPose;pose.scale=Vector3.zero;part.symbolPose=pose;},"singular symbol pose");
             Invalid(clone=>clone.Clips[0].frames[0].bounds=new Bounds(Vector3.zero,new Vector3(float.NaN,1,0)),"nonfinite frame bounds");
             Invalid(clone=>clone.Clips[0].frames[0].bounds=new Bounds(Vector3.zero,new Vector3(10000,10000,0)),"inflated camera bounds");
             Mesh changed=null;

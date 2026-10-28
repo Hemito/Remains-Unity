@@ -19,12 +19,12 @@ namespace Remains.Editor
         {
             PonyRenderCompiler.Build();PonyAnimationData.Load();
             var assets=new List<WearableRenderAsset>();
-            foreach(string name in new[]{"pip","antirad"})
+            foreach(var entry in PonyWearableSourceAuthoring.BuildSources())
             {
-                string resource="Original/Pony/Wearables/"+name;
+                string resource=entry.Resource;
                 var json=GameAssets.Load<TextAsset>(resource);
                 if(json==null) throw new InvalidOperationException("Нет исходного банка снаряжения: "+resource+".");
-                assets.Add(BuildAsset(json.text,"Assets/Remains/Resources/Original/Pony/Wearables/"+name+"-render.asset",resource));
+                assets.Add(BuildAsset(json.text,entry.OutputPath,resource));
             }
             var catalog=AssetDatabase.LoadAssetAtPath<WearableRenderCatalogAsset>(CatalogPath);
             if(catalog==null) {catalog=ScriptableObject.CreateInstance<WearableRenderCatalogAsset>();AssetDatabase.CreateAsset(catalog,CatalogPath);}
@@ -40,6 +40,7 @@ namespace Remains.Editor
         public static WearableRenderAsset BuildAsset(string json,string outputPath,string source)
         {
             PonyAnimationData.Load();var library=PonyAnimationData.Library;
+            var layout=new PonySymbolLayout(library);
             var bank=StateJson.FromJson<WearableSourceBank>(json);
             if(bank==null || bank.schema!=1 || bank.baseSourceHash!=PonyRenderAsset.SourceHash() || string.IsNullOrWhiteSpace(bank.visualId) ||
                 bank.anatomy!="pony" || bank.textures==null || bank.templates==null || bank.clips==null || bank.clips.Length!=library.clips.Length)
@@ -60,6 +61,7 @@ namespace Remains.Editor
                 textures.Add(declaration.key,texture);
             }
             var prepared=new List<WearableRenderClip>();var meshes=new List<Mesh>();var materials=new Dictionary<string,Material>(StringComparer.Ordinal);
+            var symbols=new PonySymbolMeshCompiler(mesh=>{meshes.Add(mesh);return mesh;});
             try
             {
                 var seen=new HashSet<string>(StringComparer.Ordinal);
@@ -108,13 +110,13 @@ namespace Remains.Editor
                                 var matrix=outer*Affine(part.matrix,source+"/"+template.id+"/"+p);
                                 var declared=new PonyPart {bounds=part.bounds,matrix=new[]{matrix.m00,matrix.m10,matrix.m01,matrix.m11,matrix.m03,matrix.m13}};
                                 var points=PonyAnimationData.Quad(declared);var color=outerColor*ColorOf(part.color,source);
-                                var mesh=new Mesh {name=$"wearable:{bank.visualId}:{clip.id}:{f}:{i}:{p}",vertices=points,uv=new[]{Vector2.zero,Vector2.right,Vector2.up,Vector2.one},
-                                    triangles=new[]{0,2,1,2,3,1},colors=new[]{color,color,color,color}};
-                                mesh.RecalculateBounds();meshes.Add(mesh);
+                                var placement=layout.Get(clip.id,f,instance.basePath);
+                                var mesh=symbols.Piece(placement,bank.visualId+":"+template.id+":"+part.path+":"+part.shape+":"+part.hairStyle+":"+part.eyeStyle,points,color);
                                 var path=new int[instance.depthPath.Length+part.depthPath.Length];instance.depthPath.CopyTo(path,0);part.depthPath.CopyTo(path,instance.depthPath.Length);
                                 parts.Add(new PonyRenderPart {mesh=mesh,material=material,slot=part.slot,visible=true,hairStyle=part.hairStyle,eyeStyle=part.eyeStyle,
-                                    sourceIndex=-1,sourcePath=instance.basePath+"/wear:"+template.id+"/"+part.path,sourceShape=part.shape,points=points,baseColor=color,orderPath=path});
-                                if(!hasBounds) {bounds=mesh.bounds;hasBounds=true;}else bounds.Encapsulate(mesh.bounds);
+                                    sourceIndex=-1,sourcePath=instance.basePath+"/wear:"+template.id+"/"+part.path,sourceShape=part.shape,points=points,baseColor=color,orderPath=path,symbolId=placement.Id,symbolPose=placement.Transform});
+                                var actorBounds=parts[parts.Count-1].ActorBounds;
+                                if(!hasBounds) {bounds=actorBounds;hasBounds=true;}else bounds.Encapsulate(actorBounds);
                             }
                         }
                         output.frames[f]=new WearableRenderFrame {parts=parts.ToArray(),hiddenBasePartIndices=hidden.OrderBy(value=>value).ToArray(),baseOrder=orders,bounds=bounds};
@@ -122,7 +124,8 @@ namespace Remains.Editor
                     prepared.Add(output);
                 }
                 string sourceHash=Hash(Encoding.UTF8.GetBytes(json));var candidate=ScriptableObject.CreateInstance<WearableRenderAsset>();
-                candidate.Configure(bank.visualId,bank.anatomy,sourceHash,bank.baseSourceHash,Hash(Encoding.UTF8.GetBytes("wearable-compiler-v1\n"+sourceHash)),prepared.ToArray());
+                candidate.Configure(bank.visualId,bank.anatomy,sourceHash,bank.baseSourceHash,Hash(Encoding.UTF8.GetBytes("wearable-compiler-v2\n"+sourceHash)),prepared.ToArray());
+                candidate.ConfigureSymbols(symbols.Symbols);
                 try {candidate.Validate(library,bank.baseSourceHash,source);} catch {UnityEngine.Object.DestroyImmediate(candidate);throw;}
                 var target=AssetDatabase.LoadAssetAtPath<WearableRenderAsset>(outputPath);
                 if(target==null) {target=candidate;AssetDatabase.CreateAsset(target,outputPath);}else
@@ -138,8 +141,12 @@ namespace Remains.Editor
                     AssetDatabase.AddObjectToAsset(value,target);return value;
                 }
                 var savedMaterials=new Dictionary<Material,Material>();foreach(var material in materials.Values) savedMaterials.Add(material,Save(material));
+                var savedMeshes=new Dictionary<Mesh,Mesh>();foreach(var mesh in meshes) savedMeshes.Add(mesh,Save(mesh));
                 foreach(var clip in target.Clips) foreach(var frame in clip.frames) foreach(var part in frame.parts)
-                {part.mesh=Save(part.mesh);part.material=savedMaterials[part.material];}
+                {part.mesh=savedMeshes[part.mesh];part.material=savedMaterials[part.material];}
+                foreach(var symbol in target.Symbols)for(int m=0;m<symbol.meshes.Length;m++)symbol.meshes[m]=savedMeshes[symbol.meshes[m]];
+                var retained=new HashSet<UnityEngine.Object>(savedMaterials.Values.Cast<UnityEngine.Object>().Concat(savedMeshes.Values));
+                foreach(var previous in saved.Values)if(!retained.Contains(previous))UnityEngine.Object.DestroyImmediate(previous,true);
                 EditorUtility.SetDirty(target);AssetDatabase.SaveAssets();target.Validate(library,bank.baseSourceHash,source);return target;
             }
             catch

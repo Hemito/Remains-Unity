@@ -21,8 +21,8 @@ namespace Remains.Domain
                 if(!string.IsNullOrEmpty(definition.ammo)) InventoryStacks.Add(actor,SharedInventory.Create(definition.ammo,definition.magazineSize*3));
             }
             // Visual equipment for explicitly created characters; existing profiles are not rewritten.
-            InventoryStacks.Add(actor,SharedInventory.Create("armor.pip",1));
-            InventoryStacks.Add(actor,SharedInventory.Create("armor.antirad",1));
+            foreach(var definition in CosmeticCatalog.Current.Definitions)
+                InventoryStacks.Add(actor,SharedInventory.Create(definition.Id,1));
             actor.loadoutVersion=actor.weaponInventoryVersion=1;actor.weaponSelectionRevision=1;
         }
     }

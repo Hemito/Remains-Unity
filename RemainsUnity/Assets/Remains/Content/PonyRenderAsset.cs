@@ -12,20 +12,27 @@ namespace Remains.Content
         public string sourcePath,sourceShape;
         public Vector3[] points;public Color baseColor;
         public int[] orderPath;
+        public string symbolId;
+        public PonyRigTransform symbolPose;
+        public Bounds ActorBounds=>PonyRigDrawPlan.TransformBounds(mesh.bounds,symbolPose.Matrix);
     }
+    [Serializable] public sealed class PonyRenderSymbol {public string id,socket;public Mesh[] meshes;}
     [Serializable] public sealed class PonyRenderFrame {public PonyRenderPart[] parts;public Bounds bounds;}
     [Serializable] public sealed class PonyRenderClip {public string id;public PonyRenderFrame[] frames;}
     [Serializable] public sealed class PonyRenderHeadStyle {public string id;public PonyRenderClip[] clips;}
     public sealed class PonyRenderAsset : ScriptableObject
     {
-        public const int CompilerVersion=4;
+        public const int CompilerVersion=5;
         [SerializeField,HideInInspector] private int compilerVersion;
         [SerializeField,HideInInspector] private string sourceHash;
         [SerializeField,HideInInspector] private PonyRenderClip[] clips;
         [SerializeField,HideInInspector] private string headSourceHash;
         [SerializeField,HideInInspector] private PonyRenderHeadStyle[] headStyles;
+        [SerializeField,HideInInspector] private PonyRenderSymbol[] symbols;
         public PonyRenderClip[] Clips=>clips;
         public PonyRenderHeadStyle[] HeadStyles=>headStyles;
+        public PonyRenderSymbol[] Symbols=>symbols;
+        public void ConfigureSymbols(PonyRenderSymbol[] value)=>symbols=value;
         public static string SourceHash()
         {
             var source=GameAssets.Load<TextAsset>("Original/Pony/pony");
@@ -44,6 +51,13 @@ namespace Remains.Content
             if(compilerVersion!=CompilerVersion || sourceHash!=SourceHash() || headSourceHash!=PonyHeadCatalog.SourceHash || clips==null || clips.Length==0)
                 throw new InvalidOperationException("Графика пони отсутствует или устарела. Выполните Remains → Пересобрать графику пони.");
             var baseline=new Dictionary<string,PonyRenderClip>(StringComparer.Ordinal);
+            if(symbols==null || symbols.Length==0)throw new InvalidOperationException("Нет библиотеки локальных символов пони.");
+            var declared=new Dictionary<string,HashSet<Mesh>>(StringComparer.Ordinal);
+            foreach(var symbol in symbols)
+            {
+                if(symbol==null || string.IsNullOrEmpty(symbol.id) || string.IsNullOrEmpty(symbol.socket) || symbol.meshes==null || symbol.meshes.Length==0 || !declared.TryAdd(symbol.id,new HashSet<Mesh>(symbol.meshes)) || Array.Exists(symbol.meshes,m=>m==null))
+                    throw new InvalidOperationException("Повреждена библиотека символов: "+symbol?.id);
+            }
             foreach(var clip in clips)
             {
                 if(clip==null || string.IsNullOrWhiteSpace(clip.id) || clip.frames==null || clip.frames.Length==0 || baseline.ContainsKey(clip.id))
@@ -53,7 +67,10 @@ namespace Remains.Content
                 {
                     if(frame?.parts==null || frame.parts.Length==0) throw new InvalidOperationException("Пустой базовый кадр пони: "+clip.id+".");
                     foreach(var part in frame.parts)
+                    {
                         ValidatePart(part,"pony/"+clip.id);
+                        if(!declared.TryGetValue(part.symbolId,out var meshes) || !meshes.Contains(part.mesh))throw new InvalidOperationException("Деталь вне библиотеки символов: "+clip.id+"/"+part.sourcePath);
+                    }
                 }
             }
             if(headStyles==null || headStyles.Length!=PonyHeadCatalog.Styles.Count-1)
@@ -86,7 +103,7 @@ namespace Remains.Content
                             replacement.hairStyle!=target.hairStyle || replacement.eyeStyle!=target.eyeStyle || replacement.drawOrder!=target.drawOrder || !replacement.baseColor.Equals(target.baseColor))
                             throw new InvalidOperationException($"Замена головы нарушает базовую привязку/слой: head={style.id}, clip={clip.id}, frame={f}, sourceIndex={replacement?.sourceIndex}.");
                         ValidatePart(replacement,$"head={style.id}/clip={clip.id}/frame={f}");
-                        ValidateBounds(frame.bounds,replacement.mesh.bounds,$"head={style.id}/clip={clip.id}/frame={f}");
+                        ValidateBounds(frame.bounds,replacement.ActorBounds,$"head={style.id}/clip={clip.id}/frame={f}");
                     }
                 }
             }
@@ -97,20 +114,23 @@ namespace Remains.Content
         {
             if(part==null || part.mesh==null || !part.mesh.isReadable || part.material==null || part.material.mainTexture==null ||
                 part.material.shader==null || !part.material.HasProperty("_MainTex") || !part.material.HasProperty("_Color") || !part.material.HasProperty("_Emission") ||
-                part.points==null || part.points.Length!=4 || string.IsNullOrEmpty(part.sourcePath))
+                part.points==null || part.points.Length!=4 || string.IsNullOrEmpty(part.sourcePath) || string.IsNullOrEmpty(part.symbolId))
                 throw new InvalidOperationException($"Повреждена подготовленная графическая часть: context={context}, path={part?.sourcePath}.");
             var vertices=part.mesh.vertices;var uv=part.mesh.uv;var colors=part.mesh.colors;var triangles=part.mesh.triangles;
             if(vertices.Length!=4 || uv.Length!=4 || colors.Length!=4 || triangles.Length!=6 ||
                 triangles[0]!=0 || triangles[1]!=2 || triangles[2]!=1 || triangles[3]!=2 || triangles[4]!=3 || triangles[5]!=1 ||
                 !uv[0].Equals(Vector2.zero) || !uv[1].Equals(Vector2.right) || !uv[2].Equals(Vector2.up) || !uv[3].Equals(Vector2.one))
                 throw new InvalidOperationException($"Не совпадает формат quad/UV: context={context}, path={part.sourcePath}.");
-            var minimum=part.points[0];var maximum=minimum;
+            var matrix=part.symbolPose.Matrix;
+            for(int i=0;i<16;i++)if(!float.IsFinite(matrix[i]))throw new InvalidOperationException($"Неконечная матрица символа: context={context}, path={part.sourcePath}.");
+            if(!float.IsFinite(matrix.determinant) || Math.Abs(matrix.determinant)<1e-10)throw new InvalidOperationException($"Вырожденная матрица символа: context={context}, path={part.sourcePath}.");
+            var minimum=vertices[0];var maximum=minimum;
             for(int i=0;i<4;i++)
             {
                 var point=part.points[i];
-                if(!float.IsFinite(point.x) || !float.IsFinite(point.y) || point.z!=0 || !vertices[i].Equals(point) || !colors[i].Equals(part.baseColor))
+                if(!float.IsFinite(point.x) || !float.IsFinite(point.y) || point.z!=0 || !float.IsFinite(vertices[i].x) || !float.IsFinite(vertices[i].y) || vertices[i].z!=0 || Vector3.Distance(matrix.MultiplyPoint3x4(vertices[i]),point)>.00001f || !colors[i].Equals(part.baseColor))
                     throw new InvalidOperationException($"Мир/портрет расходятся по вершине или цвету: context={context}, path={part.sourcePath}, point={i}.");
-                minimum=Vector3.Min(minimum,point);maximum=Vector3.Max(maximum,point);
+                minimum=Vector3.Min(minimum,vertices[i]);maximum=Vector3.Max(maximum,vertices[i]);
             }
             if(!float.IsFinite(part.baseColor.r) || !float.IsFinite(part.baseColor.g) || !float.IsFinite(part.baseColor.b) || !float.IsFinite(part.baseColor.a))
                 throw new InvalidOperationException($"Неконечный цвет части: context={context}, path={part.sourcePath}.");

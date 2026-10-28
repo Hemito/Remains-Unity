@@ -120,7 +120,7 @@ namespace Remains.Runtime
         private void Changed()=>changedAt=Time.frameCount;
         private bool Settled=>Actor!=null && Actor.level=="hub" && !runtime.IsLevelPreparing && runtime.LevelPresentationReady &&
             !runtime.Hud.RoomPresentationPending && !runtime.Session.Travel.Pending && !runtime.Session.Pause.IsPaused("hub") &&
-            runtime.ActiveRoomLighting is {IsReady:true,IsUpdating:false};
+            runtime.CurrentLevelLighting is {IsReady:true,IsUpdating:false};
         private void Begin(Start value)
         {
             Require(!begun && value?.world==runtime.Session.World.worldId && value.reload==Reload && value.actors?.Length==runtime.Options.ProbePeers,
@@ -196,7 +196,7 @@ namespace Remains.Runtime
             if(!readySent && Settled && Standing(Actor) && ActorBodySupport.Sample(Actor).Grounded &&
                 runtime.Session.World.actors.Count(a=>a.player && a.connected)==runtime.Options.ProbePeers)
             {
-                Require(WorldRooms.Definition(runtime.Session.World,"factory:0")==LegacyFactoryFixture.DefinitionId,"Нужен исторический мир со старым собранным заводом (LegacyFactoryFixture).");
+                // The actual hub wardrobe contract does not depend on the factory generator/version.
                 readySent=true;NetworkClient.Send(new CosmeticProbeReady {actor=Actor.id,world=runtime.Session.World.worldId});
             }
             if(NetworkServer.active && !beginSent && readyPeers.Count==runtime.Options.ProbePeers)
@@ -241,16 +241,19 @@ namespace Remains.Runtime
             Require(runtime.Hud.InventoryOpen,"Личное окно не открылось.");
             yield return UiPointerProbe.Click(runtime.Hud.PersonalCategoryRect(InventoryCategory.Armor));
             string definition=phase<=2?"armor.pip":"armor.antirad";
-            var choices=Actor.inventory.Where(item=>CosmeticEquipment.IsWearable(item)).ToArray();int row=Array.FindIndex(choices,item=>item.definition==definition);
-            Require(row>=0 && row<runtime.Hud.PersonalPageSize && runtime.Hud.PersonalFirstVisibleRow==0,"Комплект отсутствует на первой реальной странице Armor.");
+            var choices=Actor.inventory.Where(item=>CosmeticEquipment.IsWearable(item)).ToArray();int absolute=Array.FindIndex(choices,item=>item.definition==definition);
+            Require(absolute>=0,"Комплект отсутствует в настоящем инвентаре Armor.");
+            while(absolute<runtime.Hud.PersonalFirstVisibleRow)yield return UiPointerProbe.Click(runtime.Hud.PersonalPreviousRect);
+            while(absolute>=runtime.Hud.PersonalFirstVisibleRow+runtime.Hud.PersonalPageSize)yield return UiPointerProbe.Click(runtime.Hud.PersonalNextRect);
+            int row=absolute-runtime.Hud.PersonalFirstVisibleRow;
             string before=StateJson.ToJson(Actor.cosmeticEquipment);
             yield return UiPointerProbe.Click(runtime.Hud.DepositRowRect(row));
-            Require(runtime.Hud.PersonalSelectedItemId==choices[row].id && StateJson.ToJson(Actor.cosmeticEquipment)==before,"Выбор строки сам надел комплект.");
+            Require(runtime.Hud.PersonalSelectedItemId==choices[absolute].id && StateJson.ToJson(Actor.cosmeticEquipment)==before,"Выбор строки сам надел комплект.");
             if(phase==2)
             {
                 repeatEquipment=StateJson.ToJson(Actor.cosmeticEquipment);
                 yield return UiPointerProbe.Click(runtime.Hud.InventoryWeaponRect(8));shortcutAssignments++;
-                Require(ItemShortcuts.Get(Actor,"9")?.id==choices[row].id && StateJson.ToJson(Actor.cosmeticEquipment)==repeatEquipment,"Назначение изменило одежду либо потеряло stable stack ID.");
+                Require(ItemShortcuts.Get(Actor,"9")?.id==choices[absolute].id && StateJson.ToJson(Actor.cosmeticEquipment)==repeatEquipment,"Назначение изменило одежду либо потеряло stable stack ID.");
                 runtime.Hud.ToggleInventory();Require(!runtime.Hud.InventoryOpen,"Окно блокирует обычную быструю клавишу.");yield break;
             }
             var use=runtime.Hud.UseItemRect.GetComponent<Button>();string caption=phase==6?"Снять":"Надеть";
@@ -283,7 +286,7 @@ namespace Remains.Runtime
             var plan=view.CurrentDrawPlan;string expectedDefinition=ExpectedDefinition(phase);bool clothed=expectedDefinition!=null;
             if(plan.HasEquipment!=clothed || plan.VisualIds.Count!=(clothed?1:0)) return false;
             if(clothed && plan.VisualIds[0]!=CosmeticCatalog.Current.Get(expectedDefinition).Visual) return false;
-            var parts=clothed?plan.Frames(view.DrawnClip)[view.DrawnFrame]:PonyRenderSelection.Frames(PonyAppearance.Snapshot(actor),view.DrawnClip)[view.DrawnFrame];
+            var parts=clothed?plan.Frames(view.DrawnClip,view.DrawnEyeClosed)[view.DrawnFrame]:PonyRenderSelection.Frames(PonyAppearance.Snapshot(actor),view.DrawnClip,view.DrawnEyeClosed)[view.DrawnFrame];
             var rendered=view.GetComponentsInChildren<MeshRenderer>(true).Where(r=>r.enabled && !r.forceRenderingOff && r.gameObject.activeInHierarchy).OrderBy(r=>r.sortingOrder).ToArray();
             if(rendered.Length!=parts.Length || view.DrawnPartCount!=parts.Length) return false;
             for(int i=0;i<parts.Length;i++) if(rendered[i].GetComponent<MeshFilter>()?.sharedMesh!=parts[i].mesh || rendered[i].sharedMaterial!=parts[i].material ||

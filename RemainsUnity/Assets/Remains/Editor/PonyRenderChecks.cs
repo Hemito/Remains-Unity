@@ -26,7 +26,7 @@ namespace Remains.Editor
                         if(!AssetDatabase.Contains(part.mesh) || !AssetDatabase.Contains(part.material) || saved.Length!=4 || part.slot!=parts[p].slot || part.visible==parts[p].path.StartsWith("pip2/") ||
                             part.hairStyle!=parts[p].hairStyle || part.eyeStyle!=parts[p].eyeStyle || part.drawOrder!=parts[p].drawOrder)
                             throw new InvalidOperationException($"Некорректная сохранённая часть: {actual.id}:{f}:{p}.");
-                        for(int v=0;v<4;v++) if(Vector3.Distance(saved[v],vertices[v])>.000001f)
+                        for(int v=0;v<4;v++) if(Vector3.Distance(part.symbolPose.Matrix.MultiplyPoint3x4(saved[v]),vertices[v])>.00001f)
                             throw new InvalidOperationException($"Сместилась геометрия: {actual.id}:{f}:{p}:{v}.");
                         count++;
                     }

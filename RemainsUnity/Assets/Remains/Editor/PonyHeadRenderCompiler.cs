@@ -11,8 +11,8 @@ namespace Remains.Editor
     // original head. Raster resolution never determines the character's size.
     public static class PonyHeadRenderCompiler
     {
-        public static PonyRenderHeadStyle[] Compile(PonyLibrary library,
-            Func<Mesh,Mesh> saveMesh,Func<Material,Material> saveMaterial)
+        public static PonyRenderHeadStyle[] Compile(PonyLibrary library,PonySymbolLayout layout,
+            PonySymbolMeshCompiler symbols,Func<Material,Material> saveMaterial)
         {
             var styles=new List<PonyRenderHeadStyle>();
             PonyHeadCatalog.Load();
@@ -40,14 +40,12 @@ namespace Remains.Editor
                         var geometry=new PonyPart {bounds=definition.bounds,matrix=source.matrix};
                         var points=PonyAnimationData.Quad(geometry);
                         var tint=new Color(source.color[0],source.color[1],source.color[2],source.color[3]);
-                        var mesh=new Mesh {name=$"head-mesh:{definition.id}:{clip.id}:{f}",vertices=points,
-                            uv=new[]{Vector2.zero,Vector2.right,Vector2.up,Vector2.one},
-                            triangles=new[]{0,2,1,2,3,1},colors=new[]{tint,tint,tint,tint}};
-                        mesh.RecalculateBounds();mesh=saveMesh(mesh);
+                        var placement=layout.Get(clip.id,f,"head");
+                        var mesh=symbols.Piece(placement,"head-style:"+definition.id,points,tint);
                         var replacement=new PonyRenderPart {mesh=mesh,material=material,slot=source.slot,visible=true,
                             hairStyle=source.hairStyle,eyeStyle=source.eyeStyle,drawOrder=source.drawOrder,sourceIndex=index,
-                            sourcePath=source.path,sourceShape=source.shape,points=points,baseColor=tint};
-                        clip.frames[f]=new PonyRenderFrame {parts=new[]{replacement},bounds=mesh.bounds};
+                            sourcePath=source.path,sourceShape=source.shape,points=points,baseColor=tint,symbolId=placement.Id,symbolPose=placement.Transform};
+                        clip.frames[f]=new PonyRenderFrame {parts=new[]{replacement},bounds=replacement.ActorBounds};
                     }
                     clips[c]=clip;
                 }
