@@ -56,16 +56,21 @@ namespace Remains.Editor
                 FactoryContentSources.Prepare(world,"factory:0");
                 var room=FactoryContentSources.Require(world,"factory:0");
                 var root=room.GetComponent<FactoryLevelRoot>();
-                int expected=root.Objects.Count(o=>o.Source.Type.StartsWith("remains:obj:",StringComparison.Ordinal) &&
+                int explicitCount=root.Objects.Count(o=>o.Source.Type.StartsWith("remains:obj:",StringComparison.Ordinal) &&
                     catalog.TryObject(o.Source.Type.Substring("remains:obj:".Length),out _));
+                // Random room enemies (v5) of the connected creatures, as the plan places them.
+                var random=new System.Collections.Generic.HashSet<string>(FactoryRandomEncounters.Plan(root).Where(e=>!e.Hidden && catalog.TryObject(e.Unit,out _))
+                    .Select(e=>"factory:0:"+e.LocalId),StringComparer.Ordinal);
+                int expected=explicitCount+random.Count;
                 var batch=RoomContentBatch.Read(room,"factory:0");
                 Require(batch.npcs!=null && batch.npcs.actors.Length==expected && expected>0,$"на заводе {batch.npcs?.actors.Length} существ из {expected}");
                 Require(RoomContentInstaller.Apply(world,batch),"первая установка");
                 int installed=world.actors.Count(a=>catalog.Creatures.Any(c=>c.actorType==a.actorType));
                 Require(installed==expected && !RoomContentInstaller.Apply(world,batch),"повторная установка");
                 // A world that installed an earlier placement version gets only what it lacks.
-                bool V3(ActorState a)=>a.actorType=="bloodwing" || a.actorType=="slime" || a.actorType.StartsWith("bloat",StringComparison.Ordinal);
-                bool V2(ActorState a)=>a.actorType.StartsWith("scorp",StringComparison.Ordinal);
+                bool V5(ActorState a)=>random.Contains(a.id);
+                bool V3(ActorState a)=>!V5(a) && (a.actorType=="bloodwing" || a.actorType=="slime" || a.actorType.StartsWith("bloat",StringComparison.Ordinal));
+                bool V2(ActorState a)=>!V5(a) && a.actorType.StartsWith("scorp",StringComparison.Ordinal);
                 void Upgrade(string patch,Func<ActorState,bool> missing,string what)
                 {
                     var older=StateJson.Copy(world);
@@ -74,10 +79,12 @@ namespace Remains.Editor
                     int kept=older.actors.Count;
                     Require(lacking>0 && RoomContentInstaller.Apply(older,batch) && older.actors.Count==kept+lacking && older.actors.Count(a=>missing(a))==lacking,what);
                 }
-                bool V4(ActorState a)=>a.actorType.StartsWith("turret",StringComparison.Ordinal);
-                Upgrade("base:factory-generated:creatures-v3",V4,"переход v3 → v4 добавляет только турели");
-                Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a),"переход v2 → v4 добавляет летунов, слизь и турели");
-                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a) || V4(a),"переход v1 → v4 добавляет скорпионов, летунов, слизь и турели");
+                bool V4(ActorState a)=>!V5(a) && a.actorType.StartsWith("turret",StringComparison.Ordinal);
+                Require(random.Count>0 && random.All(id=>world.actors.Any(a=>a.id==id)),"случайные враги комнат установлены");
+                Upgrade("base:factory-generated:creatures-v4",V5,"переход v4 → v5 добавляет только случайных врагов комнат");
+                Upgrade("base:factory-generated:creatures-v3",a=>V4(a) || V5(a),"переход v3 → v5 добавляет турели и случайных врагов");
+                Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a) || V5(a),"переход v2 → v5 добавляет летунов, слизь, турели и случайных врагов");
+                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a) || V4(a) || V5(a),"переход v1 → v5 добавляет скорпионов, летунов, слизь, турели и случайных врагов");
                 Behaviours(world,room.CreateLayout(false));
                 string saved=StateJson.ToJson(world);
                 Require(StateJson.ToJson(StateJson.FromJson<WorldState>(saved))==saved,"сохранение мира с существами");

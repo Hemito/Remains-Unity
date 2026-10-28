@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Remains.Domain;
 using UnityEngine;
 
 namespace Remains.Content
@@ -16,8 +17,12 @@ namespace Remains.Content
             ("base:factory-generated:creatures-v1",new[]{"tarakan","rat","molerat"}),
             ("base:factory-generated:creatures-v2",new[]{"scorp"}),
             ("base:factory-generated:creatures-v3",new[]{"bloodwing","bloat","slime"}),
-            ("base:factory-generated:creatures-v4",new[]{"turret","landturret","armturret"})
+            ("base:factory-generated:creatures-v4",new[]{"turret","landturret","armturret"}),
+            // Random enemies of the rooms (FactoryRandomEncounters) of the creatures already connected.
+            ("base:factory-generated:creatures-v5",RandomKeys("tarakan","rat","molerat","scorp","bloodwing","bloat","slime","turret","landturret"))
         };
+        private const string RandomPrefix="random:";
+        private static string[] RandomKeys(params string[] objects)=>objects.Select(o=>RandomPrefix+o).ToArray();
         public static string Patch=>versions[^1].patch;
         public static string PreviousPatch=>versions[^2].patch;
         private const string ObjectPrefix="remains:obj:";
@@ -54,12 +59,38 @@ namespace Remains.Content
                 ids.Add(localId);
                 count++;
             }
+            var randomGaps=new Dictionary<string,int>(StringComparer.Ordinal);int random=0;
+            foreach(var encounter in FactoryRandomEncounters.Plan(root))
+            {
+                string key=RandomPrefix+encounter.Unit;
+                if(encounter.Hidden || !catalog.TryObject(encounter.Unit,out var rule) || !versions.Any(v=>v.objects.Contains(key)))
+                {
+                    string reason=encounter.Hidden?"скрытый враг, поведение закопанного/клетки ещё не реализовано":
+                        encounter.Kind==RandomEncounterRules.Trap?"случайная ловушка, расстановка ловушек на точках lov ещё не подключена":
+                        catalog.GapReason(encounter.Unit)??"нет в каталоге существ";
+                    string gap=$"{encounter.Unit} ({reason})";randomGaps[gap]=randomGaps.TryGetValue(gap,out int seen)?seen+1:1;
+                    continue;
+                }
+                string localId=encounter.LocalId;
+                var node=new GameObject("Случайное существо: "+encounter.Point.Id);
+                node.transform.SetParent(root.transform,false);node.transform.localPosition=encounter.Point.Position;
+                int hash=localId.Aggregate(0,(value,c)=>unchecked(value*31+c));
+                var creature=catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
+                var marker=node.AddComponent<RoomActorPlacement>();marker.Configure(localId,creature.actorType,(hash&1)==0?1:-1,false,null);marker.SetSpawn(creature.spawn);
+                if(!added.TryGetValue(key,out var ids)) added.Add(key,ids=new List<string>());
+                ids.Add(localId);
+                count++;random++;
+            }
             var unknown=added.Keys.Where(o=>!versions.Any(v=>v.objects.Contains(o))).ToArray();
             if(unknown.Length>0) throw new InvalidOperationException("Существа завода: объекты без версии расстановки: "+string.Join(", ",unknown));
             string[] Since(int version)=>versions.Skip(version+1).SelectMany(v=>v.objects).Where(added.ContainsKey).SelectMany(o=>added[o]).ToArray();
             var content=root.gameObject.AddComponent<RoomNpcContent>();content.Configure(Patch);
             content.ConfigureExpansion(new ContentExpansion {previousPatch=versions[^2].patch,additions=Since(versions.Length-2),
                 earlierVersions=Enumerable.Range(0,versions.Length-2).Reverse().Select(v=>new ContentExpansionStep {previousPatch=versions[v].patch,additions=Since(v)}).ToArray()});
+            Debug.Log($"Завод {root.Prepared.Physics.id}: случайных существ поставлено {random}.");
+            if(randomGaps.Count>0)
+                Debug.LogWarning($"Завод {root.Prepared.Physics.id}: случайные враги комнат по плану оригинала ещё не ставятся — "+
+                    string.Join("; ",randomGaps.OrderBy(g=>g.Key,StringComparer.Ordinal).Select(g=>$"{g.Key} ×{g.Value}"))+".");
             if(gaps.Count>0)
                 Debug.LogWarning($"Завод {root.Prepared.Physics.id}: существа ещё не подключены и не поставлены — "+
                     string.Join("; ",gaps.OrderBy(g=>g.Key,StringComparer.Ordinal).Select(g=>$"{g.Key} ×{g.Value} ({catalog.GapReason(g.Key)})"))+".");
