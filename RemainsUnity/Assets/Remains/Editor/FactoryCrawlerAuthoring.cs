@@ -49,6 +49,7 @@ namespace Remains.Editor
             var data=Remains.Serialization.StateJson.FromJson<Source>(File.ReadAllText(System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../../Tools/Research/crawler_resources.json"))));
             if(data?.actor?.id!="radroach" || data.health!=8 || data.atlas?.width!=480 || data.atlas.height!=30)
                 throw new InvalidOperationException("Не подтверждён выбранный ресурс/вид радтаракана.");
+            data.actor.naturalAttack.damageType=DamageTypes.FromOriginal(14); // tarakan comb@tipdam in own 1.04 source.
             Preflight();
             string anatomyPath=System.IO.Path.Combine(Application.dataPath,"Remains/Resources/Content/anatomy.json");
             var anatomyJson=JObject.Parse(File.ReadAllText(anatomyPath));

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   definition:
     id: damexpl1-blast
+    damageType: explosion
     damage: 116.666664
     speedDamage: 0
     maxSpeedDamage: 0
@@ -27,6 +28,7 @@ MonoBehaviour:
     projectileSpeed: 0
     projectileSpeedVariation: 0
     projectileLifetime: 0
+    rechargeSeconds: 0
     shotSpreadHalfAngleDegrees: 0
     recoil:
       version: 1
@@ -68,6 +70,8 @@ MonoBehaviour:
       climbingRadius: 0
     stopAtFirstActor: 0
     stopAtTerrain: 0
+    pellets: 0
+    unlimitedReserve: 0
   presentation: {fileID: 0}
   shotAnimation: {fileID: 0}
   muzzleFlashGain: 1

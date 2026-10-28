@@ -47,7 +47,7 @@ namespace Remains.Editor
             public void Damage(float amount,bool observe=true)
             {
                 var receiver=new DamageReceiver(new FixedDamage(amount));
-                Require(receiver.Apply(Local,new AttackEvent {id="damage:"+Local.damageSequence,attacker="enemy",level=Local.level,weapon="check"},true),"Fixture damage не применён.");
+                Require(receiver.Apply(Local,new AttackEvent {id="damage:"+Local.damageSequence,attacker="enemy",level=Local.level,weapon="pistol"},true),"Fixture damage не применён.");
                 if(observe) Tracker.Observe(WorldId,Local); // Production PublishActor observes immediately after real DamageReceiver.
             }
         }

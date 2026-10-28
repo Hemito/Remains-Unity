@@ -60,7 +60,7 @@ namespace Remains.Editor
             foreach(var aim in new[]{Vector2.zero,new Vector2(float.NaN,1),new Vector2(float.MaxValue,1)})
                 Reject(()=>RangedShotDirection.Select(aim,2.5f,.5f),"Принято некорректное направление.");
             string emptyMods=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/tests/no-spread-mods"));
-            WeaponDefinition Profile(float width,float speed=90)=>new() {id="custom-cone",range=20,cooldown=1,projectileSpeed=speed,shotSpreadHalfAngleDegrees=width};
+            WeaponDefinition Profile(float width,float speed=90)=>new() {id="custom-cone",damageType=DamageTypes.Bullet,range=20,cooldown=1,projectileSpeed=speed,shotSpreadHalfAngleDegrees=width};
             LoadedWeaponCatalog Load(WeaponDefinition definition)=>WeaponCatalogLoader.Load(StateJson.ToJson(new WeaponList {weapons=new[]{definition}}),emptyMods);
             Require(Load(Profile(17)).definitions["custom-cone"].shotSpreadHalfAngleDegrees==17,"Мод не сохранил собственный профиль.");
             Require(Load(Profile(0,0)).definitions["custom-cone"].shotSpreadHalfAngleDegrees==0,"Нулевой профиль неприменимого оружия отклонён.");

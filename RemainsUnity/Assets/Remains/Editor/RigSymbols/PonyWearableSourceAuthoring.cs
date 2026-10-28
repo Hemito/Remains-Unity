@@ -120,7 +120,7 @@ namespace Remains.Editor
                 else if((string)existing["slot"]!="armor.body" || (string)existing["visual"]!="pony.armor."+source.Id || (string)existing["anatomy"]!="pony")
                     throw new InvalidDataException("Одежда: конфликт существующего определения "+id);
                 if(!stringRows.OfType<JObject>().Any(r=>(string)r["id"]==id))stringRows.Add(new JObject {["id"]=id,["name"]=names[source.Id],
-                    ["description"]="Визуальный комплект. Защита, специальные способности и износ пока не подключены."});
+                    ["description"]="Нательный комплект снаряжения."});
             }
             WriteJson(cosmetic,catalog);WriteJson(text,strings);
         }

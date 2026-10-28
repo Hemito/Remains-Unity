@@ -77,7 +77,7 @@ namespace Remains.Editor
                 {
                     definition.biteWeapon=id+"-bite";
                     definition.snapSound=Sound(sounds,"trap_a",id);definition.rearmSound=Sound(sounds,"trap_reload",id);
-                    MineContentAuthoring.Store(new WeaponDefinition {id=definition.biteWeapon,damage=Num(comb,"damage"),range=definition.width,
+                    MineContentAuthoring.Store(new WeaponDefinition {id=definition.biteWeapon,damageType=DamageTypes.FromOriginal((int)Num(comb,"tipdam",2)),damage=Num(comb,"damage"),range=definition.width,
                         cooldown=1,holdingArea=new HoldingArea(),stopAtFirstActor=true},list);
                     audio.Add(new JObject {["weapon"]=definition.biteWeapon,["clip"]=AudioClipSource.ExportedPrefix+definition.snapSound,["kind"]="melee",["minGain"]=1,["maxGain"]=1});
                 }
@@ -85,7 +85,7 @@ namespace Remains.Editor
                 {
                     definition.blastWeapon=id+"-blast";definition.disarmItem=ChargeLoot;definition.disarmCount=ChargeLootCount;
                     exported.CreateFormalItem(ChargeLoot,0,1);
-                    MineContentAuthoring.Store(new WeaponDefinition {id=definition.blastWeapon,explosive=true,damage=ChargeBlastDamage*damageScale,
+                    MineContentAuthoring.Store(new WeaponDefinition {id=definition.blastWeapon,damageType=DamageTypes.FromOriginal(4),explosive=true,damage=ChargeBlastDamage*damageScale,
                         range=ChargeBlastRadius*radiusScale,cooldown=1,holdingArea=new HoldingArea()},list);
                     audio.Add(new JObject {["weapon"]=definition.blastWeapon,["clip"]="grenade-explosion",["kind"]="explosion",["minGain"]=1,["maxGain"]=1});
                 }

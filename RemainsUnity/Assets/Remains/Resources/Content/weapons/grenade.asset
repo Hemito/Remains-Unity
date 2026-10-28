@@ -14,10 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   definition:
     id: grenade
-    holdingArea:
-      version: 1
-      radius: 1
-      climbingRadius: 1
+    damageType: explosion
     damage: 70
     speedDamage: 0
     maxSpeedDamage: 0
@@ -31,7 +28,30 @@ MonoBehaviour:
     projectileSpeed: 0
     projectileSpeedVariation: 0
     projectileLifetime: 0
+    rechargeSeconds: 0
+    shotSpreadHalfAngleDegrees: 0
+    recoil:
+      version: 1
+      enabled: 0
+      horizontalPeak: 0
+      anglePeakDegrees: 0
+      riseSeconds: 0
+      positionReturnSeconds: 0
+      angleReturnSeconds: 0
+      maxHorizontal: 0
+      maxAngleDegrees: 0
     explosive: 1
+    mine:
+      sensitivity: 0
+      delaySeconds: 0
+      visibility: 0
+      width: 0
+      height: 0
+      mass: 0
+      artwork: 
+      beepSound: 
+      defuseSound: 
+      placeSound: 
     grenadeFuseSeconds: 2.5
     grenadeRestitution: 0.4
     grenadeGroundRetention: 0.6
@@ -44,8 +64,17 @@ MonoBehaviour:
     meleeContactStart: 0
     meleeContactEnd: 1
     meleeMotion: []
+    holdingArea:
+      version: 1
+      radius: 1
+      climbingRadius: 1
     stopAtFirstActor: 0
     stopAtTerrain: 0
+    pellets: 0
+    unlimitedReserve: 0
   presentation: {fileID: 8386519986987966287, guid: 40ffc547c594cbd43bb47a77596272ac, type: 3}
   shotAnimation: {fileID: 0}
+  muzzleFlashGain: 1
+  reloadAnimation: {fileID: 0}
+  casingProfile: {fileID: 0}
   grenadeFlight: {fileID: 4849672163484143716, guid: 72c168b031e5c36458c74cccc16972c4, type: 3}

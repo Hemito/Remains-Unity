@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
 using Remains.Content;
+using Remains.Domain;
 using UnityEditor;
 using UnityEngine;
 
@@ -42,7 +43,7 @@ namespace Remains.Editor
                     throw new InvalidOperationException($"Мина {id}: тип урона {Number(character,"tipdam")} не совпадает с гранатой; нужен свой тип урона.");
                 var definition=new WeaponDefinition
                 {
-                    id=id,explosive=true,damage=Number(character,"damexpl")*damageScale,range=Number(character,"expl")*radiusScale,
+                    id=id,damageType=DamageTypes.FromOriginal((int)Number(character,"tipdam")),explosive=true,damage=Number(character,"damexpl")*damageScale,range=Number(character,"expl")*radiusScale,
                     cooldown=Number(character,"rapid")/FramesPerSecond,holdingArea=new HoldingArea(),
                     mine=new MineProfile
                     {

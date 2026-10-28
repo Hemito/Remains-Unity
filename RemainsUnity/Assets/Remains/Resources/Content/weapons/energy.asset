@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   definition:
     id: energy
+    damageType: laser
     damage: 8
     speedDamage: 0
     maxSpeedDamage: 0
@@ -27,6 +28,7 @@ MonoBehaviour:
     projectileSpeed: 1200
     projectileSpeedVariation: 0.2
     projectileLifetime: 3.3333333
+    rechargeSeconds: 0
     shotSpreadHalfAngleDegrees: 2.5
     recoil:
       version: 1
@@ -38,6 +40,18 @@ MonoBehaviour:
       angleReturnSeconds: 0.3
       maxHorizontal: 0.08
       maxAngleDegrees: 5
+    explosive: 0
+    mine:
+      sensitivity: 0
+      delaySeconds: 0
+      visibility: 0
+      width: 0
+      height: 0
+      mass: 0
+      artwork: 
+      beepSound: 
+      defuseSound: 
+      placeSound: 
     grenadeFuseSeconds: 0
     grenadeRestitution: 0
     grenadeGroundRetention: 0
@@ -56,8 +70,11 @@ MonoBehaviour:
       climbingRadius: 0
     stopAtFirstActor: 1
     stopAtTerrain: 1
+    pellets: 0
+    unlimitedReserve: 0
   presentation: {fileID: 3058403632260883455, guid: 8b1dc954b82116b43b3fbb803dc9e739, type: 3}
   shotAnimation: {fileID: 11400000, guid: c372e1e4f5ad41449a359db341bbb591, type: 2}
+  muzzleFlashGain: 1
   reloadAnimation: {fileID: 11400000, guid: ec253bd666f7671449d2a81b8a8f5f4e, type: 2}
   casingProfile: {fileID: 0}
   grenadeFlight: {fileID: 0}

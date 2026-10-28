@@ -34,7 +34,7 @@ MonoBehaviour:
       eyeHeight: 0.40200004
       targetHeight: 0.25
     naturalAttack:
-      rid: 5813030449621237776
+      rid: 5813030663174488072
     behavior: slime
     motion:
       walkSpeed: 0.9
@@ -61,9 +61,10 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 5813030449621237776
+    - rid: 5813030663174488072
       type: {class: NaturalAttackDefinition, ns: Remains.Domain, asm: Assembly-CSharp}
       data:
+        damageType: acid
         approachSpeed: 0.9
         beginDistance: 0.8
         verticalDistance: 1.6

@@ -17,10 +17,10 @@ namespace Remains.Content
     }
     public static class WeaponCatalogLoader
     {
-        public static LoadedWeaponCatalog Load(string baseJson,string modRoot)
+        public static LoadedWeaponCatalog Load(string baseJson,string modRoot,bool deferDamageTypeReferences=false)
         {
             var result=new LoadedWeaponCatalog();var sources=new Dictionary<string,string>();
-            Apply(result,sources,baseJson,"base",Array.Empty<WeaponOverride>());
+            Apply(result,sources,baseJson,"base",Array.Empty<WeaponOverride>(),deferDamageTypeReferences);
             result.manifest.packs.Add(new ContentPackRecord {id="base",version="prototype-content-v2",fingerprint=Hash(baseJson),dependencies=Array.Empty<string>()});
             string root=Path.GetFullPath(modRoot),orderPath=Path.Combine(root,"load-order.json");
             var signature=new StringBuilder("prototype-content-v2").Append(baseJson);
@@ -49,7 +49,7 @@ namespace Remains.Content
                                 throw new InvalidDataException($"Требуется более ранняя загрузка зависимости {dependency}.");
                         string path=Path.Combine(directory,"weapons.json");
                         string data=File.Exists(path)?File.ReadAllText(path):"{\"weapons\":[]}";
-                        Apply(result,sources,data,source,manifest.weaponOverrides??Array.Empty<WeaponOverride>());
+                        Apply(result,sources,data,source,manifest.weaponOverrides??Array.Empty<WeaponOverride>(),deferDamageTypeReferences);
                         string codeHash="";
                         string cosmeticSignature="";
                         if(manifest.cosmetics!=null)
@@ -112,7 +112,7 @@ namespace Remains.Content
                 throw new InvalidDataException("Файл "+field+" находится вне папки мода: "+path);
             return absolute;
         }
-        private static void Apply(LoadedWeaponCatalog result,Dictionary<string,string> sources,string json,string source,WeaponOverride[] declarations)
+        private static void Apply(LoadedWeaponCatalog result,Dictionary<string,string> sources,string json,string source,WeaponOverride[] declarations,bool deferDamageTypeReferences)
         {
             var overrides=new Dictionary<string,string>();
             foreach(var declaration in declarations)
@@ -125,7 +125,7 @@ namespace Remains.Content
             {
                 if(weapon==null || string.IsNullOrWhiteSpace(weapon.id) || !seen.Add(weapon.id))
                     throw new InvalidDataException($"Пустое/повторное определение оружия в одном пакете: источник={source}, id={weapon?.id}.");
-                Validate(weapon,source);
+                Validate(weapon,source,deferDamageTypeReferences);
                 if(sources.TryGetValue(weapon.id,out string previous))
                 {
                     if(!overrides.TryGetValue(weapon.id,out string expected) || expected!=previous)
@@ -137,8 +137,16 @@ namespace Remains.Content
             }
             foreach(var id in overrides.Keys) throw new InvalidDataException($"Объявленная замена не содержит определения: мод={source}, id={id}.");
         }
-        internal static void Validate(WeaponDefinition weapon,string source)
+        public static void Validate(WeaponDefinition weapon,string source,bool deferDamageTypeReferences=false)
         {
+            try
+            {
+                if(string.IsNullOrWhiteSpace(weapon.damageType) || weapon.damageType!=weapon.damageType.Trim())
+                    throw new InvalidOperationException("Не указан корректный ID типа урона.");
+                if(!deferDamageTypeReferences) Remains.Domain.DamageTypes.Validate(weapon.damageType);
+            }
+            catch(InvalidOperationException error)
+            {throw new InvalidDataException($"Некорректный тип урона: источник={source}, weapon={weapon.id}, damageType={weapon.damageType}. "+error.Message,error);}
             WeaponRecoilProfile.ValidateForWeapon(weapon,$"источник={source}");
             bool usesHoldingArea=weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar" or "grenade";
             if(usesHoldingArea) weapon.holdingArea.Validate($"источник={source}, weapon={weapon.id}");

@@ -186,10 +186,10 @@ namespace Remains.Editor
                     memorySeconds=4,hearingDistance=vision*1000/PixelsPerMetre,eyeHeight=height*.67f,targetHeight=.25f},
                 naturalAttack=source.family==NpcCreatureBehaviours.Crawler
                     // Bite geometry scaled from the crawler family (CRAWLER_SPEC, radroach); damage and speed are AllData.
-                    ?new NaturalAttackDefinition {approachSpeed=run,beginDistance=width*1.5f,verticalDistance=Mathf.Max(.65f,height*2.2f),
+                    ?new NaturalAttackDefinition {damageType=DamageTypes.FromOriginal((int)Num(comb,"tipdam",2)),approachSpeed=run,beginDistance=width*1.5f,verticalDistance=Mathf.Max(.65f,height*2.2f),
                         preparationSeconds=.3f,recoverySeconds=1,damage=damage,originX=width*.33f,originY=height*.53f,reach=width*1.25f,radius=Mathf.Max(.08f,height*.4f)}
                     // Touch (attKorp → udarUnit): no preparation; the pause is the victim's 30-frame window between touches.
-                    :new NaturalAttackDefinition {approachSpeed=walk,beginDistance=width*.5f+.4f,verticalDistance=height+1f,
+                    :new NaturalAttackDefinition {damageType=DamageTypes.FromOriginal((int)Num(comb,"tipdam",2)),approachSpeed=walk,beginDistance=width*.5f+.4f,verticalDistance=height+1f,
                         preparationSeconds=0,recoverySeconds=1,damage=damage,originX=0,originY=height*.5f,reach=width*.5f+.3f,radius=Mathf.Max(.1f,height*.4f)},
                 behavior=source.family==NpcCreatureBehaviours.Crawler?null:source.family,
                 activateTrap=(int)Num(source.unit.Element("param"),"acttrap",2),

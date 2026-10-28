@@ -213,7 +213,7 @@ namespace Remains.Editor
             return checks;
         }
         private static WeaponDefinition Definition(WeaponRecoilProfile profile)=>new()
-        {id="pure-pistol",range=20,cooldown=.2f,projectileSpeed=90,recoil=profile};
+        {id="pure-pistol",damageType=DamageTypes.Bullet,range=20,cooldown=.2f,projectileSpeed=90,recoil=profile};
         private static WeaponRecoilProfile Changed(Action<WeaponRecoilProfile> change)
         {var profile=WeaponRecoilProfile.PistolCalibration();change(profile);return profile;}
         private sealed class BadRule : IWeaponRecoilRule

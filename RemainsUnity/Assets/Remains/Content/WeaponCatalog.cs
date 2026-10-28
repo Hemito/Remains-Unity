@@ -25,6 +25,7 @@ namespace Remains.Content
     [Serializable] public sealed class WeaponDefinition
     {
         public string id;
+        [InspectorName("Тип урона (стабильный ID)")] public string damageType;
         public float damage,speedDamage,maxSpeedDamage,range,cooldown,manaCost;
         public string ammo;
         public int magazineSize,ammoPerShot;
@@ -82,10 +83,13 @@ namespace Remains.Content
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
             CasingEffectCatalog.Load();
             FootSupportCatalog.Load();
-            var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"));
+            var loaded=WeaponCatalogLoader.Load(asset.CreateJson(),Path.Combine(Application.streamingAssetsPath,"Mods"),deferDamageTypeReferences:true);
             CosmeticContentMods.Prepare(loaded);
             // Code mods may register additional visuals/definitions during Configure, before first queries freeze the registries.
             var rules=Rules??GameplayCodeMods.Compose(loaded.codeMods);
+            // Resolve cross-content references only after code packs can register their damage categories.
+            foreach(var definition in loaded.definitions.Values) WeaponCatalogLoader.Validate(definition,"собранный каталог после Configure");
+            ArmorProtectionCatalog.Load();
             var inputs=new SortedDictionary<string,string>(StringComparer.Ordinal);
             inputs.Add(ExportedContentCatalog.ResourcePath,ExportedContentCatalog.Load().sourceHash);
             var factoryLoot=GameAssets.Load<FactoryLootCatalog>("Content/FactoryLoot")??throw new InvalidOperationException("Нет каталога исходного лута завода.");
@@ -93,6 +97,9 @@ namespace Remains.Content
                 factoryLoot.baseDifficulty.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+"|"+
                 factoryLoot.depthDifficulty.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+"|"+factoryLoot.gameStage);
             inputs.Add(CosmeticCatalog.Resource,CosmeticCatalog.Current.Fingerprint);
+            inputs.Add(ArmorProtectionCatalog.Resource,ArmorProtectionCatalog.Current.Fingerprint);
+            inputs.Add("Content/damage-types",Remains.Domain.DamageTypes.Fingerprint);
+            inputs.Add("Rules/typed-armor","v1|resistance-before-flat|physical-energy-channels|full-condition-base-grade|coverage-fnv32-avalanche-v1");
             inputs.Add("Presentation/visual-equipment",WearableRenderCatalog.ContentFingerprint);
             inputs.Add(FootSupportCatalog.Resource,FootSupportCatalog.Fingerprint);
             inputs.Add(HazardCatalog.Resource,HazardCatalog.Json);

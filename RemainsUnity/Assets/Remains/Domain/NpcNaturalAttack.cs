@@ -6,6 +6,7 @@ namespace Remains.Domain
 {
     [Serializable] public sealed class NaturalAttackDefinition
     {
+        [InspectorName("Тип урона (стабильный ID)")] public string damageType;
         [Min(.01f),InspectorName("Скорость сближения, м/с")] public float approachSpeed;
         [Min(.01f),InspectorName("Дистанция начала, м")] public float beginDistance;
         [Min(0),InspectorName("Допустимая разность высоты, м")] public float verticalDistance;
@@ -18,6 +19,9 @@ namespace Remains.Domain
         [Min(.01f),InspectorName("Радиус контакта")] public float radius;
         public void Validate(string type)
         {
+            try {DamageTypes.Validate(damageType);}
+            catch(InvalidOperationException error)
+            {throw new InvalidOperationException($"Некорректный тип урона естественной атаки: actorType={type}, damageType={damageType}. "+error.Message,error);}
             foreach(float value in new[]{approachSpeed,beginDistance,verticalDistance,preparationSeconds,recoverySeconds,damage,originX,originY,reach,radius})
                 if(!float.IsFinite(value)) throw new InvalidOperationException("Нечисловые параметры естественной атаки: type="+type);
             if(approachSpeed<=0 || beginDistance<=0 || verticalDistance<0 || preparationSeconds<0 || recoverySeconds<0 || damage<0 ||

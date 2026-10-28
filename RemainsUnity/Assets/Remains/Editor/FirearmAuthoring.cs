@@ -6,6 +6,7 @@ using System.Linq;
 using System.Xml.Linq;
 using Newtonsoft.Json.Linq;
 using Remains.Content;
+using Remains.Domain;
 using Remains.Presentation;
 using UnityEditor;
 using UnityEngine;
@@ -174,7 +175,7 @@ namespace Remains.Editor
             float recoil=Num(phis,"recoil",0)/PistolRecoil;
             var definition=new WeaponDefinition
             {
-                id=id,damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,ammo=Num(ammoNode,"recharg",0)>0?null:"item:"+ammo,
+                id=id,damageType=DamageTypes.FromOriginal((int)Num(character,"tipdam",0)),damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,ammo=Num(ammoNode,"recharg",0)>0?null:"item:"+ammo,
                 rechargeSeconds=Num(ammoNode,"recharg",0)/FramesPerSecond,
                 magazineSize=(int)Num(ammoNode,"holder"),ammoPerShot=(int)Num(ammoNode,"rashod",1),reloadSeconds=Mathf.Max(1,Num(ammoNode,"reload"))/FramesPerSecond,   // reload 0 (buckshot): one frame, the shortest the rules allow
                 projectileSpeed=speed,projectileSpeedVariation=SpeedVariation,projectileLifetime=lifetime,range=speed*lifetime,
@@ -300,7 +301,7 @@ namespace Remains.Editor
             float speed=Num(phis,"speed")*FramesPerSecond/PixelsPerMetre,lifetime=BulletLifeFrames/FramesPerSecond;
             var definition=new WeaponDefinition
             {
-                id=id,damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,
+                id=id,damageType=DamageTypes.FromOriginal((int)Num(character,"tipdam",0)),damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,
                 projectileSpeed=speed,projectileSpeedVariation=SpeedVariation,projectileLifetime=lifetime,range=speed*lifetime,
                 shotSpreadHalfAngleDegrees=Mathf.Min(90,Num(phis,"deviation",0)*.5f),recoil=WeaponRecoilProfile.Disabled(),
                 holdingArea=new HoldingArea(),stopAtFirstActor=true,stopAtTerrain=true,

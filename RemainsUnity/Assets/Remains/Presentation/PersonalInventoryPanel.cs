@@ -191,7 +191,7 @@ namespace Remains.Presentation
             foreach(var button in new[]{use,deposit,previous,next})
                 button.GetComponentInChildren<Text>().color=button.interactable?new Color(.65f,1,.75f):new Color(.3f,.4f,.34f);
             description.SetText(chosen==null?(count==0?"В этой категории пока нет предметов.":"Выберите предмет в списке."):$"{itemName(chosen.definition)}\nВ наличии: {chosen.count}\nДоступно: {availableChosen}\n\n"+(weaponSelected?WeaponDescription(actor,chosen):(Remains.Domain.MineRules.PlacedWeapon(chosen.definition)!=null?"Мина: выберите, чтобы держать телекинезом; ЛКМ или G — отпустить\n\n":"")+
-                itemText.Description(chosen.definition,"PersonalInventoryPanel: actor="+actor.id+", item="+chosen.id)),actor?.id,chosen?.id,!weaponSelected);
+                itemText.Description(chosen.definition,"PersonalInventoryPanel: actor="+actor.id+", item="+chosen.id)+ArmorProtectionDescription.For(chosen.definition)),actor?.id,chosen?.id,!weaponSelected);
             actionStatus.text=session.Deposits.Pending?"Ожидаем подтверждения передачи…":chosen==null?"":
                 availability.Rejection??(container==null?"":rejection??"");
             deposit.GetComponentInChildren<Text>().text=quantity()==0?"Положить всю стопку →":"Положить 1 предмет →";
@@ -248,7 +248,7 @@ namespace Remains.Presentation
             float damage=session.Rules.Damage.Calculate(item.definition,0);
             if(!float.IsFinite(damage) || damage<0)
                 throw new InvalidOperationException($"Некорректный урон в описании оружия {item.definition}: {damage}.");
-            return $"Урон без движения: {damage:0.##}\nИнтервал атак: {definition.cooldown:0.##} с\n"+
+            return $"Урон без движения: {damage:0.##}\nТип урона: {DamageTypes.Name(definition.damageType)}\nИнтервал атак: {definition.cooldown:0.##} с\n"+
                 resource+$"Выбор: {(!HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==item.id?"в копытах":"в инвентаре")}";
         }
 

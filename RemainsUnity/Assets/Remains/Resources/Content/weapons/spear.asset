@@ -14,10 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   definition:
     id: spear
-    holdingArea:
-      version: 1
-      radius: 1.65
-      climbingRadius: 1.65
+    damageType: blade
     damage: 6
     speedDamage: 4
     maxSpeedDamage: 70
@@ -31,6 +28,39 @@ MonoBehaviour:
     projectileSpeed: 0
     projectileSpeedVariation: 0
     projectileLifetime: 0
+    rechargeSeconds: 0
+    shotSpreadHalfAngleDegrees: 0
+    recoil:
+      version: 1
+      enabled: 0
+      horizontalPeak: 0
+      anglePeakDegrees: 0
+      riseSeconds: 0
+      positionReturnSeconds: 0
+      angleReturnSeconds: 0
+      maxHorizontal: 0
+      maxAngleDegrees: 0
+    explosive: 0
+    mine:
+      sensitivity: 0
+      delaySeconds: 0
+      visibility: 0
+      width: 0
+      height: 0
+      mass: 0
+      artwork: 
+      beepSound: 
+      defuseSound: 
+      placeSound: 
+    grenadeFuseSeconds: 0
+    grenadeRestitution: 0
+    grenadeGroundRetention: 0
+    grenadeGravity: 0
+    grenadeMaxLaunchSpeed: 0
+    grenadeFullEffortDistance: 0
+    grenadeAimLift: 0
+    grenadeSpinRate: 0
+    grenadeAngularRetention: 0
     meleeContactStart: 0.16666667
     meleeContactEnd: 0.5
     meleeMotion:
@@ -50,6 +80,17 @@ MonoBehaviour:
       angle: 0
       reach: 0
       rest: 1
+    holdingArea:
+      version: 1
+      radius: 1.65
+      climbingRadius: 1.65
     stopAtFirstActor: 0
     stopAtTerrain: 1
+    pellets: 0
+    unlimitedReserve: 0
   presentation: {fileID: 6077150915371628223, guid: 7c9fad7e39e746444bcc61883b108f5b, type: 3}
+  shotAnimation: {fileID: 0}
+  muzzleFlashGain: 1
+  reloadAnimation: {fileID: 0}
+  casingProfile: {fileID: 0}
+  grenadeFlight: {fileID: 0}

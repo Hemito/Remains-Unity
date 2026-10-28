@@ -11,10 +11,12 @@ namespace Remains.Editor
         {
             string root=Path.Combine(Path.GetTempPath(),"remains-mod-checks-"+Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(root,"first"));Directory.CreateDirectory(Path.Combine(root,"second"));
-            string original="{\"weapons\":[{\"id\":\"pistol\",\"damage\":11,\"range\":20,\"cooldown\":0.3}]}";
-            string flight="{\"weapons\":[{\"id\":\"flight\",\"range\":20,\"cooldown\":1,\"projectileSpeed\":90,\"projectileSpeedVariation\":0.2}]}";
+            string original="{\"weapons\":[{\"id\":\"pistol\",\"damageType\":\"bullet\",\"damage\":11,\"range\":20,\"cooldown\":0.3}]}";
+            string flight="{\"weapons\":[{\"id\":\"flight\",\"damageType\":\"bullet\",\"range\":20,\"cooldown\":1,\"projectileSpeed\":90,\"projectileSpeedVariation\":0.2}]}";
             string noMods=Path.Combine(root,"none");
             var flightDefinition=WeaponCatalogLoader.Load(flight,noMods).definitions["flight"];
+            Reject(()=>WeaponCatalogLoader.Load(flight.Replace(",\"damageType\":\"bullet\"",""),noMods),"тип урона");
+            Reject(()=>WeaponCatalogLoader.Load(flight.Replace("bullet","missing-type"),noMods),"тип урона");
             Require(flightDefinition.ProjectileSpeedRange==new Vector2(72,108),"Диапазон скорости не следует данным оружия");
             Reject(()=>WeaponCatalogLoader.Load(flight.Replace("0.2","1"),noMods),"диапазон скорости");
             Reject(()=>WeaponCatalogLoader.Load(flight.Replace("90","0"),noMods),"диапазон скорости");
@@ -83,7 +85,7 @@ namespace Remains.Editor
                 "Одинаковый общий hash не скрывает изменение версии пакета при записи");
             File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[]}");
             Reject(()=>WeaponCatalogLoader.Load(original,root),"не содержит определения");
-            File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[{\"id\":\"pistol\",\"range\":20,\"cooldown\":1},{\"id\":\"pistol\",\"range\":20,\"cooldown\":1}]}");
+            File.WriteAllText(Path.Combine(root,"second/weapons.json"),"{\"weapons\":[{\"id\":\"pistol\",\"damageType\":\"bullet\",\"range\":20,\"cooldown\":1},{\"id\":\"pistol\",\"damageType\":\"bullet\",\"range\":20,\"cooldown\":1}]}");
             Reject(()=>WeaponCatalogLoader.Load(original,root),"в одном пакете");
             File.WriteAllText(Path.Combine(root,"second/manifest.json"),"{\"id\":\"second\",\"version\":\"1\",\"dependencies\":[\"missing\"]}");
             Reject(()=>WeaponCatalogLoader.Load(original,root),"зависимости missing");

@@ -34,7 +34,7 @@ MonoBehaviour:
       eyeHeight: 0.5226
       targetHeight: 0.25
     naturalAttack:
-      rid: 5813030449621237774
+      rid: 5813030663174488074
     behavior: 
     motion:
       walkSpeed: 0
@@ -63,9 +63,10 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 5813030449621237774
+    - rid: 5813030663174488074
       type: {class: NaturalAttackDefinition, ns: Remains.Domain, asm: Assembly-CSharp}
       data:
+        damageType: fang
         approachSpeed: 3
         beginDistance: 1.6500001
         verticalDistance: 1.716

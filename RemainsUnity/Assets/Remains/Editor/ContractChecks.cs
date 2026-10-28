@@ -53,6 +53,7 @@ namespace Remains.Editor
             HintPlacementChecks.Run();
             CameraFramingChecks.Run();
             WeaponCatalog.Load();
+            TypedArmorChecks.Run();
             WeaponRecoilMotionChecks.Run();WeaponRecoilReplicationChecks.Run();CasingEffectsChecks.Run();RangedShotPoseChecks.Run();
             RangedShotDirectionChecks.Run();
             RaiderWeaponSocketChecks.Run();

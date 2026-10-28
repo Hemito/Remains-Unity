@@ -54,7 +54,7 @@ namespace Remains.Domain
                 actor.lifecycleSequence!=contact.lifecycle || actor.health<=0 || actor.resolvedAttacks.Contains(contact.id)) return false;
             if(protection is not IPhysicalHitProtectionRule physical)
                 throw new System.InvalidOperationException("Правило защиты не поддерживает физический контакт Box: "+actor.id);
-            float amount=physical.ResolvePhysical(actor,contact.damage);
+            float amount=protection is IPhysicalContactProtectionRule typed?typed.ResolvePhysicalContact(actor,contact):physical.ResolvePhysical(actor,contact.damage);
             // Capture body placement before momentum changes and possible knockdown, just as ordinary damage does.
             bool applied=ApplyAmount(actor,contact.id,amount);
             if(applied)
