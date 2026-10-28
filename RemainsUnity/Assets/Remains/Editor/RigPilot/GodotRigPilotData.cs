@@ -12,14 +12,17 @@ namespace Remains.Editor
     public sealed class GodotRigPilotData
     {
         public const string SourceCommit="0a04b34314352d52951590c09674f2c28b15008c";
-        public sealed class Frame {public Matrix4x4[] Delta;public string[] Libraries;}
-        public sealed class Clip {public string Id;public bool Loop;public Frame[] Frames;public string[] Order;}
+        public sealed class Frame {public Matrix4x4[] Delta;public string[] Libraries;public float[] Brightness;public bool CoverInFront;}
+        public sealed class Clip {public string Id;public bool Loop;public Frame[] Frames;public string[] Order;public string Context="plain";}
+        public static readonly string[] SourceIds={"body_stay","body_trot","body_sit","body_sit_down","body_laz","body_shield",
+            "body_lurk1","body_lurk1_un","body_lurk2","body_lurk2_un","body_lurk3","body_lurk3_un"};
         public readonly Dictionary<string,Clip> Clips=new(StringComparer.Ordinal);
         public readonly string[] Bones;
         public readonly Dictionary<string,int> Indices=new(StringComparer.Ordinal);
         public readonly Matrix4x4[] Rest;
         public readonly Dictionary<string,string> RestLibraries=new(StringComparer.Ordinal);
         public readonly float RootScale;
+        private readonly float[] restBrightness;
         public int SkewedKeys {get;private set;}
         public float HierarchyMatrixMaxError {get;private set;}
         public int InterpolatedSamples {get;private set;}
@@ -41,11 +44,12 @@ namespace Remains.Editor
             var hierarchy=Read(folder,"hierarchy.json");RootScale=Required(hierarchy,"scale");
             if(RootScale<=0)throw new InvalidDataException("Пилот rig: неположительный root scale.");
             var rest=Read(folder,"body_stay.json");var restBones=(JObject)rest["bones"];
-            Bones=SocketBones.Values.Distinct(StringComparer.Ordinal).ToArray();Rest=new Matrix4x4[Bones.Length];
+            Bones=SocketBones.Values.Distinct(StringComparer.Ordinal).ToArray();Rest=new Matrix4x4[Bones.Length];restBrightness=new float[Bones.Length];
             for(int i=0;i<Bones.Length;i++)
             {
                 Indices.Add(Bones[i],i);var key=Sample(restBones,Bones[i],0);
                 Rest[i]=Placement(key);RestLibraries.Add(Bones[i],(string)key["lib"]??throw new InvalidDataException("Пилот rig: нет lib у "+Bones[i]));
+                restBrightness[i]=Required(key,"br");
                 // Independent affine golden: full raw XFL matrices from hierarchy, before donor decomposition.
                 var raw=hierarchy["bones"].Single(b=>(string)b["node_name"]==Bones[i])["matrix"];
                 var expected=Matrix4x4.identity;
@@ -55,7 +59,7 @@ namespace Remains.Editor
                 for(int p=0;p<16;p++)HierarchyMatrixMaxError=Math.Max(HierarchyMatrixMaxError,Math.Abs(expected[p]-Rest[i][p]));
             }
             if(HierarchyMatrixMaxError>.00005f)throw new InvalidDataException("Пилот rig: разложенные матрицы расходятся с raw hierarchy: "+HierarchyMatrixMaxError);
-            foreach(string id in new[]{"body_stay","body_trot","body_sit","body_sit_down"})
+            foreach(string id in SourceIds)
             {
                 var data=Read(folder,id+".json");var tracks=(JObject)data["bones"];
                 int count=checked((int)data["frame_end"]-(int)data["frame_start"]+1);
@@ -68,7 +72,7 @@ namespace Remains.Editor
                     if(Math.Abs((double?)key["skew"]??0)>.00001)SkewedKeys++;
                 for(int frame=0;frame<count;frame++)
                 {
-                    var delta=new Matrix4x4[Bones.Length];var libraries=new string[Bones.Length];
+                    var delta=new Matrix4x4[Bones.Length];var libraries=new string[Bones.Length];var brightness=new float[Bones.Length];
                     for(int i=0;i<Bones.Length;i++)
                     {
                         var key=Sample(tracks,Bones[i],frame/30d);libraries[i]=(string)key["lib"];
@@ -76,11 +80,15 @@ namespace Remains.Editor
                         if(libraries[i]!=RestLibraries[Bones[i]] && !(lowerFront && libraries[i] is "fleg3" or "fleg3a") && !(lowerHind && libraries[i] is "sleg3" or "sleg3a"))
                             throw new InvalidDataException($"Пилот rig: неизвестная смена рисунка {id}/{frame}/{Bones[i]}: {RestLibraries[Bones[i]]} → {libraries[i]}.");
                         delta[i]=Placement(key)*Rest[i].inverse;
+                        float br=Required(key,"br");
+                        if(br>0 || br< -1 || restBrightness[i]<= -1)throw new InvalidDataException("Пилот rig: нужен адаптер положительного brightness/вырожденного rest для "+Bones[i]);
+                        brightness[i]=(1+br)/(1+restBrightness[i]);
                     }
-                    clip.Frames[frame]=new Frame {Delta=delta,Libraries=libraries};
+                    clip.Frames[frame]=new Frame {Delta=delta,Libraries=libraries,Brightness=brightness};
                 }
                 Clips.Add(id,clip);
             }
+            PonyRigPilotSets.Expand(Clips);
         }
         private Matrix4x4 Placement(JToken key)
         {
