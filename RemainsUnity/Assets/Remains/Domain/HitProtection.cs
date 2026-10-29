@@ -11,6 +11,9 @@ namespace Remains.Domain
     public interface IPhysicalContactProtectionRule {float ResolvePhysicalContact(ActorState target,PropImpactContact contact);}
     public sealed class TypeHitProtectionRule : IHitProtectionRule,IPhysicalHitProtectionRule,IPhysicalContactProtectionRule
     {
+        private readonly System.Func<ActorState,DamageTargetContact> targetContact;
+        public TypeHitProtectionRule(System.Func<ActorState,DamageTargetContact> targetContact=null)
+        {this.targetContact=targetContact;}
         public float Resolve(ActorState target,AttackEvent attack,float incomingDamage)
             =>ResolveTyped(target,DamageTypes.Of(attack),incomingDamage,attack.id);
         public float ResolvePhysical(ActorState target,float incomingDamage)
@@ -22,8 +25,14 @@ namespace Remains.Domain
         }
         public float ResolvePhysicalContact(ActorState target,PropImpactContact contact)
             =>ResolveTyped(target,DamageTypes.Physical,contact.damage,contact.id);
-        private static float ResolveTyped(ActorState target,string type,float incomingDamage,string attackId)
+        private float ResolveTyped(ActorState target,string type,float incomingDamage,string attackId)
         {
+            if(type==DamageTypes.Electric)
+            {
+                if(targetContact==null) throw new System.InvalidOperationException(
+                    $"Для электрического урона не подключён контакт цели: actor={target.id}, level={target.level}, attack={attackId}.");
+                incomingDamage*=targetContact(target).ElectricMultiplier;
+            }
             float intrinsic=ActorTypes.Get(target.actorType).hitProtection*FactoryEnemyScaling.Protection(target.factoryEnemy);
             return EquippedArmorProtection.Resolve(EquippedArmorProtection.Profile(target),type,incomingDamage,intrinsic,attackId,target.id);
         }

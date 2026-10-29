@@ -27,6 +27,7 @@ namespace Remains.Editor
             Require(!EquippedArmorProtection.Covered(0,"hit","victim") && EquippedArmorProtection.Covered(1,"hit","victim"),"Крайние вероятности покрытия");
             foreach(var weapon in WeaponCatalog.All) DamageTypes.Validate(weapon.damageType);
             CheckEquipmentAndDamage();CheckNatural();CheckPhysical();CheckExplosion();
+            ElectricDamageChecks.Run();
             Require(Remains.Presentation.ArmorProtectionDescription.For("armor.metal").Contains("уязвимость 30%"),"UI потерял отрицательное сопротивление");
             Require(WeaponCatalog.ManifestCopy().gameplayAssets.Any(input=>input.id==ArmorProtectionCatalog.Resource),"Защита не входит в манифест");
             Debug.Log($"TypedArmorChecks PASS: порядок сопротивления/поглощения, физический/энергетический/особый канал, покрытие {covered}/10000; оружие/укус/ящик/взрыв, надевание/снятие/последняя вещь/сохранение/handoff/дедупликация и UI.");

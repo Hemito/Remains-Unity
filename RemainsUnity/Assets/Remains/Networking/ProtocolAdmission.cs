@@ -11,7 +11,7 @@ namespace Remains.Networking
     public struct ProtocolReply : NetworkMessage {public int version;public bool accepted;public string reason;}
     public static class SessionProtocol
     {
-        public const int Version=83;   // 83: typed damage and equipped armor protection. 82: snapshot-delta transport removed. 81: packed ticks and world parts. 80: world ticks.
+        public const int Version=84;   // 84: authoritative contact for airborne electric damage. 83: typed armor. 82: snapshot-delta transport removed. 81: packed ticks and world parts.
         public static string Rejection(int offered)=>offered==Version?null:
             $"Несовместимый сетевой протокол: у клиента {offered}, у хоста {Version}. Используйте совместимые сборки. Сохранения не загружены.";
     }

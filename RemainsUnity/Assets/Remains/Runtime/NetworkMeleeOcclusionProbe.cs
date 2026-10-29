@@ -405,7 +405,7 @@ namespace Remains.Runtime
                     StateJson.ToJson(flight.segment)==StateJson.ToJson(attack),
                     "Посторонний receipt не подтверждён настоящим NPC projectile contact: "+attack.id);
                 float incoming=runtime.Session.Rules.Damage.Calculate(attack.weapon,attack.speed);
-                float resolved=new TypeHitProtectionRule().Resolve(target,attack,incoming);
+                float resolved=new TypeHitProtectionRule(a=>DamageTargetContact.InDryRoom(a,runtime.Geometry.Get(a.level))).Resolve(target,attack,incoming);
                 Require(float.IsFinite(incoming) && incoming>=0 && resolved==0,
                     $"Посторонняя атака не поглощена полностью: attack={attack.id}, incoming={incoming}, resolved={resolved}.");
                 if(!zeroDamageContacts.ContainsKey(attack.id)) zeroDamageContacts.Add(attack.id,new ZeroDamageContact {

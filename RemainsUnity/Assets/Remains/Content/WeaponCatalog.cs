@@ -99,7 +99,7 @@ namespace Remains.Content
             inputs.Add(CosmeticCatalog.Resource,CosmeticCatalog.Current.Fingerprint);
             inputs.Add(ArmorProtectionCatalog.Resource,ArmorProtectionCatalog.Current.Fingerprint);
             inputs.Add("Content/damage-types",Remains.Domain.DamageTypes.Fingerprint);
-            inputs.Add("Rules/typed-armor","v1|resistance-before-flat|physical-energy-channels|full-condition-base-grade|coverage-fnv32-avalanche-v1");
+            inputs.Add("Rules/typed-armor","v2|electric-air-half-before-armor|dry-room-contact-v1|resistance-before-flat|physical-energy-channels|full-condition-base-grade|coverage-fnv32-avalanche-v1");
             inputs.Add("Presentation/visual-equipment",WearableRenderCatalog.ContentFingerprint);
             inputs.Add(FootSupportCatalog.Resource,FootSupportCatalog.Fingerprint);
             inputs.Add(HazardCatalog.Resource,HazardCatalog.Json);

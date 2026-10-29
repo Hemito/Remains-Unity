@@ -51,7 +51,9 @@ namespace Remains.Gameplay
         {
             this.session = session;
             this.geometry=geometry;
-            session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown,null,session.Rules.NaturalAttackDamage);damage.Applied+=result=>DamageApplied?.Invoke(result);AttackerDecidedHits=VictimDecidedHits=0;};
+            session.ClientReady+=()=>{damage=new DamageReceiver(session.Rules.Damage,session.Rules.Knockdown,
+                new TypeHitProtectionRule(actor=>DamageTargetContact.InDryRoom(actor,geometry.Get(actor.level))),session.Rules.NaturalAttackDamage);
+                damage.Applied+=result=>DamageApplied?.Invoke(result);AttackerDecidedHits=VictimDecidedHits=0;};
             Reload=new WeaponReloadController(session);
             recharge=new WeaponRechargeController(session);
             Reload.Started+=(actor,_)=>session.Recoil.BeginReload(actor);
