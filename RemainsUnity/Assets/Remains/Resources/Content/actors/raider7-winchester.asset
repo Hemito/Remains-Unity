@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccd87756f68648d428013d6b205d40a5, type: 3}
+  m_Name: raider7-winchester
+  m_EditorClassIdentifier: 
+  definition:
+    id: raider7-winchester
+    presentation: atlas
+    artwork: Original/Creatures/raider7/artwork
+    combatAi: 1
+    hasWeapon: 1
+    bodyInventory: 1
+    atlasWeaponSocket: 1
+    canUseDoors: 1
+    bodyMassKg: 85
+    telekinesisMovable: 1
+    restoreHealthAfterHit: 0
+    hitProtection: 3
+    perception:
+      sightDistance: 20
+      closeDistance: 1.6
+      recognitionSeconds: 0.3
+      memorySeconds: 4
+      hearingDistance: 20
+      eyeHeight: 0.96
+      targetHeight: 0.7
+    naturalAttack:
+      rid: -2
+    behavior: raider
+    motion:
+      walkSpeed: 0
+      runSpeed: 0
+      acceleration: 0
+      dashRange: 0
+      dashChance: 0
+    hitMaterial: flesh
+    attackSounds: []
+    activateTrap: 2
+    turret:
+      patrolAngles: []
+      periodSeconds: 4
+      watchTurnDegreesPerSecond: 0
+      attackTurnDegreesPerSecond: 0
+      alertMinSeconds: 1
+      alertMaxSeconds: 1.3333334
+      searchSeconds: 10
+      fixedFacing: 0
+    raider:
+      attacker: 2
+      walkSpeed: 1.5
+      jumpSpeed: 10.8
+      acceleration: 1.2
+      holdDistance: 10
+      burstFrames: 60
+      weaponInTeeth: 1
+      stroll: 1
+      climbsLadders: 1
+      slowness: 40
+    deathBlastScale: 0
+  presentationSource: 1
+  presentationPrefab: {fileID: 3437540637419446930, guid: dc025c0fe748a8447aeb967ad867d672, type: 3}
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }

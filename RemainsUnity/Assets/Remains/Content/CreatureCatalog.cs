@@ -17,8 +17,28 @@ namespace Remains.Content
     // A template object (AllData obj) and the creatures it becomes; several = the original's random variant.
     [Serializable] public sealed class CreatureObjectRule
     {
+        public const string RaiderVariants="raider";
         [InspectorName("ID объекта шаблона")] public string objectId;
         [InspectorName("Типы персонажей (варианты)")] public string[] actorTypes=Array.Empty<string>();
+        // Set: the variant follows the room's danger (Location.randomCid) and the weapon its list (Unit.getXmlWeapon);
+        // empty: a stable choice among actorTypes per placement.
+        [InspectorName("Выбор варианта по опасности (randomCid)")] public string variantRule;
+        [InspectorName("Варианты по опасности")] public CreatureVariant[] variants=Array.Empty<CreatureVariant>();
+    }
+    // A variant of a danger-chosen object (raiderN) with its weapon list in the original's order.
+    [Serializable] public sealed class CreatureVariant
+    {
+        [InspectorName("ID существа оригинала")] public string unit;
+        [InspectorName("Номер варианта (cid)")] public int cid;
+        [InspectorName("Оружие (w) по порядку")] public CreatureWeaponChoice[] weapons=Array.Empty<CreatureWeaponChoice>();
+        [InspectorName("Почему ещё не подключён (пусто — подключён)")] public string gap;
+    }
+    [Serializable] public sealed class CreatureWeaponChoice
+    {
+        [InspectorName("Оружие оригинала")] public string weapon;
+        [InspectorName("Шанс (ch; 0 — без проверки)")] public float chance;
+        [InspectorName("С опасности (dif)")] public int difficulty;
+        [InspectorName("Тип персонажа с этим оружием")] public string actorType;
     }
     [Serializable] public sealed class CreatureGap
     {
@@ -48,6 +68,27 @@ namespace Remains.Content
         {
             foreach(var candidate in creatures) if(candidate.actorType==actorType) return candidate;
             throw new InvalidOperationException("Каталог существ: нет типа "+actorType);
+        }
+
+        // The actor type a danger-chosen object becomes here, or null with the reason (a variant or weapon not playable).
+        public static string ChooseVariant(CreatureObjectRule rule,double danger,Func<double> random,out string reason)
+        {
+            reason=null;
+            if(rule.variantRule!=CreatureObjectRule.RaiderVariants) throw new InvalidOperationException($"Объект {rule.objectId}: неизвестный выбор варианта {rule.variantRule}.");
+            int cid=Remains.Domain.RandomEncounterRules.RaiderVariant(danger,random);
+            CreatureVariant variant=null;
+            foreach(var candidate in rule.variants) if(candidate.cid==cid) variant=candidate;
+            if(variant==null) {reason=$"нет варианта {rule.objectId}{cid}";return null;}
+            if(!string.IsNullOrEmpty(variant.gap)) {reason=$"{variant.unit}: {variant.gap}";return null;}
+            // Unit.getXmlWeapon(int locDif): the first listed weapon allowed at this danger that passes its chance.
+            foreach(var choice in variant.weapons)
+            {
+                if(choice.difficulty>(int)danger) continue;
+                if(choice.chance>0 && random()>=choice.chance) continue;
+                if(string.IsNullOrEmpty(choice.actorType)) {reason=$"{variant.unit}: оружие {choice.weapon} ещё не подключено";return null;}
+                return choice.actorType;
+            }
+            reason=$"{variant.unit}: без оружия (рукопашный без оружия ещё не реализован)";return null;
         }
 
         public string GapReason(string sourceId)

@@ -112,6 +112,10 @@ namespace Remains.Domain
         // min(danger/20, 0.75), otherwise the weaker hmine (the one explicit template mines are).
         public static string MineVariant(double danger,Func<double> random)=>random()<Math.Min(danger/20,.75)?"mine":"hmine";
 
+        // Location.randomCid("raider"): the raider variant 1–2 below danger 2, 1–5 below 5, 1–9 from 5 on.
+        public static int RaiderVariant(double danger,Func<double> random)=>
+            (int)Math.Floor(random()*(danger>=5?9:danger>=2?5:2)+1);
+
         // Location.createHidden on an ordinary point: a buried zombie (dig 2), a robot cell or an alarm (not ported:
         // its reinforcements are not part of the seamless world), a trap point for zebras. "" = nothing.
         public static string Hidden(int enemyType)=>enemyType switch

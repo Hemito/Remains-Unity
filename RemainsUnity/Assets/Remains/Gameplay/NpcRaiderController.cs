@@ -21,9 +21,11 @@ namespace Remains.Gameplay
         private readonly Dictionary<string,Entry> entries=new(StringComparer.Ordinal);
         private readonly List<string> forgotten=new();
         private readonly MovementSettings baseSettings;
-        private readonly System.Random random=new();
+        private readonly System.Random random;
         private int frame;
-        public NpcRaiderController(MovementSettings baseSettings)=>this.baseSettings=baseSettings;
+        // random: a seeded source for checks; the game's decisions are not reproduced across peers (owner-local).
+        public NpcRaiderController(MovementSettings baseSettings,System.Random random=null)
+        {this.baseSettings=baseSettings;this.random=random??new System.Random();}
 
         // The raider's own controller (also for the frames of an attack already begun).
         public MovementController Movement(ActorState actor,ActorTypeDefinition type,RoomLayout room)=>Get(actor,type,room).movement;

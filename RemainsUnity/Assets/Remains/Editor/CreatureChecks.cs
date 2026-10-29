@@ -32,6 +32,7 @@ namespace Remains.Editor
                 var type=ActorTypes.Get(creature.actorType);
                 CheckCorpsePresentation(creature,type);
                 if(NpcCreatureBehaviours.Fixed(type.behavior)) {Turret(creature,type,exported);continue;}
+                if(type.behavior==NpcCreatureBehaviours.Raider) {Raider(creature,type,exported,voices);continue;}
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
                 var art=AtlasAnimationData.Get(type.artwork);
@@ -56,10 +57,13 @@ namespace Remains.Editor
                 FactoryContentSources.Prepare(world,"factory:0");
                 var room=FactoryContentSources.Require(world,"factory:0");
                 var root=room.GetComponent<FactoryLevelRoot>();
-                int explicitCount=root.Objects.Count(o=>o.Source.Type.StartsWith("remains:obj:",StringComparison.Ordinal) &&
-                    catalog.TryObject(o.Source.Type.Substring("remains:obj:".Length),out _));
+                // A danger-chosen object (raiders) is placed only when its chosen variant and weapon are connected.
+                bool Placed(string objectId,double danger,string localId)=>catalog.TryObject(objectId,out var rule) &&
+                    (string.IsNullOrEmpty(rule.variantRule) || CreatureCatalog.ChooseVariant(rule,danger,FactoryRandomEncounters.VariantRandom(root,localId),out _)!=null);
+                int explicitCount=root.Objects.Count(o=>o.Source.Type.StartsWith("remains:obj:",StringComparison.Ordinal) && o.Source.Params.Count==0 && o.Source.Items.Count==0 && o.Source.Links.Count==0 && o.Source.Extra==null &&
+                    Placed(o.Source.Type.Substring("remains:obj:".Length),o.Room.Cell.Y/2.0,$"{o.Room.Cell.X},{o.Room.Cell.Y}:{o.Source.Id}"));
                 // Random room enemies (v5) of the connected creatures, as the plan places them.
-                var random=new System.Collections.Generic.HashSet<string>(FactoryRandomEncounters.Plan(root).Where(e=>!e.Hidden && catalog.TryObject(e.Unit,out _))
+                var random=new System.Collections.Generic.HashSet<string>(FactoryRandomEncounters.Plan(root).Where(e=>!e.Hidden && Placed(e.Unit,e.Danger,e.LocalId))
                     .Select(e=>"factory:0:"+e.LocalId),StringComparer.Ordinal);
                 int expected=explicitCount+random.Count;
                 var batch=RoomContentBatch.Read(room,"factory:0");
@@ -68,7 +72,8 @@ namespace Remains.Editor
                 int installed=world.actors.Count(a=>catalog.Creatures.Any(c=>c.actorType==a.actorType));
                 Require(installed==expected && !RoomContentInstaller.Apply(world,batch),"повторная установка");
                 // A world that installed an earlier placement version gets only what it lacks.
-                bool V5(ActorState a)=>random.Contains(a.id);
+                bool V6(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.Raider;
+                bool V5(ActorState a)=>random.Contains(a.id) || V6(a);
                 bool V3(ActorState a)=>!V5(a) && (a.actorType=="bloodwing" || a.actorType=="slime" || a.actorType.StartsWith("bloat",StringComparison.Ordinal));
                 bool V2(ActorState a)=>!V5(a) && a.actorType.StartsWith("scorp",StringComparison.Ordinal);
                 void Upgrade(string patch,Func<ActorState,bool> missing,string what)
@@ -81,7 +86,9 @@ namespace Remains.Editor
                 }
                 bool V4(ActorState a)=>!V5(a) && a.actorType.StartsWith("turret",StringComparison.Ordinal);
                 Require(random.Count>0 && random.All(id=>world.actors.Any(a=>a.id==id)),"случайные враги комнат установлены");
-                Upgrade("base:factory-generated:creatures-v4",V5,"переход v4 → v5 добавляет только случайных врагов комнат");
+                Require(world.actors.Any(V6),"рейдеры завода установлены");
+                Upgrade("base:factory-generated:creatures-v5",V6,"переход v5 → v6 добавляет только рейдеров");
+                Upgrade("base:factory-generated:creatures-v4",V5,"переход v4 → v6 добавляет только случайных врагов комнат и рейдеров");
                 Upgrade("base:factory-generated:creatures-v3",a=>V4(a) || V5(a),"переход v3 → v5 добавляет турели и случайных врагов");
                 Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a) || V5(a),"переход v2 → v5 добавляет летунов, слизь, турели и случайных врагов");
                 Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a) || V4(a) || V5(a),"переход v1 → v5 добавляет скорпионов, летунов, слизь, турели и случайных врагов");
@@ -150,6 +157,32 @@ namespace Remains.Editor
         }
         // A turret: a fixed gun on the weapon AI with its gun as initial inventory, held at the part's mount (atlas
         // socket) and fired at its weapon's rate; the lamp follows the AI state (watching / attacking / off).
+        // A generated raider: a weapon AI with RaiderBrain settings, every pose with the weapon point of each frame, the
+        // AllData health, its weapon full in the initial inventory, a death voice.
+        private static void Raider(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported,ActorDeathAudioCatalog voices)
+        {
+            string id=creature.actorType;
+            Require(type.combatAi && type.hasWeapon && type.atlasWeaponSocket && type.naturalAttack==null && type.presentation=="atlas" && type.bodyInventory && type.raider!=null,
+                $"{id}: рейдер — боевой ИИ с оружием на точке атласа и настройками рейдера");
+            type.raider.Validate(id);type.perception.Validate();
+            var art=AtlasAnimationData.Get(type.artwork);
+            foreach(string pose in new[]{"idle","walk","run","jump","down","climb"})
+                Require(art.Clip(pose).count>0 && art.Clip(pose).weaponSockets?.Length==art.Clip(pose).count,$"{id}: поза {pose} с точкой оружия на каждом кадре");
+            Require(art.Clip("jump").UsesMotion,$"{id}: кадр прыжка по вертикальной скорости");
+            Require(Anatomy.Movement(new ActorState {anatomy=id}).width>0,"анатомия "+id);
+            var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
+            float hp=float.Parse((string)unit.Element("comb").Attribute("hp"),System.Globalization.CultureInfo.InvariantCulture);
+            var spawned=creature.spawn.Create(new TrainingPlacement {id="check",type=id,facing=1},"level");
+            var items=creature.spawn.ReadInventory().Generate("check-world",spawned.id);
+            var weapon=WeaponCatalog.Get(spawned.weapon);
+            var gun=items.Single(i=>i.definition==spawned.weapon);
+            Require(Mathf.Approximately(spawned.health,hp) && spawned.anatomy==id && gun.weaponState?.rounds==weapon.magazineSize &&
+                (string.IsNullOrEmpty(weapon.ammo) || items.Any(i=>i.definition==weapon.ammo && i.count>=weapon.magazineSize)),
+                $"{id}: здоровье AllData, оружие {weapon.id} с полным магазином и запасом патронов");
+            Require(voices.TrySelect(id,0,out _),"голос смерти "+id);
+            Animates(id,art,creature.sourceId);
+        }
+
         private static void Turret(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported)
         {
             string id=creature.actorType;
@@ -262,10 +295,11 @@ namespace Remains.Editor
             }
         }
         // The generated prefab draws different frames as the walk pose time advances.
-        private static void Animates(string actorType,AtlasActorArtwork art)
+        // prefabName: a prefab shared by several types (a raider variant's weapons); default the type's own.
+        private static void Animates(string actorType,AtlasActorArtwork art,string prefabName=null)
         {
-            var prefab=AssetDatabase.LoadAssetAtPath<Remains.Presentation.AtlasActorVisual>("Assets/Remains/Prefabs/Actors/Creatures/"+actorType+".prefab");
-            Require(prefab!=null,"нет префаба "+actorType);
+            var prefab=AssetDatabase.LoadAssetAtPath<Remains.Presentation.AtlasActorVisual>("Assets/Remains/Prefabs/Actors/Creatures/"+(prefabName??actorType)+".prefab");
+            Require(prefab!=null,"нет префаба "+(prefabName??actorType));
             var visual=UnityEngine.Object.Instantiate(prefab);
             try
             {
@@ -273,8 +307,9 @@ namespace Remains.Editor
                 visual.Bind(state);var renderer=visual.GetComponent<SpriteRenderer>();
                 var seen=new System.Collections.Generic.HashSet<Sprite>();
                 for(int i=0;i<30;i++) {state.poseTime=i/30f;visual.Draw();seen.Add(renderer.sprite);}
-                // A snapshot rewinding the same pose does not restart the drawn animation.
-                if(art.Clip("walk").count>2)
+                // A snapshot rewinding the same pose does not restart the drawn animation of an unarmed creature; an armed
+                // one draws its replicated pose time (AtlasActorVisual.DrawnPoseTime), as the hand-made raider.
+                if(art.Clip("walk").count>2 && !ActorTypes.Get(actorType).hasWeapon)
                 {
                     state.poseTime=.5f;visual.Draw();var before=renderer.sprite;
                     state.poseTime=0;visual.Draw();

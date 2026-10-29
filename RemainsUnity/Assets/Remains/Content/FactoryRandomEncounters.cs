@@ -93,6 +93,9 @@ namespace Remains.Content
             return result;
         }
 
+        // A placement's own stream for its variant choice (randomCid, getXmlWeapon): stable per layout and point, apart
+        // from the rooms' plans.
+        public static Func<double> VariantRandom(FactoryLevelRoot root,string localId)=>Random(root.Prepared.Grid.Layout,"variant|"+localId).Unit;
         private static LayoutRandom Random(FactoryLayout layout,FactoryCell cell)=>
             Random(layout,cell.X.ToString(CultureInfo.InvariantCulture)+","+cell.Y.ToString(CultureInfo.InvariantCulture));
         private static LayoutRandom Random(FactoryLayout layout,string scope)

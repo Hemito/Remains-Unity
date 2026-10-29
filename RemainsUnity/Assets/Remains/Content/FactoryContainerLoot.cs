@@ -115,7 +115,7 @@ namespace Remains.Content
                     if(used>=cap||source.Attribute("maxlim")!=null&&used>=Number(source,"maxlim",0))return false;
                     limits[limit]=used+1;usage[limit]=(int?)usage[limit]+1??1;
                 }
-                string runtime=weapon&&grade==0?id switch {"p10mm"=>"pistol","lasp"=>"energy","spear"=>"spear","grenade"=>"grenade",_=>null}:null;
+                string runtime=weapon?OriginalWeaponIds.HandMade(id,grade):null;
                 if(!weapon&&id=="grenade")runtime="grenade";
                 bool workingAmmo=!weapon&&(string)source.Attribute("base")==id&&WeaponCatalog.All.Any(value=>value.ammo==id);
                 ItemStack item;

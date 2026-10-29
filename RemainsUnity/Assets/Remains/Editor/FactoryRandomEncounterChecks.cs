@@ -55,7 +55,9 @@ namespace Remains.Editor
                 // The installed creatures: every placed random NPC is a connected plan entry.
                 var catalog=CreatureCatalog.Load();
                 var placed=root.GetComponentsInChildren<RoomActorPlacement>(true).Where(p=>p.name.StartsWith("Случайное существо: ",StringComparison.Ordinal)).ToArray();
-                int expected=plan.Count(e=>!e.Hidden && catalog.TryObject(e.Unit,out _));
+                // A danger-chosen unit (raiders) is placed only when its chosen variant and weapon are connected.
+                int expected=plan.Count(e=>!e.Hidden && catalog.TryObject(e.Unit,out var rule) && (string.IsNullOrEmpty(rule.variantRule) ||
+                    CreatureCatalog.ChooseVariant(rule,e.Danger,FactoryRandomEncounters.VariantRandom(root,e.LocalId),out _)!=null));
                 Require(placed.Length==expected,$"Поставлено случайных существ {placed.Length}, по плану подключённых {expected}.");
                 // Node names carry the template object's world ID: one NPC per object.
                 var allIds=root.GetComponentsInChildren<RoomActorPlacement>(true).Select(p=>p.name.Substring(p.name.IndexOf(": ",StringComparison.Ordinal)+2)).ToArray();

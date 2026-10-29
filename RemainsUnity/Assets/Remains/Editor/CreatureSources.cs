@@ -24,7 +24,9 @@ namespace Remains.Editor
         public const string TurretClass="UnitTurret";
         public static string TurretUnit(string cid)=>"turret"+(cid switch {"land"=>1,"wall"=>2,"arm"=>3,"combat"=>4,"boss"=>5,_=>0});
         private static readonly Dictionary<string,string[]> randomVariants=new(StringComparer.Ordinal) {{"scorp",new[]{"scorp1","scorp2"}},
-            {"bloat",new[]{"bloat0","bloat1","bloat2","bloat3","bloat4"}}};   // UnitBloat: tr = floor(random × 5) without a parameter
+            {"bloat",new[]{"bloat0","bloat1","bloat2","bloat3","bloat4"}},   // UnitBloat: tr = floor(random × 5) without a parameter
+            // UnitRaider: tr = the cid (Location.randomCid by danger) or floor(random × kolTrs 9 + 1); id = "raider" + tr.
+            {"raider",new[]{"raider1","raider2","raider3","raider4","raider5","raider6","raider7","raider8","raider9"}}};
 
         public sealed class TemplateObject
         {

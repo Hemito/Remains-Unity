@@ -41,6 +41,37 @@ namespace Remains.Editor
         // unit's registration); the raster ones use the original blit sheets.
         private const string VectorSheets="../../.reference/creature-sheets-v1";
 
+        // Only the raiders (CreatureAuthoringRaiders) over the existing catalog: the other creatures, their anatomy and
+        // death voices stay as the last full pass wrote them.
+        //   batch -executeMethod Remains.Editor.CreatureAuthoring.RunRaidersBatch
+        public static void RunRaidersBatch()
+        {
+            try {RunRaiders();EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+        public static void RunRaiders()
+        {
+            string package=ContentPackage.Directory;
+            var catalog=JObject.Parse(File.ReadAllText(Path.Combine(package,"catalog.json")));
+            var rows=((JArray)catalog["definitions"]).OfType<JObject>().ToArray();
+            var resources=((JArray)catalog["resources"]).OfType<JObject>().ToDictionary(r=>(string)r["id"],StringComparer.Ordinal);
+            var previous=AssetDatabase.LoadAssetAtPath<CreatureCatalog>(CatalogPath)??throw new InvalidOperationException("Нет каталога существ: сначала полная генерация.");
+            var owned=new HashSet<string>(previous.Creatures.Select(c=>c.actorType),StringComparer.Ordinal);
+            var template=CreatureSources.FactoryObjects(catalog).Single(o=>o.className==RaiderClass && o.problem==null);
+            var raiders=new List<CreatureEntry>();
+            var rule=Raiders(template,rows,resources,package,owned,raiders);
+            var entries=previous.Creatures.Where(c=>c.family!=NpcCreatureBehaviours.Raider).Concat(raiders).ToArray();
+            var rules=previous.Objects.Where(r=>r.objectId!=template.objectId).Append(rule).ToArray();
+            var gaps=previous.Gaps.Where(g=>g.sourceId!=template.objectId).ToArray();
+            var generated=raiders.Select(e=>e.actorType).ToHashSet(StringComparer.Ordinal);
+            WriteAnatomy(generated,owned,generated);
+            WriteDeathAudio(raiders,owned,partial:true);
+            previous.Configure(entries,rules,gaps);EditorUtility.SetDirty(previous);AssetDatabase.SaveAssets();
+            foreach(var entry in raiders) Debug.Log($"Рейдер {entry.sourceId} → {entry.actorType}: {string.Join("; ",entry.notes)}.");
+            foreach(var variant in rule.variants.Where(v=>!string.IsNullOrEmpty(v.gap))) Debug.Log($"Вариант {variant.unit} не подключён: {variant.gap}");
+            Debug.Log($"Рейдеры: типов {raiders.Count}, вариантов подключено {rule.variants.Count(v=>string.IsNullOrEmpty(v.gap))} из {rule.variants.Length}.");
+        }
+
         public static void RunBatch()
         {
             try {Run();EditorApplication.Exit(0);}
@@ -70,6 +101,8 @@ namespace Remains.Editor
             {
                 // Traps and charges are hazards (HazardAuthoring), neither creatures nor gaps.
                 if(template.problem==null && template.units.All(u=>CreatureSources.HazardKind(template.className,CreatureSources.UnitXml(catalog,u))!=null)) continue;
+                // Raiders: variants by danger and weapon (CreatureAuthoringRaiders), the rule carries their own gaps.
+                if(template.problem==null && template.className==RaiderClass) {rules.Add(Raiders(template,rows,resources,package,owned,entries));continue;}
                 string reason=template.problem;
                 var types=new List<string>();
                 if(reason==null && template.className==CreatureSources.TurretClass) reason=Turrets(template,rows,resources,package,owned,entries,types);
@@ -93,6 +126,7 @@ namespace Remains.Editor
             foreach(var entry in entries)
                 Debug.Log($"Существо {entry.sourceId} → {entry.actorType} ({entry.family}){(entry.notes.Length==0?"":": "+string.Join("; ",entry.notes))}.");
             foreach(var rule in rules) Debug.Log($"Объект {rule.objectId} → {string.Join(" | ",rule.actorTypes)}.");
+            foreach(var variant in rules.SelectMany(r=>r.variants).Where(v=>!string.IsNullOrEmpty(v.gap))) Debug.Log($"Вариант {variant.unit} не подключён: {variant.gap}");
             foreach(var gap in gaps) Debug.Log($"Объект {gap.sourceId} не подключён: {gap.reason}");
             Debug.Log($"Существа завода: типов {entries.Count}, объектов подключено {rules.Count}, ещё нет {gaps.Count}.");
         }
@@ -331,13 +365,14 @@ namespace Remains.Editor
             return new AnatomyDefinition {id=id,atlasArtwork=art.resource.Substring(0,art.resource.Length-"sheet".Length)+"artwork",
                 movement=new MovementHull {width=width,height=height},regions=regions.ToArray()};
         }
-        private static void WriteAnatomy(HashSet<string> generated,HashSet<string> owned)
+        // scope: the generated entries this run replaces (null: every generated one, the full pass).
+        private static void WriteAnatomy(HashSet<string> generated,HashSet<string> owned,HashSet<string> scope=null)
         {
             var json=JObject.Parse(File.ReadAllText(AnatomyPath));var list=(JArray)json["anatomies"];
             foreach(var item in list.OfType<JObject>().ToArray())
             {
                 string id=(string)item["id"];
-                if(!generated.Contains(id) && !owned.Contains(id)) continue;
+                if(!generated.Contains(id) && (scope!=null || !owned.Contains(id))) continue;
                 if(!owned.Contains(id)) throw new InvalidOperationException($"Анатомия {id} уже есть и создана не генератором существ; она не заменена.");
                 item.Remove();
             }
@@ -347,14 +382,14 @@ namespace Remains.Editor
             AssetDatabase.ImportAsset(AnatomyPath,ImportAssetOptions.ForceUpdate);
             pendingAnatomy.Clear();
         }
-        private static void WriteDeathAudio(List<CreatureEntry> entries,HashSet<string> owned)
+        private static void WriteDeathAudio(List<CreatureEntry> entries,HashSet<string> owned,bool partial=false)
         {
             var json=JObject.Parse(File.ReadAllText(DeathAudioPath));var list=(JArray)json["entries"];
             var generated=entries.Select(e=>e.actorType).ToHashSet(StringComparer.Ordinal);
             foreach(var item in list.OfType<JObject>().ToArray())
             {
                 string type=(string)item["actorType"];
-                if(!generated.Contains(type) && !owned.Contains(type)) continue;
+                if(!generated.Contains(type) && (partial || !owned.Contains(type))) continue;
                 if(!owned.Contains(type)) throw new InvalidOperationException($"Голос смерти {type} задан вручную; он не заменён.");
                 item.Remove();
             }

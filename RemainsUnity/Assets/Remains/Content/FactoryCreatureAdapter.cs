@@ -19,7 +19,10 @@ namespace Remains.Content
             ("base:factory-generated:creatures-v3",new[]{"bloodwing","bloat","slime"}),
             ("base:factory-generated:creatures-v4",new[]{"turret","landturret","armturret"}),
             // Random enemies of the rooms (FactoryRandomEncounters) of the creatures already connected.
-            ("base:factory-generated:creatures-v5",RandomKeys("tarakan","rat","molerat","scorp","bloodwing","bloat","slime","turret","landturret"))
+            ("base:factory-generated:creatures-v5",RandomKeys("tarakan","rat","molerat","scorp","bloodwing","bloat","slime","turret","landturret")),
+            // Raiders by the danger of their room (randomCid) — keyed by the variant, so a variant connected later is an
+            // addition of its own: the shooters raider5 and raider7, placed and random.
+            ("base:factory-generated:creatures-v6",new[]{"raider5","raider7","random:raider5","random:raider7"})
         };
         private const string RandomPrefix="random:";
         private static string[] RandomKeys(params string[] objects)=>objects.Select(o=>RandomPrefix+o).ToArray();
@@ -47,15 +50,23 @@ namespace Remains.Content
                 if(placement.Source.Params.Count>0 || placement.Source.Items.Count>0 || placement.Source.Links.Count>0 || placement.Source.Extra!=null)
                 {Debug.LogWarning($"Существо завода с параметрами или связями пока не поддержано и пропущено: {placement.Id} ({type}).");continue;}
                 string localId=$"{placement.Room.Cell.X},{placement.Room.Cell.Y}:{placement.Source.Id}";
-                var node=new GameObject("Существо: "+placement.Id);
-                node.transform.SetParent(root.transform,false);node.transform.localPosition=placement.Position;
                 // The original picks a random variant and turns a new unit to a random side; stable choices per placement here.
                 int hash=localId.Aggregate(0,(value,c)=>unchecked(value*31+c));
-                var creature=catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
+                string key=id;
+                CreatureEntry creature;
+                if(string.IsNullOrEmpty(rule.variantRule)) creature=catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
+                else
+                {
+                    string chosen=CreatureCatalog.ChooseVariant(rule,placement.Room.Cell.Y/2.0,FactoryRandomEncounters.VariantRandom(root,localId),out string reason);
+                    if(chosen==null) {string gap=$"{id}: {reason}";gaps[gap]=gaps.TryGetValue(gap,out int seen)?seen+1:1;continue;}
+                    creature=catalog.Require(chosen);key=creature.sourceId;
+                }
+                var node=new GameObject("Существо: "+placement.Id);
+                node.transform.SetParent(root.transform,false);node.transform.localPosition=placement.Position;
                 int facing=(hash&1)==0?1:-1;
                 var marker=node.AddComponent<RoomActorPlacement>();marker.Configure(localId,creature.actorType,facing,false,null);marker.SetSpawn(creature.spawn);
                 root.HideObjectArtwork(placement);
-                if(!added.TryGetValue(id,out var ids)) added.Add(id,ids=new List<string>());
+                if(!added.TryGetValue(key,out var ids)) added.Add(key,ids=new List<string>());
                 ids.Add(localId);
                 count++;
             }
@@ -65,6 +76,13 @@ namespace Remains.Content
                 // Mines and traps of the trap points are placed by FactoryMineAdapter and FactoryHazardAdapter.
                 if(encounter.Kind==RandomEncounterRules.Trap && (encounter.Unit=="mine" || HazardCatalog.ForObject(encounter.Unit)!=null)) continue;
                 string key=RandomPrefix+encounter.Unit;
+                CreatureEntry chosenVariant=null;string variantGap=null;
+                if(!encounter.Hidden && catalog.TryObject(encounter.Unit,out var variantRule) && !string.IsNullOrEmpty(variantRule.variantRule))
+                {
+                    string chosen=CreatureCatalog.ChooseVariant(variantRule,encounter.Danger,FactoryRandomEncounters.VariantRandom(root,encounter.LocalId),out variantGap);
+                    if(chosen!=null) {chosenVariant=catalog.Require(chosen);key=RandomPrefix+chosenVariant.sourceId;}
+                }
+                if(variantGap!=null) {string gap=$"{encounter.Unit} ({variantGap})";randomGaps[gap]=randomGaps.TryGetValue(gap,out int seen)?seen+1:1;continue;}
                 if(encounter.Hidden || !catalog.TryObject(encounter.Unit,out var rule) || !versions.Any(v=>v.objects.Contains(key)))
                 {
                     string reason=encounter.Hidden?"скрытый враг, поведение закопанного/клетки ещё не реализовано":
@@ -78,7 +96,7 @@ namespace Remains.Content
                 var node=new GameObject("Случайное существо: "+encounter.Point.Id);
                 node.transform.SetParent(root.transform,false);node.transform.localPosition=encounter.Point.Position;
                 int hash=localId.Aggregate(0,(value,c)=>unchecked(value*31+c));
-                var creature=catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
+                var creature=chosenVariant??catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
                 var marker=node.AddComponent<RoomActorPlacement>();marker.Configure(localId,creature.actorType,(hash&1)==0?1:-1,false,null);marker.SetSpawn(creature.spawn);
                 if(!added.TryGetValue(key,out var ids)) added.Add(key,ids=new List<string>());
                 ids.Add(localId);
@@ -96,7 +114,7 @@ namespace Remains.Content
                     string.Join("; ",randomGaps.OrderBy(g=>g.Key,StringComparer.Ordinal).Select(g=>$"{g.Key} ×{g.Value}"))+".");
             if(gaps.Count>0)
                 Debug.LogWarning($"Завод {root.Prepared.Physics.id}: существа ещё не подключены и не поставлены — "+
-                    string.Join("; ",gaps.OrderBy(g=>g.Key,StringComparer.Ordinal).Select(g=>$"{g.Key} ×{g.Value} ({catalog.GapReason(g.Key)})"))+".");
+                    string.Join("; ",gaps.OrderBy(g=>g.Key,StringComparer.Ordinal).Select(g=>catalog.GapReason(g.Key) is {} reason?$"{g.Key} ×{g.Value} ({reason})":$"{g.Key} ×{g.Value}"))+".");
             return count;
         }
     }
