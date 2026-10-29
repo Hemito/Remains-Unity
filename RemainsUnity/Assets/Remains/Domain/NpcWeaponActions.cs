@@ -24,7 +24,7 @@ namespace Remains.Domain
     }
     public static class NpcWeaponActions
     {
-        public const string Shot="shot",Reload="reload";
+        public const string Shot="shot",Reload="reload",Swing="swing";
         public static void ValidateWorld(WorldState world)
         {
             foreach(var actor in world.actors)
@@ -39,8 +39,10 @@ namespace Remains.Domain
             if(item?.weaponState==null || item.definition!=actor.weapon)
                 throw new InvalidOperationException($"Нет выбранного предмета оружия NPC: actor={actor.id}, item={actor.equippedWeaponItem}, weapon={actor.weapon}.");
             var weapon=WeaponCatalog.Get(item.definition);
-            if(!WeaponRigs.Get(weapon.id).HasMuzzle)
-                throw new InvalidOperationException($"Стрелковый AI NPC не поддерживает выбранное оружие: actor={actor.id}, item={item.id}, weapon={weapon.id}.");
+            // A raider swings a melee weapon (UnitRaider attackerType 0/1); the other armed NPCs only shoot.
+            bool swings=WeaponCatalog.IsMelee(weapon.id) && ActorTypes.Get(actor.actorType).behavior==NpcCreatureBehaviours.Raider;
+            if(!WeaponRigs.Get(weapon.id).HasMuzzle && !swings)
+                throw new InvalidOperationException($"AI NPC не поддерживает выбранное оружие: actor={actor.id}, item={item.id}, weapon={weapon.id}.");
             if(item.weaponState.rounds<0 || item.weaponState.rounds>weapon.magazineSize || item.weaponState.revision<0)
                 throw new InvalidOperationException($"Неверное состояние предмета оружия NPC: actor={actor.id}, item={item.id}, weapon={weapon.id}, rounds={item.weaponState.rounds}, revision={item.weaponState.revision}.");
             return item;
@@ -49,7 +51,7 @@ namespace Remains.Domain
         {
             var item=ValidateEquipped(actor);if(item==null || !WeaponInventory.Available(actor,item.definition)) return null;
             var weapon=WeaponCatalog.Get(item.definition);
-            string kind=Shot;
+            string kind=WeaponCatalog.IsMelee(weapon.id)?Swing:Shot;
             if(weapon.UsesMagazine && item.weaponState.rounds<weapon.ammoPerShot)
             {
                 if(WeaponAmmunition.ReloadAmount(actor,weapon)==0) return null;
@@ -58,6 +60,10 @@ namespace Remains.Domain
             else if(actor.mana<weapon.manaCost) return null;
             return new NpcWeaponActionState {kind=kind,item=item.id,weapon=weapon.id,selectionRevision=actor.weaponSelectionRevision};
         }
+        // Nothing to shoot and nothing to reload with: the selected firearm is spent (a melee weapon never is). An unprepared
+        // inventory is not "spent": the weapon action itself rejects it loudly (ValidateEquipped) when one is wanted.
+        public static bool Spent(ActorState actor)=>!string.IsNullOrEmpty(actor.weapon) && actor.weaponInventoryVersion==1 &&
+            !WeaponCatalog.IsMelee(actor.weapon) && Prepare(actor)==null;
         public static bool StillSelected(ActorState actor,NpcWeaponActionState action)=>action!=null &&
             action.selectionRevision==actor.weaponSelectionRevision && WeaponInventory.Selected(actor) is { } item &&
             item.id==action.item && item.definition==action.weapon && actor.weapon==action.weapon && WeaponInventory.Available(actor,action.weapon);

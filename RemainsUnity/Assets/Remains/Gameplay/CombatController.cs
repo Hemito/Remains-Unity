@@ -92,7 +92,7 @@ namespace Remains.Gameplay
             session.Recoil.Reconcile();
             attacker.weapon=Weapon;
             WeaponPose.Aim(attacker,aim,geometry.Get(attacker.level));
-            bool melee=Weapon is "spear" or "crowbar";
+            bool melee=WeaponCatalog.IsMelee(Weapon);
             Vector2 origin=melee?WeaponPose.Origin(attacker):WeaponPose.Muzzle(attacker);
             Vector2 direction=WeaponPose.Direction(attacker);
             if(!melee && ShotObstacles.FirstContact(geometry.Get(attacker.level),WeaponPose.RangedAnchor(attacker),origin).HasValue)
@@ -157,8 +157,12 @@ namespace Remains.Gameplay
                 speed=segment.speed,radius=MeleeSweep.ContactRadius,meleeAnchor=segment.Anchor() }),geometry.Get(actor.level));
             var tip=swingSweep.Tip;
             actor.weaponTipX=tip.x;actor.weaponTipY=tip.y;
-            actor.weaponReach=Vector2.Distance(tip,origin);
-            actor.weaponAngle=Mathf.Atan2(tip.y-origin.y,tip.x-origin.x)*Mathf.Rad2Deg;
+            // Around a held point the hold stays (it places the drawn weapon; the closed swing ends at rest); otherwise the pose follows the tip.
+            if(!WeaponCatalog.Get(swingWeapon).meleeAroundHold)
+            {
+                actor.weaponReach=Vector2.Distance(tip,origin);
+                actor.weaponAngle=Mathf.Atan2(tip.y-origin.y,tip.x-origin.x)*Mathf.Rad2Deg;
+            }
             if(swingSweep.Finished) swingActor=null;
         }
 

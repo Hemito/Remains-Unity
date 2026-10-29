@@ -18,16 +18,22 @@ namespace Remains.Domain
         [Min(0),InspectorName("Ускорение, м/с за кадр (move accel)")] public float acceleration;
         [Min(0),InspectorName("Дальность стрельбы с места, м (un dist)")] public float holdDistance=20;
         [Min(0),InspectorName("Очередь, кадров (un och)")] public int burstFrames;
+        [Min(0),InspectorName("Досягаемость взмаха по высоте, м (rapid × 8 px)")] public float swingHeight;
         [InspectorName("Оружие в зубах (comb krep)")] public bool weaponInTeeth=true;
         [InspectorName("Прогуливается (нет un stay)")] public bool stroll=true;
         [InspectorName("Лазает по лестницам")] public bool climbsLadders=true;
         [Min(0),InspectorName("Тупость: задержка реакции, кадров")] public int slowness=40;
+        // Unit.attKorp → udarUnit: every raider's touch, with its comb damage (+ half of a melee weapon's) and damage type.
+        [InspectorName("Удар корпусом (attKorp)")] public NaturalAttackDefinition bodyHit;
         public float RunSpeed=>walkSpeed*2;
         public void Validate(string type)
         {
             if(!Enum.IsDefined(typeof(RaiderAttacker),attacker) || !float.IsFinite(walkSpeed) || walkSpeed<=0 || !float.IsFinite(jumpSpeed) || jumpSpeed<=0 ||
-                !float.IsFinite(acceleration) || acceleration<=0 || !float.IsFinite(holdDistance) || holdDistance<0 || burstFrames<0 || slowness<0)
+                !float.IsFinite(acceleration) || acceleration<=0 || !float.IsFinite(holdDistance) || holdDistance<0 || burstFrames<0 || slowness<0 ||
+                !float.IsFinite(swingHeight) || swingHeight<0 || attacker==RaiderAttacker.Levitated && swingHeight<=0)
                 throw new InvalidOperationException($"Некорректное поведение рейдера {type}: шаг {walkSpeed}, прыжок {jumpSpeed}, ускорение {acceleration}.");
+            if(bodyHit==null) throw new InvalidOperationException($"У рейдера {type} нет удара корпусом (attKorp).");
+            bodyHit.Validate(type);
         }
     }
 
@@ -70,14 +76,18 @@ namespace Remains.Domain
         public float jumpPush;         // added to the horizontal speed with the jump
         public int climb;              // ladder: 1 up, −1 down
         public bool dropThrough;       // throu: through a one-way platform
-        public bool shoot;
+        public bool charge;            // runs at 1.5 of its run (a melee raider attacking)
+        public bool shoot;             // fires its firearm
+        public bool swing;             // swings its levitated melee weapon (WClub)
+        public float bodyHit;          // attKorp: 0 none, else its damage factor (1 or 0.5)
     }
 
-    // UnitRaider.control / jump / checkJump / attack (1.04 dlc-ui), one call per original frame (30 per second), for the
-    // ranged raider (attackerType 2) first. Kept close to the source on purpose — a temporary AI to be rewritten
-    // (user decision 2026-10-28). The port's own movement controller moves the body; perception is the port's.
-    // Not ported yet: grenade and telekinesis fear (state 6), the dash (7/8), the melee and thrown attacks, swimming,
-    // flying raiders, replicas, waking others (budilo), shots at a lost target, the aim error (mazil).
+    // UnitRaider.control / jump / checkJump / attack (1.04 dlc-ui), one call per original frame (30 per second). Kept close
+    // to the source on purpose — a temporary AI to be rewritten (user decision 2026-10-28). The port's own movement
+    // controller moves the body; perception is the port's. `attacker` is the attack way of this frame: a shooter whose
+    // firearm is spent fights as a melee raider (the port's rule, user 2026-10-29; the source does it for a thrower).
+    // Not ported yet: grenade and telekinesis fear (state 6), the dash (7/8), the thrown attack, swimming, flying
+    // raiders, replicas, waking others (budilo), shots at a lost target, the aim error (mazil), stun (shok).
     public static class RaiderBrain
     {
         public const float FrameSeconds=1f/30;
@@ -85,8 +95,10 @@ namespace Remains.Domain
         private const float Px=.02f;
         private static readonly MovementHull Probe=new() {width=.02f,height=.02f};
 
-        public static RaiderIntent Tick(RaiderMind m,RaiderSettings s,ActorState actor,RoomLayout room,RaiderSenses senses,bool wallAhead,System.Random random)
+        public static RaiderIntent Tick(RaiderMind m,RaiderSettings s,ActorState actor,RoomLayout room,RaiderSenses senses,bool wallAhead,System.Random random,
+            RaiderAttacker? attackerNow=null)
         {
+            var attacker=attackerNow??s.attacker;
             var hull=Anatomy.Movement(actor);
             bool stay=ActorTerrainMotion.Supported(room,hull,actor.Position) && actor.vy<=0,climbing=actor.climbing;
             var intent=new RaiderIntent();
@@ -113,12 +125,12 @@ namespace Remains.Domain
                 if(m.alert>=MaxAlert)
                 {
                     var d=m.point-actor.Position;
-                    if(s.attacker==RaiderAttacker.Ranged && m.alert>=MaxAlert+8 && d.sqrMagnitude<s.holdDistance*s.holdDistance)
+                    if(attacker==RaiderAttacker.Ranged && m.alert>=MaxAlert+8 && d.sqrMagnitude<s.holdDistance*s.holdDistance)
                         m.state=Chance(.3)?RaiderState.Pursue:RaiderState.Hold;
                     else m.state=RaiderState.Pursue;
                 }
                 m.timer=m.state<=RaiderState.Stroll?Range(50)+40:
-                    s.attacker==RaiderAttacker.Levitated && m.state==RaiderState.Hold?Range(10)+10:Range(100)+100;
+                    attacker==RaiderAttacker.Levitated && m.state==RaiderState.Hold?Range(10)+10:Range(100)+100;
             }
 
             // findCel every 10th frame: a seen target, a heard point, the last seen one, or a fading search.
@@ -131,7 +143,7 @@ namespace Remains.Domain
                     if(m.state<=RaiderState.Stroll)
                     {
                         m.state=RaiderState.Notice;
-                        m.timer=Range(20)+(s.attacker>=RaiderAttacker.Ranged?s.slowness:s.slowness/4);
+                        m.timer=Range(20)+(attacker>=RaiderAttacker.Ranged?s.slowness:s.slowness/4);
                     }
                     else m.alert=MaxAlert+10;
                 }
@@ -157,8 +169,17 @@ namespace Remains.Domain
             if(!climbing) m.wantedFacing=m.direction;
             if(m.alert==0) m.point=new Vector2(actor.x+hull.width*m.facing*2,actor.y+hull.height);
 
+            // A levitated melee raider stops to swing 50–100 px from a seen target (states 3 ↔ 4).
+            if(attacker==RaiderAttacker.Levitated)
+            {
+                float near=Mathf.Abs(m.point.x-actor.x);bool inReach=senses.sees && Mathf.Abs(m.point.y-actor.y)<80*Px && near<100*Px && near>50*Px;
+                if(m.state==RaiderState.Pursue && inReach) m.state=RaiderState.Hold;
+                else if(m.state==RaiderState.Hold && !inReach) m.state=RaiderState.Pursue;
+            }
+
             bool run=(m.state==RaiderState.Search || m.state==RaiderState.Pursue);   // durak: always runs when alarmed
-            if(m.state==RaiderState.Pursue && s.attacker==RaiderAttacker.Ranged && s.weaponInTeeth)
+            intent.charge=attacker==RaiderAttacker.Teeth && m.state==RaiderState.Pursue;
+            if(m.state==RaiderState.Pursue && attacker==RaiderAttacker.Ranged && s.weaponInTeeth)
             {
                 m.wantedFacing=dx>0?1:-1;
                 if(m.facing*m.direction<0) run=false;
@@ -229,7 +250,7 @@ namespace Remains.Domain
                 }
                 case RaiderState.Hold:
                     m.direction=m.wantedFacing=m.point.x>actor.x?1:-1;
-                    if(s.attacker==RaiderAttacker.Ranged && (m.point-actor.Position).sqrMagnitude<200*Px*200*Px)
+                    if(attacker==RaiderAttacker.Ranged && (m.point-actor.Position).sqrMagnitude<200*Px*200*Px)
                     {
                         if(Chance(.6)) {intent.pushX=s.RunSpeed*(dx>0?-1:1)*2;jump=.4f;}
                         m.state=RaiderState.Pursue;
@@ -244,16 +265,33 @@ namespace Remains.Domain
                 if(stay || climbing) {intent.jump=jump;if(stay) intent.jumpPush=m.facing*s.acceleration*2;}
             }
 
-            // attack(): a ranged raider shoots while attacking and not on a ladder.
+            // attack() while attacking (aiAttack, states 3 and 4) a seen target (celUnit). The touch lands only in reach
+            // (attKorp: the bodies overlap), its factor 1 when the raider moves faster than 8 px per frame.
             bool attacking=m.state==RaiderState.Pursue || m.state==RaiderState.Hold;
-            if(attacking && s.attacker==RaiderAttacker.Ranged && !climbing && senses.sees)
+            if(attacking && senses.sees)
             {
-                if(s.burstFrames==0) intent.shoot=Chance(.1);
-                else
+                var d=m.point-actor.Position;float full=Mathf.Abs(actor.vx)>8*Px*30?1:.5f;
+                bool close=d.sqrMagnitude<100*Px*100*Px;
+                switch(attacker)
                 {
-                    if(m.burst<=0) m.burst=Mathf.RoundToInt(((float)random.NextDouble()*.4f+.8f)*s.burstFrames);
-                    intent.shoot=m.burst>s.burstFrames*.25f;
-                    m.burst--;
+                    case RaiderAttacker.Teeth: intent.bodyHit=full;break;
+                    case RaiderAttacker.Levitated:
+                        intent.swing=Mathf.Abs(d.x)<120*Px && Mathf.Abs(d.y)<s.swingHeight && Chance(.3);
+                        if(Chance(.1)) intent.bodyHit=.5f;
+                        break;
+                    case RaiderAttacker.Ranged when !climbing:
+                        if(s.burstFrames==0) intent.shoot=Chance(.1);
+                        else
+                        {
+                            if(m.burst<=0) m.burst=Mathf.RoundToInt(((float)random.NextDouble()*.4f+.8f)*s.burstFrames);
+                            intent.shoot=m.burst>s.burstFrames*.25f;
+                            m.burst--;
+                        }
+                        if(close && Chance(.1)) intent.bodyHit=.5f;
+                        break;
+                    case RaiderAttacker.Thrower:
+                        if(close && Chance(.1)) intent.bodyHit=full;
+                        break;
                 }
             }
             return intent;

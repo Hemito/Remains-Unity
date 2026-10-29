@@ -13,7 +13,8 @@ namespace Remains.Editor
     // The original's firearms connected by FirearmAuthoring: each generated definition loads with its presentation
     // (rest frame, muzzle ahead of the grip, shot and reload frames on one scale), shot artwork, sounds and magazine;
     // known numbers match the original (hunt: damage 22, 25 frames, 5 rounds, 50-frame reload, 300 px/frame);
-    // formal stacks become working weapons (split per weapon); factory loot gives working ones.
+    // formal stacks become working weapons (split per weapon); factory loot gives working ones. Melee weapons (WClub):
+    // working items without a muzzle, the swing sound, the knife's numbers and the swing and thrust geometry.
     //   batch -executeMethod Remains.Editor.FirearmChecks.RunBatch
     public static class FirearmChecks
     {
@@ -27,7 +28,7 @@ namespace Remains.Editor
         {
             Anatomy.Load();WeaponCatalog.Load();ShotArtwork.Prepare();CasingEffectCatalog.Load();
             var catalog=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
-            var generated=catalog.AllAssets().Where(a=>a.Id.StartsWith(ExportedWeaponItems.Prefix,StringComparison.Ordinal) && !a.Id.StartsWith("weapon:turret",StringComparison.Ordinal) && !WeaponCatalog.IsExplosive(a.Id)).ToArray();   // turret guns: TurretChecks
+            var generated=catalog.AllAssets().Where(a=>a.Id.StartsWith(ExportedWeaponItems.Prefix,StringComparison.Ordinal) && !a.Id.StartsWith("weapon:turret",StringComparison.Ordinal) && !WeaponCatalog.IsExplosive(a.Id) && !WeaponCatalog.IsMelee(a.Id)).ToArray();   // turret guns: TurretChecks
             Require(generated.Length>=50,"подключено меньше 50 определений: "+generated.Length);
             string audio=GameAssets.Load<TextAsset>("Presentation/combat-audio").text;
             var exported=ExportedContentCatalog.Load();
@@ -59,11 +60,12 @@ namespace Remains.Editor
             var assr0=WeaponCatalog.Get("weapon:assr:grade:0");var assr1=WeaponCatalog.Get("weapon:assr:grade:1");
             Require(Mathf.Approximately(assr0.damage,9) && Mathf.Approximately(assr1.damage,11) && assr1.ammo==assr0.ammo,"улучшенный вариант поверх базового");
 
+            int melee=CheckMelee(catalog,exported,audio);
             CheckVolley();
             CheckAmmunition(exported,hunt);
 
             // Formal stacks saved before the weapon was connected.
-            var items=new List<ItemStack> {new() {id="a",definition="weapon:hunt:grade:0",count=2},new() {id="b",definition="weapon:knife:grade:0",count=1}};
+            var items=new List<ItemStack> {new() {id="a",definition="weapon:hunt:grade:0",count=2},new() {id="b",definition="weapon:lsword:grade:0",count=1}};
             Require(ExportedWeaponItems.Needed(items) && ExportedWeaponItems.Activate(items)==1 && items.Count==3 &&
                 items.Take(2).All(i=>i.count==1 && i.weaponState!=null && i.weaponState.rounds==0) && items[1].id=="a:2" && items[2].weaponState==null &&
                 !ExportedWeaponItems.Needed(items) && WeaponInventory.IsEquippable(items[0]),"формальные стволы становятся рабочими по одному");
@@ -90,8 +92,47 @@ namespace Remains.Editor
                 }
             }
             finally {FactoryContentSources.Clear();}
-            Debug.Log($"PASS огнестрел: определений {generated.Length} ({generated.Select(a=>a.Id.Split(':')[1]).Distinct().Count()} моделей), "+
+            Debug.Log($"PASS огнестрел: определений {generated.Length} ({generated.Select(a=>a.Id.Split(':')[1]).Distinct().Count()} моделей), ближнего боя {melee}, "+
                 $"графика/дуло/кадры/снаряд/звук; охотничья винтовка и штурмовая по AllData; формальные стопки → рабочие; завод seed 104: рабочих стволов в луте {working}, формальных вещей оружия {formal}.");
+        }
+        private static int CheckMelee(WeaponAssetCatalog catalog,ExportedContentCatalog exported,string audio)
+        {
+            var melee=catalog.AllAssets().Where(a=>a.Id.StartsWith(ExportedWeaponItems.Prefix,StringComparison.Ordinal) && WeaponCatalog.IsMelee(a.Id)).ToArray();
+            Require(melee.Length>=20,"подключено меньше 20 определений ближнего боя: "+melee.Length);
+            foreach(var asset in melee)
+            {
+                var weapon=WeaponCatalog.Get(asset.Id);
+                Require(ExportedWeaponItems.Working(asset.Id) && exported.TryItem(asset.Id,out _) && !WeaponRigs.Get(asset.Id).HasMuzzle && weapon.meleeAroundHold &&
+                    weapon.damage>0 && weapon.cooldown>0 && weapon.range>0 && weapon.magazineSize==0 && string.IsNullOrEmpty(weapon.ammo) && !weapon.stopAtFirstActor,"ближнее оружие "+asset.Id);
+                Require(audio.Contains("{\"weapon\":\""+asset.Id+"\",\"clip\":\"exported:"),"нет звука взмаха "+asset.Id);
+            }
+            Require(WeaponCatalog.Get("spear").meleeAroundHold==false && !WeaponCatalog.Contains("weapon:spear:grade:0"),"ручное копьё не заменено");
+            // knife: damage 9, rapid 8, long 30 px; the swing from 120° over the top to −60° at the half, the held point
+            // 0.8 blade behind and 0.3 below the aim.
+            var knife=WeaponCatalog.Get("weapon:knife:grade:0");
+            Require(Mathf.Approximately(knife.damage,9) && Mathf.Approximately(knife.cooldown,8f/30) && Mathf.Approximately(knife.range,.6f) &&
+                knife.damageType==DamageTypes.Blade && Mathf.Approximately(knife.meleeContactStart,1f/6) && Mathf.Approximately(knife.meleeContactEnd,.5f) &&
+                knife.meleeAimOffset==new Vector2(-.8f,-.3f) && Mathf.Approximately(knife.holdingArea.radius,2.8f),"нож по AllData и WClub");
+            var origin=Vector2.zero;var right=Vector2.right;
+            Vector2 Tip(string id,float progress)=>Remains.Gameplay.WeaponPose.Tip(id,origin,right,progress,1);
+            bool Near(Vector2 a,Vector2 b)=>Vector2.Distance(a,b)<.001f;
+            Vector2 Blade(float degrees,float length)=>new Vector2(1,0)+new Vector2(Mathf.Cos(degrees*Mathf.Deg2Rad),Mathf.Sin(degrees*Mathf.Deg2Rad))*length;
+            Require(Near(Tip(knife.id,0),Blade(120,.6f)) && Near(Tip(knife.id,1f/6),Blade(165,.6f)) && Near(Tip(knife.id,.5f),Blade(-60,.6f)) && Near(Tip(knife.id,1),Blade(120,.6f)),
+                "взмах ножа вокруг удерживаемой точки");
+            Require(Near(Remains.Gameplay.WeaponPose.Tip(knife.id,origin,Vector2.left,.5f,1),new Vector2(-1,0)+new Vector2(-Mathf.Cos(-60*Mathf.Deg2Rad),Mathf.Sin(-60*Mathf.Deg2Rad))*.6f),
+                "взмах влево отражён");
+            // spear grade 1 (mtip 1, long 25): a thrust along the aim pushed by anim × 100 px.
+            var spear=WeaponCatalog.Get("weapon:spear:grade:1");
+            Require(spear.meleeAimOffset==Vector2.zero && Near(Tip(spear.id,0),new Vector2(1.5f,0)) && Near(Tip(spear.id,1f/6),new Vector2(1,0)) && Near(Tip(spear.id,.5f),new Vector2(3.5f,0)),
+                "выпад копья вдоль прицела");
+            // At rest the hold follows the aim off by the offset, and the drawn tip is the swing's first pose (from the aim).
+            var actor=new ActorState {id="melee-check",level="l",player=true,health=10,weapon=knife.id,anatomy="pony",actorType="pony",facing=1};
+            var aim=Remains.Gameplay.WeaponPose.Origin(actor)+new Vector2(2,0);
+            Remains.Gameplay.WeaponPose.Aim(actor,aim);
+            var held=Remains.Gameplay.WeaponPose.HeldPoint(actor);
+            Require(Near(held,aim+new Vector2(-.48f,-.18f)) && Near(new Vector2(actor.weaponTipX,actor.weaponTipY),held+new Vector2(Mathf.Cos((actor.weaponAngle+120)*Mathf.Deg2Rad),Mathf.Sin((actor.weaponAngle+120)*Mathf.Deg2Rad))*.6f),
+                $"удерживаемая точка и кончик покоя: {held}");
+            return melee.Length;
         }
         private static void CheckAmmunition(ExportedContentCatalog exported,WeaponDefinition hunt)
         {

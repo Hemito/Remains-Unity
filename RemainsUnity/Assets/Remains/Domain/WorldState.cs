@@ -207,6 +207,8 @@ namespace Remains.Domain
         public MeleeAttackAnchor meleeAnchor;
         public string naturalAttackType;
         public string naturalAttackTarget;
+        // A natural attack deals its type's damage times (1 + this): 0 is the table damage (udarUnit: −0.6…0.2).
+        public float naturalAttackVariation;
         // A pellet of a volley (WeaponDefinition.pellets): the ID of the volley's first shot. The shot's own effects
         // (sound, casing, recoil, firing frames) belong to that first shot only.
         public string volley;

@@ -22,7 +22,9 @@ namespace Remains.Content
             ("base:factory-generated:creatures-v5",RandomKeys("tarakan","rat","molerat","scorp","bloodwing","bloat","slime","turret","landturret")),
             // Raiders by the danger of their room (randomCid) — keyed by the variant, so a variant connected later is an
             // addition of its own: the shooters raider5 and raider7, placed and random.
-            ("base:factory-generated:creatures-v6",new[]{"raider5","raider7","random:raider5","random:raider7"})
+            ("base:factory-generated:creatures-v6",new[]{"raider5","raider7","random:raider5","random:raider7"}),
+            // The melee raiders: weapon in the teeth (raider1, raider3) and levitated (raider2, raider4).
+            ("base:factory-generated:creatures-v7",new[]{"raider1","raider2","raider3","raider4","random:raider1","random:raider2","random:raider3","random:raider4"})
         };
         private const string RandomPrefix="random:";
         private static string[] RandomKeys(params string[] objects)=>objects.Select(o=>RandomPrefix+o).ToArray();

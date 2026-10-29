@@ -61,10 +61,23 @@ MonoBehaviour:
       acceleration: 1.8
       holdDistance: 10
       burstFrames: 12
+      swingHeight: 0
       weaponInTeeth: 1
       stroll: 1
       climbsLadders: 1
       slowness: 40
+      bodyHit:
+        damageType: physical
+        approachSpeed: 2.4
+        beginDistance: 0.95000005
+        verticalDistance: 2.4
+        preparationSeconds: 0
+        recoverySeconds: 1
+        damage: 15
+        originX: 0
+        originY: 0.7
+        reach: 0.85
+        radius: 0.56
     deathBlastScale: 0
   presentationSource: 1
   presentationPrefab: {fileID: 5259081731775352984, guid: ecc99e600e9a91a4a893b6ace3506d8a, type: 3}

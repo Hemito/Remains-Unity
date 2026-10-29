@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Remains.Serialization;
@@ -152,7 +153,26 @@ namespace Remains.Content
             if(usesHoldingArea) weapon.holdingArea.Validate($"источник={source}, weapon={weapon.id}");
             else if(!weapon.holdingArea.Inapplicable)
                 throw new InvalidDataException($"Двумерная область удержания неприменима к огнестрельному определению: источник={source}, weapon={weapon.id}.");
-            if(weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar")
+            if((weapon.meleeAroundHold || weapon.meleeAimOffset!=UnityEngine.Vector2.zero) && weapon.meleeMotion==null)
+                throw new InvalidDataException($"Удерживаемая точка взмаха задана без траектории: источник={source}, id={weapon.id}.");
+            if(weapon.meleeAroundHold)
+            {
+                // Around the held point the swing is closed: it ends in the pose it starts from, every key a blade pose.
+                var keys=weapon.meleeMotion;
+                if(keys.Length<2 || keys.Any(key=>key==null) || keys[0].time!=0 || keys[^1].time!=1 || keys.Any(key=>key.rest) ||
+                    keys[0].angle!=keys[^1].angle || keys[0].reach!=keys[^1].reach ||
+                    !float.IsFinite(weapon.meleeAimOffset.x) || !float.IsFinite(weapon.meleeAimOffset.y))
+                    throw new InvalidDataException($"Взмах вокруг удерживаемой точки должен быть замкнутым и без ключей покоя: источник={source}, id={weapon.id}.");
+                float previous=-1;
+                foreach(var key in keys)
+                {
+                    if(!float.IsFinite(key.time) || key.time<=previous || key.time>1 || !float.IsFinite(key.angle) ||
+                        !float.IsFinite(key.reach) || key.reach<0 || key.reach>10)
+                        throw new InvalidDataException($"Некорректный ключ взмаха: источник={source}, id={weapon.id}.");
+                    previous=key.time;
+                }
+            }
+            else if(weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar")
             {
                 var keys=weapon.meleeMotion;
                 if(keys==null || keys.Length<2 || keys[0]==null || keys[^1]==null || keys[0].time!=0 || keys[^1].time!=1 ||

@@ -42,6 +42,12 @@ namespace Remains.Content
         public float grenadeSpinRate,grenadeAngularRetention;
         public float meleeContactStart,meleeContactEnd=1;
         public MeleePoseKey[] meleeMotion;
+        // A levitated weapon (original WClub): it hangs at the aim within the holding area and its blade turns around
+        // that held point. Key angles are then relative to the aim, key reach is a share of the blade (range), and no key
+        // is a rest key. The held point sits off the aim by meleeAimOffset blades (x along the aim's side, y up), so that
+        // the arc of a swing meets the aim.
+        [InspectorName("Взмах вокруг удерживаемой точки (WClub)")] public bool meleeAroundHold;
+        [InspectorName("Смещение точки удержания от прицела, доли клинка")] public Vector2 meleeAimOffset;
         public HoldingArea holdingArea;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
         public float FlightRange(float speed)=>projectileLifetime>0?speed*projectileLifetime:range;
@@ -72,6 +78,8 @@ namespace Remains.Content
         public static WeaponDefinition Get(string id)=>definitions.TryGetValue(id,out var value)?value:
             throw new InvalidOperationException($"Отсутствует определение оружия: {id}.");
         public static bool Contains(string id)=>id!=null && definitions.ContainsKey(id);
+        // A melee weapon is one with a swing (meleeMotion); the loader turns an empty one into null.
+        public static bool IsMelee(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.meleeMotion!=null;
         public static bool IsExplosive(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive;
         public static bool IsMine(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive && value.mine!=null && value.mine.Configured;
 

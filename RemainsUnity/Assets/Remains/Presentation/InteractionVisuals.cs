@@ -93,7 +93,7 @@ namespace Remains.Presentation
                 if(prepareMuzzleShadow!=null && shotAnimation.TryAttackEmission(attack,out var emission))
                     prepareMuzzleShadow(attack,emission);
                 if(NpcNaturalAttack.IsNatural(attack) || attack.weapon=="mtrap-bite") return;
-                if(attack.weapon is "spear" or "crowbar" || Remains.Content.WeaponCatalog.IsExplosive(attack.weapon) || attack.level!=session.LocalActor?.level) return;
+                if(Remains.Content.WeaponCatalog.IsMelee(attack.weapon) || Remains.Content.WeaponCatalog.IsExplosive(attack.weapon) || attack.level!=session.LocalActor?.level) return;
                 if(Remains.Content.WeaponCatalog.Get(attack.weapon).projectileSpeed>0) return;
                 float limit=Remains.Content.WeaponCatalog.Get(attack.weapon).stopAtTerrain?
                     ShotObstacles.Limit(geometry.Get(attack.level),attack.Origin,attack.End):1;
@@ -244,9 +244,21 @@ namespace Remains.Presentation
                 view.SetFrame(sprite);
                 var direction=WeaponPose.Direction(actor);
                 var pose=WeaponPose.SampleRanged(actor);
-                view.transform.position=actor.weapon is "spear" or "crowbar"?
-                    WeaponPose.Origin(actor)+direction*(actor.weaponReach-sprite.bounds.max.x):pose.Root;
-                view.transform.rotation=Quaternion.Euler(0,0,pose.Angle);
+                // A melee weapon in the hooves lies along its reach; a levitated one (WClub) hangs at its held point with the
+                // blade toward the tip; one in an atlas socket (teeth) and firearms take the ranged pose.
+                var melee=Remains.Content.WeaponCatalog.IsMelee(actor.weapon) && !Remains.Content.AtlasWeaponSockets.Enabled(actor)?Remains.Content.WeaponCatalog.Get(actor.weapon):null;
+                if(melee!=null && melee.meleeAroundHold)
+                {
+                    var tip=new Vector2(actor.weaponTipX,actor.weaponTipY);var blade=tip-WeaponPose.HeldPoint(actor);
+                    if(blade.sqrMagnitude<.000001f) blade=direction;
+                    view.transform.position=tip-blade.normalized*melee.range;
+                    view.transform.rotation=Quaternion.Euler(0,0,Mathf.Atan2(blade.y,blade.x)*Mathf.Rad2Deg);
+                }
+                else
+                {
+                    view.transform.position=melee!=null?WeaponPose.Origin(actor)+direction*(actor.weaponReach-sprite.bounds.max.x):pose.Root;
+                    view.transform.rotation=Quaternion.Euler(0,0,pose.Angle);
+                }
                 view.SetMirrored(WeaponPose.Flip(actor));
                 if(view.gameObject.activeInHierarchy && shotAnimation.TryEmission(actor,sprite,view.transform.localToWorldMatrix,out var emission))
                 {muzzleEmissions.Add(emission);muzzleSourceIds.Add("flash:"+shotAnimation.EmissionId(actor));}

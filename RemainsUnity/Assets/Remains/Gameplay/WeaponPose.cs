@@ -88,9 +88,40 @@ namespace Remains.Gameplay
                 // Solve the barrel ray through the cursor, including its authored vertical offset.
                 angle-=Mathf.Asin(Mathf.Clamp(lateral/delta.magnitude,-1,1));
             }
-            else actor.weaponReach=Mathf.Min(delta.magnitude,MeleeReachLimit(actor));
+            else
+            {
+                var definition=WeaponCatalog.Get(actor.weapon);
+                if(definition.meleeAroundHold && !AtlasWeaponSockets.Enabled(actor))
+                {
+                    // WClub.actions: the weapon floats toward a point off the aim by the blade, clamped to the holding area.
+                    float side=delta.x<0?-1:1;
+                    delta+=new Vector2(definition.meleeAimOffset.x*side,definition.meleeAimOffset.y)*definition.range;
+                    if(delta.sqrMagnitude<.000001f) delta=Vector2.right*side*.001f;
+                    actor.weaponFlipY=delta.x<0;angle=Mathf.Atan2(delta.y,delta.x);
+                }
+                actor.weaponReach=Mathf.Min(delta.magnitude,MeleeReachLimit(actor));
+            }
             actor.weaponAngle=angle*Mathf.Rad2Deg;
+            if(!rig.HasMuzzle) RestTip(actor);
         }
+        // A levitated weapon held at a given point (an NPC's: Weapon.actions for a non-player owner, 40 px ahead).
+        public static void HoldAt(ActorState actor,Vector2 point)
+        {
+            var delta=point-Origin(actor);
+            if(delta.sqrMagnitude<.000001f) delta=Vector2.right*(actor.facing<0?-1:1)*.001f;
+            actor.weaponFlipY=delta.x<0;
+            actor.weaponReach=Mathf.Min(delta.magnitude,MeleeReachLimit(actor));
+            actor.weaponAngle=Mathf.Atan2(delta.y,delta.x)*Mathf.Rad2Deg;
+            RestTip(actor);
+        }
+        // Around the held point the blade's end is drawn from the replicated tip; at rest it is the swing's first pose.
+        private static void RestTip(ActorState actor)
+        {
+            if(!WeaponCatalog.Get(actor.weapon).meleeAroundHold || AtlasWeaponSockets.Enabled(actor)) return;
+            var tip=Tip(actor.weapon,Origin(actor),BaseDirection(actor),0,actor.weaponReach);
+            actor.weaponTipX=tip.x;actor.weaponTipY=tip.y;
+        }
+        public static Vector2 HeldPoint(ActorState actor)=>Origin(actor)+BaseDirection(actor)*actor.weaponReach;
         private static Vector2 BaseMuzzle(ActorState actor)=>new RangedWeaponPose(BaseMount(actor),actor.weaponAngle,Flip(actor),WeaponRigs.Get(actor.weapon)).Muzzle;
         public static float MeleeReachLimit(ActorState actor)=>WeaponCatalog.Get(actor.weapon).holdingArea.RadiusFor(actor.climbing);
         public static Vector2 Origin(Vector2 actorPosition)=>actorPosition+new Vector2(0,.8f);
@@ -105,10 +136,12 @@ namespace Remains.Gameplay
             while(index<keys.Length-1 && keys[index].time<progress) index++;
             var from=keys[index-1];var to=keys[index];
             float blend=Mathf.InverseLerp(from.time,to.time,progress);
-            float reach=Mathf.Lerp(from.rest?rest:from.reach*definition.range,to.rest?rest:to.reach*definition.range,blend);
             float angle=Mathf.Lerp(from.angle,to.angle,blend)*(direction.x<0?-1:1)*Mathf.Deg2Rad;
-            return origin+new Vector2(direction.x*Mathf.Cos(angle)-direction.y*Mathf.Sin(angle),
-                direction.x*Mathf.Sin(angle)+direction.y*Mathf.Cos(angle))*reach;
+            var turned=new Vector2(direction.x*Mathf.Cos(angle)-direction.y*Mathf.Sin(angle),direction.x*Mathf.Sin(angle)+direction.y*Mathf.Cos(angle));
+            // Around the held point (restReach is then the hold) the reach is a share of the blade.
+            if(definition.meleeAroundHold) return origin+direction*rest+turned*(Mathf.Lerp(from.reach,to.reach,blend)*definition.range);
+            float reach=Mathf.Lerp(from.rest?rest:from.reach*definition.range,to.rest?rest:to.reach*definition.range,blend);
+            return origin+turned*reach;
         }
     }
 }

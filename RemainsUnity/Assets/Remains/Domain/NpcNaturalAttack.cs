@@ -38,12 +38,16 @@ namespace Remains.Domain
     {
         public const string Kind="natural-contact";
         public static bool IsNatural(AttackEvent attack)=>attack?.naturalAttackType!=null;
+        // A creature's only attack, or a raider's body hit beside its weapon (ActorTypes keeps the two apart).
         public static NaturalAttackDefinition Definition(string type)
         {
-            var result=ActorTypes.Get(type).naturalAttack;
+            var definition=ActorTypes.Get(type);var result=definition.naturalAttack??definition.raider?.bodyHit;
             if(result==null) throw new InvalidOperationException("Отсутствуют данные естественной атаки: type="+type);
             return result; // ActorTypes.Register validates content once before simulation.
         }
+        // udarUnit: a touch deals 0.8–1.2 of its damage times the attacker's factor (attKorp param2, 1 or 0.5).
+        public const float MinVariation=-.6f,MaxVariation=.2f;
+        public static float Variation(float factor,System.Random random)=>factor*(float)(random.NextDouble()*.4+.8)-1;
         public static Vector2 Origin(ActorState actor)
         {var data=Definition(actor.actorType);return actor.BodyPosition+new Vector2(data.originX*actor.facing,data.originY);}
         public static bool InRange(ActorState actor,ActorState target)
@@ -74,13 +78,28 @@ namespace Remains.Domain
         {
             if(actor.npcWeaponAction?.naturalAttackType!=actor.actorType)
                 throw new InvalidOperationException($"Изменился тип естественной атаки: actor={actor.id}, actionType={actor.npcWeaponAction?.naturalAttackType}, type={actor.actorType}.");
-            var data=Definition(actor.actorType);var start=Origin(actor);var end=start+Vector2.right*(data.reach*actor.facing);
             // A missed target does not extend the shape or teleport the attacker to it.
             var result=target!=null && target.id==actor.attackTarget && ActorPresence.IsPresent(target) && target.level==actor.level
-                ?new AttackEvent {id=actor.attackId,attacker=actor.id,level=actor.level,weapon="",naturalAttackType=actor.actorType,naturalAttackTarget=target.id,
-                    factoryEnemy=FactoryEnemyScaling.Capture(actor.factoryEnemy),originX=start.x,originY=start.y,endX=end.x,endY=end.y,radius=data.radius}:null;
+                ?Event(actor.attackId,actor,target,0):null;
             actor.attackBusy=false;actor.attackRemaining=0;actor.attackTarget=null;
-            actor.attackCooldown=data.recoverySeconds;actor.revision++;return result;
+            actor.attackCooldown=Definition(actor.actorType).recoverySeconds;actor.revision++;return result;
+        }
+        // A touch outside the attack lifecycle (a raider's attKorp beside its weapon): the owner finds the target in
+        // reach, the victim confirms the contact as for any natural attack.
+        public static AttackEvent Touch(ActorState actor,ActorState target,float variation)
+        {
+            if(target==null || target.id==actor.id || actor.down || !InRange(actor,target)) return null;
+            if(!float.IsFinite(variation) || variation<MinVariation || variation>MaxVariation)
+                throw new InvalidOperationException($"Некорректное отклонение урона касания: actor={actor.id}, variation={variation}.");
+            actor.facing=target.x>=actor.x?1:-1;
+            return Event(Guid.NewGuid().ToString("N"),actor,target,variation);
+        }
+        private static AttackEvent Event(string id,ActorState actor,ActorState target,float variation)
+        {
+            var data=Definition(actor.actorType);var start=Origin(actor);var end=start+Vector2.right*(data.reach*actor.facing);
+            return new AttackEvent {id=id,attacker=actor.id,level=actor.level,weapon="",naturalAttackType=actor.actorType,naturalAttackTarget=target.id,
+                naturalAttackVariation=variation,factoryEnemy=FactoryEnemyScaling.Capture(actor.factoryEnemy),
+                originX=start.x,originY=start.y,endX=end.x,endY=end.y,radius=data.radius};
         }
         public static void ValidateEvent(AttackEvent attack,ActorState source=null)
         {
@@ -92,6 +111,7 @@ namespace Remains.Domain
                 !float.IsFinite(attack.endX) || !float.IsFinite(attack.endY) || !float.IsFinite(attack.radius) ||
                 Math.Abs(attack.radius-data.radius)>.0001f || Math.Abs(attack.endY-attack.originY)>.0001f ||
                 Math.Abs(Math.Abs(attack.endX-attack.originX)-data.reach)>.0001f ||
+                !float.IsFinite(attack.naturalAttackVariation) || attack.naturalAttackVariation<MinVariation || attack.naturalAttackVariation>MaxVariation ||
                 source!=null && (source.player || source.actorType!=attack.naturalAttackType || source.id!=attack.attacker || source.level!=attack.level))
                 throw new InvalidOperationException($"Некорректный естественный контакт: attack={attack.id}, actor={attack.attacker}, type={attack.naturalAttackType}, sourceType={source?.actorType}.");
         }

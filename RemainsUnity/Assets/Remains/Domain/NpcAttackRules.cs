@@ -15,7 +15,8 @@ namespace Remains.Domain
             if(Remains.Content.ActorTypes.Get(actor.actorType).naturalAttack!=null) return NpcNaturalAttack.Begin(actor,target);
             var action=NpcWeaponActions.Prepare(actor);if(action==null) return false;
             var weapon=Remains.Content.WeaponCatalog.Get(action.weapon);timing ??=standardTiming;
-            float duration=action.kind==NpcWeaponActions.Reload?weapon.reloadSeconds:timing.Preparation(actor,weapon);
+            // A swing (WClub) starts at once and lasts the weapon's rapid; its owner sweeps it meanwhile (NpcMeleeSwings).
+            float duration=action.kind==NpcWeaponActions.Reload?weapon.reloadSeconds:action.kind==NpcWeaponActions.Swing?weapon.cooldown:timing.Preparation(actor,weapon);
             NpcWeaponActions.ValidSeconds(duration,$"actor={actor.id}, kind={action.kind}, weapon={weapon.id}");
             actor.attackId=Guid.NewGuid().ToString("N");actor.attackTarget=target.id;
             actor.npcWeaponAction=action;actor.attackBusy=true;actor.attackRemaining=duration;actor.revision++;return true;
@@ -29,6 +30,12 @@ namespace Remains.Domain
             if(!actor.attackBusy || actor.attackRemaining>0) return null;
             var action=actor.npcWeaponAction;
             if(action?.kind==NpcNaturalAttack.Kind) return NpcNaturalAttack.Complete(actor,target,room);
+            if(action?.kind==NpcWeaponActions.Swing)
+            {
+                // The sweep has fired its contacts; the next swing may follow at once (t_attack back to 0).
+                actor.attackBusy=false;actor.attackRemaining=0;actor.attackCooldown=0;
+                actor.attackTarget=null;actor.revision++;return null;
+            }
             if(action==null || action.kind!=NpcWeaponActions.Shot && action.kind!=NpcWeaponActions.Reload)
             {
                 Debug.LogWarning($"Отменено действие NPC без поддержанной привязки: actor={actor.id}, attack={actor.attackId}, kind={action?.kind}.");

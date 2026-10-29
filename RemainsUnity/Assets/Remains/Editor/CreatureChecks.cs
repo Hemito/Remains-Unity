@@ -86,8 +86,11 @@ namespace Remains.Editor
                 }
                 bool V4(ActorState a)=>!V5(a) && a.actorType.StartsWith("turret",StringComparison.Ordinal);
                 Require(random.Count>0 && random.All(id=>world.actors.Any(a=>a.id==id)),"случайные враги комнат установлены");
+                bool V7(ActorState a)=>V6(a) && ActorTypes.Get(a.actorType).raider.attacker is RaiderAttacker.Teeth or RaiderAttacker.Levitated;
                 Require(world.actors.Any(V6),"рейдеры завода установлены");
-                Upgrade("base:factory-generated:creatures-v5",V6,"переход v5 → v6 добавляет только рейдеров");
+                Require(world.actors.Any(V7),"рукопашные рейдеры завода установлены");
+                Upgrade("base:factory-generated:creatures-v6",V7,"переход v6 → v7 добавляет только рукопашных рейдеров");
+                Upgrade("base:factory-generated:creatures-v5",V6,"переход v5 → v7 добавляет только рейдеров");
                 Upgrade("base:factory-generated:creatures-v4",V5,"переход v4 → v6 добавляет только случайных врагов комнат и рейдеров");
                 Upgrade("base:factory-generated:creatures-v3",a=>V4(a) || V5(a),"переход v3 → v5 добавляет турели и случайных врагов");
                 Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a) || V5(a),"переход v2 → v5 добавляет летунов, слизь, турели и случайных врагов");
@@ -162,8 +165,9 @@ namespace Remains.Editor
         private static void Raider(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported,ActorDeathAudioCatalog voices)
         {
             string id=creature.actorType;
-            Require(type.combatAi && type.hasWeapon && type.atlasWeaponSocket && type.naturalAttack==null && type.presentation=="atlas" && type.bodyInventory && type.raider!=null,
-                $"{id}: рейдер — боевой ИИ с оружием на точке атласа и настройками рейдера");
+            bool levitated=type.raider?.attacker==RaiderAttacker.Levitated;
+            Require(type.combatAi && type.hasWeapon && type.atlasWeaponSocket!=levitated && type.naturalAttack==null && type.presentation=="atlas" && type.bodyInventory && type.raider!=null,
+                $"{id}: рейдер — боевой ИИ с оружием (в зубах — на точке атласа, телекинезом — перед телом) и настройками рейдера");
             type.raider.Validate(id);type.perception.Validate();
             var art=AtlasAnimationData.Get(type.artwork);
             foreach(string pose in new[]{"idle","walk","run","jump","down","climb"})
@@ -180,7 +184,40 @@ namespace Remains.Editor
                 (string.IsNullOrEmpty(weapon.ammo) || items.Any(i=>i.definition==weapon.ammo && i.count>=weapon.magazineSize)),
                 $"{id}: здоровье AllData, оружие {weapon.id} с полным магазином и запасом патронов");
             Require(voices.TrySelect(id,0,out _),"голос смерти "+id);
+            // udarUnit: comb damage, plus half of a melee weapon's (of the weapon's type).
+            float dam=float.Parse((string)unit.Element("comb").Attribute("damage")??"0",System.Globalization.CultureInfo.InvariantCulture);
+            bool melee=WeaponCatalog.IsMelee(weapon.id);var body=type.raider.bodyHit;
+            Require(body!=null && (melee?body.damage>dam:Mathf.Approximately(body.damage,dam)) &&
+                (type.raider.attacker is RaiderAttacker.Teeth or RaiderAttacker.Levitated)==melee,$"{id}: удар корпусом {body?.damage} при comb damage {dam}, оружие {weapon.id}");
+            if(levitated) Swings(id,type,spawned,items,weapon);
             Animates(id,art,creature.sourceId);
+        }
+
+        // A levitated weapon's swing as its owner runs it: begun at once, swept over the weapon's rapid, every contact segment
+        // of one attack with its anchors, the tip within the hold and the blade; the action ends without a pause.
+        private static void Swings(string id,ActorTypeDefinition type,ActorState actor,System.Collections.Generic.List<ItemStack> items,WeaponDefinition weapon)
+        {
+            var room=new RoomLayout {id="swing-check",left=-20,right=20,bottom=-1,top=20,ladders=Array.Empty<RoomLadder>(),
+                platforms=new[]{new RoomSurface {x=-20,y=-1,width=40,height=1}}};
+            RoomSurfaces.Prepare(room);
+            actor.level="l";actor.x=0;actor.y=0;actor.facing=1;actor.inventory=items;actor.weaponInventoryVersion=1;
+            actor.equippedWeaponItem=items.Single(i=>i.definition==weapon.id).id;actor.weapon=weapon.id;
+            var target=new ActorState {id="p",player=true,connected=true,level="l",x=1.5f,y=0,health=100,actorType="pony",anatomy="pony"};
+            var raiders=new Remains.Gameplay.NpcRaiderController(MovementSettings.Load(),new System.Random(1));
+            raiders.Step(actor,type,target,true,room,1f/30);
+            Require(NpcAttackRules.TryBegin(actor,target) && actor.npcWeaponAction?.kind==NpcWeaponActions.Swing &&
+                Mathf.Approximately(actor.attackRemaining,weapon.cooldown),$"{id}: взмах начинается сразу и длится rapid оружия");
+            var fired=new System.Collections.Generic.List<AttackEvent>();float dt=1f/60;var origin=Remains.Gameplay.WeaponPose.Origin(actor);
+            float limit=(weapon.meleeAroundHold?weapon.holdingArea.radius:0)+weapon.range*(weapon.meleeMotion.Max(k=>k.reach))+.01f;
+            while(actor.attackBusy)
+            {
+                raiders.Swing(actor,type,room,dt,fired.Add);
+                Require(Vector2.Distance(new Vector2(actor.weaponTipX,actor.weaponTipY),origin)<=limit,$"{id}: кончик в пределах удержания и клинка");
+                actor.attackRemaining-=dt;
+                if(actor.attackRemaining<=0) Require(NpcAttackRules.Complete(actor,target,room)==null,$"{id}: взмах не создаёт выстрела");
+            }
+            Require(fired.Count>0 && fired.All(a=>a.id==fired[0].id && a.weapon==weapon.id && a.attacker==actor.id && a.meleeAnchor!=null) && actor.attackCooldown==0,
+                $"{id}: касания взмаха — одно событие с опорами, следующий взмах без паузы ({fired.Count})");
         }
 
         private static void Turret(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported)

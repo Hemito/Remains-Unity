@@ -75,6 +75,8 @@ namespace Remains.Gameplay
                     if(family && NpcCreatureBehaviours.Flies(type.behavior)) creatures.Coast(actor,type,controller.Room,dt);
                     else if(!NpcCreatureBehaviours.Fixed(type.behavior)) controller.Step(actor,Vector2.zero,false,dt,lookAtX:!natural && visible?target.x:(float?)null);
                     if(NpcCreatureBehaviours.Fixed(type.behavior)) NpcTurret.Follow(actor,type,target,visible,controller.Room,dt);
+                    // A raider's swing is swept by its owner over the action; the weapon is not re-aimed meanwhile.
+                    else if(raider && actor.npcWeaponAction?.kind==NpcWeaponActions.Swing) raiders.Swing(actor,type,controller.Room,dt,session.Fire);
                     else if(!natural) NpcWeaponAim.Apply(actor,visible?target.BodyPosition+Vector2.up*.55f:null,controller.Room);
                     actor.attackRemaining-=dt;
                     if(actor.attackRemaining<=0)
@@ -123,10 +125,12 @@ namespace Remains.Gameplay
                 }
                 if(raider)
                 {
-                    bool wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt);
-                    if(wants && visible && target.level==actor.level && target.connected && !target.down && actor.attackCooldown<=0 &&
-                        NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
+                    var wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt);
+                    bool ready=visible && target.level==actor.level && target.connected && !target.down;
+                    if(wants.weapon && ready && actor.attackCooldown<=0 && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
                         session.PublishActor(actor);
+                    else if(wants.bodyHit>0 && ready && raiders.Touch(actor,type,target,controller.Room,wants.bodyHit) is {} touch)
+                        session.FirePrepared(touch);
                     continue;
                 }
                 if(!visible || target.level!=actor.level || target.down || !target.connected)
@@ -146,7 +150,7 @@ namespace Remains.Gameplay
                     if(NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming)) session.PublishActor(actor);
                 }
             }
-            raiders.EndFrame();
+            raiders.EndFrame(dt);
         }
     }
 }

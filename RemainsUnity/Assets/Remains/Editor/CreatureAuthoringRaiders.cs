@@ -18,7 +18,10 @@ namespace Remains.Editor
     // weapon (as the turrets per gun): the raster sheet sprRaiderN with the walk (trot), run, jump, dying and ladder rows,
     // the weapon held at the original's attachment table of the sheet's sex (BlitAnim wPosRaider1 male 130 px cells,
     // wPosRaider2 female 120 px), RaiderBrain settings from AllData (raider + raiderN), the weapon with a full magazine.
-    // A variant is a gap when its attack is not implemented (melee, levitated, thrown) or one of its weapons is missing.
+    // The attack way is UnitRaider's attackerType: a melee weapon in the teeth (comb krep 1) only adds to the body hit, a
+    // levitated one (krep 0) is swung, a firearm in the teeth shoots; every raider has the body hit (attKorp: comb damage,
+    // plus half of a melee weapon's, of the weapon's damage type then). A variant is a gap when one of its weapons is
+    // missing or its attack is not implemented (a levitated firearm, thrown weapons).
     public static partial class CreatureAuthoring
     {
         public const string RaiderClass="UnitRaider";
@@ -44,29 +47,39 @@ namespace Remains.Editor
                 var list=own.Elements("w").Select(w=>(id:(string)w.Attribute("id"),chance:Num(w,"ch",0),dif:(int)Num(w,"dif",0))).ToArray();
                 var variant=new CreatureVariant {unit=unitId,cid=cid,weapons=list.Select(w=>new CreatureWeaponChoice {weapon=w.id,chance=w.chance,difficulty=w.dif}).ToArray()};
                 variants.Add(variant);
-                variant.gap=RaiderGap(unit,list.Select(w=>w.id),weapons);
+                variant.gap=RaiderGap(unit,list.Select(w=>w.id),weapons,rows);
                 if(variant.gap!=null) continue;
                 var look=RaiderArt(unitId,unit,row,resources,package,owned,variant.weapons.Select(c=>RaiderTypeId(unitId,c.weapon)).ToArray());
                 foreach(var choice in variant.weapons)
                 {
-                    var entry=GenerateRaider(unitId,unit,row,parent,choice.weapon,weapons,look,owned);
+                    var entry=GenerateRaider(unitId,unit,row,parent,choice.weapon,weapons,OriginalWeapon(rows,choice.weapon),look,owned);
                     entries.Add(entry);types.Add(entry.actorType);choice.actorType=entry.actorType;
                 }
             }
             return new CreatureObjectRule {objectId=template.objectId,actorTypes=types.ToArray(),variantRule=CreatureObjectRule.RaiderVariants,variants=variants.ToArray()};
         }
 
-        // Why a variant is not playable yet: UnitRaider attackerType (weapon tip and comb krep) and the weapons it may get.
-        private static string RaiderGap(XElement unit,IEnumerable<string> list,Dictionary<string,WeaponDefinition> weapons)
+        // Why a variant is not playable yet: the weapons it may get and their attack way.
+        private static string RaiderGap(XElement unit,IEnumerable<string> list,Dictionary<string,WeaponDefinition> weapons,JObject[] rows)
         {
             var ids=list.ToArray();
-            if(ids.Length==0) return "без оружия — рукопашный рейдер ещё не реализован";
+            if(ids.Length==0) return "без оружия в списке (getXmlWeapon ничего не даёт)";
             var missing=ids.Where(id=>!weapons.ContainsKey(OriginalWeaponIds.Runtime(id,0))).ToArray();
-            if(missing.Length>0) return "нет оружия "+string.Join(", ",missing)+" (рукопашное, метательное или ещё не импортированное)";
-            if(ids.Any(id=>weapons[OriginalWeaponIds.Runtime(id,0)].meleeMotion!=null)) return "рукопашный рейдер ещё не реализован";
-            if(Num(unit.Element("comb"),"krep",0)!=1) return "оружие удерживается телекинезом (comb krep 0) — его вид у рейдера ещё не реализован";
+            if(missing.Length>0) return "нет оружия "+string.Join(", ",missing)+" (метательное или ещё не импортированное)";
+            foreach(string id in ids) if(RaiderAttack(unit,OriginalWeapon(rows,id),out string reason)==null) return reason;
             return null;
         }
+        // UnitRaider attackerType: tip ≤ 1 with krep 1 — 0, tip 1 with krep 0 — 1, tip 4 — 3, else 2.
+        private static RaiderAttacker? RaiderAttack(XElement unit,XElement weapon,out string gap)
+        {
+            bool teeth=Num(unit.Element("comb"),"krep",1)==1;string tip=(string)weapon.Attribute("tip");gap=null;
+            if(tip=="1") return teeth?RaiderAttacker.Teeth:RaiderAttacker.Levitated;
+            if(tip=="4") {gap="метательное оружие — бросок рейдера ещё не реализован";return null;}
+            if(!teeth) {gap="огнестрел удерживается телекинезом (comb krep 0) — его вид у рейдера ещё не реализован";return null;}
+            return RaiderAttacker.Ranged;
+        }
+        private static XElement OriginalWeapon(JObject[] rows,string id)=>XElement.Parse((string)(rows.SingleOrDefault(r=>(string)r["category"]=="weapon" && (string)r["id"]==id)??
+            throw new InvalidDataException("Нет оружия оригинала "+id))["rawXml"]);
 
         private static string RaiderTypeId(string unitId,string originalWeapon)=>unitId+"-"+originalWeapon;
         private sealed class RaiderLook {public AtlasActorArtwork art;public AtlasActorVisual prefab;public bool female;}
@@ -131,7 +144,7 @@ namespace Remains.Editor
         }
 
         private static CreatureEntry GenerateRaider(string unitId,XElement unit,JObject row,JObject parent,string originalWeapon,Dictionary<string,WeaponDefinition> weapons,
-            RaiderLook look,HashSet<string> owned)
+            XElement source,RaiderLook look,HashSet<string> owned)
         {
             var phis=unit.Element("phis");var move=unit.Element("move");var comb=unit.Element("comb");var un=unit.Element("un");
             float width=Num(phis,"sX")/PixelsPerMetre,height=Num(phis,"sY")/PixelsPerMetre,mass=Num(phis,"massa",1);
@@ -141,18 +154,28 @@ namespace Remains.Editor
             var definition=weapons[weapon];
             int burst=(int)Num(un,"och",0);
             if(burst==0 && definition.magazineSize>10) burst=Mathf.RoundToInt(definition.magazineSize/2f);   // UnitRaider: holder > 10 → holder / 2
+            var attacker=RaiderAttack(unit,source,out string gap)??throw new InvalidDataException($"Рейдер {id}: {gap}.");
+            var character=source.Element("char");bool melee=(string)source.Attribute("tip")=="1";
+            float walk=un?.Attribute("walker")!=null?2.5f*FramesPerSecond/PixelsPerMetre:Num(move,"speed")*FramesPerSecond/PixelsPerMetre;
             var raider=new RaiderSettings
             {
-                attacker=RaiderAttacker.Ranged,
-                walkSpeed=un?.Attribute("walker")!=null?2.5f*FramesPerSecond/PixelsPerMetre:Num(move,"speed")*FramesPerSecond/PixelsPerMetre,
+                attacker=attacker,walkSpeed=walk,
                 jumpSpeed=Num(move,"jump",15)*FramesPerSecond/PixelsPerMetre,acceleration=Num(move,"accel",5)*FramesPerSecond/PixelsPerMetre,
-                holdDistance=Num(un,"dist",1000)/PixelsPerMetre,burstFrames=burst,weaponInTeeth=true,stroll=un?.Attribute("stay")==null,
-                climbsLadders=un?.Attribute("flyer")==null,slowness=40
+                holdDistance=Num(un,"dist",1000)/PixelsPerMetre,burstFrames=burst,weaponInTeeth=attacker!=RaiderAttacker.Levitated,stroll=un?.Attribute("stay")==null,
+                climbsLadders=un?.Attribute("flyer")==null,slowness=40,
+                // attack(): a levitated weapon is swung while |celDY| < rapid × 8 px.
+                swingHeight=attacker==RaiderAttacker.Levitated?Num(character,"rapid")*8/PixelsPerMetre:0,
+                // udarUnit: (melee weapon damage × 0.5 + dam) of the weapon's type, else dam of the unit's (Unit.tipDamage 2).
+                // The touch geometry is the creatures' (CreatureAuthoring: attKorp needs the bodies to overlap).
+                bodyHit=new NaturalAttackDefinition {damageType=DamageTypes.FromOriginal(melee?(int)Num(character,"tipdam",0):(int)Num(comb,"tipdam",2)),
+                    approachSpeed=walk,beginDistance=width*.5f+.4f,verticalDistance=height+1f,preparationSeconds=0,recoverySeconds=1,
+                    damage=Num(comb,"damage",0)+(melee?Num(character,"damage")*.5f:0),originX=0,originY=height*.5f,reach=width*.5f+.3f,radius=Mathf.Max(.1f,height*.4f)}
             };
             var type=new ActorTypeDefinition
             {
                 id=id,presentation="atlas",artwork=art.resource.Substring(0,art.resource.Length-"sheet".Length)+"artwork",
-                combatAi=true,hasWeapon=true,atlasWeaponSocket=true,bodyInventory=true,canUseDoors=true,bodyMassKg=mass,telekinesisMovable=true,
+                // A levitated weapon hangs ahead of the body (WClub), not at the sheet's attachment point.
+                combatAi=true,hasWeapon=true,atlasWeaponSocket=attacker!=RaiderAttacker.Levitated,bodyInventory=true,canUseDoors=true,bodyMassKg=mass,telekinesisMovable=true,
                 // Unit vision × 1000 px; the hand-made raider's eye and observed heights, scaled by the sheet's height.
                 perception=new NpcPerceptionSettings {sightDistance=vision*1000/PixelsPerMetre,closeDistance=1.6f,recognitionSeconds=.3f,memorySeconds=4,
                     hearingDistance=vision*1000/PixelsPerMetre,eyeHeight=height*.64f,targetHeight=.7f},
@@ -193,7 +216,7 @@ namespace Remains.Editor
             const string LootGap="добыча raider (случайные еда/патроны/взрывчатка по категориям LootGen) не перенесена — у тела только его инвентарь";
             Debug.LogWarning($"Рейдер {id}: {LootGap}.");
             return new CreatureEntry {sourceId=unitId,actorType=id,family=NpcCreatureBehaviours.Raider,spawn=spawn,
-                notes=new[]{"оружие "+weapon,$"таблица оружия {(female?"wPosRaider2":"wPosRaider1")}",LootGap,"броня comb armor как поглощение; aqual, armorhp, vulner, dexter, skill не перенесены"}};
+                notes=new[]{"оружие "+weapon,"атака "+attacker,$"таблица оружия {(female?"wPosRaider2":"wPosRaider1")}",LootGap,"броня comb armor как поглощение; aqual, armorhp, vulner, dexter, skill не перенесены"}};
         }
 
         // BlitAnim.wPosRaiderN: per sheet row, the weapon point of each frame (cell pixels, x right, y down). Numbers only:

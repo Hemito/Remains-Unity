@@ -13,7 +13,8 @@ using UnityEngine;
 
 namespace Remains.Editor
 {
-    // The original's firearms and energy weapons (AllData weapon tip 2/3) from the export in one pass, no per-weapon
+    // The original's weapons from the export in one pass (melee, tip 1: FirearmAuthoringMelee). Firearms and energy
+    // weapons (AllData weapon tip 2/3), no per-weapon
     // hand authoring: every grade with its own item image becomes a working WeaponCatalog definition whose ID is the
     // formal item ID (weapon:<id>:grade:<n>), with
     //   numbers   Weapon.getCharParam/getPhisParam/getAmmoParam (grade elements over the base): damage, rapid → cooldown,
@@ -28,7 +29,7 @@ namespace Remains.Editor
     // (kol), arcing shots (grav), flames, spin-up (prep). The hand-made pistol (p10mm) and laser pistol (lasp) keep
     // their grade 0. Generated assets live in "Original" folders and are replaced on every run.
     //   batch -executeMethod Remains.Editor.FirearmAuthoring.RunBatch
-    public static class FirearmAuthoring
+    public static partial class FirearmAuthoring
     {
         private const string WeaponFolder="Assets/Remains/Resources/Content/weapons/Original";
         private const string PrefabFolder="Assets/Remains/Prefabs/Weapons/Original";
@@ -73,6 +74,7 @@ namespace Remains.Editor
             var serialized=new SerializedObject(weapons);var list=serialized.FindProperty("weapons");
             var shots=new Dictionary<string,Shot>(StringComparer.Ordinal);var casings=new Dictionary<string,CasingEffectProfile>(StringComparer.Ordinal);
             var audio=new List<JObject>();var generated=new List<string>();var gaps=new List<string>();var assets=new HashSet<string>(StringComparer.Ordinal);
+            int melee=0;
 
             foreach(var row in ((JArray)catalog["definitions"]).OfType<JObject>().Where(r=>(string)r["category"]=="weapon").OrderBy(r=>(string)r["id"],StringComparer.Ordinal))
             {
@@ -86,6 +88,22 @@ namespace Remains.Editor
                     string id=$"weapon:{wid}:grade:{grade}";
                     string reason=Generate(id,wid,grade,root,graphics,sounds,resources,exported,list,shots,casings,audio,assets);
                     if(reason==null) generated.Add(id);else gaps.Add($"{id}: {reason}");
+                }
+            }
+
+            // Melee weapons (tip 1, WClub).
+            foreach(var row in ((JArray)catalog["definitions"]).OfType<JObject>().Where(r=>(string)r["category"]=="weapon").OrderBy(r=>(string)r["id"],StringComparer.Ordinal))
+            {
+                string wid=(string)row["id"];var root=XElement.Parse((string)row["rawXml"]);
+                if((string)root.Attribute("tip")!="1" || excluded.Contains(wid)) continue;
+                var graphics=((JArray)row["graphics"]).OfType<JObject>().ToArray();var sounds=((JArray)row["sounds"]).OfType<JObject>().ToArray();
+                int grades=Math.Max(1,root.Elements("char").Count());
+                for(int grade=0;grade<grades;grade++)
+                {
+                    if(OriginalWeaponIds.HandMade(wid,grade)!=null) continue;
+                    string id=$"weapon:{wid}:grade:{grade}";
+                    string reason=Melee(id,wid,grade,root,graphics,sounds,exported,list,audio,assets);
+                    if(reason==null) {generated.Add(id);melee++;}else gaps.Add($"{id}: {reason}");
                 }
             }
 
@@ -133,21 +151,14 @@ namespace Remains.Editor
             AssetDatabase.SaveAssets();
             WriteAudio(audio);
             foreach(string gap in gaps) Debug.Log("Оружие не подключено: "+gap);
-            Debug.Log($"Огнестрел оригинала: подключено {generated.Count} определений ({generated.Select(g=>g.Split(':')[1]).Distinct().Count()} моделей), "+
+            Debug.Log($"Оружие оригинала: подключено {generated.Count} определений ({generated.Select(g=>g.Split(':')[1]).Distinct().Count()} моделей, ближнего боя {melee}), "+
                 $"не подключено {gaps.Count}; графика выстрелов {shots.Count}, гильз {casings.Count}.");
         }
 
         private static string Generate(string id,string wid,int grade,XElement root,JObject[] graphics,JObject[] sounds,Dictionary<string,JObject> resources,
             ExportedContentCatalog exported,SerializedProperty list,Dictionary<string,Shot> shots,Dictionary<string,CasingEffectProfile> casings,List<JObject> audio,HashSet<string> assets)
         {
-            // Weapon.getXmlParam: each element of the grade over the base one.
-            XElement Merged(string name)
-            {
-                var all=root.Elements(name).ToArray();if(all.Length==0) return new XElement(name);
-                var merged=new XElement(all[0]);
-                if(grade>0 && grade<all.Length) foreach(var attribute in all[grade].Attributes()) merged.SetAttributeValue(attribute.Name,attribute.Value);
-                return merged;
-            }
+            XElement Merged(string name)=>FirearmAuthoring.Merged(root,name,grade);
             var character=Merged("char");var phis=Merged("phis");var vis=Merged("vis");var ammoNode=Merged("ammo");var snd=Merged("snd");
             if(Num(character,"damexpl",0)>0) return "взрывающийся снаряд (damexpl)";
             if(phis.Attribute("grav")!=null) return "навесной снаряд (grav)";
@@ -256,8 +267,17 @@ namespace Remains.Editor
             return null;
         }
 
-        // A weapon prefab: the rest frame and the muzzle at the emit socket (source px from the registration, y down).
-        private static WeaponView Prefab(string id,string file,Sprite rest,float emitX,float emitY,HashSet<string> assets)
+        // Weapon.getXmlParam: each element of the grade over the base one.
+        private static XElement Merged(XElement root,string name,int grade)
+        {
+            var all=root.Elements(name).ToArray();if(all.Length==0) return new XElement(name);
+            var merged=new XElement(all[0]);
+            if(grade>0 && grade<all.Length) foreach(var attribute in all[grade].Attributes()) merged.SetAttributeValue(attribute.Name,attribute.Value);
+            return merged;
+        }
+        // A weapon prefab: the rest frame and the muzzle at the emit socket (source px from the registration, y down);
+        // a melee weapon has no muzzle.
+        private static WeaponView Prefab(string id,string file,Sprite rest,float? emitX,float emitY,HashSet<string> assets)
         {
             string materialPath=PrefabFolder+"/"+file+".mat",prefabPath=PrefabFolder+"/"+file+".prefab";assets.Add(materialPath);assets.Add(prefabPath);
             var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
@@ -267,8 +287,12 @@ namespace Remains.Editor
             try
             {
                 var renderer=node.AddComponent<SpriteRenderer>();renderer.sprite=rest;renderer.sharedMaterial=material;renderer.sortingOrder=100;
-                var muzzle=new GameObject("Дуло").transform;muzzle.SetParent(node.transform,false);
-                muzzle.localPosition=new Vector3(emitX/PixelsPerMetre,-emitY/PixelsPerMetre,0);
+                Transform muzzle=null;
+                if(emitX.HasValue)
+                {
+                    muzzle=new GameObject("Дуло").transform;muzzle.SetParent(node.transform,false);
+                    muzzle.localPosition=new Vector3(emitX.Value/PixelsPerMetre,-emitY/PixelsPerMetre,0);
+                }
                 var component=node.AddComponent<WeaponView>();component.Configure(id,renderer,muzzle);
                 component.ConfigureRest(CatalogSpriteAuthoring.Reference(rest));
                 return PrefabUtility.SaveAsPrefabAsset(node,prefabPath).GetComponent<WeaponView>();
