@@ -27,7 +27,7 @@ namespace Remains.Content
         public static string PreviousPatch=>versions[^2].patch;
         private const string ObjectPrefix="remains:obj:";
 
-        public static int Install(FactoryLevelRoot root)
+        public static int Install(FactoryLevelRoot root,IReadOnlyList<FactoryRandomEncounters.Encounter> plan)
         {
             if(root==null || root.Prepared==null) throw new InvalidOperationException("Существа завода: нужен подготовленный корень.");
             if(root.GetComponent<RoomNpcContent>()!=null) throw new InvalidOperationException("Существа завода: корень уже содержит расстановку NPC.");
@@ -60,13 +60,16 @@ namespace Remains.Content
                 count++;
             }
             var randomGaps=new Dictionary<string,int>(StringComparer.Ordinal);int random=0;
-            foreach(var encounter in FactoryRandomEncounters.Plan(root))
+            foreach(var encounter in plan)
             {
+                // Mines and traps of the trap points are placed by FactoryMineAdapter and FactoryHazardAdapter.
+                if(encounter.Kind==RandomEncounterRules.Trap && (encounter.Unit=="mine" || HazardCatalog.ForObject(encounter.Unit)!=null)) continue;
                 string key=RandomPrefix+encounter.Unit;
                 if(encounter.Hidden || !catalog.TryObject(encounter.Unit,out var rule) || !versions.Any(v=>v.objects.Contains(key)))
                 {
                     string reason=encounter.Hidden?"скрытый враг, поведение закопанного/клетки ещё не реализовано":
-                        encounter.Kind==RandomEncounterRules.Trap?"случайная ловушка, расстановка ловушек на точках lov ещё не подключена":
+                        encounter.Unit=="slmine"?"слизь-мина: скрытый вариант слизи (UnitSlime isMine) ещё не реализован":
+                        encounter.Kind==RandomEncounterRules.Trap?"ловушка-триггер с самострелом или гранатой (UnitTrigger → UnitDamager) ещё не реализована":
                         catalog.GapReason(encounter.Unit)??"нет в каталоге существ";
                     string gap=$"{encounter.Unit} ({reason})";randomGaps[gap]=randomGaps.TryGetValue(gap,out int seen)?seen+1:1;
                     continue;

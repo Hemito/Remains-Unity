@@ -10,8 +10,9 @@ namespace Remains.Content
     public static class FactoryEnemyScalingContent
     {
         private static bool Npcs(NpcLayout layout)=>layout?.patch==layout?.level+":"+FactoryCreatureAdapter.Patch;
-        private static bool Hazards(HazardLayout layout)=>layout?.patch==layout?.level+":"+FactoryHazardAdapter.Patch;
-        private static bool Mines(MineLayout layout)=>layout?.patch==layout?.level+":"+FactoryMineAdapter.Patch;
+        // A factory without random traps or mines keeps their v1 layout (FactoryHazardAdapter, FactoryMineAdapter).
+        private static bool Hazards(HazardLayout layout)=>layout?.patch==layout?.level+":"+FactoryHazardAdapter.Patch || layout?.patch==layout?.level+":"+FactoryHazardAdapter.PatchV1;
+        private static bool Mines(MineLayout layout)=>layout?.patch==layout?.level+":"+FactoryMineAdapter.Patch || layout?.patch==layout?.level+":"+FactoryMineAdapter.PatchV1;
         public static bool NeedsApply(WorldState world,RoomContentBatch batch)
         {
             if(world==null || batch==null) return false;

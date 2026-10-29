@@ -12,7 +12,8 @@ using Object=UnityEngine.Object;
 namespace Remains.Editor
 {
     // Random room enemies on the seed104 factory: the plan is deterministic, never exceeds the free points, keeps off
-    // the passage strips, gives unique IDs, and the installed NPCs are exactly the plan's connected creatures.
+    // the passage strips, gives unique IDs, and the installed NPCs are exactly the plan's connected creatures; the
+    // trap points' mines and traps are exactly the plan's, and a world of their v1 layouts gets only those.
     //   batch -executeMethod Remains.Editor.FactoryRandomEncounterChecks.RunBatch
     public static class FactoryRandomEncounterChecks
     {
@@ -59,7 +60,44 @@ namespace Remains.Editor
                 // Node names carry the template object's world ID: one NPC per object.
                 var allIds=root.GetComponentsInChildren<RoomActorPlacement>(true).Select(p=>p.name.Substring(p.name.IndexOf(": ",StringComparison.Ordinal)+2)).ToArray();
                 Require(allIds.Distinct(StringComparer.Ordinal).Count()==allIds.Length,"Повтор объекта среди NPC завода.");
-                Debug.Log($"FactoryRandomEncounterChecks: PASS — план детерминирован, {plan.Count} врагов в {types} комнатах, поставлено {placed.Length} подключённых существ, ID уникальны.");
+
+                // Trap points: mines (mine/hmine by randomCid) and traps, placed by their own adapters.
+                var planMines=plan.Where(e=>e.Kind==RandomEncounterRules.Trap && e.Unit=="mine").ToArray();
+                var planTraps=plan.Where(e=>e.Kind==RandomEncounterRules.Trap && HazardCatalog.ForObject(e.Unit)!=null).ToArray();
+                Require(planMines.All(e=>e.Variant=="mine" || e.Variant=="hmine") && plan.Where(e=>e.Unit!="mine").All(e=>e.Variant==null),"Вариант случайной мины не выбран или выбран не мине.");
+                Require(plan.Zip(again,(a,b)=>a.Variant==b.Variant).All(x=>x),"Вариант случайной мины не повторяется.");
+                var randomMines=root.GetComponentsInChildren<RoomMinePlacement>(true).Where(p=>p.name.StartsWith("Случайная мина: ",StringComparison.Ordinal)).ToArray();
+                var randomTraps=root.GetComponentsInChildren<RoomHazardPlacement>(true).Where(p=>p.name.StartsWith("Случайная ловушка: ",StringComparison.Ordinal)).ToArray();
+                Require(randomMines.Length==planMines.Length && randomTraps.Length==planTraps.Length,
+                    $"Случайных мин {randomMines.Length} из {planMines.Length}, ловушек {randomTraps.Length} из {planTraps.Length}.");
+                var batch=RoomContentBatch.Read(authoring,"factory:0");
+                Require(batch.mines.patch=="factory:0:"+(planMines.Length>0?FactoryMineAdapter.Patch:FactoryMineAdapter.PatchV1) &&
+                    batch.hazards.patch=="factory:0:"+(planTraps.Length>0?FactoryHazardAdapter.Patch:FactoryHazardAdapter.PatchV1),"Версии расстановки мин и ловушек.");
+                var mineIds=new HashSet<string>(planMines.Select(e=>"factory:0:"+e.LocalId),StringComparer.Ordinal);
+                var trapIds=new HashSet<string>(planTraps.Select(e=>"factory:0:"+e.LocalId),StringComparer.Ordinal);
+                Require(batch.mines.mines.Count(m=>mineIds.Contains(m.id))==mineIds.Count && batch.mines.mines.Where(m=>mineIds.Contains(m.id)).All(m=>planMines.Any(e=>"factory:0:"+e.LocalId==m.id && e.Variant==m.definition)) &&
+                    batch.hazards.hazards.Count(h=>trapIds.Contains(h.id))==trapIds.Count,"Случайные мины и ловушки в расстановке уровня.");
+                Require(RoomContentInstaller.Apply(world,batch),"Первая установка завода.");
+                Require(mineIds.All(id=>world.mines.Exists(m=>m.id==id)) && trapIds.All(id=>world.hazards.Exists(h=>h.id==id)),"Случайные мины и ловушки установлены.");
+                // A world of v1: only the random ones are added; a template mine/trap it lost (exploded, sprung) stays lost.
+                if(mineIds.Count>0)
+                {
+                    var older=Remains.Serialization.StateJson.Copy(world);
+                    older.mines.RemoveAll(m=>mineIds.Contains(m.id));
+                    var lost=older.mines.First(m=>!mineIds.Contains(m.id)).id;older.mines.RemoveAll(m=>m.id==lost);
+                    older.contentPatches.Remove("factory:0:"+FactoryMineAdapter.Patch);older.contentPatches.Add("factory:0:"+FactoryMineAdapter.PatchV1);
+                    Require(RoomContentInstaller.Apply(older,batch) && mineIds.All(id=>older.mines.Exists(m=>m.id==id)) && !older.mines.Exists(m=>m.id==lost),"Переход мин v1 → v2 добавляет только случайные.");
+                }
+                if(trapIds.Count>0)
+                {
+                    var older=Remains.Serialization.StateJson.Copy(world);
+                    older.hazards.RemoveAll(h=>trapIds.Contains(h.id));
+                    var lost=older.hazards.FirstOrDefault(h=>!trapIds.Contains(h.id))?.id;if(lost!=null) older.hazards.RemoveAll(h=>h.id==lost);
+                    older.contentPatches.Remove("factory:0:"+FactoryHazardAdapter.Patch);older.contentPatches.Add("factory:0:"+FactoryHazardAdapter.PatchV1);
+                    Require(RoomContentInstaller.Apply(older,batch) && trapIds.All(id=>older.hazards.Exists(h=>h.id==id)) && (lost==null || !older.hazards.Exists(h=>h.id==lost)),"Переход ловушек v1 → v2 добавляет только случайные.");
+                }
+                Debug.Log($"FactoryRandomEncounterChecks: PASS — план детерминирован, {plan.Count} врагов в {types} комнатах, поставлено {placed.Length} подключённых существ, "+
+                    $"мин {randomMines.Length} (обычных {planMines.Count(e=>e.Variant=="mine")}), капканов {randomTraps.Length}; старые миры получают только случайные; ID уникальны.");
             }
             finally
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Remains.Domain;
 using Remains.Serialization;
@@ -9,6 +10,7 @@ namespace Remains.Content
     [Serializable] public sealed class HazardLayout
     {
         public string patch,level;
+        public ContentExpansion expansion;
         public HazardState[] hazards=Array.Empty<HazardState>();
     }
 
@@ -16,14 +18,16 @@ namespace Remains.Content
     public sealed class RoomHazardContent : MonoBehaviour
     {
         [SerializeField,InspectorName("Версия расстановки ловушек")] private string patch;
+        [SerializeField,InspectorName("Добавочное обновление ловушек")] private ContentExpansion expansion=new();
         public void Configure(string value)=>patch=value;
+        public void ConfigureExpansion(ContentExpansion value)=>expansion=StateJson.Copy(value);
         public static HazardLayout Read(RoomAuthoring room,string level)
         {
             var content=room.GetComponent<RoomHazardContent>();
             if(content==null || !content.enabled) return null;
             if(string.IsNullOrWhiteSpace(content.patch) || string.IsNullOrWhiteSpace(level))
                 throw new InvalidOperationException($"Комната {room.name}: не задан уровень или версия расстановки ловушек.");
-            return new HazardLayout {patch=level+":"+content.patch,level=level,
+            return new HazardLayout {patch=level+":"+content.patch,level=level,expansion=ContentExpansionRules.InLevel(content.expansion,level),
                 hazards=room.GetComponentsInChildren<RoomHazardPlacement>(true).Where(room.Included).Select(p=>p.Read(room,level)).ToArray()};
         }
         private void OnValidate() {if(string.IsNullOrWhiteSpace(patch)) Debug.LogWarning($"Комната {name}: не задана версия расстановки ловушек.",this);}
@@ -51,6 +55,9 @@ namespace Remains.Content
             if(world==null || layout==null || string.IsNullOrWhiteSpace(layout.patch) || string.IsNullOrWhiteSpace(layout.level) || layout.hazards==null)
                 throw new InvalidOperationException("Неполная расстановка ловушек.");
             if(!NeedsInstall(world,layout)) return false;
+            // An older world gets only the additions of its version (ContentExpansionRules): a trap it lost stays lost.
+            var selected=ContentExpansionRules.SelectedIds(world,layout.patch,layout.level,layout.expansion,layout.hazards.Select(h=>h?.id));
+            if(selected!=null) layout=new HazardLayout {patch=layout.patch,level=layout.level,hazards=layout.hazards.Where(h=>selected.Contains(h.id)).ToArray()};
             ContentEntityIds.Preflight(world,layout.hazards.Select(h=>new ContentEntityIdentity(ContentEntityKind.Hazard,h?.id)),layout.patch);
             foreach(var hazard in layout.hazards)
             {
@@ -67,10 +74,11 @@ namespace Remains.Content
 
     // The generated factory's traps and charges from its room templates (original Location.createUnit): an object
     // whose unit is a hazard (HazardCatalog.ForObject: "trap" → mtrap, "expl1" → damexpl1) is one level hazard.
+    // v2 adds the random traps of the trap points (FactoryRandomEncounters: "trap" units).
     public static class FactoryHazardAdapter
     {
-        public const string Patch="base:factory-generated:hazards-v1";
-        public static int Install(FactoryLevelRoot root)
+        public const string PatchV1="base:factory-generated:hazards-v1",Patch="base:factory-generated:hazards-v2";
+        public static int Install(FactoryLevelRoot root,IReadOnlyList<FactoryRandomEncounters.Encounter> plan)
         {
             if(root==null || root.Prepared==null) throw new InvalidOperationException("Ловушки завода: нужен подготовленный корень.");
             if(root.GetComponent<RoomHazardContent>()!=null) throw new InvalidOperationException("Ловушки завода: повторная установка запрещена.");
@@ -90,7 +98,20 @@ namespace Remains.Content
                 root.HideObjectArtwork(placement);
                 count++;
             }
-            root.gameObject.AddComponent<RoomHazardContent>().Configure(Patch);
+            var random=new List<string>();
+            foreach(var encounter in plan.Where(e=>e.Kind==RandomEncounterRules.Trap))
+            {
+                var definition=HazardCatalog.ForObject(encounter.Unit);
+                if(definition==null) continue;   // not a hazard unit: mines and the gaps belong to the other adapters
+                var node=new GameObject($"Случайная ловушка: {definition.title}: {encounter.Point.Id}");
+                node.transform.SetParent(root.transform,false);node.transform.localPosition=encounter.Point.Position;
+                node.AddComponent<RoomHazardPlacement>().Configure(encounter.LocalId,definition.id);
+                random.Add(encounter.LocalId);count++;
+            }
+            // A world of v1 gets only the random traps; without any, the layout is v1 as before.
+            var content=root.gameObject.AddComponent<RoomHazardContent>();content.Configure(random.Count>0?Patch:PatchV1);
+            if(random.Count>0) content.ConfigureExpansion(new ContentExpansion {previousPatch=PatchV1,additions=random.ToArray()});
+            Debug.Log($"Завод {root.Prepared.Physics.id}: случайных ловушек поставлено {random.Count}.");
             return count;
         }
         private const string CreatureObjectPrefix="remains:obj:";

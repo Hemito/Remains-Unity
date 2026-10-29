@@ -54,9 +54,12 @@ namespace Remains.Content
                 using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: тела")) props.Install(root);
                 if(!root.TryGetComponent<FactoryContainerAdapter>(out var containers))throw new InvalidOperationException("Нет сериализованного адаптера контейнеров завода: "+level);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: контейнеры")) containers.Install(root,world);
-                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: мины")) FactoryMineAdapter.Install(root);
-                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: ловушки")) FactoryHazardAdapter.Install(root);
-                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: существа")) FactoryCreatureAdapter.Install(root);
+                // One plan of the random room enemies for the three adapters that place its units.
+                List<FactoryRandomEncounters.Encounter> plan;
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: случайные враги")) plan=FactoryRandomEncounters.Plan(root);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: мины")) FactoryMineAdapter.Install(root,plan);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: ловушки")) FactoryHazardAdapter.Install(root,plan);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: существа")) FactoryCreatureAdapter.Install(root,plan);
                 sources[key]=new Entry {root=root,seed=world.seed,definition=factory.definition,fingerprint=factory.contentFingerprint,layout=factory.layout,
                     lootLedger=Remains.Serialization.StateJson.ToJson(world.factoryLootLimits)};
             }

@@ -10,6 +10,7 @@ namespace Remains.Content
     [Serializable] public sealed class MineLayout
     {
         public string patch,level;
+        public ContentExpansion expansion;
         public MineState[] mines=Array.Empty<MineState>();
     }
 
@@ -17,14 +18,16 @@ namespace Remains.Content
     public sealed class RoomMineContent : MonoBehaviour
     {
         [SerializeField,InspectorName("Версия расстановки мин")] private string patch;
+        [SerializeField,InspectorName("Добавочное обновление мин")] private ContentExpansion expansion=new();
         public void Configure(string value)=>patch=value;
+        public void ConfigureExpansion(ContentExpansion value)=>expansion=StateJson.Copy(value);
         public static MineLayout Read(RoomAuthoring room,string level)
         {
             var content=room.GetComponent<RoomMineContent>();
             if(content==null || !content.enabled) return null;
             if(string.IsNullOrWhiteSpace(content.patch) || string.IsNullOrWhiteSpace(level))
                 throw new InvalidOperationException($"Комната {room.name}: не задан уровень или версия расстановки мин.");
-            return new MineLayout {patch=level+":"+content.patch,level=level,
+            return new MineLayout {patch=level+":"+content.patch,level=level,expansion=ContentExpansionRules.InLevel(content.expansion,level),
                 mines=room.GetComponentsInChildren<RoomMinePlacement>(true).Where(room.Included).Select(p=>p.Read(room,level)).ToArray()};
         }
         private void OnValidate() {if(string.IsNullOrWhiteSpace(patch)) Debug.LogWarning($"Комната {name}: не задана версия расстановки мин.",this);}
@@ -54,6 +57,9 @@ namespace Remains.Content
             if(world==null || layout==null || string.IsNullOrWhiteSpace(layout.patch) || string.IsNullOrWhiteSpace(layout.level) || layout.mines==null)
                 throw new InvalidOperationException("Неполная расстановка мин.");
             if(!NeedsInstall(world,layout)) return false;
+            // An older world gets only the additions of its version (ContentExpansionRules): a mine it lost stays lost.
+            var selected=ContentExpansionRules.SelectedIds(world,layout.patch,layout.level,layout.expansion,layout.mines.Select(m=>m?.id));
+            if(selected!=null) layout=new MineLayout {patch=layout.patch,level=layout.level,mines=layout.mines.Where(m=>selected.Contains(m.id)).ToArray()};
             ContentEntityIds.Preflight(world,layout.mines.Select(m=>new ContentEntityIdentity(ContentEntityKind.Mine,m?.id)),layout.patch);
             foreach(var mine in layout.mines)
             {
@@ -70,11 +76,12 @@ namespace Remains.Content
 
     // The generated factory's mines from its room templates (original Location.createUnit): a "mine" object is one
     // level mine (Mine.as without tr: hmine), a "mines" minefield three of them two cells apart along the source row.
+    // v2 adds the random mines of the trap points (FactoryRandomEncounters: "mine" units, mine or hmine by randomCid).
     public static class FactoryMineAdapter
     {
-        public const string Patch="base:factory-generated:mines-v1";
+        public const string PatchV1="base:factory-generated:mines-v1",Patch="base:factory-generated:mines-v2";
         public const string LevelMine="hmine";
-        public static int Install(FactoryLevelRoot root)
+        public static int Install(FactoryLevelRoot root,IReadOnlyList<FactoryRandomEncounters.Encounter> plan)
         {
             if(root==null || root.Prepared==null) throw new InvalidOperationException("Мины завода: нужен подготовленный корень.");
             if(root.GetComponent<RoomMineContent>()!=null) throw new InvalidOperationException("Мины завода: повторная установка запрещена.");
@@ -99,7 +106,20 @@ namespace Remains.Content
                 }
                 root.HideObjectArtwork(placement);
             }
-            root.gameObject.AddComponent<RoomMineContent>().Configure(Patch);
+            var random=new List<string>();
+            foreach(var encounter in plan.Where(e=>e.Kind==RandomEncounterRules.Trap && e.Unit=="mine"))
+            {
+                string definition=encounter.Variant??throw new InvalidOperationException("Мины завода: у случайной мины не выбран вариант: "+encounter.LocalId);
+                WeaponCatalog.Get(definition);
+                var node=new GameObject("Случайная мина: "+encounter.Point.Id);
+                node.transform.SetParent(root.transform,false);node.transform.localPosition=encounter.Point.Position;
+                node.AddComponent<RoomMinePlacement>().Configure(encounter.LocalId,definition);
+                random.Add(encounter.LocalId);count++;
+            }
+            // A world of v1 gets only the random mines; without any, the layout is v1 as before.
+            var content=root.gameObject.AddComponent<RoomMineContent>();content.Configure(random.Count>0?Patch:PatchV1);
+            if(random.Count>0) content.ConfigureExpansion(new ContentExpansion {previousPatch=PatchV1,additions=random.ToArray()});
+            Debug.Log($"Завод {root.Prepared.Physics.id}: случайных мин поставлено {random.Count}.");
             return count;
         }
     }

@@ -35,7 +35,8 @@ namespace Remains.Editor
                 Require(batch.mines.mines.Select(m=>m.id).Distinct().Count()==batch.mines.mines.Length,"повтор ID мин");
                 Require(RoomContentInstaller.Apply(world,batch),"первая установка содержимого");
                 int installed=world.mines.Count;
-                Require(installed==batch.mines.mines.Length && world.mines.All(m=>m.side==MineRules.LevelSide && m.definition==FactoryMineAdapter.LevelMine),"установлены не все мины уровня");
+                // Template mines are hmine; the random ones of the trap points are mine or hmine (randomCid).
+                Require(installed==batch.mines.mines.Length && world.mines.All(m=>m.side==MineRules.LevelSide && (m.definition==FactoryMineAdapter.LevelMine || m.definition=="mine")),"установлены не все мины уровня");
                 Require(!MineContentInstaller.Apply(world,batch.mines),"повторная установка мин");
                 string saved=StateJson.ToJson(world);
                 var loaded=StateJson.FromJson<WorldState>(saved);

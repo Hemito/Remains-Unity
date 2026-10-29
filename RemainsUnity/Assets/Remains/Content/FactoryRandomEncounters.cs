@@ -25,6 +25,10 @@ namespace Remains.Content
             public int Kind;               // RandomEncounterRules kind of the point
             public bool Hidden;            // createHidden on an ordinary point (a buried zombie digs out)
             public int EnemyType;          // the room's tipEnemy
+            public double Danger;          // the room's locDifLevel
+            // Location.randomCid where this build uses it (the mine a "mine" unit becomes); drawn from its own stream
+            // per point, so it never shifts the room's plan. Null where the variant is not chosen yet.
+            public string Variant;
             public string LocalId=>$"{Point.Room.Cell.X},{Point.Room.Cell.Y}:{Point.Source.Id}";
         }
         public sealed class RoomPlan
@@ -73,7 +77,7 @@ namespace Remains.Content
                     {
                         int pick=random.Range(free[kind].Count);var point=free[kind][pick];free[kind].RemoveAt(pick);
                         string unit=RandomEncounterRules.Unit(kind,enemyType,danger,(room.Cell.X+room.Cell.Y)%2,random.Unit);
-                        if(unit.Length>0) result.Add(new Encounter {Point=point,Unit=unit,Kind=kind,EnemyType=enemyType});
+                        if(unit.Length>0) result.Add(new Encounter {Point=point,Unit=unit,Kind=kind,EnemyType=enemyType,Danger=danger});
                     }
                 }
                 for(int n=0;n<hidden && free[RandomEncounterRules.Ordinary].Count>0;n++)
@@ -81,17 +85,20 @@ namespace Remains.Content
                     var list=free[RandomEncounterRules.Ordinary];
                     int pick=random.Range(list.Count);var point=list[pick];list.RemoveAt(pick);
                     string unit=RandomEncounterRules.Hidden(enemyType);
-                    if(unit.Length>0) result.Add(new Encounter {Point=point,Unit=unit,Kind=RandomEncounterRules.Ordinary,Hidden=true,EnemyType=enemyType});
+                    if(unit.Length>0) result.Add(new Encounter {Point=point,Unit=unit,Kind=RandomEncounterRules.Ordinary,Hidden=true,EnemyType=enemyType,Danger=danger});
                 }
             }
+            foreach(var encounter in result)
+                if(encounter.Unit=="mine") encounter.Variant=RandomEncounterRules.MineVariant(encounter.Danger,Random(layout,"cid|"+encounter.LocalId).Unit);
             return result;
         }
 
-        private static LayoutRandom Random(FactoryLayout layout,FactoryCell cell)
+        private static LayoutRandom Random(FactoryLayout layout,FactoryCell cell)=>
+            Random(layout,cell.X.ToString(CultureInfo.InvariantCulture)+","+cell.Y.ToString(CultureInfo.InvariantCulture));
+        private static LayoutRandom Random(FactoryLayout layout,string scope)
         {
             ulong hash=14695981039346656037UL;
-            string key=Version+"|"+layout.Seed.ToString(CultureInfo.InvariantCulture)+"|"+layout.Index.ToString(CultureInfo.InvariantCulture)+"|"+
-                cell.X.ToString(CultureInfo.InvariantCulture)+","+cell.Y.ToString(CultureInfo.InvariantCulture);
+            string key=Version+"|"+layout.Seed.ToString(CultureInfo.InvariantCulture)+"|"+layout.Index.ToString(CultureInfo.InvariantCulture)+"|"+scope;
             foreach(byte value in Encoding.UTF8.GetBytes(key)) hash=unchecked((hash^value)*1099511628211UL);
             return new LayoutRandom(hash);
         }

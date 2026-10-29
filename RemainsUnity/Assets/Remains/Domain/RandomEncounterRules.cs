@@ -108,6 +108,10 @@ namespace Remains.Domain
             }
         }
 
+        // Location.randomCid("mine") for biome 0: the mine a "mine" unit becomes — an ordinary mine with chance
+        // min(danger/20, 0.75), otherwise the weaker hmine (the one explicit template mines are).
+        public static string MineVariant(double danger,Func<double> random)=>random()<Math.Min(danger/20,.75)?"mine":"hmine";
+
         // Location.createHidden on an ordinary point: a buried zombie (dig 2), a robot cell or an alarm (not ported:
         // its reinforcements are not part of the seamless world), a trap point for zebras. "" = nothing.
         public static string Hidden(int enemyType)=>enemyType switch
