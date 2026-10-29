@@ -19,6 +19,12 @@ namespace Remains.Content
                 throw new ArgumentException("Подготовленная геометрия уровня отсутствует или неверна.");
             preparedLayout=source;
         }
+        // A generated level: geometry its content adapters place after the prepared layout (FactorySpikeAdapter).
+        public void ConfigurePreparedSpikes(RoomSpike[] spikes)
+        {
+            if(preparedLayout==null) throw new InvalidOperationException($"Комната {name}: шипы добавляются только к подготовленной геометрии.");
+            var layout=StateJson.Copy(preparedLayout);layout.spikes=spikes??throw new ArgumentNullException(nameof(spikes));preparedLayout=layout;
+        }
         public void UseAuthoredArtwork() {authoredArtwork=true;settings.artwork=null;}
         public void Configure(RoomLayout source)
         {
@@ -45,6 +51,8 @@ namespace Remains.Content
                 result.platforms=GetComponentsInChildren<RoomSurfaceAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             using(TransitionTiming.Measure("room.layout-ladders",context))
                 result.ladders=GetComponentsInChildren<RoomLadderAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
+            using(TransitionTiming.Measure("room.layout-spikes",context))
+                result.spikes=GetComponentsInChildren<RoomSpikeAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             if(result.platforms.Length==0 || result.left>=result.right) throw new InvalidOperationException($"Комната {name}: некорректные границы или нет поверхностей.");
             return result;
         }

@@ -18,6 +18,11 @@ namespace Remains.Gameplay
             if(damage==null) throw new InvalidOperationException("Получатель физического урона не готов: "+actor?.id);
             return damage.ApplyPhysical(actor,contact);
         }
+        public bool ApplyContact(ActorState actor,string contactId,string damageType,float amount)
+        {
+            if(damage==null) throw new InvalidOperationException("Получатель урона контакта не готов: "+actor?.id);
+            return damage.ApplyContact(actor,contactId,damageType,amount);
+        }
         public int AttackerDecidedHits {get;private set;}
         public int VictimDecidedHits {get;private set;}
         public event Action<string> NpcReplayRejected;

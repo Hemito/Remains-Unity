@@ -67,6 +67,17 @@ namespace Remains.Domain
             }
             return applied;
         }
+        // A level contact (spikes): the amount before protection is the contact rule's; the victim's typed protection
+        // applies as to any attack of that damage type.
+        public bool ApplyContact(ActorState actor,string contactId,string damageType,float amount)
+        {
+            if(actor==null || string.IsNullOrWhiteSpace(contactId) || actor.health<=0 || actor.resolvedAttacks.Contains(contactId)) return false;
+            if(!float.IsFinite(amount) || amount<0)
+                throw new System.InvalidOperationException($"Некорректный урон контакта: actor={actor.id}, contact={contactId}, damage={amount}.");
+            if(protection is not ITypedContactProtectionRule typed)
+                throw new System.InvalidOperationException("Правило защиты не поддерживает типизированный контакт: "+actor.id);
+            return ApplyAmount(actor,contactId,typed.ResolveContact(actor,damageType,amount,contactId));
+        }
         private bool ApplyAmount(ActorState actor,string attackId,float amount)
         {
             var bodyPosition=actor.BodyPosition;float previousHealth=actor.health;bool previouslyDown=actor.down;

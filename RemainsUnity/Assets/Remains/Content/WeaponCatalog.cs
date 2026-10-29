@@ -78,7 +78,7 @@ namespace Remains.Content
         public static void Load()
         {
             WeaponRigs.Load();
-            ActorTypes.Load();PropCatalog.Load();HazardCatalog.Load();
+            ActorTypes.Load();PropCatalog.Load();HazardCatalog.Load();SpikeCatalog.Load();
             var asset=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
             if(asset==null) throw new InvalidOperationException("Не найден каталог оружия Content/WeaponCatalog.");
             CasingEffectCatalog.Load();
@@ -103,6 +103,8 @@ namespace Remains.Content
             inputs.Add("Presentation/visual-equipment",WearableRenderCatalog.ContentFingerprint);
             inputs.Add(FootSupportCatalog.Resource,FootSupportCatalog.Fingerprint);
             inputs.Add(HazardCatalog.Resource,HazardCatalog.Json);
+            inputs.Add(SpikeCatalog.Resource,SpikeCatalog.Json);
+            inputs.Add("Rules/spikes","trap-as-v1|fall>8px-frame|massa=bodyMass/50|danger=half-floor|shared-box-cooldown");
             inputs.Add("Rules/actor-body-support","sampled-centres-v1");
             inputs.Add("Rules/prop-impacts","multi-victim-v2|level-clock|live-impulse-epoch|canonical-admission-v1|transient-source-history");
             inputs.Add("Rules/factory-enemy-scaling","floor-v3|unit:hp=.11,damage=.07,protection=.05|turret:hp=.20,damage=.12,protection=.10|mine:after10=.10|saved-baseline-v1");

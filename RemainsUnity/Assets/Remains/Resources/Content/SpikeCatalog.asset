@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 37176d550ec25be4688f93d69ce8ef49, type: 3}
+  m_Name: SpikeCatalog
+  m_EditorClassIdentifier: 
+  definitions:
+  - id: fspikes
+    title: "\u041F\u043E\u0442\u043E\u043B\u043E\u0447\u043D\u044B\u0435 \u0448\u0438\u043F\u044B"
+    objects:
+    - fspikes
+    attack: rise
+    damage: 15
+    damageType: blade
+    width: 0.8
+    height: 0.4
+    bottomAnchored: 1
+  - id: spikes
+    title: "\u0428\u0438\u043F\u044B"
+    objects:
+    - spikes
+    attack: fall
+    damage: 50
+    damageType: blade
+    width: 0.8
+    height: 0.8
+    bottomAnchored: 0

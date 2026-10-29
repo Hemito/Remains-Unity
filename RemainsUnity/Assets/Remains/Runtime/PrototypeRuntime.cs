@@ -72,6 +72,7 @@ namespace Remains.Runtime
         private MovementController movement;
         private MovementSettings passiveMovementSettings;
         private NpcController npcs;
+        private SpikeController spikes;
         private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
         private ActorShadowPresentation actorShadows;
@@ -206,6 +207,7 @@ namespace Remains.Runtime
             var room=RoomLayout.Load(shownLevel);
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry);
+            spikes=new SpikeController(Session,Geometry,Combat);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
             ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();
             travelPointVisuals.Bind(roomObject);
@@ -614,6 +616,8 @@ namespace Remains.Runtime
                 if(!IsLevelPreparing && CommandSource!=null && Options.Smoke!=null) command=ProbeWeaponSelection.Resolve(actor,command);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Управление")) ApplyCommand(command,Time.deltaTime);
             }
+            // After every local motion of the frame: the owner decides its actors' spike hits from their motion.
+            using(Remains.Diagnostics.FrameHitchLog.Section("Шипы")) spikes.Step();
             using(Remains.Diagnostics.FrameHitchLog.Section("Физические тела")) freeProps.Step(Time.deltaTime);
             using(Remains.Diagnostics.FrameHitchLog.Section("Бой")) Combat.Step(Time.deltaTime);
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))

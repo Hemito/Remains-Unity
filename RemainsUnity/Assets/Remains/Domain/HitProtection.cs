@@ -9,7 +9,9 @@ namespace Remains.Domain
     }
     public interface IPhysicalHitProtectionRule {float ResolvePhysical(ActorState target,float incomingDamage);}
     public interface IPhysicalContactProtectionRule {float ResolvePhysicalContact(ActorState target,PropImpactContact contact);}
-    public sealed class TypeHitProtectionRule : IHitProtectionRule,IPhysicalHitProtectionRule,IPhysicalContactProtectionRule
+    // A level contact of a given damage type that is not a weapon attack (spikes).
+    public interface ITypedContactProtectionRule {float ResolveContact(ActorState target,string damageType,float incomingDamage,string contactId);}
+    public sealed class TypeHitProtectionRule : IHitProtectionRule,IPhysicalHitProtectionRule,IPhysicalContactProtectionRule,ITypedContactProtectionRule
     {
         private readonly System.Func<ActorState,DamageTargetContact> targetContact;
         public TypeHitProtectionRule(System.Func<ActorState,DamageTargetContact> targetContact=null)
@@ -25,6 +27,8 @@ namespace Remains.Domain
         }
         public float ResolvePhysicalContact(ActorState target,PropImpactContact contact)
             =>ResolveTyped(target,DamageTypes.Physical,contact.damage,contact.id);
+        public float ResolveContact(ActorState target,string damageType,float incomingDamage,string contactId)
+        {DamageTypes.Validate(damageType);return ResolveTyped(target,damageType,incomingDamage,contactId);}
         private float ResolveTyped(ActorState target,string type,float incomingDamage,string attackId)
         {
             if(type==DamageTypes.Electric)
