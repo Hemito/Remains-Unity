@@ -15,12 +15,14 @@ namespace Remains.Gameplay
         private readonly Remains.Content.MovementSettings movementSettings;
         private readonly Dictionary<(string level,string type),MovementController> movement=new();
         private readonly NpcCreatureController creatures=new();
+        private readonly NpcRaiderController raiders;
         private readonly WeaponRechargeController recharge;
         public NpcController(CoopSession session,SimulationGeometry geometry)
         {
             this.session=session;this.geometry=geometry;
             recharge=new WeaponRechargeController(session);
             movementSettings=Remains.Content.MovementSettings.Load();
+            raiders=new NpcRaiderController(movementSettings);
             senses=new NpcSenses(session,geometry);
             session.Changed+=()=>
             {
@@ -65,6 +67,9 @@ namespace Remains.Gameplay
                 if(!natural) recharge.Step(actor,dt,actor.attackBusy?dt:actor.attackCooldown);
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 bool family=NpcCreatureBehaviours.IsFamily(type.behavior);
+                bool raider=type.behavior==NpcCreatureBehaviours.Raider;
+                // A raider moves with a controller of its own (RaiderBrain); the others share their type's.
+                if(raider) controller=raiders.Movement(actor,type,controller.Room);
                 if(actor.attackBusy)
                 {
                     if(family && NpcCreatureBehaviours.Flies(type.behavior)) creatures.Coast(actor,type,controller.Room,dt);
@@ -116,6 +121,14 @@ namespace Remains.Gameplay
                     var door=NpcDoorIntent.Select(actor,destination.Value,session.World.doors,geometry.Get(actor.level));
                     if(door!=null) session.Doors.RequestNpcOpen(actor,door.id);
                 }
+                if(raider)
+                {
+                    bool wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt);
+                    if(wants && visible && target.level==actor.level && target.connected && !target.down && actor.attackCooldown<=0 &&
+                        NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
+                        session.PublishActor(actor);
+                    continue;
+                }
                 if(!visible || target.level!=actor.level || target.down || !target.connected)
                 {
                     var memory=actor.perception;
@@ -133,6 +146,7 @@ namespace Remains.Gameplay
                     if(NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming)) session.PublishActor(actor);
                 }
             }
+            raiders.EndFrame();
         }
     }
 }

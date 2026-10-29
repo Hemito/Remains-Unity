@@ -26,12 +26,13 @@ namespace Remains.Gameplay
             this.ladderEntry=ladderEntry??new LadderEntryPose();
             downTap=new ReleasedTapGesture(this.settings.doubleTapSeconds);
         }
-        public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false,bool jumpHeld=false,PassengerMotionState passenger=null,float? lookAtX=null)
+        // dropThrough: an NPC's decision to pass down through a one-way platform (a player double-taps down instead).
+        public void Step(ActorState actor, Vector2 input, bool jump, float dt, bool sprint=false,bool jumpHeld=false,PassengerMotionState passenger=null,float? lookAtX=null,bool dropThrough=false)
         {
             if(lookAtX.HasValue && !float.IsFinite(lookAtX.Value))
                 throw new System.InvalidOperationException($"Некорректная цель взгляда: actor={actor?.id}, room={room.id}, lookAtX={lookAtX.Value}.");
             if(ActorPositionRecovery.Repair(actor,room,"движение")) PositionRecovered?.Invoke(actor);
-            bool dropPressed=downTap.Step(input.y<-.1f,dt);
+            bool dropPressed=downTap.Step(input.y<-.1f,dt) || dropThrough;
             float accelerationTime=sprintPreparation.AccelerationTime(actor,input.x,sprint,dt,settings.sprintPreparationSeconds);
             if(droppedSurface.HasValue && Mathf.Abs(actor.y-droppedSurface.Value)>RoomSupport.ContactTolerance) droppedSurface=null;
             ActorBodySupport.SetDropping(actor,droppedSurface.HasValue);

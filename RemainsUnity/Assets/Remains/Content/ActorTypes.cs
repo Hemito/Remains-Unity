@@ -27,6 +27,7 @@ namespace Remains.Content
         // creature that only players' mines notice, 0 springs nothing. Unset in older assets: 2, the original default.
         [Range(0,2),InspectorName("Срабатывание ловушек (acttrap: 2 — да, 1 — мелкое, 0 — нет)")] public int activateTrap=2;
         [InspectorName("Турель: наблюдение и поворот ствола")] public Remains.Domain.TurretSettings turret;
+        [InspectorName("Рейдер: решения UnitRaider")] public Remains.Domain.RaiderSettings raider;
         // A cosmetic blast where it dies (UnitTurret.expl: newPart "miniexpl"), as a fraction of the explosion picture; 0 — none.
         [Min(0),InspectorName("Взрыв при гибели (доля изображения взрыва)")] public float deathBlastScale;
     }
@@ -71,6 +72,12 @@ namespace Remains.Content
             {
                 if(definition.turret==null) throw new InvalidOperationException($"Тип {definition.id}: нет настроек турели.");
                 definition.turret.Validate(definition.id);
+            }
+            if(definition.behavior==Remains.Domain.NpcCreatureBehaviours.Raider)
+            {
+                if(!definition.combatAi || !definition.hasWeapon || definition.naturalAttack!=null || definition.raider==null)
+                    throw new InvalidOperationException($"Тип {definition.id}: рейдер требует боевой ИИ с оружием и настройки рейдера.");
+                definition.raider.Validate(definition.id);
             }
             if(!float.IsFinite(definition.deathBlastScale) || definition.deathBlastScale<0) throw new InvalidOperationException($"Тип {definition.id}: некорректный взрыв при гибели.");
             if(Remains.Domain.NpcCreatureBehaviours.Touches(definition.behavior))
