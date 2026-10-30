@@ -32,6 +32,10 @@ namespace Remains.Content
         [Min(0),InspectorName("Взрыв при гибели (доля изображения взрыва)")] public float deathBlastScale;
         // A real explosion when its death is accepted (UnitMsp.dropLoot → explosion): the explosive weapon of the blast.
         [InspectorName("Взрыв при принятой гибели (взрывчатое оружие; пусто — нет)")] public string deathExplosion;
+        // A radioactive creature (Obj.radioactiv/radrad of a unit: the glowing ghoul) — a radiation source around it.
+        [InspectorName("Свечение: радиация вокруг (пусто — нет)")] public Remains.Domain.RadiationAura radiationAura;
+        // Unit.radDamage (comb raddamage): a touch leaves the player a fading dose of this (UnitPlayer.drad2).
+        [Min(0),InspectorName("Радиация удара (raddamage)")] public float radiationHit;
     }
     [Serializable] public sealed class ActorTypeList {public ActorTypeDefinition[] actors;}
     public static class ActorTypes
@@ -79,10 +83,15 @@ namespace Remains.Content
             {
                 if(definition.behavior==Remains.Domain.NpcCreatureBehaviours.Robobrain && definition.raider?.robot!=true)
                     throw new InvalidOperationException($"Тип {definition.id}: робомозгу нужен ИИ робота (RaiderSettings.robot).");
-                if(!definition.combatAi || !definition.hasWeapon || definition.naturalAttack!=null || definition.raider==null)
-                    throw new InvalidOperationException($"Тип {definition.id}: рейдер требует боевой ИИ с оружием и настройки рейдера.");
+                if((definition.behavior==Remains.Domain.NpcCreatureBehaviours.Zombie)!=(definition.raider?.zombie==true))
+                    throw new InvalidOperationException($"Тип {definition.id}: ИИ зомби (RaiderSettings.zombie) — только у зомби.");
+                // A zombie fights with its body alone (attKorp); its weapon super powers are stage 2.
+                if(!definition.combatAi || !definition.hasWeapon && definition.behavior!=Remains.Domain.NpcCreatureBehaviours.Zombie || definition.naturalAttack!=null || definition.raider==null)
+                    throw new InvalidOperationException($"Тип {definition.id}: рейдер требует боевой ИИ с оружием (зомби — без) и настройки рейдера.");
                 definition.raider.Validate(definition.id);
             }
+            if(definition.radiationAura!=null && definition.radiationAura.strength>0) definition.radiationAura.Validate(definition.id);
+            if(!float.IsFinite(definition.radiationHit) || definition.radiationHit<0) throw new InvalidOperationException($"Тип {definition.id}: некорректная радиация удара.");
             if(!float.IsFinite(definition.deathBlastScale) || definition.deathBlastScale<0) throw new InvalidOperationException($"Тип {definition.id}: некорректный взрыв при гибели.");
             if(Remains.Domain.NpcCreatureBehaviours.FlyingGun(definition.behavior))
             {

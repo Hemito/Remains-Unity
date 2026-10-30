@@ -143,6 +143,7 @@ namespace Remains.Gameplay
                 if(raider)
                 {
                     var wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt);
+                    if(wants.changed) session.PublishActor(actor);
                     bool ready=visible && target.level==actor.level && target.connected && !target.down;
                     if(wants.weapon && ready && actor.attackCooldown<=0 && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
                         session.PublishActor(actor);

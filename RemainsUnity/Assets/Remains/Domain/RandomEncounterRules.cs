@@ -115,6 +115,12 @@ namespace Remains.Domain
         // Location.randomCid("raider"): the raider variant 1–2 below danger 2, 1–5 below 5, 1–9 from 5 on.
         public static int RaiderVariant(double danger,Func<double> random)=>
             (int)Math.Floor(random()*(danger>=5?9:danger>=2?5:2)+1);
+        // Location.randomCid "zombie" for biome 0 (the factory): 0 below danger 2, 0–3 below 5, 0–4 from 5 (biome 1+ from
+        // danger 8: 0–6; biome 5: 5–8 or 9).
+        public static int ZombieVariant(double danger,Func<double> random)=>
+            danger>=5?(int)Math.Floor(random()*5):danger>=2?(int)Math.Floor(random()*4):0;
+        // UnitZombie(dif): a digger with the chance min(dif / 20 + 0.25, 0.75) — buried where it is created on the ground.
+        public static bool ZombieDigs(double danger,Func<double> random)=>random()<Math.Min(danger/20+.25,.75);
 
         // Location.createHidden on an ordinary point: a buried zombie (dig 2), a robot cell or an alarm (not ported:
         // its reinforcements are not part of the seamless world), a trap point for zebras. "" = nothing.

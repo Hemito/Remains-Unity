@@ -100,7 +100,7 @@ namespace Remains.Domain
         }
         private bool Eligible(ActorState actor)
         {
-            if(actor.health<=0 || !ActorPresence.IsPresent(actor)) return false;
+            if(actor.health<=0 || !ActorPresence.IsPresent(actor) || ActorPresence.Hidden(actor)) return false;
             foreach(var player in players.Values)
                 if(player.level==actor.level && (actor.player || Mathf.Abs(player.x-actor.x)<=NpcActivity.HalfWidth && Mathf.Abs(player.y-actor.y)<=NpcActivity.HalfHeight)) return true;
             return false;

@@ -10,8 +10,28 @@ namespace Remains.Domain
     //           radius radrad (250 px) gives rad·(radrad − d)/radrad (Obj.ggModum → raddamage);
     //   accrual rad += drad/30 per frame (radX 1: no resistance yet), i.e. the dose per second at 30 frames.
     // Revival keeps rad ≤ maxhp − 40 (UnitPlayer.resurect); a cure (heal type 2, item hrad) takes it away.
+    // A radioactive creature (the glowing ghoul: radioactiv 1 within 120 px; its flare 20 within 1200 px, falling back
+    // over tSuper frames — taken here as its mean, the owner publishing only the flare's start and end).
+    [Serializable] public sealed class RadiationAura
+    {
+        [Min(0),InspectorName("Сила (rad за кадр вплотную)")] public float strength;
+        [Min(0),InspectorName("Радиус, м")] public float radius;
+        [Min(0),InspectorName("Вспышка: сила в начале")] public float flareStrength;
+        [Min(0),InspectorName("Вспышка: радиус, м")] public float flareRadius;
+        public float Strength(bool flaring)=>flaring?(flareStrength+strength)*.5f:strength;
+        public float Radius(bool flaring)=>flaring?flareRadius:radius;
+        public void Validate(string type)
+        {
+            if(!float.IsFinite(strength) || strength<=0 || !float.IsFinite(radius) || radius<=0 || !float.IsFinite(flareStrength) || flareStrength<strength ||
+                !float.IsFinite(flareRadius) || flareRadius<radius)
+                throw new InvalidOperationException($"Некорректное свечение {type}: сила {strength}, радиус {radius}, вспышка {flareStrength}/{flareRadius}.");
+        }
+    }
+
     public static class PlayerRadiation
     {
+        // UnitPlayer.drad2: a radioactive touch's dose fades by 0.1 a frame — 3 a second.
+        public const float LingeringFadePerSecond=.1f*30;
         public const float MaximumHealth=100;
         // UnitPlayer.resurect: rad is cut to maxhp − 40, so a revived player has at least 40 health of room.
         public const float RevivedLimit=MaximumHealth-40;

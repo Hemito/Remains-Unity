@@ -17,7 +17,7 @@ namespace Remains.Content
     // A template object (AllData obj) and the creatures it becomes; several = the original's random variant.
     [Serializable] public sealed class CreatureObjectRule
     {
-        public const string RaiderVariants="raider";
+        public const string RaiderVariants="raider",ZombieVariants="zombie";
         [InspectorName("ID объекта шаблона")] public string objectId;
         [InspectorName("Типы персонажей (варианты)")] public string[] actorTypes=Array.Empty<string>();
         // Set: the variant follows the room's danger (Location.randomCid) and the weapon its list (Unit.getXmlWeapon);
@@ -31,6 +31,8 @@ namespace Remains.Content
         [InspectorName("ID существа оригинала")] public string unit;
         [InspectorName("Номер варианта (cid)")] public int cid;
         [InspectorName("Оружие (w) по порядку")] public CreatureWeaponChoice[] weapons=Array.Empty<CreatureWeaponChoice>();
+        // A variant with no weapon choice (zombieN): its one actor type.
+        [InspectorName("Тип персонажа варианта (без выбора оружия)")] public string actorType;
         [InspectorName("Почему ещё не подключён (пусто — подключён)")] public string gap;
     }
     [Serializable] public sealed class CreatureWeaponChoice
@@ -74,12 +76,17 @@ namespace Remains.Content
         public static string ChooseVariant(CreatureObjectRule rule,double danger,Func<double> random,out string reason)
         {
             reason=null;
-            if(rule.variantRule!=CreatureObjectRule.RaiderVariants) throw new InvalidOperationException($"Объект {rule.objectId}: неизвестный выбор варианта {rule.variantRule}.");
-            int cid=Remains.Domain.RandomEncounterRules.RaiderVariant(danger,random);
+            int cid=rule.variantRule switch
+            {
+                CreatureObjectRule.RaiderVariants=>Remains.Domain.RandomEncounterRules.RaiderVariant(danger,random),
+                CreatureObjectRule.ZombieVariants=>Remains.Domain.RandomEncounterRules.ZombieVariant(danger,random),
+                _=>throw new InvalidOperationException($"Объект {rule.objectId}: неизвестный выбор варианта {rule.variantRule}.")
+            };
             CreatureVariant variant=null;
             foreach(var candidate in rule.variants) if(candidate.cid==cid) variant=candidate;
             if(variant==null) {reason=$"нет варианта {rule.objectId}{cid}";return null;}
             if(!string.IsNullOrEmpty(variant.gap)) {reason=$"{variant.unit}: {variant.gap}";return null;}
+            if(!string.IsNullOrEmpty(variant.actorType)) return variant.actorType;
             // Unit.getXmlWeapon(int locDif): the first listed weapon allowed at this danger that passes its chance.
             foreach(var choice in variant.weapons)
             {

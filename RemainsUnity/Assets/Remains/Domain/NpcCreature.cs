@@ -21,7 +21,9 @@ namespace Remains.Domain
         // UnitRobobrain (UnitAIRobot): a walking robot with a gun on the raiders' state machine (RaiderSettings.robot).
         public const string Robobrain="robobrain";
         // RaiderBrain decides for them (NpcRaiderController).
-        public static bool UsesRaiderBrain(string behavior)=>behavior is Raider or Robobrain;
+        public static bool UsesRaiderBrain(string behavior)=>behavior is Raider or Robobrain or Zombie;
+        // UnitZombie: a ghoul on its own control over the raiders' mind (ZombieBrain, RaiderSettings.zombie).
+        public const string Zombie="zombie";
         // UnitRoller: a rolling ball that rests until it notices a target, then rolls at it, hops and hurts by touch.
         public const string Roller="roller";
         public static bool Fixed(string behavior)=>behavior==Turret;
@@ -34,7 +36,7 @@ namespace Remains.Domain
         public static bool DropsLootOnDeath(string behavior)=>behavior is Turret or SpriteBot or Roller;
         // Empty (Unity serializes a missing string as "") or crawler: the natural-attack crawler AI.
         public static bool IsFamily(string behavior)=>!string.IsNullOrEmpty(behavior) && behavior!=Crawler && !UsesRaiderBrain(behavior);
-        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot or SpiderMine or Roller or Robobrain;
+        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot or SpiderMine or Roller or Robobrain or Zombie;
     }
 
     // Original Unit move data in metres and seconds (speed/run px per frame × 30 / 50, accel px per frame² × 900 / 50).

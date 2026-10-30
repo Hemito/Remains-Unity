@@ -29,7 +29,9 @@ namespace Remains.Editor
         private static readonly Dictionary<string,string[]> randomVariants=new(StringComparer.Ordinal) {{"scorp",new[]{"scorp1","scorp2"}},
             {"bloat",new[]{"bloat0","bloat1","bloat2","bloat3","bloat4"}},   // UnitBloat: tr = floor(random × 5) without a parameter
             // UnitRaider: tr = the cid (Location.randomCid by danger) or floor(random × kolTrs 9 + 1); id = "raider" + tr.
-            {"raider",new[]{"raider1","raider2","raider3","raider4","raider5","raider6","raider7","raider8","raider9"}}};
+            {"raider",new[]{"raider1","raider2","raider3","raider4","raider5","raider6","raider7","raider8","raider9"}},
+            // UnitZombie: tr = the cid (Location.randomCid by danger and biome); id = "zombie" + tr.
+            {"zombie",new[]{"zombie0","zombie1","zombie2","zombie3","zombie4","zombie5","zombie6"}}};
 
         public sealed class TemplateObject
         {

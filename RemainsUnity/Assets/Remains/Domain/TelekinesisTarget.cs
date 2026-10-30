@@ -32,7 +32,7 @@ namespace Remains.Domain
             }
             foreach(var prop in WorldProps.All(world)) Consider(new TelekinesisTarget(prop));
             foreach(var body in world.actors)
-                if(body.id!=holder.id && ActorPresence.IsPresent(body)) Consider(new TelekinesisTarget(body));
+                if(body.id!=holder.id && ActorPresence.IsPresent(body) && !ActorPresence.Hidden(body)) Consider(new TelekinesisTarget(body));
             return nearest;
         }
     }

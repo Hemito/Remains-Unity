@@ -134,6 +134,10 @@ namespace Remains.Presentation
         private void Update() {if(state==null) return;using(Remains.Diagnostics.FrameHitchLog.Section("AtlasActorVisual.Update")) Draw();}
         public void Draw()
         {
+            // A buried zombie is not drawn until it digs out (UnitZombie.animate: vis.visible = false).
+            bool hidden=ActorPresence.Hidden(state);
+            if(view.enabled==hidden) view.enabled=!hidden;
+            if(hidden) return;
             // A creature hanging upside down (slime on a ceiling, UnitSlime.setVisPos) is drawn turned over, 0.8 m higher.
             bool inverted=state.creature?.inverted==true && !state.down;
             transform.position=state.Position+Vector2.up*(state.down?deadLift:inverted?InvertedLift:0);view.flipX=(state.facing<0)!=artwork.facesLeft;

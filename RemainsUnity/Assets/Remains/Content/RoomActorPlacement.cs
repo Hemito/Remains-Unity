@@ -14,11 +14,16 @@ namespace Remains.Content
         public bool FixedPlacement=>fixedPlacement;
         [SerializeField,InspectorName("Начальное состояние NPC (для обычных персонажей)")] private NpcSpawnAsset spawn;
         public void SetSpawn(NpcSpawnAsset value)=>spawn=value;
+        // A zombie placed buried (UnitZombie.setPos → zakop at the level's creation): its first state is hidden.
+        [SerializeField,InspectorName("Зомби закопан (zakop)")] private bool buried;
+        public void SetBuried(bool value)=>buried=value;
         public ContainerLootTable ReadInventory()=>spawn==null?null:spawn.ReadInventory();
         public Remains.Domain.ActorState ReadNpc(RoomAuthoring room,string level)
         {
             if(fixedPlacement || spawn==null) throw new InvalidOperationException("Для NPC нужна обычная расстановка и начальное состояние: "+name);
-            return spawn.Create(Read(room),level);
+            var actor=spawn.Create(Read(room),level);
+            if(buried) actor.creature=new Remains.Domain.NpcCreatureState {mode=Remains.Domain.ZombieBrain.BuriedMode};
+            return actor;
         }
         public void Configure(string id,string type,int direction,bool anchored,SpriteRenderer view)
         {stableId=id;actorType=type;facing=direction;fixedPlacement=anchored;preview=view;RefreshPreview();}

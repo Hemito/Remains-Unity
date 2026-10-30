@@ -10771,6 +10771,652 @@ MonoBehaviour:
       \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
       \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
       \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+  - key: unit:zombie0
+    category: unit
+    sourceId: zombie0
+    rawXml: "<unit id=\"zombie0\" cont=\"zombie\" xp=\"100\" cat=\"3\" parent=\"zombie\"><phis
+      sX=\"55\" sY=\"70\" massa=\"40\" /><move speed=\"1.5\" run=\"10\" jump=\"18\"
+      accel=\"2\" damwall=\"25\" /><comb hp=\"50\" damage=\"14\" /><vulner venom=\"0\"
+      poison=\"0\" bleed=\"0.5\" acid=\"0.25\" /><vis blit=\"sprZombie0\" sprX=\"120\"
+      sex=\"w\" /><n>\u0414\u0438\u043A\u0438\u0439 \u0433\u0443\u043B\u044C</n></unit>"
+    displayName: "\u0414\u0438\u043A\u0438\u0439 \u0433\u0443\u043B\u044C"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite1:10
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis noise="600" visdam="1" />
+
+        <blit id="stay" />
+
+        <blit
+        id="trot" y="1" len="17" rf="1" rep="1" />
+
+        <blit id="run" y="2"
+        len="8" rep="1" />
+
+        <blit id="jump" y="3" len="16" stab="1" />
+
+        <blit
+        id="die" y="4" len="20" />
+
+        <blit id="death" y="5" />
+
+        <blit
+        id="fall" y="5" len="13" />
+
+        <blit id="dig" y="6" len="24" />
+
+        <blit
+        id="walk" y="7" len="24" rep="1" />
+
+        <vis blit="sprZombie0" sprX="120"
+        sex="w" />'
+      sheetJson: '{"cellWidth":120,"cellHeight":120,"originX":60,"originY":110,"clips":[{"id":"death","row":5,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"5\" />"},{"id":"die","row":4,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"4\" len=\"20\" />"},{"id":"dig","row":6,"first":0,"length":24,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"dig\" y=\"6\" len=\"24\" />"},{"id":"fall","row":5,"first":0,"length":13,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"fall\" y=\"5\" len=\"13\" />"},{"id":"jump","row":3,"first":0,"length":16,"step":1,"return":0,"replay":false,"static":true,"rawXml":"<blit
+        id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" />"},{"id":"run","row":2,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"2\" len=\"8\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"trot","row":1,"first":0,"length":17,"step":1,"return":1,"replay":true,"static":false,"rawXml":"<blit
+        id=\"trot\" y=\"1\" len=\"17\" rf=\"1\" rep=\"1\" />"},{"id":"walk","row":7,"first":0,"length":24,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"7\" len=\"24\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:3
+      rule: snd/attribute symbol zw1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:2
+      rule: snd/attribute symbol zw2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:1
+      rule: snd/attribute symbol zw3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:zombie1
+    category: unit
+    sourceId: zombie1
+    rawXml: "<unit id=\"zombie1\" cont=\"zombie\" xp=\"150\" cat=\"3\" parent=\"zombie\"><un
+      ss=\"1\" /><phis sX=\"55\" sY=\"70\" massa=\"40\" /><move speed=\"2\" run=\"13\"
+      jump=\"18\" accel=\"3\" damwall=\"35\" /><comb hp=\"80\" damage=\"15\" /><vulner
+      bul=\"0.75\" venom=\"0\" poison=\"0\" bleed=\"0.5\" acid=\"0.25\" /><vis blit=\"sprZombie1\"
+      sprX=\"120\" sex=\"w\" /><blit id=\"pre\" y=\"8\" len=\"24\" /><n>\u041F\u0440\u044B\u0433\u0443\u043D</n></unit>"
+    displayName: "\u041F\u0440\u044B\u0433\u0443\u043D"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite1:9
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis noise="600" visdam="1" />
+
+        <blit id="stay" />
+
+        <blit
+        id="trot" y="1" len="17" rf="1" rep="1" />
+
+        <blit id="run" y="2"
+        len="8" rep="1" />
+
+        <blit id="jump" y="3" len="16" stab="1" />
+
+        <blit
+        id="die" y="4" len="20" />
+
+        <blit id="death" y="5" />
+
+        <blit
+        id="fall" y="5" len="13" />
+
+        <blit id="dig" y="6" len="24" />
+
+        <blit
+        id="walk" y="7" len="24" rep="1" />
+
+        <vis blit="sprZombie1" sprX="120"
+        sex="w" />
+
+        <blit id="pre" y="8" len="24" />'
+      sheetJson: '{"cellWidth":120,"cellHeight":120,"originX":60,"originY":110,"clips":[{"id":"death","row":5,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"5\" />"},{"id":"die","row":4,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"4\" len=\"20\" />"},{"id":"dig","row":6,"first":0,"length":24,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"dig\" y=\"6\" len=\"24\" />"},{"id":"fall","row":5,"first":0,"length":13,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"fall\" y=\"5\" len=\"13\" />"},{"id":"jump","row":3,"first":0,"length":16,"step":1,"return":0,"replay":false,"static":true,"rawXml":"<blit
+        id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" />"},{"id":"pre","row":8,"first":0,"length":24,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"pre\" y=\"8\" len=\"24\" />"},{"id":"run","row":2,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"2\" len=\"8\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"trot","row":1,"first":0,"length":17,"step":1,"return":1,"replay":true,"static":false,"rawXml":"<blit
+        id=\"trot\" y=\"1\" len=\"17\" rf=\"1\" rep=\"1\" />"},{"id":"walk","row":7,"first":0,"length":24,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"7\" len=\"24\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:3
+      rule: snd/attribute symbol zw1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:2
+      rule: snd/attribute symbol zw2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:1
+      rule: snd/attribute symbol zw3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:zombie2
+    category: unit
+    sourceId: zombie2
+    rawXml: "<unit id=\"zombie2\" cont=\"zombie\" xp=\"150\" cat=\"3\" parent=\"zombie\"><un
+      ss=\"2\" /><phis sX=\"55\" sY=\"70\" massa=\"55\" /><move speed=\"1.5\" run=\"12\"
+      jump=\"18\" accel=\"2\" damwall=\"35\" /><comb hp=\"80\" damage=\"18\" /><vulner
+      bul=\"0.75\" venom=\"0\" poison=\"0\" bleed=\"0.5\" acid=\"0.25\" /><vis blit=\"sprZombie2\"
+      sprX=\"120\" sex=\"w\" /><blit id=\"super\" y=\"8\" len=\"4\" rep=\"1\" /><n>\u0422\u0435\u043B\u0435\u043A\u0438\u043D\u0435\u0442\u0438\u043A</n></unit>"
+    displayName: "\u0422\u0435\u043B\u0435\u043A\u0438\u043D\u0435\u0442\u0438\u043A"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite1:8
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis noise="600" visdam="1" />
+
+        <blit id="stay" />
+
+        <blit
+        id="trot" y="1" len="17" rf="1" rep="1" />
+
+        <blit id="run" y="2"
+        len="8" rep="1" />
+
+        <blit id="jump" y="3" len="16" stab="1" />
+
+        <blit
+        id="die" y="4" len="20" />
+
+        <blit id="death" y="5" />
+
+        <blit
+        id="fall" y="5" len="13" />
+
+        <blit id="dig" y="6" len="24" />
+
+        <blit
+        id="walk" y="7" len="24" rep="1" />
+
+        <vis blit="sprZombie2" sprX="120"
+        sex="w" />
+
+        <blit id="super" y="8" len="4" rep="1" />'
+      sheetJson: '{"cellWidth":120,"cellHeight":120,"originX":60,"originY":110,"clips":[{"id":"death","row":5,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"5\" />"},{"id":"die","row":4,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"4\" len=\"20\" />"},{"id":"dig","row":6,"first":0,"length":24,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"dig\" y=\"6\" len=\"24\" />"},{"id":"fall","row":5,"first":0,"length":13,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"fall\" y=\"5\" len=\"13\" />"},{"id":"jump","row":3,"first":0,"length":16,"step":1,"return":0,"replay":false,"static":true,"rawXml":"<blit
+        id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" />"},{"id":"run","row":2,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"2\" len=\"8\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"super","row":8,"first":0,"length":4,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"super\" y=\"8\" len=\"4\" rep=\"1\" />"},{"id":"trot","row":1,"first":0,"length":17,"step":1,"return":1,"replay":true,"static":false,"rawXml":"<blit
+        id=\"trot\" y=\"1\" len=\"17\" rf=\"1\" rep=\"1\" />"},{"id":"walk","row":7,"first":0,"length":24,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"7\" len=\"24\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:3
+      rule: snd/attribute symbol zw1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:2
+      rule: snd/attribute symbol zw2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:1
+      rule: snd/attribute symbol zw3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:zombie3
+    category: unit
+    sourceId: zombie3
+    rawXml: "<unit id=\"zombie3\" cont=\"zombie\" xp=\"150\" cat=\"3\" parent=\"zombie\"><un
+      ss=\"3\" /><phis sX=\"55\" sY=\"70\" massa=\"65\" /><move speed=\"1.5\" run=\"10\"
+      jump=\"18\" accel=\"2\" damwall=\"35\" /><comb hp=\"85\" damage=\"15\" /><vulner
+      bul=\"0.75\" venom=\"0\" poison=\"0\" bleed=\"0.5\" acid=\"0.25\" /><vis blit=\"sprZombie3\"
+      sprX=\"120\" sex=\"w\" visdam=\"3\" sdamage=\"15\" stipdam=\"7\" /><blit id=\"pre\"
+      y=\"8\" len=\"18\" /><n>\u042F\u0434\u043E\u0432\u0438\u0442\u044B\u0439</n></unit>"
+    displayName: "\u042F\u0434\u043E\u0432\u0438\u0442\u044B\u0439"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite1:7
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis noise="600" visdam="1" />
+
+        <blit id="stay" />
+
+        <blit
+        id="trot" y="1" len="17" rf="1" rep="1" />
+
+        <blit id="run" y="2"
+        len="8" rep="1" />
+
+        <blit id="jump" y="3" len="16" stab="1" />
+
+        <blit
+        id="die" y="4" len="20" />
+
+        <blit id="death" y="5" />
+
+        <blit
+        id="fall" y="5" len="13" />
+
+        <blit id="dig" y="6" len="24" />
+
+        <blit
+        id="walk" y="7" len="24" rep="1" />
+
+        <vis blit="sprZombie3" sprX="120"
+        sex="w" visdam="3" sdamage="15" stipdam="7" />
+
+        <blit id="pre" y="8"
+        len="18" />'
+      sheetJson: '{"cellWidth":120,"cellHeight":120,"originX":60,"originY":110,"clips":[{"id":"death","row":5,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"5\" />"},{"id":"die","row":4,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"4\" len=\"20\" />"},{"id":"dig","row":6,"first":0,"length":24,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"dig\" y=\"6\" len=\"24\" />"},{"id":"fall","row":5,"first":0,"length":13,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"fall\" y=\"5\" len=\"13\" />"},{"id":"jump","row":3,"first":0,"length":16,"step":1,"return":0,"replay":false,"static":true,"rawXml":"<blit
+        id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" />"},{"id":"pre","row":8,"first":0,"length":18,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"pre\" y=\"8\" len=\"18\" />"},{"id":"run","row":2,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"2\" len=\"8\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"trot","row":1,"first":0,"length":17,"step":1,"return":1,"replay":true,"static":false,"rawXml":"<blit
+        id=\"trot\" y=\"1\" len=\"17\" rf=\"1\" rep=\"1\" />"},{"id":"walk","row":7,"first":0,"length":24,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"7\" len=\"24\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:3
+      rule: snd/attribute symbol zw1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:2
+      rule: snd/attribute symbol zw2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:1
+      rule: snd/attribute symbol zw3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:zombie4
+    category: unit
+    sourceId: zombie4
+    rawXml: "<unit id=\"zombie4\" xp=\"300\" cat=\"3\" parent=\"zombie\"><un glow=\"1\"
+      ss=\"5\" /><phis sX=\"60\" sY=\"75\" massa=\"75\" /><move speed=\"1.5\" run=\"12\"
+      jump=\"18\" accel=\"2\" damwall=\"40\" /><comb hp=\"100\" damage=\"20\" raddamage=\"6\"
+      /><vulner bul=\"0.75\" laser=\"0.5\" venom=\"0\" poison=\"0\" bleed=\"0.5\"
+      acid=\"0.25\" /><snd die=\"zm\" /><vis blit=\"sprZombie4\" sprX=\"130\" /><n>\u0421\u0432\u0435\u0442\u044F\u0449\u0438\u0439\u0441\u044F
+      \u0433\u0443\u043B\u044C</n></unit>"
+    displayName: "\u0421\u0432\u0435\u0442\u044F\u0449\u0438\u0439\u0441\u044F \u0433\u0443\u043B\u044C"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite1:6
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis noise="600" visdam="1" />
+
+        <blit id="stay" />
+
+        <blit
+        id="trot" y="1" len="17" rf="1" rep="1" />
+
+        <blit id="run" y="2"
+        len="8" rep="1" />
+
+        <blit id="jump" y="3" len="16" stab="1" />
+
+        <blit
+        id="die" y="4" len="20" />
+
+        <blit id="death" y="5" />
+
+        <blit
+        id="fall" y="5" len="13" />
+
+        <blit id="dig" y="6" len="24" />
+
+        <blit
+        id="walk" y="7" len="24" rep="1" />
+
+        <vis blit="sprZombie4" sprX="130"
+        />'
+      sheetJson: '{"cellWidth":130,"cellHeight":130,"originX":65,"originY":120,"clips":[{"id":"death","row":5,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"5\" />"},{"id":"die","row":4,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"4\" len=\"20\" />"},{"id":"dig","row":6,"first":0,"length":24,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"dig\" y=\"6\" len=\"24\" />"},{"id":"fall","row":5,"first":0,"length":13,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"fall\" y=\"5\" len=\"13\" />"},{"id":"jump","row":3,"first":0,"length":16,"step":1,"return":0,"replay":false,"static":true,"rawXml":"<blit
+        id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" />"},{"id":"run","row":2,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"2\" len=\"8\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"trot","row":1,"first":0,"length":17,"step":1,"return":1,"replay":true,"static":false,"rawXml":"<blit
+        id=\"trot\" y=\"1\" len=\"17\" rf=\"1\" rep=\"1\" />"},{"id":"walk","row":7,"first":0,"length":24,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"7\" len=\"24\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:3
+      rule: snd/attribute symbol zw1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:2
+      rule: snd/attribute symbol zw2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:1
+      rule: snd/attribute symbol zw3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zm
+      resourceId: sound_unit:7
+      rule: snd/attribute symbol zm1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zm
+      resourceId: sound_unit:6
+      rule: snd/attribute symbol zm2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zm
+      resourceId: sound_unit:5
+      rule: snd/attribute symbol zm3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:zombie5
+    category: unit
+    sourceId: zombie5
+    rawXml: "<unit id=\"zombie5\" xp=\"450\" cat=\"3\" parent=\"zombie\"><un ss=\"6\"
+      /><phis sX=\"60\" sY=\"75\" massa=\"200\" /><move speed=\"1.6\" run=\"11\"
+      jump=\"16\" accel=\"1\" damwall=\"55\" /><comb hp=\"140\" damage=\"25\" armor=\"12\"
+      aqual=\"0.4\" observ=\"3\" /><vulner fire=\"0.5\" bul=\"0.75\" venom=\"0\"
+      poison=\"0\" bleed=\"0.5\" acid=\"0.25\" pink=\"0\" /><snd die=\"zm\" /><vis
+      blit=\"sprZombie5\" sprX=\"130\" /><blit id=\"super\" y=\"1\" len=\"17\" rf=\"1\"
+      df=\"2\" rep=\"1\" /><n>\u0413\u0443\u043B\u044C-\u0441\u043E\u043B\u0434\u0430\u0442</n></unit>"
+    displayName: "\u0413\u0443\u043B\u044C-\u0441\u043E\u043B\u0434\u0430\u0442"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite1:5
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis noise="600" visdam="1" />
+
+        <blit id="stay" />
+
+        <blit
+        id="trot" y="1" len="17" rf="1" rep="1" />
+
+        <blit id="run" y="2"
+        len="8" rep="1" />
+
+        <blit id="jump" y="3" len="16" stab="1" />
+
+        <blit
+        id="die" y="4" len="20" />
+
+        <blit id="death" y="5" />
+
+        <blit
+        id="fall" y="5" len="13" />
+
+        <blit id="dig" y="6" len="24" />
+
+        <blit
+        id="walk" y="7" len="24" rep="1" />
+
+        <vis blit="sprZombie5" sprX="130"
+        />
+
+        <blit id="super" y="1" len="17" rf="1" df="2" rep="1" />'
+      sheetJson: '{"cellWidth":130,"cellHeight":130,"originX":65,"originY":120,"clips":[{"id":"death","row":5,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"5\" />"},{"id":"die","row":4,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"4\" len=\"20\" />"},{"id":"dig","row":6,"first":0,"length":24,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"dig\" y=\"6\" len=\"24\" />"},{"id":"fall","row":5,"first":0,"length":13,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"fall\" y=\"5\" len=\"13\" />"},{"id":"jump","row":3,"first":0,"length":16,"step":1,"return":0,"replay":false,"static":true,"rawXml":"<blit
+        id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" />"},{"id":"run","row":2,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"2\" len=\"8\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"super","row":1,"first":0,"length":17,"step":2,"return":1,"replay":true,"static":false,"rawXml":"<blit
+        id=\"super\" y=\"1\" len=\"17\" rf=\"1\" df=\"2\" rep=\"1\" />"},{"id":"trot","row":1,"first":0,"length":17,"step":1,"return":1,"replay":true,"static":false,"rawXml":"<blit
+        id=\"trot\" y=\"1\" len=\"17\" rf=\"1\" rep=\"1\" />"},{"id":"walk","row":7,"first":0,"length":24,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"7\" len=\"24\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:3
+      rule: snd/attribute symbol zw1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:2
+      rule: snd/attribute symbol zw2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:1
+      rule: snd/attribute symbol zw3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zm
+      resourceId: sound_unit:7
+      rule: snd/attribute symbol zm1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zm
+      resourceId: sound_unit:6
+      rule: snd/attribute symbol zm2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zm
+      resourceId: sound_unit:5
+      rule: snd/attribute symbol zm3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
+  - key: unit:zombie6
+    category: unit
+    sourceId: zombie6
+    rawXml: "<unit id=\"zombie6\" xp=\"600\" cat=\"3\" parent=\"zombie\"><un ss=\"4\"
+      /><phis sX=\"55\" sY=\"70\" massa=\"65\" /><move speed=\"2\" run=\"14\" jump=\"18\"
+      accel=\"3\" damwall=\"55\" levit_max=\"45\" /><comb hp=\"180\" damage=\"30\"
+      skin=\"3\" observ=\"6\" /><vulner acid=\"0\" bul=\"0.75\" venom=\"0\" poison=\"0\"
+      bleed=\"0.5\" pink=\"0\" /><vis blit=\"sprZombie6\" sprX=\"120\" sex=\"w\"
+      visdam=\"3\" sdamage=\"20\" stipdam=\"10\" /><blit id=\"pre\" y=\"8\" len=\"18\"
+      /><n>\u041F\u043E\u0442\u0440\u043E\u0448\u0438\u0442\u0435\u043B\u044C</n></unit>"
+    displayName: "\u041F\u043E\u0442\u0440\u043E\u0448\u0438\u0442\u0435\u043B\u044C"
+    description: 
+    graphics:
+    - role: animation-sheet
+      resourceId: sprite1:4
+      rule: unit.vis.blit; raster-sheet animation metadata retained
+      label: 
+      metadataXml: '<vis noise="600" visdam="1" />
+
+        <blit id="stay" />
+
+        <blit
+        id="trot" y="1" len="17" rf="1" rep="1" />
+
+        <blit id="run" y="2"
+        len="8" rep="1" />
+
+        <blit id="jump" y="3" len="16" stab="1" />
+
+        <blit
+        id="die" y="4" len="20" />
+
+        <blit id="death" y="5" />
+
+        <blit
+        id="fall" y="5" len="13" />
+
+        <blit id="dig" y="6" len="24" />
+
+        <blit
+        id="walk" y="7" len="24" rep="1" />
+
+        <vis blit="sprZombie6" sprX="120"
+        sex="w" visdam="3" sdamage="20" stipdam="10" />
+
+        <blit id="pre" y="8"
+        len="18" />'
+      sheetJson: '{"cellWidth":120,"cellHeight":120,"originX":60,"originY":110,"clips":[{"id":"death","row":5,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"death\" y=\"5\" />"},{"id":"die","row":4,"first":0,"length":20,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"die\" y=\"4\" len=\"20\" />"},{"id":"dig","row":6,"first":0,"length":24,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"dig\" y=\"6\" len=\"24\" />"},{"id":"fall","row":5,"first":0,"length":13,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"fall\" y=\"5\" len=\"13\" />"},{"id":"jump","row":3,"first":0,"length":16,"step":1,"return":0,"replay":false,"static":true,"rawXml":"<blit
+        id=\"jump\" y=\"3\" len=\"16\" stab=\"1\" />"},{"id":"pre","row":8,"first":0,"length":18,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"pre\" y=\"8\" len=\"18\" />"},{"id":"run","row":2,"first":0,"length":8,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"run\" y=\"2\" len=\"8\" rep=\"1\" />"},{"id":"stay","row":0,"first":0,"length":1,"step":1,"return":0,"replay":false,"static":false,"rawXml":"<blit
+        id=\"stay\" />"},{"id":"trot","row":1,"first":0,"length":17,"step":1,"return":1,"replay":true,"static":false,"rawXml":"<blit
+        id=\"trot\" y=\"1\" len=\"17\" rf=\"1\" rep=\"1\" />"},{"id":"walk","row":7,"first":0,"length":24,"step":1,"return":0,"replay":true,"static":false,"rawXml":"<blit
+        id=\"walk\" y=\"7\" len=\"24\" rep=\"1\" />"}]}'
+      frame: 0
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:3
+      rule: snd/attribute symbol zw1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:2
+      rule: snd/attribute symbol zw2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die/zw
+      resourceId: sound_unit:1
+      rule: snd/attribute symbol zw3
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    issues: []
   - key: weapon:a_energ
     category: weapon
     sourceId: a_energ
@@ -84812,6 +85458,14 @@ MonoBehaviour:
     sounds:
     - {fileID: 8300000, guid: bb63465e758e5264d8d69a72b8c0fd4d, type: 3}
     issues: []
+  - id: sound_unit:5
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 118301f249da1d349ad606707ba5f90b, type: 3}
+    issues: []
   - id: sound_unit:56
     kind: sound
     socketsJson: '[]'
@@ -84835,6 +85489,14 @@ MonoBehaviour:
     frames: []
     sounds:
     - {fileID: 8300000, guid: 16180d6fbc4b12a488ac517ab8cbe75a, type: 3}
+    issues: []
+  - id: sound_unit:6
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: 49accd33aa42619459bbf3c9bf74c080, type: 3}
     issues: []
   - id: sound_unit:61
     kind: sound
@@ -84883,6 +85545,14 @@ MonoBehaviour:
     frames: []
     sounds:
     - {fileID: 8300000, guid: a11beb69fb23d0d4cbc43703a83218e0, type: 3}
+    issues: []
+  - id: sound_unit:7
+    kind: sound
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds:
+    - {fileID: 8300000, guid: d16c5079bd4fc8f4ba984897da8e13cc, type: 3}
     issues: []
   - id: sound_weapon:1
     kind: sound
@@ -85404,6 +86074,13 @@ MonoBehaviour:
     sounds:
     - {fileID: 8300000, guid: e948376cd83516144925dbbb16da53b0, type: 3}
     issues: []
+  - id: sprite1:10
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
   - id: sprite1:14
     kind: bitmap
     socketsJson: '[]'
@@ -85425,7 +86102,49 @@ MonoBehaviour:
     frames: []
     sounds: []
     issues: []
+  - id: sprite1:4
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
   - id: sprite1:41
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite1:5
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite1:6
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite1:7
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite1:8
+    kind: bitmap
+    socketsJson: '[]'
+    labelsJson: '{}'
+    frames: []
+    sounds: []
+    issues: []
+  - id: sprite1:9
     kind: bitmap
     socketsJson: '[]'
     labelsJson: '{}'

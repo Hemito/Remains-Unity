@@ -37,6 +37,7 @@ namespace Remains.Editor
                 if(type.behavior==NpcCreatureBehaviours.SpiderMine) {SpiderMine(creature,type,exported);continue;}
                 if(type.behavior==NpcCreatureBehaviours.Roller) {Roller(creature,type,exported,voices);continue;}
                 if(type.behavior==NpcCreatureBehaviours.Robobrain) {Robobrain(creature,type,exported,voices);continue;}
+                if(type.behavior==NpcCreatureBehaviours.Zombie) {Zombie(creature,type,exported,voices);continue;}
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
                 var art=AtlasAnimationData.Get(type.artwork);
@@ -67,7 +68,7 @@ namespace Remains.Editor
                 int explicitCount=root.Objects.Count(o=>o.Source.Type.StartsWith("remains:obj:",StringComparison.Ordinal) && o.Source.Params.Count==0 && o.Source.Items.Count==0 && o.Source.Links.Count==0 && o.Source.Extra==null &&
                     Placed(o.Source.Type.Substring("remains:obj:".Length),o.Room.Cell.Y/2.0,$"{o.Room.Cell.X},{o.Room.Cell.Y}:{o.Source.Id}"));
                 // Random room enemies (v5) of the connected creatures, as the plan places them.
-                var random=new System.Collections.Generic.HashSet<string>(FactoryRandomEncounters.Plan(root).Where(e=>!e.Hidden && Placed(e.Unit,e.Danger,e.LocalId))
+                var random=new System.Collections.Generic.HashSet<string>(FactoryRandomEncounters.Plan(root).Where(e=>(!e.Hidden || e.Unit=="zombie") && Placed(e.Unit,e.Danger,e.LocalId))
                     .Select(e=>"factory:0:"+e.LocalId),StringComparer.Ordinal);
                 int expected=explicitCount+random.Count;
                 var batch=RoomContentBatch.Read(room,"factory:0");
@@ -104,8 +105,15 @@ namespace Remains.Editor
                 Require(world.actors.Any(V10),"роллеры завода установлены");
                 Require(world.actors.Any(V11) && world.actors.Where(V11).Select(a=>a.actorType).Distinct().Count()==2,"робомозги завода установлены, с обоими стволами");
                 // Robots of later versions (spritebots v8, spider mines v9, rollers v10, robobrains v11) are missing from every earlier world too.
-                bool Robots(ActorState a)=>V8(a) || V9(a) || V10(a) || V11(a);
-                Upgrade("base:factory-generated:creatures-v10",V11,"переход v10 → v11 добавляет только робомозгов");
+                bool V12(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.Zombie;
+                var zombies=world.actors.Where(V12).ToArray();
+                Require(zombies.Length>0 && zombies.Any(ActorPresence.Hidden) && zombies.Any(a=>!ActorPresence.Hidden(a)) &&
+                    zombies.Any(a=>ActorPresence.Hidden(a) && random.Contains(a.id)) && zombies.Select(a=>a.actorType).Distinct().Count()>=3,
+                    $"зомби завода установлены: разные варианты, часть закопана ({zombies.Count(ActorPresence.Hidden)} из {zombies.Length})");
+                Debug.Log($"Зомби seed104: {zombies.Length} ({string.Join(", ",zombies.GroupBy(a=>a.actorType).OrderBy(g=>g.Key).Select(g=>$"{g.Key} {g.Count()}"))}), закопано {zombies.Count(ActorPresence.Hidden)}.");
+                bool Robots(ActorState a)=>V8(a) || V9(a) || V10(a) || V11(a) || V12(a);
+                Upgrade("base:factory-generated:creatures-v11",V12,"переход v11 → v12 добавляет только зомби");
+                Upgrade("base:factory-generated:creatures-v10",a=>V11(a) || V12(a),"переход v10 → v12 добавляет только робомозгов и зомби");
                 Upgrade("base:factory-generated:creatures-v9",a=>V10(a) || V11(a),"переход v9 → v11 добавляет только роллеров и робомозгов");
                 Upgrade("base:factory-generated:creatures-v8",a=>V9(a) || V10(a) || V11(a),"переход v8 → v11 добавляет только мины-пауков, роллеров и робомозгов");
                 Upgrade("base:factory-generated:creatures-v7",Robots,"переход v7 → v10 добавляет только роботов");
@@ -472,6 +480,58 @@ namespace Remains.Editor
                 Remains.Networking.SessionDeathBlasts.Blast(before,before)==null && Remains.Networking.SessionDeathBlasts.Blast(after,after)==null,$"{id}: принятая гибель — взрыв у ног, только при переходе");
         }
         private sealed class FixedDamage : IDamageRule {public float Calculate(string weapon,float speed)=>10;}
+
+        // A zombie (stage 1): ZombieBrain over the raiders' mind, a body touch of comb damage, its run and jump, the raster
+        // poses with the jump by vertical speed and the dig, its LootGen loot on the searchable body; buried it is hidden
+        // and fixed, a target makes it dig out and pursue; a glowing ghoul radiates, flares when angry and its touch irradiates.
+        private static void Zombie(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported,ActorDeathAudioCatalog voices)
+        {
+            string id=creature.actorType;var s=type.raider;
+            Require(type.combatAi && !type.hasWeapon && type.naturalAttack==null && type.presentation=="atlas" && type.bodyInventory && s!=null && s.zombie &&
+                s.attacker==RaiderAttacker.Teeth && s.bodyHit!=null && !s.climbsLadders && NpcCreatureBehaviours.UsesRaiderBrain(type.behavior),$"{id}: зомби — ИИ зомби с ударом корпусом");
+            s.Validate(id);type.perception.Validate();
+            var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
+            float Num(string element,string name,float fallback)=>unit.Element(element)?.Attribute(name) is {} a?float.Parse(a.Value,System.Globalization.CultureInfo.InvariantCulture):fallback;
+            Require(Mathf.Approximately(s.walkSpeed,Num("move","speed",0)*.6f) && Mathf.Approximately(s.zombieRun,Num("move","run",0)*.6f) &&
+                Mathf.Approximately(s.bodyHit.damage,Num("comb","damage",0)),$"{id}: шаг {s.walkSpeed}, бег {s.zombieRun}, удар {s.bodyHit.damage} не по AllData");
+            var art=AtlasAnimationData.Get(type.artwork);
+            foreach(string pose in new[]{"idle","walk","trot","run","jump","down",ZombieBrain.EmergingMode}) Require(art.Clip(pose).count>0,$"{id}: поза {pose}");
+            Require(art.Clip("jump").UsesMotion && art.Clip("walk").loop && !art.Clip("down").loop,$"{id}: прыжок по вертикальной скорости, шаг по кругу");
+            var spawned=creature.spawn.Create(new TrainingPlacement {id="check",type=id,facing=1},"level");
+            Require(Mathf.Approximately(spawned.health,Num("comb","hp",0)) && creature.spawn.ReadInventory()?.entries.Any(e=>e.definition=="item:ghoulblood")==true,
+                $"{id}: здоровье AllData и добыча LootGen");
+            Require(voices.TrySelect(id,0,out _),"голос смерти "+id);
+            bool glowing=Num("un","ss",0)==5;
+            Require(glowing==(type.radiationAura!=null && type.radiationAura.strength>0) && Mathf.Approximately(type.radiationHit,Num("comb","raddamage",0)) &&
+                (!glowing || s.zombieSuper==5 && Mathf.Approximately(type.radiationAura.Strength(false),1) && Mathf.Approximately(type.radiationAura.Strength(true),10.5f)),
+                $"{id}: свечение и радиация удара по AllData");
+
+            // Buried: hidden and fixed; a seen target makes it dig out for 24 frames, then pursue and touch it.
+            var room=new RoomLayout {id="zombie-check",left=-30,right=30,bottom=-1,top=30,ladders=Array.Empty<RoomLadder>(),
+                platforms=new[]{new RoomSurface {x=-30,y=-1,width=60,height=1}}};
+            RoomSurfaces.Prepare(room);
+            var zombie=StateJson.Copy(spawned);zombie.id="z";zombie.level="l";zombie.x=0;zombie.y=0;zombie.facing=-1;zombie.creature=new NpcCreatureState {mode=ZombieBrain.BuriedMode};
+            var target=new ActorState {id="p",player=true,connected=true,level="l",x=-20,y=0,health=100,actorType="pony",anatomy="pony"};
+            var raiders=new Remains.Gameplay.NpcRaiderController(MovementSettings.Load(),new System.Random(7));float dt=1f/30;
+            Require(ActorPresence.Hidden(zombie) && !AttackScope.Includes(new AttackEvent {level="l"},zombie),$"{id}: закопанный скрыт от попаданий");
+            for(int i=0;i<20;i++) raiders.Step(zombie,type,target,false,room,dt);
+            Require(ActorPresence.Hidden(zombie) && zombie.x==0,$"{id}: без цели остаётся закопанным на месте");
+            bool changed=false;
+            for(int i=0;i<10;i++) changed|=raiders.Step(zombie,type,target,true,room,dt).changed;
+            Require(zombie.creature.mode==ZombieBrain.EmergingMode && zombie.pose==ZombieBrain.EmergingMode && changed && !ActorPresence.Hidden(zombie),$"{id}: увидев цель, выкапывается");
+            for(int i=0;i<60;i++) raiders.Step(zombie,type,target,true,room,dt);
+            Require(zombie.creature.mode==null && zombie.x<0,$"{id}: выкопавшись, преследует ({zombie.x})");
+            target.x=zombie.x-1;bool touch=false;
+            for(int i=0;i<15;i++) touch|=raiders.Step(zombie,type,target,true,room,dt).bodyHit>0;
+            Require(touch,$"{id}: рядом с целью бьёт корпусом");
+            if(glowing)
+            {
+                // Its anger drains while the target is in reach (attKorp or 20% a frame): kept 10 m ahead, it flares.
+                bool flared=false;
+                for(int i=0;i<400 && !flared;i++) {target.x=zombie.x-10;raiders.Step(zombie,type,target,true,room,dt);flared=zombie.creature?.mode==ZombieBrain.FlareMode;}
+                Require(flared,$"{id}: разозлившись, вспыхивает");
+            }
+        }
 
         // A robobrain: the raiders' state machine in its robot variant with a gun of its list (no magazine) at setWeaponPos,
         // its LootGen loot with the gun on its searchable body; it notices, pursues or holds, never jumps, touches or steps

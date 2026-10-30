@@ -74,7 +74,7 @@ namespace Remains.Domain
         public static bool Contact(PropImpactSample sample,ActorState target)
         {
             if(sample==null || target==null || sample.level!=target.level || target.health<=0 ||
-                !ActorPresence.IsPresent(target) || sample.friendlyPlayers && target.player) return false;
+                !ActorPresence.IsPresent(target) || ActorPresence.Hidden(target) || sample.friendlyPlayers && target.player) return false;
             var hull=Anatomy.Movement(target);
             return sample.Bounds.Overlaps(new Rect(target.x-hull.width*.5f,target.y,hull.width,hull.height));
         }

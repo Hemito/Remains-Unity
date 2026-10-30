@@ -27,11 +27,21 @@ namespace Remains.Domain
         // (state 4, 10–20 frames) within aiDist once alert reaches maxSpok + 2, runs only while searching, never steps back
         // or touches (no attKorp), and its stroll does not stop at turns.
         [InspectorName("ИИ робота (UnitAIRobot)")] public bool robot;
+        // UnitZombie (ZombieBrain): its own control over the same mind — runs at its move run (×0.6 while searching),
+        // touches a seen target within its reach, may sleep buried, and a glowing one (super 5) flares up when angry.
+        [InspectorName("ИИ зомби (UnitZombie)")] public bool zombie;
+        [Min(0),InspectorName("Зомби: бег, м/с (move run)")] public float zombieRun;
+        [Min(0),InspectorName("Зомби: досягаемость атаки по горизонтали, м (optDistAtt)")] public float attackReach=4;
+        // UnitZombie.superSilaTip: 0 none or not carried over yet, 5 the glowing ghoul's flare (tZlo, tPrepSuper, tSuper).
+        [Min(0),InspectorName("Зомби: суперсила (ss; 5 — вспышка свечения)")] public int zombieSuper;
+        [Min(0),InspectorName("Зомби: злость до суперсилы, кадров (tZlo)")] public int angerFrames=120;
+        [Min(0),InspectorName("Зомби: подготовка суперсилы, кадров (tPrepSuper)")] public int prepareFrames=30;
+        [Min(0),InspectorName("Зомби: длительность суперсилы, кадров (tSuper)")] public int superFrames=75;
         // Unit.attKorp → udarUnit: every raider's touch, with its comb damage (+ half of a melee weapon's) and damage type.
         // Not used by a robot (Unity keeps a serialized class field non-null, so the flag, not null, says so).
         [InspectorName("Удар корпусом (attKorp; у робота не используется)")] public NaturalAttackDefinition bodyHit;
         public bool Touches=>!robot;
-        public float RunSpeed=>walkSpeed*2;
+        public float RunSpeed=>zombie?zombieRun:walkSpeed*2;
         public void Validate(string type)
         {
             // A jump of 0 never jumps (robobrain: move jump 0).
@@ -40,13 +50,17 @@ namespace Remains.Domain
                 !float.IsFinite(swingHeight) || swingHeight<0 || attacker==RaiderAttacker.Levitated && swingHeight<=0)
                 throw new InvalidOperationException($"Некорректное поведение рейдера {type}: шаг {walkSpeed}, прыжок {jumpSpeed}, ускорение {acceleration}.");
             if(robot && attacker!=RaiderAttacker.Ranged) throw new InvalidOperationException($"Робот {type}: только стрелок (UnitAIRobot.attack).");
+            if(zombie && (robot || attacker!=RaiderAttacker.Teeth || !float.IsFinite(zombieRun) || zombieRun<walkSpeed || !float.IsFinite(attackReach) || attackReach<=0 ||
+                zombieSuper is not (0 or 5) || zombieSuper==5 && (angerFrames<=0 || prepareFrames<=0 || superFrames<=0)))
+                throw new InvalidOperationException($"Зомби {type}: удар корпусом, бег не медленнее шага, досягаемость и суперсила 0 или 5 с её временем.");
             if(robot) return;
             if(bodyHit==null) throw new InvalidOperationException($"У рейдера {type} нет удара корпусом (attKorp).");
             bodyHit.Validate(type);
         }
     }
 
-    public enum RaiderState { Idle=0, Stroll=1, Search=2, Pursue=3, Hold=4, Notice=5 }
+    // 0–5 are UnitRaider's aiState; a zombie's own states (UnitZombie 5, 6, 4, 7) follow after them.
+    public enum RaiderState { Idle=0, Stroll=1, Search=2, Pursue=3, Hold=4, Notice=5, Buried=6, Emerging=7, Prepare=8, Super=9 }
 
     // The owner's working memory of one raider's decisions (UnitRaider's AI fields). It lives with the owner and is not
     // saved or replicated: a new owner starts it from the shared perception (NpcPerceptionMemory, target).
@@ -61,6 +75,7 @@ namespace Remains.Domain
         public int turnDelay;          // t_turn
         public int vertical;           // aiVNapr: −1 the point is above, 1 below
         public int jumpDelay,ladderDelay,ladderTime,ladderDirection,wallTurn,burst,follow;
+        public int anger;              // aiZlo: a zombie's frames of pursuit towards its super power
         public bool aware;             // aiVKurse: has seen a player
         public Vector2 point;          // celX/celY: the point the raider attends to (its centre for a unit)
         public Vector2 lastKnown;
@@ -89,6 +104,8 @@ namespace Remains.Domain
         public bool shoot;             // fires its firearm
         public bool swing;             // swings its levitated melee weapon (WClub)
         public float bodyHit;          // attKorp: 0 none, else its damage factor (1 or 0.5)
+        public bool slowRun;           // a zombie searching runs at 0.6 of its run
+        public bool flare;             // a glowing zombie's flare begins (superSila 5)
     }
 
     // UnitRaider.control / jump / checkJump / attack (1.04 dlc-ui), one call per original frame (30 per second). Kept close
@@ -102,8 +119,8 @@ namespace Remains.Domain
     public static class RaiderBrain
     {
         public const float FrameSeconds=1f/30;
-        private const int MaxAlert=30;                       // Unit.maxSpok
-        private const float Px=.02f;
+        internal const int MaxAlert=30;                       // Unit.maxSpok
+        internal const float Px=.02f;
         private static readonly MovementHull Probe=new() {width=.02f,height=.02f};
 
         public static RaiderIntent Tick(RaiderMind m,RaiderSettings s,ActorState actor,RoomLayout room,RaiderSenses senses,bool wallAhead,System.Random random,
@@ -312,10 +329,10 @@ namespace Remains.Domain
         }
 
         // shX: the share of the body beyond the edge on that side is above `share`.
-        private static bool Edge(RoomLayout room,MovementHull hull,ActorState actor,int side,float share)=>
+        internal static bool Edge(RoomLayout room,MovementHull hull,ActorState actor,int side,float share)=>
             !ActorTerrainMotion.Supported(room,Probe,new Vector2(actor.x+side*hull.width*(.5f-share),actor.y));
         // getAbsTile(X + d, Y + 10).phis: ground just below the feet at that distance.
-        private static bool Ground(RoomLayout room,ActorState actor,float offset)=>
+        internal static bool Ground(RoomLayout room,ActorState actor,float offset)=>
             !ActorTerrainMotion.IsClear(room,Probe,new Vector2(actor.x+offset,actor.y-10*Px));
         // checkJump: free cells 85 and 125 px above the feet, here and one cell ahead.
         public static bool CanJump(RoomLayout room,ActorState actor,int facing)

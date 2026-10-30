@@ -10,7 +10,9 @@ namespace Remains.Gameplay
     public readonly struct RaiderActions
     {
         public readonly bool weapon;public readonly float bodyHit;
-        public RaiderActions(bool weapon,float bodyHit) {this.weapon=weapon;this.bodyHit=bodyHit;}
+        // changed: a state other peers must see (a zombie's buried, digging or flaring mode) — publish the actor.
+        public readonly bool changed;
+        public RaiderActions(bool weapon,float bodyHit,bool changed=false) {this.weapon=weapon;this.bodyHit=bodyHit;this.changed=changed;}
     }
 
     // Raiders this peer owns: RaiderBrain decides at the original's 30 frames per second, a movement controller of the
@@ -60,7 +62,7 @@ namespace Remains.Gameplay
                 var hull=Anatomy.Movement(actor);
                 // A wall ahead (turnX): the body one probe further along its way, above the step height, does not fit.
                 bool wall=!ActorTerrainMotion.IsClear(room,hull,actor.Position+new Vector2(entry.mind.direction*.05f,entry.settings.stepHeight+.02f));
-                var intent=RaiderBrain.Tick(entry.mind,settings,actor,room,senses,wall,random,attacker);
+                var intent=settings.zombie?ZombieBrain.Tick(entry.mind,settings,actor,room,senses,wall,random):RaiderBrain.Tick(entry.mind,settings,actor,room,senses,wall,random,attacker);
                 weapon|=intent.shoot || intent.swing;bodyHit=Mathf.Max(bodyHit,intent.bodyHit);
                 // One-shot parts wait for the movement step; the steady ones are the latest decision.
                 if(entry.intent.jump>0 && intent.jump<=0) {intent.jump=entry.intent.jump;intent.jumpPush=entry.intent.jumpPush;}
@@ -68,9 +70,21 @@ namespace Remains.Gameplay
                 entry.intent=intent;
             }
             var decided=entry.intent;
+            bool changed=false;
+            if(settings.zombie)
+            {
+                string mode=ZombieBrain.Mode(entry.mind.state);
+                if(actor.creature?.mode!=mode) {actor.creature??=new NpcCreatureState();actor.creature.mode=mode;actor.revision++;changed=true;}
+                // Buried or digging out it does not move at all (fixed).
+                if(entry.mind.state is RaiderState.Buried or RaiderState.Emerging)
+                {
+                    actor.vx=actor.vy=0;ActorPose.Select(actor,entry.mind.state==RaiderState.Emerging?ZombieBrain.EmergingMode:"idle");
+                    return new RaiderActions(false,0,changed);
+                }
+            }
             if(decided.pushX!=0) actor.vx=decided.pushX;
             entry.settings.jumpSpeed=settings.jumpSpeed*Mathf.Max(decided.jump,.01f);
-            entry.settings.runSpeed=settings.RunSpeed*(decided.charge?1.5f:1);
+            entry.settings.runSpeed=settings.RunSpeed*(decided.charge?1.5f:decided.slowRun?.6f:1);
             bool launch=decided.jump>0;
             entry.movement.Step(actor,new Vector2(decided.move,decided.climb),launch,dt,sprint:decided.run,
                 lookAtX:actor.climbing?(float?)null:actor.x+entry.mind.facing,dropThrough:decided.dropThrough);
@@ -78,7 +92,9 @@ namespace Remains.Gameplay
             entry.intent.jump=0;entry.intent.jumpPush=0;entry.intent.pushX=0;
             if(Levitated(actor)) WeaponPose.HoldAt(actor,WeaponPose.Origin(actor)+Vector2.right*(entry.mind.facing*HoldAhead));
             else NpcWeaponAim.Apply(actor,sees?target.BodyPosition+Vector2.up*.55f:memory.hasKnownPosition?memory.KnownPosition+Vector2.up*.55f:null,room);
-            return new RaiderActions(weapon,bodyHit);
+            // UnitZombie.animate: trot while searching on the move.
+            if(settings.zombie && entry.mind.state==RaiderState.Search && actor.pose is "walk" or "run") ActorPose.Select(actor,"trot");
+            return new RaiderActions(weapon,bodyHit,changed);
         }
 
         // attKorp: a touch in reach, at most once per the victim's window between touches (neujazMax: 30 frames for a
@@ -143,6 +159,9 @@ namespace Remains.Gameplay
                 settings.groundAcceleration=type.raider.acceleration*30;   // px per frame² → m/s²
                 entry=new Entry {movement=new MovementController(room,settings),settings=settings,generation=actor.generation};
                 entry.mind.direction=entry.mind.wantedFacing=entry.mind.facing=actor.facing<0?-1:1;
+                // A new owner keeps a buried or digging zombie so; a flare in progress ends (pursuit).
+                if(actor.creature?.mode==ZombieBrain.BuriedMode) entry.mind.state=RaiderState.Buried;
+                else if(actor.creature?.mode==ZombieBrain.EmergingMode) {entry.mind.state=RaiderState.Emerging;entry.mind.timer=24;}
                 entries[actor.id]=entry;
             }
             entry.seen=frame;

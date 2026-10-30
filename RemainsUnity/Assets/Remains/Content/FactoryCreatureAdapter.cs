@@ -32,7 +32,11 @@ namespace Remains.Content
             // The roller: rests, rolls at a target and touches it.
             ("base:factory-generated:creatures-v10",new[]{"roller","random:roller"}),
             // The robobrain (object robot): a walking robot with a laser or a spark gun.
-            ("base:factory-generated:creatures-v11",new[]{"robot","random:robot"})
+            ("base:factory-generated:creatures-v11",new[]{"robot","random:robot"}),
+            // Zombies of the factory (biome 0: zombie0–4) by the danger of their room, some buried; the hidden random
+            // enemies of the rooms (createHidden: dig 2) are buried zombies.
+            ("base:factory-generated:creatures-v12",new[]{"zombie0","zombie1","zombie2","zombie3","zombie4",
+                "random:zombie0","random:zombie1","random:zombie2","random:zombie3","random:zombie4"})
         };
         private const string RandomPrefix="random:";
         private static string[] RandomKeys(params string[] objects)=>objects.Select(o=>RandomPrefix+o).ToArray();
@@ -77,6 +81,9 @@ namespace Remains.Content
                 node.transform.SetParent(root.transform,false);node.transform.localPosition=placement.Position;
                 int facing=(hash&1)==0?1:-1;
                 var marker=node.AddComponent<RoomActorPlacement>();marker.Configure(localId,creature.actorType,facing,false,null);marker.SetSpawn(creature.spawn);
+                // UnitZombie: a digger buries itself where the level creates it (the template places it on its floor).
+                if(creature.family==NpcCreatureBehaviours.Zombie)
+                    marker.SetBuried(RandomEncounterRules.ZombieDigs(placement.Room.Cell.Y/2.0,FactoryRandomEncounters.VariantRandom(root,localId+":dig")));
                 root.HideObjectArtwork(placement);
                 if(!added.TryGetValue(key,out var ids)) added.Add(key,ids=new List<string>());
                 ids.Add(localId);
@@ -89,13 +96,15 @@ namespace Remains.Content
                 if(encounter.Kind==RandomEncounterRules.Trap && (encounter.Unit=="mine" || HazardCatalog.ForObject(encounter.Unit)!=null)) continue;
                 string key=RandomPrefix+encounter.Unit;
                 CreatureEntry chosenVariant=null;string variantGap=null;
-                if(!encounter.Hidden && catalog.TryObject(encounter.Unit,out var variantRule) && !string.IsNullOrEmpty(variantRule.variantRule))
+                // A hidden zombie (createHidden) is placed as a buried one; other hidden enemies stay gaps.
+                bool buriedZombie=encounter.Hidden && encounter.Unit=="zombie";
+                if((!encounter.Hidden || buriedZombie) && catalog.TryObject(encounter.Unit,out var variantRule) && !string.IsNullOrEmpty(variantRule.variantRule))
                 {
                     string chosen=CreatureCatalog.ChooseVariant(variantRule,encounter.Danger,FactoryRandomEncounters.VariantRandom(root,encounter.LocalId),out variantGap);
                     if(chosen!=null) {chosenVariant=catalog.Require(chosen);key=RandomPrefix+chosenVariant.sourceId;}
                 }
                 if(variantGap!=null) {string gap=$"{encounter.Unit} ({variantGap})";randomGaps[gap]=randomGaps.TryGetValue(gap,out int seen)?seen+1:1;continue;}
-                if(encounter.Hidden || !catalog.TryObject(encounter.Unit,out var rule) || !versions.Any(v=>v.objects.Contains(key)))
+                if(encounter.Hidden && !buriedZombie || !catalog.TryObject(encounter.Unit,out var rule) || !versions.Any(v=>v.objects.Contains(key)))
                 {
                     string reason=encounter.Hidden?"скрытый враг, поведение закопанного/клетки ещё не реализовано":
                         encounter.Unit=="slmine"?"слизь-мина: скрытый вариант слизи (UnitSlime isMine) ещё не реализован":
@@ -110,6 +119,8 @@ namespace Remains.Content
                 int hash=localId.Aggregate(0,(value,c)=>unchecked(value*31+c));
                 var creature=chosenVariant??catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
                 var marker=node.AddComponent<RoomActorPlacement>();marker.Configure(localId,creature.actorType,(hash&1)==0?1:-1,false,null);marker.SetSpawn(creature.spawn);
+                if(creature.family==NpcCreatureBehaviours.Zombie)
+                    marker.SetBuried(buriedZombie || RandomEncounterRules.ZombieDigs(encounter.Danger,FactoryRandomEncounters.VariantRandom(root,localId+":dig")));
                 if(!added.TryGetValue(key,out var ids)) added.Add(key,ids=new List<string>());
                 ids.Add(localId);
                 count++;random++;
