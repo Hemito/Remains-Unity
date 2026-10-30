@@ -74,7 +74,9 @@ namespace Remains.Presentation
             grenades.color=grenadeColor;grenadeIcon.color=grenadeCount>0 && !actor.down?Color.white:new Color(.5f,.5f,.5f);
             name.text=actor.down?"Без сознания · нужна помощь":actor.character;
             RefreshBar(health,actor.health/100);RefreshBar(mana,actor.mana/100);
-            healthText.text=$"{Mathf.CeilToInt(actor.health)}/100";manaText.text=$"Мана  {actor.mana:0} / 100";
+            // Radiation lowers the limit of the health (maxhp − rad): shown with the dose taken.
+            healthText.text=actor.radiation>=.5f?$"{Mathf.CeilToInt(actor.health)}/{Mathf.FloorToInt(PlayerRadiation.HealthLimit(actor))}  рад {Mathf.RoundToInt(actor.radiation)}":
+                $"{Mathf.CeilToInt(actor.health)}/{PlayerRadiation.MaximumHealth:0}";manaText.text=$"Мана  {actor.mana:0} / 100";
             bool ordinaryHeld=HeldItemSelection.HasSelection(actor);
             var heldItem=HeldItemSelection.Selected(actor);
             string activeItem=ordinaryHeld?heldItem?.id:WeaponInventory.Selected(actor)?.id;

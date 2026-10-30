@@ -35,8 +35,9 @@ namespace Remains.Domain
     public interface IItemActionRule {string Action(ItemStack item);}
     public sealed class StandardItemActions : IItemActionRule
     {
-        public const string Equip="equip",Heal="heal",Hold="hold",Toss="toss",Wear="wear";
+        public const string Equip="equip",Heal="heal",Hold="hold",Toss="toss",Wear="wear",Consume="consume";
+        // Consume: an item taken for its effect on the player — a radiation cure (ItemRadiationCures).
         public string Action(ItemStack item)=>item==null?null:WeaponInventory.IsEquippable(item)?Equip:
-            item.definition=="heal"?Heal:CosmeticEquipment.IsWearable(item)?Wear:Hold;
+            item.definition=="heal"?Heal:Remains.Content.ItemRadiationCures.Amount(item.definition)>0?Consume:CosmeticEquipment.IsWearable(item)?Wear:Hold;
     }
 }

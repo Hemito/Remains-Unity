@@ -15,7 +15,8 @@ namespace Remains.Domain
             if(selfHeal)
             {
                 if(target.id!=healer.id) return "Для самолечения выберите своего персонажа.";
-                if(target.health>=100) return "Здоровье уже полное.";
+                if(target.health>=PlayerRadiation.HealthLimit(target))
+                    return target.radiation>0?"Здоровье полное с учётом радиации.":"Здоровье уже полное.";
             }
             else if(!target.down || target.id==healer.id) return "Поднять можно только другого игрока без сознания.";
             if(Vector2.Distance(healer.Position,target.Position)>2) return "Подойдите ближе к союзнику.";
@@ -35,7 +36,8 @@ namespace Remains.Domain
         public static bool Apply(ActorState healer,ActorState target,bool selfHeal,string itemId)
         {
             if(!CanApply(healer,target,selfHeal) || !SharedInventory.Consume(healer,"heal",itemId)) return false;
-            target.health=Mathf.Min(100,target.health+35);target.down=false;
+            // The health limit is maxhp − rad; a revived player's radiation is cut to RevivedLimit by its owner.
+            target.health=Mathf.Min(selfHeal?PlayerRadiation.HealthLimit(target):PlayerRadiation.RevivedHealthLimit(target),target.health+35);target.down=false;
             if(!selfHeal) ActorPose.Select(target,"idle");
             target.lifecycleSequence++;
             target.revision++;

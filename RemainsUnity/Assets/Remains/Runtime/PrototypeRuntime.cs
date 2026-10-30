@@ -73,6 +73,7 @@ namespace Remains.Runtime
         private MovementSettings passiveMovementSettings;
         private NpcController npcs;
         private SpikeController spikes;
+        private RadiationController radiation;
         private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
         private ActorShadowPresentation actorShadows;
@@ -208,6 +209,7 @@ namespace Remains.Runtime
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry,Combat);
             spikes=new SpikeController(Session,Geometry,Combat);
+            radiation=new RadiationController(Session,Combat);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
             ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();
             travelPointVisuals.Bind(roomObject);
@@ -223,6 +225,7 @@ namespace Remains.Runtime
             MineVisuals=CreateOwnedObject("Мины мира").AddComponent<MineVisuals>();MineVisuals.Initialize(Session,Audio,visualOrders);
             HazardVisuals=CreateOwnedObject("Ловушки мира").AddComponent<HazardVisuals>();HazardVisuals.Initialize(Session,Audio,visualOrders);
             GrenadeAudio=CreateOwnedObject("Звуки отскока гранаты").AddComponent<GrenadeImpactAudio>();GrenadeAudio.Initialize(Session,Grenades,Audio);
+            CreateOwnedObject("Счётчик Гейгера").AddComponent<GeigerAudio>().Initialize(Session,()=>radiation.LocalDose,Audio);
             MovementAudio=CreateOwnedObject("Звуки движения").AddComponent<MovementAudio>();MovementAudio.Initialize(Session,Geometry,Audio);
             PropAudio=CreateOwnedObject("Звуки физических объектов").AddComponent<PropContactAudio>();PropAudio.Initialize(Session,Geometry,Audio);
             ContainerAudio=CreateOwnedObject("Звуки контейнеров").AddComponent<ContainerOpenAudio>();ContainerAudio.Initialize(Audio);
@@ -618,6 +621,7 @@ namespace Remains.Runtime
             }
             // After every local motion of the frame: the owner decides its actors' spike hits from their motion.
             using(Remains.Diagnostics.FrameHitchLog.Section("Шипы")) spikes.Step();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Радиация")) radiation.Step(Time.deltaTime);
             using(Remains.Diagnostics.FrameHitchLog.Section("Физические тела")) freeProps.Step(Time.deltaTime);
             using(Remains.Diagnostics.FrameHitchLog.Section("Бой")) Combat.Step(Time.deltaTime);
             if (poseCadence.TryAdvance(Time.unscaledTimeAsDouble))

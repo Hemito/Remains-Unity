@@ -61,7 +61,7 @@ namespace Remains.Editor
             CharacterInterfaceChecks.Run();
             ActorControlChecks.Run();
             DoorCombatChecks.Run();
-            FactoryRoomContentChecks.Run();MineChecks.Run();HazardChecks.Run();SpikeChecks.Run();FactoryEnemyScalingChecks.Run();FirearmChecks.Run();DoorDuplicateChecks.Run();CreatureChecks.Run();
+            FactoryRoomContentChecks.Run();MineChecks.Run();HazardChecks.Run();SpikeChecks.Run();RadiationChecks.Run();FactoryEnemyScalingChecks.Run();FirearmChecks.Run();DoorDuplicateChecks.Run();CreatureChecks.Run();
             FactoryBigBoxChecks.Run();FactoryToolStandChecks.Run();PropBodyChecks.Run();ItemTextChecks.Run();
             FactoryWorkshopNpcChecks.Run();
             FactoryCrawlerChecks.Run();

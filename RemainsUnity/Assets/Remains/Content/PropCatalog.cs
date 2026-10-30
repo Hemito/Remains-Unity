@@ -7,8 +7,8 @@ namespace Remains.Content
     [Serializable] public sealed class PropDefinition
     {
         public string id,name,resource;public float mass,width,height;public Vector2 interactionOffset;public bool movable=true,hasPhysicalBody=true;
-        // Original Obj.radioactiv (AllData rad): radiation a nearby player takes per frame at the source. Kept as source data;
-        // radiation is not simulated yet (TD-37), so an installer warns for every radioactive object it places.
+        // Original Obj.radioactiv (AllData rad): the radiation dose a player takes per frame at the source, falling to 0 at
+        // 250 px (PlayerRadiation.Dose, RadiationController).
         public float radioactivity;
     }
     [Serializable] public sealed class PropDefinitionList {public PropDefinition[] props;}

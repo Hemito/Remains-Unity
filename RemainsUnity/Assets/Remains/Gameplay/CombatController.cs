@@ -23,6 +23,12 @@ namespace Remains.Gameplay
             if(damage==null) throw new InvalidOperationException("Получатель урона контакта не готов: "+actor?.id);
             return damage.ApplyContact(actor,contactId,damageType,amount);
         }
+        // The radiation limit of a player's health (PlayerRadiation): the loss of a hit, knockdown at 0.
+        public bool LimitHealth(ActorState actor)
+        {
+            if(damage==null) throw new InvalidOperationException("Получатель урона радиации не готов: "+actor?.id);
+            return damage.LimitHealth(actor);
+        }
         public bool SelfDestruct(ActorState actor,string id)
         {
             if(damage==null) throw new InvalidOperationException("Получатель урона самоподрыва не готов: "+actor?.id);

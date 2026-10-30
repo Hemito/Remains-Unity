@@ -17,6 +17,8 @@ namespace Remains.Editor
     /// <summary>Explicit, hash-validated installation of the preserved original content package.</summary>
     public static class ExportedContentAuthoring
     {
+        // Original sounds the player plays by name (UnitPlayer.actions: the Geiger counter, PlayerRadiation).
+        public static readonly string[] PlayerSounds={"geiger1","geiger2","geiger3"};
         public const string CatalogPath = "Assets/Remains/Resources/Content/ExportedContent.asset";
         private const string OutputRoot = "Assets/Remains/ImportedContent";
         private sealed class PreparedFile
@@ -65,7 +67,7 @@ namespace Remains.Editor
             var selected = new HashSet<string>(StringComparer.Ordinal);
             foreach (var definition in definitions) CollectBindings(definition, selected);
             foreach (var resource in resourceMap.Values)
-                if ((string)resource["kind"] == "sound" && Strings(resource["names"]).Any(name => CreatureSources.Sounds.Contains(name))) selected.Add((string)resource["id"]);
+                if ((string)resource["kind"] == "sound" && Strings(resource["names"]).Any(name => CreatureSources.Sounds.Contains(name) || PlayerSounds.Contains(name))) selected.Add((string)resource["id"]);
             foreach (var weapon in Rows(source["weapons"]))
                 foreach (var grade in Rows(weapon["grades"])) CollectBindings(grade, selected);
             var pending = new Queue<string>(selected);

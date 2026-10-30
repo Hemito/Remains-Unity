@@ -85,7 +85,15 @@ namespace Remains.Domain
             if(actor==null || actor.player || actor.down || actor.health<=0 || string.IsNullOrWhiteSpace(id) || actor.resolvedAttacks.Contains(id)) return false;
             return ApplyAmount(actor,id,actor.health);
         }
-        private bool ApplyAmount(ActorState actor,string attackId,float amount)
+        // A player's health above its radiation limit (PlayerRadiation.HealthLimit) drops to it, as the loss of a hit
+        // (knockdown at 0) but with no attack to record: the owner calls it as the radiation grows.
+        public bool LimitHealth(ActorState actor)
+        {
+            if(actor==null || !actor.player || actor.down || actor.health<=0) return false;
+            float limit=PlayerRadiation.HealthLimit(actor);
+            return actor.health>limit && ApplyAmount(actor,"radiation:"+actor.id+":"+(actor.damageSequence+1),actor.health-limit,record:false);
+        }
+        private bool ApplyAmount(ActorState actor,string attackId,float amount,bool record=true)
         {
             var bodyPosition=actor.BodyPosition;float previousHealth=actor.health;bool previouslyDown=actor.down;
             if(!float.IsFinite(amount) || amount<0)
@@ -94,7 +102,8 @@ namespace Remains.Domain
             float lost=previousHealth-remaining;
             float restore=ActorTypes.Get(actor.actorType).restoreHealthAfterHit;
             bool enter=restore<=0 && knockdown.ShouldEnter(new KnockdownContext(previousHealth,remaining,actor.player));
-            actor.resolvedAttacks.Add(attackId);actor.health=restore>0?restore:remaining;
+            if(record) actor.resolvedAttacks.Add(attackId);
+            actor.health=restore>0?restore:remaining;
             if(lost>0) actor.damageSequence++;
             actor.down |= enter;
             actor.revision++;

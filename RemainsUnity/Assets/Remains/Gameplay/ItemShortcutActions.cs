@@ -43,6 +43,14 @@ namespace Remains.Gameplay
                 caption:(item,context)=>IsEquipped(item,context)?"Убрать оружие":"Взять в копыта");
             Register(StandardItemActions.Heal,(item,_)=>session.RequestSelfHeal(item.id),
                 rejection:(item,_)=>HealingRules.Rejection(session.LocalActor,session.LocalActor,true));
+            // A radiation cure: the owner spends it through the inventory journal (as ammunition) and takes the radiation
+            // away (PlayerRadiation.Cure); the coordinator merges the spent item.
+            Register(StandardItemActions.Consume,(item,_)=>
+            {
+                var actor=session.LocalActor;float amount=Remains.Content.ItemRadiationCures.Amount(item.definition);
+                if(!InventoryJournal.Consume(actor,item.definition,1)) {session.ShowNotice("Предмет закончился или зарезервирован.");return;}
+                PlayerRadiation.Cure(actor,amount);session.PublishActor(actor);
+            },rejection:(item,_)=>session.LocalActor.radiation<=0?"Радиации нет — лекарство не нужно.":null,caption:(_,_)=>"Принять");
             Register(StandardItemActions.Wear,(item,context)=>
             {
                 if(!CosmeticEquipment.TryEquip(session.LocalActor,item.id,context.ToggleEquipped,out var reason))

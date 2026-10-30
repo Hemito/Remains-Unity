@@ -63,6 +63,8 @@ namespace Remains.Domain
         public string boxImpactLevel;
         public float health = 100;
         public float mana = 100;
+        // A player's accumulated radiation (UnitPlayer.rad, PlayerRadiation): its owner's, it caps the health.
+        public float radiation;
         public float x;
         public float y;
         public float vx;

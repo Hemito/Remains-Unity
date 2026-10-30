@@ -61,10 +61,6 @@ namespace Remains.Content
                 throw;
             }
             foreach(var entry in accepted) root.HideObjectArtwork(entry.source);
-            var radioactive=accepted.Select(entry=>entry.asset.CreateDefinition()).Where(data=>data.radioactivity>0)
-                .GroupBy(data=>(data.id,data.radioactivity)).Select(group=>$"{group.Key.id} ×{group.Count()} (rad={group.Key.radioactivity})").ToArray();
-            if(radioactive.Length>0)
-                Debug.LogWarning($"Завод {root.Prepared.Level}: радиоактивные объекты поставлены как обычные физические тела — радиация ещё не реализована (TD-37), игрок рядом с ними не облучается: {string.Join("; ",radioactive)}.",this);
             if(skipped.Count>0) Debug.LogWarning($"Завод {root.Prepared.Level}: параметры, содержимое или связи физических объектов ещё не поддержаны; пропущено {skipped.Count}. ID: {string.Join("; ",skipped)}",this);
         }
     }

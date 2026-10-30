@@ -111,10 +111,12 @@ namespace Remains.Domain
                         throw new InvalidOperationException($"Нет локальной выборки урона для самолечения: transaction={request.transaction}, actor={current.id}, damage={authoritativeDamage}, local={current.damageSequence}, lifecycle={current.lifecycleSequence}.");
                     // Authoritative health already includes the heal and damage through its
                     // sequence. Add only owner changes after that exact health observation.
-                    health=Mathf.Clamp(authoritativeHealth+current.health-observed,0,100);
+                    health=Mathf.Clamp(authoritativeHealth+current.health-observed,0,PlayerRadiation.HealthLimit(current));
                 }
                 if(current.revision>authoritativeRevision)
                 {incoming.extensions=current.extensions;incoming.mana=current.mana;incoming.magazines=current.magazines;}
+                // Radiation is the owner's alone (PlayerRadiation): the coordinator's copy may only be older.
+                incoming.radiation=current.radiation;
                 incoming.health=health;
                 if(current.damageSequence>authoritativeDamage)
                 {
