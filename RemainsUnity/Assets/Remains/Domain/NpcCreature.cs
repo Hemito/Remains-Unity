@@ -12,13 +12,20 @@ namespace Remains.Domain
         public const string Turret="turret";
         // UnitRaider: a walking pony with a weapon, its own decisions (RaiderBrain) over the movement controller.
         public const string Raider="raider";
+        // UnitSpriteBot: a flying robot with a gun of its own (robolaser) that wanders until it notices a target, then
+        // turns hostile for good, flies about it and fires at random moments.
+        public const string SpriteBot="spritebot";
         public static bool Fixed(string behavior)=>behavior==Turret;
         // Families of touch attackers (natural attack and own motion), as opposed to the turret's weapon.
         public static bool Touches(string behavior)=>behavior is Bat or Bloat or Slime;
-        public static bool Flies(string behavior)=>behavior==Bat || behavior==Bloat;
+        // Families that move by their own motion and fire a weapon (no natural attack).
+        public static bool FlyingGun(string behavior)=>behavior==SpriteBot;
+        public static bool Flies(string behavior)=>behavior is Bat or Bloat or SpriteBot;
+        // Units without a corpse to search (trup 0): their source loot drops when their death is accepted.
+        public static bool DropsLootOnDeath(string behavior)=>behavior is Turret or SpriteBot;
         // Empty (Unity serializes a missing string as "") or crawler: the natural-attack crawler AI.
         public static bool IsFamily(string behavior)=>!string.IsNullOrEmpty(behavior) && behavior!=Crawler && behavior!=Raider;
-        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider;
+        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot;
     }
 
     // Original Unit move data in metres and seconds (speed/run px per frame × 30 / 50, accel px per frame² × 900 / 50).

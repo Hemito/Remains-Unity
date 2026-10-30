@@ -12,7 +12,7 @@ namespace Remains.Content
         public const string TableVersion="source-lootDrop-v1";
         private static string Patch(NpcLayout layout)=>layout.level+":base:factory-generated:creature-loot-v1";
         public static bool NeedsApply(WorldState world,NpcLayout layout)=>world!=null && layout!=null &&
-            layout.patch==layout.level+":"+FactoryCreatureAdapter.Patch &&
+            FactoryCreatureAdapter.Generated(layout) &&
             layout.loot?.Any(b=>b?.table?.version==TableVersion)==true && !world.contentPatches.Contains(Patch(layout));
 
         public sealed class Plan

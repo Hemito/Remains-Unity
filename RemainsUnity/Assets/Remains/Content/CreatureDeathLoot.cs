@@ -29,9 +29,9 @@ namespace Remains.Content
         }
         private static ContainerLootTable SourceTable(string type)
         {
-            var entry=CreatureCatalog.Load().Creatures.FirstOrDefault(c=>c.actorType==type && c.family==NpcCreatureBehaviours.Turret);
+            var entry=CreatureCatalog.Load().Creatures.FirstOrDefault(c=>c.actorType==type && NpcCreatureBehaviours.DropsLootOnDeath(c.family));
             if(entry==null)return null;
-            if(entry.deathLoot==null)throw new InvalidOperationException("Не подготовлена исходная добыча турели: actorType="+type);
+            if(entry.deathLoot==null)throw new InvalidOperationException("Не подготовлена исходная добыча существа без тела: actorType="+type);
             return entry.deathLoot.Read();
         }
         public sealed class Plan

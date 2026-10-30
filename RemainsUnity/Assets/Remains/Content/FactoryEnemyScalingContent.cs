@@ -9,7 +9,7 @@ namespace Remains.Content
     // Prepared separately from append-only RoomContentPublication: legacy wounds and references survive.
     public static class FactoryEnemyScalingContent
     {
-        private static bool Npcs(NpcLayout layout)=>layout?.patch==layout?.level+":"+FactoryCreatureAdapter.Patch;
+        private static bool Npcs(NpcLayout layout)=>FactoryCreatureAdapter.Generated(layout);
         // A factory without random traps or mines keeps their v1 layout (FactoryHazardAdapter, FactoryMineAdapter).
         private static bool Hazards(HazardLayout layout)=>layout?.patch==layout?.level+":"+FactoryHazardAdapter.Patch || layout?.patch==layout?.level+":"+FactoryHazardAdapter.PatchV1;
         private static bool Mines(MineLayout layout)=>layout?.patch==layout?.level+":"+FactoryMineAdapter.Patch || layout?.patch==layout?.level+":"+FactoryMineAdapter.PatchV1;

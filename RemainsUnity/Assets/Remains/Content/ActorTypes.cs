@@ -80,6 +80,12 @@ namespace Remains.Content
                 definition.raider.Validate(definition.id);
             }
             if(!float.IsFinite(definition.deathBlastScale) || definition.deathBlastScale<0) throw new InvalidOperationException($"Тип {definition.id}: некорректный взрыв при гибели.");
+            if(Remains.Domain.NpcCreatureBehaviours.FlyingGun(definition.behavior))
+            {
+                if(!definition.combatAi || !definition.hasWeapon || !definition.atlasWeaponSocket || definition.naturalAttack!=null || definition.motion==null)
+                    throw new InvalidOperationException($"Тип {definition.id}: поведение {definition.behavior} требует боевой ИИ с оружием на точке атласа и движение.");
+                definition.motion.Validate(definition.id);
+            }
             if(Remains.Domain.NpcCreatureBehaviours.Touches(definition.behavior))
             {
                 if(definition.naturalAttack==null || definition.motion==null) throw new InvalidOperationException($"Тип {definition.id}: поведение {definition.behavior} требует атаку касанием и движение.");

@@ -16,11 +16,13 @@ namespace Remains.Domain
     }
     public sealed class GuardWeaponTiming : INpcWeaponTimingRule
     {
-        // A turret fires at its weapon's own rate (UnitTurret: attack every frame in aiState 3, limited by rapid): one
-        // frame of preparation, the weapon cooldown as recovery. Guards aim first and pause between shots.
-        public float Preparation(ActorState actor,WeaponDefinition weapon)=>Turret(actor)?1f/30:NpcAttackRules.PreparationSeconds;
-        public float Recovery(ActorState actor,WeaponDefinition weapon)=>Turret(actor)?Math.Max(1f/30,weapon.cooldown):Math.Max(NpcAttackRules.CooldownSeconds,weapon.cooldown);
-        private static bool Turret(ActorState actor)=>NpcCreatureBehaviours.Fixed(ActorTypes.Get(actor.actorType).behavior);
+        // A creature's gun fires at the weapon's own rate (UnitTurret: attack every frame in aiState 3; UnitSpriteBot:
+        // currentWeapon.attack() — both limited by rapid): one frame of preparation, the weapon cooldown as recovery.
+        // Guards aim first and pause between shots.
+        public float Preparation(ActorState actor,WeaponDefinition weapon)=>CreatureGun(actor)?1f/30:NpcAttackRules.PreparationSeconds;
+        public float Recovery(ActorState actor,WeaponDefinition weapon)=>CreatureGun(actor)?Math.Max(1f/30,weapon.cooldown):Math.Max(NpcAttackRules.CooldownSeconds,weapon.cooldown);
+        private static bool CreatureGun(ActorState actor)
+        {string behavior=ActorTypes.Get(actor.actorType).behavior;return NpcCreatureBehaviours.Fixed(behavior) || NpcCreatureBehaviours.FlyingGun(behavior);}
     }
     public static class NpcWeaponActions
     {

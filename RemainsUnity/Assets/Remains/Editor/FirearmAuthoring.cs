@@ -119,6 +119,15 @@ namespace Remains.Editor
                     ((JArray)row["sounds"]).OfType<JObject>().ToArray(),puha,resources,exported,list,shots,audio,assets);
                 if(reason==null) generated.Add(id);else gaps.Add($"{id}: {reason}");
             }
+            // Guns of creatures with a picture of their own (tip 0, CreatureGuns).
+            foreach(string wid in CreatureGuns)
+            {
+                var row=((JArray)catalog["definitions"]).OfType<JObject>().Single(r=>(string)r["category"]=="weapon" && (string)r["id"]==wid);
+                string id=$"weapon:{wid}:grade:0";
+                string reason=CreatureGun(wid,XElement.Parse((string)row["rawXml"]),((JArray)row["graphics"]).OfType<JObject>().ToArray(),
+                    ((JArray)row["sounds"]).OfType<JObject>().ToArray(),resources,exported,list,shots,audio,assets);
+                if(reason==null) generated.Add(id);else gaps.Add($"{id}: {reason}");
+            }
 
             // Shot artwork per projectile symbol, beam and trace speed (the trace length follows the speed, as Bullet).
             foreach(var shot in shots.Values)
@@ -307,20 +316,47 @@ namespace Remains.Editor
             ExportedContentCatalog exported,SerializedProperty list,Dictionary<string,Shot> shots,List<JObject> audio,HashSet<string> assets)
         {
             if(!int.TryParse(wid.Substring("turret".Length),out int tr) || tr<1) return "не номер оружия турели";
-            var character=root.Element("char");var phis=root.Element("phis");var vis=root.Element("vis");
-            if(character==null || phis==null || vis==null) return "нет char, phis или vis";
             var ammoNode=root.Element("ammo");
             if(ammoNode?.Attribute("holder")==null || ammoNode.Attribute("reload")==null) return "нет магазина (ammo holder/reload)";
+            Sprite[] guns;
+            try {guns=Frames(exported,puha);}
+            catch(InvalidDataException error) {return error.Message;}
+            if(tr>guns.Length) return $"у части puha нет кадра {tr}";
+            return Gun(wid,root,graphics,sounds,guns[tr-1],resources,exported,list,shots,audio,assets);
+        }
+
+        // Guns that creatures hold with a picture of their own (vweap: the drawn gun with its emit point): UnitSpriteBot's
+        // new Weapon(this, "robolaser"). Tip 0, no ammunition: it fires at its rapid for as long as its holder lives.
+        internal static readonly string[] CreatureGuns={"robolaser"};
+        private static string CreatureGun(string wid,XElement root,JObject[] graphics,JObject[] sounds,Dictionary<string,JObject> resources,
+            ExportedContentCatalog exported,SerializedProperty list,Dictionary<string,Shot> shots,List<JObject> audio,HashSet<string> assets)
+        {
+            if((string)root.Attribute("tip")!="0" || root.Element("ammo")!=null) return "ожидалось оружие существа без патронов (tip 0, нет ammo)";
+            string picture=Binding(graphics,"appearance-grade-0");
+            if(picture==null) return "нет вида оружия (vweap)";
+            Sprite[] frames;
+            try {frames=Frames(exported,picture);}
+            catch(InvalidDataException error) {return error.Message;}
+            return Gun(wid,root,graphics,sounds,frames[0],resources,exported,list,shots,audio,assets);
+        }
+        private static string Binding(JObject[] bindings,string role)=>bindings.FirstOrDefault(b=>(string)b["role"]==role)?["resource"]?.ToString();
+
+        // A creature's gun (turret or creature gun): numbers as the firearms', the given picture with the emit point of the
+        // vweap symbol; a magazine with an endless supply when AllData gives ammo, else no magazine at all.
+        private static string Gun(string wid,XElement root,JObject[] graphics,JObject[] sounds,Sprite picture,Dictionary<string,JObject> resources,
+            ExportedContentCatalog exported,SerializedProperty list,Dictionary<string,Shot> shots,List<JObject> audio,HashSet<string> assets)
+        {
+            var character=root.Element("char");var phis=root.Element("phis");var vis=root.Element("vis");
+            if(character==null || phis==null || vis==null) return "нет char, phis или vis";
             if(Num(character,"damexpl",0)>0 || Num(character,"kol",1)>1 || phis.Attribute("grav")!=null) return "взрыв, дробь или навесной снаряд";
-            string Binding(JObject[] bindings,string role)=>bindings.FirstOrDefault(b=>(string)b["role"]==role)?["resource"]?.ToString();
             string marker=Binding(graphics,"appearance-grade-0"),projectile=Binding(graphics,"projectile-grade-0"),shoot=Binding(sounds,"shoot");
             if(marker==null || projectile==null || shoot==null) return "нет маркера дула (vweap), снаряда или звука";
             var emit=((JArray)resources[marker]["weaponSockets"]??new JArray()).OfType<JObject>().FirstOrDefault(s=>(int)s["frame"]==1 && (string)s["name"]=="emit");
             if(emit==null) return "нет точки вылета у "+marker;
-            Sprite[] guns,projectileFrames;
-            try {guns=Frames(exported,puha);projectileFrames=Frames(exported,projectile);}
+            Sprite[] projectileFrames;
+            try {projectileFrames=Frames(exported,projectile);}
             catch(InvalidDataException error) {return error.Message;}
-            if(tr>guns.Length) return $"у части puha нет кадра {tr}";
+            var ammoNode=root.Element("ammo");
             string id=$"weapon:{wid}:grade:0";
             float speed=Num(phis,"speed")*FramesPerSecond/PixelsPerMetre,lifetime=BulletLifeFrames/FramesPerSecond;
             var definition=new WeaponDefinition
@@ -328,11 +364,12 @@ namespace Remains.Editor
                 id=id,damageType=DamageTypes.FromOriginal((int)Num(character,"tipdam",0)),damage=Num(character,"damage"),cooldown=Num(character,"rapid")/FramesPerSecond,
                 projectileSpeed=speed,projectileSpeedVariation=SpeedVariation,projectileLifetime=lifetime,range=speed*lifetime,
                 shotSpreadHalfAngleDegrees=Mathf.Min(90,Num(phis,"deviation",0)*.5f),recoil=WeaponRecoilProfile.Disabled(),
-                holdingArea=new HoldingArea(),stopAtFirstActor=true,stopAtTerrain=true,
-                // UnitTurret: currentWeapon.hold = holder; it reloads (ammo reload) from an endless supply.
-                magazineSize=(int)Num(ammoNode,"holder"),ammoPerShot=1,reloadSeconds=Mathf.Max(1,Num(ammoNode,"reload"))/FramesPerSecond,unlimitedReserve=true
+                holdingArea=new HoldingArea(),stopAtFirstActor=true,stopAtTerrain=true
             };
-            var view=Prefab(id,Safe(wid),guns[tr-1],(float)emit["x"],(float)emit["y"],assets);
+            // UnitTurret: currentWeapon.hold = holder; it reloads (ammo reload) from an endless supply.
+            if(ammoNode!=null)
+            {definition.magazineSize=(int)Num(ammoNode,"holder");definition.ammoPerShot=1;definition.reloadSeconds=Mathf.Max(1,Num(ammoNode,"reload"))/FramesPerSecond;definition.unlimitedReserve=true;}
+            var view=Prefab(id,Safe(wid),picture,(float)emit["x"],(float)emit["y"],assets);
             bool beam=Num(vis,"spring",1)>=2;
             float native=projectileFrames[0].rect.width/(projectileFrames[0].pixelsPerUnit/PixelsPerMetre);
             string shotKey=projectile+"|"+beam+"|"+(beam?0:Mathf.RoundToInt(speed));

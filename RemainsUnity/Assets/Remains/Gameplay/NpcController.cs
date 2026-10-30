@@ -105,8 +105,10 @@ namespace Remains.Gameplay
                 }
                 if(family)
                 {
-                    creatures.Step(actor,type,target,destination,controller.Room,controller,dt);
-                    if(visible && target.connected && !target.down && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
+                    bool wants=creatures.Step(actor,type,target,destination,controller.Room,controller,dt);
+                    // A flying gun (spritebot) turns its gun to the target it sees, else holds it ahead.
+                    if(type.hasWeapon) NpcWeaponAim.Apply(actor,visible?target.BodyPosition+Vector2.up*.55f:(Vector2?)null,controller.Room);
+                    if(wants && visible && target.connected && !target.down && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
                         session.PublishActor(actor);
                     continue;
                 }

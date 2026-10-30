@@ -38,8 +38,8 @@ namespace Remains.Editor
         private static readonly Dictionary<string,string> families=new(StringComparer.Ordinal)
             {{"UnitMonstrik",NpcCreatureBehaviours.Crawler},{"UnitBat",NpcCreatureBehaviours.Bat},{"UnitBloat",NpcCreatureBehaviours.Bloat},{"UnitSlime",NpcCreatureBehaviours.Slime}};
         // Vector creatures drawn into animation sheets by Tools/build_creature_sheets.py (rows per state, cells at the
-        // unit's registration); the raster ones use the original blit sheets.
-        private const string VectorSheets="../../.reference/creature-sheets-v1";
+        // unit's registration), newest set first; the raster ones use the original blit sheets.
+        private static readonly string[] VectorSheets={"../../.reference/creature-sheets-v2","../../.reference/creature-sheets-v1"};
 
         // Only the raiders (CreatureAuthoringRaiders) over the existing catalog: the other creatures, their anatomy and
         // death voices stay as the last full pass wrote them.
@@ -106,6 +106,7 @@ namespace Remains.Editor
                 string reason=template.problem;
                 var types=new List<string>();
                 if(reason==null && template.className==CreatureSources.TurretClass) reason=Turrets(template,rows,resources,package,owned,entries,types);
+                else if(reason==null && template.className==SpriteBotClass) reason=SpriteBots(template,rows,owned,entries,types);
                 else foreach(string unitId in template.units)
                 {
                     if(reason!=null) break;
@@ -151,9 +152,7 @@ namespace Remains.Editor
                 source.vis=meta.Element("vis");source.blits=meta.Elements("blit").ToArray();source.sheet=resource;
                 return null;
             }
-            string sheets=Path.GetFullPath(Path.Combine(Application.dataPath,VectorSheets));
-            string manifest=Path.Combine(sheets,"manifest.json");
-            var built=File.Exists(manifest)?(JObject)JObject.Parse(File.ReadAllText(manifest))["units"]?[id]:null;
+            var built=VectorSheet(id,out string sheets);
             if(built==null) {source=null;return "векторный вид не собран в лист (Tools/build_creature_sheets.py)";}
             source.vector=built;source.vectorFolder=sheets;
             return null;
@@ -169,7 +168,6 @@ namespace Remains.Editor
             if(width<=0 || height<=0 || hp<=0 || damage<0 || run<=0) throw new InvalidDataException($"Существо {id}: неполные размеры, здоровье или скорость в AllData.");
 
             // Sheet: the original raster or the built vector sheet, hash-checked, as its own texture.
-            string folder=ArtFolder+"/"+id;Directory.CreateDirectory(folder);
             string input,expected;
             if(source.vector!=null) {input=Path.Combine(source.vectorFolder,(string)source.vector["sheet"]);expected=(string)source.vector["sheetSha256"];}
             else
@@ -177,15 +175,7 @@ namespace Remains.Editor
                 var file=((JArray)source.sheet["files"]).OfType<JObject>().Single(f=>Path.GetExtension((string)f["path"]).ToLowerInvariant()==".png");
                 input=Path.GetFullPath(Path.Combine(package,(string)file["path"]));expected=(string)file["sha256"];
             }
-            if(Hash(input)!=expected) throw new InvalidDataException($"Существо {id}: лист {input} не совпадает с SHA256 источника.");
-            string texturePath=folder+"/sheet.png";
-            Guard(texturePath,id,owned);
-            File.Copy(input,texturePath,true);AssetDatabase.ImportAsset(texturePath,ImportAssetOptions.ForceSynchronousImport);
-            var importer=(TextureImporter)AssetImporter.GetAtPath(texturePath);
-            importer.textureType=TextureImporterType.Default;importer.textureCompression=TextureImporterCompression.Uncompressed;
-            importer.npotScale=TextureImporterNPOTScale.None;importer.mipmapEnabled=false;importer.filterMode=source.vector!=null?FilterMode.Bilinear:FilterMode.Point;
-            importer.alphaIsTransparency=true;importer.maxTextureSize=8192;importer.SaveAndReimport();
-            var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            var texture=CopySheet(id,input,expected,source.vector!=null,owned);
             int cellX,cellY;float dx,dy,pixelsPerUnit;bool lyingFrame;AtlasActorClip[] clips;
             if(source.vector!=null)
             {
@@ -205,11 +195,7 @@ namespace Remains.Editor
             if(texture.width%cellX!=0 || texture.height%cellY!=0) throw new InvalidDataException($"Существо {id}: лист {texture.width}×{texture.height} не делится на клетки {cellX}×{cellY}.");
             var art=new AtlasActorArtwork {resource=ArtFolder.Substring("Assets/Remains/Resources/".Length)+"/"+id+"/sheet",width=texture.width,height=texture.height,
                 cellWidth=cellX,cellHeight=cellY,pixelsPerUnit=pixelsPerUnit,pivotX=dx/cellX,pivotY=1-dy/cellY,facesLeft=false,clips=clips};
-            string atlasPath=folder+"/artwork.asset";Guard(atlasPath,id,owned);
-            var atlas=AssetDatabase.LoadAssetAtPath<AtlasSpriteAsset>(atlasPath);
-            if(atlas==null) {atlas=ScriptableObject.CreateInstance<AtlasSpriteAsset>();atlas.Configure(texture,art);AssetDatabase.CreateAsset(atlas,atlasPath);}
-            else atlas.Configure(texture,art);
-            AtlasSpriteAssetEditor.Rebuild(atlas);
+            var atlas=SaveAtlas(id,texture,art,owned);
 
             var definition=new ActorTypeDefinition
             {
@@ -237,20 +223,7 @@ namespace Remains.Editor
             bool created=type==null;if(created) type=ScriptableObject.CreateInstance<ActorTypeAsset>();
             type.SetDefinition(definition);
 
-            Directory.CreateDirectory(PrefabFolder);
-            string prefabPath=PrefabFolder+"/"+id+".prefab",materialPath=PrefabFolder+"/"+id+".mat";Guard(prefabPath,id,owned);Guard(materialPath,id,owned);
-            var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-            if(material==null) {material=WorldArtworkMaterial.Create(texture);AssetDatabase.CreateAsset(material,materialPath);}
-            var root=new GameObject(id);
-            try
-            {
-                var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=atlas.Frames("idle")[0];renderer.sortingOrder=20;renderer.sharedMaterial=material;
-                var visual=root.AddComponent<AtlasActorVisual>();visual.SetRenderer(renderer);
-                // A lying pose that is the standing frame (no die/death row) is drawn turned over and greyed, as the radroach.
-                visual.ConfigureDeadPresentation(lyingFrame,0,new Color(.55f,.55f,.55f,1));
-                type.SetPrefab(PrefabUtility.SaveAsPrefabAsset(root,prefabPath).GetComponent<AtlasActorVisual>());
-            }
-            finally {UnityEngine.Object.DestroyImmediate(root);}
+            type.SetPrefab(SavePrefab(id,texture,atlas,lyingFrame,owned));
             if(created) AssetDatabase.CreateAsset(type,actorPath);
             EditorUtility.SetDirty(type);
             var entities=EntityAssetCatalog.Load();entities.AddActor(type);EditorUtility.SetDirty(entities);
@@ -267,6 +240,58 @@ namespace Remains.Editor
             pendingAnatomy[id]=Anatomy(id,art,width,height);
             sounds[id]=source.dieSounds;
             return new CreatureEntry {sourceId=id,actorType=id,family=source.family,spawn=spawn,notes=notes.ToArray()};
+        }
+
+        // The sheet (the original raster or a built vector sheet), hash-checked, as the creature's own texture.
+        private static Texture2D CopySheet(string id,string input,string expected,bool smooth,HashSet<string> owned)
+        {
+            if(Hash(input)!=expected) throw new InvalidDataException($"Существо {id}: лист {input} не совпадает с SHA256 источника.");
+            string folder=ArtFolder+"/"+id;Directory.CreateDirectory(folder);
+            string texturePath=folder+"/sheet.png";
+            Guard(texturePath,id,owned);
+            File.Copy(input,texturePath,true);AssetDatabase.ImportAsset(texturePath,ImportAssetOptions.ForceSynchronousImport);
+            var importer=(TextureImporter)AssetImporter.GetAtPath(texturePath);
+            importer.textureType=TextureImporterType.Default;importer.textureCompression=TextureImporterCompression.Uncompressed;
+            importer.npotScale=TextureImporterNPOTScale.None;importer.mipmapEnabled=false;importer.filterMode=smooth?FilterMode.Bilinear:FilterMode.Point;
+            importer.alphaIsTransparency=true;importer.maxTextureSize=8192;importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+        }
+        private static AtlasSpriteAsset SaveAtlas(string id,Texture2D texture,AtlasActorArtwork art,HashSet<string> owned)
+        {
+            string atlasPath=ArtFolder+"/"+id+"/artwork.asset";Guard(atlasPath,id,owned);
+            var atlas=AssetDatabase.LoadAssetAtPath<AtlasSpriteAsset>(atlasPath);
+            if(atlas==null) {atlas=ScriptableObject.CreateInstance<AtlasSpriteAsset>();atlas.Configure(texture,art);AssetDatabase.CreateAsset(atlas,atlasPath);}
+            else atlas.Configure(texture,art);
+            AtlasSpriteAssetEditor.Rebuild(atlas);
+            return atlas;
+        }
+        private static AtlasActorVisual SavePrefab(string id,Texture2D texture,AtlasSpriteAsset atlas,bool lyingFrame,HashSet<string> owned)
+        {
+            Directory.CreateDirectory(PrefabFolder);
+            string prefabPath=PrefabFolder+"/"+id+".prefab",materialPath=PrefabFolder+"/"+id+".mat";Guard(prefabPath,id,owned);Guard(materialPath,id,owned);
+            var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if(material==null) {material=WorldArtworkMaterial.Create(texture);AssetDatabase.CreateAsset(material,materialPath);}
+            var root=new GameObject(id);
+            try
+            {
+                var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=atlas.Frames("idle")[0];renderer.sortingOrder=20;renderer.sharedMaterial=material;
+                var visual=root.AddComponent<AtlasActorVisual>();visual.SetRenderer(renderer);
+                // A lying pose that is the standing frame (no die/death row) is drawn turned over and greyed, as the radroach.
+                visual.ConfigureDeadPresentation(lyingFrame,0,new Color(.55f,.55f,.55f,1));
+                return PrefabUtility.SaveAsPrefabAsset(root,prefabPath).GetComponent<AtlasActorVisual>();
+            }
+            finally {UnityEngine.Object.DestroyImmediate(root);}
+        }
+        // A built vector sheet of a unit (manifest entry) and its folder, from the newest sheet set that has it.
+        private static JObject VectorSheet(string id,out string folder)
+        {
+            foreach(string set in VectorSheets)
+            {
+                folder=Path.GetFullPath(Path.Combine(Application.dataPath,set));
+                string manifest=Path.Combine(folder,"manifest.json");
+                if(File.Exists(manifest) && JObject.Parse(File.ReadAllText(manifest))["units"]?[id] is JObject built) return built;
+            }
+            folder=null;return null;
         }
 
         // Unit classes that set mat = 1 (metal) in their constructors; UnitSlime sets 12.

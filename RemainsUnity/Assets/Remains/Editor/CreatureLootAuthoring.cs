@@ -48,6 +48,7 @@ namespace Remains.Editor
                 case "bloat4":Add("bloatwing",.4f);Add("bloateye",.3f);break;
                 case "rat":Add("ratliver",.35f);Add("rattail",.25f);Add("meat",.1f);break;
                 case "molerat":Add("ratliver",.5f);Add("molefat",1);Add("meat",.25f);break;
+                case "vortex":case "spritebot":case "roller":Add("scrap",.2f);break;
                 case "turret":Add("scrap",.5f);Add("frag",.35f);Add("batt",.2f);Add("energ",.2f,failure:"batt");break;
                 case "turret1":Add("scrap",.5f,"scrap1");Add("scrap",.5f,"scrap2");Add("frag",.85f);Add("magus_comp",.52f);
                     Add("batt",.4f);Add("energ",.8f,failure:"batt");break;

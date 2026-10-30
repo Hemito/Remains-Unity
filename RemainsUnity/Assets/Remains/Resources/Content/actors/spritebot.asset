@@ -1,0 +1,88 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccd87756f68648d428013d6b205d40a5, type: 3}
+  m_Name: spritebot
+  m_EditorClassIdentifier: 
+  definition:
+    id: spritebot
+    presentation: atlas
+    artwork: Original/Creatures/spritebot/artwork
+    combatAi: 1
+    hasWeapon: 1
+    bodyInventory: 0
+    atlasWeaponSocket: 1
+    canUseDoors: 0
+    bodyMassKg: 15
+    telekinesisMovable: 1
+    restoreHealthAfterHit: 0
+    hitProtection: 3
+    perception:
+      sightDistance: 6
+      closeDistance: 1.6
+      recognitionSeconds: 0.3
+      memorySeconds: 4
+      hearingDistance: 0
+      eyeHeight: 0.4
+      targetHeight: 0.25
+    naturalAttack:
+      rid: -2
+    behavior: spritebot
+    motion:
+      walkSpeed: 4.8
+      runSpeed: 7.2000003
+      acceleration: 18
+      dashRange: 0
+      dashChance: 0
+    hitMaterial: metal
+    attackSounds: []
+    activateTrap: 1
+    turret:
+      patrolAngles: []
+      periodSeconds: 4
+      watchTurnDegreesPerSecond: 0
+      attackTurnDegreesPerSecond: 0
+      alertMinSeconds: 1
+      alertMaxSeconds: 1.3333334
+      searchSeconds: 10
+      fixedFacing: 0
+    raider:
+      attacker: 2
+      walkSpeed: 0
+      jumpSpeed: 0
+      acceleration: 0
+      holdDistance: 20
+      burstFrames: 0
+      swingHeight: 0
+      weaponInTeeth: 1
+      stroll: 1
+      climbsLadders: 1
+      slowness: 40
+      bodyHit:
+        damageType: 
+        approachSpeed: 0
+        beginDistance: 0
+        verticalDistance: 0
+        preparationSeconds: 0
+        recoverySeconds: 0
+        damage: 0
+        originX: 0
+        originY: 0
+        reach: 0
+        radius: 0
+    deathBlastScale: 0.5
+  presentationSource: 1
+  presentationPrefab: {fileID: 7119152591737054036, guid: 703390817fa808b47b3f0c33ca749b41, type: 3}
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }

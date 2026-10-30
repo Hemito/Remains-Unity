@@ -24,12 +24,16 @@ namespace Remains.Content
             // addition of its own: the shooters raider5 and raider7, placed and random.
             ("base:factory-generated:creatures-v6",new[]{"raider5","raider7","random:raider5","random:raider7"}),
             // The melee raiders: weapon in the teeth (raider1, raider3) and levitated (raider2, raider4).
-            ("base:factory-generated:creatures-v7",new[]{"raider1","raider2","raider3","raider4","random:raider1","random:raider2","random:raider3","random:raider4"})
+            ("base:factory-generated:creatures-v7",new[]{"raider1","raider2","raider3","raider4","random:raider1","random:raider2","random:raider3","random:raider4"}),
+            // The first robot: the flying spritebot with its laser, placed and random.
+            ("base:factory-generated:creatures-v8",new[]{"spritebot","random:spritebot"})
         };
         private const string RandomPrefix="random:";
         private static string[] RandomKeys(params string[] objects)=>objects.Select(o=>RandomPrefix+o).ToArray();
         public static string Patch=>versions[^1].patch;
         public static string PreviousPatch=>versions[^2].patch;
+        // A placement this adapter writes: a level keeps the last version that added something on it (Install).
+        public static bool Generated(NpcLayout layout)=>layout!=null && versions.Any(v=>layout.patch==layout.level+":"+v.patch);
         private const string ObjectPrefix="remains:obj:";
 
         public static int Install(FactoryLevelRoot root,IReadOnlyList<FactoryRandomEncounters.Encounter> plan)
@@ -106,10 +110,9 @@ namespace Remains.Content
             }
             var unknown=added.Keys.Where(o=>!versions.Any(v=>v.objects.Contains(o))).ToArray();
             if(unknown.Length>0) throw new InvalidOperationException("Существа завода: объекты без версии расстановки: "+string.Join(", ",unknown));
-            string[] Since(int version)=>versions.Skip(version+1).SelectMany(v=>v.objects).Where(added.ContainsKey).SelectMany(o=>added[o]).ToArray();
-            var content=root.gameObject.AddComponent<RoomNpcContent>();content.Configure(Patch);
-            content.ConfigureExpansion(new ContentExpansion {previousPatch=versions[^2].patch,additions=Since(versions.Length-2),
-                earlierVersions=Enumerable.Range(0,versions.Length-2).Reverse().Select(v=>new ContentExpansionStep {previousPatch=versions[v].patch,additions=Since(v)}).ToArray()});
+            var (patch,expansion)=Versions(added);
+            var content=root.gameObject.AddComponent<RoomNpcContent>();content.Configure(patch);
+            if(expansion!=null) content.ConfigureExpansion(expansion);
             Debug.Log($"Завод {root.Prepared.Physics.id}: случайных существ поставлено {random}.");
             if(randomGaps.Count>0)
                 Debug.LogWarning($"Завод {root.Prepared.Physics.id}: случайные враги комнат по плану оригинала ещё не ставятся — "+
@@ -118,6 +121,19 @@ namespace Remains.Content
                 Debug.LogWarning($"Завод {root.Prepared.Physics.id}: существа ещё не подключены и не поставлены — "+
                     string.Join("; ",gaps.OrderBy(g=>g.Key,StringComparer.Ordinal).Select(g=>catalog.GapReason(g.Key) is {} reason?$"{g.Key} ×{g.Value} ({reason})":$"{g.Key} ×{g.Value}"))+".");
             return count;
+        }
+
+        // The level's versions from its placed objects (object key → local IDs): the first and every later one that adds
+        // something here. A version adding nothing on this level (a seed without spritebots) keeps it at the version
+        // before, as FactoryHazardAdapter keeps v1, so no step of the update is empty and no world can have recorded a
+        // skipped version on this level. Returns the level's version and the update to it (null for the first).
+        public static (string patch,ContentExpansion expansion) Versions(IReadOnlyDictionary<string,List<string>> added)
+        {
+            string[] Since(int version)=>versions.Skip(version+1).SelectMany(v=>v.objects).Where(added.ContainsKey).SelectMany(o=>added[o]).ToArray();
+            var own=Enumerable.Range(0,versions.Length).Where(v=>v==0 || versions[v].objects.Any(added.ContainsKey)).ToArray();
+            if(own.Length==1) return (versions[0].patch,null);
+            return (versions[own[^1]].patch,new ContentExpansion {previousPatch=versions[own[^2]].patch,additions=Since(own[^2]),
+                earlierVersions=own.Take(own.Length-2).Reverse().Select(v=>new ContentExpansionStep {previousPatch=versions[v].patch,additions=Since(v)}).ToArray()});
         }
     }
 }

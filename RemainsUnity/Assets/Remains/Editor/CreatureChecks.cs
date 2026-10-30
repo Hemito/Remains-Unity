@@ -33,6 +33,7 @@ namespace Remains.Editor
                 CheckCorpsePresentation(creature,type);
                 if(NpcCreatureBehaviours.Fixed(type.behavior)) {Turret(creature,type,exported);continue;}
                 if(type.behavior==NpcCreatureBehaviours.Raider) {Raider(creature,type,exported,voices);continue;}
+                if(type.behavior==NpcCreatureBehaviours.SpriteBot) {SpriteBot(creature,type,exported,voices);continue;}
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
                 var art=AtlasAnimationData.Get(type.artwork);
@@ -87,14 +88,19 @@ namespace Remains.Editor
                 bool V4(ActorState a)=>!V5(a) && a.actorType.StartsWith("turret",StringComparison.Ordinal);
                 Require(random.Count>0 && random.All(id=>world.actors.Any(a=>a.id==id)),"случайные враги комнат установлены");
                 bool V7(ActorState a)=>V6(a) && ActorTypes.Get(a.actorType).raider.attacker is RaiderAttacker.Teeth or RaiderAttacker.Levitated;
+                bool V8(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.SpriteBot;
                 Require(world.actors.Any(V6),"рейдеры завода установлены");
                 Require(world.actors.Any(V7),"рукопашные рейдеры завода установлены");
-                Upgrade("base:factory-generated:creatures-v6",V7,"переход v6 → v7 добавляет только рукопашных рейдеров");
-                Upgrade("base:factory-generated:creatures-v5",V6,"переход v5 → v7 добавляет только рейдеров");
-                Upgrade("base:factory-generated:creatures-v4",V5,"переход v4 → v6 добавляет только случайных врагов комнат и рейдеров");
-                Upgrade("base:factory-generated:creatures-v3",a=>V4(a) || V5(a),"переход v3 → v5 добавляет турели и случайных врагов");
-                Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a) || V5(a),"переход v2 → v5 добавляет летунов, слизь, турели и случайных врагов");
-                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a) || V4(a) || V5(a),"переход v1 → v5 добавляет скорпионов, летунов, слизь, турели и случайных врагов");
+                Require(world.actors.Any(V8) && world.actors.Any(a=>V8(a) && random.Contains(a.id)) && world.actors.Any(a=>V8(a) && !random.Contains(a.id)),
+                    "спрайтботы завода установлены — из шаблонов и случайные");
+                Upgrade("base:factory-generated:creatures-v7",V8,"переход v7 → v8 добавляет только спрайтботов");
+                Upgrade("base:factory-generated:creatures-v6",a=>V7(a) || V8(a),"переход v6 → v8 добавляет только рукопашных рейдеров и спрайтботов");
+                Upgrade("base:factory-generated:creatures-v5",a=>V6(a) || V8(a),"переход v5 → v8 добавляет только рейдеров и спрайтботов");
+                Upgrade("base:factory-generated:creatures-v4",a=>V5(a) || V8(a),"переход v4 → v8 добавляет только случайных врагов комнат, рейдеров и спрайтботов");
+                Upgrade("base:factory-generated:creatures-v3",a=>V4(a) || V5(a) || V8(a),"переход v3 → v8 добавляет турели, случайных врагов и спрайтботов");
+                Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a) || V5(a) || V8(a),"переход v2 → v8 добавляет летунов, слизь, турели, случайных врагов и спрайтботов");
+                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a) || V4(a) || V5(a) || V8(a),"переход v1 → v8 добавляет скорпионов, летунов, слизь, турели, случайных врагов и спрайтботов");
+                CheckLevelWithoutLaterVersion(batch.npcs);
                 Behaviours(world,room.CreateLayout(false));
                 string saved=StateJson.ToJson(world);
                 Require(StateJson.ToJson(StateJson.FromJson<WorldState>(saved))==saved,"сохранение мира с существами");
@@ -303,23 +309,98 @@ namespace Remains.Editor
             turret.hold=null;
         }
 
+        // A seed whose factory has no spritebot keeps the level at v7: no update step is empty; only the first creatures: no update.
+        private static void CheckLevelWithoutLaterVersion(NpcLayout installed)
+        {
+            Require(FactoryCreatureAdapter.Generated(installed) && installed.patch==installed.level+":"+FactoryCreatureAdapter.Patch,"seed104 — на последней версии расстановки");
+            var (patch,expansion)=FactoryCreatureAdapter.Versions(new System.Collections.Generic.Dictionary<string,System.Collections.Generic.List<string>>
+                {{"rat",new() {"a"}},{"raider1",new() {"b"}}});
+            Require(patch=="base:factory-generated:creatures-v7" && expansion.previousPatch=="base:factory-generated:creatures-v1" &&
+                expansion.additions.SequenceEqual(new[]{"b"}) && expansion.earlierVersions.Length==0 &&
+                FactoryCreatureAdapter.Generated(new NpcLayout {level="factory:0",patch="factory:0:"+patch}),
+                $"уровень без спрайтботов: версия {patch}, шаги без пустых добавлений");
+            var first=FactoryCreatureAdapter.Versions(new System.Collections.Generic.Dictionary<string,System.Collections.Generic.List<string>> {{"rat",new() {"a"}}});
+            Require(first.patch=="base:factory-generated:creatures-v1" && first.expansion==null,"уровень только с первыми существами — без обновления");
+        }
+
+        // A spritebot: a flying gun (robolaser, no magazine) at the unit's registration, calm and hostile pictures, the
+        // AllData health, vision 0.3 and no hearing, source loot dropped on death (no body to search).
+        private static void SpriteBot(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported,ActorDeathAudioCatalog voices)
+        {
+            string id=creature.actorType;
+            Require(type.combatAi && type.hasWeapon && type.atlasWeaponSocket && type.naturalAttack==null && type.presentation=="atlas" && !type.bodyInventory &&
+                type.hitMaterial=="metal" && type.deathBlastScale>0 && type.motion!=null && NpcCreatureBehaviours.Flies(type.behavior),
+                $"{id}: летающий робот с оружием на точке атласа, без добычи с тела");
+            type.motion.Validate(id);type.perception.Validate();
+            var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
+            float Num(string element,string name)=>float.Parse((string)unit.Element(element).Attribute(name),System.Globalization.CultureInfo.InvariantCulture);
+            Require(Mathf.Approximately(type.perception.sightDistance,Num("comb","vision")*20) && type.perception.hearingDistance==0 &&
+                Mathf.Approximately(type.motion.walkSpeed,Num("move","speed")*.6f) && Mathf.Approximately(type.motion.runSpeed,type.motion.walkSpeed*1.5f),
+                $"{id}: зрение {type.perception.sightDistance} м, слух {type.perception.hearingDistance}, скорость {type.motion.walkSpeed}/{type.motion.runSpeed} не по AllData");
+            var art=AtlasAnimationData.Get(type.artwork);
+            foreach(string pose in new[]{"idle",Remains.Gameplay.NpcCreatureController.Hostile,"attack","down"})
+                Require(art.Clip(pose).count==1 && art.Clip(pose).weaponSockets?.Length==1,$"{id}: поза {pose} с точкой оружия");
+            Require(art.Clip("idle").row!=art.Clip(Remains.Gameplay.NpcCreatureController.Hostile).row,$"{id}: спокойный и враждебный вид различаются");
+            Require(Anatomy.Movement(new ActorState {anatomy=id}).width>0,"анатомия "+id);
+            var spawned=creature.spawn.Create(new TrainingPlacement {id="check",type=id,facing=1},"level");
+            var gun=creature.spawn.ReadInventory().Generate("check-world",spawned.id).Single();
+            var weapon=WeaponCatalog.Get(spawned.weapon);
+            Require(Mathf.Approximately(spawned.health,Num("comb","hp")) && spawned.anatomy==id && gun.definition==spawned.weapon && gun.weaponState!=null && gun.count==1,
+                $"{id}: здоровье AllData и лазер в начальном инвентаре");
+            Require(weapon.id=="weapon:robolaser:grade:0" && Mathf.Approximately(weapon.damage,7) && Mathf.Approximately(weapon.cooldown,1) && !weapon.UsesMagazine &&
+                weapon.projectileSpeed>0 && WeaponRigs.Get(weapon.id).HasMuzzle && Remains.Presentation.ShotArtwork.TryGet(weapon.id,out _),
+                $"{id}: лазер robolaser по AllData — урон 7, раз в секунду, без магазина, с дулом и лучом");
+            Require(voices.TrySelect(id,0,out _),"голос смерти "+id);
+            Require(NpcCreatureBehaviours.DropsLootOnDeath(type.behavior) && creature.deathLoot!=null && creature.deathLootHeight>0 &&
+                creature.deathLoot.Read().entries.Single() is {definition:"item:scrap",probability:var chance} && Mathf.Approximately(chance,.2f),
+                $"{id}: при гибели выпадает металлолом с шансом 0,2 (LootGen spritebot)");
+
+            // The gun turns about the registration (setWeaponPos: X, Y − 1) and fires at its own rate.
+            var actor=new ActorState {id="s",actorType=id,anatomy=id,level="l",x=0,y=0,facing=1,health=spawned.health,weapon=weapon.id};
+            gun.id="gun";actor.inventory.Add(gun);actor.weaponInventoryVersion=1;actor.equippedWeaponItem="gun";
+            var mount=AtlasWeaponSockets.Anchor(actor);
+            Require(Mathf.Abs(mount.x)<.05f && mount.y>=0 && mount.y<.1f,$"{id}: точка лазера {mount} у опоры юнита");
+            var target=new ActorState {id="p",player=true,connected=true,level="l",x=-6,y=2,health=100};
+            Require(NpcAttackRules.TryBegin(actor,target,new GuardWeaponTiming()) && Mathf.Approximately(actor.attackRemaining,1f/30) &&
+                Mathf.Approximately(new GuardWeaponTiming().Recovery(actor,weapon),weapon.cooldown),$"{id}: стреляет без долгого прицеливания, в темпе лазера");
+            actor.attackRemaining=0;
+            Require(NpcAttackRules.Complete(actor,target,null,new GuardWeaponTiming()) is {} shot && shot.weapon==weapon.id && actor.inventory.Count==1,
+                $"{id}: выстрел без расхода патронов");
+
+            // UnitSpriteBot.control in an open room: calm wandering, hostile for good once it notices a target.
+            var room=new RoomLayout {id="spritebot-check",left=-30,right=30,bottom=-1,top=30,ladders=Array.Empty<RoomLadder>(),
+                platforms=new[]{new RoomSurface {x=-30,y=-1,width=60,height=1}}};
+            RoomSurfaces.Prepare(room);
+            var bot=new ActorState {id="b",actorType=id,anatomy=id,level="l",x=0,y=10,facing=1,health=spawned.health};
+            var controller=new Remains.Gameplay.NpcCreatureController();float dt=1f/30;bool fired=false;float fastest=0;
+            for(int i=0;i<90;i++) {fired|=controller.Step(bot,type,null,null,room,null,dt);fastest=Mathf.Max(fastest,new Vector2(bot.vx,bot.vy).magnitude);}
+            Require(!fired && bot.creature.mode==Remains.Gameplay.NpcCreatureController.Calm && bot.pose=="idle" && fastest>0 && fastest<=type.motion.walkSpeed*1.5f+.01f,
+                $"{id}: без цели спокоен и блуждает не быстрее шага ×1,5 ({fastest:F2} м/с)");
+            int wants=0;
+            for(int i=0;i<300;i++) if(controller.Step(bot,type,null,new Vector2(bot.x+3,bot.y),room,null,dt)) wants++;
+            Require(bot.creature.mode==Remains.Gameplay.NpcCreatureController.Hostile && bot.pose==Remains.Gameplay.NpcCreatureController.Hostile && wants>5 && wants<100,
+                $"{id}: заметив цель, враждебен и стреляет в части кадров (около 0,1): {wants} из 300");
+            for(int i=0;i<300;i++) Require(!controller.Step(bot,type,null,null,room,null,dt),$"{id}: без цели не стреляет");
+            Require(bot.creature.mode==Remains.Gameplay.NpcCreatureController.Hostile && float.IsFinite(bot.x) && float.IsFinite(bot.y),$"{id}: потеряв цель, остаётся враждебным");
+        }
+
         // A few seconds of each family on the real factory geometry with a target nearby: no NaN, never inside walls,
         // flyers move and change pose, a crawling slime stays on its floor.
         private static void Behaviours(WorldState world,RoomLayout room)
         {
             var controller=new Remains.Gameplay.NpcCreatureController();
-            foreach(string kind in new[]{NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Bloat,NpcCreatureBehaviours.Slime})
+            foreach(string kind in new[]{NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Bloat,NpcCreatureBehaviours.Slime,NpcCreatureBehaviours.SpriteBot})
             {
                 var actor=StateJson.Copy(world.actors.First(a=>ActorTypes.Get(a.actorType).behavior==kind));
                 var type=ActorTypes.Get(actor.actorType);var hull=Anatomy.Movement(actor);
-                var settings=MovementSettings.Load();settings.walkSpeed=type.naturalAttack.approachSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);
+                var settings=MovementSettings.Load();settings.walkSpeed=type.naturalAttack?.approachSpeed??settings.walkSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);
                 var ground=new Remains.Gameplay.MovementController(room,settings);
                 var start=actor.Position;var poses=new System.Collections.Generic.HashSet<string>();
                 Vector2 target=start+new Vector2(4,-1);
-                bool crawling=false;float lowest=float.MaxValue;
+                bool crawling=false;float lowest=float.MaxValue;int wants=0;
                 for(int i=0;i<600;i++)
                 {
-                    controller.Step(actor,type,null,target,room,ground,1f/60);
+                    if(controller.Step(actor,type,null,target,room,ground,1f/60)) wants++;
                     Require(float.IsFinite(actor.x) && float.IsFinite(actor.y),$"{kind}: нечисловое положение");
                     if(NpcCreatureBehaviours.Flies(kind)) Require(ActorTerrainMotion.IsClear(room,hull,actor.Position),$"{kind}: внутри стены в {actor.Position}");
                     poses.Add(actor.pose);
@@ -327,6 +408,9 @@ namespace Remains.Editor
                 }
                 if(NpcCreatureBehaviours.Flies(kind)) Require(Vector2.Distance(start,actor.Position)>.5f,$"{kind}: не сдвинулся за 10 с ({start} → {actor.Position})");
                 if(kind==NpcCreatureBehaviours.Bat) Require(poses.Contains("walk") && poses.Contains("idle"),$"летучая мышь: позы {string.Join(",",poses)}");
+                // A target in sight from the start: hostile at once, firing at some of its frames (0.1 a frame), not every one.
+                if(kind==NpcCreatureBehaviours.SpriteBot)
+                    Require(poses.SetEquals(new[]{Remains.Gameplay.NpcCreatureController.Hostile}) && wants>10 && wants<300,$"спрайтбот: позы {string.Join(",",poses)}, желаний стрелять {wants} из 600");
                 if(crawling) Require(start.y-lowest<.5f,$"слизь упала с пола: {start.y} → {lowest}");
                 Debug.Log($"Поведение {kind} ({actor.actorType}): {start} → {actor.Position}, позы {string.Join(",",poses)}, режим {actor.creature.mode}.");
             }

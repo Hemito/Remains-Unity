@@ -28,7 +28,8 @@ namespace Remains.Editor
         {
             Anatomy.Load();WeaponCatalog.Load();ShotArtwork.Prepare();CasingEffectCatalog.Load();
             var catalog=GameAssets.Load<WeaponAssetCatalog>("Content/WeaponCatalog");
-            var generated=catalog.AllAssets().Where(a=>a.Id.StartsWith(ExportedWeaponItems.Prefix,StringComparison.Ordinal) && !a.Id.StartsWith("weapon:turret",StringComparison.Ordinal) && !WeaponCatalog.IsExplosive(a.Id) && !WeaponCatalog.IsMelee(a.Id)).ToArray();   // turret guns: TurretChecks
+            var generated=catalog.AllAssets().Where(a=>a.Id.StartsWith(ExportedWeaponItems.Prefix,StringComparison.Ordinal) && !a.Id.StartsWith("weapon:turret",StringComparison.Ordinal) &&
+                !FirearmAuthoring.CreatureGuns.Any(gun=>a.Id==$"weapon:{gun}:grade:0") && !WeaponCatalog.IsExplosive(a.Id) && !WeaponCatalog.IsMelee(a.Id)).ToArray();   // turret and creature guns: CreatureChecks
             Require(generated.Length>=50,"подключено меньше 50 определений: "+generated.Length);
             string audio=GameAssets.Load<TextAsset>("Presentation/combat-audio").text;
             var exported=ExportedContentCatalog.Load();

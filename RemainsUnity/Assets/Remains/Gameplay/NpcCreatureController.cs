@@ -15,23 +15,30 @@ namespace Remains.Gameplay
     //                      (its drip is not carried over yet) and falls when the ceiling is gone.
     // All of them hurt by touch (Unit.attKorp → udarUnit): a contact attack without preparation; the pause after it
     // stands for the victim's 30-frame window between touch hits.
+    //   spritebot (UnitSpriteBot): the exception — it shoots its own gun (robolaser); see SpriteBot.
     public sealed class NpcCreatureController
     {
         private const float Frame=1f/30;
+        // UnitSpriteBot: calm (green eye, vision 0.3) until zlo turns it hostile for good (red eye, the pose of that name).
+        public const string Calm="calm",Hostile="hostile";
+        private const float SpriteBotElasticity=.8f;
         private readonly System.Random random=new();
         private float Range(float minFrames,float maxFrames)=>(minFrames+(float)random.NextDouble()*(maxFrames-minFrames))*Frame;
         private bool Chance(float p)=>random.NextDouble()<p;
 
-        public void Step(ActorState actor,ActorTypeDefinition type,ActorState target,Vector2? known,RoomLayout room,MovementController ground,float dt)
+        // Returns whether the creature attacks this step if it can: touch families whenever their target is in reach,
+        // a spritebot only at its own random moments.
+        public bool Step(ActorState actor,ActorTypeDefinition type,ActorState target,Vector2? known,RoomLayout room,MovementController ground,float dt)
         {
             actor.creature??=Initial(actor,type,room);
             var state=actor.creature;
             state.timer=Mathf.Max(0,state.timer-dt);
             switch(type.behavior)
             {
-                case NpcCreatureBehaviours.Bat: Bat(actor,type,state,known,room,dt);break;
-                case NpcCreatureBehaviours.Bloat: Bloat(actor,type,state,known,room,dt);break;
-                case NpcCreatureBehaviours.Slime: Slime(actor,state,room,ground,dt);break;
+                case NpcCreatureBehaviours.Bat: Bat(actor,type,state,known,room,dt);return true;
+                case NpcCreatureBehaviours.Bloat: Bloat(actor,type,state,known,room,dt);return true;
+                case NpcCreatureBehaviours.Slime: Slime(actor,state,room,ground,dt);return true;
+                case NpcCreatureBehaviours.SpriteBot: return SpriteBot(actor,type,state,known,room,dt);
                 default: throw new InvalidOperationException($"Неизвестное поведение существа {type.behavior}: actor={actor.id}.");
             }
         }
@@ -51,6 +58,8 @@ namespace Remains.Gameplay
                 return new NpcCreatureState {mode=!floor && ceiling?"hang":"crawl",inverted=!floor && ceiling,directionX=actor.facing};
             }
             if(type.behavior==NpcCreatureBehaviours.Bat) return new NpcCreatureState {mode="hang",timer=Range(5,15)};
+            // UnitSpriteBot.setNull: calm, the first decision in 5–55 frames.
+            if(type.behavior==NpcCreatureBehaviours.SpriteBot) return new NpcCreatureState {mode=Calm,timer=Range(5,55)};
             return new NpcCreatureState {mode="drift",directionX=Chance(.5f)?.7f:-.7f,directionY=Chance(.5f)?.7f:-.7f,timer=Range(5,15)};
         }
 
@@ -146,6 +155,41 @@ namespace Remains.Gameplay
             state.directionX=direction;
             ActorPose.Select(actor,"walk");
         }
+
+        // UnitSpriteBot.control: every decision (aiTCh) sets the velocity at once — with a target at run × 0.7–1.3 for
+        // 20–70 frames, straight at it when it is farther than 500 px, else in a random direction; without one at
+        // walk × 0.5–1.5 for 30–180 frames in a random direction — and the velocity decays by 0.95 a frame (forces);
+        // a wall bounces it back at elast 0.8. Noticing a target (findCel → zlo) makes it hostile for good and brings the
+        // next decision within 3 frames; a hostile one with a target fires with a 0.1 chance a frame (the gun's rapid
+        // limits the rate). Returns whether it wants to fire this step.
+        private bool SpriteBot(ActorState actor,ActorTypeDefinition type,NpcCreatureState state,Vector2? known,RoomLayout room,float dt)
+        {
+            var motion=type.motion;
+            if(known.HasValue && state.mode!=Hostile) {state.mode=Hostile;state.timer=Mathf.Min(state.timer,3*Frame);}
+            if(state.timer<=0)
+            {
+                Vector2 direction;float speed;
+                if(known.HasValue)
+                {
+                    var toTarget=known.Value+Vector2.up*.55f-Center(actor);
+                    speed=motion.runSpeed*(.7f+.6f*(float)random.NextDouble());state.timer=Range(20,70);
+                    direction=toTarget.magnitude>500/50f?toTarget.normalized:RandomDirection();
+                }
+                else {speed=motion.walkSpeed*(.5f+(float)random.NextDouble());state.timer=Range(30,180);direction=RandomDirection();}
+                actor.vx=direction.x*speed;actor.vy=direction.y*speed;
+            }
+            float drag=Mathf.Pow(.95f,dt/Frame);
+            var velocity=new Vector2(actor.vx*drag,actor.vy*drag);
+            actor.vx=velocity.x;actor.vy=velocity.y;
+            var contact=FlyerMotion.Step(actor,room,velocity,0,dt);
+            if(contact.BlockedX) actor.vx=-velocity.x*SpriteBotElasticity;
+            if(contact.BlockedY) actor.vy=-velocity.y*SpriteBotElasticity;
+            if(known.HasValue && Mathf.Abs(known.Value.x-actor.x)>.01f) actor.facing=known.Value.x>actor.x?1:-1;
+            bool hostile=state.mode==Hostile;
+            ActorPose.Select(actor,hostile?Hostile:"idle");
+            return hostile && known.HasValue && Chance(1-Mathf.Pow(.9f,dt/Frame));
+        }
+        private Vector2 RandomDirection() {float angle=(float)random.NextDouble()*Mathf.PI*2;return new Vector2(Mathf.Cos(angle),Mathf.Sin(angle));}
 
         private Vector2 Jitter(CreatureMotionSettings motion)=>new Vector2((float)random.NextDouble()-.5f,(float)random.NextDouble()-.5f)*motion.walkSpeed*.3f;
         private static Vector2 Center(ActorState actor)=>actor.Position+Vector2.up*(Anatomy.Movement(actor).height*.5f);
