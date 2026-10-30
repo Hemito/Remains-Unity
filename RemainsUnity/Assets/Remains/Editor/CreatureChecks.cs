@@ -35,6 +35,7 @@ namespace Remains.Editor
                 if(type.behavior==NpcCreatureBehaviours.Raider) {Raider(creature,type,exported,voices);continue;}
                 if(type.behavior==NpcCreatureBehaviours.SpriteBot) {SpriteBot(creature,type,exported,voices);continue;}
                 if(type.behavior==NpcCreatureBehaviours.SpiderMine) {SpiderMine(creature,type,exported);continue;}
+                if(type.behavior==NpcCreatureBehaviours.Roller) {Roller(creature,type,exported,voices);continue;}
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
                 var art=AtlasAnimationData.Get(type.artwork);
@@ -91,16 +92,19 @@ namespace Remains.Editor
                 bool V7(ActorState a)=>V6(a) && ActorTypes.Get(a.actorType).raider.attacker is RaiderAttacker.Teeth or RaiderAttacker.Levitated;
                 bool V8(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.SpriteBot;
                 bool V9(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.SpiderMine;
+                bool V10(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.Roller;
                 Require(world.actors.Any(V6),"рейдеры завода установлены");
                 Require(world.actors.Any(V7),"рукопашные рейдеры завода установлены");
                 Require(world.actors.Any(V8) && world.actors.Any(a=>V8(a) && random.Contains(a.id)) && world.actors.Any(a=>V8(a) && !random.Contains(a.id)),
                     "спрайтботы завода установлены — из шаблонов и случайные");
                 Require(world.actors.Any(V9) && world.actors.Any(a=>V9(a) && random.Contains(a.id)) && world.actors.Any(a=>V9(a) && !random.Contains(a.id)),
                     "мины-пауки завода установлены — из шаблонов и случайные");
-                // Robots of later versions (spritebots v8, spider mines v9) are missing from every earlier world too.
-                bool Robots(ActorState a)=>V8(a) || V9(a);
-                Upgrade("base:factory-generated:creatures-v8",V9,"переход v8 → v9 добавляет только мины-пауков");
-                Upgrade("base:factory-generated:creatures-v7",Robots,"переход v7 → v9 добавляет только спрайтботов и мины-пауков");
+                Require(world.actors.Any(V10),"роллеры завода установлены");
+                // Robots of later versions (spritebots v8, spider mines v9, rollers v10) are missing from every earlier world too.
+                bool Robots(ActorState a)=>V8(a) || V9(a) || V10(a);
+                Upgrade("base:factory-generated:creatures-v9",V10,"переход v9 → v10 добавляет только роллеров");
+                Upgrade("base:factory-generated:creatures-v8",a=>V9(a) || V10(a),"переход v8 → v10 добавляет только мины-пауков и роллеров");
+                Upgrade("base:factory-generated:creatures-v7",Robots,"переход v7 → v10 добавляет только роботов");
                 Upgrade("base:factory-generated:creatures-v6",a=>V7(a) || Robots(a),"переход v6 → v9 добавляет только рукопашных рейдеров и роботов");
                 Upgrade("base:factory-generated:creatures-v5",a=>V6(a) || Robots(a),"переход v5 → v9 добавляет только рейдеров и роботов");
                 Upgrade("base:factory-generated:creatures-v4",a=>V5(a) || Robots(a),"переход v4 → v9 добавляет только случайных врагов комнат, рейдеров и роботов");
@@ -155,7 +159,10 @@ namespace Remains.Editor
             try
             {
                 visual.Bind(actor);
-                Require((Vector2)visual.transform.position==actor.Position,"опора трупа сдвинула живое существо "+actor.actorType);
+                // A rolling ball is drawn turned about its body centre: its feet move with the turn.
+                var centre=Vector2.up*(Anatomy.Movement(actor).height*.5f);
+                var expected=visual.Rolls?actor.Position+centre-(Vector2)(visual.transform.rotation*centre):actor.Position;
+                Require(Vector2.Distance(visual.transform.position,expected)<.00001f,"опора трупа сдвинула живое существо "+actor.actorType);
                 var view=visual.GetComponent<SpriteRenderer>();
                 var frames=atlas.Frames("down");var bounds=atlas.OpaqueVerticalBounds("down");
                 var clip=atlas.CreateDefinition().clips.Single(c=>c.pose=="down");
@@ -434,7 +441,7 @@ namespace Remains.Editor
             for(int i=0;i<30;i++) controller.Step(mine,type,null,null,room,ground,dt);
             Require(mine.creature.cling==NpcCreatureState.Ceiling && mine.creature.mode==Remains.Gameplay.NpcCreatureController.Asleep && mine.pose=="idle" &&
                 Mathf.Abs(mine.y+hull.height-5)<.02f,$"{id}: висит под потолком, спит ({mine.creature.cling}, {mine.creature.mode}, y={mine.y})");
-            var far=new Vector2(8,-1);
+            var far=new Vector2(200,-1);   // beyond any path it takes here: it never turns back
             controller.Step(mine,type,null,far,room,ground,dt);
             Require(mine.creature.mode==Remains.Gameplay.NpcCreatureController.Woken && mine.pose==Remains.Gameplay.NpcCreatureController.Woken,$"{id}: цель будит её");
             for(int i=0;i<45;i++) controller.Step(mine,type,null,far,room,ground,dt);
@@ -462,12 +469,65 @@ namespace Remains.Editor
         }
         private sealed class FixedDamage : IDamageRule {public float Calculate(string weapon,float speed)=>10;}
 
+        // A roller: a touch attacker (attKorp) of comb damage and tipdam, its own speed and jump, no hearing, loot dropped
+        // on death, a ball turned by its visual; it rests, rolls at a noticed target, touches it with a hop, charges near it.
+        private static void Roller(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported,ActorDeathAudioCatalog voices)
+        {
+            string id=creature.actorType;
+            var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
+            float Num(string element,string name)=>float.Parse((string)unit.Element(element).Attribute(name),System.Globalization.CultureInfo.InvariantCulture);
+            Require(type.combatAi && !type.hasWeapon && type.naturalAttack!=null && type.presentation=="atlas" && !type.bodyInventory && type.hitMaterial=="metal" &&
+                NpcCreatureBehaviours.Touches(type.behavior) && !NpcCreatureBehaviours.Flies(type.behavior) && NpcCreatureBehaviours.DropsLootOnDeath(type.behavior),
+                $"{id}: роллер — боевой ИИ с касанием, добыча при гибели");
+            type.naturalAttack.Validate(id);type.motion.Validate(id);type.perception.Validate();
+            Require(Mathf.Approximately(type.naturalAttack.damage,Num("comb","damage")) && type.naturalAttack.damageType==DamageTypes.FromOriginal((int)Num("comb","tipdam")) &&
+                Mathf.Approximately(type.motion.walkSpeed,Num("move","speed")*.6f) && Mathf.Approximately(type.naturalAttack.approachSpeed,type.motion.walkSpeed) &&
+                Mathf.Approximately(type.motion.jumpSpeed,Num("move","jump")*.6f) && type.perception.hearingDistance==0,
+                $"{id}: касание {type.naturalAttack.damage}, скорость {type.motion.walkSpeed}, прыжок {type.motion.jumpSpeed}, слух {type.perception.hearingDistance} не по AllData");
+            Require(type.attackSounds is {Length:>0} && type.attackSounds.All(key=>AudioClipSource.Load(key)!=null) && voices.TrySelect(id,0,out _),$"{id}: звуки касания и голос смерти");
+            Require(creature.deathLoot!=null && creature.deathLoot.Read().entries.Single() is {definition:"item:scrap",probability:var chance} && Mathf.Approximately(chance,.2f),
+                $"{id}: при гибели выпадает металлолом с шансом 0,2 (LootGen roller)");
+            var art=AtlasAnimationData.Get(type.artwork);
+            foreach(string pose in new[]{"idle","walk","jump",Remains.Gameplay.NpcCreatureController.Charged,"down"}) Require(art.Clip(pose).count>0,$"{id}: поза {pose}");
+            Require(art.Clip(Remains.Gameplay.NpcCreatureController.Charged).count==24 && art.Clip(Remains.Gameplay.NpcCreatureController.Charged).loop,$"{id}: заряженный вид — 24 кадра по кругу");
+            var prefab=AssetDatabase.LoadAssetAtPath<Remains.Presentation.AtlasActorVisual>("Assets/Remains/Prefabs/Actors/Creatures/"+id+".prefab");
+            Require(prefab!=null && prefab.Rolls,$"{id}: вид катится");
+            var spawned=creature.spawn.Create(new TrainingPlacement {id="check",type=id,facing=1},"level");
+            Require(Mathf.Approximately(spawned.health,Num("comb","hp")),$"{id}: здоровье AllData");
+
+            var room=new RoomLayout {id="roller-check",left=-60,right=60,bottom=-1,top=30,ladders=Array.Empty<RoomLadder>(),
+                platforms=new[]{new RoomSurface {x=-60,y=-1,width=120,height=1}}};
+            RoomSurfaces.Prepare(room);
+            var settings=MovementSettings.Load();settings.walkSpeed=type.naturalAttack.approachSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);settings.jumpSpeed=type.motion.jumpSpeed;
+            var ground=new Remains.Gameplay.MovementController(room,settings);
+            var controller=new Remains.Gameplay.NpcCreatureController();float dt=1f/30;
+            var ball=new ActorState {id="r",actorType=id,anatomy=id,level="l",x=0,y=0,facing=1,health=spawned.health};
+            for(int i=0;i<120;i++) Require(!controller.Step(ball,type,null,null,room,ground,dt),$"{id}: без цели не атакует");
+            Require(ball.creature.mode==Remains.Gameplay.NpcCreatureController.Resting && ball.pose=="idle" && Mathf.Abs(ball.x)<.01f,$"{id}: без цели лежит ({ball.creature.mode}, x={ball.x})");
+            var far=new Vector2(200,0);   // beyond any path it takes here: it never comes near
+            for(int i=0;i<95;i++) controller.Step(ball,type,null,far,room,ground,dt);
+            Require(ball.creature.mode==Remains.Gameplay.NpcCreatureController.Rolling,$"{id}: заметив цель, в течение 40–90 кадров катится");
+            float start=ball.x;
+            for(int i=0;i<30;i++) controller.Step(ball,type,null,far,room,ground,dt);
+            Require(ball.x>start+1 && ball.vx>0 && ball.pose=="idle",$"{id}: катится к далёкой цели спокойным ({start} → {ball.x})");
+            int touches=0;bool hopped=false,charged=false;
+            for(int i=0;i<60;i++)
+            {
+                var near=ball.Position+Vector2.right*1.2f;
+                if(controller.Step(ball,type,null,near,room,ground,dt)) touches++;
+                hopped|=ball.vy>0;charged|=ball.pose==Remains.Gameplay.NpcCreatureController.Charged;
+            }
+            Require(touches>0 && hopped && charged,$"{id}: рядом с целью касается ({touches}), подпрыгивает ({hopped}) и заряжается ({charged})");
+            for(int i=0;i<30*14;i++) controller.Step(ball,type,null,null,room,ground,dt);
+            Require(ball.creature.mode==Remains.Gameplay.NpcCreatureController.Resting && ball.pose=="idle",$"{id}: потеряв цель, через 10 с успокаивается");
+        }
+
         // A few seconds of each family on the real factory geometry with a target nearby: no NaN, never inside walls,
         // flyers move and change pose, a crawling slime stays on its floor.
         private static void Behaviours(WorldState world,RoomLayout room)
         {
             var controller=new Remains.Gameplay.NpcCreatureController();
-            foreach(string kind in new[]{NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Bloat,NpcCreatureBehaviours.Slime,NpcCreatureBehaviours.SpriteBot,NpcCreatureBehaviours.SpiderMine})
+            foreach(string kind in new[]{NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Bloat,NpcCreatureBehaviours.Slime,NpcCreatureBehaviours.SpriteBot,NpcCreatureBehaviours.SpiderMine,NpcCreatureBehaviours.Roller})
             {
                 var actor=StateJson.Copy(world.actors.First(a=>ActorTypes.Get(a.actorType).behavior==kind));
                 var type=ActorTypes.Get(actor.actorType);var hull=Anatomy.Movement(actor);

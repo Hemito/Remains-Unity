@@ -42,10 +42,8 @@ namespace Remains.Gameplay
                     if(natural!=null) {settings.walkSpeed=natural.approachSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);}
                     // A walking family with its own motion (spider mine): its speed and jump are its own (AllData move).
                     else if(definition.motion!=null && !NpcCreatureBehaviours.Flies(definition.behavior))
-                    {
-                        settings.walkSpeed=definition.motion.walkSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);
-                        if(definition.motion.jumpSpeed>0) settings.jumpSpeed=definition.motion.jumpSpeed;
-                    }
+                    {settings.walkSpeed=definition.motion.walkSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);}
+                    if(definition.motion?.jumpSpeed>0 && !NpcCreatureBehaviours.Flies(definition.behavior)) settings.jumpSpeed=definition.motion.jumpSpeed;
                     movement[key]=new MovementController(geometry.Get(value.level),settings);
                 }
             };

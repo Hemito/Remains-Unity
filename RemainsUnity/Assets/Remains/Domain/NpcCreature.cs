@@ -18,17 +18,19 @@ namespace Remains.Domain
         // UnitMsp: a spider mine that sleeps (on a floor, ceiling or wall) until it notices a target, runs to it and
         // blows itself up close to it; its death is an explosion (ActorTypeDefinition.deathExplosion).
         public const string SpiderMine="spidermine";
+        // UnitRoller: a rolling ball that rests until it notices a target, then rolls at it, hops and hurts by touch.
+        public const string Roller="roller";
         public static bool Fixed(string behavior)=>behavior==Turret;
         // Families of touch attackers (natural attack and own motion), as opposed to the turret's weapon.
-        public static bool Touches(string behavior)=>behavior is Bat or Bloat or Slime;
+        public static bool Touches(string behavior)=>behavior is Bat or Bloat or Slime or Roller;
         // Families that move by their own motion and fire a weapon (no natural attack).
         public static bool FlyingGun(string behavior)=>behavior==SpriteBot;
         public static bool Flies(string behavior)=>behavior is Bat or Bloat or SpriteBot;
         // Units without a corpse to search (trup 0): their source loot drops when their death is accepted.
-        public static bool DropsLootOnDeath(string behavior)=>behavior is Turret or SpriteBot;
+        public static bool DropsLootOnDeath(string behavior)=>behavior is Turret or SpriteBot or Roller;
         // Empty (Unity serializes a missing string as "") or crawler: the natural-attack crawler AI.
         public static bool IsFamily(string behavior)=>!string.IsNullOrEmpty(behavior) && behavior!=Crawler && behavior!=Raider;
-        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot or SpiderMine;
+        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot or SpiderMine or Roller;
     }
 
     // Original Unit move data in metres and seconds (speed/run px per frame × 30 / 50, accel px per frame² × 900 / 50).

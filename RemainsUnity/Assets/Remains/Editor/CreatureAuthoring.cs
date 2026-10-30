@@ -39,7 +39,7 @@ namespace Remains.Editor
             {{"UnitMonstrik",NpcCreatureBehaviours.Crawler},{"UnitBat",NpcCreatureBehaviours.Bat},{"UnitBloat",NpcCreatureBehaviours.Bloat},{"UnitSlime",NpcCreatureBehaviours.Slime}};
         // Vector creatures drawn into animation sheets by Tools/build_creature_sheets.py (rows per state, cells at the
         // unit's registration), newest set first; the raster ones use the original blit sheets.
-        private static readonly string[] VectorSheets={"../../.reference/creature-sheets-v3","../../.reference/creature-sheets-v2","../../.reference/creature-sheets-v1"};
+        private static readonly string[] VectorSheets={"../../.reference/creature-sheets-v4","../../.reference/creature-sheets-v3","../../.reference/creature-sheets-v2","../../.reference/creature-sheets-v1"};
 
         // Only the raiders (CreatureAuthoringRaiders) over the existing catalog: the other creatures, their anatomy and
         // death voices stay as the last full pass wrote them.
@@ -91,9 +91,7 @@ namespace Remains.Editor
             var catalog=JObject.Parse(File.ReadAllText(Path.Combine(package,"catalog.json")));
             var rows=((JArray)catalog["definitions"]).OfType<JObject>().ToArray();
             var resources=((JArray)catalog["resources"]).OfType<JObject>().ToDictionary(r=>(string)r["id"],StringComparer.Ordinal);
-            soundIds.Clear();
-            foreach(var resource in resources.Values.Where(r=>(string)r["kind"]=="sound"))
-                foreach(var name in ((JArray)resource["names"]).Select(n=>(string)n)) soundIds.TryAdd(name,(string)resource["id"]);
+            IndexSounds(resources.Values);
             var previous=AssetDatabase.LoadAssetAtPath<CreatureCatalog>(CatalogPath);
             var owned=new HashSet<string>(previous?.Creatures.Select(c=>c.actorType)??Enumerable.Empty<string>(),StringComparer.Ordinal);
             var entries=new List<CreatureEntry>();var rules=new List<CreatureObjectRule>();var gaps=new List<CreatureGap>();
@@ -108,6 +106,7 @@ namespace Remains.Editor
                 if(reason==null && template.className==CreatureSources.TurretClass) reason=Turrets(template,rows,resources,package,owned,entries,types);
                 else if(reason==null && template.className==SpriteBotClass) reason=SpriteBots(template,rows,owned,entries,types);
                 else if(reason==null && template.className==SpiderMineClass) reason=SpiderMines(template,rows,owned,entries,types);
+                else if(reason==null && template.className==RollerClass) reason=Rollers(template,rows,owned,entries,types);
                 else foreach(string unitId in template.units)
                 {
                     if(reason!=null) break;
@@ -266,7 +265,7 @@ namespace Remains.Editor
             AtlasSpriteAssetEditor.Rebuild(atlas);
             return atlas;
         }
-        private static AtlasActorVisual SavePrefab(string id,Texture2D texture,AtlasSpriteAsset atlas,bool lyingFrame,HashSet<string> owned)
+        private static AtlasActorVisual SavePrefab(string id,Texture2D texture,AtlasSpriteAsset atlas,bool lyingFrame,HashSet<string> owned,bool rolls=false)
         {
             Directory.CreateDirectory(PrefabFolder);
             string prefabPath=PrefabFolder+"/"+id+".prefab",materialPath=PrefabFolder+"/"+id+".mat";Guard(prefabPath,id,owned);Guard(materialPath,id,owned);
@@ -278,7 +277,7 @@ namespace Remains.Editor
                 var renderer=root.AddComponent<SpriteRenderer>();renderer.sprite=atlas.Frames("idle")[0];renderer.sortingOrder=20;renderer.sharedMaterial=material;
                 var visual=root.AddComponent<AtlasActorVisual>();visual.SetRenderer(renderer);
                 // A lying pose that is the standing frame (no die/death row) is drawn turned over and greyed, as the radroach.
-                visual.ConfigureDeadPresentation(lyingFrame,0,new Color(.55f,.55f,.55f,1));
+                visual.ConfigureDeadPresentation(lyingFrame,0,new Color(.55f,.55f,.55f,1));visual.ConfigureRolling(rolls);
                 return PrefabUtility.SaveAsPrefabAsset(root,prefabPath).GetComponent<AtlasActorVisual>();
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
@@ -304,6 +303,13 @@ namespace Remains.Editor
             return names.Select(name=>"exported:"+(soundIds.TryGetValue(name,out string id)?id:throw new InvalidDataException("Нет исходного звука "+name))).ToArray();
         }
         private static readonly Dictionary<string,string> soundIds=new(StringComparer.Ordinal);
+        // The export's sound resources by their original names (TouchSounds).
+        private static void IndexSounds(IEnumerable<JObject> resources)
+        {
+            soundIds.Clear();
+            foreach(var resource in resources.Where(r=>(string)r["kind"]=="sound"))
+                foreach(var name in ((JArray)resource["names"]).Select(n=>(string)n)) soundIds.TryAdd(name,(string)resource["id"]);
+        }
         private static CreatureMotionSettings Motion(Source source,float walk)
         {
             var move=source.unit.Element("move");var un=source.unit.Element("un");

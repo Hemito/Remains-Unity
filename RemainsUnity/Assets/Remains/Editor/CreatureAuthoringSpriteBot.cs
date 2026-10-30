@@ -37,6 +37,7 @@ namespace Remains.Editor
         {
             var catalog=JObject.Parse(File.ReadAllText(ContentPackage.Catalog));
             var rows=((JArray)catalog["definitions"]).OfType<JObject>().ToArray();
+            IndexSounds(((JArray)catalog["resources"]).OfType<JObject>());
             var previous=AssetDatabase.LoadAssetAtPath<CreatureCatalog>(CatalogPath)??throw new InvalidOperationException("Нет каталога существ: сначала полная генерация.");
             var owned=new HashSet<string>(previous.Creatures.Select(c=>c.actorType),StringComparer.Ordinal);
             var template=CreatureSources.FactoryObjects(catalog).Single(o=>o.className==className && o.problem==null);

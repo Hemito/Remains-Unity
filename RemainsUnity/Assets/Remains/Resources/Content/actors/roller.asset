@@ -1,0 +1,103 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccd87756f68648d428013d6b205d40a5, type: 3}
+  m_Name: roller
+  m_EditorClassIdentifier: 
+  definition:
+    id: roller
+    presentation: atlas
+    artwork: Original/Creatures/roller/artwork
+    combatAi: 1
+    hasWeapon: 0
+    bodyInventory: 0
+    atlasWeaponSocket: 0
+    canUseDoors: 0
+    bodyMassKg: 25
+    telekinesisMovable: 1
+    restoreHealthAfterHit: 0
+    hitProtection: 20
+    perception:
+      sightDistance: 20
+      closeDistance: 1.6
+      recognitionSeconds: 0.3
+      memorySeconds: 4
+      hearingDistance: 0
+      eyeHeight: 0.3
+      targetHeight: 0.25
+    naturalAttack:
+      rid: 5813030707245088768
+    behavior: roller
+    motion:
+      walkSpeed: 6.6
+      runSpeed: 6.6
+      acceleration: 14.400001
+      dashRange: 0
+      dashChance: 0
+      jumpSpeed: 11.4
+    hitMaterial: metal
+    attackSounds:
+    - exported:sound:88
+    activateTrap: 1
+    turret:
+      patrolAngles: []
+      periodSeconds: 4
+      watchTurnDegreesPerSecond: 0
+      attackTurnDegreesPerSecond: 0
+      alertMinSeconds: 1
+      alertMaxSeconds: 1.3333334
+      searchSeconds: 10
+      fixedFacing: 0
+    raider:
+      attacker: 2
+      walkSpeed: 0
+      jumpSpeed: 0
+      acceleration: 0
+      holdDistance: 20
+      burstFrames: 0
+      swingHeight: 0
+      weaponInTeeth: 1
+      stroll: 1
+      climbsLadders: 1
+      slowness: 40
+      bodyHit:
+        damageType: 
+        approachSpeed: 0
+        beginDistance: 0
+        verticalDistance: 0
+        preparationSeconds: 0
+        recoverySeconds: 0
+        damage: 0
+        originX: 0
+        originY: 0
+        reach: 0
+        radius: 0
+    deathBlastScale: 0.5
+    deathExplosion: 
+  presentationSource: 1
+  presentationPrefab: {fileID: 3248402260367269540, guid: 375e10b7473e4c54b9cfa347f025eafe, type: 3}
+  references:
+    version: 2
+    RefIds:
+    - rid: 5813030707245088768
+      type: {class: NaturalAttackDefinition, ns: Remains.Domain, asm: Assembly-CSharp}
+      data:
+        damageType: electric
+        approachSpeed: 6.6
+        beginDistance: 0.70000005
+        verticalDistance: 1.6
+        preparationSeconds: 0
+        recoverySeconds: 1
+        damage: 18
+        originX: 0
+        originY: 0.3
+        reach: 0.6
+        radius: 0.24000001

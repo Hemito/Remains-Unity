@@ -28,7 +28,9 @@ namespace Remains.Content
             // The first robot: the flying spritebot with its laser, placed and random.
             ("base:factory-generated:creatures-v8",new[]{"spritebot","random:spritebot"}),
             // The spider mine: asleep on its floor, ceiling or wall until it runs at a target and blows up.
-            ("base:factory-generated:creatures-v9",new[]{"msp","random:msp"})
+            ("base:factory-generated:creatures-v9",new[]{"msp","random:msp"}),
+            // The roller: rests, rolls at a target and touches it.
+            ("base:factory-generated:creatures-v10",new[]{"roller","random:roller"})
         };
         private const string RandomPrefix="random:";
         private static string[] RandomKeys(params string[] objects)=>objects.Select(o=>RandomPrefix+o).ToArray();

@@ -22,6 +22,13 @@ namespace Remains.Presentation
             return state.poseTime+phaseOffset;
         }
         private bool wasInverted,wasClinging;
+        // A ball that turns as it rolls (UnitRoller.animate: osn.rotation += dx × 1.5° a frame, dx in px per frame, kept in
+        // the air): about its body centre, from its replicated velocity — appearance only, from a random first angle.
+        [SerializeField,InspectorName("Катится (поворот по скорости)")] private bool rolls;
+        public const float RollDegreesPerMetre=50f*1.5f;
+        private float rollAngle=float.NaN;
+        public void ConfigureRolling(bool value)=>rolls=value;
+        public bool Rolls=>rolls;
         private sealed class Clip
         {
             public Sprite[] frames;public AtlasActorClip definition;public Vector2[] verticalBounds;
@@ -144,7 +151,14 @@ namespace Remains.Presentation
                     new Vector2(cling==NpcCreatureState.LeftWall?-hull.width*.5f:hull.width*.5f,hull.height*.5f));
                 transform.rotation=Quaternion.Euler(0,0,cling==NpcCreatureState.Ceiling?180:cling==NpcCreatureState.LeftWall?-90:90);
             }
-            else if(wasClinging) transform.rotation=Quaternion.identity;
+            else if(rolls && !state.down)
+            {
+                if(float.IsNaN(rollAngle)) rollAngle=UnityEngine.Random.value*360;
+                rollAngle=Mathf.Repeat(rollAngle-state.vx*RollDegreesPerMetre*Time.deltaTime,360);
+                var turn=Quaternion.Euler(0,0,rollAngle);var centre=Vector2.up*(Anatomy.Movement(state).height*.5f);
+                transform.rotation=turn;transform.position=state.Position+centre-(Vector2)(turn*centre);
+            }
+            else if(wasClinging || rolls) transform.rotation=Quaternion.identity;
             wasClinging=cling!=NpcCreatureState.NoCling;
             string pose=ActorPose.Clip(state);
             if(!artwork.clips.TryGetValue(pose,out var clip))

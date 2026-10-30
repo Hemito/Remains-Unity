@@ -17,6 +17,7 @@ namespace Remains.Gameplay
     // stands for the victim's 30-frame window between touch hits.
     //   spritebot (UnitSpriteBot): the exception — it shoots its own gun (robolaser); see SpriteBot.
     //   spider mine (UnitMsp): no attack of its own — it runs to its target and blows itself up (Detonates); see SpiderMine.
+    //   roller (UnitRoller): rests, then rolls at its target and touches it with a hop; see Roller.
     public sealed class NpcCreatureController
     {
         private const float Frame=1f/30;
@@ -25,6 +26,8 @@ namespace Remains.Gameplay
         private const float SpriteBotElasticity=.8f;
         // UnitMsp aiState: 0/1 asleep (pose idle), 2 woken (pose "wake"), 3 running at the target, 4 searching (pose "wake").
         public const string Asleep="sleep",Woken="wake",Running="run",Searching="search";
+        // UnitRoller aiState 0 resting, 1 rolling; its picture is charged (the pose of that name) near its target.
+        public const string Resting="rest",Rolling="roll",Charged="charged";
         private readonly System.Random random=new();
         private float Range(float minFrames,float maxFrames)=>(minFrames+(float)random.NextDouble()*(maxFrames-minFrames))*Frame;
         private bool Chance(float p)=>random.NextDouble()<p;
@@ -43,6 +46,7 @@ namespace Remains.Gameplay
                 case NpcCreatureBehaviours.Slime: Slime(actor,state,room,ground,dt);return true;
                 case NpcCreatureBehaviours.SpriteBot: return SpriteBot(actor,type,state,known,room,dt);
                 case NpcCreatureBehaviours.SpiderMine: SpiderMine(actor,state,known,room,ground,dt);return false;
+                case NpcCreatureBehaviours.Roller: return Roller(actor,type,state,known,room,ground,dt);
                 default: throw new InvalidOperationException($"Неизвестное поведение существа {type.behavior}: actor={actor.id}.");
             }
         }
@@ -62,6 +66,8 @@ namespace Remains.Gameplay
                 return new NpcCreatureState {mode=!floor && ceiling?"hang":"crawl",inverted=!floor && ceiling,directionX=actor.facing};
             }
             if(type.behavior==NpcCreatureBehaviours.Bat) return new NpcCreatureState {mode="hang",timer=Range(5,15)};
+            // UnitRoller.setNull: resting, its first decision within 40–90 frames.
+            if(type.behavior==NpcCreatureBehaviours.Roller) return new NpcCreatureState {mode=Resting,timer=Range(40,90),directionX=actor.facing};
             if(type.behavior==NpcCreatureBehaviours.SpiderMine) return new NpcCreatureState {mode=Asleep,cling=Cling(actor,room),directionX=actor.facing};
             // UnitSpriteBot.setNull: calm, the first decision in 5–55 frames.
             if(type.behavior==NpcCreatureBehaviours.SpriteBot) return new NpcCreatureState {mode=Calm,timer=Range(5,55)};
@@ -267,6 +273,49 @@ namespace Remains.Gameplay
             float aside=known.x-actor.x;
             if(Mathf.Abs(aside)>40/50f || state.directionX==0) state.directionX=aside>=0?1:-1;
         }
+        // UnitRoller.control, times in frames / 30: every 40–90 frames it decides to rest (no target for maxSpok checks
+        // of 10 frames: directionY holds that interest in seconds) or to roll. Rolling, every 15 frames it turns to a target
+        // more than 100 px aside and, nine times in ten, drops through platforms to one more than 80 px below or hops
+        // (0.5–1 of its jump, one in two) to one more than 40 px above; it hops half its jump off a ledge (one in two) and
+        // at a wall (turning back now and then). A target within 100 px across and 80 px up or down is touched (attKorp)
+        // with a 0.3 hop. Resting it brakes. Its picture charges within 200 px of the target and calms beyond 600 px.
+        // Returns whether it touches this step.
+        private bool Roller(ActorState actor,ActorTypeDefinition type,NpcCreatureState state,Vector2? known,RoomLayout room,MovementController ground,float dt)
+        {
+            float before=state.timer+dt;
+            state.directionY=known.HasValue?30*10*Frame:Mathf.Max(0,state.directionY-dt);
+            if(state.timer<=0) {state.mode=state.directionY>0?Rolling:Resting;state.timer=Range(40,90);}
+            var hull=Anatomy.Movement(actor);
+            bool grounded=ActorTerrainMotion.Supported(room,hull,actor.Position,false);
+            float hop=0;bool drop=false,touch=false;
+            if(state.mode==Rolling)
+            {
+                var aim=known??actor.Position+Vector2.right*state.directionX;
+                if(Mathf.FloorToInt(before/(15*Frame))!=Mathf.FloorToInt(state.timer/(15*Frame)))
+                {
+                    float below=actor.y-aim.y;
+                    if(Chance(.9f)) {drop=below>80/50f;if(below<-40/50f && Chance(.5f)) hop=.5f+.5f*(float)random.NextDouble();}
+                    if(aim.x-actor.x>100/50f) state.directionX=1;
+                    else if(aim.x-actor.x<-100/50f) state.directionX=-1;
+                }
+                var ahead=actor.Position+Vector2.right*(state.directionX*(hull.width*.5f+.1f));
+                if(grounded && !drop && actor.y-aim.y<=40/50f && !ActorTerrainMotion.Supported(room,hull,ahead,false) && Chance(.5f)) hop=Mathf.Max(hop,.5f);
+                if(grounded && !ActorTerrainMotion.IsClear(room,hull,actor.Position+Vector2.right*(state.directionX*.05f)))
+                {
+                    if(Chance(.03f)) state.directionX=-state.directionX;
+                    else hop=1;
+                }
+                if(known.HasValue && Mathf.Abs(known.Value.x-actor.x)<100/50f && Mathf.Abs(known.Value.y-actor.y)<80/50f) {touch=true;hop=Mathf.Max(hop,.3f);}
+            }
+            // Unit.jump(k): from the ground the vertical speed is k of its jump.
+            if(hop>0 && grounded) actor.vy=type.motion.jumpSpeed*hop;
+            ground.Step(actor,new Vector2(state.mode==Rolling?state.directionX:0,0),false,dt,dropThrough:drop);
+            float distance=known.HasValue?Vector2.Distance(known.Value,actor.Position):float.MaxValue;
+            bool charged=state.mode!=Resting && (distance<200/50f || actor.pose==Charged && distance<=600/50f);
+            ActorPose.Select(actor,charged?Charged:"idle");
+            return touch;
+        }
+
         // UnitMsp.control: a running mine whose target's centre is within 100 px of its feet dies — its death is the blast.
         public static bool Detonates(ActorState actor,ActorState target)
         {
