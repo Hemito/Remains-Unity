@@ -16,7 +16,7 @@ namespace Remains.Content
             public string definition,fingerprint,layout,lootLedger;
             public bool Matches(WorldState world,WorldFactory factory)=>root!=null && seed==world.seed &&
                 definition==factory.definition && fingerprint==factory.contentFingerprint && layout==factory.layout &&
-                (world.contentPatches.Contains(root.Prepared.Level+":"+FactoryContainerAdapter.Patch) ||
+                (FactoryContainerAdapter.LootRecorded(world,root.Prepared.Level) ||
                  lootLedger==Remains.Serialization.StateJson.ToJson(world.factoryLootLimits));
         }
         private static readonly Dictionary<(string world,string level),Entry> sources=new();

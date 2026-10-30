@@ -5,7 +5,12 @@ using Remains.Domain;
 namespace Remains.Content
 {
     [Serializable] public sealed class PropDefinition
-    {public string id,name,resource;public float mass,width,height;public Vector2 interactionOffset;public bool movable=true,hasPhysicalBody=true;}
+    {
+        public string id,name,resource;public float mass,width,height;public Vector2 interactionOffset;public bool movable=true,hasPhysicalBody=true;
+        // Original Obj.radioactiv (AllData rad): radiation a nearby player takes per frame at the source. Kept as source data;
+        // radiation is not simulated yet (TD-37), so an installer warns for every radioactive object it places.
+        public float radioactivity;
+    }
     [Serializable] public sealed class PropDefinitionList {public PropDefinition[] props;}
     public static class PropCatalog
     {
@@ -47,6 +52,8 @@ namespace Remains.Content
                 throw new InvalidOperationException("Некорректное определение физического объекта: "+definition?.id);
             if(!float.IsFinite(definition.interactionOffset.x) || !float.IsFinite(definition.interactionOffset.y))
                 throw new InvalidOperationException("Некорректное смещение взаимодействия: тип="+definition.id);
+            if(!float.IsFinite(definition.radioactivity) || definition.radioactivity<0)
+                throw new InvalidOperationException("Некорректная радиоактивность: тип="+definition.id);
             PropBodyRules.Validate(definition.movable,definition.hasPhysicalBody,definition.mass,"тип="+definition.id);
         }
     }

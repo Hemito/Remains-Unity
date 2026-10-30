@@ -14,6 +14,26 @@ namespace Remains.Editor
     public static class FactoryLevelAuthoring
     {
         public const string PrefabPath="Assets/Remains/Resources/Content/FactoryLevelRoot.prefab";
+        // Physical types of the generated factory: the first layout, then types added later (FactoryPropAdapter.LaterAdditions).
+        private static readonly string[] FirstProps={"Assets/Remains/RoomDrafts/woodbox.asset","Assets/Remains/RoomDrafts/FactoryProps/bigbox.asset",
+            "Assets/Remains/RoomDrafts/mcrate4.asset","Assets/Remains/Resources/Content/props/box.asset",
+            "Assets/Remains/Resources/Content/props/mcrate1.asset","Assets/Remains/Resources/Content/props/mcrate2.asset",
+            "Assets/Remains/Resources/Content/props/mcrate3.asset"};
+        private static readonly string[] LaterProps={FactoryRadBarrelAuthoring.AssetPath};
+        private static PropAsset[] Props(string[] paths)=>paths.Select(path=>AssetDatabase.LoadAssetAtPath<PropAsset>(path)
+            ??throw new InvalidOperationException("Нет готового определения физического объекта: "+path)).ToArray();
+        // Installs the current type lists on the saved root without regenerating it.
+        public static void ConfigureProps()
+        {
+            var root=PrefabUtility.LoadPrefabContents(PrefabPath);
+            try
+            {
+                root.GetComponent<FactoryPropAdapter>().Configure(Props(FirstProps),Props(LaterProps));
+                PrefabUtility.SaveAsPrefabAsset(root,PrefabPath,out bool saved);
+                if(!saved) throw new IOException("Не записан корень завода: "+PrefabPath);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+        }
         [MenuItem("Remains/Комнаты/Подготовить корень игрового завода")]
         public static void Generate()
         {
@@ -32,12 +52,7 @@ namespace Remains.Editor
                 DoorView Door(string id)=>AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Remains/Resources/Presentation/Doors/{id}.prefab")?.GetComponent<DoorView>()
                     ??throw new InvalidOperationException("Нет готового префаба двери: "+id);
                 root.AddComponent<FactoryDoorAdapter>().Configure(Door("door1"),Door("door2"),Door("door3"),Door("hatch1"));
-                var propPaths=new[]{"Assets/Remains/RoomDrafts/woodbox.asset","Assets/Remains/RoomDrafts/FactoryProps/bigbox.asset",
-                    "Assets/Remains/RoomDrafts/mcrate4.asset","Assets/Remains/Resources/Content/props/box.asset",
-                    "Assets/Remains/Resources/Content/props/mcrate1.asset","Assets/Remains/Resources/Content/props/mcrate2.asset",
-                    "Assets/Remains/Resources/Content/props/mcrate3.asset"};
-                root.AddComponent<FactoryPropAdapter>().Configure(propPaths.Select(path=>AssetDatabase.LoadAssetAtPath<PropAsset>(path)
-                    ??throw new InvalidOperationException("Нет готового определения физического объекта: "+path)).ToArray());
+                root.AddComponent<FactoryPropAdapter>().Configure(Props(FirstProps),Props(LaterProps));
                 var view=root.AddComponent<FactoryLevelView>();
                 root.AddComponent<FactoryLightFocus>().Configure(view);
                 if(AssetDatabase.LoadAssetAtPath<FactoryLootCatalog>(FactoryLootAuthoring.CatalogPath)!=null)

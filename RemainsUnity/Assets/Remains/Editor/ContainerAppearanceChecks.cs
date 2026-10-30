@@ -125,7 +125,8 @@ namespace Remains.Editor
             var factoryLoot=GameAssets.Load<FactoryLootCatalog>("Content/FactoryLoot");
             int newStatics=factoryLoot==null?0:factoryLoot.definitions.Where(entry=>entry.physical!=null &&
                 UnityEditor.AssetDatabase.GetAssetPath(entry.physical).StartsWith("Assets/Remains/FactoryLoot/",StringComparison.Ordinal)).Count();
-            if(pairs!=12 || statics!=14+newStatics) throw new InvalidOperationException($"Неверное покрытие каталога контейнеров: pair={pairs}, static={statics}, новых исходных статических типов={newStatics}.");
+            // 15 static: the 14 before plus the factory radioactive barrel (FactoryRadBarrelAuthoring, 2026-10-30).
+            if(pairs!=12 || statics!=15+newStatics) throw new InvalidOperationException($"Неверное покрытие каталога контейнеров: pair={pairs}, static={statics}, новых исходных статических типов={newStatics}.");
         }
     }
 }

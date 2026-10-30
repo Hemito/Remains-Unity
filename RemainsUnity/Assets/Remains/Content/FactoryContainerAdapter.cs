@@ -10,6 +10,11 @@ namespace Remains.Content
     public sealed class FactoryContainerAdapter : MonoBehaviour
     {
         public const string Patch="base:factory-generated:physical-v2-loot-v1";
+        // physical-v3: physical types added after the first layout (FactoryPropAdapter.LaterAdditions, radioactive barrels).
+        // A level without such objects keeps physical-v2-loot-v1: an update step must add something.
+        public const string LaterPatch="base:factory-generated:physical-v3-loot-v1";
+        public static bool LootRecorded(WorldState world,string level)=>
+            world.contentPatches.Contains(level+":"+Patch) || world.contentPatches.Contains(level+":"+LaterPatch);
         [SerializeField,InspectorName("Каталог контейнеров и исходного лута")] private FactoryLootCatalog catalog;
         public int Installed {get;private set;}
         private bool installed;
@@ -47,7 +52,13 @@ namespace Remains.Content
                 additions.Add(localId);root.HideObjectArtwork(placement);
             }
             var content=root.GetComponent<RoomPhysicalContent>()??throw new InvalidOperationException("Контейнеры завода: сначала подготовьте физические объекты.");
-            content.Configure(Patch);content.ConfigureExpansion("base:factory-generated:physical-v1",additions.ToArray());
+            var later=GetComponent<FactoryPropAdapter>().LaterAdditions;
+            if(later.Count==0) {content.Configure(Patch);content.ConfigureExpansion(FactoryPropAdapter.FirstPatch,additions.ToArray());}
+            else
+            {
+                content.Configure(LaterPatch);
+                content.ConfigureExpansion(Patch,later.ToArray(),new[]{new ContentExpansionStep {previousPatch=FactoryPropAdapter.FirstPatch,additions=additions.Concat(later).ToArray()}});
+            }
             Installed=additions.Count;installed=true;
             foreach(string issue in warnings)Debug.LogWarning($"Контейнер завода пока не подключён: world={world.worldId}, seed={world.seed}, {issue}.",this);
         }

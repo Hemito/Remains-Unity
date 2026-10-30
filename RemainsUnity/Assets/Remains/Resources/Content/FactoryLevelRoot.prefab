@@ -97,6 +97,7 @@ MonoBehaviour:
     platforms: []
     ladders: []
     artwork: []
+    spikes: []
   authoredArtwork: 0
 --- !u!114 &665818839952213938
 MonoBehaviour:
@@ -149,6 +150,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7f430674b2372ad479dbd2d8a6a57fff, type: 2}
   - {fileID: 11400000, guid: b1d82bfda34878c4f933e91935a2afa8, type: 2}
   - {fileID: 11400000, guid: 523b4b7d8d26440469f13346bb9b0c03, type: 2}
+  laterDefinitions:
+  - {fileID: 11400000, guid: 33b55b6cbac7c464fa5da0995c9da531, type: 2}
 --- !u!114 &4987876256302106301
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -197,8 +200,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f781eede08a1402488e3f757481f48c7, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   catalog: {fileID: 11400000, guid: 98ebec4ee19447f43bdc8d42b719f13c, type: 2}
 --- !u!1 &4626430130974191981
 GameObject:
