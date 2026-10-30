@@ -36,6 +36,7 @@ namespace Remains.Editor
                 if(type.behavior==NpcCreatureBehaviours.SpriteBot) {SpriteBot(creature,type,exported,voices);continue;}
                 if(type.behavior==NpcCreatureBehaviours.SpiderMine) {SpiderMine(creature,type,exported);continue;}
                 if(type.behavior==NpcCreatureBehaviours.Roller) {Roller(creature,type,exported,voices);continue;}
+                if(type.behavior==NpcCreatureBehaviours.Robobrain) {Robobrain(creature,type,exported,voices);continue;}
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
                 var art=AtlasAnimationData.Get(type.artwork);
@@ -93,6 +94,7 @@ namespace Remains.Editor
                 bool V8(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.SpriteBot;
                 bool V9(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.SpiderMine;
                 bool V10(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.Roller;
+                bool V11(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.Robobrain;
                 Require(world.actors.Any(V6),"рейдеры завода установлены");
                 Require(world.actors.Any(V7),"рукопашные рейдеры завода установлены");
                 Require(world.actors.Any(V8) && world.actors.Any(a=>V8(a) && random.Contains(a.id)) && world.actors.Any(a=>V8(a) && !random.Contains(a.id)),
@@ -100,10 +102,12 @@ namespace Remains.Editor
                 Require(world.actors.Any(V9) && world.actors.Any(a=>V9(a) && random.Contains(a.id)) && world.actors.Any(a=>V9(a) && !random.Contains(a.id)),
                     "мины-пауки завода установлены — из шаблонов и случайные");
                 Require(world.actors.Any(V10),"роллеры завода установлены");
-                // Robots of later versions (spritebots v8, spider mines v9, rollers v10) are missing from every earlier world too.
-                bool Robots(ActorState a)=>V8(a) || V9(a) || V10(a);
-                Upgrade("base:factory-generated:creatures-v9",V10,"переход v9 → v10 добавляет только роллеров");
-                Upgrade("base:factory-generated:creatures-v8",a=>V9(a) || V10(a),"переход v8 → v10 добавляет только мины-пауков и роллеров");
+                Require(world.actors.Any(V11) && world.actors.Where(V11).Select(a=>a.actorType).Distinct().Count()==2,"робомозги завода установлены, с обоими стволами");
+                // Robots of later versions (spritebots v8, spider mines v9, rollers v10, robobrains v11) are missing from every earlier world too.
+                bool Robots(ActorState a)=>V8(a) || V9(a) || V10(a) || V11(a);
+                Upgrade("base:factory-generated:creatures-v10",V11,"переход v10 → v11 добавляет только робомозгов");
+                Upgrade("base:factory-generated:creatures-v9",a=>V10(a) || V11(a),"переход v9 → v11 добавляет только роллеров и робомозгов");
+                Upgrade("base:factory-generated:creatures-v8",a=>V9(a) || V10(a) || V11(a),"переход v8 → v11 добавляет только мины-пауков, роллеров и робомозгов");
                 Upgrade("base:factory-generated:creatures-v7",Robots,"переход v7 → v10 добавляет только роботов");
                 Upgrade("base:factory-generated:creatures-v6",a=>V7(a) || Robots(a),"переход v6 → v9 добавляет только рукопашных рейдеров и роботов");
                 Upgrade("base:factory-generated:creatures-v5",a=>V6(a) || Robots(a),"переход v5 → v9 добавляет только рейдеров и роботов");
@@ -468,6 +472,58 @@ namespace Remains.Editor
                 Remains.Networking.SessionDeathBlasts.Blast(before,before)==null && Remains.Networking.SessionDeathBlasts.Blast(after,after)==null,$"{id}: принятая гибель — взрыв у ног, только при переходе");
         }
         private sealed class FixedDamage : IDamageRule {public float Calculate(string weapon,float speed)=>10;}
+
+        // A robobrain: the raiders' state machine in its robot variant with a gun of its list (no magazine) at setWeaponPos,
+        // its LootGen loot with the gun on its searchable body; it notices, pursues or holds, never jumps, touches or steps
+        // back, runs only while searching and fires in bursts of aiAttackOch.
+        private static void Robobrain(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported,ActorDeathAudioCatalog voices)
+        {
+            string id=creature.actorType;var s=type.raider;
+            Require(type.combatAi && type.hasWeapon && type.atlasWeaponSocket && type.naturalAttack==null && type.presentation=="atlas" && type.bodyInventory &&
+                type.hitMaterial=="metal" && s!=null && s.robot && s.attacker==RaiderAttacker.Ranged && s.jumpSpeed==0 && !s.climbsLadders && s.burstFrames==100 &&
+                Mathf.Approximately(s.holdDistance,20) && NpcCreatureBehaviours.UsesRaiderBrain(type.behavior) && !NpcCreatureBehaviours.IsFamily(type.behavior),
+                $"{id}: робомозг — ИИ робота (стрелок, без прыжка и лестниц, очередь 100 кадров, стойка в 20 м)");
+            s.Validate(id);type.perception.Validate();
+            var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
+            float Num(string element,string name)=>float.Parse((string)unit.Element(element).Attribute(name),System.Globalization.CultureInfo.InvariantCulture);
+            Require(Mathf.Approximately(s.walkSpeed,Num("move","speed")*.6f) && Mathf.Approximately(s.RunSpeed,s.walkSpeed*2),$"{id}: шаг {s.walkSpeed} не по AllData");
+            var art=AtlasAnimationData.Get(type.artwork);
+            foreach(string pose in new[]{"idle","walk","run","jump","down"})
+                Require(art.Clip(pose).count>0 && art.Clip(pose).weaponSockets?.Length==art.Clip(pose).count,$"{id}: поза {pose} с точкой оружия на каждом кадре");
+            Require(art.Clip("walk").count==20 && art.Clip("down").count==10 && !art.Clip("down").loop,$"{id}: шаг 20 кадров, гибель 10");
+            var spawned=creature.spawn.Create(new TrainingPlacement {id="check",type=id,facing=1},"level");
+            var items=creature.spawn.ReadInventory().Generate("check-world",spawned.id);
+            var gun=items.Single(i=>i.definition==spawned.weapon);var weapon=WeaponCatalog.Get(spawned.weapon);
+            Require(Mathf.Approximately(spawned.health,Num("comb","hp")) && (weapon.id=="weapon:robolaser:grade:0" || weapon.id=="weapon:robospark:grade:0") &&
+                !weapon.UsesMagazine && gun.weaponState!=null && WeaponRigs.Get(weapon.id).HasMuzzle && Remains.Presentation.ShotArtwork.TryGet(weapon.id,out _),
+                $"{id}: здоровье AllData, ствол {weapon.id} без магазина, с дулом и снарядом");
+            var table=creature.spawn.ReadInventory();
+            Require(table.entries.Length==5 && new[]{"item:scrap","item:frag","item:batt","item:metal_comp"}.All(d=>table.entries.Any(e=>e.definition==d)),
+                $"{id}: в теле ствол и добыча LootGen robobrain");
+            Require(voices.TrySelect(id,0,out _),"голос смерти "+id);
+            var actor=new ActorState {id="b",actorType=id,anatomy=id,level="l",x=0,y=0,facing=1,health=spawned.health,weapon=weapon.id};
+            gun.id="gun";actor.inventory.Add(gun);actor.weaponInventoryVersion=1;actor.equippedWeaponItem="gun";
+            var mount=AtlasWeaponSockets.Anchor(actor);
+            Require(Mathf.Abs(mount.x)<.05f && Mathf.Abs(mount.y-.8f)<.05f,$"{id}: точка ствола {mount} на 40 px над опорой");
+
+            // UnitAIRobot.control: a target in sight 8 m away.
+            var room=new RoomLayout {id="robobrain-check",left=-30,right=30,bottom=-1,top=30,ladders=Array.Empty<RoomLadder>(),
+                platforms=new[]{new RoomSurface {x=-30,y=-1,width=60,height=1}}};
+            RoomSurfaces.Prepare(room);
+            var mind=new RaiderMind();var random=new System.Random(4);
+            var senses=new RaiderSenses(true,new Vector2(8,.7f),true,new Vector2(8,.7f));
+            var states=new System.Collections.Generic.HashSet<RaiderState>();int shots=0,attackFrames=0;
+            for(int i=0;i<900;i++)
+            {
+                var intent=RaiderBrain.Tick(mind,s,actor,room,senses,false,random);
+                states.Add(mind.state);
+                Require(intent.jump==0 && intent.bodyHit==0 && intent.pushX==0 && intent.climb==0,$"{id}: робот не прыгает, не бьёт корпусом, не отступает и не лазает");
+                if(mind.state==RaiderState.Pursue) Require(!intent.run,$"{id}: в преследовании идёт шагом");
+                if(mind.state is RaiderState.Pursue or RaiderState.Hold) {attackFrames++;if(intent.shoot) shots++;}
+            }
+            Require(states.Contains(RaiderState.Notice) && states.Contains(RaiderState.Pursue) && states.Contains(RaiderState.Hold),$"{id}: замечает, преследует и держит позицию ({string.Join(",",states)})");
+            Require(attackFrames>0 && shots>attackFrames*.6f && shots<attackFrames*.9f,$"{id}: стреляет очередями — {shots} из {attackFrames} кадров атаки (около 3/4)");
+        }
 
         // A roller: a touch attacker (attKorp) of comb damage and tipdam, its own speed and jump, no hearing, loot dropped
         // on death, a ball turned by its visual; it rests, rolls at a noticed target, touches it with a hop, charges near it.

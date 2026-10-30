@@ -19,6 +19,9 @@ namespace Remains.Editor
         // Classes with their own world systems, not actors (Mine: world.mines).
         private static readonly HashSet<string> separate=new(StringComparer.Ordinal) {"Mine"};
         private static readonly Dictionary<string,string> classDefaults=new(StringComparer.Ordinal) {{"UnitTrap","mtrap"},{"UnitDamager","damshot"}};
+        // Classes whose constructor sets the unit id itself (UnitRobobrain: id = "robobrain"; obj robot's unit robot is
+        // only a category).
+        private static readonly Dictionary<string,string> classUnits=new(StringComparer.Ordinal) {{"UnitRobobrain","robobrain"}};
         // UnitTurret: id = "turret" + turrettip, the tip chosen by the obj's cid (land 1, wall 2, arm 3, combat 4, boss 5;
         // any other — floor, hidden, hidden2 — 0).
         public const string TurretClass="UnitTurret";
@@ -59,6 +62,7 @@ namespace Remains.Editor
                 if(cls==TurretClass && units.Contains(TurretUnit(cid))) entry.units=new[]{TurretUnit(cid)};
                 else if(cid!=null && units.Contains(cid)) entry.units=new[]{cid};
                 else if(randomVariants.TryGetValue(cid??id,out var variants) && variants.All(units.Contains)) entry.units=variants;
+                else if(classUnits.TryGetValue(cls,out string own) && units.Contains(own)) entry.units=new[]{own};
                 else if(cid==null && units.Contains(id)) entry.units=new[]{id};
                 else if(cid==null && classDefaults.TryGetValue(cls,out string fallback) && units.Contains(fallback)) entry.units=new[]{fallback};
                 else if(units.Contains(id)) entry.units=new[]{id};

@@ -53,7 +53,7 @@ namespace Remains.Gameplay
             var senses=new RaiderSenses(sees,sees?target.Position+Vector2.up*type.perception.targetHeight:default,
                 memory.hasKnownPosition,memory.KnownPosition+Vector2.up*type.perception.targetHeight);
             // A shooter with nothing left to shoot or reload with fights with its body (the port's rule, user 2026-10-29).
-            var attacker=settings.attacker==RaiderAttacker.Ranged && NpcWeaponActions.Spent(actor)?RaiderAttacker.Teeth:settings.attacker;
+            var attacker=settings.attacker==RaiderAttacker.Ranged && settings.Touches && NpcWeaponActions.Spent(actor)?RaiderAttacker.Teeth:settings.attacker;
             bool weapon=false;float bodyHit=0;
             for(int i=0;i<frames;i++)
             {

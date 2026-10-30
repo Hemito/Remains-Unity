@@ -75,8 +75,10 @@ namespace Remains.Content
                 if(definition.turret==null) throw new InvalidOperationException($"Тип {definition.id}: нет настроек турели.");
                 definition.turret.Validate(definition.id);
             }
-            if(definition.behavior==Remains.Domain.NpcCreatureBehaviours.Raider)
+            if(Remains.Domain.NpcCreatureBehaviours.UsesRaiderBrain(definition.behavior))
             {
+                if(definition.behavior==Remains.Domain.NpcCreatureBehaviours.Robobrain && definition.raider?.robot!=true)
+                    throw new InvalidOperationException($"Тип {definition.id}: робомозгу нужен ИИ робота (RaiderSettings.robot).");
                 if(!definition.combatAi || !definition.hasWeapon || definition.naturalAttack!=null || definition.raider==null)
                     throw new InvalidOperationException($"Тип {definition.id}: рейдер требует боевой ИИ с оружием и настройки рейдера.");
                 definition.raider.Validate(definition.id);

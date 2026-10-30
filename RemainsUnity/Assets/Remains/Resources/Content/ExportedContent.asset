@@ -10219,19 +10219,56 @@ MonoBehaviour:
       sheetJson: 
       frame: 0
     issues: []
-  - key: unit:robot
+  - key: unit:robobrain
     category: unit
-    sourceId: robot
-    rawXml: <unit id="robot" cat="1" />
-    displayName: 
+    sourceId: robobrain
+    rawXml: "<unit id=\"robobrain\" fraction=\"4\" xp=\"150\" cat=\"3\"><phis sX=\"55\"
+      sY=\"70\" massa=\"85\" /><move speed=\"2\" accel=\"2\" jump=\"0\" brake=\"1\"
+      plav=\"0\" levitaccel=\"1.2\" damwall=\"30\" levit_max=\"90\" /><comb hp=\"60\"
+      armor=\"5\" krep=\"1\" aqual=\"0.75\" armorhp=\"120\" /><vulner emp=\"1\" fire=\"0.5\"
+      cryo=\"0.5\" spark=\"1.5\" venom=\"0\" poison=\"0\" bleed=\"0\" /><param overlook=\"0\"
+      robot=\"1\" hero=\"robot\" /><vis noise=\"500\" replic=\"robobrain\" vclass=\"visualRobobrain\"
+      visdam=\"1\" /><snd music=\"combat_1\" die=\"expl2\" /><n>\u0420\u043E\u0431\u043E\u043C\u043E\u0437\u0433</n><w
+      id=\"robolaser\" ch=\"0.5\" /><w id=\"robospark\" /></unit>"
+    displayName: "\u0420\u043E\u0431\u043E\u043C\u043E\u0437\u0433"
     description: 
     graphics: []
-    sounds: []
+    sounds:
+    - role: music
+      resourceId: music:combat_1
+      rule: snd/attribute symbol combat_1
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
+    - role: die
+      resourceId: sound_unit:57
+      rule: snd/attribute symbol expl2
+      label: 
+      metadataXml: 
+      sheetJson: 
+      frame: 0
     issues:
-    - "\u041D\u0435\u0442 \u044F\u0432\u043D\u043E \u0441\u043E\u043F\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043D\u043E\u0439
-      \u0433\u0440\u0430\u0444\u0438\u043A\u0438 \u044E\u043D\u0438\u0442\u0430;
-      \u043F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u044B\u0439/\u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439/\u0441\u043E\u0441\u0442\u0430\u0432\u043D\u043E\u0439
-      \u0442\u0438\u043F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2131 (appearance) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D
+      \u043A\u0430\u0434\u0440\u0430\u043C\u0438: \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u043E
+      \u0440\u0438\u0441\u0443\u0435\u0442\u0441\u044F \u043B\u0438\u0441\u0442\u043E\u043C
+      build_creature_sheets.py."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2121 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D
+      \u043A\u0430\u0434\u0440\u0430\u043C\u0438: \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u043E
+      \u0440\u0438\u0441\u0443\u0435\u0442\u0441\u044F \u043B\u0438\u0441\u0442\u043E\u043C
+      build_creature_sheets.py."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2124 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D
+      \u043A\u0430\u0434\u0440\u0430\u043C\u0438: \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u043E
+      \u0440\u0438\u0441\u0443\u0435\u0442\u0441\u044F \u043B\u0438\u0441\u0442\u043E\u043C
+      build_creature_sheets.py."
+    - "\u0412\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439 \u0432\u0438\u0434
+      pfeUI:2129 (state) \u043D\u0435 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u043E\u0432\u0430\u043D
+      \u043A\u0430\u0434\u0440\u0430\u043C\u0438: \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u043E
+      \u0440\u0438\u0441\u0443\u0435\u0442\u0441\u044F \u043B\u0438\u0441\u0442\u043E\u043C
+      build_creature_sheets.py."
   - key: unit:roller
     category: unit
     sourceId: roller

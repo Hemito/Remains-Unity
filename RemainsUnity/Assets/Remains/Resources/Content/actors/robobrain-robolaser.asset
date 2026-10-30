@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccd87756f68648d428013d6b205d40a5, type: 3}
+  m_Name: robobrain-robolaser
+  m_EditorClassIdentifier: 
+  definition:
+    id: robobrain-robolaser
+    presentation: atlas
+    artwork: Original/Creatures/robobrain/artwork
+    combatAi: 1
+    hasWeapon: 1
+    bodyInventory: 1
+    atlasWeaponSocket: 1
+    canUseDoors: 1
+    bodyMassKg: 85
+    telekinesisMovable: 1
+    restoreHealthAfterHit: 0
+    hitProtection: 5
+    perception:
+      sightDistance: 20
+      closeDistance: 1.6
+      recognitionSeconds: 0.3
+      memorySeconds: 4
+      hearingDistance: 20
+      eyeHeight: 0.8
+      targetHeight: 0.7
+    naturalAttack:
+      rid: -2
+    behavior: robobrain
+    motion:
+      walkSpeed: 0
+      runSpeed: 0
+      acceleration: 0
+      dashRange: 0
+      dashChance: 0
+      jumpSpeed: 0
+    hitMaterial: metal
+    attackSounds: []
+    activateTrap: 2
+    turret:
+      patrolAngles: []
+      periodSeconds: 4
+      watchTurnDegreesPerSecond: 0
+      attackTurnDegreesPerSecond: 0
+      alertMinSeconds: 1
+      alertMaxSeconds: 1.3333334
+      searchSeconds: 10
+      fixedFacing: 0
+    raider:
+      attacker: 2
+      walkSpeed: 1.2
+      jumpSpeed: 0
+      acceleration: 1.2
+      holdDistance: 20
+      burstFrames: 100
+      swingHeight: 0
+      weaponInTeeth: 1
+      stroll: 1
+      climbsLadders: 0
+      slowness: 0
+      robot: 1
+      bodyHit:
+        damageType: 
+        approachSpeed: 0
+        beginDistance: 0
+        verticalDistance: 0
+        preparationSeconds: 0
+        recoverySeconds: 0
+        damage: 0
+        originX: 0
+        originY: 0
+        reach: 0
+        radius: 0
+    deathBlastScale: 0.5
+    deathExplosion: 
+  presentationSource: 1
+  presentationPrefab: {fileID: 3844477249550860505, guid: 5be01e1800dd78f4188cabdf6cffcacc, type: 3}
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }

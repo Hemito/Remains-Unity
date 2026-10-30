@@ -30,7 +30,9 @@ namespace Remains.Content
             // The spider mine: asleep on its floor, ceiling or wall until it runs at a target and blows up.
             ("base:factory-generated:creatures-v9",new[]{"msp","random:msp"}),
             // The roller: rests, rolls at a target and touches it.
-            ("base:factory-generated:creatures-v10",new[]{"roller","random:roller"})
+            ("base:factory-generated:creatures-v10",new[]{"roller","random:roller"}),
+            // The robobrain (object robot): a walking robot with a laser or a spark gun.
+            ("base:factory-generated:creatures-v11",new[]{"robot","random:robot"})
         };
         private const string RandomPrefix="random:";
         private static string[] RandomKeys(params string[] objects)=>objects.Select(o=>RandomPrefix+o).ToArray();

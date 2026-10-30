@@ -18,6 +18,10 @@ namespace Remains.Domain
         // UnitMsp: a spider mine that sleeps (on a floor, ceiling or wall) until it notices a target, runs to it and
         // blows itself up close to it; its death is an explosion (ActorTypeDefinition.deathExplosion).
         public const string SpiderMine="spidermine";
+        // UnitRobobrain (UnitAIRobot): a walking robot with a gun on the raiders' state machine (RaiderSettings.robot).
+        public const string Robobrain="robobrain";
+        // RaiderBrain decides for them (NpcRaiderController).
+        public static bool UsesRaiderBrain(string behavior)=>behavior is Raider or Robobrain;
         // UnitRoller: a rolling ball that rests until it notices a target, then rolls at it, hops and hurts by touch.
         public const string Roller="roller";
         public static bool Fixed(string behavior)=>behavior==Turret;
@@ -29,8 +33,8 @@ namespace Remains.Domain
         // Units without a corpse to search (trup 0): their source loot drops when their death is accepted.
         public static bool DropsLootOnDeath(string behavior)=>behavior is Turret or SpriteBot or Roller;
         // Empty (Unity serializes a missing string as "") or crawler: the natural-attack crawler AI.
-        public static bool IsFamily(string behavior)=>!string.IsNullOrEmpty(behavior) && behavior!=Crawler && behavior!=Raider;
-        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot or SpiderMine or Roller;
+        public static bool IsFamily(string behavior)=>!string.IsNullOrEmpty(behavior) && behavior!=Crawler && !UsesRaiderBrain(behavior);
+        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot or SpiderMine or Roller or Robobrain;
     }
 
     // Original Unit move data in metres and seconds (speed/run px per frame × 30 / 50, accel px per frame² × 900 / 50).

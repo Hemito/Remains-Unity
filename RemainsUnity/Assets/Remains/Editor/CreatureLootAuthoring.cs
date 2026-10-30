@@ -49,6 +49,8 @@ namespace Remains.Editor
                 case "rat":Add("ratliver",.35f);Add("rattail",.25f);Add("meat",.1f);break;
                 case "molerat":Add("ratliver",.5f);Add("molefat",1);Add("meat",.25f);break;
                 case "vortex":case "spritebot":case "roller":Add("scrap",.2f);break;
+                // A random component (L_COMPM with no id) and the champion's impgen are not carried over.
+                case "robobrain":Add("scrap",.25f);Add("frag",.15f);Add("batt",.5f);Add("metal_comp",.4f);break;
                 case "turret":Add("scrap",.5f);Add("frag",.35f);Add("batt",.2f);Add("energ",.2f,failure:"batt");break;
                 case "turret1":Add("scrap",.5f,"scrap1");Add("scrap",.5f,"scrap2");Add("frag",.85f);Add("magus_comp",.52f);
                     Add("batt",.4f);Add("energ",.8f,failure:"batt");break;

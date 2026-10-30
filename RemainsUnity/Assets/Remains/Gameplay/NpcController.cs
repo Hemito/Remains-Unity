@@ -73,7 +73,7 @@ namespace Remains.Gameplay
                 if(!natural) recharge.Step(actor,dt,actor.attackBusy?dt:actor.attackCooldown);
                 actor.attackCooldown=Mathf.Max(0,actor.attackCooldown-dt);
                 bool family=NpcCreatureBehaviours.IsFamily(type.behavior);
-                bool raider=type.behavior==NpcCreatureBehaviours.Raider;
+                bool raider=NpcCreatureBehaviours.UsesRaiderBrain(type.behavior);
                 // A raider moves with a controller of its own (RaiderBrain); the others share their type's.
                 if(raider) controller=raiders.Movement(actor,type,controller.Room);
                 if(actor.attackBusy)

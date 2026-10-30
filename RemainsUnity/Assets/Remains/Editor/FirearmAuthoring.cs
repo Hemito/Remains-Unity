@@ -326,8 +326,8 @@ namespace Remains.Editor
         }
 
         // Guns that creatures hold with a picture of their own (vweap: the drawn gun with its emit point): UnitSpriteBot's
-        // new Weapon(this, "robolaser"). Tip 0, no ammunition: it fires at its rapid for as long as its holder lives.
-        internal static readonly string[] CreatureGuns={"robolaser"};
+        // new Weapon(this, "robolaser"), the robobrain's robolaser or robospark (getXmlWeapon). Tip 0, no ammunition: it fires at its rapid for as long as its holder lives.
+        internal static readonly string[] CreatureGuns={"robolaser","robospark"};
         private static string CreatureGun(string wid,XElement root,JObject[] graphics,JObject[] sounds,Dictionary<string,JObject> resources,
             ExportedContentCatalog exported,SerializedProperty list,Dictionary<string,Shot> shots,List<JObject> audio,HashSet<string> assets)
         {

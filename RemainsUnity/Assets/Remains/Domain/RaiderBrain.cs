@@ -23,15 +23,24 @@ namespace Remains.Domain
         [InspectorName("Прогуливается (нет un stay)")] public bool stroll=true;
         [InspectorName("Лазает по лестницам")] public bool climbsLadders=true;
         [Min(0),InspectorName("Тупость: задержка реакции, кадров")] public int slowness=40;
+        // UnitAIRobot (robobrain): the robots' variant of the same state machine — it notices in 20–50 frames, holds
+        // (state 4, 10–20 frames) within aiDist once alert reaches maxSpok + 2, runs only while searching, never steps back
+        // or touches (no attKorp), and its stroll does not stop at turns.
+        [InspectorName("ИИ робота (UnitAIRobot)")] public bool robot;
         // Unit.attKorp → udarUnit: every raider's touch, with its comb damage (+ half of a melee weapon's) and damage type.
-        [InspectorName("Удар корпусом (attKorp)")] public NaturalAttackDefinition bodyHit;
+        // Not used by a robot (Unity keeps a serialized class field non-null, so the flag, not null, says so).
+        [InspectorName("Удар корпусом (attKorp; у робота не используется)")] public NaturalAttackDefinition bodyHit;
+        public bool Touches=>!robot;
         public float RunSpeed=>walkSpeed*2;
         public void Validate(string type)
         {
-            if(!Enum.IsDefined(typeof(RaiderAttacker),attacker) || !float.IsFinite(walkSpeed) || walkSpeed<=0 || !float.IsFinite(jumpSpeed) || jumpSpeed<=0 ||
+            // A jump of 0 never jumps (robobrain: move jump 0).
+            if(!Enum.IsDefined(typeof(RaiderAttacker),attacker) || !float.IsFinite(walkSpeed) || walkSpeed<=0 || !float.IsFinite(jumpSpeed) || jumpSpeed<0 ||
                 !float.IsFinite(acceleration) || acceleration<=0 || !float.IsFinite(holdDistance) || holdDistance<0 || burstFrames<0 || slowness<0 ||
                 !float.IsFinite(swingHeight) || swingHeight<0 || attacker==RaiderAttacker.Levitated && swingHeight<=0)
                 throw new InvalidOperationException($"Некорректное поведение рейдера {type}: шаг {walkSpeed}, прыжок {jumpSpeed}, ускорение {acceleration}.");
+            if(robot && attacker!=RaiderAttacker.Ranged) throw new InvalidOperationException($"Робот {type}: только стрелок (UnitAIRobot.attack).");
+            if(robot) return;
             if(bodyHit==null) throw new InvalidOperationException($"У рейдера {type} нет удара корпусом (attKorp).");
             bodyHit.Validate(type);
         }
@@ -88,6 +97,8 @@ namespace Remains.Domain
     // firearm is spent fights as a melee raider (the port's rule, user 2026-10-29; the source does it for a thrower).
     // Not ported yet: grenade and telekinesis fear (state 6), the dash (7/8), the thrown attack, swimming, flying
     // raiders, replicas, waking others (budilo), shots at a lost target, the aim error (mazil), stun (shok).
+    // RaiderSettings.robot runs UnitAIRobot.control instead where the two differ (robobrain; its teleport isPort and
+    // waking robot cells are not ported).
     public static class RaiderBrain
     {
         public const float FrameSeconds=1f/30;
@@ -125,12 +136,12 @@ namespace Remains.Domain
                 if(m.alert>=MaxAlert)
                 {
                     var d=m.point-actor.Position;
-                    if(attacker==RaiderAttacker.Ranged && m.alert>=MaxAlert+8 && d.sqrMagnitude<s.holdDistance*s.holdDistance)
+                    if(attacker==RaiderAttacker.Ranged && m.alert>=MaxAlert+(s.robot?2:8) && d.sqrMagnitude<s.holdDistance*s.holdDistance)
                         m.state=Chance(.3)?RaiderState.Pursue:RaiderState.Hold;
                     else m.state=RaiderState.Pursue;
                 }
                 m.timer=m.state<=RaiderState.Stroll?Range(50)+40:
-                    attacker==RaiderAttacker.Levitated && m.state==RaiderState.Hold?Range(10)+10:Range(100)+100;
+                    (s.robot || attacker==RaiderAttacker.Levitated) && m.state==RaiderState.Hold?Range(10)+10:Range(100)+100;
             }
 
             // findCel every 10th frame: a seen target, a heard point, the last seen one, or a fading search.
@@ -143,7 +154,7 @@ namespace Remains.Domain
                     if(m.state<=RaiderState.Stroll)
                     {
                         m.state=RaiderState.Notice;
-                        m.timer=Range(20)+(attacker>=RaiderAttacker.Ranged?s.slowness:s.slowness/4);
+                        m.timer=s.robot?Range(30)+20:Range(20)+(attacker>=RaiderAttacker.Ranged?s.slowness:s.slowness/4);
                     }
                     else m.alert=MaxAlert+10;
                 }
@@ -153,7 +164,7 @@ namespace Remains.Domain
                 {
                     if(m.alert%5==1) m.point+=new Vector2(((float)random.NextDouble()*80-40)*Px,((float)random.NextDouble()*80-40)*Px);
                     if(m.alert>0) m.alert--;
-                    if(!m.aware && m.alert<15 && m.alert>0) m.alert=0;
+                    if(!s.robot && !m.aware && m.alert<15 && m.alert>0) m.alert=0;
                 }
                 m.hasLastKnown=senses.known;if(senses.known) m.lastKnown=senses.knownPoint;
             }
@@ -177,7 +188,8 @@ namespace Remains.Domain
                 else if(m.state==RaiderState.Hold && !inReach) m.state=RaiderState.Pursue;
             }
 
-            bool run=(m.state==RaiderState.Search || m.state==RaiderState.Pursue);   // durak: always runs when alarmed
+            // durak: a raider always runs when alarmed; a robot runs only while searching (maxSpeed = runSpeed in state 2).
+            bool run=m.state==RaiderState.Search || m.state==RaiderState.Pursue && !s.robot;
             intent.charge=attacker==RaiderAttacker.Teeth && m.state==RaiderState.Pursue;
             if(m.state==RaiderState.Pursue && attacker==RaiderAttacker.Ranged && s.weaponInTeeth)
             {
@@ -204,7 +216,7 @@ namespace Remains.Domain
                     if(stay && wallAhead) turn=-m.direction;
                     if(stay && turn!=0)
                     {
-                        if(Chance(.1)) m.state=RaiderState.Idle;
+                        if(!s.robot && Chance(.1)) m.state=RaiderState.Idle;
                         m.direction=m.wantedFacing=turn;
                     }
                     break;
@@ -250,7 +262,7 @@ namespace Remains.Domain
                 }
                 case RaiderState.Hold:
                     m.direction=m.wantedFacing=m.point.x>actor.x?1:-1;
-                    if(attacker==RaiderAttacker.Ranged && (m.point-actor.Position).sqrMagnitude<200*Px*200*Px)
+                    if(attacker==RaiderAttacker.Ranged && !s.robot && (m.point-actor.Position).sqrMagnitude<200*Px*200*Px)
                     {
                         if(Chance(.6)) {intent.pushX=s.RunSpeed*(dx>0?-1:1)*2;jump=.4f;}
                         m.state=RaiderState.Pursue;
@@ -258,7 +270,9 @@ namespace Remains.Domain
                     break;
             }
             // jump(): only from support or a ladder; from support it pushes on along the facing. The source slows a
-            // jump to the left instead (dx *= 0.8 for aiNapr −1) — an asymmetry taken as a defect, not ported.
+            // jump to the left instead (dx *= 0.8 for aiNapr −1) — an asymmetry taken as a defect, not ported. A unit
+            // without a jump (jumpdy 0) never leaves the ground.
+            if(s.jumpSpeed<=0) jump=0;
             if(jump>0)
             {
                 m.jumpDelay=Range(50)+30;
@@ -287,7 +301,7 @@ namespace Remains.Domain
                             intent.shoot=m.burst>s.burstFrames*.25f;
                             m.burst--;
                         }
-                        if(close && Chance(.1)) intent.bodyHit=.5f;
+                        if(close && s.Touches && Chance(.1)) intent.bodyHit=.5f;
                         break;
                     case RaiderAttacker.Thrower:
                         if(close && Chance(.1)) intent.bodyHit=full;
