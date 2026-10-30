@@ -15,6 +15,9 @@ namespace Remains.Domain
         // UnitSpriteBot: a flying robot with a gun of its own (robolaser) that wanders until it notices a target, then
         // turns hostile for good, flies about it and fires at random moments.
         public const string SpriteBot="spritebot";
+        // UnitMsp: a spider mine that sleeps (on a floor, ceiling or wall) until it notices a target, runs to it and
+        // blows itself up close to it; its death is an explosion (ActorTypeDefinition.deathExplosion).
+        public const string SpiderMine="spidermine";
         public static bool Fixed(string behavior)=>behavior==Turret;
         // Families of touch attackers (natural attack and own motion), as opposed to the turret's weapon.
         public static bool Touches(string behavior)=>behavior is Bat or Bloat or Slime;
@@ -25,7 +28,7 @@ namespace Remains.Domain
         public static bool DropsLootOnDeath(string behavior)=>behavior is Turret or SpriteBot;
         // Empty (Unity serializes a missing string as "") or crawler: the natural-attack crawler AI.
         public static bool IsFamily(string behavior)=>!string.IsNullOrEmpty(behavior) && behavior!=Crawler && behavior!=Raider;
-        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot;
+        public static bool Valid(string behavior)=>string.IsNullOrEmpty(behavior) || behavior is Crawler or Bat or Bloat or Slime or Turret or Raider or SpriteBot or SpiderMine;
     }
 
     // Original Unit move data in metres and seconds (speed/run px per frame × 30 / 50, accel px per frame² × 900 / 50).
@@ -37,9 +40,12 @@ namespace Remains.Domain
         // UnitBloat un@attr / un@attch: the dash at a target closer than this, with this chance per decision.
         [Min(0),InspectorName("Дальность броска, м")] public float dashRange;
         [Range(0,1),InspectorName("Шанс броска")] public float dashChance;
+        // Unit move jump (px per frame × 0.6) for walkers that jump (UnitMsp); 0 — the common movement jump.
+        [Min(0),InspectorName("Прыжок, м/с (0 — общий)")] public float jumpSpeed;
         public void Validate(string type)
         {
             if(!float.IsFinite(walkSpeed) || !float.IsFinite(runSpeed) || !float.IsFinite(acceleration) || walkSpeed<=0 || runSpeed<walkSpeed || acceleration<=0 ||
+                !float.IsFinite(jumpSpeed) || jumpSpeed<0 ||
                 !float.IsFinite(dashRange) || dashRange<0 || !float.IsFinite(dashChance) || dashChance<0 || dashChance>1)
                 throw new InvalidOperationException($"Некорректное движение существа {type}: шаг {walkSpeed}, бег {runSpeed}, ускорение {acceleration}.");
         }
@@ -70,12 +76,16 @@ namespace Remains.Domain
     }
 
     // The family AI's own state (saved and handed over with the actor's owner): its mode, a mode timer, the flight
-    // direction and whether it hangs upside down (a slime on a ceiling).
+    // direction and whether it hangs upside down (a slime on a ceiling) or clings to a surface (a spider mine).
     [Serializable] public sealed class NpcCreatureState
     {
         public string mode;
         public float timer,directionX,directionY;
         public bool inverted;
+        // UnitMsp cep: the surface it sleeps fixed on — 0 none, 1 ceiling, 2 wall on its left, 3 wall on its right;
+        // drawn turned with its feet to it.
+        public int cling;
+        public const int NoCling=0,Ceiling=1,LeftWall=2,RightWall=3;
     }
 
     // Free flight (original isFly units): the velocity turns towards the wanted one by the acceleration; walls and

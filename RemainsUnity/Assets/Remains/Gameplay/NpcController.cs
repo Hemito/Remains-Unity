@@ -17,9 +17,11 @@ namespace Remains.Gameplay
         private readonly NpcCreatureController creatures=new();
         private readonly NpcRaiderController raiders;
         private readonly WeaponRechargeController recharge;
-        public NpcController(CoopSession session,SimulationGeometry geometry)
+        // The owner's damage receiver: a spider mine destroys itself through it (NpcCreatureController.Detonates).
+        private readonly CombatController combat;
+        public NpcController(CoopSession session,SimulationGeometry geometry,CombatController combat=null)
         {
-            this.session=session;this.geometry=geometry;
+            this.session=session;this.geometry=geometry;this.combat=combat;
             recharge=new WeaponRechargeController(session);
             movementSettings=Remains.Content.MovementSettings.Load();
             raiders=new NpcRaiderController(movementSettings);
@@ -36,8 +38,14 @@ namespace Remains.Gameplay
                     var key=value;
                     if(movement.TryGetValue(key,out var controller) && ReferenceEquals(controller.Room,geometry.Get(value.level))) continue;
                     var settings=Remains.Serialization.StateJson.Copy(movementSettings);
-                    var natural=Remains.Content.ActorTypes.Get(value.type).naturalAttack;
+                    var definition=Remains.Content.ActorTypes.Get(value.type);var natural=definition.naturalAttack;
                     if(natural!=null) {settings.walkSpeed=natural.approachSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);}
+                    // A walking family with its own motion (spider mine): its speed and jump are its own (AllData move).
+                    else if(definition.motion!=null && !NpcCreatureBehaviours.Flies(definition.behavior))
+                    {
+                        settings.walkSpeed=definition.motion.walkSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);
+                        if(definition.motion.jumpSpeed>0) settings.jumpSpeed=definition.motion.jumpSpeed;
+                    }
                     movement[key]=new MovementController(geometry.Get(value.level),settings);
                 }
             };
@@ -106,6 +114,15 @@ namespace Remains.Gameplay
                 if(family)
                 {
                     bool wants=creatures.Step(actor,type,target,destination,controller.Room,controller,dt);
+                    if(type.behavior==NpcCreatureBehaviours.SpiderMine)
+                    {
+                        if(NpcCreatureController.Detonates(actor,target))
+                        {
+                            if(combat==null) throw new InvalidOperationException($"Самоподрыв мины-паука без получателя урона: actor={actor.id}.");
+                            if(combat.SelfDestruct(actor,"self-destruct:"+actor.id+":"+actor.lifecycleSequence)) session.PublishActor(actor);
+                        }
+                        continue;
+                    }
                     // A flying gun (spritebot) turns its gun to the target it sees, else holds it ahead.
                     if(type.hasWeapon) NpcWeaponAim.Apply(actor,visible?target.BodyPosition+Vector2.up*.55f:(Vector2?)null,controller.Room);
                     if(wants && visible && target.connected && !target.down && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))

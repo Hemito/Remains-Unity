@@ -21,7 +21,7 @@ namespace Remains.Presentation
             lastPoseTime=state.poseTime;
             return state.poseTime+phaseOffset;
         }
-        private bool wasInverted;
+        private bool wasInverted,wasClinging;
         private sealed class Clip
         {
             public Sprite[] frames;public AtlasActorClip definition;public Vector2[] verticalBounds;
@@ -134,6 +134,18 @@ namespace Remains.Presentation
             if(inverted) view.flipY=true;
             else if(wasInverted) view.flipY=customDeadPresentation && state.down && deadFlipY;
             wasInverted=inverted;
+            // A spider mine clinging to a ceiling or a wall (UnitMsp.setVisPos) is drawn turned with its feet to it: at the
+            // top of its body turned over, or at the wall side of it turned a quarter.
+            int cling=state.down?NpcCreatureState.NoCling:state.creature?.cling??NpcCreatureState.NoCling;
+            if(cling!=NpcCreatureState.NoCling)
+            {
+                var hull=Anatomy.Movement(state);
+                transform.position=state.Position+(cling==NpcCreatureState.Ceiling?Vector2.up*hull.height:
+                    new Vector2(cling==NpcCreatureState.LeftWall?-hull.width*.5f:hull.width*.5f,hull.height*.5f));
+                transform.rotation=Quaternion.Euler(0,0,cling==NpcCreatureState.Ceiling?180:cling==NpcCreatureState.LeftWall?-90:90);
+            }
+            else if(wasClinging) transform.rotation=Quaternion.identity;
+            wasClinging=cling!=NpcCreatureState.NoCling;
             string pose=ActorPose.Clip(state);
             if(!artwork.clips.TryGetValue(pose,out var clip))
             {

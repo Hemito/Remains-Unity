@@ -30,6 +30,8 @@ namespace Remains.Content
         [InspectorName("Рейдер: решения UnitRaider")] public Remains.Domain.RaiderSettings raider;
         // A cosmetic blast where it dies (UnitTurret.expl: newPart "miniexpl"), as a fraction of the explosion picture; 0 — none.
         [Min(0),InspectorName("Взрыв при гибели (доля изображения взрыва)")] public float deathBlastScale;
+        // A real explosion when its death is accepted (UnitMsp.dropLoot → explosion): the explosive weapon of the blast.
+        [InspectorName("Взрыв при принятой гибели (взрывчатое оружие; пусто — нет)")] public string deathExplosion;
     }
     [Serializable] public sealed class ActorTypeList {public ActorTypeDefinition[] actors;}
     public static class ActorTypes
@@ -84,6 +86,12 @@ namespace Remains.Content
             {
                 if(!definition.combatAi || !definition.hasWeapon || !definition.atlasWeaponSocket || definition.naturalAttack!=null || definition.motion==null)
                     throw new InvalidOperationException($"Тип {definition.id}: поведение {definition.behavior} требует боевой ИИ с оружием на точке атласа и движение.");
+                definition.motion.Validate(definition.id);
+            }
+            if(definition.behavior==Remains.Domain.NpcCreatureBehaviours.SpiderMine)
+            {
+                if(!definition.combatAi || definition.hasWeapon || definition.naturalAttack!=null || definition.motion==null || string.IsNullOrWhiteSpace(definition.deathExplosion))
+                    throw new InvalidOperationException($"Тип {definition.id}: мина-паук требует боевой ИИ без оружия, движение и взрыв при гибели.");
                 definition.motion.Validate(definition.id);
             }
             if(Remains.Domain.NpcCreatureBehaviours.Touches(definition.behavior))

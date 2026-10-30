@@ -26,7 +26,9 @@ namespace Remains.Content
             // The melee raiders: weapon in the teeth (raider1, raider3) and levitated (raider2, raider4).
             ("base:factory-generated:creatures-v7",new[]{"raider1","raider2","raider3","raider4","random:raider1","random:raider2","random:raider3","random:raider4"}),
             // The first robot: the flying spritebot with its laser, placed and random.
-            ("base:factory-generated:creatures-v8",new[]{"spritebot","random:spritebot"})
+            ("base:factory-generated:creatures-v8",new[]{"spritebot","random:spritebot"}),
+            // The spider mine: asleep on its floor, ceiling or wall until it runs at a target and blows up.
+            ("base:factory-generated:creatures-v9",new[]{"msp","random:msp"})
         };
         private const string RandomPrefix="random:";
         private static string[] RandomKeys(params string[] objects)=>objects.Select(o=>RandomPrefix+o).ToArray();

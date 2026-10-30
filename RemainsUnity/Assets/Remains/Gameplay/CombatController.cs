@@ -23,6 +23,11 @@ namespace Remains.Gameplay
             if(damage==null) throw new InvalidOperationException("Получатель урона контакта не готов: "+actor?.id);
             return damage.ApplyContact(actor,contactId,damageType,amount);
         }
+        public bool SelfDestruct(ActorState actor,string id)
+        {
+            if(damage==null) throw new InvalidOperationException("Получатель урона самоподрыва не готов: "+actor?.id);
+            return damage.SelfDestruct(actor,id);
+        }
         public int AttackerDecidedHits {get;private set;}
         public int VictimDecidedHits {get;private set;}
         public event Action<string> NpcReplayRejected;

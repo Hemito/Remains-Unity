@@ -199,6 +199,8 @@ namespace Remains.Networking
         public SessionMines Mines=>mines??=new SessionMines(this);
         private SessionHazards hazards;
         public SessionHazards Hazards=>hazards??=new SessionHazards(this);
+        private SessionDeathBlasts deathBlasts;
+        public SessionDeathBlasts DeathBlasts=>deathBlasts??=new SessionDeathBlasts(this);
         private SessionDoorDamage doorDamage;
         public SessionDoorDamage DoorDamage=>doorDamage ??= new SessionDoorDamage(this);
         private SessionHealingAudio healingAudio;
@@ -1074,6 +1076,13 @@ namespace Remains.Networking
                 Debug.LogError($"Не принято состояние гибели NPC: world={ServerWorld.worldId}, actor={actor.id}, type={actor.actorType}. {error.Message}");
                 connection.Send(new NoticeMessage {text="Ошибка данных добычи NPC. Гибель не сохранена; подробности в журнале."});return;
             }
+            AttackEvent deathBlast;
+            try {deathBlast=SessionDeathBlasts.Blast(actor,incoming);}
+            catch(InvalidOperationException error)
+            {
+                Debug.LogError($"Не принят взрыв гибели NPC: world={ServerWorld.worldId}, actor={actor.id}, type={actor.actorType}. {error.Message}");
+                connection.Send(new NoticeMessage {text="Ошибка данных взрыва NPC. Гибель не сохранена; подробности в журнале."});return;
+            }
             if(deathLoot==null)ServerWorld.actors[ServerWorld.actors.IndexOf(actor)]=incoming;
             else deathLoot.ApplyAccepted(ServerWorld);
             // Ordinary NPC deltas need not save and transmit the whole world.
@@ -1083,6 +1092,8 @@ namespace Remains.Networking
             if(!actor.player && !incoming.attackBusy)
                 checkpoint|=ownership.ReassignAndReportChanges(ServerWorld,owners.Values.ToArray());
             ServerWorld.revision++;
+            // The death is the explosion (spider mine): the commit carries both.
+            if(deathBlast!=null) {DeathBlasts.Detonate(deathBlast);return;}
             if(checkpoint) {BroadcastWorld();return;}
             NetworkServer.SendToAll(serverActors.Next(incoming));
         }

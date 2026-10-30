@@ -28,24 +28,29 @@ namespace Remains.Editor
             try {RunSpriteBots();EditorApplication.Exit(0);}
             catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
         }
-        public static void RunSpriteBots()
+        public static void RunSpriteBots()=>RunFamily(SpriteBotClass,NpcCreatureBehaviours.SpriteBot,"Спрайтбот",SpriteBots);
+
+        // One family of a single object over the existing catalog: its entries, rule, anatomy and death voices replace the
+        // previous ones; the rest of the catalog stays as the last full pass wrote it.
+        private delegate string FamilyPass(CreatureSources.TemplateObject template,JObject[] rows,HashSet<string> owned,List<CreatureEntry> entries,List<string> types);
+        private static void RunFamily(string className,string family,string title,FamilyPass pass)
         {
             var catalog=JObject.Parse(File.ReadAllText(ContentPackage.Catalog));
             var rows=((JArray)catalog["definitions"]).OfType<JObject>().ToArray();
             var previous=AssetDatabase.LoadAssetAtPath<CreatureCatalog>(CatalogPath)??throw new InvalidOperationException("Нет каталога существ: сначала полная генерация.");
             var owned=new HashSet<string>(previous.Creatures.Select(c=>c.actorType),StringComparer.Ordinal);
-            var template=CreatureSources.FactoryObjects(catalog).Single(o=>o.className==SpriteBotClass && o.problem==null);
+            var template=CreatureSources.FactoryObjects(catalog).Single(o=>o.className==className && o.problem==null);
             var made=new List<CreatureEntry>();var types=new List<string>();
-            string reason=SpriteBots(template,rows,owned,made,types);
-            if(reason!=null) throw new InvalidOperationException("Спрайтбот не подключён: "+reason);
-            var entries=previous.Creatures.Where(c=>c.family!=NpcCreatureBehaviours.SpriteBot).Concat(made).ToArray();
+            string reason=pass(template,rows,owned,made,types);
+            if(reason!=null) throw new InvalidOperationException(title+" не подключён: "+reason);
+            var entries=previous.Creatures.Where(c=>c.family!=family).Concat(made).ToArray();
             var rules=previous.Objects.Where(r=>r.objectId!=template.objectId).Append(new CreatureObjectRule {objectId=template.objectId,actorTypes=types.ToArray()}).ToArray();
             var gaps=previous.Gaps.Where(g=>g.sourceId!=template.objectId).ToArray();
             var generated=made.Select(e=>e.actorType).ToHashSet(StringComparer.Ordinal);
             WriteAnatomy(generated,owned,generated);
             WriteDeathAudio(made,owned,partial:true);
             previous.Configure(entries,rules,gaps);EditorUtility.SetDirty(previous);AssetDatabase.SaveAssets();
-            foreach(var entry in made) Debug.Log($"Спрайтбот {entry.sourceId} → {entry.actorType}: {string.Join("; ",entry.notes)}.");
+            foreach(var entry in made) Debug.Log($"{title} {entry.sourceId} → {entry.actorType}: {string.Join("; ",entry.notes)}.");
         }
 
         private static string SpriteBots(CreatureSources.TemplateObject template,JObject[] rows,HashSet<string> owned,List<CreatureEntry> entries,List<string> types)

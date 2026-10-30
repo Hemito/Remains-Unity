@@ -39,7 +39,7 @@ namespace Remains.Editor
             {{"UnitMonstrik",NpcCreatureBehaviours.Crawler},{"UnitBat",NpcCreatureBehaviours.Bat},{"UnitBloat",NpcCreatureBehaviours.Bloat},{"UnitSlime",NpcCreatureBehaviours.Slime}};
         // Vector creatures drawn into animation sheets by Tools/build_creature_sheets.py (rows per state, cells at the
         // unit's registration), newest set first; the raster ones use the original blit sheets.
-        private static readonly string[] VectorSheets={"../../.reference/creature-sheets-v2","../../.reference/creature-sheets-v1"};
+        private static readonly string[] VectorSheets={"../../.reference/creature-sheets-v3","../../.reference/creature-sheets-v2","../../.reference/creature-sheets-v1"};
 
         // Only the raiders (CreatureAuthoringRaiders) over the existing catalog: the other creatures, their anatomy and
         // death voices stay as the last full pass wrote them.
@@ -107,6 +107,7 @@ namespace Remains.Editor
                 var types=new List<string>();
                 if(reason==null && template.className==CreatureSources.TurretClass) reason=Turrets(template,rows,resources,package,owned,entries,types);
                 else if(reason==null && template.className==SpriteBotClass) reason=SpriteBots(template,rows,owned,entries,types);
+                else if(reason==null && template.className==SpiderMineClass) reason=SpiderMines(template,rows,owned,entries,types);
                 else foreach(string unitId in template.units)
                 {
                     if(reason!=null) break;

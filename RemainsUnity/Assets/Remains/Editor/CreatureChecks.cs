@@ -34,6 +34,7 @@ namespace Remains.Editor
                 if(NpcCreatureBehaviours.Fixed(type.behavior)) {Turret(creature,type,exported);continue;}
                 if(type.behavior==NpcCreatureBehaviours.Raider) {Raider(creature,type,exported,voices);continue;}
                 if(type.behavior==NpcCreatureBehaviours.SpriteBot) {SpriteBot(creature,type,exported,voices);continue;}
+                if(type.behavior==NpcCreatureBehaviours.SpiderMine) {SpiderMine(creature,type,exported);continue;}
                 Require(type.combatAi && type.naturalAttack!=null && type.presentation=="atlas","тип "+creature.actorType);
                 type.naturalAttack.Validate(creature.actorType);type.perception.Validate();
                 var art=AtlasAnimationData.Get(type.artwork);
@@ -89,17 +90,26 @@ namespace Remains.Editor
                 Require(random.Count>0 && random.All(id=>world.actors.Any(a=>a.id==id)),"случайные враги комнат установлены");
                 bool V7(ActorState a)=>V6(a) && ActorTypes.Get(a.actorType).raider.attacker is RaiderAttacker.Teeth or RaiderAttacker.Levitated;
                 bool V8(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.SpriteBot;
+                bool V9(ActorState a)=>ActorTypes.Get(a.actorType).behavior==NpcCreatureBehaviours.SpiderMine;
                 Require(world.actors.Any(V6),"рейдеры завода установлены");
                 Require(world.actors.Any(V7),"рукопашные рейдеры завода установлены");
                 Require(world.actors.Any(V8) && world.actors.Any(a=>V8(a) && random.Contains(a.id)) && world.actors.Any(a=>V8(a) && !random.Contains(a.id)),
                     "спрайтботы завода установлены — из шаблонов и случайные");
-                Upgrade("base:factory-generated:creatures-v7",V8,"переход v7 → v8 добавляет только спрайтботов");
-                Upgrade("base:factory-generated:creatures-v6",a=>V7(a) || V8(a),"переход v6 → v8 добавляет только рукопашных рейдеров и спрайтботов");
-                Upgrade("base:factory-generated:creatures-v5",a=>V6(a) || V8(a),"переход v5 → v8 добавляет только рейдеров и спрайтботов");
-                Upgrade("base:factory-generated:creatures-v4",a=>V5(a) || V8(a),"переход v4 → v8 добавляет только случайных врагов комнат, рейдеров и спрайтботов");
-                Upgrade("base:factory-generated:creatures-v3",a=>V4(a) || V5(a) || V8(a),"переход v3 → v8 добавляет турели, случайных врагов и спрайтботов");
-                Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a) || V5(a) || V8(a),"переход v2 → v8 добавляет летунов, слизь, турели, случайных врагов и спрайтботов");
-                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a) || V4(a) || V5(a) || V8(a),"переход v1 → v8 добавляет скорпионов, летунов, слизь, турели, случайных врагов и спрайтботов");
+                Require(world.actors.Any(V9) && world.actors.Any(a=>V9(a) && random.Contains(a.id)) && world.actors.Any(a=>V9(a) && !random.Contains(a.id)),
+                    "мины-пауки завода установлены — из шаблонов и случайные");
+                // Robots of later versions (spritebots v8, spider mines v9) are missing from every earlier world too.
+                bool Robots(ActorState a)=>V8(a) || V9(a);
+                Upgrade("base:factory-generated:creatures-v8",V9,"переход v8 → v9 добавляет только мины-пауков");
+                Upgrade("base:factory-generated:creatures-v7",Robots,"переход v7 → v9 добавляет только спрайтботов и мины-пауков");
+                Upgrade("base:factory-generated:creatures-v6",a=>V7(a) || Robots(a),"переход v6 → v9 добавляет только рукопашных рейдеров и роботов");
+                Upgrade("base:factory-generated:creatures-v5",a=>V6(a) || Robots(a),"переход v5 → v9 добавляет только рейдеров и роботов");
+                Upgrade("base:factory-generated:creatures-v4",a=>V5(a) || Robots(a),"переход v4 → v9 добавляет только случайных врагов комнат, рейдеров и роботов");
+                Upgrade("base:factory-generated:creatures-v3",a=>V4(a) || V5(a) || Robots(a),"переход v3 → v9 добавляет турели, случайных врагов и роботов");
+                Upgrade("base:factory-generated:creatures-v2",a=>V3(a) || V4(a) || V5(a) || Robots(a),"переход v2 → v9 добавляет летунов, слизь, турели, случайных врагов и роботов");
+                Upgrade("base:factory-generated:creatures-v1",a=>V2(a) || V3(a) || V4(a) || V5(a) || Robots(a),"переход v1 → v9 добавляет скорпионов, летунов, слизь, турели, случайных врагов и роботов");
+                var layout=room.CreateLayout(false);
+                int clinging=world.actors.Count(a=>V9(a) && SpiderMineCling(StateJson.Copy(a),layout)!=NpcCreatureState.NoCling);
+                Debug.Log($"Мины-пауки seed104: {world.actors.Count(V9)}, из них на потолке или стене {clinging}.");
                 CheckLevelWithoutLaterVersion(batch.npcs);
                 Behaviours(world,room.CreateLayout(false));
                 string saved=StateJson.ToJson(world);
@@ -384,12 +394,80 @@ namespace Remains.Editor
             Require(bot.creature.mode==Remains.Gameplay.NpcCreatureController.Hostile && float.IsFinite(bot.x) && float.IsFinite(bot.y),$"{id}: потеряв цель, остаётся враждебным");
         }
 
+        // Where a placed spider mine clings (its first AI step), on a copy.
+        private static int SpiderMineCling(ActorState mine,RoomLayout room)
+        {
+            new Remains.Gameplay.NpcCreatureController().Step(mine,ActorTypes.Get(mine.actorType),null,null,room,new Remains.Gameplay.MovementController(room,MovementSettings.Load()),1f/30);
+            return mine.creature.cling;
+        }
+
+        // A spider mine: a walking mine without weapon or loot, the AllData speed and jump, its death a blast of comb damage
+        // within 150 px; it sleeps fixed on a ceiling, wakes, runs, blows up next to its target and searches when it loses it.
+        private static void SpiderMine(CreatureEntry creature,ActorTypeDefinition type,ExportedContentCatalog exported)
+        {
+            string id=creature.actorType;
+            Require(type.combatAi && !type.hasWeapon && type.naturalAttack==null && type.presentation=="atlas" && !type.bodyInventory && type.hitMaterial=="metal" &&
+                type.motion!=null && !NpcCreatureBehaviours.Flies(type.behavior) && !NpcCreatureBehaviours.DropsLootOnDeath(type.behavior) && creature.deathLoot==null,
+                $"{id}: мина-паук — боевой ИИ без оружия и добычи");
+            type.motion.Validate(id);type.perception.Validate();
+            var unit=System.Xml.Linq.XElement.Parse(exported.Require("unit:"+creature.sourceId).rawXml);
+            float Num(string element,string name)=>float.Parse((string)unit.Element(element).Attribute(name),System.Globalization.CultureInfo.InvariantCulture);
+            Require(Mathf.Approximately(type.motion.walkSpeed,Num("move","speed")*.6f) && Mathf.Approximately(type.motion.jumpSpeed,Num("move","jump")*.6f),
+                $"{id}: скорость {type.motion.walkSpeed} и прыжок {type.motion.jumpSpeed} не по AllData");
+            var blast=WeaponCatalog.Get(type.deathExplosion);
+            Require(blast.explosive && Mathf.Approximately(blast.damage,Num("comb","damage")) && Mathf.Approximately(blast.range,3) &&
+                blast.damageType==DamageTypes.FromOriginal((int)Num("comb","tipdam")),$"{id}: взрыв {blast.id} — урон {blast.damage}, радиус {blast.range} м не по оригиналу");
+            var art=AtlasAnimationData.Get(type.artwork);
+            foreach(string pose in new[]{"idle",Remains.Gameplay.NpcCreatureController.Woken,"walk","run","jump","down"}) Require(art.Clip(pose).count>0,$"{id}: поза {pose}");
+            Require(art.Clip("walk").count==8 && art.Clip("idle").row!=art.Clip(Remains.Gameplay.NpcCreatureController.Woken).row,$"{id}: шаг из 8 кадров, сон и пробуждение различаются");
+            var spawned=creature.spawn.Create(new TrainingPlacement {id="check",type=id,facing=1},"level");
+            Require(Mathf.Approximately(spawned.health,Num("comb","hp")) && creature.spawn.ReadInventory()==null,$"{id}: здоровье AllData, без инвентаря");
+
+            // Hanging under a ceiling with nothing below: fixed there asleep; it lets go once it runs.
+            var room=new RoomLayout {id="spider-mine-check",left=-30,right=30,bottom=-1,top=30,ladders=Array.Empty<RoomLadder>(),
+                platforms=new[]{new RoomSurface {x=-30,y=-1,width=60,height=1},new RoomSurface {x=-5,y=5,width=10,height=1}}};
+            RoomSurfaces.Prepare(room);
+            var ground=new Remains.Gameplay.MovementController(room,MovementSettings.Load());
+            var controller=new Remains.Gameplay.NpcCreatureController();float dt=1f/30;
+            var hull=Anatomy.Movement(new ActorState {anatomy=id});
+            var mine=new ActorState {id="m",actorType=id,anatomy=id,level="l",x=0,y=5-hull.height-.2f,facing=1,health=spawned.health};
+            for(int i=0;i<30;i++) controller.Step(mine,type,null,null,room,ground,dt);
+            Require(mine.creature.cling==NpcCreatureState.Ceiling && mine.creature.mode==Remains.Gameplay.NpcCreatureController.Asleep && mine.pose=="idle" &&
+                Mathf.Abs(mine.y+hull.height-5)<.02f,$"{id}: висит под потолком, спит ({mine.creature.cling}, {mine.creature.mode}, y={mine.y})");
+            var far=new Vector2(8,-1);
+            controller.Step(mine,type,null,far,room,ground,dt);
+            Require(mine.creature.mode==Remains.Gameplay.NpcCreatureController.Woken && mine.pose==Remains.Gameplay.NpcCreatureController.Woken,$"{id}: цель будит её");
+            for(int i=0;i<45;i++) controller.Step(mine,type,null,far,room,ground,dt);
+            Require(mine.creature.mode==Remains.Gameplay.NpcCreatureController.Running && mine.creature.cling==NpcCreatureState.NoCling,$"{id}: через 30–40 кадров бежит, отпустив потолок");
+            for(int i=0;i<60;i++) controller.Step(mine,type,null,far,room,ground,dt);
+            Require(mine.x>1 && mine.y<1 && mine.facing==1,$"{id}: упала и бежит к цели ({mine.Position})");
+            var target=new ActorState {id="p",player=true,connected=true,level="l",x=mine.x+6,y=mine.y,health=100,actorType="pony",anatomy="pony"};
+            Require(!Remains.Gameplay.NpcCreatureController.Detonates(mine,target),$"{id}: вдали от цели не взрывается");
+            target.x=mine.x+1;
+            Require(Remains.Gameplay.NpcCreatureController.Detonates(mine,target),$"{id}: в 100 px от центра цели взрывается");
+            // Losing the target: it searches standing, then sleeps.
+            controller.Step(mine,type,null,null,room,ground,dt);
+            Require(mine.creature.mode==Remains.Gameplay.NpcCreatureController.Searching && mine.pose==Remains.Gameplay.NpcCreatureController.Woken,$"{id}: потеряв цель, ищет");
+            for(int i=0;i<310;i++) controller.Step(mine,type,null,null,room,ground,dt);
+            Require(mine.creature.mode==Remains.Gameplay.NpcCreatureController.Asleep,$"{id}: после поиска засыпает");
+
+            // Self-destruction is its ordinary death, and the accepted death is the blast at its feet.
+            var before=mine.Copy();var after=mine.Copy();
+            var receiver=new DamageReceiver(new FixedDamage());DamageResult result=default;receiver.Applied+=r=>result=r;
+            Require(receiver.SelfDestruct(after,"self-destruct:m:0") && after.down && after.health==0 && result.confirmedNpcDeath && !receiver.SelfDestruct(after,"self-destruct:m:1"),
+                $"{id}: самоподрыв — гибель, один раз");
+            var attack=Remains.Networking.SessionDeathBlasts.Blast(before,after);
+            Require(attack!=null && attack.weapon==type.deathExplosion && attack.attacker=="m" && Mathf.Approximately(attack.originY,after.y+.06f) &&
+                Remains.Networking.SessionDeathBlasts.Blast(before,before)==null && Remains.Networking.SessionDeathBlasts.Blast(after,after)==null,$"{id}: принятая гибель — взрыв у ног, только при переходе");
+        }
+        private sealed class FixedDamage : IDamageRule {public float Calculate(string weapon,float speed)=>10;}
+
         // A few seconds of each family on the real factory geometry with a target nearby: no NaN, never inside walls,
         // flyers move and change pose, a crawling slime stays on its floor.
         private static void Behaviours(WorldState world,RoomLayout room)
         {
             var controller=new Remains.Gameplay.NpcCreatureController();
-            foreach(string kind in new[]{NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Bloat,NpcCreatureBehaviours.Slime,NpcCreatureBehaviours.SpriteBot})
+            foreach(string kind in new[]{NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Bloat,NpcCreatureBehaviours.Slime,NpcCreatureBehaviours.SpriteBot,NpcCreatureBehaviours.SpiderMine})
             {
                 var actor=StateJson.Copy(world.actors.First(a=>ActorTypes.Get(a.actorType).behavior==kind));
                 var type=ActorTypes.Get(actor.actorType);var hull=Anatomy.Movement(actor);
@@ -411,6 +489,10 @@ namespace Remains.Editor
                 // A target in sight from the start: hostile at once, firing at some of its frames (0.1 a frame), not every one.
                 if(kind==NpcCreatureBehaviours.SpriteBot)
                     Require(poses.SetEquals(new[]{Remains.Gameplay.NpcCreatureController.Hostile}) && wants>10 && wants<300,$"спрайтбот: позы {string.Join(",",poses)}, желаний стрелять {wants} из 600");
+                // Woken by the target at once, it runs after 30–40 frames; it never attacks by itself (its death is the blast).
+                if(kind==NpcCreatureBehaviours.SpiderMine)
+                    Require(poses.Contains(Remains.Gameplay.NpcCreatureController.Woken) && (poses.Contains("walk") || poses.Contains("jump")) && wants==0 &&
+                        ActorTerrainMotion.IsClear(room,hull,actor.Position),$"мина-паук: позы {string.Join(",",poses)}, режим {actor.creature.mode}, {actor.Position}");
                 if(crawling) Require(start.y-lowest<.5f,$"слизь упала с пола: {start.y} → {lowest}");
                 Debug.Log($"Поведение {kind} ({actor.actorType}): {start} → {actor.Position}, позы {string.Join(",",poses)}, режим {actor.creature.mode}.");
             }

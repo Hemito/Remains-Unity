@@ -78,6 +78,13 @@ namespace Remains.Domain
                 throw new System.InvalidOperationException("Правило защиты не поддерживает типизированный контакт: "+actor.id);
             return ApplyAmount(actor,contactId,typed.ResolveContact(actor,damageType,amount,contactId));
         }
+        // A creature destroying itself (UnitMsp.control → die() next to its target): its remaining health, no protection;
+        // the death then takes the ordinary accepted path (death voice, its deathExplosion).
+        public bool SelfDestruct(ActorState actor,string id)
+        {
+            if(actor==null || actor.player || actor.down || actor.health<=0 || string.IsNullOrWhiteSpace(id) || actor.resolvedAttacks.Contains(id)) return false;
+            return ApplyAmount(actor,id,actor.health);
+        }
         private bool ApplyAmount(ActorState actor,string attackId,float amount)
         {
             var bodyPosition=actor.BodyPosition;float previousHealth=actor.health;bool previouslyDown=actor.down;

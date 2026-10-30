@@ -16,12 +16,15 @@ namespace Remains.Gameplay
     // All of them hurt by touch (Unit.attKorp → udarUnit): a contact attack without preparation; the pause after it
     // stands for the victim's 30-frame window between touch hits.
     //   spritebot (UnitSpriteBot): the exception — it shoots its own gun (robolaser); see SpriteBot.
+    //   spider mine (UnitMsp): no attack of its own — it runs to its target and blows itself up (Detonates); see SpiderMine.
     public sealed class NpcCreatureController
     {
         private const float Frame=1f/30;
         // UnitSpriteBot: calm (green eye, vision 0.3) until zlo turns it hostile for good (red eye, the pose of that name).
         public const string Calm="calm",Hostile="hostile";
         private const float SpriteBotElasticity=.8f;
+        // UnitMsp aiState: 0/1 asleep (pose idle), 2 woken (pose "wake"), 3 running at the target, 4 searching (pose "wake").
+        public const string Asleep="sleep",Woken="wake",Running="run",Searching="search";
         private readonly System.Random random=new();
         private float Range(float minFrames,float maxFrames)=>(minFrames+(float)random.NextDouble()*(maxFrames-minFrames))*Frame;
         private bool Chance(float p)=>random.NextDouble()<p;
@@ -39,6 +42,7 @@ namespace Remains.Gameplay
                 case NpcCreatureBehaviours.Bloat: Bloat(actor,type,state,known,room,dt);return true;
                 case NpcCreatureBehaviours.Slime: Slime(actor,state,room,ground,dt);return true;
                 case NpcCreatureBehaviours.SpriteBot: return SpriteBot(actor,type,state,known,room,dt);
+                case NpcCreatureBehaviours.SpiderMine: SpiderMine(actor,state,known,room,ground,dt);return false;
                 default: throw new InvalidOperationException($"Неизвестное поведение существа {type.behavior}: actor={actor.id}.");
             }
         }
@@ -58,6 +62,7 @@ namespace Remains.Gameplay
                 return new NpcCreatureState {mode=!floor && ceiling?"hang":"crawl",inverted=!floor && ceiling,directionX=actor.facing};
             }
             if(type.behavior==NpcCreatureBehaviours.Bat) return new NpcCreatureState {mode="hang",timer=Range(5,15)};
+            if(type.behavior==NpcCreatureBehaviours.SpiderMine) return new NpcCreatureState {mode=Asleep,cling=Cling(actor,room),directionX=actor.facing};
             // UnitSpriteBot.setNull: calm, the first decision in 5–55 frames.
             if(type.behavior==NpcCreatureBehaviours.SpriteBot) return new NpcCreatureState {mode=Calm,timer=Range(5,55)};
             return new NpcCreatureState {mode="drift",directionX=Chance(.5f)?.7f:-.7f,directionY=Chance(.5f)?.7f:-.7f,timer=Range(5,15)};
@@ -189,6 +194,87 @@ namespace Remains.Gameplay
             ActorPose.Select(actor,hostile?Hostile:"idle");
             return hostile && known.HasValue && Chance(1-Mathf.Pow(.9f,dt/Frame));
         }
+        // UnitMsp.putLoc: with no floor under it, a mine with solid ground 20 px above its top hangs on that ceiling, else one
+        // with a wall beside it clings to that wall; it is moved against the surface it holds and stays fixed there.
+        private static int Cling(ActorState actor,RoomLayout room)
+        {
+            var hull=Anatomy.Movement(actor);
+            if(ActorTerrainMotion.Supported(room,hull,actor.Position,false)) return NpcCreatureState.NoCling;
+            (int cling,Vector2 toward)[] surfaces={(NpcCreatureState.Ceiling,Vector2.up*(20/50f)),(NpcCreatureState.LeftWall,Vector2.left*(40/50f)),(NpcCreatureState.RightWall,Vector2.right*(40/50f))};
+            foreach(var (cling,toward) in surfaces)
+            {
+                if(ActorTerrainMotion.IsClear(room,hull,actor.Position+toward)) continue;
+                actor.Position=ActorTerrainMotion.Move(room,hull,actor.Position,toward,true,bodyTops:false);actor.vx=actor.vy=0;
+                return cling;
+            }
+            return NpcCreatureState.NoCling;
+        }
+        // UnitMsp.control, times in frames / 30. Asleep it waits (fixed where it clings, else standing); noticing a target
+        // wakes it for 30–40 frames, then — the target still known — it lets go of its surface and runs at it; every 15
+        // frames it turns to the target when it is more than 40 px aside and, nine times in ten, drops through platforms
+        // to a target more than 80 px below or jumps (one in five) to one more than 40 px above; at a wall it jumps,
+        // turning back now and then. Losing the target it searches standing for maxSpok × 10 frames, then sleeps.
+        // Next to the target it blows up (Detonates). directionY holds its platform drop (throu) between the 15-frame turns.
+        private void SpiderMine(ActorState actor,NpcCreatureState state,Vector2? known,RoomLayout room,MovementController ground,float dt)
+        {
+            switch(state.mode)
+            {
+                case Asleep:
+                    if(state.cling==NpcCreatureState.NoCling) ground.Step(actor,Vector2.zero,false,dt);
+                    if(known.HasValue) {state.mode=Woken;state.timer=Range(30,40);}
+                    ActorPose.Select(actor,state.mode==Asleep?"idle":Woken);
+                    return;
+                case Woken:
+                    if(state.cling==NpcCreatureState.NoCling) ground.Step(actor,Vector2.zero,false,dt);
+                    if(state.timer<=0)
+                    {
+                        if(known.HasValue) {state.mode=Running;state.cling=NpcCreatureState.NoCling;state.timer=0;Turn(actor,state,known.Value);}
+                        else state.mode=Asleep;
+                    }
+                    ActorPose.Select(actor,state.mode==Asleep?"idle":Woken);
+                    return;
+                case Searching:
+                    ground.Step(actor,Vector2.zero,false,dt);
+                    if(known.HasValue) state.mode=Running;
+                    else if(state.timer<=0) state.mode=Asleep;
+                    ActorPose.Select(actor,state.mode==Asleep?"idle":Woken);
+                    if(state.mode!=Running) return;
+                    break;
+            }
+            if(!known.HasValue) {state.mode=Searching;state.timer=30*10*Frame;ActorPose.Select(actor,Woken);return;}
+            bool jump=false;
+            if(state.timer<=0)
+            {
+                state.timer=15*Frame;
+                float below=actor.y-known.Value.y;
+                if(Chance(.9f)) {if(below>80/50f) state.directionY=1;jump=below<-40/50f && Chance(.2f);}
+                else state.directionY=0;
+                Turn(actor,state,known.Value);
+            }
+            if(actor.y<=room.bottom+80/50f) state.directionY=0;
+            var hull=Anatomy.Movement(actor);
+            // Unit turnX at a wall ahead: it jumps, and with a small chance turns back instead.
+            if(ActorTerrainMotion.Supported(room,hull,actor.Position,false) && !ActorTerrainMotion.IsClear(room,hull,actor.Position+Vector2.right*(state.directionX*.05f)))
+            {
+                if(Chance(.03f)) state.directionX=-state.directionX;
+                else jump=true;
+            }
+            ground.Step(actor,new Vector2(state.directionX,0),jump,dt,dropThrough:state.directionY>0);
+            ActorPose.Select(actor,ActorTerrainMotion.Supported(room,hull,actor.Position,false)?"walk":"jump");
+        }
+        private static void Turn(ActorState actor,NpcCreatureState state,Vector2 known)
+        {
+            float aside=known.x-actor.x;
+            if(Mathf.Abs(aside)>40/50f || state.directionX==0) state.directionX=aside>=0?1:-1;
+        }
+        // UnitMsp.control: a running mine whose target's centre is within 100 px of its feet dies — its death is the blast.
+        public static bool Detonates(ActorState actor,ActorState target)
+        {
+            if(actor.creature?.mode!=Running || target==null || target.level!=actor.level || !ActorPresence.IsPresent(target)) return false;
+            var centre=target.Position+Vector2.up*(Anatomy.Movement(target).height*.5f);
+            return (centre-actor.Position).sqrMagnitude<(100/50f)*(100/50f);
+        }
+
         private Vector2 RandomDirection() {float angle=(float)random.NextDouble()*Mathf.PI*2;return new Vector2(Mathf.Cos(angle),Mathf.Sin(angle));}
 
         private Vector2 Jitter(CreatureMotionSettings motion)=>new Vector2((float)random.NextDouble()-.5f,(float)random.NextDouble()-.5f)*motion.walkSpeed*.3f;

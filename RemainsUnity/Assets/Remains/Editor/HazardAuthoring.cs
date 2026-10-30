@@ -106,7 +106,7 @@ namespace Remains.Editor
         }
 
         // The generated weapons' entries replace their previous ones in the combat sound catalog.
-        private static void WriteAudio(List<JObject> generated)
+        internal static void WriteAudio(List<JObject> generated)
         {
             var json=JObject.Parse(File.ReadAllText(CombatAudioPath));var entries=(JArray)json["entries"];
             var ids=generated.Select(e=>(string)e["weapon"]).ToHashSet(StringComparer.Ordinal);

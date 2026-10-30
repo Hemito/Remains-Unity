@@ -206,7 +206,7 @@ namespace Remains.Runtime
             HeldItems=CreateOwnedObject("Удерживаемые вещи").AddComponent<HeldItemVisuals>();HeldItems.Initialize(Session,visualLayers);
             var room=RoomLayout.Load(shownLevel);
             movement=CreateMovement(room);
-            npcs=new NpcController(Session,Geometry);
+            npcs=new NpcController(Session,Geometry,Combat);
             spikes=new SpikeController(Session,Geometry,Combat);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
             ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();
