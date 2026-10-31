@@ -1,0 +1,394 @@
+fileFormatVersion: 2
+guid: 54f4ddd3732a34a45af8180f01e48869
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 6943535168657398750
+    second: head_0
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 1
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 0
+  spriteMeshType: 1
+  alignment: 9
+  spritePivot: {x: 0, y: 0}
+  spritePixelsToUnits: 512
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: head_0
+      rect:
+        serializedVersion: 2
+        x: 2
+        y: 2
+        width: 415
+        height: 423
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: edb914d82746c5060800000000000000
+      internalID: 6943535168657398750
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    outline: []
+    customData:
+    physicsShape: []
+    bones:
+    - name: torso
+      guid: 3b28f83f1375ed28a839d6e8d636a0d5
+      position: {x: 11, y: -85.95999, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      length: 119.856125
+      parentId: -1
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: neck
+      guid: 818f52a9d43c3557bc23b1579d79cb0b
+      position: {x: 112.64, y: 40.95999, z: 0}
+      rotation: {x: 0, y: 0, z: 0.62867755, w: 0.7776661}
+      length: 146.61447
+      parentId: 0
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: head
+      guid: 59735b548f2c90613273b39f0e6348af
+      position: {x: 146.61447, y: -0.0000018214741, z: 0}
+      rotation: {x: 0, y: 0, z: -0.62867755, w: 0.7776661}
+      length: 20.48
+      parentId: 1
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: tailBase
+      guid: 5871e805143aa32d2d26cb5ff89be3f2
+      position: {x: -102.4, y: 61.440002, z: 0}
+      rotation: {x: 0, y: 0, z: -0.984232, w: 0.1768823}
+      length: 191.16191
+      parentId: 0
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: tailMiddle
+      guid: 5c05fd030420e2f4f91502d10df735fd
+      position: {x: 191.16191, y: 0.000009635358, z: 0}
+      rotation: {x: 0, y: 0, z: 0.38688254, w: 0.922129}
+      length: 213.14212
+      parentId: 3
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: tailTip
+      guid: 5f72f9721e6b3d74480954d65042bc25
+      position: {x: 213.1421, y: 0.0000071998493, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      length: 20.48
+      parentId: 4
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: frontNearShoulder
+      guid: 651479ecafde8abbd15741ea508a166f
+      position: {x: 102.4, y: -61.440002, z: 0}
+      rotation: {x: 0, y: 0, z: -0.72882724, w: 0.6846976}
+      length: 82.07986
+      parentId: 0
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: frontNearElbow
+      guid: 076315a8bf743c12dfd34bf45bc4df44
+      position: {x: 82.07986, y: -0.0000015984583, z: 0}
+      rotation: {x: 0, y: 0, z: 0.031204386, w: 0.99951303}
+      length: 66.56
+      parentId: 6
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: frontNearWrist
+      guid: 1c541568ea7174d450073b6782b41300
+      position: {x: 66.55999, y: -0.000003967285, z: 0}
+      rotation: {x: 0, y: 0, z: 0.02081982, w: 0.9997832}
+      length: 122.98662
+      parentId: 7
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: frontNearHoof
+      guid: e22bf3f876e743c7f40c3cff9e803a59
+      position: {x: 122.986626, y: 0.000007741355, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      length: 20.48
+      parentId: 8
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: frontFarShoulder
+      guid: fec3891de02017605f4ad1404541ddf2
+      position: {x: 133.12, y: -40.960022, z: 0}
+      rotation: {x: 0, y: 0, z: -0.70710677, w: 0.70710677}
+      length: 81.91998
+      parentId: 0
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: frontFarElbow
+      guid: 63700505faf03e873e790eb59961aa36
+      position: {x: 81.919975, y: -0.0000048828115, z: 0}
+      rotation: {x: 0, y: 0, z: 0.07625058, w: 0.9970887}
+      length: 67.34309
+      parentId: 10
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: frontFarWrist
+      guid: 7530dfde17d13c87d72d8ff29f33f71c
+      position: {x: 67.34309, y: 0.0000024435876, z: 0}
+      rotation: {x: 0, y: 0, z: -0.07625058, w: 0.9970887}
+      length: 122.880005
+      parentId: 11
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: frontFarHoof
+      guid: 116721bed28be6d23e0914fdcaaf5d9a
+      position: {x: 122.88, y: -0.000007324219, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      length: 20.48
+      parentId: 12
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: hindNearHip
+      guid: 35022584c123a7773adb4e5611ba875a
+      position: {x: -97.28, y: 25.600006, z: 0}
+      rotation: {x: 0, y: 0, z: -0.72056687, w: 0.6933854}
+      length: 133.21843
+      parentId: 0
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: hindNearKnee
+      guid: ba919332c319ebce55bae74e3daeea33
+      position: {x: 133.21843, y: 0.0000074198542, z: 0}
+      rotation: {x: 0, y: 0, z: -0.17404708, w: 0.98473734}
+      length: 121.70101
+      parentId: 14
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: hindNearHock
+      guid: b1d22bbf0e7b0ccff0cb95a8c30ab969
+      position: {x: 121.70101, y: 0.0000016155841, z: 0}
+      rotation: {x: 0, y: 0, z: 0.1736763, w: 0.9848028}
+      length: 130.66035
+      parentId: 15
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: hindNearHoof
+      guid: e3f9d95477a94391db0b03368fa35162
+      position: {x: 130.66035, y: -0.00000039287443, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      length: 20.48
+      parentId: 16
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: hindFarHip
+      guid: 518dce0cf5c9de4f84ddf32a30112120
+      position: {x: -46.08, y: 30.720001, z: 0}
+      rotation: {x: 0, y: 0, z: -0.6933855, w: 0.7205668}
+      length: 133.21843
+      parentId: 0
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: hindFarKnee
+      guid: a704602f1570e0af9d77f3e38f8fcccc
+      position: {x: 133.21843, y: 0.0000005147167, z: 0}
+      rotation: {x: 0, y: 0, z: -0.23909229, w: 0.97099686}
+      length: 119.088165
+      parentId: 18
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: hindFarHock
+      guid: 08598948758f9183ec7ee20053a8a8a0
+      position: {x: 119.088165, y: -0.0000059582026, z: 0}
+      rotation: {x: 0, y: 0, z: 0.20002976, w: 0.9797898}
+      length: 122.98662
+      parentId: 19
+      color:
+        serializedVersion: 2
+        rgba: 0
+    - name: hindFarHoof
+      guid: 6c74b06ecd2d027f0260e8bac7b6173a
+      position: {x: 122.986626, y: 0.000014529863, z: 0}
+      rotation: {x: 0, y: 0, z: 0, w: 1}
+      length: 20.48
+      parentId: 20
+      color:
+        serializedVersion: 2
+        rgba: 0
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 1537655665
+    vertices:
+    - {x: 0, y: 0}
+    - {x: 419, y: 0}
+    - {x: 0, y: 427}
+    - {x: 419, y: 427}
+    indices: 000000000200000001000000010000000200000003000000
+    edges:
+    - {x: 0, y: 2}
+    - {x: 0, y: 1}
+    - {x: 2, y: 3}
+    - {x: 1, y: 3}
+    weights:
+    - 'weight[0]': 1
+      'weight[1]': 0
+      'weight[2]': 0
+      'weight[3]': 0
+      'boneIndex[0]': 2
+      'boneIndex[1]': 0
+      'boneIndex[2]': 0
+      'boneIndex[3]': 0
+    - 'weight[0]': 1
+      'weight[1]': 0
+      'weight[2]': 0
+      'weight[3]': 0
+      'boneIndex[0]': 2
+      'boneIndex[1]': 0
+      'boneIndex[2]': 0
+      'boneIndex[3]': 0
+    - 'weight[0]': 1
+      'weight[1]': 0
+      'weight[2]': 0
+      'weight[3]': 0
+      'boneIndex[0]': 2
+      'boneIndex[1]': 0
+      'boneIndex[2]': 0
+      'boneIndex[3]': 0
+    - 'weight[0]': 1
+      'weight[1]': 0
+      'weight[2]': 0
+      'weight[3]': 0
+      'boneIndex[0]': 2
+      'boneIndex[1]': 0
+      'boneIndex[2]': 0
+      'boneIndex[3]': 0
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      head_0: 6943535168657398750
+  mipmapLimitGroupName:
+  pSDRemoveMatte: 0
+  userData:
+  assetBundleName:
+  assetBundleVariant:
