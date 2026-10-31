@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "outfit": "armor.battle",
+  "nodes": [
+    {"socket":"torso","pivot":[0.5,0.5],"target":[0,0.07],"angle":180,"scaleX":1.18,"scaleY":1.1},
+    {"socket":"neck","pivot":[0.5,0.5],"target":[-0.4,0.17],"angle":110},
+    {"socket":"head","pivot":[0.5,0.5],"target":[-0.8,0.25],"angle":90},
+    {"socket":"mane","follow":"head"},
+    {"socket":"tail","pivot":[0.9,0.85],"target":[0.34,0],"angle":140,"scaleX":1.3,"scaleY":0.65,"squashY":0.4},
+    {"socket":"frontUpperNear","pivot":[0.6,0.9],"target":[-0.35,0.23],"angle":210},
+    {"socket":"frontMiddleNear","parent":"frontUpperNear","pivot":[0.5,0.95],"angle":-100},
+    {"socket":"frontLowerNear","parent":"frontMiddleNear","pivot":[0.5,0.95],"angle":60},
+    {"socket":"pipbuckNear","follow":"frontLowerNear"},
+    {"socket":"frontUpperFar","pivot":[0.6,0.9],"target":[-0.23,0.26],"angle":245},
+    {"socket":"frontMiddleFar","parent":"frontUpperFar","pivot":[0.5,0.95],"angle":-110},
+    {"socket":"frontLowerFar","parent":"frontMiddleFar","pivot":[0.5,0.95],"angle":50},
+    {"socket":"pipbuckFar","follow":"frontLowerFar"},
+    {"socket":"hindUpperNear","pivot":[0.65,0.95],"target":[0.25,0.13],"angle":140},
+    {"socket":"hindLowerNear","parent":"hindUpperNear","pivot":[0.5,0.95],"angle":85},
+    {"socket":"hindUpperFar","pivot":[0.65,0.95],"target":[0.35,0.17],"angle":110},
+    {"socket":"hindLowerFar","parent":"hindUpperFar","pivot":[0.5,0.95],"angle":100}
+  ]
+}
