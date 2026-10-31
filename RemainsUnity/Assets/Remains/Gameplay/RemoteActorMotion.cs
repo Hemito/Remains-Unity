@@ -17,6 +17,8 @@ namespace Remains.Gameplay
             public string pose;
             public uint poseSequence;
             public Vector2 position,velocity,correction,received;
+            // The replicated weapon tip relative to the body it was captured with: it moves with the shown body.
+            public Vector2 tip;
             public float age,phase,phaseCorrection,receivedPhase;
             public bool clockReady;
             public double clockOffset;
@@ -52,7 +54,8 @@ namespace Remains.Gameplay
                 {
                     sample=new Sample {owner=actor.owner,level=actor.level,generation=actor.generation,lifecycle=actor.lifecycleSequence,
                         sequence=actor.motionSequence,down=ActorSessionRules.IsPassive(actor),position=actor.Position,received=actor.Position,velocity=actor.Velocity,
-                        climbing=climbing,pairedBody=pairedBody,pose=actor.pose,poseSequence=actor.poseSequence,phase=actor.poseTime,receivedPhase=actor.poseTime};
+                        climbing=climbing,pairedBody=pairedBody,pose=actor.pose,poseSequence=actor.poseSequence,phase=actor.poseTime,receivedPhase=actor.poseTime,
+                        tip=WeaponTip(actor)-actor.Position};
                     samples[actor.id]=sample;
                     ObserveClock(actor,sample,now);
                 }
@@ -79,7 +82,7 @@ namespace Remains.Gameplay
                     else if(teleport || sample.climbing || sample.pairedBody)
                     {sample.position=projected;sample.correction=Vector2.zero;sample.phaseCorrection=0;}
                     else sample.correction=projected-sample.position;
-                    sample.received=received;sample.sequence=actor.motionSequence;sample.velocity=actor.Velocity;sample.age=age;
+                    sample.received=received;sample.tip=WeaponTip(actor)-received;sample.sequence=actor.motionSequence;sample.velocity=actor.Velocity;sample.age=age;
                     sample.climbing=climbing;sample.pairedBody=pairedBody;sample.pose=actor.pose;sample.poseSequence=actor.poseSequence;sample.receivedPhase=actor.poseTime;
                 }
                 sample.seen=tick;
@@ -103,10 +106,12 @@ namespace Remains.Gameplay
                 actor.Position=sample.position;
                 if(sample.climbing || sample.pairedBody) actor.poseTime=sample.phase;
                 if(running) ResolveTerrainPair(actor,sample);
+                var shown=actor.Position;actor.weaponTipX=shown.x+sample.tip.x;actor.weaponTipY=shown.y+sample.tip.y;
             }
             removed.Clear();foreach(var pair in samples) if(pair.Value.seen!=tick) removed.Add(pair.Key);
             foreach(string id in removed) samples.Remove(id);
         }
+        private static Vector2 WeaponTip(ActorState actor)=>new(actor.weaponTipX,actor.weaponTipY);
         private void ResolveTerrainPair(ActorState actor,Sample sample)
         {
             if(!sample.pairedBody || actor.vy!=0 || actor.climbing || ActorSessionRules.IsPassive(actor) ||

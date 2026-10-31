@@ -56,6 +56,8 @@ namespace Remains.Gameplay
         public WeaponReloadController Reload { get; }
         private readonly WeaponRechargeController recharge;
         public ProjectileController Projectiles {get;}
+        // The local player's body strikes (the raiders' own go through the same executor in NpcRaiderController).
+        public PonyStrikes Strikes {get;}=new();
         private float nextResourceNotice;
         private string selectedActor;
         private int selectedGeneration;
@@ -98,7 +100,7 @@ namespace Remains.Gameplay
             if(HeldItemSelection.HasSelection(attacker)) return false;
             if(attacker?.weaponInventoryVersion==1) Weapon=WeaponInventory.Selected(attacker)?.definition;
             if(Weapon=="grenade") return false; // Throws use their own inventory transaction and flight.
-            if (string.IsNullOrEmpty(Weapon) || attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready) return false;
+            if (string.IsNullOrEmpty(Weapon) || attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready || Strikes.Busy(attacker)) return false;
             var definition=WeaponCatalog.Get(Weapon);
             session.Recoil.Reconcile();
             attacker.weapon=Weapon;
@@ -148,10 +150,19 @@ namespace Remains.Gameplay
             return true;
         }
 
+        // UnitPlayer.keyPunch: a punch, with the run key a kick behind; one action at a time (no strike during a swing, no
+        // shot during a strike).
+        public bool Strike(ActorState actor,bool kick)
+        {
+            if(actor==null || IsMeleeActive || session.Pause.IsPaused(actor.level)) return false;
+            return Strikes.Begin(actor,kick,geometry.Get(actor.level));
+        }
+
         public void Step(float dt)
         {
             pending.Drain(session.Pause.IsPaused);
             Projectiles.Step(dt);
+            if(session.World!=null) Strikes.Step(session.World,session.LocalOwner,dt,session.Pause.IsPaused,session.Fire);
             if(session.LocalActor!=null && session.Pause.IsPaused(session.LocalActor.level)) dt=0;
             recharge.Step(session.LocalActor,dt,shotCooldown.Remaining);
             shotCooldown.Advance(dt);
@@ -266,7 +277,7 @@ namespace Remains.Gameplay
                             session.ReportFriendlyHit(new FriendlyHitMessage {target=actor.id,generation=actor.generation,lifecycle=actor.lifecycleSequence,attackJson=JsonUtility.ToJson(attack)});
                         return;
                     }
-                    if (actor.owner == session.LocalOwner && damage.Apply(actor, attack, contact))
+                    if (actor.owner == session.LocalOwner && ApplyVictim(actor, attack, contact))
                     {
                         VictimDecidedHits++;
                         session.PublishActor(actor);
@@ -287,7 +298,22 @@ namespace Remains.Gameplay
             if(session.Pause.IsPaused(actor.level)) {pending.Add(actor.level,()=>ReceiveNpcHit(message));return;}
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             if(actor.resolvedAttacks.Contains(attack.id)) {NpcReplayRejected?.Invoke(attack.id);return;}
-            if (damage.Apply(actor, attack, true)) session.PublishActor(actor);
+            if (ApplyVictim(actor, attack, true)) session.PublishActor(actor);
+        }
+        // udarUnit: a body contact lands at most once per the victim's window (Unit.neujaz, shared with spikes and Box),
+        // whoever touches: two raiders cannot both hit in one window.
+        private bool ApplyVictim(ActorState actor,AttackEvent attack,bool contact)
+        {
+            if(!NpcNaturalAttack.IsNatural(attack)) return damage.Apply(actor,attack,contact);
+            if(!session.LevelTime.HasLocal(actor.level))
+            {
+                Debug.LogWarning($"Касание без часов уровня — окно жертвы не проверено: actor={actor.id}, attack={attack.id}, level={actor.level}.");
+                return damage.Apply(actor,attack,contact);
+            }
+            double now=session.LevelTime.ReadLocal(actor.level);
+            if(PropImpactCooldown.Active(actor,now) || !damage.Apply(actor,attack,contact)) return false;
+            PropImpactCooldown.Record(actor,actor.level,now+SpikeRules.Cooldown(actor));
+            return true;
         }
         private void ReceiveFriendlyHit(FriendlyHitMessage message)
         {

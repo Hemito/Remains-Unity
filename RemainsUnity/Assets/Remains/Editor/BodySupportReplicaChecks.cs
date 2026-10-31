@@ -148,7 +148,12 @@ namespace Remains.Editor
                     }
                     long snaps=motion.TerrainPairSnaps;var expectedFields=actor.Copy();
                     Step(motion,world,actor,dt,now);
+                    // The replicated weapon tip moves with the shown body (RemoteActorMotion), keeping its offset from it.
+                    var tipOffset=new Vector2(actor.weaponTipX,actor.weaponTipY)-actor.Position;
+                    Require(Vector2.Distance(tipOffset,new Vector2(expectedFields.weaponTipX,expectedFields.weaponTipY)-expectedFields.Position)<.0001f,
+                        "Кончик оружия не сдвинулся вместе с показанным телом.");
                     var actualFields=actor.Copy();actualFields.Position=expectedFields.Position;actualFields.poseTime=expectedFields.poseTime;
+                    actualFields.weaponTipX=expectedFields.weaponTipX;actualFields.weaponTipY=expectedFields.weaponTipY;
                     Require(StateJson.ToJson(actualFields)==StateJson.ToJson(expectedFields),"Remote body pairing изменило поля вне position/phase.");
                     if(motion.TerrainPairSnaps!=snaps)
                     {

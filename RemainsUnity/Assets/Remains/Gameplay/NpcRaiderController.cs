@@ -33,6 +33,7 @@ namespace Remains.Gameplay
         }
         private readonly Dictionary<string,Entry> entries=new(StringComparer.Ordinal);
         private readonly List<string> forgotten=new();
+        private readonly PonyStrikes strikes=new();
         private readonly MovementSettings baseSettings;
         private readonly System.Random random;
         private int frame;private float time;
@@ -97,8 +98,8 @@ namespace Remains.Gameplay
             return new RaiderActions(weapon,bodyHit,changed);
         }
 
-        // attKorp: a touch in reach, at most once per the victim's window between touches (neujazMax: 30 frames for a
-        // player, 20 for a unit) — kept by the attacker's owner here, not on the victim.
+        // attKorp: a touch in reach. The victim's window (neujaz) decides whether it lands (CombatController.ApplyVictim);
+        // this pause of the same length only keeps one attacker from sending a touch every frame.
         public AttackEvent Touch(ActorState actor,ActorTypeDefinition type,ActorState target,RoomLayout room,float factor)
         {
             var entry=Get(actor,type,room);
@@ -107,6 +108,21 @@ namespace Remains.Gameplay
             if(attack!=null) entry.touchReady=time+(target.player?1:2f/3);
             return attack;
         }
+
+        // A sapient raider's body hit is the players' strike (user 2026-10-31: shared actions): a punch at a target ahead,
+        // a kick at one behind. The robobrain and zombies on this brain keep the touch (PonyStrikeRules.Allowed). The
+        // action is the player's; how often the raider chooses it keeps attKorp's pace, once per the victim's window.
+        public bool Strike(ActorState actor,ActorTypeDefinition type,ActorState target,RoomLayout room)
+        {
+            var entry=Get(actor,type,room);
+            if(time<entry.touchReady) return false;
+            bool punch=PonyStrikeRules.InReach(actor,target,false),kick=!punch && PonyStrikeRules.InReach(actor,target,true);
+            if(!(punch || kick) || !strikes.Begin(actor,kick,room)) return false;
+            entry.touchReady=time+(target.player?1:2f/3);
+            return true;
+        }
+        public bool Striking(ActorState actor)=>strikes.Busy(actor);
+        public void StepStrikes(WorldState world,string owner,float dt,Func<string,bool> paused,Action<AttackEvent> fire)=>strikes.Step(world,owner,dt,paused,fire);
 
         // A swing begun by NpcAttackRules (its action lasts the weapon's rapid): sampled as a player's swing, every contact
         // segment fired. A swing handed over mid-way has no sweep here and only runs out.

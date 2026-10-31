@@ -47,7 +47,8 @@ namespace Remains.Domain
         }
         // udarUnit: a touch deals 0.8–1.2 of its damage times the attacker's factor (attKorp param2, 1 or 0.5).
         public const float MinVariation=-.6f,MaxVariation=.2f;
-        public static float Variation(float factor,System.Random random)=>factor*(float)(random.NextDouble()*.4+.8)-1;
+        // The float rounding of a roll next to 1 may step past the bound by an ulp; the bound itself is the original's.
+        public static float Variation(float factor,System.Random random)=>Mathf.Clamp(factor*(float)(random.NextDouble()*.4+.8)-1,MinVariation,MaxVariation);
         public static Vector2 Origin(ActorState actor)
         {var data=Definition(actor.actorType);return actor.BodyPosition+new Vector2(data.originX*actor.facing,data.originY);}
         public static bool InRange(ActorState actor,ActorState target)

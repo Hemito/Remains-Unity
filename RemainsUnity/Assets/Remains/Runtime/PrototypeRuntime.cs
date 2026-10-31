@@ -681,6 +681,7 @@ namespace Remains.Runtime
                 command.reload=keyboard.rKey.wasPressedThisFrame;
                 command.interact=keyboard.eKey.wasPressedThisFrame;command.revive=keyboard.eKey.isPressed;command.telekinesis=keyboard.qKey.isPressed;
                 command.grenade=keyboard.gKey.wasPressedThisFrame;command.heal=keyboard.hKey.wasPressedThisFrame;
+                command.strike=keyboard.fKey.wasPressedThisFrame;   // Ctr keyPunch (F), a kick with the run key
             }
             if(mouse!=null)
             {
@@ -759,6 +760,7 @@ namespace Remains.Runtime
                 else if(!Combat.IsMeleeActive) WeaponPose.Aim(actor,command.aim,Geometry.Get(actor.level));
             }
             if(command.reload && !HeldItemSelection.HasSelection(actor) && !Combat.IsMeleeActive) Combat.Reload.Start(actor,Combat.Weapon);
+            if(command.strike) Combat.Strike(actor,command.sprint);
             Revival.Step(InteractionFocus.Target,command.revive,dt);
             Telekinesis.Step(command.telekinesis,command.aim,dt);
             // G uses the throw slot as the original: a mine held in telekinesis is released, otherwise a grenade is thrown.

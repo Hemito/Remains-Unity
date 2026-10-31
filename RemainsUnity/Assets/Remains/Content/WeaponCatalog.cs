@@ -49,6 +49,8 @@ namespace Remains.Content
         [InspectorName("Взмах вокруг удерживаемой точки (WClub)")] public bool meleeAroundHold;
         [InspectorName("Смещение точки удержания от прицела, доли клинка")] public Vector2 meleeAimOffset;
         public HoldingArea holdingArea;
+        // A body strike (original WKick), not an inventory weapon: see StrikeProfile.
+        [InspectorName("Удар телом (WKick)")] public StrikeProfile strike;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
         public float FlightRange(float speed)=>projectileLifetime>0?speed*projectileLifetime:range;
         public bool stopAtFirstActor,stopAtTerrain;
@@ -60,6 +62,17 @@ namespace Remains.Content
         // endless supply). Weapons with an ammo item use their magazine as well.
         public bool unlimitedReserve;
         public bool UsesMagazine=>!string.IsNullOrEmpty(ammo) || unlimitedReserve || rechargeSeconds>0;
+    }
+    // WKick.actions: at `contact` of the strike (its cooldown) one contact of horizontal segments from `near` to `far`
+    // in front of the body (behind it for a kick) at the heights above the support, metres.
+    [Serializable] public sealed class StrikeProfile
+    {
+        [InspectorName("Назад (пинок)")] public bool behind;
+        [Min(0),InspectorName("Ближний край, м")] public float near;
+        [Min(0),InspectorName("Дальний край, м")] public float far;
+        [Range(0,1),InspectorName("Момент контакта, доля удара")] public float contact;
+        [InspectorName("Высоты отрезков от опоры, м")] public float[] heights;
+        public bool Configured=>heights!=null && heights.Length>0;
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }
@@ -80,6 +93,7 @@ namespace Remains.Content
         public static bool Contains(string id)=>id!=null && definitions.ContainsKey(id);
         // A melee weapon is one with a swing (meleeMotion); the loader turns an empty one into null.
         public static bool IsMelee(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.meleeMotion!=null;
+        public static bool IsStrike(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.strike!=null && value.strike.Configured;
         public static bool IsExplosive(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive;
         public static bool IsMine(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive && value.mine!=null && value.mine.Configured;
 

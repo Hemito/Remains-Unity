@@ -150,8 +150,10 @@ namespace Remains.Gameplay
                     var wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt);
                     if(wants.changed) session.PublishActor(actor);
                     bool ready=visible && target.level==actor.level && target.connected && !target.down;
+                    if(raiders.Striking(actor)) continue;
                     if(wants.weapon && ready && actor.attackCooldown<=0 && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
                         session.PublishActor(actor);
+                    else if(wants.bodyHit>0 && ready && PonyStrikeRules.Allowed(actor)) raiders.Strike(actor,type,target,controller.Room);
                     else if(wants.bodyHit>0 && ready && raiders.Touch(actor,type,target,controller.Room,wants.bodyHit) is {} touch)
                         session.FirePrepared(touch);
                     continue;
@@ -173,6 +175,7 @@ namespace Remains.Gameplay
                     if(NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming)) session.PublishActor(actor);
                 }
             }
+            raiders.StepStrikes(session.World,session.LocalOwner,dt,session.Pause.IsPaused,session.Fire);
             raiders.EndFrame(dt);
         }
     }

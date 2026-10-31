@@ -231,6 +231,14 @@ namespace Remains.Content
                     string.IsNullOrEmpty(mine.defuseSound))
                     throw new InvalidDataException($"Некорректный профиль мины: источник={source}, id={weapon.id}. Нужны взрывное оружие, положительные зона/задержка/видимость/размер, графика и звуки.");
             }
+            if(weapon.strike!=null && weapon.strike.Configured)
+            {
+                var strike=weapon.strike;
+                if(weapon.meleeMotion!=null || weapon.projectileSpeed>0 || weapon.explosive || !string.IsNullOrEmpty(weapon.ammo) || weapon.manaCost>0 ||
+                    !float.IsFinite(strike.near) || !float.IsFinite(strike.far) || strike.near<0 || strike.far<=strike.near || strike.far>weapon.range+.0001f ||
+                    !float.IsFinite(strike.contact) || strike.contact<=0 || strike.contact>1 || strike.heights.Any(h=>!float.IsFinite(h) || h<0 || h>5))
+                    throw new InvalidDataException($"Некорректный удар телом: источник={source}, id={weapon.id}. Нужны отрезки near < far ≤ range, контакт в (0; 1], высоты 0–5 м, без траектории, снаряда, патронов и маны.");
+            }
             if(weapon.range<=0 || weapon.cooldown<=0 || (!string.IsNullOrEmpty(weapon.ammo) &&
                 (weapon.magazineSize<=0 || weapon.ammoPerShot<=0 || weapon.ammoPerShot>weapon.magazineSize || weapon.reloadSeconds<=0)))
                 throw new InvalidDataException($"Некорректная дальность, задержка или боезапас: источник={source}, id={weapon.id}.");
