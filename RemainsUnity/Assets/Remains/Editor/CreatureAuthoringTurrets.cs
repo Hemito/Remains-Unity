@@ -24,6 +24,43 @@ namespace Remains.Editor
         private static readonly int[] TurretGuns={1,2,3};
         private const int LampOff=1,LampWatching=2,LampNoticed=3,LampAttacking=4,LampSearching=5;
 
+        // A narrow check of the delivered atlas and source mount, independent of unrelated creature AI tests.
+        public static void VerifyTurretFramesBatch()
+        {
+            try
+            {
+                Remains.Domain.Anatomy.Load();WeaponCatalog.Load();
+                var exported=ExportedContentCatalog.Load();int count=0;
+                foreach(var creature in CreatureCatalog.Load().Creatures.Where(c=>c.family==NpcCreatureBehaviours.Turret))
+                {
+                    var source=exported.Require("unit:"+creature.sourceId);
+                    var mount=XElement.Parse(source.graphics.Single(g=>g.role=="part:puha").metadataXml);
+                    var expected=new Vector2(Num(mount,"x")/PixelsPerMetre,-Num(mount,"y")/PixelsPerMetre);
+                    var actor=creature.spawn.Create(new TrainingPlacement {id="turret-source-check",type=creature.actorType,facing=1},"check");
+                    var asset=AssetDatabase.LoadAssetAtPath<AtlasSpriteAsset>(ArtFolder+"/"+creature.sourceId+"/artwork.asset");
+                    if(asset==null) throw new InvalidDataException("Нет атласа проверки турели: "+creature.actorType);
+                    var art=asset.CreateDefinition();
+                    foreach(var clip in art.clips)
+                    {
+                        actor.pose=clip.pose;actor.poseTime=0;
+                        var actual=AtlasWeaponSockets.Anchor(actor)-actor.Position;
+                        if(Vector2.Distance(actual,expected)>.0001f)
+                            throw new InvalidDataException($"Турель {creature.actorType}: pose={clip.pose}, ствол={actual}, источник={expected}.");
+                        var sprite=asset.Frames(clip.pose).Single();
+                        var expectedPivot=new Vector2(art.pivotX*art.cellWidth,art.pivotY*art.cellHeight);
+                        if(sprite.rect.width!=art.cellWidth || sprite.rect.height!=art.cellHeight ||
+                            sprite.pixelsPerUnit!=art.pixelsPerUnit || Vector2.Distance(sprite.pivot,expectedPivot)>.001f)
+                            throw new InvalidDataException($"Турель {creature.actorType}: pose={clip.pose}, кадр/масштаб/привязка не соответствуют атласу.");
+                    }
+                    Debug.Log($"Привязки турели PASS: {creature.actorType}, клетка={art.cellWidth}×{art.cellHeight}, PPU={art.pixelsPerUnit}, ствол={expected}.");count++;
+                }
+                if(count==0) throw new InvalidDataException("Нет подготовленных турелей для проверки.");
+                Debug.Log($"VerifyTurretFrames PASS: типов={count}, все позы/кадры/привязки/исходные крепления.");
+                EditorApplication.Exit(0);
+            }
+            catch(Exception error) {Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+
         // UnitTurret.putLoc by turret tip: watch angles (aRot, y down → y up), watch turn rate (watchDrot rad per frame),
         // the attack rate actDrot 0.1 rad per frame for all; period 120 frames; the armored turret keeps its side.
         private static TurretSettings TurretWatch(string unitId)
@@ -71,28 +108,38 @@ namespace Remains.Editor
         private static List<CreatureEntry> GenerateTurret(string unitId,XElement unit,JObject appearance,JObject gun,JObject lamp,string[] dies,
             Dictionary<string,JObject> resources,string package,HashSet<string> owned)
         {
-            var exported=ExportedContentCatalog.Load();
             var phis=unit.Element("phis");var comb=unit.Element("comb");
             float width=Num(phis,"sX")/PixelsPerMetre,height=Num(phis,"sY")/PixelsPerMetre,mass=Num(phis,"massa",1);
             float hp=Num(comb,"hp"),armor=Num(comb,"armor",0),vision=Num(comb,"vision",1);
             var gunPlace=XElement.Parse((string)gun["metadataXml"]);var lampPlace=XElement.Parse((string)lamp["metadataXml"]);
             if(Num(gunPlace,"scale")!=1 || Num(lampPlace,"scale")!=1) throw new InvalidDataException($"Турель {unitId}: части масштабированы; сборка листа их не поддерживает.");
 
-            // Pictures at the export's largest scale, read from the package (imported sprites give the registration).
+            // Pixels and registration belong to the same package file. The installed sprite may be padded for BC7,
+            // resized by texture policy or replaced by another renderer; its rect/pivot must not describe raw PNG pixels.
             (Color32[] pixels,int w,int h,Vector2 pivot,float zoom) Picture(string resource,int frame)
             {
-                var entry=exported.Resource(resource).frames.Single(f=>f.frame==frame);var sprite=exported.FrameSprite(entry);
                 var file=((JArray)resources[resource]["files"]).OfType<JObject>().Where(f=>((string)f["path"]).EndsWith("/"+frame+".png",StringComparison.Ordinal) ||
-                    ((string)f["path"]).EndsWith("/"+frame+"@8.png",StringComparison.Ordinal)).OrderByDescending(f=>(double)f["zoom"]).First();
+                    ((string)f["path"]).EndsWith("/"+frame+"@8.png",StringComparison.Ordinal)).OrderByDescending(f=>(double)f["zoom"]).FirstOrDefault()
+                    ??throw new InvalidDataException($"Турель {unitId}: нет исходного PNG resource={resource}, frame={frame}.");
+                foreach(string key in new[]{"zoom","originX","originY","width","height"})
+                    if(file[key]?.Type is not (JTokenType.Float or JTokenType.Integer) || !float.IsFinite((float)file[key]))
+                        throw new InvalidDataException($"Турель {unitId}: некорректные метаданные PNG resource={resource}, frame={frame}, key={key}.");
+                float pictureZoom=(float)file["zoom"],originX=(float)file["originX"],originY=(float)file["originY"];
+                int pictureWidth=(int)file["width"],pictureHeight=(int)file["height"];
+                if(pictureZoom<=0 || pictureWidth<=0 || pictureHeight<=0)
+                    throw new InvalidDataException($"Турель {unitId}: неверные размер/масштаб PNG resource={resource}, frame={frame}.");
                 string path=Path.GetFullPath(Path.Combine(package,(string)file["path"]));
                 if(Hash(path)!=(string)file["sha256"]) throw new InvalidDataException($"Турель {unitId}: {path} не совпадает с SHA256 выгрузки.");
                 var texture=new Texture2D(2,2,TextureFormat.RGBA32,false);
                 try
                 {
                     if(!texture.LoadImage(File.ReadAllBytes(path))) throw new InvalidDataException("Не прочитан "+path);
-                    if(texture.width!=(int)sprite.rect.width || texture.height!=(int)sprite.rect.height)
-                        throw new InvalidDataException($"Турель {unitId}: {path} {texture.width}×{texture.height} не совпадает с импортированным кадром.");
-                    return (texture.GetPixels32(),texture.width,texture.height,sprite.pivot,sprite.pixelsPerUnit/PixelsPerMetre);
+                    if(texture.width!=pictureWidth || texture.height!=pictureHeight)
+                        throw new InvalidDataException($"Турель {unitId}: {path} {texture.width}×{texture.height} не совпадает с метаданными PNG {pictureWidth}×{pictureHeight}.");
+                    var pivot=new Vector2(originX*pictureZoom,texture.height-originY*pictureZoom);
+                    if(!float.IsFinite(pivot.x) || !float.IsFinite(pivot.y))
+                        throw new InvalidDataException($"Турель {unitId}: нечисловая привязка PNG resource={resource}, frame={frame}.");
+                    return (texture.GetPixels32(),texture.width,texture.height,pivot,pictureZoom);
                 }
                 finally {UnityEngine.Object.DestroyImmediate(texture);}
             }

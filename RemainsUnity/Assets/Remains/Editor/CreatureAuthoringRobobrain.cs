@@ -64,7 +64,11 @@ namespace Remains.Editor
             float hp=Num(comb,"hp"),armor=Num(comb,"armor",0),vision=Num(comb,"vision",1);
             float walk=Num(move,"speed")*FramesPerSecond/PixelsPerMetre;
 
-            var texture=CopySheet(unitId,Path.Combine(folder,(string)sheet["sheet"]),(string)sheet["sheetSha256"],true,owned);
+            // Both gun variants share source-named art. The full pass owns actor IDs (robobrain-robolaser /
+            // robobrain-robospark), not the source ID; authorize only this shared art from an already owned variant.
+            var artworkOwned=new HashSet<string>(owned,StringComparer.Ordinal);
+            if(RobobrainGuns.Any(g=>owned.Contains(unitId+"-"+g))) artworkOwned.Add(unitId);
+            var texture=CopySheet(unitId,Path.Combine(folder,(string)sheet["sheet"]),(string)sheet["sheetSha256"],true,artworkOwned);
             int cellX=(int)sheet["cellWidth"],cellY=(int)sheet["cellHeight"];
             float scale=(float)sheet["pixelsPerSourcePixel"],regX=(float)sheet["registrationX"],regY=(float)sheet["registrationY"];
             var counts=((JArray)sheet["rows"]).OfType<JObject>().Select(r=>(int)r["frames"]).ToArray();
@@ -75,8 +79,8 @@ namespace Remains.Editor
             var clips=new[]{Clip("idle",Stay,false),Clip("walk",Walk,true),Clip("run",Walk,true),Clip("jump",Stay,false),Clip("down",Die,false)};
             var art=new AtlasActorArtwork {resource=ArtFolder.Substring("Assets/Remains/Resources/".Length)+"/"+unitId+"/sheet",width=texture.width,height=texture.height,
                 cellWidth=cellX,cellHeight=cellY,pixelsPerUnit=PixelsPerMetre*scale,pivotX=regX/cellX,pivotY=1-regY/cellY,facesLeft=false,clips=clips};
-            var atlas=SaveAtlas(unitId,texture,art,owned);
-            var prefab=SavePrefab(unitId,texture,atlas,false,owned);
+            var atlas=SaveAtlas(unitId,texture,art,artworkOwned);
+            var prefab=SavePrefab(unitId,texture,atlas,false,artworkOwned);
 
             var raider=new RaiderSettings
             {
