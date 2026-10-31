@@ -13,7 +13,7 @@ namespace Remains.Editor
     {
         private RenderTexture target;
         public RenderTexture Texture=>target;
-        public void Render(PonyAnimationArtwork art,Matrix4x4[] matrices,Rect world,int width,int height,float magic=0)
+        public void Render(PonyAnimationArtwork art,Matrix4x4[] matrices,Rect world,int width,int height,float magic=0,int onlyPart=-1,bool transparent=false)
         {
             if(art==null || matrices==null || matrices.Length!=art.Frame.Nodes.Length || world.width<=0 || world.height<=0)
                 throw new InvalidOperationException("Предпросмотр анимации: некорректные рисунок, матрицы или камера.");
@@ -27,13 +27,13 @@ namespace Remains.Editor
             var command=new CommandBuffer {name="Редактор анимации пони"};
             try
             {
-                command.SetRenderTarget(target);command.ClearRenderTarget(false,true,new Color(.17f,.19f,.22f,1));
+                command.SetRenderTarget(target);command.ClearRenderTarget(false,true,transparent?Color.clear:new Color(.17f,.19f,.22f,1));
                 command.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(world.xMin,world.xMax,world.yMin,world.yMax,-10,10),false));
                 command.SetGlobalFloat("_WorldLightEnabled",0);
                 var block=new MaterialPropertyBlock();
                 for(int i=0;i<art.Parts.Length;i++)
                 {
-                    var part=art.Parts[i];if(!part.visible)continue;
+                    var part=art.Parts[i];if(!part.visible || onlyPart>=0 && i!=onlyPart)continue;
                     var color=PonyAppearance.Tint(part.slot,art.Appearance);if(PonyMagicRenderRoles.Contains(part))color.a*=magic;
                     block.Clear();block.SetColor("_Color",color);block.SetTexture("_MainTex",part.material.mainTexture);
                     block.SetFloat("_Emission",part.slot=="magic"?1:0);block.SetFloat("_ArtworkVisibilityEnabled",0);
@@ -43,11 +43,27 @@ namespace Remains.Editor
             }
             finally {command.Release();Shader.SetGlobalFloat("_WorldLightEnabled",oldLight);}
         }
-        public void WritePng(string path)
+        public void WritePng(string path,bool straightAlpha=false)
         {
             if(target==null)throw new InvalidOperationException("Сначала подготовьте предпросмотр.");
             var previous=RenderTexture.active;var image=new Texture2D(target.width,target.height,TextureFormat.RGBA32,false);
-            try {RenderTexture.active=target;image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();File.WriteAllBytes(path,image.EncodeToPNG());}
+            try
+            {
+                RenderTexture.active=target;image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
+                if(straightAlpha)
+                {
+                    var pixels=image.GetPixels();bool linear=QualitySettings.activeColorSpace==ColorSpace.Linear;
+                    for(int i=0;i<pixels.Length;i++)
+                    {
+                        var pixel=pixels[i];float alpha=pixel.a;
+                        if(alpha<=0){pixels[i]=Color.clear;continue;}
+                        var rgb=linear?pixel.linear:pixel;rgb.r/=alpha;rgb.g/=alpha;rgb.b/=alpha;
+                        rgb=linear?rgb.gamma:rgb;rgb.a=alpha;pixels[i]=rgb;
+                    }
+                    image.SetPixels(pixels);image.Apply();
+                }
+                File.WriteAllBytes(path,image.EncodeToPNG());
+            }
             finally {RenderTexture.active=previous;Object.DestroyImmediate(image);}
         }
         public void Dispose(){if(target!=null){target.Release();Object.DestroyImmediate(target);target=null;}}
