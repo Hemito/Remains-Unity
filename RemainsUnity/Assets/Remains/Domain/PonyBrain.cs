@@ -33,7 +33,15 @@ namespace Remains.Domain
         }
     }
 
-    public enum PonyIntentKind { Calm, Notice, Search, Approach, Shoot, Melee, Retreat }
+    public enum PonyIntentKind { Calm, Notice, Search, Approach, Shoot, Melee, Retreat, Revive }
+
+    // The nearest downed ally the owner found for this pony, and whether the pony has a medkit to revive it with.
+    public readonly struct PonyAlly
+    {
+        public readonly bool known,medkit;public readonly Vector2 position;
+        public PonyAlly(bool known,Vector2 position,bool medkit) {this.known=known;this.position=position;this.medkit=medkit;}
+        public static readonly PonyAlly None=new(false,default,false);
+    }
 
     // The owner's memory of one sapient pony's choices beside its legs' RaiderMind; not saved or replicated.
     public sealed class PonyMind
@@ -53,8 +61,9 @@ namespace Remains.Domain
     // The sapient ponies' brain, utility AI (user decision 2026-10-31): every DecisionFrames original frames each intent is
     // scored from the situation (sight, distance, attack way, health) times the profile, the best one wins, the current
     // one keeps a bonus and is held at least MinHoldFrames so that the pony does not flicker. Each intent drives the
-    // shared legs (RaiderLegs) and the original's attack chances. Not yet: healing, grenades, reviving and picking up
-    // (they need those NPC actions), factions beyond the original's player-only targets, a debug overlay.
+    // shared legs (RaiderLegs) and the original's attack chances. A downed ally is revived with a medkit, as players do
+    // (HealingRules). Not yet: healing itself, grenades, picking up weapons, factions beyond the original's player-only
+    // targets, a debug overlay.
     public static class PonyBrain
     {
         public const int DecisionFrames=3,MinHoldFrames=15;
@@ -62,7 +71,7 @@ namespace Remains.Domain
         private const float Px=RaiderLegs.Px;
 
         public static RaiderIntent Tick(PonyMind p,RaiderMind m,RaiderSettings s,ActorState actor,RoomLayout room,RaiderSenses senses,bool wallAhead,
-            System.Random random,RaiderAttacker attacker)
+            System.Random random,RaiderAttacker attacker,PonyAlly ally=default)
         {
             var hull=Anatomy.Movement(actor);
             bool stay=RaiderLegs.Standing(room,actor),climbing=actor.climbing;
@@ -72,14 +81,15 @@ namespace Remains.Domain
             p.clock++;
             RaiderLegs.Prelude(m,stay);
             Perceive(p,m,s,senses,attacker,random);
-            if(p.clock%DecisionFrames==0) Decide(p,m,s,actor,senses,attacker);
+            if(p.clock%DecisionFrames==0) Decide(p,m,s,actor,senses,attacker,ally);
             p.held++;
             if(p.stepBack>0) p.stepBack--;
 
             RaiderLegs.Locate(m,actor,hull,stay);
             intent.dropThrough=m.alert>0 && actor.y+hull.height-m.point.y>80*Px;
             if(!climbing) m.wantedFacing=m.direction;
-            if(m.alert==0 && p.intent!=PonyIntentKind.Notice) m.point=new Vector2(actor.x+hull.width*m.facing*2,actor.y+hull.height);
+            if(p.intent==PonyIntentKind.Revive && ally.known) m.point=ally.position;
+            else if(m.alert==0 && p.intent!=PonyIntentKind.Notice) m.point=new Vector2(actor.x+hull.width*m.facing*2,actor.y+hull.height);
             float dx=m.point.x-actor.x,jump=0;
             bool sees=senses.sees && p.reaction<=0;
             void Face() {m.direction=m.wantedFacing=dx>0?1:-1;}
@@ -122,6 +132,11 @@ namespace Remains.Domain
                     else {Toward();intent.charge=attacker==RaiderAttacker.Teeth;}
                     break;
                 }
+                case PonyIntentKind.Revive:
+                    // Within the healing distance it stands over the ally and works on it (the owner counts RevivalSeconds).
+                    if(stay && Mathf.Abs(dx)<1.2f && Mathf.Abs(m.point.y-actor.y)<1) {Face();intent.revive=true;}
+                    else Toward();
+                    break;
                 case PonyIntentKind.Retreat:
                 {
                     // Away from the threat at a run; blocked by a wall or an edge it is cornered and stops.
@@ -172,12 +187,13 @@ namespace Remains.Domain
         }
 
         // The utility of every intent now; the best wins over the current one only past its bonus and its minimum hold.
-        private static void Decide(PonyMind p,RaiderMind m,RaiderSettings s,ActorState actor,RaiderSenses senses,RaiderAttacker attacker)
+        private static void Decide(PonyMind p,RaiderMind m,RaiderSettings s,ActorState actor,RaiderSenses senses,RaiderAttacker attacker,PonyAlly ally)
         {
             var w=s.pony;var score=p.scores;Array.Clear(score,0,score.Length);
             if(p.reaction>0) {Choose(p,PonyIntentKind.Notice);return;}
             bool sees=senses.sees,alerted=m.alert>0,ranged=attacker==RaiderAttacker.Ranged;
-            float distance=(m.point-actor.Position).magnitude;
+            // The threat's distance: the seen target itself (while reviving, the attended point is the ally).
+            float distance=((sees?senses.target:m.point)-actor.Position).magnitude;
             float health=p.maxHealth>0?Mathf.Clamp01(actor.health/p.maxHealth):1;
             if(p.cornered>30) p.cornered=Math.Min(p.cornered+1,120);   // cornered: fights for a while before trying again
             if(p.cornered>=120) p.cornered=0;
@@ -186,6 +202,8 @@ namespace Remains.Domain
             score[(int)PonyIntentKind.Approach]=sees?.45f:0;
             score[(int)PonyIntentKind.Shoot]=sees && ranged && distance<=s.holdDistance?(.6f+(distance>200*Px?.15f:0))*w.shoot:0;
             score[(int)PonyIntentKind.Melee]=sees?(ranged?(distance<100*Px?.55f:0):.7f)*w.melee:0;
+            // A downed ally with a medkit at hand: before searching or strolling, and even under fire unless the enemy is close.
+            score[(int)PonyIntentKind.Revive]=ally.known && ally.medkit?(!sees?.65f:distance>200*Px?.5f:0):0;
             score[(int)PonyIntentKind.Retreat]=sees && health<w.retreatHealth && p.cornered<=30?(.75f+.25f*(1-health/Mathf.Max(w.retreatHealth,.0001f)))*w.caution:0;
 
             int best=0;

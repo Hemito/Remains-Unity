@@ -12,7 +12,9 @@ namespace Remains.Gameplay
         public readonly bool weapon;public readonly float bodyHit;
         // changed: a state other peers must see (a zombie's buried, digging or flaring mode) — publish the actor.
         public readonly bool changed;
-        public RaiderActions(bool weapon,float bodyHit,bool changed=false) {this.weapon=weapon;this.bodyHit=bodyHit;this.changed=changed;}
+        // revive: the downed ally this raider has finished reviving — the owner asks the host (CoopSession.RequestNpcRevive).
+        public readonly ActorState revive;
+        public RaiderActions(bool weapon,float bodyHit,bool changed=false,ActorState revive=null) {this.weapon=weapon;this.bodyHit=bodyHit;this.changed=changed;this.revive=revive;}
     }
 
     // Raiders this peer owns: PonyBrain (sapient raiders), RaiderBrain (the robobrain) or ZombieBrain decides at the
@@ -28,6 +30,7 @@ namespace Remains.Gameplay
         {
             public RaiderMind mind=new();public MovementController movement;public MovementSettings settings;
             public PonyMind pony;   // a sapient raider's utility memory (PonyBrain)
+            public readonly RevivalProgress revival=new();public float revivalPending;
             public int generation;public float clock;public int seen;
             public RaiderIntent intent;
             public string swingAttack;public MeleeSweep swing;
@@ -49,8 +52,8 @@ namespace Remains.Gameplay
         // The raider's own controller (also for the frames of an attack already begun).
         public MovementController Movement(ActorState actor,ActorTypeDefinition type,RoomLayout room)=>Get(actor,type,room).movement;
 
-        // One frame of a raider that is awake and not attacking.
-        public RaiderActions Step(ActorState actor,ActorTypeDefinition type,ActorState target,bool visible,RoomLayout room,float dt)
+        // One frame of a raider that is awake and not attacking. `ally`: the nearest downed sapient ally the caller found.
+        public RaiderActions Step(ActorState actor,ActorTypeDefinition type,ActorState target,bool visible,RoomLayout room,float dt,ActorState ally=null)
         {
             var entry=Get(actor,type,room);var settings=type.raider;
             entry.clock+=dt;
@@ -64,6 +67,7 @@ namespace Remains.Gameplay
             var attacker=settings.attacker==RaiderAttacker.Ranged && settings.Touches && NpcWeaponActions.Spent(actor)?RaiderAttacker.Teeth:settings.attacker;
             bool weapon=false;float bodyHit=0;
             bool sapient=!settings.zombie && SapientPonies.Is(actor);
+            var friend=sapient && ally!=null?new PonyAlly(true,ally.Position,InventoryJournal.Count(actor,"heal")>0):PonyAlly.None;
             if(sapient)
             {
                 entry.pony??=new PonyMind();
@@ -76,7 +80,7 @@ namespace Remains.Gameplay
                 // A wall ahead (turnX): the body one probe further along its way, above the step height, does not fit.
                 bool wall=!ActorTerrainMotion.IsClear(room,hull,actor.Position+new Vector2(entry.mind.direction*.05f,entry.settings.stepHeight+.02f));
                 var intent=settings.zombie?ZombieBrain.Tick(entry.mind,settings,actor,room,senses,wall,random):
-                    sapient?PonyBrain.Tick(entry.pony,entry.mind,settings,actor,room,senses,wall,random,attacker):
+                    sapient?PonyBrain.Tick(entry.pony,entry.mind,settings,actor,room,senses,wall,random,attacker,friend):
                     RaiderBrain.Tick(entry.mind,settings,actor,room,senses,wall,random,attacker);
                 weapon|=intent.shoot || intent.swing;bodyHit=Mathf.Max(bodyHit,intent.bodyHit);
                 // One-shot parts wait for the movement step; the steady ones are the latest decision.
@@ -109,7 +113,16 @@ namespace Remains.Gameplay
             else NpcWeaponAim.Apply(actor,sees?target.BodyPosition+Vector2.up*.55f:memory.hasKnownPosition?memory.KnownPosition+Vector2.up*.55f:null,room);
             // UnitZombie.animate: trot while searching on the move.
             if(settings.zombie && entry.mind.state==RaiderState.Search && actor.pose is "walk" or "run") ActorPose.Select(actor,"trot");
-            return new RaiderActions(weapon,bodyHit,changed);
+            return new RaiderActions(weapon,bodyHit,changed,Revive(entry,actor,ally,decided.revive,dt));
+        }
+
+        // RevivalSeconds over the ally, as a player's hold of E; then one request until the host answers or 5 s pass.
+        private ActorState Revive(Entry entry,ActorState actor,ActorState ally,bool working,float dt)
+        {
+            if(entry.revivalPending>time) return null;
+            if(!entry.revival.Step(actor,ally,working && ally!=null,dt)) return null;
+            entry.revival.Reset();entry.revivalPending=time+5;
+            return ally;
         }
 
         // attKorp: a touch in reach. The victim's window (neujaz) decides whether it lands (CombatController.ApplyVictim);

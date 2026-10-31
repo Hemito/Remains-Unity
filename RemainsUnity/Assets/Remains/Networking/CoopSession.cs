@@ -516,7 +516,12 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<NoticeMessage>(Remains.Networking.MessageTiming.Client<NoticeMessage>(message => Notice?.Invoke(message.text)));
             NetworkClient.RegisterHandler<ClaimReplyMessage>(Remains.Networking.MessageTiming.Client<ClaimReplyMessage>(message=>{ClaimPrepared?.Invoke(message.transaction,message.accepted);Notice?.Invoke(message.reason);}));
             NetworkClient.RegisterHandler<ModMismatchMessage>(Remains.Networking.MessageTiming.Client<ModMismatchMessage>(message=>ModMismatch?.Invoke(JsonUtility.FromJson<ContentManifest>(System.Text.Encoding.UTF8.GetString(message.manifest)))));
-            NetworkClient.RegisterHandler<HealingReplyMessage>(Remains.Networking.MessageTiming.Client<HealingReplyMessage>(message=>{if(!message.success) selfHealing.Reject(message.transaction);HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);}));
+            NetworkClient.RegisterHandler<HealingReplyMessage>(Remains.Networking.MessageTiming.Client<HealingReplyMessage>(message=>
+            {
+                // An NPC's revival is not the player's: no notice, only its outcome in the log.
+                if(npcRevivals.Remove(message.transaction)) {Debug.Log($"Подъём NPC {(message.success?"принят":"отклонён")}: transaction={message.transaction}. {message.reason}");return;}
+                if(!message.success) selfHealing.Reject(message.transaction);HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);
+            }));
             ClientReady?.Invoke();
         }
 
@@ -1367,6 +1372,17 @@ namespace Remains.Networking
             return transaction;
         }
         public string RequestRevive(string target)=>RequestHealing(target,false);
+        // A sapient NPC this peer owns revives a downed ally with a medkit of its own; the host decides as for a player.
+        private readonly HashSet<string> npcRevivals=new(StringComparer.Ordinal);
+        public string RequestNpcRevive(ActorState healer,ActorState target)
+        {
+            if(healer==null || target==null || healer.player || healer.owner!=LocalOwner || HealingRules.Rejection(healer,target,false)!=null) return null;
+            string transaction=Guid.NewGuid().ToString("N");npcRevivals.Add(transaction);
+            NetworkClient.Send(new ReviveMessage {target=target.id,transaction=transaction,healer=healer.id,
+                healerGeneration=healer.generation,healerLifecycle=healer.lifecycleSequence,damageSequence=healer.damageSequence,
+                targetGeneration=target.generation,targetLifecycle=target.lifecycleSequence});
+            return transaction;
+        }
         public void RequestSelfHeal()=>RequestSelfHeal(null);
         public void RequestSelfHeal(string itemId)=>RequestHealing(LocalActorId,true,itemId);
         private string RequestHealing(string targetId,bool selfHeal,string itemId=null)
@@ -1394,7 +1410,9 @@ namespace Remains.Networking
             if (!owners.TryGetValue(connection.connectionId, out string owner)) return;
             if(ServerWorld.completedTransactions.Contains(message.transaction))
             {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=true,reason="Лечение уже подтверждено."});return;}
-            var healer = ServerWorld.Find(playerIds[owner]);
+            var healer = string.IsNullOrEmpty(message.healer)?ServerWorld.Find(playerIds[owner]):ServerWorld.Find(message.healer);
+            if(healer==null || !string.IsNullOrEmpty(message.healer) && (healer.player || healer.owner!=owner))
+            {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=false,reason="Лечение отменено: лечащий NPC не принадлежит отправителю."});return;}
             if(Pause.IsServerPaused(healer.level))
             {connection.Send(new HealingReplyMessage {transaction=message.transaction,success=false,reason="Лечение отменено: уровень остановлен. Предмет не потрачен."});return;}
             var target = ServerWorld.Find(message.target);

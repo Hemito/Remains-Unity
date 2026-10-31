@@ -72,7 +72,8 @@ namespace Remains.Networking
     public struct ClaimMessage : NetworkMessage { public string transaction; public string container;public string item;public int quantity;public int actorGeneration,actorLifecycle; }
     // Acceptance means a prepared reservation, never an already awarded item.
     public struct ClaimReplyMessage : NetworkMessage {public string transaction;public bool accepted;public string reason;}
-    public struct ReviveMessage : NetworkMessage { public string target; public string transaction; public bool selfHeal; public int healerGeneration,healerLifecycle,targetGeneration,targetLifecycle,damageSequence; public string item; }
+    // healer: empty for the sender's player; else a sapient NPC the sender owns (an NPC revival).
+    public struct ReviveMessage : NetworkMessage { public string target; public string transaction; public bool selfHeal; public int healerGeneration,healerLifecycle,targetGeneration,targetLifecycle,damageSequence; public string item; public string healer; }
     public struct HealingReplyMessage : NetworkMessage {public string transaction;public bool success;public string reason;}
     public struct NoticeMessage : NetworkMessage { public string text; }
     public struct BackupAckMessage : NetworkMessage { public string world; public long revision; public string snapshot; }

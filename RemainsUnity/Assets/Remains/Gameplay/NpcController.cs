@@ -16,6 +16,9 @@ namespace Remains.Gameplay
         private readonly Dictionary<(string level,string type),MovementController> movement=new();
         private readonly NpcCreatureController creatures=new();
         private readonly NpcRaiderController raiders;
+        private readonly Dictionary<string,List<ActorState>> downed=new(StringComparer.Ordinal);
+        // A raider revives a downed ally of its kind within this distance on its level.
+        private const float ReviveSearch=10;
         private readonly WeaponRechargeController recharge;
         // The owner's damage receiver: a spider mine destroys itself through it (NpcCreatureController.Detonates).
         private readonly CombatController combat;
@@ -59,6 +62,11 @@ namespace Remains.Gameplay
         {
             if(session.World==null) return;
             connected.Refresh(session.World);
+            // Downed sapient NPCs by level, once a frame: the raiders' allies to revive (a short list, not all against all).
+            foreach(var list in downed.Values) list.Clear();
+            foreach(var body in session.World.actors)
+                if(body.down && !body.player && connected.OnLevel(body.level) && SapientPonies.Is(body))
+                {if(!downed.TryGetValue(body.level,out var list)) downed[body.level]=list=new List<ActorState>();list.Add(body);}
             foreach(var actor in session.World.actors)
             {
                 if(actor.player || actor.owner!=session.LocalOwner || actor.down) continue;
@@ -147,8 +155,9 @@ namespace Remains.Gameplay
                 }
                 if(raider)
                 {
-                    var wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt);
+                    var wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt,NearestDowned(actor));
                     if(wants.changed) session.PublishActor(actor);
+                    if(wants.revive!=null) session.RequestNpcRevive(actor,wants.revive);
                     bool ready=visible && target.level==actor.level && target.connected && !target.down;
                     if(raiders.Striking(actor)) continue;
                     if(wants.weapon && ready && actor.attackCooldown<=0 && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))
@@ -177,6 +186,18 @@ namespace Remains.Gameplay
             }
             raiders.StepStrikes(session.World,session.LocalOwner,dt,session.Pause.IsPaused,session.Fire);
             raiders.EndFrame(dt);
+        }
+
+        private ActorState NearestDowned(ActorState actor)
+        {
+            if(!downed.TryGetValue(actor.level,out var list)) return null;
+            ActorState best=null;float nearest=ReviveSearch*ReviveSearch;
+            foreach(var body in list)
+            {
+                float d=(body.Position-actor.Position).sqrMagnitude;
+                if(body.id!=actor.id && d<nearest) {nearest=d;best=body;}
+            }
+            return best;
         }
     }
 }

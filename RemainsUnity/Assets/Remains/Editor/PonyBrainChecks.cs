@@ -9,7 +9,8 @@ namespace Remains.Editor
     // PonyBrain, the sapient ponies' utility brain, on a flat floor: calm without a target, the reaction delay before a
     // seen target is acted on, a shooter shooting in range and stepping back from a close one, teeth closing in and
     // touching, a levitated weapon swinging from its distance, a hurt pony retreating and, cornered, fighting again, a
-    // lost target searched and forgotten, and no flicker between intents while nothing changes.
+    // lost target searched and forgotten, no flicker between intents while nothing changes, and a downed ally revived
+    // with a medkit (HealingRules for NPCs, the brain's intent, the owner's RevivalSeconds and its request).
     public static class PonyBrainChecks
     {
         public static void Run()
@@ -18,8 +19,8 @@ namespace Remains.Editor
             var shooter=ActorTypes.Get("raider").raider;
             Require(shooter.pony!=null && Mathf.Approximately(shooter.pony.retreatHealth,.25f) && SapientPonies.Is(Raider()) &&
                 !SapientPonies.Is(new ActorState {id="t",actorType="tarakan"}),"у рейдера — характер разумного пони по умолчанию; таракан не разумный пони");
-            Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);
-            Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья.");
+            Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);Revival(shooter);
+            Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья, подъём союзника с аптечкой.");
         }
 
         private static RoomLayout Room(float left=-20,float right=20)
@@ -37,8 +38,8 @@ namespace Remains.Editor
             public readonly PonyMind pony=new() {maxHealth=50};public readonly RaiderMind mind=new();
             public readonly ActorState actor;public readonly RoomLayout room;public readonly RaiderSettings s;public readonly System.Random random;
             public Pony(RaiderSettings s,ActorState actor,RoomLayout room,int seed) {this.s=s;this.actor=actor;this.room=room;random=new System.Random(seed);}
-            public RaiderIntent Tick(RaiderSenses senses,RaiderAttacker? attacker=null,bool wall=false)=>
-                PonyBrain.Tick(pony,mind,s,actor,room,senses,wall,random,attacker??s.attacker);
+            public RaiderIntent Tick(RaiderSenses senses,RaiderAttacker? attacker=null,bool wall=false,PonyAlly ally=default)=>
+                PonyBrain.Tick(pony,mind,s,actor,room,senses,wall,random,attacker??s.attacker,ally);
             // Seen long enough to be alarmed (the reaction delay over).
             public void Alarm(Vector2 target) {for(int i=0;i<200 && (pony.reaction>0 || mind.alert==0);i++) Tick(Sees(target));}
         }
@@ -110,6 +111,39 @@ namespace Remains.Editor
             int frames=0;
             while(run.pony.intent!=PonyIntentKind.Calm && frames<20000) {run.actor.x=0;run.Tick(Nothing);frames++;}
             Require(run.pony.intent==PonyIntentKind.Calm,"поиск затухает, рейдер успокаивается");
+        }
+
+        private static void Revival(RaiderSettings s)
+        {
+            ActorState Medic(float x) {var actor=Raider(x);actor.id="medic";InventoryStacks.Add(actor,SharedInventory.Create("heal",1));return actor;}
+            var downed=Raider(.8f);downed.id="downed";downed.down=true;downed.health=0;
+            var player=new ActorState {id="p",player=true,connected=true,level="l",x=.5f,y=0,health=0,down=true,actorType="pony",anatomy="pony"};
+            var medic=Medic(0);
+            Require(HealingRules.Rejection(medic,downed,false)==null && HealingRules.Rejection(medic,player,false)!=null &&
+                HealingRules.Rejection(player,downed,false)!=null && HealingRules.Rejection(Raider(),downed,false)!=null &&
+                HealingRules.Rejection(medic,medic,true)!=null,"NPC поднимает лежащего союзника с аптечкой; не игрока, не без аптечки, себя не лечит");
+            Require(HealingRules.Apply(medic,downed,false) && !downed.down && Mathf.Approximately(downed.health,HealingRules.Revived) && InventoryJournal.Count(medic,"heal")==0,
+                "подъём NPC расходует аптечку и поднимает с 35");
+
+            // The brain: an ally 6 m away is walked to, then worked on; without a medkit it is left.
+            var run=new Pony(s,Raider(),Room(),8);var ally=new PonyAlly(true,new Vector2(6,0),true);
+            for(int i=0;i<30;i++) run.Tick(Nothing,ally:ally);
+            Require(run.pony.intent==PonyIntentKind.Revive,$"увидев лежащего союзника, идёт поднимать: {run.pony.intent}");
+            bool working=false;
+            for(int i=0;i<30;i++) {run.actor.x=5.5f;working|=run.Tick(Nothing,ally:ally).revive;}
+            Require(working,"над союзником — поднимает");
+            var empty=new Pony(s,Raider(),Room(),9);
+            for(int i=0;i<30;i++) empty.Tick(Nothing,ally:new PonyAlly(true,new Vector2(6,0),false));
+            Require(empty.pony.intent!=PonyIntentKind.Revive,"без аптечки не поднимает");
+
+            // The owner: RevivalSeconds over the ally, then one request with that ally.
+            var type=ActorTypes.Get("raider");var room=Room();
+            medic=Medic(0);medic.owner="o";downed=Raider(.8f);downed.id="downed";downed.down=true;downed.health=0;
+            var raiders=new Remains.Gameplay.NpcRaiderController(MovementSettings.Load(),new System.Random(10));
+            var target=new ActorState {id="t",player=true,connected=true,level="l",x=15,y=0,health=100,actorType="pony",anatomy="pony"};
+            ActorState asked=null;float time=0,dt=1f/30;
+            for(int i=0;i<150 && asked==null;i++) {medic.x=0;medic.vx=0;asked=raiders.Step(medic,type,target,false,room,dt,downed).revive;raiders.EndFrame(dt);time+=dt;}
+            Require(asked==downed && time>=HealingRules.RevivalSeconds,$"владелец просит подъём после {HealingRules.RevivalSeconds} с над союзником: {time:0.##} с");
         }
 
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Мозг разумных пони: "+message);}

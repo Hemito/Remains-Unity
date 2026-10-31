@@ -26,6 +26,7 @@ namespace Remains.Editor
     {
         public const string RaiderClass="UnitRaider";
         private const int RaiderVariantCount=9;   // UnitRaider.kolTrs
+        private const float MedkitChance=.3f;
         private const string BlitAnim="../../.reference/original/dlc-ui/scripts/fe/serv/BlitAnim.as";
         // The authored airborne frame curve of the raider sheets (RAIDER_SPEC 2026-10-04: +7.2 m/s → 0, 0 → 7, −7.2 → 15).
         private static readonly MotionFramePoint[] RaiderJumpFrames={new() {velocity=-7.2f,frame=15},new() {velocity=0,frame=7},new() {velocity=7.2f,frame=0}};
@@ -200,6 +201,9 @@ namespace Remains.Editor
             if(fresh) inventory=ScriptableObject.CreateInstance<ContainerLootAsset>();
             var lines=new List<ContainerLootEntry> {new() {id="weapon",definition=weapon,minimum=1,maximum=1,weaponState=new WeaponItemState {rounds=definition.magazineSize}}};
             if(!string.IsNullOrEmpty(definition.ammo)) lines.Add(new ContainerLootEntry {id="ammo",definition=definition.ammo,minimum=definition.magazineSize,maximum=definition.magazineSize*2});
+            // The port's rule (user 2026-10-31): sapient NPCs revive their allies with a medkit, as players do; a raider
+            // carries one by this chance, and what it does not spend stays on its body for the player.
+            lines.Add(new ContainerLootEntry {id="medkit",definition="heal",minimum=1,maximum=1,probability=MedkitChance});
             inventory.Configure(new ContainerLootTable {id=id+"-weapon",version="1",entries=lines.ToArray()});
             if(fresh) AssetDatabase.CreateAsset(inventory,inventoryPath);else EditorUtility.SetDirty(inventory);
             string spawnPath=SpawnFolder+"/"+id+"-spawn.asset";Guard(spawnPath,id,owned);

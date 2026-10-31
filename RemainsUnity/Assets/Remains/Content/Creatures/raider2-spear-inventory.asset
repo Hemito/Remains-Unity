@@ -19,15 +19,25 @@ MonoBehaviour:
     - id: weapon
       definition: spear
       weaponState:
-        rid: 5813030678473998346
+        rid: 5813030728062468102
       minimum: 1
       maximum: 1
       probability: 1
       afterFailure: 
+    - id: medkit
+      definition: heal
+      weaponState:
+        rid: -2
+      minimum: 1
+      maximum: 1
+      probability: 0.3
+      afterFailure: 
   references:
     version: 2
     RefIds:
-    - rid: 5813030678473998346
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 5813030728062468102
       type: {class: WeaponItemState, ns: Remains.Domain, asm: Assembly-CSharp}
       data:
         revision: 0
