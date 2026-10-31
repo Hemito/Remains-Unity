@@ -77,8 +77,9 @@ namespace Remains.Editor
         public static BoneWeight[] Weights(string group,Vector2[] worldVertices)
         {
             if(worldVertices==null)throw new ArgumentNullException(nameof(worldVertices));
-            int rigid=group switch {"torso"=>0,"head" or "mane"=>2,_=>-1};
+            int rigid=group switch {"torso"=>0,"head" or "mane"=>2,"pipbuckNear"=>Index("frontNearWrist"),_=>-1};
             if(rigid<0 && !chains.ContainsKey(group))throw new InvalidOperationException("Риг пони: нет правила весов для "+group+".");
+            if(group.StartsWith("front",StringComparison.Ordinal) || group.StartsWith("hind",StringComparison.Ordinal))return LimbWeights(group,worldVertices);
             var result=new BoneWeight[worldVertices.Length];
             for(int v=0;v<result.Length;v++)
             {
@@ -88,6 +89,44 @@ namespace Remains.Editor
             }
             return result;
         }
+        private static BoneWeight[] LimbWeights(string group,Vector2[] vertices)
+        {
+            var chain=chains[group];
+            if(chain.Length!=4)throw new InvalidOperationException("Риг пони: ожидаются три звена и конец копыта в "+group+".");
+            var cumulative=new float[4];var centres=new float[3];
+            for(int i=0;i<3;i++)
+            {
+                var a=joints[chain[i]].World;var b=joints[chain[i+1]].World;
+                if(a.y-b.y<=.0001f)throw new InvalidOperationException("Риг пони: исходная цепь должна идти вниз по Y: "+group+"/"+i);
+                cumulative[i+1]=cumulative[i]+Vector2.Distance(a,b);centres[i]=(cumulative[i]+cumulative[i+1])*.5f;
+            }
+            // The narrow, disjoint smoothstep bands folded the inner silhouette at large bends.
+            // Overlapping influences span the full limb width. A monotonic rest-Y coordinate also
+            // removes the nearest-segment Voronoi discontinuity beside a bent rest joint.
+            float sigma=group.StartsWith("hind",StringComparison.Ordinal)?.15f:.12f;
+            var result=new BoneWeight[vertices.Length];
+            for(int v=0;v<vertices.Length;v++)
+            {
+                var point=vertices[v];
+                if(!float.IsFinite(point.x) || !float.IsFinite(point.y))throw new InvalidOperationException("Риг пони: неконечная вершина весов "+v+".");
+                float arc=cumulative[3];
+                if(point.y>=joints[chain[0]].World.y)arc=0;
+                else for(int i=0;i<3;i++)
+                {
+                    var a=joints[chain[i]].World;var b=joints[chain[i+1]].World;
+                    if(point.y<b.y)continue;
+                    arc=Mathf.Lerp(cumulative[i],cumulative[i+1],Mathf.Clamp01((a.y-point.y)/(a.y-b.y)));break;
+                }
+                float q0=Gaussian(arc-centres[0],sigma),q1=Gaussian(arc-centres[1],sigma),q2=Gaussian(arc-centres[2],sigma),sum=q0+q1+q2;
+                if(!float.IsFinite(sum) || sum<=0)throw new InvalidOperationException("Риг пони: не определены перекрывающиеся веса "+group+"/"+v);
+                // The boot/hoof below the wrist or hock is a rigid distal segment. Broader Gaussian
+                // influences are retained around the upper bend, then fade before reaching that segment.
+                float distal=Mathf.SmoothStep(0,1,(arc-(cumulative[2]-sigma))/sigma);
+                result[v]=new BoneWeight {boneIndex0=chain[0],weight0=q0/sum*(1-distal),boneIndex1=chain[1],weight1=q1/sum*(1-distal),boneIndex2=chain[2],weight2=q2/sum*(1-distal)+distal};
+            }
+            return result;
+        }
+        private static float Gaussian(float distance,float sigma)=>Mathf.Exp(-.5f*distance*distance/(sigma*sigma));
         private static BoneWeight ChainWeight(string group,Vector2 point)
         {
             var chain=chains[group];var lengths=new float[chain.Length-1];var cumulative=new float[chain.Length];

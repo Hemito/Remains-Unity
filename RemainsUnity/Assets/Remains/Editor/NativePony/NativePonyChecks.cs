@@ -19,8 +19,22 @@ namespace Remains.Editor
         public static void RunBatch()
         {
             int exit=0;var output=Path.GetFullPath("../.reference/native-pony");Directory.CreateDirectory(output);
-            try {NativePonyAuthoring.CreateSample();Run(output);}
-            catch(Exception problem){Debug.LogException(problem);File.WriteAllText(Path.Combine(output,"failure.txt"),problem.ToString());exit=1;}
+            try
+            {
+                if(Environment.GetCommandLineArgs().Contains("-nativeRepair"))
+                {
+                    string before=Path.Combine(output,"geometry-before.json");
+                    if(!File.Exists(before))File.WriteAllText(before,NativePonyMeshAudit.Measure().ToString());
+                    NativePonyAuthoring.Build(true);
+                }
+                else NativePonyAuthoring.CreateSample();
+                Run(output);
+            }
+            catch(Exception problem)
+            {
+                Debug.LogException(problem);File.WriteAllText(Path.Combine(output,"failure.txt"),problem.ToString());
+                File.WriteAllText(Path.Combine(output,"report.json"),new JObject { ["status"]="FAIL",["reason"]=problem.Message }.ToString());exit=1;
+            }
             EditorApplication.Exit(exit);
         }
         private static void Run(string output)
@@ -29,7 +43,7 @@ namespace Remains.Editor
             var root=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(NativePonyAuthoring.Root+"/PonyAnimation.prefab"));
             root.GetComponent<Animator>().enabled=false;
             var skins=root.GetComponentsInChildren<SpriteSkin>();var library=root.GetComponent<SpriteLibrary>();var resolvers=root.GetComponentsInChildren<SpriteResolver>();
-            Require(skins.Length==9 && resolvers.Length==9,"Число слоёв не равно 9");
+            Require(skins.Length==10 && resolvers.Length==10,"Число слоёв не равно 10");
             float restError=0;int vertices=0;
             foreach(var skin in skins)
             {
@@ -83,13 +97,17 @@ namespace Remains.Editor
             float ikError=Vector3.Distance(chain.target.position,chain.effector.position);Require(ikError<.005f,"Native IK не достигает доступной цели: "+ikError);
             Deform(posing.GetComponentsInChildren<SpriteSkin>());Capture(camera,Path.Combine(output,"native-ik.png"));captures++;
             Object.DestroyImmediate(posing);Object.DestroyImmediate(cameraObject);
-            File.WriteAllText(Path.Combine(output,"report.json"),new JObject { ["status"]="PASS",["bones"]=22,["spriteSkins"]=9,["vertices"]=vertices,["variants"]=4,
+            var geometry=NativePonyMeshAudit.Measure();File.WriteAllText(Path.Combine(output,"geometry-after.json"),geometry.ToString());
+            NativePonyPreviewPage.Write(output);
+            Require((int)geometry["maxFlippedTriangles"]==0 && (int)geometry["maxCollapsedTriangles"]==0,"Видимая сетка выворачивается или схлопывается; см. geometry-after.json");
+            File.WriteAllText(Path.Combine(output,"report.json"),new JObject { ["status"]="PASS",["bones"]=22,["spriteSkins"]=10,["vertices"]=vertices,["variants"]=4,
                 ["nativeAnimationClips"]=3,["nativeIkSolvers"]=4,["restVertexError"]=restError,["nativeIkError"]=ikError,["maxVertexDeformation"]=maxDeformation,["capturedImages"]=captures,
+                ["maxVisibleFlippedTriangles"]=(int)geometry["maxFlippedTriangles"],["maxVisibleCollapsedTriangles"]=(int)geometry["maxCollapsedTriangles"],
+                ["minSignedAreaRatio"]=(float)geometry["minSignedAreaRatio"],
                 ["limits"]="Standalone native rig; original raster artwork; no Player integration or performance claim"}.ToString());
-            File.WriteAllText(Path.Combine(output,"index.html"),"<!doctype html><meta charset=utf-8><title>Штатный 2D-риг Unity</title><style>body{background:#252a32;color:white;font:18px sans-serif;margin:24px}img{max-width:49%;width:600px}button,input{margin:10px}</style><h1>Новый риг: штатные SpriteSkin и Animation Clips</h1><p>Слева исходная внешность; справа антирад с другой формой головы. Рисунки оригинала сохранены, ноги — сплошные деформируемые сетки. Художественная обработка стыков ещё впереди.</p><button id=p>Пауза / просмотр</button><input id=t type=range min=0 max=30 value=0><div><img id=a><img id=b></div><h2>Сильный сгиб</h2><img src='Bare-curl.png'><img src='AntiradCreator-curl.png'><script>let f=0,play=true;const t=document.getElementById('t');function draw(){a.src='Bare-walk-'+String(f).padStart(2,'0')+'.png';b.src='AntiradCreator-walk-'+String(f).padStart(2,'0')+'.png';t.value=f}t.oninput=()=>{play=false;f=+t.value;draw()};p.onclick=()=>play=!play;setInterval(()=>{if(play){f=(f+1)%31;draw()}},33);draw()</script>");
-            Debug.Log($"Штатный 2D-риг: PASS; 22 кости, 9 SpriteSkin, {vertices} вершин, 4 библиотеки, 3 AnimationClip, 4 IK; rest={restError}, IK={ikError}; {output}");
+            Debug.Log($"Штатный 2D-риг: PASS; 22 кости, 10 SpriteSkin, {vertices} вершин, 4 библиотеки, 3 AnimationClip, 4 IK; видимых выворотов и схлопываний нет; rest={restError}, IK={ikError}; {output}");
         }
-        private static void Deform(SpriteSkin[] skins)
+        internal static void Deform(SpriteSkin[] skins)
         {
             // Diagnostic only: execute the installed package's real LateUpdate synchronously between
             // capture samples. A batch method has no intervening Editor player-loop frame.

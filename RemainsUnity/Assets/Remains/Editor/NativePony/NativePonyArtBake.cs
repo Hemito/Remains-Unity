@@ -13,14 +13,14 @@ namespace Remains.Editor
     // The old artwork is only an import source. The resulting PNGs and skinning data are native Unity assets.
     public static class NativePonyArtBake
     {
-        public static readonly string[] Groups={"hindFar","frontFar","tail","torso","neck","head","mane","hindNear","frontNear"};
+        public static readonly string[] Groups={"hindFar","frontFar","tail","torso","neck","head","mane","hindNear","frontNear","pipbuckNear"};
         public static string Group(string socket)=>socket switch
         {
             "hindUpperFar" or "hindLowerFar"=>"hindFar",
             "frontUpperFar" or "frontMiddleFar" or "frontLowerFar" or "pipbuckFar"=>"frontFar",
             "hindUpperNear" or "hindLowerNear"=>"hindNear",
-            "frontUpperNear" or "frontMiddleNear" or "frontLowerNear" or "pipbuckNear"=>"frontNear",
-            "tail" or "torso" or "neck" or "head" or "mane"=>socket,
+            "frontUpperNear" or "frontMiddleNear" or "frontLowerNear"=>"frontNear",
+            "tail" or "torso" or "neck" or "head" or "mane" or "pipbuckNear"=>socket,
             _=>throw new InvalidOperationException("Новый риг: неизвестное гнездо исходного рисунка "+socket)
         };
         public static Rect[] Rectangles(PonyAnimationArtwork[] variants,float pixelsPerUnit)
@@ -76,8 +76,9 @@ namespace Remains.Editor
         }
         public static void Grid(string group,Rect bounds,out Vector2[] vertices,out int[] triangles)
         {
-            bool rigid=group is "torso" or "head" or "mane";
-            int columns=rigid?1:Mathf.Clamp(Mathf.CeilToInt(bounds.width/.045f),3,24),rows=rigid?1:Mathf.Clamp(Mathf.CeilToInt(bounds.height/.045f),4,32);
+            bool rigid=group is "torso" or "head" or "mane" or "pipbuckNear";
+            bool limb=group.StartsWith("front",StringComparison.Ordinal) || group.StartsWith("hind",StringComparison.Ordinal);
+            int columns=rigid?1:Mathf.Clamp(Mathf.CeilToInt(bounds.width/(limb?.03f:.045f)),3,32),rows=rigid?1:Mathf.Clamp(Mathf.CeilToInt(bounds.height/(limb?.02f:.045f)),4,64);
             vertices=new Vector2[(columns+1)*(rows+1)];var indices=new List<int>();
             for(int y=0;y<=rows;y++)for(int x=0;x<=columns;x++)vertices[y*(columns+1)+x]=new Vector2(Mathf.Lerp(bounds.xMin,bounds.xMax,(float)x/columns),Mathf.Lerp(bounds.yMin,bounds.yMax,(float)y/rows));
             for(int y=0;y<rows;y++)for(int x=0;x<columns;x++)

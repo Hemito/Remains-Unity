@@ -30,10 +30,10 @@ namespace Remains.Editor
             }
             Build();
         }
-        public static void Build()
+        public static void Build(bool replaceSample=false)
         {
             if(EditorApplication.isPlaying)throw new InvalidOperationException("Новый риг: создание недоступно в Play Mode.");
-            if(File.Exists(Root+"/PonyAnimation.prefab"))throw new InvalidOperationException("Новый риг уже создан; существующий редактируемый префаб не перезаписывается.");
+            if(File.Exists(Root+"/PonyAnimation.prefab") && !replaceSample)throw new InvalidOperationException("Новый риг уже создан; существующий редактируемый префаб не перезаписывается.");
             EnsureFolder(Root);EnsureFolder(Root+"/Art");
             var alternate=new CharacterAppearance {version=CharacterAppearance.CurrentVersion,headStyleId="pony.head.creator.5"};
             var variants=new[]{PonyAnimationArtwork.Prepare(),PonyAnimationArtwork.Prepare("armor.antirad"),
@@ -77,10 +77,10 @@ namespace Remains.Editor
                 PrefabUtility.SaveAsPrefabAsset(actor,Root+"/PonyPosing.prefab");Object.DestroyImmediate(actor);actor=null;
             }
             finally {if(actor!=null)Object.DestroyImmediate(actor);EditorSceneManager.ClosePreviewScene(previewScene);}
-            BuildScene();
+            BuildScene(replaceSample);
             File.WriteAllText(Root+"/README.md",Readme);
             AssetDatabase.ImportAsset(Root+"/README.md");
-            Debug.Log("Штатный 2D-риг создан: 22 кости, 9 SpriteSkin, Animation Clips, четыре библиотеки внешности, отдельный префаб IK; "+Root);
+            Debug.Log("Штатный 2D-риг создан: 22 кости, 10 SpriteSkin, Animation Clips, четыре библиотеки внешности, отдельный префаб IK; "+Root);
         }
         private static GameObject CreateActor(Sprite[] sprites,Rect[] rectangles,SpriteLibraryAsset library,Material material,bool ik,Scene scene,out Transform[] bones)
         {
@@ -110,8 +110,9 @@ namespace Remains.Editor
                 if(!solver.isValid)throw new InvalidOperationException("Новый риг: не инициализировалась цепь IK "+group);
             }
         }
-        private static void BuildScene()
+        private static void BuildScene(bool replace=false)
         {
+            if(!replace && File.Exists(Root+"/NativePony.unity"))return;
             if(!Application.isBatchMode && EditorSceneManager.GetSceneManagerSetup().Any(s=>string.IsNullOrEmpty(s.path)))
                 throw new InvalidOperationException("Для создания сцены образца сначала сохраните или закройте безымянную сцену. Текущая работа Editor не изменена.");
             var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,Application.isBatchMode?NewSceneMode.Single:NewSceneMode.Additive);
@@ -135,6 +136,6 @@ namespace Remains.Editor
         {
             if(AssetDatabase.IsValidFolder(path))return;string parent=Path.GetDirectoryName(path).Replace('\\','/');EnsureFolder(parent);AssetDatabase.CreateFolder(parent,Path.GetFileName(path));
         }
-        private const string Readme="# Штатный 2D-риг пони\n\nОткройте NativePony.unity. Слева PonyAnimation с Animator, справа PonyPosing с родным IK Manager 2D. Это отдельный образец; игровая кукла не заменена.\n\n## Анимация\n\nВыберите корень PonyAnimation, откройте Window → Animation → Animation. Выберите Idle, Walk или LegCurl. Ключи — обычные Transform; их можно редактировать штатными средствами. Перед изменениями сохраните копии клипа и префаба.\n\n## Постановка позы\n\nВ PonyPosing выберите Controls → frontNearTarget и перемещайте его инструментом Move в плоскости XY. Остальные копыта имеют свои цели. Родной Limb Solver управляет двумя нижними звеньями; плечо/бедро можно вращать отдельно. У Solver есть Flip для выбора стороны сгиба.\n\n## Внешность\n\nНа корне компонент Sprite Library. Поменяйте Sprite Library Asset на Bare, Antirad, Creator или AntiradCreator. Все варианты используют одинаковый скелет.\n\n## Сетка и веса\n\nВыберите PNG в Art, нажмите Sprite Editor → Skinning Editor. Сетка, кости и веса сохранены в импортере PNG. В этом образце здесь редактируются сетка и веса. Изменение исходных костей в одном PNG не обновляет общий скелет и остальные слои: для смены bind-позы требуется согласованное обновление всех спрайтов и префаба. Четыре ноги — сплошные деформируемые спрайты, голова и туловище жёсткие. Исходные рисунки пока сохранены, художественная очистка контуров и сгибов не выполнена.\n\n## Границы\n\nЦвета запечены для образца. Независимая мимика, произвольное смешивание одежды, игровое освещение, силуэты теней и подключение к боевым состояниям не переносились. По сравнению с исходным составом рисунка изменён порядок девяти крупных слоёв. Образец использует штатный Sprite-Unlit материал и SpriteSkin с включёнными CPU-данными для диагностики; производительность полного завода не заявляется.\n";
+        private const string Readme="# Штатный 2D-риг пони\n\nОткройте NativePony.unity. Слева PonyAnimation с Animator, справа PonyPosing с родным IK Manager 2D. Это отдельный образец; игровая кукла не заменена.\n\n## Анимация\n\nВыберите корень PonyAnimation, откройте Window → Animation → Animation. Выберите Idle, Walk или LegCurl. Ключи — обычные Transform; их можно редактировать штатными средствами. Перед изменениями сохраните копии клипа и префаба.\n\n## Постановка позы\n\nВ PonyPosing выберите Controls → frontNearTarget и перемещайте его инструментом Move в плоскости XY. Остальные копыта имеют свои цели. Родной Limb Solver управляет двумя нижними звеньями; плечо/бедро можно вращать отдельно. У Solver есть Flip для выбора стороны сгиба.\n\n## Внешность\n\nНа корне компонент Sprite Library. Поменяйте Sprite Library Asset на Bare, Antirad, Creator или AntiradCreator. Все варианты используют одинаковый скелет.\n\n## Сетка и веса\n\nВыберите PNG в Art, нажмите Sprite Editor → Skinning Editor. Сетка, кости и веса сохранены в импортере PNG. В этом образце здесь редактируются сетка и веса. Изменение исходных костей в одном PNG не обновляет общий скелет и остальные слои: для смены bind-позы требуется согласованное обновление всех спрайтов и префаба. Четыре ноги — сплошные деформируемые спрайты; голова, туловище и отдельный ПипБак жёсткие. Переходы весов перекрываются, а нижнее звено от запястья или скакательного сустава сохраняет жёсткость. Исходные рисунки пока сохранены, художественная очистка контуров и сгибов не выполнена.\n\n## Границы\n\nЦвета запечены для образца. Независимая мимика, произвольное смешивание одежды, игровое освещение, силуэты теней и подключение к боевым состояниям не переносились. По сравнению с исходным составом рисунка изменён порядок девяти крупных слоёв. Образец использует штатный Sprite-Unlit материал и SpriteSkin с включёнными CPU-данными для диагностики; производительность полного завода не заявляется.\n";
     }
 }
