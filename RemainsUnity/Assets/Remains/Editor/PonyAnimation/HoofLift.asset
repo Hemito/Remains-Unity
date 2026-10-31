@@ -1,0 +1,392 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd3e2ed0bbc9b5c41a17d911e68a713a, type: 3}
+  m_Name: HoofLift
+  m_EditorClassIdentifier:
+  schema: 1
+  clipId: hoof_lift
+  sourceClip: idle
+  sourceFrame: 0
+  fps: 30
+  duration: 1
+  loop: 1
+  joints:
+  - id: torso
+    label: "\u0422\u0443\u043B\u043E\u0432\u0438\u0449\u0435"
+    socket: torso
+    parent: -1
+    rest:
+      position: {x: 0.020799806, y: 0.6720937}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: neck
+    label: "\u0428\u0435\u044F"
+    socket: neck
+    parent: 0
+    rest:
+      position: {x: 0.07019934, y: 0.090999186}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: head
+    label: "\u0413\u043E\u043B\u043E\u0432\u0430"
+    socket: head
+    parent: 1
+    rest:
+      position: {x: 0.27559742, y: 0.37569642}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: mane
+    label: "\u0413\u0440\u0438\u0432\u0430"
+    socket: mane
+    parent: 2
+    rest:
+      position: {x: -0.27429745, y: 0.0052000284}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: tail
+    label: "\u0425\u0432\u043E\u0441\u0442"
+    socket: tail
+    parent: 0
+    rest:
+      position: {x: -0.23399779, y: 0.13259882}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: frontUpperNear
+    label: "\u041F\u043B\u0435\u0447\u043E \u0431\u043B\u0438\u0436\u043D\u0435\u0435"
+    socket: frontUpperNear
+    parent: 0
+    rest:
+      position: {x: 0.18589826, y: -0.1234988}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: frontMiddleNear
+    label: "\u041B\u043E\u043A\u043E\u0442\u044C \u0431\u043B\u0438\u0436\u043D\u0438\u0439"
+    socket: frontMiddleNear
+    parent: 5
+    rest:
+      position: {x: -0.0077999234, y: -0.09879911}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: frontLowerNear
+    label: "\u0417\u0430\u043F\u044F\u0441\u0442\u044C\u0435 \u0431\u043B\u0438\u0436\u043D\u0435\u0435"
+    socket: frontLowerNear
+    parent: 6
+    rest:
+      position: {x: -0.0116999, y: -0.12999877}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: pipbuckNear
+    label: "\u041F\u0438\u043F\u0411\u0430\u043A \u0431\u043B\u0438\u0436\u043D\u0438\u0439"
+    socket: pipbuckNear
+    parent: 7
+    rest:
+      position: {x: 0.0077999383, y: 0.0025999546}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: frontUpperFar
+    label: "\u041F\u043B\u0435\u0447\u043E \u0434\u0430\u043B\u044C\u043D\u0435\u0435"
+    socket: frontUpperFar
+    parent: 0
+    rest:
+      position: {x: 0.23139782, y: -0.081899226}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: frontMiddleFar
+    label: "\u041B\u043E\u043A\u043E\u0442\u044C \u0434\u0430\u043B\u044C\u043D\u0438\u0439"
+    socket: frontMiddleFar
+    parent: 9
+    rest:
+      position: {x: 0.005199969, y: -0.10009906}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: frontLowerFar
+    label: "\u0417\u0430\u043F\u044F\u0441\u0442\u044C\u0435 \u0434\u0430\u043B\u044C\u043D\u0435\u0435"
+    socket: frontLowerFar
+    parent: 10
+    rest:
+      position: {x: 0.005199969, y: -0.1286988}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: pipbuckFar
+    label: "\u041F\u0438\u043F\u0411\u0430\u043A \u0434\u0430\u043B\u044C\u043D\u0438\u0439"
+    socket: pipbuckFar
+    parent: 11
+    rest:
+      position: {x: 0.016899824, y: -0.029899716}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: hindUpperNear
+    label: "\u0411\u0435\u0434\u0440\u043E \u0431\u043B\u0438\u0436\u043D\u0435\u0435"
+    socket: hindUpperNear
+    parent: 0
+    rest:
+      position: {x: -0.25219762, y: 0.10919899}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: hindLowerNear
+    label: "\u0421\u043A\u0430\u043A\u0430\u0442\u0435\u043B\u044C\u043D\u044B\u0439
+      \u0441\u0443\u0441\u0442\u0430\u0432 \u0431\u043B\u0438\u0436\u043D\u0438\u0439"
+    socket: hindLowerNear
+    parent: 13
+    rest:
+      position: {x: -0.010399923, y: -0.35749668}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: hindUpperFar
+    label: "\u0411\u0435\u0434\u0440\u043E \u0434\u0430\u043B\u044C\u043D\u0435\u0435"
+    socket: hindUpperFar
+    parent: 0
+    rest:
+      position: {x: -0.1494986, y: 0.11179894}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: hindLowerFar
+    label: "\u0421\u043A\u0430\u043A\u0430\u0442\u0435\u043B\u044C\u043D\u044B\u0439
+      \u0441\u0443\u0441\u0442\u0430\u0432 \u0434\u0430\u043B\u044C\u043D\u0438\u0439"
+    socket: hindLowerFar
+    parent: 15
+    rest:
+      position: {x: -0.010399893, y: -0.33539683}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: frontHoofNear
+    label: "\u041A\u043E\u043F\u044B\u0442\u043E \u043F\u0435\u0440\u0435\u0434\u043D\u0435\u0435
+      \u0431\u043B\u0438\u0436\u043D\u0435\u0435"
+    socket:
+    parent: 7
+    rest:
+      position: {x: 0.032801762, y: -0.30979702}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: frontHoofFar
+    label: "\u041A\u043E\u043F\u044B\u0442\u043E \u043F\u0435\u0440\u0435\u0434\u043D\u0435\u0435
+      \u0434\u0430\u043B\u044C\u043D\u0435\u0435"
+    socket:
+    parent: 11
+    rest:
+      position: {x: 0.02740243, y: -0.3113966}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: hindHoofNear
+    label: "\u041A\u043E\u043F\u044B\u0442\u043E \u0437\u0430\u0434\u043D\u0435\u0435
+      \u0431\u043B\u0438\u0436\u043D\u0435\u0435"
+    socket:
+    parent: 14
+    rest:
+      position: {x: -0.038202256, y: -0.448796}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - id: hindHoofFar
+    label: "\u041A\u043E\u043F\u044B\u0442\u043E \u0437\u0430\u0434\u043D\u0435\u0435
+      \u0434\u0430\u043B\u044C\u043D\u0435\u0435"
+    socket:
+    parent: 16
+    rest:
+      position: {x: -0.04090132, y: -0.4234958}
+      angle: 0
+      scale: {x: 1, y: 1}
+  keys:
+  - time: 0
+    values:
+    - position: {x: 0.020799806, y: 0.6720937}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.07019934, y: 0.090999186}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.27559742, y: 0.37569642}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.27429745, y: 0.0052000284}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.23399779, y: 0.13259882}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.18589826, y: -0.1234988}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.0077999234, y: -0.09879911}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.0116999, y: -0.12999877}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.0077999383, y: 0.0025999546}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.23139782, y: -0.081899226}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.005199969, y: -0.10009906}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.005199969, y: -0.1286988}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.016899824, y: -0.029899716}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.25219762, y: 0.10919899}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.010399923, y: -0.35749668}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.1494986, y: 0.11179894}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.010399893, y: -0.33539683}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.032801762, y: -0.30979702}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.02740243, y: -0.3113966}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.038202256, y: -0.448796}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.04090132, y: -0.4234958}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - time: 0.5
+    values:
+    - position: {x: 0.020799806, y: 0.6720937}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.07019934, y: 0.090999186}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.27559742, y: 0.37569642}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.27429745, y: 0.0052000284}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.23399779, y: 0.13259882}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.18589826, y: -0.1234988}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.0077999234, y: -0.09879911}
+      angle: -57.67032
+      scale: {x: 1, y: 1}
+    - position: {x: -0.0116999, y: -0.12999877}
+      angle: 110.68832
+      scale: {x: 1, y: 1}
+    - position: {x: 0.0077999383, y: 0.0025999546}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.23139782, y: -0.081899226}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.005199969, y: -0.10009906}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.005199969, y: -0.1286988}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.016899824, y: -0.029899716}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.25219762, y: 0.10919899}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.010399923, y: -0.35749668}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.1494986, y: 0.11179894}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.010399893, y: -0.33539683}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.032801762, y: -0.30979702}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.02740243, y: -0.3113966}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.038202256, y: -0.448796}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.04090132, y: -0.4234958}
+      angle: 0
+      scale: {x: 1, y: 1}
+  - time: 1
+    values:
+    - position: {x: 0.020799806, y: 0.6720937}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.07019934, y: 0.090999186}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.27559742, y: 0.37569642}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.27429745, y: 0.0052000284}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.23399779, y: 0.13259882}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.18589826, y: -0.1234988}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.0077999234, y: -0.09879911}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.0116999, y: -0.12999877}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.0077999383, y: 0.0025999546}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.23139782, y: -0.081899226}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.005199969, y: -0.10009906}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.005199969, y: -0.1286988}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.016899824, y: -0.029899716}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.25219762, y: 0.10919899}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.010399923, y: -0.35749668}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.1494986, y: 0.11179894}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.010399893, y: -0.33539683}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.032801762, y: -0.30979702}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: 0.02740243, y: -0.3113966}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.038202256, y: -0.448796}
+      angle: 0
+      scale: {x: 1, y: 1}
+    - position: {x: -0.04090132, y: -0.4234958}
+      angle: 0
+      scale: {x: 1, y: 1}
