@@ -17,6 +17,7 @@ namespace Remains.Editor
         public static readonly string[] SourceIds={"body_stay","body_trot","body_sit","body_sit_down","body_laz","body_shield",
             "body_lurk1","body_lurk1_un","body_lurk2","body_lurk2_un","body_lurk3","body_lurk3_un"};
         public readonly Dictionary<string,Clip> Clips=new(StringComparer.Ordinal);
+        public IReadOnlyDictionary<string,Clip> SourceClips {get;private set;}
         public readonly string[] Bones;
         public readonly Dictionary<string,int> Indices=new(StringComparer.Ordinal);
         public readonly Matrix4x4[] Rest;
@@ -88,6 +89,9 @@ namespace Remains.Editor
                 }
                 Clips.Add(id,clip);
             }
+            // Keep the exact authored timelines for diagnostics. Presentation recipes add holds,
+            // reverse playback and replace raw names; they are not independent fitting evidence.
+            SourceClips=new System.Collections.ObjectModel.ReadOnlyDictionary<string,Clip>(new Dictionary<string,Clip>(Clips,StringComparer.Ordinal));
             PonyRigPilotSets.Expand(Clips);
         }
         private Matrix4x4 Placement(JToken key)

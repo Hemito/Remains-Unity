@@ -117,7 +117,7 @@ namespace Remains.Editor
             _ when id.StartsWith("edge",StringComparison.Ordinal)=>"body_shield",
             _=>"own-1.04"
         };
-        private static GodotRigPilotData.Frame Sample(GodotRigPilotData rig,string id,int frame,int count)
+        internal static GodotRigPilotData.Frame Sample(GodotRigPilotData rig,string id,int frame,int count)
         {
             string key=id switch {"idle"=>"body_stay","walk"=>"body_trot","crouch"=>"body_sit", "crouchLower"=>"body_sit_down","crouchRise"=>"body_sit_up",_=>null};
             if(id=="climb")return frame==0?rig.Clips["ladder_hold"].Frames[0]:rig.Clips["ladder_up"].Frames[frame-1];
