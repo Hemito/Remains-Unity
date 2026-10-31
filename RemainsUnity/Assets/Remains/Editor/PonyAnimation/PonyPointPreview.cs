@@ -14,7 +14,7 @@ namespace Remains.Editor
     {
         public static JArray Matrix(Matrix4x4 m)=>new(m.m00,m.m10,m.m01,m.m11,m.m03,m.m13);
         public static JArray Points(Vector2[][] points)=>new(points.Select(p=>new JArray(p.Select(v=>new JArray(v.x,v.y)))));
-        public static void Write(JObject report)
+        public static void Write(JObject report,bool puppet=false)
         {
             var images=new JArray();var looks=new JArray();var cache=new Dictionary<string,int>(StringComparer.Ordinal);
             using(var preview=new PonyAnimationPreview())
@@ -51,8 +51,10 @@ namespace Remains.Editor
                 ["presets"]=report["presets"],["presetLabels"]=new JArray(PonyPointControls.PresetLabels),["proof"]=proof,
                 ["world"]=new JArray(PonyPointStudy.World.x,PonyPointStudy.World.y,PonyPointStudy.World.width,PonyPointStudy.World.height),
                 ["metrics"]=new JObject { ["frames"]=report["frames"],["nodes"]=report["nodes"],["matrixError"]=report["maxMatrixError"],["pixelError"]=report["nativeImageMaxChannelError"] } };
-            string template=File.ReadAllText("Assets/Remains/Editor/PonyAnimation/PonyPointPreview.html");
-            File.WriteAllText(Path.Combine(PonyPointStudy.Output,"affine-points.html"),template.Replace("@DATA@",data.ToString(Formatting.None)));
+            if(puppet)data["puppet"]=PonyPuppetStudy.Definition();
+            string template=File.ReadAllText("Assets/Remains/Editor/PonyAnimation/"+(puppet?"PonyPuppetPreview.html":"PonyPointPreview.html"));
+            if(puppet)template=template.Replace("@SCRIPT@",File.ReadAllText("Assets/Remains/Editor/PonyAnimation/PonyPuppetPreview.js"));
+            File.WriteAllText(Path.Combine(PonyPointStudy.Output,puppet?"affine-puppet.html":"affine-points.html"),template.Replace("@DATA@",data.ToString(Formatting.None)));
         }
         private static string Embed(string path)=>"data:image/png;base64,"+Convert.ToBase64String(File.ReadAllBytes(path));
     }
