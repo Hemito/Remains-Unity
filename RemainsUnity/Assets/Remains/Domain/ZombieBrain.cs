@@ -100,9 +100,9 @@ namespace Remains.Domain
                 {
                     intent.move=m.direction;
                     int turn=0;
-                    if(stay && RaiderBrain.Edge(room,hull,actor,m.direction,.25f))
+                    if(stay && RaiderLegs.Edge(room,hull,actor,m.direction,.25f))
                     {
-                        if(Chance(.1) && RaiderBrain.Ground(room,actor,m.direction*80*Px)) jump=.5f;
+                        if(Chance(.1) && RaiderLegs.Ground(room,actor,m.direction*80*Px)) jump=.5f;
                         else turn=-m.direction;
                     }
                     if(stay && wallAhead) turn=-m.direction;
@@ -116,7 +116,7 @@ namespace Remains.Domain
                 case RaiderState.Search:
                 case RaiderState.Pursue:
                 {
-                    if(m.vertical<0 && m.jumpDelay<=0 && m.timer%2==1 && RaiderBrain.CanJump(room,actor,m.direction)) jump=1;
+                    if(m.vertical<0 && m.jumpDelay<=0 && m.timer%2==1 && RaiderLegs.CanJump(room,actor,m.direction)) jump=1;
                     if(m.timer%15==1 && Chance(.8))
                     {
                         if(dx>100*Px) m.direction=m.wantedFacing=1;
@@ -124,12 +124,12 @@ namespace Remains.Domain
                     }
                     intent.dropThrough=actor.y+hull.height-m.point.y>80*Px;
                     intent.move=m.direction;
-                    if(stay && RaiderBrain.Edge(room,hull,actor,m.direction,.5f) && m.vertical<=0 && Chance(.5)) jump=.5f;
+                    if(stay && RaiderLegs.Edge(room,hull,actor,m.direction,.5f) && m.vertical<=0 && Chance(.5)) jump=.5f;
                     if(wallAhead)
                     {
                         m.wallTurn--;
                         if(Chance(.03)) m.wallTurn-=10;
-                        else if(Chance(.5) && RaiderBrain.CanJump(room,actor,m.direction)) jump=1;
+                        else if(Chance(.5) && RaiderLegs.CanJump(room,actor,m.direction)) jump=1;
                         else m.wallTurn-=10;
                         if(m.wallTurn<0 && stay) {m.direction=m.wantedFacing=-m.direction;m.wallTurn=Range(20)+5;}
                     }

@@ -15,8 +15,9 @@ namespace Remains.Gameplay
         public RaiderActions(bool weapon,float bodyHit,bool changed=false) {this.weapon=weapon;this.bodyHit=bodyHit;this.changed=changed;}
     }
 
-    // Raiders this peer owns: RaiderBrain decides at the original's 30 frames per second, a movement controller of the
-    // raider's own (its drop and ladder gestures are per body) moves it each frame. The decision memory, the swing being
+    // Raiders this peer owns: PonyBrain (sapient raiders), RaiderBrain (the robobrain) or ZombieBrain decides at the
+    // original's 30 frames per second, a movement controller of the raider's own (its drop and ladder gestures are per
+    // body) moves it each frame. The decision memory, the swing being
     // swept and the touch pause stay here, with the owner; an unseen raider's entry is dropped after a few seconds.
     public sealed class NpcRaiderController
     {
@@ -26,6 +27,7 @@ namespace Remains.Gameplay
         private sealed class Entry
         {
             public RaiderMind mind=new();public MovementController movement;public MovementSettings settings;
+            public PonyMind pony;   // a sapient raider's utility memory (PonyBrain)
             public int generation;public float clock;public int seen;
             public RaiderIntent intent;
             public string swingAttack;public MeleeSweep swing;
@@ -40,6 +42,9 @@ namespace Remains.Gameplay
         // random: a seeded source for checks; the game's decisions are not reproduced across peers (owner-local).
         public NpcRaiderController(MovementSettings baseSettings,System.Random random=null)
         {this.baseSettings=baseSettings;this.random=random??new System.Random();}
+
+        // What a sapient raider this peer owns intends now (diagnostics and probes); null for others and unknown ones.
+        public PonyIntentKind? Intent(string actorId)=>entries.TryGetValue(actorId,out var entry) && entry.pony!=null?entry.pony.intent:null;
 
         // The raider's own controller (also for the frames of an attack already begun).
         public MovementController Movement(ActorState actor,ActorTypeDefinition type,RoomLayout room)=>Get(actor,type,room).movement;
@@ -58,12 +63,21 @@ namespace Remains.Gameplay
             // A shooter with nothing left to shoot or reload with fights with its body (the port's rule, user 2026-10-29).
             var attacker=settings.attacker==RaiderAttacker.Ranged && settings.Touches && NpcWeaponActions.Spent(actor)?RaiderAttacker.Teeth:settings.attacker;
             bool weapon=false;float bodyHit=0;
+            bool sapient=!settings.zombie && SapientPonies.Is(actor);
+            if(sapient)
+            {
+                entry.pony??=new PonyMind();
+                // Its full health: the factory's level profile, else the most it has had with this owner.
+                entry.pony.maxHealth=actor.factoryEnemy?.maxHealth>0?actor.factoryEnemy.maxHealth:Mathf.Max(entry.pony.maxHealth,actor.health);
+            }
             for(int i=0;i<frames;i++)
             {
                 var hull=Anatomy.Movement(actor);
                 // A wall ahead (turnX): the body one probe further along its way, above the step height, does not fit.
                 bool wall=!ActorTerrainMotion.IsClear(room,hull,actor.Position+new Vector2(entry.mind.direction*.05f,entry.settings.stepHeight+.02f));
-                var intent=settings.zombie?ZombieBrain.Tick(entry.mind,settings,actor,room,senses,wall,random):RaiderBrain.Tick(entry.mind,settings,actor,room,senses,wall,random,attacker);
+                var intent=settings.zombie?ZombieBrain.Tick(entry.mind,settings,actor,room,senses,wall,random):
+                    sapient?PonyBrain.Tick(entry.pony,entry.mind,settings,actor,room,senses,wall,random,attacker):
+                    RaiderBrain.Tick(entry.mind,settings,actor,room,senses,wall,random,attacker);
                 weapon|=intent.shoot || intent.swing;bodyHit=Mathf.Max(bodyHit,intent.bodyHit);
                 // One-shot parts wait for the movement step; the steady ones are the latest decision.
                 if(entry.intent.jump>0 && intent.jump<=0) {intent.jump=entry.intent.jump;intent.jumpPush=entry.intent.jumpPush;}

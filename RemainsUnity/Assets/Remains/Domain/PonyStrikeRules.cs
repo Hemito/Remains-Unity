@@ -13,13 +13,7 @@ namespace Remains.Domain
         public const string Punch="punch",Kick="kick";
         public static string Weapon(bool kick)=>kick?Kick:Punch;
 
-        // A player, or a raider of the raiders' mind (not the robobrain or a zombie on the same brain).
-        public static bool Allowed(ActorState actor)
-        {
-            if(actor.player) return true;
-            var raider=ActorTypes.Get(actor.actorType).raider;
-            return raider!=null && !raider.robot && !raider.zombie;
-        }
+        public static bool Allowed(ActorState actor)=>SapientPonies.Is(actor);
 
         // UnitPlayer: standing on its support (stay), not crouched, climbing or down.
         public static bool CanBegin(ActorState actor,RoomLayout room)=>actor!=null && room!=null && Allowed(actor) && ActorPresence.IsPresent(actor) &&

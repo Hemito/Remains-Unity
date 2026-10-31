@@ -41,6 +41,10 @@ namespace Remains.Runtime
             // Seed104's glowing ghouls may all be buried: either digs out to the player first.
             new() {name="zombie4",matches=(a,t)=>a.actorType=="zombie4",radiation=true},
             new() {name="закопанный зомби",matches=(a,t)=>t.behavior==NpcCreatureBehaviours.Zombie && ActorPresence.Hidden(a),buried=true},
+            // Sapient raiders on PonyBrain (2026-10-31): a shooter, a weapon in the teeth (the body strike), a levitated weapon.
+            new() {name="рейдер-стрелок",matches=(a,t)=>t.behavior==NpcCreatureBehaviours.Raider && t.raider is {robot:false,zombie:false,attacker:RaiderAttacker.Ranged}},
+            new() {name="рейдер, оружие в зубах",matches=(a,t)=>t.behavior==NpcCreatureBehaviours.Raider && t.raider is {robot:false,zombie:false,attacker:RaiderAttacker.Teeth}},
+            new() {name="рейдер, оружие телекинезом",matches=(a,t)=>t.behavior==NpcCreatureBehaviours.Raider && t.raider is {robot:false,zombie:false,attacker:RaiderAttacker.Levitated}},
         };
         [Serializable] private sealed class StationResult
         {
