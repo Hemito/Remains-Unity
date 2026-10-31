@@ -14,8 +14,15 @@ body{margin:24px;background:#252a32;color:#eee;font:16px/1.5 system-ui}main{max-
 <details id="finePanel"><summary>Тонкая настройка формы — три опоры</summary>
 <label><input id="fineMode" type="checkbox" disabled>Править опоры вручную</label><label>Деталь <select id="part" disabled></select></label><label>Опора <select id="point" disabled></select></label><button id="clearFine" disabled>Сбросить поправки формы</button>
 <p class="note">Поправки сохраняются при движении куклы и следуют за деталью. В этом режиме опоры соседних деталей можно разъединить намеренно. Выключите ручную правку, чтобы вернуться к рукояткам куклы.</p></details>
-<p id="message" role="status">Подготовка рисунков…</p><p id="readout"></p>
+<p id="message" role="status" data-error="true">Открыт исходный шаблон без рисунков. <a id="readyPreview" href="../../../../../.reference/affine-points/affine-puppet.html" style="color:#b9e2ff">Открыть готовую куклу</a>.</p><p id="readout"></p>
 <div class="pair"><figure><figcaption>Без костюма</figcaption><canvas id="bare" width="560" height="560"></canvas></figure><figure><figcaption>Антирад</figcaption><canvas id="antirad" width="560" height="560"></canvas></figure></div>
 <p class="note">Проба одной задней ноги. Корпус перемещает всю куклу; удержание копыта сейчас применяется только к этой ноге. Схлопывание и выворот отклоняются с сообщением. Опоры поставлены для инструмента, это не найденный скелет оригинала.</p>
 <details><summary>Проверка сохранения исходных движений</summary><p id="metrics"></p><label>Кадр <select id="proofSelect" disabled></select></label><div id="proof" class="pair"><figure><figcaption>Исходная матрица</figcaption><img id="original" width="560" height="560" alt="Исходное движение"></figure><figure><figcaption>Восстановление из трёх точек</figcaption><img id="rebuilt" width="560" height="560" alt="Восстановленное движение"></figure></div></details>
-</main><script>const puppetData=@DATA@;</script><script>@SCRIPT@</script></html>
+</main><script id="puppetPayload" type="application/json">@DATA@</script><script id="puppetCode" type="text/plain">@SCRIPT@</script>
+<script>(()=>{
+const payload=document.getElementById('puppetPayload').textContent;
+if(payload.trim()==='@'+'DATA@'){document.documentElement.dataset.previewReady='template';return;}
+const message=document.getElementById('message');
+try{message.textContent='Подготовка рисунков…';message.dataset.error='false';new Function('puppetData',document.getElementById('puppetCode').textContent)(JSON.parse(payload));}
+catch(error){message.textContent='Не удалось запустить куклу: '+error.message;message.dataset.error='true';document.documentElement.dataset.previewReady='false';}
+})();</script></html>
