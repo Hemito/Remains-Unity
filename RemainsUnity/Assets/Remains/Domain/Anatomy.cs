@@ -111,6 +111,8 @@ namespace Remains.Domain
         public static MovementHull Movement(string id)=>definitions.TryGetValue(id,out var definition)?definition.movement:
             throw new InvalidOperationException($"Нет определения движения анатомии {id}.");
         public static MovementHull Movement(ActorState actor)=>actor.crouched?Crouching(actor.anatomy):Movement(actor.anatomy);
+        // A body without a crouching hull (the creatures and raiders) cannot crouch.
+        public static bool CanCrouch(string id)=>definitions.TryGetValue(id,out var definition) && definition.crouchingMovement!=null;
         public static MovementHull Crouching(string id)=>definitions.TryGetValue(id,out var definition) && definition.crouchingMovement!=null?definition.crouchingMovement:
             throw new InvalidOperationException($"Не заданы габариты приседания: anatomy={id}.");
         public static float StanceHeightRatio(ActorState actor)=>Movement(actor).height/Movement(actor.anatomy).height;

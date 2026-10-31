@@ -28,6 +28,27 @@ namespace Remains.Domain
         }
     }
 
+    // A radioactive touch (radiationHit) pairs the attack heard at its victim with that attack's applied damage, in either
+    // order: each returns the touch's radiation when it completes the pair, else 0. A few recent halves are kept.
+    public sealed class RadioactiveTouches
+    {
+        private const int Kept=32;
+        private readonly System.Collections.Generic.Dictionary<string,float> heard=new(StringComparer.Ordinal);
+        private readonly System.Collections.Generic.HashSet<string> damaged=new(StringComparer.Ordinal);
+        public float Touched(string attack,float radiation)
+        {
+            if(damaged.Remove(attack)) return radiation;
+            if(heard.Count>=Kept) heard.Clear();
+            heard[attack]=radiation;return 0;
+        }
+        public float Damaged(string attack)
+        {
+            if(heard.Remove(attack,out float radiation)) return radiation;
+            if(damaged.Count>=Kept) damaged.Clear();
+            damaged.Add(attack);return 0;
+        }
+    }
+
     public static class PlayerRadiation
     {
         // UnitPlayer.drad2: a radioactive touch's dose fades by 0.1 a frame — 3 a second.

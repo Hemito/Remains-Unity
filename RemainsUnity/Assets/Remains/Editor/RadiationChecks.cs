@@ -60,6 +60,12 @@ namespace Remains.Editor
             PlayerRadiation.Cure(sick,50);Require(Mathf.Approximately(sick.radiation,30),"молоко снимает 50");
             PlayerRadiation.Cure(sick,200);Require(sick.radiation==0,"радиация не ниже 0");
 
+            // A radioactive touch counts once, whether its damage is applied before or after the attack is heard (the
+            // combat controller hears AttackReceived first in the game: the touch was never counted, 2026-10-31).
+            var touches=new RadioactiveTouches();
+            Require(touches.Damaged("a")==0 && touches.Touched("a",6)==6 && touches.Touched("b",6)==0 && touches.Damaged("b")==6 &&
+                touches.Damaged("a")==0 && touches.Touched("c",6)==0 && touches.Touched("c",6)==0,"радиоактивное касание засчитывается один раз в любом порядке");
+
             // The Geiger counter clicks with min(0.5, drad/10) a frame above drad 0.1; its three clips are there.
             Require(Presentation.GeigerAudio.Chance(.05f,1f/30)==0 && Mathf.Approximately(Presentation.GeigerAudio.Chance(3,1f/30),.3f) &&
                 Mathf.Approximately(Presentation.GeigerAudio.Chance(9,1f/30),.5f),"шанс щелчка счётчика");

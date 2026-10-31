@@ -10,6 +10,8 @@ namespace Remains.Gameplay
         public static void Step(ActorState actor,RoomLayout room,MovementSettings settings,Vector2 input,
             bool jump,bool grounded,bool ladder,bool dropping,float dt)
         {
+            // A held down on the floor (a raider dropping towards a target below) is no crouch for a body that has none.
+            if(!actor.crouched && !Anatomy.CanCrouch(actor.anatomy)) {actor.crouchPressSeconds=0;return;}
             bool wantsDown=input.y<-.1f;
             if(!wantsDown) actor.crouchPressConsumed=false;
             // UnitPlayer.downp continues while S operates a ladder. Reaching its landing

@@ -21,7 +21,7 @@ namespace Remains.Gameplay
         private readonly CombatController combat;
         private readonly List<PropState> sources=new();
         private readonly List<ActorState> creatures=new();
-        private readonly Dictionary<string,float> touches=new(System.StringComparer.Ordinal);   // natural attack id → its radiation
+        private readonly RadioactiveTouches touches=new();
         private float lingering;
         private string sourcesWorld,sourcesLevel;
         private float clock,listAge=ListPeriod;
@@ -31,18 +31,21 @@ namespace Remains.Gameplay
         public RadiationController(CoopSession session,CombatController combat)
         {
             this.session=session;this.combat=combat;
-            // A radioactive touch at the local player, kept until its damage is applied here (or forgotten).
+            // A radioactive touch at the local player counts once its damage is applied here. The combat controller
+            // applies it from the same AttackReceived, before or after this one hears it (subscription order).
             session.AttackReceived+=attack=>
             {
                 if(attack?.naturalAttackType==null || attack.naturalAttackTarget!=session.LocalActor?.id) return;
                 float hit=ActorTypes.Get(attack.naturalAttackType).radiationHit;
-                if(hit>0) {if(touches.Count>32) touches.Clear();touches[attack.id]=hit;}
+                if(hit>0) Linger(touches.Touched(attack.id,hit));
             };
             combat.DamageApplied+=result=>
             {
-                if(result.actor==session.LocalActor?.id && touches.Remove(result.attack,out float hit)) lingering=Mathf.Max(lingering,hit);
+                if(result.actor==session.LocalActor?.id) Linger(touches.Damaged(result.attack));
             };
         }
+
+        private void Linger(float hit) {if(hit>0) lingering=Mathf.Max(lingering,hit);}
 
         public void Step(float dt)
         {

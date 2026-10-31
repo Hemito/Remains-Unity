@@ -149,14 +149,22 @@ namespace Remains.Gameplay
         private static bool Levitated(ActorState actor)=>!string.IsNullOrEmpty(actor.weapon) && WeaponCatalog.IsMelee(actor.weapon) &&
             WeaponCatalog.Get(actor.weapon).meleeAroundHold && !AtlasWeaponSockets.Enabled(actor);
 
+        // The movement of a raider-brained type: its own walk, run, jump and acceleration (AllData move). A jump of 0 (the
+        // robobrain) never launches — the brain decides no jump — so the controller keeps the player's positive value.
+        public static MovementSettings Movement(MovementSettings player,ActorTypeDefinition type)
+        {
+            var settings=Remains.Serialization.StateJson.Copy(player);
+            settings.walkSpeed=type.raider.walkSpeed;settings.runSpeed=type.raider.RunSpeed;
+            if(type.raider.jumpSpeed>0) settings.jumpSpeed=type.raider.jumpSpeed;
+            settings.groundAcceleration=type.raider.acceleration*30;   // px per frame² → m/s²
+            return settings;
+        }
         private Entry Get(ActorState actor,ActorTypeDefinition type,RoomLayout room)
         {
             if(type.raider==null) throw new InvalidOperationException($"Тип {type.id} не рейдер: actor={actor.id}.");
             if(!entries.TryGetValue(actor.id,out var entry) || entry.generation!=actor.generation || !ReferenceEquals(entry.movement.Room,room))
             {
-                var settings=Remains.Serialization.StateJson.Copy(baseSettings);
-                settings.walkSpeed=type.raider.walkSpeed;settings.runSpeed=type.raider.RunSpeed;settings.jumpSpeed=type.raider.jumpSpeed;
-                settings.groundAcceleration=type.raider.acceleration*30;   // px per frame² → m/s²
+                var settings=Movement(baseSettings,type);
                 entry=new Entry {movement=new MovementController(room,settings),settings=settings,generation=actor.generation};
                 entry.mind.direction=entry.mind.wantedFacing=entry.mind.facing=actor.facing<0?-1:1;
                 // A new owner keeps a buried or digging zombie so; a flare in progress ends (pursuit).

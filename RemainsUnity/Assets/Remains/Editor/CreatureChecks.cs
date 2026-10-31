@@ -27,6 +27,27 @@ namespace Remains.Editor
             var catalog=CreatureCatalog.Load();
             Require(catalog.Creatures.Count>0,"каталог пуст");
             var exported=ExportedContentCatalog.Load();var voices=ActorDeathAudioCatalog.Load();
+            // Every NPC type gets valid ground movement from its saved asset: an unauthored motion is serialized as zeros
+            // and a robobrain's jump of 0 must not reach the movement controller (each broke the NPC step, 2026-10-31).
+            var playerMovement=MovementSettings.Load();
+            foreach(var definition in EntityAssetCatalog.Load().CreateActors().Where(d=>d.combatAi))
+                try
+                {
+                    Remains.Gameplay.NpcController.Movement(playerMovement,definition).Validate();
+                    if(NpcCreatureBehaviours.UsesRaiderBrain(definition.behavior)) Remains.Gameplay.NpcRaiderController.Movement(playerMovement,definition).Validate();
+                }
+                catch(InvalidOperationException error) {throw new InvalidOperationException($"{definition.id}: движение NPC — {error.Message}");}
+            // A raider-brained body held down on a solid floor (a target below) does not crouch: it has no crouching hull.
+            var floor=new RoomLayout {id="crouch-check",left=-10,right=10,bottom=-1,top=10,ladders=Array.Empty<RoomLadder>(),
+                platforms=new[]{new RoomSurface {x=-10,y=-1,width=20,height=1}}};
+            RoomSurfaces.Prepare(floor);
+            foreach(var creature in catalog.Creatures.Where(c=>NpcCreatureBehaviours.UsesRaiderBrain(ActorTypes.Get(c.actorType).behavior)))
+            {
+                var body=creature.spawn.Create(new TrainingPlacement {id="crouch",type=creature.actorType,facing=1},"l");body.x=0;body.y=0;
+                var motion=new Remains.Gameplay.MovementController(floor,Remains.Gameplay.NpcRaiderController.Movement(playerMovement,ActorTypes.Get(creature.actorType)));
+                for(int i=0;i<60;i++) motion.Step(body,Vector2.down,false,1f/30);
+                Require(!body.crouched,$"{creature.actorType}: удерживая «вниз» на полу, не приседает");
+            }
             foreach(var creature in catalog.Creatures)
             {
                 var type=ActorTypes.Get(creature.actorType);

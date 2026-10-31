@@ -37,16 +37,21 @@ namespace Remains.Gameplay
                 {
                     var key=value;
                     if(movement.TryGetValue(key,out var controller) && ReferenceEquals(controller.Room,geometry.Get(value.level))) continue;
-                    var settings=Remains.Serialization.StateJson.Copy(movementSettings);
-                    var definition=Remains.Content.ActorTypes.Get(value.type);var natural=definition.naturalAttack;
-                    if(natural!=null) {settings.walkSpeed=natural.approachSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);}
-                    // A walking family with its own motion (spider mine): its speed and jump are its own (AllData move).
-                    else if(definition.motion!=null && !NpcCreatureBehaviours.Flies(definition.behavior))
-                    {settings.walkSpeed=definition.motion.walkSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);}
-                    if(definition.motion?.jumpSpeed>0 && !NpcCreatureBehaviours.Flies(definition.behavior)) settings.jumpSpeed=definition.motion.jumpSpeed;
-                    movement[key]=new MovementController(geometry.Get(value.level),settings);
+                    movement[key]=new MovementController(geometry.Get(value.level),Movement(movementSettings,Remains.Content.ActorTypes.Get(value.type)));
                 }
             };
+        }
+        // The ground movement of an NPC type: the player's settings with a natural attacker's approach speed, or the walk
+        // and jump of a walking family's own motion (spider mine, roller: AllData move). Unity serializes the motion of
+        // every type, so an unauthored one is all zeros and keeps the player's values.
+        public static Remains.Content.MovementSettings Movement(Remains.Content.MovementSettings player,Remains.Content.ActorTypeDefinition definition)
+        {
+            var settings=Remains.Serialization.StateJson.Copy(player);
+            bool walks=!NpcCreatureBehaviours.Flies(definition.behavior);
+            if(definition.naturalAttack!=null) {settings.walkSpeed=definition.naturalAttack.approachSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);}
+            else if(walks && definition.motion?.walkSpeed>0) {settings.walkSpeed=definition.motion.walkSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);}
+            if(walks && definition.motion?.jumpSpeed>0) settings.jumpSpeed=definition.motion.jumpSpeed;
+            return settings;
         }
         private readonly System.Random turretRandom=new();
         private readonly ConnectedPlayers connected=new();
