@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Атлас поз пони</title>
+<style>
+:root{--bg:#1f232b;--panel:#2a2f39;--line:#3a404c;--text:#e6e8ec;--muted:#9aa3b2;--good:#22c55e;--bad:#ef4444;--accent:#38bdf8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,"Segoe UI",sans-serif}
+header{padding:16px 20px 4px}
+h1{font-size:22px;margin:0 0 6px}
+p.lead{margin:0;color:var(--muted);max-width:1000px}
+main{display:grid;grid-template-columns:minmax(320px,1fr) minmax(320px,1fr);gap:16px;padding:16px 20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+h2{font-size:15px;margin:0 0 8px}
+canvas{display:block;width:100%;height:auto;background:#6b7280;border-radius:6px;touch-action:none}
+.views{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.views figure{margin:0}.views figcaption{color:var(--muted);font-size:12px;margin-top:3px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 0;font-size:13px}
+.legend label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:10px 0 0;font-size:13px}
+.facts dt{color:var(--muted)}.facts dd{margin:0;overflow-wrap:anywhere}
+.buttons{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:13px}
+button,select{background:#3a4150;color:var(--text);border:1px solid #4b5363;border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
+button.good{border-color:var(--good)}button.bad{border-color:var(--bad)}button.on{border-color:var(--accent);background:#244457}
+button:hover{filter:brightness(1.15)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+#sheet{grid-column:1/-1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin-top:10px}
+.cell{position:relative;border:2px solid transparent;border-radius:6px;cursor:pointer;background:#6b7280}
+.cell.sel{border-color:var(--accent)}
+.cell.good{box-shadow:inset 0 0 0 3px var(--good)}.cell.bad{box-shadow:inset 0 0 0 3px var(--bad)}
+.cell span{position:absolute;left:3px;bottom:2px;font-size:11px;color:#fff;text-shadow:0 0 3px #000}
+.cell i{position:absolute;right:4px;top:4px;width:9px;height:9px;border-radius:50%}
+.note{color:var(--muted);font-size:12px;margin:8px 0 0}
+@media (max-width:900px){main{grid-template-columns:1fr}.views{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<h1>Атлас поз пони — все цепочки</h1>
+<p class="lead">Каждое различное состояние каждой цепочки (ноги, шея с головой, хвост) из всех игровых клипов, относительно корпуса. Тяните кружки на пони: цепочка собирается из трёх соседних готовых состояний. Отметки «годится»/«плохо» решают, какие состояния участвуют в смешивании.</p>
+</header>
+<main>
+<section>
+<h2>Поза</h2>
+<div class="views">
+<figure><canvas id="bare" width="520" height="520"></canvas><figcaption>Без костюма — тяните кружки</figcaption></figure>
+<figure><canvas id="suit" width="520" height="520"></canvas><figcaption>Антирад</figcaption></figure>
+</div>
+<div class="buttons">
+<button id="reset">Стойка</button>
+<label>Исходный кадр <select id="frame"></select></label>
+<label><input type="checkbox" id="ghost" checked> Тень стойки</label>
+<label><input type="checkbox" id="handles" checked> Кружки</label>
+</div>
+<dl class="facts" id="facts"></dl>
+</section>
+<section>
+<h2 id="mapTitle">Карта цепочки</h2>
+<div class="tabs" id="tabs"></div>
+<canvas id="map" width="520" height="520"></canvas>
+<div class="legend" id="legend"></div>
+<div class="buttons">
+<label>Смешивать <select id="mix"><option value="visible">все показанные группы</option><option value="good">только «годится»</option></select></label>
+<label>Не тянуть через пустоты длиннее <select id="edge"><option value="0.08">8 см</option><option value="0.12" selected>12 см</option><option value="0.2">20 см</option><option value="99">без ограничения</option></select></label>
+</div>
+<p class="note">Точка — где в этом состоянии конец цепочки (копыто, голова, условный кончик хвоста) относительно корпуса. Щелчок по точке ставит это состояние, перетаскивание по карте смешивает соседние. Красная точка — за краем примеров: здесь нужна новая поза.</p>
+</section>
+<section id="sheet">
+<div class="buttons">
+<b id="sheetTitle">Состояния</b>
+<button class="good" id="markGood">Годится (G)</button>
+<button class="bad" id="markBad">Плохо (B)</button>
+<button id="markClear">Снять отметку</button>
+<label>Порядок <select id="order"><option value="angle">по положению конца цепочки</option><option value="group">по группам движений</option></select></label>
+<label>Показать <select id="show"><option value="all">все</option><option value="none">без отметки</option><option value="good">«годится»</option><option value="bad">«плохо»</option></select></label>
+<span id="counts"></span>
+<button id="export">Скачать отметки (JSON)</button>
+</div>
+<div class="grid" id="grid"></div>
+</section>
+</main>
+<script id="data" type="application/json">/*DATA*/</script>
+<script>
+const data=JSON.parse(document.getElementById('data').textContent);
+const $=id=>document.getElementById(id);
+const GROUPS=[
+ ['stand','Стойка и край','#7dd3fc',c=>c==='idle'||c==='crouch'||c.startsWith('edge')||c.startsWith('slopeStand')],
+ ['gait','Ходьба и бег','#86efac',c=>c.includes('alk')||c==='run'],
+ ['lie','Лечь и встать','#fbbf24',c=>c==='crouchLower'||c==='crouchRise'],
+ ['air','Прыжок, падение, приземление','#f472b6',c=>['jump','fall','landing','down'].includes(c)],
+ ['crawl','Ползти и лезть','#c4b5fd',c=>c==='crawl'||c==='climb'],
+ ['other','Прочее','#e5e7eb',c=>true]];
+const groupOf=id=>{const clip=id.split('/')[0];return GROUPS.find(g=>g[3](clip));};
+const VIEWS={hindNear:[-1.02,-0.3,1.45,1.45],hindFar:[-0.92,-0.3,1.45,1.45],frontNear:[-0.4,-0.3,1.45,1.45],frontFar:[-0.35,-0.3,1.45,1.45],head:[-0.35,0.35,1.45,1.45],tail:[-1.25,-0.15,1.45,1.45]};
+const big=data.world,identity=[1,0,0,1,0,0];
+const chains=data.chains;chains.forEach(c=>c.states.forEach(s=>s.group=groupOf(s.id)[0]));
+const images=data.images.map(src=>{const i=new Image();i.src=src;return i;});
+let loaded=0;images.forEach(i=>i.onload=()=>{if(++loaded===images.length)drawAll();});
+const storeKey='pose-atlas-marks-v1:'+data.sourceHash;
+let marks={};try{marks=JSON.parse(localStorage.getItem(storeKey)||'{}')||{};}catch(e){marks={};}
+function saveMarks(){try{localStorage.setItem(storeKey,JSON.stringify(marks));}catch(e){}}
+const markKey=(chain,s)=>chain.id+':'+s.id;
+let current=0;            // selected chain index
+const pose={};            // chain id -> {state:index} | {blend:[x,y]}
+let selectedState={};     // chain id -> index highlighted in the sheet
+const hidden=new Set();
+const meshes={};
+
+function compose(A,B){return [A[0]*B[0]+A[2]*B[1],A[1]*B[0]+A[3]*B[1],A[0]*B[2]+A[2]*B[3],A[1]*B[2]+A[3]*B[3],A[0]*B[4]+A[2]*B[5]+A[4],A[1]*B[4]+A[3]*B[5]+A[5]];}
+function apply(m,p){return [m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];}
+// The parts of one chain in a given pose: symbol per socket and its affine relative to the standing registration.
+function chainParts(chain){
+ const value=pose[chain.id];if(!value)return null;
+ if(value.state!==undefined){const s=chain.states[value.state];return {parts:chain.sockets.map(k=>[k,s.symbols[k],s.deltas[k]]),effector:s.effector,info:{state:s}};}
+ const b=blend(chain,value.blend);if(!b)return null;
+ return {parts:chain.sockets.map(k=>[k,b.lead.symbols[k],[0,1,2,3,4,5].map(i=>b.corners.reduce((sum,c)=>sum+c.s.deltas[k][i]*c.w,0))]),effector:b.at,info:{blend:b}};
+}
+function overrides(only){const result={};for(const chain of chains){if(only&&!only.includes(chain.id))continue;const p=chainParts(chain);if(p)for(const [k,sym,d] of p.parts)result[k]=[sym,d];}return result;}
+function render(ctx,outfit,over,view,size,alpha=1,sockets=null){
+ const look=data.rest[outfit];ctx.save();ctx.globalAlpha=alpha;ctx.setTransform(size/view[2],0,0,-size/view[3],-view[0]*size/view[2],size+view[1]*size/view[3]);
+ const done=new Set();
+ const draw=(image,matrix,r)=>{ctx.save();ctx.transform(...matrix);ctx.translate(r[0],r[1]+r[3]);ctx.scale(1,-1);ctx.drawImage(images[image],0,0,r[2],r[3]);ctx.restore();};
+ for(const part of look.draws){const node=look.nodes[part.node],k=node.socket;if(sockets&&!sockets.includes(k))continue;
+  if(!over[k]){draw(part.image,node.matrix,part.rect);continue;}
+  if(done.has(k))continue;done.add(k);const [sym,delta]=over[k],entry=data.symbols[k+'|'+sym];
+  if(!entry){console.warn('Атлас поз: нет рисунка символа',k,sym);draw(part.image,compose(delta,node.matrix),part.rect);continue;}
+  const m=compose(delta,entry.canonical);for(const d of entry.looks[outfit])draw(d.image,m,d.rect);}
+ ctx.restore();
+}
+function toPixel(v,view,size){return [(v[0]-view[0])*size/view[2],size-(v[1]-view[1])*size/view[3]];}
+function toWorld(e,canvas,view){const r=canvas.getBoundingClientRect();return [view[0]+(e.clientX-r.left)/r.width*view[2],view[1]+(1-(e.clientY-r.top)/r.height)*view[3]];}
+function visible(chain,s){if(hidden.has(s.group))return false;const m=marks[markKey(chain,s)],f=$('show').value;return f==='all'||(f==='none'&&!m)||f===m;}
+
+// Delaunay triangles over the chain's states by end position; the chain is the barycentric mix of three corner states.
+function mixSet(chain){
+ const pool=chain.states.filter(s=>!hidden.has(s.group)&&($('mix').value!=='good'||marks[markKey(chain,s)]==='good'));
+ const kept=[];for(const s of pool){if(!kept.some(k=>Math.hypot(k.effector[0]-s.effector[0],k.effector[1]-s.effector[1])<.004))kept.push(s);}return kept;
+}
+function triangulate(states){
+ const p=states.map(s=>s.effector),n=p.length,all=p.concat([[-50,-50],[50,-50],[0,50]]);let tris=[[n,n+1,n+2]];
+ const circ=t=>{const [a,b,c]=t.map(i=>all[i]),d=2*(a[0]*(b[1]-c[1])+b[0]*(c[1]-a[1])+c[0]*(a[1]-b[1]));
+  const ux=((a[0]**2+a[1]**2)*(b[1]-c[1])+(b[0]**2+b[1]**2)*(c[1]-a[1])+(c[0]**2+c[1]**2)*(a[1]-b[1]))/d,uy=((a[0]**2+a[1]**2)*(c[0]-b[0])+(b[0]**2+b[1]**2)*(a[0]-c[0])+(c[0]**2+c[1]**2)*(b[0]-a[0]))/d;
+  return [ux,uy,(a[0]-ux)**2+(a[1]-uy)**2];};
+ for(let i=0;i<n;i++){const bad=[],good=[];for(const t of tris){const [x,y,r]=circ(t);((p[i][0]-x)**2+(p[i][1]-y)**2<r?bad:good).push(t);}
+  const edges=[];for(const t of bad)for(const e of [[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]]){const k=edges.findIndex(f=>f[0]===e[1]&&f[1]===e[0]);if(k>=0)edges.splice(k,1);else edges.push(e);}
+  tris=good.concat(edges.map(e=>[e[0],e[1],i]));}
+ const limit=+$('edge').value,len=(i,j)=>Math.hypot(p[i][0]-p[j][0],p[i][1]-p[j][1]);
+ return {states,points:p,tris:tris.filter(t=>t.every(i=>i<n)&&len(t[0],t[1])<=limit&&len(t[1],t[2])<=limit&&len(t[2],t[0])<=limit)};
+}
+function mesh(chain){return meshes[chain.id]||(meshes[chain.id]=triangulate(mixSet(chain)));}
+function invalidate(){for(const k in meshes)delete meshes[k];}
+function bary(q,a,b,c){const d=(b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1]),u=((b[1]-c[1])*(q[0]-c[0])+(c[0]-b[0])*(q[1]-c[1]))/d,v=((c[1]-a[1])*(q[0]-c[0])+(a[0]-c[0])*(q[1]-c[1]))/d;return [u,v,1-u-v];}
+function blend(chain,q){
+ const m=mesh(chain);if(!m.tris.length)return null;let corners=null,at=q,outside=false;
+ for(const t of m.tris){const w=bary(q,...t.map(i=>m.points[i]));if(w.every(x=>x>=-1e-9)){corners=t.map((i,k)=>({s:m.states[i],w:w[k]}));break;}}
+ if(!corners){outside=true;let best=1e9;
+  for(const t of m.tris)for(const [i,j] of [[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]]){const a=m.points[i],b=m.points[j],ab=[b[0]-a[0],b[1]-a[1]],l=ab[0]**2+ab[1]**2;
+   const k=Math.max(0,Math.min(1,((q[0]-a[0])*ab[0]+(q[1]-a[1])*ab[1])/l)),pt=[a[0]+ab[0]*k,a[1]+ab[1]*k],d=Math.hypot(pt[0]-q[0],pt[1]-q[1]);
+   if(d<best){best=d;at=pt;corners=[{s:m.states[i],w:1-k},{s:m.states[j],w:k}];}}}
+ const lead=corners.reduce((x,c)=>c.w>x.w?c:x).s;
+ return {corners,lead,at,outside,distance:Math.hypot(at[0]-q[0],at[1]-q[1]),mixed:new Set(corners.map(c=>JSON.stringify(c.s.symbols))).size>1};
+}
+
+function fmt(v,d=2){return v.toFixed(d).replace('.',',').replace('-','−');}
+function drawPose(){
+ const over=overrides();
+ [['bare',0],['suit',1]].forEach(([id,n])=>{const ctx=$(id).getContext('2d');ctx.clearRect(0,0,520,520);
+  if($('ghost').checked&&Object.keys(over).length)render(ctx,n,{},big,520,.25,Object.keys(over));
+  render(ctx,n,over,big,520);
+  if(n===0&&$('handles').checked)chains.forEach((chain,i)=>{const p=chainParts(chain),q=toPixel(p?p.effector:chain.rest,big,520);
+   ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.fillStyle=i===current?'#38bdf8':'#ffffff55';ctx.beginPath();ctx.arc(...q,8,0,7);ctx.fill();ctx.stroke();});});
+ const rows=[];
+ for(const chain of chains){const p=chainParts(chain);if(!p){rows.push([chain.label,'стойка']);continue;}
+  if(p.info.state)rows.push([chain.label,`${p.info.state.id} (кадров: ${p.info.state.sources.length})`]);
+  else{const b=p.info.blend;rows.push([chain.label,b.corners.map(c=>`${c.s.id} ${Math.round(c.w*100)}%`).join(', ')+(b.mixed?' · рисунки соседей различаются, взят '+b.lead.id:'')+(b.outside?` · за краем примеров на ${fmt(b.distance*100,1)} см — нужна новая поза`:'')]);}}
+ $('facts').innerHTML=rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('');
+}
+function drawMap(){
+ const chain=chains[current],view=VIEWS[chain.id],ctx=$('map').getContext('2d'),size=520;ctx.clearRect(0,0,size,size);
+ render(ctx,0,overrides(chains.filter(c=>c!==chain).map(c=>c.id)),view,size,.35);
+ const m=mesh(chain);ctx.strokeStyle='#ffffff38';ctx.lineWidth=1;ctx.beginPath();
+ for(const t of m.tris){const a=t.map(i=>toPixel(m.points[i],view,size));ctx.moveTo(...a[0]);ctx.lineTo(...a[1]);ctx.lineTo(...a[2]);ctx.closePath();}ctx.stroke();
+ chain.states.forEach(s=>{if(!visible(chain,s))return;const q=toPixel(s.effector,view,size),r=2.5+Math.sqrt(s.sources.length)*1.5,mk=marks[markKey(chain,s)];
+  ctx.globalAlpha=.85;ctx.fillStyle=groupOf(s.id)[2];ctx.beginPath();ctx.arc(...q,r,0,7);ctx.fill();ctx.globalAlpha=1;
+  if(mk){ctx.strokeStyle=mk==='good'?'#22c55e':'#ef4444';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(...q,r+3,0,7);ctx.stroke();}});
+ const value=pose[chain.id];
+ if(value&&value.blend){const b=blend(chain,value.blend);if(b){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();const c=b.corners.map(x=>toPixel(x.s.effector,view,size));ctx.moveTo(...c[0]);c.slice(1).forEach(x=>ctx.lineTo(...x));ctx.closePath();ctx.stroke();
+  if(b.outside){ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(...toPixel(value.blend,view,size),5,0,7);ctx.fill();}}}
+ const p=chainParts(chain),q=toPixel(p?p.effector:chain.rest,view,size);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(...q,11,0,7);ctx.stroke();
+ $('mapTitle').textContent='Карта цепочки: '+chain.label+` (${chain.states.length} состояний)`;
+}
+function angle(chain,s){return Math.atan2(s.effector[0]-chain.rest[0],-(s.effector[1]-chain.rest[1]+.3));}
+let cells=[];
+function drawGrid(){
+ const chain=chains[current],view=VIEWS[chain.id],grid=$('grid');grid.innerHTML='';
+ cells=chain.states.map((s,i)=>i).filter(i=>visible(chain,chain.states[i]));
+ const rank=Object.fromEntries(GROUPS.map((g,i)=>[g[0],i]));
+ cells.sort((a,b)=>($('order').value==='group'?rank[chain.states[a].group]-rank[chain.states[b].group]:0)||angle(chain,chain.states[a])-angle(chain,chain.states[b]));
+ for(const i of cells){const s=chain.states[i],cell=document.createElement('div');cell.dataset.index=i;
+  const c=document.createElement('canvas');c.width=c.height=150;
+  render(c.getContext('2d'),0,Object.fromEntries(chain.sockets.map(k=>[k,[s.symbols[k],s.deltas[k]]])),view,150);
+  const label=document.createElement('span');label.textContent=s.id;const dot=document.createElement('i');dot.style.background=groupOf(s.id)[2];
+  cell.append(c,label,dot);cell.onclick=()=>choose(i);grid.append(cell);}
+ refreshCells();
+ const all=chain.states.length,good=chain.states.filter(s=>marks[markKey(chain,s)]==='good').length,bad=chain.states.filter(s=>marks[markKey(chain,s)]==='bad').length;
+ $('counts').textContent=`показано ${cells.length} из ${all}; годится ${good}, плохо ${bad}`;
+ $('sheetTitle').textContent='Состояния: '+chain.label;
+}
+function refreshCells(){const chain=chains[current];for(const cell of $('grid').children){const i=+cell.dataset.index,mk=marks[markKey(chain,chain.states[i])];cell.className='cell'+(i===selectedState[chain.id]?' sel':'')+(mk?' '+mk:'');}}
+function drawTabs(){$('tabs').innerHTML='';chains.forEach((c,i)=>{const b=document.createElement('button');b.textContent=c.label;if(i===current)b.className='on';b.onclick=()=>{current=i;drawTabs();drawMap();drawGrid();drawPose();};$('tabs').append(b);});
+ $('legend').innerHTML=GROUPS.map(g=>{const n=chains[current].states.filter(s=>s.group===g[0]).length;return n?`<label><input type="checkbox" data-g="${g[0]}" ${hidden.has(g[0])?'':'checked'}><span class="dot" style="background:${g[2]}"></span>${g[1]} (${n})</label>`:'';}).join('');}
+function choose(i){const chain=chains[current];selectedState[chain.id]=i;pose[chain.id]={state:i};drawPose();drawMap();refreshCells();}
+function drawAll(){drawTabs();drawPose();drawMap();drawGrid();}
+function mark(value){const chain=chains[current],i=selectedState[chain.id];if(i===undefined)return;const key=markKey(chain,chain.states[i]);
+ if(value)marks[key]=value;else delete marks[key];saveMarks();invalidate();const pos=cells.indexOf(i);if(value&&pos>=0&&pos<cells.length-1)choose(cells[pos+1]);drawMap();drawGrid();drawPose();}
+
+// Dragging: a handle on the pony or any point of the map moves the chain's end and blends.
+let drag=null;
+$('bare').onpointerdown=e=>{if(!$('handles').checked)return;const at=toWorld(e,$('bare'),big);let best=-1,dist=.06;
+ chains.forEach((chain,i)=>{const p=chainParts(chain),q=p?p.effector:chain.rest,d=Math.hypot(q[0]-at[0],q[1]-at[1]);if(d<dist){dist=d;best=i;}});
+ if(best<0)return;if(best!==current){current=best;drawTabs();drawGrid();}drag={canvas:'bare',id:e.pointerId,view:big};try{$('bare').setPointerCapture(e.pointerId);}catch(_){}};
+$('map').onpointerdown=e=>{const chain=chains[current],view=VIEWS[chain.id],at=toWorld(e,$('map'),view);
+ let best=-1,dist=.012;chain.states.forEach((s,i)=>{if(!visible(chain,s))return;const d=Math.hypot(s.effector[0]-at[0],s.effector[1]-at[1]);if(d<dist){dist=d;best=i;}});
+ if(best>=0){choose(best);return;}drag={canvas:'map',id:e.pointerId,view};try{$('map').setPointerCapture(e.pointerId);}catch(_){}move(e);};
+function move(e){if(!drag||drag.id!==e.pointerId)return;pose[chains[current].id]={blend:toWorld(e,$(drag.canvas),drag.view)};drawPose();drawMap();}
+['bare','map'].forEach(id=>{$(id).onpointermove=move;$(id).onpointerup=$(id).onpointercancel=e=>{if(drag&&drag.id===e.pointerId)drag=null;};});
+
+$('legend').onchange=e=>{const k=e.target.dataset.g;if(e.target.checked)hidden.delete(k);else hidden.add(k);invalidate();drawMap();drawGrid();drawPose();};
+$('mix').onchange=$('edge').onchange=()=>{invalidate();drawMap();drawPose();};
+$('show').onchange=$('order').onchange=()=>{drawMap();drawGrid();};
+$('ghost').onchange=$('handles').onchange=drawPose;
+$('reset').onclick=()=>{for(const k in pose)delete pose[k];selectedState={};drawPose();drawMap();refreshCells();};
+$('frame').innerHTML='<option value="">—</option>'+data.frames.map((f,i)=>`<option value="${i}">${f.id}</option>`).join('');
+$('frame').onchange=()=>{const f=data.frames[+$('frame').value];if(!f)return;for(const chain of chains){const i=f.states[chain.id];if(i===undefined)delete pose[chain.id];else{pose[chain.id]={state:i};selectedState[chain.id]=i;}}drawPose();drawMap();refreshCells();};
+$('markGood').onclick=()=>mark('good');$('markBad').onclick=()=>mark('bad');$('markClear').onclick=()=>mark(null);
+document.onkeydown=e=>{if(e.target.tagName==='SELECT')return;if(e.key==='g'||e.key==='п')mark('good');else if(e.key==='b'||e.key==='и')mark('bad');};
+$('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,sourceHash:data.sourceHash,marks},null,1)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pose-atlas-marks.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+</script>
+</body>
+</html>
