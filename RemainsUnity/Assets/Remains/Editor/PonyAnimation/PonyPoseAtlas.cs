@@ -83,6 +83,25 @@ namespace Remains.Editor
             var states=Chains.ToDictionary(c=>c.Id,_=>new List<JObject>(),StringComparer.Ordinal);
             var keys=Chains.ToDictionary(c=>c.Id,_=>new Dictionary<string,int>(StringComparer.Ordinal),StringComparer.Ordinal);
             var frames=new JArray();int raw=0;float restError=0;
+            void Record(string id,Dictionary<string,Matrix4x4> deltas,Dictionary<string,string> symbols,Matrix4x4 frameTorso)
+            {
+                var indices=new JObject();
+                foreach(var chain in Chains)
+                {
+                    if(chain.Sockets.Any(s=>!deltas.ContainsKey(s)))continue;
+                    var effector=(Vector2)deltas[chain.End].MultiplyPoint3x4(Joint(chain.Effector)+chain.Offset);
+                    string key=string.Join(";",chain.Sockets.Select(s=>symbols[s]+":"+string.Join(",",Six(deltas[s]).Select(v=>Math.Round(v,4).ToString("F4",CultureInfo.InvariantCulture)))));
+                    if(!keys[chain.Id].TryGetValue(key,out int index))
+                    {
+                        index=states[chain.Id].Count;keys[chain.Id].Add(key,index);
+                        states[chain.Id].Add(new JObject { ["id"]=id,["sources"]=new JArray(),["effector"]=new JArray(effector.x,effector.y),
+                            ["symbols"]=new JObject(chain.Sockets.Select(s=>new JProperty(s,symbols[s]))),
+                            ["deltas"]=new JObject(chain.Sockets.Select(s=>new JProperty(s,PonyPointPreview.Matrix(deltas[s])))) });
+                    }
+                    ((JArray)states[chain.Id][index]["sources"]).Add(id);indices[chain.Id]=index;
+                }
+                frames.Add(new JObject { ["id"]=id,["states"]=indices,["torso"]=PonyPointPreview.Matrix(frameTorso*restTorso.inverse) });
+            }
             foreach(var clip in library.clips)
             {
                 var ownWear=wear.clips.SingleOrDefault(c=>c.id==clip.id)??throw new InvalidOperationException("Атлас поз: нет регистрации клипа "+clip.id);
@@ -115,24 +134,10 @@ namespace Remains.Editor
                         symbols[node.socket]=symbol.Id;deltas[node.socket]=bodyInverse*node.transform.Matrix*value.inverse;
                     }
                     if(clip.id=="idle" && f==0)foreach(var pair in deltas)for(int i=0;i<16;i++)restError=Mathf.Max(restError,Mathf.Abs(pair.Value[i]-Matrix4x4.identity[i]));
-                    var indices=new JObject();
-                    foreach(var chain in Chains)
-                    {
-                        if(chain.Sockets.Any(s=>!deltas.ContainsKey(s)))continue;
-                        var effector=(Vector2)deltas[chain.End].MultiplyPoint3x4(Joint(chain.Effector)+chain.Offset);
-                        string key=string.Join(";",chain.Sockets.Select(s=>symbols[s]+":"+string.Join(",",Six(deltas[s]).Select(v=>Math.Round(v,4).ToString("F4",CultureInfo.InvariantCulture)))));
-                        if(!keys[chain.Id].TryGetValue(key,out int index))
-                        {
-                            index=states[chain.Id].Count;keys[chain.Id].Add(key,index);
-                            states[chain.Id].Add(new JObject { ["id"]=clip.id+"/"+f,["sources"]=new JArray(),["effector"]=new JArray(effector.x,effector.y),
-                                ["symbols"]=new JObject(chain.Sockets.Select(s=>new JProperty(s,symbols[s]))),
-                                ["deltas"]=new JObject(chain.Sockets.Select(s=>new JProperty(s,PonyPointPreview.Matrix(deltas[s])))) });
-                        }
-                        ((JArray)states[chain.Id][index]["sources"]).Add(clip.id+"/"+f);indices[chain.Id]=index;
-                    }
-                    frames.Add(new JObject { ["id"]=clip.id+"/"+f,["states"]=indices,["torso"]=PonyPointPreview.Matrix(frameTorso*restTorso.inverse) });
+                    Record(clip.id+"/"+f,deltas,symbols,frameTorso);
                 }
             }
+            int extraFrames=AddExtra(library,canonical,followers,restTorso,skipped,Record);
             if(restError>.0001f)throw new InvalidOperationException("Атлас поз: стойка не совпала сама с собой: "+restError);
             var unstable=registration.Where(p=>p.Value>RegistrationTolerance).ToArray();
             if(unstable.Length>0)Debug.LogWarning("Атлас поз: нестабильная регистрация рисунков (берётся первый кадр символа): "+string.Join(", ",unstable.Select(p=>p.Key+"="+p.Value.ToString("G3"))));
@@ -154,7 +159,7 @@ namespace Remains.Editor
                 }
                 symbolLooks[key]=new JObject { ["canonical"]=PonyPointPreview.Matrix(matrix),["looks"]=looks };
             }
-            summary=new JObject { ["rawFrames"]=raw,["symbols"]=symbolLooks.Count,["images"]=assets.Images.Count,["skippedParts"]=skipped.Count,
+            summary=new JObject { ["rawFrames"]=raw,["extraFrames"]=extraFrames,["symbols"]=symbolLooks.Count,["images"]=assets.Images.Count,["skippedParts"]=skipped.Count,
                 ["registration"]=new JObject(registration.OrderBy(p=>p.Key).Select(p=>new JProperty(p.Key,p.Value))),
                 ["states"]=new JObject(Chains.Select(c=>new JProperty(c.Id,states[c.Id].Count))) };
             return new JObject { ["version"]=1,["sourceHash"]=PonyRenderAsset.SourceHash(),
@@ -163,6 +168,66 @@ namespace Remains.Editor
                 ["restSymbols"]=new JObject(reference.Frame.Nodes.Select(n=>new JProperty(n.socket,layout.Get("idle",0,n.top).Id))),
                 ["chains"]=new JArray(Chains.Select(c=>new JObject { ["id"]=c.Id,["label"]=c.Label,["sockets"]=new JArray(c.Sockets),
                     ["rest"]=new JArray(Joint(c.Effector).x+c.Offset.x,Joint(c.Effector).y+c.Offset.y),["states"]=new JArray(states[c.Id]) })) };
+        }
+        // Original body timelines the game bank does not take (strikes, stealth, levitation...), exported by
+        // Tools/export_pony.py --extra-poses. Their node placement follows PonySymbolLayout: a symbol's first part
+        // relative to that symbol's first occurrence in the game bank, so they share the game's registration.
+        public const string ExtraLibrary="../.reference/original/pony-extra/pony-extra.json";
+        private static int AddExtra(PonyLibrary game,Dictionary<string,(Matrix4x4 Matrix,string Clip,int Frame)> canonical,
+            Dictionary<string,(Matrix4x4 Standing,string Symbol)> followers,Matrix4x4 restTorso,List<string> skipped,
+            Action<string,Dictionary<string,Matrix4x4>,Dictionary<string,string>,Matrix4x4> record)
+        {
+            string path=Path.GetFullPath(ExtraLibrary);
+            if(!File.Exists(path)){Debug.LogWarning("Атлас поз: нет дополнительных клипов оригинала "+path+"; атлас только по игровому банку.");return 0;}
+            var extra=JsonUtility.FromJson<PonyLibrary>(File.ReadAllText(path));
+            if(extra?.clips==null || extra.clips.Length==0)throw new InvalidOperationException("Атлас поз: пустой файл дополнительных клипов "+path);
+            var anchors=new Dictionary<string,(Matrix4x4 Matrix,string Signature)>(StringComparer.Ordinal);
+            foreach(var clip in game.clips)foreach(var frame in clip.frames)foreach(var group in PonyRigPilotArt.Groups(frame))
+            {
+                var (id,signature,first)=Describe(frame,group);
+                anchors.TryAdd(id,(PonyRigPilotArt.Affine(first.matrix),signature));
+            }
+            int count=0;var unknown=new List<string>();
+            foreach(var clip in extra.clips)for(int f=0;f<clip.frames.Length;f++)
+            {
+                string frameId=clip.id+"/"+f;PonyRigPilotArt.Group[] groups;
+                try{groups=PonyRigPilotArt.Groups(clip.frames[f]).ToArray();}
+                catch(InvalidDataException error){unknown.Add(frameId+": "+error.Message);continue;}
+                var nodes=new Dictionary<string,(string Symbol,Matrix4x4 Matrix)>(StringComparer.Ordinal);
+                foreach(var group in groups)
+                {
+                    var (id,signature,first)=Describe(clip.frames[f],group);
+                    if(!anchors.TryGetValue(id,out var anchor)){unknown.Add($"{frameId}/{group.Socket}: рисунка {id} нет в игровом банке");continue;}
+                    if(anchor.Signature!=signature){unknown.Add($"{frameId}/{group.Socket}: состав рисунка {id} отличается");continue;}
+                    nodes[group.Socket]=(id,PonyRigPilotArt.Affine(first.matrix)*anchor.Matrix.inverse);
+                }
+                if(!nodes.TryGetValue("torso",out var torso)){unknown.Add(frameId+": нет туловища");continue;}
+                var bodyInverse=restTorso*torso.Matrix.inverse;
+                var deltas=new Dictionary<string,Matrix4x4>(StringComparer.Ordinal);var symbols=new Dictionary<string,string>(StringComparer.Ordinal);
+                foreach(var pair in nodes)
+                {
+                    Matrix4x4 standing;
+                    if(followers.TryGetValue(pair.Key,out var follower))
+                    {
+                        if(pair.Value.Symbol!=follower.Symbol){skipped.Add($"{frameId}/{pair.Key}: ведомый рисунок {pair.Value.Symbol} вместо {follower.Symbol}");continue;}
+                        standing=follower.Standing;
+                    }
+                    else if(canonical.TryGetValue(pair.Key+"|"+pair.Value.Symbol,out var known))standing=known.Matrix;
+                    else {skipped.Add($"{frameId}/{pair.Key}: у рисунка {pair.Value.Symbol} нет регистрации");continue;}
+                    symbols[pair.Key]=pair.Value.Symbol;deltas[pair.Key]=bodyInverse*pair.Value.Matrix*standing.inverse;
+                }
+                record(frameId,deltas,symbols,torso.Matrix);count++;
+            }
+            if(unknown.Count>0)Debug.LogWarning("Атлас поз: в дополнительных клипах пропущены незнакомые рисунки, "+unknown.Count+": "+string.Join("; ",unknown.Take(30)));
+            skipped.AddRange(unknown);
+            return count;
+        }
+        private static (string Id,string Signature,PonyPart First) Describe(PonyFrame frame,PonyRigPilotArt.Group group)
+        {
+            var parts=group.Indices.Select(i=>frame.parts[i]).OrderBy(p=>PonySymbolLayout.LocalPath(p.path),StringComparer.Ordinal)
+                .ThenBy(p=>p.shape,StringComparer.Ordinal).ThenBy(p=>p.hairStyle).ThenBy(p=>p.eyeStyle).ToArray();
+            string id=group.Socket+":"+string.Join(",",parts.Select(p=>p.shape).Distinct(StringComparer.Ordinal).OrderBy(v=>int.Parse(v)));
+            return (id,string.Join("|",parts.Select(p=>PonySymbolLayout.LocalPath(p.path)+":"+p.shape+":"+p.hairStyle+":"+p.eyeStyle)),parts[0]);
         }
         private static PonyRigNode Node(PonyAnimationArtwork art,string socket)=>art.Frame.Nodes.SingleOrDefault(n=>n.socket==socket)??throw new InvalidOperationException("Атлас поз: нет узла "+socket);
         private static float[] Six(Matrix4x4 m)=>new[]{m.m00,m.m10,m.m01,m.m11,m.m03,m.m13};

@@ -93,6 +93,13 @@ const GROUPS=[
  ['lie','Лечь и встать','#fbbf24',c=>c==='crouchLower'||c==='crouchRise'],
  ['air','Прыжок, падение, приземление','#f472b6',c=>['jump','fall','landing','down'].includes(c)],
  ['crawl','Ползти и лезть','#c4b5fd',c=>c==='crawl'||c==='climb'],
+ // Original timelines outside the game bank (Tools/export_pony.py --extra-poses).
+ ['strike','Новые: удары','#fb923c',c=>c==='x_punch'||c==='x_kick'],
+ ['lurk','Новые: скрытность','#a3e635',c=>c.startsWith('x_lurk')],
+ ['free','Новые: переминание на месте','#2dd4bf',c=>c.startsWith('x_free')],
+ ['float','Новые: левитация и плавание','#e879f9',c=>c==='x_levit'||c==='x_plav'],
+ ['hurt','Новые: сбивание, смерть, воскрешение','#fda4af',c=>['x_pinok','x_die','x_dieali','x_res','x_derg'].includes(c)],
+ ['crouchjump','Новые: прыжок из приседа, перекат','#fde047',c=>['x_sitjump','x_downjump','x_roll'].includes(c)],
  ['other','Прочее','#e5e7eb',c=>true]];
 const groupOf=id=>{const clip=id.split('/')[0];return GROUPS.find(g=>g[3](clip));};
 const VIEWS={hindNear:[-1.02,-0.3,1.45,1.45],hindFar:[-0.92,-0.3,1.45,1.45],frontNear:[-0.4,-0.3,1.45,1.45],frontFar:[-0.35,-0.3,1.45,1.45],head:[-0.35,0.35,1.45,1.45],tail:[-1.25,-0.15,1.45,1.45]};
