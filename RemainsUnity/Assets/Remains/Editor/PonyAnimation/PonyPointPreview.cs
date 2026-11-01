@@ -54,7 +54,7 @@ namespace Remains.Editor
             if(puppet)data["puppet"]=PonyPuppetStudy.Definition();
             string template=File.ReadAllText("Assets/Remains/Editor/PonyAnimation/"+(puppet?"PonyPuppetPreview.html":"PonyPointPreview.html"));
             if(puppet)template=template.Replace("@SCRIPT@",File.ReadAllText("Assets/Remains/Editor/PonyAnimation/PonyPuppetPreview.js"));
-            File.WriteAllText(Path.Combine(PonyPointStudy.Output,puppet?"affine-puppet.html":"affine-points.html"),template.Replace("@DATA@",data.ToString(Formatting.None)));
+            File.WriteAllText(Path.Combine(PonyPointStudy.Output,puppet?"affine-puppet-limits.html":"affine-points.html"),template.Replace("@DATA@",data.ToString(Formatting.None)));
         }
         private static string Embed(string path)=>"data:image/png;base64,"+Convert.ToBase64String(File.ReadAllBytes(path));
     }

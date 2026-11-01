@@ -23,10 +23,10 @@ namespace Remains.Editor
             {
                 var result=PonyPuppetControls.Solve(item.Input);
                 cases.Add(new JObject { ["id"]=item.Id,["label"]=item.Label,["input"]=InputJson(item.Input),
-                    ["points"]=PonyPointPreview.Points(result.Points),["limited"]=result.ReachLimited });
+                    ["points"]=PonyPointPreview.Points(result.Points),["limited"]=result.ReachLimited,["jointLimited"]=result.JointLimited });
             }
             var fine=FineFixture();
-            return new JObject { ["cases"]=cases,["bodyHandle"]=new JArray(0,.85),["fineCase"]=new JObject {
+            return new JObject { ["cases"]=cases,["bodyHandle"]=new JArray(0,.85),["maxDragAngleStep"]=PonyPuppetLimits.MaximumDragAngleStep,["fineCase"]=new JObject {
                 ["input"]=InputJson(Cases[1].Input),["correction"]=PonyPointPreview.Points(fine),
                 ["points"]=PonyPointPreview.Points(PonyPuppetControls.ApplyFine(PonyPuppetControls.Solve(Cases[1].Input),fine)) } };
         }
@@ -34,7 +34,9 @@ namespace Remains.Editor
         public static JObject InputJson(PonyPuppetControls.Input value)=>new()
         {
             ["body"]=PonyJointStudy.Point(value.Body),["foot"]=PonyJointStudy.Point(value.Foot),["kneeOffset"]=PonyJointStudy.Point(value.KneeOffset),
-            ["width"]=value.Width,["attachment"]=value.Attachment
+            ["width"]=value.Width,["attachment"]=value.Attachment,["limits"]=new JObject {
+                ["upperMin"]=value.Limits.UpperMin,["upperMax"]=value.Limits.UpperMax,["kneeMin"]=value.Limits.KneeMin,["kneeMax"]=value.Limits.KneeMax,
+                ["footCone"]=value.Limits.FootCone,["minLength"]=value.Limits.MinLength,["maxLength"]=value.Limits.MaxLength }
         };
         public static void RunBatch()
         {
@@ -65,8 +67,21 @@ namespace Remains.Editor
                     using var preview=new PonyAnimationPreview();preview.Render(art,matrices,PonyPointStudy.World,560,560);
                     preview.WritePng(Path.Combine(PonyPointStudy.Output,"puppet-fine"+(outfit.Length==0?"-bare":"-antirad")+".png"));
                 }
+                var limitCases=new JArray();
+                for(int i=0;i<72;i++)
+                {
+                    float angle=i*Mathf.PI/36;var input=new PonyPuppetControls.Input {Foot=PonyPointControls.Parts[0].Rest[0]+new Vector2(Mathf.Cos(angle),Mathf.Sin(angle))*.9f};
+                    var result=PonyPuppetControls.Solve(input);
+                    if(!PonyPuppetLimits.Check(result.Points,input.Limits,out var reason))throw new InvalidOperationException("Обход цели вокруг таза: "+i+": "+reason);
+                    limitCases.Add(new JObject { ["input"]=InputJson(input),["points"]=PonyPointPreview.Points(result.Points),["limited"]=result.ReachLimited });
+                }
+                var reverse=PonyPuppetControls.Solve(new(){KneeOffset=new Vector2(0,-1)});
+                if(!reverse.JointLimited || !PonyPuppetLimits.Check(reverse.Points,new(),out _))throw new InvalidOperationException("Не ограничен обратный сгиб колена.");
+                var badPoints=PonyPointControls.Parts.Select(p=>(Vector2[])p.Rest.Clone()).ToArray();badPoints[1][1]=badPoints[1][0]+new Vector2(.3f,-.1f);
+                if(PonyPuppetLimits.Check(badPoints,new(),out _))throw new InvalidOperationException("Ручная правка обошла предел сгиба.");
                 var report=Definition();report["restPointError"]=maximum;report["checks"]=checkedCases;report["farTargetLimited"]=outside.ReachLimited;
-                File.WriteAllText(Path.Combine(PonyPointStudy.Output,"puppet-report.json"),report.ToString());
+                report["limitCases"]=limitCases;report["reverseKneeLimited"]=true;report["badFineRejected"]=true;
+                File.WriteAllText(Path.Combine(PonyPointStudy.Output,"puppet-limits-report.json"),report.ToString());
                 var original=JObject.Parse(File.ReadAllText(Path.Combine(PonyPointStudy.Output,"report.json")));
                 PonyPointPreview.Write(original,puppet:true);
                 Debug.Log($"Кукольное управление: PASS; поз={checkedCases}, ошибка стойки={maximum:G6}; {PonyPointStudy.Output}");
