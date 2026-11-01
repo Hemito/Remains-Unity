@@ -26,7 +26,7 @@ namespace Remains.Editor
                     ["points"]=PonyPointPreview.Points(result.Points),["limited"]=result.ReachLimited,["jointLimited"]=result.JointLimited });
             }
             var fine=FineFixture();
-            return new JObject { ["cases"]=cases,["bodyHandle"]=new JArray(0,.85),["maxDragAngleStep"]=PonyPuppetLimits.MaximumDragAngleStep,["fineCase"]=new JObject {
+            return new JObject { ["cases"]=cases,["bodyHandle"]=PonyJointStudy.Point(PonyPuppetBodyControls.Pivot),["maxDragAngleStep"]=PonyPuppetLimits.MaximumDragAngleStep,["fineCase"]=new JObject {
                 ["input"]=InputJson(Cases[1].Input),["correction"]=PonyPointPreview.Points(fine),
                 ["points"]=PonyPointPreview.Points(PonyPuppetControls.ApplyFine(PonyPuppetControls.Solve(Cases[1].Input),fine)) } };
         }
@@ -34,6 +34,7 @@ namespace Remains.Editor
         public static JObject InputJson(PonyPuppetControls.Input value)=>new()
         {
             ["body"]=PonyJointStudy.Point(value.Body),["foot"]=PonyJointStudy.Point(value.Foot),["kneeOffset"]=PonyJointStudy.Point(value.KneeOffset),
+            ["bodyRelative"]=value.BodyRelative,["bodyAngle"]=value.BodyAngle,
             ["width"]=value.Width,["attachment"]=value.Attachment,["limits"]=new JObject {
                 ["upperMin"]=value.Limits.UpperMin,["upperMax"]=value.Limits.UpperMax,["kneeMin"]=value.Limits.KneeMin,["kneeMax"]=value.Limits.KneeMax,
                 ["footCone"]=value.Limits.FootCone,["minLength"]=value.Limits.MinLength,["maxLength"]=value.Limits.MaxLength }

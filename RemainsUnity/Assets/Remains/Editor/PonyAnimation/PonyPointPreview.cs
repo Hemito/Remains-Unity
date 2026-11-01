@@ -14,7 +14,7 @@ namespace Remains.Editor
     {
         public static JArray Matrix(Matrix4x4 m)=>new(m.m00,m.m10,m.m01,m.m11,m.m03,m.m13);
         public static JArray Points(Vector2[][] points)=>new(points.Select(p=>new JArray(p.Select(v=>new JArray(v.x,v.y)))));
-        public static void Write(JObject report,bool puppet=false,PonyLegShapeDataset model=null,JArray fixtures=null)
+        public static void Write(JObject report,bool puppet=false,PonyLegShapeDataset model=null,JArray fixtures=null,bool bodyRelative=false)
         {
             using var assets=new PonyPointPreviewAssets();var looks=new JArray();
             foreach(string outfit in PonyPointStudy.Outfits)
@@ -31,13 +31,15 @@ namespace Remains.Editor
                 ["metrics"]=new JObject { ["frames"]=report["frames"],["nodes"]=report["nodes"],["matrixError"]=report["maxMatrixError"],["pixelError"]=report["nativeImageMaxChannelError"] } };
             if(puppet){data["puppet"]=PonyPuppetStudy.Definition();data["source"]=PonySourceMotionPreview.Export(assets);}
             if(model!=null){data["legModel"]=model.Export(assets);data["legFixtures"]=fixtures;}
+            if(bodyRelative){data["puppet"]=PonyPuppetBodyStudy.Definition();data["bodyControls"]=new JObject {["version"]=1,["references"]=model.ReferencePoses(assets)};}
             string template=File.ReadAllText("Assets/Remains/Editor/PonyAnimation/"+(puppet?"PonyPuppetPreview.html":"PonyPointPreview.html"));
             if(puppet)template=template.Replace("@SCRIPT@",File.ReadAllText("Assets/Remains/Editor/PonyAnimation/PonyPuppetPreview.js"));
             if(model!=null)template=template.Replace("PUPPET-V4 · исходные движения","PUPPET-V5 · форма из примеров")
                 .Replace("Просматривайте переходы «лечь» и «встать» из существующей анимации или переключитесь на ручную куклу.","Тяните копыто: инструмент подбирает и смешивает местные формы из всех существующих движений. Сравните с выключенным подбором.")
                 .Replace("@MODEL@",File.ReadAllText("Assets/Remains/Editor/PonyAnimation/PonyLegShapePreview.js"));
             else template=template.Replace("@MODEL@","");
-            File.WriteAllText(Path.Combine(PonyPointStudy.Output,model!=null?"affine-puppet-learned.html":puppet?"affine-puppet-motion.html":"affine-points.html"),template.Replace("@DATA@",data.ToString(Formatting.None)));
+            if(bodyRelative)template=template.Replace("PUPPET-V5 · форма из примеров","PUPPET-V6 · относительно корпуса");
+            File.WriteAllText(Path.Combine(PonyPointStudy.Output,bodyRelative?"affine-puppet-local.html":model!=null?"affine-puppet-learned.html":puppet?"affine-puppet-motion.html":"affine-points.html"),template.Replace("@DATA@",data.ToString(Formatting.None)));
         }
         private static string Embed(string path)=>"data:image/png;base64,"+Convert.ToBase64String(File.ReadAllBytes(path));
     }

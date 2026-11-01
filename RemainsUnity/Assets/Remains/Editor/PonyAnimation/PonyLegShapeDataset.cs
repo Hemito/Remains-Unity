@@ -97,6 +97,24 @@ namespace Remains.Editor
                 ["samples"]=new JArray(Model.Samples.Select(s=>new JObject { ["id"]=s.Id,["variant"]=s.Variant,["features"]=new JArray(s.Features),["shape"]=new JArray(s.Shape),["mirrored"]=s.Mirrored,
                     ["sources"]=new JArray(s.Sources.Select(p=>new JObject { ["id"]=p.Id,["family"]=p.Family })) })) };
         }
+        public JArray ReferencePoses(PonyPointPreviewAssets assets)
+        {
+            var result=new JArray();var rest=PonyAnimationArtwork.Prepare().Frame.Nodes.Single(n=>n.socket=="torso").transform.Matrix;
+            foreach(var row in Rows.Where(r=>r.Clip=="crouchLower" || r.Clip=="crouchRise" || r.Clip=="idle" && r.Frame==0))
+            {
+                var looks=new JArray();
+                foreach(string outfit in PonyPointStudy.Outfits)
+                {
+                    var art=PonyAnimationArtwork.Prepare(outfit,row.Clip,row.Frame);var frame=rest*art.Frame.Nodes.Single(n=>n.socket=="torso").transform.Matrix.inverse;
+                    var look=assets.Look(art);
+                    for(int n=0;n<art.Frame.Nodes.Length;n++)look["nodes"][n]["matrix"]=PonyPointPreview.Matrix(frame*art.Frame.Nodes[n].transform.Matrix);
+                    looks.Add(look);
+                }
+                result.Add(new JObject { ["id"]=row.Clip+"/"+row.Frame,["label"]=(row.Clip=="idle"?"Стойка":row.Clip=="crouchLower"?"Лечь":"Встать")+" · "+(row.Frame+1),
+                    ["points"]=PonyPointPreview.Points(row.Points),["looks"]=looks });
+            }
+            return result;
+        }
         public static string Family(string id)=>id=="idle" || id.StartsWith("crouch",StringComparison.Ordinal)?"rest":id.Contains("walk") || id.Contains("run")?"gait":"other";
     }
 }

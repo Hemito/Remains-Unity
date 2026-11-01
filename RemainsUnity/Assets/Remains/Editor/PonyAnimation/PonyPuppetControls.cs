@@ -11,6 +11,8 @@ namespace Remains.Editor
         {
             public Vector2 Body,Foot=PonyPointControls.Parts[1].Rest[1],KneeOffset;
             public float Width=1,Attachment=.35f;
+            public bool BodyRelative;
+            public float BodyAngle;
             public PonyPuppetLimits.Settings Limits=new();
         }
         public sealed class Result

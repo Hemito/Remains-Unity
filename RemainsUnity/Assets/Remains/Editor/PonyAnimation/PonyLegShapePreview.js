@@ -1,6 +1,6 @@
 // Browser adapter for PonyLegShapeModel. C# export fixtures verify parity.
 function createLegShapeModel(rest,bank,math){
- const {add,sub,mul,dot,cross,length,matrix,reason,jointReason}=math;
+ const {add,sub,mul,dot,cross,length,matrix,reason,jointReason,map,inverse}=math;
  const hip=rest[0][0],scale=length(sub(rest[0][1],hip))+length(sub(rest[1][1],rest[1][0]));
  const side=p=>{const axis=sub(p[1],p[0]),offset=sub(p[2],p[0]);return [dot(offset,axis)/dot(axis,axis),cross(axis,offset)/length(axis)];};
  const driver=points=>({hip,knee:mul(add(points[0][1],points[1][0]),.5),foot:points[1][1]});
@@ -21,11 +21,11 @@ function createLegShapeModel(rest,bank,math){
  }
  function evaluate(base,body,limits,strength=1,filter='all',previousVariant=null){
   if(!Number.isFinite(strength)||strength<0||strength>1)throw Error('Неверная сила формы.');
-  const local=base.map(p=>p.map(v=>sub(v,body))),prediction=predict(driver(local),filter,previousVariant);let problem=null;
+  const frame=body.length===6?body:[1,0,0,1,...body],unframe=inverse(frame),local=base.map(p=>p.map(v=>map(unframe,v))),prediction=predict(driver(local),filter,previousVariant);let problem=null;
   for(let step=0;step<=12;step++){
-   const usedStrength=step===12?0:strength*2**-step,points=local.map((p,n)=>p.map((v,i)=>add(add(v,mul(sub(prediction.points[n][i],v),usedStrength)),body)));
+   const usedStrength=step===12?0:strength*2**-step,points=local.map((p,n)=>p.map((v,i)=>add(v,mul(sub(prediction.points[n][i],v),usedStrength))));
    const failed=points.map((p,n)=>reason(matrix(rest[n],p))).find(Boolean)||jointReason(points,limits);
-   if(!failed)return {points,prediction,usedStrength,limitedReason:usedStrength<strength?problem:null,variant:usedStrength>0?prediction.variant:bank.defaultVariant};problem=failed;
+   if(!failed)return {points:points.map(p=>p.map(v=>map(frame,v))),prediction,usedStrength,limitedReason:usedStrength<strength?problem:null,variant:usedStrength>0?prediction.variant:bank.defaultVariant};problem=failed;
   }
   throw Error('Даже базовая поза не проходит ограничения: '+problem);
  }
