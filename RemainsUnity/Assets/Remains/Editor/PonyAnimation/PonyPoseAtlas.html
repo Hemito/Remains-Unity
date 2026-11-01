@@ -68,6 +68,7 @@ input[type=number],input:not([type]){background:#3a4150;color:var(--text);border
 <div class="legend" id="legend"></div>
 <div class="buttons">
 <label>Смешивать <select id="mix"><option value="visible">все показанные группы</option><option value="good">только «годится»</option></select></label>
+<label>За краем примеров <select id="outside"><option value="clamp">прижимать к краю</option><option value="swing">доворачивать цепочку</option></select></label>
 <label>Не тянуть через пустоты длиннее <select id="edge"><option value="0.08">8 см</option><option value="0.12" selected>12 см</option><option value="0.2">20 см</option><option value="99">без ограничения</option></select></label>
 </div>
 <p class="note">Точка — где в этом состоянии конец цепочки (копыто, голова, условный кончик хвоста) относительно корпуса. Щелчок по точке ставит это состояние, перетаскивание по карте смешивает соседние. Красная точка — за краем примеров: здесь нужна новая поза.</p>
@@ -75,7 +76,7 @@ input[type=number],input:not([type]){background:#3a4150;color:var(--text);border
 <section id="animator">
 <h2>Корпус, правка и анимация</h2>
 <div class="buttons">
-<label>Наклон корпуса <input type="range" id="bodyAngle" min="-150" max="150" step="1" value="0"> <span id="bodyAngleValue">0°</span></label>
+<label>Наклон корпуса <input type="range" id="bodyAngle" min="-180" max="180" step="1" value="0"> <span id="bodyAngleValue">0°</span></label>
 <label>Вокруг <select id="pivot"><option value="hips">бёдер</option><option value="center">середины</option><option value="shoulders">плеч</option></select></label>
 <label><input type="checkbox" id="pin" checked> Копыта на полу стоят на месте</label>
 <button id="bodyReset">Корпус в стойку</button>
@@ -85,6 +86,8 @@ input[type=number],input:not([type]){background:#3a4150;color:var(--text);border
 <label>Тонкая правка части <select id="fine"></select></label>
 <label>Рисунок <select id="symbol"></select></label>
 <button id="fineReset">Сбросить правку части</button>
+<label>Повернуть <input type="range" id="partTurn" min="-180" max="180" step="1" value="0"> <span id="partTurnValue">0°</span></label>
+<label><input type="checkbox" id="partWithChildren" checked> вместе с дочерними (голова с гривой, бедро с голенью)</label>
 </div>
 <div class="buttons">
 <input id="poseName" placeholder="Имя позы"><button id="savePose">Сохранить позу</button>
@@ -170,8 +173,15 @@ function chainParts(chain){
  const value=pose[chain.id];if(!value)return null;
  if(value.state!==undefined){const s=chain.states[value.state];return {parts:chain.sockets.map(k=>[k,s.symbols[k],s.deltas[k]]),effector:s.effector,info:{state:s}};}
  const b=blend(chain,value.blend);if(!b)return null;
- const placed=blendChain(chain,b.corners);return {parts:chain.sockets.map(k=>[k,b.lead.symbols[k],placed[k]]),effector:b.at,info:{blend:b}};
+ const placed=blendChain(chain,b.corners);let effector=b.at;
+ // Beyond the examples: the edge shape is kept, and in "swing" mode the whole chain turns about its root joint
+ // (neck for the head, hip for a leg) toward the requested point — the simplest guess outside the cloud.
+ if(b.outside&&$('outside').value==='swing'){const root=chain.sockets[0],r=apply(placed[root],data.joints[root]),q=value.blend;
+  const turn=Math.atan2(q[1]-r[1],q[0]-r[0])-Math.atan2(b.at[1]-r[1],b.at[0]-r[0]),R=turnAbout(r,turn);
+  for(const k in placed)placed[k]=compose(R,placed[k]);effector=apply(R,b.at);b.swing=turn*180/Math.PI;}
+ return {parts:chain.sockets.map(k=>[k,b.lead.symbols[k],placed[k]]),effector,info:{blend:b}};
 }
+function turnAbout(p,a){const c=Math.cos(a),s=Math.sin(a);return [c,s,-s,c,p[0]-c*p[0]+s*p[1],p[1]-s*p[0]-c*p[1]];}
 // Parent of each socket inside its chain; roots are placed alone, children follow their blended parent.
 const PARENT={hindLowerNear:'hindUpperNear',hindLowerFar:'hindUpperFar',frontMiddleNear:'frontUpperNear',frontLowerNear:'frontMiddleNear',pipbuckNear:'frontLowerNear',
  frontMiddleFar:'frontUpperFar',frontLowerFar:'frontMiddleFar',pipbuckFar:'frontLowerFar',head:'neck',mane:'head'};
@@ -272,7 +282,7 @@ function drawPose(){
  const rows=[];
  for(const chain of chains){const p=chainParts(chain);if(!p){rows.push([chain.label,'стойка']);continue;}
   if(p.info.state)rows.push([chain.label,`${p.info.state.id} (кадров: ${p.info.state.sources.length})`]);
-  else{const b=p.info.blend;rows.push([chain.label,b.corners.map(c=>`${c.s.id} ${Math.round(c.w*100)}%`).join(', ')+(b.mixed?' · рисунки соседей различаются, взят '+b.lead.id:'')+(b.outside?` · за краем примеров на ${fmt(b.distance*100,1)} см — нужна новая поза`:'')]);}}
+  else{const b=p.info.blend;rows.push([chain.label,b.corners.map(c=>`${c.s.id} ${Math.round(c.w*100)}%`).join(', ')+(b.mixed?' · рисунки соседей различаются, взят '+b.lead.id:'')+(b.outside?` · за краем примеров на ${fmt(b.distance*100,1)} см`+(b.swing!==undefined?`, цепочка довёрнута на ${fmt(b.swing,0)}°`:' — нужна новая поза'):'')]);}}
  $('facts').innerHTML=rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('');
  schedulePush();
 }
@@ -398,7 +408,15 @@ function syncControls(){$('bodyAngle').value=body.angle;$('bodyAngleValue').text
  const now=fine?(overrides()[fine]||[data.restSymbols[fine]])[0]:'';
  $('symbol').innerHTML=syms.map(s=>`<option ${s===now?'selected':''}>${s}</option>`).join('');$('symbol').disabled=!fine;$('fineReset').disabled=!fine;}
 $('fine').innerHTML='<option value="">—</option>'+chains.map(c=>`<optgroup label="${c.label}">`+c.sockets.map(k=>`<option value="${k}">${k}</option>`).join('')+'</optgroup>').join('');
-$('fine').onchange=()=>{fine=$('fine').value;syncControls();drawPose();};
+$('fine').onchange=()=>{fine=$('fine').value;turnShown=0;$('partTurn').value=0;$('partTurnValue').textContent='0°';syncControls();drawPose();};
+// The selected part (and its descendants in the chain) turned about its joint; the slider shows the turn since the part was chosen.
+const descendants=k=>Object.keys(PARENT).filter(c=>PARENT[c]===k).flatMap(c=>[c,...descendants(c)]);
+let turnShown=0;
+function turnParts(sockets,deg,pivot){const o=pivot||jointNow(sockets[0]),a=deg*Math.PI/180,R=turnAbout(o,a),keep=JSON.stringify(edits);
+ for(const k of sockets)if(!setFinePoints(k,fineFrame(k).posed.map(p=>apply(R,p)))){edits=JSON.parse(keep);return false;}return true;}
+$('partTurn').oninput=()=>{if(!fine)return;const v=+$('partTurn').value,sockets=[fine,...($('partWithChildren').checked?descendants(fine):[])];
+ if(turnParts(sockets,v-turnShown))turnShown=v;else $('partTurn').value=turnShown;$('partTurnValue').textContent=turnShown+'°';drawPose();drawMap();};
+$('outside').onchange=()=>{drawPose();drawMap();};
 $('symbol').onchange=()=>{symbolChoice[fine]=$('symbol').value;drawPose();drawMap();};
 $('fineReset').onclick=()=>{delete edits[fine];delete symbolChoice[fine];syncControls();drawPose();drawMap();};
 $('bodyAngle').oninput=()=>withPinnedHooves(()=>{body.angle=+$('bodyAngle').value;});
@@ -530,7 +548,7 @@ const need=(value,what)=>{if(value===undefined||value===null||value==='')throw n
 const chainBy=id=>chains.find(c=>c.id===id)||(()=>{throw new Error('нет цепочки '+id+'; есть: '+chains.map(c=>c.id).join(', '));})();
 const round=v=>Math.round(v*1e4)/1e4,pt=p=>p.map(round);
 function poseSummary(){const T=bodyMatrix();return {session,body:{...body},frame:frameNow,clip:work.current,chains:Object.fromEntries(chains.map(c=>{const p=chainParts(c),e=effectorOf(c);
- const info=!p?{kind:'rest'}:p.info.state?{kind:'state',state:p.info.state.id}:{kind:'blend',corners:p.info.blend.corners.map(q=>[q.s.id,round(q.w)]),outside:p.info.blend.outside,outsideBy:round(p.info.blend.distance)};
+ const info=!p?{kind:'rest'}:p.info.state?{kind:'state',state:p.info.state.id}:{kind:'blend',corners:p.info.blend.corners.map(q=>[q.s.id,round(q.w)]),outside:p.info.blend.outside,outsideBy:round(p.info.blend.distance),...(p.info.blend.swing!==undefined?{swing:round(p.info.blend.swing)}:{})};
  return [c.id,{...info,end:pt(e),endWorld:pt(apply(T,e)),edited:c.sockets.filter(k=>edits[k]),drawings:Object.fromEntries(c.sockets.filter(k=>symbolChoice[k]).map(k=>[k,symbolChoice[k]]))}];}))};}
 function redraw(){syncControls();drawKeys();drawPose();drawMap();refreshCells();}
 function canvasPng({outfit='bare',size=520,handles=true,label=''}){const c=document.createElement('canvas');c.width=(outfit==='both'?2:1)*size;c.height=size;const ctx=c.getContext('2d');
@@ -577,7 +595,8 @@ const agent={
   redraw();return {pivot:pt(o),parts:sockets.map(k=>agent.get_part({socket:k}))};},
  set_drawing({socket,drawing}){const k=need(socket,'socket');if(drawing){if(!data.symbols[k+'|'+drawing])throw new Error('нет рисунка '+drawing+' у '+k);symbolChoice[k]=drawing;}else delete symbolChoice[k];redraw();return agent.get_part({socket:k});},
  set_groups({hide=[],show=[]}){for(const g of hide)hidden.add(g);for(const g of show)hidden.delete(g);invalidate();drawTabs();drawGrid();redraw();return agent.describe().groups;},
- set_mix({mode,edge}){if(mode)$('mix').value=mode;if(edge)$('edge').value=String(edge);invalidate();redraw();return {mix:$('mix').value,edge:+$('edge').value};},
+ set_mix({mode,edge,outside}){if(mode)$('mix').value=mode;if(edge)$('edge').value=String(edge);if(outside){if(!['clamp','swing'].includes(outside))throw new Error('outside: clamp или swing');$('outside').value=outside;}
+  invalidate();redraw();return {mix:$('mix').value,edge:+$('edge').value,outside:$('outside').value};},
  mark_state({chain,state,mark}){const c=chainBy(need(chain,'chain')),s=c.states.find(x=>x.id===need(state,'state'));if(!s)throw new Error('нет состояния '+state);
   const key=markKey(c,s);if(mark)marks[key]=mark;else delete marks[key];saveMarks();invalidate();drawGrid();redraw();return {chain,state,mark:marks[key]||null};},
  save_pose({name}){const n=need(name,'name');work.poses=work.poses.filter(p=>p.name!==n);work.poses.push({name:n,snap:snapshot()});saveWork();drawPoseList();return {saved:n,poses:work.poses.map(p=>p.name)};},
