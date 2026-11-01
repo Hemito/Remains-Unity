@@ -343,9 +343,13 @@ function fineFrame(k){const [sym,d]=overrides()[k]||[data.restSymbols[k],identit
  const r=entry.looks[0].reduce((u,x)=>[Math.min(u[0],x.rect[0]),Math.min(u[1],x.rect[1]),Math.max(u[2],x.rect[0]+x.rect[2]),Math.max(u[3],x.rect[1]+x.rect[3])],[1e9,1e9,-1e9,-1e9]);
  const stand=[[r[0],r[1]],[r[2],r[1]],[(r[0]+r[2])/2,r[3]]].map(q=>apply(entry.canonical,q));
  return {stand,posed:stand.map(q=>apply(d,q)),final:d};}
-function moveFinePoint(j,local){const f=fineFrame(fine),posed=f.posed.slice();posed[j]=local;const next=solve(f.stand,posed);
- if(Math.abs(next[0]*next[3]-next[1]*next[2])<.05)return;   // collapsed or turned inside out: keep the previous shape
- const base=edits[fine]?compose(invert(edits[fine]),f.final):f.final;edits[fine]=compose(next,invert(base));drawPose();drawMap();}
+function setFinePoints(k,posed){
+ if(!Array.isArray(posed)||posed.length!==3||posed.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)))return false;
+ const f=fineFrame(k),next=solve(f.stand,posed),base=edits[k]?compose(invert(edits[k]),f.final):f.final,edit=compose(next,invert(base));
+ if(!edit.every(Number.isFinite)||edit[0]*edit[3]-edit[1]*edit[2]<.05)return false;
+ edits[k]=edit;return true;}
+function moveFinePoint(j,local){const f=fineFrame(fine),posed=f.posed.slice();posed[j]=local;
+ if(setFinePoints(fine,posed)){drawPose();drawMap();}}
 function syncControls(){$('bodyAngle').value=body.angle;$('bodyAngleValue').textContent=Math.round(body.angle)+'°';$('pivot').value=body.pivot;
  const syms=fine?Object.keys(data.symbols).filter(k=>k.startsWith(fine+'|')).map(k=>k.slice(fine.length+1)):[];
  const now=fine?(overrides()[fine]||[data.restSymbols[fine]])[0]:'';
@@ -501,8 +505,7 @@ const agent={
   if(clear){delete edits[k];redraw();return agent.get_part({socket:k});}
   const prev=fine;fine=k;try{const f=fineFrame(k);let target=points?points.map(p=>[+p[0],+p[1]]):f.posed.map(p=>p.slice());
    if(!points){const o=target[0],a=(rotate||0)*Math.PI/180,s=scale||1,d=translate||[0,0];target=target.map(p=>{const vx=(p[0]-o[0])*s,vy=(p[1]-o[1])*s;return [o[0]+vx*Math.cos(a)-vy*Math.sin(a)+d[0],o[1]+vx*Math.sin(a)+vy*Math.cos(a)+d[1]];});}
-   const before=JSON.stringify(edits[k]||null);for(let j=0;j<3;j++)moveFinePoint(j,target[j]);
-   if(JSON.stringify(edits[k]||null)===before&&(points||translate||rotate||scale))throw new Error('правка отклонена: часть схлопнулась бы или вывернулась');}
+   if(!setFinePoints(k,target))throw new Error('правка отклонена: нужны три конечные точки без схлопывания и выворота');}
   finally{fine=prev;}redraw();return agent.get_part({socket:k});},
  set_drawing({socket,drawing}){const k=need(socket,'socket');if(drawing){if(!data.symbols[k+'|'+drawing])throw new Error('нет рисунка '+drawing+' у '+k);symbolChoice[k]=drawing;}else delete symbolChoice[k];redraw();return agent.get_part({socket:k});},
  set_groups({hide=[],show=[]}){for(const g of hide)hidden.add(g);for(const g of show)hidden.delete(g);invalidate();drawTabs();drawGrid();redraw();return agent.describe().groups;},
