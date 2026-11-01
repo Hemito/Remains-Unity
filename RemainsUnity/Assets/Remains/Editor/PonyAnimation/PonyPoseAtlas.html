@@ -135,9 +135,18 @@ function render(ctx,outfit,over,view,size,alpha=1,sockets=null){
   if(!over[k]){draw(part.image,node.matrix,part.rect);continue;}
   if(done.has(k))continue;done.add(k);const [sym,delta]=over[k],entry=data.symbols[k+'|'+sym];
   if(!entry){console.warn('Атлас поз: нет рисунка символа',k,sym);draw(part.image,compose(delta,node.matrix),part.rect);continue;}
-  const m=compose(delta,entry.canonical);for(const d of entry.looks[outfit])draw(d.image,m,d.rect);}
+  const m=compose(delta,entry.canonical);
+  for(const d of entry.looks[outfit]){if(!d.local){draw(d.image,m,d.rect);continue;}
+   // Own symbols (drawings the game bank lacks): untinted shape PNGs, each with its place in the symbol and its slot tint.
+   const r=d.rect,img=tinted(d.image,d.tint);ctx.save();ctx.transform(...compose(m,d.local));ctx.translate(r[0],r[1]+r[3]);ctx.scale(1,-1);ctx.drawImage(img,0,0,r[2],r[3]);ctx.restore();}}
  ctx.restore();
 }
+const tintCache=new Map();
+function tinted(index,tint){const key=index+':'+tint.join(',');if(tintCache.has(key))return tintCache.get(key);const src=images[index];
+ const c=document.createElement('canvas');c.width=src.naturalWidth;c.height=src.naturalHeight;const g=c.getContext('2d');g.drawImage(src,0,0);
+ g.globalCompositeOperation='multiply';g.fillStyle=`rgb(${tint.slice(0,3).map(v=>Math.round(v*255)).join(',')})`;g.fillRect(0,0,c.width,c.height);
+ g.globalCompositeOperation='destination-in';g.drawImage(src,0,0);const out=document.createElement('canvas');out.width=c.width;out.height=c.height;
+ const o=out.getContext('2d');o.globalAlpha=tint[3];o.drawImage(c,0,0);tintCache.set(key,out);return out;}
 function toPixel(v,view,size){return [(v[0]-view[0])*size/view[2],size-(v[1]-view[1])*size/view[3]];}
 function toWorld(e,canvas,view){const r=canvas.getBoundingClientRect();return [view[0]+(e.clientX-r.left)/r.width*view[2],view[1]+(1-(e.clientY-r.top)/r.height)*view[3]];}
 function visible(chain,s){if(hidden.has(s.group))return false;const m=marks[markKey(chain,s)],f=$('show').value;return f==='all'||(f==='none'&&!m)||f===m;}

@@ -137,7 +137,7 @@ namespace Remains.Editor
                     Record(clip.id+"/"+f,deltas,symbols,frameTorso);
                 }
             }
-            int extraFrames=AddExtra(library,canonical,followers,restTorso,skipped,Record);
+            var own=new Dictionary<string,OwnSymbol>(StringComparer.Ordinal);int extraFrames=AddExtra(library,canonical,followers,restTorso,skipped,own,Record);
             if(restError>.0001f)throw new InvalidOperationException("Атлас поз: стойка не совпала сама с собой: "+restError);
             var unstable=registration.Where(p=>p.Value>RegistrationTolerance).ToArray();
             if(unstable.Length>0)Debug.LogWarning("Атлас поз: нестабильная регистрация рисунков (берётся первый кадр символа): "+string.Join(", ",unstable.Select(p=>p.Key+"="+p.Value.ToString("G3"))));
@@ -147,8 +147,15 @@ namespace Remains.Editor
             var restLooks=new JArray(PonyPointStudy.Outfits.Select(o=>assets.Look(PonyAnimationArtwork.Prepare(o))));
             var used=new HashSet<string>(Chains.SelectMany(c=>states[c.Id]).SelectMany(s=>((JObject)s["symbols"]).Properties().Select(p=>p.Name+"|"+(string)p.Value)),StringComparer.Ordinal);
             var symbolLooks=new JObject();
+            var ownImages=new Dictionary<string,int>(StringComparer.Ordinal);
             foreach(string key in used.OrderBy(k=>k,StringComparer.Ordinal))
             {
+                if(own.TryGetValue(key,out var drawn))
+                {
+                    symbolLooks[key]=new JObject { ["canonical"]=PonyPointPreview.Matrix(drawn.Canonical),["own"]=true,
+                        ["looks"]=new JArray(PonyPointStudy.Outfits.Select(o=>OwnLook(drawn,PonyAnimationArtwork.Prepare(o).Appearance,assets,ownImages))) };
+                    continue;
+                }
                 var (matrix,clip,frame)=canonical[key];string socket=key.Substring(0,key.IndexOf('|'));var looks=new JArray();
                 foreach(string outfit in PonyPointStudy.Outfits)
                 {
@@ -159,7 +166,7 @@ namespace Remains.Editor
                 }
                 symbolLooks[key]=new JObject { ["canonical"]=PonyPointPreview.Matrix(matrix),["looks"]=looks };
             }
-            summary=new JObject { ["rawFrames"]=raw,["extraFrames"]=extraFrames,["symbols"]=symbolLooks.Count,["images"]=assets.Images.Count,["skippedParts"]=skipped.Count,
+            summary=new JObject { ["rawFrames"]=raw,["extraFrames"]=extraFrames,["ownSymbols"]=own.Count,["symbols"]=symbolLooks.Count,["images"]=assets.Images.Count,["skippedParts"]=skipped.Count,
                 ["registration"]=new JObject(registration.OrderBy(p=>p.Key).Select(p=>new JProperty(p.Key,p.Value))),
                 ["states"]=new JObject(Chains.Select(c=>new JProperty(c.Id,states[c.Id].Count))) };
             return new JObject { ["version"]=1,["sourceHash"]=PonyRenderAsset.SourceHash(),
@@ -170,11 +177,30 @@ namespace Remains.Editor
                     ["rest"]=new JArray(Joint(c.Effector).x+c.Offset.x,Joint(c.Effector).y+c.Offset.y),["states"]=new JArray(states[c.Id]) })) };
         }
         // Original body timelines the game bank does not take (strikes, stealth, levitation...), exported by
-        // Tools/export_pony.py --extra-poses. Their node placement follows PonySymbolLayout: a symbol's first part
-        // relative to that symbol's first occurrence in the game bank, so they share the game's registration.
+        // Tools/export_pony.py --extra-poses. A node whose drawing the game bank has is placed like PonySymbolLayout
+        // (its first part relative to the symbol's first occurrence in the bank) and shares the game's registration.
+        // A node composed differently from the bank (sitjump keeps the croup and its mark on separate layers) becomes an
+        // own symbol: registered at its first frame, drawn from the game's base shape PNGs with the slot tint. Shapes the
+        // bank never draws are dropped first: sitjump, which the original code never plays, steps its near croup and a
+        // neck overlay through the armour drawings frame by frame.
         public const string ExtraLibrary="../.reference/original/pony-extra/pony-extra.json";
+        // sitjump keeps the near croup, its mark and two hip overlays on separate layers, and a neck overlay; layer → socket.
+        private static readonly Dictionary<string,Dictionary<string,string>> LayerSockets=new(StringComparer.Ordinal)
+        {
+            ["x_sitjump"]=new(StringComparer.Ordinal)
+            {
+                ["1"]="hindLowerFar",["5"]="hindUpperFar",["sleg1"]="hindUpperFar",["11"]="frontUpperFar",["15"]="frontMiddleFar",["flleg3"]="frontLowerFar",["pip2"]="pipbuckFar",
+                ["tail"]="tail",["29"]="torso",["33"]="neck",["35"]="neck",["mane"]="mane",["head"]="head",
+                ["42"]="frontUpperNear",["46"]="frontMiddleNear",["frleg3"]="frontLowerNear",["54"]="hindLowerNear",
+                ["58"]="hindUpperNear",["mark"]="hindUpperNear",["61"]="hindUpperNear",["62"]="hindUpperNear",["pip1"]="pipbuckNear"
+            }
+        };
+        // The swipe trail of the strikes is an effect layer, not a body part.
+        private static readonly Dictionary<string,string[]> EffectLayers=new(StringComparer.Ordinal) {["x_punch"]=new[]{"72"},["x_kick"]=new[]{"72"}};
+        public sealed class OwnSymbol {public string Socket,Name;public Matrix4x4 Canonical;public readonly List<(PonyPart Part,Matrix4x4 Local)> Parts=new();}
+
         private static int AddExtra(PonyLibrary game,Dictionary<string,(Matrix4x4 Matrix,string Clip,int Frame)> canonical,
-            Dictionary<string,(Matrix4x4 Standing,string Symbol)> followers,Matrix4x4 restTorso,List<string> skipped,
+            Dictionary<string,(Matrix4x4 Standing,string Symbol)> followers,Matrix4x4 restTorso,List<string> skipped,Dictionary<string,OwnSymbol> own,
             Action<string,Dictionary<string,Matrix4x4>,Dictionary<string,string>,Matrix4x4> record)
         {
             string path=Path.GetFullPath(ExtraLibrary);
@@ -187,27 +213,69 @@ namespace Remains.Editor
                 var (id,signature,first)=Describe(frame,group);
                 anchors.TryAdd(id,(PonyRigPilotArt.Affine(first.matrix),signature));
             }
-            int count=0;var unknown=new List<string>();
+            var gameShapes=new HashSet<string>(game.clips.SelectMany(c=>c.frames).SelectMany(f=>f.parts).Select(p=>p.shape),StringComparer.Ordinal);
+            var idle=game.clips.Single(c=>c.id=="idle").frames[0];
+            var mainShape=PonyRigPilotArt.Groups(idle).ToDictionary(g=>g.Socket,g=>Describe(idle,g).First.shape,StringComparer.Ordinal);
+            int count=0;var unknown=new List<string>();var bySignature=new Dictionary<string,OwnSymbol>(StringComparer.Ordinal);
             foreach(var clip in extra.clips)for(int f=0;f<clip.frames.Length;f++)
             {
-                string frameId=clip.id+"/"+f;PonyRigPilotArt.Group[] groups;
-                try{groups=PonyRigPilotArt.Groups(clip.frames[f]).ToArray();}
-                catch(InvalidDataException error){unknown.Add(frameId+": "+error.Message);continue;}
-                var nodes=new Dictionary<string,(string Symbol,Matrix4x4 Matrix)>(StringComparer.Ordinal);
+                string frameId=clip.id+"/"+f;var frame=clip.frames[f];PonyRigPilotArt.Group[] groups;
+                if(EffectLayers.TryGetValue(clip.id,out var effects) && frame.parts.Any(p=>effects.Contains(p.path.Split('/')[0])))
+                {
+                    unknown.Add(frameId+": слой эффекта "+string.Join(",",effects)+" не входит в тело");
+                    frame=new PonyFrame {parts=frame.parts.Where(p=>!effects.Contains(p.path.Split('/')[0])).ToArray()};
+                }
+                var foreign=frame.parts.Where(p=>!gameShapes.Contains(p.shape)).Select(p=>p.shape).Distinct().ToArray();
+                if(foreign.Length>0)
+                {
+                    unknown.Add(frameId+": убраны рисунки, которых нет в игровом банке (броня): "+string.Join(",",foreign));
+                    frame=new PonyFrame {parts=frame.parts.Where(p=>gameShapes.Contains(p.shape)).ToArray()};
+                }
+                if(LayerSockets.TryGetValue(clip.id,out var table))
+                {
+                    var missing=frame.parts.Select(p=>p.path.Split('/')[0]).Where(t=>!table.ContainsKey(t)).Distinct().ToArray();
+                    if(missing.Length>0)throw new InvalidOperationException($"Атлас поз: слои {string.Join(",",missing)} в {frameId} не сопоставлены частям тела.");
+                    groups=frame.parts.Select((p,i)=>(Socket:table[p.path.Split('/')[0]],Index:i)).GroupBy(p=>p.Socket)
+                        .Select(g=>new PonyRigPilotArt.Group {Socket=g.Key,Top=frame.parts[g.First().Index].path.Split('/')[0],Indices=g.Select(p=>p.Index).ToArray()}).ToArray();
+                }
+                else
+                {
+                    try{groups=PonyRigPilotArt.Groups(frame).ToArray();}
+                    catch(InvalidDataException error){unknown.Add(frameId+": "+error.Message);continue;}
+                }
+                var nodes=new Dictionary<string,(string Symbol,Matrix4x4 Matrix,Matrix4x4? Standing)>(StringComparer.Ordinal);
+                var fresh=new List<(PonyRigPilotArt.Group Group,string Id,string Signature)>();
                 foreach(var group in groups)
                 {
-                    var (id,signature,first)=Describe(clip.frames[f],group);
-                    if(!anchors.TryGetValue(id,out var anchor)){unknown.Add($"{frameId}/{group.Socket}: рисунка {id} нет в игровом банке");continue;}
-                    if(anchor.Signature!=signature){unknown.Add($"{frameId}/{group.Socket}: состав рисунка {id} отличается");continue;}
-                    nodes[group.Socket]=(id,PonyRigPilotArt.Affine(first.matrix)*anchor.Matrix.inverse);
+                    var (id,signature,first)=Describe(frame,group);
+                    if(anchors.TryGetValue(id,out var anchor) && anchor.Signature==signature)
+                        nodes[group.Socket]=(id,PonyRigPilotArt.Affine(first.matrix)*anchor.Matrix.inverse,null);
+                    else fresh.Add((group,id,signature));
                 }
-                if(!nodes.TryGetValue("torso",out var torso)){unknown.Add(frameId+": нет туловища");continue;}
+                if(!nodes.TryGetValue("torso",out var torso)){unknown.Add(frameId+": нет туловища из игрового банка");continue;}
                 var bodyInverse=restTorso*torso.Matrix.inverse;
+                foreach(var (group,id,signature) in fresh)
+                {
+                    if(!mainShape.TryGetValue(group.Socket,out var main) || group.Indices.All(i=>frame.parts[i].shape!=main))
+                    {unknown.Add($"{frameId}/{group.Socket}: нет основного рисунка {main}, часть пропущена");continue;}
+                    var first=Describe(frame,group).First;var placement=bodyInverse*PonyRigPilotArt.Affine(first.matrix);
+                    if(!bySignature.TryGetValue(signature,out var symbol))
+                    {
+                        symbol=new OwnSymbol {Socket=group.Socket,Name=id+"~"+(bySignature.Count+1),Canonical=placement};
+                        var origin=PonyRigPilotArt.Affine(first.matrix).inverse;
+                        foreach(var part in group.Indices.Select(i=>frame.parts[i]).Where(p=>PonyAppearance.IsVisible(p)).OrderBy(p=>p.drawOrder))
+                            symbol.Parts.Add((part,origin*PonyRigPilotArt.Affine(part.matrix)));
+                        bySignature.Add(signature,symbol);own.Add(symbol.Socket+"|"+symbol.Name,symbol);
+                    }
+                    // The node is the first part's placement; the symbol's standing registration is its first frame.
+                    nodes[group.Socket]=(symbol.Name,bodyInverse.inverse*placement,symbol.Canonical);
+                }
                 var deltas=new Dictionary<string,Matrix4x4>(StringComparer.Ordinal);var symbols=new Dictionary<string,string>(StringComparer.Ordinal);
                 foreach(var pair in nodes)
                 {
                     Matrix4x4 standing;
-                    if(followers.TryGetValue(pair.Key,out var follower))
+                    if(pair.Value.Standing is Matrix4x4 owned)standing=owned;
+                    else if(followers.TryGetValue(pair.Key,out var follower))
                     {
                         if(pair.Value.Symbol!=follower.Symbol){skipped.Add($"{frameId}/{pair.Key}: ведомый рисунок {pair.Value.Symbol} вместо {follower.Symbol}");continue;}
                         standing=follower.Standing;
@@ -218,9 +286,25 @@ namespace Remains.Editor
                 }
                 record(frameId,deltas,symbols,torso.Matrix);count++;
             }
-            if(unknown.Count>0)Debug.LogWarning("Атлас поз: в дополнительных клипах пропущены незнакомые рисунки, "+unknown.Count+": "+string.Join("; ",unknown.Take(30)));
+            if(unknown.Count>0)Debug.LogWarning("Атлас поз: в дополнительных клипах пропущены слои или кадры, "+unknown.Count+": "+string.Join("; ",unknown));
+            if(own.Count>0)Debug.LogWarning("Атлас поз: рисунков, которых нет в игровом банке, "+own.Count+" (рисуются из базовых PNG игры, в костюме — без костюма): "+string.Join(", ",own.Keys));
             skipped.AddRange(unknown);
             return count;
+        }
+        // An own symbol's look: the game's base shape PNGs with the slot tint.
+        private static JArray OwnLook(OwnSymbol symbol,PonyAppearanceKey appearance,PonyPointPreviewAssets assets,Dictionary<string,int> images)
+        {
+            var draws=new JArray();
+            foreach(var (part,local) in symbol.Parts)
+            {
+                string file=Path.GetFullPath("Assets/Remains/Resources/Original/Pony/"+part.shape+".png");
+                if(!File.Exists(file)){Debug.LogWarning($"Атлас поз: нет PNG фигуры {part.shape} для рисунка {symbol.Socket}|{symbol.Name}; часть не показана.");continue;}
+                if(!images.TryGetValue(file,out int image)){image=assets.Images.Count;images.Add(file,image);assets.Images.Add("data:image/png;base64,"+Convert.ToBase64String(File.ReadAllBytes(file)));}
+                var tint=PonyAppearance.Tint(part.slot,appearance);var b=part.bounds;
+                draws.Add(new JObject {["image"]=image,["rect"]=new JArray(b[0]/1000f,-b[3]/1000f,(b[2]-b[0])/1000f,(b[3]-b[1])/1000f),["local"]=PonyPointPreview.Matrix(local),
+                    ["tint"]=new JArray(tint.r*part.color[0],tint.g*part.color[1],tint.b*part.color[2],part.color[3])});
+            }
+            return draws;
         }
         private static (string Id,string Signature,PonyPart First) Describe(PonyFrame frame,PonyRigPilotArt.Group group)
         {
