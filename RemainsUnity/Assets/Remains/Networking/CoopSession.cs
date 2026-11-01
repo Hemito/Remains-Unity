@@ -518,8 +518,8 @@ namespace Remains.Networking
             NetworkClient.RegisterHandler<ModMismatchMessage>(Remains.Networking.MessageTiming.Client<ModMismatchMessage>(message=>ModMismatch?.Invoke(JsonUtility.FromJson<ContentManifest>(System.Text.Encoding.UTF8.GetString(message.manifest)))));
             NetworkClient.RegisterHandler<HealingReplyMessage>(Remains.Networking.MessageTiming.Client<HealingReplyMessage>(message=>
             {
-                // An NPC's revival is not the player's: no notice, only its outcome in the log.
-                if(npcRevivals.Remove(message.transaction)) {Debug.Log($"Подъём NPC {(message.success?"принят":"отклонён")}: transaction={message.transaction}. {message.reason}");return;}
+                // An NPC's healing is not the player's: no notice, only its outcome in the log.
+                if(npcHealing.Remove(message.transaction)) {Debug.Log($"Лечение NPC {(message.success?"принято":"отклонено")}: transaction={message.transaction}. {message.reason}");return;}
                 if(!message.success) selfHealing.Reject(message.transaction);HealingFinished?.Invoke(message.transaction,message.success);Notice?.Invoke(message.reason);
             }));
             ClientReady?.Invoke();
@@ -1372,13 +1372,16 @@ namespace Remains.Networking
             return transaction;
         }
         public string RequestRevive(string target)=>RequestHealing(target,false);
-        // A sapient NPC this peer owns revives a downed ally with a medkit of its own; the host decides as for a player.
-        private readonly HashSet<string> npcRevivals=new(StringComparer.Ordinal);
-        public string RequestNpcRevive(ActorState healer,ActorState target)
+        // A sapient NPC this peer owns revives a downed ally or heals itself with a medkit of its own; the host decides as
+        // for a player.
+        private readonly HashSet<string> npcHealing=new(StringComparer.Ordinal);
+        public string RequestNpcRevive(ActorState healer,ActorState target)=>RequestNpcHealing(healer,target,false);
+        public string RequestNpcSelfHeal(ActorState healer)=>RequestNpcHealing(healer,healer,true);
+        private string RequestNpcHealing(ActorState healer,ActorState target,bool selfHeal)
         {
-            if(healer==null || target==null || healer.player || healer.owner!=LocalOwner || HealingRules.Rejection(healer,target,false)!=null) return null;
-            string transaction=Guid.NewGuid().ToString("N");npcRevivals.Add(transaction);
-            NetworkClient.Send(new ReviveMessage {target=target.id,transaction=transaction,healer=healer.id,
+            if(healer==null || target==null || healer.player || healer.owner!=LocalOwner || HealingRules.Rejection(healer,target,selfHeal)!=null) return null;
+            string transaction=Guid.NewGuid().ToString("N");npcHealing.Add(transaction);
+            NetworkClient.Send(new ReviveMessage {target=target.id,transaction=transaction,healer=healer.id,selfHeal=selfHeal,
                 healerGeneration=healer.generation,healerLifecycle=healer.lifecycleSequence,damageSequence=healer.damageSequence,
                 targetGeneration=target.generation,targetLifecycle=target.lifecycleSequence});
             return transaction;

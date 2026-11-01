@@ -9,8 +9,9 @@ namespace Remains.Editor
     // PonyBrain, the sapient ponies' utility brain, on a flat floor: calm without a target, the reaction delay before a
     // seen target is acted on, a shooter shooting in range and stepping back from a close one, teeth closing in and
     // touching, a levitated weapon swinging from its distance, a hurt pony retreating and, cornered, fighting again, a
-    // lost target searched and forgotten, no flicker between intents while nothing changes, and a downed ally revived
-    // with a medkit (HealingRules for NPCs, the brain's intent, the owner's RevivalSeconds and its request).
+    // lost target searched and forgotten, no flicker between intents while nothing changes, a downed ally revived with a
+    // medkit (HealingRules for NPCs, the brain's intent, the owner's RevivalSeconds and its request) and its own wounds
+    // healed with one (after a retreat, out of sight; one request at a time).
     public static class PonyBrainChecks
     {
         public static void Run()
@@ -19,8 +20,8 @@ namespace Remains.Editor
             var shooter=ActorTypes.Get("raider").raider;
             Require(shooter.pony!=null && Mathf.Approximately(shooter.pony.retreatHealth,.25f) && SapientPonies.Is(Raider()) &&
                 !SapientPonies.Is(new ActorState {id="t",actorType="tarakan"}),"у рейдера — характер разумного пони по умолчанию; таракан не разумный пони");
-            Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);Revival(shooter);
-            Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья, подъём союзника с аптечкой.");
+            Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);Revival(shooter);SelfHeal(shooter);
+            Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья, подъём союзника и самолечение аптечкой.");
         }
 
         private static RoomLayout Room(float left=-20,float right=20)
@@ -144,6 +145,45 @@ namespace Remains.Editor
             ActorState asked=null;float time=0,dt=1f/30;
             for(int i=0;i<150 && asked==null;i++) {medic.x=0;medic.vx=0;asked=raiders.Step(medic,type,target,false,room,dt,downed).revive;raiders.EndFrame(dt);time+=dt;}
             Require(asked==downed && time>=HealingRules.RevivalSeconds,$"владелец просит подъём после {HealingRules.RevivalSeconds} с над союзником: {time:0.##} с");
+        }
+
+        private static void SelfHeal(RaiderSettings s)
+        {
+            ActorState Hurt(float health=15,bool medkit=true)
+            {
+                var actor=Raider();actor.factoryEnemy=new FactoryEnemyScaleState {maxHealth=50};actor.health=health;
+                if(medkit) InventoryStacks.Add(actor,SharedInventory.Create("heal",1));
+                return actor;
+            }
+            var hurt=Hurt();var unknown=Raider();unknown.health=15;InventoryStacks.Add(unknown,SharedInventory.Create("heal",1));
+            var full=Hurt(50);var downed=Hurt();downed.down=true;
+            Require(HealingRules.Rejection(hurt,hurt,true)==null && HealingRules.Rejection(Hurt(medkit:false),Hurt(medkit:false),true)!=null &&
+                HealingRules.Rejection(unknown,unknown,true)!=null && HealingRules.Rejection(full,full,true)!=null && HealingRules.Rejection(downed,downed,true)!=null,
+                "NPC лечит себя с аптечкой; не без аптечки, не без известного предела здоровья, не при полном и не лёжа");
+            Require(HealingRules.Apply(hurt,hurt,true) && Mathf.Approximately(hurt.health,50) && InventoryJournal.Count(hurt,"heal")==0,
+                "самолечение NPC расходует аптечку и лечит на 35 до предела уровня");
+
+            // The brain: hurt and alone it heals; healthy or without a medkit it does not; after a retreat out of sight it heals.
+            var run=new Pony(s,Hurt(),Room(),11);bool used=false;
+            for(int i=0;i<30;i++) used|=run.Tick(Nothing).heal;
+            Require(run.pony.intent==PonyIntentKind.Heal && used,$"раненый без врага в виду лечится: {run.pony.intent}");
+            foreach(var calm in new[]{Hurt(40),Hurt(medkit:false)})
+            {
+                var other=new Pony(s,calm,Room(),12);
+                for(int i=0;i<30;i++) other.Tick(Nothing);
+                Require(other.pony.intent!=PonyIntentKind.Heal,"здоровый или без аптечки не лечится");
+            }
+            run=new Pony(s,Hurt(5),Room(),13);var target=new Vector2(6,.7f);run.Alarm(target);
+            for(int i=0;i<30;i++) {run.actor.x=0;run.Tick(Sees(target));}
+            Require(run.pony.intent==PonyIntentKind.Retreat,$"в виду врага тяжело раненый отступает, а не лечится: {run.pony.intent}");
+            for(int i=0;i<30;i++) {run.actor.x=0;run.Tick(Nothing);}
+            Require(run.pony.intent==PonyIntentKind.Heal,$"оторвавшись, лечится: {run.pony.intent}");
+
+            // The owner: one request, then none while the host answers (5 s).
+            var raiders=new Remains.Gameplay.NpcRaiderController(MovementSettings.Load(),new System.Random(14));
+            var type=ActorTypes.Get("raider");var room=Room();var patient=Hurt();int requests=0;
+            for(int i=0;i<140;i++) {patient.x=0;patient.vx=0;if(raiders.Step(patient,type,null,false,room,1f/30).heal) requests++;raiders.EndFrame(1f/30);}
+            Require(requests==1,$"владелец просит самолечение один раз, пока ждёт ответа хоста: {requests}");
         }
 
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Мозг разумных пони: "+message);}

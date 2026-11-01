@@ -24,16 +24,17 @@ namespace Remains.Domain
         [Range(0,2),InspectorName("Ближний бой")] public float melee=1;
         [Range(0,2),InspectorName("Осторожность (отступление)")] public float caution=1;
         [Range(0,1),InspectorName("Отступает при здоровье ниже, доля")] public float retreatHealth=.25f;
+        [Range(0,1),InspectorName("Лечится аптечкой при здоровье ниже, доля")] public float healHealth=.5f;
         [Range(0,.5f),InspectorName("Надбавка начатому намерению")] public float commitment=.1f;
         public void Validate(string type)
         {
-            foreach(float value in new[]{shoot,melee,caution,retreatHealth,commitment})
+            foreach(float value in new[]{shoot,melee,caution,retreatHealth,healHealth,commitment})
                 if(!float.IsFinite(value) || value<0) throw new InvalidOperationException($"Некорректный профиль разумного пони {type}.");
-            if(shoot>2 || melee>2 || caution>2 || retreatHealth>1 || commitment>.5f) throw new InvalidOperationException($"Профиль разумного пони {type} вне пределов.");
+            if(shoot>2 || melee>2 || caution>2 || retreatHealth>1 || healHealth>1 || commitment>.5f) throw new InvalidOperationException($"Профиль разумного пони {type} вне пределов.");
         }
     }
 
-    public enum PonyIntentKind { Calm, Notice, Search, Approach, Shoot, Melee, Retreat, Revive }
+    public enum PonyIntentKind { Calm, Notice, Search, Approach, Shoot, Melee, Retreat, Revive, Heal }
 
     // The nearest downed ally the owner found for this pony, and whether the pony has a medkit to revive it with.
     public readonly struct PonyAlly
@@ -61,9 +62,9 @@ namespace Remains.Domain
     // The sapient ponies' brain, utility AI (user decision 2026-10-31): every DecisionFrames original frames each intent is
     // scored from the situation (sight, distance, attack way, health) times the profile, the best one wins, the current
     // one keeps a bonus and is held at least MinHoldFrames so that the pony does not flicker. Each intent drives the
-    // shared legs (RaiderLegs) and the original's attack chances. A downed ally is revived with a medkit, as players do
-    // (HealingRules). Not yet: healing itself, grenades, picking up weapons, factions beyond the original's player-only
-    // targets, a debug overlay.
+    // shared legs (RaiderLegs) and the original's attack chances. A downed ally is revived and the pony's own wounds are
+    // healed with a medkit, as players do (HealingRules). Not yet: grenades, picking up weapons, factions beyond the
+    // original's player-only targets, a debug overlay.
     public static class PonyBrain
     {
         public const int DecisionFrames=3,MinHoldFrames=15;
@@ -137,6 +138,11 @@ namespace Remains.Domain
                     if(stay && Mathf.Abs(dx)<1.2f && Mathf.Abs(m.point.y-actor.y)<1) {Face();intent.revive=true;}
                     else Toward();
                     break;
+                case PonyIntentKind.Heal:
+                    // Stands and uses a medkit on itself (the owner asks the host, as a player's use does).
+                    if(m.alert>0) Face();
+                    intent.heal=stay && !climbing;
+                    break;
                 case PonyIntentKind.Retreat:
                 {
                     // Away from the threat at a run; blocked by a wall or an edge it is cornered and stops.
@@ -204,6 +210,9 @@ namespace Remains.Domain
             score[(int)PonyIntentKind.Melee]=sees?(ranged?(distance<100*Px?.55f:0):.7f)*w.melee:0;
             // A downed ally with a medkit at hand: before searching or strolling, and even under fire unless the enemy is close.
             score[(int)PonyIntentKind.Revive]=ally.known && ally.medkit?(!sees?.65f:distance>200*Px?.5f:0):0;
+            // Its own wounds below the profile's share, a medkit and a known full health (HealingRules): out of sight first —
+            // after a retreat — and before reviving an ally; in sight only with the enemy far.
+            score[(int)PonyIntentKind.Heal]=health<w.healHealth && HealingRules.CanApply(actor,actor,true)?(!sees?.7f:distance>200*Px?.5f:0):0;
             score[(int)PonyIntentKind.Retreat]=sees && health<w.retreatHealth && p.cornered<=30?(.75f+.25f*(1-health/Mathf.Max(w.retreatHealth,.0001f)))*w.caution:0;
 
             int best=0;

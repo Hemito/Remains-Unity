@@ -112,6 +112,7 @@ namespace Remains.Domain
         public bool slowRun;           // a zombie searching runs at 0.6 of its run
         public bool flare;             // a glowing zombie's flare begins (superSila 5)
         public bool revive;            // a sapient pony stands over its downed ally reviving it (PonyBrain)
+        public bool heal;              // a sapient pony uses a medkit on itself (PonyBrain)
     }
 
     // UnitRaider.control / jump / checkJump / attack (1.04 dlc-ui), one call per original frame (30 per second). Kept close

@@ -14,7 +14,10 @@ namespace Remains.Gameplay
         public readonly bool changed;
         // revive: the downed ally this raider has finished reviving — the owner asks the host (CoopSession.RequestNpcRevive).
         public readonly ActorState revive;
-        public RaiderActions(bool weapon,float bodyHit,bool changed=false,ActorState revive=null) {this.weapon=weapon;this.bodyHit=bodyHit;this.changed=changed;this.revive=revive;}
+        // heal: the raider uses a medkit on itself now — the owner asks the host (CoopSession.RequestNpcSelfHeal).
+        public readonly bool heal;
+        public RaiderActions(bool weapon,float bodyHit,bool changed=false,ActorState revive=null,bool heal=false)
+        {this.weapon=weapon;this.bodyHit=bodyHit;this.changed=changed;this.revive=revive;this.heal=heal;}
     }
 
     // Raiders this peer owns: PonyBrain (sapient raiders), RaiderBrain (the robobrain) or ZombieBrain decides at the
@@ -30,7 +33,7 @@ namespace Remains.Gameplay
         {
             public RaiderMind mind=new();public MovementController movement;public MovementSettings settings;
             public PonyMind pony;   // a sapient raider's utility memory (PonyBrain)
-            public readonly RevivalProgress revival=new();public float revivalPending;
+            public readonly RevivalProgress revival=new();public float revivalPending,healPending;
             public int generation;public float clock;public int seen;
             public RaiderIntent intent;
             public string swingAttack;public MeleeSweep swing;
@@ -113,7 +116,14 @@ namespace Remains.Gameplay
             else NpcWeaponAim.Apply(actor,sees?target.BodyPosition+Vector2.up*.55f:memory.hasKnownPosition?memory.KnownPosition+Vector2.up*.55f:null,room);
             // UnitZombie.animate: trot while searching on the move.
             if(settings.zombie && entry.mind.state==RaiderState.Search && actor.pose is "walk" or "run") ActorPose.Select(actor,"trot");
-            return new RaiderActions(weapon,bodyHit,changed,Revive(entry,actor,ally,decided.revive,dt));
+            return new RaiderActions(weapon,bodyHit,changed,Revive(entry,actor,ally,decided.revive,dt),Heal(entry,actor,decided.heal));
+        }
+
+        // A medkit used at once, as a player's; one request until the host answers or 5 s pass.
+        private bool Heal(Entry entry,ActorState actor,bool wanted)
+        {
+            if(!wanted || entry.healPending>time || !HealingRules.CanApply(actor,actor,true)) return false;
+            entry.healPending=time+5;return true;
         }
 
         // RevivalSeconds over the ally, as a player's hold of E; then one request until the host answers or 5 s pass.
