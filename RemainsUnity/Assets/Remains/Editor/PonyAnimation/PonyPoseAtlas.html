@@ -383,13 +383,18 @@ function withPinnedHooves(change){
  const held=gesturePins||capturePins();change();
  if(held){const inv=invert(bodyMatrix());LEGS().forEach((c,i)=>{if(held[i])pose[c.id]={blend:endTarget(c,apply(inv,held[i]))};});}
  syncControls();drawPose();drawMap();}
-// The lowest point of the drawn pony (all parts' drawing boxes), world space.
-function lowestPoint(){const T=bodyMatrix(),over=overrides(),look=data.rest[0];let low=Infinity;
+// The lowest drawn pixel of the pony, world space. The parts' drawing boxes only bound the search: their empty
+// corners reach far lower than the drawing once a part is turned, so the pony is rasterised and scanned for alpha.
+function lowestPoint(){const T=bodyMatrix(),over=overrides(),look=data.rest[0];let box=[Infinity,Infinity,-Infinity,-Infinity];
  for(const d of look.draws){const n=look.nodes[d.node],k=n.socket;let m=n.matrix,rects=[d.rect];
   if(over[k]){const [sym,delta]=over[k],e=data.symbols[k+'|'+sym];m=compose(delta,e.canonical);rects=e.looks[0].map(x=>x.rect);}
-  for(const r of rects)for(const q of [[r[0],r[1]],[r[0]+r[2],r[1]],[r[0],r[1]+r[3]],[r[0]+r[2],r[1]+r[3]]])low=Math.min(low,apply(compose(T,m),q)[1]);}
- return low;}
-// Put the pony on the floor: move the body so the lowest drawn point touches y = 0 (drawing boxes include a margin).
+  for(const r of rects)for(const q of [[r[0],r[1]],[r[0]+r[2],r[1]],[r[0],r[1]+r[3]],[r[0]+r[2],r[1]+r[3]]]){const w=apply(compose(T,m),q);
+   box=[Math.min(box[0],w[0]),Math.min(box[1],w[1]),Math.max(box[2],w[0]),Math.max(box[3],w[1])];}}
+ const side=Math.max(box[2]-box[0],box[3]-box[1]),size=600,view=[box[0],box[1],side,side],c=document.createElement('canvas');c.width=c.height=size;
+ const g=c.getContext('2d',{willReadFrequently:true});render(g,0,over,view,size,1,null,T);const a=g.getImageData(0,0,size,size).data;
+ for(let y=size-1;y>=0;y--)for(let x=0;x<size;x++)if(a[(y*size+x)*4+3]>32)return view[1]+(size-1-y)/size*side;
+ return box[1];}
+// Put the pony on the floor: move the body so the lowest drawn pixel touches y = 0.
 function dropToFloor(){body.y-=lowestPoint();syncControls();drawPose();drawMap();}
 // Three handles on a part: corners of its drawing, in the torso frame (standing and posed).
 function fineFrame(k){const [sym,d]=overrides()[k]||[data.restSymbols[k],identity],entry=data.symbols[k+'|'+sym];
@@ -576,7 +581,9 @@ const agent={
   try{if(pivot&&pivot!==body.pivot){$('pivot').value=pivot;$('pivot').onchange();}withPinnedHooves(()=>{if(angle!==undefined)body.angle=+angle;if(x!==undefined)body.x=+x;if(y!==undefined)body.y=+y;});}
   finally{$('pin').checked=keepPin;}if(floor)dropToFloor();redraw();return {...poseSummary(),lowestPoint:round(lowestPoint())};},
  get_part({socket}){const k=need(socket,'socket');if(!chainOf(k))throw new Error('часть не в цепочке: '+k);const f=fineFrame(k);
-  const [lo,hi]=edits[k]?stretchOf(edits[k]):[1,1],warning=lo<.75||hi>1.35?`правка ${lo<.75?'сжала':'растянула'} часть (×${round(lo)}…×${round(hi)}): оригинал так не рисует, проверьте картинку`:undefined;
+  // The edit's stretch as the viewer sees it (torso frame: base ∘ edit ∘ base⁻¹); in the part's own skewed frame a
+  // plain turn would read as a squash.
+  const b=baseOf(k),[lo,hi]=edits[k]?stretchOf(compose(compose(b,edits[k]),invert(b))):[1,1],warning=lo<.75||hi>1.35?`правка ${lo<.75?'сжала':'растянула'} часть (×${round(lo)}…×${round(hi)}): оригинал так не рисует, проверьте картинку`:undefined;
   return {socket:k,joint:pt(jointNow(k)),drawing:(overrides()[k]||[data.restSymbols[k]])[0],drawings:Object.keys(data.symbols).filter(s=>s.startsWith(k+'|')).map(s=>s.slice(k.length+1)),
    points:f.posed.map(pt),standingPoints:f.stand.map(pt),edited:!!edits[k],editStretch:[round(lo),round(hi)],...(warning?{warning}:{})};},
  fine_edit({socket,points,translate,rotate,scale,clear,pivot}){const k=need(socket,'socket');if(!chainOf(k))throw new Error('часть не в цепочке: '+k);
