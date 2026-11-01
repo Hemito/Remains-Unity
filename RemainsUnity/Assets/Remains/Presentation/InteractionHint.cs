@@ -142,7 +142,9 @@ namespace Remains.Presentation
             targetTop=new Vector2(bounds.center.x,bounds.yMax+.25f);
         }
         // A trap or charge: its action and name ("Обезвредить капкан", "Взвести капкан"); null when it is gone.
-        public void RefreshHazard(string action,Rect bounds,bool visible,ActorState localActor,bool pending)
+        public void RefreshHazard(string action,Rect bounds,bool visible,ActorState localActor,bool pending)=>RefreshAction(action,bounds,visible,localActor,pending);
+        // An action over a box (a trap's disarm, lying on a bed): "E · action" above it.
+        public void RefreshAction(string action,Rect bounds,bool visible,ActorState localActor,bool pending)
         {
             hasTarget=action!=null;allowed=visible;actor=localActor;
             if(!hasTarget || !allowed) UpdateOutline();

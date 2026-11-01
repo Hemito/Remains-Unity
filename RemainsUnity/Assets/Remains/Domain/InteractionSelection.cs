@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Remains.Domain
 {
-    public enum InteractionKind { None, Revival, Container, Door, Map, Exit, Pickup, Mechanism, Mine, Hazard }
+    public enum InteractionKind { None, Revival, Container, Door, Map, Exit, Pickup, Mechanism, Mine, Hazard, Bed }
     public readonly struct InteractionTarget
     {
         public readonly InteractionKind kind;
@@ -45,7 +45,8 @@ namespace Remains.Domain
 
         public static InteractionTarget Select(WorldState world,ActorState actor,GameplayRuleSet rules,Vector2 cursor,
             System.Collections.Generic.IReadOnlyList<TravelPoint> travelPoints=null,
-            System.Collections.Generic.IReadOnlyList<MechanismInteractionPoint> mechanismPoints=null)
+            System.Collections.Generic.IReadOnlyList<MechanismInteractionPoint> mechanismPoints=null,
+            System.Collections.Generic.IReadOnlyList<RoomRest> beds=null)
         {
             if(world==null || actor==null || actor.down || !actor.connected || !float.IsFinite(cursor.x) || !float.IsFinite(cursor.y)) return default;
             foreach(var other in world.actors)
@@ -83,6 +84,9 @@ namespace Remains.Domain
                 var profile=HazardRules.Profile(hazard);
                 if(HazardRules.DisarmRejection(hazard,actor,profile)==null) Consider(InteractionKind.Hazard,hazard.id,HazardRules.Bounds(hazard,profile));
             }
+            // Beds of the actor's level (its room geometry).
+            if(beds!=null) foreach(var bed in beds)
+                if(BedRest.Rejection(actor,bed)==null) Consider(InteractionKind.Bed,bed.id,BedRest.Bounds(bed));
             return selected;
 
             void ConsiderSource(InventorySource source)

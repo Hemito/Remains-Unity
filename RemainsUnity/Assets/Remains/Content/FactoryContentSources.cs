@@ -61,6 +61,7 @@ namespace Remains.Content
                 using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: ловушки")) FactoryHazardAdapter.Install(root,plan);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: существа")) FactoryCreatureAdapter.Install(root,plan);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: шипы")) FactorySpikeAdapter.Install(root);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: кровати")) FactoryRestAdapter.Install(root);
                 sources[key]=new Entry {root=root,seed=world.seed,definition=factory.definition,fingerprint=factory.contentFingerprint,layout=factory.layout,
                     lootLedger=Remains.Serialization.StateJson.ToJson(world.factoryLootLimits)};
             }

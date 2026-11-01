@@ -10,10 +10,10 @@ namespace Remains.Gameplay
         public InteractionTarget Target {get;private set;}
         private Vector2? cursor;
         public void Step(WorldState world,ActorState actor,GameplayRuleSet rules,Vector2? pointerWorld,bool blocked,IReadOnlyList<TravelPoint> points,
-            IReadOnlyList<MechanismInteractionPoint> mechanisms=null)
+            IReadOnlyList<MechanismInteractionPoint> mechanisms=null,IReadOnlyList<RoomRest> beds=null)
         {
             cursor=pointerWorld;
-            Target=blocked || cursor==null?default:InteractionSelection.Select(world,actor,rules,cursor.Value,points,mechanisms);
+            Target=blocked || cursor==null?default:InteractionSelection.Select(world,actor,rules,cursor.Value,points,mechanisms,beds);
         }
         public void Clear() {cursor=null;Target=default;}
     }

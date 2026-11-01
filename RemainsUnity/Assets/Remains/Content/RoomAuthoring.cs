@@ -25,6 +25,12 @@ namespace Remains.Content
             if(preparedLayout==null) throw new InvalidOperationException($"Комната {name}: шипы добавляются только к подготовленной геометрии.");
             var layout=StateJson.Copy(preparedLayout);layout.spikes=spikes??throw new ArgumentNullException(nameof(spikes));preparedLayout=layout;
         }
+        // Its beds, as the spikes (FactoryRestAdapter).
+        public void ConfigurePreparedBeds(RoomRest[] beds)
+        {
+            if(preparedLayout==null) throw new InvalidOperationException($"Комната {name}: кровати добавляются только к подготовленной геометрии.");
+            var layout=StateJson.Copy(preparedLayout);layout.beds=beds??throw new ArgumentNullException(nameof(beds));preparedLayout=layout;
+        }
         public void UseAuthoredArtwork() {authoredArtwork=true;settings.artwork=null;}
         public void Configure(RoomLayout source)
         {
@@ -53,6 +59,7 @@ namespace Remains.Content
                 result.ladders=GetComponentsInChildren<RoomLadderAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             using(TransitionTiming.Measure("room.layout-spikes",context))
                 result.spikes=GetComponentsInChildren<RoomSpikeAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
+            result.beds=GetComponentsInChildren<RoomRestAuthoring>(true).Where(item=>Included(item)).Select(item=>item.Read(this)).ToArray();
             if(result.platforms.Length==0 || result.left>=result.right) throw new InvalidOperationException($"Комната {name}: некорректные границы или нет поверхностей.");
             return result;
         }

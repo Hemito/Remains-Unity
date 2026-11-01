@@ -11,6 +11,7 @@ namespace Remains.Domain
             destination.poseSequence=source.poseSequence;destination.poseCorrectionRemaining=source.poseCorrectionRemaining;
             destination.climbing=source.climbing;
             destination.crouched=source.crouched;
+            destination.rest=source.rest;destination.restPose=source.restPose;
             if(!string.IsNullOrEmpty(source.id) && source.id==destination.id && source.owner==destination.owner &&
                 source.level==destination.level && source.generation==destination.generation && source.lifecycleSequence==destination.lifecycleSequence)
             {
@@ -30,7 +31,9 @@ namespace Remains.Domain
                 HeldItemSelection.CopyPose(source,destination);
             }
         }
-        public static string Clip(ActorState actor)=>ActorSessionRules.IsPassive(actor)?"down":actor.pose;
+        public static string Clip(ActorState actor)=>ActorSessionRules.IsPassive(actor)?"down":BedRest.Active(actor)?BedRest.Clip(actor):actor.pose;
+        // A clip shown at its last frame: a lying body (down or disconnected) and one resting on a bed.
+        public static bool HoldsLastFrame(ActorState actor)=>ActorSessionRules.IsPassive(actor) || BedRest.Active(actor);
         public static bool StationaryClimb(ActorState actor)=>actor.climbing && !ActorSessionRules.IsPassive(actor) && System.Math.Abs(actor.vy)<.001f;
         // Longer than any lying-down clip; the pose stays at its last frame afterwards.
         public const float PassiveSettleSeconds=5;

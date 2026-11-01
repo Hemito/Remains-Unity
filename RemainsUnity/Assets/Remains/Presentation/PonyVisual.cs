@@ -188,7 +188,7 @@ namespace Remains.Presentation
             // Custom head/style and equipment events prepare their plans in Bind.
             bool closed=!rawClip && blink.Closed;
             var frames = drawPlan.HasEquipment?drawPlan.Frames(pose,closed):PonyRenderSelection.Frames(nextAppearance,pose,closed);
-            int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorSessionRules.IsPassive(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
+            int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorPose.HoldsLastFrame(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
             if (nextFrame == frame && DrawnEyeClosed==closed && !drawPlanDirty && magicRoleVersion==PonyMagicRenderRoles.Version) {RefreshMagic(nextAppearance);RefreshDrawnBounds();return;}
             frame = nextFrame;
             DrawnEyeClosed=closed;

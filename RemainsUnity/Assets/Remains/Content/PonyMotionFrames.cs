@@ -37,12 +37,12 @@ namespace Remains.Content
             string clip=ActorPose.Clip(actor);
             foreach(var curve in library.curves)
             {
-                if(curve.clip!=clip || ActorSessionRules.IsPassive(actor)) continue;
+                if(curve.clip!=clip || ActorPose.HoldsLastFrame(actor)) continue;
                 if(curve.limited && (actor.vy>curve.maxVerticalVelocity || Mathf.Abs(actor.vx)>curve.maxHorizontalSpeed)) continue;
                 float velocity=curve.axis=="forward"?actor.vx*actor.facing:actor.vy;
                 return MotionFrameSampling.Sample(curve.points,velocity);
             }
-            return PonyAnimationData.FrameIndex(clip,elapsed,ActorSessionRules.IsPassive(actor),ActorPose.StationaryClimb(actor));
+            return PonyAnimationData.FrameIndex(clip,elapsed,ActorPose.HoldsLastFrame(actor),ActorPose.StationaryClimb(actor));
         }
     }
 }

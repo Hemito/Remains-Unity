@@ -51,6 +51,8 @@ namespace Remains.Domain
         public bool down;
         public bool climbing;
         public bool crouched;
+        // The bed it lies on (RoomLayout.beds id) and how (BedRest.Belly/Back); empty when not resting.
+        public string rest,restPose;
         public int holdEpoch;
         public ActorHoldState hold;
         [NonSerialized] public float crouchPressSeconds;

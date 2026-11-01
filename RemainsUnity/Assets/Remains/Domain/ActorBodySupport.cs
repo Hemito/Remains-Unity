@@ -87,7 +87,7 @@ namespace Remains.Domain
         private static ActorBodySupportSample Resolve(ActorState actor,MovementHull hull,string pose,int frame,bool profile,Binding binding)
         {
             var room=binding.Room;var anchor=actor.Position;
-            bool suspended=actor.climbing || ActorSessionRules.IsPassive(actor) || ActorHoldRules.Active(actor) || binding.Dropping || actor.vy!=0;
+            bool suspended=actor.climbing || ActorSessionRules.IsPassive(actor) || BedRest.Active(actor) || ActorHoldRules.Active(actor) || binding.Dropping || actor.vy!=0;
             FootSupportFrame feet=profile?FootSupportCatalog.Get(actor.anatomy,pose,frame):null;
             double reach=feet==null?hull.width*.5:Math.Max(hull.width*.5,Math.Max(Math.Abs(feet.Bounds.MinimumX),Math.Abs(feet.Bounds.MaximumX)));
             double left=anchor.x-reach,right=anchor.x+reach;

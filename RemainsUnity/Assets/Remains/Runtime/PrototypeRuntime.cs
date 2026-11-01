@@ -701,6 +701,16 @@ namespace Remains.Runtime
             if(!WeaponInventory.Select(actor,item,out var reason)) {Session.ShowNotice(reason);return;}
             Combat.Weapon=actor.weapon;Session.PublishActor(actor);
         }
+        // E at a bed: on the belly or, when its clip is in the game, at random on the back (user 2026-11-01).
+        private void LieOnBed(ActorState actor,string id)
+        {
+            var bed=System.Array.Find(Geometry.Get(actor.level).beds,b=>b.id==id);
+            if(bed==null || BedRest.Rejection(actor,bed)!=null) return;
+            bool back=PonyRenderSelection.HasClip(BedRest.BackClip);
+            if(!back) Debug.LogWarning($"Кровать {id}: позы на спине ({BedRest.BackClip}) ещё нет в игровом банке пони — ложится только на живот.",this);
+            BedRest.LieDown(actor,bed,back && UnityEngine.Random.value<.5f?BedRest.Back:BedRest.Belly);
+            Session.PublishActor(actor);
+        }
         private void ApplyCommand(PlayerCommand command,float dt)
         {
             var actor=Session.LocalActor;
@@ -714,7 +724,7 @@ namespace Remains.Runtime
             InteractionFocus.Step(Session.World,actor,Session.Rules,command.hasAim?command.aim:(Vector2?)null,
                 IsLevelPreparing || Session.Travel.Pending || hud?.BlocksGameplayInput==true || command.hasPointer &&
                     (hud?.BlocksPointerGameplay(command.pointer)==true || UnityEngine.EventSystems.EventSystem.current?.IsPointerOverGameObject()==true),
-                Session.Travel.Points(actor.level),MechanismInteraction.Points);
+                Session.Travel.Points(actor.level),MechanismInteraction.Points,Geometry.Get(actor.level).beds);
             MechanismInteraction.Step(InteractionFocus.Target,command.interact,command.revive,
                 !IsLevelPreparing && !Session.Travel.Pending && hud?.BlocksGameplayInput!=true && hud?.ContainerOpen!=true,dt);
             if(command.interact && !Session.Travel.Pending)
@@ -735,13 +745,20 @@ namespace Remains.Runtime
                     else if(target.kind==InteractionKind.Exit) Session.Travel.RequestVia(target.id);
                     else if(target.kind==InteractionKind.Mine) Session.Mines.RequestDisarm(target.id);
                     else if(target.kind==InteractionKind.Hazard) Session.Hazards.RequestAction(target.id);
+                    else if(target.kind==InteractionKind.Bed) LieOnBed(actor,target.id);
                 }
             }
             if(IsLevelPreparing || hud?.BlocksGameplayInput==true) command=default;
             hud?.CloseContainerForSprint(command.sprint,command.movement);
             if(Session.Pause.IsPaused(actor.level)) {Revival.Step(InteractionFocus.Target,false,0);return;}
             if(Session.Travel.Pending) command=default;
-            if(!ActorHoldRules.Active(actor)) movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
+            // On a bed it lies still; W or Space gets it up, and that press does not also jump.
+            if(BedRest.Active(actor))
+            {
+                if(!BedRest.Step(actor,command.jump || command.movement.y>.5f)) Session.PublishActor(actor);
+                command.fire=command.strike=command.grenade=false;
+            }
+            else if(!ActorHoldRules.Active(actor)) movement.Step(actor,command.movement,command.jump,dt,command.sprint,command.jumpHeld);
             long selectionBefore=actor.weaponSelectionRevision;
             if(command.weaponItem!=null) EquipWeaponItem(command.weaponItem);
             if(command.weaponShortcut!=null)

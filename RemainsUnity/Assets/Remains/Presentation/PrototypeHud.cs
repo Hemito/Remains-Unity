@@ -424,6 +424,8 @@ namespace Remains.Presentation
                 containerHint.RefreshHazard(hazard==null?null:HazardRules.Action(hazard,HazardRules.Profile(hazard))+" "+HazardRules.Profile(hazard).title.ToLowerInvariant(),
                     interaction.bounds,show,actor,session.Hazards.Pending);
             }
+            else if(interaction.kind==InteractionKind.Bed)
+                containerHint.RefreshAction("лечь на кровать",interaction.bounds,show,actor,false);
             else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
                 InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true,session.Rules.Loot);
             containerHint.Highlight(interaction,show);

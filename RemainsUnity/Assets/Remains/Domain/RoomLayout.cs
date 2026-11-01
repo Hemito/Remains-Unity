@@ -9,6 +9,8 @@ namespace Remains.Domain
     [Serializable] public sealed class RoomArtwork { public float x,y,width,height,shade=1; public string texture; public int order,slopeDirection; public bool repeat,stretchY,selfIlluminated,backgroundLighting; }
     // Spikes of the level (SpikeCatalog, loc/Trap.as): the hurting box and the danger (locDifLevel) of its room.
     [Serializable] public sealed class RoomSpike { public string id,definition; public float x,y,width,height,danger; }
+    // A bed to lie on (BedRest): its box, bottom-left corner, the top is where a resting body lies.
+    [Serializable] public sealed class RoomRest { public string id; public float x,y,width,height; }
     [Serializable] public sealed class RoomLayout
     {
         public string id,lightingProfile,movementSound;
@@ -18,6 +20,7 @@ namespace Remains.Domain
         public RoomLadder[] ladders;
         public RoomArtwork[] artwork;
         public RoomSpike[] spikes=Array.Empty<RoomSpike>();
+        public RoomRest[] beds=Array.Empty<RoomRest>();
         [NonSerialized] public DynamicSurfaceFrame dynamicSurfaces;
         [NonSerialized] public System.Collections.Generic.List<RoomSurface> bodySurfaces;   // BodyTopSurfaces: actor movement only
         [NonSerialized] internal RoomSurfaceIndex surfaceIndex;
