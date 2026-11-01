@@ -27,7 +27,10 @@ button,select{background:#3a4150;color:var(--text);border:1px solid #4b5363;bord
 button.good{border-color:var(--good)}button.bad{border-color:var(--bad)}button.on{border-color:var(--accent);background:#244457}
 button:hover{filter:brightness(1.15)}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-#sheet{grid-column:1/-1}
+#sheet,#animator{grid-column:1/-1}
+.keys{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.keys button{padding:2px 7px;font-size:12px}
+input[type=number],input:not([type]){background:#3a4150;color:var(--text);border:1px solid #4b5363;border-radius:6px;padding:5px 8px;font:inherit}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin-top:10px}
 .cell{position:relative;border:2px solid transparent;border-radius:6px;cursor:pointer;background:#6b7280}
 .cell.sel{border-color:var(--accent)}
@@ -41,13 +44,13 @@ button:hover{filter:brightness(1.15)}
 <body>
 <header>
 <h1>Атлас поз пони — все цепочки</h1>
-<p class="lead">Каждое различное состояние каждой цепочки (ноги, шея с головой, хвост) из всех игровых клипов, относительно корпуса. Тяните кружки на пони: цепочка собирается из трёх соседних готовых состояний. Отметки «годится»/«плохо» решают, какие состояния участвуют в смешивании.</p>
+<p class="lead">Каждое различное состояние каждой цепочки (ноги, шея с головой, хвост) из всех игровых клипов, относительно корпуса. Тяните кружки на пони: цепочка собирается из трёх соседних готовых состояний. Отметки «годится»/«плохо» решают, какие состояния участвуют в смешивании. Ниже — наклон корпуса, тонкая правка части тремя точками, сохранение поз и анимация по ключам.</p>
 </header>
 <main>
 <section>
 <h2>Поза</h2>
 <div class="views">
-<figure><canvas id="bare" width="520" height="520"></canvas><figcaption>Без костюма — тяните кружки</figcaption></figure>
+<figure><canvas id="bare" width="520" height="520"></canvas><figcaption>Без костюма — тяните кружки; квадрат двигает корпус</figcaption></figure>
 <figure><canvas id="suit" width="520" height="520"></canvas><figcaption>Антирад</figcaption></figure>
 </div>
 <div class="buttons">
@@ -68,6 +71,37 @@ button:hover{filter:brightness(1.15)}
 <label>Не тянуть через пустоты длиннее <select id="edge"><option value="0.08">8 см</option><option value="0.12" selected>12 см</option><option value="0.2">20 см</option><option value="99">без ограничения</option></select></label>
 </div>
 <p class="note">Точка — где в этом состоянии конец цепочки (копыто, голова, условный кончик хвоста) относительно корпуса. Щелчок по точке ставит это состояние, перетаскивание по карте смешивает соседние. Красная точка — за краем примеров: здесь нужна новая поза.</p>
+</section>
+<section id="animator">
+<h2>Корпус, правка и анимация</h2>
+<div class="buttons">
+<label>Наклон корпуса <input type="range" id="bodyAngle" min="-150" max="150" step="1" value="0"> <span id="bodyAngleValue">0°</span></label>
+<label>Вокруг <select id="pivot"><option value="hips">бёдер</option><option value="center">середины</option><option value="shoulders">плеч</option></select></label>
+<label><input type="checkbox" id="pin" checked> Копыта стоят на месте</label>
+<button id="bodyReset">Корпус в стойку</button>
+</div>
+<div class="buttons">
+<label>Тонкая правка части <select id="fine"></select></label>
+<label>Рисунок <select id="symbol"></select></label>
+<button id="fineReset">Сбросить правку части</button>
+</div>
+<div class="buttons">
+<input id="poseName" placeholder="Имя позы"><button id="savePose">Сохранить позу</button>
+<select id="poseList"></select><button id="loadPose">Загрузить</button><button id="deletePose">Удалить</button>
+<button id="toAtlas">Добавить позу в атлас</button>
+</div>
+<div class="buttons">
+<label>Кадров <input type="number" id="animLength" min="2" max="600" value="30" style="width:5em"></label>
+<label>Кадр <input type="range" id="animFrame" min="0" max="29" value="0" style="width:320px"> <span id="animFrameValue">1</span></label>
+<button id="keySet">Поставить ключ</button><button id="keyDelete">Убрать ключ</button>
+<button id="play">▶ Играть</button>
+<label><input type="checkbox" id="loop" checked> По кругу</label>
+<label><input type="checkbox" id="ease" checked> Плавно у ключей</label>
+<button id="animExport">Скачать анимацию (JSON)</button>
+<label>Загрузить анимацию <input type="file" id="animImport" accept=".json,application/json"></label>
+</div>
+<div class="keys" id="keys"></div>
+<p class="note">Корпус: ползунок наклоняет вокруг выбранной точки, квадрат на пони сдвигает. «Копыта стоят на месте» держит копыта в мире, и ноги подбираются из атласа под новый наклон. Тонкая правка: выберите часть — на ней три точки, тяните их; «Рисунок» меняет вариант (например, подогнутое копыто). «Добавить позу в атлас» делает изменённые цепочки новыми состояниями группы «Свои позы» — соседние положения начинают их учитывать. Ключи: поставьте кадр, соберите позу, «Поставить ключ»; между ключами концы цепочек и корпус движутся плавно, нога каждый кадр собирается из атласа. Позы, свои состояния и анимация хранятся в этом браузере; анимацию можно скачать и загрузить файлом.</p>
 </section>
 <section id="sheet">
 <div class="buttons">
@@ -100,6 +134,7 @@ const GROUPS=[
  ['float','Новые: левитация и плавание','#e879f9',c=>c==='x_levit'||c==='x_plav'],
  ['hurt','Новые: сбивание, смерть, воскрешение','#fda4af',c=>['x_pinok','x_die','x_dieali','x_res','x_derg'].includes(c)],
  ['crouchjump','Новые: прыжок из приседа, перекат','#fde047',c=>['x_sitjump','x_downjump','x_roll'].includes(c)],
+ ['authored','Свои позы','#ffffff',c=>c==='authored'],
  ['other','Прочее','#e5e7eb',c=>true]];
 const groupOf=id=>{const clip=id.split('/')[0];return GROUPS.find(g=>g[3](clip));};
 const VIEWS={hindNear:[-1.02,-0.3,1.45,1.45],hindFar:[-0.92,-0.3,1.45,1.45],frontNear:[-0.4,-0.3,1.45,1.45],frontFar:[-0.35,-0.3,1.45,1.45],head:[-0.35,0.35,1.45,1.45],tail:[-1.25,-0.15,1.45,1.45]};
@@ -116,6 +151,10 @@ const pose={};            // chain id -> {state:index} | {blend:[x,y]}
 let selectedState={};     // chain id -> index highlighted in the sheet
 const hidden=new Set();
 const meshes={};
+// Body frame: the whole pony turned about a pivot and moved; chains stay relative to the torso.
+const PIVOTS={hips:[-0.22,0.73],center:[0,0.8],shoulders:[0.22,0.78]};
+const body={angle:0,x:0,y:0,pivot:'hips'};
+let edits={},symbolChoice={},fine='';
 
 function compose(A,B){return [A[0]*B[0]+A[2]*B[1],A[1]*B[0]+A[3]*B[1],A[0]*B[2]+A[2]*B[3],A[1]*B[2]+A[3]*B[3],A[0]*B[4]+A[2]*B[5]+A[4],A[1]*B[4]+A[3]*B[5]+A[5]];}
 function apply(m,p){return [m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];}
@@ -126,9 +165,15 @@ function chainParts(chain){
  const b=blend(chain,value.blend);if(!b)return null;
  return {parts:chain.sockets.map(k=>[k,b.lead.symbols[k],[0,1,2,3,4,5].map(i=>b.corners.reduce((sum,c)=>sum+c.s.deltas[k][i]*c.w,0))]),effector:b.at,info:{blend:b}};
 }
-function overrides(only){const result={};for(const chain of chains){if(only&&!only.includes(chain.id))continue;const p=chainParts(chain);if(p)for(const [k,sym,d] of p.parts)result[k]=[sym,d];}return result;}
-function render(ctx,outfit,over,view,size,alpha=1,sockets=null){
+// A socket's final placement: the chain's state or blend, then the fine edit; the drawing may be chosen by hand.
+function overrides(only){const result={};
+ for(const chain of chains){if(only&&!only.includes(chain.id))continue;const p=chainParts(chain);
+  for(const k of chain.sockets){const base=p?p.parts.find(x=>x[0]===k):null;if(!base&&!edits[k]&&!symbolChoice[k])continue;
+   const d=base?base[2]:identity;result[k]=[symbolChoice[k]||(base?base[1]:data.restSymbols[k]),edits[k]?compose(edits[k],d):d];}}
+ return result;}
+function render(ctx,outfit,over,view,size,alpha=1,sockets=null,frame=null){
  const look=data.rest[outfit];ctx.save();ctx.globalAlpha=alpha;ctx.setTransform(size/view[2],0,0,-size/view[3],-view[0]*size/view[2],size+view[1]*size/view[3]);
+ if(frame)ctx.transform(...frame);
  const done=new Set();
  const draw=(image,matrix,r)=>{ctx.save();ctx.transform(...matrix);ctx.translate(r[0],r[1]+r[3]);ctx.scale(1,-1);ctx.drawImage(images[image],0,0,r[2],r[3]);ctx.restore();};
  for(const part of look.draws){const node=look.nodes[part.node],k=node.socket;if(sockets&&!sockets.includes(k))continue;
@@ -183,12 +228,16 @@ function blend(chain,q){
 
 function fmt(v,d=2){return v.toFixed(d).replace('.',',').replace('-','−');}
 function drawPose(){
- const over=overrides();
+ const over=overrides(),T=bodyMatrix();
  [['bare',0],['suit',1]].forEach(([id,n])=>{const ctx=$(id).getContext('2d');ctx.clearRect(0,0,520,520);
+  const floor=toPixel([0,0],big,520)[1];ctx.strokeStyle='#ffffff30';ctx.setLineDash([6,6]);ctx.beginPath();ctx.moveTo(0,floor);ctx.lineTo(520,floor);ctx.stroke();ctx.setLineDash([]);
   if($('ghost').checked&&Object.keys(over).length)render(ctx,n,{},big,520,.25,Object.keys(over));
-  render(ctx,n,over,big,520);
-  if(n===0&&$('handles').checked)chains.forEach((chain,i)=>{const p=chainParts(chain),q=toPixel(p?p.effector:chain.rest,big,520);
-   ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.fillStyle=i===current?'#38bdf8':'#ffffff55';ctx.beginPath();ctx.arc(...q,8,0,7);ctx.fill();ctx.stroke();});});
+  render(ctx,n,over,big,520,1,null,T);
+  if(n!==0||!$('handles').checked)return;
+  chains.forEach((chain,i)=>{const q=toPixel(apply(T,effectorOf(chain)),big,520);
+   ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.fillStyle=i===current?'#38bdf8':'#ffffff55';ctx.beginPath();ctx.arc(...q,8,0,7);ctx.fill();ctx.stroke();});
+  const b=toPixel(apply(T,PIVOTS[body.pivot]),big,520);ctx.fillStyle='#fbbf24';ctx.strokeStyle='#fff';ctx.fillRect(b[0]-7,b[1]-7,14,14);ctx.strokeRect(b[0]-7,b[1]-7,14,14);
+  if(fine){const f=fineFrame(fine);f.posed.forEach((pt,j)=>{const q=toPixel(apply(T,pt),big,520);ctx.fillStyle=['#22d3ee','#facc15','#c084fc'][j];ctx.beginPath();ctx.arc(...q,6,0,7);ctx.fill();ctx.stroke();});}});
  const rows=[];
  for(const chain of chains){const p=chainParts(chain);if(!p){rows.push([chain.label,'стойка']);continue;}
   if(p.info.state)rows.push([chain.label,`${p.info.state.id} (кадров: ${p.info.state.sources.length})`]);
@@ -236,26 +285,138 @@ function mark(value){const chain=chains[current],i=selectedState[chain.id];if(i=
 
 // Dragging: a handle on the pony or any point of the map moves the chain's end and blends.
 let drag=null;
-$('bare').onpointerdown=e=>{if(!$('handles').checked)return;const at=toWorld(e,$('bare'),big);let best=-1,dist=.06;
- chains.forEach((chain,i)=>{const p=chainParts(chain),q=p?p.effector:chain.rest,d=Math.hypot(q[0]-at[0],q[1]-at[1]);if(d<dist){dist=d;best=i;}});
- if(best<0)return;if(best!==current){current=best;drawTabs();drawGrid();}drag={canvas:'bare',id:e.pointerId,view:big};try{$('bare').setPointerCapture(e.pointerId);}catch(_){}};
+$('bare').onpointerdown=e=>{if(!$('handles').checked)return;const at=toWorld(e,$('bare'),big),T=bodyMatrix(),near=(q,r)=>Math.hypot(q[0]-at[0],q[1]-at[1])<r;
+ const capture=kind=>{drag={canvas:'bare',id:e.pointerId,view:big,...kind};try{$('bare').setPointerCapture(e.pointerId);}catch(_){}};
+ if(fine){const f=fineFrame(fine),j=f.posed.findIndex(q=>near(apply(T,q),.04));if(j>=0)return capture({point:j});}
+ const pivot=apply(T,PIVOTS[body.pivot]);if(near(pivot,.04))return capture({body:[body.x-at[0],body.y-at[1]]});
+ let best=-1,dist=.06;chains.forEach((chain,i)=>{const q=apply(T,effectorOf(chain)),d=Math.hypot(q[0]-at[0],q[1]-at[1]);if(d<dist){dist=d;best=i;}});
+ if(best<0)return;if(best!==current){current=best;drawTabs();drawGrid();}capture({});};
 $('map').onpointerdown=e=>{const chain=chains[current],view=VIEWS[chain.id],at=toWorld(e,$('map'),view);
  let best=-1,dist=.012;chain.states.forEach((s,i)=>{if(!visible(chain,s))return;const d=Math.hypot(s.effector[0]-at[0],s.effector[1]-at[1]);if(d<dist){dist=d;best=i;}});
  if(best>=0){choose(best);return;}drag={canvas:'map',id:e.pointerId,view};try{$('map').setPointerCapture(e.pointerId);}catch(_){}move(e);};
-function move(e){if(!drag||drag.id!==e.pointerId)return;pose[chains[current].id]={blend:toWorld(e,$(drag.canvas),drag.view)};drawPose();drawMap();}
+function move(e){if(!drag||drag.id!==e.pointerId)return;const at=toWorld(e,$(drag.canvas),drag.view);
+ if(drag.body){withPinnedHooves(()=>{body.x=at[0]+drag.body[0];body.y=at[1]+drag.body[1];});return;}
+ if(drag.canvas==='bare'){const local=apply(invert(bodyMatrix()),at);
+  if(drag.point!==undefined){moveFinePoint(drag.point,local);return;}
+  const chain=chains[current],E=edits[chain.end];pose[chain.id]={blend:E?apply(invert(E),local):local};}
+ else pose[chains[current].id]={blend:at};
+ drawPose();drawMap();}
 ['bare','map'].forEach(id=>{$(id).onpointermove=move;$(id).onpointerup=$(id).onpointercancel=e=>{if(drag&&drag.id===e.pointerId)drag=null;};});
 
 $('legend').onchange=e=>{const k=e.target.dataset.g;if(e.target.checked)hidden.delete(k);else hidden.add(k);invalidate();drawMap();drawGrid();drawPose();};
 $('mix').onchange=$('edge').onchange=()=>{invalidate();drawMap();drawPose();};
 $('show').onchange=$('order').onchange=()=>{drawMap();drawGrid();};
 $('ghost').onchange=$('handles').onchange=drawPose;
-$('reset').onclick=()=>{for(const k in pose)delete pose[k];selectedState={};drawPose();drawMap();refreshCells();};
+$('reset').onclick=()=>{for(const k in pose)delete pose[k];selectedState={};edits={};symbolChoice={};Object.assign(body,{angle:0,x:0,y:0});syncControls();drawPose();drawMap();refreshCells();};
 $('frame').innerHTML='<option value="">—</option>'+data.frames.map((f,i)=>`<option value="${i}">${f.id}</option>`).join('');
 $('frame').onchange=()=>{const f=data.frames[+$('frame').value];if(!f)return;for(const chain of chains){const i=f.states[chain.id];if(i===undefined)delete pose[chain.id];else{pose[chain.id]={state:i};selectedState[chain.id]=i;}}drawPose();drawMap();refreshCells();};
 $('markGood').onclick=()=>mark('good');$('markBad').onclick=()=>mark('bad');$('markClear').onclick=()=>mark(null);
 document.onkeydown=e=>{if(e.target.tagName==='SELECT')return;if(e.key==='g'||e.key==='п')mark('good');else if(e.key==='b'||e.key==='и')mark('bad');};
 $('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,sourceHash:data.sourceHash,marks},null,1)],{type:'application/json'});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pose-atlas-marks.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+
+// ---------- Body, fine edits, poses, atlas additions, animation ----------
+function invert(m){const det=m[0]*m[3]-m[1]*m[2];return [m[3]/det,-m[1]/det,-m[2]/det,m[0]/det,(m[2]*m[5]-m[3]*m[4])/det,(m[1]*m[4]-m[0]*m[5])/det];}
+function solve(src,dst){
+ const ux=src[1][0]-src[0][0],uy=src[1][1]-src[0][1],vx=src[2][0]-src[0][0],vy=src[2][1]-src[0][1],det=ux*vy-uy*vx;
+ const ax=dst[1][0]-dst[0][0],ay=dst[1][1]-dst[0][1],bx=dst[2][0]-dst[0][0],by=dst[2][1]-dst[0][1];
+ const a=(ax*vy-bx*uy)/det,c=(bx*ux-ax*vx)/det,b=(ay*vy-by*uy)/det,d=(by*ux-ay*vx)/det;
+ return [a,b,c,d,dst[0][0]-a*src[0][0]-c*src[0][1],dst[0][1]-b*src[0][0]-d*src[0][1]];}
+function bodyMatrix(b=body){const p=PIVOTS[b.pivot],a=b.angle*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+ return [c,s,-s,c,p[0]-c*p[0]+s*p[1]+b.x,p[1]-s*p[0]-c*p[1]+b.y];}
+// A chain's end in the torso frame, after its fine edit.
+function effectorOf(chain){const p=chainParts(chain);let e=p?p.effector:chain.rest;return edits[chain.end]?apply(edits[chain.end],e):e;}
+// Body changes with hooves held in the world: the legs are blended again for their new place relative to the torso.
+function withPinnedHooves(change){
+ const legs=chains.filter(c=>c.id.startsWith('hind')||c.id.startsWith('front')),T=bodyMatrix();
+ const held=$('pin').checked?legs.map(c=>apply(T,effectorOf(c))):null;change();
+ if(held){const inv=invert(bodyMatrix());legs.forEach((c,i)=>{const local=apply(inv,held[i]),E=edits[c.end];pose[c.id]={blend:E?apply(invert(E),local):local};});}
+ syncControls();drawPose();drawMap();}
+// Three handles on a part: corners of its drawing, in the torso frame (standing and posed).
+function fineFrame(k){const [sym,d]=overrides()[k]||[data.restSymbols[k],identity],entry=data.symbols[k+'|'+sym];
+ const r=entry.looks[0].reduce((u,x)=>[Math.min(u[0],x.rect[0]),Math.min(u[1],x.rect[1]),Math.max(u[2],x.rect[0]+x.rect[2]),Math.max(u[3],x.rect[1]+x.rect[3])],[1e9,1e9,-1e9,-1e9]);
+ const stand=[[r[0],r[1]],[r[2],r[1]],[(r[0]+r[2])/2,r[3]]].map(q=>apply(entry.canonical,q));
+ return {stand,posed:stand.map(q=>apply(d,q)),final:d};}
+function moveFinePoint(j,local){const f=fineFrame(fine),posed=f.posed.slice();posed[j]=local;const next=solve(f.stand,posed);
+ if(Math.abs(next[0]*next[3]-next[1]*next[2])<.05)return;   // collapsed or turned inside out: keep the previous shape
+ const base=edits[fine]?compose(invert(edits[fine]),f.final):f.final;edits[fine]=compose(next,invert(base));drawPose();drawMap();}
+function syncControls(){$('bodyAngle').value=body.angle;$('bodyAngleValue').textContent=Math.round(body.angle)+'°';$('pivot').value=body.pivot;
+ const syms=fine?Object.keys(data.symbols).filter(k=>k.startsWith(fine+'|')).map(k=>k.slice(fine.length+1)):[];
+ const now=fine?(overrides()[fine]||[data.restSymbols[fine]])[0]:'';
+ $('symbol').innerHTML=syms.map(s=>`<option ${s===now?'selected':''}>${s}</option>`).join('');$('symbol').disabled=!fine;$('fineReset').disabled=!fine;}
+$('fine').innerHTML='<option value="">—</option>'+chains.map(c=>`<optgroup label="${c.label}">`+c.sockets.map(k=>`<option value="${k}">${k}</option>`).join('')+'</optgroup>').join('');
+$('fine').onchange=()=>{fine=$('fine').value;syncControls();drawPose();};
+$('symbol').onchange=()=>{symbolChoice[fine]=$('symbol').value;drawPose();drawMap();};
+$('fineReset').onclick=()=>{delete edits[fine];delete symbolChoice[fine];syncControls();drawPose();drawMap();};
+$('bodyAngle').oninput=()=>withPinnedHooves(()=>{body.angle=+$('bodyAngle').value;});
+$('pivot').onchange=()=>{const T=bodyMatrix();body.pivot=$('pivot').value;const p=PIVOTS[body.pivot],now=apply(T,p),plain=apply(bodyMatrix({...body,x:0,y:0}),p);
+ body.x=now[0]-plain[0];body.y=now[1]-plain[1];drawPose();};   // the same picture, a new rotation centre
+$('bodyReset').onclick=()=>withPinnedHooves(()=>Object.assign(body,{angle:0,x:0,y:0}));
+
+// Snapshots name states by id, so atlas additions never shift a saved pose.
+function snapshot(){const chainsNow={};for(const c of chains){const v=pose[c.id];if(v)chainsNow[c.id]=v.state!==undefined?{stateId:c.states[v.state].id}:{blend:v.blend.slice()};}
+ return JSON.parse(JSON.stringify({body,chains:chainsNow,edits,symbolChoice}));}
+function restore(s){Object.assign(body,s.body);for(const k in pose)delete pose[k];
+ for(const c of chains){const v=s.chains[c.id];if(!v)continue;if(v.stateId){const i=c.states.findIndex(x=>x.id===v.stateId);if(i>=0)pose[c.id]={state:i};else console.warn('Аниматор: нет состояния',c.id,v.stateId);}else pose[c.id]={blend:v.blend.slice()};}
+ edits=JSON.parse(JSON.stringify(s.edits||{}));symbolChoice={...(s.symbolChoice||{})};syncControls();}
+const workKey='pose-atlas-work-v1:'+data.sourceHash;
+let work={authored:[],poses:[],anim:{length:30,fps:30,keys:[]}};
+try{const saved=JSON.parse(localStorage.getItem(workKey)||'null');if(saved)work={...work,...saved};}catch(e){}
+function saveWork(){try{localStorage.setItem(workKey,JSON.stringify(work));}catch(e){console.warn('Аниматор: не сохранено в браузере',e);}}
+for(const a of work.authored){const c=chains.find(x=>x.id===a.chain);if(c){a.state.group='authored';c.states.push(a.state);}}
+function drawPoseList(){$('poseList').innerHTML=work.poses.map((p,i)=>`<option value="${i}">${p.name}</option>`).join('');}
+$('savePose').onclick=()=>{const name=$('poseName').value.trim()||('Поза '+(work.poses.length+1));work.poses.push({name,snap:snapshot()});saveWork();drawPoseList();$('poseList').value=String(work.poses.length-1);};
+$('loadPose').onclick=()=>{const p=work.poses[+$('poseList').value];if(p){restore(p.snap);drawPose();drawMap();}};
+$('deletePose').onclick=()=>{const i=+$('poseList').value;if(work.poses[i]){work.poses.splice(i,1);saveWork();drawPoseList();}};
+// Changed chains become new atlas states (group «Свои позы»); the pose then shows them exactly.
+$('toAtlas').onclick=()=>{const over=overrides();let added=0;
+ for(const c of chains){const v=pose[c.id],touched=c.sockets.some(k=>edits[k]||symbolChoice[k]);if(!touched&&(!v||v.state!==undefined))continue;
+  const id='authored/'+(work.authored.length+1),s={id,sources:[id],group:'authored',effector:effectorOf(c),symbols:{},deltas:{}};
+  for(const k of c.sockets){const [sym,d]=over[k]||[data.restSymbols[k],identity];s.symbols[k]=sym;s.deltas[k]=d;delete edits[k];delete symbolChoice[k];}
+  work.authored.push({chain:c.id,state:s});c.states.push(s);pose[c.id]={state:c.states.length-1};added++;}
+ saveWork();invalidate();drawAll();syncControls();alert(added?`Добавлено состояний: ${added}`:'Нет изменённых цепочек: поза уже состоит из исходных состояний.');};
+
+// Animation: keys hold snapshots; between keys chain ends, body and fine edits move, and each frame is blended from the atlas.
+const anim=work.anim;let frameNow=0,timer=null;
+function effectorInSnap(c,s){const v=s.chains[c.id];if(!v)return c.rest;if(v.blend)return v.blend;const st=c.states.find(x=>x.id===v.stateId);return st?st.effector:c.rest;}
+function mix(a,b,t){const lerp=(x,y)=>x+(y-x)*t,out={body:{angle:lerp(a.body.angle,b.body.angle),x:lerp(a.body.x,b.body.x),y:lerp(a.body.y,b.body.y),pivot:a.body.pivot},chains:{},edits:{},symbolChoice:t<.5?a.symbolChoice:b.symbolChoice};
+ for(const c of chains){const va=a.chains[c.id],vb=b.chains[c.id];if(!va&&!vb)continue;
+  if(va&&vb&&va.stateId&&va.stateId===vb.stateId){out.chains[c.id]={stateId:va.stateId};continue;}
+  const ea=effectorInSnap(c,a),eb=effectorInSnap(c,b);out.chains[c.id]={blend:[lerp(ea[0],eb[0]),lerp(ea[1],eb[1])]};}
+ for(const k of new Set([...Object.keys(a.edits),...Object.keys(b.edits)])){const ma=a.edits[k]||identity,mb=b.edits[k]||identity;out.edits[k]=ma.map((v,i)=>lerp(v,mb[i]));}
+ return out;}
+function snapAt(f){const ks=[...anim.keys].sort((x,y)=>x.frame-y.frame);if(!ks.length)return null;const exact=ks.find(k=>k.frame===f);if(exact)return exact.snap;
+ const ease=t=>$('ease').checked?t*t*(3-2*t):t;
+ let a=null,b=null;for(const k of ks){if(k.frame<f)a=k;else if(!b)b=k;}
+ if($('loop').checked){if(!a)a={frame:ks[ks.length-1].frame-anim.length,snap:ks[ks.length-1].snap};if(!b)b={frame:ks[0].frame+anim.length,snap:ks[0].snap};}
+ if(!a)return b.snap;if(!b)return a.snap;return mix(a.snap,b.snap,ease((f-a.frame)/(b.frame-a.frame)));}
+function drawKeys(){$('animFrame').max=anim.length-1;$('animLength').value=anim.length;$('animFrameValue').textContent=(frameNow+1)+' / '+anim.length;$('animFrame').value=frameNow;
+ $('keys').innerHTML=[...anim.keys].sort((x,y)=>x.frame-y.frame).map(k=>`<button data-f="${k.frame}" class="${k.frame===frameNow?'on':''}">ключ ${k.frame+1}</button>`).join('')||'<span class="note">Ключей нет.</span>';}
+$('keys').onclick=e=>{const f=e.target.dataset.f;if(f!==undefined)goFrame(+f);};
+function goFrame(f){frameNow=Math.max(0,Math.min(anim.length-1,f));const s=snapAt(frameNow);if(s)restore(s);drawKeys();drawPose();if(!timer)drawMap();}
+$('animFrame').oninput=()=>goFrame(+$('animFrame').value);
+$('animLength').onchange=()=>{anim.length=Math.max(2,Math.min(600,+$('animLength').value||30));anim.keys=anim.keys.filter(k=>k.frame<anim.length);saveWork();goFrame(frameNow);};
+$('keySet').onclick=()=>{anim.keys=anim.keys.filter(k=>k.frame!==frameNow);anim.keys.push({frame:frameNow,snap:snapshot()});saveWork();drawKeys();};
+$('keyDelete').onclick=()=>{anim.keys=anim.keys.filter(k=>k.frame!==frameNow);saveWork();goFrame(frameNow);};
+$('play').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('play').textContent='▶ Играть';drawMap();return;}
+ if(!anim.keys.length)return alert('Сначала поставьте хотя бы один ключ.');$('play').textContent='■ Стоп';
+ timer=setInterval(()=>goFrame((frameNow+1)%anim.length),1000/anim.fps);};
+// Export: every frame's 17 nodes in actor space (canvas-order affine) with the drawing per socket, and the keys for re-editing.
+function nodesNow(){const T=bodyMatrix(),over=overrides(),look=data.rest[0];
+ return look.nodes.map(node=>{const k=node.socket;if(!over[k])return {socket:k,symbol:data.restSymbols[k],matrix:compose(T,node.matrix)};
+  const [sym,d]=over[k],e=data.symbols[k+'|'+sym];return {socket:k,symbol:sym,matrix:compose(T,compose(d,e.canonical))};});}
+$('animExport').onclick=()=>{if(!anim.keys.length)return alert('Нет ключей.');const keep=snapshot(),frames=[];
+ for(let f=0;f<anim.length;f++){restore(snapAt(f));frames.push({nodes:nodesNow()});}restore(keep);drawPose();
+ const file={format:'pony-pose-atlas-clip',version:1,sourceHash:data.sourceHash,fps:anim.fps,length:anim.length,keys:anim.keys,
+  authored:work.authored.filter(a=>JSON.stringify(anim.keys).includes('"'+a.state.id+'"')),frames};
+ const blob=new Blob([JSON.stringify(file)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pony-animation.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+$('animImport').onchange=async()=>{const file=$('animImport').files[0];if(!file)return;try{const d=JSON.parse(await file.text());
+  if(d.format!=='pony-pose-atlas-clip')throw new Error('не тот формат: '+d.format);
+  if(d.sourceHash!==data.sourceHash)console.warn('Аниматор: анимация сделана на другой версии рисунков пони',d.sourceHash);
+  for(const a of d.authored||[]){const c=chains.find(x=>x.id===a.chain);if(c&&!c.states.some(s=>s.id===a.state.id)){a.state.group='authored';c.states.push(a.state);work.authored.push(a);}}
+  anim.length=d.length;anim.fps=d.fps||30;anim.keys=d.keys;saveWork();invalidate();goFrame(0);}
+ catch(e){alert('Анимация не загружена: '+e.message);}finally{$('animImport').value='';}};
+drawPoseList();syncControls();drawKeys();
 </script>
 </body>
 </html>
