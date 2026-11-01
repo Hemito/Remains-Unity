@@ -115,9 +115,11 @@ namespace Remains.Editor
                         var symbol=layout.Get(clip.id,f,node.top);
                         if(followers.TryGetValue(node.socket,out var follower))
                         {
-                            if(symbol.Id!=follower.Symbol)skipped.Add($"{clip.id}/{f}/{node.socket}: ведомый рисунок {symbol.Id} вместо {follower.Symbol}");
-                            else {symbols[node.socket]=symbol.Id;deltas[node.socket]=bodyInverse*node.transform.Matrix*follower.Standing.inverse;
-                                canonical.TryAdd(node.socket+"|"+symbol.Id,(follower.Standing,"idle",0));}
+                            // Another drawing of an unregistered follower (the running tail and mane) is registered at its
+                            // first frame, where it sits relative to the torso; it can then be chosen by hand in any pose.
+                            string drawn=node.socket+"|"+symbol.Id;
+                            if(!canonical.ContainsKey(drawn))canonical.Add(drawn,(symbol.Id==follower.Symbol?follower.Standing:bodyInverse*node.transform.Matrix,clip.id,f));
+                            symbols[node.socket]=symbol.Id;deltas[node.socket]=bodyInverse*node.transform.Matrix*canonical[drawn].Matrix.inverse;
                             continue;
                         }
                         var instance=ownWear.frames[f].instances.SingleOrDefault(i=>i.basePath==node.top);
