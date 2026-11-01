@@ -173,6 +173,8 @@ namespace Remains.Editor
                 ["world"]=new JArray(PonyPointStudy.World.x,PonyPointStudy.World.y,PonyPointStudy.World.width,PonyPointStudy.World.height),
                 ["images"]=assets.Images,["rest"]=restLooks,["symbols"]=symbolLooks,["frames"]=frames,["skipped"]=new JArray(skipped),
                 ["restSymbols"]=new JObject(reference.Frame.Nodes.Select(n=>new JProperty(n.socket,layout.Get("idle",0,n.top).Id))),
+                // Registration origins of the pose document (graphic joints, not recovered anatomy), standing actor space.
+                ["joints"]=new JObject(reference.Frame.Nodes.Select(n=>new JProperty(n.socket,new JArray(Joint(n.socket).x,Joint(n.socket).y)))),
                 ["chains"]=new JArray(Chains.Select(c=>new JObject { ["id"]=c.Id,["label"]=c.Label,["sockets"]=new JArray(c.Sockets),["end"]=c.End,
                     ["rest"]=new JArray(Joint(c.Effector).x+c.Offset.x,Joint(c.Effector).y+c.Offset.y),["states"]=new JArray(states[c.Id]) })) };
         }
