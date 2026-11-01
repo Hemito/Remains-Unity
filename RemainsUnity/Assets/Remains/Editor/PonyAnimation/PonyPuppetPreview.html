@@ -5,6 +5,10 @@ body{margin:24px;background:#252a32;color:#eee;font:16px/1.5 system-ui}main{max-
 </style><main>
 <h1>Пони — кукольное управление <small>PUPPET-V4 · исходные движения</small></h1>
 <p>Просматривайте переходы «лечь» и «встать» из существующей анимации или переключитесь на ручную куклу.</p>
+<div id="learnedPanel" class="toolbar" hidden><label><input id="learnedEnabled" type="checkbox" checked disabled>Подбирать форму ноги по исходным анимациям</label>
+<label>Сила <input id="learnedStrength" type="range" min="0" max="100" value="100" disabled><span id="learnedStrengthValue">100%</span></label>
+<label>Примеры <select id="learnedFilter" disabled><option value="all">Все движения</option><option value="rest">Стойка и лечь/встать</option><option value="gait">Ходьба и бег</option></select></label>
+<p class="note">Меняется только одна задняя нога. Корпус сохраняет стойку. Разные рисунки копыта переключаются отдельно; формы внутри одного рисунка смешиваются. Далёкие примеры требуют ручной калибровки.</p><p id="learnedReadout"></p></div>
 <div class="toolbar"><label>Режим <select id="motion" disabled><option value="puppet">Ручная кукла</option></select></label>
 <button id="previousFrame" disabled aria-label="Предыдущий кадр">◀</button><button id="playMotion" disabled>Проиграть</button><button id="nextFrame" disabled aria-label="Следующий кадр">▶</button>
 <input id="motionFrame" type="range" min="0" max="0" value="0" disabled><span id="motionFrameLabel"></span><br>
@@ -26,9 +30,10 @@ body{margin:24px;background:#252a32;color:#eee;font:16px/1.5 system-ui}main{max-
 <p class="note">В ручной кукле поправки следуют за деталью. В исходной анимации поправка сохраняется отдельно для выбранного кадра. При перетаскивании просмотр ставится на паузу. В этом режиме опоры соседних деталей можно разъединить намеренно.</p></details>
 <p id="message" role="status" data-error="true">Открыт исходный шаблон без рисунков. <a id="readyPreview" href="../../../../../.reference/affine-points/affine-puppet-motion.html" style="color:#b9e2ff">Открыть готовую куклу</a>.</p><p id="readout"></p>
 <div class="pair"><figure><figcaption>Без костюма</figcaption><canvas id="bare" width="560" height="560"></canvas></figure><figure><figcaption>Антирад</figcaption><canvas id="antirad" width="560" height="560"></canvas></figure></div>
-<p class="note">В исходном режиме используются целые игровые кадры с их вариантами рисунков. Черновые пределы ручной куклы к ним не применяются. Для новых ручных поз по-прежнему доступна одна задняя нога. Это ещё не библиотека автоматически подбираемых поправок формы.</p>
+<p class="note">В исходном режиме используются целые игровые кадры с их вариантами рисунков. Черновые пределы ручной куклы к ним не применяются. Для новых ручных поз доступна одна задняя нога.</p>
 <details><summary>Проверка сохранения исходных движений</summary><p id="metrics"></p><label>Кадр <select id="proofSelect" disabled></select></label><div id="proof" class="pair"><figure><figcaption>Исходная матрица</figcaption><img id="original" width="560" height="560" alt="Исходное движение"></figure><figure><figcaption>Восстановление из трёх точек</figcaption><img id="rebuilt" width="560" height="560" alt="Восстановленное движение"></figure></div></details>
-</main><script id="puppetPayload" type="application/json">@DATA@</script><script id="puppetCode" type="text/plain">@SCRIPT@</script>
+</main><script id="puppetPayload" type="application/json">@DATA@</script><script id="puppetCode" type="text/plain">@MODEL@
+@SCRIPT@</script>
 <script>(()=>{
 const payload=document.getElementById('puppetPayload').textContent;
 if(payload.trim()==='@'+'DATA@'){document.documentElement.dataset.previewReady='template';return;}

@@ -61,6 +61,30 @@ namespace Remains.Editor
             return matrices;
         }
 
+        public static PonyAnimationArtwork ReplaceNodes(PonyAnimationArtwork source,PonyAnimationArtwork replacement,System.Collections.Generic.IReadOnlyDictionary<string,Matrix4x4> canonical)
+        {
+            if(source.Outfit!=replacement.Outfit)throw new InvalidOperationException("Нельзя соединить рисунки разных комплектов.");
+            var nodes=source.Frame.Nodes.Select(n=>new PonyRigNode {top=n.top,socket=n.socket,transform=canonical.TryGetValue(n.socket,out var value)?PonyRigTransform.FromMatrix(value):n.transform}).ToArray();
+            var parts=new List<PonyRenderPart>();var partNodes=new List<int>();var inserted=new HashSet<string>(StringComparer.Ordinal);
+            for(int i=0;i<source.Parts.Length;i++)
+            {
+                int node=source.Frame.PartNodes[i];string socket=nodes[node].socket;
+                if(!canonical.ContainsKey(socket)){parts.Add(source.Parts[i]);partNodes.Add(node);continue;}
+                if(!inserted.Add(socket))continue;
+                int before=parts.Count;
+                for(int r=0;r<replacement.Parts.Length;r++)if(replacement.Frame.Nodes[replacement.Frame.PartNodes[r]].socket==socket)
+                {parts.Add(replacement.Parts[r]);partNodes.Add(node);}
+                if(parts.Count==before)throw new InvalidOperationException("В образце нет рисунка гнезда "+socket);
+            }
+            var frame=new PonyRigDrawPlan.Frame {Nodes=nodes,PartNodes=partNodes.ToArray()};bool any=false;
+            for(int i=0;i<parts.Count;i++)
+            {
+                var bounds=PonyRigDrawPlan.TransformBounds(parts[i].mesh.bounds,nodes[partNodes[i]].transform.Matrix);
+                if(!any){frame.Bounds=bounds;any=true;}else frame.Bounds.Encapsulate(bounds);
+            }
+            return new PonyAnimationArtwork {Parts=parts.ToArray(),Frame=frame,Appearance=source.Appearance,Outfit=source.Outfit,SourceClip=source.SourceClip,SourceFrame=source.SourceFrame};
+        }
+
         public PonyRigFrame CompileFrame(PonyPoseDocument document,PonyPoseValue[] pose)
         {
             var matrices=Matrices(document,pose);var nodes=new PonyRigNode[matrices.Length];
