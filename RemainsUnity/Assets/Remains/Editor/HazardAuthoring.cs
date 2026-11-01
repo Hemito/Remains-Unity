@@ -14,8 +14,8 @@ namespace Remains.Editor
 {
     // Traps and charges from the original data in one pass (no per-object hand authoring): every hazard unit the factory
     // templates place (CreatureSources.HazardKind) becomes a HazardDefinition with its weapons — a trap's bite (AllData
-    // comb damage) and a charge's blast (UnitDamager.setWeapon tip 3: damexpl 250, expl 200 px, scaled like the mines
-    // by the Unity grenade, MineContentAuthoring.BlastScale) — and their combat sounds. Sizes are AllData phis sX/sY
+    // comb damage) and a charge's blast (UnitDamager.setWeapon tip 3: damexpl 250, expl 200 px, in Unity units like
+    // the mines, MineContentAuthoring.BlastScale) — and their combat sounds. Sizes are AllData phis sX/sY
     // (50 px per metre); visibility is the classes' 300 px.
     //   batch -executeMethod Remains.Editor.HazardAuthoring.RunBatch
     public static class HazardAuthoring

@@ -178,10 +178,20 @@ namespace Remains.Networking
         {
             var world=session.ServerWorld;
             if(world==null || blast==null) return;
-            float amount=WeaponCatalog.Get(blast.weapon).damage*FactoryEnemyScaling.AttackFactor(blast);
-            foreach(var hazard in world.hazards)
-                if(HazardRules.InBlast(hazard,HazardRules.Profile(hazard),blast)) damage.Enqueue((hazard,amount));
+            Enqueue(world,blast);
             Resolve();
+        }
+        // Every hazard the blast reaches, with the blast's damage at its distance (ExplosionRules.Damage, as on actors).
+        private void Enqueue(WorldState world,AttackEvent blast)
+        {
+            var weapon=WeaponCatalog.Get(blast.weapon);float factor=FactoryEnemyScaling.AttackFactor(blast);
+            foreach(var hazard in world.hazards)
+            {
+                var profile=HazardRules.Profile(hazard);
+                if(!HazardRules.InBlast(hazard,profile,blast)) continue;
+                float amount=ExplosionRules.Damage(weapon.damage,weapon.range,HazardRules.BlastDistance(hazard,profile,blast),blast.id,hazard.id)*factor;
+                if(amount>0) damage.Enqueue((hazard,amount));
+            }
         }
         private void Resolve()
         {
@@ -206,9 +216,7 @@ namespace Remains.Networking
                 Explosions++;
                 session.CommitWorld();
                 NetworkServer.SendToAll(AttackMessage.From(explosion.attack));
-                float blastDamage=WeaponCatalog.Get(explosion.attack.weapon).damage*FactoryEnemyScaling.AttackFactor(explosion.attack);
-                foreach(var other in world.hazards)
-                    if(HazardRules.InBlast(other,HazardRules.Profile(other),explosion.attack)) damage.Enqueue((other,blastDamage));
+                Enqueue(world,explosion.attack);
             }
             if(changed) session.CommitWorldAtFrameEnd();
         }

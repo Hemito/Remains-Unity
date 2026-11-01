@@ -15,10 +15,10 @@ MonoBehaviour:
   definition:
     id: mine
     damageType: explosion
-    damage: 79.333336
+    damage: 170
     speedDamage: 0
     maxSpeedDamage: 0
-    range: 1.8
+    range: 3.6
     cooldown: 1
     manaCost: 0
     ammo: 
@@ -64,10 +64,18 @@ MonoBehaviour:
     meleeContactStart: 0
     meleeContactEnd: 1
     meleeMotion: []
+    meleeAroundHold: 0
+    meleeAimOffset: {x: 0, y: 0}
     holdingArea:
       version: 0
       radius: 0
       climbingRadius: 0
+    strike:
+      behind: 0
+      near: 0
+      far: 0
+      contact: 0
+      heights: []
     stopAtFirstActor: 0
     stopAtTerrain: 0
     pellets: 0

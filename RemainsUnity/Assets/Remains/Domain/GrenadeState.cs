@@ -39,6 +39,26 @@ namespace Remains.Domain
     // its own contact; the host lists the non-player actors it hit.
     public static class ExplosionRules
     {
+        // Bullet.explGas: the blast's damage × 0.7–1.3, whole within half the radius, falling linearly to nothing at the
+        // radius (user 2026-11-01: as the original's). The spread is a stable roll of the blast and the victim, so every
+        // peer that applies it gets the same number. Not ported, by the same decision: the quarter damage to the
+        // thrower's own faction and the player's own-blast perk (autoExpl).
+        public static float Damage(float damage,float radius,float distance,string blast,string victim)
+        {
+            if(!(distance<radius) || radius<=0) return 0;
+            float falloff=distance>radius*.5f?2-distance*2/radius:1;
+            return damage*(.7f+.6f*Roll(blast,victim))*falloff;
+        }
+        private static float Roll(string blast,string victim)
+        {
+            unchecked
+            {
+                uint hash=2166136261;
+                foreach(char c in blast+"|"+victim) {hash^=c;hash*=16777619;}
+                hash^=hash>>15;hash*=2246822519;hash^=hash>>13;
+                return (hash&0xFFFFFF)/(float)0x1000000;
+            }
+        }
         public static ExplosionState Record(WorldState world,AttackEvent attack,IEnumerable<string> enemyHits,bool stationary,int generation=0)
         {
             var explosion=new ExplosionState {attack=attack,friendlyFire=world.friendlyFire,stationary=stationary,generation=generation};

@@ -125,12 +125,14 @@ namespace Remains.Domain
                 weapon=profile.blastWeapon,factoryEnemy=FactoryEnemyScaling.Capture(charge.factoryEnemy),originX=centre.x,originY=centre.y,endX=centre.x,endY=centre.y};
         }
         // Whether an explosion reaches the hazard: its body within the blast weapon's range of the blast centre.
-        public static bool InBlast(HazardState hazard,HazardDefinition profile,AttackEvent blast)
+        public static bool InBlast(HazardState hazard,HazardDefinition profile,AttackEvent blast)=>
+            hazard.level==blast.level && BlastDistance(hazard,profile,blast)<=WeaponCatalog.Get(blast.weapon).range;
+        // From the blast to the nearest point of the hazard's body.
+        public static float BlastDistance(HazardState hazard,HazardDefinition profile,AttackEvent blast)
         {
-            if(hazard.level!=blast.level) return false;
             var body=Body(hazard,profile);var centre=blast.End;
             var nearest=new Vector2(Mathf.Clamp(centre.x,body.xMin,body.xMax),Mathf.Clamp(centre.y,body.yMin,body.yMax));
-            return Vector2.Distance(nearest,centre)<=WeaponCatalog.Get(blast.weapon).range;
+            return Vector2.Distance(nearest,centre);
         }
     }
 }

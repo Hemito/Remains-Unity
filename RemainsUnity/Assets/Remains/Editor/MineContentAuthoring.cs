@@ -11,8 +11,7 @@ namespace Remains.Editor
 {
     // Authors the mine weapons (WeaponAsset) from the exported original data (weapon:<id>): explosion, sensing zone,
     // delay, size, artwork and sounds. Geometry uses the world scale (50 px per metre, 30 frames per second); the blast
-    // (damage, radius) keeps the original's ratio to the current Unity grenade, whose numbers are themselves preliminary
-    // (combat.md). Only mines with a plain explosion (tipdam 4, as the grenade) are authored; cryo/plasma/impulse kinds
+    // is the original's (damexpl, expl px; user 2026-11-01: explosions as the original's). Only mines with a plain explosion (tipdam 4, as the grenade) are authored; cryo/plasma/impulse kinds
     // need their damage types first.
     //   batch -executeMethod Remains.Editor.MineContentAuthoring.RunBatch
     public static class MineContentAuthoring
@@ -61,13 +60,8 @@ namespace Remains.Editor
             EditorUtility.SetDirty(catalog);AssetDatabase.SaveAssets();
         }
 
-        // An original blast (damexpl, expl px) in Unity units: the ratio of the current Unity grenade to the original's.
-        internal static (float damage,float radius) BlastScale(ExportedContentCatalog exported,WeaponAssetCatalog catalog)
-        {
-            var grenade=catalog.AllAssets().Single(asset=>asset.Id=="grenade").CreateDefinition();
-            var grenadeChar=Char(exported.Require("weapon:grenade"));
-            return (grenade.damage/Number(grenadeChar,"damexpl"),grenade.range/Number(grenadeChar,"expl"));
-        }
+        // An original blast (damexpl, expl px) in Unity units: the damage as it is, the radius at 50 px per metre.
+        internal static (float damage,float radius) BlastScale(ExportedContentCatalog exported,WeaponAssetCatalog catalog)=>(1,1/50f);
         // Writes a generated weapon asset (Resources/Content/weapons/<id>) and lists it in the weapon catalog.
         internal static void Store(WeaponDefinition definition,SerializedProperty list)
         {

@@ -144,6 +144,21 @@ namespace Remains.Domain
 
         public static string Contact(ActorState actor,AttackEvent attack)=>Contact(actor,attack,out _);
 
+        // How far a blast at this point is from the body: its nearest region centre (the same centres a blast's contact
+        // measures; the original measured from the unit's middle). Infinity without an anatomy.
+        public static float BlastDistance(ActorState actor,Vector2 point)
+        {
+            if(!definitions.TryGetValue(actor.anatomy,out var definition))
+            {
+                Debug.LogWarning($"Отсутствует анатомия {actor.anatomy} у {actor.id}; расстояние до взрыва не определено.");
+                return float.PositiveInfinity;
+            }
+            float nearest=float.PositiveInfinity;
+            foreach(var region in definition.regions)
+                if(TryRegion(actor,definition,region,out var center,out _)) nearest=Mathf.Min(nearest,Vector2.Distance(center,point));
+            return nearest;
+        }
+
         public static string Contact(ActorState actor,AttackEvent attack,out float fraction)
         {
             fraction=float.PositiveInfinity;

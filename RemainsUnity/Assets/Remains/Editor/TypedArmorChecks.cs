@@ -36,13 +36,13 @@ namespace Remains.Editor
             inventory={new ItemStack {id="outfit",definition="armor.metal",count=1}}};
         private static void Equip(ActorState actor)=>Require(CosmeticEquipment.TryEquip(actor,"outfit",false,out var reason),reason);
         private static AttackEvent Hit(string id,string weapon="pistol")=>new() {id=id,attacker="source",weapon=weapon,level="hub"};
-        private static float Expected(ActorState actor,string type,string hit)
+        private static float Expected(ActorState actor,string type,string hit,float incoming=100)
         {
             // Independent source formula for the actual metal base grade, with stable coverage admitted separately.
             var profile=ArmorProtectionCatalog.Current.Get("armor.metal");
             float flat=DamageTypes.Channel(type)==DamageArmorChannel.Physical?12:8;
             float resistance=profile.Resistance(type);
-            return Math.Max(0,100*(1-resistance)-(EquippedArmorProtection.Covered(.6f,hit,actor.id)?flat:0));
+            return Math.Max(0,incoming*(1-resistance)-(EquippedArmorProtection.Covered(.6f,hit,actor.id)?flat:0));
         }
         private static void CheckEquipmentAndDamage()
         {
@@ -95,7 +95,9 @@ namespace Remains.Editor
             var explosion=new ExplosionState {attack=attack,players=new List<string>{actor.id}};
             var receiver=new DamageReceiver(new FixedDamage());
             Require(GrenadeRules.Resolve(actor,explosion,receiver,actor.Position),"Взрыв отклонён");
-            Equal(actor.health,1000-Expected(actor,DamageTypes.Explosion,attack.id),"Взрыв обходит защиту");
+            // The blast's own fall-off and spread come first (ExplosionRules.Damage), then the armour.
+            float incoming=ExplosionRules.Damage(100,WeaponCatalog.Get("grenade").range,Anatomy.BlastDistance(actor,actor.Position),attack.id,actor.id);
+            Equal(actor.health,1000-Expected(actor,DamageTypes.Explosion,attack.id,incoming),"Взрыв обходит защиту");
         }
         private static void Equal(float a,float b,string message)=>Require(Math.Abs(a-b)<.0002f,message+$": actual={a}, expected={b}");
         private static void Require(bool condition,string message) {if(!condition)throw new InvalidOperationException("Типы урона и броня: "+message);}

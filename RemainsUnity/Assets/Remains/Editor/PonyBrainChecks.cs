@@ -207,9 +207,9 @@ namespace Remains.Editor
             var calm=new Pony(s,Grenadier(),Room(),20);var far=Throw(calm,new Vector2(10,.7f));
             Require(far.frames>=PonyBrain.MaxAimFrames-10 && far.error<full/32,$"в безопасности целится до 6 с: {far.frames} кадров, разброс {far.error:0.00}°");
             Require(calm.pony.grenadeRest>0,"после броска — пауза до следующего");
-            // An enemy at 6 m is a danger of 0.4: it lets go after about a second, half as precise.
-            var near=Throw(new Pony(s,Grenadier(),Room(),21),new Vector2(6,.7f));
-            Require(near.frames>10 && near.frames<70 && near.error>full/8 && near.error<full/1.5f,$"враг в 6 м — бросает примерно через секунду: {near.frames} кадров, {near.error:0.00}°");
+            // An enemy at 8.5 m is a danger of 0.375: it lets go after about a second and a half.
+            var near=Throw(new Pony(s,Grenadier(),Room(),21),new Vector2(8.5f,.7f));
+            Require(near.frames>10 && near.frames<70 && near.error>full/8 && near.error<full/1.5f,$"враг в 8,5 м — бросает примерно через полторы секунды: {near.frames} кадров, {near.error:0.00}°");
             // A hit while aiming: thrown at once, hardly aimed.
             int frame=0;var hit=Throw(new Pony(s,Grenadier(),Room(),22),new Vector2(10,.7f),run=>{if(++frame==40) PonyBrain.Threat(run.pony,PonyBrain.Hit);});
             Require(hit.frames>=0 && hit.frames<50 && hit.error>full/4,$"ранен в прицеливании — бросает сразу: {hit.frames} кадров, {hit.error:0.00}°");

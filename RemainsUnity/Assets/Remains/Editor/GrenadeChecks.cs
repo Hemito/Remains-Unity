@@ -41,9 +41,10 @@ namespace Remains.Editor
             CheckBounceFrameRates();
             CheckRotation();
             CheckExplosionMessage();
+            CheckBlastFalloff();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
-            var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1};
+            var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1,health=300};
             world.actors.Add(source);world.actors.Add(survivor);
             var grenade=new GrenadeState {id="g",attacker=source.id,sourcePlayer=true,level=source.level,owner="a",generation=1,x=1,remaining=1.4f};
             world.grenades.Add(grenade);source.connected=false;
@@ -60,9 +61,13 @@ namespace Remains.Editor
                 grenade.remaining=0;var explosion=GrenadeRules.Detonate(world,grenade,Array.Empty<string>());
                 Require(explosion!=null && GrenadeRules.Detonate(world,grenade,Array.Empty<string>())==null,"Один ID даёт один взрыв");
                 var damage=new DamageReceiver(new PrototypeDamageRule());
-                Require(GrenadeRules.Resolve(survivor,explosion,damage,grenade.Position) && survivor.health==30,"Пострадавший применяет собственное решение");
+                // The original's blast (ExplosionRules.Damage): its damage, spread and fall-off at the survivor's distance.
+                var blast=WeaponCatalog.Get("grenade");
+                float hurt=300-ExplosionRules.Damage(blast.damage,blast.range,Anatomy.BlastDistance(survivor,grenade.Position),explosion.attack.id,survivor.id);
+                Require(hurt<300-blast.damage*.7f+.01f && GrenadeRules.Resolve(survivor,explosion,damage,grenade.Position) && Mathf.Approximately(survivor.health,hurt),
+                    $"Пострадавший применяет собственное решение с уроном взрыва оригинала: {300-survivor.health:0.0} (ожидалось {300-hurt:0.0})");
                 var restored=survivor.Copy();
-                Require(!GrenadeRules.Resolve(restored,explosion,new DamageReceiver(new PrototypeDamageRule()),grenade.Position) && restored.health==30,"Сохранённое решение не повторяет урон после смены симулятора");
+                Require(!GrenadeRules.Resolve(restored,explosion,new DamageReceiver(new PrototypeDamageRule()),grenade.Position) && Mathf.Approximately(restored.health,hurt),"Сохранённое решение не повторяет урон после смены симулятора");
                 source.x=100;GrenadeRules.Resolve(source,explosion,damage,grenade.Position);source.x=1;
                 Require(!GrenadeRules.Resolve(source,explosion,damage,grenade.Position) && source.health==100,"Промах не превращается в попадание после возвращения");
                 GrenadeRules.ForgetHubActor(world,source.id);var returning=new ActorState {id=source.id,player=true,connected=true,x=1};
@@ -439,6 +444,18 @@ namespace Remains.Editor
         }
         // The explosion as clients receive it, including the grenade probe's repeat of a received one: AttackMessage on
         // the wire, then the client handler's Read. A natural type or a volley here broke the client in GameplayAudio.
+        // Bullet.explGas: × 0.7–1.3, whole within half the radius, linear to nothing at it; the same roll on every peer.
+        private static void CheckBlastFalloff()
+        {
+            float near=ExplosionRules.Damage(150,6,1,"blast","v"),half=ExplosionRules.Damage(150,6,2.99f,"blast","v");
+            Require(near>=105 && near<=195 && Mathf.Approximately(near,half) && Mathf.Approximately(near,ExplosionRules.Damage(150,6,1,"blast","v")),
+                $"Взрыв в ближней половине радиуса — полный урон с разбросом 0,7–1,3, одинаковый у всех: {near}");
+            Require(Mathf.Abs(ExplosionRules.Damage(150,6,4.5f,"blast","v")-near*.5f)<.001f && ExplosionRules.Damage(150,6,6,"blast","v")==0,
+                "Дальше половины радиуса урон спадает линейно до нуля на радиусе");
+            float low=float.MaxValue,high=0;
+            for(int i=0;i<500;i++) {float d=ExplosionRules.Damage(100,6,0,"b"+i,"v");low=Mathf.Min(low,d);high=Mathf.Max(high,d);}
+            Require(low>=70 && low<75 && high<=130 && high>125,$"Разброс взрыва 0,7–1,3: {low:0.0}–{high:0.0}");
+        }
         private static void CheckExplosionMessage()
         {
             var world=new WorldState();

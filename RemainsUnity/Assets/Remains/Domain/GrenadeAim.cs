@@ -24,8 +24,9 @@ namespace Remains.Domain
         // Launch angles above the horizontal, degrees, and how far short of the target the arc is aimed, metres.
         private static readonly float[] Angles={-10,0,10,20,30,40,50,60,70};
         private static readonly float[] Short={0,1,2};
-        // Beyond the blast reach the thrower keeps this much more between itself and the burst.
-        public const float SafetyMargin=1;
+        // Beyond the blast reach the thrower keeps this much more between itself and the burst (the blast's damage is
+        // already nothing at its radius: ExplosionRules.Damage).
+        public const float SafetyMargin=.5f;
         // Nearer than this a target is inside the thrower's own blast: the grenade's reach and the margin.
         public static float Reach=>Remains.Content.WeaponCatalog.Get("grenade").range+SafetyMargin;
         // A burst this near the target ends the search early, metres; a grenade at rest is flown no further.

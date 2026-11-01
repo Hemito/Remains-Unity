@@ -41,6 +41,8 @@ namespace Remains.Domain
             if(NpcNaturalAttack.IsNatural(attack)) NpcNaturalAttack.ValidateEvent(attack);
             if(NpcNaturalAttack.IsNatural(attack) && actor.id!=attack.naturalAttackTarget) return false;
             float amount=NpcNaturalAttack.IsNatural(attack)?natural.Calculate(attack.naturalAttackType)*(1+attack.naturalAttackVariation):rules.Calculate(attack.weapon,attack.speed);
+            if(Remains.Content.WeaponCatalog.IsExplosive(attack.weapon))
+                amount=ExplosionRules.Damage(amount,Remains.Content.WeaponCatalog.Get(attack.weapon).range,Anatomy.BlastDistance(actor,attack.End),attack.id,actor.id);
             amount*=FactoryEnemyScaling.AttackFactor(attack);
             if(float.IsNaN(amount) || float.IsInfinity(amount) || amount<0)
                 throw new System.InvalidOperationException($"Правило урона вернуло некорректное значение: actor={actor.id}, attack={attack.id}, damage={amount}.");

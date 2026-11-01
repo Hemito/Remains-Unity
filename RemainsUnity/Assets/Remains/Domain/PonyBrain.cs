@@ -82,8 +82,9 @@ namespace Remains.Domain
         private const float DangerFade=.25f/30;   // per frame: a hit is forgotten in 4 s
         // The owner reports what endangers the pony: a hit (Hit) or a shot or blast near it (NearShot).
         public static void Threat(PonyMind p,float amount) {if(amount>p.danger) p.danger=Mathf.Clamp01(amount);}
-        // How endangered it feels: what it was told, or a seen enemy closing in (1 at 3 m, nothing beyond 8 m).
-        public static float Danger(PonyMind p,bool sees,float distance)=>Mathf.Max(p.danger,sees?Mathf.Clamp01((8-distance)/5):0);
+        // How endangered it feels: what it was told, or a seen enemy closing in — 1 inside a grenade's blast (6 m), nothing
+        // beyond 10 m.
+        public static float Danger(PonyMind p,bool sees,float distance)=>Mathf.Max(p.danger,sees?Mathf.Clamp01((10-distance)/4):0);
         // The throw's error after this much aiming (degrees; GrenadeAim adds as many percent of speed).
         public static float ThrowError(PonyProfile w,int aim)=>w.throwError*Mathf.Pow(.5f,aim/(float)AimHalfFrames);
 
