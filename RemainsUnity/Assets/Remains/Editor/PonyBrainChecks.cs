@@ -11,7 +11,8 @@ namespace Remains.Editor
     // touching, a levitated weapon swinging from its distance, a hurt pony retreating and, cornered, fighting again, a
     // lost target searched and forgotten, no flicker between intents while nothing changes, a downed ally revived with a
     // medkit (HealingRules for NPCs, the brain's intent, the owner's RevivalSeconds and its request) and its own wounds
-    // healed with one (after a retreat, out of sight; one request at a time).
+    // healed with one (after a retreat, out of sight; one request at a time), and grenades: aimed up to 6 s while safe,
+    // thrown at once in danger or on the run, not without one or at a close target; an ordinary raider's 0–3.
     public static class PonyBrainChecks
     {
         public static void Run()
@@ -20,8 +21,8 @@ namespace Remains.Editor
             var shooter=ActorTypes.Get("raider").raider;
             Require(shooter.pony!=null && Mathf.Approximately(shooter.pony.retreatHealth,.25f) && SapientPonies.Is(Raider()) &&
                 !SapientPonies.Is(new ActorState {id="t",actorType="tarakan"}),"у рейдера — характер разумного пони по умолчанию; таракан не разумный пони");
-            Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);Revival(shooter);SelfHeal(shooter);
-            Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья, подъём союзника и самолечение аптечкой.");
+            Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);Revival(shooter);SelfHeal(shooter);Grenades(shooter);
+            Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья, подъём союзника и самолечение аптечкой, гранаты с прицеливанием по безопасности.");
         }
 
         private static RoomLayout Room(float left=-20,float right=20)
@@ -184,6 +185,65 @@ namespace Remains.Editor
             var type=ActorTypes.Get("raider");var room=Room();var patient=Hurt();int requests=0;
             for(int i=0;i<140;i++) {patient.x=0;patient.vx=0;if(raiders.Step(patient,type,null,false,room,1f/30).heal) requests++;raiders.EndFrame(1f/30);}
             Require(requests==1,$"владелец просит самолечение один раз, пока ждёт ответа хоста: {requests}");
+        }
+
+        private static void Grenades(RaiderSettings s)
+        {
+            ActorState Grenadier(int count=1) {var actor=Raider();if(count>0) InventoryStacks.Add(actor,SharedInventory.Create("grenade",count));return actor;}
+            // Frames from the alarm till the throw, and the throw's error.
+            (int frames,float error) Throw(Pony run,Vector2 target,Action<Pony> each=null)
+            {
+                run.Alarm(target);
+                for(int i=0;i<400;i++)
+                {
+                    run.actor.x=0;run.actor.vx=0;each?.Invoke(run);
+                    var intent=run.Tick(Sees(target));
+                    if(intent.grenade) return (i,intent.grenadeError);
+                }
+                return (-1,0);
+            }
+            float full=s.pony.throwError;
+            // Safe, 10 m away: aims the whole 6 s, the error halved six times.
+            var calm=new Pony(s,Grenadier(),Room(),20);var far=Throw(calm,new Vector2(10,.7f));
+            Require(far.frames>=PonyBrain.MaxAimFrames-10 && far.error<full/32,$"в безопасности целится до 6 с: {far.frames} кадров, разброс {far.error:0.00}°");
+            Require(calm.pony.grenadeRest>0,"после броска — пауза до следующего");
+            // An enemy at 6 m is a danger of 0.4: it lets go after about a second, half as precise.
+            var near=Throw(new Pony(s,Grenadier(),Room(),21),new Vector2(6,.7f));
+            Require(near.frames>10 && near.frames<70 && near.error>full/8 && near.error<full/1.5f,$"враг в 6 м — бросает примерно через секунду: {near.frames} кадров, {near.error:0.00}°");
+            // A hit while aiming: thrown at once, hardly aimed.
+            int frame=0;var hit=Throw(new Pony(s,Grenadier(),Room(),22),new Vector2(10,.7f),run=>{if(++frame==40) PonyBrain.Threat(run.pony,PonyBrain.Hit);});
+            Require(hit.frames>=0 && hit.frames<50 && hit.error>full/4,$"ранен в прицеливании — бросает сразу: {hit.frames} кадров, {hit.error:0.00}°");
+            // Without a grenade or at a target inside its own blast: no grenade intent.
+            foreach(var (actor,target,what) in new[]{(Grenadier(0),new Vector2(10,.7f),"без гранаты"),(Grenadier(),new Vector2(3,.7f),"цель ближе своего взрыва")})
+            {
+                var run=new Pony(s,actor,Room(),23);run.Alarm(target);bool grenade=false;
+                for(int i=0;i<300;i++) {run.actor.x=0;grenade|=run.pony.intent==PonyIntentKind.Grenade || run.Tick(Sees(target)).grenade;}
+                Require(!grenade,what+" — не бросает");
+            }
+            // Retreating, it throws without aiming.
+            var flee=new Pony(s,Grenadier(),Room(),24);flee.actor.health=5;var spot=new Vector2(8,.7f);flee.Alarm(spot);float snap=-1;
+            for(int i=0;i<400 && snap<0;i++) {flee.actor.x=0;var intent=flee.Tick(Sees(spot));if(intent.grenade) snap=intent.grenadeError;Require(flee.pony.intent!=PonyIntentKind.Grenade,"раненый не стоит целиться");}
+            Require(Mathf.Approximately(snap,full),$"убегая, бросает без прицеливания: {snap:0.00}°");
+
+            // The owner: a shot past it and a hit frighten it.
+            var raiders=new Remains.Gameplay.NpcRaiderController(MovementSettings.Load(),new System.Random(25));
+            var type=ActorTypes.Get("raider");var room=Room();var raider=Grenadier();raider.id="scared";
+            raiders.Step(raider,type,null,false,room,1f/30);var mind=raiders.Danger(raider.id);
+            raiders.Heard(new AttackEvent {id="shot",attacker="p",level="l",weapon="pistol",originX=-5,originY=raider.BodyPosition.y+1,endX=5,endY=raider.BodyPosition.y+1});
+            Require(raiders.Danger(raider.id)>=PonyBrain.NearShot-.01f && mind<.01f,"выстрел рядом пугает");
+            raider.damageSequence++;raiders.Step(raider,type,null,false,room,1f/30);
+            Require(raiders.Danger(raider.id)>=PonyBrain.Hit-.01f,"попадание пугает");
+
+            // An ordinary raider's grenades: 20% at least one, 5% two, 1% three, never more.
+            var table=new ContainerLootTable {id="grenades",version="1",entries=new[]{
+                new ContainerLootEntry {id="grenade1",definition="grenade",minimum=1,maximum=1,probability=.2f},
+                new ContainerLootEntry {id="grenade2",definition="grenade",minimum=1,maximum=1,probability=.25f,afterSuccess="grenade1"},
+                new ContainerLootEntry {id="grenade3",definition="grenade",minimum=1,maximum=1,probability=.2f,afterSuccess="grenade2"}}};
+            var counts=new int[5];
+            for(int i=0;i<20000;i++) {int n=0;foreach(var item in table.Generate("w","c"+i)) n+=item.count;counts[Mathf.Min(n,4)]++;}
+            float Share(int from) {int sum=0;for(int i=from;i<5;i++) sum+=counts[i];return sum/20000f;}
+            Require(Mathf.Abs(Share(1)-.2f)<.015f && Mathf.Abs(Share(2)-.05f)<.008f && Mathf.Abs(Share(3)-.01f)<.004f && counts[4]==0,
+                $"гранаты рейдера: ≥1 {Share(1):P1}, ≥2 {Share(2):P1}, 3 {Share(3):P1}, больше трёх {counts[4]}");
         }
 
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Мозг разумных пони: "+message);}

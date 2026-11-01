@@ -23,18 +23,20 @@ namespace Remains.Domain
         [Range(0,2),InspectorName("Стрельба")] public float shoot=1;
         [Range(0,2),InspectorName("Ближний бой")] public float melee=1;
         [Range(0,2),InspectorName("Осторожность (отступление)")] public float caution=1;
+        [Range(0,2),InspectorName("Гранаты")] public float grenade=1;
+        [Range(0,60),InspectorName("Разброс броска без прицеливания, °")] public float throwError=24;
         [Range(0,1),InspectorName("Отступает при здоровье ниже, доля")] public float retreatHealth=.25f;
         [Range(0,1),InspectorName("Лечится аптечкой при здоровье ниже, доля")] public float healHealth=.5f;
         [Range(0,.5f),InspectorName("Надбавка начатому намерению")] public float commitment=.1f;
         public void Validate(string type)
         {
-            foreach(float value in new[]{shoot,melee,caution,retreatHealth,healHealth,commitment})
+            foreach(float value in new[]{shoot,melee,caution,grenade,throwError,retreatHealth,healHealth,commitment})
                 if(!float.IsFinite(value) || value<0) throw new InvalidOperationException($"Некорректный профиль разумного пони {type}.");
-            if(shoot>2 || melee>2 || caution>2 || retreatHealth>1 || healHealth>1 || commitment>.5f) throw new InvalidOperationException($"Профиль разумного пони {type} вне пределов.");
+            if(shoot>2 || melee>2 || caution>2 || grenade>2 || throwError>60 || retreatHealth>1 || healHealth>1 || commitment>.5f) throw new InvalidOperationException($"Профиль разумного пони {type} вне пределов.");
         }
     }
 
-    public enum PonyIntentKind { Calm, Notice, Search, Approach, Shoot, Melee, Retreat, Revive, Heal }
+    public enum PonyIntentKind { Calm, Notice, Search, Approach, Shoot, Melee, Retreat, Revive, Heal, Grenade }
 
     // The nearest downed ally the owner found for this pony, and whether the pony has a medkit to revive it with.
     public readonly struct PonyAlly
@@ -56,6 +58,9 @@ namespace Remains.Domain
         public int stepBack;            // frames before the next step back
         public int cornered;            // frames a retreat has been blocked
         public float maxHealth;
+        public float danger;            // 0–1: hits and shots near it, fading (the owner reports them: PonyBrain.Threat)
+        public int aim;                 // frames spent aiming the grenade in hand
+        public int grenadeRest;         // frames before another throw is considered
         public readonly float[] scores=new float[Enum.GetValues(typeof(PonyIntentKind)).Length];
     }
 
@@ -63,13 +68,24 @@ namespace Remains.Domain
     // scored from the situation (sight, distance, attack way, health) times the profile, the best one wins, the current
     // one keeps a bonus and is held at least MinHoldFrames so that the pony does not flicker. Each intent drives the
     // shared legs (RaiderLegs) and the original's attack chances. A downed ally is revived and the pony's own wounds are
-    // healed with a medkit, as players do (HealingRules). Not yet: grenades, picking up weapons, factions beyond the
-    // original's player-only targets, a debug overlay.
+    // healed with a medkit, as players do (HealingRules). A grenade is aimed for as long as the pony feels safe — every
+    // second halves its error, up to 6 s — and thrown at once when danger rises; a retreating pony throws without aiming
+    // (user 2026-11-01). Not yet: picking up weapons, factions beyond the original's player-only targets, a debug overlay.
     public static class PonyBrain
     {
         public const int DecisionFrames=3,MinHoldFrames=15;
         private const int MaxAlert=RaiderBrain.MaxAlert;
         private const float Px=RaiderLegs.Px;
+        // Aiming a grenade: each AimHalfFrames halve the error, at most MaxAimFrames; danger at Interrupt throws at once.
+        public const int AimHalfFrames=30,MaxAimFrames=180,GrenadeRestFrames=240;
+        public const float Interrupt=.5f,Hit=1,NearShot=.6f,MaxThrowDistance=12;
+        private const float DangerFade=.25f/30;   // per frame: a hit is forgotten in 4 s
+        // The owner reports what endangers the pony: a hit (Hit) or a shot or blast near it (NearShot).
+        public static void Threat(PonyMind p,float amount) {if(amount>p.danger) p.danger=Mathf.Clamp01(amount);}
+        // How endangered it feels: what it was told, or a seen enemy closing in (1 at 3 m, nothing beyond 8 m).
+        public static float Danger(PonyMind p,bool sees,float distance)=>Mathf.Max(p.danger,sees?Mathf.Clamp01((8-distance)/5):0);
+        // The throw's error after this much aiming (degrees; GrenadeAim adds as many percent of speed).
+        public static float ThrowError(PonyProfile w,int aim)=>w.throwError*Mathf.Pow(.5f,aim/(float)AimHalfFrames);
 
         public static RaiderIntent Tick(PonyMind p,RaiderMind m,RaiderSettings s,ActorState actor,RoomLayout room,RaiderSenses senses,bool wallAhead,
             System.Random random,RaiderAttacker attacker,PonyAlly ally=default)
@@ -80,6 +96,8 @@ namespace Remains.Domain
             bool Chance(double chance)=>random.NextDouble()<chance;
             int Range(int n)=>(int)Math.Floor(random.NextDouble()*n);
             p.clock++;
+            p.danger=Mathf.Max(0,p.danger-DangerFade);
+            if(p.grenadeRest>0) p.grenadeRest--;
             RaiderLegs.Prelude(m,stay);
             Perceive(p,m,s,senses,attacker,random);
             if(p.clock%DecisionFrames==0) Decide(p,m,s,actor,senses,attacker,ally);
@@ -138,6 +156,15 @@ namespace Remains.Domain
                     if(stay && Mathf.Abs(dx)<1.2f && Mathf.Abs(m.point.y-actor.y)<1) {Face();intent.revive=true;}
                     else Toward();
                     break;
+                case PonyIntentKind.Grenade:
+                {
+                    // Stands and aims while it feels safe; the more danger, the sooner it lets go.
+                    Face();
+                    float danger=Danger(p,sees,senses.sees?(senses.target-actor.Position).magnitude:float.MaxValue);
+                    int goal=Mathf.RoundToInt(MaxAimFrames*Mathf.Clamp01(1-danger/Interrupt));
+                    if(++p.aim>=goal) Throw(p,s.pony,ref intent);
+                    break;
+                }
                 case PonyIntentKind.Heal:
                     // Stands and uses a medkit on itself (the owner asks the host, as a player's use does).
                     if(m.alert>0) Face();
@@ -151,6 +178,9 @@ namespace Remains.Domain
                     if(edge && RaiderLegs.Ground(room,actor,m.direction*80*Px) && m.jumpDelay<=0) {intent.move=m.direction;jump=.5f;}
                     else if(stay && (wallAhead || edge)) {intent.move=0;p.cornered++;}
                     else {intent.move=m.direction;if(p.cornered>0) p.cornered--;}
+                    // On the run it throws without aiming now and then.
+                    if(sees && p.grenadeRest<=0 && Chance(.05) && InThrowBand(senses.target-actor.Position) && InventoryJournal.Count(actor,"grenade")>0)
+                    {p.aim=0;Throw(p,s.pony,ref intent);}
                     break;
                 }
             }
@@ -213,6 +243,10 @@ namespace Remains.Domain
             // Its own wounds below the profile's share, a medkit and a known full health (HealingRules): out of sight first —
             // after a retreat — and before reviving an ally; in sight only with the enemy far.
             score[(int)PonyIntentKind.Heal]=health<w.healHealth && HealingRules.CanApply(actor,actor,true)?(!sees?.7f:distance>200*Px?.5f:0):0;
+            // A grenade in hand at a seen target beyond its own blast: before shooting, once in GrenadeRestFrames; a pony hurt
+            // enough to retreat does not stand to aim (it throws on the run).
+            score[(int)PonyIntentKind.Grenade]=sees && p.grenadeRest<=0 && health>=w.retreatHealth && InThrowBand(senses.target-actor.Position) &&
+                InventoryJournal.Count(actor,"grenade")>0?.8f*w.grenade:0;
             score[(int)PonyIntentKind.Retreat]=sees && health<w.retreatHealth && p.cornered<=30?(.75f+.25f*(1-health/Mathf.Max(w.retreatHealth,.0001f)))*w.caution:0;
 
             int best=0;
@@ -223,7 +257,18 @@ namespace Remains.Domain
         private static void Choose(PonyMind p,PonyIntentKind next)
         {
             if(p.intent==next) return;
-            p.intent=next;p.held=0;p.advance=0;
+            p.intent=next;p.held=0;p.advance=0;p.aim=0;
+        }
+        private static void Throw(PonyMind p,PonyProfile w,ref RaiderIntent intent)
+        {
+            intent.grenade=true;intent.grenadeError=ThrowError(w,p.aim);
+            p.aim=0;p.grenadeRest=GrenadeRestFrames;
+        }
+        // Beyond its own blast and within a throw (GrenadeAim decides the throw itself; this only says it is worth trying).
+        private static bool InThrowBand(Vector2 offset)
+        {
+            float distance=offset.magnitude;
+            return distance>GrenadeAim.Reach && distance<=MaxThrowDistance;
         }
     }
 }

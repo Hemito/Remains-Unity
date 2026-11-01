@@ -1386,6 +1386,19 @@ namespace Remains.Networking
                 targetGeneration=target.generation,targetLifecycle=target.lifecycleSequence});
             return transaction;
         }
+        // A sapient NPC this peer owns throws a grenade of its own (GrenadeAim's plan); the host accepts it as a player's.
+        public string RequestNpcThrow(ActorState thrower,GrenadeThrow plan)
+        {
+            if(thrower==null || thrower.player || thrower.owner!=LocalOwner || thrower.down || !plan.valid) return null;
+            var stack=thrower.inventory.Find(item=>item.definition=="grenade" && InventoryAvailability.Count(thrower,item)>0);
+            if(stack==null) return null;
+            string transaction=Guid.NewGuid().ToString("N");
+            NetworkClient.Send(new ThrowRequest {transaction=transaction,level=thrower.level,item=stack.id,thrower=thrower.id,
+                generation=thrower.generation,lifecycle=thrower.lifecycleSequence,originX=plan.origin.x,originY=plan.origin.y,
+                aimX=plan.burst.x,aimY=plan.burst.y,vx=plan.velocity.x,vy=plan.velocity.y,mirrored=thrower.facing<0,
+                angularVelocity=Remains.Gameplay.GrenadeLaunch.AngularVelocity(plan.velocity,thrower.facing,Remains.Content.WeaponCatalog.Get("grenade"))});
+            return transaction;
+        }
         public void RequestSelfHeal()=>RequestSelfHeal(null);
         public void RequestSelfHeal(string itemId)=>RequestHealing(LocalActorId,true,itemId);
         private string RequestHealing(string targetId,bool selfHeal,string itemId=null)

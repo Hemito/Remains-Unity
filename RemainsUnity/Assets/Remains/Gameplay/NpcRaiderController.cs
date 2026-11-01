@@ -16,8 +16,10 @@ namespace Remains.Gameplay
         public readonly ActorState revive;
         // heal: the raider uses a medkit on itself now — the owner asks the host (CoopSession.RequestNpcSelfHeal).
         public readonly bool heal;
-        public RaiderActions(bool weapon,float bodyHit,bool changed=false,ActorState revive=null,bool heal=false)
-        {this.weapon=weapon;this.bodyHit=bodyHit;this.changed=changed;this.revive=revive;this.heal=heal;}
+        // grenade: the throw the raider lets go now (GrenadeAim) — the owner asks the host (CoopSession.RequestNpcThrow).
+        public readonly GrenadeThrow grenade;
+        public RaiderActions(bool weapon,float bodyHit,bool changed=false,ActorState revive=null,bool heal=false,GrenadeThrow grenade=default)
+        {this.weapon=weapon;this.bodyHit=bodyHit;this.changed=changed;this.revive=revive;this.heal=heal;this.grenade=grenade;}
     }
 
     // Raiders this peer owns: PonyBrain (sapient raiders), RaiderBrain (the robobrain) or ZombieBrain decides at the
@@ -29,10 +31,13 @@ namespace Remains.Gameplay
         private const int MaxFramesPerStep=3,ForgetFrames=300;
         // Weapon.actions for a non-player owner: a levitated weapon hangs 40 px ahead at the weapon's height.
         private const float HoldAhead=.8f;
+        // A grenade leaves 0.3 m above the body point; a shot within NearShotDistance metres frightens a sapient raider.
+        private const float ThrowLift=.3f,NearShotDistance=1.5f;
         private sealed class Entry
         {
             public RaiderMind mind=new();public MovementController movement;public MovementSettings settings;
             public PonyMind pony;   // a sapient raider's utility memory (PonyBrain)
+            public ActorState actor;public int damageSeen=-1;   // the raider itself and the last damage it has felt
             public readonly RevivalProgress revival=new();public float revivalPending,healPending;
             public int generation;public float clock;public int seen;
             public RaiderIntent intent;
@@ -49,6 +54,8 @@ namespace Remains.Gameplay
         public NpcRaiderController(MovementSettings baseSettings,System.Random random=null)
         {this.baseSettings=baseSettings;this.random=random??new System.Random();}
 
+        // How endangered a sapient raider this peer owns feels (checks); 0 for others.
+        public float Danger(string actorId)=>entries.TryGetValue(actorId,out var entry) && entry.pony!=null?entry.pony.danger:0;
         // What a sapient raider this peer owns intends now (diagnostics and probes); null for others and unknown ones.
         public PonyIntentKind? Intent(string actorId)=>entries.TryGetValue(actorId,out var entry) && entry.pony!=null?entry.pony.intent:null;
 
@@ -74,6 +81,9 @@ namespace Remains.Gameplay
             if(sapient)
             {
                 entry.pony??=new PonyMind();
+                // A hit since the last frame frightens it (danger: how long it dares to aim a grenade).
+                if(entry.damageSeen>=0 && actor.damageSequence!=entry.damageSeen) PonyBrain.Threat(entry.pony,PonyBrain.Hit);
+                entry.damageSeen=actor.damageSequence;
                 // Its full health: the factory's level profile, else the most it has had with this owner.
                 entry.pony.maxHealth=actor.factoryEnemy?.maxHealth>0?actor.factoryEnemy.maxHealth:Mathf.Max(entry.pony.maxHealth,actor.health);
             }
@@ -116,7 +126,29 @@ namespace Remains.Gameplay
             else NpcWeaponAim.Apply(actor,sees?target.BodyPosition+Vector2.up*.55f:memory.hasKnownPosition?memory.KnownPosition+Vector2.up*.55f:null,room);
             // UnitZombie.animate: trot while searching on the move.
             if(settings.zombie && entry.mind.state==RaiderState.Search && actor.pose is "walk" or "run") ActorPose.Select(actor,"trot");
-            return new RaiderActions(weapon,bodyHit,changed,Revive(entry,actor,ally,decided.revive,dt),Heal(entry,actor,decided.heal));
+            return new RaiderActions(weapon,bodyHit,changed,Revive(entry,actor,ally,decided.revive,dt),Heal(entry,actor,decided.heal),
+                decided.grenade && sees?GrenadeAim.Plan(room,actor.BodyPosition+Vector2.up*ThrowLift,actor.BodyPosition,target.BodyPosition,decided.grenadeError,random):default);
+        }
+
+        // A shot or a blast near a sapient raider this peer owns frightens it: a shot's line passing within NearShot
+        // metres, a blast within its reach and as much again. Its own attacks do not count.
+        public void Heard(AttackEvent attack)
+        {
+            bool blast=WeaponCatalog.IsExplosive(attack.weapon);
+            float reach=blast?WeaponCatalog.Get(attack.weapon).range+NearShotDistance:NearShotDistance;
+            foreach(var entry in entries.Values)
+            {
+                var actor=entry.actor;
+                if(entry.pony==null || actor==null || actor.id==attack.attacker || actor.level!=attack.level) continue;
+                var body=actor.BodyPosition;
+                float distance=blast?Vector2.Distance(body,attack.End):SegmentDistance(body,attack.Origin,attack.End);
+                if(distance<reach) PonyBrain.Threat(entry.pony,PonyBrain.NearShot);
+            }
+        }
+        private static float SegmentDistance(Vector2 point,Vector2 a,Vector2 b)
+        {
+            var ab=b-a;float t=ab.sqrMagnitude>0?Mathf.Clamp01(Vector2.Dot(point-a,ab)/ab.sqrMagnitude):0;
+            return Vector2.Distance(point,a+ab*t);
         }
 
         // A medkit used at once, as a player's; one request until the host answers or 5 s pass.
@@ -225,6 +257,7 @@ namespace Remains.Gameplay
                 else if(actor.creature?.mode==ZombieBrain.EmergingMode) {entry.mind.state=RaiderState.Emerging;entry.mind.timer=24;}
                 entries[actor.id]=entry;
             }
+            entry.actor=actor;
             entry.seen=frame;
             return entry;
         }

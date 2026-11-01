@@ -82,6 +82,13 @@ namespace Remains.Networking
         private void Throw(NetworkConnectionToClient connection,ThrowRequest message)
         {
             var actor=session.ConnectedActor(connection);
+            if(!string.IsNullOrEmpty(message.thrower))
+            {
+                // A sapient NPC of the sender's throws: owned by it, present, of the raiders' mind.
+                var npc=session.ServerWorld.Find(message.thrower);
+                actor=actor!=null && npc!=null && !npc.player && npc.owner==actor.owner && ActorPresence.IsPresent(npc) && SapientPonies.Is(npc)?npc:null;
+                if(actor==null) {Debug.LogWarning($"Бросок NPC отклонён: thrower={message.thrower} не принадлежит отправителю или не разумный пони.");return;}
+            }
             if(actor!=null && session.Pause.IsServerPaused(actor.level))
             {connection.Send(new NoticeMessage {text="Бросок отменён: уровень остановлен. Граната не потрачена."});return;}
             if(!GrenadeLaunchRequest.Matches(actor,message) || session.ServerWorld.completedTransactions.Contains(message.transaction) ||

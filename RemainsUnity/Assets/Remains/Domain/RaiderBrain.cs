@@ -113,6 +113,7 @@ namespace Remains.Domain
         public bool flare;             // a glowing zombie's flare begins (superSila 5)
         public bool revive;            // a sapient pony stands over its downed ally reviving it (PonyBrain)
         public bool heal;              // a sapient pony uses a medkit on itself (PonyBrain)
+        public bool grenade;public float grenadeError;   // a sapient pony throws a grenade with this error, degrees (GrenadeAim)
     }
 
     // UnitRaider.control / jump / checkJump / attack (1.04 dlc-ui), one call per original frame (30 per second). Kept close

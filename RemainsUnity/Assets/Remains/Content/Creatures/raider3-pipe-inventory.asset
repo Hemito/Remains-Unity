@@ -19,11 +19,12 @@ MonoBehaviour:
     - id: weapon
       definition: weapon:pipe:grade:0
       weaponState:
-        rid: 5813030728062468107
+        rid: 4666840848403005451
       minimum: 1
       maximum: 1
       probability: 1
       afterFailure: 
+      afterSuccess: 
     - id: medkit
       definition: heal
       weaponState:
@@ -32,12 +33,40 @@ MonoBehaviour:
       maximum: 1
       probability: 0.3
       afterFailure: 
+      afterSuccess: 
+    - id: grenade1
+      definition: grenade
+      weaponState:
+        rid: -2
+      minimum: 1
+      maximum: 1
+      probability: 0.2
+      afterFailure: 
+      afterSuccess: 
+    - id: grenade2
+      definition: grenade
+      weaponState:
+        rid: -2
+      minimum: 1
+      maximum: 1
+      probability: 0.25
+      afterFailure: 
+      afterSuccess: grenade1
+    - id: grenade3
+      definition: grenade
+      weaponState:
+        rid: -2
+      minimum: 1
+      maximum: 1
+      probability: 0.2
+      afterFailure: 
+      afterSuccess: grenade2
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 5813030728062468107
+    - rid: 4666840848403005451
       type: {class: WeaponItemState, ns: Remains.Domain, asm: Assembly-CSharp}
       data:
         revision: 0

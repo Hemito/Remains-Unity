@@ -29,6 +29,7 @@ namespace Remains.Gameplay
             movementSettings=Remains.Content.MovementSettings.Load();
             raiders=new NpcRaiderController(movementSettings);
             senses=new NpcSenses(session,geometry);
+            session.AttackReceived+=raiders.Heard;
             session.Changed+=()=>
             {
                 var needed=session.World==null?Array.Empty<(string level,string type)>():session.World.actors
@@ -159,6 +160,7 @@ namespace Remains.Gameplay
                     if(wants.changed) session.PublishActor(actor);
                     if(wants.revive!=null) session.RequestNpcRevive(actor,wants.revive);
                     if(wants.heal) session.RequestNpcSelfHeal(actor);
+                    if(wants.grenade.valid) session.RequestNpcThrow(actor,wants.grenade);
                     bool ready=visible && target.level==actor.level && target.connected && !target.down;
                     if(raiders.Striking(actor)) continue;
                     if(wants.weapon && ready && actor.attackCooldown<=0 && NpcAttackRules.TryBegin(actor,target,session.Rules.NpcWeaponTiming))

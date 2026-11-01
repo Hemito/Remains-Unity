@@ -42,6 +42,7 @@ MonoBehaviour:
       acceleration: 0
       dashRange: 0
       dashChance: 0
+      jumpSpeed: 0
     hitMaterial: flesh
     attackSounds: []
     activateTrap: 2
@@ -66,6 +67,14 @@ MonoBehaviour:
       stroll: 1
       climbsLadders: 1
       slowness: 40
+      robot: 0
+      zombie: 0
+      zombieRun: 0
+      attackReach: 4
+      zombieSuper: 0
+      angerFrames: 120
+      prepareFrames: 30
+      superFrames: 75
       bodyHit:
         damageType: blade
         approachSpeed: 2.4
@@ -78,7 +87,23 @@ MonoBehaviour:
         originY: 0.75
         reach: 0.90000004
         radius: 0.6
+      pony:
+        shoot: 1
+        melee: 1
+        caution: 1
+        grenade: 1
+        throwError: 24
+        retreatHealth: 0.25
+        healHealth: 0.5
+        commitment: 0.1
     deathBlastScale: 0
+    deathExplosion: 
+    radiationAura:
+      strength: 0
+      radius: 0
+      flareStrength: 0
+      flareRadius: 0
+    radiationHit: 0
   presentationSource: 1
   presentationPrefab: {fileID: 487592563015896524, guid: 84bd7f334fa218c468d0c6ef93a6d06f, type: 3}
   references:

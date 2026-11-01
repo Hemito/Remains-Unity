@@ -3,12 +3,12 @@ using UnityEngine;
 
 namespace Remains.Domain
 {
-    // A thrower's chosen throw: the launch velocity and where the grenade is expected to burst; not valid when no throw
-    // bursts both near the target and out of the thrower's own blast reach.
+    // A thrower's chosen throw: where the grenade leaves it, the launch velocity and where it is expected to burst; not
+    // valid when no throw bursts both near the target and out of the thrower's own blast reach.
     public readonly struct GrenadeThrow
     {
-        public readonly bool valid;public readonly Vector2 velocity,burst;
-        public GrenadeThrow(Vector2 velocity,Vector2 burst) {valid=true;this.velocity=velocity;this.burst=burst;}
+        public readonly bool valid;public readonly Vector2 origin,velocity,burst;
+        public GrenadeThrow(Vector2 origin,Vector2 velocity,Vector2 burst) {valid=true;this.origin=origin;this.velocity=velocity;this.burst=burst;}
         public static readonly GrenadeThrow None=default;
     }
 
@@ -26,6 +26,8 @@ namespace Remains.Domain
         private static readonly float[] Short={0,1,2};
         // Beyond the blast reach the thrower keeps this much more between itself and the burst.
         public const float SafetyMargin=1;
+        // Nearer than this a target is inside the thrower's own blast: the grenade's reach and the margin.
+        public static float Reach=>Remains.Content.WeaponCatalog.Get("grenade").range+SafetyMargin;
         // A burst this near the target ends the search early, metres; a grenade at rest is flown no further.
         private const float Close=1,RestChunk=.1f,RestMove=.01f,RestSpeed=.05f;
 
@@ -36,7 +38,7 @@ namespace Remains.Domain
             if(room==null || random==null || !float.IsFinite(errorDegrees) || errorDegrees<0 || !Finite(origin) || !Finite(thrower) || !Finite(target))
                 throw new ArgumentException($"Прицел гранаты: некорректные данные (комната {room?.id}, ошибка {errorDegrees}, бросок {origin}→{target}).");
             var definition=Remains.Content.WeaponCatalog.Get("grenade");
-            float reach=definition.range+SafetyMargin;
+            float reach=Reach;
             if((target-thrower).sqrMagnitude<=reach*reach) return GrenadeThrow.None;   // the target is inside its own blast
             float side=target.x>=origin.x?1:-1;
             GrenadeThrow best=GrenadeThrow.None;float nearest=float.MaxValue;
@@ -49,7 +51,7 @@ namespace Remains.Domain
                     var burst=Burst(room,origin,velocity,definition.grenadeFuseSeconds);
                     if((burst-thrower).sqrMagnitude<=reach*reach) continue;
                     float miss=(burst-target).sqrMagnitude;
-                    if(miss<nearest) {nearest=miss;best=new GrenadeThrow(velocity,burst);}
+                    if(miss<nearest) {nearest=miss;best=new GrenadeThrow(origin,velocity,burst);}
                 }
                 if(nearest<Close*Close) break;   // close enough: aiming shorter is not tried
             }
@@ -61,7 +63,7 @@ namespace Remains.Domain
             var erred=Rotate(best.velocity,turn)*speed;
             if(erred.magnitude>definition.grenadeMaxLaunchSpeed) erred=erred.normalized*definition.grenadeMaxLaunchSpeed;
             var landed=Burst(room,origin,erred,definition.grenadeFuseSeconds);
-            return (landed-thrower).sqrMagnitude<=reach*reach?best:new GrenadeThrow(erred,landed);
+            return (landed-thrower).sqrMagnitude<=reach*reach?best:new GrenadeThrow(origin,erred,landed);
         }
 
         // The speed of an arc at this angle through the aim point; capped at the maximum (it then falls short).

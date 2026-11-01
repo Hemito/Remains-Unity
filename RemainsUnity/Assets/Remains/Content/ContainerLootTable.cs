@@ -17,6 +17,7 @@ namespace Remains.Content
         [InspectorName("Максимальное количество")] public int maximum;
         [Range(0,1),InspectorName("Вероятность")] public float probability=1;
         [InspectorName("Только если предыдущая строка не выпала (ID)")] public string afterFailure;
+        [InspectorName("Только если предыдущая строка выпала (ID)")] public string afterSuccess;
     }
     [Serializable] public sealed class ContainerLootTable
     {
@@ -34,6 +35,7 @@ namespace Remains.Content
                     string.IsNullOrWhiteSpace(entry.definition) || entry.minimum<0 || entry.maximum<entry.minimum ||
                     !float.IsFinite(entry.probability) || entry.probability<0 || entry.probability>1 ||
                     !string.IsNullOrEmpty(entry.afterFailure) && (entry.afterFailure==entry.id || !ids.Contains(entry.afterFailure)) ||
+                    !string.IsNullOrEmpty(entry.afterSuccess) && (entry.afterSuccess==entry.id || !ids.Contains(entry.afterSuccess)) ||
                     entry.weaponState!=null && entry.maximum>1)
                     throw new InvalidOperationException($"Некорректная строка лута: table={id}, entry={entry?.id}.");
             }
@@ -47,6 +49,7 @@ namespace Remains.Content
             foreach(var entry in entries)
             {
                 if(!string.IsNullOrEmpty(entry.afterFailure) && emitted.Contains(entry.afterFailure)) continue;
+                if(!string.IsNullOrEmpty(entry.afterSuccess) && !emitted.Contains(entry.afterSuccess)) continue;
                 byte[] hash;
                 using(var stream=new MemoryStream())
                 {

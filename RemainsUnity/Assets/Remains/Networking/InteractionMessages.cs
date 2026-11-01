@@ -9,6 +9,7 @@ namespace Remains.Networking
     public struct ThrowRequest : NetworkMessage
     {
         public string transaction,level,item;
+        public string thrower;   // a sapient NPC the sender owns (empty: the sender's player)
         public int generation,lifecycle;
         public float originX,originY,aimX,aimY,vx,vy;
         public float angle,angularVelocity;
