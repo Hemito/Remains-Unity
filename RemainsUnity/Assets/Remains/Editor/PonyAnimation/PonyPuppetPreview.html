@@ -3,12 +3,16 @@
 <style>
 body{margin:24px;background:#252a32;color:#eee;font:16px/1.5 system-ui}main{max-width:1180px;margin:auto}h1{font-size:28px}button,select,input{font:inherit;margin:4px;padding:5px}button,select{max-width:100%}.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}.pair figure{margin:0}canvas{width:100%;height:auto;aspect-ratio:1;touch-action:none;background:#747b83;border:1px solid #59616d;box-sizing:border-box}figcaption{font-weight:600}#message{min-height:3em;padding:8px 12px;background:#333c49}#message[data-error=true]{background:#642e32}.toolbar,details{padding:10px;background:#303640;margin:12px 0}summary{cursor:pointer;font-weight:600}.note{color:#c5cbd5;font-size:14px}label{display:inline-block;margin-right:12px}button:disabled,select:disabled,input:disabled{opacity:.4}#readout{min-height:1.5em}#proof img{width:100%}@media(max-width:700px){body{margin:10px}.pair{grid-template-columns:1fr}}
 </style><main>
-<h1>Пони — кукольное управление <small>PUPPET-V3 · пределы позы</small></h1>
-<p>Тяните копыто, колено или корпус. Три опоры каждой детали рассчитываются автоматически.</p>
-<div class="toolbar"><label>Пример <select id="preset" disabled></select></label><button id="reset" disabled>Сбросить всё</button><button id="save" disabled>Скачать позу JSON</button><br>
+<h1>Пони — кукольное управление <small>PUPPET-V4 · исходные движения</small></h1>
+<p>Просматривайте переходы «лечь» и «встать» из существующей анимации или переключитесь на ручную куклу.</p>
+<div class="toolbar"><label>Режим <select id="motion" disabled><option value="puppet">Ручная кукла</option></select></label>
+<button id="previousFrame" disabled aria-label="Предыдущий кадр">◀</button><button id="playMotion" disabled>Проиграть</button><button id="nextFrame" disabled aria-label="Следующий кадр">▶</button>
+<input id="motionFrame" type="range" min="0" max="0" value="0" disabled><span id="motionFrameLabel"></span><br>
+<label>Скорость <select id="motionSpeed" disabled><option value=".25">¼</option><option value=".5" selected>½</option><option value="1">Обычная</option></select></label><label><input id="ghost" type="checkbox" disabled>Исходная форма</label><button id="save" disabled>Скачать позы JSON</button></div>
+<div class="toolbar" id="puppetTools"><label>Пример <select id="preset" disabled></select></label><button id="reset" disabled>Сбросить всё</button><br>
 <label>Рукоятка <select id="handle" disabled><option value="foot">Копыто</option><option value="knee">Колено</option><option value="body">Корпус</option></select></label>
 <button id="leftMove" disabled aria-label="Сдвинуть влево">←</button><button id="upMove" disabled aria-label="Сдвинуть вверх">↑</button><button id="downMove" disabled aria-label="Сдвинуть вниз">↓</button><button id="rightMove" disabled aria-label="Сдвинуть вправо">→</button><br>
-<label><input id="pin" type="checkbox" checked disabled>Копыто на месте при движении корпуса</label><label><input id="ghost" type="checkbox" disabled>Исходная поза</label><br>
+<label><input id="pin" type="checkbox" checked disabled>Копыто на месте при движении корпуса</label><br>
 <label>Толщина <input id="width" type="range" min="70" max="140" value="100" disabled><span id="widthValue">100%</span></label>
 <label>Стык с корпусом <input id="attachment" type="range" min="0" max="100" value="35" disabled><span id="attachmentValue">35%</span></label></div>
 <details id="limitPanel"><summary>Пределы позы — черновая настройка</summary>
@@ -19,10 +23,10 @@ body{margin:24px;background:#252a32;color:#eee;font:16px/1.5 system-ui}main{max-
 <p class="note">Поворот крупа считается от исходной стойки, сгиб колена — между звеньями. Значения подобраны для пробы и требуют художественной настройки. Обратный сгиб запрещён; длина звена ограничена 75–125%. Цель копыта удерживается в секторе перед нижней стороной таза, чтобы обход цели вокруг него не переворачивал ногу.</p></details>
 <details id="finePanel"><summary>Тонкая настройка формы — три опоры</summary>
 <label><input id="fineMode" type="checkbox" disabled>Править опоры вручную</label><label>Деталь <select id="part" disabled></select></label><label>Опора <select id="point" disabled></select></label><button id="clearFine" disabled>Сбросить поправки формы</button>
-<p class="note">Поправки сохраняются при движении куклы и следуют за деталью. В этом режиме опоры соседних деталей можно разъединить намеренно. Выключите ручную правку, чтобы вернуться к рукояткам куклы.</p></details>
-<p id="message" role="status" data-error="true">Открыт исходный шаблон без рисунков. <a id="readyPreview" href="../../../../../.reference/affine-points/affine-puppet-limits.html" style="color:#b9e2ff">Открыть готовую куклу</a>.</p><p id="readout"></p>
+<p class="note">В ручной кукле поправки следуют за деталью. В исходной анимации поправка сохраняется отдельно для выбранного кадра. При перетаскивании просмотр ставится на паузу. В этом режиме опоры соседних деталей можно разъединить намеренно.</p></details>
+<p id="message" role="status" data-error="true">Открыт исходный шаблон без рисунков. <a id="readyPreview" href="../../../../../.reference/affine-points/affine-puppet-motion.html" style="color:#b9e2ff">Открыть готовую куклу</a>.</p><p id="readout"></p>
 <div class="pair"><figure><figcaption>Без костюма</figcaption><canvas id="bare" width="560" height="560"></canvas></figure><figure><figcaption>Антирад</figcaption><canvas id="antirad" width="560" height="560"></canvas></figure></div>
-<p class="note">Проба одной задней ноги. Корпус перемещает всю куклу; удержание копыта сейчас применяется только к этой ноге. Схлопывание и выворот отклоняются с сообщением. Опоры поставлены для инструмента, это не найденный скелет оригинала.</p>
+<p class="note">В исходном режиме используются целые игровые кадры с их вариантами рисунков. Черновые пределы ручной куклы к ним не применяются. Для новых ручных поз по-прежнему доступна одна задняя нога. Это ещё не библиотека автоматически подбираемых поправок формы.</p>
 <details><summary>Проверка сохранения исходных движений</summary><p id="metrics"></p><label>Кадр <select id="proofSelect" disabled></select></label><div id="proof" class="pair"><figure><figcaption>Исходная матрица</figcaption><img id="original" width="560" height="560" alt="Исходное движение"></figure><figure><figcaption>Восстановление из трёх точек</figcaption><img id="rebuilt" width="560" height="560" alt="Восстановленное движение"></figure></div></details>
 </main><script id="puppetPayload" type="application/json">@DATA@</script><script id="puppetCode" type="text/plain">@SCRIPT@</script>
 <script>(()=>{

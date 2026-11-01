@@ -16,45 +16,23 @@ namespace Remains.Editor
         public static JArray Points(Vector2[][] points)=>new(points.Select(p=>new JArray(p.Select(v=>new JArray(v.x,v.y)))));
         public static void Write(JObject report,bool puppet=false)
         {
-            var images=new JArray();var looks=new JArray();var cache=new Dictionary<string,int>(StringComparer.Ordinal);
-            using(var preview=new PonyAnimationPreview())
+            using var assets=new PonyPointPreviewAssets();var looks=new JArray();
             foreach(string outfit in PonyPointStudy.Outfits)
             {
-                var art=PonyAnimationArtwork.Prepare(outfit);var draws=new JArray();
-                var identity=art.Frame.Nodes.Select(_=>Matrix4x4.identity).ToArray();
-                for(int p=0;p<art.Parts.Length;p++)
-                {
-                    var part=art.Parts[p];if(!part.visible || PonyMagicRenderRoles.Contains(part))continue;
-                    var tint=PonyAppearance.Tint(part.slot,art.Appearance);
-                    string key=part.mesh.GetInstanceID()+"/"+part.material.GetInstanceID()+"/"+tint.ToString("G9");
-                    var bounds=part.mesh.bounds;float pad=.003f;
-                    var local=new Rect(bounds.min.x-pad,bounds.min.y-pad,bounds.size.x+2*pad,bounds.size.y+2*pad);
-                    if(!cache.TryGetValue(key,out int image))
-                    {
-                        image=images.Count;cache.Add(key,image);
-                        int width=Mathf.Clamp(Mathf.CeilToInt(local.width*550),16,1024),height=Mathf.Clamp(Mathf.CeilToInt(local.height*550),16,1024);
-                        preview.Render(art,identity,local,width,height,onlyPart:p,transparent:true);
-                        string file=Path.Combine(PonyPointStudy.Output,"part-"+image.ToString("D3")+".png");preview.WritePng(file,straightAlpha:true);
-                        images.Add(Embed(file));
-                    }
-                    int node=art.Frame.PartNodes[p];
-                    draws.Add(new JObject { ["image"]=image,["node"]=node,["rect"]=new JArray(local.x,local.y,local.width,local.height) });
-                }
-                looks.Add(new JObject { ["label"]=outfit.Length==0?"Без костюма":"Антирад",["draws"]=draws,
-                    ["nodes"]=new JArray(art.Frame.Nodes.Select(n=>new JObject { ["socket"]=n.socket,["matrix"]=Matrix(n.transform.Matrix) })) });
+                looks.Add(assets.Look(PonyAnimationArtwork.Prepare(outfit)));
             }
             var parts=new JArray(PonyPointControls.Parts.Select(p=>new JObject { ["socket"]=p.Socket,["label"]=p.Label,["labels"]=new JArray(p.Labels) }));
             var proof=new JArray();
             foreach(var item in (JArray)report["nativeImages"])
                 proof.Add(new JObject { ["label"]=item["id"],["images"]=new JArray(Embed(Path.Combine(PonyPointStudy.Output,(string)item["original"])),Embed(Path.Combine(PonyPointStudy.Output,(string)item["rebuilt"]))) });
-            var data=new JObject { ["parts"]=parts,["rest"]=Points(PonyPointControls.Parts.Select(p=>p.Rest).ToArray()),["looks"]=looks,["images"]=images,
+            var data=new JObject { ["parts"]=parts,["rest"]=Points(PonyPointControls.Parts.Select(p=>p.Rest).ToArray()),["looks"]=looks,["images"]=assets.Images,
                 ["presets"]=report["presets"],["presetLabels"]=new JArray(PonyPointControls.PresetLabels),["proof"]=proof,
                 ["world"]=new JArray(PonyPointStudy.World.x,PonyPointStudy.World.y,PonyPointStudy.World.width,PonyPointStudy.World.height),
                 ["metrics"]=new JObject { ["frames"]=report["frames"],["nodes"]=report["nodes"],["matrixError"]=report["maxMatrixError"],["pixelError"]=report["nativeImageMaxChannelError"] } };
-            if(puppet)data["puppet"]=PonyPuppetStudy.Definition();
+            if(puppet){data["puppet"]=PonyPuppetStudy.Definition();data["source"]=PonySourceMotionPreview.Export(assets);}
             string template=File.ReadAllText("Assets/Remains/Editor/PonyAnimation/"+(puppet?"PonyPuppetPreview.html":"PonyPointPreview.html"));
             if(puppet)template=template.Replace("@SCRIPT@",File.ReadAllText("Assets/Remains/Editor/PonyAnimation/PonyPuppetPreview.js"));
-            File.WriteAllText(Path.Combine(PonyPointStudy.Output,puppet?"affine-puppet-limits.html":"affine-points.html"),template.Replace("@DATA@",data.ToString(Formatting.None)));
+            File.WriteAllText(Path.Combine(PonyPointStudy.Output,puppet?"affine-puppet-motion.html":"affine-points.html"),template.Replace("@DATA@",data.ToString(Formatting.None)));
         }
         private static string Embed(string path)=>"data:image/png;base64,"+Convert.ToBase64String(File.ReadAllBytes(path));
     }
