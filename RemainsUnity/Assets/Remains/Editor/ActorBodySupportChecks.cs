@@ -30,7 +30,7 @@ namespace Remains.Editor
         private static void CheckResourceFrames()
         {
             foreach(double gradient in new[]{0d,1d,-1d,.5d,-.5d}) FootSupportCatalog.PrepareGradient(gradient);
-            foreach(var clip in PonyAnimationData.Library.clips) for(int index=0;index<clip.frames.Length;index++)
+            foreach(var clip in PonyAnimationData.Library.clips.Where(c=>BedRest.HasFootSupport(c.id))) for(int index=0;index<clip.frames.Length;index++)
             {
                 var feet=FootSupportCatalog.Get("pony",clip.id,index);
                 foreach(int facing in new[]{-1,1}) foreach(int direction in new[]{-1,0,1})
@@ -143,7 +143,7 @@ namespace Remains.Editor
             // Pick a genuine resource frame whose flat constraint raises root. The obstacle
             // is a real solid strip above the movement hull; projection may not cross it.
             ActorState selected=null;
-            foreach(var clip in PonyAnimationData.Library.clips)
+            foreach(var clip in PonyAnimationData.Library.clips.Where(c=>BedRest.HasFootSupport(c.id)))
             {
                 var trial=Actor(0,0,clip.id);trial.poseTime=0;
                 var frame=FootSupportCatalog.Get("pony",clip.id,PonyMotionFrames.Sample(trial,0));

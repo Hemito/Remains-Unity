@@ -41,7 +41,7 @@ namespace Remains.Editor
         {
             PonyAnimationData.Load();var library=PonyAnimationData.Library;
             var layout=new PonySymbolLayout(library);
-            var bank=StateJson.FromJson<WearableSourceBank>(json);
+            var bank=StateJson.FromJson<WearableSourceBank>(json);PonyAuthoredClips.Extend(bank,source);
             if(bank==null || bank.schema!=1 || bank.baseSourceHash!=PonyRenderAsset.SourceHash() || string.IsNullOrWhiteSpace(bank.visualId) ||
                 bank.anatomy!="pony" || bank.textures==null || bank.templates==null || bank.clips==null || bank.clips.Length!=library.clips.Length)
                 throw new InvalidOperationException("Некорректный банк визуального снаряжения: source="+source+".");

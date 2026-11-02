@@ -41839,3 +41839,126 @@ MonoBehaviour:
           scale: {x: 1.0444353, y: 0.8606965, z: 1}
           rotation: {x: 0, y: 0, z: 0.22297153, w: 0.97482497}
           innerRotation: {x: 0, y: 0, z: -0.26213434, w: 0.9650314}
+  - id: bedBack
+    source: own-1.04
+    frames:
+    - nodes:
+      - top: 3
+        socket: hindLowerFar
+        transform:
+          position: {x: 0.23634537, y: 1.1553766, z: 0}
+          scale: {x: 1.1124176, y: 0.9402311, z: 1}
+          rotation: {x: 0, y: 0, z: 0.7932225, w: 0.6089319}
+          innerRotation: {x: 0, y: 0, z: 0.42763516, w: 0.9039514}
+      - top: sleg1
+        socket: hindUpperFar
+        transform:
+          position: {x: -0.0065598534, y: 1.0684813, z: 0}
+          scale: {x: 1.1194158, y: 0.9218669, z: 1}
+          rotation: {x: 0, y: 0, z: 0.9154182, w: 0.40250412}
+          innerRotation: {x: 0, y: 0, z: 0.46925458, w: 0.8830629}
+      - top: 13
+        socket: frontUpperFar
+        transform:
+          position: {x: 0.5168773, y: 0.6943674, z: 0}
+          scale: {x: 1.0807495, y: 1.002099, z: 1}
+          rotation: {x: 0, y: 0, z: -0.9794071, w: 0.20189553}
+          innerRotation: {x: 0, y: 0, z: -0.52000237, w: 0.85416484}
+      - top: 17
+        socket: frontMiddleFar
+        transform:
+          position: {x: -0.15802717, y: 1.0047477, z: 0}
+          scale: {x: 1.0423993, y: 0.9262695, z: 1}
+          rotation: {x: 0, y: 0, z: -0.7560598, w: 0.6545025}
+          innerRotation: {x: 0, y: 0, z: -0.34046498, w: 0.9402572}
+      - top: flleg3
+        socket: frontLowerFar
+        transform:
+          position: {x: 0.3306175, y: 0.7067031, z: 0}
+          scale: {x: 1.0004933, y: 0.8780141, z: 1}
+          rotation: {x: 0, y: 0, z: -0.9887501, w: 0.14957668}
+          innerRotation: {x: 0, y: 0, z: -0.40132195, w: 0.91593707}
+      - top: pip2
+        socket: pipbuckFar
+        transform:
+          position: {x: 0.45058557, y: 1.1226319, z: 0}
+          scale: {x: 0.99837494, y: 0.9890518, z: 1}
+          rotation: {x: 0, y: 0, z: -0.99570155, w: 0.09261984}
+          innerRotation: {x: 0, y: 0, z: -0.24218348, w: 0.97023046}
+      - top: tail
+        socket: tail
+        transform:
+          position: {x: 0.08935409, y: 1.0293533, z: 0}
+          scale: {x: 1.0018982, y: 0.9965926, z: 1}
+          rotation: {x: 0, y: 0, z: 0.8849176, w: 0.46574762}
+          innerRotation: {x: 0, y: 0, z: 0.4664922, w: 0.8845253}
+      - top: 31
+        socket: torso
+        transform:
+          position: {x: 0.11754685, y: 1.0193888, z: 0}
+          scale: {x: 1, y: 0.99999994, z: 1}
+          rotation: {x: 0, y: 0, z: -0.7182611, w: 0.69577366}
+          innerRotation: {x: 0, y: 0, z: -0.69577366, w: 0.71826106}
+      - top: neck
+        socket: neck
+        transform:
+          position: {x: 0.65978736, y: 0.09721699, z: 0}
+          scale: {x: 1.0001534, y: 1.0000477, z: 1}
+          rotation: {x: 0, y: 0, z: 0.37579706, w: 0.92670196}
+          innerRotation: {x: 0, y: 0, z: 0.36768478, w: 0.9299505}
+      - top: 39
+        socket: frontUpperNear
+        transform:
+          position: {x: 0.13877422, y: 0.8810748, z: 0}
+          scale: {x: 1.0342683, y: 0.8700035, z: 1}
+          rotation: {x: 0, y: 0, z: 0.9082429, w: 0.41844344}
+          innerRotation: {x: 0, y: 0, z: 0.33311656, w: 0.94288564}
+      - top: mane
+        socket: mane
+        transform:
+          position: {x: 0.79989856, y: -0.18968195, z: 0}
+          scale: {x: 1.7961401, y: 0.8732467, z: 1}
+          rotation: {x: 0, y: 0, z: 0.026922682, w: 0.99963754}
+          innerRotation: {x: 0, y: 0, z: 0.50424576, w: 0.8635602}
+      - top: head
+        socket: head
+        transform:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - top: 49
+        socket: frontMiddleNear
+        transform:
+          position: {x: -0.56466174, y: 0.5666527, z: 0}
+          scale: {x: 0.9726477, y: 0.9534299, z: 1}
+          rotation: {x: 0, y: 0, z: -0.87890005, w: 0.47700602}
+          innerRotation: {x: 0, y: 0, z: 0.4123577, w: 0.911022}
+      - top: frleg3
+        socket: frontLowerNear
+        transform:
+          position: {x: -0.15782402, y: 0.8969264, z: 0}
+          scale: {x: 1.135426, y: 0.9738536, z: 1}
+          rotation: {x: 0, y: 0, z: -0.7803331, w: 0.6253641}
+          innerRotation: {x: 0, y: 0, z: -0.57705826, w: 0.81670296}
+      - top: 57
+        socket: hindLowerNear
+        transform:
+          position: {x: 0.42828265, y: 0.9572575, z: 0}
+          scale: {x: 1.0294214, y: 1.0009327, z: 1}
+          rotation: {x: 0, y: 0, z: 0.9931468, w: 0.1168736}
+          innerRotation: {x: 0, y: 0, z: -0.08896564, w: 0.9960347}
+      - top: 61
+        socket: hindUpperNear
+        transform:
+          position: {x: 0.5594232, y: 0.960843, z: 0}
+          scale: {x: 1.0033805, y: 0.99074954, z: 1}
+          rotation: {x: 0, y: 0, z: 0.87249434, w: 0.4886242}
+          innerRotation: {x: 0, y: 0, z: 0.19916967, w: 0.97996503}
+      - top: pip1
+        socket: pipbuckNear
+        transform:
+          position: {x: 0.05638625, y: 0.7729164, z: 0}
+          scale: {x: 1.121534, y: 0.95364237, z: 1}
+          rotation: {x: 0, y: 0, z: -0.8148978, w: 0.5796047}
+          innerRotation: {x: 0, y: 0, z: -0.6987124, w: 0.71540266}

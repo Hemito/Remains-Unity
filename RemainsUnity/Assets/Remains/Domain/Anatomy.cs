@@ -94,7 +94,7 @@ namespace Remains.Domain
         public static bool TrySupportContacts(ActorState actor,out IReadOnlyList<Vector2> contacts)
         {
             contacts=null;
-            if(!supportContacts.TryGetValue(actor.anatomy,out var data)) return false;
+            if(!supportContacts.TryGetValue(actor.anatomy,out var data) || !BedRest.HasFootSupport(ActorPose.Clip(actor))) return false;
             contacts=data.Sample(ActorPose.Clip(actor),PonyMotionFrames.Sample(actor,actor.poseTime));
             return true;
         }

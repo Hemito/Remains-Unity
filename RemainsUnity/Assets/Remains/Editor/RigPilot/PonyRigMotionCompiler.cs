@@ -19,7 +19,7 @@ namespace Remains.Editor
         {
             PonyAnimationData.Load();
             var rig=new GodotRigPilotData(Path.GetFullPath("../.reference/rig-pilot/source"),includeRise:true);
-            var bank=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/pip").text);
+            var bank=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/pip").text);PonyAuthoredClips.Extend(bank,"pip");
             var own=PonyAnimationData.Library.clips;var idle=own.Single(c=>c.id=="idle").frames[0];
             var symbolLayout=new PonySymbolLayout(PonyAnimationData.Library);
             var restGroups=PonyRigPilotArt.Groups(idle).ToDictionary(g=>g.Socket,StringComparer.Ordinal);

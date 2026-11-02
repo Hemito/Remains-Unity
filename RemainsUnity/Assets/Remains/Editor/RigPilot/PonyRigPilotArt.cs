@@ -39,7 +39,7 @@ namespace Remains.Editor
             var compiled=AssetDatabase.LoadAssetAtPath<PonyRenderAsset>("Assets/Remains/Resources/Original/Pony/render.asset")??throw new InvalidDataException("Нет compiled pony render.");
             var compiledWear=AssetDatabase.LoadAssetAtPath<WearableRenderAsset>("Assets/Remains/Resources/Original/Pony/Wearables/"+Outfit+"-render.asset")??throw new InvalidDataException("Нет compiled wearable для проверки регистрации.");
             var referenceWear=compiledWear.Clips.Single(c=>c.id=="idle").frames[0].parts.ToDictionary(p=>p.sourcePath,StringComparer.Ordinal);
-            bank=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/"+Outfit).text);
+            bank=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/"+Outfit).text);PonyAuthoredClips.Extend(bank,Outfit);
             templates=bank.templates.ToDictionary(t=>t.id,StringComparer.Ordinal);textures=bank.textures.ToDictionary(t=>t.key,StringComparer.Ordinal);
             WearableTemplateCount=templates.Count;
             var rest=bank.clips.Single(c=>c.id=="idle").frames[0];

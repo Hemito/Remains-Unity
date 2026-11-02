@@ -30,7 +30,7 @@ namespace Remains.Editor
         public PonyLegShapeDataset()
         {
             PonyAnimationData.Load();var library=PonyAnimationData.Library;var layout=new PonySymbolLayout(library);
-            var wear=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/pip").text);
+            var wear=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/pip").text);PonyAuthoredClips.Extend(wear,"pip");
             var reference=PonyAnimationArtwork.Prepare();var restWear=wear.clips.Single(c=>c.id=="idle").frames[0];
             var outerRest=new Dictionary<string,Matrix4x4>(StringComparer.Ordinal);
             foreach(var part in PonyPointControls.Parts)

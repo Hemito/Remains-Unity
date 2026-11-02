@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -99,7 +100,7 @@ namespace Remains.Editor
             Require(damageLegs.shapes.Length==2 && damageLegs.shapes[0]=="25" && damageLegs.shapes[1]=="275",
                 "Исправление контактов изменило независимые области урона");
             int count=0,edgeCount=0,legacyPoses=0;
-            foreach(var clip in PonyAnimationData.Library.clips)
+            foreach(var clip in PonyAnimationData.Library.clips.Where(c=>BedRest.HasFootSupport(c.id)))
             {
                 // The new slope contact set has its own asset/controller verification.
                 if(clip.id is "slopeStandUp" or "slopeStandDown" or "slopeWalkUp" or "slopeWalkDown") continue;

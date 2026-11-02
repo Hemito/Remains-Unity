@@ -16,8 +16,8 @@ namespace Remains.Editor
             var asset=AssetDatabase.LoadAssetAtPath<PonyRenderAsset>(path);
             if(asset==null) {asset=ScriptableObject.CreateInstance<PonyRenderAsset>();AssetDatabase.CreateAsset(asset,path);}
             var old=AssetDatabase.LoadAllAssetsAtPath(path).Where(value=>value is Mesh || value is Material).ToDictionary(value=>value.name);
-            var source=GameAssets.Load<TextAsset>("Original/Pony/pony");
-            var library=JsonUtility.FromJson<PonyLibrary>(source.text);
+            // The game library: pony.json plus the authored bank (PonyAuthoredClips).
+            PonyAnimationData.Load();var library=PonyAnimationData.Library;
             var layout=new PonySymbolLayout(library);var retained=new HashSet<UnityEngine.Object>();
             var clips=new List<PonyRenderClip>();var materials=new Dictionary<string,Material>();int meshCount=0;
             T Save<T>(T value) where T:UnityEngine.Object

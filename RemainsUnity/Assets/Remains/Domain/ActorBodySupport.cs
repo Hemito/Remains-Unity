@@ -88,7 +88,7 @@ namespace Remains.Domain
         {
             var room=binding.Room;var anchor=actor.Position;
             bool suspended=actor.climbing || ActorSessionRules.IsPassive(actor) || BedRest.Active(actor) || ActorHoldRules.Active(actor) || binding.Dropping || actor.vy!=0;
-            FootSupportFrame feet=profile?FootSupportCatalog.Get(actor.anatomy,pose,frame):null;
+            FootSupportFrame feet=profile && BedRest.HasFootSupport(pose)?FootSupportCatalog.Get(actor.anatomy,pose,frame):null;
             double reach=feet==null?hull.width*.5:Math.Max(hull.width*.5,Math.Max(Math.Abs(feet.Bounds.MinimumX),Math.Abs(feet.Bounds.MaximumX)));
             double left=anchor.x-reach,right=anchor.x+reach;
             int count=room.Query(left,right);int primary=-1;double primaryGap=0,primaryTop=0,primaryCoverage=0;

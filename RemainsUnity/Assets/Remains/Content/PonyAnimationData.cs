@@ -26,6 +26,8 @@ namespace Remains.Content
             var parsed=JsonUtility.FromJson<PonyLibrary>(json.text);
             if(parsed?.clips==null || parsed.clips.Length==0 || parsed.appearanceVersion!=1 || parsed.hairStyles<1 || parsed.eyeStyles<1)
                 throw new InvalidOperationException("Нет корректного каталога внешности пони: требуется версия 1 и положительное число форм.");
+            // Authored clips live in their own bank; pony.json and the hashes bound to it stay the original's.
+            parsed.clips=System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(parsed.clips,PonyAuthoredClips.Load(PonyRenderAsset.SourceHash())));
             var prepared=new Dictionary<string,PonyClip>();
             foreach(var clip in parsed.clips)
             {

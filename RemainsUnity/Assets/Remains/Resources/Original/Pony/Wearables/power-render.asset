@@ -4810,7 +4810,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d63ea440f4a04416b529a9c042c1cb4c, type: 3}
-  m_Name: power-render
+  m_Name: 
   m_EditorClassIdentifier: 
   schema: 2
   visualId: pony.armor.power
@@ -310301,6 +310301,888 @@ MonoBehaviour:
       bounds:
         m_Center: {x: 0.12646985, y: 0.7233469, z: 0}
         m_Extent: {x: 0.7600279, y: 0.84060794, z: 0}
+  - id: bedBack
+    frames:
+    - parts:
+      - mesh: {fileID: 4580327180145111129}
+        material: {fileID: -3385938571583702720}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: 3/wear:319//2
+        sourceShape: 314
+        points:
+        - {x: 0.583966, y: 0.81188804, z: 0}
+        - {x: 0.40421072, y: 0.9689018, z: 0}
+        - {x: 0.34989747, y: 0.44454494, z: 0}
+        - {x: 0.17014216, y: 0.60155874, z: 0}
+        baseColor: {r: 0.80859375, g: 0.80859375, b: 0.80859375, a: 1}
+        orderPath: 0300000002000000
+        symbolId: hindLowerFar:298
+        symbolPose:
+          position: {x: 0.23634537, y: 1.1553766, z: 0}
+          scale: {x: 1.1124176, y: 0.9402311, z: 1}
+          rotation: {x: 0, y: 0, z: 0.7932225, w: 0.6089319}
+          innerRotation: {x: 0, y: 0, z: 0.42763516, w: 0.9039514}
+      - mesh: {fileID: -1075963002735213915}
+        material: {fileID: -6986318050323614334}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: sleg1/wear:55//1
+        sourceShape: 47
+        points:
+        - {x: 0.009727609, y: 0.62588376, z: 0}
+        - {x: 0.29610834, y: 0.64985126, z: 0}
+        - {x: 0.11879565, y: 0.2044122, z: 0}
+        - {x: 0.40517637, y: 0.22837971, z: 0}
+        baseColor: {r: 0.80859375, g: 0.80859375, b: 0.80859375, a: 1}
+        orderPath: 0700000001000000
+        symbolId: hindUpperFar:25,27
+        symbolPose:
+          position: {x: -0.0065598534, y: 1.0684813, z: 0}
+          scale: {x: 1.1194158, y: 0.9218669, z: 1}
+          rotation: {x: 0, y: 0, z: 0.9154182, w: 0.40250412}
+          innerRotation: {x: 0, y: 0, z: 0.46925458, w: 0.8830629}
+      - mesh: {fileID: -5854305414066925909}
+        material: {fileID: -3194327566455397870}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: 13/wear:78//2
+        sourceShape: 73
+        points:
+        - {x: 0.08571037, y: 0.45546022, z: 0}
+        - {x: -0.06675778, y: 0.55099016, z: 0}
+        - {x: -0.09624542, y: 0.21312018, z: 0}
+        - {x: -0.24871357, y: 0.30865014, z: 0}
+        baseColor: {r: 0.80859375, g: 0.80859375, b: 0.80859375, a: 1}
+        orderPath: 0d00000002000000
+        symbolId: frontUpperFar:56
+        symbolPose:
+          position: {x: 0.5168773, y: 0.6943674, z: 0}
+          scale: {x: 1.0807495, y: 1.002099, z: 1}
+          rotation: {x: 0, y: 0, z: -0.9794071, w: 0.20189553}
+          innerRotation: {x: 0, y: 0, z: -0.52000237, w: 0.85416484}
+      - mesh: {fileID: -1711951040200908292}
+        material: {fileID: 1489598368039720662}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: 17/wear:101//1
+        sourceShape: 96
+        points:
+        - {x: -0.1039999, y: 0.6441575, z: 0}
+        - {x: -0.20118098, y: 0.54474753, z: 0}
+        - {x: 0.025703693, y: 0.4874079, z: 0}
+        - {x: -0.07147738, y: 0.3879979, z: 0}
+        baseColor: {r: 0.80859375, g: 0.80859375, b: 0.80859375, a: 1}
+        orderPath: 1100000001000000
+        symbolId: frontMiddleFar:79
+        symbolPose:
+          position: {x: -0.15802717, y: 1.0047477, z: 0}
+          scale: {x: 1.0423993, y: 0.9262695, z: 1}
+          rotation: {x: 0, y: 0, z: -0.7560598, w: 0.6545025}
+          innerRotation: {x: 0, y: 0, z: -0.34046498, w: 0.9402572}
+      - mesh: {fileID: 4231295346053038587}
+        material: {fileID: -6411900277155759880}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: flleg3/wear:124//1
+        sourceShape: 119
+        points:
+        - {x: 0.115046345, y: 0.7833119, z: 0}
+        - {x: -0.052748755, y: 0.870352, z: 0}
+        - {x: -0.053291503, y: 0.42816958, z: 0}
+        - {x: -0.2210866, y: 0.51520973, z: 0}
+        baseColor: {r: 0.80859375, g: 0.80859375, b: 0.80859375, a: 1}
+        orderPath: 1500000001000000
+        symbolId: frontLowerFar:102
+        symbolPose:
+          position: {x: 0.3306175, y: 0.7067031, z: 0}
+          scale: {x: 1.0004933, y: 0.8780141, z: 1}
+          rotation: {x: 0, y: 0, z: -0.9887501, w: 0.14957668}
+          innerRotation: {x: 0, y: 0, z: -0.40132195, w: 0.91593707}
+      - mesh: {fileID: -7815642440479481796}
+        material: {fileID: 5046668410961352377}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: 31/wear:159//1
+        sourceShape: 154
+        points:
+        - {x: -0.21370037, y: 0.55205476, z: 0}
+        - {x: 0.39477003, y: 0.59385943, z: 0}
+        - {x: -0.20149013, y: 0.12701765, z: 0}
+        - {x: 0.40698025, y: 0.16882233, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 1f00000001000000
+        symbolId: torso:137
+        symbolPose:
+          position: {x: 0.11754685, y: 1.0193888, z: 0}
+          scale: {x: 1, y: 0.99999994, z: 1}
+          rotation: {x: 0, y: 0, z: -0.7182611, w: 0.69577366}
+          innerRotation: {x: 0, y: 0, z: -0.69577366, w: 0.71826106}
+      - mesh: {fileID: -3616014861680916274}
+        material: {fileID: -7077573540168766339}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: neck/wear:182//2
+        sourceShape: 177
+        points:
+        - {x: 0.18086377, y: 0.54890454, z: 0}
+        - {x: 0.1754485, y: 0.17704545, z: 0}
+        - {x: -0.5753131, y: 0.5450803, z: 0}
+        - {x: -0.58072835, y: 0.17322122, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2300000002000000
+        symbolId: neck:160
+        symbolPose:
+          position: {x: 0.65978736, y: 0.09721699, z: 0}
+          scale: {x: 1.0001534, y: 1.0000477, z: 1}
+          rotation: {x: 0, y: 0, z: 0.37579706, w: 0.92670196}
+          innerRotation: {x: 0, y: 0, z: 0.36768478, w: 0.9299505}
+      - mesh: {fileID: -7440488725005455777}
+        material: {fileID: -3194327566455397870}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: 39/wear:78//2
+        sourceShape: 73
+        points:
+        - {x: 0.011395807, y: 0.547674, z: 0}
+        - {x: -0.15600549, y: 0.5778907, z: 0}
+        - {x: -0.029565569, y: 0.2854113, z: 0}
+        - {x: -0.19696687, y: 0.315628, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2700000002000000
+        symbolId: frontUpperNear:56
+        symbolPose:
+          position: {x: 0.13877422, y: 0.8810748, z: 0}
+          scale: {x: 1.0342683, y: 0.8700035, z: 1}
+          rotation: {x: 0, y: 0, z: 0.9082429, w: 0.41844344}
+          innerRotation: {x: 0, y: 0, z: 0.33311656, w: 0.94288564}
+      - mesh: {fileID: -266948972391105030}
+        material: {fileID: -3299820887794441236}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 1
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/2
+        sourceShape: 201
+        points:
+        - {x: -0.38563782, y: 0.6443685, z: 0}
+        - {x: -0.3996603, y: 0.31660074, z: 0}
+        - {x: -0.71938545, y: 0.66263247, z: 0}
+        - {x: -0.7334079, y: 0.33486468, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000002000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 5924044294028622594}
+        material: {fileID: -4711376639200291550}
+        slot: eye
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 1
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/zrak/1
+        sourceShape: 202
+        points:
+        - {x: -0.4479745, y: 0.61468804, z: 0}
+        - {x: -0.4544829, y: 0.46255732, z: 0}
+        - {x: -0.6443752, y: 0.6254358, z: 0}
+        - {x: -0.6508836, y: 0.4733051, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f0000000100000006000000010000000300000001000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 8845194610509128778}
+        material: {fileID: 6770303703067644004}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 1
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/6
+        sourceShape: 204
+        points:
+        - {x: -0.43774873, y: 0.6220705, z: 0}
+        - {x: -0.45086724, y: 0.31543195, z: 0}
+        - {x: -0.6544575, y: 0.6339296, z: 0}
+        - {x: -0.6675761, y: 0.3272911, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000006000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -8832834574173444830}
+        material: {fileID: 7104942115688375877}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 2
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/2
+        sourceShape: 201
+        points:
+        - {x: -0.38563782, y: 0.6443685, z: 0}
+        - {x: -0.3996603, y: 0.31660074, z: 0}
+        - {x: -0.71938545, y: 0.66263247, z: 0}
+        - {x: -0.7334079, y: 0.33486468, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000002000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -380598182971314745}
+        material: {fileID: 9040836048187589496}
+        slot: eye
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 2
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/zrak/1
+        sourceShape: 202
+        points:
+        - {x: -0.41907775, y: 0.62172544, z: 0}
+        - {x: -0.41291592, y: 0.45365638, z: 0}
+        - {x: -0.6358325, y: 0.61674666, z: 0}
+        - {x: -0.6296707, y: 0.44867757, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f0000000100000006000000010000000300000001000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 2185954506237402174}
+        material: {fileID: -1293272792172592704}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 2
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/6
+        sourceShape: 206
+        points:
+        - {x: -0.41983086, y: 0.60891217, z: 0}
+        - {x: -0.43252, y: 0.31231007, z: 0}
+        - {x: -0.6825001, y: 0.6232864, z: 0}
+        - {x: -0.6951893, y: 0.32668433, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000006000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 8287474071984859004}
+        material: {fileID: -6724044133290799229}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 3
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/2
+        sourceShape: 201
+        points:
+        - {x: -0.38563782, y: 0.6443685, z: 0}
+        - {x: -0.3996603, y: 0.31660074, z: 0}
+        - {x: -0.71938545, y: 0.66263247, z: 0}
+        - {x: -0.7334079, y: 0.33486468, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000002000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -6775964040554840380}
+        material: {fileID: -4380313922318313050}
+        slot: eye
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 3
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/zrak/1
+        sourceShape: 202
+        points:
+        - {x: -0.40135172, y: 0.5793716, z: 0}
+        - {x: -0.4490865, y: 0.40561497, z: 0}
+        - {x: -0.6263424, y: 0.64251405, z: 0}
+        - {x: -0.6740772, y: 0.46875742, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f0000000100000006000000010000000300000001000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -6552617592575911274}
+        material: {fileID: -1938799877646355303}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 3
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/6
+        sourceShape: 208
+        points:
+        - {x: -0.41689155, y: 0.60875136, z: 0}
+        - {x: -0.42985186, y: 0.30581042, z: 0}
+        - {x: -0.6875771, y: 0.62356424, z: 0}
+        - {x: -0.7005375, y: 0.32062337, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000006000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 4378799947743150132}
+        material: {fileID: 5418759716360302225}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 4
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/2
+        sourceShape: 201
+        points:
+        - {x: -0.38563782, y: 0.6443685, z: 0}
+        - {x: -0.3996603, y: 0.31660074, z: 0}
+        - {x: -0.71938545, y: 0.66263247, z: 0}
+        - {x: -0.7334079, y: 0.33486468, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000002000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 4940263546978772321}
+        material: {fileID: -2995004626643680377}
+        slot: eye
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 4
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/zrak/1
+        sourceShape: 202
+        points:
+        - {x: -0.45214602, y: 0.61421084, z: 0}
+        - {x: -0.45782843, y: 0.44155008, z: 0}
+        - {x: -0.6527409, y: 0.6232553, z: 0}
+        - {x: -0.6584233, y: 0.45059454, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f0000000100000006000000010000000300000001000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -1164067086853742323}
+        material: {fileID: 5125705079338795316}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 4
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/6
+        sourceShape: 210
+        points:
+        - {x: -0.43833232, y: 0.6146899, z: 0}
+        - {x: -0.45252427, y: 0.28296033, z: 0}
+        - {x: -0.61202, y: 0.62419474, z: 0}
+        - {x: -0.626212, y: 0.29246518, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000006000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 5440100855271739114}
+        material: {fileID: -2013428873281221048}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 5
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/2
+        sourceShape: 201
+        points:
+        - {x: -0.38563782, y: 0.6443685, z: 0}
+        - {x: -0.3996603, y: 0.31660074, z: 0}
+        - {x: -0.71938545, y: 0.66263247, z: 0}
+        - {x: -0.7334079, y: 0.33486468, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000002000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 1248775363232340599}
+        material: {fileID: 1110010159161089061}
+        slot: eye
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 5
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/zrak/1
+        sourceShape: 202
+        points:
+        - {x: -0.4199969, y: 0.58340627, z: 0}
+        - {x: -0.4654307, y: 0.43575576, z: 0}
+        - {x: -0.61925054, y: 0.6457074, z: 0}
+        - {x: -0.66468436, y: 0.4980569, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f0000000100000006000000010000000300000001000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 8485027210386440105}
+        material: {fileID: -4090486391706715254}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 5
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/6
+        sourceShape: 212
+        points:
+        - {x: -0.38615087, y: 0.60733384, z: 0}
+        - {x: -0.39865923, y: 0.31495756, z: 0}
+        - {x: -0.6597758, y: 0.6223076, z: 0}
+        - {x: -0.6722842, y: 0.32993135, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000006000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -6704594780397128683}
+        material: {fileID: -3161175494934781567}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 6
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/2
+        sourceShape: 201
+        points:
+        - {x: -0.38563782, y: 0.6443685, z: 0}
+        - {x: -0.3996603, y: 0.31660074, z: 0}
+        - {x: -0.71938545, y: 0.66263247, z: 0}
+        - {x: -0.7334079, y: 0.33486468, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000002000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -6128048108451647254}
+        material: {fileID: -2193974291058766506}
+        slot: eye
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 6
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/zrak/1
+        sourceShape: 202
+        points:
+        - {x: -0.44662088, y: 0.5870871, z: 0}
+        - {x: -0.47416708, y: 0.43496287, z: 0}
+        - {x: -0.6515754, y: 0.6259478, z: 0}
+        - {x: -0.67912155, y: 0.47382358, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f0000000100000006000000010000000300000001000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -7630442186432055075}
+        material: {fileID: 4851501292918429175}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 6
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/eye/6
+        sourceShape: 214
+        points:
+        - {x: -0.46721378, y: 0.6157409, z: 0}
+        - {x: -0.4807165, y: 0.30012244, z: 0}
+        - {x: -0.68205214, y: 0.6274977, z: 0}
+        - {x: -0.6955548, y: 0.3118792, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f00000001000000060000000100000006000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 2831811021775487875}
+        material: {fileID: -4837420070022822190}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//eye/8
+        sourceShape: 216
+        points:
+        - {x: -0.4574604, y: 0.56199557, z: 0}
+        - {x: -0.4610875, y: 0.4772144, z: 0}
+        - {x: -0.5720943, y: 0.5682688, z: 0}
+        - {x: -0.5757214, y: 0.4834876, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f000000010000000600000008000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -7738547707667496782}
+        material: {fileID: 77843724653066203}
+        slot: fur
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//morda/1
+        sourceShape: 234
+        points:
+        - {x: -0.5612928, y: 0.28198484, z: 0}
+        - {x: -0.5561751, y: 0.11916324, z: 0}
+        - {x: -0.9319634, y: 0.27032465, z: 0}
+        - {x: -0.92684567, y: 0.10750306, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f000000010000001300000001000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: 713037519687185281}
+        material: {fileID: 7427283948425565848}
+        slot: fur
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//horn/1
+        sourceShape: 236
+        points:
+        - {x: -0.7968497, y: 0.68498003, z: 0}
+        - {x: -0.79241383, y: 0.5438502, z: 0}
+        - {x: -0.97991014, y: 0.6792215, z: 0}
+        - {x: -0.97547424, y: 0.5380916, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f000000010000001500000001000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -8580373986906004510}
+        material: {fileID: 5069266737051699908}
+        slot: magic
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//magic/2
+        sourceShape: 238
+        points:
+        - {x: -0.74083924, y: 0.76957357, z: 0}
+        - {x: -0.73190004, y: 0.4851714, z: 0}
+        - {x: -1.0574481, y: 0.759614, z: 0}
+        - {x: -1.0485089, y: 0.47521183, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f000000010000001700000002000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -873124293920040491}
+        material: {fileID: -1724841171474746781}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: head/morda/wear:273//26
+        sourceShape: 264
+        points:
+        - {x: -0.29441345, y: 0.7490366, z: 0}
+        - {x: -0.27466637, y: 0.120780945, z: 0}
+        - {x: -1.0159498, y: 0.7263392, z: 0}
+        - {x: -0.99620277, y: 0.098083586, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 2f000000010000001a000000
+        symbolId: head:196,201,202,204,206,208,210,212,214,216,221,222,223,224,225,227,228,229,230,231,234,236,238
+        symbolPose:
+          position: {x: 0.6111242, y: 0.11085872, z: 0}
+          scale: {x: 1.000044, y: 0.999942, z: 1}
+          rotation: {x: 0, y: 0, z: 0.4607573, w: 0.88752615}
+          innerRotation: {x: 0, y: 0, z: 0.31550556, w: 0.9489237}
+      - mesh: {fileID: -9037868098397608338}
+        material: {fileID: 1489598368039720662}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: 49/wear:101//1
+        sourceShape: 96
+        points:
+        - {x: -0.29729277, y: 0.5430148, z: 0}
+        - {x: -0.2613374, y: 0.41372606, z: 0}
+        - {x: -0.09788629, y: 0.57733315, z: 0}
+        - {x: -0.06193094, y: 0.44804442, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 3100000001000000
+        symbolId: frontMiddleNear:79
+        symbolPose:
+          position: {x: -0.56466174, y: 0.5666527, z: 0}
+          scale: {x: 0.9726477, y: 0.9534299, z: 1}
+          rotation: {x: 0, y: 0, z: -0.87890005, w: 0.47700602}
+          innerRotation: {x: 0, y: 0, z: 0.4123577, w: 0.911022}
+      - mesh: {fileID: 5384984072665669747}
+        material: {fileID: -6411900277155759880}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: frleg3/wear:124//1
+        sourceShape: 119
+        points:
+        - {x: -0.02412127, y: 0.7791705, z: 0}
+        - {x: -0.20639957, y: 0.8411603, z: 0}
+        - {x: -0.14589031, y: 0.38463148, z: 0}
+        - {x: -0.3281686, y: 0.44662124, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 3500000001000000
+        symbolId: frontLowerNear:102
+        symbolPose:
+          position: {x: -0.15782402, y: 0.8969264, z: 0}
+          scale: {x: 1.135426, y: 0.9738536, z: 1}
+          rotation: {x: 0, y: 0, z: -0.7803331, w: 0.6253641}
+          innerRotation: {x: 0, y: 0, z: -0.57705826, w: 0.81670296}
+      - mesh: {fileID: -680359958692252282}
+        material: {fileID: -3385938571583702720}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: 57/wear:319//2
+        sourceShape: 314
+        points:
+        - {x: 0.86001396, y: 0.66696817, z: 0}
+        - {x: 0.6694826, y: 0.80153984, z: 0}
+        - {x: 0.5981846, y: 0.32045764, z: 0}
+        - {x: 0.40765318, y: 0.4550293, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 3900000002000000
+        symbolId: hindLowerNear:298
+        symbolPose:
+          position: {x: 0.42828265, y: 0.9572575, z: 0}
+          scale: {x: 1.0294214, y: 1.0009327, z: 1}
+          rotation: {x: 0, y: 0, z: 0.9931468, w: 0.1168736}
+          innerRotation: {x: 0, y: 0, z: -0.08896564, w: 0.9960347}
+      - mesh: {fileID: -4380047385075775089}
+        material: {fileID: -6986318050323614334}
+        slot: none
+        visible: 1
+        hairStyle: 0
+        eyeStyle: 0
+        drawOrder: 0
+        sourceIndex: -1
+        sourcePath: 61/wear:55//1
+        sourceShape: 47
+        points:
+        - {x: 0.33961296, y: 0.62727946, z: 0}
+        - {x: 0.58168316, y: 0.46272898, z: 0}
+        - {x: 0.0995566, y: 0.273448, z: 0}
+        - {x: 0.3416268, y: 0.108897485, z: 0}
+        baseColor: {r: 1, g: 1, b: 1, a: 1}
+        orderPath: 3d00000001000000
+        symbolId: hindUpperNear:25,27
+        symbolPose:
+          position: {x: 0.5594232, y: 0.960843, z: 0}
+          scale: {x: 1.0033805, y: 0.99074954, z: 1}
+          rotation: {x: 0, y: 0, z: 0.87249434, w: 0.4886242}
+          innerRotation: {x: 0, y: 0, z: 0.19916967, w: 0.97996503}
+      hiddenBasePartIndices: 000000000100000002000000030000000400000005000000090000000a0000000b0000000c0000000d0000000e0000000f000000100000001100000012000000130000001400000015000000160000001700000018000000190000001a0000001b0000001c000000260000002700000028000000290000002a0000002b0000002c0000002d0000002e0000002f000000300000003100000032000000330000003400000035000000360000003700000038000000390000003a0000003b0000003c0000003d0000003e0000003f0000004000000041000000420000004300000044000000
+      baseOrder:
+      - path: 030000000100000001000000
+      - path: 070000000100000001000000
+      - path: 070000000300000001000000
+      - path: 0d0000000100000001000000
+      - path: 110000000100000001000000
+      - path: 150000000100000001000000
+      - path: 1900000001000000
+      - path: 1b0000000100000001000000
+      - path: 1b0000000300000001000000
+      - path: 1f0000000100000001000000
+      - path: 230000000100000001000000
+      - path: 270000000100000001000000
+      - path: 2b0000000100000001000000
+      - path: 2b0000000300000001000000
+      - path: 2f000000010000000100000001000000
+      - path: 2f00000001000000060000000100000002000000
+      - path: 2f0000000100000006000000010000000300000001000000
+      - path: 2f00000001000000060000000100000006000000
+      - path: 2f000000010000000600000008000000
+      - path: 2f000000010000000f0000000100000001000000
+      - path: 2f000000010000000f0000000300000001000000
+      - path: 2f000000010000001300000001000000
+      - path: 2f000000010000001500000001000000
+      - path: 2f000000010000001700000002000000
+      - path: 310000000100000001000000
+      - path: 350000000100000001000000
+      - path: 390000000100000001000000
+      - path: 3d0000000100000001000000
+      - path: 3d0000000300000001000000
+      - path: 4300000001000000
+      - path: 1b0000000100000001000000
+      - path: 1b0000000100000001000000
+      - path: 1b0000000100000001000000
+      - path: 1b0000000100000001000000
+      - path: 1b0000000300000001000000
+      - path: 1b0000000300000001000000
+      - path: 1b0000000300000001000000
+      - path: 1b0000000300000001000000
+      - path: 2b0000000100000001000000
+      - path: 2b0000000100000001000000
+      - path: 2b0000000100000001000000
+      - path: 2b0000000100000001000000
+      - path: 2b0000000300000001000000
+      - path: 2b0000000300000001000000
+      - path: 2b0000000300000001000000
+      - path: 2b0000000300000001000000
+      - path: 2f00000001000000060000000100000002000000
+      - path: 2f0000000100000006000000010000000300000001000000
+      - path: 2f00000001000000060000000100000006000000
+      - path: 2f00000001000000060000000100000002000000
+      - path: 2f0000000100000006000000010000000300000001000000
+      - path: 2f00000001000000060000000100000006000000
+      - path: 2f00000001000000060000000100000002000000
+      - path: 2f0000000100000006000000010000000300000001000000
+      - path: 2f00000001000000060000000100000006000000
+      - path: 2f00000001000000060000000100000002000000
+      - path: 2f0000000100000006000000010000000300000001000000
+      - path: 2f00000001000000060000000100000006000000
+      - path: 2f00000001000000060000000100000002000000
+      - path: 2f0000000100000006000000010000000300000001000000
+      - path: 2f00000001000000060000000100000006000000
+      - path: 2f000000010000000f0000000100000001000000
+      - path: 2f000000010000000f0000000100000001000000
+      - path: 2f000000010000000f0000000100000001000000
+      - path: 2f000000010000000f0000000100000001000000
+      - path: 2f000000010000000f0000000300000001000000
+      - path: 2f000000010000000f0000000300000001000000
+      - path: 2f000000010000000f0000000300000001000000
+      - path: 2f000000010000000f0000000300000001000000
+      bounds:
+        m_Center: {x: -0.088995695, y: 0.5572034, z: 0}
+        m_Extent: {x: 0.96847546, y: 0.45916688, z: 0}
   symbols:
   - id: frontLowerFar:102
     socket: frontLowerFar

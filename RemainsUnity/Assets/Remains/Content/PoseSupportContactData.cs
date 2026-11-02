@@ -23,7 +23,8 @@ namespace Remains.Content
             if(source==null || source.schema!=1 || source.alphaMinimum<1 || source.alphaMinimum>255 ||
                 source.sourceHash!=PonyRenderAsset.SourceHash() || source.shapes==null || source.shapes.Length==0 || source.poses==null)
                 throw new InvalidOperationException($"Некорректные или устаревшие контакты ног: anatomy={anatomy}. Перезапеките контакты из текущей графики.");
-            var clips=PonyAnimationData.Library.clips;
+            // The back pose stands on nothing (BedRest.HasFootSupport) and has no contacts.
+            var clips=Array.FindAll(PonyAnimationData.Library.clips,clip=>Domain.BedRest.HasFootSupport(clip.id));
             var declared=new HashSet<string>();
             foreach(var shape in source.shapes)
                 if(string.IsNullOrWhiteSpace(shape) || !declared.Add(shape) ||

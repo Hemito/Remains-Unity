@@ -14,6 +14,8 @@ namespace Remains.Domain
         public const float Reach=1.2f,PointerAbove=.5f;
 
         public static bool Active(ActorState actor)=>!string.IsNullOrEmpty(actor.rest);
+        // Hooves up: the back pose stands on nothing, so it has no foot-support silhouette (the bed carries the body).
+        public static bool HasFootSupport(string clip)=>clip!=BackClip;
         public static string Clip(ActorState actor)=>actor.restPose==Back?BackClip:BellyClip;
         public static Rect Bounds(RoomRest bed)=>new(bed.x,bed.y,bed.width,bed.height+PointerAbove);
 
