@@ -14,7 +14,8 @@ namespace Remains.Domain
         public bool sourcePlayer;
         public float x,y,vx,vy;   // where it broke and the bottle's velocity then; a grenade's burst has none; a torch's last motion
         public int seed;
-        public bool torch;        // a bottle that did not break: one patch at its neck, burning droplets × pulses long
+        public bool torch;        // a bottle at rest unbroken: one patch at its neck, burning its fuel out
+        public float fuel;        // droplet-seconds of fuel left (FireRules.Fuel): a torch's time, a splash's droplets
         public double start;      // the level's time (LevelTime) when it began
         public Vector2 Position=>new(x,y);
     }
@@ -30,8 +31,10 @@ namespace Remains.Domain
     // (Bullet.explRun ×explkol, explLiquid), the splash flies as droplets with inertia — a bottle's keep its velocity,
     // a grenade's fly out evenly — and each droplet that lands burns a patch; only the patches hurt (a pulse every
     // pulseSeconds, once per pulse per fire for an actor touching any patch) and set burning. A bottle breaks on impact
-    // by its speed into the surface (FireSplash.shatter); one that never breaks burns at its neck as a torch with one
-    // droplet's damage for all its droplets' time.
+    // by its speed into the surface (FireSplash.shatter). A bottle is lit when thrown (user 2026-11-02): it is a torch from
+    // then, its fuel (droplets × a patch's time) burning from the neck; broken, what fuel is left splashes as that many
+    // droplets (one per patch time, fewer the longer it burnt); at rest unbroken, it burns the rest as a torch with one
+    // droplet's damage. It has no fuse.
     public static class FireRules
     {
         private const float Step=1f/60,MaxFlight=1.5f,Gravity=18;
@@ -46,12 +49,13 @@ namespace Remains.Domain
             if(!world.grenades.Contains(grenade) || grenade.remaining>0) return null;
             var profile=WeaponCatalog.Get(grenade.weapon).fire;
             if(profile==null || !profile.Configured) throw new InvalidOperationException($"Граната {grenade.id}: {grenade.weapon} без огненных брызг.");
-            world.grenades.Remove(grenade);
-            bool torch=profile.shatter && !grenade.shattered;
-            // A torch keeps the bottle's last motion to settle where it would lie; a radial burst has none.
-            var velocity=grenade.shattered?new Vector2(grenade.impactVx,grenade.impactVy):torch?grenade.Velocity:Vector2.zero;
+            world.grenades.Remove(grenade);world.revision++;
+            // A bottle carries what fuel it has left (burnt from the neck since the throw); a grenade all of it.
+            bool torch=profile.shatter && !grenade.shattered;float fuel=profile.shatter?grenade.fuel:Fuel(profile);
+            if(fuel<=0) return null;
+            var velocity=grenade.shattered?new Vector2(grenade.impactVx,grenade.impactVy):Vector2.zero;
             var fire=new FireState {id=grenade.id,weapon=grenade.weapon,level=grenade.level,attacker=grenade.attacker,sourcePlayer=grenade.sourcePlayer,
-                x=grenade.x,y=grenade.y,vx=velocity.x,vy=velocity.y,seed=Seed(grenade.id),torch=torch,start=now};
+                x=grenade.x,y=grenade.y,vx=velocity.x,vy=velocity.y,seed=Seed(grenade.id),torch=torch,fuel=fuel,start=now};
             world.fires.Add(fire);world.revision++;
             return fire;
         }
@@ -66,11 +70,11 @@ namespace Remains.Domain
 
         public static FireSplash Profile(FireState fire)=>WeaponCatalog.Get(fire.weapon).fire??
             throw new InvalidOperationException($"Огонь {fire.id}: у {fire.weapon} нет огненных брызг.");
-        public static double Duration(FireState fire)
-        {
-            var profile=Profile(fire);
-            return fire.torch?profile.PatchSeconds*profile.droplets:profile.PatchSeconds;
-        }
+        public static double Duration(FireState fire)=>fire.torch?fire.fuel:Profile(fire).PatchSeconds;
+        // All a bottle or grenade holds: every droplet burning a patch's time.
+        public static float Fuel(FireSplash profile)=>profile.droplets*profile.PatchSeconds;
+        // The droplets a splash of this much fuel throws: one per patch time left, at most the profile's.
+        public static int Droplets(FireSplash profile,float fuel)=>Mathf.Clamp(Mathf.CeilToInt(fuel/profile.PatchSeconds-.001f),0,profile.droplets);
         public static bool Burning(FireState fire,double now)=>now>=fire.start && now<fire.start+Duration(fire);
         // The pulse running at this time (0…), or −1 outside the fire.
         public static int Pulse(FireState fire,double now)=>Burning(fire,now)?(int)Math.Floor((now-fire.start)/Profile(fire).pulseSeconds):-1;
@@ -89,15 +93,11 @@ namespace Remains.Domain
         public static List<FirePatch> Patches(FireState fire,RoomLayout room)
         {
             var profile=Profile(fire);var result=new List<FirePatch>();
-            if(fire.torch)
-            {
-                // Still moving when its fuse ended, it lands first; at rest it burns where it lies.
-                var at=new Vector2(fire.vx,fire.vy).sqrMagnitude>.01f && Fly(room,fire.Position,new Vector2(fire.vx,fire.vy),out var lying)?lying:fire.Position;
-                result.Add(new FirePatch(at,profile.patchRadius));return result;
-            }
+            if(fire.torch) {result.Add(new FirePatch(fire.Position,profile.patchRadius));return result;}   // it lies at rest
             var random=new System.Random(fire.seed);
             var inherited=new Vector2(fire.vx,fire.vy);
-            for(int i=0;i<profile.droplets;i++)
+            int droplets=Droplets(profile,fire.fuel);
+            for(int i=0;i<droplets;i++)
             {
                 float angle=(float)(random.NextDouble()*Math.PI*2),speed=profile.spread*(.4f+.6f*(float)random.NextDouble());
                 var velocity=new Vector2(Mathf.Cos(angle),Mathf.Sin(angle))*speed;

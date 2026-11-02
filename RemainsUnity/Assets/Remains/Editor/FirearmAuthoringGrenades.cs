@@ -56,6 +56,8 @@ namespace Remains.Editor
                 definition.fire=new FireSplash {droplets=FireDroplets,spread=bottle?reach*.5f:reach,radial=!bottle,patchRadius=FirePatch,
                     pulseSeconds=FirePulseFrames/FramesPerSecond,pulses=(int)Num(character,"explkol"),pulseDamage=definition.damage,
                     igniteDamage=Num(root.Element("dop"),"damage",0),igniteSeconds=BurningSeconds,shatter=bottle,shatterSpeed=ShatterSpeed,sureShatterSpeed=SureShatterSpeed};
+                // A bottle is lit when thrown (user 2026-11-02): no fuse, its "fuse" is its fuel burning from the neck.
+                if(bottle) definition.grenadeFuseSeconds=FireRules.Fuel(definition.fire);
             }
             if(!definition.IsGrenade || definition.damage<=0 || definition.range<=0) return "нет взрыва или запала";
 

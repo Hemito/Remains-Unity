@@ -31,17 +31,21 @@ namespace Remains.Editor
             Require(some>5 && some<35,$"между 3 и 6 м/с — по шансу: {some} из 40");
 
             var room=Room();
-            var bottle=new FireState {id="m",weapon="item:molotov",level="l",x=0,y=0,vx=9,vy=-3,seed=11};
+            float full=FireRules.Fuel(molotov.fire);
+            Require(Mathf.Approximately(full,50) && Mathf.Approximately(molotov.grenadeFuseSeconds,full) && FireRules.Droplets(molotov.fire,full)==15 &&
+                FireRules.Droplets(molotov.fire,20)==6 && FireRules.Droplets(molotov.fire,0)==0,"бутылка горит с броска: 50 с топлива; капель — по оставшемуся топливу");
+            var bottle=new FireState {id="m",weapon="item:molotov",level="l",x=0,y=0,vx=9,vy=-3,seed=11,fuel=full};
             var splash=FireRules.Patches(bottle,room);
             Require(splash.Count>=10 && splash.Average(p=>p.position.x)>.5f && splash.All(p=>p.position.x<4),
                 $"брызги бутылки — по ходу полёта и не за стену: {splash.Count} пятен, в среднем x={splash.Average(p=>p.position.x):0.00}");
             Require(FireRules.Patches(bottle,room).Select(p=>p.position).SequenceEqual(splash.Select(p=>p.position)),"одни и те же пятна при каждом расчёте");
-            var burst=FireRules.Patches(new FireState {id="g",weapon="item:fgren",level="l",x=-6,y=0,seed=12},room);
+            var burst=FireRules.Patches(new FireState {id="g",weapon="item:fgren",level="l",x=-6,y=0,seed=12,fuel=FireRules.Fuel(incendiary.fire)},room);
             Require(burst.Count>=10 && burst.Any(p=>p.position.x<-6.3f) && burst.Any(p=>p.position.x>-5.7f) && Mathf.Abs(burst.Average(p=>p.position.x)+6)<1.2f,
                 "граната разбрызгивает во все стороны");
 
-            var torch=new FireState {id="t",weapon="item:molotov",level="l",x=1,y=0,torch=true,start=10};
-            Require(Math.Abs(FireRules.Duration(torch)-15*10/3.0)<.01 && FireRules.Patches(torch,room).Count==1,"горелка — одно пятно на время всех 15 капель");
+            var torch=new FireState {id="t",weapon="item:molotov",level="l",x=1,y=0,torch=true,start=10,fuel=full};
+            Require(Math.Abs(FireRules.Duration(torch)-full)<.01 && FireRules.Patches(torch,room).Count==1,"горелка — одно пятно на всё оставшееся топливо");
+            Require(FireRules.Patches(new FireState {id="m",weapon="item:molotov",level="l",x=0,y=0,vx=9,vy=-3,seed=11,fuel=20},room).Count<=6,"догоревшая бутылка разбрызгивает меньше");
             Require(FireRules.Pulse(torch,10.1)==0 && FireRules.Pulse(torch,10.4)==1 && FireRules.Pulse(torch,9)==-1 && FireRules.Pulse(torch,61)==-1,"вспышки раз в треть секунды, вне огня нет");
 
             var near=new ActorState {id="a",actorType="pony",anatomy="pony",x=splash[0].position.x,y=splash[0].position.y,level="l"};
@@ -51,14 +55,15 @@ namespace Remains.Editor
             // The bottle in flight: hard into the floor it breaks with the velocity it hit; a soft drop stays whole.
             var hard=new GrenadeState {id="hard",weapon="item:molotov",x=0,y=1,vx=6,vy=-8,remaining=molotov.grenadeFuseSeconds,rotationVersion=1};
             GrenadeRules.Step(hard,room,.5f);
-            Require(hard.shattered && hard.remaining==0 && hard.impactVy<-6,"сильный удар разбивает бутылку");
+            Require(hard.shattered && hard.remaining==0 && hard.impactVy<-6 && hard.fuel>full-1 && hard.fuel<full,"сильный удар разбивает бутылку, топливо почти всё");
             var soft=new GrenadeState {id="soft",weapon="item:molotov",x=0,y=.15f,vx=.5f,vy=0,remaining=molotov.grenadeFuseSeconds,rotationVersion=1};
-            GrenadeRules.Step(soft,room,.5f);
-            Require(!soft.shattered && soft.remaining>0,"мягкое падение не разбивает");
+            GrenadeRules.Step(soft,room,3);
+            Require(!soft.shattered && soft.remaining==0 && soft.fuel>full-3 && soft.fuel<full,$"мягко упавшая бутылка цела и, остановившись, становится горелкой: топливо {soft.fuel:0.0}");
 
-            var world=new WorldState();soft.remaining=0;world.grenades.Add(soft);hard.remaining=0;world.grenades.Add(hard);
+            var world=new WorldState();world.grenades.Add(soft);world.grenades.Add(hard);
             var lit=FireRules.Ignite(world,soft,3);var broke=FireRules.Ignite(world,hard,3);
-            Require(lit.torch && !broke.torch && world.grenades.Count==0 && world.fires.Count==2 && Mathf.Approximately(broke.vy,hard.impactVy),"целая — горелка, разбитая — брызги со скоростью удара");
+            Require(lit.torch && !broke.torch && Mathf.Approximately(lit.fuel,soft.fuel) && world.grenades.Count==0 && world.fires.Count==2 && Mathf.Approximately(broke.vy,hard.impactVy),
+                "целая — горелка с остатком топлива, разбитая — брызги со скоростью удара");
             Require(!FireRules.Expire(world,_=>4) && FireRules.Expire(world,_=>3+FireRules.Duration(broke)+.01) && world.fires.Count==1 && world.fires[0]==lit,"догоревший огонь убирается");
             Debug.Log($"Огонь: PASS — оригинальные числа, порог разбивания, брызги бутылки {splash.Count} по ходу и до стены, граната во все стороны, повторяемость, горелка, вспышки, касание, хост и догорание.");
         }

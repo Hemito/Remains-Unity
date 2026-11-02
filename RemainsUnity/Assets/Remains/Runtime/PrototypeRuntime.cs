@@ -211,7 +211,7 @@ namespace Remains.Runtime
             npcs=new NpcController(Session,Geometry,Combat);
             spikes=new SpikeController(Session,Geometry,Combat);
             Fires=new FireController(Session,Geometry,Combat);
-            CreateOwnedObject("Огонь").AddComponent<FireVisuals>().Initialize(Session,Fires);
+            CreateOwnedObject("Огонь").AddComponent<FireVisuals>().Initialize(Session,Fires,Grenades);
             radiation=new RadiationController(Session,Combat);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
             ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();

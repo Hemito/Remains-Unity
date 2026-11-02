@@ -13,7 +13,7 @@ namespace Remains.Presentation
     public sealed class FireVisuals : MonoBehaviour
     {
         private const float FlameSpacing=.25f,FadeIn=.15f,FadeOut=.6f,TorchScale=.6f,ActorScale=.8f;
-        private CoopSession session;private FireController fires;private FireArtwork artwork;
+        private CoopSession session;private FireController fires;private GrenadeController grenades;private FireArtwork artwork;
         private readonly List<SpriteRenderer> flames=new();private int used;
         private readonly Dictionary<string,SpriteRenderer> bottles=new(System.StringComparer.Ordinal);
         private readonly HashSet<string> shownBottles=new(System.StringComparer.Ordinal);
@@ -21,8 +21,8 @@ namespace Remains.Presentation
         private MaterialPropertyBlock properties;
         public int DrawnFlames=>used;
 
-        public void Initialize(CoopSession coop,FireController controller)
-        {session=coop;fires=controller;artwork=FireArtwork.Load();properties=new MaterialPropertyBlock();}
+        public void Initialize(CoopSession coop,FireController controller,GrenadeController flights)
+        {session=coop;fires=controller;grenades=flights;artwork=FireArtwork.Load();properties=new MaterialPropertyBlock();}
 
         private void LateUpdate()
         {
@@ -50,6 +50,10 @@ namespace Remains.Presentation
                         }
                     }
                 }
+                // A lit bottle in flight burns at its neck.
+                foreach(var flight in grenades.Flights)
+                    if(flight.state.level==viewer.level && WeaponCatalog.Get(flight.state.weapon) is {IsFire:true,fire:{shatter:true}})
+                        Flame(flight.position,TorchScale*.8f,(float)now,flight.state.id.GetHashCode(),1);
                 foreach(var actor in world.actors)
                     if(actor.level==viewer.level && actor.burnLevel==actor.level && actor.burnUntil>now && ActorPresence.IsPresent(actor))
                         Flame(actor.BodyPosition+Vector2.down*.3f,ActorScale,(float)now,actor.id.GetHashCode(),1);

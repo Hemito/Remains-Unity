@@ -20,8 +20,9 @@ namespace Remains.Domain
         public int rotationVersion;
         public float angle,angularVelocity;
         public bool mirrored;
-        // A bottle (FireSplash.shatter): how many times it hit something, and whether and with what velocity it broke.
-        public int impacts;public bool shattered;public float impactVx,impactVy;
+        // A bottle (FireSplash.shatter), lit when thrown: `remaining` is its fuel burning from the neck; how many times it
+        // hit something, whether and with what velocity it broke, and the fuel it ended its flight with (broken or at rest).
+        public int impacts;public bool shattered;public float impactVx,impactVy,fuel;
         public Vector2 Position {get=>new(x,y);set {x=value.x;y=value.y;}}
         public Vector2 Velocity {get=>new(vx,vy);set {vx=value.x;vy=value.y;}}
         public GrenadeState Copy()=>JsonUtility.FromJson<GrenadeState>(JsonUtility.ToJson(this));
@@ -76,6 +77,7 @@ namespace Remains.Domain
     public static class GrenadeRules
     {
         public const double SimulationStep=1d/120;
+        private const float BottleRest=.25f;   // m/s: a bottle this slow on the ground lies still
         private static readonly MovementHull Hull=new() {width=.2f,height=.2f};
         public static void BeginSession(WorldState world)
         {
@@ -112,13 +114,13 @@ namespace Remains.Domain
             var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false,bodyTops:false)+Vector2.up*.1f;
             state.Position=moved;
             GrenadeRotation.Advance(state,dt);
-            bool collided=false;
+            bool collided=false,ground=false;
             if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f)
             {impact=Mathf.Abs(state.vx);state.vx=-state.vx*definition.grenadeRestitution;collided=true;}
             if(Mathf.Abs(moved.y-previous.y-delta.y)>.00001f)
             {
                 impact=Mathf.Max(impact,Mathf.Abs(state.vy));
-                if(state.vy<0) state.vx*=definition.grenadeGroundRetention;
+                if(state.vy<0) {state.vx*=definition.grenadeGroundRetention;ground=true;}
                 state.vy=-state.vy*definition.grenadeRestitution;
                 collided=true;
             }
@@ -128,8 +130,11 @@ namespace Remains.Domain
                 // A bottle may break by its speed into the surface; it then ends at once with the velocity it hit with.
                 if(definition.fire!=null && definition.fire.shatter && FireRules.Shatters(definition.fire,impact,state.id,state.impacts++))
                 {
-                    state.shattered=true;state.impactVx=incoming.x;state.impactVy=incoming.y;state.remaining=0;
+                    state.shattered=true;state.impactVx=incoming.x;state.impactVy=incoming.y;state.fuel=state.remaining;state.remaining=0;
                 }
+                // Unbroken and come to rest on the ground: it lies and burns its fuel out as a torch.
+                else if(ground && definition.fire!=null && definition.fire.shatter && Mathf.Abs(state.vx)<BottleRest && Mathf.Abs(state.vy)<BottleRest)
+                {state.fuel=state.remaining;state.remaining=0;state.vx=state.vy=0;}
             }
             return impact;
         }

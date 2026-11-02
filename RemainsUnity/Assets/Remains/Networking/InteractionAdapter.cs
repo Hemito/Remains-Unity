@@ -110,7 +110,7 @@ namespace Remains.Networking
         private static void Apply(GrenadeState state,GrenadePoseMessage message)
         {state.x=message.x;state.y=message.y;state.vx=message.vx;state.vy=message.vy;state.remaining=message.remaining;state.simulationRemainder=message.simulationRemainder;state.sequence=message.sequence;
             state.rotationVersion=1;state.angle=message.angle;state.angularVelocity=message.angularVelocity;state.mirrored=message.mirrored;
-            state.shattered=message.shattered;state.impactVx=message.impactVx;state.impactVy=message.impactVy;}
+            state.shattered=message.shattered;state.impactVx=message.impactVx;state.impactVy=message.impactVy;state.fuel=message.fuel;}
         private void GrenadePose(NetworkConnectionToClient connection,GrenadePoseMessage message)
         {
             var actor=session.ConnectedActor(connection);
@@ -127,7 +127,8 @@ namespace Remains.Networking
             if(message.detonate && WeaponCatalog.Get(grenade.weapon).IsFire)
             {
                 // A fire grenade or bottle splashes burning droplets instead of a blast (FireRules).
-                if(FireRules.Ignite(session.ServerWorld,grenade,session.LevelTime.ReadServer(grenade.level))==null) return;
+                // No fire when a bottle burnt all its fuel in flight; the bottle is gone either way.
+                FireRules.Ignite(session.ServerWorld,grenade,session.LevelTime.ReadServer(grenade.level));
                 session.CommitWorld();
             }
             else if(message.detonate)
@@ -146,7 +147,7 @@ namespace Remains.Networking
             NetworkClient.Send(new GrenadePoseMessage {id=state.id,generation=state.generation,sequence=state.sequence,
                 x=state.x,y=state.y,vx=state.vx,vy=state.vy,remaining=state.remaining,simulationRemainder=state.simulationRemainder,
                 angle=state.angle,angularVelocity=state.angularVelocity,mirrored=state.mirrored,detonate=detonate,enemyHits=enemyHits,
-                shattered=state.shattered,impactVx=state.impactVx,impactVy=state.impactVy});
+                shattered=state.shattered,impactVx=state.impactVx,impactVy=state.impactVy,fuel=state.fuel});
         }
         public void GrabProp(string prop,bool release)
         {
