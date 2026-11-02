@@ -57,6 +57,9 @@ namespace Remains.Gameplay
             }
             if(session.World==null) {flights.Clear();observedExplosions.Clear();return;}
             foreach(var state in session.World.grenades) Accept(state);
+            // Diagnostics (PT-20261103-08, a grenade snagging mid-flight): a flight dropped while it still flies.
+            foreach(var f in flights) if(f.state.remaining>0 && !session.World.grenades.Any(g=>g.id==f.state.id))
+                UnityEngine.Debug.LogWarning($"Граната {f.state.id}: полёт снят до конца запала (нет в мире): позиция={f.state.Position}, осталось={f.state.remaining:0.00} с, поколение={f.state.generation}, владелец={f.state.owner}.");
             flights.RemoveAll(f=>!session.World.grenades.Any(g=>g.id==f.state.id));
         }
         private void Accept(GrenadeState state)
@@ -70,7 +73,28 @@ namespace Remains.Gameplay
             }
             if(state.generation<flight.state.generation) return;
             if(state.generation!=flight.state.generation || (state.owner!=session.LocalOwner && unchecked((int)(state.sequence-flight.state.sequence))>0))
-            {flight.state=state.Copy();flight.requested=false;}
+            {
+                // Diagnostics (PT-20261103-08): the simulated flight replaced by the world's state — a jump of this size.
+                UnityEngine.Debug.LogWarning($"Граната {state.id}: полёт заменён состоянием мира: поколение {flight.state.generation}→{state.generation}, "+
+                    $"владелец {flight.state.owner}→{state.owner} (свой {session.LocalOwner}), номер {flight.state.sequence}→{state.sequence}, "+
+                    $"скачок {Vector2.Distance(flight.state.Position,state.Position):0.00} м ({flight.state.Position}→{state.Position}), скорость {flight.state.Velocity}→{state.Velocity}.");
+                flight.state=state.Copy();flight.requested=false;
+            }
+        }
+        // Diagnostics (PT-20261103-08): the first impacts of each flight with the surfaces near it (an invisible snag shows
+        // which surface it is). Only on impacts, at most ImpactLogLimit per grenade.
+        private const int ImpactLogLimit=8;
+        private readonly Dictionary<string,int> loggedImpacts=new(StringComparer.Ordinal);
+        private void LogImpact(GrenadeState state,Vector2 before,float speed,RoomLayout room)
+        {
+            loggedImpacts.TryGetValue(state.id,out int count);if(count>=ImpactLogLimit) return;loggedImpacts[state.id]=count+1;
+            var box=new Rect(Mathf.Min(before.x,state.x)-.3f,Mathf.Min(before.y,state.y)-.3f,Mathf.Abs(state.x-before.x)+.6f,Mathf.Abs(state.y-before.y)+.6f);
+            var near=new System.Text.StringBuilder();int shown=0;
+            if(room?.platforms!=null) foreach(var surface in room.platforms)
+                if(box.Overlaps(new Rect(surface.x,surface.y,surface.width,surface.height)) && shown++<4)
+                    near.Append($" [{surface.x:0.00};{surface.y:0.00} {surface.width:0.00}×{surface.height:0.00}{(surface.oneWay?" односторонняя":"")}{(surface.sourceDoorId!=null?" дверь "+surface.sourceDoorId:"")}]");
+            UnityEngine.Debug.Log($"Граната {state.id}: удар {count+1} со скоростью {speed:0.00} м/с, {before}→{state.Position}, скорость теперь {state.Velocity}, "+
+                $"осталось {state.remaining:0.00} с, владелец {state.owner} (свой {session.LocalOwner}); поверхности рядом:{(shown==0?" нет":near.ToString())}.");
         }
         private readonly ConnectedPlayers connected=new();
         public void Step(float dt)
@@ -85,8 +109,10 @@ namespace Remains.Gameplay
                 if(session.Pause.IsPaused(state.level)) continue;
                 if(state.remaining>0)
                 {
-                    float speed=GrenadeRules.Step(state,geometry.Get(state.level),dt);
+                    var before=state.Position;var room=geometry.Get(state.level);
+                    float speed=GrenadeRules.Step(state,room,dt);
                     if(speed>0 && state.owner==session.LocalOwner) Impact?.Invoke(state,speed);
+                    if(speed>0) LogImpact(state,before,speed,room);
                 }
                 if(state.remaining<=0)
                 {

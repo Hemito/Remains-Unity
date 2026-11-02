@@ -149,6 +149,8 @@ namespace Remains.Domain
                 if(players.Any(a=>a.owner==grenade.owner && a.level==grenade.level)) continue;
                 string owner=NearbySimulationClient.Select(players,grenade.level,grenade.Position);
                 if(grenade.owner==owner) continue;
+                // Diagnostics (PT-20261103-08): a new owner and generation make every peer restart the flight from the world's state.
+                Debug.LogWarning($"Граната {grenade.id}: владелец {grenade.owner}→{owner}, поколение {grenade.generation}→{grenade.generation+1}, позиция {grenade.Position}, осталось {grenade.remaining:0.00} с.");
                 grenade.owner=owner;grenade.generation++;grenade.sequence=0;
                 changed=true;
             }
