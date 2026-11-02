@@ -13,6 +13,7 @@ namespace Remains.Content
         public const int Schema=2;
         [SerializeField,HideInInspector] private int schema;
         [SerializeField,HideInInspector] private string visualId,anatomy,sourceHash,baseSourceHash,contentFingerprint;
+        [SerializeField,HideInInspector] private string authoredHash;
         [SerializeField,HideInInspector] private WearableRenderClip[] clips;
         [SerializeField,HideInInspector] private PonyRenderSymbol[] symbols;
         public PonyRenderSymbol[] Symbols=>symbols;
@@ -21,11 +22,11 @@ namespace Remains.Content
         public string BaseSourceHash=>baseSourceHash;public string ContentFingerprint=>contentFingerprint;
         public WearableRenderClip[] Clips=>clips;
         public void Configure(string id,string actorAnatomy,string source,string baseSource,string fingerprint,WearableRenderClip[] values)
-        {schema=Schema;visualId=id;anatomy=actorAnatomy;sourceHash=source;baseSourceHash=baseSource;contentFingerprint=fingerprint;clips=values;}
+        {schema=Schema;visualId=id;anatomy=actorAnatomy;sourceHash=source;baseSourceHash=baseSource;authoredHash=PonyAuthoredClips.Fingerprint;contentFingerprint=fingerprint;clips=values;}
         public void Validate(PonyLibrary library,string expectedBaseHash,string context)
         {
             if(schema!=Schema || string.IsNullOrWhiteSpace(visualId) || string.IsNullOrWhiteSpace(anatomy) || string.IsNullOrWhiteSpace(sourceHash) ||
-                string.IsNullOrWhiteSpace(contentFingerprint) || baseSourceHash!=expectedBaseHash || library?.clips==null || clips==null || clips.Length!=library.clips.Length)
+                string.IsNullOrWhiteSpace(contentFingerprint) || baseSourceHash!=expectedBaseHash || authoredHash!=PonyAuthoredClips.Fingerprint || library?.clips==null || clips==null || clips.Length!=library.clips.Length)
                 throw new InvalidOperationException($"Графика снаряжения не подготовлена: visual={visualId}, source={context}, schema={schema}, baseHash={baseSourceHash}, expected={expectedBaseHash}.");
             var seen=new HashSet<string>(StringComparer.Ordinal);
             foreach(var clip in clips)

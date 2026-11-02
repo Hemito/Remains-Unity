@@ -54,7 +54,7 @@ namespace Remains.Editor
         public static JObject Export(out JObject summary)
         {
             PonyAnimationData.Load();var library=PonyAnimationData.Library;var layout=new PonySymbolLayout(library);
-            var wear=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/pip").text);PonyAuthoredClips.Extend(wear,"pip");
+            var wear=StateJson.FromJson<WearableSourceBank>(GameAssets.Load<TextAsset>("Original/Pony/Wearables/pip").text);PonyAuthoredBuildPlans.Extend(wear,"pip");
             var reference=PonyAnimationArtwork.Prepare();var restWear=wear.clips.Single(c=>c.id=="idle").frames[0];
             var restTorso=Node(reference,"torso").transform.Matrix;
             var outerRest=new Dictionary<string,Matrix4x4>(StringComparer.Ordinal);

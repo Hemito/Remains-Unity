@@ -25,6 +25,7 @@ namespace Remains.Content
         public const int CompilerVersion=5;
         [SerializeField,HideInInspector] private int compilerVersion;
         [SerializeField,HideInInspector] private string sourceHash;
+        [SerializeField,HideInInspector] private string authoredHash;
         [SerializeField,HideInInspector] private PonyRenderClip[] clips;
         [SerializeField,HideInInspector] private string headSourceHash;
         [SerializeField,HideInInspector] private PonyRenderHeadStyle[] headStyles;
@@ -42,13 +43,13 @@ namespace Remains.Content
         public void Configure(PonyRenderClip[] value)=>Configure(value,Array.Empty<PonyRenderHeadStyle>());
         public void Configure(PonyRenderClip[] value,PonyRenderHeadStyle[] heads)
         {
-            PonyHeadCatalog.Load();clips=value;headStyles=heads;sourceHash=SourceHash();
+            PonyHeadCatalog.Load();clips=value;headStyles=heads;sourceHash=SourceHash();authoredHash=PonyAuthoredClips.Fingerprint;
             headSourceHash=PonyHeadCatalog.SourceHash;compilerVersion=CompilerVersion;
         }
         public void Validate()
         {
             PonyHeadCatalog.Load();
-            if(compilerVersion!=CompilerVersion || sourceHash!=SourceHash() || headSourceHash!=PonyHeadCatalog.SourceHash || clips==null || clips.Length==0)
+            if(compilerVersion!=CompilerVersion || sourceHash!=SourceHash() || authoredHash!=PonyAuthoredClips.Fingerprint || headSourceHash!=PonyHeadCatalog.SourceHash || clips==null || clips.Length==0)
                 throw new InvalidOperationException("Графика пони отсутствует или устарела. Выполните Remains → Пересобрать графику пони.");
             var baseline=new Dictionary<string,PonyRenderClip>(StringComparer.Ordinal);
             if(symbols==null || symbols.Length==0)throw new InvalidOperationException("Нет библиотеки локальных символов пони.");
