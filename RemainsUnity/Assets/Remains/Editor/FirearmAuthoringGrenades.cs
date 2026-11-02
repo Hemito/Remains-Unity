@@ -6,6 +6,7 @@ using System.Xml.Linq;
 using Newtonsoft.Json.Linq;
 using Remains.Content;
 using Remains.Domain;
+using Remains.Presentation;
 using Remains.Serialization;
 using UnityEditor;
 using UnityEngine;
@@ -69,6 +70,8 @@ namespace Remains.Editor
             {
                 var renderer=node.AddComponent<SpriteRenderer>();renderer.sprite=flying[0];
                 renderer.sharedMaterial=AssetDatabase.LoadAssetAtPath<Material>(PrefabFolder+"/"+file+".mat");
+                var artwork=node.AddComponent<WeaponView>();artwork.Configure(id,renderer,null);
+                artwork.ConfigureRest(CatalogSpriteAuthoring.Reference(flying[0]));
                 flight=PrefabUtility.SaveAsPrefabAsset(node,flightPath).GetComponent<SpriteRenderer>();
             }
             finally {UnityEngine.Object.DestroyImmediate(node);}

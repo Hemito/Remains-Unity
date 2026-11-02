@@ -25,11 +25,12 @@ namespace Remains.Editor
         }
         public static void RunBellyPillowBatch()
         {
-            try{Run(BedRest.Belly,-1,.2f);EditorApplication.Exit(0);}catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
+            try{Run(BedRest.Belly);EditorApplication.Exit(0);}catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
         }
-        public static void Run(string pose=BedRest.Back,int facing=1,float bedOffsetFraction=0)
+        public static void Run(string pose=BedRest.Back)
         {
             Directory.CreateDirectory(Output);ActorTypes.Load();WeaponCatalog.Load();Anatomy.Load();PonyVisual.Prepare();
+            BedRestChecks.Run();
             PonyAuthoredWardrobeChecks.Run();
             var input=JObject.Parse(File.ReadAllText("Assets/Remains/Editor/PonyAnimation/Authored/Published/bed-back-confirmed.json"));
             var expected=input["frames"][0]["nodes"].ToDictionary(n=>(string)n["socket"],n=>n,StringComparer.Ordinal);
@@ -55,9 +56,9 @@ namespace Remains.Editor
             var marker=room.GetComponentsInChildren<RoomTemplateObjectPoint>().First(p=>p.Type==FactoryRestAdapter.BedType);
             var bed=new RoomRest {id="bed-exact-check",x=marker.transform.position.x-marker.Width*room.Cell*.5f,y=marker.transform.position.y,width=marker.Width*room.Cell,height=.56f};
             var actor=new ActorState {id="bed-exact-pony",player=true,connected=true,anatomy="pony",actorType="pony",weapon=null,
-                appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion},x=bed.x+bed.width*.5f,y=bed.y,facing=facing};
+                appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion},x=bed.x+bed.width*.5f,y=bed.y};
             BedRest.LieDown(actor,bed,pose);
-            actor.x+=bed.width*bedOffsetFraction;
+            int facing=actor.facing;float bedOffsetFraction=(actor.x-bed.x)/bed.width-.5f;
             var visual=(PonyVisual)ActorVisualFactory.Create(actor);visual.ConfigureMagicPreview(0);visual.Bind(actor);visual.DrawPose(actor.poseTime);
             var camera=new GameObject("Точная поза на кровати").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=1.45f;
             camera.transform.position=new Vector3(bed.x+bed.width*.5f,bed.y+.95f,-10);camera.backgroundColor=new Color(.2f,.23f,.26f);

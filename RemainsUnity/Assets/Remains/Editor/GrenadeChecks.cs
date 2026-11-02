@@ -457,7 +457,7 @@ namespace Remains.Editor
                 Require(Mathf.Approximately(definition.damage,damage) && Mathf.Approximately(definition.range,range) && Mathf.Approximately(definition.grenadeFuseSeconds,fuse) &&
                     definition.damageType==type,$"Граната {id}: урон {definition.damage}, радиус {definition.range}, запал {definition.grenadeFuseSeconds}, тип {definition.damageType}");
                 Require(ExportedContentCatalog.Load().CreateFormalItem(id,0,1).definition==id,"Формальный предмет не совпадает с гранатой "+id);
-                Require(Remains.Presentation.GrenadeArtwork.LoadPrefab(id).sprite!=null,"Нет рисунка полёта "+id);
+                Require(Remains.Presentation.GrenadeArtwork.ResolveSprite(Remains.Presentation.GrenadeArtwork.LoadPrefab(id))!=null,"Нет рисунка полёта "+id);
             }
             var actor=new ActorState {id="thrower",player=true,connected=true,weaponInventoryVersion=1};
             var frag=SharedInventory.Create("grenade",2);var plasma=SharedInventory.Create("item:plagr",1);

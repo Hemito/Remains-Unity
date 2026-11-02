@@ -15,9 +15,23 @@ namespace Remains.Presentation
             if(definition==null || definition.GrenadeFlight==null)
                 throw new InvalidOperationException($"Граната {weapon}: не назначен префаб полёта в каталоге оружия.");
             var prefab=definition.GrenadeFlight;
-            if(prefab.sprite==null || prefab.sharedMaterial==null)
+            if(prefab.sharedMaterial==null)
                 throw new InvalidOperationException($"Префаб гранаты {prefab.name}: отсутствует спрайт или материал.");
+            ResolveSprite(prefab);
             return prefab;
+        }
+        // Catalog art is a key on WeaponView, resolved when instantiated, just like a held weapon. Handmade
+        // grenades still own their direct sprite. Resolving never writes a runtime sprite into the prefab asset.
+        public static Sprite ResolveSprite(SpriteRenderer prefab)
+        {
+            if(prefab==null)throw new ArgumentNullException(nameof(prefab));
+            var view=prefab.GetComponent<WeaponView>();
+            if(view!=null)
+            {
+                if(view.Artwork!=prefab)throw new InvalidOperationException($"Граната {prefab.name}: ссылка графики указывает на другой renderer.");
+                return view.ResolveRestSprite();
+            }
+            return prefab.sprite??throw new InvalidOperationException($"Префаб гранаты {prefab.name}: нет прямого рисунка или ссылки каталога.");
         }
     }
 }

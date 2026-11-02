@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4330080054961263498}
   - component: {fileID: 4495439172196284559}
+  - component: {fileID: 967676731069396889}
   m_Layer: 0
   m_Name: grenade-molotov-flight
   m_TagString: Untagged
@@ -76,7 +77,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: a675f393216f60d44a2a219caf2b6199, type: 2}
+  m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -84,6 +85,38 @@ SpriteRenderer:
   m_Size: {x: 0.36, y: 0.66}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &967676731069396889
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6531354939113089634}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e15d8eb3ee106e9479eb9c6f1eb9fe42, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  id: item:molotov
+  artwork: {fileID: 4495439172196284559}
+  muzzle: {fileID: 0}
+  restReference:
+    key: Imported/Art/c2ba99da3cbf598ff28e249275527c47b0a7e93984ba83435fe015468d32d8d5
+    direct: {fileID: 0}
+    rect:
+      serializedVersion: 2
+      x: 0
+      y: 0
+      width: 144
+      height: 264
+    pivot: {x: 51.2, y: 82.8}
+    pixelsPerUnit: 400
+    bounds:
+      m_Center: {x: 0.052, y: 0.122999996, z: 0}
+      m_Extent: {x: 0.18, y: 0.33, z: 0.1}
+    rasterReason:
+    reframe: 0
+    sourceCanvas: {x: 144, y: 264}

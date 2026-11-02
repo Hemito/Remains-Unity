@@ -18,8 +18,8 @@ namespace Remains.Editor
             Require(BedRest.Rejection(far,bed)!=null,"издалека лечь нельзя");
 
             BedRest.LieDown(actor,bed,BedRest.Belly);
-            Require(BedRest.Active(actor) && Mathf.Approximately(actor.x,3.6f) && Mathf.Approximately(actor.y,.56f) && actor.vx==0 && actor.vy==0,
-                $"лежит на середине верха кровати: ({actor.x}; {actor.y})");
+            Require(BedRest.Active(actor) && Mathf.Approximately(actor.x,4.24f) && actor.facing==-1 && Mathf.Approximately(actor.y,.56f) && actor.vx==0 && actor.vy==0,
+                $"лежит лицом к подушке со сдвигом вправо: ({actor.x}; {actor.y})");
             Require(ActorPose.Clip(actor)==BedRest.BellyClip && ActorPose.HoldsLastFrame(actor),"на животе — последний кадр падения");
             Require(BedRest.Rejection(actor,bed)!=null,"лежащий не ложится второй раз");
             actor.vx=3;
@@ -27,6 +27,7 @@ namespace Remains.Editor
             Require(!BedRest.Step(actor,true) && !BedRest.Active(actor) && ActorPose.Clip(actor)=="idle" && !ActorPose.HoldsLastFrame(actor),"W или пробел — встаёт");
 
             BedRest.LieDown(actor,bed,BedRest.Back);
+            Require(Mathf.Approximately(actor.x,3.6f) && actor.facing==1,"на спине — исходная середина и направление");
             Require(ActorPose.Clip(actor)==BedRest.BackClip,"на спине — своя поза");
             actor.down=true;
             Require(!BedRest.Step(actor,false) && !BedRest.Active(actor),"сбитый с ног покидает кровать");
