@@ -23,7 +23,11 @@ namespace Remains.Editor
         {
             try{Run(BedRest.Belly);EditorApplication.Exit(0);}catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
         }
-        public static void Run(string pose=BedRest.Back)
+        public static void RunBellyPillowBatch()
+        {
+            try{Run(BedRest.Belly,-1);EditorApplication.Exit(0);}catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+        public static void Run(string pose=BedRest.Back,int facing=1)
         {
             Directory.CreateDirectory(Output);ActorTypes.Load();WeaponCatalog.Load();Anatomy.Load();PonyVisual.Prepare();
             PonyAuthoredWardrobeChecks.Run();
@@ -51,7 +55,7 @@ namespace Remains.Editor
             var marker=room.GetComponentsInChildren<RoomTemplateObjectPoint>().First(p=>p.Type==FactoryRestAdapter.BedType);
             var bed=new RoomRest {id="bed-exact-check",x=marker.transform.position.x-marker.Width*room.Cell*.5f,y=marker.transform.position.y,width=marker.Width*room.Cell,height=.56f};
             var actor=new ActorState {id="bed-exact-pony",player=true,connected=true,anatomy="pony",actorType="pony",weapon=null,
-                appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion},x=bed.x+bed.width*.5f,y=bed.y};
+                appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion},x=bed.x+bed.width*.5f,y=bed.y,facing=facing};
             BedRest.LieDown(actor,bed,pose);
             var visual=(PonyVisual)ActorVisualFactory.Create(actor);visual.ConfigureMagicPreview(0);visual.Bind(actor);visual.DrawPose(actor.poseTime);
             var camera=new GameObject("Точная поза на кровати").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=1.45f;
@@ -59,6 +63,7 @@ namespace Remains.Editor
             try
             {
                 string prefix=pose==BedRest.Back?"bed-back":"bed-belly";
+                if(facing<0)prefix+="-left";
                 Require(visual.DrawnClip==BedRest.Clip(actor),"выбран клип позы на кровати: "+pose);
                 Capture(prefix+"-warmup.png");Capture(prefix+"-bare.png");
                 visual.TryGetDrawnBounds(out var bareBounds);
@@ -73,11 +78,12 @@ namespace Remains.Editor
                 Require(visual.DrawnIdle==null && Mathf.Abs(actor.y-bed.y-bed.height)<.00001f,"кровать сохраняет якорь и не получает idle");
                 if(pose==BedRest.Back)Require(actor.BodyPosition==actor.Position,"на спине нет опоры копыт");
                 var report=new JObject { ["pass"]=true,["verifiedAuthoredInput"]="bed-back (3).json",["verifiedAuthoredNodes"]=verified,["maxMatrixError"]=matrixError,
-                    ["authoredBankIndependent"]=true,["pose"]=pose,["drawnClip"]=visual.DrawnClip,["template"]=template.Template,["mattressY"]=bed.y+bed.height,["actorY"]=actor.y,
+                    ["authoredBankIndependent"]=true,["pose"]=pose,["facing"]=facing,["drawnClip"]=visual.DrawnClip,["template"]=template.Template,["mattressY"]=bed.y+bed.height,["actorY"]=actor.y,
                     ["drawnBoundsMinY"]=bareBounds.min.y,["note"]=pose==BedRest.Back?
                         "Готовая поза без смены формы; y=0 JSON совмещён с высотой лежанки. Голова может выступать ниже линии.":
                         "Исходная поза down, последний кадр; штатная опора копыт сохранена." };
-                File.WriteAllText(Path.Combine(Output,pose==BedRest.Back?"report.json":"report-belly.json"),report.ToString());Debug.Log("Точная поза на кровати: PASS — "+report.ToString(Newtonsoft.Json.Formatting.None));
+                string reportFile=facing<0?"report-"+pose+"-left.json":pose==BedRest.Back?"report.json":"report-belly.json";
+                File.WriteAllText(Path.Combine(Output,reportFile),report.ToString());Debug.Log("Точная поза на кровати: PASS — "+report.ToString(Newtonsoft.Json.Formatting.None));
             }
             finally{Object.DestroyImmediate(camera.gameObject);Object.DestroyImmediate(visual.gameObject);Object.DestroyImmediate(room.gameObject);}
             void Capture(string file)=>Runtime.NetworkFrameCapture.Save(camera,Path.Combine(Output,file),width:1280,height:800);
