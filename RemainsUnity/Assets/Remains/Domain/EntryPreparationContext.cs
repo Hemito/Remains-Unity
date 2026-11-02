@@ -73,7 +73,7 @@ namespace Remains.Domain
             detachedWorld.movingPlatforms=detachedWorld.movingPlatforms.Where(platform=>platform.level==level).ToList();
             detachedWorld.mechanismButtons=detachedWorld.mechanismButtons.Where(button=>button.level==level).ToList();
             detachedWorld.props.Clear();detachedWorld.containers.Clear();detachedWorld.container=null;
-            detachedWorld.projectiles.Clear();detachedWorld.grenades.Clear();detachedWorld.explosions.Clear();
+            detachedWorld.projectiles.Clear();detachedWorld.grenades.Clear();detachedWorld.fires.Clear();detachedWorld.explosions.Clear();
             detachedWorld.pendingGrants.Clear();detachedWorld.pendingDeposits.Clear();detachedWorld.completedTransactions.Clear();
             return detachedWorld;
         }

@@ -1,0 +1,101 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf493898d1690241a5bd26ce5bda2c9, type: 3}
+  m_Name: grenade-molotov
+  m_EditorClassIdentifier: 
+  definition:
+    id: item:molotov
+    damageType: fire
+    damage: 20
+    speedDamage: 0
+    maxSpeedDamage: 0
+    range: 3
+    cooldown: 1
+    manaCost: 0
+    ammo: 
+    magazineSize: 0
+    ammoPerShot: 0
+    reloadSeconds: 0
+    projectileSpeed: 0
+    projectileSpeedVariation: 0
+    projectileLifetime: 0
+    rechargeSeconds: 0
+    shotSpreadHalfAngleDegrees: 0
+    recoil:
+      version: 1
+      enabled: 0
+      horizontalPeak: 0
+      anglePeakDegrees: 0
+      riseSeconds: 0
+      positionReturnSeconds: 0
+      angleReturnSeconds: 0
+      maxHorizontal: 0
+      maxAngleDegrees: 0
+    explosive: 1
+    mine:
+      sensitivity: 0
+      delaySeconds: 0
+      visibility: 0
+      width: 0
+      height: 0
+      mass: 0
+      artwork: 
+      beepSound: 
+      defuseSound: 
+      placeSound: 
+    grenadeFuseSeconds: 2.5
+    grenadeRestitution: 0.4
+    grenadeGroundRetention: 0.6
+    grenadeGravity: 18
+    grenadeMaxLaunchSpeed: 11.5
+    grenadeFullEffortDistance: 6
+    grenadeAimLift: 0.1
+    grenadeSpinRate: 180
+    grenadeAngularRetention: 0.6
+    meleeContactStart: 0
+    meleeContactEnd: 1
+    meleeMotion: []
+    meleeAroundHold: 0
+    meleeAimOffset: {x: 0, y: 0}
+    holdingArea:
+      version: 1
+      radius: 1
+      climbingRadius: 1
+    strike:
+      behind: 0
+      near: 0
+      far: 0
+      contact: 0
+      heights: []
+    fire:
+      droplets: 15
+      spread: 3.6742346
+      radial: 0
+      patchRadius: 0.35
+      pulseSeconds: 0.33333334
+      pulses: 10
+      pulseDamage: 20
+      igniteDamage: 10
+      igniteSeconds: 7
+      shatter: 1
+      shatterSpeed: 3
+      sureShatterSpeed: 6
+    stopAtFirstActor: 0
+    stopAtTerrain: 0
+    pellets: 0
+    unlimitedReserve: 0
+  presentation: {fileID: 444649581008626589, guid: ea7bffce8c5a1d145b2f2fc9c0058d7b, type: 3}
+  shotAnimation: {fileID: 0}
+  muzzleFlashGain: 1
+  reloadAnimation: {fileID: 0}
+  casingProfile: {fileID: 0}
+  grenadeFlight: {fileID: 4495439172196284559, guid: 1589c643e81100f48a91f17b5a6f2343, type: 3}

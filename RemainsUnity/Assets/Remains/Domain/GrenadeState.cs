@@ -20,6 +20,8 @@ namespace Remains.Domain
         public int rotationVersion;
         public float angle,angularVelocity;
         public bool mirrored;
+        // A bottle (FireSplash.shatter): how many times it hit something, and whether and with what velocity it broke.
+        public int impacts;public bool shattered;public float impactVx,impactVy;
         public Vector2 Position {get=>new(x,y);set {x=value.x;y=value.y;}}
         public Vector2 Velocity {get=>new(vx,vy);set {vx=value.x;vy=value.y;}}
         public GrenadeState Copy()=>JsonUtility.FromJson<GrenadeState>(JsonUtility.ToJson(this));
@@ -105,7 +107,7 @@ namespace Remains.Domain
             var previous=state.Position;
             var acceleration=Vector2.down*definition.grenadeGravity;
             var delta=state.Velocity*dt+acceleration*(.5f*dt*dt);
-            state.Velocity+=acceleration*dt;
+            state.Velocity+=acceleration*dt;var incoming=state.Velocity;
             // Body tops are actor supports only (BodyTopSurfaces); a grenade landing on them hovered and crept (TD-16).
             var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false,bodyTops:false)+Vector2.up*.1f;
             state.Position=moved;
@@ -120,7 +122,15 @@ namespace Remains.Domain
                 state.vy=-state.vy*definition.grenadeRestitution;
                 collided=true;
             }
-            if(collided) state.angularVelocity*=definition.grenadeAngularRetention;
+            if(collided)
+            {
+                state.angularVelocity*=definition.grenadeAngularRetention;
+                // A bottle may break by its speed into the surface; it then ends at once with the velocity it hit with.
+                if(definition.fire!=null && definition.fire.shatter && FireRules.Shatters(definition.fire,impact,state.id,state.impacts++))
+                {
+                    state.shattered=true;state.impactVx=incoming.x;state.impactVy=incoming.y;state.remaining=0;
+                }
+            }
             return impact;
         }
         public static void Reassign(WorldState world,IReadOnlyCollection<string> owners)

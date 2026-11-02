@@ -15,6 +15,7 @@ namespace Remains.Networking
         public float angle,angularVelocity;
         public bool mirrored;
     }
-    public struct GrenadePoseMessage : NetworkMessage {public string id;public int generation;public uint sequence;public float x,y,vx,vy,remaining,angle,angularVelocity;public double simulationRemainder;public bool mirrored,detonate;public string[] enemyHits;}
+    public struct GrenadePoseMessage : NetworkMessage {public string id;public int generation;public uint sequence;public float x,y,vx,vy,remaining,angle,angularVelocity;public double simulationRemainder;public bool mirrored,detonate;public string[] enemyHits;
+        public bool shattered;public float impactVx,impactVy;}
     public struct GrenadeMessage { public string id,attacker,level; public float x,y,vx,vy,fuse; }
 }

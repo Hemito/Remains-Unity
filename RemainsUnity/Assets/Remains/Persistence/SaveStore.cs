@@ -66,7 +66,7 @@ namespace Remains.Persistence
                         world.actors[i]=UpgradeWeaponInventory(world.actors[i],backup);
                 world.revision++;
             }
-            world.grenades ??= new List<GrenadeState>();world.explosions ??= new List<ExplosionState>();
+            world.grenades ??= new List<GrenadeState>();world.fires ??= new List<FireState>();world.explosions ??= new List<ExplosionState>();
             world.projectiles ??= new List<ProjectileState>();
             world.mines ??= new List<MineState>();world.hazards ??= new List<HazardState>();
             foreach(var flight in world.projectiles) flight.Path();

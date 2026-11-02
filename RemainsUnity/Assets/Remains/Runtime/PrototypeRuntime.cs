@@ -73,6 +73,7 @@ namespace Remains.Runtime
         private MovementSettings passiveMovementSettings;
         private NpcController npcs;
         private SpikeController spikes;
+        public FireController Fires {get;private set;}
         private RadiationController radiation;
         private FreePropSimulation freeProps;
         private readonly Dictionary<string,ActorVisual> visuals = new();
@@ -209,6 +210,8 @@ namespace Remains.Runtime
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry,Combat);
             spikes=new SpikeController(Session,Geometry,Combat);
+            Fires=new FireController(Session,Geometry,Combat);
+            CreateOwnedObject("Огонь").AddComponent<FireVisuals>().Initialize(Session,Fires);
             radiation=new RadiationController(Session,Combat);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
             ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();
@@ -622,6 +625,7 @@ namespace Remains.Runtime
             }
             // After every local motion of the frame: the owner decides its actors' spike hits from their motion.
             using(Remains.Diagnostics.FrameHitchLog.Section("Шипы")) spikes.Step();
+            using(Remains.Diagnostics.FrameHitchLog.Section("Огонь")) Fires.Step();
             using(Remains.Diagnostics.FrameHitchLog.Section("Радиация")) radiation.Step(Time.deltaTime);
             using(Remains.Diagnostics.FrameHitchLog.Section("Физические тела")) freeProps.Step(Time.deltaTime);
             using(Remains.Diagnostics.FrameHitchLog.Section("Бой")) Combat.Step(Time.deltaTime);

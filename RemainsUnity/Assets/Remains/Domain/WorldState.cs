@@ -53,6 +53,8 @@ namespace Remains.Domain
         public bool crouched;
         // The bed it lies on (RoomLayout.beds id) and how (BedRest.Belly/Back); empty when not resting.
         public string rest,restPose;
+        // Burning (FireRules: dop igni): on this level until burnUntil (its level time), burnDamage at every burnNext.
+        public string burnLevel;public double burnUntil,burnNext;public float burnDamage;
         public int holdEpoch;
         public ActorHoldState hold;
         [NonSerialized] public float crouchPressSeconds;
@@ -151,6 +153,7 @@ namespace Remains.Domain
         public List<LampState> lamps = new();
         public long lampRevision;
         public List<GrenadeState> grenades = new();
+        public List<FireState> fires = new();
         public List<ProjectileState> projectiles = new();
         public List<ExplosionState> explosions = new();
         public List<MineState> mines = new();

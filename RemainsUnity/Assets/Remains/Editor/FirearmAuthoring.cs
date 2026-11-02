@@ -109,7 +109,7 @@ namespace Remains.Editor
 
             // Hand grenades with a plain blast (tip 4, FirearmAuthoringGrenades).
             var baseGrenade=weapons.AllAssets().Single(a=>a.Id=="grenade").CreateDefinition();int grenades=0;
-            foreach(string wid in PlainGrenades)
+            foreach(string wid in PlainGrenades.Concat(FireGrenades))
             {
                 var row=((JArray)catalog["definitions"]).OfType<JObject>().Single(r=>(string)r["category"]=="weapon" && (string)r["id"]==wid);
                 string reason=Grenade(wid,XElement.Parse((string)row["rawXml"]),((JArray)row["graphics"]).OfType<JObject>().ToArray(),exported,baseGrenade,list,audio,assets);

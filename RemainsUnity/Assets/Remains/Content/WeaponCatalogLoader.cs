@@ -149,6 +149,11 @@ namespace Remains.Content
             catch(InvalidOperationException error)
             {throw new InvalidDataException($"Некорректный тип урона: источник={source}, weapon={weapon.id}, damageType={weapon.damageType}. "+error.Message,error);}
             WeaponRecoilProfile.ValidateForWeapon(weapon,$"источник={source}");
+            // Burning droplets only on a grenade, complete, with a break band in order (FireSplash).
+            if(weapon.fire!=null && (weapon.fire.droplets>0 || weapon.fire.pulses>0) && (!weapon.IsFire ||
+                !(weapon.fire.pulseDamage>=0 && weapon.fire.igniteDamage>=0 && weapon.fire.igniteSeconds>=0 && weapon.fire.spread>=0) ||
+                weapon.fire.shatter && !(weapon.fire.shatterSpeed>0 && weapon.fire.sureShatterSpeed>=weapon.fire.shatterSpeed)))
+                throw new InvalidDataException($"Некорректные огненные брызги: источник={source}, weapon={weapon.id}.");
             bool usesHoldingArea=weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar" || weapon.IsGrenade;
             if(usesHoldingArea) weapon.holdingArea.Validate($"источник={source}, weapon={weapon.id}");
             else if(!weapon.holdingArea.Inapplicable)

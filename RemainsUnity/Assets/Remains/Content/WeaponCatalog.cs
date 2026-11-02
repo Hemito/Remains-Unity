@@ -52,6 +52,9 @@ namespace Remains.Content
         public HoldingArea holdingArea;
         // A body strike (original WKick), not an inventory weapon: see StrikeProfile.
         [InspectorName("Удар телом (WKick)")] public StrikeProfile strike;
+        // A grenade that splashes burning droplets instead of a blast (molotov, incendiary grenade): see FireSplash.
+        [InspectorName("Огненные брызги")] public FireSplash fire;
+        public bool IsFire=>IsGrenade && fire!=null && fire.Configured;
         public Vector2 ProjectileSpeedRange=>new(projectileSpeed*(1-projectileSpeedVariation),projectileSpeed*(1+projectileSpeedVariation));
         public float FlightRange(float speed)=>projectileLifetime>0?speed*projectileLifetime:range;
         public bool stopAtFirstActor,stopAtTerrain;
@@ -74,6 +77,27 @@ namespace Remains.Content
         [Range(0,1),InspectorName("Момент контакта, доля удара")] public float contact;
         [InspectorName("Высоты отрезков от опоры, м")] public float[] heights;
         public bool Configured=>heights!=null && heights.Length>0;
+    }
+    // Burning droplets (FireRules; user 2026-11-02: a splash with inertia, damage only from the burning patches). The
+    // original's numbers: a pulse every explPeriod 10 frames, explkol pulses, damexpl per pulse, dop igni burning for 7 s.
+    [Serializable] public sealed class FireSplash
+    {
+        [Min(0),InspectorName("Капель")] public int droplets;
+        [Min(0),InspectorName("Разлёт капель, м/с")] public float spread;
+        [InspectorName("Во все стороны (граната), иначе с инерцией бутылки")] public bool radial;
+        [Min(0),InspectorName("Радиус горящего пятна, м")] public float patchRadius;
+        [Min(0),InspectorName("Вспышка урона раз в, с")] public float pulseSeconds;
+        [Min(0),InspectorName("Вспышек у пятна")] public int pulses;
+        [Min(0),InspectorName("Урон вспышки")] public float pulseDamage;
+        [Min(0),InspectorName("Поджог: урон в секунду")] public float igniteDamage;
+        [Min(0),InspectorName("Поджог: секунд")] public float igniteSeconds;
+        // A bottle (bumc): it may break on impact — never below shatterSpeed, surely from sureShatterSpeed, by chance between;
+        // one that never breaks burns from its neck as a torch: one patch for droplets × pulses.
+        [InspectorName("Бутылка: бьётся от удара")] public bool shatter;
+        [Min(0),InspectorName("Не бьётся медленнее, м/с")] public float shatterSpeed;
+        [Min(0),InspectorName("Бьётся наверняка от, м/с")] public float sureShatterSpeed;
+        public bool Configured=>droplets>0 && pulses>0 && pulseSeconds>0 && patchRadius>0;
+        public float PatchSeconds=>pulses*pulseSeconds;
     }
     [Serializable] public sealed class WeaponList { public WeaponDefinition[] weapons; }
     [Serializable] public sealed class ModOrder { public string[] mods; }
