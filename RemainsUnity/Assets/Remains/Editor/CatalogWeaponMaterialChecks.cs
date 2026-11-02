@@ -33,20 +33,22 @@ namespace Remains.Editor
                     throw new InvalidOperationException("Изменён контракт прохода WorldLit: "+path);
                 materials.Add(material);
             }
-            int prefabs=0;
+            int prefabs=0;var usedMaterials=new HashSet<Material>();
             foreach(string path in Directory.GetFiles(Folder,"*.prefab",SearchOption.TopDirectoryOnly).Select(path=>path.Replace('\\','/')))
             {
                 var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 var weapon=prefab==null?null:prefab.GetComponent<WeaponView>();
                 if(weapon==null || weapon.Artwork==null || !materials.Contains(weapon.Artwork.sharedMaterial))
                     throw new InvalidOperationException("Оружие не связано с подготовленным SpriteRenderer-материалом: "+path);
+                usedMaterials.Add(weapon.Artwork.sharedMaterial);
                 foreach(var renderer in prefab.GetComponentsInChildren<Renderer>(true))
                     if(renderer.sharedMaterials.Any(materials.Contains) && renderer is not SpriteRenderer)
                         throw new InvalidOperationException("Материал без текстуры используется вне SpriteRenderer: "+path+", renderer="+renderer.name);
                 prefabs++;
             }
-            if(materials.Count!=105 || prefabs!=105)
-                throw new InvalidOperationException($"Изменился набор графики оружия: материалов={materials.Count}, префабов={prefabs}; ожидается 105/105.");
+            // The catalog grows (melee and flight prefabs share materials); validate linkage, not an old snapshot count.
+            if(materials.Count==0 || prefabs==0 || !materials.SetEquals(usedMaterials))
+                throw new InvalidOperationException($"Неполный набор графики оружия: материалов={materials.Count}, используемых={usedMaterials.Count}, префабов={prefabs}.");
             Debug.Log($"Материалы оружия: PASS — {materials.Count}, PNG-ссылок нет; {prefabs} префабов используют SpriteRenderer, единственный WorldLit pass читает SampleSpriteTexture с PerRendererData.");
         }
     }

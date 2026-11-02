@@ -108,7 +108,12 @@ namespace Remains.Editor
             File.WriteAllLines(Path.Combine(output,"reference-scan.txt"),result.Count==0?new[]{"PASS: 0 references (Editor sources excluded)"}:result);
             return result;
         }
-        public void OnPreprocessBuild(BuildReport report) {Validate();CatalogWeaponMaterialChecks.Run();}
+        public void OnPreprocessBuild(BuildReport report)
+        {
+            try {Validate();CatalogWeaponMaterialChecks.Run();}
+            catch(BuildFailedException) {throw;}
+            catch(Exception error) {throw new BuildFailedException("Не пройдена проверка графики перед сборкой: "+error);}
+        }
         public void OnPostprocessBuild(BuildReport report)
         {
             var excluded=CoveredPaths();var found=new List<string>();var details=new List<string>();var shipped=new HashSet<string>(StringComparer.Ordinal);
