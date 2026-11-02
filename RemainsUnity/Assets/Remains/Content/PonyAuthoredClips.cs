@@ -48,7 +48,8 @@ namespace Remains.Content
                 }
             }
             using var sha=SHA256.Create();
-            string preparedFingerprint=Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(json.text)));
+            // Git checkouts may use CRLF; the same JSON bank must keep its identity on every machine.
+            string preparedFingerprint=Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(json.text.Replace("\r\n","\n"))));
             Bank=parsed;fingerprint=preparedFingerprint;return parsed.clips;
         }
         private static bool Finite(float[] value,int count)=>value?.Length==count && Array.TrueForAll(value,float.IsFinite);
