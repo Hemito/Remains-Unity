@@ -19,7 +19,11 @@ namespace Remains.Editor
         {
             try{Run();EditorApplication.Exit(0);}catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
         }
-        public static void Run()
+        public static void RunBellyBatch()
+        {
+            try{Run(BedRest.Belly);EditorApplication.Exit(0);}catch(Exception error){Debug.LogException(error);EditorApplication.Exit(1);}
+        }
+        public static void Run(string pose=BedRest.Back)
         {
             Directory.CreateDirectory(Output);ActorTypes.Load();WeaponCatalog.Load();Anatomy.Load();PonyVisual.Prepare();
             PonyAuthoredWardrobeChecks.Run();
@@ -48,27 +52,32 @@ namespace Remains.Editor
             var bed=new RoomRest {id="bed-exact-check",x=marker.transform.position.x-marker.Width*room.Cell*.5f,y=marker.transform.position.y,width=marker.Width*room.Cell,height=.56f};
             var actor=new ActorState {id="bed-exact-pony",player=true,connected=true,anatomy="pony",actorType="pony",weapon=null,
                 appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion},x=bed.x+bed.width*.5f,y=bed.y};
-            BedRest.LieDown(actor,bed,BedRest.Back);
+            BedRest.LieDown(actor,bed,pose);
             var visual=(PonyVisual)ActorVisualFactory.Create(actor);visual.ConfigureMagicPreview(0);visual.Bind(actor);visual.DrawPose(actor.poseTime);
             var camera=new GameObject("Точная поза на кровати").AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=1.45f;
             camera.transform.position=new Vector3(actor.x,bed.y+.95f,-10);camera.backgroundColor=new Color(.2f,.23f,.26f);
             try
             {
-                Capture("warmup.png");Capture("bed-back-bare.png");
+                string prefix=pose==BedRest.Back?"bed-back":"bed-belly";
+                Require(visual.DrawnClip==BedRest.Clip(actor),"выбран клип позы на кровати: "+pose);
+                Capture(prefix+"-warmup.png");Capture(prefix+"-bare.png");
                 visual.TryGetDrawnBounds(out var bareBounds);
                 foreach(string outfit in new[]{"armor.antirad","armor.battle"})
                 {
                     var item=SharedInventory.Create(outfit,1);InventoryStacks.Add(actor,item);
                     Require(CosmeticEquipment.TryEquip(actor,item.id,false,out var reason),outfit+": "+reason);
-                    visual.Bind(actor);visual.DrawPose(actor.poseTime);Capture("bed-back-"+outfit.Substring(6)+".png");
+                    visual.Bind(actor);visual.DrawPose(actor.poseTime);Capture(prefix+"-"+outfit.Substring(6)+".png");
                 }
                 for(int i=0;i<295;i++)visual.AdvanceNestedAnimation(1f/30);visual.DrawPose(actor.poseTime);
-                Require(visual.DrawnExpression==PonyFacialExpression.Closed,"моргание сохраняет позу");Capture("bed-back-blink.png");
-                Require(visual.DrawnIdle==null && actor.BodyPosition==actor.Position,"кровать сохраняет якорь и не получает idle");
-                var report=new JObject { ["pass"]=true,["input"]="bed-back (3).json",["verifiedNodes"]=verified,["maxMatrixError"]=matrixError,
-                    ["runtimeIndependent"]=true,["template"]=template.Template,["mattressY"]=bed.y+bed.height,["actorY"]=actor.y,
-                    ["drawnBoundsMinY"]=bareBounds.min.y,["note"]="Готовая поза без смены формы; y=0 JSON совмещён с высотой лежанки. Голова может выступать ниже линии." };
-                File.WriteAllText(Path.Combine(Output,"report.json"),report.ToString());Debug.Log("Точная поза на кровати: PASS — "+report.ToString(Newtonsoft.Json.Formatting.None));
+                Require(visual.DrawnExpression==PonyFacialExpression.Closed,"моргание сохраняет позу");Capture(prefix+"-blink.png");
+                Require(visual.DrawnIdle==null && Mathf.Abs(actor.y-bed.y-bed.height)<.00001f,"кровать сохраняет якорь и не получает idle");
+                if(pose==BedRest.Back)Require(actor.BodyPosition==actor.Position,"на спине нет опоры копыт");
+                var report=new JObject { ["pass"]=true,["verifiedAuthoredInput"]="bed-back (3).json",["verifiedAuthoredNodes"]=verified,["maxMatrixError"]=matrixError,
+                    ["authoredBankIndependent"]=true,["pose"]=pose,["drawnClip"]=visual.DrawnClip,["template"]=template.Template,["mattressY"]=bed.y+bed.height,["actorY"]=actor.y,
+                    ["drawnBoundsMinY"]=bareBounds.min.y,["note"]=pose==BedRest.Back?
+                        "Готовая поза без смены формы; y=0 JSON совмещён с высотой лежанки. Голова может выступать ниже линии.":
+                        "Исходная поза down, последний кадр; штатная опора копыт сохранена." };
+                File.WriteAllText(Path.Combine(Output,pose==BedRest.Back?"report.json":"report-belly.json"),report.ToString());Debug.Log("Точная поза на кровати: PASS — "+report.ToString(Newtonsoft.Json.Formatting.None));
             }
             finally{Object.DestroyImmediate(camera.gameObject);Object.DestroyImmediate(visual.gameObject);Object.DestroyImmediate(room.gameObject);}
             void Capture(string file)=>Runtime.NetworkFrameCapture.Save(camera,Path.Combine(Output,file),width:1280,height:800);
