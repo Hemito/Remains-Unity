@@ -93,8 +93,16 @@ namespace Remains.Gameplay
             if(room?.platforms!=null) foreach(var surface in room.platforms)
                 if(box.Overlaps(new Rect(surface.x,surface.y,surface.width,surface.height)) && shown++<4)
                     near.Append($" [{surface.x:0.00};{surface.y:0.00} {surface.width:0.00}×{surface.height:0.00}{(surface.oneWay?" односторонняя":"")}{(surface.sourceDoorId!=null?" дверь "+surface.sourceDoorId:"")}]");
+            // Moving surfaces (PlatformSimulation) take part in the same motion query.
+            int dynamicCount=room?.dynamicSurfaces?.Count??0;
+            for(int i=0;i<dynamicCount;i++)
+            {
+                var surface=room.dynamicSurfaces.Pose(i).Current;
+                if(box.Overlaps(new Rect(surface.x,surface.y,surface.width,surface.height)) && shown++<6)
+                    near.Append($" [подвижная #{i} {surface.x:0.00};{surface.y:0.00} {surface.width:0.00}×{surface.height:0.00}{(surface.oneWay?" односторонняя":"")}]");
+            }
             UnityEngine.Debug.Log($"Граната {state.id}: удар {count+1} со скоростью {speed:0.00} м/с, {before}→{state.Position}, скорость теперь {state.Velocity}, "+
-                $"осталось {state.remaining:0.00} с, владелец {state.owner} (свой {session.LocalOwner}); поверхности рядом:{(shown==0?" нет":near.ToString())}.");
+                $"осталось {state.remaining:0.00} с, владелец {state.owner} (свой {session.LocalOwner}); поверхности рядом:{(shown==0?" нет":near.ToString())}; подвижных в комнате {dynamicCount}.");
         }
         private readonly ConnectedPlayers connected=new();
         public void Step(float dt)
