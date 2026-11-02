@@ -171,7 +171,7 @@ namespace Remains.Gameplay
             pose.pauseRevision=pauseRevision;
         }
         private static bool CanUse(ActorState actor)=>ActorPresence.IsPresent(actor) && !ActorSessionRules.IsPassive(actor) &&
-            string.IsNullOrEmpty(actor.heldItemId) && !string.IsNullOrEmpty(actor.weapon) && actor.weapon!="grenade";
+            string.IsNullOrEmpty(actor.heldItemId) && !string.IsNullOrEmpty(actor.weapon) && !WeaponCatalog.IsGrenade(actor.weapon);
         private static void Neutralize(ActorState actor,long pauseRevision)
         {
             if(actor==null) return;

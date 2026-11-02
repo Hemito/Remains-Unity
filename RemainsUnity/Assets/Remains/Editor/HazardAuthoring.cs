@@ -25,7 +25,7 @@ namespace Remains.Editor
         private const float PixelsPerMetre=50,OriginalVisibility=300;
         // UnitDamager.setWeapon (tipDamager 3) and the disarm loot LootGen.lootCont "bomb" (three dinamit).
         private const float ChargeBlastDamage=250,ChargeBlastRadius=200;
-        private const string ChargeLoot="weapon:dinamit";private const int ChargeLootCount=3;
+        private const string ChargeLoot="item:dinamit";private const int ChargeLootCount=3;   // the hand grenade item (FirearmAuthoring.PlainGrenades)
 
         public static void RunBatch()
         {

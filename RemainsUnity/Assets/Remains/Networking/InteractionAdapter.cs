@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using Mirror;
 using Remains.Domain;
+using Remains.Content;
 using UnityEngine;
 
 namespace Remains.Networking
@@ -92,16 +93,18 @@ namespace Remains.Networking
             if(actor!=null && session.Pause.IsServerPaused(actor.level))
             {connection.Send(new NoticeMessage {text="Бросок отменён: уровень остановлен. Граната не потрачена."});return;}
             if(!GrenadeLaunchRequest.Matches(actor,message) || session.ServerWorld.completedTransactions.Contains(message.transaction) ||
-                !SharedInventory.Consume(actor,"grenade",message.item,message.transaction)) return;
+                InventoryStacks.Find(actor,message.item) is not { } stack || !WeaponCatalog.IsGrenade(stack.definition) ||
+                !SharedInventory.Consume(actor,stack.definition,message.item,message.transaction)) return;
+            string weapon=stack.definition;
             session.ServerWorld.completedTransactions.Add(message.transaction);
             Vector2 origin=new(message.originX,message.originY);
             // The throwing client captures launch motion with its local pose and aim.
             var velocity=new Vector2(message.vx,message.vy);
             actor.revision++;
-            session.ServerWorld.grenades.Add(new GrenadeState {id=message.transaction,attacker=actor.id,level=actor.level,owner=actor.owner,
+            session.ServerWorld.grenades.Add(new GrenadeState {id=message.transaction,weapon=weapon,attacker=actor.id,level=actor.level,owner=actor.owner,
                 sourcePlayer=actor.player,generation=1,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,
                 rotationVersion=1,angle=message.angle,angularVelocity=message.angularVelocity,mirrored=message.mirrored,
-                remaining=Remains.Content.WeaponCatalog.Get("grenade").grenadeFuseSeconds});
+                remaining=WeaponCatalog.Get(weapon).grenadeFuseSeconds});
             session.CommitWorld();
         }
         private static void Apply(GrenadeState state,GrenadePoseMessage message)
@@ -178,9 +181,10 @@ namespace Remains.Networking
         public bool ThrowGrenade(Vector2 aim,RoomLayout room=null)
         {
             var actor=session.LocalActor;
-            if(actor==null || actor.down || session.Pause.IsPaused(actor.level) || InventoryJournal.Count(actor,"grenade")<=0 ||
-                !HeldItemSelection.HasSelection(actor) && WeaponInventory.Selected(actor)?.definition=="grenade" && !WeaponInventory.Available(actor,"grenade")) return false;
-            if(!HeldItemSelection.HasSelection(actor) && WeaponInventory.Selected(actor)?.definition=="grenade" && !actor.heldItemPoseValid)
+            string selected=actor==null?null:WeaponInventory.Selected(actor)?.definition;
+            if(actor==null || actor.down || session.Pause.IsPaused(actor.level) || GrenadeItems.Next(actor)==null ||
+                !HeldItemSelection.HasSelection(actor) && WeaponCatalog.IsGrenade(selected) && !WeaponInventory.Available(actor,selected)) return false;
+            if(!HeldItemSelection.HasSelection(actor) && WeaponCatalog.IsGrenade(selected) && !actor.heldItemPoseValid)
             {session.ShowNotice("Гранату нельзя бросить: точка удержания перекрыта. Измените положение или прицел.");return false;}
             var request=GrenadeLaunchRequest.Capture(actor,aim,room);
             if(!GrenadeLaunchRequest.Matches(actor,request))

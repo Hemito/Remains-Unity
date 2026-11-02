@@ -38,6 +38,7 @@ namespace Remains.Content
         public bool explosive;
         public MineProfile mine;
         public float grenadeFuseSeconds,grenadeRestitution,grenadeGroundRetention,grenadeGravity;
+        public bool IsGrenade=>explosive && grenadeFuseSeconds>0;
         public float grenadeMaxLaunchSpeed,grenadeFullEffortDistance,grenadeAimLift;
         public float grenadeSpinRate,grenadeAngularRetention;
         public float meleeContactStart,meleeContactEnd=1;
@@ -95,6 +96,9 @@ namespace Remains.Content
         public static bool IsMelee(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.meleeMotion!=null;
         public static bool IsStrike(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.strike!=null && value.strike.Configured;
         public static bool IsExplosive(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive;
+        // A hand grenade: thrown from the inventory and flown by GrenadeRules for its fuse (the hand-made grenade and the
+        // original's, FirearmAuthoring.Grenade).
+        public static bool IsGrenade(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.IsGrenade;
         public static bool IsMine(string id)=>id!=null && definitions.TryGetValue(id,out var value) && value.explosive && value.mine!=null && value.mine.Configured;
 
         public static void Load()

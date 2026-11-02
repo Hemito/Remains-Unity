@@ -127,7 +127,8 @@ namespace Remains.Gameplay
             // UnitZombie.animate: trot while searching on the move.
             if(settings.zombie && entry.mind.state==RaiderState.Search && actor.pose is "walk" or "run") ActorPose.Select(actor,"trot");
             return new RaiderActions(weapon,bodyHit,changed,Revive(entry,actor,ally,decided.revive,dt),Heal(entry,actor,decided.heal),
-                decided.grenade && sees?GrenadeAim.Plan(room,actor.BodyPosition+Vector2.up*ThrowLift,actor.BodyPosition,target.BodyPosition,decided.grenadeError,random):default);
+                decided.grenade && sees && GrenadeItems.Next(actor) is { } grenade?
+                    GrenadeAim.Plan(room,actor.BodyPosition+Vector2.up*ThrowLift,actor.BodyPosition,target.BodyPosition,decided.grenadeError,random,grenade.definition):default);
         }
 
         // A shot or a blast near a sapient raider this peer owns frightens it: a shot's line passing within NearShot

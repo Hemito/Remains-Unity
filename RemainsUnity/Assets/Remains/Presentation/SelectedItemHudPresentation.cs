@@ -72,7 +72,7 @@ namespace Remains.Presentation
                 // Definition metadata is resolved only when the selected ID changes.
                 weapon??=WeaponCatalog.Get(id);
                 SetAmmo(string.IsNullOrEmpty(weapon.ammo)?null:weapon.ammo);
-                if(id=="grenade")
+                if(weapon.IsGrenade)
                 {
                     counter=$"В стопке: {available}";action="ЛКМ — бросить";
                 }

@@ -180,7 +180,7 @@ namespace Remains.Domain
                     else if(stay && (wallAhead || edge)) {intent.move=0;p.cornered++;}
                     else {intent.move=m.direction;if(p.cornered>0) p.cornered--;}
                     // On the run it throws without aiming now and then.
-                    if(sees && p.grenadeRest<=0 && Chance(.05) && InThrowBand(senses.target-actor.Position) && InventoryJournal.Count(actor,"grenade")>0)
+                    if(sees && p.grenadeRest<=0 && Chance(.05) && InThrowBand(actor,senses.target-actor.Position))
                     {p.aim=0;Throw(p,s.pony,ref intent);}
                     break;
                 }
@@ -246,8 +246,8 @@ namespace Remains.Domain
             score[(int)PonyIntentKind.Heal]=health<w.healHealth && HealingRules.CanApply(actor,actor,true)?(!sees?.7f:distance>200*Px?.5f:0):0;
             // A grenade in hand at a seen target beyond its own blast: before shooting, once in GrenadeRestFrames; a pony hurt
             // enough to retreat does not stand to aim (it throws on the run).
-            score[(int)PonyIntentKind.Grenade]=sees && p.grenadeRest<=0 && health>=w.retreatHealth && InThrowBand(senses.target-actor.Position) &&
-                InventoryJournal.Count(actor,"grenade")>0?.8f*w.grenade:0;
+            score[(int)PonyIntentKind.Grenade]=sees && p.grenadeRest<=0 && health>=w.retreatHealth &&
+                InThrowBand(actor,senses.target-actor.Position)?.8f*w.grenade:0;
             score[(int)PonyIntentKind.Retreat]=sees && health<w.retreatHealth && p.cornered<=30?(.75f+.25f*(1-health/Mathf.Max(w.retreatHealth,.0001f)))*w.caution:0;
 
             int best=0;
@@ -266,10 +266,12 @@ namespace Remains.Domain
             p.aim=0;p.grenadeRest=GrenadeRestFrames;
         }
         // Beyond its own blast and within a throw (GrenadeAim decides the throw itself; this only says it is worth trying).
-        private static bool InThrowBand(Vector2 offset)
+        private static bool InThrowBand(ActorState actor,Vector2 offset)
         {
+            // A grenade in hand (GrenadeItems.Next decides which) and the target beyond its blast, within a throw.
+            var grenade=GrenadeItems.Next(actor);if(grenade==null) return false;
             float distance=offset.magnitude;
-            return distance>GrenadeAim.Reach && distance<=MaxThrowDistance;
+            return distance>GrenadeAim.Reach(grenade.definition) && distance<=MaxThrowDistance;
         }
     }
 }

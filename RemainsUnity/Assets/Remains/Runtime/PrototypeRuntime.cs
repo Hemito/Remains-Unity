@@ -687,7 +687,7 @@ namespace Remains.Runtime
             {
                 command.pointer=mouse.position.ReadValue();command.hasPointer=true;
                 command.hasAim=true;command.aim=cameraView.ScreenToWorldPoint(mouse.position.ReadValue());
-                command.fire=(Session.LocalActor?.weapon=="grenade" || HeldItemSelection.HasSelection(Session.LocalActor)?mouse.leftButton.wasPressedThisFrame:mouse.leftButton.isPressed) &&
+                command.fire=(WeaponCatalog.IsGrenade(Session.LocalActor?.weapon) || HeldItemSelection.HasSelection(Session.LocalActor)?mouse.leftButton.wasPressedThisFrame:mouse.leftButton.isPressed) &&
                     !hud.BlocksPointerGameplay(command.pointer) &&
                     (UnityEngine.EventSystems.EventSystem.current==null || !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject());
             }
@@ -785,11 +785,11 @@ namespace Remains.Runtime
             {if(SessionMines.HoldsMine(actor)) Session.Mines.RequestPlace(Geometry.Get(actor.level));else Grenades.TryThrow(command.aim);}
             if(command.heal && !actor.down) Session.RequestSelfHeal();
             if(command.fire && command.hasAim && (actor.weaponSelectionRevision==selectionBefore ||
-                !HeldItemSelection.HasSelection(actor) && actor.weapon!="grenade"))
+                !HeldItemSelection.HasSelection(actor) && !WeaponCatalog.IsGrenade(actor.weapon)))
             {
                 if(SessionMines.HoldsMine(actor)) Session.Mines.RequestPlace(Geometry.Get(actor.level));
                 else if(HeldItemSelection.HasSelection(actor)) ItemActions.TryThrow(command.aim,command.throwWholeStack);
-                else if(actor.weapon=="grenade") Grenades.TryThrow(command.aim);
+                else if(WeaponCatalog.IsGrenade(actor.weapon)) Grenades.TryThrow(command.aim);
                 else Combat.Fire(actor,command.aim);
             }
         }

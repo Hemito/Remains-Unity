@@ -42,6 +42,7 @@ namespace Remains.Editor
             CheckRotation();
             CheckExplosionMessage();
             CheckBlastFalloff();
+            CheckOriginalGrenades();
             var world=new WorldState();
             var source=new ActorState {id="source",owner="a",player=true,connected=true};
             var survivor=new ActorState {id="survivor",owner="b",player=true,connected=true,x=1,health=300};
@@ -444,6 +445,30 @@ namespace Remains.Editor
         }
         // The explosion as clients receive it, including the grenade probe's repeat of a received one: AttackMessage on
         // the wire, then the client handler's Read. A natural type or a volley here broke the client in GameplayAudio.
+        // The original's plain hand grenades (FirearmAuthoring.Grenade): their formal item IDs are working grenades with the
+        // original's blast and fuse, a throw takes the selected grenade or else the first, and a flight keeps its grenade.
+        private static void CheckOriginalGrenades()
+        {
+            foreach(var (id,damage,range,fuse,type) in new[]{("item:hgren",110f,5f,2.5f,DamageTypes.Explosion),("item:plagr",225f,4.6f,2.5f,DamageTypes.Plasma),
+                ("item:spgren",666f,7f,2.5f,DamageTypes.Explosion),("item:dinamit",75f,2.6f,5f,DamageTypes.Explosion)})
+            {
+                Require(WeaponCatalog.IsGrenade(id),"Нет гранаты оригинала "+id);
+                var definition=WeaponCatalog.Get(id);
+                Require(Mathf.Approximately(definition.damage,damage) && Mathf.Approximately(definition.range,range) && Mathf.Approximately(definition.grenadeFuseSeconds,fuse) &&
+                    definition.damageType==type,$"Граната {id}: урон {definition.damage}, радиус {definition.range}, запал {definition.grenadeFuseSeconds}, тип {definition.damageType}");
+                Require(ExportedContentCatalog.Load().CreateFormalItem(id,0,1).definition==id,"Формальный предмет не совпадает с гранатой "+id);
+                Require(Remains.Presentation.GrenadeArtwork.LoadPrefab(id).sprite!=null,"Нет рисунка полёта "+id);
+            }
+            var actor=new ActorState {id="thrower",player=true,connected=true,weaponInventoryVersion=1};
+            var frag=SharedInventory.Create("grenade",2);var plasma=SharedInventory.Create("item:plagr",1);
+            InventoryStacks.Add(actor,frag);InventoryStacks.Add(actor,plasma);
+            Require(GrenadeItems.Count(actor)==3 && GrenadeItems.Next(actor)?.id==frag.id,"Без выбора бросается первая граната");
+            Require(WeaponInventory.Select(actor,plasma.id,out var reason) && GrenadeItems.Next(actor)?.id==plasma.id,"Выбранная граната бросается первой: "+reason);
+            var room=new RoomLayout {left=-100,right=100,platforms=new[]{new RoomSurface {x=-100,y=-1,width=200,height=1}}};
+            var dynamite=new GrenadeState {id="dynamite",weapon="item:dinamit",x=0,y=2,remaining=WeaponCatalog.Get("item:dinamit").grenadeFuseSeconds,rotationVersion=1};
+            GrenadeRules.Step(dynamite,room,2.5f);
+            Require(dynamite.remaining>2.4f && dynamite.Attack().weapon=="item:dinamit","Динамит горит своим запалом и взрывается своим взрывом");
+        }
         // Bullet.explGas: × 0.7–1.3, whole within half the radius, linear to nothing at it; the same roll on every peer.
         private static void CheckBlastFalloff()
         {

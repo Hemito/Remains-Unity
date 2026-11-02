@@ -99,7 +99,7 @@ namespace Remains.Gameplay
         {
             if(HeldItemSelection.HasSelection(attacker)) return false;
             if(attacker?.weaponInventoryVersion==1) Weapon=WeaponInventory.Selected(attacker)?.definition;
-            if(Weapon=="grenade") return false; // Throws use their own inventory transaction and flight.
+            if(WeaponCatalog.IsGrenade(Weapon)) return false; // Throws use their own inventory transaction and flight.
             if (string.IsNullOrEmpty(Weapon) || attacker == null || attacker.down || session.Pause.IsPaused(attacker.level) || Reload.Active || !shotCooldown.Ready || Strikes.Busy(attacker)) return false;
             var definition=WeaponCatalog.Get(Weapon);
             session.Recoil.Reconcile();

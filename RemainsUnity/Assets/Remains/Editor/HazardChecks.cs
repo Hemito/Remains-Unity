@@ -30,7 +30,7 @@ namespace Remains.Editor
             Require(trap.id=="mtrap" && trap.objects.Contains("trap") && Mathf.Approximately(trap.health,10) && Mathf.Approximately(trap.skin,10) &&
                 Mathf.Approximately(WeaponCatalog.Get(trap.biteWeapon).damage,24),"капкан из AllData (mtrap: здоровье 10, кожа 10, укус 24)");
             Require(charge.id=="damexpl1" && charge.objects.Contains("expl1") && Mathf.Approximately(charge.health,20) &&
-                WeaponCatalog.IsExplosive(charge.blastWeapon) && charge.disarmItem=="weapon:dinamit" && charge.disarmCount==3,"заряд из AllData (damexpl1: здоровье 20, взрыв, три динамита)");
+                WeaponCatalog.IsExplosive(charge.blastWeapon) && charge.disarmItem=="item:dinamit" && charge.disarmCount==3,"заряд из AllData (damexpl1: здоровье 20, взрыв, три динамита)");
             Require(ActorTypes.Get("pony").activateTrap==HazardRules.SpringsTraps && ActorTypes.Get("tarakan").activateTrap==1,"acttrap: пони 2 по умолчанию, таракан 1 из AllData");
             CheckRules(trap,charge);CheckArtwork(trap,charge);
             var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};

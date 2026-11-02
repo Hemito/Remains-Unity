@@ -10,6 +10,8 @@ namespace Remains.Domain
     public sealed class GrenadeState : Remains.Serialization.ExtensibleState
     {
         public string id,attacker,level,owner;
+        // Which grenade (WeaponCatalog.IsGrenade): its flight, fuse and blast. Older saves hold the hand-made grenade.
+        public string weapon="grenade";
         public bool sourcePlayer;
         public int generation;
         public uint sequence;
@@ -22,7 +24,7 @@ namespace Remains.Domain
         public Vector2 Velocity {get=>new(vx,vy);set {vx=value.x;vy=value.y;}}
         public GrenadeState Copy()=>JsonUtility.FromJson<GrenadeState>(JsonUtility.ToJson(this));
         public AttackEvent Attack()=>new() {id=id,attacker=attacker,level=level,sourceOwner=owner,sourcePlayer=sourcePlayer,
-            weapon="grenade",originX=x,originY=y,endX=x,endY=y};
+            weapon=weapon,originX=x,originY=y,endX=x,endY=y};
     }
     [Serializable]
     public sealed class ExplosionState : Remains.Serialization.ExtensibleState
@@ -85,7 +87,8 @@ namespace Remains.Domain
                 throw new InvalidOperationException($"Некорректные часы гранаты {state.id}: dt={dt}, остаток={state.simulationRemainder}.");
             state.simulationRemainder=Math.Min(state.remaining,state.simulationRemainder+dt);
             float impact=0;
-            var definition=Remains.Content.WeaponCatalog.Get("grenade");
+            var definition=Remains.Content.WeaponCatalog.Get(state.weapon);
+            if(!definition.IsGrenade) throw new InvalidOperationException($"Граната {state.id}: {state.weapon} не ручная граната.");
             while(state.remaining>0)
             {
                 double step=Math.Min(SimulationStep,state.remaining);

@@ -149,7 +149,7 @@ namespace Remains.Content
             catch(InvalidOperationException error)
             {throw new InvalidDataException($"Некорректный тип урона: источник={source}, weapon={weapon.id}, damageType={weapon.damageType}. "+error.Message,error);}
             WeaponRecoilProfile.ValidateForWeapon(weapon,$"источник={source}");
-            bool usesHoldingArea=weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar" or "grenade";
+            bool usesHoldingArea=weapon.meleeMotion!=null || weapon.id is "spear" or "crowbar" || weapon.IsGrenade;
             if(usesHoldingArea) weapon.holdingArea.Validate($"источник={source}, weapon={weapon.id}");
             else if(!weapon.holdingArea.Inapplicable)
                 throw new InvalidDataException($"Двумерная область удержания неприменима к огнестрельному определению: источник={source}, weapon={weapon.id}.");
@@ -209,13 +209,13 @@ namespace Remains.Content
             if(!float.IsFinite(weapon.grenadeMaxLaunchSpeed) || weapon.grenadeMaxLaunchSpeed<0 ||
                 !float.IsFinite(weapon.grenadeFullEffortDistance) || weapon.grenadeFullEffortDistance<0 ||
                 !float.IsFinite(weapon.grenadeAimLift) || weapon.grenadeAimLift<0 || weapon.grenadeAimLift>1 ||
-                (weapon.id=="grenade" && (weapon.grenadeMaxLaunchSpeed<=0 || weapon.grenadeFullEffortDistance<=0)))
+                (weapon.IsGrenade && (weapon.grenadeMaxLaunchSpeed<=0 || weapon.grenadeFullEffortDistance<=0)))
                 throw new InvalidDataException($"Некорректные параметры броска гранаты: источник={source}, id={weapon.id}.");
             if(!float.IsFinite(weapon.grenadeFuseSeconds) || weapon.grenadeFuseSeconds<0 ||
                 !float.IsFinite(weapon.grenadeGravity) || weapon.grenadeGravity<0 ||
                 !float.IsFinite(weapon.grenadeRestitution) || weapon.grenadeRestitution<0 || weapon.grenadeRestitution>1 ||
                 !float.IsFinite(weapon.grenadeGroundRetention) || weapon.grenadeGroundRetention<0 || weapon.grenadeGroundRetention>1 ||
-                (weapon.id=="grenade" && (weapon.grenadeFuseSeconds<=0 || weapon.grenadeGravity<=0)))
+                (weapon.id=="grenade" && !weapon.IsGrenade) || (weapon.IsGrenade && weapon.grenadeGravity<=0))
                 throw new InvalidDataException($"Некорректный запал или отскок гранаты: источник={source}, id={weapon.id}.");
             if(weapon.projectileSpeedVariation>=1 || (weapon.projectileSpeedVariation>0 && weapon.projectileSpeed<=0) ||
                 !float.IsFinite(speeds.y) || (weapon.projectileSpeed>0 && speeds.x<=0))

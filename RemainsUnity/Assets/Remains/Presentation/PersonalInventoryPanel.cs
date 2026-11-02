@@ -243,7 +243,7 @@ namespace Remains.Presentation
         private string WeaponDescription(ActorState actor,ItemStack item)
         {
             var definition=WeaponCatalog.Get(item.definition);
-            string resource=item.definition=="grenade"?$"В стопке: {item.count} · ЛКМ — бросить\n":definition.magazineSize>0?$"В магазине: {item.weaponState.rounds}/{definition.magazineSize}\n":
+            string resource=WeaponCatalog.IsGrenade(item.definition)?$"В стопке: {item.count} · ЛКМ — бросить\n":definition.magazineSize>0?$"В магазине: {item.weaponState.rounds}/{definition.magazineSize}\n":
                 definition.meleeMotion is {Length:>0}?"Ближний бой\n":"";
             float damage=session.Rules.Damage.Calculate(item.definition,0);
             if(!float.IsFinite(damage) || damage<0)

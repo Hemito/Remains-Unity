@@ -7,7 +7,7 @@ namespace Remains.Domain
     public static class WeaponInventory
     {
         public static bool IsEquippable(ItemStack item)=>item!=null &&
-            (item.weaponState!=null && item.count==1 || item.weaponState==null && item.definition=="grenade" && item.count>0);
+            (item.weaponState!=null && item.count==1 || item.weaponState==null && WeaponCatalog.IsGrenade(item.definition) && item.count>0);
         public static ItemStack Selected(ActorState actor)=>Equippable(actor,actor?.equippedWeaponItem);
         private static ItemStack Equippable(ActorState actor,string id)
         {var item=InventoryStacks.Find(actor,id);return IsEquippable(item)?item:null;}

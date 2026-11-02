@@ -13,7 +13,8 @@ namespace Remains.Presentation
         private CoopSession session;
         private GrenadeController grenades;
         private SimulationGeometry geometry;
-        private SpriteRenderer grenadePrefab;
+        // Flight prefabs per grenade, loaded when a flight of that grenade first appears.
+        private readonly System.Collections.Generic.Dictionary<string,SpriteRenderer> grenadePrefabs=new(StringComparer.Ordinal);
         private ActorVisualLayers layers;
         private PropArtwork propArtwork;
         private WeaponShotAnimation shotAnimation;
@@ -76,7 +77,7 @@ namespace Remains.Presentation
         {
             this.session=session;this.grenades=grenades;this.layers=layers;this.geometry=geometry;
             propArtwork=new PropArtwork();
-            grenadePrefab=GrenadeArtwork.LoadPrefab();
+            grenadePrefabs["grenade"]=GrenadeArtwork.LoadPrefab();
             foreach(var pair in WeaponArtwork.Load()) sprites.Add(pair.Key,pair.Value);
             shotAnimation=gameObject.AddComponent<WeaponShotAnimation>();shotAnimation.Initialize(session);
             reloadAnimation=gameObject.AddComponent<WeaponReloadAnimation>();reloadAnimation.Initialize(session,reload);
@@ -109,9 +110,10 @@ namespace Remains.Presentation
             if(session!=null) {session.Changed-=Refresh;session.Deposits.Reconciled-=Refresh;session.AttackReceived-=OnAttackReceived;}
             if(grenades!=null) grenades.Created-=OnGrenadeCreated;
         }
-        private SpriteRenderer CreateGrenade(string name)
+        private SpriteRenderer CreateGrenade(string name,string weapon)
         {
-            var renderer=Instantiate(grenadePrefab,transform);renderer.name=name;
+            if(!grenadePrefabs.TryGetValue(weapon,out var prefab)) grenadePrefabs[weapon]=prefab=GrenadeArtwork.LoadPrefab(weapon);
+            var renderer=Instantiate(prefab,transform);renderer.name=name;
             return renderer;
         }
         private void Refresh()
@@ -175,7 +177,7 @@ namespace Remains.Presentation
             foreach(var flight in grenades.Flights)
                 if(flight.state.level==level && !flights.ContainsKey(flight.state.id))
                 {
-                    var view=CreateGrenade("Граната "+flight.state.id);
+                    var view=CreateGrenade("Граната "+flight.state.id,flight.state.weapon);
                     view.gameObject.AddComponent<WorldVisualOrderBinding>().Initialize(layers.Orders,WorldVisualKind.Grenade,flight.state.id,null,view,flight.state.level,true);
                     flights.Add(flight.state.id,view);
                 }
@@ -229,7 +231,7 @@ namespace Remains.Presentation
             foreach(var actor in session.World.actors)
             {
                 if(!weapons.TryGetValue(actor.id,out var view)) continue;
-                if(string.IsNullOrEmpty(actor.weapon) || HeldItemSelection.HasSelection(actor) || actor.weapon=="grenade" && !actor.heldItemPoseValid) {view.SetVisible(false);continue;}
+                if(string.IsNullOrEmpty(actor.weapon) || HeldItemSelection.HasSelection(actor) || Remains.Content.WeaponCatalog.IsGrenade(actor.weapon) && !actor.heldItemPoseValid) {view.SetVisible(false);continue;}
                 if(!sprites.TryGetValue(actor.weapon,out var sprite))
                 { if(missingGraphics.Add(actor.id+":"+actor.weapon)) Debug.LogWarning($"Отсутствует графика оружия {actor.weapon} у {actor.id}.",this);view.SetVisible(false);continue; }
                 if(view.Id!=actor.weapon)

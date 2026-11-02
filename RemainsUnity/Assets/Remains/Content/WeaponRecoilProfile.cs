@@ -72,7 +72,7 @@ namespace Remains.Content
                 return null;
             }
             profile.Validate($"{context}, weapon={weapon.id}");
-            if(profile.enabled && (weapon.projectileSpeed<=0 || weapon.meleeMotion!=null || weapon.id=="grenade"))
+            if(profile.enabled && (weapon.projectileSpeed<=0 || weapon.meleeMotion!=null || weapon.IsGrenade))
                 throw new InvalidDataException($"Отдача неприменима к этому определению: {context}, weapon={weapon.id}, projectileSpeed={weapon.projectileSpeed}.");
             return profile;
         }

@@ -68,7 +68,7 @@ namespace Remains.Presentation
             if(actor==null) return;
             if(actor.weaponInventoryVersion==0 && missing.Add("legacy:"+actor.id))
                 Debug.LogWarning($"HUD показывает диагностические определения старого инвентаря: actor={actor.id}, inventoryVersion={actor.weaponInventoryVersion}. Для игры требуется миграция экземпляров.");
-            int grenadeCount=InventoryJournal.Count(actor,"grenade");
+            int grenadeCount=GrenadeItems.Count(actor);   // every hand grenade; G throws GrenadeItems.Next
             grenades.text=$"G · Гранаты: {grenadeCount}";
             var grenadeColor=grenadeCount>0 && !actor.down?new Color(.65f,1,.75f):new Color(.4f,.5f,.44f);
             grenades.color=grenadeColor;grenadeIcon.color=grenadeCount>0 && !actor.down?Color.white:new Color(.5f,.5f,.5f);

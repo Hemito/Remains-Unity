@@ -32,7 +32,7 @@ namespace Remains.Gameplay
         private static Vector2 BaseDirection(ActorState actor)=>new(Mathf.Cos(actor.weaponAngle*Mathf.Deg2Rad),Mathf.Sin(actor.weaponAngle*Mathf.Deg2Rad));
         public static Vector2 Direction(ActorState actor)=>!string.IsNullOrEmpty(actor.weapon) && WeaponRigs.Get(actor.weapon).HasMuzzle?SampleRanged(actor).Direction:BaseDirection(actor);
         public static bool Flip(ActorState actor)=>actor.weaponFlipY;
-        private static Vector2 BaseMount(ActorState actor)=>actor.weapon=="grenade"?HeldItemPose.Mount(actor):RangedAnchor(actor)+Vector2.right*(Flip(actor)?-1:1)*Mathf.Clamp(actor.weaponReach,0,RangedReachLimit(actor));
+        private static Vector2 BaseMount(ActorState actor)=>WeaponCatalog.IsGrenade(actor.weapon)?HeldItemPose.Mount(actor):RangedAnchor(actor)+Vector2.right*(Flip(actor)?-1:1)*Mathf.Clamp(actor.weaponReach,0,RangedReachLimit(actor));
         public static RangedWeaponPose SampleRanged(ActorState actor)
         {
             var rig=WeaponRigs.Get(actor.weapon);var root=BaseMount(actor);float angle=actor.weaponAngle;
@@ -47,7 +47,7 @@ namespace Remains.Gameplay
         public static Vector2 Muzzle(ActorState actor)=>SampleRanged(actor).Muzzle;
         public static void Aim(ActorState actor,Vector2 target,RoomLayout room=null)
         {
-            if(actor.weapon=="grenade") {HeldItemPose.Aim(actor,target,room);return;}
+            if(WeaponCatalog.IsGrenade(actor.weapon)) {HeldItemPose.Aim(actor,target,room);return;}
             AimWithReach(actor,target,RangedReachLimit(actor));
             LowerUnderCeiling(actor,target,room,RangedReachLimit(actor));
             if(room!=null && !string.IsNullOrEmpty(actor.weapon) && WeaponRigs.Get(actor.weapon).HasMuzzle &&

@@ -107,6 +107,15 @@ namespace Remains.Editor
                 }
             }
 
+            // Hand grenades with a plain blast (tip 4, FirearmAuthoringGrenades).
+            var baseGrenade=weapons.AllAssets().Single(a=>a.Id=="grenade").CreateDefinition();int grenades=0;
+            foreach(string wid in PlainGrenades)
+            {
+                var row=((JArray)catalog["definitions"]).OfType<JObject>().Single(r=>(string)r["category"]=="weapon" && (string)r["id"]==wid);
+                string reason=Grenade(wid,XElement.Parse((string)row["rawXml"]),((JArray)row["graphics"]).OfType<JObject>().ToArray(),exported,baseGrenade,list,audio,assets);
+                if(reason==null) {generated.Add("item:"+wid);grenades++;}else gaps.Add($"item:{wid}: {reason}");
+            }
+
             // Turret guns: the gun art is the turrets' shared part "puha" (CatalogBuilder.Parts).
             string puha=((JArray)catalog["definitions"]).OfType<JObject>().Where(r=>(string)r["category"]=="unit")
                 .SelectMany(r=>((JArray)r["graphics"]).OfType<JObject>()).FirstOrDefault(g=>(string)g["role"]=="part:puha")?["resource"]?.ToString();
@@ -160,7 +169,7 @@ namespace Remains.Editor
             AssetDatabase.SaveAssets();
             WriteAudio(audio);
             foreach(string gap in gaps) Debug.Log("Оружие не подключено: "+gap);
-            Debug.Log($"Оружие оригинала: подключено {generated.Count} определений ({generated.Select(g=>g.Split(':')[1]).Distinct().Count()} моделей, ближнего боя {melee}), "+
+            Debug.Log($"Оружие оригинала: подключено {generated.Count} определений ({generated.Select(g=>g.Split(':')[1]).Distinct().Count()} моделей, ближнего боя {melee}, гранат {grenades}), "+
                 $"не подключено {gaps.Count}; графика выстрелов {shots.Count}, гильз {casings.Count}.");
         }
 
@@ -411,8 +420,9 @@ namespace Remains.Editor
         private static void WriteAudio(List<JObject> generated)
         {
             var json=JObject.Parse(File.ReadAllText(CombatAudioPath));var entries=(JArray)json["entries"];
-            // Earlier generated entries are replaced as a whole (weapon IDs of the export).
-            var kept=entries.OfType<JObject>().Where(e=>!((string)e["weapon"]).StartsWith("weapon:",StringComparison.Ordinal)).ToList();
+            // Earlier generated entries are replaced as a whole (weapon IDs of the export, and the grenades' item IDs).
+            var ids=generated.Select(e=>(string)e["weapon"]).ToHashSet(StringComparer.Ordinal);
+            var kept=entries.OfType<JObject>().Where(e=>!((string)e["weapon"]).StartsWith("weapon:",StringComparison.Ordinal) && !ids.Contains((string)e["weapon"])).ToList();
             var lines=kept.Concat(generated).Select(e=>"    "+e.ToString(Newtonsoft.Json.Formatting.None));
             File.WriteAllText(CombatAudioPath,"{\n  \"entries\": [\n"+string.Join(",\n",lines)+"\n  ]\n}\n");
             AssetDatabase.ImportAsset(CombatAudioPath,ImportAssetOptions.ForceUpdate);

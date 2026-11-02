@@ -1,5 +1,6 @@
 using System;
 using Remains.Domain;
+using Remains.Content;
 using Remains.Gameplay;
 using UnityEngine;
 
@@ -10,8 +11,8 @@ namespace Remains.Networking
         public static ThrowRequest Capture(ActorState actor,Vector2 aim,RoomLayout room=null)
         {
             var selected=WeaponInventory.Selected(actor);
-            bool held=!HeldItemSelection.HasSelection(actor) && selected?.definition=="grenade";
-            var stack=held?selected:actor.inventory.Find(item=>item.definition=="grenade" && InventoryAvailability.Count(actor,item)>0);
+            bool held=!HeldItemSelection.HasSelection(actor) && WeaponCatalog.IsGrenade(selected?.definition);
+            var stack=held?selected:GrenadeItems.Next(actor);
             HeldLaunch launch;
             if(held) launch=HeldItemPose.Capture(actor,aim);
             else if(!HeldItemPose.TryQuickLaunch(actor,aim,room,out launch)) return default;
@@ -20,7 +21,7 @@ namespace Remains.Networking
                 generation=actor.generation,lifecycle=actor.lifecycleSequence,
                 originX=origin.x,originY=origin.y,aimX=aim.x,aimY=aim.y,vx=velocity.x,vy=velocity.y,
                 angle=launch.angle,mirrored=launch.mirrored,
-                angularVelocity=GrenadeLaunch.AngularVelocity(velocity,actor.facing,Remains.Content.WeaponCatalog.Get("grenade"))};
+                angularVelocity=GrenadeLaunch.AngularVelocity(velocity,actor.facing,WeaponCatalog.Get(stack?.definition??"grenade"))};
         }
         public static bool Matches(ActorState actor,ThrowRequest request)=>actor!=null && !actor.down &&
             !string.IsNullOrWhiteSpace(request.transaction) && !string.IsNullOrWhiteSpace(request.item) && actor.level==request.level &&
