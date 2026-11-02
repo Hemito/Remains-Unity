@@ -147,6 +147,9 @@ namespace Remains.Editor
 
             using var assets=new PonyPointPreviewAssets();
             var restLooks=new JArray(PonyPointStudy.Outfits.Select(o=>assets.Look(PonyAnimationArtwork.Prepare(o))));
+            var expressions=new[] {PonyFacialExpression.Neutral,PonyFacialExpression.Alert,PonyFacialExpression.Closed,PonyFacialExpression.Dead};
+            var previewFaces=new JObject(expressions.Select(e=>new JProperty(e.ToString().ToLowerInvariant(),
+                new JArray(PonyPointStudy.Outfits.Select(o=>assets.Look(PonyAnimationArtwork.WithExpression(PonyAnimationArtwork.Prepare(o),e)))))));
             var used=new HashSet<string>(Chains.SelectMany(c=>states[c.Id]).SelectMany(s=>((JObject)s["symbols"]).Properties().Select(p=>p.Name+"|"+(string)p.Value)),StringComparer.Ordinal);
             var symbolLooks=new JObject();
             var ownImages=new Dictionary<string,int>(StringComparer.Ordinal);
@@ -159,14 +162,23 @@ namespace Remains.Editor
                     continue;
                 }
                 var (matrix,clip,frame)=canonical[key];string socket=key.Substring(0,key.IndexOf('|'));var looks=new JArray();
+                var faceLooks=socket=="head"?new JObject(expressions.Select(e=>new JProperty(e.ToString().ToLowerInvariant(),new JArray()))):null;
                 foreach(string outfit in PonyPointStudy.Outfits)
                 {
                     var art=PonyAnimationArtwork.ReplaceNodes(PonyAnimationArtwork.Prepare(outfit),PonyAnimationArtwork.Prepare(outfit,clip,frame),
                         new Dictionary<string,Matrix4x4>(StringComparer.Ordinal){[socket]=matrix});
                     var look=assets.Look(art);var nodes=(JArray)look["nodes"];
                     looks.Add(new JArray(((JArray)look["draws"]).Where(d=>(string)nodes[(int)d["node"]]["socket"]==socket).Select(d=>new JObject {["image"]=d["image"],["rect"]=d["rect"]})));
+                    if(faceLooks!=null)foreach(var expression in expressions)
+                    {
+                        var face=assets.Look(PonyAnimationArtwork.WithExpression(art,expression));var faceNodes=(JArray)face["nodes"];
+                        ((JArray)faceLooks[expression.ToString().ToLowerInvariant()]).Add(new JArray(((JArray)face["draws"])
+                            .Where(d=>(string)faceNodes[(int)d["node"]]["socket"]==socket)
+                            .Select(d=>new JObject {["image"]=d["image"],["rect"]=d["rect"],["sourcePath"]=d["sourcePath"]})));
+                    }
                 }
                 symbolLooks[key]=new JObject { ["canonical"]=PonyPointPreview.Matrix(matrix),["looks"]=looks };
+                if(faceLooks!=null)((JObject)symbolLooks[key])["expressions"]=faceLooks;
             }
             summary=new JObject { ["rawFrames"]=raw,["extraFrames"]=extraFrames,["ownSymbols"]=own.Count,["symbols"]=symbolLooks.Count,["images"]=assets.Images.Count,["skippedParts"]=skipped.Count,
                 ["registration"]=new JObject(registration.OrderBy(p=>p.Key).Select(p=>new JProperty(p.Key,p.Value))),
@@ -174,11 +186,22 @@ namespace Remains.Editor
             return new JObject { ["version"]=1,["sourceHash"]=PonyRenderAsset.SourceHash(),
                 ["world"]=new JArray(PonyPointStudy.World.x,PonyPointStudy.World.y,PonyPointStudy.World.width,PonyPointStudy.World.height),
                 ["images"]=assets.Images,["rest"]=restLooks,["symbols"]=symbolLooks,["frames"]=frames,["skipped"]=new JArray(skipped),
+                ["previewFaces"]=previewFaces,["ambient"]=AmbientPreview(),
                 ["restSymbols"]=new JObject(reference.Frame.Nodes.Select(n=>new JProperty(n.socket,layout.Get("idle",0,n.top).Id))),
                 // Registration origins of the pose document (graphic joints, not recovered anatomy), standing actor space.
                 ["joints"]=new JObject(reference.Frame.Nodes.Select(n=>new JProperty(n.socket,new JArray(Joint(n.socket).x,Joint(n.socket).y)))),
                 ["chains"]=new JArray(Chains.Select(c=>new JObject { ["id"]=c.Id,["label"]=c.Label,["sockets"]=new JArray(c.Sockets),["end"]=c.End,
                     ["rest"]=new JArray(Joint(c.Effector).x+c.Offset.x,Joint(c.Effector).y+c.Offset.y),["states"]=new JArray(states[c.Id]) })) };
+        }
+
+        private static JArray AmbientPreview()
+        {
+            var asset=GameAssets.Load<PonyAmbientMotionAsset>(PonyAmbientMotionAsset.Resource)??
+                throw new InvalidOperationException("Предпросмотр ожидания: нет банка "+PonyAmbientMotionAsset.Resource+". Выполните Remains → Пони → Подготовить движения ожидания.");
+            asset.Validate();
+            return new JArray(asset.Clips.Select(c=>new JObject { ["id"]=c.id,["fps"]=c.fps,["duration"]=c.Duration,
+                ["frames"]=new JArray(c.frames.Select(f=>new JObject { ["nodes"]=new JObject(f.nodes.Select(n=>
+                    new JProperty(n.socket,PonyPointPreview.Matrix(n.transform.Matrix)))) })) }));
         }
         // Original body timelines the game bank does not take (strikes, stealth, levitation...), exported by
         // Tools/export_pony.py --extra-poses. A node whose drawing the game bank has is placed like PonySymbolLayout

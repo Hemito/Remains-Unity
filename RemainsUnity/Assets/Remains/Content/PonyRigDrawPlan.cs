@@ -11,10 +11,12 @@ namespace Remains.Content
         public sealed class Frame {public PonyRigNode[] Nodes;public int[] PartNodes;public Bounds Bounds;}
         private readonly Dictionary<string,Frame[]> clips=new(StringComparer.Ordinal);
         private readonly Dictionary<string,Frame[]> closedClips=new(StringComparer.Ordinal);
+        private readonly Dictionary<string,Frame[]> alertClips=new(StringComparer.Ordinal),deadClips=new(StringComparer.Ordinal);
         private static PonyRigMotionAsset motion;
         private static ConditionalWeakTable<WearableDrawPlan,PonyRigDrawPlan> prepared=new();
         public Bounds CameraEnvelope {get;private set;}
         public Frame Get(string clip,int frame,bool closed=false)=>(closed?closedClips:clips)[clip][frame];
+        public Frame Get(string clip,int frame,PonyFacialExpression expression)=>(expression switch {PonyFacialExpression.Closed=>closedClips,PonyFacialExpression.Alert=>alertClips,PonyFacialExpression.Dead=>deadClips,_=>clips})[clip][frame];
         public static void Load()
         {
             if(motion!=null)return;
@@ -89,6 +91,12 @@ namespace Remains.Content
                     if(!envelopeFound){envelope=frame.Bounds;envelopeFound=true;}else envelope.Encapsulate(frame.Bounds);
                 }
                 clips.Add(clip.id,frames);closedClips.Add(clip.id,closedFrames);
+                foreach(var expression in new[]{PonyFacialExpression.Alert,PonyFacialExpression.Dead})
+                {
+                    var variants=plan.Frames(clip.id,expression);var preparedFrames=new Frame[frames.Length];
+                    for(int f=0;f<frames.Length;f++)preparedFrames[f]=ReferenceEquals(parts[f],variants[f])?frames[f]:PrepareFrame(clip.frames[f].nodes,variants[f],clip.id+"/"+expression+"/"+f);
+                    (expression==PonyFacialExpression.Alert?alertClips:deadClips).Add(clip.id,preparedFrames);
+                }
             }
             float x=Mathf.Max(Mathf.Abs(envelope.min.x),Mathf.Abs(envelope.max.x));
             envelope.SetMinMax(new Vector3(-x,envelope.min.y,envelope.min.z),new Vector3(x,envelope.max.y,envelope.max.z));CameraEnvelope=envelope;

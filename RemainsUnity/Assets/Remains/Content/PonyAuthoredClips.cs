@@ -21,6 +21,7 @@ namespace Remains.Content
         public const int Schema=1;
         public const string Resource="Original/Pony/pony-authored";
         public static PonyAuthoredBank Bank {get;private set;}
+        internal static void Reset()=>Bank=null;
         // Called by PonyAnimationData.Load before it publishes the library.
         internal static PonyClip[] Load(string baseHash)
         {

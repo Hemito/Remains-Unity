@@ -34,6 +34,7 @@ namespace Remains.Editor
                     Images.Add("data:image/png;base64,"+Convert.ToBase64String(File.ReadAllBytes(file)));
                 }
                 draws.Add(new JObject { ["image"]=image,["node"]=art.Frame.PartNodes[p],["symbol"]=part.symbolId,
+                    ["sourcePath"]=part.sourcePath,
                     ["rect"]=new JArray(local.x,local.y,local.width,local.height) });
             }
             return new JObject { ["label"]=art.Outfit.Length==0?"Без костюма":"Антирад",["draws"]=draws,

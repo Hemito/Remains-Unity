@@ -85,6 +85,29 @@ namespace Remains.Editor
             return new PonyAnimationArtwork {Parts=parts.ToArray(),Frame=frame,Appearance=source.Appearance,Outfit=source.Outfit,SourceClip=source.SourceClip,SourceFrame=source.SourceFrame};
         }
 
+        // Cosmetic facial states may replace the complete eye subtree and change the part count. Keep the
+        // authored node placements intact; rebuild the lookup from the source paths of the resulting parts.
+        public static PonyAnimationArtwork WithExpression(PonyAnimationArtwork source,PonyFacialExpression expression)
+        {
+            if(source==null)throw new ArgumentNullException(nameof(source));
+            var parts=PonyNestedEyeFrames.Prepare(source.Parts).Parts(expression);
+            var nodes=source.Frame.Nodes;var byTop=nodes.Select((n,i)=>(n.top,i)).ToDictionary(n=>n.top,n=>n.i,StringComparer.Ordinal);
+            var partNodes=new int[parts.Length];Bounds bounds=default;bool any=false;
+            for(int p=0;p<parts.Length;p++)
+            {
+                string path=parts[p].sourcePath;int slash=path?.IndexOf('/')??-1;string top=slash<0?path:path.Substring(0,slash);
+                if(top==null || !byTop.TryGetValue(top,out int node))
+                    throw new InvalidOperationException($"Предпросмотр мимики: часть {path} не имеет узла рисунка {source.SourceClip}/{source.SourceFrame}.");
+                partNodes[p]=node;
+                if(!parts[p].visible)continue;
+                var partBounds=PonyRigDrawPlan.TransformBounds(parts[p].mesh.bounds,nodes[node].transform.Matrix);
+                if(!any){bounds=partBounds;any=true;}else bounds.Encapsulate(partBounds);
+            }
+            var frame=new PonyRigDrawPlan.Frame {Nodes=nodes,PartNodes=partNodes,Bounds=any?bounds:source.Frame.Bounds};
+            return new PonyAnimationArtwork {Parts=parts,Frame=frame,Appearance=source.Appearance,Outfit=source.Outfit,
+                SourceClip=source.SourceClip,SourceFrame=source.SourceFrame};
+        }
+
         public PonyRigFrame CompileFrame(PonyPoseDocument document,PonyPoseValue[] pose)
         {
             var matrices=Matrices(document,pose);var nodes=new PonyRigNode[matrices.Length];

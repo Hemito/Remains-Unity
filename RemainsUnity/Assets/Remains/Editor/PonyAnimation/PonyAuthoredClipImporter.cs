@@ -82,6 +82,7 @@ namespace Remains.Editor
             if(maxError>.0005f)throw new InvalidDataException("Свои анимации не повторяют узлы аниматора: error="+maxError);
             File.WriteAllText(Output,JsonUtility.ToJson(new PonyAuthoredBank {schema=PonyAuthoredClips.Schema,baseSourceHash=baseHash,clips=result.ToArray()},true));
             AssetDatabase.ImportAsset(Output,ImportAssetOptions.ForceUpdate);
+            PonyAnimationData.Reset();PonyRenderSelection.ResetPrepared();
             Debug.Log($"Свои анимации пони: {result.Count} ({string.Join(", ",result.Select(c=>c.clip.id))}), error={maxError:G4}. Дальше: Remains → Пересобрать графику пони и движения куклы.");
         }
         public static void ImportBatch()

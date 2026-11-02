@@ -59,6 +59,17 @@ input[type=number],input:not([type]){background:#3a4150;color:var(--text);border
 <label><input type="checkbox" id="ghost" checked> Тень стойки</label>
 <label><input type="checkbox" id="handles" checked> Кружки</label>
 </div>
+<details id="previewPanel">
+<summary>Предпросмотр мимики и ожидания</summary>
+<div class="buttons">
+<label>Выражение <select id="previewExpression"><option value="neutral">Спокойное</option><option value="alert">Настороженное</option><option value="closed">Закрытые глаза</option><option value="dead">Без сознания</option></select></label>
+<label><input type="checkbox" id="previewBlink"> Моргание</label>
+<label>Ожидание <select id="previewIdle"><option value="">Выключено</option><option value="free1">Переминание 1</option><option value="free2">Переминание 2</option><option value="free3">Переминание 3</option></select></label>
+<button id="previewPlay" disabled>▶ Предпросмотр</button>
+<label>Кадр ожидания <input type="range" id="previewFrame" min="0" max="0" value="0" disabled><span id="previewFrameValue">—</span></label>
+</div>
+<p class="note" id="previewNote">Только предпросмотр: мимика и ожидание не меняют позу, ключи или выгружаемые кадры. Рисунки глаз взяты из игры; управление взглядом пока недоступно.</p>
+</details>
 <dl class="facts" id="facts"></dl>
 </section>
 <section>
@@ -108,6 +119,7 @@ input[type=number],input:not([type]){background:#3a4150;color:var(--text);border
 <label>Анимация <select id="clipList"></select></label><button id="clipNew">Новая анимация</button><button id="clipSave">Сохранить анимацию с кадрами</button>
 <label>Сеанс <select id="sessionList"><option>main</option></select></label>
 <span class="note" id="serverState"></span>
+<button id="workRecovery" hidden>Скачать несохранённую работу</button>
 </div>
 <div class="keys" id="keys"></div>
 <p class="note">Корпус: ползунок наклоняет вокруг выбранной точки, квадрат на пони сдвигает. «Копыта на полу стоят на месте» держит в мире копыта, стоящие на полу, и ноги подбираются из атласа под новый наклон. Тонкая правка: выберите часть — на ней три точки, тяните их; «Рисунок» меняет вариант (например, подогнутое копыто). «Добавить позу в атлас» делает изменённые цепочки новыми состояниями группы «Свои позы» — соседние положения начинают их учитывать. Ключи: поставьте кадр, соберите позу, «Поставить ключ»; между ключами концы цепочек и корпус движутся плавно, нога каждый кадр собирается из атласа. Позы, свои состояния и анимация хранятся в этом браузере; анимацию можно скачать и загрузить файлом.</p>
@@ -151,7 +163,7 @@ const big=data.world,identity=[1,0,0,1,0,0];
 const chains=data.chains;chains.forEach(c=>c.states.forEach(s=>s.group=groupOf(s.id)[0]));
 const images=data.images.map(src=>{const i=new Image();i.src=src;return i;});
 let loaded=0,storesReady=false,started=false;images.forEach(i=>i.onload=()=>{if(++loaded===images.length)maybeStart();});
-function maybeStart(){if(started||loaded<images.length||!storesReady)return;started=true;migrateWork();drawAll();drawKeys();connect();}
+function maybeStart(){if(started||loaded<images.length||!storesReady)return;started=true;syncPreviewControls();migrateWork();drawAll();drawKeys();connect();}
 const storeKey='pose-atlas-marks-v1:'+data.sourceHash;
 let marks={};try{marks=JSON.parse(localStorage.getItem(storeKey)||'{}')||{};}catch(e){marks={};}
 function saveMarks(){if(server)return saveWork();try{localStorage.setItem(storeKey,JSON.stringify(marks));}catch(e){}}
@@ -212,17 +224,23 @@ function overrides(only){const result={};
   for(const k of chain.sockets){const base=p?p.parts.find(x=>x[0]===k):null;if(!base&&!edits[k]&&!symbolChoice[k])continue;
    const d=base?base[2]:identity;result[k]=[symbolChoice[k]||(base?base[1]:data.restSymbols[k]),edits[k]?compose(d,edits[k]):d];}}
  return result;}
-function render(ctx,outfit,over,view,size,alpha=1,sockets=null,frame=null){
- const look=data.rest[outfit];ctx.save();ctx.globalAlpha=alpha;ctx.setTransform(size/view[2],0,0,-size/view[3],-view[0]*size/view[2],size+view[1]*size/view[3]);
+function render(ctx,outfit,over,view,size,alpha=1,sockets=null,frame=null,preview=null){
+ const expression=preview?.expression||'neutral',look=preview&&expression!=='neutral'?data.previewFaces[expression][outfit]:data.rest[outfit];
+ ctx.save();ctx.globalAlpha=alpha;ctx.setTransform(size/view[2],0,0,-size/view[3],-view[0]*size/view[2],size+view[1]*size/view[3]);
  if(frame)ctx.transform(...frame);
  const done=new Set();
  const draw=(image,matrix,r)=>{ctx.save();ctx.transform(...matrix);ctx.translate(r[0],r[1]+r[3]);ctx.scale(1,-1);ctx.drawImage(images[image],0,0,r[2],r[3]);ctx.restore();};
  for(const part of look.draws){const node=look.nodes[part.node],k=node.socket;if(sockets&&!sockets.includes(k))continue;
-  if(!over[k]){draw(part.image,node.matrix,part.rect);continue;}
+  const ambient=preview?.deltas?.[k];
+  if(!over[k]){draw(part.image,ambient?compose(ambient,node.matrix):node.matrix,part.rect);continue;}
   if(done.has(k))continue;done.add(k);const [sym,delta]=over[k],entry=data.symbols[k+'|'+sym];
   if(!entry){console.warn('Атлас поз: нет рисунка символа',k,sym);draw(part.image,compose(delta,node.matrix),part.rect);continue;}
-  const m=compose(delta,entry.canonical);
-  for(const d of entry.looks[outfit]){if(!d.local){draw(d.image,m,d.rect);continue;}
+  let m=compose(delta,entry.canonical);if(ambient)m=compose(ambient,m);
+  let drawings=entry.looks[outfit];
+  if(preview&&expression!=='neutral'&&k==='head'){
+   if(entry.expressions?.[expression])drawings=entry.expressions[expression][outfit];
+   else previewWarning('У выбранного рисунка головы нет мимики: '+sym+'. Для него показан исходный рисунок.');}
+  for(const d of drawings){if(!d.local){draw(d.image,m,d.rect);continue;}
    // Own symbols (drawings the game bank lacks): untinted shape PNGs, each with its place in the symbol and its slot tint.
    const r=d.rect,img=tinted(d.image,d.tint);ctx.save();ctx.transform(...compose(m,d.local));ctx.translate(r[0],r[1]+r[3]);ctx.scale(1,-1);ctx.drawImage(img,0,0,r[2],r[3]);ctx.restore();}}
  ctx.restore();
@@ -233,6 +251,31 @@ function tinted(index,tint){const key=index+':'+tint.join(',');if(tintCache.has(
  g.globalCompositeOperation='multiply';g.fillStyle=`rgb(${tint.slice(0,3).map(v=>Math.round(v*255)).join(',')})`;g.fillRect(0,0,c.width,c.height);
  g.globalCompositeOperation='destination-in';g.drawImage(src,0,0);const out=document.createElement('canvas');out.width=c.width;out.height=c.height;
  const o=out.getContext('2d');o.globalAlpha=tint[3];o.drawImage(c,0,0);tintCache.set(key,out);return out;}
+
+// Cosmetic state belongs only to the viewer. It never enters snapshot(), nodesNow(), work or bakeClip().
+const previewState={expression:'neutral',blink:false,idle:'',time:0,playing:false,stamp:0,request:null};
+const previewWarnings=new Set();
+function previewWarning(message){if(previewWarnings.has(message))return;previewWarnings.add(message);console.warn('Предпросмотр: '+message);$('previewNote').textContent=message;}
+function previewClip(){return (data.ambient||[]).find(c=>c.id===previewState.idle);}
+function previewOverlay(){const clip=previewClip(),f=clip?Math.min(clip.frames.length-1,Math.floor(previewState.time*clip.fps)%clip.frames.length):0;
+ const expression=previewState.blink&&['neutral','alert'].includes(previewState.expression)&&previewState.time%3.7>=3.58?'closed':previewState.expression;
+ return {expression,time:previewState.time,idle:previewState.idle,frame:f,deltas:clip?clip.frames[f].nodes:null};}
+function syncPreviewControls(){const faces=!!data.previewFaces,clips=data.ambient||[],clip=previewClip(),canBlink=faces&&['neutral','alert'].includes(previewState.expression);
+ $('previewExpression').disabled=!faces;$('previewBlink').disabled=!canBlink;$('previewBlink').checked=previewState.blink;
+ $('previewIdle').disabled=!clips.length;$('previewPlay').disabled=!clip&&!(canBlink&&previewState.blink);
+ $('previewFrame').disabled=!clip;$('previewFrame').max=clip?clip.frames.length-1:0;
+ const frame=previewOverlay().frame;$('previewFrame').value=frame;$('previewFrameValue').textContent=clip?(frame+1)+' / '+clip.frames.length:'—';
+ $('previewPlay').textContent=previewState.playing?'❚❚ Пауза предпросмотра':'▶ Предпросмотр';
+ if(!faces||!clips.length)$('previewNote').textContent='Данные предпросмотра не подготовлены: пересоберите страницу атласа. Позы и выгрузка продолжают работать без этого слоя.';}
+function stopPreview(){previewState.playing=false;if(previewState.request!==null)cancelAnimationFrame(previewState.request);previewState.request=null;syncPreviewControls();}
+function previewTick(stamp){if(!previewState.playing)return;const dt=previewState.stamp?Math.min(.1,(stamp-previewState.stamp)/1000):0;previewState.stamp=stamp;previewState.time+=dt;
+ drawPose(true);syncPreviewControls();previewState.request=requestAnimationFrame(previewTick);}
+$('previewExpression').onchange=()=>{previewState.expression=$('previewExpression').value;if(!['neutral','alert'].includes(previewState.expression))previewState.blink=false;
+ if(!previewClip()&&!previewState.blink)stopPreview();syncPreviewControls();drawPose(true);};
+$('previewBlink').onchange=()=>{previewState.blink=$('previewBlink').checked;if(!previewClip()&&!previewState.blink)stopPreview();syncPreviewControls();drawPose(true);};
+$('previewIdle').onchange=()=>{previewState.idle=$('previewIdle').value;previewState.time=0;if(!previewClip()&&!previewState.blink)stopPreview();syncPreviewControls();drawPose(true);};
+$('previewPlay').onclick=()=>{if(previewState.playing)stopPreview();else{previewState.playing=true;previewState.stamp=0;previewState.request=requestAnimationFrame(previewTick);}syncPreviewControls();};
+$('previewFrame').oninput=()=>{const clip=previewClip();if(!clip)return;stopPreview();previewState.time=+$('previewFrame').value/clip.fps;syncPreviewControls();drawPose(true);};
 function toPixel(v,view,size){return [(v[0]-view[0])*size/view[2],size-(v[1]-view[1])*size/view[3]];}
 function toWorld(e,canvas,view){const r=canvas.getBoundingClientRect();return [view[0]+(e.clientX-r.left)/r.width*view[2],view[1]+(1-(e.clientY-r.top)/r.height)*view[3]];}
 function visible(chain,s){if(hidden.has(s.group))return false;const m=marks[markKey(chain,s)],f=$('show').value;return f==='all'||(f==='none'&&!m)||f===m;}
@@ -268,17 +311,18 @@ function blend(chain,q){
 }
 
 function fmt(v,d=2){return v.toFixed(d).replace('.',',').replace('-','−');}
-function drawPose(){
- const over=overrides(),T=bodyMatrix();
+function drawPose(previewTickOnly=false){
+ const over=overrides(),T=bodyMatrix(),preview=data.previewFaces?previewOverlay():null;
  [['bare',0],['suit',1]].forEach(([id,n])=>{const ctx=$(id).getContext('2d');ctx.clearRect(0,0,520,520);
   const floor=toPixel([0,0],big,520)[1];ctx.strokeStyle='#ffffff30';ctx.setLineDash([6,6]);ctx.beginPath();ctx.moveTo(0,floor);ctx.lineTo(520,floor);ctx.stroke();ctx.setLineDash([]);
   if($('ghost').checked&&Object.keys(over).length)render(ctx,n,{},big,520,.25,Object.keys(over));
-  render(ctx,n,over,big,520,1,null,T);
+  render(ctx,n,over,big,520,1,null,T,preview);
   if(n!==0||!$('handles').checked)return;
   chains.forEach((chain,i)=>{const q=toPixel(apply(T,effectorOf(chain)),big,520);
    ctx.lineWidth=2;ctx.strokeStyle='#fff';ctx.fillStyle=i===current?'#38bdf8':'#ffffff55';ctx.beginPath();ctx.arc(...q,8,0,7);ctx.fill();ctx.stroke();});
   const b=toPixel(apply(T,PIVOTS[body.pivot]),big,520);ctx.fillStyle='#fbbf24';ctx.strokeStyle='#fff';ctx.fillRect(b[0]-7,b[1]-7,14,14);ctx.strokeRect(b[0]-7,b[1]-7,14,14);
   if(fine){const f=fineFrame(fine);f.posed.forEach((pt,j)=>{const q=toPixel(apply(T,pt),big,520);ctx.fillStyle=['#22d3ee','#facc15','#c084fc'][j];ctx.beginPath();ctx.arc(...q,6,0,7);ctx.fill();ctx.stroke();});}});
+ if(previewTickOnly)return;
  const rows=[];
  for(const chain of chains){const p=chainParts(chain);if(!p){rows.push([chain.label,'стойка']);continue;}
   if(p.info.state)rows.push([chain.label,`${p.info.state.id} (кадров: ${p.info.state.sources.length})`]);
@@ -448,23 +492,41 @@ function migrateWork(){const old=[...work.poses.map(p=>p.snap),...Object.values(
 // opened as a file — this browser only.
 const query=new URLSearchParams(location.search),workKey='pose-atlas-work-v1:'+data.sourceHash,clientId=Math.random().toString(36).slice(2),headless=query.has('headless');
 const session=(query.get('session')||'main').toLowerCase().replace(/[^a-z0-9_-]/g,'')||'main';
-let server=false,applyingRemote=false,pushTimer=null,workTimer=null,dirty=false;
+let server=false,applyingRemote=false,pushTimer=null,workTimer=null,dirty=false,workRevision=null,saveInFlight=null,saveEpoch=0,saveConflict=false;
 const emptyClip=(id,name)=>({id,name,length:30,fps:30,keys:[]});
 let work={authored:[],poses:[],clips:{draft:emptyClip('draft','Черновик')},current:'draft'};
 function normalize(w){w={authored:[],poses:[],clips:{},...w};
  if(w.anim&&!Object.keys(w.clips).length)w.clips.draft={...emptyClip('draft','Черновик'),...w.anim};delete w.anim;   // earlier single-clip storage
  if(!Object.keys(w.clips).length)w.clips.draft=emptyClip('draft','Черновик');if(!w.clips[w.current])w.current=Object.keys(w.clips)[0];return w;}
-function applyWork(w){work=normalize(w);if(w.marks)marks=w.marks;
+function applyWork(w){workRevision=w.revision??null;work=normalize(w);if(w.marks)marks=w.marks;
  for(const c of chains)c.states=c.states.filter(s=>s.group!=='authored');
  for(const a of work.authored){const c=chains.find(x=>x.id===a.chain);if(c){a.state.group='authored';c.states.push(a.state);}else console.warn('Аниматор: своё состояние для неизвестной цепочки',a.chain);}
  invalidate();anim=work.clips[work.current];}
 function saveWork(){
  if(!server){try{localStorage.setItem(workKey,JSON.stringify(work));}catch(e){console.warn('Аниматор: не сохранено в браузере',e);}return;}
-dirty=true;clearTimeout(workTimer);workTimer=setTimeout(()=>fetch('/api/work?client='+clientId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...work,marks})})
-  .then(r=>{if(!r.ok)throw new Error(r.status);dirty=false;$('serverState').textContent='Сохранено в проект: '+new Date().toLocaleTimeString();})
-  .catch(e=>{$('serverState').textContent='Не сохранено в проект: '+e.message;console.warn('Аниматор: не сохранено в проект',e);}),200);}
+ dirty=true;saveEpoch++;clearTimeout(workTimer);workTimer=setTimeout(()=>flushWork().catch(showSaveError),200);}
+function showSaveError(error){$('serverState').textContent='Не сохранено в проект: '+error.message;$('workRecovery').hidden=false;console.warn('Аниматор: не сохранено в проект',error);}
+async function saveResponse(response){const value=await response.json();if(!response.ok){if(response.status===409)saveConflict=true;throw new Error(value.error||('Сервер: '+response.status));}return value;}
+async function flushWork(){
+ clearTimeout(workTimer);
+ if(saveConflict)throw new Error('Конфликт общей работы. Скачайте несохранённую копию перед обновлением страницы.');
+ if(saveInFlight){await saveInFlight;if(dirty)return flushWork();return;}
+ if(!dirty)return;
+ const epoch=saveEpoch,payload=JSON.stringify({...work,marks,revision:workRevision});
+ saveInFlight=(async()=>{const response=await saveResponse(await fetch('/api/work?client='+clientId,{method:'PUT',headers:{'Content-Type':'application/json'},body:payload}));
+   workRevision=response.revision;if(epoch===saveEpoch)dirty=false;
+   $('serverState').textContent=dirty?'Есть новые несохранённые правки.':'Сохранено в проект: '+new Date().toLocaleTimeString();
+   $('workRecovery').hidden=!dirty;
+ })();
+ try{await saveInFlight;}finally{saveInFlight=null;}
+ if(dirty)return flushWork();
+}
+$('workRecovery').onclick=()=>{const blob=new Blob([JSON.stringify({format:'pony-animator-recovery',version:1,sourceHash:data.sourceHash,work,marks,live:snapshot()},null,1)],{type:'application/json'});
+ const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='pony-work-recovery.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);};
 async function loadStores(){
- try{const r=await fetch('/api/work');if(r.ok){server=true;applyWork(await r.json());$('serverState').textContent=`Позы и анимации — в проекте (Tools/PoseAnimator). Сеанс «${session}».`;}}catch(e){}
+ try{const r=await fetch('/api/work');if(r.ok){server=true;applyWork(await r.json());$('serverState').textContent=`Позы и анимации — в проекте (Tools/PoseAnimator). Сеанс «${session}».`;
+   if(typeof workRevision!=='string'){saveConflict=true;showSaveError(new Error('Сервер старой версии: требуется перезапуск Tools/PoseAnimator. Работа доступна для просмотра и скачивания.'));}
+ }}catch(e){}
  if(!server){try{const saved=JSON.parse(localStorage.getItem(workKey)||'null');applyWork(saved||work);}catch(e){applyWork(work);}$('serverState').textContent='Файл открыт напрямую: позы и анимации хранятся только в этом браузере.';}
  storesReady=true;drawPoseList();drawClips();maybeStart();}
 // Live session: the current pose is shared with other pages and agents; a remote change is shown, not echoed back.
@@ -477,7 +539,7 @@ $('sessionList').onchange=()=>{const q=new URLSearchParams(location.search);q.se
 function connect(){if(!server)return;
  const events=new EventSource('/api/events?client='+clientId+'&session='+session+(headless?'&headless=1':''));
  drawSessions();setInterval(drawSessions,10000);
- events.addEventListener('work',async e=>{const d=JSON.parse(e.data);if(d.client===clientId||dirty)return;const cur=work.current;applyWork(await (await fetch('/api/work')).json());
+ events.addEventListener('work',async e=>{const d=JSON.parse(e.data);if(d.client===clientId||dirty||saveInFlight||saveConflict)return;const cur=work.current,response=await (await fetch('/api/work')).json();if(dirty||saveInFlight||saveConflict)return;applyWork(response);
   if(work.clips[cur]){work.current=cur;anim=work.clips[cur];}drawPoseList();drawClips();drawAll();});
  events.addEventListener('session',e=>{const d=JSON.parse(e.data);if(d.client===clientId||!d.snap)return;applyingRemote=true;
   try{if(d.clip&&work.clips[d.clip]&&d.clip!==work.current){work.current=d.clip;anim=work.clips[d.clip];drawClips();}frameNow=d.frame||0;restore(d.snap);drawKeys();drawPose();drawMap();}finally{applyingRemote=false;}});
@@ -500,7 +562,7 @@ $('toAtlas').onclick=()=>{const over=overrides();let added=0;
 // Animation: keys hold snapshots; between keys chain ends, body and fine edits move, and each frame is blended from the atlas.
 let anim=null,frameNow=0,timer=null;
 function effectorInSnap(c,s){const v=s.chains[c.id];if(!v)return c.rest;if(v.blend)return v.blend;const st=c.states.find(x=>x.id===v.stateId);return st?st.effector:c.rest;}
-function mix(a,b,t){const lerp=(x,y)=>x+(y-x)*t,out={body:{angle:lerp(a.body.angle,b.body.angle),x:lerp(a.body.x,b.body.x),y:lerp(a.body.y,b.body.y),pivot:a.body.pivot},chains:{},edits:{},symbolChoice:t<.5?a.symbolChoice:b.symbolChoice};
+function mix(a,b,t){const lerp=(x,y)=>x+(y-x)*t,out={body:{angle:lerp(a.body.angle,b.body.angle),x:lerp(a.body.x,b.body.x),y:lerp(a.body.y,b.body.y),pivot:a.body.pivot},chains:{},edits:{},editsFrame:'part',symbolChoice:t<.5?a.symbolChoice:b.symbolChoice};
  for(const c of chains){const va=a.chains[c.id],vb=b.chains[c.id];if(!va&&!vb)continue;
   if(va&&vb&&va.stateId&&va.stateId===vb.stateId){out.chains[c.id]={stateId:va.stateId};continue;}
   const ea=effectorInSnap(c,a),eb=effectorInSnap(c,b);out.chains[c.id]={blend:[lerp(ea[0],eb[0]),lerp(ea[1],eb[1])]};}
@@ -531,8 +593,11 @@ function bakeClip(){const keep=snapshot(),frames=[];
  try{for(let f=0;f<anim.length;f++){restore(snapAt(f));frames.push({nodes:nodesNow()});}}finally{restore(keep);}
  return {format:'pony-pose-atlas-clip',version:1,sourceHash:data.sourceHash,id:anim.id,name:anim.name,fps:anim.fps,length:anim.length,keys:anim.keys,
   authored:work.authored.filter(a=>JSON.stringify(anim.keys).includes('"'+a.state.id+'"')),frames};}
-async function saveBaked(){const file=bakeClip();const r=await fetch('/api/clip/'+encodeURIComponent(anim.id)+'?client='+clientId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(file)});
- if(!r.ok)throw new Error('сервер ответил '+r.status+': '+await r.text());return file;}
+async function saveBaked(){await flushWork();const file=bakeClip(),epoch=saveEpoch;
+ if(saveInFlight)await saveInFlight;
+ saveInFlight=(async()=>{const result=await saveResponse(await fetch('/api/clip/'+encodeURIComponent(anim.id)+'?client='+clientId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...file,revision:workRevision})}));workRevision=result.revision;})();
+ try{await saveInFlight;}catch(error){showSaveError(error);throw error;}finally{saveInFlight=null;}
+ if(saveEpoch!==epoch && dirty)await flushWork();return file;}
 $('clipSave').onclick=async()=>{if(!server)return alert('Сохранение с кадрами в проект работает, когда страница открыта через Tools/PoseAnimator. Здесь — «Скачать анимацию».');
  if(!anim.keys.length)return alert('Нет ключей.');try{const f=await saveBaked();$('serverState').textContent=`Анимация «${anim.name}» сохранена с кадрами: ${f.frames.length}`;}catch(e){alert('Не сохранено: '+e.message);}};
 function drawClips(){$('clipList').innerHTML=Object.values(work.clips).map(c=>`<option value="${c.id}" ${c.id===work.current?'selected':''}>${c.name}</option>`).join('');}
@@ -556,11 +621,11 @@ function poseSummary(){const T=bodyMatrix();return {session,body:{...body},frame
  const info=!p?{kind:'rest'}:p.info.state?{kind:'state',state:p.info.state.id}:{kind:'blend',corners:p.info.blend.corners.map(q=>[q.s.id,round(q.w)]),outside:p.info.blend.outside,outsideBy:round(p.info.blend.distance),...(p.info.blend.swing!==undefined?{swing:round(p.info.blend.swing)}:{})};
  return [c.id,{...info,end:pt(e),endWorld:pt(apply(T,e)),edited:c.sockets.filter(k=>edits[k]),drawings:Object.fromEntries(c.sockets.filter(k=>symbolChoice[k]).map(k=>[k,symbolChoice[k]]))}];}))};}
 function redraw(){syncControls();drawKeys();drawPose();drawMap();refreshCells();}
-function canvasPng({outfit='bare',size=520,handles=true,label=''}){const c=document.createElement('canvas');c.width=(outfit==='both'?2:1)*size;c.height=size;const ctx=c.getContext('2d');
+function canvasPng({outfit='bare',size=520,handles=true,label='',preview=false}){const c=document.createElement('canvas');c.width=(outfit==='both'?2:1)*size;c.height=size;const ctx=c.getContext('2d');
  ctx.fillStyle='#6b7280';ctx.fillRect(0,0,c.width,c.height);const over=overrides(),T=bodyMatrix();
  (outfit==='both'?[0,1]:[outfit==='suit'?1:0]).forEach((n,i)=>{const t=document.createElement('canvas');t.width=t.height=size;const g=t.getContext('2d');
   const floor=toPixel([0,0],big,size)[1];g.strokeStyle='#ffffff40';g.setLineDash([6,6]);g.beginPath();g.moveTo(0,floor);g.lineTo(size,floor);g.stroke();g.setLineDash([]);
-  render(g,n,over,big,size,1,null,T);
+  render(g,n,over,big,size,1,null,T,preview&&data.previewFaces?previewOverlay():null);
   if(handles&&n===0){g.font='bold 11px system-ui';chains.forEach(ch=>{const q=toPixel(apply(T,effectorOf(ch)),big,size);g.fillStyle='#38bdf8';g.beginPath();g.arc(...q,5,0,7);g.fill();g.fillStyle='#fff';g.fillText(ch.id,q[0]+7,q[1]-5);});}
   ctx.drawImage(t,i*size,0);});
  if(label){ctx.fillStyle='#fff';ctx.font='bold 14px system-ui';ctx.fillText(label,6,18);}return c;}
@@ -568,7 +633,18 @@ const agent={
  describe(){return {units:'единицы персонажа (≈ м); x вправо, y вверх; пол y=0; координаты цепочек — относительно туловища в стойке',
   chains:chains.map(c=>({id:c.id,label:c.label,sockets:c.sockets,end:c.end,restEnd:pt(c.rest),states:c.states.length})),
   groups:GROUPS.map(g=>({id:g[0],label:g[1],hidden:hidden.has(g[0])})),pivots:PIVOTS,mix:$('mix').value,edge:+$('edge').value,
-  pose:poseSummary(),poses:work.poses.map(p=>p.name),clips:Object.values(work.clips).map(c=>({id:c.id,name:c.name,length:c.length,fps:c.fps,keys:c.keys.map(k=>k.frame)}))};},
+  pose:poseSummary(),preview:{...previewOverlay(),blink:previewState.blink,playing:previewState.playing},poses:work.poses.map(p=>p.name),clips:Object.values(work.clips).map(c=>({id:c.id,name:c.name,length:c.length,fps:c.fps,keys:c.keys.map(k=>k.frame)}))};},
+ set_preview({expression=previewState.expression,blink=previewState.blink,idle=previewState.idle,frame,playing=false}){
+  if(!data.previewFaces)throw new Error('нет данных мимики: пересоберите страницу атласа');
+  if(!['neutral','alert','closed','dead'].includes(expression))throw new Error('неизвестное выражение: '+expression);
+  if(blink&&!['neutral','alert'].includes(expression))throw new Error('моргание доступно только для спокойных и настороженных глаз');
+  const clip=idle?(data.ambient||[]).find(c=>c.id===idle):null;if(idle&&!clip)throw new Error('нет клипа ожидания: '+idle);
+  if(frame!==undefined&&(!clip||!Number.isInteger(frame)||frame<0||frame>=clip.frames.length))throw new Error('кадр ожидания вне выбранного клипа');
+  if(playing&&!clip&&!blink)throw new Error('для воспроизведения выберите ожидание или моргание');
+  stopPreview();Object.assign(previewState,{expression,blink:!!blink,idle,time:frame!==undefined?frame/clip.fps:0});
+  $('previewExpression').value=expression;$('previewBlink').checked=!!blink;$('previewIdle').value=idle;
+  if(playing){previewState.playing=true;previewState.stamp=0;previewState.request=requestAnimationFrame(previewTick);}
+  syncPreviewControls();drawPose(true);return {...previewOverlay(),blink:previewState.blink,playing:previewState.playing};},
  list_states({chain,group,near,limit=20}){const c=chainBy(need(chain,'chain'));let list=c.states.map(s=>({id:s.id,group:s.group,end:pt(s.effector),frames:s.sources.length,mark:marks[markKey(c,s)]||null,drawings:s.symbols}));
   if(group)list=list.filter(s=>s.group===group);if(near)list.sort((a,b)=>Math.hypot(a.end[0]-near[0],a.end[1]-near[1])-Math.hypot(b.end[0]-near[0],b.end[1]-near[1]));return {chain,total:list.length,states:list.slice(0,limit)};},
  set_chain_end({chain,x,y,space='torso'}){const c=chainBy(need(chain,'chain'));let q=[+need(x,'x'),+need(y,'y')];if(space==='world')q=apply(invert(bodyMatrix()),q);
@@ -617,8 +693,8 @@ const agent={
  remove_key({frame}){frameNow=+need(frame,'frame');$('keyDelete').onclick();return agent.list_keys();},
  list_keys(){return {clip:anim.id,name:anim.name,length:anim.length,fps:anim.fps,keys:anim.keys.map(k=>k.frame).sort((a,b)=>a-b)};},
  async save_clip(){if(!anim.keys.length)throw new Error('нет ключей');const f=await saveBaked();return {clip:anim.id,frames:f.frames.length,file:'RemainsUnity/Assets/Remains/Editor/PonyAnimation/Authored/clips/'+anim.id+'.json'};},
- render({outfit='bare',size=520,handles=true,frames}){size=Math.max(160,Math.min(1024,+size||520));
-  if(!frames)return {png:canvasPng({outfit,size,handles}).toDataURL('image/png'),pose:poseSummary()};
+ render({outfit='bare',size=520,handles=true,frames,preview=false}){size=Math.max(160,Math.min(1024,+size||520));
+  if(!frames)return {png:canvasPng({outfit,size,handles,preview}).toDataURL('image/png'),pose:poseSummary(),...(preview?{preview:previewOverlay()}: {})};
   const keep=snapshot(),keepFrame=frameNow,cols=Math.min(frames.length,4),rows=Math.ceil(frames.length/cols),sheet=document.createElement('canvas');sheet.width=cols*size;sheet.height=rows*size;
   try{frames.forEach((f,i)=>{const s=snapAt(+f);if(!s)throw new Error('нет ключей');restore(s);sheet.getContext('2d').drawImage(canvasPng({outfit:'bare',size,handles:false,label:'кадр '+f}),(i%cols)*size,Math.floor(i/cols)*size);});}
   finally{restore(keep);frameNow=keepFrame;redraw();}

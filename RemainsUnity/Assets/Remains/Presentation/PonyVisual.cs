@@ -49,6 +49,12 @@ namespace Remains.Presentation
         private int magicRoleVersion=-1;
         private PonyRenderPart[] drawnParts;
         private readonly PonyNestedBlinkClock blink=new();
+        private readonly PonyAmbientClock ambient=new();
+        private PonyRigDrawPlan.Frame drawnRig;
+        private int lastAmbientClip=-2,lastAmbientFrame=-1,lastDamage;
+        private float alertRemaining;
+        public PonyFacialExpression DrawnExpression {get;private set;}
+        public string DrawnIdle {get;private set;}
         public bool DrawnEyeClosed {get;private set;}
         public bool UsesMagicPreview=>magicSource==null;
         public PonyMagicActivity DrawnMagicActivity {get;private set;}
@@ -99,7 +105,7 @@ namespace Remains.Presentation
             // A replacement snapshot of the same actor has not changed the visible
             // meshes yet. Keep their actual bounds/frame until the next DrawPose.
             if(string.IsNullOrEmpty(actor?.id) || actor.id!=state?.id)
-            {appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;drawnParts=null;magicDirty=true;}
+            {appearance=null;frame=-1;hasDrawnBounds=false;DrawnPartCount=0;drawnParts=null;magicDirty=true;lastDamage=actor?.damageSequence??0;alertRemaining=0;drawnRig=null;lastAmbientClip=-2;}
             state = actor;
             if(actor!=null)blink.Bind(actor.id);
             var prepared=actor==null?null:PonyRenderSelection.PrepareEquipment(actor);
@@ -107,7 +113,11 @@ namespace Remains.Presentation
             // frame/mesh metadata truthful until the next actual DrawPose, while
             // ensuring a stationary pose still applies the new plan then.
             if(!ReferenceEquals(drawPlan,prepared)) {drawPlan=prepared;drawPlanDirty=true;}
-            if(prepared!=null)rigPlan=PonyRigDrawPlan.Prepare(prepared);
+            if(prepared!=null)
+            {
+                rigPlan=PonyRigDrawPlan.Prepare(prepared);
+                PonyAmbientMotion.Prepare(rigPlan.Get("idle",0).Nodes);ambient.Bind(actor.id,PonyAmbientMotion.Bank);
+            }
             if(rigOuter?.Length!=17 || rigInner?.Length!=17)throw new InvalidOperationException($"Префаб пони {name}: требуется 17 пар гнёзд куклы.");
             int capacity = drawPlan?.Capacity??0;
             if(actor!=null && capacity==0) throw new InvalidOperationException("Графика пони не подготовлена перед созданием экземпляра.");
@@ -158,8 +168,18 @@ namespace Remains.Presentation
             if(state==null)return;
             bool allowed=!ActorSessionRules.IsPassive(state) && state.health>0 && !state.down &&
                 !(state.pose?.StartsWith("hide",StringComparison.Ordinal)??false);
-            blink.Advance(seconds,allowed);
+            if(lastDamage!=state.damageSequence){lastDamage=state.damageSequence;alertRemaining=.6f;}
+            alertRemaining=Mathf.Max(0,alertRemaining-seconds);
+            blink.Advance(seconds,allowed && !state.attackBusy && alertRemaining<=0);
+            ambient.Advance(seconds,AllowsIdle());
         }
+        private bool AllowsIdle()=>state!=null && !ActorSessionRules.IsPassive(state) && state.health>0 && !state.down &&
+            !BedRest.Active(state) && !ActorHoldRules.Active(state) && ActorPose.Clip(state)=="idle" &&
+            Mathf.Abs(state.vx)<.01f && Mathf.Abs(state.vy)<.01f && !state.attackBusy && state.attackRemaining<=0;
+        private PonyFacialExpression Expression(bool raw)=>raw?PonyFacialExpression.Neutral:
+            state.health<=0 || state.down || ActorSessionRules.IsPassive(state)?PonyFacialExpression.Dead:
+            state.attackBusy || alertRemaining>0?PonyFacialExpression.Alert:
+            blink.Closed?PonyFacialExpression.Closed:PonyFacialExpression.Neutral;
 
         public void DrawPose(float sampleTime,bool rawClip=false)
         {
@@ -186,20 +206,17 @@ namespace Remains.Presentation
                 throw new InvalidOperationException($"Внешность снаряжения изменена без подготовки: actor={state.id}, head={nextAppearance.HeadStyleId}, hair={nextAppearance.HairStyle}, eyes={nextAppearance.EyeStyle}, secondary={nextAppearance.SecondaryEnabled}. Вызовите Bind при событии смены формы.");
             // Original-head bare selections retain all 60 precompiled choices.
             // Custom head/style and equipment events prepare their plans in Bind.
-            bool closed=!rawClip && blink.Closed;
-            var frames = drawPlan.HasEquipment?drawPlan.Frames(pose,closed):PonyRenderSelection.Frames(nextAppearance,pose,closed);
+            var expression=Expression(rawClip);bool closed=expression==PonyFacialExpression.Closed;
+            var frames = drawPlan.HasEquipment?drawPlan.Frames(pose,expression):PonyRenderSelection.Frames(nextAppearance,pose,expression);
             int nextFrame = rawClip?PonyAnimationData.FrameIndex(pose,sampleTime,ActorPose.HoldsLastFrame(state),ActorPose.StationaryClimb(state)):PonyMotionFrames.Sample(state,sampleTime);
-            if (nextFrame == frame && DrawnEyeClosed==closed && !drawPlanDirty && magicRoleVersion==PonyMagicRenderRoles.Version) {RefreshMagic(nextAppearance);RefreshDrawnBounds();return;}
+            if (nextFrame == frame && DrawnExpression==expression && !drawPlanDirty && magicRoleVersion==PonyMagicRenderRoles.Version)
+            {RefreshMotion(rawClip);RefreshMagic(nextAppearance);RefreshDrawnBounds();return;}
             frame = nextFrame;
             DrawnEyeClosed=closed;
+            DrawnExpression=expression;
             var parts = frames[frame];
-            var rig=drawPlan.HasEquipment?rigPlan.Get(pose,frame,closed):PonyRenderSelection.RigFrame(nextAppearance,pose,frame,closed);
-            for(int n=0;n<rig.Nodes.Length;n++)
-            {
-                var node=rig.Nodes[n].transform;
-                rigOuter[n].SetLocalPositionAndRotation(node.position,node.rotation);rigOuter[n].localScale=node.scale;
-                rigInner[n].localRotation=node.innerRotation;
-            }
+            var rig=drawPlan.HasEquipment?rigPlan.Get(pose,frame,expression):PonyRenderSelection.RigFrame(nextAppearance,pose,frame,expression);
+            drawnRig=rig;lastAmbientClip=-2;RefreshMotion(rawClip);
             drawnParts=parts;
             for (int i = 0; i < renderers.Count; i++)
             {
@@ -211,6 +228,7 @@ namespace Remains.Presentation
                     filters[i].transform.SetParent(parent,false);
                     filters[i].transform.SetLocalPositionAndRotation(Vector3.zero,Quaternion.identity);filters[i].transform.localScale=Vector3.one;
                 }
+                filters[i].transform.localPosition=Vector3.zero;
                 filters[i].sharedMesh = parts[i].mesh;
                 renderers[i].sharedMaterial = parts[i].material;
                 renderers[i].sortingOrder = i + WorldVisualOrderPolicy.ActorPartOrder;
@@ -221,6 +239,21 @@ namespace Remains.Presentation
             drawPlanDirty=false;
             magicDirty=true;RefreshMagic(nextAppearance);
             RefreshDrawnBounds();
+        }
+        private void RefreshMotion(bool raw)
+        {
+            if(drawnRig==null)return;
+            int clip=!raw && AllowsIdle() && ambient.Active?ambient.ClipIndex:-1;
+            int motionFrame=clip>=0?ambient.Frame:-1;
+            if(lastAmbientClip==clip && lastAmbientFrame==motionFrame)return;
+            lastAmbientClip=clip;lastAmbientFrame=motionFrame;
+            DrawnIdle=clip<0?null:PonyAmbientMotion.Bank.Clips[clip].id;
+            var moving=clip<0?null:PonyAmbientMotion.Frame(clip,motionFrame);
+            for(int n=0;n<drawnRig.Nodes.Length;n++)
+            {
+                var node=moving==null?drawnRig.Nodes[n].transform:moving[n];
+                rigOuter[n].SetLocalPositionAndRotation(node.position,node.rotation);rigOuter[n].localScale=node.scale;rigInner[n].localRotation=node.innerRotation;
+            }
         }
         private void RefreshMagic(PonyAppearanceKey tint)
         {

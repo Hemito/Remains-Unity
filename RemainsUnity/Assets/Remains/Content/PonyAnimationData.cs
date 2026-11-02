@@ -18,6 +18,7 @@ namespace Remains.Content
     {
         public static PonyLibrary Library { get; private set; }
         private static readonly Dictionary<string,PonyClip> clips=new();
+        public static void Reset(){Library=null;clips.Clear();PonyAuthoredClips.Reset();}
         public static void Load()
         {
             if(Library!=null) return;

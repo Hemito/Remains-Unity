@@ -9,14 +9,23 @@ namespace Remains.Content
         public PonyRenderPart[] Open {get;}
         public PonyRenderPart[] Closed {get;}
         public bool CanBlink {get;}
-        internal PonyNestedEyeFrame(PonyRenderPart[] open,PonyRenderPart[] closed,bool canBlink)
-        {Open=open;Closed=closed;CanBlink=canBlink;}
+        private readonly PonyRenderPart[] alert,dead;
+        internal PonyNestedEyeFrame(PonyRenderPart[] open,PonyRenderPart[] closed,bool canBlink,PonyRenderPart[] wide=null,PonyRenderPart[] shut=null)
+        {Open=open;Closed=closed;CanBlink=canBlink;alert=wide??open;dead=shut??closed;}
+        public PonyRenderPart[] Parts(PonyFacialExpression expression)=>expression switch
+        {PonyFacialExpression.Neutral=>Open,PonyFacialExpression.Closed=>Closed,PonyFacialExpression.Alert=>alert,PonyFacialExpression.Dead=>dead,
+            _=>throw new ArgumentOutOfRangeException(nameof(expression))};
     }
     public static class PonyNestedEyeFrames
     {
         private static PonyNestedEyeAsset asset;
+        private static PonyFacialAsset facial;
+        public static PonyFacialAsset Facial
+        {
+            get {if(facial==null){facial=GameAssets.Load<PonyFacialAsset>(PonyFacialAsset.Resource)??throw new InvalidOperationException("Нет банка мимики "+PonyFacialAsset.Resource);facial.Validate();}return facial;}
+        }
         public static bool IsEyePart(PonyRenderPart part)=>part?.sourcePath?.IndexOf("/eye/",StringComparison.Ordinal)>=0;
-        public static void Reset()=>asset=null;
+        public static void Reset(){asset=null;facial=null;}
         public static PonyNestedEyeFrame Prepare(PonyRenderPart[] open)
         {
             if(open==null || open.Length==0)throw new ArgumentException("Моргание пони: нет подготовленных частей кадра.",nameof(open));
@@ -51,7 +60,24 @@ namespace Remains.Content
                 if(p==first)closed[target++]=replacement;
                 if(!IsEyePart(open[p]))closed[target++]=open[p];
             }
-            return new PonyNestedEyeFrame(open,closed,true);
+            PonyRenderPart[] Replace(PonyFacialPiece[] pieces)
+            {
+                var result=new PonyRenderPart[open.Length-removed+pieces.Length];int at=0;
+                for(int p=0;p<open.Length;p++)
+                {
+                    if(p==first)for(int q=0;q<pieces.Length;q++)
+                    {
+                        var item=pieces[q];var v=item.mesh.vertices;var placed=new Vector3[4];
+                        for(int i=0;i<4;i++)placed[i]=matrix.MultiplyPoint3x4(v[i]);
+                        result[at++]=new PonyRenderPart {mesh=item.mesh,material=item.material,slot=item.slot,visible=true,
+                            drawOrder=anchor.drawOrder,sourceIndex=anchor.sourceIndex,sourcePath=container+(item.slot=="eye"?"zrak/":"expression/")+q,
+                            sourceShape=item.shape,points=placed,baseColor=Color.white,orderPath=anchor.orderPath,symbolId=anchor.symbolId,symbolPose=anchor.symbolPose};
+                    }
+                    if(!IsEyePart(open[p]))result[at++]=open[p];
+                }
+                return result;
+            }
+            return new PonyNestedEyeFrame(open,closed,true,Replace(Facial.Alert),Replace(Facial.Dead));
         }
     }
 }

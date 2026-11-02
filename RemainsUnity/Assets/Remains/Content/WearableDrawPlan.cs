@@ -7,6 +7,7 @@ namespace Remains.Content
     {
         private readonly Dictionary<string,PonyRenderPart[][]> frames;
         private readonly Dictionary<string,PonyRenderPart[][]> closedFrames=new(StringComparer.Ordinal);
+        private readonly Dictionary<string,PonyRenderPart[][]> alertFrames=new(StringComparer.Ordinal),deadFrames=new(StringComparer.Ordinal);
         private readonly Dictionary<string,Bounds[]> bounds;
         private readonly int hairStyle,eyeStyle;
         private readonly string headStyleId;
@@ -19,11 +20,18 @@ namespace Remains.Content
         public PonyRenderPart[] PortraitFrame=>Frames("idle")[0];
         private WearableDrawPlan(Dictionary<string,PonyRenderPart[][]> values,Dictionary<string,Bounds[]> frameBounds,Bounds envelope,int capacity,string[] ids,PonyAppearanceKey appearance)
         {frames=values;bounds=frameBounds;CameraEnvelope=envelope;Capacity=capacity;HasEquipment=ids.Length!=0;VisualIds=Array.AsReadOnly(ids);
-            foreach(var entry in values){var closed=new PonyRenderPart[entry.Value.Length][];for(int f=0;f<closed.Length;f++)closed[f]=PonyNestedEyeFrames.Prepare(entry.Value[f]).Closed;closedFrames.Add(entry.Key,closed);}
+            foreach(var entry in values)
+            {
+                int count=entry.Value.Length;var closed=new PonyRenderPart[count][];var alert=new PonyRenderPart[count][];var dead=new PonyRenderPart[count][];
+                for(int f=0;f<count;f++){var eye=PonyNestedEyeFrames.Prepare(entry.Value[f]);closed[f]=eye.Closed;alert[f]=eye.Parts(PonyFacialExpression.Alert);dead[f]=eye.Parts(PonyFacialExpression.Dead);}
+                closedFrames.Add(entry.Key,closed);alertFrames.Add(entry.Key,alert);deadFrames.Add(entry.Key,dead);
+            }
             hairStyle=appearance.HairStyle;eyeStyle=appearance.EyeStyle;secondaryEnabled=appearance.SecondaryEnabled;headStyleId=appearance.HeadStyleId;}
         public bool MatchesShape(PonyAppearanceKey appearance)=>hairStyle==appearance.HairStyle && eyeStyle==appearance.EyeStyle && secondaryEnabled==appearance.SecondaryEnabled && headStyleId==appearance.HeadStyleId;
         public PonyRenderPart[][] Frames(string clip,bool closed=false)=>(closed?closedFrames:frames).TryGetValue(clip,out var value)?value:
             throw new InvalidOperationException("Нет подготовленного кадра визуального снаряжения: clip="+clip+".");
+        public PonyRenderPart[][] Frames(string clip,PonyFacialExpression expression)
+        {var source=expression switch {PonyFacialExpression.Closed=>closedFrames,PonyFacialExpression.Alert=>alertFrames,PonyFacialExpression.Dead=>deadFrames,_=>frames};return source.TryGetValue(clip,out var value)?value:throw new InvalidOperationException("Нет кадра мимики: "+clip);}
         public Bounds FrameBounds(string clip,int frame)=>bounds[clip][frame];
         public static WearableDrawPlan Create(PonyRenderAsset baseline,PonyAppearanceKey appearance,IReadOnlyList<WearableRenderAsset> equipment,Bounds bareCameraEnvelope,PonyHeadRenderResolver headResolver=null)
         {
