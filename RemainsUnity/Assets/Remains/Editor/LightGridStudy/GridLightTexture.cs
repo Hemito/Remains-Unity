@@ -3,6 +3,7 @@ using Remains.Presentation;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using Object=UnityEngine.Object;
+using Stopwatch=System.Diagnostics.Stopwatch;
 
 namespace Remains.Editor
 {
@@ -12,6 +13,8 @@ namespace Remains.Editor
         public RenderTexture Texture {get;private set;}
         public long Bytes=>(long)Texture.width*Texture.height*8;
         public int UploadedCells {get;private set;}
+        public double LastUploadMs {get;private set;}
+        public double LastWaitMs {get;private set;}
         private readonly Texture2D fence=new(1,1,TextureFormat.RGBAHalf,false,true);
 
         public GridLightTexture(GridLightField field)
@@ -27,6 +30,7 @@ namespace Remains.Editor
         }
         public void Update(GridLightField field,RectInt rect)
         {
+            var clock=Stopwatch.StartNew();
             if(field.Width!=Texture.width || field.Height!=Texture.height || rect.width<=0 || rect.height<=0 ||
                 rect.xMin<0 || rect.yMin<0 || rect.xMax>field.Width || rect.yMax>field.Height)
                 throw new ArgumentException("Неверная область загрузки световой сетки: "+rect);
@@ -39,7 +43,9 @@ namespace Remains.Editor
             {
                 patch.SetPixels(pixels);patch.Apply(false,true);
                 Graphics.CopyTexture(patch,0,0,0,0,rect.width,rect.height,Texture,0,0,rect.x,rect.y);
+                LastUploadMs=clock.Elapsed.TotalMilliseconds;clock.Restart();
                 RenderTexture.active=Texture;fence.ReadPixels(new Rect(rect.x,rect.y,1,1),0,0,false);
+                LastWaitMs=clock.Elapsed.TotalMilliseconds;
             }
             finally {RenderTexture.active=previous;Object.DestroyImmediate(patch);}
         }

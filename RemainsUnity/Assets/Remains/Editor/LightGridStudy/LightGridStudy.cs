@@ -89,6 +89,12 @@ namespace Remains.Editor
                 // A separate view owns the production compositor. The benchmark never shares ownership of its scene.
                 view.Focus(new Vector2(room.spawnX,room.spawnY));
                 view.Light.Direct.WaitForMeasurements();
+                if(Environment.GetCommandLineArgs().Contains("-grid-paired-performance"))
+                {
+                    PairedLightBenchmark.Run(view,benchmark.Scene,field,seedIndex,absorption,gridTexture,world,Output,
+                        report.directMs+report.bounceMs,report.gridSolveMs+report.gridUploadMs,report.prepareMs,report.readbackMs+report.gridPrepareMs);
+                    EditorApplication.Exit(0);return;
+                }
                 cameraRoot=new GameObject("Камера сравнения клеточного света");var camera=cameraRoot.AddComponent<Camera>();
                 camera.enabled=false;camera.orthographic=true;camera.aspect=(float)ImageWidth/ImageHeight;camera.allowHDR=false;camera.allowMSAA=false;
                 camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.07f,.07f,.08f);
