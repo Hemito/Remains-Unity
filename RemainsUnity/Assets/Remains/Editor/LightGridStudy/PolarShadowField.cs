@@ -13,14 +13,16 @@ namespace Remains.Editor
         internal const int MaximumAngles=4713;
         private readonly ComputeShader compute;
         private readonly ComputeBuffer segments;
-        private readonly int build,exact,polar,compose;
+        private readonly int build,exact,exactAA,polar,compose,export;
         private readonly GridLightTexture fill;
         private readonly Texture2D fence;
         internal RenderTexture Angles {get;private set;}
         internal RenderTexture Light {get;private set;}
         internal RenderTexture Coarse {get;private set;}
         internal RenderTexture Image {get;private set;}
+        internal RenderTexture ExportImage {get;private set;}
         internal PolarShadowCase Case {get;}
+        internal Vector2 Source {get;private set;}
         internal int AngleCount {get;private set;}
         internal PolarShadowField(PolarShadowCase scene)
         {
@@ -31,11 +33,11 @@ namespace Remains.Editor
                 var asset=AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Remains/Editor/LightGridStudy/PolarShadow.compute");
                 if(asset==null) throw new InvalidOperationException("Нет Editor-шейдера PolarShadow.compute.");
                 compute=Object.Instantiate(asset);build=compute.FindKernel("BuildAngles");exact=compute.FindKernel("Exact");
-                polar=compute.FindKernel("Polar");compose=compute.FindKernel("Compose");
+                polar=compute.FindKernel("Polar");compose=compute.FindKernel("Compose");exactAA=compute.FindKernel("ExactAA");export=compute.FindKernel("Export");
                 segments=new ComputeBuffer(scene.Segments.Count,16);segments.SetData(scene.Segments);
-                foreach(int kernel in new[]{build,exact,polar,compose}) compute.SetBuffer(kernel,"_Segments",segments);
+                foreach(int kernel in new[]{build,exact,exactAA,polar,compose}) compute.SetBuffer(kernel,"_Segments",segments);
                 compute.SetInt("_SegmentCount",scene.Segments.Count);compute.SetVector("_WorldSize",new Vector4(32,18,0,0));
-                compute.SetVector("_Source",new Vector4(scene.Source.x,scene.Source.y,0,0));compute.SetFloat("_Radius",PolarShadowCase.Radius);
+                SetSource(scene.Source);compute.SetFloat("_Radius",PolarShadowCase.Radius);SetGain(1);
                 Angles=Target(MaximumAngles,1,GraphicsFormat.R32_SFloat,"Угловая карта: резерв до шага 2 см");
                 Light=Target(Width,Height,GraphicsFormat.R32G32B32A32_SFloat,"Полярный свет: полный кадр");
                 Coarse=Target(160,90,GraphicsFormat.R32G32B32A32_SFloat,"Контроль света: сетка 20 см");
@@ -60,8 +62,30 @@ namespace Remains.Editor
         }
         internal void RenderPolar(bool filtered)
         {
-            Size(Width,Height);compute.SetInt("_Filtered",filtered?1:0);compute.SetTexture(polar,"_AngleMap",Angles);
+            RenderPolar(filtered?-1:0);
+        }
+        // -1 = legacy two-angle interpolation; 0 = hard; positive = box width in metres at radius15m.
+        internal void RenderPolar(float smoothingWidth)
+        {
+            if(!float.IsFinite(smoothingWidth) || smoothingWidth< -1 || smoothingWidth>.1f) throw new ArgumentOutOfRangeException(nameof(smoothingWidth));
+            Size(Width,Height);compute.SetInt("_Filtered",smoothingWidth<0?1:smoothingWidth==0?0:2);
+            compute.SetFloat("_SmoothingWidth",Mathf.Max(0,smoothingWidth));compute.SetTexture(polar,"_AngleMap",Angles);
             compute.SetTexture(polar,"_LightOut",Light);compute.Dispatch(polar,Width/8,Height/8,1);
+        }
+        internal void SetSource(Vector2 source)
+        {
+            if(!float.IsFinite(source.x) || !float.IsFinite(source.y) || Case.Contains(source))
+                throw new ArgumentException("Некорректная позиция тестовой лампы: "+source);
+            Source=source;compute.SetVector("_Source",new Vector4(source.x,source.y,0,0));
+        }
+        internal void SetGain(float gain)
+        {
+            if(!float.IsFinite(gain) || gain<0) throw new ArgumentOutOfRangeException(nameof(gain));
+            compute.SetFloat("_DirectGain",gain);
+        }
+        internal void RenderReferenceAA()
+        {
+            Size(Width,Height);compute.SetTexture(exactAA,"_LightOut",Light);compute.Dispatch(exactAA,Width/8,Height/8,1);
         }
         internal void Compose(bool coarse=false)
         {
@@ -69,6 +93,16 @@ namespace Remains.Editor
             compute.SetTexture(compose,"_Image",Image);compute.Dispatch(compose,Width/8,Height/8,1);
         }
         private void Size(int width,int height)=>compute.SetInts("_Size",width,height);
+        internal void SaveImage(string path,Texture2D pixels)
+        {
+            if(pixels.width!=Width || pixels.height!=Height || pixels.format!=TextureFormat.RGBA32)
+                throw new ArgumentException("Неверный буфер PNG полярной пробы.");
+            if(ExportImage==null) ExportImage=Target(Width,Height,GraphicsFormat.R8G8B8A8_UNorm,"Полярная проба: sRGB экспорт");
+            Size(Width,Height);compute.SetTexture(export,"_LinearImage",Image);compute.SetTexture(export,"_ExportImage",ExportImage);
+            compute.Dispatch(export,Width/8,Height/8,1);var previous=RenderTexture.active;
+            try {RenderTexture.active=ExportImage;pixels.ReadPixels(new Rect(0,0,Width,Height),0,0,false);System.IO.File.WriteAllBytes(path,pixels.EncodeToPNG());}
+            finally {RenderTexture.active=previous;}
+        }
         internal int ValidateFillComposition(Color[] direct)
         {
             var grid=Read(fill.Texture);var image=Read(Image);int filledShadowSamples=0;
@@ -108,7 +142,7 @@ namespace Remains.Editor
         public void Dispose()
         {
             fill?.Dispose();segments?.Dispose();
-            foreach(var obj in new Object[]{Angles,Light,Coarse,Image,compute,fence}) if(obj!=null) Object.DestroyImmediate(obj);
+            foreach(var obj in new Object[]{Angles,Light,Coarse,Image,ExportImage,compute,fence}) if(obj!=null) Object.DestroyImmediate(obj);
         }
     }
 }

@@ -43,12 +43,13 @@ namespace Remains.Editor
                 if((e.y>p.y)!=(e.w>p.y) && p.x<(double)(e.z-e.x)*(p.y-e.y)/(e.w-e.y)+e.x) inside=!inside;
             return inside;
         }
-        internal double Nearest(double dx,double dy)
+        internal double Nearest(double dx,double dy)=>Nearest(Source,dx,dy);
+        internal double Nearest(Vector2 source,double dx,double dy)
         {
             double nearest=Radius;
             foreach(var e in Segments)
             {
-                double ex=e.z-e.x,ey=e.w-e.y,px=e.x-Source.x,py=e.y-Source.y;
+                double ex=e.z-e.x,ey=e.w-e.y,px=e.x-source.x,py=e.y-source.y;
                 double denominator=dx*ey-dy*ex;if(Math.Abs(denominator)<1e-10) continue;
                 double t=(px*ey-py*ex)/denominator,u=(px*dy-py*dx)/denominator;
                 if(t>1e-5 && u>=0 && u<=1) nearest=Math.Min(nearest,t);

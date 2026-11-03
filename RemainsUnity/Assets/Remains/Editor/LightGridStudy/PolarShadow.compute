@@ -1,19 +1,23 @@
 // Controlled opaque-contour study only. No runtime installation, alpha materials or area emitters.
 #pragma kernel BuildAngles
 #pragma kernel Exact
+#pragma kernel ExactAA
 #pragma kernel Polar
 #pragma kernel Compose
+#pragma kernel Export
 StructuredBuffer<float4> _Segments;
 int _SegmentCount,_Angles,_Filtered,_Mode;
 int2 _Size;
 float2 _WorldSize,_Source;
-float _Radius;
+float _Radius,_SmoothingWidth,_DirectGain;
 RWTexture2D<float> _AngleOut;
 Texture2D<float> _AngleMap;
 RWTexture2D<float4> _LightOut;
 Texture2D<float4> _Light,_Fill;
 SamplerState sampler_linear_clamp;
 RWTexture2D<float4> _Image;
+Texture2D<float4> _LinearImage;
+RWTexture2D<float4> _ExportImage;
 static const float Tau=6.283185307179586;
 float Cross(float2 a,float2 b) {return a.x*b.y-a.y*b.x;}
 float Nearest(float2 direction)
@@ -70,17 +74,40 @@ void Exact(uint3 id:SV_DispatchThreadID)
     _LightOut[id.xy]=Lighting(p,v);
 }
 [numthreads(8,8,1)]
+void ExactAA(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_Size))) return;
+    float visibility=0;
+    // Spatial reference: 16 exact visibility rays inside each display pixel, no temporal history.
+    for(int y=0;y<4;y++) for(int x=0;x<4;x++)
+    {
+        float2 p=(float2(id.xy)+(float2(x,y)+.5)/4)/_Size*_WorldSize,delta=p-_Source;
+        float d=length(delta);
+        visibility+=d<1e-5?1:(d<=Nearest(delta/d)+1e-5?1:0);
+    }
+    _LightOut[id.xy]=Lighting((float2(id.xy)+.5)/_Size*_WorldSize,visibility/16);
+}
+[numthreads(8,8,1)]
 void Polar(uint3 id:SV_DispatchThreadID)
 {
     if(any(id.xy>=uint2(_Size))) return;
     float2 p=(float2(id.xy)+.5)/_Size*_WorldSize,delta=p-_Source;
     float d=length(delta),angle=frac(atan2(delta.y,delta.x)/Tau+1)*_Angles;
     float visibility=Visible((int)floor(angle),d);
-    if(_Filtered!=0)
+    if(_Filtered==1)
     {
         // Filter comparisons, NOT distances across unrelated blockers. Circular seam wraps explicitly.
         float a=angle-.5;int first=(int)floor(a);
         visibility=lerp(Visible(first,d),Visible(first+1,d),frac(a));
+    }
+    if(_Filtered==2)
+    {
+        // Box-filter the piecewise constant angular visibility. Physical width at radius is independent of N.
+        float width=max(1e-5,_SmoothingWidth*_Angles/(Tau*_Radius));
+        float low=angle-width*.5,high=angle+width*.5;visibility=0;
+        int first=(int)floor(low),last=(int)floor(high);
+        for(int index=first;index<=last;index++)
+            visibility+=Visible(index,d)*max(0,min(high,index+1)-max(low,index))/width;
     }
     _LightOut[id.xy]=Lighting(p,visibility);
 }
@@ -90,6 +117,7 @@ void Compose(uint3 id:SV_DispatchThreadID)
     if(any(id.xy>=uint2(_Size))) return;
     float2 uv=(float2(id.xy)+.5)/_Size,p=uv*_WorldSize;
     float3 light=_Mode==1?_Light.SampleLevel(sampler_linear_clamp,uv,0).rgb:_Light[id.xy].rgb;
+    light*=_DirectGain;
     float3 knee=min(light,1)+(1-exp(-max(0,light-1)));
     float3 fill=_Fill.SampleLevel(sampler_linear_clamp,uv,0).rgb*.08;
     float3 surface=float3(.48,.48,.48);
@@ -97,6 +125,14 @@ void Compose(uint3 id:SV_DispatchThreadID)
     float2 edge=abs(frac(p)-.5);if(max(edge.x,edge.y)>.491) surface*=.86;
     float3 result=surface*max(knee,fill);
     if(Solid(p)) result=float3(.065,.075,.085);
-    if(distance(p,_Source)<.09) result=float3(1,.9,.55)*1.8;
+    if(_DirectGain>0 && distance(p,_Source)<.09) result=float3(1,.9,.55)*1.8;
     _Image[id.xy]=float4(result,1);
+}
+[numthreads(8,8,1)]
+void Export(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_Size))) return;
+    float3 v=saturate(_LinearImage[id.xy].rgb);
+    float3 srgb=lerp(12.92*v,1.055*pow(max(v,0),1/2.4)-.055,step(.0031308,v));
+    _ExportImage[id.xy]=float4(srgb,1);
 }

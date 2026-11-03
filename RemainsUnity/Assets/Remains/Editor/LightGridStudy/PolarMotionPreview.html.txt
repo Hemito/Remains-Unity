@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Полярные тени — движение</title>
+<style>
+body{margin:24px;background:#171b21;color:#eee;font:16px/1.5 system-ui}main{max-width:1700px;margin:auto}
+button,select{font:inherit;background:#343c49;color:#fff;border:1px solid #768294;padding:6px;margin:3px;border-radius:5px}
+button[aria-pressed=true]{background:#235b80}button:disabled,select:disabled{opacity:.5}a{color:#8ed5ff}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}canvas{width:100%;background:#080808;touch-action:none}h2{margin-bottom:5px}
+.controls{background:#232a34;padding:10px;border-radius:6px}#time{width:min(500px,55vw)}small{color:#c3cbd5}
+table{border-collapse:collapse}td,th{padding:6px 12px;border-bottom:1px solid #555;text-align:left}
+details{margin:16px 0}#status{min-height:1.5em}@media(max-width:800px){.pair{grid-template-columns:1fr}}
+</style>
+<main><h1>Полярные тени: движение и вспышка</h1>
+<p><b>5 см — предварительный вариант.</b> По умолчанию слева 2 см, справа 5 см при одинаковой ширине сглаживания.
+Это записанные кадры Unity. Оба изображения всегда показывают одно положение источника; браузер не вычисляет свет.</p>
+<div class="controls">
+<label>Проверка <select id="track" disabled></select></label>
+<label>Край <select id="filter" disabled><option value="fixed">Одинаковая ширина 5 см</option><option value="legacy">Как в первой пробе: ширина зависит от шага</option></select></label><br>
+<label>Слева <select id="left" disabled><option value="aa">Точный эталон со сглаживанием 4×4</option><option value="02" selected>Полярная карта 2 см</option><option value="03">Полярная карта 3 см</option><option value="05">Полярная карта 5 см</option></select></label>
+<label>Справа <select id="right" disabled><option value="02">Полярная карта 2 см</option><option value="03">Полярная карта 3 см</option><option value="05" selected>Полярная карта 5 см</option></select></label><br>
+<button id="play" disabled>Играть</button><button id="previous" disabled>← Кадр</button><button id="next" disabled>Кадр →</button>
+<input id="time" aria-label="Кадр" type="range" min="0" max="47" value="0" disabled><span id="frameLabel"></span><br>
+<label>Скорость <select id="speed"><option value=".25">¼×</option><option value=".5">½×</option><option value="1" selected>1×</option></select></label>
+Масштаб <button data-zoom="1">Вся сцена</button><button data-zoom="2">2×</button><button data-zoom="4">4×</button>
+<small>Щелчок по кадру задаёт общий центр увеличения.</small>
+</div>
+<p id="description"></p><p id="status" role="status">Подготовка…</p>
+<div class="pair"><section><h2 id="leftLabel">Слева</h2><canvas id="a" width="1536" height="864"></canvas></section>
+<section><h2 id="rightLabel">Справа</h2><canvas id="b" width="1536" height="864"></canvas></section></div>
+<p>Заполнение <b>0,08</b> зафиксировано и одинаково. Источник движется, а новое заполнение/отражения от него не считаются.
+«Ширина 5 см» — ширина углового фильтра на дальности 15 м; ближе к источнику она уже. Временного сглаживания нет.</p>
+<p>Если край кажется дёрганым, поставьте паузу и шагайте по кадрам. Затем выберите слева точный эталон:
+общая дискретность записи 24 кадр/с присутствует у обоих вариантов. Показ браузера может быть медленнее под нагрузкой.</p>
+<h2>Unity: одна лампа, 1536×864</h2><p>Ниже пакетные wall-clock замеры с ожиданием GPU, не FPS игры и не скорость этой страницы.
+«Движение целиком» включает позицию, новую строку и отрисовку. «Готовая строка» — только отрисовку.</p>
+<p><b>В этой серии большой разброс времени.</b> Часть одинаковых операций занимает десятые доли миллисекунды, часть — несколько миллисекунд.
+Время ожидания GPU входит в результат. Эти замеры пока не позволяют ранжировать шаги 2/3/5 см по скорости или сравнивать их напрямую с прежним прогоном.</p>
+<table><thead><tr><th>Шаг</th><th>Строка, медиана</th><th>Готовая строка: кадр</th><th>Движение целиком: медиана / p90</th></tr></thead><tbody id="timings"></tbody></table>
+<p id="flashTiming"></p><details><summary>Методика и проверки</summary><p id="method"></p><p id="validation"></p><p id="device"></p>
+<a href="motion-report.json">Полные измерения и траектории</a></details><p><a href="/">Первая неподвижная проба</a></p>
+</main>
+<script>
+const controls={track:document.querySelector('#track'),filter:document.querySelector('#filter'),left:document.querySelector('#left'),right:document.querySelector('#right'),
+play:document.querySelector('#play'),previous:document.querySelector('#previous'),next:document.querySelector('#next'),time:document.querySelector('#time'),speed:document.querySelector('#speed')};
+const canvases=[document.querySelector('#a'),document.querySelector('#b')],status=document.querySelector('#status'),cache=new Map;
+let report,frame=0,serial=0,playing=false,timer,zoom=1,cx=.5,cy=.5,current=[],currentUrls=[],clock=0,shown=[];
+function bitmap(url){
+ if(!cache.has(url)){
+  const entry={last:++clock,value:null,promise:null};
+  entry.promise=fetch(url).then(r=>{if(!r.ok)throw Error('Не загружен '+url+' ('+r.status+')');return r.blob()}).then(createImageBitmap).then(b=>{entry.value=b;return b});
+  // Prefetch failures are retained, then shown explicitly if the frame is actually requested.
+  entry.promise.catch(()=>{});cache.set(url,entry);
+ }
+ const entry=cache.get(url);entry.last=++clock;return entry.promise;
+}
+function trim(){
+ const ready=[...cache].filter(([url,e])=>e.value&&!currentUrls.includes(url)).sort((a,b)=>a[1].last-b[1].last);
+ while(cache.size>12&&ready.length){const [url,e]=ready.shift();e.value.close();cache.delete(url);}
+}
+function config(){
+ const track=report.tracks.find(t=>t.id===controls.track.value);
+ return {track,filter:track.flash?'fixed':controls.filter.value,left:track.flash?'aa':controls.left.value,right:track.flash?'05':controls.right.value};
+}
+function file(c,side,n){
+ const variant=c[side]==='aa'?'aa':'p'+c[side]+'-'+c.filter;
+ const index=c.track.flash?(n===12||n===36?1:0):n;
+ return 'motion-'+c.track.id+'-'+variant+'-'+String(index).padStart(2,'0')+'.png';
+}
+function draw(){
+ if(current.length!==2)return;
+ const w=1536/zoom,h=864/zoom,x=Math.max(0,Math.min(1536-w,cx*1536-w/2)),y=Math.max(0,Math.min(864-h,cy*864-h/2));
+ canvases.forEach((c,i)=>{const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(current[i],x,y,w,h,0,0,c.width,c.height)});
+ document.querySelectorAll('[data-zoom]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.zoom)===zoom));
+}
+function label(value,filter){return value==='aa'?'Точный эталон · 16 лучей на пиксель':'Полярная карта '+Number(value)+' см · '+(filter==='fixed'?'ширина края 5 см':'прежнее сглаживание')}
+async function show(n,reset=false){
+ const ticket=++serial,c=config(),urls=[file(c,'left',n),file(c,'right',n)];document.documentElement.dataset.ready='loading';
+ if(reset){current=[];currentUrls=[];canvases.forEach(c=>c.getContext('2d').clearRect(0,0,c.width,c.height));status.textContent='Загрузка пары кадров…';}
+ try{
+  const pair=await Promise.all(urls.map(bitmap));if(ticket!==serial)return false;
+  current=pair;currentUrls=urls;frame=n;draw();controls.time.value=n;
+  document.querySelector('#leftLabel').textContent=label(c.left,c.filter);document.querySelector('#rightLabel').textContent=label(c.right,c.filter);
+  document.querySelector('#description').textContent=c.track.description;
+  const source=c.track.positions[n];document.querySelector('#frameLabel').textContent=(n+1)+' / '+report.frames+' · лампа ('+source.x.toFixed(3)+'; '+source.y.toFixed(3)+') м';
+  shown.push(performance.now());if(shown.length>16)shown.shift();
+  status.textContent='Оба кадра готовы.'+(playing&&shown.length>1?' Показ: '+((shown.length-1)*1000/(shown.at(-1)-shown[0])).toFixed(1)+' кадр/с.':'');
+  document.documentElement.dataset.ready='true';trim();
+  for(let ahead=1;ahead<=2;ahead++){const f=(n+ahead)%report.frames;bitmap(file(c,'left',f));bitmap(file(c,'right',f));}
+  return true;
+ }catch(error){if(ticket===serial){pause();current=[];currentUrls=[];canvases.forEach(c=>c.getContext('2d').clearRect(0,0,c.width,c.height));status.textContent=error.message;document.documentElement.dataset.ready='false';}return false;}
+}
+function pause(){playing=false;serial++;clearTimeout(timer);controls.play.textContent='Играть';shown=[];if(current.length===2)document.documentElement.dataset.ready='true';}
+async function tick(){
+ if(!playing)return;const start=performance.now(),ok=await show((frame+1)%report.frames);
+ if(ok&&playing)timer=setTimeout(tick,Math.max(0,1000/(report.fps*Number(controls.speed.value))-(performance.now()-start)));
+}
+function reset(){pause();const flash=config().track.flash;if(flash){controls.left.value='aa';controls.right.value='05';controls.filter.value='fixed';}controls.filter.disabled=flash;controls.left.disabled=flash;controls.right.disabled=flash;show(frame,true);}
+controls.play.onclick=()=>{if(playing){pause();return;}playing=true;controls.play.textContent='Пауза';shown=[];tick();};
+controls.previous.onclick=()=>{pause();show((frame+report.frames-1)%report.frames)};
+controls.next.onclick=()=>{pause();show((frame+1)%report.frames)};
+controls.time.oninput=()=>{pause();show(Number(controls.time.value))};
+for(const c of [controls.track,controls.filter,controls.left,controls.right])c.onchange=reset;
+controls.speed.onchange=()=>{shown=[];};
+document.querySelectorAll('[data-zoom]').forEach(b=>b.onclick=()=>{zoom=Number(b.dataset.zoom);draw()});
+canvases.forEach(c=>c.onclick=e=>{const r=c.getBoundingClientRect(),w=1/zoom,h=1/zoom;cx=Math.max(0,Math.min(1-w,cx-w/2))+(e.clientX-r.left)/r.width*w;cy=Math.max(0,Math.min(1-h,cy-h/2))+(e.clientY-r.top)/r.height*h;draw();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
+fetch('motion-report.json').then(r=>{if(!r.ok)throw Error('Нет отчёта движения');return r.json()}).then(async data=>{
+ report=data;
+ for(const track of report.tracks){const option=document.createElement('option');option.value=track.id;option.textContent=track.title;controls.track.append(option);}
+ for(const c of [controls.track,controls.filter,controls.left,controls.right,controls.play,controls.previous,controls.next,controls.time])c.disabled=false;
+ const timing=name=>report.timings.find(t=>t.operation===name),ms=t=>t.medianMs.toFixed(3)+' мс';
+ for(const step of ['02','03','05']){const tr=document.createElement('tr'),moving=timing('moving-total-'+step);for(const value of [Number(step)+' см',ms(timing('build-'+step)),ms(timing('cached-frame-'+step)),ms(moving)+' / '+moving.p90Ms.toFixed(3)+' мс']){const td=document.createElement('td');td.textContent=value;tr.append(td);}document.querySelector('#timings').append(tr);}
+ document.querySelector('#flashTiming').textContent='Вспышка: подготовка и показ '+ms(timing('flash-on-total-05'))+'; выключение '+ms(timing('flash-off'))+'.';
+ document.querySelector('#method').textContent=report.method;document.querySelector('#validation').textContent=report.validation;
+ document.querySelector('#device').textContent=report.device+' · '+report.api+' · GC '+report.gc0+'/'+report.gc1+'/'+report.gc2;
+ await show(0,true);
+}).catch(error=>{status.textContent=error.message;document.documentElement.dataset.ready='false'});
+</script></html>
