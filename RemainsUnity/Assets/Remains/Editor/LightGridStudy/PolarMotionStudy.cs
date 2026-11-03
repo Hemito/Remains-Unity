@@ -113,20 +113,25 @@ namespace Remains.Editor
                 field.RenderReferenceAA();ValidateAA(field);
                 field.Build(.05f);field.RenderPolar(true);field.Compose();
                 field.SaveImage(Path.Combine(Output,"motion-legacy-check.png"),image);
+                var direct=PolarShadowField.Read(field.Light);
                 var previous=new Texture2D(2,2,TextureFormat.RGBA32,false,true);
                 try
                 {
                     if(!previous.LoadImage(File.ReadAllBytes(Path.Combine(Output,"diagonal-polar05-smooth.png"))))
                         throw new InvalidOperationException("Не прочитан предыдущий кадр полярной пробы.");
-                    var before=previous.GetPixels32();var after=image.GetPixels32();int maximum=0;
+                    var before=previous.GetPixels32();var after=image.GetPixels32();int maximum=0,checkedPixels=0;
                     if(before.Length!=after.Length) throw new InvalidOperationException("Изменился размер прежнего полярного кадра.");
                     for(int i=0;i<before.Length;i++)
                     {
+                        // Fill reconstruction intentionally changed. Compare only fully lit pixels
+                        // where direct light dominates the maximum possible .08 grid contribution.
+                        if(direct[i].a<.999f || direct[i].r<=.1f)continue;
+                        checkedPixels++;
                         maximum=Math.Max(maximum,Math.Abs(before[i].r-after[i].r));maximum=Math.Max(maximum,Math.Abs(before[i].g-after[i].g));
                         maximum=Math.Max(maximum,Math.Abs(before[i].b-after[i].b));
                     }
-                    if(maximum>3) throw new InvalidOperationException("Изменилась первая полярная проба: максимум "+maximum+"/255.");
-                    Debug.Log("Полярное движение: прежний кадр сохранён, отличие sRGB-экспорта "+maximum+"/255.");
+                    if(checkedPixels<10000 || maximum>3) throw new InvalidOperationException("Изменился прежний прямой свет: пикселей="+checkedPixels+", максимум "+maximum+"/255.");
+                    Debug.Log("Полярное движение: прежний прямой свет сохранён, проверено "+checkedPixels+" пикселей, отличие sRGB-экспорта "+maximum+"/255; заполнение исправлено отдельно.");
                 }
                 finally {Object.DestroyImmediate(previous);}
                 RefreshPage();Debug.Log("Полярное движение: финальная компиляция, фильтр, AA и побитное исчезновение вспышки PASS. Замеры не повторялись.");EditorApplication.Exit(0);
@@ -135,6 +140,18 @@ namespace Remains.Editor
             finally {if(image!=null) Object.DestroyImmediate(image);}
         }
         private static void RefreshPage()=>File.Copy(Path.Combine(Application.dataPath,"Remains/Editor/LightGridStudy/PolarMotionPreview.html.txt"),Path.Combine(Output,"motion.html"),true);
+        internal static void RefreshFlashImages()
+        {
+            var image=new Texture2D(PolarShadowField.Width,PolarShadowField.Height,TextureFormat.RGBA32,false,true);
+            try
+            {
+                string old=Path.Combine(Output,"motion-flash-p05-fixed-00.png"),before=Path.Combine(Output,"halo-before.png");
+                if(File.Exists(old) && !File.Exists(before))File.Copy(old,before);
+                using var field=new PolarShadowField(PolarShadowCase.Create()[0]);Flash(field,image,new Report());
+                File.Copy(old,Path.Combine(Output,"halo-after.png"),true);
+            }
+            finally{Object.DestroyImmediate(image);}
+        }
         private static Track MakeTrack(PolarShadowCase scene)
         {
             var track=new Track{id=scene.Id,title=scene.Title,positions=new Vector2[Frames],description=scene.Id=="diagonal"?

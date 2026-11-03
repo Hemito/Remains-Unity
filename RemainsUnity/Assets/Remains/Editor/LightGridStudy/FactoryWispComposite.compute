@@ -1,0 +1,35 @@
+#pragma kernel Begin
+#pragma kernel AddWisp
+#pragma kernel Resolve
+Texture2D<float4> _StaticDirect,_Fill,_Wisp,_Mask;
+SamplerState sampler_linear_clamp;
+RWTexture2D<float4> _FrontRaw,_BackRaw,_Front,_Back;
+int2 _Size;
+float4 _WorldRect,_StaticRect;
+float _StaticGain;
+float3 Knee(float3 v){return min(v,1)+(1-exp(-max(0,v-1)));}
+[numthreads(8,8,1)]
+void Begin(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_Size)))return;
+    float2 world=_WorldRect.xy+(float2(id.xy)+.5)/_Size*_WorldRect.zw;
+    float2 uv=(world-_StaticRect.xy)/_StaticRect.zw;
+    float3 light=_StaticDirect.SampleLevel(sampler_linear_clamp,uv,0).rgb*_StaticGain;
+    _FrontRaw[id.xy]=float4(light,1);_BackRaw[id.xy]=float4(light,1);
+}
+[numthreads(8,8,1)]
+void AddWisp(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_Size)))return;
+    float3 light=_Wisp[id.xy].rgb;
+    _FrontRaw[id.xy]=float4(_FrontRaw[id.xy].rgb+light,1);
+    _BackRaw[id.xy]=float4(_BackRaw[id.xy].rgb+light*(1-saturate(_Mask[id.xy].a)),1);
+}
+[numthreads(8,8,1)]
+void Resolve(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_Size)))return;
+    float3 fill=max(0,_Fill[id.xy].rgb)*.08;
+    _Front[id.xy]=float4(max(Knee(_FrontRaw[id.xy].rgb),fill),1);
+    _Back[id.xy]=float4(max(Knee(_BackRaw[id.xy].rgb),fill),1);
+}

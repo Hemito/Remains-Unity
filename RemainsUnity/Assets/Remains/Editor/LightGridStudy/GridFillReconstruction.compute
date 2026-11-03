@@ -1,0 +1,94 @@
+// Editor study: normalize only geometrically reachable OPEN coarse samples.
+#pragma kernel Reconstruct
+Texture2D<float4> _CoarseFill;
+Texture2D<float> _CoarseBlocked, _FineAbsorption;
+StructuredBuffer<float4> _Contours;
+int _ContourCount, _Analytic;
+int2 _CoarseSize, _FineSize, _OutputSize;
+float4 _CoarseRect, _FineRect, _OutputRect;
+RWTexture2D<float4> _Output;
+static const float Opaque = .99;
+float Cross(float2 a,float2 b) {return a.x*b.y-a.y*b.x;}
+bool AnalyticSolid(float2 p)
+{
+    bool inside=false;
+    for(int i=0;i<_ContourCount;i++)
+    {
+        float4 e=_Contours[i];
+        if((e.y>p.y)!=(e.w>p.y) && p.x<(e.z-e.x)*(p.y-e.y)/(e.w-e.y)+e.x) inside=!inside;
+    }
+    return inside;
+}
+bool FineBlocked(int2 cell)
+{
+    return any(cell<0) || any(cell>=_FineSize) || _FineAbsorption.Load(int3(cell,0))>=Opaque;
+}
+bool Reachable(float2 p,float2 q)
+{
+    if(_Analytic!=0)
+    {
+        float2 d=q-p;
+        for(int i=0;i<_ContourCount;i++)
+        {
+            float4 e=_Contours[i];float2 edge=e.zw-e.xy,delta=e.xy-p;
+            float denominator=Cross(d,edge);
+            if(abs(denominator)<1e-10) continue;
+            float t=Cross(delta,edge)/denominator,u=Cross(delta,d)/denominator;
+            if(t>0 && t<=1 && u>=0 && u<=1) return false;
+        }
+        return !AnalyticSolid(q);
+    }
+    // Exact traversal of every crossed fine texel; point samples can miss a thin wall.
+    float2 a=(p-_FineRect.xy)/_FineRect.zw*_FineSize;
+    float2 b=(q-_FineRect.xy)/_FineRect.zw*_FineSize;
+    float2 d=b-a;
+    int2 cell=int2(floor(a)),last=int2(floor(b)),step=int2(sign(d));
+    float2 inverse=float2(abs(d.x)>1e-10?1/abs(d.x):1e20,abs(d.y)>1e-10?1/abs(d.y):1e20);
+    float2 edge=float2(step.x>0?cell.x+1-a.x:a.x-cell.x,step.y>0?cell.y+1-a.y:a.y-cell.y);
+    float2 next=edge*inverse;
+    int budget=abs(last.x-cell.x)+abs(last.y-cell.y)+3;
+    bool clear=false;
+    for(int visit=0;visit<budget;visit++)
+    {
+        if(FineBlocked(cell)) break;
+        if(all(cell==last)) {clear=true;break;}
+        // Endpoints are often exactly on a fine-grid corner (coarse cell centres).
+        // Do not step an already-completed axis past its target because a rounded
+        // t=1 crossing tied the other axis. Every visited cell stays on the finite ray.
+        if(cell.x==last.x) next.x=1e20;
+        if(cell.y==last.y) next.y=1e20;
+        if(abs(next.x-next.y)<1e-6)
+        {
+            // Supercover prevents diagonally touching opaque cells from leaking.
+            if(FineBlocked(cell+int2(step.x,0)) || FineBlocked(cell+int2(0,step.y))) break;
+            cell+=step;next+=inverse;
+        }
+        else if(next.x<next.y) {cell.x+=step.x;next.x+=inverse.x;}
+        else {cell.y+=step.y;next.y+=inverse.y;}
+    }
+    return clear;
+}
+[numthreads(8,8,1)]
+void Reconstruct(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_OutputSize))) return;
+    float2 p=_OutputRect.xy+(float2(id.xy)+.5)/_OutputSize*_OutputRect.zw;
+    bool solid=_Analytic!=0?AnalyticSolid(p):FineBlocked(int2(floor((p-_FineRect.xy)/_FineRect.zw*_FineSize)));
+    if(solid) {_Output[id.xy]=float4(0,0,0,-1);return;}
+    float2 grid=(p-_CoarseRect.xy)/_CoarseRect.zw*_CoarseSize-.5;
+    int2 first=int2(floor(grid));float3 sum=0;float weightSum=0;
+    // Fixed compact support reaches past the conservative coarse wall footprint.
+    // Its shape is explicit, not a constant/nearest-light replacement near walls.
+    for(int y=-2;y<=2;y++) for(int x=-2;x<=2;x++)
+    {
+        int2 cell=first+int2(x,y);
+        if(any(cell<0) || any(cell>=_CoarseSize) || _CoarseBlocked.Load(int3(cell,0))>=Opaque) continue;
+        float2 w=max(0,2-abs(float2(cell)-grid));float weight=w.x*w.y;
+        if(weight<=0) continue;
+        float2 q=_CoarseRect.xy+(float2(cell)+.5)/_CoarseSize*_CoarseRect.zw;
+        if(!Reachable(p,q)) continue;
+        sum+=_CoarseFill.Load(int3(cell,0)).rgb*weight;weightSum+=weight;
+    }
+    // Alpha is diagnostics: -1 solid, 0 unresolved, positive reachable support weight.
+    _Output[id.xy]=float4(weightSum>0?sum/weightSum:float3(0,0,0),weightSum);
+}

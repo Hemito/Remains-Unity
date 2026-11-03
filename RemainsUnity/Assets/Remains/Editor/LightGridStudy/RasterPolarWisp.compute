@@ -1,0 +1,152 @@
+// Editor-only factory probe. Dense polar transmission retains every partial absorber along a ray.
+// Sampling distances, opacity cutoffs and receiver endpoint exclusion match DirectLight.compute.
+#pragma kernel BuildMap
+#pragma kernel Render
+#pragma kernel RenderExact
+#pragma kernel ValidateFalloff
+
+Texture2D<float> _Scene;
+StructuredBuffer<float> _MarchDistances;
+RWTexture2D<float> _MapOut;
+RWTexture2D<float> _OpaqueOut;
+Texture2D<float> _Map;
+RWTexture2D<float4> _LightOut;
+int2 _SceneSize,_OutputSize;
+int _Angles,_RadialSamples;
+float4 _SceneRect,_OutputRect,_SourceColor;
+float2 _Source;
+float _PPU,_Radius,_MarchStep,_ProjectedWidth,_SourcePower;
+static const float Tau=6.283185307179586;
+
+bool Inside(int2 p) {return all(p>=0) && all(p<_SceneSize);}
+int2 ScenePoint(float2 world) {return int2(floor((world-_SceneRect.xy)*_PPU));}
+float2 WorldOf(int2 p) {return _SceneRect.xy+(float2(p)+.5)/_PPU;}
+int Wrap(int index) {return (index%_Angles+_Angles)%_Angles;}
+
+[numthreads(64,1,1)]
+void BuildMap(uint3 id:SV_DispatchThreadID)
+{
+    if(id.x>=uint(_Angles)) return;
+    float angle=(id.x+.5)*Tau/_Angles;
+    float2 direction=float2(cos(angle),sin(angle));
+    float transmission=1,opaque=_Radius;
+    bool blocked=false;
+    // The source is a flying point outside walls; there is deliberately no wall-emitter start exemption.
+    [loop] for(int radial=0;radial<_RadialSamples;radial++)
+    {
+        float at=_MarchDistances[radial];
+        if(!blocked)
+        {
+            int2 p=ScenePoint(_Source+direction*at);
+            if(!Inside(p)) {transmission=0;opaque=min(opaque,at);blocked=true;}
+            else
+            {
+                float alpha=saturate(_Scene[p]);
+                if(alpha>=.99) {transmission=0;opaque=min(opaque,at);blocked=true;}
+                else if(alpha>.0001) transmission*=pow(max(0,1-alpha),_MarchStep*_PPU);
+                if(transmission<.0001) transmission=0;
+            }
+        }
+        _MapOut[int2(id.x,radial)]=transmission;
+    }
+    _OpaqueOut[int2(id.x,0)]=opaque;
+}
+
+float Prefix(int angle,float distanceWorld)
+{
+    if(distanceWorld<.5/_PPU) return 1;
+    float finish=max(0,distanceWorld-.6/_PPU);
+    // Number of production march samples strictly BEFORE the receiver's excluded endpoint.
+    int count=max(0,(int)ceil(finish/_MarchStep-.5));
+    count=min(count,_RadialSamples);
+    // Correct the tiny drift of production's repeated float additions. The table is uploaded once.
+    [loop] while(count>0 && _MarchDistances[count-1]>=finish) count--;
+    [loop] while(count<_RadialSamples && _MarchDistances[count]<finish) count++;
+    return count==0?1:_Map[int2(Wrap(angle),min(count-1,_RadialSamples-1))];
+}
+float PolarSample(int index,float distanceWorld){return Prefix(index,distanceWorld);}
+#include "PolarAngularFilter.hlsl"
+float PolarTransmission(float2 delta,float distanceWorld)
+{
+    if(distanceWorld<.5/_PPU) return 1;
+    float angle=frac(atan2(delta.y,delta.x)/Tau+1)*_Angles;
+    // Integral of piecewise constant TRANSMISSION, never interpolated blocker distances.
+    // Full angular width is always 5 cm at this source's outer radius, independent of N.
+    float width=.05*_Angles/(Tau*_Radius);
+    return PolarBoxFilter(angle,width,distanceWorld);
+}
+float ExactTransmission(float2 target)
+{
+    float2 delta=target-_Source;float distanceWorld=length(delta);
+    if(distanceWorld<.5/_PPU) return 1;
+    float2 direction=delta/distanceWorld;
+    float finish=max(0,distanceWorld-.6/_PPU),transmission=1;
+    [loop] for(float at=_MarchStep*.5;at<finish;at+=_MarchStep)
+    {
+        int2 p=ScenePoint(_Source+direction*at);
+        if(!Inside(p)) return 0;
+        float alpha=saturate(_Scene[p]);
+        if(alpha>=.99) return 0;
+        if(alpha>.0001) transmission*=pow(max(0,1-alpha),_MarchStep*_PPU);
+        if(transmission<.0001) return 0;
+    }
+    return transmission;
+}
+float RangeWeight(float distanceWorld)
+{
+    // Fade across the entire range, not a bright disk followed by an 80cm cutoff.
+    // Both value and first derivative reach zero at R. Preserve brightness at 1m (or R/4 for tiny lights).
+    float window=saturate(1-distanceWorld*distanceWorld/(_Radius*_Radius));
+    float reference=min(1,_Radius*.25)/_Radius;
+    float normalise=1-reference*reference;
+    return window*window/(normalise*normalise);
+}
+float UnboundedPower(float distanceWorld)
+{return _SourcePower*2*atan(_ProjectedWidth/(2*max(distanceWorld,.5/_PPU)));}
+float3 Irradiance(float2 target,bool exact)
+{
+    float2 delta=target-_Source;float distanceWorld=length(delta);
+    float edge=RangeWeight(distanceWorld);
+    if(edge<=0) return 0;
+    float transmission=exact?ExactTransmission(target):PolarTransmission(delta,distanceWorld);
+    return _SourceColor.rgb*(UnboundedPower(distanceWorld)*edge*transmission);
+}
+RWTexture2D<float4> _FalloffDiagnostic;
+[numthreads(8,8,1)]
+void ValidateFalloff(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_OutputSize)))return;
+    float2 world=_OutputRect.xy+(float2(id.xy)+.5)/_OutputSize*_OutputRect.zw;
+    float d=distance(world,_Source),raw=UnboundedPower(d),weight=RangeWeight(d);
+    _FalloffDiagnostic[id.xy]=float4(raw,weight,raw*weight,d);
+}
+float3 Receiver(float2 world,bool exact)
+{
+    int2 p=ScenePoint(world);
+    if(!Inside(p)) return 0;
+    if(_Scene[p]<.99) return Irradiance(world,exact);
+    // Same fine-grid wall/closed-door rim policy as production DirectLight.
+    const int2 sides[4]={int2(1,0),int2(-1,0),int2(0,1),int2(0,-1)};
+    float3 light=0;
+    [unroll] for(int side=0;side<4;side++)
+    {
+        int2 q=p+sides[side];
+        if(Inside(q) && _Scene[q]<.99) light=max(light,Irradiance(WorldOf(q),exact));
+    }
+    return light;
+}
+[numthreads(8,8,1)]
+void Render(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_OutputSize))) return;
+    float2 world=_OutputRect.xy+(float2(id.xy)+.5)/_OutputSize*_OutputRect.zw;
+    _LightOut[id.xy]=float4(Receiver(world,false),1);
+}
+// Offline reference only: no angular discretisation/filter. Never called by normal Render().
+[numthreads(8,8,1)]
+void RenderExact(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_OutputSize))) return;
+    float2 world=_OutputRect.xy+(float2(id.xy)+.5)/_OutputSize*_OutputRect.zw;
+    _LightOut[id.xy]=float4(Receiver(world,true),1);
+}

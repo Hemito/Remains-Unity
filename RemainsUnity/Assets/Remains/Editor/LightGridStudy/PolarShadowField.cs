@@ -13,8 +13,10 @@ namespace Remains.Editor
         internal const int MaximumAngles=4713;
         private readonly ComputeShader compute;
         private readonly ComputeBuffer segments;
-        private readonly int build,exact,exactAA,polar,compose,export;
+        private readonly int build,exact,exactAA,polar,compose,export,rasterBlockers;
         private readonly GridLightTexture fill;
+        private readonly GridFillReconstruction reconstructedFill;
+        private readonly RenderTexture coarseBlocked;
         private readonly Texture2D fence;
         internal RenderTexture Angles {get;private set;}
         internal RenderTexture Light {get;private set;}
@@ -34,8 +36,9 @@ namespace Remains.Editor
                 if(asset==null) throw new InvalidOperationException("Нет Editor-шейдера PolarShadow.compute.");
                 compute=Object.Instantiate(asset);build=compute.FindKernel("BuildAngles");exact=compute.FindKernel("Exact");
                 polar=compute.FindKernel("Polar");compose=compute.FindKernel("Compose");exactAA=compute.FindKernel("ExactAA");export=compute.FindKernel("Export");
+                rasterBlockers=compute.FindKernel("RasterBlockers");
                 segments=new ComputeBuffer(scene.Segments.Count,16);segments.SetData(scene.Segments);
-                foreach(int kernel in new[]{build,exact,exactAA,polar,compose}) compute.SetBuffer(kernel,"_Segments",segments);
+                foreach(int kernel in new[]{build,exact,exactAA,polar,compose,rasterBlockers}) compute.SetBuffer(kernel,"_Segments",segments);
                 compute.SetInt("_SegmentCount",scene.Segments.Count);compute.SetVector("_WorldSize",new Vector4(32,18,0,0));
                 SetSource(scene.Source);compute.SetFloat("_Radius",PolarShadowCase.Radius);SetGain(1);
                 Angles=Target(MaximumAngles,1,GraphicsFormat.R32_SFloat,"Угловая карта: резерв до шага 2 см");
@@ -43,7 +46,11 @@ namespace Remains.Editor
                 Coarse=Target(160,90,GraphicsFormat.R32G32B32A32_SFloat,"Контроль света: сетка 20 см");
                 Image=Target(Width,Height,GraphicsFormat.R32G32B32A32_SFloat,"Сравнение полярных теней");
                 var fillData=scene.Fill();fill=new GridLightTexture(fillData);fill.Validate(fillData);
-                compute.SetTexture(compose,"_Fill",fill.Texture);
+                coarseBlocked=Target(160,90,GraphicsFormat.R32_SFloat,"Заполнение: консервативная маска точных контуров");
+                Size(160,90);compute.SetTexture(rasterBlockers,"_BlockedOut",coarseBlocked);compute.Dispatch(rasterBlockers,20,12,1);
+                reconstructedFill=new GridFillReconstruction(Width,Height);
+                reconstructedFill.Build(fill.Texture,coarseBlocked,new Rect(0,0,32,18),null,default,new Rect(0,0,32,18),segments,scene.Segments.Count);
+                compute.SetTexture(compose,"_Fill",reconstructedFill.Texture);
                 fence=new Texture2D(1,1,TextureFormat.RGBAFloat,false,true);
             }
             catch {Dispose();throw;}
@@ -105,15 +112,12 @@ namespace Remains.Editor
         }
         internal int ValidateFillComposition(Color[] direct)
         {
-            var grid=Read(fill.Texture);var image=Read(Image);int filledShadowSamples=0;
+            var grid=reconstructedFill.ReadDiagnostics(Case.Id);var image=Read(Image);int filledShadowSamples=0;
             for(int i=0;i<image.Length;i+=137)
             {
                 if(direct[i].a!=0) continue;
-                int x=i%Width,y=i/Width;float gx=(x+.5f)/Width*160-.5f,gy=(y+.5f)/Height*90-.5f;
-                int x0=Mathf.FloorToInt(gx),y0=Mathf.FloorToInt(gy);
-                Color At(int px,int py)=>grid[Mathf.Clamp(py,0,89)*160+Mathf.Clamp(px,0,159)];
-                var expected=Color.Lerp(Color.Lerp(At(x0,y0),At(x0+1,y0),gx-x0),
-                    Color.Lerp(At(x0,y0+1),At(x0+1,y0+1),gx-x0),gy-y0)*(.08f*.48f*.86f);
+                int x=i%Width,y=i/Width;
+                var expected=grid[i]*(.08f*.48f*.86f);
                 if(expected.r<=.001f) continue;
                 filledShadowSamples++;
                 if(image[i].r+1e-5f<expected.r)
@@ -121,6 +125,33 @@ namespace Remains.Editor
             }
             if(filledShadowSamples==0) throw new InvalidOperationException("Нет контрольных теневых точек с заполнением: "+Case.Id);
             return filledShadowSamples;
+        }
+        internal int ValidateFillReconstruction()
+        {
+            // Constant preservation exposes dark interpolation halos independently of the lamp/solver.
+            var mask=Read(coarseBlocked);var pixels=new Color[mask.Length];
+            for(int i=0;i<pixels.Length;i++) pixels[i]=mask[i].r>=.99f?Color.black:Color.white;
+            var constant=new Texture2D(160,90,TextureFormat.RGBAFloat,false,true);int checks=0;
+            try
+            {
+                constant.SetPixels(pixels);constant.Apply(false,false);
+                reconstructedFill.Build(constant,coarseBlocked,new Rect(0,0,32,18),null,default,new Rect(0,0,32,18),segments,Case.Segments.Count);
+                var image=reconstructedFill.ReadDiagnostics(Case.Id+" / постоянное поле");
+                for(int y=0;y<Height;y++) for(int x=0;x<Width;x++)
+                {
+                    int i=y*Width+x;var p=new Vector2((x+.5f)/Width*32,(y+.5f)/Height*18);
+                    if(Case.Contains(p)) continue;
+                    if(image[i].a<=0 || Mathf.Abs(image[i].r-1)>1e-5f || Mathf.Abs(image[i].g-1)>1e-5f || Mathf.Abs(image[i].b-1)>1e-5f)
+                        throw new InvalidOperationException($"Ореол заполнения {Case.Id}: открытый пиксель ({x},{y}), world={p}, RGB={image[i]}, support={image[i].a}.");
+                    checks++;
+                }
+                return checks;
+            }
+            finally
+            {
+                reconstructedFill.Build(fill.Texture,coarseBlocked,new Rect(0,0,32,18),null,default,new Rect(0,0,32,18),segments,Case.Segments.Count);
+                Object.DestroyImmediate(constant);
+            }
         }
         internal void Wait(RenderTexture target)
         {
@@ -141,8 +172,8 @@ namespace Remains.Editor
         }
         public void Dispose()
         {
-            fill?.Dispose();segments?.Dispose();
-            foreach(var obj in new Object[]{Angles,Light,Coarse,Image,ExportImage,compute,fence}) if(obj!=null) Object.DestroyImmediate(obj);
+            fill?.Dispose();reconstructedFill?.Dispose();segments?.Dispose();
+            foreach(var obj in new Object[]{Angles,Light,Coarse,Image,ExportImage,coarseBlocked,compute,fence}) if(obj!=null) Object.DestroyImmediate(obj);
         }
     }
 }
