@@ -10,33 +10,40 @@ namespace Remains.Editor
     // Trace the actual quantized result back to a source; do not guess a blue patch's origin from its image.
     public static class GridLightDiagnostics
     {
-        [Serializable] private sealed class BlueReport
+        [Serializable] private sealed class SourceColor {public string id,kind;public Color color;}
+        [Serializable] private sealed class ColorInventory {public SourceColor[] sources;}
+        public static void WriteColorInventory(IReadOnlyList<LevelLightSource> sources,string path)
         {
-            public string explanation="Каждый канал теряет одинаковое абсолютное число уровней. У холодного белого R/G заканчиваются раньше B; оставшийся свет становится насыщенно-синим. Это дефект цветового затухания пробы, не цвет тени.";
-            public Vector2 world;public Color field;
-            public string sourceId,sourceKind;public Color sourceRadiance,seedRadiance;
-            public int blueSteps;public Color exampleInput=new(.4f,.5f,.7f,1),exampleAfterLoss=new(0,0,.2f,1);
+            var inventory=new ColorInventory{sources=sources.Select(s=>new SourceColor{id=s.Id,kind=s.Kind.ToString(),color=s.Radiance}).ToArray()};
+            File.WriteAllText(path,JsonUtility.ToJson(inventory,true));
         }
-        public static void WriteBlueReport(GridLightField field,float[] absorption,LevelLightScene scene,
-            IReadOnlyList<LevelLightSource> sources,Dictionary<string,GridLightSeed[]> seeds,Rect visible,string path)
+        [Serializable] private sealed class ColorReport
         {
-            int selected=-1;float score=0;
-            for(int y=0;y<field.Height;y++) for(int x=0;x<field.Width;x++)
-            {
-                var p=scene.WorldRect.position+new Vector2((x+.5f)*field.CellSize,(y+.5f)*field.CellSize);
-                if(!visible.Contains(p)) continue;
-                int i=y*field.Width+x;var c=field.Pixels[i];float s=c.b>.04f?(c.b-Mathf.Max(c.r,c.g))/c.b:0;
-                if(s==score && selected>=0 && c.b>field.Pixels[selected].b) {selected=i;continue;}
-                if(s>score) {score=s;selected=i;}
-            }
-            if(selected<0) throw new InvalidOperationException("В контрольном зале не найдено синее пятно для диагностики.");
+            public string explanation="У каждого оттенка затухает одна общая яркость. Цвет не теряет R/G на расстоянии; между разными группами остаётся максимум RGB.";
+            public Vector2 world;public Color field,windowContribution,groupHue,previousField;
+            public string sourceId,sourceKind;public Color sourceRadiance,seedRadiance;
+            public int steps,level;public float hueRatioError;
+        }
+        public static void WriteColorReport(GridLightField field,float[] absorption,LevelLightScene scene,
+            IReadOnlyList<LevelLightSource> sources,Dictionary<string,GridLightSeed[]> seeds,string path)
+        {
+            // The actual blue-only probe traced in the preceding seed104 study, not a hand-picked new sample.
+            var world=new Vector2(46.5f,365.7f);
+            const string expected="window:factory:0:1,1:uHvgVXC2iZg1OtSd";
+            var input=sources.Single(s=>s.Id==expected);
+            Color hue=GridLightField.NormalizedColor(input.Radiance);
+            int x0=Mathf.FloorToInt((world.x-scene.WorldRect.x)/field.CellSize),y0=Mathf.FloorToInt((world.y-scene.WorldRect.y)/field.CellSize);
+            int selected=y0*field.Width+x0;
+            int original=field.LevelForColor(input.Radiance,selected);
+            if(original==0)
+                throw new InvalidOperationException("Группа проверяемого окна не освещает прежнюю контрольную точку.");
             int at=selected,steps=0;string found=null;Color seedColor=default;
             for(;steps<=GridLightField.Maximum/field.StepLoss+1;steps++)
             {
-                int q=Q(field.Pixels[at].b);
+                int q=field.LevelForColor(input.Radiance,at);
                 foreach(var pair in seeds)
                 {
-                    foreach(var seed in pair.Value) if(seed.Index==at && Q(Mathf.Clamp01(seed.Radiance.b))==q)
+                    foreach(var seed in pair.Value) if(seed.Index==at && GridLightField.NormalizedColor(seed.Radiance).Equals(hue) && Q(Mathf.Clamp01(seed.Radiance.maxColorComponent))==q)
                     {found=pair.Key;seedColor=seed.Radiance;break;}
                     if(found!=null) break;
                 }
@@ -45,18 +52,21 @@ namespace Remains.Editor
                 int next=-1;
                 foreach(int n in neighbours)
                 {
-                    if(n<0) continue;int neighbour=Q(field.Pixels[n].b);
+                    if(n<0) continue;int neighbour=field.LevelForColor(input.Radiance,n);
                     if(neighbour>q && (int)Math.Floor((neighbour-field.StepLoss)*(1.0-absorption[at]))==q) {next=n;break;}
                 }
                 if(next<0) throw new InvalidOperationException("Не восстановлен путь синего канала клетки "+at);
                 at=next;
             }
-            if(found==null) throw new InvalidOperationException("Путь синего света не дошёл до источника.");
+            if(found==null) throw new InvalidOperationException("Путь цветовой группы не дошёл до источника.");
             var source=sources.Single(s=>s.Id==found);
-            var report=new BlueReport{world=scene.WorldRect.position+new Vector2((selected%field.Width+.5f)*field.CellSize,(selected/field.Width+.5f)*field.CellSize),
-                field=field.Pixels[selected],sourceId=found,sourceKind=source.Kind.ToString(),sourceRadiance=source.Radiance,seedRadiance=seedColor,blueSteps=steps};
+            Color contribution=hue*(original/(float)GridLightField.Maximum);contribution.a=1;
+            float error=Mathf.Max(Mathf.Abs(contribution.r/contribution.b-hue.r/hue.b),Mathf.Abs(contribution.g/contribution.b-hue.g/hue.b));
+            if(error>1e-5 || contribution.r<=0 || contribution.g<=0) throw new InvalidOperationException("Цвет окна искажён затуханием в контрольной точке.");
+            var report=new ColorReport{world=world,field=field.Pixels[selected],windowContribution=contribution,groupHue=hue,
+                previousField=new Color(0,0,.1625f,1),sourceId=found,sourceKind=source.Kind.ToString(),sourceRadiance=source.Radiance,seedRadiance=seedColor,steps=steps,level=original,hueRatioError=error};
             File.WriteAllText(path,JsonUtility.ToJson(report,true));
-            Debug.Log("Диагностика синего света: "+JsonUtility.ToJson(report,true));
+            Debug.Log("Проверка сохранения цвета: "+JsonUtility.ToJson(report,true));
         }
         private static int Q(float c)=>Mathf.RoundToInt(c*GridLightField.Maximum);
     }

@@ -17,11 +17,12 @@ namespace Remains.Editor
     public static class LightGridStudy
     {
         private const int Divisor=2,ImageWidth=1280,ImageHeight=672;
-        private static readonly string Output=Path.GetFullPath("../.reference/light-grid-local-20261103");
+        private static readonly string Output=Path.GetFullPath("../.reference/light-grid-color-20261103");
         [Serializable] private sealed class Measurement
         {
             public string device,api,limitations;
             public int seed=104,width,height,gridWidth,gridHeight,sources,enabled,seedCells,unseeded;
+            public int colorGroups;
             public double prepareMs,directMs,bounceMs,readbackMs,gridPrepareMs,gridSolveMs,gridUploadMs;
             public double currentLampOffMs,gridLampOffMs,currentDoorOpenMs,gridDoorOpenMs;
             public double[] currentLampOffSamples,gridLampOffSamples,currentLampOnSamples,gridLampOnSamples;
@@ -55,8 +56,10 @@ namespace Remains.Editor
                 var view=visual.GetComponent<FactoryLevelView>();var factory=visual.GetComponent<FactoryLevelRoot>();
                 view.Synchronize(room,world,1);
                 var report=new Measurement{device=SystemInfo.graphicsDeviceName,api=SystemInfo.graphicsDeviceType.ToString(),
-                    limitations="Editor batch; CPU submission + GPU completion wall time, not GPU timestamps. Events: median of 3, all samples included. Both systems update local influence; grid rebuilds a bounded rectangle, queries local seed buckets, reads door patch and uploads only changed rectangle. Same max-RGB formula as previous study. No actor shadows/AO. Grid geometry GPU bytes listed separately. Array/texture payloads only, excludes seed/index overhead, driver and artwork."};
+                    limitations="Editor batch; CPU submission + GPU completion wall time, not GPU timestamps. Events: median of 3, all samples included. Local bounded rebuild/readback/upload. Scalar intensity per RGB8-normalized hue group; componentwise max of decoded group colours. Overall brightness clamped, hue preserved within RGB8 quantization. No actor shadows/AO. Grid geometry GPU bytes separate. Payloads only, excludes indices, headers, driver/artwork."};
                 var clock=Stopwatch.StartNew();benchmark=view.CreateLevelLight();report.prepareMs=clock.Elapsed.TotalMilliseconds;
+                GridLightDiagnostics.WriteColorInventory(benchmark.Sources.All,Path.Combine(Output,"source-colors.json"));
+                if(Environment.GetCommandLineArgs().Contains("-grid-colors-only")) {EditorApplication.Exit(0);return;}
                 clock.Restart();benchmark.Direct.BuildAll();Fence(benchmark.Direct.Sum,fence);report.directMs=clock.Elapsed.TotalMilliseconds;
                 clock.Restart();benchmark.Bounce.BuildAll();Fence(benchmark.Bounce.Indirect,fence);report.bounceMs=clock.Elapsed.TotalMilliseconds;
                 benchmark.Direct.WaitForMeasurements();
@@ -75,6 +78,7 @@ namespace Remains.Editor
                 report.gridPrepareMs=clock.Elapsed.TotalMilliseconds;
                 report.gridWidth=report.width/Divisor;report.gridHeight=report.height/Divisor;
                 clock.Restart();field.Solve(seeds);report.gridSolveMs=clock.Elapsed.TotalMilliseconds;
+                report.colorGroups=field.GroupCount;
                 clock.Restart();gridTexture=new GridLightTexture(field);report.gridUploadMs=clock.Elapsed.TotalMilliseconds;
                 report.gridCpuBytes=field.AllocatedBytes+absorption.LongLength*sizeof(float);
                 report.gridTextureBytes=(long)report.gridWidth*report.gridHeight*8;
@@ -102,7 +106,7 @@ namespace Remains.Editor
                     view.SetViewArea(new Rect(bounds.center.x-h*camera.aspect*.5f,bounds.center.y-h*.5f,h*camera.aspect,h));view.Focus(bounds.center);
                     SavePair(view,camera,gridTexture.Texture,name);
                     if(name!="hall") continue;
-                    GridLightDiagnostics.WriteBlueReport(field,absorption,benchmark.Scene,benchmark.Sources.All,seedsBySource,bounds,Path.Combine(Output,"blue-source.json"));
+                    GridLightDiagnostics.WriteColorReport(field,absorption,benchmark.Scene,benchmark.Sources.All,seedsBySource,Path.Combine(Output,"color-check.json"));
                     report.lamp=view.Light.Sources.All.Where(s=>s.Kind==LevelLightSourceKind.Lamp && s.Enabled && s.Id.StartsWith("factory:0:1,1:",StringComparison.Ordinal))
                         .Select(s=>s.Id).OrderBy(s=>s,StringComparer.Ordinal).First();
                     report.currentLampOffSamples=new double[3];report.gridLampOffSamples=new double[3];
@@ -153,6 +157,9 @@ namespace Remains.Editor
                     report.currentDoorOpenMs=Median(report.currentDoorOpenSamples);report.gridDoorOpenMs=Median(report.gridDoorOpenSamples);
                 }
                 ControlledCases();
+                string previous=Path.GetFullPath("../.reference/light-grid-local-20261103/hall-grid.png");
+                if(File.Exists(previous)) File.Copy(previous,Path.Combine(Output,"hall-before-color.png"),true);
+                else Debug.LogWarning("Сравнение цвета: отсутствует прошлый кадр "+previous+"; показ старого варианта пропущен.");
                 File.WriteAllText(Path.Combine(Output,"report.json"),JsonUtility.ToJson(report,true));
                 WritePage(report);
                 Debug.Log("Клеточный свет: PASS; сравнение и измерения: "+Output+"\n"+JsonUtility.ToJson(report,true));
@@ -276,13 +283,15 @@ namespace Remains.Editor
         }
         private static void WritePage(Measurement report)
         {
-            string html="<!doctype html><html lang='ru'><meta charset='utf-8'><title>Сравнение света</title><style>body{background:#20252b;color:#eee;font:17px system-ui;margin:24px}section{margin:28px 0}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}img{width:100%}pre{white-space:pre-wrap}h3{margin:8px 0}</style><h1>Общая сетка света — эксперимент</h1><p>Слева текущий игровой гибрид, справа ограниченное RGB-поле. Одинаковые камера, материалы и окружающий свет. Игра не изменена.</p><p>Сетка 20 см, 15 уровней с 16 промежуточными значениями. Максимум каждого цветового канала, плавная выборка; затухание максимума за 12 м. Индивидуальные радиусы заменены общим. Это вариант по мотивам клеточного света, не точная копия Minecraft. Нет теней персонажей и AO.</p>";
+            string html="<!doctype html><html lang='ru'><meta charset='utf-8'><title>Сравнение света — сохранение цвета</title><style>body{background:#20252b;color:#eee;font:17px system-ui;margin:24px}section{margin:28px 0}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}img{width:100%}pre{white-space:pre-wrap}h3{margin:8px 0}</style><h1>Сетка света — затухание с сохранением цвета</h1><p>В основных парах слева текущий игровой гибрид, справа исправленная сетка. Камера, материалы и ambient одинаковые. Игровая EXE не менялась.</p><p>Сетка 20 см, яркость 0…15 с 16 подуровнями. Каждый оттенок сохраняет RGB-пропорции, затухает только его общая яркость; цвет округляется до RGB8. Группы смешиваются максимумом RGB, без бесконечного сложения. Плавная выборка, общий максимальный радиус 12 м; индивидуальные радиусы заменены общим. Теней персонажа и AO в пробе нет.</p>";
+            if(File.Exists(Path.Combine(Output,"hall-before-color.png")))
+                html+="<h2>Исправление синевы</h2><div class='pair'><div><h3>Предыдущая сетка</h3><img src='hall-before-color.png'></div><div><h3>Затухание с сохранением цвета</h3><img src='hall-grid.png'></div></div>";
             foreach(string name in new[]{"hall","hall-lamp-off","hall-door-open","office","door","entry"})
                 html+=$"<section><h2>{name}</h2><div class='pair'><div><h3>Текущий</h3><img src='{name}-current.png'></div><div><h3>Общая сетка</h3><img src='{name}-grid.png'></div></div></section>";
             html+="<h2>Контрольные сцены</h2><p>Здесь показано само поле света на одинаковой условной белой поверхности, без окружающего света. Слева тот же игровой DirectLight + BounceLight, справа сетка. Все изображения используют одну линейную шкалу 0…1 с переводом в sRGB; превышение единицы обрезается одинаково. Цветные точки — источники, тёмные клетки — непроницаемые стены.</p>";
             foreach(string name in new[]{"corner","sealed","colored","one","many","weak-after-off"})
                 html+=$"<section><h3>{name}</h3><div class='pair'><img src='test-{name}-current.png'><img src='test-{name}-grid.png'></div></section>";
-            html+="<h2>Локальные события полного завода seed104</h2><p>Медиана трёх повторов в Editor; отправка команд плюс ожидание GPU, не GPU timestamps и не FPS Player. Обе схемы обновляют только область влияния. У сетки нет полного readback или полной загрузки текстуры при событии.</p><p><a href='blue-source.json'>Почему синее пятно: путь до источника и RGB</a>. Формула цвета сохранена для честного сравнения скорости; независимое линейное затухание каналов даёт цветные хвосты.</p><pre>"+JsonUtility.ToJson(report,true)+"</pre></html>";
+            html+="<h2>Локальные события полного завода seed104</h2><p>Медиана трёх повторов в Editor; отправка команд плюс ожидание GPU, не GPU timestamps и не FPS Player. Обе схемы обновляют только область влияния. У сетки нет полного readback или полной загрузки текстуры при событии.</p><p><a href='color-check.json'>Проверка прежнего синего пятна: источник и сохранённые пропорции RGB</a>.</p><pre>"+JsonUtility.ToJson(report,true)+"</pre></html>";
             File.WriteAllText(Path.Combine(Output,"index.html"),html);
         }
 
