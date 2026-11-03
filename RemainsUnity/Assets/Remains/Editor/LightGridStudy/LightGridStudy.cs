@@ -58,7 +58,7 @@ namespace Remains.Editor
                 var report=new Measurement{device=SystemInfo.graphicsDeviceName,api=SystemInfo.graphicsDeviceType.ToString(),
                     limitations="Editor batch; CPU submission + GPU completion wall time, not GPU timestamps. Events: median of 3, all samples included. Local bounded rebuild/readback/upload. Scalar intensity per RGB8-normalized hue group; componentwise max of decoded group colours. Overall brightness clamped, hue preserved within RGB8 quantization. No actor shadows/AO. Grid geometry GPU bytes separate. Payloads only, excludes indices, headers, driver/artwork."};
                 var clock=Stopwatch.StartNew();benchmark=view.CreateLevelLight();report.prepareMs=clock.Elapsed.TotalMilliseconds;
-                if(Environment.GetCommandLineArgs().Contains("-grid-hybrid-study"))
+                if(Environment.GetCommandLineArgs().Contains("-grid-hybrid-study") || Environment.GetCommandLineArgs().Contains("-grid-hybrid-fill-preview"))
                 {
                     clock.Restart();
                     using var hybrid=new GridDirectHybrid(benchmark.Scene,benchmark.Sources.All);

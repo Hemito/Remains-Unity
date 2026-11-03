@@ -104,15 +104,31 @@ namespace Remains.Editor
                     // camera crop before Present; otherwise only the first production image has a wrong field.
                     SetCameraArea(view,camera,bounds);
                     SaveTriple(view,camera,hybrid,output,name);
+                    SaveFillVariants(view,camera,hybrid,output,name);
                     if(name=="hall")
                     {
                         hybrid.Compose(0);LightGridStudy.SaveField(view,camera,hybrid.Texture,hybrid.Scene,hybrid.Scene.Texel,Path.Combine(output,"hall-hybrid-fill0.png"));
-                        hybrid.Compose(.16f);LightGridStudy.SaveField(view,camera,hybrid.Texture,hybrid.Scene,hybrid.Scene.Texel,Path.Combine(output,"hall-hybrid-fill16.png"));
                         hybrid.Compose();
                     }
                 }
                 context=CreateContext(view,hybrid,world,fence);
                 SetCameraArea(view,camera,hallBounds);view.Focus(hallBounds.center);FinishCurrent(view,fence);SetCameraArea(view,camera,hallBounds);
+                context.NeedsRestoration=true;
+                view.SyncLamps(context.OffDark,++context.LampRevision,context.Broken);FinishCurrent(view,fence);hybrid.SetLamp(context.Lamp,false);
+                SaveTriple(view,camera,hybrid,output,"hall-lamp-off");SaveFillVariants(view,camera,hybrid,output,"hall-lamp-off");
+                Restore(context);
+                context.Door.open=true;view.SyncDoors(context.Doors,++context.DoorRevision);FinishCurrent(view,fence);hybrid.SetDoor(context.Door.id,false);
+                SaveTriple(view,camera,hybrid,output,"hall-door-open");SaveFillVariants(view,camera,hybrid,output,"hall-door-open");
+                Restore(context);context.NeedsRestoration=false;
+                if(Environment.GetCommandLineArgs().Contains("-grid-hybrid-fill-preview"))
+                {
+                    string previousReport=Path.Combine(output,"report.json");
+                    if(!File.Exists(previousReport)) throw new FileNotFoundException("Для обновления кадров нужен предыдущий отчёт гибрида.",previousReport);
+                    var measured=JsonUtility.FromJson<Report>(File.ReadAllText(previousReport));
+                    WritePage(measured,output);
+                    Debug.Log("Сравнения заполнения: PASS; шесть мест/состояний, текущий свет и0.08/0.16. Старые измерения сохранены, бенчмарк не повторялся.");
+                    return;
+                }
                 report.lamp=context.Lamp;report.door=context.Door.id;
                 report.currentWidth=view.Light.Scene.Width;report.currentHeight=view.Light.Scene.Height;
                 report.sources=hybrid.Sources.Count;report.enabledSources=hybrid.Sources.All.Count(s=>s.Enabled);
@@ -163,6 +179,12 @@ namespace Remains.Editor
             if(broken.Except(dark,StringComparer.Ordinal).Any()) throw new InvalidOperationException("Разбитые лампы отсутствуют в исходном списке погашенных.");
             return new Context{View=view,Hybrid=hybrid,World=world,Doors=doors,Door=door,Lamp=lamp.Id,BaselineDark=dark,Broken=broken,
                 OffDark=dark.Concat(new[]{lamp.Id}).ToArray(),Fence=fence,LampRevision=Math.Max(world.lampRevision,view.AppliedLampRevision),DoorRevision=view.AppliedDoorRevision};
+        }
+        private static void SaveFillVariants(FactoryLevelView view,Camera camera,GridDirectHybrid hybrid,string output,string name)
+        {
+            hybrid.Compose(.08f);LightGridStudy.SaveField(view,camera,hybrid.Texture,hybrid.Scene,hybrid.Scene.Texel,Path.Combine(output,name+"-hybrid-fill08.png"));
+            hybrid.Compose(.16f);LightGridStudy.SaveField(view,camera,hybrid.Texture,hybrid.Scene,hybrid.Scene.Texel,Path.Combine(output,name+"-hybrid-fill16.png"));
+            hybrid.Compose();
         }
         private static void SaveTriple(FactoryLevelView view,Camera camera,GridDirectHybrid hybrid,string output,string name)
         {
@@ -300,12 +322,14 @@ namespace Remains.Editor
         private static string Label(string action)=>action=="lamp-off"?"Выключить лампу":action=="lamp-on"?"Включить лампу":action=="door-open"?"Открыть дверь":"Закрыть дверь";
         private static void WritePage(Report report,string output)
         {
-            var html=new StringBuilder("<!doctype html><html lang='ru'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Направленный свет и слабое клеточное заполнение</title><style>body{background:#20252b;color:#eee;font:17px system-ui;margin:24px}section{margin:28px 0}.triple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}img{width:100%}pre{white-space:pre-wrap}h3{margin:8px 0}td,th{border:1px solid #667;padding:8px}table{border-collapse:collapse}select{font:inherit;padding:6px}@media(max-width:1000px){.triple,.pair{grid-template-columns:1fr}}</style><h1>Направленный свет + слабое клеточное заполнение</h1><p>Изолированная Editor-проба; игровая EXE и runtime не переключались. Во всех тройках одни и те же комната, камера, материалы и ambient.</p><p>Слева штатный Direct + Bounce. В центре общая сетка. Справа направленный Direct с геометрией20см и максимум4 точками источника, мягким ограничением яркости и слабым заполнением max(direct,0.08 × grid), без Bounce. Это разные модели света, а не одинаковое изображение с другими настройками качества. Персонаж, его тени, вспышки и движущиеся источники здесь не проверяются.</p><label>Комната <select id='room'><option value='hall'>Зал</option><option value='office'>Кабинет</option><option value='door'>Комната с дверью</option><option value='entry'>Вход</option></select></label><section class='triple'>");
-            foreach(var variant in new[]{("current","Текущий свет"),("grid","Общая сетка"),("hybrid","Направленный + слабая сетка")})
-                html.Append($"<div><h3>{variant.Item2}</h3><img id='{variant.Item1}' src='hall-{variant.Item1}.png'></div>");
-            html.Append("</section><h2>Сколько даёт заполнение сеткой</h2><p>Один и тот же направленный свет в зале. Ниже заполнение отключено, затем0.08 и0.16. Картинка0.08 совпадает с правой колонкой выше.</p><section class='triple'><div><h3>Без заполнения</h3><img src='hall-hybrid-fill0.png'></div><div><h3>Заполнение0.08</h3><img src='hall-hybrid.png'></div><div><h3>Заполнение0.16</h3><img src='hall-hybrid-fill16.png'></div></section><h2>Локальные события полного завода104</h2><p>Один прогревочный и6 измеряемых циклов;24 пары /48 операций. Порядок текущий/новый чередуется; каждая операция завершена, включая GPU. Это время светового события при имеющейся нагрузке ПК, не FPS и не стоимость обычного кадра. Снимки и полные эталоны выполнены вне измеряемых пар.</p><table><tr><th>Событие</th><th>Текущий: медиана / p90, мс</th><th>Новый: медиана / p90, мс</th><th>Медиана парных отношений</th></tr>");
-            foreach(var s in report.summaries) html.Append($"<tr><td>{Label(s.action)}</td><td>{N(s.currentMedianMs)} / {N(s.currentP90Ms)}</td><td>{N(s.hybridMedianMs)} / {N(s.hybridP90Ms)}</td><td>{N(s.medianPairedCurrentOverHybrid)}×</td></tr>");
-            html.Append($"</table><p>Разовая независимая подготовка нового варианта {N(report.hybridPrepareMs)}мс; его первый BuildAll с завершением GPU {N(report.hybridInitialBuildMs)}мс. Первый Focus текущего варианта с подготовкой света и окна изображения {N(report.currentInitialFocusBuildMs)}мс. Общая подготовка игрового уровня не включена. Это по одному измерению, не распределение загрузки.</p><p>GPU payload текущего варианта {N(report.currentTotalGpuBytes/1048576.0)}МиБ (сцена, Direct, кэш, Bounce), нового {N(report.hybridGpuBytes/1048576.0)}МиБ. CPU payload нового {N(report.hybridCpuBytes/1048576.0)}МиБ; CPU production не измерен. Это перечисленные ресурсы активного зала, не вся память игры.</p><p>GC0/1/2 за измеряемую серию: {report.measuredGc0}/{report.measuredGc1}/{report.measuredGc2}.</p><p>{WebUtility.HtmlEncode(report.validation)}</p><details><summary>Сырые измерения, модель и ограничения</summary><pre>{WebUtility.HtmlEncode(JsonUtility.ToJson(report,true))}</pre></details><p><a href='report.json'>Отчёт JSON</a></p><script>document.getElementById('room').onchange=e=>['current','grid','hybrid'].forEach(id=>document.getElementById(id).src=e.target.value+'-'+id+'.png')</script></html>");
+            var html=new StringBuilder("<!doctype html><html lang='ru'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Текущий свет и заполнение 0,08 / 0,16</title><style>body{background:#20252b;color:#eee;font:17px system-ui;margin:24px}section{margin:24px 0}.triple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}img{width:100%}pre{white-space:pre-wrap}h3{margin:8px 0}td,th{border:1px solid #667;padding:8px}table{border-collapse:collapse}select,button{font:inherit;padding:8px}button[aria-pressed=true]{background:#83c8fa}.switch{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.large{max-width:1280px}@media(max-width:1000px){.triple{grid-template-columns:1fr}}</style><h1>Текущий свет / гибрид 0,08 / гибрид 0,16</h1><p>Во всех тройках одинаковые место, камера, материалы и фоновое освещение. Меняется только схема света и сила заполнения. Игровая EXE не менялась.</p><label>Место или состояние <select id='room'><option value='entry' selected>Вход — стена с вентиляторами</option><option value='hall'>Зал</option><option value='office'>Кабинет</option><option value='door'>Комната с дверью</option><option value='hall-lamp-off'>Зал — лампа выключена</option><option value='hall-door-open'>Зал — дверь открыта</option></select></label><section class='triple'>");
+            foreach(var variant in new[]{("current","Текущий игровой свет"),("hybrid-fill08","Направленный + заполнение 0,08"),("hybrid-fill16","Направленный + заполнение 0,16")})
+                html.Append($"<div><h3>{variant.Item2}</h3><img id='{variant.Item1}' alt='{variant.Item2}' src='entry-{variant.Item1}.png?v=fill-compare-2'></div>");
+            html.Append("</section><details><summary>Крупное переключение в одном месте</summary><p>Переключайте варианты: изображение остаётся на той же позиции, чтобы легче увидеть изменение теней.</p><div class='switch'><button data-suffix='current' aria-pressed='false'>Текущий свет</button><button data-suffix='hybrid-fill08' aria-pressed='true'>Заполнение 0,08</button><button data-suffix='hybrid-fill16' aria-pressed='false'>Заполнение 0,16</button></div><img class='large' id='large' alt='Крупное сравнение выбранного места' src='entry-hybrid-fill08.png?v=fill-compare-2'></details><p>0,08 и 0,16 используют один и тот же направленный свет (геометрия 20 см, до четырёх точек формы). Меняется только слабый нижний предел: max(direct, коэффициент × grid). Это не увеличение всей яркости на 8% или 16%. Отдельного Bounce у нового варианта нет; персонажи и их тени в этой пробе не проверяются.</p><h2>Измерения основного варианта 0,08</h2><p>Таблица относится к отдельному предыдущему бенчмарку: один прогревочный и шесть измеряемых циклов, 24 пары. При обновлении кадров она не переснималась. Время варианта 0,16 отдельно не измерялось. Это завершённые световые события, не FPS игры.</p><table><tr><th>Событие</th><th>Текущий: медиана / p90, мс</th><th>Гибрид 0,08: медиана / p90, мс</th><th>Медиана парных отношений</th></tr>");
+            foreach(var s in report.summaries)
+                html.Append($"<tr><td>{Label(s.action)}</td><td>{N(s.currentMedianMs)} / {N(s.currentP90Ms)}</td><td>{N(s.hybridMedianMs)} / {N(s.hybridP90Ms)}</td><td>{N(s.medianPairedCurrentOverHybrid)}×</td></tr>");
+            html.Append($"</table><p>Учтённая GPU-память: текущий {N(report.currentTotalGpuBytes/1048576.0)} МиБ, гибрид {N(report.hybridGpuBytes/1048576.0)} МиБ. У гибрида также {N(report.hybridCpuBytes/1048576.0)} МиБ CPU-массивов; CPU production не измерен. Это перечисленные ресурсы, не вся память игры.</p><details><summary>Исходный отчёт бенчмарка и ограничения</summary><pre>{WebUtility.HtmlEncode(JsonUtility.ToJson(report,true))}</pre></details><p><a href='report.json'>Отчёт JSON</a></p>");
+            html.Append("<script>let suffix='hybrid-fill08';const room=document.getElementById('room');function update(){for(const s of ['current','hybrid-fill08','hybrid-fill16'])document.getElementById(s).src=room.value+'-'+s+'.png?v=fill-compare-2';document.getElementById('large').src=room.value+'-'+suffix+'.png?v=fill-compare-2';for(const b of document.querySelectorAll('[data-suffix]'))b.setAttribute('aria-pressed',String(b.dataset.suffix===suffix));}room.onchange=update;for(const b of document.querySelectorAll('[data-suffix]'))b.onclick=()=>{suffix=b.dataset.suffix;update();};update();</script></html>");
             File.WriteAllText(Path.Combine(output,"index.html"),html.ToString());
         }
     }
