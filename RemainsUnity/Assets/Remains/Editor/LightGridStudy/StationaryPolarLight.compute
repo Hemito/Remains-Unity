@@ -1,0 +1,131 @@
+// Editor comparison: preserve DirectLight's source shape, energy, range and absorption rules.
+// All emitting samples keep their own polar layer; only the view direction is discretised at 5cm/radius.
+#pragma kernel BuildMaps
+#pragma kernel Field
+#pragma kernel ExactField
+
+Texture2D<float> _Scene;
+StructuredBuffer<float4> _Samples;
+StructuredBuffer<float> _MarchDistances;
+RWTexture2DArray<float> _MapOut;
+Texture2DArray<float> _Map;
+RWTexture2D<float4> _Field;
+int2 _SceneSize,_FieldOrigin,_FieldSize;
+int _SampleCount,_SampleOffset,_Angles,_RadialSamples;
+float4 _SceneRect,_SourceBounds,_Radiance;
+float _PPU,_Radius,_ProjectedWidth,_MarchStep;
+static const float Tau=6.283185307179586;
+// HLSL static storage is invocation-local, not groupshared: the shared filter calls the active sample's prefix.
+static int ActiveSample=0;
+bool Inside(int2 p){return all(p>=0) && all(p<_SceneSize);}
+int2 ScenePoint(float2 world){return int2(floor((world-_SceneRect.xy)*_PPU));}
+float2 WorldOf(int2 p){return _SceneRect.xy+(float2(p)+.5)/_PPU;}
+bool InEmitterBounds(float2 world){return all(world>=_SourceBounds.xy) && all(world<=_SourceBounds.zw);}
+int Wrap(int angle){return (angle%_Angles+_Angles)%_Angles;}
+
+[numthreads(64,1,1)]
+void BuildMaps(uint3 id:SV_DispatchThreadID)
+{
+    if(id.x>=uint(_Angles) || id.y>=uint(_SampleCount))return;
+    float angle=(id.x+.5)*Tau/_Angles;
+    float2 direction=float2(cos(angle),sin(angle));
+    float2 from=_Samples[_SampleOffset+id.y].xy;
+    float transmission=1;bool stopped=false,leaving=true;
+    [loop] for(int row=0;row<_RadialSamples;row++)
+    {
+        if(!stopped)
+        {
+            float2 world=from+direction*_MarchDistances[row];int2 p=ScenePoint(world);
+            if(!Inside(p)){transmission=0;stopped=true;}
+            else
+            {
+                float alpha=saturate(_Scene[p]);
+                if(!(leaving && InEmitterBounds(world) && alpha>=.99))
+                {
+                    leaving=false;
+                    if(alpha>=.99){transmission=0;stopped=true;}
+                    else if(alpha>.0001)transmission*=pow(max(0,1-alpha),_MarchStep*_PPU);
+                    if(transmission<.0001){transmission=0;stopped=true;}
+                }
+            }
+        }
+        _MapOut[int3(id.x,row,id.y)]=transmission;
+    }
+}
+float Prefix(int angle,float distanceWorld)
+{
+    if(distanceWorld<.5/_PPU)return 1;
+    float finish=max(0,distanceWorld-.6/_PPU);
+    int count=min(max(0,(int)ceil(finish/_MarchStep-.5)),_RadialSamples);
+    [loop] while(count>0 && _MarchDistances[count-1]>=finish)count--;
+    [loop] while(count<_RadialSamples && _MarchDistances[count]<finish)count++;
+    return count==0?1:_Map[int3(Wrap(angle),count-1,ActiveSample)];
+}
+float PolarSample(int angle,float distanceWorld){return Prefix(angle,distanceWorld);}
+#include "PolarAngularFilter.hlsl"
+float PolarTransmission(float2 delta,float distanceWorld)
+{
+    if(distanceWorld<.5/_PPU)return 1;
+    float angle=frac(atan2(delta.y,delta.x)/Tau+1)*_Angles;
+    return PolarBoxFilter(angle,.05*_Angles/(Tau*_Radius),distanceWorld);
+}
+float ExactTransmission(float2 from,float2 to)
+{
+    float2 delta=to-from;float distanceWorld=length(delta);
+    if(distanceWorld<.5/_PPU)return 1;
+    float2 direction=delta/distanceWorld;
+    float finish=max(0,distanceWorld-.6/_PPU),transmission=1;bool leaving=true;
+    [loop] for(float at=_MarchStep*.5;at<finish;at+=_MarchStep)
+    {
+        float2 world=from+direction*at;int2 p=ScenePoint(world);
+        if(!Inside(p))return 0;
+        float alpha=saturate(_Scene[p]);
+        if(leaving && InEmitterBounds(world) && alpha>=.99)continue;
+        leaving=false;
+        if(alpha>=.99)return 0;
+        if(alpha>.0001)transmission*=pow(max(0,1-alpha),_MarchStep*_PPU);
+        if(transmission<.0001)return 0;
+    }
+    return transmission;
+}
+float3 Irradiance(float2 target,bool exact)
+{
+    float3 light=0;
+    [loop] for(int pointIndex=0;pointIndex<_SampleCount;pointIndex++)
+    {
+        float4 source=_Samples[_SampleOffset+pointIndex];float2 delta=target-source.xy;float d=length(delta);
+        float edge=1-smoothstep(_Radius*.9,_Radius,d);
+        if(edge<=0)continue;
+        ActiveSample=pointIndex;
+        float transmission=exact?ExactTransmission(source.xy,target):PolarTransmission(delta,d);
+        float patchWidth=source.z*_ProjectedWidth;
+        float value=2*atan(patchWidth/(2*max(d,.5/_PPU)))*edge;
+        light+=_Radiance.rgb*(value*transmission);
+    }
+    return light;
+}
+float3 Receiver(int2 p,bool exact)
+{
+    if(_Scene[p]<.99)return Irradiance(WorldOf(p),exact);
+    const int2 sides[4]={int2(1,0),int2(-1,0),int2(0,1),int2(0,-1)};
+    float3 light=0;
+    [unroll]for(int side=0;side<4;side++)
+    {
+        int2 q=p+sides[side];
+        if(Inside(q) && _Scene[q]<.99)light=max(light,Irradiance(WorldOf(q),exact));
+    }
+    return light;
+}
+[numthreads(8,8,1)]
+void Field(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_FieldSize)))return;
+    _Field[id.xy]=float4(Receiver(_FieldOrigin+int2(id.xy),false),1);
+}
+[numthreads(8,8,1)]
+void ExactField(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_FieldSize)))return;
+    _Field[id.xy]=float4(Receiver(_FieldOrigin+int2(id.xy),true),1);
+}
+

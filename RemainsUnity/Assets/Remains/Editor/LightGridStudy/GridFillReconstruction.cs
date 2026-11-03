@@ -34,6 +34,13 @@ namespace Remains.Editor
         // With analyticContours, exact closed disjoint contours replace the fine raster visibility test.
         public void Build(Texture coarseFill,Texture coarseBlocked,Rect coarseWorldRect,Texture fineAbsorption,
             Rect fineWorldRect,Rect outputWorldRect,ComputeBuffer analyticContours=null,int contourCount=0)
+            =>BuildRegion(coarseFill,coarseBlocked,coarseWorldRect,fineAbsorption,fineWorldRect,outputWorldRect,
+                new RectInt(0,0,Texture.width,Texture.height),analyticContours,contourCount);
+
+        // The caller expands dirty coarse cells by the reconstruction support (2 cells plus rounding).
+        // Unchanged output texels keep their previous values. Initial preparation must use Build().
+        public void BuildRegion(Texture coarseFill,Texture coarseBlocked,Rect coarseWorldRect,Texture fineAbsorption,
+            Rect fineWorldRect,Rect outputWorldRect,RectInt outputPixels,ComputeBuffer analyticContours=null,int contourCount=0)
         {
             if(coarseFill==null || coarseBlocked==null || coarseFill.width!=coarseBlocked.width || coarseFill.height!=coarseBlocked.height)
                 throw new ArgumentException("Реконструкция: заполнение и маска закрытых клеток должны иметь одинаковый размер.");
@@ -41,6 +48,9 @@ namespace Remains.Editor
             if(analytic?contourCount<=0 || contourCount>analyticContours.count:fineAbsorption==null)
                 throw new ArgumentException("Реконструкция: нужны точные контуры либо карта поглощения.");
             ValidateRect(coarseWorldRect);ValidateRect(outputWorldRect);if(!analytic) ValidateRect(fineWorldRect);
+            if(outputPixels.xMin<0 || outputPixels.yMin<0 || outputPixels.xMax>Texture.width || outputPixels.yMax>Texture.height)
+                throw new ArgumentException("Реконструкция: область обновления вне выходной текстуры: "+outputPixels);
+            if(outputPixels.width<=0 || outputPixels.height<=0)return;
             var fine=analytic?coarseBlocked:fineAbsorption;
             compute.SetTexture(kernel,"_CoarseFill",coarseFill);compute.SetTexture(kernel,"_CoarseBlocked",coarseBlocked);
             compute.SetTexture(kernel,"_FineAbsorption",fine);compute.SetTexture(kernel,"_Output",Texture);
@@ -50,7 +60,8 @@ namespace Remains.Editor
             compute.SetInts("_OutputSize",Texture.width,Texture.height);
             compute.SetVector("_CoarseRect",Vector(coarseWorldRect));compute.SetVector("_FineRect",Vector(analytic?coarseWorldRect:fineWorldRect));
             compute.SetVector("_OutputRect",Vector(outputWorldRect));
-            compute.Dispatch(kernel,(Texture.width+7)/8,(Texture.height+7)/8,1);UnresolvedCount=-1;
+            compute.SetInts("_Clip",outputPixels.xMin,outputPixels.yMin,outputPixels.xMax,outputPixels.yMax);
+            compute.Dispatch(kernel,(outputPixels.width+7)/8,(outputPixels.height+7)/8,1);UnresolvedCount=-1;
         }
         // Explicit diagnostic readback, kept outside all measured/frame work.
         public Color[] ReadDiagnostics(string context,bool warn=true)

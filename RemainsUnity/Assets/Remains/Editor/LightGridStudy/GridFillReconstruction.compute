@@ -5,6 +5,7 @@ Texture2D<float> _CoarseBlocked, _FineAbsorption;
 StructuredBuffer<float4> _Contours;
 int _ContourCount, _Analytic;
 int2 _CoarseSize, _FineSize, _OutputSize;
+int4 _Clip;
 float4 _CoarseRect, _FineRect, _OutputRect;
 RWTexture2D<float4> _Output;
 static const float Opaque = .99;
@@ -71,7 +72,8 @@ bool Reachable(float2 p,float2 q)
 [numthreads(8,8,1)]
 void Reconstruct(uint3 id:SV_DispatchThreadID)
 {
-    if(any(id.xy>=uint2(_OutputSize))) return;
+    id.xy+=uint2(_Clip.xy);
+    if(any(id.xy>=uint2(_Clip.zw))) return;
     float2 p=_OutputRect.xy+(float2(id.xy)+.5)/_OutputSize*_OutputRect.zw;
     bool solid=_Analytic!=0?AnalyticSolid(p):FineBlocked(int2(floor((p-_FineRect.xy)/_FineRect.zw*_FineSize)));
     if(solid) {_Output[id.xy]=float4(0,0,0,-1);return;}
