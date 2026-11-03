@@ -1,0 +1,18 @@
+// Editor-only hybrid study. Grid is a weak FLOOR, never added over an already bright direct field.
+#pragma kernel Compose
+Texture2D<float4> _Direct;
+Texture2D<float4> _Grid;
+RWTexture2D<float4> _Output;
+int4 _Clip;
+float _FillGain;
+
+[numthreads(8,8,1)]
+void Compose(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=_Clip.xy+int2(id.xy);
+    if(any(p>=_Clip.zw)) return;
+    float3 direct=max(0,_Direct[p].rgb);
+    // Linear through 1; smooth, bounded shoulder above 1, approaching 2.
+    float3 knee=min(direct,1)+(1-exp(-max(0,direct-1)));
+    _Output[p]=float4(max(knee,_FillGain*max(0,_Grid[p].rgb)),1);
+}

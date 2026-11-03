@@ -58,6 +58,15 @@ namespace Remains.Editor
                 var report=new Measurement{device=SystemInfo.graphicsDeviceName,api=SystemInfo.graphicsDeviceType.ToString(),
                     limitations="Editor batch; CPU submission + GPU completion wall time, not GPU timestamps. Events: median of 3, all samples included. Local bounded rebuild/readback/upload. Scalar intensity per RGB8-normalized hue group; componentwise max of decoded group colours. Overall brightness clamped, hue preserved within RGB8 quantization. No actor shadows/AO. Grid geometry GPU bytes separate. Payloads only, excludes indices, headers, driver/artwork."};
                 var clock=Stopwatch.StartNew();benchmark=view.CreateLevelLight();report.prepareMs=clock.Elapsed.TotalMilliseconds;
+                if(Environment.GetCommandLineArgs().Contains("-grid-hybrid-study"))
+                {
+                    clock.Restart();
+                    using var hybrid=new GridDirectHybrid(benchmark.Scene,benchmark.Sources.All);
+                    double hybridPrepareMs=clock.Elapsed.TotalMilliseconds;
+                    benchmark.Dispose();benchmark=null;
+                    HybridLightStudy.Run(view,factory,world,room,hybrid,hybridPrepareMs,Path.GetFullPath("../.reference/light-grid-hybrid-20261103"));
+                    EditorApplication.Exit(0);return;
+                }
                 GridLightDiagnostics.WriteColorInventory(benchmark.Sources.All,Path.Combine(Output,"source-colors.json"));
                 if(Environment.GetCommandLineArgs().Contains("-grid-colors-only")) {EditorApplication.Exit(0);return;}
                 clock.Restart();benchmark.Direct.BuildAll();Fence(benchmark.Direct.Sum,fence);report.directMs=clock.Elapsed.TotalMilliseconds;
@@ -213,39 +222,11 @@ namespace Remains.Editor
 
         private static List<GridLightSeed> Seeds(LevelLightScene scene,IReadOnlyList<LevelLightSource> sources,float[] absorption,Measurement report,Dictionary<string,GridLightSeed[]> bySource=null)
         {
-            int w=scene.Width/Divisor,h=scene.Height/Divisor;float size=scene.Texel*Divisor;var seeds=new List<GridLightSeed>();
-            int missing=0;float maximum=0;
-            foreach(var source in sources)
-            {
-                if(!source.Enabled) continue;
-                // Seed strength derived from irradiance at 1 m, using the same angular-width formula.
-                // This does not fit the radial curve: grid light then decays linearly from the seed.
-                // Area emitter samples seed a shape; their weights must not divide the max-grid brightness by 8.
-                Color color=source.Radiance*(2*Mathf.Atan(source.Width*.5f));maximum=Mathf.Max(maximum,color.maxColorComponent);
-                int before=seeds.Count;
-                foreach(var sample in source.Samples)
-                {
-                    int cx=Mathf.FloorToInt((sample.x-scene.WorldRect.x)/size),cy=Mathf.FloorToInt((sample.y-scene.WorldRect.y)/size);
-                    // Fixtures can begin inside a wall. Expose only free cells within the emitting form + one coarse cell.
-                    int radius=Mathf.CeilToInt(Mathf.Max(source.Bounds.width,source.Bounds.height)/size)+1;
-                    int best=-1;float distance=float.PositiveInfinity;
-                    for(int y=Math.Max(0,cy-radius);y<=Math.Min(h-1,cy+radius);y++) for(int x=Math.Max(0,cx-radius);x<=Math.Min(w-1,cx+radius);x++)
-                    {
-                        if(absorption[y*w+x]>=.99f) continue;
-                        var p=scene.WorldRect.position+new Vector2((x+.5f)*size,(y+.5f)*size);
-                        if(p.x<source.Bounds.xMin-size || p.x>source.Bounds.xMax+size || p.y<source.Bounds.yMin-size || p.y>source.Bounds.yMax+size) continue;
-                        float d=(p-new Vector2(sample.x,sample.y)).sqrMagnitude;
-                        if(d<distance) {distance=d;best=y*w+x;}
-                    }
-                    if(best>=0) seeds.Add(new GridLightSeed(best,color));
-                }
-                if(seeds.Count==before) {missing++;Debug.LogWarning($"Эксперимент сетки: источник {source.Id}, форма {source.Bounds}, не имеет свободной клетки излучения; пропущен.");}
-                bySource?.Add(source.Id,seeds.GetRange(before,seeds.Count-before).ToArray());
-            }
-            if(report!=null) {report.seedCells=seeds.Count;report.unseeded=missing;report.maxSeedRadiance=maximum;}
-            return seeds;
+            var placement=GridLightPlacement.Build(scene,sources,absorption,Divisor);
+            if(bySource!=null) foreach(var pair in placement.BySource) bySource.Add(pair.Key,pair.Value);
+            if(report!=null) {report.seedCells=placement.All.Count;report.unseeded=placement.Unseeded;report.maxSeedRadiance=placement.MaxRadiance;}
+            return placement.All;
         }
-
         private static void Fence(Texture texture,Texture2D pixel)
         {
             var previous=RenderTexture.active;
@@ -256,17 +237,21 @@ namespace Remains.Editor
         {
             view.RenderMuzzleFlashes(Array.Empty<SpriteEmission>(),Array.Empty<ProjectedLightShadow>(),Array.Empty<string>());
             Save(camera,Path.Combine(Output,name+"-current.png"));
+            SaveField(view,camera,grid,view.Light.Scene,view.Light.Scene.Texel*Divisor,Path.Combine(Output,name+"-grid.png"));
+        }
+        internal static void SaveField(FactoryLevelView view,Camera camera,Texture field,LevelLightScene scene,float texelSize,string path)
+        {
             var front=Shader.GetGlobalTexture("_RemainsRadiance");var back=Shader.GetGlobalTexture("_RemainsBackgroundRadiance");
             var oldRect=Shader.GetGlobalVector("_RemainsRadianceRect");float texel=Shader.GetGlobalFloat("_RemainsRadianceTexel");
             float enabled=Shader.GetGlobalFloat("_RemainsRadianceEnabled"),background=Shader.GetGlobalFloat("_RemainsBackgroundRadianceEnabled"),indirect=Shader.GetGlobalFloat("_RemainsIndirectEnabled");
             try
             {
-                var rect=view.Light.Scene.WorldRect;
-                Shader.SetGlobalTexture("_RemainsRadiance",grid);Shader.SetGlobalTexture("_RemainsBackgroundRadiance",grid);
+                var rect=scene.WorldRect;
+                Shader.SetGlobalTexture("_RemainsRadiance",field);Shader.SetGlobalTexture("_RemainsBackgroundRadiance",field);
                 Shader.SetGlobalVector("_RemainsRadianceRect",new Vector4(rect.x,rect.y,rect.width,rect.height));
-                Shader.SetGlobalFloat("_RemainsRadianceTexel",view.Light.Scene.Texel*Divisor);
+                Shader.SetGlobalFloat("_RemainsRadianceTexel",texelSize);
                 Shader.SetGlobalFloat("_RemainsRadianceEnabled",1);Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",1);Shader.SetGlobalFloat("_RemainsIndirectEnabled",0);
-                Save(camera,Path.Combine(Output,name+"-grid.png"));
+                Save(camera,path);
             }
             finally
             {
@@ -276,7 +261,7 @@ namespace Remains.Editor
                 Shader.SetGlobalFloat("_RemainsRadianceEnabled",enabled);Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",background);Shader.SetGlobalFloat("_RemainsIndirectEnabled",indirect);
             }
         }
-        private static void Save(Camera camera,string path)
+        internal static void Save(Camera camera,string path)
         {
             var target=RenderTexture.GetTemporary(ImageWidth,ImageHeight,24,RenderTextureFormat.ARGB32);var previous=RenderTexture.active;
             var image=new Texture2D(ImageWidth,ImageHeight,TextureFormat.RGBA32,false);
