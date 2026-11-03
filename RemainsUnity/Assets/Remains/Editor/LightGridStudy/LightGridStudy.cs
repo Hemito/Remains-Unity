@@ -17,13 +17,18 @@ namespace Remains.Editor
     public static class LightGridStudy
     {
         private const int Divisor=2,ImageWidth=1280,ImageHeight=672;
-        private static readonly string Output=Path.GetFullPath("../.reference/light-grid-20261103");
+        private static readonly string Output=Path.GetFullPath("../.reference/light-grid-local-20261103");
         [Serializable] private sealed class Measurement
         {
             public string device,api,limitations;
             public int seed=104,width,height,gridWidth,gridHeight,sources,enabled,seedCells,unseeded;
             public double prepareMs,directMs,bounceMs,readbackMs,gridPrepareMs,gridSolveMs,gridUploadMs;
             public double currentLampOffMs,gridLampOffMs,currentDoorOpenMs,gridDoorOpenMs;
+            public double[] currentLampOffSamples,gridLampOffSamples,currentLampOnSamples,gridLampOnSamples;
+            public double[] currentDoorOpenSamples,gridDoorOpenSamples,currentDoorCloseSamples,gridDoorCloseSamples;
+            public long lampUpdatedCells,doorUpdatedCells;
+            public int doorReadbackTexels,totalCells;
+            public long gridGeometryBytes;
             public long currentSceneBytes,currentDirectBytes,currentCacheBytes,currentBounceBytes,gridCpuBytes,gridTextureBytes;
             public float minSourceRadiance,maxSourceRadiance,maxSeedRadiance;
             public string lamp,door;
@@ -33,7 +38,7 @@ namespace Remains.Editor
         {
             GameObject visual=null,cameraRoot=null;
             LevelLight benchmark=null;
-            Texture2D gridTexture=null;
+            GridLightTexture gridTexture=null;
             var fence=new Texture2D(1,1,TextureFormat.RGBAHalf,false,true);
             try
             {
@@ -50,7 +55,7 @@ namespace Remains.Editor
                 var view=visual.GetComponent<FactoryLevelView>();var factory=visual.GetComponent<FactoryLevelRoot>();
                 view.Synchronize(room,world,1);
                 var report=new Measurement{device=SystemInfo.graphicsDeviceName,api=SystemInfo.graphicsDeviceType.ToString(),
-                    limitations="Editor batch; CPU submission + GPU completion wall time, not GPU timestamps. Static light only. Grid: full rebuild on events; max RGB, 12 m shared falloff; source reach replaced; seed strength derived from production irradiance at 1 m. No actor shadows/AO. Conservative absorption downsample. Current bytes: GPU resources only; grid bytes: array payloads and GPU texture, excludes seeds/CLR headers/driver overhead. Common artwork/scene resources excluded."};
+                    limitations="Editor batch; CPU submission + GPU completion wall time, not GPU timestamps. Events: median of 3, all samples included. Both systems update local influence; grid rebuilds a bounded rectangle, queries local seed buckets, reads door patch and uploads only changed rectangle. Same max-RGB formula as previous study. No actor shadows/AO. Grid geometry GPU bytes listed separately. Array/texture payloads only, excludes seed/index overhead, driver and artwork."};
                 var clock=Stopwatch.StartNew();benchmark=view.CreateLevelLight();report.prepareMs=clock.Elapsed.TotalMilliseconds;
                 clock.Restart();benchmark.Direct.BuildAll();Fence(benchmark.Direct.Sum,fence);report.directMs=clock.Elapsed.TotalMilliseconds;
                 clock.Restart();benchmark.Bounce.BuildAll();Fence(benchmark.Bounce.Indirect,fence);report.bounceMs=clock.Elapsed.TotalMilliseconds;
@@ -61,25 +66,32 @@ namespace Remains.Editor
                 report.sources=benchmark.Sources.Count;report.enabled=benchmark.Sources.All.Count(s=>s.Enabled);
                 report.minSourceRadiance=benchmark.Sources.All.Min(s=>s.Radiance.maxColorComponent);
                 report.maxSourceRadiance=benchmark.Sources.All.Max(s=>s.Radiance.maxColorComponent);
-                clock.Restart();var absorption=ReadAbsorption(benchmark.Scene);report.readbackMs=clock.Elapsed.TotalMilliseconds;
+                var allCells=new RectInt(0,0,report.width/Divisor,report.height/Divisor);
+                clock.Restart();var absorption=GridLightTexture.ReadAbsorption(benchmark.Scene,Divisor,allCells);report.readbackMs=clock.Elapsed.TotalMilliseconds;
                 clock.Restart();var field=new GridLightField(report.width/Divisor,report.height/Divisor,benchmark.Scene.Texel*Divisor,absorption);
                 var seedsBySource=new Dictionary<string,GridLightSeed[]>(StringComparer.Ordinal);
                 var seeds=Seeds(benchmark.Scene,benchmark.Sources.All,absorption,report,seedsBySource);
+                var seedIndex=new GridLightSeeds(field.Width,seedsBySource);
                 report.gridPrepareMs=clock.Elapsed.TotalMilliseconds;
                 report.gridWidth=report.width/Divisor;report.gridHeight=report.height/Divisor;
                 clock.Restart();field.Solve(seeds);report.gridSolveMs=clock.Elapsed.TotalMilliseconds;
-                clock.Restart();gridTexture=Upload(field,absorption);report.gridUploadMs=clock.Elapsed.TotalMilliseconds;
+                clock.Restart();gridTexture=new GridLightTexture(field);report.gridUploadMs=clock.Elapsed.TotalMilliseconds;
                 report.gridCpuBytes=field.AllocatedBytes+absorption.LongLength*sizeof(float);
                 report.gridTextureBytes=(long)report.gridWidth*report.gridHeight*8;
-                benchmark.Dispose();benchmark=null;
+                report.gridGeometryBytes=benchmark.Scene.Bytes;report.totalCells=field.Width*field.Height;
+                // Keep an independent absorption scene for grid door timings, release benchmark-only light fields.
+                benchmark.Bounce.Dispose();benchmark.Direct.Dispose();
 
                 // A separate view owns the production compositor. The benchmark never shares ownership of its scene.
                 view.Focus(new Vector2(room.spawnX,room.spawnY));
+                view.Light.Direct.WaitForMeasurements();
                 cameraRoot=new GameObject("Камера сравнения клеточного света");var camera=cameraRoot.AddComponent<Camera>();
                 camera.enabled=false;camera.orthographic=true;camera.aspect=(float)ImageWidth/ImageHeight;camera.allowHDR=false;camera.allowMSAA=false;
                 camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.07f,.07f,.08f);
                 var grid=factory.Prepared.Grid;float cell=(float)grid.Level.Cell;
                 var doors=world.doors.Where(d=>d.level=="factory:0").ToArray();long revision=1;
+                // Reuse validation buffers: allocating a full reference between timing samples would cause GC noise.
+                var referenceField=new GridLightField(field.Width,field.Height,field.CellSize,absorption);
                 foreach(var (x,y,name) in new[]{(1,1,"hall"),(1,9,"office"),(2,11,"door"),(0,0,"entry")})
                 {
                     var placement=grid.Rooms.Single(r=>r.Cell.X==x && r.Cell.Y==y);
@@ -88,26 +100,57 @@ namespace Remains.Editor
                     camera.orthographicSize=Mathf.Max(bounds.height*.5f,bounds.width/(2*camera.aspect));
                     float h=2*camera.orthographicSize;
                     view.SetViewArea(new Rect(bounds.center.x-h*camera.aspect*.5f,bounds.center.y-h*.5f,h*camera.aspect,h));view.Focus(bounds.center);
-                    SavePair(view,camera,gridTexture,name);
+                    SavePair(view,camera,gridTexture.Texture,name);
                     if(name!="hall") continue;
+                    GridLightDiagnostics.WriteBlueReport(field,absorption,benchmark.Scene,benchmark.Sources.All,seedsBySource,bounds,Path.Combine(Output,"blue-source.json"));
                     report.lamp=view.Light.Sources.All.Where(s=>s.Kind==LevelLightSourceKind.Lamp && s.Enabled && s.Id.StartsWith("factory:0:1,1:",StringComparison.Ordinal))
                         .Select(s=>s.Id).OrderBy(s=>s,StringComparer.Ordinal).First();
-                    clock.Restart();view.SyncLamps(new[]{report.lamp},++world.lampRevision);Fence(view.Light.Bounce.Indirect,fence);report.currentLampOffMs=clock.Elapsed.TotalMilliseconds;
-                    // Geometry and source shapes did not move: disabling a lamp must not repeat seed placement.
-                    clock.Restart();var offSeeds=seedsBySource.Where(p=>p.Key!=report.lamp).SelectMany(p=>p.Value).ToArray();
-                    field.Solve(offSeeds);Replace(ref gridTexture,Upload(field,absorption));report.gridLampOffMs=clock.Elapsed.TotalMilliseconds;
-                    SavePair(view,camera,gridTexture,"hall-lamp-off");
-                    view.SyncLamps(Array.Empty<string>(),++world.lampRevision);
-                    field.Solve(seeds);Replace(ref gridTexture,Upload(field,absorption));
+                    report.currentLampOffSamples=new double[3];report.gridLampOffSamples=new double[3];
+                    report.currentLampOnSamples=new double[3];report.gridLampOnSamples=new double[3];
+                    var lampCells=seedIndex.Bounds(report.lamp);
+                    for(int repeat=0;repeat<3;repeat++)
+                    {
+                        clock.Restart();view.SyncLamps(new[]{report.lamp},++world.lampRevision);FinishCurrent(view,fence);report.currentLampOffSamples[repeat]=clock.Elapsed.TotalMilliseconds;
+                        clock.Restart();seedIndex.SetEnabled(report.lamp,false);
+                        var affected=field.Update(seedIndex.Query(field.AffectedRegion(lampCells)),lampCells);gridTexture.Update(field,affected);
+                        report.gridLampOffSamples[repeat]=clock.Elapsed.TotalMilliseconds;report.lampUpdatedCells=field.RecomputedCells;
+                        VerifyFull(field,referenceField,seedIndex.Query(allCells),"лампа выключена");
+                        if(repeat==0) SavePair(view,camera,gridTexture.Texture,"hall-lamp-off");
+                        clock.Restart();view.SyncLamps(Array.Empty<string>(),++world.lampRevision);FinishCurrent(view,fence);report.currentLampOnSamples[repeat]=clock.Elapsed.TotalMilliseconds;
+                        clock.Restart();seedIndex.SetEnabled(report.lamp,true);
+                        affected=field.Update(seedIndex.Query(field.AffectedRegion(lampCells)),lampCells);gridTexture.Update(field,affected);
+                        report.gridLampOnSamples[repeat]=clock.Elapsed.TotalMilliseconds;
+                        VerifyFull(field,referenceField,seeds,"лампа включена");
+                    }
+                    report.currentLampOffMs=Median(report.currentLampOffSamples);report.gridLampOffMs=Median(report.gridLampOffSamples);
                     var door=doors.Where(d=>d.id.StartsWith("factory:0:1,1:",StringComparison.Ordinal) && d.Blocks).OrderBy(d=>d.id,StringComparer.Ordinal).FirstOrDefault();
                     if(door==null) throw new InvalidOperationException("В зале seed104 не найдена закрытая дверь для сравнения.");
                     report.door=door.id;
-                    clock.Restart();door.open=true;view.SyncDoors(doors,++revision);Fence(view.Light.Bounce.Indirect,fence);report.currentDoorOpenMs=clock.Elapsed.TotalMilliseconds;
-                    clock.Restart();var openAbsorption=ReadAbsorption(view.Light.Scene);
-                    var openField=new GridLightField(report.gridWidth,report.gridHeight,view.Light.Scene.Texel*Divisor,openAbsorption);
-                    openField.Solve(Seeds(view.Light.Scene,view.Light.Sources.All,openAbsorption,null));Replace(ref gridTexture,Upload(openField,openAbsorption));report.gridDoorOpenMs=clock.Elapsed.TotalMilliseconds;
-                    SavePair(view,camera,gridTexture,"hall-door-open");
-                    door.open=false;view.SyncDoors(doors,++revision);field.Solve(seeds);Replace(ref gridTexture,Upload(field,absorption));
+                    var gridDoors=benchmark.Scene.Doors.Values.ToArray();int doorIndex=Array.FindIndex(gridDoors,d=>d.Id==door.id);
+                    if(doorIndex<0) throw new InvalidOperationException("Дверь отсутствует в независимой сцене сетки: "+door.id);
+                    var original=gridDoors[doorIndex];var doorCells=GridLightTexture.CoarseRect(benchmark.Scene,Divisor,original.Bounds);
+                    report.doorReadbackTexels=doorCells.width*doorCells.height*Divisor*Divisor;
+                    report.currentDoorOpenSamples=new double[3];report.gridDoorOpenSamples=new double[3];
+                    report.currentDoorCloseSamples=new double[3];report.gridDoorCloseSamples=new double[3];
+                    for(int repeat=0;repeat<3;repeat++)
+                    {
+                        clock.Restart();door.open=true;view.SyncDoors(doors,++revision);FinishCurrent(view,fence);report.currentDoorOpenSamples[repeat]=clock.Elapsed.TotalMilliseconds;
+                        clock.Restart();gridDoors[doorIndex]=new LevelLightScene.Door(original.Id,original.Bounds,original.Opacity,false);
+                        UpdateDoorGrid(benchmark.Scene,gridDoors,doorCells,field,seedIndex,absorption,gridTexture);
+                        report.gridDoorOpenSamples[repeat]=clock.Elapsed.TotalMilliseconds;report.doorUpdatedCells=field.RecomputedCells;
+                        VerifyFull(field,referenceField,seeds,"дверь открыта");
+                        if(repeat==0)
+                        {
+                            RequireAbsorption(benchmark.Scene,absorption,allCells);gridTexture.Validate(field);
+                            SavePair(view,camera,gridTexture.Texture,"hall-door-open");
+                        }
+                        clock.Restart();door.open=false;view.SyncDoors(doors,++revision);FinishCurrent(view,fence);report.currentDoorCloseSamples[repeat]=clock.Elapsed.TotalMilliseconds;
+                        clock.Restart();gridDoors[doorIndex]=original;
+                        UpdateDoorGrid(benchmark.Scene,gridDoors,doorCells,field,seedIndex,absorption,gridTexture);
+                        report.gridDoorCloseSamples[repeat]=clock.Elapsed.TotalMilliseconds;
+                        VerifyFull(field,referenceField,seeds,"дверь закрыта");
+                    }
+                    report.currentDoorOpenMs=Median(report.currentDoorOpenSamples);report.gridDoorOpenMs=Median(report.gridDoorOpenSamples);
                 }
                 ControlledCases();
                 File.WriteAllText(Path.Combine(Output,"report.json"),JsonUtility.ToJson(report,true));
@@ -119,29 +162,40 @@ namespace Remains.Editor
             finally
             {
                 benchmark?.Dispose();
-                foreach(var obj in new Object[]{gridTexture,visual,cameraRoot,fence}) if(obj!=null) Object.DestroyImmediate(obj);
+                gridTexture?.Dispose();
+                foreach(var obj in new Object[]{visual,cameraRoot,fence}) if(obj!=null) Object.DestroyImmediate(obj);
                 FactoryContentSources.Clear();
             }
         }
 
-        private static float[] ReadAbsorption(LevelLightScene scene)
+        private static double Median(double[] values)=>values.OrderBy(v=>v).ElementAt(values.Length/2);
+        private static void FinishCurrent(FactoryLevelView view,Texture2D fence)
         {
-            if(scene.Width%Divisor!=0 || scene.Height%Divisor!=0) throw new InvalidOperationException("Размер сцены не делится на шаг экспериментальной сетки.");
-            var previous=RenderTexture.active;var image=new Texture2D(scene.Width,scene.Height,TextureFormat.RFloat,false,true);
-            try
-            {
-                RenderTexture.active=(RenderTexture)scene.Texture;image.ReadPixels(new Rect(0,0,scene.Width,scene.Height),0,0,false);
-                var raw=image.GetRawTextureData<float>();int w=scene.Width/Divisor,h=scene.Height/Divisor;var result=new float[w*h];
-                for(int y=0;y<h;y++) for(int x=0;x<w;x++)
-                {
-                    float maximum=0;
-                    for(int dy=0;dy<Divisor;dy++) for(int dx=0;dx<Divisor;dx++) maximum=Mathf.Max(maximum,raw[(y*Divisor+dy)*scene.Width+x*Divisor+dx]);
-                    // Conservative: a thin wall cannot disappear by averaging; partial alpha is per travelled cell.
-                    result[y*w+x]=maximum>=GridLightField.OpaqueThreshold?1:Mathf.Min((float)LightRules.MaxObjectTexelAbsorption,1-Mathf.Pow(1-Mathf.Clamp01(maximum),Divisor));
-                }
-                return result;
-            }
-            finally {RenderTexture.active=previous;Object.DestroyImmediate(image);}
+            Fence(view.Light.Bounce.Indirect,fence);
+            // Complete subscription callbacks too; the next door must use the settled subscriber index.
+            view.Light.Direct.WaitForMeasurements();
+        }
+        private static void UpdateDoorGrid(LevelLightScene scene,LevelLightScene.Door[] doors,RectInt cells,GridLightField field,
+            GridLightSeeds seeds,float[] absorption,GridLightTexture texture)
+        {
+            scene.SetDoors(doors,null);
+            var patch=GridLightTexture.ReadAbsorption(scene,Divisor,cells);
+            GridLightTexture.PatchAbsorption(absorption,field.Width,cells,patch);
+            var affected=field.Update(seeds.Query(field.AffectedRegion(cells)),cells);
+            texture.Update(field,affected);
+        }
+        private static void VerifyFull(GridLightField actual,GridLightField reference,IReadOnlyList<GridLightSeed> seeds,string context)
+        {
+            reference.Solve(seeds);
+            for(int i=0;i<actual.Pixels.Length;i++) if(!actual.Pixels[i].Equals(reference.Pixels[i]))
+                throw new InvalidOperationException($"Локальная сетка, {context}: клетка {i} {actual.Pixels[i]} отличается от полного расчёта {reference.Pixels[i]}.");
+            Debug.Log($"Локальная сетка: {context} совпадает с полной пересборкой; обработано {actual.RecomputedCells} из {actual.Pixels.Length} клеток.");
+        }
+        private static void RequireAbsorption(LevelLightScene scene,float[] patched,RectInt allCells)
+        {
+            var reference=GridLightTexture.ReadAbsorption(scene,Divisor,allCells);
+            for(int i=0;i<reference.Length;i++) if(reference[i]!=patched[i]) throw new InvalidOperationException("Локальное поглощение отличается от полной карты в клетке "+i);
+            Debug.Log("Локальный readback двери совпал с полной картой поглощения.");
         }
 
         private static List<GridLightSeed> Seeds(LevelLightScene scene,IReadOnlyList<LevelLightSource> sources,float[] absorption,Measurement report,Dictionary<string,GridLightSeed[]> bySource=null)
@@ -179,26 +233,13 @@ namespace Remains.Editor
             return seeds;
         }
 
-        private static Texture2D Upload(GridLightField field,float[] absorption)
-        {
-            var pixels=field.Pixels;
-            var texture=new Texture2D(field.Width,field.Height,TextureFormat.RGBAHalf,false,true){name="Эксперимент: ограниченный RGB свет",filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
-            texture.SetPixels(pixels);texture.Apply(false,true);
-            // Complete texture upload before reporting time, just as the production path waits for GPU completion.
-            var target=RenderTexture.GetTemporary(1,1,0,RenderTextureFormat.ARGBHalf,RenderTextureReadWrite.Linear);
-            var pixel=new Texture2D(1,1,TextureFormat.RGBAHalf,false,true);
-            try {Graphics.Blit(texture,target);Fence(target,pixel);}
-            finally {Object.DestroyImmediate(pixel);RenderTexture.ReleaseTemporary(target);}
-            return texture;
-        }
-        private static void Replace(ref Texture2D old,Texture2D next) {if(old!=null) Object.DestroyImmediate(old);old=next;}
         private static void Fence(Texture texture,Texture2D pixel)
         {
             var previous=RenderTexture.active;
             try {RenderTexture.active=(RenderTexture)texture;pixel.ReadPixels(new Rect(0,0,1,1),0,0,false);}
             finally {RenderTexture.active=previous;}
         }
-        private static void SavePair(FactoryLevelView view,Camera camera,Texture2D grid,string name)
+        private static void SavePair(FactoryLevelView view,Camera camera,Texture grid,string name)
         {
             view.RenderMuzzleFlashes(Array.Empty<SpriteEmission>(),Array.Empty<ProjectedLightShadow>(),Array.Empty<string>());
             Save(camera,Path.Combine(Output,name+"-current.png"));
@@ -241,7 +282,7 @@ namespace Remains.Editor
             html+="<h2>Контрольные сцены</h2><p>Здесь показано само поле света на одинаковой условной белой поверхности, без окружающего света. Слева тот же игровой DirectLight + BounceLight, справа сетка. Все изображения используют одну линейную шкалу 0…1 с переводом в sRGB; превышение единицы обрезается одинаково. Цветные точки — источники, тёмные клетки — непроницаемые стены.</p>";
             foreach(string name in new[]{"corner","sealed","colored","one","many","weak-after-off"})
                 html+=$"<section><h3>{name}</h3><div class='pair'><img src='test-{name}-current.png'><img src='test-{name}-grid.png'></div></section>";
-            html+="<h2>Измерение полного завода seed104</h2><p>Один прогон в Editor. Текущий свет: отправка команд плюс ожидание GPU; это не GPU timestamps. События сетки пока полностью пересчитывают завод. Это не оценка FPS Player.</p><pre>"+JsonUtility.ToJson(report,true)+"</pre></html>";
+            html+="<h2>Локальные события полного завода seed104</h2><p>Медиана трёх повторов в Editor; отправка команд плюс ожидание GPU, не GPU timestamps и не FPS Player. Обе схемы обновляют только область влияния. У сетки нет полного readback или полной загрузки текстуры при событии.</p><p><a href='blue-source.json'>Почему синее пятно: путь до источника и RGB</a>. Формула цвета сохранена для честного сравнения скорости; независимое линейное затухание каналов даёт цветные хвосты.</p><pre>"+JsonUtility.ToJson(report,true)+"</pre></html>";
             File.WriteAllText(Path.Combine(Output,"index.html"),html);
         }
 
