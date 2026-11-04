@@ -2,12 +2,16 @@
 // taken out of their lamps' own direct light (background), muzzle flashes added for one frame.
 #pragma kernel SubtractField
 #pragma kernel AddFlash
+#pragma kernel ResolveGridFill
 
 RWTexture2D<float4> _Front;           // what actors and props receive (flashes, no shadows)
 RWTexture2D<float4> _Back;            // what walls and the background receive (with actor shadows)
 Texture2D<float4> _FieldIn;           // a source's direct field, aligned to the level grid at _FieldOrigin
 Texture2D<float4> _Mask;              // projected shadow mask of that source over the area (alpha)
+Texture2D<float4> _Fill;              // reconstructed world fill, aligned to the same fine grid as the direct sum
 int2 _AreaOrigin,_FieldOrigin,_FieldSize;
+int2 _AreaSize;
+float _FillGain;
 int4 _Clip;                           // area-local x0, y0, x1, y1 (exclusive)
 
 bool FieldTexel(int2 p,out int2 f)
@@ -30,4 +34,20 @@ void AddFlash(uint3 id:SV_DispatchThreadID)
     float3 flash=_FieldIn[f].rgb;
     _Front[p]=float4(_Front[p].rgb+flash,1);
     _Back[p]=float4(_Back[p].rgb+flash*(1-saturate(_Mask[p].a)),1);
+}
+float3 SoftKnee(float3 direct)
+{
+    direct=max(0,direct);
+    return min(direct,1)+(1-exp(-max(0,direct-1)));
+}
+[numthreads(8,8,1)]
+void ResolveGridFill(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_AreaSize)))return;
+    int2 p=int2(id.xy);
+    float3 fill=max(0,_Fill[p+_AreaOrigin].rgb)*_FillGain;
+    // Each source's mask has already removed only that source's RGB. Other sources and fill survive.
+    // A transient flash contributes direct light only: it never writes the world fill.
+    _Front[p]=float4(max(SoftKnee(_Front[p].rgb),fill),1);
+    _Back[p]=float4(max(SoftKnee(_Back[p].rgb),fill),1);
 }

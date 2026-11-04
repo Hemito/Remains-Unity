@@ -126,7 +126,7 @@ namespace Remains.Editor
                 FactoryPreparation.Create(world,AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath),0);
                 FactoryContentSources.Prepare(world,"factory:0");var authoring=RoomAuthoring.Load("factory:0",world);
                 DoorContentInstaller.Apply(world,RoomDoorContent.Read(authoring,"factory:0"));var layout=authoring.CreateLayout(false);
-                visual=AuthoredRoomVisual.Create("factory:0",layout,world);var view=visual.GetComponent<FactoryLevelView>();var factory=visual.GetComponent<FactoryLevelRoot>();view.Synchronize(layout,world,1);
+                visual=AuthoredRoomVisual.Create("factory:0",layout,world);var view=visual.GetComponent<FactoryLevelView>();view.ConfigureLegacyLightingForChecks();var factory=visual.GetComponent<FactoryLevelRoot>();view.Synchronize(layout,world,1);
                 view.Focus(new Vector2(layout.spawnX,layout.spawnY));
                 hybrid=new GridDirectHybrid(view.Light.Scene,view.Light.Sources.All);hybrid.BuildAll();
                 var fine=RasterPolarWisp.ReadFloatsForValidation(view.Light.Scene.Texture);

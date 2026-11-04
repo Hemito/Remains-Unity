@@ -8,6 +8,7 @@ int2 _CoarseSize, _FineSize, _OutputSize;
 int4 _Clip;
 float4 _CoarseRect, _FineRect, _OutputRect;
 RWTexture2D<float4> _Output;
+RWStructuredBuffer<uint> _Unresolved;
 static const float Opaque = .99;
 float Cross(float2 a,float2 b) {return a.x*b.y-a.y*b.x;}
 bool AnalyticSolid(float2 p)
@@ -92,5 +93,6 @@ void Reconstruct(uint3 id:SV_DispatchThreadID)
         sum+=_CoarseFill.Load(int3(cell,0)).rgb*weight;weightSum+=weight;
     }
     // Alpha is diagnostics: -1 solid, 0 unresolved, positive reachable support weight.
+    if(weightSum<=0){InterlockedAdd(_Unresolved[0],1);InterlockedMin(_Unresolved[1],id.y*_OutputSize.x+id.x);}
     _Output[id.xy]=float4(weightSum>0?sum/weightSum:float3(0,0,0),weightSum);
 }

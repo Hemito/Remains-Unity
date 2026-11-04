@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Remains.Presentation;
 using UnityEngine;
 
-namespace Remains.Editor
+namespace Remains.Presentation
 {
     // Shared shape-to-grid preparation for the plain and directional hybrid experiments.
     public static class GridLightPlacement
@@ -44,7 +44,7 @@ namespace Remains.Editor
                 if(result.All.Count==before)
                 {
                     result.Unseeded++;
-                    Debug.LogWarning($"Эксперимент сетки: источник {source.Id}, форма {source.Bounds}, не имеет свободной клетки излучения; пропущен.");
+                    Debug.LogWarning($"Заполнение света: источник {source.Id}, форма {source.Bounds}, не имеет свободной клетки излучения; пропущен.");
                 }
                 result.BySource.Add(source.Id,result.All.GetRange(before,result.All.Count-before).ToArray());
             }

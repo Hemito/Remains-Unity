@@ -53,7 +53,7 @@ namespace Remains.Editor
                 DoorContentInstaller.Apply(world,RoomDoorContent.Read(authoring,"factory:0"));
                 var room=authoring.CreateLayout(false);
                 visual=AuthoredRoomVisual.Create("factory:0",room,world);
-                var view=visual.GetComponent<FactoryLevelView>();var factory=visual.GetComponent<FactoryLevelRoot>();
+                var view=visual.GetComponent<FactoryLevelView>();view.ConfigureLegacyLightingForChecks();var factory=visual.GetComponent<FactoryLevelRoot>();
                 view.Synchronize(room,world,1);
                 var report=new Measurement{device=SystemInfo.graphicsDeviceName,api=SystemInfo.graphicsDeviceType.ToString(),
                     limitations="Editor batch; CPU submission + GPU completion wall time, not GPU timestamps. Events: median of 3, all samples included. Local bounded rebuild/readback/upload. Scalar intensity per RGB8-normalized hue group; componentwise max of decoded group colours. Overall brightness clamped, hue preserved within RGB8 quantization. No actor shadows/AO. Grid geometry GPU bytes separate. Payloads only, excludes indices, headers, driver/artwork."};

@@ -30,6 +30,7 @@ namespace Remains.Presentation
             if(ReferenceEquals(texture,null)) return;
             Untrack(texture);
             if(texture==null) return;
+            if(RenderTexture.active==texture)RenderTexture.active=null;
             texture.Release();
             if(Application.isPlaying) UnityEngine.Object.Destroy(texture);else UnityEngine.Object.DestroyImmediate(texture);
         }

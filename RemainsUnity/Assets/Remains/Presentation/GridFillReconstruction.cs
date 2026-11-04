@@ -1,31 +1,37 @@
 using System;
-using UnityEditor;
+using Remains.Content;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using Object=UnityEngine.Object;
 
-namespace Remains.Editor
+namespace Remains.Presentation
 {
-    // Cached Editor-only reconstruction. Rebuild only on changed fill, geometry, or output rectangle.
+    // Cached reconstruction. Rebuild only on changed fill, geometry, or output rectangle.
     // A moving direct-only light does not invalidate this texture. No readback in Build().
     public sealed class GridFillReconstruction : IDisposable
     {
         private readonly ComputeShader compute;
         private readonly int kernel;
         private readonly ComputeBuffer emptyContours;
+        private readonly ComputeBuffer diagnostics;
+        private bool disposed;
         public RenderTexture Texture {get;private set;}
         public int UnresolvedCount {get;private set;}=-1;
-        public GridFillReconstruction(int width,int height)
+        public GridFillReconstruction(int width,int height,GraphicsFormat format=GraphicsFormat.R32G32B32A32_SFloat)
         {
             if(width<=0 || height<=0) throw new ArgumentOutOfRangeException(nameof(width));
             try
             {
-                var asset=AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Remains/Editor/LightGridStudy/GridFillReconstruction.compute");
+                var asset=GameAssets.Load<ComputeShader>("Presentation/GridFillReconstruction");
                 if(asset==null) throw new InvalidOperationException("Не найден GridFillReconstruction.compute.");
                 compute=Object.Instantiate(asset);kernel=compute.FindKernel("Reconstruct");
                 emptyContours=new ComputeBuffer(1,16);emptyContours.SetData(new[]{Vector4.zero});
-                Texture=new RenderTexture(width,height,0,GraphicsFormat.R32G32B32A32_SFloat)
+                diagnostics=new ComputeBuffer(2,4);BeginDiagnostics();
+                Texture=new RenderTexture(width,height,0,format)
                     {name="Заполнение: нормализованная реконструкция по открытым клеткам",enableRandomWrite=true,filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
+                int bytes=format==GraphicsFormat.R32G32B32A32_SFloat?16:format==GraphicsFormat.R16G16B16A16_SFloat?8:throw new ArgumentException("Реконструкция: неподдержанный формат "+format);
+                LightTextureBudget.Track(Texture,(long)width*height*bytes);
                 if(!Texture.Create()) throw new InvalidOperationException("Не создана текстура реконструкции заполнения.");
             }
             catch {Dispose();throw;}
@@ -55,6 +61,7 @@ namespace Remains.Editor
             compute.SetTexture(kernel,"_CoarseFill",coarseFill);compute.SetTexture(kernel,"_CoarseBlocked",coarseBlocked);
             compute.SetTexture(kernel,"_FineAbsorption",fine);compute.SetTexture(kernel,"_Output",Texture);
             compute.SetBuffer(kernel,"_Contours",analyticContours??emptyContours);
+            compute.SetBuffer(kernel,"_Unresolved",diagnostics);
             compute.SetInt("_Analytic",analytic?1:0);compute.SetInt("_ContourCount",analytic?contourCount:0);
             compute.SetInts("_CoarseSize",coarseFill.width,coarseFill.height);compute.SetInts("_FineSize",fine.width,fine.height);
             compute.SetInts("_OutputSize",Texture.width,Texture.height);
@@ -66,10 +73,25 @@ namespace Remains.Editor
         // Explicit diagnostic readback, kept outside all measured/frame work.
         public Color[] ReadDiagnostics(string context,bool warn=true)
         {
-            var pixels=PolarShadowField.Read(Texture);UnresolvedCount=0;
+            var request=AsyncGPUReadback.Request(Texture,0,TextureFormat.RGBAFloat);request.WaitForCompletion();
+            if(request.hasError)throw new InvalidOperationException("Реконструкция заполнения: ошибка контрольного чтения GPU, "+context);
+            var pixels=request.GetData<Color>().ToArray();UnresolvedCount=0;
             foreach(var pixel in pixels) if(pixel.a==0) UnresolvedCount++;
             if(warn && UnresolvedCount>0) Debug.LogWarning($"Реконструкция заполнения {context}: открытых пикселей без видимой открытой coarse-клетки {UnresolvedCount}/{pixels.Length}; support=2 клетки, текстура {Texture.width}×{Texture.height}. Вывод пропущен (чёрный), подстановка света не применялась.",Texture);
             return pixels;
+        }
+        // Counters are cleared once per preparation/event batch; all its tiles accumulate into one request.
+        public void BeginDiagnostics()=>diagnostics?.SetData(new uint[]{0,uint.MaxValue});
+        public void FinishDiagnostics(string context)
+        {
+            if(disposed)return;
+            AsyncGPUReadback.Request(diagnostics,request=>
+            {
+                if(disposed)return;
+                if(request.hasError){Debug.LogWarning("Реконструкция заполнения: не прочитана диагностика GPU, "+context);return;}
+                var values=request.GetData<uint>();UnresolvedCount=(int)values[0];
+                if(UnresolvedCount>0)Debug.LogWarning($"Реконструкция заполнения {context}: открытых пикселей без поддержки {UnresolvedCount}, первый индекс {values[1]}, поле {Texture.width}×{Texture.height}. Свет в этих пикселях пропущен.");
+            });
         }
         private static Vector4 Vector(Rect r)=>new(r.x,r.y,r.width,r.height);
         private static void ValidateRect(Rect r)
@@ -79,9 +101,11 @@ namespace Remains.Editor
         }
         public void Dispose()
         {
+            if(disposed)return;disposed=true;
             emptyContours?.Dispose();
-            if(Texture!=null) {Texture.Release();Object.DestroyImmediate(Texture);Texture=null;}
-            if(compute!=null) Object.DestroyImmediate(compute);
+            diagnostics?.Dispose();
+            if(Texture!=null) {LightTextureBudget.Release(Texture);Texture=null;}
+            if(compute!=null){if(Application.isPlaying)Object.Destroy(compute);else Object.DestroyImmediate(compute);}
         }
     }
 }

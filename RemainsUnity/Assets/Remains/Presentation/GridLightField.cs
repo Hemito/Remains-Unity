@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Remains.Editor
+namespace Remains.Presentation
 {
     public readonly struct GridLightSeed
     {

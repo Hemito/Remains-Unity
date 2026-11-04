@@ -8,7 +8,8 @@ using UnityEngine.Rendering;
 namespace Remains.Presentation
 {
     // What the shaders read of a level light: two textures over the camera area with a margin (_RemainsRadiance for
-    // actors and props, _RemainsBackgroundRadiance for walls with actor shadows) and the level's bounce light.
+    // actors and props, _RemainsBackgroundRadiance for walls with actor shadows). The accepted polar mode
+    // resolves the raw direct light against the cached world fill after per-source shadows and flashes.
     // Rebuilt only when the area moves, the direct light changes, the projected shadows change or a flash shows;
     // the work is proportional to the area, not to the level.
     public sealed class LevelLightView : IDisposable
@@ -21,19 +22,31 @@ namespace Remains.Presentation
         private readonly LevelLight light;
         private readonly LightShaderContext shader;
         private ComputeShader compute;
-        private int subtractKernel,addFlashKernel;
-        private RenderTexture front,back,mask,flash;
+        private int subtractKernel,addFlashKernel,resolveKernel;
+        private RenderTexture front,back,mask,flash,staticFront,staticBack;
         private Material maskMaterial;
         private Mesh quad;
         private CommandBuffer commands;
         private readonly MaterialPropertyBlock block=new();
         private RectInt area;
-        private bool hasArea,hasSignature,flashShown,disposed;
+        private bool hasArea,hasSignature,flashShown,hasFlashBaseline,disposed;
         private int signature;
+        private float fillGain=.08f;
         private readonly HashSet<string> composed=new(StringComparer.Ordinal),warned=new(StringComparer.Ordinal);
         public RectInt Area=>area;
         public Rect WorldArea=>hasArea?new Rect(light.Scene.WorldRect.x+area.x*light.Scene.Texel,light.Scene.WorldRect.y+area.y*light.Scene.Texel,area.width*light.Scene.Texel,area.height*light.Scene.Texel):default;
         public int Compositions {get;private set;}
+        public float FillGain
+        {
+            get=>fillGain;
+            set
+            {
+                if(!float.IsFinite(value)) throw new ArgumentOutOfRangeException(nameof(value),"Свет над камерой: коэффициент заполнения должен быть конечным.");
+                float next=Mathf.Clamp01(value);
+                if(fillGain==next)return;
+                fillGain=next;hasSignature=false;
+            }
+        }
 
         public LevelLightView(LevelLight light,LightShaderContext shader)
         {
@@ -42,7 +55,7 @@ namespace Remains.Presentation
             try
             {
                 compute=GameAssets.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
-                subtractKernel=compute.FindKernel("SubtractField");addFlashKernel=compute.FindKernel("AddFlash");
+                subtractKernel=compute.FindKernel("SubtractField");addFlashKernel=compute.FindKernel("AddFlash");resolveKernel=compute.FindKernel("ResolveGridFill");
                 maskMaterial=new Material(GameAssets.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource)) {name="Маска тени над камерой",hideFlags=HideFlags.HideAndDontSave};
                 quad=LightSpriteShapes.UnitQuad("Квадрат маски тени");
                 commands=new CommandBuffer {name="Свет над камерой: маска тени"};
@@ -58,12 +71,27 @@ namespace Remains.Presentation
             if(disposed) throw new ObjectDisposedException(nameof(LevelLightView));
             int flashCount=flashes?.Count??0;
             if(flashCount>0 && (flashIds==null || flashIds.Count!=flashCount)) throw new ArgumentException("Количество ID источников не совпадает с количеством вспышек.");
+            // An event is published atomically: never combine a new direct sum with the preceding fill state.
+            // Keep the already resolved camera buffers until the queued direct/fill stages have all finished.
+            if(light.UsesGridFill && light.HasPendingPublication)
+            {
+                // A one-frame flash must not persist for the duration of an unrelated queued door/light event.
+                // Its baseline was resolved with the same direct/fill revision before the flash was added.
+                if(flashShown && hasFlashBaseline)
+                {
+                    Graphics.CopyTexture(staticFront,front);Graphics.CopyTexture(staticBack,back);
+                    flashShown=false;hasSignature=false;
+                }
+                if(Compositions>0)Publish();
+                return;
+            }
             bool moved=Place(view);
             var hash=new HashCode();hash.Add(area);hash.Add(light.Direct.Revision);
+            if(light.UsesGridFill){hash.Add(light.Fill.Revision);hash.Add(fillGain);}
             if(masks!=null) foreach(var m in masks)
             {hash.Add(m.SourceId);hash.Add(m.Mask!=null?m.Mask.GetInstanceID():0);hash.Add(m.WorldBounds);hash.Add(m.Opacity);hash.Add(m.Revision);}
             int next=hash.ToHashCode();
-            if(!moved && flashCount==0 && !flashShown && hasSignature && next==signature) return;
+            if(!moved && flashCount==0 && !flashShown && hasSignature && next==signature){Publish();return;}
             Remains.Diagnostics.FrameHitchLog.Gpu("Свет: камера (тени и вспышки)");
             using var section=Remains.Diagnostics.FrameHitchLog.Section("Свет: камера (тени и вспышки)");
             var sum=light.Direct.Sum;
@@ -76,13 +104,14 @@ namespace Remains.Presentation
                 composed.Add(m.SourceId);
                 if(!light.Direct.TryGetField(m.SourceId,out var field,out var texels))
                 {
-                    if(light.Sources.TryGet(m.SourceId,out _) && warned.Add(m.SourceId))
+                    if(light.Sources.TryGet(m.SourceId,out int sourceIndex) && light.Sources.All[sourceIndex].Enabled && warned.Add(m.SourceId))
                         Debug.LogWarning($"Свет над камерой: прямой свет {m.SourceId} ещё не построен; тень от него пропущена до подготовки поля.");
                     continue;
                 }
                 DrawMask(masks,m.SourceId);
                 Apply(subtractKernel,field,texels);
             }
+            if(light.UsesGridFill && flashCount>0)CaptureFlashBaseline();
             for(int i=0;i<flashCount;i++)
             {
                 if(!TryFlashSource(flashes[i],flashIds[i],out var source)) continue;
@@ -90,6 +119,7 @@ namespace Remains.Presentation
                 DrawMask(masks,flashIds[i]);
                 Apply(addFlashKernel,flash,source.Texels);
             }
+            if(light.UsesGridFill)ResolveGridFill();
             flashShown=flashCount>0;signature=next;hasSignature=true;Compositions++;
             Publish();
         }
@@ -121,6 +151,7 @@ namespace Remains.Presentation
         private void Allocate(int width,int height)
         {
             LightTextureBudget.Release(front);LightTextureBudget.Release(back);LightTextureBudget.Release(mask);front=back=mask=null;
+            LightTextureBudget.Release(staticFront);LightTextureBudget.Release(staticBack);staticFront=staticBack=null;hasFlashBaseline=false;
             front=Target(width,height,"Свет над камерой: актёры");back=Target(width,height,"Свет над камерой: фон с тенями");
             mask=Target(width,height,"Свет над камерой: маска тени");
             front.filterMode=back.filterMode=FilterMode.Bilinear;
@@ -181,6 +212,30 @@ namespace Remains.Presentation
             compute.Dispatch(kernel,(x1-x0+7)/8,(y1-y0+7)/8,1);
         }
 
+        private void CaptureFlashBaseline()
+        {
+            if(staticFront==null)
+            {
+                staticFront=Target(front.width,front.height,"Свет над камерой: актёры до вспышки");
+                staticBack=Target(back.width,back.height,"Свет над камерой: фон до вспышки");
+                staticFront.filterMode=staticBack.filterMode=FilterMode.Bilinear;
+            }
+            Graphics.CopyTexture(front,staticFront);Graphics.CopyTexture(back,staticBack);
+            ResolveGridFill(staticFront,staticBack);hasFlashBaseline=true;
+        }
+
+        private void ResolveGridFill()=>ResolveGridFill(front,back);
+        private void ResolveGridFill(RenderTexture targetFront,RenderTexture targetBack)
+        {
+            var fill=light.Fill.Texture;
+            if(fill==null || fill.width!=light.Scene.Width || fill.height!=light.Scene.Height)
+                throw new InvalidOperationException($"Свет над камерой: заполнение не совпадает с fine-сценой {light.Scene.Width}×{light.Scene.Height}, поле={fill}.");
+            compute.SetTexture(resolveKernel,"_Front",targetFront);compute.SetTexture(resolveKernel,"_Back",targetBack);
+            compute.SetTexture(resolveKernel,"_Fill",fill);compute.SetInts("_AreaOrigin",area.x,area.y);
+            compute.SetInts("_AreaSize",area.width,area.height);compute.SetFloat("_FillGain",fillGain);
+            compute.Dispatch(resolveKernel,(area.width+7)/8,(area.height+7)/8,1);
+        }
+
         private void Publish()
         {
             if(!shader.IsActive) return;
@@ -191,10 +246,14 @@ namespace Remains.Presentation
             Shader.SetGlobalFloat("_RemainsRadianceTexel",scene.Texel);
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",1);
             Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",1);
-            var bounce=light.Bounce;
-            Shader.SetGlobalTexture("_RemainsIndirect",bounce.Indirect);
-            Shader.SetGlobalVector("_RemainsIndirectRect",new Vector4(scene.WorldRect.x,scene.WorldRect.y,bounce.Width*BounceLight.Divisor*scene.Texel,bounce.Height*BounceLight.Divisor*scene.Texel));
-            Shader.SetGlobalFloat("_RemainsIndirectEnabled",1);
+            if(light.UsesGridFill)Shader.SetGlobalFloat("_RemainsIndirectEnabled",0);
+            else
+            {
+                var bounce=light.Bounce;
+                Shader.SetGlobalTexture("_RemainsIndirect",bounce.Indirect);
+                Shader.SetGlobalVector("_RemainsIndirectRect",new Vector4(scene.WorldRect.x,scene.WorldRect.y,bounce.Width*BounceLight.Divisor*scene.Texel,bounce.Height*BounceLight.Divisor*scene.Texel));
+                Shader.SetGlobalFloat("_RemainsIndirectEnabled",1);
+            }
         }
 
         private static RenderTexture Target(int width,int height,string name)
@@ -214,6 +273,7 @@ namespace Remains.Presentation
             disposed=true;
             if(shader.IsActive) {Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);Shader.SetGlobalFloat("_RemainsIndirectEnabled",0);}
             LightTextureBudget.Release(front);LightTextureBudget.Release(back);LightTextureBudget.Release(mask);LightTextureBudget.Release(flash);
+            LightTextureBudget.Release(staticFront);LightTextureBudget.Release(staticBack);staticFront=staticBack=null;hasFlashBaseline=false;
             front=back=mask=flash=null;
             commands?.Release();commands=null;
             if(maskMaterial!=null) UnityEngine.Object.DestroyImmediate(maskMaterial);

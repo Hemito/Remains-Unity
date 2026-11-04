@@ -20,7 +20,7 @@ namespace Remains.Presentation
         public const int MaxWindow=512;      // coarse texels; a larger change is split into chunks
         private const string ComputeResource="Presentation/BounceLight";
         private readonly LevelLightScene scene;
-        private readonly DirectLight direct;
+        private readonly ILevelDirectLight direct;
         private ComputeShader compute;
         private int downsampleKernel,seedKernel,jumpKernel,distanceKernel,seedFacesKernel,cascadeKernel,fluenceKernel,bounceFacesKernel,accumulateKernel;
         private RenderTexture coarseScene,coarseDirect,indirect;
@@ -40,7 +40,7 @@ namespace Remains.Presentation
         public int Dispatches {get;private set;}
         public long Bytes=>LightTextureBudget.Size(Width,Height,2+8+16)+(window?.Bytes??0);
 
-        public BounceLight(LevelLightScene scene,DirectLight direct,float albedo)
+        public BounceLight(LevelLightScene scene,ILevelDirectLight direct,float albedo)
         {
             if(!(albedo>=0 && albedo<1)) throw new ArgumentOutOfRangeException(nameof(albedo));
             this.albedo=albedo;

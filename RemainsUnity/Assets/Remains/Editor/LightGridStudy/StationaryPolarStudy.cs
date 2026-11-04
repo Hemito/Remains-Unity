@@ -160,7 +160,7 @@ namespace Remains.Editor
                 FactoryPreparation.Create(world,AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath),0);
                 FactoryContentSources.Prepare(world,"factory:0");var authoring=RoomAuthoring.Load("factory:0",world);
                 DoorContentInstaller.Apply(world,RoomDoorContent.Read(authoring,"factory:0"));var layout=authoring.CreateLayout(false);
-                visual=AuthoredRoomVisual.Create("factory:0",layout,world);var view=visual.GetComponent<FactoryLevelView>();var factory=visual.GetComponent<FactoryLevelRoot>();view.Synchronize(layout,world,1);
+                visual=AuthoredRoomVisual.Create("factory:0",layout,world);var view=visual.GetComponent<FactoryLevelView>();view.ConfigureLegacyLightingForChecks();var factory=visual.GetComponent<FactoryLevelRoot>();view.Synchronize(layout,world,1);
                 var clock=Stopwatch.StartNew();c=new Context(view,world);report.prepareMs=clock.Elapsed.TotalMilliseconds;
                 clock.Restart();c.Fill.BuildAll();c.Wait(c.Fill.Texture);report.fillBuildMs=clock.Elapsed.TotalMilliseconds;
                 clock.Restart();c.Ray.Direct.BuildAll();c.Ray.Direct.WaitForMeasurements();c.Wait(c.Ray.Direct.Sum);report.rayBuildMs=clock.Elapsed.TotalMilliseconds;

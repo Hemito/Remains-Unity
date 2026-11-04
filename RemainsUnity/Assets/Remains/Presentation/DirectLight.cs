@@ -16,7 +16,7 @@ namespace Remains.Presentation
     // - a lamp switch changes only its own reach rectangle;
     // - a changed region of the sum is cleared and the overlapping fields are added again in source order, so the
     //   result equals a full rebuild exactly. The old sum stays shown until every field the region needs is ready.
-    public sealed class DirectLight : IDisposable
+    public sealed class DirectLight : ILevelDirectLight
     {
         public const int MaximumSamples=8;
         public const long DefaultCacheBytes=256L*1024*1024;
@@ -64,6 +64,7 @@ namespace Remains.Presentation
         public int Recompositions {get;private set;}
         public int PendingMeasurements {get;private set;}
         public bool HasWork=>dirtyCount>0 || pendingRegions.Count>0 || MissingRequested();
+        public bool HasPendingPublication=>dirtyCount>0 || pendingRegions.Count>0;
         // Changes whenever the sum changes (a full build or a recomposed region).
         public long Revision {get;private set;}
         // Fields kept for actor shadows: built when missing, never evicted while requested.

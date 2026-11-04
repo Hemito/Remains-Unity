@@ -42,6 +42,8 @@ namespace Remains.Presentation
         public float Texel {get;}
         public int Resolution {get;}
         public Texture Texture=>scene;
+        // Stable walls/objects without doors. Coarse fill reads this once without opening live doors.
+        public Texture BaseTexture=>baseScene;
         public long Bytes=>baseScene==null?0:2*LightTextureBudget.Size(Width,Height,2);
         // Increases with every door change; a direct field built at an older revision may be out of date.
         public long Revision {get;private set;}

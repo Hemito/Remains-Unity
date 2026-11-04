@@ -3,6 +3,8 @@
 #pragma kernel BuildMaps
 #pragma kernel Field
 #pragma kernel ExactField
+#pragma kernel ClearWork
+#pragma kernel AddWork
 
 Texture2D<float> _Scene;
 StructuredBuffer<float4> _Samples;
@@ -10,6 +12,10 @@ StructuredBuffer<float> _MarchDistances;
 RWTexture2DArray<float> _MapOut;
 Texture2DArray<float> _Map;
 RWTexture2D<float4> _Field;
+RWTexture2D<float4> _Work;
+Texture2D<float4> _WorkField;
+int2 _WorkSize,_WorkOrigin,_WorkFieldOrigin;
+int4 _WorkClip;
 int2 _SceneSize,_FieldOrigin,_FieldSize;
 int _SampleCount,_SampleOffset,_Angles,_RadialSamples;
 float4 _SceneRect,_SourceBounds,_Radiance;
@@ -127,5 +133,19 @@ void ExactField(uint3 id:SV_DispatchThreadID)
 {
     if(any(id.xy>=uint2(_FieldSize)))return;
     _Field[id.xy]=float4(Receiver(_FieldOrigin+int2(id.xy),true),1);
+}
+[numthreads(8,8,1)]
+void ClearWork(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_WorkSize)))return;
+    _Work[id.xy]=0;
+}
+[numthreads(8,8,1)]
+void AddWork(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=_WorkClip.xy+int2(id.xy);
+    if(any(p>=_WorkClip.zw))return;
+    int2 target=p-_WorkOrigin;
+    _Work[target]=float4(_Work[target].rgb+_WorkField[p-_WorkFieldOrigin].rgb,1);
 }
 

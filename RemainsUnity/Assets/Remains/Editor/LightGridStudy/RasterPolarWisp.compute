@@ -65,7 +65,7 @@ float Prefix(int angle,float distanceWorld)
     return count==0?1:_Map[int2(Wrap(angle),min(count-1,_RadialSamples-1))];
 }
 float PolarSample(int index,float distanceWorld){return Prefix(index,distanceWorld);}
-#include "PolarAngularFilter.hlsl"
+#include "../../Resources/Presentation/PolarAngularFilter.hlsl"
 float PolarTransmission(float2 delta,float distanceWorld)
 {
     if(distanceWorld<.5/_PPU) return 1;

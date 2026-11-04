@@ -82,7 +82,7 @@ float Visible(int index,float distanceToSource)
     return distanceToSource<=_AngleMap[int2(Wrap(index),0)]+1e-5?1:0;
 }
 float PolarSample(int index,float distanceWorld){return Visible(index,distanceWorld);}
-#include "PolarAngularFilter.hlsl"
+#include "../../Resources/Presentation/PolarAngularFilter.hlsl"
 [numthreads(64,1,1)]
 void BuildAngles(uint3 id:SV_DispatchThreadID)
 {

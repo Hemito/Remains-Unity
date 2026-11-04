@@ -12,7 +12,7 @@ namespace Remains.Presentation
 {
     // Visuals of a level built from room templates (ITemplateLevel: the generated factory, the hub): walls from the
     // composed grid with backdrops per room, ambient light, the light of the whole level (LevelLight: direct light
-    // per source on the full grid, bounce on a half grid) and, inside a window of rooms around the camera, the room
+    // per source on the full grid, bounded grid fill) and, inside a window of rooms around the camera, the room
     // pictures and the background erase mask (windows). Moving the camera never recomputes light: doors and lamps
     // change it through events, spread over frames.
     // Lifetime: Initialize after FactoryLevelRoot.InstantiateRooms, Release before the root is destroyed.
@@ -21,7 +21,7 @@ namespace Remains.Presentation
         public const int WindowRooms=3;            // rooms across and down in the picture window (odd)
         public const string AmbientResource="Presentation/FactoryAmbientLight";
         // Event work of the level light per frame: field builds (~1 ms of video card each) and bounce stages.
-        private const int FieldBuildsPerFrame=2,BounceStagesPerFrame=1;
+        private const int FieldBuildsPerFrame=2,FillStagesPerFrame=2;
         // The camera view assumed before the first camera report (around the focus point).
         private static readonly Vector2 DefaultView=new(40,24);
 
@@ -223,19 +223,23 @@ namespace Remains.Presentation
         private void StartLightWork()
         {
             if(levelLight==null || !levelLight.HasWork) return;
-            if(!Application.isPlaying || !isActiveAndEnabled)
+            if(!Application.isPlaying)
             {
                 int steps=0;
                 while(levelLight.Step(64,64)) if(++steps>100000) throw new InvalidOperationException("Свет уровня: события не завершились.");
                 return;
             }
+            if(!isActiveAndEnabled)return;
             lightWork??=StartCoroutine(RunLightWork());
         }
         private System.Collections.IEnumerator RunLightWork()
         {
             while(levelLight!=null && levelLight.HasWork)
             {
-                using(Remains.Diagnostics.FrameHitchLog.Section("Свет: события по кадрам")) levelLight.Step(FieldBuildsPerFrame,BounceStagesPerFrame);
+                Exception failure=null;
+                try{using(Remains.Diagnostics.FrameHitchLog.Section("Свет: события по кадрам")) levelLight.Step(FieldBuildsPerFrame,FillStagesPerFrame);}
+                catch(Exception error){failure=error;}
+                if(failure!=null){lightWork=null;ReportFailure(failure);yield break;}
                 yield return null;
             }
             lightWork=null;
@@ -371,7 +375,7 @@ namespace Remains.Presentation
             // Doors not synchronized yet (a level without door states) start open; the first SyncDoors applies them.
             using var section=Remains.Diagnostics.FrameHitchLog.Section("Переход: свет уровня");
             var shadows=new List<ActorShadowSource>();
-            var built=Create(DirectLight.DefaultCacheBytes,out var walls,shadows);
+            var built=Create(legacyLightingForChecks?DirectLight.DefaultCacheBytes:PolarDirectLight.DefaultCacheBytes,out var walls,shadows,!legacyLightingForChecks);
             try
             {
                 built.BuildAll();
@@ -433,8 +437,17 @@ namespace Remains.Presentation
 
         // The light of the whole level from the installed pictures, doors and lamps. Heavy: wall raster of the whole
         // level, one readback per new sprite. The view builds its own on the first Focus; checks may build more.
-        public LevelLight CreateLevelLight(long directCacheBytes=DirectLight.DefaultCacheBytes)=>Create(directCacheBytes,out _,null);
-        private LevelLight Create(long directCacheBytes,out float[,] walls,List<ActorShadowSource> shadows)
+        public LevelLight CreateLevelLight(long directCacheBytes=DirectLight.DefaultCacheBytes,bool useGridFill=false)=>Create(directCacheBytes,out _,null,useGridFill);
+        private bool legacyLightingForChecks;
+#if UNITY_EDITOR
+        // An explicit historical-reference command; never a runtime setting or silent hardware fallback.
+        public void ConfigureLegacyLightingForChecks()
+        {
+            if(levelLight!=null)throw new InvalidOperationException("Режим эталонного света задаётся до Focus/подготовки.");
+            legacyLightingForChecks=true;
+        }
+#endif
+        private LevelLight Create(long directCacheBytes,out float[,] walls,List<ActorShadowSource> shadows,bool useGridFill=true)
         {
             if(root==null) throw new InvalidOperationException("Вид уровня не подготовлен.");
             var grid=root.Grid;var definitions=root.Definitions;int resolution=table.RadianceResolution;float texel=1f/resolution;
@@ -498,7 +511,7 @@ namespace Remains.Presentation
             {
                 lightScene=new LevelLightScene(walls,origin,resolution,objects);
                 lightScene.SetDoors(lightDoors,null);
-                var result=new LevelLight(lightScene,new LevelLightSources(list,lightScene.Width,lightScene.Height),(float)table.RadianceAlbedo,directCacheBytes);
+                var result=new LevelLight(lightScene,new LevelLightSources(list,lightScene.Width,lightScene.Height),(float)table.RadianceAlbedo,directCacheBytes,useGridFill);
                 var names=new List<string>(objects.Count);
                 foreach(var item in objects) names.Add($"{item.Sprite.name}@{item.LocalToWorld.GetColumn(3)}:{item.Absorption:R}");
                 names.Sort(StringComparer.Ordinal);
@@ -579,6 +592,8 @@ namespace Remains.Presentation
             Room=null;PresentationChanged?.Invoke(this);
         }
 
+        private void OnEnable()=>StartLightWork();
+        private void OnDisable(){if(lightWork!=null){StopCoroutine(lightWork);lightWork=null;}}
         private void OnDestroy()=>Release();
 
         private new static void Destroy(UnityEngine.Object o) {if(Application.isPlaying) UnityEngine.Object.Destroy(o);else DestroyImmediate(o);}
