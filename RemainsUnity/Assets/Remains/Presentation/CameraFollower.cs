@@ -28,7 +28,7 @@ namespace Remains.Presentation
             camera.orthographicSize*camera.aspect,camera.orthographicSize,camera.transform.position,
             hasContext && actorLevel==actor.level && actorId==actor.id && actorGeneration==actor.generation && actorLifecycle==actor.lifecycleSequence);
         // FrameAxis keeps the local envelope on screen. Expanding it by two half-extents covers every
-        // possible clamped center, including room edges; retain the previous view during smooth following.
+        // possible framed center; retain the previous view during smooth following.
         public static Rect AnimationArea(Bounds local,float halfWidth,float halfHeight,Vector2 center,bool includePrevious)
         {
             if(!float.IsFinite(halfWidth) || !float.IsFinite(halfHeight) || halfWidth<=0 || halfHeight<=0)
@@ -59,10 +59,9 @@ namespace Remains.Presentation
             // Follow the movement anchor, not the sampled body: foot-fitted BodyPosition
             // steps with every walk frame and would shake the whole view on flat floor.
             // The visible pose stays framed by the body-placed envelope below.
-            float x=Room.right-Room.left<=halfWidth*2?(Room.left+Room.right)/2:Mathf.Clamp(actor.x,Room.left+halfWidth,Room.right-halfWidth);
-            float y=Room.top-Room.bottom<=camera.orthographicSize*2?(Room.top+Room.bottom)/2:
-                Mathf.Clamp(actor.y+1,Room.bottom+camera.orthographicSize,Room.top-camera.orthographicSize);
-            var target=new Vector3(x,y,-10);
+            // Room edges do not constrain the view (user decision 2026-11-04, future fog of war).
+            // A room-clamped target competed with framing the foot-fitted pose at the bottom edge.
+            var target=new Vector3(actor.x,actor.y+1,-10);
             var position=motion.Step(camera.transform.position,target,dt);
             var bounds=PonyVisual.CameraBounds(actor);
             bool oversized=bounds.size.x>halfWidth*2-.3f || bounds.size.y>camera.orthographicSize*2-.3f;
@@ -73,7 +72,7 @@ namespace Remains.Presentation
             position.y=FrameAxis(position.y,bounds.min.y,bounds.max.y,camera.orthographicSize);
             camera.transform.position=position;
         }
-        // Room limits guide composition, but must not crop the local character.
+        // Keep the local character visible without constraining the view to room limits.
         // The complete animation envelope is compiled once with the visible meshes;
         // individual limb frames must never push the camera back and forth.
         public static float FrameAxis(float center,float minimum,float maximum,float halfSize)

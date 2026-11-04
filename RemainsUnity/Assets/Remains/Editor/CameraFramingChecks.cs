@@ -7,6 +7,42 @@ namespace Remains.Editor
 {
     public static class CameraFramingChecks
     {
+        public static void RunBatch()
+        {
+            try {Run();Debug.Log("CameraFramingChecks PASS: свободные границы карты, движение у края, кадры поз, переменное время и смена контекста.");UnityEditor.EditorApplication.Exit(0);}
+            catch(Exception error) {Debug.LogException(error);UnityEditor.EditorApplication.Exit(1);}
+        }
+        // Identical actor motion must give the same view in a small room, a large room, or at any edge.
+        // This also catches a room smaller than the viewport forcibly centering the camera on the room.
+        private static void CheckUnboundedRoom(Camera camera)
+        {
+            foreach(float aspect in new[]{4f/3,16f/9,32f/9})
+            foreach(int fps in new[]{30,60,144})
+            foreach(int edge in new[]{0,1,2,3,4})
+            {
+                camera.aspect=aspect;camera.orthographicSize=5;
+                var actor=new Remains.Domain.ActorState {id="unbounded-camera",x=edge==0?.1f:edge==1?79.9f:40,
+                    y=edge==2?.1f:edge==3?29.9f:15,pose="walk"};
+                var room=new Remains.Domain.RoomLayout {left=0,right=80,bottom=0,top=30};
+                if(edge==4) {room.left=39;room.right=41;room.bottom=14;room.top=16;}
+                var unrestricted=new CameraFollower(camera,new Remains.Domain.RoomLayout {left=-1000,right=1000,bottom=-1000,top=1000});
+                var actual=new CameraFollower(camera,room);
+                var position=new Vector3(actor.x,actor.y+1,-10);var expected=position;
+                for(int sample=0;sample<fps*2;sample++)
+                {
+                    float dt=sample%19==7?.0532103f:1f/fps;
+                    actor.x+=3*dt;actor.poseTime+=dt;actor.facing=sample%2==0?1:-1;
+                    camera.transform.position=expected;unrestricted.Step(actor,dt);expected=camera.transform.position;
+                    camera.transform.position=position;actual.Step(actor,dt);position=camera.transform.position;
+                    if(Vector3.Distance(position,expected)>.00001f)
+                        throw new InvalidOperationException($"Граница карты сдвигает камеру: edge={edge}, fps={fps}, aspect={aspect}, sample={sample}, actual={position}, expected={expected}.");
+                    if(Mathf.Abs(position.y-(actor.y+1))>.0001f)
+                        throw new InvalidOperationException($"Ходьба по горизонтальному краю двигает камеру по вертикали: edge={edge}, sample={sample}, camera={position}, actor={actor.Position}.");
+                }
+                if(edge==2 && position.y-camera.orthographicSize>=room.bottom)
+                    throw new InvalidOperationException("Камера не показывает область ниже нижнего края карты.");
+            }
+        }
         // Exercise the edge transition while position changes; the older check
         // below covers a stationary body across graphic frames only.
         private static void CheckEdgeTravel(Camera camera)
@@ -66,6 +102,8 @@ namespace Remains.Editor
                 if(!rejected) throw new InvalidOperationException("Отсутствующая камера скрыта runtime-подстановкой.");
                 camera.orthographic=true;camera.orthographicSize=5;camera.aspect=1280f/534;
                 PonyVisual.Prepare();
+                CheckUnboundedRoom(camera);
+                camera.orthographicSize=5;camera.aspect=1280f/534;
                 CheckEdgeTravel(camera);
                 CheckVariableEdges(camera);
                 CheckContextReset(camera);
