@@ -110,14 +110,18 @@ namespace Remains.Domain
             var acceleration=Vector2.down*definition.grenadeGravity;
             var delta=state.Velocity*dt+acceleration*(.5f*dt*dt);
             state.Velocity+=acceleration*dt;var incoming=state.Velocity;
+            var startFeet=previous-Vector2.up*.1f;
+            var expectedFeet=startFeet+delta;
             // Body tops are actor supports only (BodyTopSurfaces); a grenade landing on them hovered and crept (TD-16).
-            var moved=ActorTerrainMotion.Move(room,Hull,previous-Vector2.up*.1f,delta,false,bodyTops:false)+Vector2.up*.1f;
-            state.Position=moved;
+            var movedFeet=ActorTerrainMotion.Move(room,Hull,startFeet,delta,false,bodyTops:false);
+            state.Position=movedFeet+Vector2.up*.1f;
             GrenadeRotation.Advance(state,dt);
             bool collided=false,ground=false;
-            if(Mathf.Abs(moved.x-previous.x-delta.x)>.00001f)
+            // Compare in Move's own coordinate system. Subtracting the previous world position after the move
+            // amplified float rounding at factory coordinates into phantom impacts (PT-20261103-08).
+            if(Mathf.Abs(movedFeet.x-expectedFeet.x)>.00001f)
             {impact=Mathf.Abs(state.vx);state.vx=-state.vx*definition.grenadeRestitution;collided=true;}
-            if(Mathf.Abs(moved.y-previous.y-delta.y)>.00001f)
+            if(Mathf.Abs(movedFeet.y-expectedFeet.y)>.00001f)
             {
                 impact=Mathf.Max(impact,Mathf.Abs(state.vy));
                 if(state.vy<0) {state.vx*=definition.grenadeGroundRetention;ground=true;}

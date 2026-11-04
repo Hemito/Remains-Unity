@@ -10,6 +10,52 @@ namespace Remains.Editor
 {
     public static class GrenadeChecks
     {
+        [Serializable] private sealed class FlightReport
+        {
+            public bool success;
+            public string detail;
+            public System.Collections.Generic.List<FlightCase> cases=new();
+        }
+        [Serializable] private sealed class FlightCase
+        {
+            public string weapon;
+            public Vector2 origin,initialVelocity,position,velocity;
+            public int fps,impacts;
+            public float positionError;
+            public bool success;
+        }
+        public static void RunFlightBatch()
+        {
+            try
+            {
+                WeaponCatalog.Load();var report=new FlightReport();
+                foreach(var origin in new[]{new Vector2(0,20),new Vector2(65,390),new Vector2(390,65),new Vector2(-390,390),new Vector2(390,-390)})
+                foreach(var velocity in new[]{new Vector2(7,3),new Vector2(.3f,.2f)})
+                foreach(int fps in new[]{30,60,144})
+                foreach(var definition in WeaponCatalog.All)
+                {
+                    if(!definition.IsGrenade) continue;
+                    var room=new RoomLayout {left=origin.x-100,right=origin.x+100,bottom=origin.y-100,top=origin.y+100,platforms=Array.Empty<RoomSurface>()};
+                    var state=new GrenadeState {id="free-flight",weapon=definition.id,x=origin.x,y=origin.y,vx=velocity.x,vy=velocity.y,remaining=2.5f};
+                    var entry=new FlightCase {weapon=definition.id,origin=origin,initialVelocity=velocity,fps=fps};
+                    for(int i=0;i<fps*2;i++) if(GrenadeRules.Step(state,room,1f/fps)>0) entry.impacts++;
+                    entry.position=state.Position;entry.velocity=state.Velocity;
+                    float gravity=WeaponCatalog.Get(state.weapon).grenadeGravity;
+                    entry.positionError=Vector2.Distance(state.Position,origin+velocity*2+Vector2.down*(gravity*2));
+                    entry.success=entry.impacts==0 && entry.positionError<.005f && Mathf.Abs(state.vx-velocity.x)<.00001f && Mathf.Abs(state.vy-(velocity.y-gravity*2))<.0002f;
+                    report.cases.Add(entry);
+                }
+                report.success=report.cases.TrueForAll(value=>value.success);
+                report.detail="Свободный полёт 2с: 5 переносов комнаты, слабый/обычный бросок, 30/60/144FPS; ударов в пустоте быть не должно.";
+                string[] args=Environment.GetCommandLineArgs();int option=Array.IndexOf(args,"-grenade-flight-report");
+                if(option>=0 && option+1<args.Length) {string path=Path.GetFullPath(args[option+1]);Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllText(path,JsonUtility.ToJson(report,true));}
+                Require(report.success,"Свободный полёт зависит от положения комнаты: ложные столкновения или неверная траектория; см. отчёт.");
+                CheckTerrain();CheckTranslatedTerrain();CheckFlightTime();CheckFreeFlight();CheckBounceFrameRates();CheckRotation();
+                Debug.Log("GrenadeFlightChecks PASS: свободный полёт на больших координатах, настоящие стены/пол/потолок, one-way, FPS, восстановление и вращение.");
+                UnityEditor.EditorApplication.Exit(0);
+            }
+            catch(Exception error) {Debug.LogException(error);UnityEditor.EditorApplication.Exit(1);}
+        }
         public static void MeasureFrameRates()
         {
             Remains.Content.WeaponCatalog.Load();
@@ -258,6 +304,37 @@ namespace Remains.Editor
                 GrenadeRules.Step(up,room,dt);
                 Require(up.y>2 && up.vy>0,"Односторонняя платформа не является потолком");
                 Require(Math.Abs(up.remaining-up.simulationRemainder-(2-dt))<.00001,"Столкновения не должны менять темп запала");
+            }
+        }
+        private static void CheckTranslatedTerrain()
+        {
+            float dt=(float)GrenadeRules.SimulationStep;
+            foreach(var origin in new[]{new Vector2(65,390),new Vector2(390,65),new Vector2(-390,390),new Vector2(390,-390)})
+            {
+                var room=new RoomLayout {left=origin.x-100,right=origin.x+100,bottom=origin.y-100,top=origin.y+100,
+                    platforms=new[]{new RoomSurface {x=origin.x+1,y=origin.y,width=.05f,height=4}}};
+                var right=new GrenadeState {x=origin.x+.7f,y=origin.y+2,vx=100,remaining=2};
+                Require(GrenadeRules.Step(right,room,dt)>99 && right.vx<0 && Mathf.Abs(right.x-(origin.x+.9f))<.0001f,
+                    "Настоящая тонкая стена справа потеряна после переноса: "+origin);
+                var left=new GrenadeState {x=origin.x+1.35f,y=origin.y+2,vx=-100,remaining=2};
+                Require(GrenadeRules.Step(left,room,dt)>99 && left.vx>0 && Mathf.Abs(left.x-(origin.x+1.15f))<.0001f,
+                    "Настоящая тонкая стена слева потеряна после переноса: "+origin);
+                room.platforms=new[]{new RoomSurface {x=origin.x-10,y=origin.y+2,width=20,height=.05f}};
+                var down=new GrenadeState {x=origin.x,y=origin.y+2.35f,vx=2,vy=-100,remaining=2};
+                Require(GrenadeRules.Step(down,room,dt)>99 && down.vy>0 && Mathf.Abs(down.y-(origin.y+2.15f))<.0001f && Mathf.Approximately(down.vx,1.2f),
+                    "Настоящий пол потерян после переноса: "+origin);
+                var up=new GrenadeState {x=origin.x,y=origin.y+1.7f,vy=100,remaining=2};
+                Require(GrenadeRules.Step(up,room,dt)>99 && up.vy<0 && Mathf.Abs(up.y-(origin.y+1.9f))<.0001f,
+                    "Настоящий потолок потерян после переноса: "+origin);
+                room.platforms[0].oneWay=true;
+                up=new GrenadeState {x=origin.x,y=origin.y+1.7f,vy=100,remaining=2};
+                Require(GrenadeRules.Step(up,room,dt)==0 && up.vy>0 && up.y>origin.y+2,
+                    "Односторонний пол стал потолком после переноса: "+origin);
+                room.platforms=Array.Empty<RoomSurface>();
+                room.bodySurfaces=new(){new RoomSurface {x=origin.x-10,y=origin.y+2,width=20,height=.05f}};
+                down=new GrenadeState {x=origin.x,y=origin.y+2.35f,vy=-100,remaining=2};
+                Require(GrenadeRules.Step(down,room,dt)==0 && down.vy<0 && down.y<origin.y+2,
+                    "Граната остановилась на опоре тела: "+origin);
             }
         }
         private static void CheckSettings()

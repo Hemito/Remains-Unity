@@ -156,6 +156,7 @@ namespace Remains.Content
             inputs.Add(SpikeCatalog.Resource,SpikeCatalog.Json);
             inputs.Add("Rules/spikes","trap-as-v1|fall>8px-frame|massa=bodyMass/50|danger=half-floor|shared-box-cooldown");
             inputs.Add("Rules/actor-body-support","sampled-centres-v1");
+            inputs.Add("Rules/grenade-flight","fixed-120hz-v2|contacts-in-feet-space|body-tops-excluded");
             inputs.Add("Rules/prop-impacts","multi-victim-v2|level-clock|live-impulse-epoch|canonical-admission-v1|transient-source-history");
             inputs.Add("Rules/factory-enemy-scaling","floor-v3|unit:hp=.11,damage=.07,protection=.05|turret:hp=.20,damage=.12,protection=.10|mine:after10=.10|saved-baseline-v1");
             foreach(string path in new[]{"Content/anatomy","Content/movement","Content/telekinesis","Content/standing-edge-poses",SlopePoseCatalog.Resource,"Original/Training/artwork","Original/Pony/pony","Original/Pony/motion-frames"})
