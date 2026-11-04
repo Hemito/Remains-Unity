@@ -17,7 +17,7 @@ namespace Remains.Editor
     // Exercises the DEFAULT gameplay composition, not the previous Editor renderer.
     public static class RuntimePolarLightingChecks
     {
-        private static string Output=>Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/light-main-20261104"));
+        private static string Output=>Path.GetFullPath(Remains.Runtime.Seed104CpuBaselineProbe.Argument("-runtime-light-output",Path.Combine(Application.dataPath,"../../.reference/light-main-20261104")));
         [Serializable] private sealed class Result
         {
             public bool success,defaultBackend,oddScene,pendingFlashRemoved,localEqualsFull,cameraUsesCache,actorMasks;

@@ -5,6 +5,7 @@
 #pragma kernel ExactField
 #pragma kernel ClearWork
 #pragma kernel AddWork
+#pragma kernel RemoveField
 
 Texture2D<float> _Scene;
 StructuredBuffer<float4> _Samples;
@@ -14,6 +15,9 @@ Texture2DArray<float> _Map;
 RWTexture2D<float4> _Field;
 RWTexture2D<float4> _Work;
 Texture2D<float4> _WorkField;
+RWTexture2D<float4> _DirectSum;
+Texture2D<float4> _RemovedField;
+int2 _RemovalOrigin,_RemovalSize;
 int2 _WorkSize,_WorkOrigin,_WorkFieldOrigin;
 int4 _WorkClip;
 int2 _SceneSize,_FieldOrigin,_FieldSize;
@@ -147,5 +151,14 @@ void AddWork(uint3 id:SV_DispatchThreadID)
     if(any(p>=_WorkClip.zw))return;
     int2 target=p-_WorkOrigin;
     _Work[target]=float4(_Work[target].rgb+_WorkField[p-_WorkFieldOrigin].rgb,1);
+}
+
+// Linear source removal; never subtract from a tone-mapped/composited camera texture.
+[numthreads(8,8,1)]
+void RemoveField(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_RemovalSize)))return;
+    int2 p=_RemovalOrigin+int2(id.xy);
+    _DirectSum[p]=float4(max(0,_DirectSum[p].rgb-_RemovedField[id.xy].rgb),1);
 }
 

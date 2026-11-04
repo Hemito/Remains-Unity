@@ -22,7 +22,7 @@ namespace Remains.Presentation
         private readonly LevelLight light;
         private readonly LightShaderContext shader;
         private ComputeShader compute;
-        private int subtractKernel,addFlashKernel,resolveKernel;
+        private int subtractKernel,addFlashKernel,resolveKernel,copyKernel;
         private RenderTexture front,back,mask,flash,staticFront,staticBack;
         private Material maskMaterial;
         private Mesh quad;
@@ -56,6 +56,7 @@ namespace Remains.Presentation
             {
                 compute=GameAssets.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
                 subtractKernel=compute.FindKernel("SubtractField");addFlashKernel=compute.FindKernel("AddFlash");resolveKernel=compute.FindKernel("ResolveGridFill");
+                copyKernel=compute.FindKernel("CopyDirect");
                 maskMaterial=new Material(GameAssets.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource)) {name="Маска тени над камерой",hideFlags=HideFlags.HideAndDontSave};
                 quad=LightSpriteShapes.UnitQuad("Квадрат маски тени");
                 commands=new CommandBuffer {name="Свет над камерой: маска тени"};
@@ -95,8 +96,10 @@ namespace Remains.Presentation
             Remains.Diagnostics.FrameHitchLog.Gpu("Свет: камера (тени и вспышки)");
             using var section=Remains.Diagnostics.FrameHitchLog.Section("Свет: камера (тени и вспышки)");
             var sum=light.Direct.Sum;
-            Graphics.CopyTexture(sum,0,0,area.x,area.y,area.width,area.height,front,0,0,0,0);
-            Graphics.CopyTexture(sum,0,0,area.x,area.y,area.width,area.height,back,0,0,0,0);
+            // Explicit format conversion: a FP32 source sum cannot use CopyTexture into the FP16 camera buffers.
+            compute.SetTexture(copyKernel,"_DirectIn",sum);compute.SetTexture(copyKernel,"_Front",front);compute.SetTexture(copyKernel,"_Back",back);
+            compute.SetInts("_AreaOrigin",area.x,area.y);compute.SetInts("_AreaSize",area.width,area.height);
+            compute.Dispatch(copyKernel,(area.width+7)/8,(area.height+7)/8,1);
             composed.Clear();
             if(masks!=null) foreach(var m in masks)
             {

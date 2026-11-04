@@ -3,16 +3,26 @@
 #pragma kernel SubtractField
 #pragma kernel AddFlash
 #pragma kernel ResolveGridFill
+#pragma kernel CopyDirect
 
 RWTexture2D<float4> _Front;           // what actors and props receive (flashes, no shadows)
 RWTexture2D<float4> _Back;            // what walls and the background receive (with actor shadows)
 Texture2D<float4> _FieldIn;           // a source's direct field, aligned to the level grid at _FieldOrigin
 Texture2D<float4> _Mask;              // projected shadow mask of that source over the area (alpha)
 Texture2D<float4> _Fill;              // reconstructed world fill, aligned to the same fine grid as the direct sum
+Texture2D<float4> _DirectIn;          // FP32 additive sum; the camera buffers remain FP16
 int2 _AreaOrigin,_FieldOrigin,_FieldSize;
 int2 _AreaSize;
 float _FillGain;
 int4 _Clip;                           // area-local x0, y0, x1, y1 (exclusive)
+
+[numthreads(8,8,1)]
+void CopyDirect(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_AreaSize)))return;
+    float4 value=_DirectIn[int2(id.xy)+_AreaOrigin];
+    _Front[id.xy]=value;_Back[id.xy]=value;
+}
 
 bool FieldTexel(int2 p,out int2 f)
 {

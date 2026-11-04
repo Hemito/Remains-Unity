@@ -29,6 +29,7 @@ namespace Remains.Presentation
         private readonly LevelLightSources sources;
         private readonly long cacheBudget;
         private readonly Field[] fields;
+        private readonly bool[] publishedEnabled;
         private readonly List<int> overlap=new(),affected=new();
         private readonly List<string> lastBuiltIds=new();
         private readonly LinkedList<int> lru=new();
@@ -40,7 +41,7 @@ namespace Remains.Presentation
         private readonly ComputeShader compute,composition;
         private readonly ComputeBuffer samples,marchDistances;
         private readonly int[] offsets;
-        private readonly int buildKernel,fieldKernel,exactKernel,clearKernel,addKernel,clearWorkKernel,addWorkKernel;
+        private readonly int buildKernel,fieldKernel,exactKernel,clearKernel,addKernel,clearWorkKernel,addWorkKernel,removeKernel;
         private readonly int maximumAngles,maximumRows,maximumSamples;
         private readonly float marchStep,maximumRadius;
         private readonly ComputeBuffer transientSamples;
@@ -53,8 +54,8 @@ namespace Remains.Presentation
         public LevelLightScene Scene=>scene;
         public LevelLightSources Sources=>sources;
         public long CacheBytes=>cacheBytes;
-        public long SumBytes=>sum==null?0:(long)sum.width*sum.height*8;
-        public long ScratchBytes=>map==null?0:(long)maximumAngles*maximumRows*maximumSamples*4+maximumRows*4L+samples.count*16L+DirectLight.MaximumSamples*TransientSlots*16L+(rebuild?.Texture==null?0:(long)rebuild.Texture.width*rebuild.Texture.height*8);
+        public long SumBytes=>sum==null?0:(long)sum.width*sum.height*16;
+        public long ScratchBytes=>map==null?0:(long)maximumAngles*maximumRows*maximumSamples*4+maximumRows*4L+samples.count*16L+DirectLight.MaximumSamples*TransientSlots*16L+(rebuild?.Texture==null?0:(long)rebuild.Texture.width*rebuild.Texture.height*16);
         public long GpuBytes=>disposed?0:SumBytes+CacheBytes+ScratchBytes;
         public float MaximumRadius=>maximumRadius;
         public int LastMapAngles {get;private set;}
@@ -66,6 +67,7 @@ namespace Remains.Presentation
         public int Evictions {get;private set;}
         public int CachedFields {get;private set;}
         public int Recompositions {get;private set;}
+        public int FastRemovals {get;private set;}
         public int PendingMeasurements=>0;
         public long Revision {get;private set;}
         public bool HasWork=>built && (rebuild!=null || pendingRegions.Count>0 || MissingRequested());
@@ -81,7 +83,7 @@ namespace Remains.Presentation
             this.scene=scene??throw new ArgumentNullException(nameof(scene));
             this.sources=sources??throw new ArgumentNullException(nameof(sources));
             if(cacheBudget<=0)throw new ArgumentOutOfRangeException(nameof(cacheBudget));
-            this.cacheBudget=cacheBudget;fields=new Field[sources.Count];offsets=new int[sources.Count];
+            this.cacheBudget=cacheBudget;fields=new Field[sources.Count];offsets=new int[sources.Count];publishedEnabled=new bool[sources.Count];
             marchStep=.75f/scene.Resolution;
             maximumRadius=12;maximumSamples=DirectLight.MaximumSamples;
             var points=new List<Vector4>();
@@ -106,6 +108,7 @@ namespace Remains.Presentation
                 composition=Object.Instantiate(GameAssets.Load<ComputeShader>("Presentation/DirectLight")??throw new InvalidOperationException("Нет compute-шейдера Presentation/DirectLight."));
                 buildKernel=compute.FindKernel("BuildMaps");fieldKernel=compute.FindKernel("Field");exactKernel=compute.FindKernel("ExactField");
                 clearWorkKernel=compute.FindKernel("ClearWork");addWorkKernel=compute.FindKernel("AddWork");
+                removeKernel=compute.FindKernel("RemoveField");
                 clearKernel=composition.FindKernel("ClearRect");addKernel=composition.FindKernel("AddField");
                 transientSamples=new ComputeBuffer(DirectLight.MaximumSamples*TransientSlots,16);
                 samples=new ComputeBuffer(Math.Max(1,points.Count),16);
@@ -114,7 +117,9 @@ namespace Remains.Presentation
                 for(int row=0;row<distances.Length;row++,at+=marchStep)distances[row]=at;
                 marchDistances=new ComputeBuffer(maximumRows,4);marchDistances.SetData(distances);
                 map=Target(maximumAngles,maximumRows,GraphicsFormat.R32_SFloat,"Стационарный свет: рабочие полярные префиксы",maximumSamples);
-                sum=Target(scene.Width,scene.Height,GraphicsFormat.R16G16B16A16_SFloat,"Стационарный полярный свет: сумма");
+                // Keep the additive sum in float32: removing a bright lamp must reveal weak neighbours that
+                // FP16 accumulation would already have rounded away. Individual cached source fields stay FP16.
+                sum=Target(scene.Width,scene.Height,GraphicsFormat.R32G32B32A32_SFloat,"Стационарный полярный свет: точная сумма");
                 compute.SetInts("_SceneSize",scene.Width,scene.Height);
                 compute.SetVector("_SceneRect",new Vector4(scene.WorldRect.x,scene.WorldRect.y,scene.WorldRect.width,scene.WorldRect.height));
                 compute.SetFloat("_PPU",scene.Resolution);compute.SetFloat("_MarchStep",marchStep);
@@ -138,6 +143,7 @@ namespace Remains.Presentation
                 if(!sources.All[index].Enabled)continue;
                 var field=Ensure(index);Add(index,field,sources.All[index].Texels);ReleaseTemporary(field);yield return null;
             }
+            for(int i=0;i<sources.Count;i++)publishedEnabled[i]=sources.All[i].Enabled;
             built=true;building=false;LastComposedRect=all;LastAffectedSources=sources.Count;Revision++;
             while(HasWork){Step(1);yield return null;}
         }
@@ -159,6 +165,31 @@ namespace Remains.Presentation
             EnsureAlive();if(index<0 || index>=sources.Count)throw new ArgumentOutOfRangeException(nameof(index));
             ResetMetrics();LastAffectedSources=1;
             if(built || building){unpublished.Add(index);QueueRegion(sources.All[index].Texels);}
+        }
+        // Only an OFF transition with a fully published geometry/sum may remove its existing contribution.
+        // A missing cached field can be rebuilt for this ONE source on the same geometry; never build neighbours.
+        public bool CanRemoveSource(int index,int maximumTexels)
+        {
+            EnsureAlive();if(index<0 || index>=sources.Count)throw new ArgumentOutOfRangeException(nameof(index));
+            var source=sources.All[index];
+            return built && !building && !HasPendingPublication && source.Kind==LevelLightSourceKind.Lamp &&
+                !source.Enabled && publishedEnabled[index] && fields[index]?.Stale!=true &&
+                (long)source.Texels.width*source.Texels.height<=maximumTexels;
+        }
+        public void RemoveSource(int index,int maximumTexels)
+        {
+            if(!CanRemoveSource(index,maximumTexels))throw new InvalidOperationException("Быстрое выключение полярного источника не прошло предварительную проверку: "+sources.All[index].Id);
+            ResetMetrics();LastAffectedSources=1;var rect=sources.All[index].Texels;
+            var field=Ensure(index);
+            try
+            {
+                compute.SetTexture(removeKernel,"_DirectSum",sum);compute.SetTexture(removeKernel,"_RemovedField",field.Texture);
+                compute.SetInts("_RemovalOrigin",rect.x,rect.y);compute.SetInts("_RemovalSize",rect.width,rect.height);
+                compute.Dispatch(removeKernel,(rect.width+7)/8,(rect.height+7)/8,1);
+            }
+            finally {ReleaseTemporary(field);}
+            publishedEnabled[index]=false;unpublished.Remove(index);LastComposedRect=rect;
+            FastRemovals++;Recompositions++;Revision++;Recomposed?.Invoke(rect);
         }
         // Caller first applies exactly the same door event to Scene.SetDoors. Unrelated source maps are not stale.
         public virtual void OccludersChanged(IReadOnlyList<string> ids,IReadOnlyList<RectInt> rectangles)
@@ -206,7 +237,7 @@ namespace Remains.Presentation
                 if(rebuild==null)
                 {
                     var region=pendingRegions[0];pendingRegions.RemoveAt(0);
-                    rebuild=new Rebuild{Region=region,Texture=Target(region.width,region.height,GraphicsFormat.R16G16B16A16_SFloat,"Полярный свет: локальная подготовка суммы")};
+                    rebuild=new Rebuild{Region=region,Texture=Target(region.width,region.height,GraphicsFormat.R32G32B32A32_SFloat,"Полярный свет: локальная подготовка суммы")};
                     sources.Overlapping(region,rebuild.Sources);
                     compute.SetTexture(clearWorkKernel,"_Work",rebuild.Texture);compute.SetInts("_WorkSize",region.width,region.height);
                     compute.Dispatch(clearWorkKernel,(region.width+7)/8,(region.height+7)/8,1);
@@ -225,7 +256,8 @@ namespace Remains.Presentation
                 foreach(int index in rebuild.Sources)
                 {
                     var r=sources.All[index].Texels;
-                    if(complete.xMin<=r.xMin && complete.yMin<=r.yMin && complete.xMax>=r.xMax && complete.yMax>=r.yMax)unpublished.Remove(index);
+                    if(complete.xMin<=r.xMin && complete.yMin<=r.yMin && complete.xMax>=r.xMax && complete.yMax>=r.yMax)
+                    {unpublished.Remove(index);publishedEnabled[index]=sources.All[index].Enabled;}
                 }
                 ReleaseRebuild();LastComposedRect=complete;Recompositions++;Revision++;Recomposed?.Invoke(complete);
                 if(budget==0)break;
@@ -371,7 +403,8 @@ namespace Remains.Presentation
             if(slices>1){target.dimension=TextureDimension.Tex2DArray;target.volumeDepth=slices;}
             // The prefix shader always uses Texture2DArray, even for a catalog with one sample per source.
             if(format==GraphicsFormat.R32_SFloat){target.dimension=TextureDimension.Tex2DArray;target.volumeDepth=slices;target.filterMode=FilterMode.Point;}
-            try{LightTextureBudget.Track(target,(long)width*height*slices*(format==GraphicsFormat.R32_SFloat?4:8));if(!target.Create())throw new InvalidOperationException("Не создана текстура "+name);return target;}
+            int bytes=format==GraphicsFormat.R32_SFloat?4:format==GraphicsFormat.R32G32B32A32_SFloat?16:8;
+            try{LightTextureBudget.Track(target,(long)width*height*slices*bytes);if(!target.Create())throw new InvalidOperationException("Не создана текстура "+name);return target;}
             catch{LightTextureBudget.Release(target);throw;}
         }
 #if UNITY_EDITOR

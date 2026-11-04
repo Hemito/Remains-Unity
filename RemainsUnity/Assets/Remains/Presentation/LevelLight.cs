@@ -18,12 +18,18 @@ namespace Remains.Presentation
         public LevelGridFill Fill {get;private set;}
         public bool UsesGridFill {get;}
         private readonly List<string> changedDoors=new();
+        private readonly HashSet<int> darkSources=new(),nextDarkSources=new(),changedSources=new();
+        private bool publishingLamp;
+        // One lamp, at most 131072 fine texels (~36x36m at 10px/m), never the entire level.
+        public const int FastLampTexels=128*1024;
+        public int FastLampUpdates {get;private set;}
 
         public LevelLight(LevelLightScene scene,LevelLightSources sources,float albedo,long directCacheBytes=PolarDirectLight.DefaultCacheBytes,bool useGridFill=true)
         {
             Scene=scene??throw new ArgumentNullException(nameof(scene));
             Sources=sources??throw new ArgumentNullException(nameof(sources));
             UsesGridFill=useGridFill;
+            for(int i=0;i<sources.Count;i++)if(sources.All[i].Kind==LevelLightSourceKind.Lamp && !sources.All[i].Enabled)darkSources.Add(i);
             try
             {
                 if(useGridFill)
@@ -68,26 +74,41 @@ namespace Remains.Presentation
         public void SetDark(IReadOnlyCollection<string> dark)
         {
             if(dark==null) throw new ArgumentNullException(nameof(dark));
-            for(int i=0;i<Sources.Count;i++)
+            nextDarkSources.Clear();
+            foreach(string id in dark)
             {
-                var source=Sources.All[i];
-                if(source.Kind!=LevelLightSourceKind.Lamp) continue;
-                bool enabled=!Contains(dark,source.Id);
-                if(enabled==source.Enabled) continue;
-                source.Enabled=enabled;
-                Direct.SourceChanged(i);
+                if(!Sources.TryGet(id,out int i) || Sources.All[i].Kind!=LevelLightSourceKind.Lamp)
+                    throw new ArgumentException("Выключение света: неизвестная лампа "+id);
+                nextDarkSources.Add(i);
+            }
+            changedSources.Clear();changedSources.UnionWith(darkSources);changedSources.SymmetricExceptWith(nextDarkSources);
+            bool idle=!HasPendingPublication;
+            foreach(int i in changedSources)
+            {
+                Sources.All[i].Enabled=!nextDarkSources.Contains(i);
                 if(UsesGridFill)Fill.SourceChanged(i);
             }
-        }
-        private static bool Contains(IReadOnlyCollection<string> set,string id)
-        {
-            if(set is HashSet<string> hash) return hash.Contains(id);
-            foreach(string item in set) if(item==id) return true;
-            return false;
+            bool fast=false;
+            if(idle && UsesGridFill && changedSources.Count==1 && Direct is PolarDirectLight polar)
+                foreach(int index in changedSources)
+                    if(polar.CanRemoveSource(index,FastLampTexels) && Fill.CanCompleteSourceChanges(1,FastLampTexels))
+                    {
+                        // Both preflights passed before either texture changes. No partial publication to consumers.
+                        publishingLamp=true;
+                        try
+                        {
+                            polar.RemoveSource(index,FastLampTexels);
+                            if(!Fill.TryCompleteSourceChanges(1,FastLampTexels))throw new InvalidOperationException("Заполнение лампы изменилось после успешной предварительной проверки: "+Sources.All[index].Id);
+                            fast=true;FastLampUpdates++;
+                        }
+                        finally {publishingLamp=false;}
+                    }
+            if(!fast)foreach(int index in changedSources)Direct.SourceChanged(index);
+            darkSources.Clear();darkSources.UnionWith(nextDarkSources);
         }
         // Event work of one frame: field builds of direct light first; bounce windows once direct light is final.
         public bool HasWork=>Direct.HasWork || (UsesGridFill?Fill.HasWork:Bounce.HasWork);
-        public bool HasPendingPublication=>Direct.HasPendingPublication || (UsesGridFill?Fill.HasWork:Bounce.HasWork);
+        public bool HasPendingPublication=>publishingLamp || Direct.HasPendingPublication || (UsesGridFill?Fill.HasWork:Bounce.HasWork);
         public bool Step(int maxBuilds,int bounceStages)
         {
             if(Direct.HasWork) Direct.Step(maxBuilds);

@@ -34,6 +34,10 @@ namespace Remains.Runtime
         private PropState bodyProbeProp,bodyProbeContainer;
         private float bodyProbePropX,bodyProbeContainerX;
         private int bodyChanges;
+        private readonly bool lampProbe=Environment.GetCommandLineArgs().Contains("--baseline-lamp-target");
+        private string lampTarget;
+        private Vector2 lampAim;
+        private int initialFastLampUpdates;
 
         public void Initialize(PrototypeRuntime value)
         {
@@ -121,6 +125,7 @@ namespace Remains.Runtime
             var actor=runtime.Session.LocalActor;
             if(actor==null || phase<2 || scenario!="combat" || finished) return default;
             var command=new PlayerCommand {hasAim=true,aim=actor.Position+new Vector2(12,2),weapon="pistol"};
+            if(lampTarget!=null)command.aim=lampAim;
             var selected=WeaponInventory.Selected(actor);
             if(selected?.definition!="pistol") return command;
             if(selected.weaponState.rounds==0) {command.reload=true;return command;}
@@ -179,6 +184,22 @@ namespace Remains.Runtime
             }
             if(phase==2 && Time.frameCount-readyFrame>=warmFrames)
             {
+                if(lampProbe)
+                {
+                    if(scenario!="combat")throw new InvalidOperationException("Проверка лампы требует combat-сценарий.");
+                    var room=runtime.Geometry.Get(actor.level);var origin=actor.Position+Vector2.up;
+                    var light=runtime.ActiveFactoryLighting.Light;
+                    var target=session.World.lamps.Where(lamp=>lamp.level==actor.level && !lamp.broken && Vector2.Distance(lamp.Bounds.center,origin)<10 &&
+                        light.Sources.TryGet(lamp.id,out int source) && light.Sources.All[source].Enabled)
+                        .OrderBy(lamp=>Vector2.Distance(lamp.Bounds.center,origin)).FirstOrDefault(lamp=>
+                        {
+                            var entry=SurfaceContact.Entry(lamp.Bounds,origin,lamp.Bounds.center,0);
+                            return entry.HasValue && entry.Value<=ShotObstacles.Limit(room,origin,lamp.Bounds.center);
+                        });
+                    if(target==null)throw new InvalidOperationException("У входа полного завода нет видимой лампы для настоящего выстрела.");
+                    lampTarget=target.id;lampAim=target.Bounds.center;initialFastLampUpdates=runtime.ActiveFactoryLighting.Light.FastLampUpdates;
+                    Debug.Log($"Player: цель проверки лампы {lampTarget}, позиция={lampAim}; используется обычная стрельба и сетевое предсказание.");
+                }
                 if(scenario=="bodies")
                 {
                     var host=session.ServerWorld;
@@ -201,6 +222,7 @@ namespace Remains.Runtime
                 double seconds=Time.realtimeSinceStartupAsDouble-started;
                 bool sustained=(scenario!="combat" || shots-warmShots>=Math.Max(3,(int)(seconds*.8))) &&
                     (scenario!="bodies" || bodyChanges>=Math.Max(3,(int)(seconds/3*.8)));
+                sustained&=!lampProbe || session.World.lamps.Any(lamp=>lamp.id==lampTarget && lamp.broken) && runtime.ActiveFactoryLighting.Light.FastLampUpdates>initialFastLampUpdates;
                 Finish(sustained,sustained?"CPU-замер завершён; время Editor batch не является временем кадра Windows Player.":"Недостаточная частота событий сценария; замер недействителен.");
             }
         }
@@ -227,6 +249,9 @@ namespace Remains.Runtime
                 factoryNpcs=initialNpcs,containers=initialContainers,mines=initialMines,hazards=initialHazards,
                 level=runtime.Session.LocalActor?.level,shots=shots-warmShots,bodyChanges=bodyChanges,payloads=payloads.ToArray(),cpu=summary,memory=memory.ToArray(),actualSampleFrames=summary.frameCount,
                 limitations="Секции вложены и считаются включительно. Allocations — глобальный счётчик Unity GC Allocated In Frame: все managed-потоки за интервал, включая диагностику; это не атрибуция выделений конкретной системе. Фоновое CPU-время не измерено. work=кадр−TimeUpdate, не чистое CPU-время; ожидания в других фазах остаются. Combat — стрельба из пистолета от входа, не нагрузочный бой четырёх игроков. Новые данные мира и кадры выстрела могут загружаться асинхронно."};
+            report.lampTarget=lampTarget;report.lampBroken=lampTarget!=null && runtime.Session.World.lamps.Any(lamp=>lamp.id==lampTarget && lamp.broken);
+            report.fastLampUpdates=lampProbe && runtime.ActiveFactoryLighting!=null?runtime.ActiveFactoryLighting.Light.FastLampUpdates-initialFastLampUpdates:0;
+            if(lampProbe)report.limitations+=" Цель стрельбы изменена на одну видимую лампу у входа (--baseline-lamp-target); этот прогон не сравнивается по FPS с прежним combat, направленным вправо.";
             if(createdPlayerFixture)
                 report.limitations+=" Создан новый Windows Player fixture; его SHA-256 не объявляется совпадающим с прежним Editor baseline3. Последующие сравнения требуют этих же world.json/character.json и fixtureSha256.";
             if(scenario=="bodies") report.limitations+=" Bodies — смещение двух дальних записей host fixture каждые 3 секунды с dirty marks; это нагрузка snapshot body delta, не игровая проверка физики/владения.";
@@ -266,6 +291,7 @@ namespace Remains.Runtime
         }
         [Serializable] private sealed class Report
         {
+            public string lampTarget;public bool lampBroken;public int fastLampUpdates;
             public bool success,editor,batch,allocationMetricAvailable;public string detail,scenario,sourceRevision,assemblySha256,fixtureSha256,unity,processor,gpu,graphicsApi,level,limitations;
             public int width,height,vSync,targetFps,warmFrames,sampleFrames,factoryNpcs,containers,mines,hazards,shots,bodyChanges;
             public double seconds,captureStartedSeconds;public CpuBaselineSummary cpu;public PayloadSample[] payloads;

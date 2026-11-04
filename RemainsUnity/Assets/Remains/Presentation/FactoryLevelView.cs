@@ -49,6 +49,8 @@ namespace Remains.Presentation
         private readonly HashSet<string> darkLamps=new(StringComparer.Ordinal);
         private readonly Dictionary<RoomSpriteAuthoring,string> lampByPicture=new();
         private readonly HashSet<string> brokenLamps=new(StringComparer.Ordinal);
+        private readonly HashSet<string> pendingLampArtwork=new(StringComparer.Ordinal);
+        private readonly HashSet<string> emittingDarkLamps=new(StringComparer.Ordinal);
         private readonly List<LampState> lampPlacements=new();
         private readonly Dictionary<RoomSpriteAuthoring,string> windowSourceIds=new();
         private readonly ActorShadowSources shadowSources=new();
@@ -120,30 +122,51 @@ namespace Remains.Presentation
                 PresentationChanged?.Invoke(this);
                 return;
             }
-            darkLamps.Clear();foreach(string id in dark) darkLamps.Add(id);
-            brokenLamps.Clear();foreach(string id in broken) brokenLamps.Add(id);
-            foreach(var pair in lamps)
+            var nextBroken=new HashSet<string>(broken,StringComparer.Ordinal);
+            foreach(string id in darkLamps)if(!nextDark.Contains(id))pendingLampArtwork.Add(id);
+            foreach(string id in nextDark)if(!darkLamps.Contains(id))pendingLampArtwork.Add(id);
+            foreach(string id in brokenLamps)if(!nextBroken.Contains(id))pendingLampArtwork.Add(id);
+            foreach(string id in nextBroken)if(!brokenLamps.Contains(id))pendingLampArtwork.Add(id);
+            darkLamps.Clear();darkLamps.UnionWith(nextDark);
+            brokenLamps.Clear();brokenLamps.UnionWith(nextBroken);
+            AppliedLampRevision=revision;
+            if(levelLight!=null)
             {
-                var (picture,frame,sprite,definition)=pair.Value;
+                // Authored OFF-frame lamps are valid pictures but deliberately have no emitting source.
+                emittingDarkLamps.Clear();foreach(string id in darkLamps)
+                {
+                    if(levelLight.Sources.TryGet(id,out _))emittingDarkLamps.Add(id);
+                    else if(table.LampFrameShare(lamps[id].definition,lamps[id].frame)>0)
+                        throw new InvalidOperationException($"Лампа {id}, {lamps[id].definition.Id}: для излучающего исходного кадра {lamps[id].frame} отсутствует источник света.");
+                }
+                levelLight.SetDark(emittingDarkLamps);ShadowSourceRevision++;StartLightWork();
+            }
+            if(levelLight==null || !levelLight.HasPendingPublication)ApplyLampArtwork();
+            PresentationChanged?.Invoke(this);
+        }
+        // Large/overlapping events remain queued. Their picture changes with the ready light, never several frames earlier.
+        private void ApplyLampArtwork()
+        {
+            foreach(string id in pendingLampArtwork)
+            {
+                var (picture,frame,sprite,definition)=lamps[id];
                 var renderer=picture.GetComponent<SpriteRenderer>();
-                bool off=darkLamps.Contains(pair.Key);
-                bool isBroken=brokenLamps.Contains(pair.Key);
+                bool off=darkLamps.Contains(id);
+                bool isBroken=brokenLamps.Contains(id);
                 Sprite brokenSprite=null;
                 bool hasBrokenArt=isBroken && brokenLampArt.TryGet(definition.Id,out brokenSprite);
                 if(isBroken && !hasBrokenArt && warnedLampArt.Add(definition.Id))
-                    Debug.LogWarning($"Лампа {pair.Key}, {definition.Id}: {(brokenLampArt.IsKnownOmission(definition.Id)?"разбитая графика не включена в авторский архив":"нет записи разбитой графики")}; используется исходная графика выключения, а при её отсутствии исходный корпус.",this);
+                    Debug.LogWarning($"Лампа {id}, {definition.Id}: {(brokenLampArt.IsKnownOmission(definition.Id)?"разбитая графика не включена в авторский архив":"нет записи разбитой графики")}; используется исходная графика выключения, а при её отсутствии исходный корпус.",this);
                 renderer.sprite=sprite;
                 if(hasBrokenArt) renderer.sprite=brokenSprite;
                 else if(off && definition.DecorFrameOff>0)
                 {
                     string frameId=TileManifest.DecorFrameId(definition.Art,definition.DecorFrameOff);
                     if(root.Art.Manifest.Art.ContainsKey(frameId)) renderer.sprite=root.Art.Tile(frameId).sprite;
-                    else Debug.LogWarning($"Лампа {pair.Key}, {definition.Id}: отсутствует кадр выключения {frameId}; свет погашен, исходный корпус сохранён до подготовки разбитой графики.",this);
+                    else Debug.LogWarning($"Лампа {id}, {definition.Id}: отсутствует кадр выключения {frameId}; свет погашен, исходный корпус сохранён до подготовки разбитой графики.",this);
                 }
             }
-            AppliedLampRevision=revision;
-            if(levelLight!=null) {levelLight.SetDark(darkLamps);ShadowSourceRevision++;StartLightWork();}
-            PresentationChanged?.Invoke(this);
+            pendingLampArtwork.Clear();
         }
 
         public RoomLayout Room {get;private set;}
@@ -180,7 +203,7 @@ namespace Remains.Presentation
         public void RenderMuzzleFlashes(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds)
         {
             if(!IsReady) return;
-            try {lightView.Present(viewArea,emissions,masks,sourceIds);}
+            try {lightView.Present(viewArea,emissions,masks,sourceIds);if(!levelLight.HasPendingPublication)ApplyLampArtwork();}
             catch(Exception error) {ReportFailure(error);throw;}
         }
         // Revision of the last door snapshot in the light (-1: none yet); the loader admits actors after it.
@@ -288,7 +311,7 @@ namespace Remains.Presentation
             // The same ambient for WorldLit artwork (actors, props, doors), which does not read Light2D.
             ambientRadiance=(Vector4)(ambientLight.color*ambientLight.intensity);
 
-            pictures.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();windowSourceIds.Clear();
+            pictures.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();pendingLampArtwork.Clear();lampPlacements.Clear();windowSourceIds.Clear();
             foreach(var sprite in level.RoomInstances.GetComponentsInChildren<RoomSpriteAuthoring>(true))
                 pictures.Add((sprite,definitions.Require(sprite.Definition,"вид уровня, "+sprite.name)));
             // Pictures by room: a window change looks only at its rooms' pictures (the others are inactive anyway).
@@ -587,7 +610,7 @@ namespace Remains.Presentation
             shaderContext.Release();
             if(terrain!=null) Destroy(terrain);
             if(ambient!=null) {ambient.SetActive(false);Destroy(ambient);}
-            terrain=ambient=null;root=null;pictures.Clear();doors.Clear();lightDoors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
+            terrain=ambient=null;root=null;pictures.Clear();doors.Clear();lightDoors.Clear();lamps.Clear();lampByPicture.Clear();darkLamps.Clear();brokenLamps.Clear();pendingLampArtwork.Clear();lampPlacements.Clear();AppliedDoorRevision=-1;AppliedLampRevision=-1;windowRooms=new RectInt(-1,-1,0,0);
             shadowSources.Clear();windowSourceIds.Clear();shadowTerrain=null;ShadowSourceRevision++;
             Room=null;PresentationChanged?.Invoke(this);
         }

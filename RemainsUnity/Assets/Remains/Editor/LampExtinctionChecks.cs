@@ -19,7 +19,7 @@ namespace Remains.Editor
     public static class LampExtinctionChecks
     {
         private const string Key="Remains.LampExtinctionCheck";
-        private static string Output=>Path.GetFullPath(Path.Combine(Application.dataPath,"../../.reference/lamp-extinction-20261104"));
+        private static string Output=>Path.GetFullPath(Remains.Runtime.Seed104CpuBaselineProbe.Argument("-lamp-extinction-output",Path.Combine(Application.dataPath,"../../.reference/lamp-extinction-20261104")));
         private static FactoryLevelView view;
         private static IDisposable catalog;
         private static GameObject visual,cameraRoot;
@@ -28,16 +28,21 @@ namespace Remains.Editor
         private static Sprite litSprite,flashSprite;
         private static Texture2D flashTexture;
         private static string lamp;
+        private static string otherLamp;
+        private static long lampRevision=1;
         private static Report report;
         private static int phase,lastFrame=-1,step,settled;
         private static Color[] before;
         private static SpriteEmission emission;
+        private static double eventMilliseconds;
         private static readonly SpriteEmission[] NoFlashes=Array.Empty<SpriteEmission>();
         private static readonly ProjectedLightShadow[] NoMasks=Array.Empty<ProjectedLightShadow>();
         private static readonly string[] NoIds=Array.Empty<string>();
         [Serializable] private sealed class Report
         {
             public bool success;
+            public bool nonEmittingChecked,immediateChecked,batchArtworkChecked;
+            public long levelGpuBytes,additionalSumBytes;
             public string lamp,definition,detail;
             public List<Frame> frames=new();
         }
@@ -46,6 +51,9 @@ namespace Remains.Editor
             public string scenario,stage,sprite;
             public int step,unityFrame,changedPixels;
             public bool pending,artChanged;
+            public int fastUpdates,fastFillUpdates,sourceBuilds;
+            public long fineTexels;
+            public double eventMilliseconds;
             public long directRevision,fillRevision;
             public double radiance;
         }
@@ -70,19 +78,27 @@ namespace Remains.Editor
                     view.RenderMuzzleFlashes(NoFlashes,NoMasks,NoIds);before=Read();step=0;settled=0;
                     Observe("before",true);
                     if(phase==3){view.RenderMuzzleFlashes(new[]{emission},NoMasks,new[]{"diagnostic-flash"});Observe("flash",true);}
-                    view.SyncLamps(new[]{lamp},phase==0?2:4,new[]{lamp});
+                    var clock=System.Diagnostics.Stopwatch.StartNew();view.SyncLamps(new[]{lamp},++lampRevision,new[]{lamp});eventMilliseconds=clock.Elapsed.TotalMilliseconds;
                     view.RenderMuzzleFlashes(NoFlashes,NoMasks,NoIds);Observe("break",true);phase++;return;
                 }
-                if(phase==1 || phase==4)
+                if(phase==1 || phase==4 || phase==7)
                 {
                     step++;view.RenderMuzzleFlashes(NoFlashes,NoMasks,NoIds);
                     Observe("queued",step<3 || !view.Light.HasPendingPublication && settled==0);
                     if(view.Light.HasWork){settled=0;return;}
                     if(++settled<3)return;
-                    if(phase==4){Finish();return;}
-                    view.SyncLamps(NoIds,3);phase=2;return;
+                    if(phase==7){Finish();return;}
+                    if(phase==4){view.SyncLamps(NoIds,++lampRevision);phase=5;return;}
+                    view.SyncLamps(NoIds,++lampRevision);phase=2;return;
                 }
                 if(phase==2 && !view.Light.HasWork)phase=3;
+                if(phase==5 && !view.Light.HasWork)phase=6;
+                if(phase==6)
+                {
+                    step=settled=0;view.RenderMuzzleFlashes(NoFlashes,NoMasks,NoIds);before=Read();Observe("before",true);
+                    var clock=System.Diagnostics.Stopwatch.StartNew();view.SyncLamps(new[]{lamp,otherLamp},++lampRevision,new[]{lamp,otherLamp});eventMilliseconds=clock.Elapsed.TotalMilliseconds;
+                    view.RenderMuzzleFlashes(NoFlashes,NoMasks,NoIds);Observe("break",true);phase=7;
+                }
             }
             catch(Exception error){Debug.LogException(error);End(1);}
         }
@@ -109,15 +125,28 @@ namespace Remains.Editor
             flashSprite=Sprite.Create(flashTexture,new Rect(0,0,4,4),new Vector2(.5f,.5f),20);
             emission=new SpriteEmission(flashSprite,Matrix4x4.TRS(center,Quaternion.identity,Vector3.one),100);
             report=new Report{lamp=lamp,definition=selected.Value.definition.Id};
+            report.levelGpuBytes=view.Light.Scene.Bytes+view.Light.Direct.SumBytes+view.Light.Direct.CacheBytes+((PolarDirectLight)view.Light.Direct).ScratchBytes+view.Light.Fill.GpuBytes;
+            report.additionalSumBytes=view.Light.Direct.SumBytes/2;
+            otherLamp=lamps.Keys.First(id=>id!=lamp && view.Light.Sources.TryGet(id,out _));
+            var nonEmitting=lamps.FirstOrDefault(pair=>!view.Light.Sources.TryGet(pair.Key,out _));
+            if(nonEmitting.Key!=null)
+            {
+                view.SyncLamps(new[]{nonEmitting.Key},++lampRevision,new[]{nonEmitting.Key});
+                if(view.Light.HasWork)throw new InvalidOperationException("Разбитая неизлучающая лампа поставила лишний пересчёт.");
+                view.SyncLamps(NoIds,++lampRevision);report.nonEmittingChecked=true;
+            }
             Debug.Log($"Лампа Play Mode: {lamp}, {report.definition}, позиция={placement.Bounds.center}; режим={Application.isPlaying}, async очередь 2/2.");
         }
         private static void Observe(string stage,bool capture)
         {
             var pixels=Read();int changed=0;double energy=0;
             for(int i=0;i<pixels.Length;i++){if(!pixels[i].Equals(before[i]))changed++;energy+=pixels[i].r+pixels[i].g+pixels[i].b;}
-            var sample=new Frame{scenario=phase<3?"no-flash":"flash",stage=stage,step=step,unityFrame=Time.frameCount,
+            var sample=new Frame{scenario=phase<3?"no-flash":phase<5?"flash":"batch",stage=stage,step=step,unityFrame=Time.frameCount,
                 sprite=picture.sprite.name,artChanged=picture.sprite!=litSprite,pending=view.Light.HasPendingPublication,
                 directRevision=view.Light.Direct.Revision,fillRevision=view.Light.Fill.Revision,changedPixels=changed,radiance=energy};
+            sample.fastUpdates=view.Light.FastLampUpdates;sample.fastFillUpdates=view.Light.Fill.FastSourceUpdates;
+            sample.sourceBuilds=((PolarDirectLight)view.Light.Direct).LastBuilds;sample.fineTexels=view.Light.Fill.LastFastFineTexels;
+            sample.eventMilliseconds=eventMilliseconds;
             report.frames.Add(sample);
             if(capture)Remains.Runtime.NetworkFrameCapture.Save(camera,Path.Combine(Output,$"{sample.scenario}-{stage}-{step:D2}.png"),width:960,height:560);
             File.WriteAllText(Path.Combine(Output,"report.json"),JsonUtility.ToJson(report,true));
@@ -130,6 +159,19 @@ namespace Remains.Editor
         }
         private static void Finish()
         {
+            if(Environment.GetCommandLineArgs().Contains("-lamp-expect-immediate"))
+            {
+                foreach(string scenario in new[]{"no-flash","flash"})
+                {
+                    var change=report.frames.Single(f=>f.scenario==scenario && f.stage=="break");
+                    if(change.pending || !change.artChanged || change.changedPixels<1 || change.fastUpdates<1)
+                        throw new InvalidOperationException("Одиночная лампа не погасла вместе с рисунком: "+scenario);
+                }
+                foreach(var sample in report.frames.Where(f=>f.scenario=="batch"))
+                    if(sample.pending && sample.artChanged || !sample.pending && sample.stage!="before" && !sample.artChanged)
+                        throw new InvalidOperationException("Отложенное разрушение картинки не совпало с публикацией света: "+sample.stage+"/"+sample.step);
+                report.immediateChecked=report.batchArtworkChecked=true;
+            }
             report.success=true;report.detail="Наблюдение в Play Mode, настоящий seed104 и очередь FactoryLevelView; без сети/реального выстрела. Во втором сценарии контролируемая однокадровая эмиссия в штатном композите. Readback/PNG влияют на wall-clock: это не замер задержки или производительности.";
             File.WriteAllText(Path.Combine(Output,"report.json"),JsonUtility.ToJson(report,true));Debug.Log("LampExtinctionChecks наблюдение завершено: "+report.detail);End(0);
         }
