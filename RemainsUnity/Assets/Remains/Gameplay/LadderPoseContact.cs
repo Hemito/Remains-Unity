@@ -11,6 +11,7 @@ namespace Remains.Gameplay
         private static readonly HashSet<string> missing=new();
         public static bool ShouldRelease(ActorState actor,RoomLayout room,Vector2 nextBodyPosition)
         {
+            if(!Anatomy.DeclaresSupportContacts(actor.anatomy)) return false;   // no drawn feet: its landing is the body's own
             if(!Anatomy.TrySupportContacts(actor,out var contacts))
             {
                 string key=actor.id+":"+actor.anatomy;

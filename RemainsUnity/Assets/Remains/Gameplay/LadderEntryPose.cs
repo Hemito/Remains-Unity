@@ -22,6 +22,8 @@ namespace Remains.Gameplay
         {
             if(actor==null || room==null || !actor.climbing || ActorSessionRules.IsPassive(actor))
                 throw new InvalidOperationException($"Выбор входа требует активного хвата: actor={actor?.id}, room={room?.id}.");
+            // No drawn feet to keep out of a floor: the held pose at once (an atlas raider, PT-20261103-5).
+            if(!Anatomy.DeclaresSupportContacts(actor.anatomy)) return heldPose;
             sample.id=actor.id;sample.anatomy=actor.anatomy;sample.level=actor.level;
             sample.player=actor.player;sample.connected=actor.connected;sample.down=actor.down;
             sample.Position=actor.Position;sample.Velocity=actor.Velocity;

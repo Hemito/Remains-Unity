@@ -9,10 +9,27 @@ namespace Remains.Editor
 {
     public static class LadderHoldChecks
     {
+        // An atlas raider has no foot contacts: it takes the ladder, climbs and comes down without an error (PT-20261103-5).
+        private static void CheckAtlasBody()
+        {
+            Remains.Content.ActorTypes.Load();
+            const float Dt=1f/30;
+            var room=new RoomLayout {id="ladder-raider",left=-5,right=5,bottom=-1,top=6,ladders=new[]{new RoomLadder {x=0,bottom=0,top=3}},
+                platforms=new[]{new RoomSurface {x=-5,y=-1,width=10,height=1}}};
+            RoomSurfaces.Prepare(room);
+            var raider=new ActorState {id="ladder-raider",actorType="raider1-chopper",anatomy="raider1-chopper",x=0,y=0,facing=1,health=50};
+            var motion=new MovementController(room);
+            motion.Step(raider,Vector2.up,false,Dt);
+            Require(raider.climbing,"Рейдер не взялся за лестницу");
+            for(int i=0;i<8;i++) motion.Step(raider,Vector2.up,false,Dt);
+            Require(raider.climbing && raider.pose=="climb" && raider.y>.5f,$"Рейдер не лезет вверх: y={raider.y}, поза {raider.pose}");
+            for(int i=0;i<200 && raider.climbing;i++) motion.Step(raider,Vector2.down,false,Dt);
+            Require(!raider.climbing && raider.y<.1f,$"Рейдер не спустился: y={raider.y}");
+        }
         public static void Run()
         {
             Anatomy.Load();
-            CheckAnimation();LadderPoseContactChecks.Run();
+            CheckAtlasBody();CheckAnimation();LadderPoseContactChecks.Run();
             var room=RoomLayout.Load();
             foreach(float dt in new[]{1f/30,1f/60,1f/144})
             {

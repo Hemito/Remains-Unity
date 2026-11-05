@@ -91,6 +91,8 @@ namespace Remains.Domain
             }
         }
 
+        // Atlas bodies (raiders) have no drawn foot parts: nothing to check, as opposed to a pose missing its contacts.
+        public static bool DeclaresSupportContacts(string anatomy)=>supportContacts.ContainsKey(anatomy);
         public static bool TrySupportContacts(ActorState actor,out IReadOnlyList<Vector2> contacts)
         {
             contacts=null;
