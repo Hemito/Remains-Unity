@@ -15,6 +15,20 @@ namespace Remains.Editor
     // thrown at once in danger or on the run, not without one or at a close target; an ordinary raider's 0–3.
     public static class PonyBrainChecks
     {
+        // A sapient body on the line stops the shot; off it, past the target, down or not sapient it does not.
+        private static void LineOfFire()
+        {
+            var shooter=Raider();shooter.id="shooter";shooter.level="l";shooter.x=0;shooter.y=0;
+            var target=new ActorState {id="target",player=true,connected=true,level="l",x=8,y=0,health=100};
+            var ally=Raider();ally.id="ally";ally.level="l";ally.x=4;ally.y=0;
+            var actors=new System.Collections.Generic.List<ActorState> {shooter,ally,target};
+            Vector2 from=new(0,.55f),to=new(8,.55f);
+            Require(NpcLineOfFire.Blocked(actors,shooter,target,from,to),"союзник на линии огня закрывает выстрел");
+            ally.y=2;Require(!NpcLineOfFire.Blocked(actors,shooter,target,from,to),"союзник в стороне не мешает");ally.y=0;
+            ally.x=10;Require(!NpcLineOfFire.Blocked(actors,shooter,target,from,to),"союзник за целью не мешает");ally.x=4;
+            ally.down=true;Require(!NpcLineOfFire.Blocked(actors,shooter,target,from,to),"лежащий союзник не мешает");ally.down=false;
+            ally.level="другой";Require(!NpcLineOfFire.Blocked(actors,shooter,target,from,to),"на другом уровне не мешает");
+        }
         public static void Run()
         {
             Anatomy.Load();WeaponCatalog.Load();
@@ -22,6 +36,7 @@ namespace Remains.Editor
             Require(shooter.pony!=null && Mathf.Approximately(shooter.pony.retreatHealth,.25f) && SapientPonies.Is(Raider()) &&
                 !SapientPonies.Is(new ActorState {id="t",actorType="tarakan"}),"у рейдера — характер разумного пони по умолчанию; таракан не разумный пони");
             Calm(shooter);Notice(shooter);Shooting(shooter);Melee(shooter);Retreat(shooter);Search(shooter);Revival(shooter);SelfHeal(shooter);Grenades(shooter);
+            LineOfFire();
             Debug.Log("Мозг разумных пони: PASS — спокойствие, задержка реакции, стрельба с отскоком, ближний бой в зубах и телекинезом, отступление и бой в углу, поиск, без дёрганья, подъём союзника и самолечение аптечкой, гранаты с прицеливанием по безопасности.");
         }
 

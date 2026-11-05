@@ -63,7 +63,7 @@ namespace Remains.Gameplay
         public MovementController Movement(ActorState actor,ActorTypeDefinition type,RoomLayout room)=>Get(actor,type,room).movement;
 
         // One frame of a raider that is awake and not attacking. `ally`: the nearest downed sapient ally the caller found.
-        public RaiderActions Step(ActorState actor,ActorTypeDefinition type,ActorState target,bool visible,RoomLayout room,float dt,ActorState ally=null)
+        public RaiderActions Step(ActorState actor,ActorTypeDefinition type,ActorState target,bool visible,RoomLayout room,float dt,ActorState ally=null,IReadOnlyList<ActorState> actors=null)
         {
             var entry=Get(actor,type,room);var settings=type.raider;
             entry.clock+=dt;
@@ -86,6 +86,8 @@ namespace Remains.Gameplay
                 entry.damageSeen=actor.damageSequence;
                 // Its full health: the factory's level profile, else the most it has had with this owner.
                 entry.pony.maxHealth=actor.factoryEnemy?.maxHealth>0?actor.factoryEnemy.maxHealth:Mathf.Max(entry.pony.maxHealth,actor.health);
+                entry.pony.blocked=sees && actors!=null && frames>0 && NpcLineOfFire.Blocked(actors,actor,target,
+                    attacker==RaiderAttacker.Ranged?WeaponPose.RangedAnchor(actor):actor.BodyPosition+Vector2.up*.55f,target.BodyPosition+Vector2.up*.55f);
             }
             for(int i=0;i<frames;i++)
             {

@@ -165,7 +165,7 @@ namespace Remains.Gameplay
                 }
                 if(raider)
                 {
-                    var wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt,NearestDowned(actor));
+                    var wants=raiders.Step(actor,type,target,visible && target.level==actor.level,controller.Room,dt,NearestDowned(actor),session.World.actors);
                     if(wants.changed) session.PublishActor(actor);
                     if(wants.revive!=null) session.RequestNpcRevive(actor,wants.revive);
                     if(wants.heal) session.RequestNpcSelfHeal(actor);

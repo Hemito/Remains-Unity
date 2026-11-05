@@ -61,6 +61,7 @@ namespace Remains.Domain
         public float danger;            // 0–1: hits and shots near it, fading (the owner reports them: PonyBrain.Threat)
         public int aim;                 // frames spent aiming the grenade in hand
         public int grenadeRest;         // frames before another throw is considered
+        public bool blocked;            // an ally stands on the line to the target (the owner reports it: NpcLineOfFire)
         public readonly float[] scores=new float[Enum.GetValues(typeof(PonyIntentKind)).Length];
     }
 
@@ -136,7 +137,8 @@ namespace Remains.Domain
                     break;
                 case PonyIntentKind.Shoot:
                     if(--p.advance<=0) {p.advancing=Chance(.3);p.advance=Range(100)+100;}
-                    if(p.advancing) Toward(); else Face();
+                    // It does not fire through its own: it moves up to clear the line.
+                    if(p.advancing || p.blocked) Toward(); else Face();
                     // State 4's step back from a close target: pushed away with a small jump.
                     if(!s.robot && p.stepBack<=0 && Mathf.Abs(dx)<200*Px && Mathf.Abs(m.point.y-actor.y)<200*Px)
                     {
@@ -186,7 +188,7 @@ namespace Remains.Domain
                 }
             }
             RaiderLegs.Jump(m,s,stay,climbing,jump,random,ref intent);
-            if(sees && p.intent is PonyIntentKind.Approach or PonyIntentKind.Shoot or PonyIntentKind.Melee)
+            if(sees && !p.blocked && p.intent is PonyIntentKind.Approach or PonyIntentKind.Shoot or PonyIntentKind.Melee)
                 RaiderLegs.Attack(m,s,attacker,actor,climbing,random,ref intent);
             return intent;
         }
