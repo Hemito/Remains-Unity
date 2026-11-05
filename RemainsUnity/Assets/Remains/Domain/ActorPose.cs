@@ -55,7 +55,10 @@ namespace Remains.Domain
         }
         public static void Select(ActorState actor,string pose)
         {
-            if(actor.pose!=pose) {actor.pose=pose;actor.poseTime=0;actor.poseSequence=unchecked(actor.poseSequence+1);actor.poseCorrectionRemaining=0;}
+            if(actor.pose!=pose) Restart(actor,pose);
         }
+        // A new action can start before its previous visual follow-through ends.
+        public static void Restart(ActorState actor,string pose)
+        {actor.pose=pose;actor.poseTime=0;actor.poseSequence=unchecked(actor.poseSequence+1);actor.poseCorrectionRemaining=0;}
     }
 }

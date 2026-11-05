@@ -23,6 +23,9 @@ namespace Remains.Gameplay
             if(Busy(actor) || !PonyStrikeRules.CanBegin(actor,room)) return false;
             active[actor.id]=new Strike {weapon=PonyStrikeRules.Weapon(kick),id=Guid.NewGuid().ToString("N"),level=actor.level,
                 generation=actor.generation,lifecycle=actor.lifecycleSequence};
+            // Raiders use a separate sprite atlas. Only the player's assembled pony has
+            // the full body timelines; damage/contact remain driven by the strike below.
+            if(actor.player) ActorPose.Restart(actor,PonyStrikeRules.Weapon(kick));
             return true;
         }
 

@@ -22,6 +22,11 @@ namespace Remains.Gameplay
             }
             bool compatible=actor.pose=="crouchLower" && target=="crouch" || actor.pose=="crouchRise" && standingTarget;
             if(compatible && actor.poseTime<PonyAnimationData.Duration(actor.pose)) return;
+            // The original strike has 20 frames; the existing gameplay cooldown is
+            // only 13. Let its recovery finish without extending that cooldown or
+            // blocking motion. A new strike restarts it; another stance interrupts it.
+            if(actor.player && (actor.pose==PonyStrikeRules.Punch || actor.pose==PonyStrikeRules.Kick) &&
+                (target is "idle" or "walk" or "run") && actor.poseTime<PonyAnimationData.Duration(actor.pose)) return;
             if(slope!=null) target=slope.Select(actor,room,target);
             if(standing!=null) target=standing.Select(actor,room,target);
             ActorPose.Select(actor,target);

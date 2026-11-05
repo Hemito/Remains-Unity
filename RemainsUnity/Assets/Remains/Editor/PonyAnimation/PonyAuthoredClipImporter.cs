@@ -37,7 +37,8 @@ namespace Remains.Editor
                 candidates.Add((clip,f,groups,groups.ToDictionary(g=>g.Socket,g=>layout.Get(clip.id,f,g.Top).Matrix,StringComparer.Ordinal),
                     groups.ToDictionary(g=>g.Socket,g=>layout.Get(clip.id,f,g.Top).Id,StringComparer.Ordinal)));
             }
-            var result=new List<PonyAuthoredClip>();float maxError=0;
+            // A targeted reimport (for example bedBack) must not erase other finished clips.
+            var result=PonyStrikeClipAuthoring.ExistingExcept(baseHash,Imports.Select(i=>i.Id)).ToList();float maxError=0;
             foreach(var import in Imports)
             {
                 var file=JObject.Parse(File.ReadAllText(Folder+import.File+".json"));
@@ -108,6 +109,7 @@ namespace Remains.Editor
         {
             try
             {
+                PonyAuthoredSupportAuthoring.Build();
                 PonyRenderCompiler.Build();
                 var catalog=AssetDatabase.LoadAssetAtPath<WearableRenderCatalogAsset>(WearableRenderCompiler.CatalogPath)??throw new InvalidDataException("Нет каталога одежды.");
                 foreach(var profile in catalog.Profiles)

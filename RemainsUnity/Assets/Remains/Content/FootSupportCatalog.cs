@@ -255,6 +255,7 @@ namespace Remains.Content
     public static class FootSupportCatalog
     {
         public const string Resource="Content/foot-support";
+        public const string AuthoredResource="Content/foot-support-authored";
         public const int MaximumRawBytes=32*1024*1024,MaximumCompressedBytes=16*1024*1024;
         private static IFootSupportProvider provider;
         private static string fingerprint;
@@ -282,8 +283,32 @@ namespace Remains.Content
             var bytes=asset.bytes;
             var loaded=Create(bytes,FootSupportSourceExpectation.Create("pony",pony.text,definition.alphaMinimum,definition.shapes));
             using var hash=SHA256.Create();var computed=Hex(hash.ComputeHash(bytes));
-            if(provider==null) provider=loaded;
+            IFootSupportProvider complete=loaded;
+            PonyAnimationData.Load();
+            var authored=PonyAuthoredClips.Bank;
+            if(Array.Exists(authored.clips,clip=>Domain.BedRest.HasFootSupport(clip.id)))
+            {
+                var source=GameAssets.Load<TextAsset>(PonyAuthoredClips.Resource);
+                var extra=GameAssets.Load<TextAsset>(AuthoredResource)??throw new InvalidOperationException("Нет запечённой опоры своих анимаций: "+AuthoredResource);
+                var addition=Create(extra.bytes,FootSupportSourceExpectation.Create("pony",source.text.Replace("\r\n","\n"),definition.alphaMinimum,definition.shapes));
+                complete=new AuthoredProvider(loaded,addition,Array.ConvertAll(authored.clips,clip=>clip.id));
+                using var joined=new MemoryStream();joined.Write(bytes,0,bytes.Length);joined.Write(extra.bytes,0,extra.bytes.Length);
+                computed=Hex(hash.ComputeHash(joined.ToArray()));
+            }
+            if(provider==null) provider=complete;
             fingerprint=computed;
+        }
+        // Both banks have validated frame/PNG registration. Unknown IDs still throw;
+        // an authored pose is never substituted by a standing frame.
+        private sealed class AuthoredProvider:IFootSupportProvider
+        {
+            private readonly IFootSupportProvider original,authored;
+            private readonly HashSet<string> ids;
+            public AuthoredProvider(IFootSupportProvider original,IFootSupportProvider authored,string[] ids)
+            {this.original=original;this.authored=authored;this.ids=new HashSet<string>(ids,StringComparer.Ordinal);}
+            public bool Supports(string anatomy)=>original.Supports(anatomy);
+            public FootSupportFrame Get(string anatomy,string clip,int frame)=>(ids.Contains(clip)?authored:original).Get(anatomy,clip,frame);
+            public void PrepareGradient(double gradient){original.PrepareGradient(gradient);authored.PrepareGradient(gradient);}
         }
         private static IFootSupportProvider Require()
         {

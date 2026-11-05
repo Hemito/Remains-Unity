@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Newtonsoft.Json;
@@ -136,7 +137,10 @@ namespace Remains.Editor
             Throws(()=>FootSupportCatalog.Create(Pack(clipped),expected),"truncated record");
             var trailing=new byte[payload.Length+1];Array.Copy(payload,trailing,payload.Length);
             Throws(()=>FootSupportCatalog.Create(Pack(trailing),expected),"trailing payload");
-            FootSupportCatalog.Load();Require(FootSupportCatalog.Fingerprint==Hash(bytes),"Fingerprint не соответствует фактическому gzip");
+            FootSupportCatalog.Load();
+            var authored=GameAssets.Load<TextAsset>(FootSupportCatalog.AuthoredResource);
+            var fingerprintBytes=PonyAuthoredClips.Bank.clips.Any(clip=>BedRest.HasFootSupport(clip.id))?bytes.Concat(authored.bytes).ToArray():bytes;
+            Require(FootSupportCatalog.Fingerprint==Hash(fingerprintBytes),"Fingerprint не соответствует фактическим gzip исходной/своей опоры");
             FootSupportCatalog.Supports("pony");Throws(()=>FootSupportCatalog.RegisterProvider(data),"late provider replacement");
             Debug.Log($"Foot-support: PASS — {frames} кадров, {cloudCentres} independent PNG centres, {cases} finite queries/{empty} empty, error={maximumError:R}; 4 PNG/RGBA hashes, exact-X/provenance, immutable bytes, corrupt/stale/one-ULP negatives, startup-only provider. Pure load={loadMs:F2}ms. Foot-fit/original runtime/GPU filtering не проверены.");
         }
@@ -163,3 +167,4 @@ namespace Remains.Editor
         {if(!value) throw new InvalidOperationException("Foot-support проверка: "+message+".");}
     }
 }
+

@@ -79,18 +79,30 @@ namespace Remains.Editor
         public static void Extend(WearableSourceBank bank,string source)
         {
             Load();
+            Extend(bank,source,Bank);
+        }
+        // Explicit unpublished plan for Editor preflight, before any runtime asset is written.
+        internal static void Extend(WearableSourceBank bank,string source,PonyAuthoredPlanBank plans)
+        {
             if(bank?.clips==null) throw new InvalidOperationException("Нет кадров банка снаряжения: "+source+".");
-            if(Bank.clips.Length==0)return;
+            if(plans?.clips==null) throw new InvalidOperationException("Нет плана анимаций для банка снаряжения: "+source+".");
+            foreach(var clip in plans.clips)
+            {
+                if(clip?.clip?.frames==null || clip.frames==null || clip.frames.Length!=clip.clip.frames.Length)
+                    throw new InvalidOperationException("Неполный план анимации для банка снаряжения: "+source+"/"+clip?.clip?.id);
+                for(int f=0;f<clip.frames.Length;f++)ValidateFrame(clip,f);
+            }
+            if(plans.clips.Length==0)return;
             var original=new Dictionary<string,WearableSourceClip>(StringComparer.Ordinal);
             foreach(var clip in bank.clips)
                 if(clip==null || string.IsNullOrWhiteSpace(clip.id) || clip.frames==null || !original.TryAdd(clip.id,clip))
                     throw new InvalidOperationException("Банк снаряжения: пустая или повторная анимация: "+source+"/"+clip?.id);
-            int present=Bank.clips.Count(c=>original.ContainsKey(c.clip.id));
-            if(present!=0 && present!=Bank.clips.Length)
-                throw new InvalidOperationException($"Банк снаряжения содержит только часть своих анимаций: source={source}, есть={present}, требуется={Bank.clips.Length}.");
-            if(present==Bank.clips.Length)
+            int present=plans.clips.Count(c=>original.ContainsKey(c.clip.id));
+            if(present!=0 && present!=plans.clips.Length)
+                throw new InvalidOperationException($"Банк снаряжения содержит только часть своих анимаций: source={source}, есть={present}, требуется={plans.clips.Length}.");
+            if(present==plans.clips.Length)
             {
-                foreach(var authored in Bank.clips)
+                foreach(var authored in plans.clips)
                 {
                     var existing=original[authored.clip.id];
                     if(existing.frames.Length!=authored.frames.Length)
@@ -100,7 +112,7 @@ namespace Remains.Editor
                 return;
             }
             var result=bank.clips.ToList();
-            foreach(var authored in Bank.clips)
+            foreach(var authored in plans.clips)
             {
                 var frames=new WearableSourceFrame[authored.frames.Length];
                 for(int f=0;f<frames.Length;f++)
