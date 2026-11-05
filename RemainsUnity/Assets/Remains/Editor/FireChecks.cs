@@ -61,9 +61,11 @@ namespace Remains.Editor
             // The bottle in flight: hard into the floor it breaks with the velocity it hit; a soft drop stays whole.
             var hard=new GrenadeState {id="hard",weapon="item:molotov",x=0,y=1,vx=6,vy=-8,remaining=molotov.grenadeFuseSeconds,rotationVersion=1};
             GrenadeRules.Step(hard,room,.5f);
+            Require(hard.simulationRemainder==0,"разбитая бутылка не оставляет остатка часов: хост отклонит её конец");
             Require(hard.shattered && hard.remaining==0 && hard.impactVy<-6 && hard.fuel>full-1 && hard.fuel<full,"сильный удар разбивает бутылку, топливо почти всё");
             var soft=new GrenadeState {id="soft",weapon="item:molotov",x=0,y=.15f,vx=.5f,vy=0,remaining=molotov.grenadeFuseSeconds,rotationVersion=1};
             GrenadeRules.Step(soft,room,3);
+            Require(soft.simulationRemainder==0,"упавшая бутылка не оставляет остатка часов");
             Require(!soft.shattered && soft.remaining==0 && soft.fuel>full-3 && soft.fuel<full,$"мягко упавшая бутылка цела и, остановившись, становится горелкой: топливо {soft.fuel:0.0}");
 
             var world=new WorldState();world.grenades.Add(soft);world.grenades.Add(hard);

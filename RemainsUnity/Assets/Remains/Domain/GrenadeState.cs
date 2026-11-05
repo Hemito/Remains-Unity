@@ -101,6 +101,9 @@ namespace Remains.Domain
                 state.simulationRemainder=Math.Max(0,state.simulationRemainder-step);
                 state.remaining=Mathf.Max(0,state.remaining-(float)step);
             }
+            // A bottle ends mid-frame by its impact: the unspent time is not a clock any more, and the host rejects a final
+            // message that carries a remainder of a step or more (and with it the fire).
+            if(state.remaining<=0) state.simulationRemainder=0;
             return impact;
         }
         private static float Advance(GrenadeState state,RoomLayout room,float dt,Remains.Content.WeaponDefinition definition)

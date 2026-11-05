@@ -96,7 +96,9 @@ namespace Remains.Domain
                 !float.IsFinite(perceivedPosition.x) || !float.IsFinite(perceivedPosition.y) ||
                 (perceivedPosition-observer.Position).sqrMagnitude>hearingSquared || !string.IsNullOrEmpty(observer.target)) return false;
             // Sound supplies a place to investigate, never an identity or current hidden-player coordinates.
-            Remember(memory,perceivedPosition);return true;
+            // True only for news: a louder fight just moves the point, as the countdown changes without a publication.
+            bool news=!memory.hasKnownPosition;
+            Remember(memory,perceivedPosition);return news;
         }
         // UnitTurret.alarma: for this one look the side it faces does not matter; unseen, it still knows where to turn.
         public bool Alarm(ActorState observer,NpcPerceptionMemory memory,ActorState subject,Func<Vector2,Vector2,bool> clearSight)

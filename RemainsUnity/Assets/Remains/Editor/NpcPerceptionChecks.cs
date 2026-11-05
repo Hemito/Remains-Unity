@@ -35,8 +35,11 @@ namespace Remains.Editor
             Require(npc.target==a.id,"Близкий контакт позади не обнаружен.");
             a.down=true;perception.Step(npc,memory,subjects,Clear,.1f);
             Require(npc.target==null,"Лежащий игрок остался боевой целью.");
+            memory.hasKnownPosition=false;
             Require(perception.Hear(npc,memory,npc.level,new Vector2(3,0)) && npc.target==null && memory.knownX==3,
                 "Шум должен дать место поиска без точной цели.");
+            // A repeated noise moves the point without news: a fight does not republish every listener on every shot.
+            Require(!perception.Hear(npc,memory,npc.level,new Vector2(4,0)) && memory.knownX==4,"Повторный шум должен сдвинуть точку без новой публикации.");
             Require(!perception.Hear(npc,memory,"hub",Vector2.zero) && !perception.Hear(npc,memory,npc.level,new Vector2(20,0)),
                 "Слух пересёк уровень или дальность.");
 

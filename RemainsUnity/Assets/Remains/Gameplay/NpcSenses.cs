@@ -78,7 +78,8 @@ namespace Remains.Gameplay
         private void Hear(AttackEvent attack)
         {
             var source=session.World?.Find(attack.attacker);
-            if(source==null || !source.player || !source.connected || session.Pause.IsPaused(attack.level) ||
+            // A volley is one sound: its pellets leave from one point (attack.volley names the first shot).
+            if(attack.volley!=null || source==null || !source.player || !source.connected || session.Pause.IsPaused(attack.level) ||
                 WeaponCatalog.Get(attack.weapon).projectileSpeed<=0) return;
             foreach(var actor in session.World.actors)
             {
