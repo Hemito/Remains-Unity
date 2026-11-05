@@ -26,10 +26,8 @@ namespace Remains.Content
             float bottom=spikes.bottomAnchored?anchor.y:anchor.y+cell-spikes.height;
             return new RoomSpike {id=stableId,definition=spikes.id,x=anchor.x-spikes.width*.5f,y=bottom,width=spikes.width,height=spikes.height,danger=danger};
         }
-        private void OnValidate()
-        {
-            if(string.IsNullOrWhiteSpace(stableId) || string.IsNullOrWhiteSpace(definition)) Debug.LogWarning($"Шипы {name}: не заданы ID или описание.",this);
-        }
+        // Read validates the complete placement. AddComponent is followed by Configure;
+        // OnValidate must not warn for that still-empty transient construction step.
     }
 
     // The generated factory's spikes from its room templates: an object whose AllData obj is spikes (SpikeCatalog
@@ -41,6 +39,7 @@ namespace Remains.Content
             if(root==null || root.Prepared==null) throw new InvalidOperationException("Шипы завода: нужен подготовленный корень.");
             if(root.GetComponentInChildren<RoomSpikeAuthoring>(true)!=null) throw new InvalidOperationException("Шипы завода: повторная установка запрещена.");
             var placed=new System.Collections.Generic.List<RoomSpikeAuthoring>();
+            SpikeArtworkCatalog artwork=null;
             foreach(var placement in root.Objects.OrderBy(value=>value.Id,StringComparer.Ordinal))
             {
                 string type=placement.Source.Type;
@@ -54,6 +53,17 @@ namespace Remains.Content
                 var spikes=node.AddComponent<RoomSpikeAuthoring>();
                 spikes.Configure($"{placement.Room.Cell.X},{placement.Room.Cell.Y}:{placement.Source.Id}",definition.id,
                     (float)placement.Room.Template.Cell,placement.Room.Cell.Y/2f);
+                if(artwork==null)
+                {
+                    artwork=GameAssets.Load<SpikeArtworkCatalog>(SpikeArtworkCatalog.Resource)
+                        ??throw new InvalidOperationException("Нет каталога двухслойной графики шипов: "+SpikeArtworkCatalog.Resource);
+                    artwork.Validate();
+                }
+                var visual=UnityEngine.Object.Instantiate(artwork.Prefab,node.transform,false);
+                // Location.as: (ny + 1) * tileY - 1; in Unity the source Y-down becomes bottom + one source pixel.
+                // The mechanics above keep their existing cell anchor; only the source artwork uses the pixel offset.
+                visual.transform.localPosition=new Vector3(0,1f/50,0);
+                visual.Initialize(artwork.Require(definition.id),placement.Id);
                 placed.Add(spikes);
             }
             // The factory's geometry is prepared before its content: the spikes join it here, the nodes stay for the editor.

@@ -11,6 +11,8 @@ namespace Remains.Presentation
     public static class WorldVisualOrderPolicy
     {
         public const int SceneryRoomOrder=0,ActorShadowOrder=1,ActorPartOrder=20,WeaponPartOrder=100,OutlineLocalOrder=short.MaxValue;
+        // Original visObjs[3]: fixed foreground fixtures cover actors/ordinary props, below held objects and effects.
+        public const int ForegroundFixtureOrder=20999;
         private static readonly Dictionary<string,WorldVisualCategory> actorCategories=new(StringComparer.Ordinal)
         {{"training-dummy",WorldVisualCategory.Scenery},{"training-armored-dummy",WorldVisualCategory.Scenery}};
         public static long Generation {get;private set;}
@@ -39,7 +41,7 @@ namespace Remains.Presentation
         public static int LastOrder(WorldVisualCategory category)=>category switch
         {
             WorldVisualCategory.Scenery=>997,WorldVisualCategory.OrdinaryObject=>4999,WorldVisualCategory.Body=>9999,
-            WorldVisualCategory.Npc=>14999,WorldVisualCategory.Player=>20999,WorldVisualCategory.Telekinesis=>29999,
+            WorldVisualCategory.Npc=>14999,WorldVisualCategory.Player=>ForegroundFixtureOrder-1,WorldVisualCategory.Telekinesis=>29999,
             WorldVisualCategory.Effect=>short.MaxValue-1,_=>throw new ArgumentOutOfRangeException(nameof(category))
         };
         public static bool Contains(WorldVisualCategory category,int order)=>order>=FirstOrder(category) && order<=LastOrder(category);

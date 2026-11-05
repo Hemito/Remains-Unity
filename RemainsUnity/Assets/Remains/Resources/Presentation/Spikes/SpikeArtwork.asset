@@ -1,0 +1,99 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b265e1c60567c04fbe872b18a70c010, type: 3}
+  m_Name: SpikeArtwork
+  m_EditorClassIdentifier: 
+  manifestSha256: 0202c1fdc43bb73e41e8bf5322095e9c592b1d16b983500ca73bf13b3d5849ce
+  prefab: {fileID: 5568967151145529262, guid: 981adb6cd4bc0bb4aa9bed1318f3165c, type: 3}
+  definitions:
+  - id: spikes
+    rawXml: "<obj ed=\"19\" ico=\"mine\" id=\"spikes\" n=\"\u0428\u0438\u043F\u044B\"
+      tip=\"trap\" att=\"1\" bind=\"1\" size=\"1\" wid=\"1\" damage=\"50\" tipdam=\"1\"
+      />"
+    rear:
+    - resource: pfeUI:3098
+      sha256: 9c2dfb85163f236a1fe73dec44ec30146281be8333cc2bf8428fc422a7a07369
+      frame: 1
+      zoom: 1
+      sourceOrigin: {x: 20, y: 37}
+      sourceSize: {x: 40, y: 40}
+      sprite: {fileID: 21300000, guid: 4b7d2fa33de8d2a48a71c6c053f91c17, type: 3}
+    - resource: pfeUI:3098
+      sha256: 8c57a1ba3e769ccc1f6b40cf8565cc55634f3c88a7c16277f619235dc42e5755
+      frame: 2
+      zoom: 1
+      sourceOrigin: {x: 20, y: 37}
+      sourceSize: {x: 40, y: 40}
+      sprite: {fileID: 21300000, guid: af9cff70727f1564abe145a2eab316ef, type: 3}
+    - resource: pfeUI:3098
+      sha256: a172cc6f784af852803c3bfe211512ecd47ab5e7c5632e2bb8d6f541fab03402
+      frame: 3
+      zoom: 1
+      sourceOrigin: {x: 20, y: 37}
+      sourceSize: {x: 40, y: 40}
+      sprite: {fileID: 21300000, guid: d9dbe32aa1a07cd4c908c94189f077bb, type: 3}
+    - resource: pfeUI:3098
+      sha256: 9d410597130647debfc5119842638fefd1f866e373af02ce2ef2a6497a592458
+      frame: 4
+      zoom: 1
+      sourceOrigin: {x: 20, y: 37}
+      sourceSize: {x: 40, y: 40}
+      sprite: {fileID: 21300000, guid: 3235a5720a2d878439a2d10e138a4e0d, type: 3}
+    front:
+    - resource: pfeUI:3089
+      sha256: 8bdcbde7064a9fc00e7eda86ca48f8068328d60e702b53a400f679e8b97be4ea
+      frame: 1
+      zoom: 1
+      sourceOrigin: {x: 20, y: 39}
+      sourceSize: {x: 40, y: 40}
+      sprite: {fileID: 21300000, guid: 8282317aa10844b46a9c8e44a5cb014d, type: 3}
+    - resource: pfeUI:3089
+      sha256: f92da21d4a758eed02d55831b54bd95f52aab7f7f8640269fc29daa996e6b507
+      frame: 2
+      zoom: 1
+      sourceOrigin: {x: 20, y: 39}
+      sourceSize: {x: 40, y: 40}
+      sprite: {fileID: 21300000, guid: 6dc08949c49f280429c7566655f1b48b, type: 3}
+    - resource: pfeUI:3089
+      sha256: 48c523fbb7d7f9b99ea3c5e0ab3d27ae6645a5fa27812a79830ee384d21025d6
+      frame: 3
+      zoom: 1
+      sourceOrigin: {x: 20, y: 39}
+      sourceSize: {x: 40, y: 40}
+      sprite: {fileID: 21300000, guid: e0a467cad578ce145a4be8b7dc846a7d, type: 3}
+    - resource: pfeUI:3089
+      sha256: b79cc6b315843e0545e2c3d5d57e05ea88afe5a844f1e7723c7a7491ac6a1b1e
+      frame: 4
+      zoom: 1
+      sourceOrigin: {x: 20, y: 39}
+      sourceSize: {x: 40, y: 40}
+      sprite: {fileID: 21300000, guid: c1ac1a906dc0cfa43a4618bc9dba7042, type: 3}
+  - id: fspikes
+    rawXml: "<obj ed=\"19\" ico=\"mine\" id=\"fspikes\" n=\"\u041F\u043E\u0442\u043E\u043B\u043E\u0447\u043D\u044B\u0435
+      \u0448\u0438\u043F\u044B\" att=\"2\" bind=\"2\" floor=\"1\" sY=\"20\" tip=\"trap\"
+      size=\"1\" wid=\"1\" damage=\"15\" tipdam=\"1\" />"
+    rear:
+    - resource: pfeUI:3102
+      sha256: e549ab8c6e08aafd607351be097a801ea0d5ad6b90e19b1545551933106fa4dc
+      frame: 1
+      zoom: 8
+      sourceOrigin: {x: 18, y: 48.75}
+      sourceSize: {x: 291, y: 298}
+      sprite: {fileID: 21300000, guid: 2c7662921213d5146a02846295677f06, type: 3}
+    front:
+    - resource: pfeUI:3100
+      sha256: ca168724eb1787277ed471b6798f93a8d2e91cecea5b34c6d82ce7ffa444038a
+      frame: 1
+      zoom: 8
+      sourceOrigin: {x: 15.25, y: 49.75}
+      sourceSize: {x: 250, y: 200}
+      sprite: {fileID: 21300000, guid: ecc45769a3f627a4b98cf36fefc44147, type: 3}

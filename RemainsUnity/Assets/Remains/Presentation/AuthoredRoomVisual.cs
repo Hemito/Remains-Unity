@@ -28,6 +28,7 @@ namespace Remains.Presentation
                     using(Remains.Diagnostics.FrameHitchLog.Section("Переход: тела")) props.Install(factory);
                     if(!factory.TryGetComponent<FactoryContainerAdapter>(out var containers))throw new InvalidOperationException("Нет авторского адаптера контейнеров завода.");
                     using(Remains.Diagnostics.FrameHitchLog.Section("Переход: контейнеры")) containers.Install(factory,world);
+                    using(Remains.Diagnostics.FrameHitchLog.Section("Переход: шипы")) FactorySpikeAdapter.Install(factory);
                     foreach(var door in factory.GetComponentsInChildren<RoomDoorAuthoring>(true)) door.gameObject.SetActive(false);
                     using(Remains.Diagnostics.FrameHitchLog.Section("Переход: вид уровня")) view.Initialize(factory,room);
                     return factory.gameObject;
