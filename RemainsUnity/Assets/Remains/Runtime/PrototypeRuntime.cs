@@ -269,6 +269,7 @@ namespace Remains.Runtime
                 hud.SelectedInteraction=()=>InteractionFocus.Target;
                 hud.ContainerOpened+=ContainerAudio.Play;
                 hud.PickupPending=()=>Pickup.Pending;
+                hud.BedLabel=(actor,id)=>BedRest.Label(FindBed(actor,id));
                 hud.MechanismProgress=()=>MechanismInteraction.Progress;
                 hud.MechanismPending=()=>MechanismInteraction.Pending;
                 hud.ReloadRemaining=()=>Combat.Reload.Active?Combat.Reload.Remaining:(float?)null;
@@ -706,10 +707,11 @@ namespace Remains.Runtime
             if(!WeaponInventory.Select(actor,item,out var reason)) {Session.ShowNotice(reason);return;}
             Combat.Weapon=actor.weapon;Session.PublishActor(actor);
         }
+        private RoomRest FindBed(ActorState actor,string id)=>System.Array.Find(Geometry.Get(actor.level).beds,b=>b.id==id);
         // E at a bed: on the belly or, when its clip is in the game, at random on the back (user 2026-11-01).
         private void LieOnBed(ActorState actor,string id)
         {
-            var bed=System.Array.Find(Geometry.Get(actor.level).beds,b=>b.id==id);
+            var bed=FindBed(actor,id);
             if(bed==null || BedRest.Rejection(actor,bed)!=null) return;
             bool back=PonyRenderSelection.HasClip(BedRest.BackClip);
             if(!back) Debug.LogWarning($"Кровать {id}: позы на спине ({BedRest.BackClip}) ещё нет в игровом банке пони — ложится только на живот.",this);

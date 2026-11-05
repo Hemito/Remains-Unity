@@ -85,6 +85,8 @@ namespace Remains.Presentation
         public CharacterContentPanel CharacterContent {get;private set;}
         public SessionModPanel SessionMods {get;private set;}
         public PauseMenu PauseMenu {get;private set;}
+        // The name of a place to lie on: its room is the host runtime's, not the HUD's.
+        public System.Func<ActorState,string,string> BedLabel=(actor,id)=>"кровать";
         private DebugItemsPanel debugItems;
         private RoomLoadingView roomLoading;
         private Transform pauseMenuLayer;
@@ -428,7 +430,7 @@ namespace Remains.Presentation
                     interaction.bounds,show,actor,session.Hazards.Pending);
             }
             else if(interaction.kind==InteractionKind.Bed)
-                containerHint.RefreshAction("лечь на кровать",interaction.bounds,show,actor,false);
+                containerHint.RefreshAction("лечь на "+BedLabel(actor,interaction.id),interaction.bounds,show,actor,false);
             else containerHint.RefreshSource(interaction.kind is InteractionKind.Container or InteractionKind.Pickup?
                 InventorySource.Resolve(session.World,interaction.id):null,show,actor,PickupPending?.Invoke()==true,session.Rules.Loot);
             containerHint.Highlight(interaction,show);

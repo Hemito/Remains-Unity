@@ -21,6 +21,7 @@ namespace Remains.Domain
         public static bool HasFootSupport(string clip)=>clip!=BackClip;
         public static string Clip(ActorState actor)=>actor.restPose==Back?BackClip:BellyClip;
         public static Rect Bounds(RoomRest bed)=>new(bed.x,bed.y,bed.width,bed.height+PointerAbove);
+        public static string Label(RoomRest bed)=>string.IsNullOrEmpty(bed?.label)?"кровать":bed.label;
 
         public static string Rejection(ActorState actor,RoomRest bed)
         {
@@ -40,8 +41,10 @@ namespace Remains.Domain
             string reason=Rejection(actor,bed);
             if(reason!=null) throw new InvalidOperationException($"Лечь на кровать {bed?.id} нельзя: {reason}");
             actor.rest=bed.id;actor.restPose=pose;
-            actor.x=bed.x+bed.width*(pose==Belly?BellyAnchorFraction:.5f);
-            actor.facing=pose==Belly?-1:1;
+            // The approved placement is for a head on the left; a head on the right mirrors it.
+            float anchor=pose==Belly?BellyAnchorFraction:.5f;
+            actor.x=bed.x+bed.width*(bed.headRight?1-anchor:anchor);
+            actor.facing=(pose==Belly)!=bed.headRight?-1:1;
             actor.y=bed.y+bed.height;actor.vx=actor.vy=0;actor.crouched=false;
             actor.poseTime=ActorPose.PassiveSettleSeconds;actor.poseSequence=unchecked(actor.poseSequence+1);
             actor.revision++;

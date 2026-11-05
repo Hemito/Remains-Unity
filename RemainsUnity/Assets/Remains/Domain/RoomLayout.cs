@@ -10,7 +10,12 @@ namespace Remains.Domain
     // Spikes of the level (SpikeCatalog, loc/Trap.as): the hurting box and the danger (locDifLevel) of its room.
     [Serializable] public sealed class RoomSpike { public string id,definition; public float x,y,width,height,danger; }
     // A bed to lie on (BedRest): its box, bottom-left corner, the top is where a resting body lies.
-    [Serializable] public sealed class RoomRest { public string id; public float x,y,width,height; }
+    [Serializable] public sealed class RoomRest
+    {
+        public string id;public float x,y,width,height;
+        // What it is called in the action hint, accusative («лечь на …»); empty — a bed. Its head end is on the right.
+        public string label;public bool headRight;
+    }
     [Serializable] public sealed class RoomLayout
     {
         public string id,lightingProfile,movementSound;

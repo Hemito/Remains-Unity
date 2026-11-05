@@ -33,6 +33,16 @@ namespace Remains.Editor
             Require(!BedRest.Step(actor,false) && !BedRest.Active(actor),"сбитый с ног покидает кровать");
             actor.down=false;actor.x=1.2f;actor.y=0;
 
+            // A head on the right mirrors the approved placement.
+            var stretcher=new RoomRest {id="stretcher",x=2,y=0,width=3.2f,height=.86f,label="каталку",headRight=true};
+            BedRest.LieDown(actor,stretcher,BedRest.Belly);
+            Require(Mathf.Approximately(actor.x,2.96f) && actor.facing==1 && Mathf.Approximately(actor.y,.86f),$"изголовье справа: ({actor.x}; {actor.y}), сторона {actor.facing}");
+            BedRest.GetUp(actor);actor.x=1.2f;actor.y=0;
+            BedRest.LieDown(actor,stretcher,BedRest.Back);
+            Require(actor.facing==-1,"на спине с изголовьем справа — зеркально");
+            BedRest.GetUp(actor);actor.x=1.2f;actor.y=0;
+            Require(BedRest.Label(stretcher)=="каталку" && BedRest.Label(bed)=="кровать","название в подсказке");
+
             var world=new WorldState();world.actors.Add(actor);
             var rules=GameplayRuleSet.CreateDefault();
             var target=InteractionSelection.Select(world,actor,rules,new Vector2(3,.3f),null,null,new[]{bed});
