@@ -147,6 +147,17 @@ namespace Remains.Editor
                             var expected=PonyRigPilotArt.Affine(sourcePart.matrix);
                             for(int k=0;k<16;k++)maximumError=Math.Max(maximumError,Math.Abs(moved[k]-expected[k]));
                             var part=StateJson.Copy(sourcePart);part.path=top+PonySymbolLayout.LocalPath(part.path);
+                            if(part.path.Contains("/eye/eye/") && (part.shape=="201" || part.shape=="202"))
+                            {
+                                // The extra export retains the iris' unmasked source PNG.
+                                // The complete head has the same per-part affine as this
+                                // donor, so its already baked clipping is the correct art.
+                                var masked=sourceFrame.parts[old];
+                                Require(masked.texture.Contains("-masked-") && masked.bounds.SequenceEqual(part.bounds),
+                                    $"Нет совпадающей маски глаза: {id}/{f}/{part.path}, donor={donor.Clip.id}/{donor.Frame}.");
+                                part.texture=masked.texture;
+                            }
+                            Require(!(part.shape=="200" && part.path.Contains("/eye/")),"Маска глаза не должна рисоваться отдельной фигурой: "+part.path);
                             part.drawOrder=parts.Count;oldIndices.Add(old);newIndices.Add(parts.Count);parts.Add(part);
                         }
                         recipes.Add(new PonyAuthoredNode {top=top,donorTop=donor.Group.Top,donorClip=donor.Clip.id,
@@ -155,7 +166,7 @@ namespace Remains.Editor
                     output.frames[f]=new PonyFrame {parts=parts.ToArray()};
                     frames[f]=new PonyAuthoredFrame {donorClip="per-node",nodes=recipes.ToArray()};
                 }
-                result.Add(new PonyAuthoredClip {source=$"original/pony-extra/pony-extra.json#x_{id}/0..19;sha256={digest};excludedEffectLayer=72",clip=output,frames=frames});
+                result.Add(new PonyAuthoredClip {source=$"original/pony-extra/pony-extra.json#x_{id}/0..19;sha256={digest};excludedEffectLayer=72;eyeMask=exact-affine-donor",clip=output,frames=frames});
             }
             Require(nodes==680 && maximumError<.00005f,$"Удары пони: узлов={nodes}/680, ошибка affine={maximumError:G6}.");
             // The same canonical symbol registration that the compiled rig will consume.
