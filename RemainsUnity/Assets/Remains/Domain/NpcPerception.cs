@@ -98,6 +98,16 @@ namespace Remains.Domain
             // Sound supplies a place to investigate, never an identity or current hidden-player coordinates.
             Remember(memory,perceivedPosition);return true;
         }
+        // UnitTurret.alarma: for this one look the side it faces does not matter; unseen, it still knows where to turn.
+        public bool Alarm(ActorState observer,NpcPerceptionMemory memory,ActorState subject,Func<Vector2,Vector2,bool> clearSight)
+        {
+            if(!Eligible(observer,subject)) return false;
+            Remember(memory,subject.Position);
+            var start=observer.BodyPosition+Vector2.up*eyeHeight;
+            var end=subject.BodyPosition+Vector2.up*targetHeight;
+            if((end-start).sqrMagnitude>sightSquared || !clearSight(start,end)) return false;
+            observer.target=subject.id;return true;
+        }
         private void Remember(NpcPerceptionMemory memory,Vector2 position)
         {
             memory.hasKnownPosition=true;memory.knownX=position.x;memory.knownY=position.y;memory.remainingSeconds=memorySeconds;

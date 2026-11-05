@@ -341,6 +341,7 @@ namespace Remains.Editor
             Require(!Remains.Gameplay.NpcTurret.Step(turret,type,intruder,false,intruder.Position,null,dt,random) && turret.creature.mode==Remains.Gameplay.NpcTurret.Search,$"{id}: потеряв цель, ищет");
             for(float t=0;t<settings.searchSeconds+.1f;t+=dt) Remains.Gameplay.NpcTurret.Step(turret,type,intruder,false,null,null,dt,random);
             Require(turret.creature.mode==Remains.Gameplay.NpcTurret.Watch,$"{id}: после поиска снова наблюдает");
+            Remains.Gameplay.NpcTurret.Step(turret,type,null,false,null,null,dt,random);
             if(settings.fixedFacing) Require(turret.facing==1,$"{id}: бронированная не разворачивается");
             else Require(turret.facing==(Mathf.Cos(turret.weaponAngle*Mathf.Deg2Rad)<0?-1:1),$"{id}: смотрит туда, куда направлен ствол");
             turret.hold=new ActorHoldState {holder=intruder.id,token="turret-held-check"};

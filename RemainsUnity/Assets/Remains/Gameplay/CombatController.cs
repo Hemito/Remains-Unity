@@ -291,6 +291,7 @@ namespace Remains.Gameplay
                 }
         }
 
+        public event System.Action<ActorState,AttackEvent> NpcDamaged;
         private void ReceiveNpcHit(NpcHitMessage message)
         {
             var actor = session.World?.Find(message.target);
@@ -298,7 +299,7 @@ namespace Remains.Gameplay
             if(session.Pause.IsPaused(actor.level)) {pending.Add(actor.level,()=>ReceiveNpcHit(message));return;}
             var attack = JsonUtility.FromJson<AttackEvent>(message.attackJson);
             if(actor.resolvedAttacks.Contains(attack.id)) {NpcReplayRejected?.Invoke(attack.id);return;}
-            if (ApplyVictim(actor, attack, true)) session.PublishActor(actor);
+            if (ApplyVictim(actor, attack, true)) {NpcDamaged?.Invoke(actor,attack);session.PublishActor(actor);}
         }
         // udarUnit: a body contact lands at most once per the victim's window (Unit.neujaz, shared with spikes and Box),
         // whoever touches: two raiders cannot both hit in one window.

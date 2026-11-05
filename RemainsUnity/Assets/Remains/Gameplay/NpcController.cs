@@ -29,6 +29,7 @@ namespace Remains.Gameplay
             movementSettings=Remains.Content.MovementSettings.Load();
             raiders=new NpcRaiderController(movementSettings);
             senses=new NpcSenses(session,geometry);
+            if(combat!=null) combat.NpcDamaged+=Alarm;
             session.AttackReceived+=raiders.Heard;
             session.Changed+=()=>
             {
@@ -59,6 +60,14 @@ namespace Remains.Gameplay
         }
         private readonly System.Random turretRandom=new();
         private readonly ConnectedPlayers connected=new();
+        // Unit.damage calls alarma: a turret shot from behind must not go on sweeping.
+        private void Alarm(ActorState actor,AttackEvent attack)
+        {
+            var type=Remains.Content.ActorTypes.Get(actor.actorType);
+            var attacker=session.World.Find(attack.attacker);
+            if(actor.down || !NpcCreatureBehaviours.Fixed(type.behavior) || attacker==null || !attacker.player) return;
+            if(NpcTurret.Alarm(actor,type,attacker.Position)) {senses.Alarm(actor,attacker);actor.revision++;}
+        }
         public void Step(float dt)
         {
             if(session.World==null) return;

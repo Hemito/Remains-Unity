@@ -68,6 +68,13 @@ namespace Remains.Gameplay
             perception.Step(actor,actor.perception,session.World.actors,(from,to)=>RoomVisibility.Clear(room,from,to),seconds);
             if(previous!=actor.target) {actor.revision++;session.PublishActor(actor);}
         }
+        public void Alarm(ActorState actor,ActorState attacker)
+        {
+            if(!policies.TryGetValue(actor.actorType,out var perception))
+                throw new InvalidOperationException($"Нет политики восприятия: actor={actor.id}, type={actor.actorType}.");
+            var room=geometry.Get(actor.level);
+            perception.Alarm(actor,actor.perception,attacker,(from,to)=>RoomVisibility.Clear(room,from,to));
+        }
         private void Hear(AttackEvent attack)
         {
             var source=session.World?.Find(attack.attacker);

@@ -129,7 +129,7 @@ namespace Remains.Editor
             MeleeImpactAudioChecks.Run();
             ImpactAudioCoverageChecks.Run();
             RemotePropMotionChecks.Run();
-            RaiderChecks.Run();RaiderBrainChecks.Run();PonyBrainChecks.Run();PonyStrikeChecks.Run();GrenadeAimChecks.Run();BedRestChecks.Run();FireChecks.Run();DebugItemsChecks.Run();
+            RaiderChecks.Run();RaiderBrainChecks.Run();PonyBrainChecks.Run();PonyStrikeChecks.Run();GrenadeAimChecks.Run();BedRestChecks.Run();FireChecks.Run();DebugItemsChecks.Run();TurretRoomChecks.Run();
             AtlasAssetChecks.Run();
             PonyPrefabChecks.Run();
             PonyRenderChecks.Run();

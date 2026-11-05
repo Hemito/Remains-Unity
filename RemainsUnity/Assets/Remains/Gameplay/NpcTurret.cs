@@ -50,6 +50,8 @@ namespace Remains.Gameplay
                         state.timer=settings.alertMinSeconds+(float)random.NextDouble()*(settings.alertMaxSeconds-settings.alertMinSeconds);
                         break;
                     }
+                    // Unit.findCel: a heard noise gives it a place to turn to; an armored turret stays on its side.
+                    if(known.HasValue && !settings.fixedFacing) {state.mode=Search;state.timer=settings.searchSeconds;break;}
                     if(state.timer<=0) {state.directionX=(state.directionX+1)%settings.patrolAngles.Length;state.timer=settings.periodSeconds;}
                     TurnTo(actor,Patrol(actor,settings,(int)state.directionX),settings.watchTurnDegreesPerSecond,dt,settings);
                     break;
@@ -58,6 +60,15 @@ namespace Remains.Gameplay
             return state.mode==Attack && seen.HasValue;
         }
 
+        // UnitTurret.alarma: a hit wakes it straight into attack, whichever way it looked, facing the attacker at once
+        // (setNull: storona follows the target, not the gun). An armored turret ignores it (alarma returns for tip 3).
+        public static bool Alarm(ActorState actor,ActorTypeDefinition type,Vector2 attacker)
+        {
+            if(type.turret.fixedFacing) return false;
+            var state=actor.creature??=Initial(actor,type.turret);
+            state.mode=Attack;state.timer=type.turret.searchSeconds;actor.facing=attacker.x<actor.x?-1:1;
+            return true;
+        }
         // While an action resolves (aiming, reloading) the gun keeps following its target at the attack rate.
         public static void Follow(ActorState actor,ActorTypeDefinition type,ActorState target,bool visible,RoomLayout room,float dt)
         {if(visible) Turn(actor,target.BodyPosition+Vector2.up*.55f,type.turret.attackTurnDegreesPerSecond,room,dt,type.turret);}
@@ -82,6 +93,9 @@ namespace Remains.Gameplay
             WeaponPose.Aim(actor,point,room);
             float wanted=actor.weaponAngle;actor.weaponAngle=previous;
             TurnTo(actor,wanted,speed,dt,settings);
+            // With a target it faces the target, not the gun (setNull: aiState > 1, storona by celDX): a turning gun must
+            // not lose it behind its own back.
+            if(!settings.fixedFacing) actor.facing=point.x<actor.x?-1:1;
         }
         private static void TurnTo(ActorState actor,float wanted,float speed,float dt,TurretSettings settings)
         {
