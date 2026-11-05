@@ -26,7 +26,7 @@ namespace Remains.Editor
                 importer.textureCompression=TextureImporterCompression.Uncompressed;importer.maxTextureSize=4096;
                 importer.wrapMode=TextureWrapMode.Clamp;importer.mipmapEnabled=false;importer.alphaIsTransparency=true;importer.SaveAndReimport();
             }
-            MapWindow();RemoveShortcuts();
+            MapWindow();MapNumber();RemoveShortcuts();
             AddPoint("Assets/Remains/Resources/Levels/hub.prefab","hub",true);
             AddPoint("Assets/Remains/RoomDrafts/ConnectedTrainingHub.prefab","hub",true);
             foreach(var entry in RoomCatalogAsset.Load().Entries.Where(e=>e.id!="base:hub"))
@@ -92,7 +92,7 @@ namespace Remains.Editor
                 view.Map=image.GetComponent<Image>();HudElements.Rect(view.Map.rectTransform,new Vector2(18,-62),new Vector2(520,520));
                 view.Map.sprite=Artwork("world-map",false);view.Map.raycastTarget=false;
                 // Content position of random_plant in the selected original map, independent of its scripts.
-                view.Factory=ui.Button(root.transform,"Завод · 0",new Vector2(18+164.9f/550*520-80,-62-330f/550*520),new Vector2(160,36),()=>{});
+                view.Factory=ui.Button(root.transform,"Завод",new Vector2(18+164.9f/550*520-80,-62-330f/550*520),new Vector2(160,36),()=>{});
                 view.Description=ui.Label(root.transform,"Выберите место на карте.",new Vector2(566,-92),new Vector2(310,320));view.Description.fontSize=20;
                 view.Travel=ui.Button(root.transform,"Отправиться",new Vector2(566,-450),new Vector2(310,48),()=>{});
                 view.Close=ui.Button(root.transform,"Закрыть · Esc",new Vector2(566,-514),new Vector2(310,48),()=>{});
@@ -101,6 +101,32 @@ namespace Remains.Editor
                 view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
             }
             finally {UnityEngine.Object.DestroyImmediate(root);}
+        }
+        // Numbered factories (world-structure): the number under the description, on the map window already saved.
+        public static void MapNumberBatch() {MapNumber();AssetDatabase.SaveAssets();Debug.Log("Карта мира: номер завода — PASS.");}
+        private static void MapNumber()
+        {
+            const string path="Assets/Remains/Resources/Presentation/WorldMap.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var view=root.GetComponent<WorldMapView>();
+                if(view.Index!=null) return;
+                var ui=new HudElements(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+                HudElements.Rect(view.Description.rectTransform,new Vector2(566,-62),new Vector2(310,320));
+                view.Description.fontSize=17;
+                ui.Label(root.transform,"Номер завода",new Vector2(566,-388),new Vector2(150,28));
+                view.Previous=ui.Button(root.transform,"−",new Vector2(696,-386),new Vector2(36,36),()=>{});
+                view.Index=ui.Input(root.transform,new Vector2(736,-386));
+                HudElements.Rect((RectTransform)view.Index.transform,new Vector2(736,-386),new Vector2(100,36));
+                HudElements.Rect(view.Index.textComponent.rectTransform,new Vector2(8,-4),new Vector2(84,28));
+                view.Index.gameObject.name="Номер завода";view.Index.text="0";
+                view.Next=ui.Button(root.transform,"+",new Vector2(840,-386),new Vector2(36,36),()=>{});
+                foreach(var button in new[]{view.Previous,view.Next})
+                    button.GetComponent<Image>().sprite=AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Remains/Resources/Presentation/MainMenuArtwork/button-glow.asset");
+                view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path);
+            }
+            finally {PrefabUtility.UnloadPrefabContents(root);}
         }
         private static void RemoveShortcuts()
         {

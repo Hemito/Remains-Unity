@@ -62,7 +62,8 @@ namespace Remains.Content
                     throw new InvalidOperationException($"Случайные враги завода: комната {room.Template.Template} {room.Template.Width}×{room.Template.Height}, ожидалась {RoomWidth}×{RoomHeight}.");
                 var random=Random(layout,room.Cell);
                 double danger=room.Cell.Y/2.0;   // the same half-floor locDifLevel as FactoryEnemyScaling
-                int enemyType=RandomEncounterRules.EnemyType(0,random.Unit);
+                // On the room's own stream, so the main factory's plan stays what it always was.
+                int enemyType=root.Prepared.Profile.EnemyType(random.Unit);
                 var (counts,hidden)=RandomEncounterRules.Counts(danger,enemyType,random.Unit);
                 var plan=new RoomPlan {Room=room,EnemyType=enemyType,Hidden=hidden,Danger=danger,Counts=counts,Points=new int[RandomEncounterRules.Kinds]};
                 rooms?.Add(plan);
@@ -77,6 +78,7 @@ namespace Remains.Content
                     {
                         int pick=random.Range(free[kind].Count);var point=free[kind][pick];free[kind].RemoveAt(pick);
                         string unit=RandomEncounterRules.Unit(kind,enemyType,danger,(room.Cell.X+room.Cell.Y)%2,random.Unit);
+                        if(kind==RandomEncounterRules.Crawling) unit=root.Prepared.Profile.Crawler(unit,enemyType,(room.Cell.X+room.Cell.Y)%2,random.Unit);
                         if(unit.Length>0) result.Add(new Encounter {Point=point,Unit=unit,Kind=kind,EnemyType=enemyType,Danger=danger});
                     }
                 }

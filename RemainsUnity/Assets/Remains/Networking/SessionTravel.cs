@@ -44,6 +44,9 @@ namespace Remains.Networking
 
         public void RequestFactory() => Request("factory:0");
         public void RequestHub() => Request("hub");
+        // The hub map names any number; the host creates the factory on the first visit.
+        public void RequestFactory(string mapPoint,int index) => Request(WorldFactories.Level(index),mapPoint);
+        public void RequestFactory(int index) => Request(WorldFactories.Level(index));
         public TravelPoint[] Points(string level,bool server=false)
         {
             if(level==null) return Array.Empty<TravelPoint>();
@@ -104,10 +107,15 @@ namespace Remains.Networking
             {
                 point=Find(request.point,request.source,true);
                 if(point==null && !session.DebugTravelAllowed) reason="Переход требует карты или выходной двери.";
-                else if(point!=null) reason=point.destination!=request.destination?"Назначение точки перехода изменилось.":point.Rejection(actor);
+                else if(point!=null)
+                {
+                    bool chosenOnMap=point.kind==TravelPointKind.Map && WorldFactories.IsFactoryLevel(point.destination) && WorldFactories.IsFactoryLevel(request.destination);
+                    reason=point.destination!=request.destination && !chosenOnMap?"Назначение точки перехода изменилось.":point.Rejection(actor);
+                }
             }
             TravelPoint arrival=null;
             RoomLayout destination=null;
+            if(reason==null) reason=CreateFactory(request.destination);
             if(reason==null) FactoryContentSources.Prepare(session.ServerWorld,request.destination);
             if(reason==null && string.IsNullOrEmpty(point?.arrivalPoint) && FactoryContentSources.IsGenerated(session.ServerWorld,request.destination))
             {
@@ -165,6 +173,24 @@ namespace Remains.Networking
             else Debug.LogWarning($"Переход отклонён: actor={actor?.id}, request={request.id}, source={request.source}, destination={request.destination}, причина={reason}.");
             replies[key] = reply;
             connection.Send(reply);
+        }
+
+        // A number nobody has visited: made here, once, and kept with the world from now on.
+        private string CreateFactory(string level)
+        {
+            var world=session.ServerWorld;
+            if(!WorldFactories.TryIndex(level,out int index) || WorldFactories.Find(world,level)!=null) return null;
+            try
+            {
+                using(TransitionTiming.Measure("travel.factory-create",level)) FactoryPreparation.Create(world,FactoryCatalogAsset.Load(),index);
+                Debug.Log($"Создан завод {level}: мир={world.worldId}, вид={WorldFactories.Find(world,level).profile}.");
+                return null;
+            }
+            catch(Exception error) when(error is InvalidOperationException || error is ArgumentException || error is System.IO.InvalidDataException)
+            {
+                Debug.LogError($"Не удалось создать завод {level}: мир={world.worldId}. {error}");
+                return "Не удалось создать завод. Подробности — в журнале.";
+            }
         }
 
         private void ReceiveReply(TravelReply reply)

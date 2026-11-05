@@ -11,17 +11,30 @@ namespace Remains.Domain
         public string level;
         public string definition;
         public string contentFingerprint;
+        // The kind this factory was created as (FactoryProfile.id). Empty: made before kinds, the main one.
+        public string profile;
         // Stored JSON is the source of truth. Reading never rewrites it or discards fields.
         public string layout;
     }
 
     public static class WorldFactories
     {
-        public static string Level(int index) => "factory:" + index.ToString(CultureInfo.InvariantCulture);
+        // How far a player can type a number: a reachable range, not a promise of content at every number.
+        public const int MaxIndex = 9999;
+        private const string Prefix = "factory:";
+        public static string Level(int index) => Prefix + index.ToString(CultureInfo.InvariantCulture);
+        public static bool TryIndex(string level, out int index)
+        {
+            index = 0;
+            if (level == null || !level.StartsWith(Prefix, StringComparison.Ordinal) ||
+                !int.TryParse(level.Substring(Prefix.Length), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out index)) return false;
+            return Math.Abs((long)index) <= MaxIndex && Level(index) == level;
+        }
+        public static bool IsFactoryLevel(string level) => TryIndex(level, out _);
         public static ulong Seed(WorldState world) => unchecked((ulong)(long)world.seed);
 
         // Explicit creation only. Loading an old world must never call this as a missing-data fallback.
-        public static WorldFactory Add(WorldState world, FactoryLayout selection, string definition, string contentFingerprint)
+        public static WorldFactory Add(WorldState world, FactoryLayout selection, string definition, string contentFingerprint, string profile = null)
         {
             if (world == null || selection == null) throw new ArgumentNullException(world == null ? nameof(world) : nameof(selection));
             string level = Level(selection.Index);
@@ -32,7 +45,7 @@ namespace Remains.Domain
             var binding=world.rooms.Find(room=>room.level==level);
             if(binding!=null && binding.definition!=definition)
                 throw new InvalidDataException($"Мир {world.worldId}: {level} уже связан с {binding.definition}; замена сохранённой локации запрещена.");
-            var record = new WorldFactory { level = level, definition = definition, contentFingerprint = contentFingerprint, layout = selection.Write() };
+            var record = new WorldFactory { level = level, definition = definition, contentFingerprint = contentFingerprint, profile = profile, layout = selection.Write() };
             Read(world, record, definition, contentFingerprint);
             if(binding==null) world.rooms.Add(new WorldRoom{level=level,definition=definition});
             world.factories.Add(record);

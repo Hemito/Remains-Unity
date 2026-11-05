@@ -73,10 +73,12 @@ namespace Remains.Content
                 if(string.IsNullOrEmpty(rule.variantRule)) creature=catalog.Require(rule.actorTypes[(int)((uint)hash>>1)%rule.actorTypes.Length]);
                 else
                 {
-                    string chosen=CreatureCatalog.ChooseVariant(rule,placement.Room.Cell.Y/2.0,FactoryRandomEncounters.VariantRandom(root,localId),out string reason);
+                    string chosen=CreatureCatalog.ChooseVariant(rule,placement.Room.Cell.Y/2.0,FactoryRandomEncounters.VariantRandom(root,localId),out string reason,root.Prepared.Profile);
                     if(chosen==null) {string gap=$"{id}: {reason}";gaps[gap]=gaps.TryGetValue(gap,out int seen)?seen+1:1;continue;}
                     creature=catalog.Require(chosen);key=creature.sourceId;
                 }
+                if(root.Prepared.Profile.DropsPlaced(creature.family,FactoryRandomEncounters.VariantRandom(root,localId+":profile")))
+                {root.HideObjectArtwork(placement);continue;}
                 var node=new GameObject("Существо: "+placement.Id);
                 node.transform.SetParent(root.transform,false);node.transform.localPosition=placement.Position;
                 int facing=(hash&1)==0?1:-1;
@@ -100,7 +102,7 @@ namespace Remains.Content
                 bool buriedZombie=encounter.Hidden && encounter.Unit=="zombie";
                 if((!encounter.Hidden || buriedZombie) && catalog.TryObject(encounter.Unit,out var variantRule) && !string.IsNullOrEmpty(variantRule.variantRule))
                 {
-                    string chosen=CreatureCatalog.ChooseVariant(variantRule,encounter.Danger,FactoryRandomEncounters.VariantRandom(root,encounter.LocalId),out variantGap);
+                    string chosen=CreatureCatalog.ChooseVariant(variantRule,encounter.Danger,FactoryRandomEncounters.VariantRandom(root,encounter.LocalId),out variantGap,root.Prepared.Profile);
                     if(chosen!=null) {chosenVariant=catalog.Require(chosen);key=RandomPrefix+chosenVariant.sourceId;}
                 }
                 if(variantGap!=null) {string gap=$"{encounter.Unit} ({variantGap})";randomGaps[gap]=randomGaps.TryGetValue(gap,out int seen)?seen+1:1;continue;}

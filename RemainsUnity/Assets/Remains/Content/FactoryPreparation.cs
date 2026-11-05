@@ -12,7 +12,8 @@ namespace Remains.Content
         public string Level {get;}
         public FactoryGrid Grid {get;}
         public RoomLayout Physics {get;}
-        internal PreparedFactory(string level,FactoryGrid grid,RoomLayout physics) {Level=level;Grid=grid;Physics=physics;}
+        public FactoryProfile Profile {get;}
+        internal PreparedFactory(string level,FactoryGrid grid,RoomLayout physics,FactoryProfile profile) {Level=level;Grid=grid;Physics=physics;Profile=profile;}
     }
     public static class FactoryPreparation
     {
@@ -22,7 +23,8 @@ namespace Remains.Content
             if(WorldFactories.Find(world,WorldFactories.Level(index))!=null)
                 throw new InvalidOperationException($"Мир {world.worldId}: завод {index} уже создан; повторная генерация запрещена.");
             var layout=FactoryLayoutGenerator.Generate(new List<RoomFile>(catalog.Templates.Values),"plant",WorldFactories.Seed(world),index,4,21);
-            return WorldFactories.Add(world,layout,FactoryCatalogAsset.DefinitionId,catalog.ContentFingerprint);
+            var profile=FactoryProfileCatalog.Load().For(WorldFactories.Seed(world),index);
+            return WorldFactories.Add(world,layout,FactoryCatalogAsset.DefinitionId,catalog.ContentFingerprint,index==0?null:profile.id);
         }
         public static PreparedFactory Prepare(WorldState world,FactoryCatalogAsset catalog,string level)
         {
@@ -41,7 +43,7 @@ namespace Remains.Content
             foreach(string issue in grid.Issues) Debug.LogWarning($"Мир {world.worldId}, завод {level}, сетка: {issue}",catalog);
             var physics=RoomTemplateLayout.Create(grid.Level,catalog.Definitions);
             physics.id=level;
-            return new PreparedFactory(level,grid,physics);
+            return new PreparedFactory(level,grid,physics,FactoryProfileCatalog.Load().Saved(WorldFactories.Find(world,level)));
         }
     }
 }

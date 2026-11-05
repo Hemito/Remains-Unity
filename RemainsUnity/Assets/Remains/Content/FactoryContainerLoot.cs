@@ -21,7 +21,8 @@ namespace Remains.Content
             double U()=>random.Next();
             var attributes=placement.Source.Params;
             string category=attributes.TryGetValue("cont",out var specified)?specified:(string)xml.Attribute("cont");
-            double difficulty=catalog.baseDifficulty+factoryIndex+placement.Room.Cell.Y*catalog.depthDifficulty;
+            // A number is an alternative, not a difficulty step (world-structure): only the depth raises the loot.
+            double difficulty=catalog.baseDifficulty+placement.Room.Cell.Y*catalog.depthDifficulty;
             var state=new ContainerState {id=placement.Id};
             // The caller supplies physical placement fields; generation owns only inventory/security.
             state.lootCategory=category;state.lootGenerationVersion=Version;
@@ -110,8 +111,10 @@ namespace Remains.Content
                 string limit=(string)source.Attribute("limit");
                 if(important==0&&!string.IsNullOrEmpty(limit))
                 {
+                    // Each number farms its own limits; the main factory keeps the keys its saves already hold.
+                    if(factoryIndex!=0) limit+="@"+factoryIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     int used=limits.TryGetValue(limit,out int previous)?previous:0;
-                    double cap=(factoryIndex+3)*Number(source,"mlim",1);
+                    double cap=3*Number(source,"mlim",1);
                     if(used>=cap||source.Attribute("maxlim")!=null&&used>=Number(source,"maxlim",0))return false;
                     limits[limit]=used+1;usage[limit]=(int?)usage[limit]+1??1;
                 }

@@ -73,12 +73,14 @@ namespace Remains.Content
         }
 
         // The actor type a danger-chosen object becomes here, or null with the reason (a variant or weapon not playable).
-        public static string ChooseVariant(CreatureObjectRule rule,double danger,Func<double> random,out string reason)
+        public static string ChooseVariant(CreatureObjectRule rule,double danger,Func<double> random,out string reason)=>
+            ChooseVariant(rule,danger,random,out reason,null);
+        public static string ChooseVariant(CreatureObjectRule rule,double danger,Func<double> random,out string reason,Remains.Domain.FactoryProfile profile)
         {
             reason=null;
             int cid=rule.variantRule switch
             {
-                CreatureObjectRule.RaiderVariants=>Remains.Domain.RandomEncounterRules.RaiderVariant(danger,random),
+                CreatureObjectRule.RaiderVariants=>profile?.RaiderVariant(danger,random)??Remains.Domain.RandomEncounterRules.RaiderVariant(danger,random),
                 CreatureObjectRule.ZombieVariants=>Remains.Domain.RandomEncounterRules.ZombieVariant(danger,random),
                 _=>throw new InvalidOperationException($"Объект {rule.objectId}: неизвестный выбор варианта {rule.variantRule}.")
             };
@@ -88,6 +90,7 @@ namespace Remains.Content
             if(!string.IsNullOrEmpty(variant.gap)) {reason=$"{variant.unit}: {variant.gap}";return null;}
             if(!string.IsNullOrEmpty(variant.actorType)) return variant.actorType;
             // Unit.getXmlWeapon(int locDif): the first listed weapon allowed at this danger that passes its chance.
+            if(rule.variantRule==CreatureObjectRule.RaiderVariants && profile!=null) danger=profile.RaiderWeaponDanger(danger);
             foreach(var choice in variant.weapons)
             {
                 if(choice.difficulty>(int)danger) continue;
