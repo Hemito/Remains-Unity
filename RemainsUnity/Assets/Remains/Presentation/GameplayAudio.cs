@@ -25,6 +25,8 @@ namespace Remains.Presentation
             public ReloadSoundMessage? reload;
         }
         private CoopSession session;
+        private LooseItemPickup pickup;
+        private ItemPickupAudioCatalog pickupSounds;
         private WeaponReloadController reload;
         private readonly Dictionary<string,SoundEntry> sounds=new();
         private readonly List<Voice> voices=new();
@@ -41,6 +43,7 @@ namespace Remains.Presentation
         public int ReloadStarts {get;private set;}
         public int MeleeSounds {get;private set;}
         public int ExplosionSounds {get;private set;}
+        public int PickupSounds {get;private set;}
         private readonly Dictionary<string,AudioClip> naturalClips=new(StringComparer.Ordinal);
         private AudioMixSettings mix;
         private Camera view;
@@ -75,6 +78,22 @@ namespace Remains.Presentation
             var clip=GameAssets.Load<AudioClip>("Original/Audio/"+key);
             if(clip==null || clip.samples<=0) throw new InvalidOperationException("Отсутствует или пуст звук Original/Audio/"+key);
             return clip;
+        }
+        public void ObservePickups(LooseItemPickup source)
+        {
+            if(pickup!=null)throw new InvalidOperationException("Звук подбора уже подключён.");
+            pickup=source??throw new ArgumentNullException(nameof(source));
+            pickupSounds=ItemPickupAudioCatalog.Load();pickup.Confirmed+=PickupConfirmed;
+        }
+        private void PickupConfirmed(string definition,string transaction)
+        {
+            var actor=session.LocalActor;if(actor==null)return;
+            if(!pickupSounds.TryGet(definition,out var clip,out string reason))
+            {
+                if(missing.Add("pickup:"+definition))Debug.LogWarning($"Звук подбора пропущен: item={definition}, transaction={transaction}, actor={actor.id}; {reason}",this);
+                return;
+            }
+            if(PlayContact(clip,actor.level,actor.BodyPosition,1))PickupSounds++;
         }
         public static float Attenuation(float distance)=>Mathf.Clamp01(1-Mathf.Max(0,distance-2)/23);
         public bool PlayContact(AudioClip clip,string level,Vector2 position,float gain)
@@ -196,6 +215,7 @@ namespace Remains.Presentation
         }
         private void OnDestroy()
         {
+            if(pickup!=null)pickup.Confirmed-=PickupConfirmed;
             if(session!=null) {session.AttackReceived-=Attack;session.ReloadAudio.Received-=RemoteReload;}
             if(reload!=null) {reload.Started-=ReloadStarted;reload.Finished-=ReloadFinished;}
         }

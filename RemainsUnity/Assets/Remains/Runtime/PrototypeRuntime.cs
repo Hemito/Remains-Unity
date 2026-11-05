@@ -221,6 +221,7 @@ namespace Remains.Runtime
             roomPresentation.Bind(ActiveLevelLighting);
             cameraFollower=new CameraFollower(cameraView,room);
             Audio=CreateOwnedObject("Звуки игры").AddComponent<GameplayAudio>();Audio.Initialize(Session,Combat.Reload,cameraView);
+            Audio.ObservePickups(Pickup);
             HealingAudio=CreateOwnedObject("Звуки лечения").AddComponent<HealingItemAudio>();HealingAudio.Initialize(Session.HealingAudio,Audio);
             DeathAudio=CreateOwnedObject("Звуки смерти NPC").AddComponent<ActorDeathAudio>();DeathAudio.Initialize(Session,DamageFeedback,Audio);
             DoorVisuals=CreateOwnedObject("Двери мира").AddComponent<DoorVisuals>();DoorVisuals.Initialize(Session,Audio,visualOrders);

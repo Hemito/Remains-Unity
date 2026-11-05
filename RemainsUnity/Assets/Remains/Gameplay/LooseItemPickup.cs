@@ -9,6 +9,8 @@ namespace Remains.Gameplay
     {
         private readonly CoopSession session;
         private readonly PendingItemClaim claim=new();
+        private string requestedDefinition;
+        public event Action<string,string> Confirmed;
         public string Transaction=>claim.Transaction;
         public string SourceId=>claim.SourceId;
         public string ItemId=>claim.ItemId;
@@ -40,10 +42,19 @@ namespace Remains.Gameplay
             var item=source.items[0];reason=ContainerAccess.ClaimRejection(actor,source,item,session.Rules.Loot);
             if(reason!=null) {session.ShowNotice(reason);return false;}
             string transaction=session.RequestTrackedClaim(source.id,item.id,0);
-            if(transaction==null || !claim.Capture(transaction,actor,source.id,item.id)) return false;
+            if(transaction==null || !claim.Capture(transaction,actor,source.id,item.id,session.World.worldId)) return false;
+            requestedDefinition=item.definition;
             session.ShowNotice("Подбор подтверждается…");return true;
         }
-        public void Step()=>claim.Step(session.World,session.LocalActor,Mirror.NetworkClient.isConnected);
+        public void Step()=>Step(Mirror.NetworkClient.isConnected);
+        // Explicit connection state also lets isolated verification use the real gate/event.
+        public void Step(bool connected)
+        {
+            string transaction=claim.Transaction,definition=requestedDefinition;
+            bool confirmed=claim.Step(session.World,session.LocalActor,connected);
+            if(!claim.Pending) requestedDefinition=null;
+            if(confirmed) Confirmed?.Invoke(definition,transaction);
+        }
         public void Dispose() {session.ClaimPrepared-=claim.Prepared;claim.Clear();}
     }
 }
