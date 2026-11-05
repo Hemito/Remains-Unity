@@ -20,9 +20,7 @@ namespace Remains.Domain
                 if(actor.weapon==definition.id) actor.equippedWeaponItem=item.id;
                 if(!string.IsNullOrEmpty(definition.ammo)) InventoryStacks.Add(actor,SharedInventory.Create(definition.ammo,definition.magazineSize*3));
             }
-            // Visual equipment for explicitly created characters; existing profiles are not rewritten.
-            foreach(var definition in CosmeticCatalog.Current.Definitions)
-                InventoryStacks.Add(actor,SharedInventory.Create(definition.Id,1));
+            // No visual equipment in the kit (PT-20261103-26): the hidden item menu gives what a test needs.
             actor.loadoutVersion=actor.weaponInventoryVersion=1;actor.weaponSelectionRevision=1;
         }
     }

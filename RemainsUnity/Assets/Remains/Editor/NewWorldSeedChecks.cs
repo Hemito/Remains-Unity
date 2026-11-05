@@ -38,6 +38,10 @@ namespace Remains.Editor
                     string text=world.factories.Single().layout;
                     var restored=StateJson.FromJson<WorldState>(StateJson.ToJson(world));
                     FactoryPreparation.Prepare(restored,catalog,"factory:0");
+                    // Changed content does not lock a saved world out (user 2026-11-05): the layout stays, the version moves on.
+                    var older=StateJson.FromJson<WorldState>(StateJson.ToJson(world));older.factories.Single().contentFingerprint="прежний контент";
+                    FactoryPreparation.Prepare(older,catalog,"factory:0");
+                    Require(older.factories.Single().layout==text && older.factories.Single().contentFingerprint==catalog.ContentFingerprint,"Мир с прежней версией контента не загрузился со своей раскладкой.");
                     Require(restored.seed==world.seed && restored.factories.Single().layout==text && restored.worldId==world.worldId,
                         "Восстановление мира/сетки заменило seed, ID или сохранённую раскладку.");
                 }

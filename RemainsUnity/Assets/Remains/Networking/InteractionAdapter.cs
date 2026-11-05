@@ -20,6 +20,7 @@ namespace Remains.Networking
                 NetworkServer.RegisterHandler<PropGrabMessage>(Remains.Networking.MessageTiming.Server<PropGrabMessage>(Grab));
                 NetworkServer.RegisterHandler<PropPoseMessage>(Remains.Networking.MessageTiming.Server<PropPoseMessage>(Pose));
                 NetworkServer.RegisterHandler<ThrowRequest>(Remains.Networking.MessageTiming.Server<ThrowRequest>(Throw));
+                NetworkServer.RegisterHandler<DebugGrantRequest>(Remains.Networking.MessageTiming.Server<DebugGrantRequest>(DebugGrant));
                 NetworkServer.RegisterHandler<GrenadePoseMessage>(Remains.Networking.MessageTiming.Server<GrenadePoseMessage>(GrenadePose));
             };
             session.ClientReady+=()=>
@@ -80,6 +81,13 @@ namespace Remains.Networking
             NetworkServer.SendToAll(message,Channels.Unreliable);
         }
 
+        private void DebugGrant(NetworkConnectionToClient connection,DebugGrantRequest message)
+        {
+            var actor=session.ConnectedActor(connection);
+            if(actor==null || DebugItems.Grant(actor,message.definition,message.count)==null)
+            {Debug.LogWarning($"Выдача отклонена: actor={actor?.id}, item={message.definition}, count={message.count}.");return;}
+            session.CommitWorld();
+        }
         private void Throw(NetworkConnectionToClient connection,ThrowRequest message)
         {
             var actor=session.ConnectedActor(connection);

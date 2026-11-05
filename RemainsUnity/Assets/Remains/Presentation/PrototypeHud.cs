@@ -85,6 +85,7 @@ namespace Remains.Presentation
         public CharacterContentPanel CharacterContent {get;private set;}
         public SessionModPanel SessionMods {get;private set;}
         public PauseMenu PauseMenu {get;private set;}
+        private DebugItemsPanel debugItems;
         private RoomLoadingView roomLoading;
         private Transform pauseMenuLayer;
         private bool roomPresentationPending;
@@ -93,7 +94,7 @@ namespace Remains.Presentation
         public RectTransform RoomLoadingRect=>roomLoading.Rect;
         public AudioSettingsPanel AudioSettings {get;private set;}
         public RectTransform MainMenuSoundRect=>mainMenu.SoundRect;
-        public bool BlocksGameplayInput=>RoomPresentationPending || inventory.activeSelf || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen;
+        public bool BlocksGameplayInput=>RoomPresentationPending || inventory.activeSelf || PauseMenu.IsOpen || AudioSettings.IsOpen || WorldMap.IsOpen || debugItems?.IsOpen==true;
         public bool InventoryOpen=>inventory.activeSelf;
         public bool BlocksPointerGameplay(Vector2 screenPosition)=>BlocksGameplayInput || containerPanel.PointerBlocked(screenPosition);
         public void CloseContainerForSprint(bool sprint,Vector2 movement)
@@ -223,7 +224,8 @@ namespace Remains.Presentation
             SessionMods=new SessionModPanel(transform,elements,session);
             NetworkLobby=new WorldLobbyPanel(transform,session,Refresh);
             CharacterContent=new CharacterContentPanel(transform,elements,session);
-            PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf || ContainerOpen,()=>AudioSettings.Open(),()=>WorldMap.IsOpen);
+            PauseMenu=new PauseMenu(pauseView,session,()=>inventory.activeSelf || ContainerOpen,()=>AudioSettings.Open(),()=>WorldMap.IsOpen || debugItems?.IsOpen==true);
+            debugItems=new DebugItemsPanel(DebugItemsView.Create(transform),session,inventoryArtwork,ItemName,()=>PauseMenu.PublishIntent());
             WorldMap.StateChanged+=PauseMenu.PublishIntent;
             sessionHud.Inventory.onClick.AddListener(ToggleInventory);
             sessionHud.Menu.onClick.AddListener(ToggleMenu);
@@ -291,13 +293,14 @@ namespace Remains.Presentation
         public void ToggleMenu()
         {
             if(Characters!=null) {Characters.Close();return;}
+            if(debugItems?.IsOpen==true) {debugItems.Close();return;}
             if(AudioSettings.IsOpen) {AudioSettings.Cancel();return;}
             if(WorldMap.IsOpen) {WorldMap.Close();return;}
             if(InventoryOpen) {ToggleInventory();CloseContainer();return;}
             if(ContainerOpen) {CloseContainer();return;}
             PauseMenu.Toggle();
         }
-        public void ToggleInventory() {if(RoomPresentationPending || AudioSettings.IsOpen || PauseMenu.IsOpen) return;if(WorldMap.IsOpen) WorldMap.Close();inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent();}
+        public void ToggleInventory() {if(RoomPresentationPending || AudioSettings.IsOpen || PauseMenu.IsOpen || debugItems?.IsOpen==true) return;if(WorldMap.IsOpen) WorldMap.Close();inventoryAudio.Toggle();inventory.SetActive(!inventory.activeSelf);if(inventory.activeSelf) inventory.transform.SetAsLastSibling();Refresh();PauseMenu.PublishIntent();}
         public void OpenContainer() {if(!ContainerOpen) ToggleContainer();}
         public void ToggleContainer()
         {
@@ -448,6 +451,7 @@ namespace Remains.Presentation
                 if(Characters!=null) ToggleMenu();
                 else if(AudioSettings.IsOpen) AudioSettings.Cancel();
             }
+            if(debugItems!=null && debugItems.WatchWord(UnityEngine.InputSystem.Keyboard.current,PauseMenu.IsOpen && Application.isFocused)) {PauseMenu.Toggle();debugItems.Open();}
             WorldMap.Refresh();
             RefreshInteractionHint();
             RefreshGameplayHud(session.LocalActor);

@@ -1399,6 +1399,7 @@ namespace Remains.Networking
                 angularVelocity=Remains.Gameplay.GrenadeLaunch.AngularVelocity(plan.velocity,thrower.facing,Remains.Content.WeaponCatalog.Get(plan.weapon))});
             return transaction;
         }
+        public void RequestDebugGrant(string definition,int count)=>NetworkClient.Send(new DebugGrantRequest {definition=definition,count=count});
         public void RequestSelfHeal()=>RequestSelfHeal(null);
         public void RequestSelfHeal(string itemId)=>RequestHealing(LocalActorId,true,itemId);
         private string RequestHealing(string targetId,bool selfHeal,string itemId=null)

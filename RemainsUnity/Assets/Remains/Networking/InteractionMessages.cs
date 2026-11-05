@@ -15,6 +15,8 @@ namespace Remains.Networking
         public float angle,angularVelocity;
         public bool mirrored;
     }
+    // The hidden item menu (DebugItems): the host adds the item to the sender's character.
+    public struct DebugGrantRequest : NetworkMessage {public string definition;public int count;}
     public struct GrenadePoseMessage : NetworkMessage {public string id;public int generation;public uint sequence;public float x,y,vx,vy,remaining,angle,angularVelocity;public double simulationRemainder;public bool mirrored,detonate;public string[] enemyHits;
         public bool shattered;public float impactVx,impactVy,fuel;}
     public struct GrenadeMessage { public string id,attacker,level; public float x,y,vx,vy,fuse; }

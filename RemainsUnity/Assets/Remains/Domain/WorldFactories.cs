@@ -64,8 +64,15 @@ namespace Remains.Domain
         private static FactoryLayout Read(WorldState world, WorldFactory record, string definition, string contentFingerprint)
         {
             if (string.IsNullOrWhiteSpace(definition) || string.IsNullOrWhiteSpace(contentFingerprint) ||
-                record.definition != definition || record.contentFingerprint != contentFingerprint || string.IsNullOrWhiteSpace(record.layout))
-                throw new InvalidDataException($"Мир {world.worldId}, завод {record.level}: определение или версия контента не совпадает с сохранением.");
+                record.definition != definition || string.IsNullOrWhiteSpace(record.layout))
+                throw new InvalidDataException($"Мир {world.worldId}, завод {record.level}: определение не совпадает с сохранением.");
+            // Changed content does not lock a world out (user 2026-11-05): its saved layout stays, the session's version window
+            // shows the difference, and the record takes the current version. A room gone from the catalog still fails below.
+            if (record.contentFingerprint != contentFingerprint)
+            {
+                UnityEngine.Debug.LogWarning($"Мир {world.worldId}, завод {record.level}: контент изменился после сохранения ({record.contentFingerprint} → {contentFingerprint}); мир загружается с сохранённой раскладкой.");
+                record.contentFingerprint = contentFingerprint;
+            }
             var selection = FactoryLayoutReader.Read(record.layout, $"Мир {world.worldId}, завод {record.level}");
             if (record.level != Level(selection.Index) || selection.Seed != Seed(world) || selection.GeneratorVersion != FactoryLayoutGenerator.GeneratorVersion)
                 throw new InvalidDataException($"Мир {world.worldId}, завод {record.level}: номер, seed или версия генератора раскладки не совпадает (index={selection.Index}, seed={selection.Seed}, generator={selection.GeneratorVersion}).");
