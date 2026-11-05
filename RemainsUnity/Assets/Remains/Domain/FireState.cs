@@ -115,8 +115,10 @@ namespace Remains.Domain
             for(float t=0;t<MaxFlight;t+=Step)
             {
                 var delta=velocity*Step+Vector2.down*(.5f*Gravity*Step*Step);velocity+=Vector2.down*Gravity*Step;
+                var expected=position+delta;
                 var moved=ActorTerrainMotion.Move(room,Droplet,position,delta,false,bodyTops:false);
-                bool blockedX=Mathf.Abs(moved.x-position.x-delta.x)>.00001f,blockedY=Mathf.Abs(moved.y-position.y-delta.y)>.00001f;
+                // Compared with the expected point, not by subtracting: at factory coordinates rounding would read as a hit.
+                bool blockedX=Mathf.Abs(moved.x-expected.x)>.00001f,blockedY=Mathf.Abs(moved.y-expected.y)>.00001f;
                 position=moved;
                 if(blockedY && velocity.y<0) {landed=position;return true;}
                 if(blockedX) velocity.x=0;

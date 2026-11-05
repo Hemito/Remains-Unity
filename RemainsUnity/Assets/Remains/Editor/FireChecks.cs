@@ -43,6 +43,12 @@ namespace Remains.Editor
             Require(burst.Count>=10 && burst.Any(p=>p.position.x<-6.3f) && burst.Any(p=>p.position.x>-5.7f) && Mathf.Abs(burst.Average(p=>p.position.x)+6)<1.2f,
                 "граната разбрызгивает во все стороны");
 
+            // At the factory's coordinates droplets land on the floor, not in the air (rounding, PT-20261103-08).
+            const float Far=395;var farRoom=Room(Far);
+            var farSplash=FireRules.Patches(new FireState {id="f",weapon="item:molotov",level="l",x=-8,y=Far+1.5f,vx=7,vy=0,seed=13,fuel=full},farRoom);
+            Require(farSplash.Count>=10 && farSplash.All(p=>Mathf.Abs(p.position.y-Far)<.01f),
+                $"на координатах завода капли ложатся на пол: {farSplash.Count} пятен, высоты {string.Join(" ",farSplash.Select(p=>(p.position.y-Far).ToString("0.00")))}");
+
             var torch=new FireState {id="t",weapon="item:molotov",level="l",x=1,y=0,torch=true,start=10,fuel=full};
             Require(Math.Abs(FireRules.Duration(torch)-full)<.01 && FireRules.Patches(torch,room).Count==1,"горелка — одно пятно на всё оставшееся топливо");
             Require(FireRules.Patches(new FireState {id="m",weapon="item:molotov",level="l",x=0,y=0,vx=9,vy=-3,seed=11,fuel=20},room).Count<=6,"догоревшая бутылка разбрызгивает меньше");
@@ -68,11 +74,11 @@ namespace Remains.Editor
             Debug.Log($"Огонь: PASS — оригинальные числа, порог разбивания, брызги бутылки {splash.Count} по ходу и до стены, граната во все стороны, повторяемость, горелка, вспышки, касание, хост и догорание.");
         }
         private static void ActorTypesLoad() {ActorTypes.Load();Anatomy.Load();}
-        private static RoomLayout Room()
+        private static RoomLayout Room(float floor=0)
         {
-            var room=new RoomLayout {id="fire-check",left=-20,right=20,bottom=-1,top=10,ladders=Array.Empty<RoomLadder>(),platforms=new[]{
-                new RoomSurface {x=-20,y=-1,width=40,height=1},new RoomSurface {x=4,y=0,width=.5f,height=6},
-                new RoomSurface {x=-21,y=-1,width=1,height=12},new RoomSurface {x=20,y=-1,width=1,height=12}}};
+            var room=new RoomLayout {id="fire-check",left=-20,right=20,bottom=floor-1,top=floor+10,ladders=Array.Empty<RoomLadder>(),platforms=new[]{
+                new RoomSurface {x=-20,y=floor-1,width=40,height=1},new RoomSurface {x=4,y=floor,width=.5f,height=6},
+                new RoomSurface {x=-21,y=floor-1,width=1,height=12},new RoomSurface {x=20,y=floor-1,width=1,height=12}}};
             RoomSurfaces.Prepare(room);return room;
         }
         private static void Require(bool value,string message) {if(!value) throw new InvalidOperationException("Огонь: "+message);}
