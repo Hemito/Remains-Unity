@@ -60,7 +60,8 @@ namespace Remains.Networking
         }
         public static HealingSoundCue Capture(WorldState world,ActorState healer,string transaction,string definition)
         {
-            if(world==null || healer==null || !world.actors.Contains(healer) || !healer.player || !healer.connected ||
+            // Sapient NPCs heal too (protocol 88, 89); only a player is bound to a connection.
+            if(world==null || healer==null || !world.actors.Contains(healer) || healer.player && !healer.connected ||
                 string.IsNullOrWhiteSpace(transaction) || !world.completedTransactions.Contains(transaction))
                 throw new InvalidOperationException($"Нет подтверждённого лечения для звука: world={world?.worldId}, actor={healer?.id}, transaction={transaction}.");
             var cue=new HealingSoundCue {world=world.worldId,transaction=transaction,actor=healer.id,
@@ -77,7 +78,7 @@ namespace Remains.Networking
         {
             if(!Valid(cue) || world?.worldId!=cue.world) return false;
             var actor=world.Find(cue.actor);
-            return actor!=null && actor.player && actor.connected && actor.generation==cue.generation &&
+            return actor!=null && (!actor.player || actor.connected) && actor.generation==cue.generation &&
                 actor.lifecycleSequence==cue.lifecycle && actor.level==cue.level;
         }
     }

@@ -38,6 +38,10 @@ namespace Remains.Editor
                 captured=SessionHealingAudio.Capture(world,healer,"heal:once","heal");
                 Require(StateJson.ToJson(world)==after && captured.actor==healer.id && captured.definition=="heal" && captured.Position==healer.BodyPosition &&
                     captured.generation==healer.generation && captured.lifecycle==healer.lifecycleSequence,"Capture изменил JSON или потерял source body/lifetime");
+                // A raider with a medkit: the cue of an NPC must not take the host down (playtest 2026-11-06).
+                var npc=new ActorState {id="npc-healer",owner="fixture",level="hub",health=60,generation=1,lifecycleSequence=1};world.actors.Add(npc);
+                Require(SessionHealingAudio.Matches(world,SessionHealingAudio.Capture(world,npc,"heal:once","heal")),"Лечение NPC не даёт звука");
+                world.actors.Remove(npc);
                 // This tests the actual service's Published dedup before transport.
                 // The two inactive-server warnings on the first Publish are expected;
                 // no connections, sockets or native delivery are claimed here.
