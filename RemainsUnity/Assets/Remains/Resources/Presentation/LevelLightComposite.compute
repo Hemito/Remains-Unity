@@ -6,6 +6,7 @@
 #pragma kernel CopyDirect
 #pragma kernel CopyDetailed
 #pragma kernel ResolveDetailed
+#pragma kernel AddWorldLight
 
 RWTexture2D<float4> _Front;           // what actors and props receive (flashes, no shadows)
 RWTexture2D<float4> _Back;            // what walls and the background receive (with actor shadows)
@@ -19,6 +20,8 @@ float _FillGain;
 SamplerState sampler_linear_clamp;
 int2 _OutputSize;
 float4 _OutputRect,_WorldRect;
+float4 _DynamicRect;
+float _DynamicGain;
 int4 _Clip;                           // area-local x0, y0, x1, y1 (exclusive)
 
 [numthreads(8,8,1)]
@@ -83,4 +86,14 @@ void ResolveDetailed(uint3 id:SV_DispatchThreadID)
     float3 fill=max(0,_Fill.SampleLevel(sampler_linear_clamp,uv,0).rgb)*_FillGain;
     _Front[id.xy]=float4(max(SoftKnee(_Front[id.xy].rgb),fill),1);
     _Back[id.xy]=float4(max(SoftKnee(_Back[id.xy].rgb),fill),1);
+}
+[numthreads(8,8,1)]
+void AddWorldLight(uint3 id:SV_DispatchThreadID)
+{
+    int2 p=_Clip.xy+int2(id.xy);if(any(p>=_Clip.zw))return;
+    float2 world=_OutputRect.xy+(float2(p)+.5)/_OutputSize*_OutputRect.zw;
+    float2 uv=(world-_DynamicRect.xy)/_DynamicRect.zw;
+    float3 value=_FieldIn.SampleLevel(sampler_linear_clamp,uv,0).rgb*_DynamicGain;
+    _Front[p]=float4(_Front[p].rgb+value,1);
+    _Back[p]=float4(_Back[p].rgb+value*(1-saturate(_Mask[p].a)),1);
 }

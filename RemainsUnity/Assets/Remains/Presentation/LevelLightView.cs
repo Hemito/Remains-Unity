@@ -23,6 +23,9 @@ namespace Remains.Presentation
         private readonly LightShaderContext shader;
         private readonly PolarDirectLight polar;
         private readonly PolarLightWindow detailed;
+        private readonly WorldLightFields worldFields;
+        public int WorldLightBuilds=>worldFields?.Builds??0;
+        public long WorldLightBytes=>worldFields?.Bytes??0;
         public const int DetailScale=8; // 1.25cm output texels; scene/transport stay at 10cm.
         private int Scale=>polar==null?1:DetailScale;
         private float ViewMargin=>polar==null?Margin:2;
@@ -60,7 +63,7 @@ namespace Remains.Presentation
             this.light=light??throw new ArgumentNullException(nameof(light));
             this.shader=shader??throw new ArgumentNullException(nameof(shader));
             polar=light.Direct as PolarDirectLight;
-            if(polar!=null)detailed=new PolarLightWindow(polar);
+            if(polar!=null){detailed=new PolarLightWindow(polar);worldFields=new WorldLightFields(light,Scale);}
             try
             {
                 compute=GameAssets.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
@@ -76,10 +79,11 @@ namespace Remains.Presentation
         }
 
         // view: the camera's visible world rectangle. Composes when something it shows changed; publishes the globals.
-        public void Present(Rect view,IReadOnlyList<SpriteEmission> flashes,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> flashIds)
+        public void Present(Rect view,IReadOnlyList<SpriteEmission> flashes,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> flashIds,IReadOnlyList<WorldLightEmission> worldLights=null)
         {
             if(disposed) throw new ObjectDisposedException(nameof(LevelLightView));
             int flashCount=flashes?.Count??0;
+            if(worldLights?.Count>0 && worldFields==null)throw new InvalidOperationException("Динамическое освещение окружения требует полярный backend.");
             if(flashCount>0 && (flashIds==null || flashIds.Count!=flashCount)) throw new ArgumentException("Количество ID источников не совпадает с количеством вспышек.");
             // An event is published atomically: never combine a new direct sum with the preceding fill state.
             // Keep the already resolved camera buffers until the queued direct/fill stages have all finished.
@@ -98,8 +102,10 @@ namespace Remains.Presentation
             bool moved=Place(view);
             var hash=new HashCode();hash.Add(area);hash.Add(light.Direct.Revision);
             if(light.UsesGridFill){hash.Add(light.Fill.Revision);hash.Add(fillGain);}
+            hash.Add(worldFields?.GeometryRevision??0);
             if(masks!=null) foreach(var m in masks)
             {hash.Add(m.SourceId);hash.Add(m.Mask!=null?m.Mask.GetInstanceID():0);hash.Add(m.WorldBounds);hash.Add(m.Opacity);hash.Add(m.Revision);}
+            if(worldLights!=null)foreach(var e in worldLights){hash.Add(e.GeometrySignature());hash.Add(e.Gain);}
             int next=hash.ToHashCode();
             if(!moved && flashCount==0 && !flashShown && hasSignature && next==signature){Publish();return;}
             Remains.Diagnostics.FrameHitchLog.Gpu("Свет: камера (тени и вспышки)");
@@ -131,6 +137,17 @@ namespace Remains.Presentation
                 }
                 DrawMask(masks,m.SourceId);
                 Apply(subtractKernel,field,texels);
+            }
+            if(worldFields!=null)
+            {
+                worldFields.Begin();
+                if(worldLights!=null)foreach(var e in worldLights)
+                {
+                    if(e.Gain<=0 || !WorldArea.Overlaps(Rect.MinMaxRect(e.Bounds.xMin-e.Reach,e.Bounds.yMin-e.Reach,e.Bounds.xMax+e.Reach,e.Bounds.yMax+e.Reach)))continue;
+                    var field=worldFields.Get(e);if(field==null)continue;
+                    DrawMask(masks,e.Id);AddWorldLight(field,e.Gain);
+                }
+                worldFields.End();
             }
             if(light.UsesGridFill && flashCount>0)CaptureFlashBaseline();
             for(int i=0;i<flashCount;i++)
@@ -240,6 +257,17 @@ namespace Remains.Presentation
             compute.Dispatch(kernel,(x1-x0+7)/8,(y1-y0+7)/8,1);
         }
 
+        private void AddWorldLight(WorldLightFields.Field field,float gain)
+        {
+            var world=WorldArea;var b=field.World;float sx=front.width/world.width,sy=front.height/world.height;
+            int x0=Mathf.Clamp(Mathf.FloorToInt((b.xMin-world.xMin)*sx),0,front.width),y0=Mathf.Clamp(Mathf.FloorToInt((b.yMin-world.yMin)*sy),0,front.height);
+            int x1=Mathf.Clamp(Mathf.CeilToInt((b.xMax-world.xMin)*sx),0,front.width),y1=Mathf.Clamp(Mathf.CeilToInt((b.yMax-world.yMin)*sy),0,front.height);
+            if(x1<=x0 || y1<=y0)return;int kernel=compute.FindKernel("AddWorldLight");
+            compute.SetTexture(kernel,"_Front",front);compute.SetTexture(kernel,"_Back",back);compute.SetTexture(kernel,"_Mask",mask);compute.SetTexture(kernel,"_FieldIn",field.Texture);
+            compute.SetInts("_OutputSize",front.width,front.height);compute.SetInts("_Clip",x0,y0,x1,y1);
+            compute.SetVector("_OutputRect",new Vector4(world.x,world.y,world.width,world.height));compute.SetVector("_DynamicRect",new Vector4(b.x,b.y,b.width,b.height));compute.SetFloat("_DynamicGain",gain);
+            compute.Dispatch(kernel,(x1-x0+7)/8,(y1-y0+7)/8,1);
+        }
         private void CaptureFlashBaseline()
         {
             if(staticFront==null)
@@ -305,7 +333,7 @@ namespace Remains.Presentation
             if(disposed) return;
             disposed=true;
             if(shader.IsActive) {Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);Shader.SetGlobalFloat("_RemainsIndirectEnabled",0);}
-            detailed?.Dispose();
+            detailed?.Dispose();worldFields?.Dispose();
             LightTextureBudget.Release(front);LightTextureBudget.Release(back);LightTextureBudget.Release(mask);LightTextureBudget.Release(flash);
             LightTextureBudget.Release(staticFront);LightTextureBudget.Release(staticBack);staticFront=staticBack=null;hasFlashBaseline=false;
             front=back=mask=flash=null;

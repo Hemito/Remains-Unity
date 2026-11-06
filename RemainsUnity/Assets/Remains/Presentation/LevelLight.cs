@@ -23,6 +23,7 @@ namespace Remains.Presentation
         // One lamp, at most 131072 fine texels (~36x36m at 10px/m), never the entire level.
         public const int FastLampTexels=128*1024;
         public int FastLampUpdates {get;private set;}
+        public event Action<IReadOnlyList<RectInt>> GeometryChanged;
 
         public LevelLight(LevelLightScene scene,LevelLightSources sources,float albedo,long directCacheBytes=PolarDirectLight.DefaultCacheBytes,bool useGridFill=true)
         {
@@ -66,6 +67,7 @@ namespace Remains.Presentation
         {
             var rects=Scene.SetDoors(doors,changedDoors);
             if(rects.Count==0) return;
+            GeometryChanged?.Invoke(rects);
             Direct.OccludersChanged(changedDoors,rects);
             if(UsesGridFill)Fill.OccludersChanged(changedDoors,rects);
             else foreach(var rect in rects) Bounce.Changed(rect);

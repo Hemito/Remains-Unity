@@ -67,6 +67,17 @@ namespace Remains.Presentation
             compute.SetTexture(buildKernel,"_MapOut",map);compute.Dispatch(buildKernel,(Angles(source)+63)/64,source.Samples.Length,1);
             DispatchDetail(source,map,transientSamples,offset,front,world,0,mask,null,back);TransientBuilds++;
         }
+        public void BuildDetailTransient(LevelLightSource source,RenderTexture target,Rect world)
+        {
+            EnsureBuilt();
+            if(source.Samples.Length>DirectLight.MaximumSamples || source.Reach>maximumRadius || source.Reach<OuterPitch)
+                throw new ArgumentException("Подробный динамический свет вне резерва: "+source.Id);
+            int offset=transientSlot*DirectLight.MaximumSamples;transientSlot=(transientSlot+1)%TransientSlots;
+            transientSamples.SetData(source.Samples,0,offset,source.Samples.Length);Configure(source,transientSamples,offset);
+            compute.SetTexture(buildKernel,"_MapOut",map);compute.Dispatch(buildKernel,(Angles(source)+63)/64,source.Samples.Length,1);
+            var previous=RenderTexture.active;try{RenderTexture.active=target;GL.Clear(false,true,Color.clear);}finally{RenderTexture.active=previous;}
+            DispatchDetail(source,map,transientSamples,offset,target,world,0,null,null);TransientBuilds++;
+        }
         private void DispatchDetail(LevelLightSource source,Texture prefix,ComputeBuffer points,int offset,RenderTexture target,Rect world,int operation,Texture mask,Rect? limit,RenderTexture flashBack=null)
         {
             Configure(source,points,offset);int kernel=flashBack==null?detailKernel:detailFlashKernel;

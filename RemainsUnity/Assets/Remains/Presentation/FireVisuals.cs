@@ -20,13 +20,14 @@ namespace Remains.Presentation
         private readonly List<string> gone=new();
         private MaterialPropertyBlock properties;
         public int DrawnFlames=>used;
+        public FireLightSources Lights {get;}=new();
 
         public void Initialize(CoopSession coop,FireController controller,GrenadeController flights)
         {session=coop;fires=controller;grenades=flights;artwork=FireArtwork.Load();properties=new MaterialPropertyBlock();}
 
         private void LateUpdate()
         {
-            used=0;shownBottles.Clear();
+            used=0;shownBottles.Clear();Lights.Begin();
             var world=session?.World;var viewer=session?.LocalActor;
             if(world!=null && viewer!=null && session.LevelTime.HasLocal(viewer.level))
             {
@@ -37,6 +38,7 @@ namespace Remains.Presentation
                     var patches=fires.Patches(fire);if(patches==null) continue;
                     float age=(float)(now-fire.start),left=(float)(fire.start+FireRules.Duration(fire)-now);
                     float alpha=Mathf.Clamp01(age/FadeIn)*Mathf.Clamp01(left/FadeOut);
+                    Lights.Fire(fire,patches,alpha);
                     for(int p=0;p<patches.Count;p++)
                     {
                         var patch=patches[p];
@@ -52,12 +54,13 @@ namespace Remains.Presentation
                 }
                 // A lit bottle in flight burns at its neck.
                 foreach(var flight in grenades.Flights)
-                    if(flight.state.level==viewer.level && WeaponCatalog.Get(flight.state.weapon) is {IsFire:true,fire:{shatter:true}})
-                        Flame(flight.position,TorchScale*.8f,(float)now,flight.state.id.GetHashCode(),1);
+                    if(flight.state.level==viewer.level && flight.state.fuel>0 && WeaponCatalog.Get(flight.state.weapon) is {IsFire:true,fire:{shatter:true}})
+                    {Flame(flight.position,TorchScale*.8f,(float)now,flight.state.id.GetHashCode(),1);Lights.Bottle(flight.state.id,flight.position);}
                 foreach(var actor in world.actors)
                     if(actor.level==viewer.level && actor.burnLevel==actor.level && actor.burnUntil>now && ActorPresence.IsPresent(actor))
-                        Flame(actor.BodyPosition+Vector2.down*.3f,ActorScale,(float)now,actor.id.GetHashCode(),1);
+                    {Flame(actor.BodyPosition+Vector2.down*.3f,ActorScale,(float)now,actor.id.GetHashCode(),1);Lights.Actor(actor.id,actor.BodyPosition);}
             }
+            Lights.End();
             for(int i=used;i<flames.Count;i++) if(flames[i].enabled) flames[i].enabled=false;
             foreach(var pair in bottles) if(!shownBottles.Contains(pair.Key) && pair.Value.enabled) pair.Value.enabled=false;
             // A burnt-out torch's bottle goes with its fire.

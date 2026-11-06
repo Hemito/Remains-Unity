@@ -200,10 +200,10 @@ namespace Remains.Presentation
             viewArea=view;
         }
         // Every frame from the presentation: actor shadow masks and the frame's muzzle flashes over the camera area.
-        public void RenderMuzzleFlashes(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds)
+        public void RenderMuzzleFlashes(IReadOnlyList<SpriteEmission> emissions,IReadOnlyList<ProjectedLightShadow> masks,IReadOnlyList<string> sourceIds,IReadOnlyList<WorldLightEmission> worldLights=null)
         {
             if(!IsReady) return;
-            try {lightView.Present(viewArea,emissions,masks,sourceIds);if(!levelLight.HasPendingPublication)ApplyLampArtwork();}
+            try {lightView.Present(viewArea,emissions,masks,sourceIds,worldLights);if(!levelLight.HasPendingPublication)ApplyLampArtwork();}
             catch(Exception error) {ReportFailure(error);throw;}
         }
         // Revision of the last door snapshot in the light (-1: none yet); the loader admits actors after it.

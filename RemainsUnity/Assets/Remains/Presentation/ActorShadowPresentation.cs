@@ -72,7 +72,7 @@ namespace Remains.Presentation
         // area: where shadows can be seen (the camera's animation area); actors outside it keep their entry but draw nothing,
         // so a level of ~240 NPCs costs only the few near the camera. Null draws every actor (checks, previews).
         public void Present(FactoryLevelView current,IReadOnlyDictionary<string,ActorVisual> actors,
-            InteractionVisuals weapons,IReadOnlyList<SpriteEmission> flashes,IReadOnlyList<string> flashIds=null,Rect? area=null)
+            InteractionVisuals weapons,IReadOnlyList<SpriteEmission> flashes,IReadOnlyList<string> flashIds=null,Rect? area=null,IReadOnlyList<WorldLightEmission> worldLights=null)
         {
             if(current!=level) {Clear();level=current;}
             if(level==null || !level.IsReady) {Clear();return;}
@@ -121,20 +121,10 @@ namespace Remains.Presentation
                     float radius=Mathf.Max(Mathf.Abs(size.x*scale.x),Mathf.Abs(size.y*scale.y))*.25f;
                     if(flashIds==null || i>=flashIds.Count || string.IsNullOrEmpty(flashIds[i]))
                         throw new InvalidOperationException("Проекция вспышки: отсутствует стабильный ID выстрела.");
-                    string id=flashIds[i];
-                    float strength=flash.Gain/(1+flash.Gain)/Mathf.Max(1,Vector2.Distance(position,entry.Position));
-                    float projectionScale=FlashProjectionScale(settings);
-                    entry.Flashes.Add(new ActorShadowSource(id,position,radius,strength,true,projectionScale));
-                    if(entry.FlashVisibility.TryGetValue(id,out var cached) && cached.Revision==level.ShadowSourceRevision)
-                    {
-                        entry.Sources.Add(new ActorShadowSource(id,position,radius,strength*cached.Transmission,true,projectionScale));
-                        if((cached.Position-position).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold ||
-                            (cached.ActorPosition-entry.Position).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)
-                            entry.Queued=true;
-                        entry.FlashVisibility[id]=(cached.Position,cached.ActorPosition,cached.Transmission,cached.Revision,Time.frameCount);
-                    }
-                    else entry.Queued=true;
+                    AddTransient(entry,flashIds[i],position,radius,flash.Gain,0,settings);
                 }
+                if(worldLights!=null)foreach(var source in worldLights)
+                    if(source.Gain>0)AddTransient(entry,source.Id,source.Position,Mathf.Min(.5f,source.Width*.25f),source.Radiance.maxColorComponent*source.Gain,source.Reach,settings);
                 entry.ExpiredFlashes.Clear();
                 foreach(var cached in entry.FlashVisibility)
                     if(Time.frameCount-cached.Value.Frame>4) entry.ExpiredFlashes.Add(cached.Key);
@@ -146,6 +136,22 @@ namespace Remains.Presentation
             foreach(var id in removed) {Destroy(entries[id]);entries.Remove(id);}
             if(refresh==null) foreach(var pair in entries) if(pair.Value.Queued)
                 {refresh=runner.StartCoroutine(RebuildSources());break;}
+        }
+
+        private void AddTransient(Entry entry,string id,Vector2 position,float radius,float gain,float reach,RoomLightingTable settings)
+        {
+            float distance=Vector2.Distance(position,entry.Position);
+            if(reach>0 && distance>reach+radius)return;
+            float strength=gain/(1+gain)/Mathf.Max(1,distance);float projectionScale=FlashProjectionScale(settings);
+            entry.Flashes.Add(new ActorShadowSource(id,position,radius,strength,true,projectionScale,reach:reach));
+            if(entry.FlashVisibility.TryGetValue(id,out var cached) && cached.Revision==level.ShadowSourceRevision)
+            {
+                entry.Sources.Add(new ActorShadowSource(id,position,radius,strength*cached.Transmission,true,projectionScale,reach:reach));
+                if((cached.Position-position).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold ||
+                    (cached.ActorPosition-entry.Position).sqrMagnitude>=settings.ActorShadowMoveThreshold*settings.ActorShadowMoveThreshold)entry.Queued=true;
+                entry.FlashVisibility[id]=(cached.Position,cached.ActorPosition,cached.Transmission,cached.Revision,Time.frameCount);
+            }
+            else entry.Queued=true;
         }
 
         // Shot event preparation keeps CPU visibility and pool allocation out of LateUpdate,

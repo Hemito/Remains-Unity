@@ -190,13 +190,14 @@ namespace Remains.Runtime
             var interactionVisuals=CreateOwnedObject("Визуальные взаимодействия").AddComponent<InteractionVisuals>();
             interactionVisuals.Initialize(Session,Interactions,Grenades,Geometry,visualLayers,Combat.Reload);
             actorShadows=new ActorShadowPresentation(this,transform);
+            FireVisuals fireVisuals=null;
             interactionVisuals.ConfigureMuzzleLighting(emissions=>
             {
                 if(!LevelPresentationReady || ActiveFactoryLighting==null) {actorShadows.Clear();return;}
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: персонажи")) actorShadows.Present(ActiveFactoryLighting,visuals,interactionVisuals,emissions,interactionVisuals.MuzzleSourceIds,
-                    Session.LocalActor is {} viewer?(Rect?)cameraFollower.AnimationArea(viewer):null);
+                    Session.LocalActor is {} viewer?(Rect?)cameraFollower.AnimationArea(viewer):null,fireVisuals?.Lights.Emissions);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Тени: проекции вспышек")) actorShadows.CollectProjectedLightShadows(projectedFlashShadows);
-                using(Remains.Diagnostics.FrameHitchLog.Section("Свет: вспышки и тени")) ActiveFactoryLighting.RenderMuzzleFlashes(emissions,projectedFlashShadows,interactionVisuals.MuzzleSourceIds);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Свет: вспышки и тени")) ActiveFactoryLighting.RenderMuzzleFlashes(emissions,projectedFlashShadows,interactionVisuals.MuzzleSourceIds,fireVisuals?.Lights.Emissions);
             },(attack,emission)=>
             {
                 if(LevelPresentationReady && ActiveFactoryLighting!=null)
@@ -211,7 +212,7 @@ namespace Remains.Runtime
             npcs=new NpcController(Session,Geometry,Combat);
             spikes=new SpikeController(Session,Geometry,Combat);
             Fires=new FireController(Session,Geometry,Combat);
-            CreateOwnedObject("Огонь").AddComponent<FireVisuals>().Initialize(Session,Fires,Grenades);
+            fireVisuals=CreateOwnedObject("Огонь").AddComponent<FireVisuals>();fireVisuals.Initialize(Session,Fires,Grenades);
             radiation=new RadiationController(Session,Combat);
             roomObject=AuthoredRoomVisual.Create(shownLevel,room);
             ActiveLevelLighting=roomObject.GetComponent<IRoomLighting>();

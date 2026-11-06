@@ -14,6 +14,7 @@ namespace Remains.Content
     public sealed class ItemTextCatalog
     {
         public const string Resource="Content/item-text";
+        public const string OriginalResource="Content/original-item-text";
         private static ItemTextCatalog loaded;
         private readonly Dictionary<string,ItemTextDefinition> entries=new(StringComparer.Ordinal);
         private readonly HashSet<string> missing=new(StringComparer.Ordinal);
@@ -33,7 +34,13 @@ namespace Remains.Content
             if(loaded!=null) return loaded;
             var asset=GameAssets.Load<TextAsset>(Resource);
             if(asset==null) throw new InvalidOperationException("Нет каталога русских текстов предметов: "+Resource);
-            return loaded=new ItemTextCatalog(asset.text);
+            var result=new ItemTextCatalog(asset.text);
+            var original=GameAssets.Load<TextAsset>(OriginalResource);
+            if(original==null)throw new InvalidOperationException("Нет исходных русских названий предметов: "+OriginalResource);
+            var source=new ItemTextCatalog(original.text);
+            // Deliberate Unity descriptions and code-mod labels keep priority over imported original names.
+            foreach(var entry in source.entries.Values)if(!result.Contains(entry.id))result.Register(entry);
+            return loaded=result;
         }
         public bool Contains(string id)=>id!=null && entries.ContainsKey(id);
         // Code mods register after Load; replacement is explicit and validated before mutation.
