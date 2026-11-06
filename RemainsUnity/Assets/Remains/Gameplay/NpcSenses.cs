@@ -69,7 +69,8 @@ namespace Remains.Gameplay
                 throw new InvalidOperationException($"Нет политики восприятия: actor={actor.id}, type={actor.actorType}.");
             string previous=actor.target;
             var room=geometry.Get(actor.level);
-            perception.Step(actor,actor.perception,session.World.actors,(from,to)=>RoomVisibility.Clear(room,from,to),seconds,brightness);
+            perception.Step(actor,actor.perception,session.World.actors,(from,to)=>RoomVisibility.Clear(room,from,to),seconds,
+                NpcCreatureBehaviours.Mechanical(ActorTypes.Get(actor.actorType).behavior)?null:brightness);
             if(previous!=actor.target) {actor.revision++;session.PublishActor(actor);}
         }
         // The owner of an NPC plays near it, so its computer has that light. Without it the NPC sees as in full light.

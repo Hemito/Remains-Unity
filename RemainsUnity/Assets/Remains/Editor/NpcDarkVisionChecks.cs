@@ -36,7 +36,11 @@ namespace Remains.Editor
             Require(npc.target==null,"шаг восприятия не учитывает темноту");
             perception.Step(npc,memory,new[]{pony},Clear,1,_=>1);
             Require(npc.target==pony.id,"шаг восприятия не видит на свету");
-            Debug.Log("Зрение в темноте: PASS — правило дальности, рог, близкое обнаружение.");
+            foreach(string machine in new[]{NpcCreatureBehaviours.Turret,NpcCreatureBehaviours.Robobrain,NpcCreatureBehaviours.SpriteBot,NpcCreatureBehaviours.SpiderMine,NpcCreatureBehaviours.Roller})
+                Require(NpcCreatureBehaviours.Mechanical(machine) && FactoryProfile.Family(machine)==2,"машина без теплового зрения: "+machine);
+            foreach(string living in new[]{NpcCreatureBehaviours.Raider,NpcCreatureBehaviours.Crawler,NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Slime})
+                Require(!NpcCreatureBehaviours.Mechanical(living),"живое существо видит тепло: "+living);
+            Debug.Log("Зрение в темноте: PASS — правило дальности, рог, близкое обнаружение, машины видят тепло.");
         }
         public static void RunBatch()
         {

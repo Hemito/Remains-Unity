@@ -40,9 +40,7 @@ namespace Remains.Domain
         public double RaiderWeaponDanger(double danger)=>danger+raiderEquipment;
         // 0 monsters, 1 raiders, 2 robots (tipEnemy).
         public int MainFamily=>monsterRooms>=raiderRooms && monsterRooms>=robotRooms?0:raiderRooms>=robotRooms?1:2;
-        public static int Family(string behavior)=>behavior==NpcCreatureBehaviours.Raider?1:
-            behavior is NpcCreatureBehaviours.Robobrain or NpcCreatureBehaviours.SpriteBot or NpcCreatureBehaviours.SpiderMine or
-            NpcCreatureBehaviours.Roller or NpcCreatureBehaviours.Turret?2:0;
+        public static int Family(string behavior)=>behavior==NpcCreatureBehaviours.Raider?1:NpcCreatureBehaviours.Mechanical(behavior)?2:0;
         public bool DropsPlaced(string behavior,Func<double> random)=>
             dropForeignPlaced>0 && Family(behavior)!=MainFamily && random()<dropForeignPlaced;
         public string Crawler(string unit,int enemyType,int parity,Func<double> random)

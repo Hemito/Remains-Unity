@@ -20,6 +20,8 @@ namespace Remains.Domain
         public const string SpiderMine="spidermine";
         // UnitRobobrain (UnitAIRobot): a walking robot with a gun on the raiders' state machine (RaiderSettings.robot).
         public const string Robobrain="robobrain";
+        // Machines: their sensors see heat, so darkness does not hide from them (user 2026-11-06, NpcDarkVision).
+        public static bool Mechanical(string behavior)=>behavior is Robobrain or SpriteBot or SpiderMine or Roller or Turret;
         // RaiderBrain decides for them (NpcRaiderController).
         public static bool UsesRaiderBrain(string behavior)=>behavior is Raider or Robobrain or Zombie;
         // UnitZombie: a ghoul on its own control over the raiders' mind (ZombieBrain, RaiderSettings.zombie).
