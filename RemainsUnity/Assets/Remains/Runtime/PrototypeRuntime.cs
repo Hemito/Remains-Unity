@@ -258,7 +258,7 @@ namespace Remains.Runtime
             entryRoom=new EntryRoomPreparation(this,Session,Geometry,BindEntryPresentation);
             entryRoom.Prepared+=context=>EntryPresentationPrepared?.Invoke(context);
             ItemActions=new ItemShortcutActions(Session,EquipWeaponItem);
-            if (!Application.isBatchMode || Options.Smoke?.StartsWith("lighting-preparation")==true || (Options.Smoke is "performance-audit" or "seed104-baseline") || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
+            if (!Application.isBatchMode || Options.Smoke=="characters-delete" || Options.Smoke?.StartsWith("lighting-preparation")==true || (Options.Smoke is "performance-audit" or "seed104-baseline") || Options.Smoke?.StartsWith("characters")==true || Options.Smoke?.StartsWith("prop-body")==true || Options.Smoke?.StartsWith("travel-points")==true || Options.Smoke?.StartsWith("door")==true || Options.Smoke?.Contains("-frames-")==true || Options.Smoke?.Contains("-mismatch-")==true || (Options.Smoke?.StartsWith("pause")==true || Options.Smoke?.StartsWith("body")==true) || Options.Smoke?.Contains("-ffui-")==true || Options.Smoke?.StartsWith("journey")==true || Options.Smoke?.StartsWith("session")==true || Options.Smoke?.StartsWith("container")==true || Options.Smoke=="history" || Options.Smoke=="world-management" || Options.Smoke=="world-library-volume" || Options.Smoke?.StartsWith("lobby")==true || Options.Smoke?.StartsWith("duplicate")==true)
             {
                 hud=CreateOwnedObject("Интерфейс").AddComponent<PrototypeHud>(); hud.Initialize(Session,AudioPreferences,cameraView);
                 roomPresentation.SetHud(hud);
@@ -306,6 +306,7 @@ namespace Remains.Runtime
             {
                 if(Options.Smoke=="runtime-catalog-release") new GameObject("Проверка завершения runtime").AddComponent<RuntimeCatalogReleaseProbe>().Initialize(this);
                 else if(Options.Smoke=="characters-guest") gameObject.AddComponent<SelectedWorldGuestProbe>().Initialize(this);
+                else if(Options.Smoke=="characters-delete") gameObject.AddComponent<CharacterDeleteProbe>().Initialize(this);
                 else if(Options.Smoke is "characters-selection" or "characters-copies" or "characters-world-content" or "characters-coop") gameObject.AddComponent<CharacterSelectionProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("characters")) gameObject.AddComponent<CharacterMenuProbe>().Initialize(this);
                 else if(Options.Smoke.StartsWith("audio-settings")) gameObject.AddComponent<AudioSettingsProbe>().Initialize(this);

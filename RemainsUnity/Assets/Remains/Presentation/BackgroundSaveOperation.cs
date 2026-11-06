@@ -18,15 +18,17 @@ namespace Remains.Presentation
             try
             {
                 var result=await Task.Run(()=>work(cancellation.Token),cancellation.Token);
+                // The work is over before its result is handled: a handler may start the next operation.
+                Busy=false;
                 if(this!=null) completed(result);
             }
-            catch(OperationCanceledException) when(cancellation.IsCancellationRequested) { }
+            catch(OperationCanceledException) when(cancellation.IsCancellationRequested) {Busy=false;}
             catch(Exception error)
             {
+                Busy=false;
                 if(this!=null) failed(error);
                 else Debug.LogError("Фоновая операция сохранения завершилась с ошибкой после закрытия окна: "+error);
             }
-            finally {if(this!=null) Busy=false;}
         }
         private void OnDestroy()=>cancellation.Cancel();
     }
