@@ -1,0 +1,19 @@
+// Diagnostic output coordinates only; all transport/filtering functions are the shipped implementation.
+#pragma kernel BuildMaps
+#pragma kernel Field
+#pragma kernel Window
+#include "../../Resources/Presentation/PolarDirectLight.compute"
+RWTexture2D<float4> _Window;
+int2 _OutputSize;
+float4 _OutputRect;
+int _WindowExact,_WindowAdd;
+[numthreads(8,8,1)]
+void Window(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_OutputSize)))return;
+    float2 world=_OutputRect.xy+(float2(id.xy)+.5)/_OutputSize*_OutputRect.zw;
+    int2 p=ScenePoint(world);
+    float3 light=0;
+    if(Inside(p))light=_Scene[p]>=.99?Receiver(p,_WindowExact!=0):Irradiance(world,_WindowExact!=0);
+    _Window[id.xy]=_WindowAdd!=0?_Window[id.xy]+float4(light,0):float4(light,1);
+}

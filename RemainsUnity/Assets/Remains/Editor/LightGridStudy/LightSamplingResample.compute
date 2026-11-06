@@ -1,0 +1,14 @@
+#pragma kernel Resample
+Texture2D<float4> _Input;
+SamplerState sampler_linear_clamp;
+RWTexture2D<float4> _Output;
+float4 _InputRect,_OutputRect;
+int2 _Size;
+[numthreads(8,8,1)]
+void Resample(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_Size)))return;
+    float2 world=_OutputRect.xy+(float2(id.xy)+.5)/_Size*_OutputRect.zw;
+    float2 uv=(world-_InputRect.xy)/_InputRect.zw;
+    _Output[id.xy]=all(uv>=0)&&all(uv<=1)?_Input.SampleLevel(sampler_linear_clamp,uv,0):float4(0,0,0,1);
+}
