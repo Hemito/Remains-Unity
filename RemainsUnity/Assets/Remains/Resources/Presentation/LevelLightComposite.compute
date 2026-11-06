@@ -4,6 +4,8 @@
 #pragma kernel AddFlash
 #pragma kernel ResolveGridFill
 #pragma kernel CopyDirect
+#pragma kernel CopyDetailed
+#pragma kernel ResolveDetailed
 
 RWTexture2D<float4> _Front;           // what actors and props receive (flashes, no shadows)
 RWTexture2D<float4> _Back;            // what walls and the background receive (with actor shadows)
@@ -14,6 +16,9 @@ Texture2D<float4> _DirectIn;          // FP32 additive sum; the camera buffers r
 int2 _AreaOrigin,_FieldOrigin,_FieldSize;
 int2 _AreaSize;
 float _FillGain;
+SamplerState sampler_linear_clamp;
+int2 _OutputSize;
+float4 _OutputRect,_WorldRect;
 int4 _Clip;                           // area-local x0, y0, x1, y1 (exclusive)
 
 [numthreads(8,8,1)]
@@ -60,4 +65,22 @@ void ResolveGridFill(uint3 id:SV_DispatchThreadID)
     // A transient flash contributes direct light only: it never writes the world fill.
     _Front[p]=float4(max(SoftKnee(_Front[p].rgb),fill),1);
     _Back[p]=float4(max(SoftKnee(_Back[p].rgb),fill),1);
+}
+
+[numthreads(8,8,1)]
+void CopyDetailed(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_OutputSize)))return;
+    float4 value=float4(max(0,_DirectIn[id.xy].rgb),1);
+    _Front[id.xy]=value;_Back[id.xy]=value;
+}
+[numthreads(8,8,1)]
+void ResolveDetailed(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=uint2(_OutputSize)))return;
+    float2 world=_OutputRect.xy+(float2(id.xy)+.5)/_OutputSize*_OutputRect.zw;
+    float2 uv=(world-_WorldRect.xy)/_WorldRect.zw;
+    float3 fill=max(0,_Fill.SampleLevel(sampler_linear_clamp,uv,0).rgb)*_FillGain;
+    _Front[id.xy]=float4(max(SoftKnee(_Front[id.xy].rgb),fill),1);
+    _Back[id.xy]=float4(max(SoftKnee(_Back[id.xy].rgb),fill),1);
 }

@@ -116,7 +116,7 @@ namespace Remains.Editor
             }
             finally{foreach(var target in owned)Object.DestroyImmediate(target);}
         }
-        private static LevelLightScene Scene(int resolution)
+        internal static LevelLightScene Scene(int resolution)
         {
             var walls=new float[12*resolution,6*resolution];
             // Cell-aligned axis-aligned silhouette: increasing geometry resolution does not change its shape.
@@ -124,7 +124,7 @@ namespace Remains.Editor
             {float wx=(x+.5f)/resolution,wy=(y+.5f)/resolution;if(wx>=3.8f && wx<4.4f && wy>=3.5f)walls[x,y]=1;}
             return new LevelLightScene(walls,Vector2.zero,resolution,Array.Empty<LevelLightScene.ObjectSprite>());
         }
-        private static LevelLightSource SourceDefinition(LevelLightScene scene)=>new("study",LevelLightSourceKind.Lamp,
+        internal static LevelLightSource SourceDefinition(LevelLightScene scene)=>new("study",LevelLightSourceKind.Lamp,
             new[]{new Vector4(Source.x,Source.y,1,0)},new Color(Power,Power,Power),EmitterWidth,Reach,new Rect(Source-Vector2.one*.01f,Vector2.one*.02f),new RectInt(0,0,scene.Width,scene.Height),true);
         private static float Unshadowed(int x,int y)
         {var world=new Vector2((x+.5f)/Width*World.width,(y+.5f)/Height*World.height);float distance=Vector2.Distance(world,Source);return Power*2*Mathf.Atan(EmitterWidth/(2*Mathf.Max(distance,.05f)))*(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(Reach*.9f,Reach,distance)));}

@@ -123,7 +123,7 @@ namespace Remains.Editor
                 long fillRevision=light.Fill.Revision;int directBuilds=light.Direct.Builds;long fillCells=light.Fill.LastGridCells;
                 for(int i=0;i<6;i++){var move=area;move.x+=i*5;view.SetViewArea(move);view.RenderMuzzleFlashes(Array.Empty<SpriteEmission>(),masks,Array.Empty<string>());}
                 Require(light.Fill.Revision==fillRevision && light.Direct.Builds==directBuilds && light.Fill.LastGridCells==fillCells,"Камера пересчитала геометрию или свет уровня.");result.cameraUsesCache=true;
-                result.levelGpuBytes=light.Scene.Bytes+light.Direct.SumBytes+light.Direct.CacheBytes+((PolarDirectLight)light.Direct).ScratchBytes+light.Fill.GpuBytes;result.fillCpuBytes=light.Fill.CpuBytes;
+                result.levelGpuBytes=light.Scene.Bytes+((PolarDirectLight)light.Direct).GpuBytes+light.Fill.GpuBytes;result.fillCpuBytes=light.Fill.CpuBytes;
                 void Capture(string name){Remains.Runtime.NetworkFrameCapture.Save(camera,Path.Combine(Output,name),width:1280,height:672);}
             }
             finally{foreach(var o in new[]{cameraObject,fixture,visual})if(o!=null)Object.DestroyImmediate(o);}

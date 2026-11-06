@@ -21,8 +21,15 @@ namespace Remains.Presentation
         private const int ShadowMaskPass=4;
         private readonly LevelLight light;
         private readonly LightShaderContext shader;
+        private readonly PolarDirectLight polar;
+        private readonly PolarLightWindow detailed;
+        public const int DetailScale=8; // 1.25cm output texels; scene/transport stay at 10cm.
+        private int Scale=>polar==null?1:DetailScale;
+        private float ViewMargin=>polar==null?Margin:2;
+        public int DetailBuilds=>detailed?.Builds??0;
+        public int DetailSourceUpdates=>detailed?.SourceUpdates??0;
         private ComputeShader compute;
-        private int subtractKernel,addFlashKernel,resolveKernel,copyKernel;
+        private int subtractKernel,addFlashKernel,resolveKernel,copyKernel,copyDetailedKernel,resolveDetailedKernel;
         private RenderTexture front,back,mask,flash,staticFront,staticBack;
         private Material maskMaterial;
         private Mesh quad;
@@ -52,11 +59,13 @@ namespace Remains.Presentation
         {
             this.light=light??throw new ArgumentNullException(nameof(light));
             this.shader=shader??throw new ArgumentNullException(nameof(shader));
+            polar=light.Direct as PolarDirectLight;
+            if(polar!=null)detailed=new PolarLightWindow(polar);
             try
             {
                 compute=GameAssets.Load<ComputeShader>(ComputeResource)??throw new InvalidOperationException("Нет compute-шейдера "+ComputeResource);
                 subtractKernel=compute.FindKernel("SubtractField");addFlashKernel=compute.FindKernel("AddFlash");resolveKernel=compute.FindKernel("ResolveGridFill");
-                copyKernel=compute.FindKernel("CopyDirect");
+                copyKernel=compute.FindKernel("CopyDirect");copyDetailedKernel=compute.FindKernel("CopyDetailed");resolveDetailedKernel=compute.FindKernel("ResolveDetailed");
                 maskMaterial=new Material(GameAssets.Load<Shader>(SceneShaderResource)??throw new InvalidOperationException("Нет шейдера "+SceneShaderResource)) {name="Маска тени над камерой",hideFlags=HideFlags.HideAndDontSave};
                 quad=LightSpriteShapes.UnitQuad("Квадрат маски тени");
                 commands=new CommandBuffer {name="Свет над камерой: маска тени"};
@@ -95,16 +104,25 @@ namespace Remains.Presentation
             if(!moved && flashCount==0 && !flashShown && hasSignature && next==signature){Publish();return;}
             Remains.Diagnostics.FrameHitchLog.Gpu("Свет: камера (тени и вспышки)");
             using var section=Remains.Diagnostics.FrameHitchLog.Section("Свет: камера (тени и вспышки)");
-            var sum=light.Direct.Sum;
+            if(polar!=null)detailed.Prepare(area,WorldArea,front.width,front.height);
+            var sum=polar==null?light.Direct.Sum:detailed.Sum;
             // Explicit format conversion: a FP32 source sum cannot use CopyTexture into the FP16 camera buffers.
-            compute.SetTexture(copyKernel,"_DirectIn",sum);compute.SetTexture(copyKernel,"_Front",front);compute.SetTexture(copyKernel,"_Back",back);
-            compute.SetInts("_AreaOrigin",area.x,area.y);compute.SetInts("_AreaSize",area.width,area.height);
-            compute.Dispatch(copyKernel,(area.width+7)/8,(area.height+7)/8,1);
+            int copy=polar==null?copyKernel:copyDetailedKernel;
+            compute.SetTexture(copy,"_DirectIn",sum);compute.SetTexture(copy,"_Front",front);compute.SetTexture(copy,"_Back",back);
+            compute.SetInts("_AreaOrigin",area.x,area.y);compute.SetInts("_AreaSize",area.width,area.height);compute.SetInts("_OutputSize",front.width,front.height);
+            compute.Dispatch(copy,(front.width+7)/8,(front.height+7)/8,1);
             composed.Clear();
             if(masks!=null) foreach(var m in masks)
             {
                 if(composed.Contains(m.SourceId) || IsFlash(m.SourceId,flashIds)) continue;
                 composed.Add(m.SourceId);
+                if(polar!=null)
+                {
+                    if(!light.Sources.TryGet(m.SourceId,out int index) || !light.Sources.All[index].Enabled)continue;
+                    DrawMask(masks,m.SourceId);
+                    polar.DrawDetail(index,back,WorldArea,2,mask,MaskBounds(masks,m.SourceId));
+                    continue;
+                }
                 if(!light.Direct.TryGetField(m.SourceId,out var field,out var texels))
                 {
                     if(light.Sources.TryGet(m.SourceId,out int sourceIndex) && light.Sources.All[sourceIndex].Enabled && warned.Add(m.SourceId))
@@ -118,9 +136,9 @@ namespace Remains.Presentation
             for(int i=0;i<flashCount;i++)
             {
                 if(!TryFlashSource(flashes[i],flashIds[i],out var source)) continue;
-                light.Direct.BuildTransient(source,flash);
                 DrawMask(masks,flashIds[i]);
-                Apply(addFlashKernel,flash,source.Texels);
+                if(polar!=null)polar.DrawDetailTransient(source,front,back,WorldArea,mask);
+                else {light.Direct.BuildTransient(source,flash);Apply(addFlashKernel,flash,source.Texels);}
             }
             if(light.UsesGridFill)ResolveGridFill();
             flashShown=flashCount>0;signature=next;hasSignature=true;Compositions++;
@@ -136,13 +154,12 @@ namespace Remains.Presentation
         private bool Place(Rect view)
         {
             var scene=light.Scene;float texel=scene.Texel;
-            var wanted=Rect.MinMaxRect(view.xMin-Margin,view.yMin-Margin,view.xMax+Margin,view.yMax+Margin);
-            int w=Mathf.Min(scene.Width,Mathf.CeilToInt(wanted.width/texel)+2),h=Mathf.Min(scene.Height,Mathf.CeilToInt(wanted.height/texel)+2);
-            if(front==null || front.width<w || front.height<h) Allocate(Math.Max(w,front?.width??0),Math.Max(h,front?.height??0));
-            w=front.width;h=front.height;   // the area fills the textures: the published rectangle has no stale border
+            int w=Mathf.Min(scene.Width,Mathf.CeilToInt((view.width+2*ViewMargin)/texel)+2),h=Mathf.Min(scene.Height,Mathf.CeilToInt((view.height+2*ViewMargin)/texel)+2);
+            if(front==null || front.width<w*Scale || front.height<h*Scale) Allocate(Math.Max(w,front==null?0:front.width/Scale),Math.Max(h,front==null?0:front.height/Scale));
+            w=front.width/Scale;h=front.height/Scale;   // the area fills the textures: the published rectangle has no stale border
             if(hasArea && area.width>=w && area.height>=h)
             {
-                var inner=WorldArea;inner.xMin+=Margin*.5f;inner.yMin+=Margin*.5f;inner.xMax-=Margin*.5f;inner.yMax-=Margin*.5f;
+                var inner=WorldArea;inner.xMin+=ViewMargin*.5f;inner.yMin+=ViewMargin*.5f;inner.xMax-=ViewMargin*.5f;inner.yMax-=ViewMargin*.5f;
                 bool atLeft=area.xMin==0,atBottom=area.yMin==0,atRight=area.xMax==scene.Width,atTop=area.yMax==scene.Height;
                 if((view.xMin>=inner.xMin || atLeft) && (view.yMin>=inner.yMin || atBottom) && (view.xMax<=inner.xMax || atRight) && (view.yMax<=inner.yMax || atTop)) return false;
             }
@@ -153,9 +170,10 @@ namespace Remains.Presentation
         }
         private void Allocate(int width,int height)
         {
+            width*=Scale;height*=Scale;
             LightTextureBudget.Release(front);LightTextureBudget.Release(back);LightTextureBudget.Release(mask);front=back=mask=null;
             LightTextureBudget.Release(staticFront);LightTextureBudget.Release(staticBack);staticFront=staticBack=null;hasFlashBaseline=false;
-            front=Target(width,height,"Свет над камерой: актёры");back=Target(width,height,"Свет над камерой: фон с тенями");
+            front=Target(width,height,"Свет над камерой: актёры");back=Target(width,height,"Свет над камерой: фон с тенями",polar!=null);
             mask=Target(width,height,"Свет над камерой: маска тени");
             front.filterMode=back.filterMode=FilterMode.Bilinear;
             hasArea=false;hasSignature=false;
@@ -188,11 +206,18 @@ namespace Remains.Presentation
             return true;
         }
 
+        private static Rect MaskBounds(IReadOnlyList<ProjectedLightShadow> masks,string id)
+        {
+            bool found=false;Rect result=default;
+            foreach(var m in masks)if(m.SourceId==id)
+            {var b=m.WorldBounds;result=found?Rect.MinMaxRect(Mathf.Min(result.xMin,b.xMin),Mathf.Min(result.yMin,b.yMin),Mathf.Max(result.xMax,b.xMax),Mathf.Max(result.yMax,b.yMax)):b;found=true;}
+            return result;
+        }
         private void DrawMask(IReadOnlyList<ProjectedLightShadow> masks,string id)
         {
             var world=WorldArea;
             commands.Clear();commands.SetRenderTarget(mask);commands.ClearRenderTarget(false,true,Color.clear);
-            commands.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(world.xMin,world.xMin+mask.width*light.Scene.Texel,world.yMin,world.yMin+mask.height*light.Scene.Texel,-1,1),false));
+            commands.SetViewProjectionMatrices(Matrix4x4.identity,GL.GetGPUProjectionMatrix(Matrix4x4.Ortho(world.xMin,world.xMax,world.yMin,world.yMax,-1,1),false));
             if(masks!=null) foreach(var shadow in masks)
             {
                 if(shadow.SourceId!=id) continue;
@@ -220,7 +245,7 @@ namespace Remains.Presentation
             if(staticFront==null)
             {
                 staticFront=Target(front.width,front.height,"Свет над камерой: актёры до вспышки");
-                staticBack=Target(back.width,back.height,"Свет над камерой: фон до вспышки");
+                staticBack=Target(back.width,back.height,"Свет над камерой: фон до вспышки",polar!=null);
                 staticFront.filterMode=staticBack.filterMode=FilterMode.Bilinear;
             }
             Graphics.CopyTexture(front,staticFront);Graphics.CopyTexture(back,staticBack);
@@ -233,10 +258,15 @@ namespace Remains.Presentation
             var fill=light.Fill.Texture;
             if(fill==null || fill.width!=light.Scene.Width || fill.height!=light.Scene.Height)
                 throw new InvalidOperationException($"Свет над камерой: заполнение не совпадает с fine-сценой {light.Scene.Width}×{light.Scene.Height}, поле={fill}.");
-            compute.SetTexture(resolveKernel,"_Front",targetFront);compute.SetTexture(resolveKernel,"_Back",targetBack);
-            compute.SetTexture(resolveKernel,"_Fill",fill);compute.SetInts("_AreaOrigin",area.x,area.y);
+            int resolve=polar==null?resolveKernel:resolveDetailedKernel;
+            compute.SetTexture(resolve,"_Front",targetFront);compute.SetTexture(resolve,"_Back",targetBack);
+            var world=WorldArea;var scene=light.Scene.WorldRect;
+            compute.SetInts("_OutputSize",targetFront.width,targetFront.height);
+            compute.SetVector("_OutputRect",new Vector4(world.x,world.y,world.width,world.height));
+            compute.SetVector("_WorldRect",new Vector4(scene.x,scene.y,scene.width,scene.height));
+            compute.SetTexture(resolve,"_Fill",fill);compute.SetInts("_AreaOrigin",area.x,area.y);
             compute.SetInts("_AreaSize",area.width,area.height);compute.SetFloat("_FillGain",fillGain);
-            compute.Dispatch(resolveKernel,(area.width+7)/8,(area.height+7)/8,1);
+            compute.Dispatch(resolve,(targetFront.width+7)/8,(targetFront.height+7)/8,1);
         }
 
         private void Publish()
@@ -246,7 +276,7 @@ namespace Remains.Presentation
             Shader.SetGlobalTexture("_RemainsRadiance",front);
             Shader.SetGlobalTexture("_RemainsBackgroundRadiance",back);
             Shader.SetGlobalVector("_RemainsRadianceRect",new Vector4(world.x,world.y,world.width,world.height));
-            Shader.SetGlobalFloat("_RemainsRadianceTexel",scene.Texel);
+            Shader.SetGlobalFloat("_RemainsRadianceTexel",scene.Texel/Scale);
             Shader.SetGlobalFloat("_RemainsRadianceEnabled",1);
             Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",1);
             if(light.UsesGridFill)Shader.SetGlobalFloat("_RemainsIndirectEnabled",0);
@@ -259,12 +289,12 @@ namespace Remains.Presentation
             }
         }
 
-        private static RenderTexture Target(int width,int height,string name)
+        private static RenderTexture Target(int width,int height,string name,bool fullPrecision=false)
         {
-            var texture=new RenderTexture(width,height,0,GraphicsFormat.R16G16B16A16_SFloat) {name=name,enableRandomWrite=true,filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
+            var texture=new RenderTexture(width,height,0,fullPrecision?GraphicsFormat.R32G32B32A32_SFloat:GraphicsFormat.R16G16B16A16_SFloat) {name=name,enableRandomWrite=true,filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};
             try
             {
-                LightTextureBudget.Track(texture,LightTextureBudget.Size(width,height,8));
+                LightTextureBudget.Track(texture,LightTextureBudget.Size(width,height,fullPrecision?16:8));
                 if(!texture.Create()) throw new InvalidOperationException("Не создана текстура света "+name);
                 return texture;
             }
@@ -275,6 +305,7 @@ namespace Remains.Presentation
             if(disposed) return;
             disposed=true;
             if(shader.IsActive) {Shader.SetGlobalFloat("_RemainsRadianceEnabled",0);Shader.SetGlobalFloat("_RemainsBackgroundRadianceEnabled",0);Shader.SetGlobalFloat("_RemainsIndirectEnabled",0);}
+            detailed?.Dispose();
             LightTextureBudget.Release(front);LightTextureBudget.Release(back);LightTextureBudget.Release(mask);LightTextureBudget.Release(flash);
             LightTextureBudget.Release(staticFront);LightTextureBudget.Release(staticBack);staticFront=staticBack=null;hasFlashBaseline=false;
             front=back=mask=flash=null;

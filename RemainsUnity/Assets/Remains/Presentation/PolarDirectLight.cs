@@ -12,7 +12,7 @@ namespace Remains.Presentation
 {
     // Polar transmission once per emitting sample, then a local field.
     // Cached fields and the sum stay unchanged between events. The supplied Sources belong to this instance.
-    public class PolarDirectLight : ILevelDirectLight
+    public partial class PolarDirectLight : ILevelDirectLight
     {
         public const float OuterPitch=.05f,OuterFilterWidth=.05f;
         public const long DefaultCacheBytes=64L*1024*1024;
@@ -43,6 +43,7 @@ namespace Remains.Presentation
         private readonly int[] offsets;
         private readonly int buildKernel,fieldKernel,exactKernel,clearKernel,addKernel,clearWorkKernel,addWorkKernel,removeKernel;
         private readonly int maximumAngles,maximumRows,maximumSamples;
+        private readonly int detailKernel,detailFlashKernel;
         private readonly float marchStep,maximumRadius;
         private readonly ComputeBuffer transientSamples;
         private RenderTexture map,sum;
@@ -56,7 +57,7 @@ namespace Remains.Presentation
         public long CacheBytes=>cacheBytes;
         public long SumBytes=>sum==null?0:(long)sum.width*sum.height*16;
         public long ScratchBytes=>map==null?0:(long)maximumAngles*maximumRows*maximumSamples*4+maximumRows*4L+samples.count*16L+DirectLight.MaximumSamples*TransientSlots*16L+(rebuild?.Texture==null?0:(long)rebuild.Texture.width*rebuild.Texture.height*16);
-        public long GpuBytes=>disposed?0:SumBytes+CacheBytes+ScratchBytes;
+        public long GpuBytes=>disposed?0:SumBytes+CacheBytes+ScratchBytes+DetailMapBytes;
         public float MaximumRadius=>maximumRadius;
         public int LastMapAngles {get;private set;}
         public int LastMapSamples {get;private set;}
@@ -108,7 +109,7 @@ namespace Remains.Presentation
                 composition=Object.Instantiate(GameAssets.Load<ComputeShader>("Presentation/DirectLight")??throw new InvalidOperationException("Нет compute-шейдера Presentation/DirectLight."));
                 buildKernel=compute.FindKernel("BuildMaps");fieldKernel=compute.FindKernel("Field");exactKernel=compute.FindKernel("ExactField");
                 clearWorkKernel=compute.FindKernel("ClearWork");addWorkKernel=compute.FindKernel("AddWork");
-                removeKernel=compute.FindKernel("RemoveField");
+                removeKernel=compute.FindKernel("RemoveField");detailKernel=compute.FindKernel("Detail");detailFlashKernel=compute.FindKernel("DetailFlash");
                 clearKernel=composition.FindKernel("ClearRect");addKernel=composition.FindKernel("AddField");
                 transientSamples=new ComputeBuffer(DirectLight.MaximumSamples*TransientSlots,16);
                 samples=new ComputeBuffer(Math.Max(1,points.Count),16);
@@ -136,6 +137,7 @@ namespace Remains.Presentation
         public IEnumerator BuildAllSteps()
         {
             EnsureAlive();ResetMetrics();built=false;building=true;ReleaseRebuild();pendingRegions.Clear();unpublished.Clear();
+            ReleaseDetailMaps();
             foreach(var field in fields)if(field!=null)field.Stale=true;
             var all=new RectInt(0,0,scene.Width,scene.Height);Clear(all);
             for(int index=0;index<sources.Count;index++)
@@ -207,6 +209,7 @@ namespace Remains.Presentation
             bool hasRegion=false;RectInt region=default;
             foreach(int index in affected)
             {
+                InvalidateDetailMap(index);
                 if(fields[index]!=null)fields[index].Stale=true;
                 if(built || building)unpublished.Add(index);
                 if(!sources.All[index].Enabled)continue;
@@ -478,6 +481,7 @@ namespace Remains.Presentation
         public void Dispose()
         {
             if(disposed)return;disposed=true;
+            ReleaseDetailMaps();
             ReleaseRebuild();pendingRegions.Clear();requested.Clear();
             foreach(var field in fields)if(field!=null)LightTextureBudget.Release(field.Texture);
             LightTextureBudget.Release(map);LightTextureBudget.Release(sum);map=sum=null;cacheBytes=0;CachedFields=0;lru.Clear();

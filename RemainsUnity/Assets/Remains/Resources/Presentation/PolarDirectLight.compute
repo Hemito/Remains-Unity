@@ -6,6 +6,8 @@
 #pragma kernel ClearWork
 #pragma kernel AddWork
 #pragma kernel RemoveField
+#pragma kernel Detail
+#pragma kernel DetailFlash
 
 Texture2D<float> _Scene;
 StructuredBuffer<float4> _Samples;
@@ -27,11 +29,14 @@ float _PPU,_Radius,_ProjectedWidth,_MarchStep;
 static const float Tau=6.283185307179586;
 // HLSL static storage is invocation-local, not groupshared: the shared filter calls the active sample's prefix.
 static int ActiveSample=0;
+static int ActiveRow=-1;
 bool Inside(int2 p){return all(p>=0) && all(p<_SceneSize);}
 int2 ScenePoint(float2 world){return int2(floor((world-_SceneRect.xy)*_PPU));}
 float2 WorldOf(int2 p){return _SceneRect.xy+(float2(p)+.5)/_PPU;}
 bool InEmitterBounds(float2 world){return all(world>=_SourceBounds.xy) && all(world<=_SourceBounds.zw);}
-int Wrap(int angle){return (angle%_Angles+_Angles)%_Angles;}
+// The angular box is one bin wide; atan2 supplies [0,N), so only the adjacent
+// seam bins -1/N can escape. Avoid two integer divisions per prefix lookup.
+int Wrap(int angle){return angle<0?angle+_Angles:(angle>=_Angles?angle-_Angles:angle);}
 
 [numthreads(64,1,1)]
 void BuildMaps(uint3 id:SV_DispatchThreadID)
@@ -62,20 +67,21 @@ void BuildMaps(uint3 id:SV_DispatchThreadID)
         _MapOut[int3(id.x,row,id.y)]=transmission;
     }
 }
-float Prefix(int angle,float distanceWorld)
+int PrefixRow(float distanceWorld)
 {
-    if(distanceWorld<.5/_PPU)return 1;
+    if(distanceWorld<.5/_PPU)return -1;
     float finish=max(0,distanceWorld-.6/_PPU);
     int count=min(max(0,(int)ceil(finish/_MarchStep-.5)),_RadialSamples);
     [loop] while(count>0 && _MarchDistances[count-1]>=finish)count--;
     [loop] while(count<_RadialSamples && _MarchDistances[count]<finish)count++;
-    return count==0?1:_Map[int3(Wrap(angle),count-1,ActiveSample)];
+    return count-1;
 }
-float PolarSample(int angle,float distanceWorld){return Prefix(angle,distanceWorld);}
+float PolarSample(int angle,float distanceWorld){return ActiveRow<0?1:_Map[int3(Wrap(angle),ActiveRow,ActiveSample)];}
 #include "PolarAngularFilter.hlsl"
 float PolarTransmission(float2 delta,float distanceWorld)
 {
     if(distanceWorld<.5/_PPU)return 1;
+    ActiveRow=PrefixRow(distanceWorld);
     float angle=frac(atan2(delta.y,delta.x)/Tau+1)*_Angles;
     return PolarBoxFilter(angle,.05*_Angles/(Tau*_Radius),distanceWorld);
 }
@@ -160,5 +166,41 @@ void RemoveField(uint3 id:SV_DispatchThreadID)
     if(any(id.xy>=uint2(_RemovalSize)))return;
     int2 p=_RemovalOrigin+int2(id.xy);
     _DirectSum[p]=float4(max(0,_DirectSum[p].rgb-_RemovedField[id.xy].rgb),1);
+}
+
+RWTexture2D<float4> _DetailOut;
+Texture2D<float4> _DetailMask;
+int2 _DetailSize;
+int4 _DetailClip;
+float4 _DetailRect;
+int _DetailMode;
+RWTexture2D<float4> _DetailBack;
+float3 DetailIrradiance(int2 pixel)
+{
+    float2 world=_DetailRect.xy+(float2(pixel)+.5)/_DetailSize*_DetailRect.zw;
+    int2 p=ScenePoint(world);
+    return Inside(p)?(_Scene[p]>=.99?Receiver(p,false):Irradiance(world,false)):0;
+}
+[numthreads(8,8,1)]
+void Detail(uint3 id:SV_DispatchThreadID)
+{
+    int2 pixel=_DetailClip.xy+int2(id.xy);
+    if(any(pixel>=_DetailClip.zw))return;
+    float opacity=1;
+    if(_DetailMode==2){opacity=saturate(_DetailMask[pixel].a);if(opacity==0)return;}
+    float3 light=DetailIrradiance(pixel);
+    if(_DetailMode==1)light=-light;
+    if(_DetailMode==2)light*=-opacity;
+    if(_DetailMode==3)light*=1-saturate(_DetailMask[pixel].a);
+    _DetailOut[pixel]=float4(_DetailOut[pixel].rgb+light,1);
+}
+[numthreads(8,8,1)]
+void DetailFlash(uint3 id:SV_DispatchThreadID)
+{
+    int2 pixel=_DetailClip.xy+int2(id.xy);
+    if(any(pixel>=_DetailClip.zw))return;
+    float3 light=DetailIrradiance(pixel);
+    _DetailOut[pixel]=float4(_DetailOut[pixel].rgb+light,1);
+    _DetailBack[pixel]=float4(_DetailBack[pixel].rgb+light*(1-saturate(_DetailMask[pixel].a)),1);
 }
 
