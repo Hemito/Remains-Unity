@@ -58,17 +58,21 @@ namespace Remains.Gameplay
                 session.PublishActor(session.LocalActor);
             },rejection:(item,_)=>CosmeticEquipment.IsWearable(item)?null:"Для предмета не подключён внешний вид.",
                 caption:(item,context)=>context.ToggleEquipped && CosmeticEquipment.IsEquipped(session.LocalActor,item.id)?"Снять":"Надеть");
-            Action<ItemStack,ItemActionContext> hold=(item,_)=>
+            Action<ItemStack,ItemActionContext> hold=(item,context)=>
             {
+                if(IsHeld(item,context)) {equip(null);return;}
                 if(!HeldItemSelection.Select(session.LocalActor,item.id,out var reason)) {session.ShowNotice(reason);return;}
                 session.PublishActor(session.LocalActor);
             };
             Func<ItemStack,ItemActionContext,string> holdRejection=(item,_)=>WeaponInventory.IsEquippable(item)?"Этот предмет не является обычной удерживаемой вещью.":null;
-            Register(StandardItemActions.Hold,hold,rejection:holdRejection,caption:(_,_)=>"Взять в копыта");
-            Register(StandardItemActions.Toss,hold,rejection:holdRejection,caption:(_,_)=>"Взять в копыта"); // Explicit compatibility for mods using the former action ID.
+            Func<ItemStack,ItemActionContext,string> holdCaption=(item,context)=>IsHeld(item,context)?"Убрать из копыт":"Взять в копыта";
+            Register(StandardItemActions.Hold,hold,rejection:holdRejection,caption:holdCaption);
+            Register(StandardItemActions.Toss,hold,rejection:holdRejection,caption:holdCaption); // Explicit compatibility for mods using the former action ID.
         }
         private bool IsEquipped(ItemStack item,ItemActionContext context)=>context.ToggleEquipped &&
             !HeldItemSelection.HasSelection(session.LocalActor) && session.LocalActor?.equippedWeaponItem==item.id;
+        private bool IsHeld(ItemStack item,ItemActionContext context)=>context.ToggleEquipped &&
+            HeldItemSelection.Selected(session.LocalActor)?.id==item.id;
         public bool TryThrow(Vector2 aim,bool whole=false)
         {
             if(session.GameplayFailurePending) return false;
@@ -100,7 +104,8 @@ namespace Remains.Gameplay
             {
                 var item=ItemShortcuts.Get(session.LocalActor,slot);
                 if(item==null) {session.ShowNotice("Быстрая клавиша не назначена или предмет закончился.");return false;}
-                return ActivateItem(item.id,aim,whole);
+                // The same key again puts it away: a weapon, a held item, clothes (user 2026-11-06).
+                return ActivateItem(item.id,aim,whole,toggleEquipped:true);
             }
             catch(Exception error) {Failure(slot,"разрешение быстрой клавиши",error);return false;}
         }

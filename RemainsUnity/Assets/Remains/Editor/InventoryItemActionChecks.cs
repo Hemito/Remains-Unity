@@ -87,6 +87,19 @@ namespace Remains.Editor
                 Require(actions.ActivateItem("old-ammunition",Vector2.one,true) && HeldItemSelection.Selected(actor)==fixture.Ordinary &&
                     StateJson.ToJson(actor.inventory)==beforeInventory,"alias/режим всей стопки изменил количество до отдельного броска");
 
+                // The same key again puts it away: a weapon on a slot and a held thing alike.
+                var gun=fixture.Weapon;
+                Require(WeaponInventory.Assign(actor,"9",gun.id,out string assignment),"пистолет не назначен: "+assignment);
+                if(actor.equippedWeaponItem!=gun.id || HeldItemSelection.HasSelection(actor)) Require(actions.Activate("9",null),"клавиша не сработала");
+                Require(actor.equippedWeaponItem==gun.id,"клавиша не взяла оружие в копыта");
+                Require(actions.Activate("9",null) && actor.equippedWeaponItem==null && actor.weapon==null,"повторное нажатие не убрало оружие");
+                Require(actions.Activate("9",null) && actor.equippedWeaponItem==gun.id,"третье нажатие не вернуло оружие");
+                Require(actions.ActivateItem(fixture.Ordinary.id,toggleEquipped:true) && HeldItemSelection.Selected(actor)==fixture.Ordinary,"вещь не взята в копыта");
+                Require(actions.GetAvailability(fixture.Ordinary.id,true).Caption=="Убрать из копыт","подпись не предлагает убрать вещь");
+                Require(actions.ActivateItem(fixture.Ordinary.id,toggleEquipped:true) && !HeldItemSelection.HasSelection(actor) && actor.equippedWeaponItem==null,"второе нажатие не убрало вещь");
+                actor.weaponShortcuts.Clear();fixture.Panel.Refresh(null);
+                Require(actions.ActivateItem(fixture.Ordinary.id) && HeldItemSelection.Selected(actor)==fixture.Ordinary,"вещь не вернулась для следующих проверок");
+
                 actor.inventoryReservations[fixture.Ordinary.id]=8;fixture.Panel.Refresh(null);
                 string reserved=StateJson.ToJson(actor);view.Use.onClick.Invoke();
                 Require(!view.Use.interactable && view.ActionStatus.text.Contains("зарезервирован") && StateJson.ToJson(actor)==reserved,
@@ -106,8 +119,9 @@ namespace Remains.Editor
                 Require(view.Use.GetComponentInChildren<Text>().text=="Убрать оружие","кнопка не предлагает снять текущий экземпляр");
                 view.Use.onClick.Invoke();Require(actor.equippedWeaponItem==null && actor.weapon==null,"повторное UI действие не сняло оружие");
                 ItemShortcuts.Assign(actor,"1",fixture.Weapon.id,out _);
-                Require(actions.Activate("1",null) && actions.Activate("1",null) && actor.equippedWeaponItem==fixture.Weapon.id,
-                    "быстрая клавиша стала снимать выбранное оружие");
+                Require(actions.Activate("1",null) && actions.Activate("1",null) && actor.equippedWeaponItem==null && actor.weapon==null,
+                    "повторное нажатие клавиши не убрало оружие");
+                Require(actions.Activate("1",null) && actor.equippedWeaponItem==fixture.Weapon.id,"клавиша не вернула оружие");
                 actor.health=100;view.Rows[1].onClick.Invoke();
                 Require(!view.Use.interactable && view.ActionStatus.text==HealingRules.Rejection(actor,actor,true),"встроенное лечение обходится при полном здоровье");
                 actor.health=65;fixture.Panel.Refresh(null);Require(view.Use.interactable,"встроенное лечение недоступно при повреждении");
@@ -131,7 +145,7 @@ namespace Remains.Editor
                 Require(view.Use.interactable && view.Use.GetComponentInChildren<Text>().text=="Действие мода","UI игнорирует модовый ItemActions/текст");
                 view.Use.onClick.Invoke();Require(custom==1 && toggled && !whole && aim==null,"UI не передал контекст прямого действия ровно один раз");
                 ItemShortcuts.Assign(actor,"2",fixture.Ordinary.id,out _);
-                Require(actions.Activate("2",Vector2.one,true) && custom==2 && !toggled && whole && aim==Vector2.one,"shortcut изменил свой контекст");
+                Require(actions.Activate("2",Vector2.one,true) && custom==2 && toggled && whole && aim==Vector2.one,"shortcut изменил свой контекст");
                 // The old public registration remains source compatible and replaces the predicate too.
                 actions.Register(rule.Id,(item,all,point)=>custom++,replace:true);
                 Require(actions.ActivateItem(fixture.Ordinary.id) && custom==3,"прежний Register не работает с прямым действием");

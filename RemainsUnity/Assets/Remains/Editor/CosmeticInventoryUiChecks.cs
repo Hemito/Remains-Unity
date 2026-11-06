@@ -68,8 +68,8 @@ namespace Remains.Editor
                 f.View.Weapons[8].onClick.Invoke();
                 Require(ItemShortcuts.Get(actor,"9")==f.Pip && actor.weaponSelectionRevision==selection+1 &&
                     StateJson.ToJson(actor.cosmeticEquipment)==worn,"назначение клавиши изменило wardrobe");
-                for(int i=0;i<3;i++) Require(f.Actions.Activate("9",null),"повтор быстрой клавиши не исполнен");
-                Require(StateJson.ToJson(actor.cosmeticEquipment)==worn && actor.weaponSelectionRevision==selection+1,"повтор shortcut снял одежду либо повторил stamp");
+                Require(f.Actions.Activate("9",null) && !CosmeticEquipment.IsEquipped(actor,f.Pip.id),"повтор быстрой клавиши не снял одежду");
+                Require(f.Actions.Activate("9",null) && CosmeticEquipment.IsEquipped(actor,f.Pip.id) && actor.weaponSelectionRevision==selection+1,$"ещё одно нажатие не надело одежду либо повторило stamp: {actor.weaponSelectionRevision} против {selection+1}");
                 f.View.Rows[1].onClick.Invoke();f.View.Use.onClick.Invoke();
                 Require(CosmeticEquipment.IsEquipped(actor,f.Antirad.id) && !CosmeticEquipment.IsEquipped(actor,f.Pip.id),"смена одного слота оставила два комплекта");
                 CheckPortrait(f);CheckRowLabels(f,null);f.View.Use.onClick.Invoke();
