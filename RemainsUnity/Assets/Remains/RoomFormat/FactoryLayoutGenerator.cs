@@ -11,7 +11,10 @@ namespace Remains.RoomFormat
     //    every later band 6 rows (4×21 = all four original stages), the allowed room level is the band
     //    (capped at 3), the room budget (kol: 2, uniq 1) resets per band as each original stage did;
     //  - repeats are acceptable: when the band's budget runs out, rooms of the allowed level repeat;
-    //  - top row: the start rooms beg0..beg3, unmirrored; other cells mirrored with 50 %;
+    //  - only the entry cell 0,0 is fixed: beg0, unmirrored (user 2026-11-06, the original fixed the whole top row and every
+    //    factory opened alike); other cells mirrored with 50 %;
+    //  - a room this factory has not used yet weighs UnseenPriority times more (user 2026-11-06): the budget resets per band,
+    //    so without it about nine of the fifty rooms stayed unused while others came four or five times;
     //  - passages: right — three random picks among matching slots 0..5, down — one among 6..10;
     //  - roles on the checkerboard: even cells — checkpoint, at the bottom of a band an exit; odd cells —
     //    a trial door, required at the bottom of a band, otherwise with 30 %.
@@ -19,8 +22,9 @@ namespace Remains.RoomFormat
     // differs between runtimes. Changing any rule bumps GeneratorVersion.
     public static class FactoryLayoutGenerator
     {
-        public const int GeneratorVersion = 2; // 2: persist the selected marker for every cell role
-        public const int FirstBandRows = 3, BandRows = 6, MaxRoomLevel = 3;
+        public const int GeneratorVersion = 3; // 3: only the entry cell is fixed, unused rooms first. 2: persist the selected marker for every cell role
+        public const int OldestStoredVersion = 2; // A saved layout is read, never regenerated; version 1 has no role markers.
+        public const int FirstBandRows = 3, BandRows = 6, MaxRoomLevel = 3, UnseenPriority = 8, MaxAttempts = 64;
         private static readonly HashSet<string> NotRandomTips = new HashSet<string>(StringComparer.Ordinal)
             { "beg0", "back", "roof", "pass", "passroof", "roofpass", "vert", "surf" };
 
@@ -38,6 +42,20 @@ namespace Remains.RoomFormat
             if (rooms == null || rooms.Count == 0) throw new ArgumentException("Нет комнат для генерации завода.");
             if (width < 1 || depth < 1) throw new ArgumentException($"Неверный размер завода {width}×{depth}.");
             var random = new LayoutRandom(Mix(worldSeed, land, index));
+            // The entry has one exit, to the right: about a fifth of the layouts cut it off from the rest (2026-11-06, measured
+            // on the rooms of the plant). The next attempt continues the same random stream, so the result stays reproducible.
+            FactoryLayout best = null; int fewestLost = int.MaxValue;
+            for (int attempt = 0; attempt < MaxAttempts; attempt++)
+            {
+                var layout = Attempt(rooms, land, worldSeed, index, width, depth, random, out int lost);
+                if (lost < fewestLost) { best = layout; fewestLost = lost; }
+                if (lost == 0) return layout;
+            }
+            return best;   // Its issues name the cut cells; the warning goes out when the factory is prepared.
+        }
+
+        private static FactoryLayout Attempt(IReadOnlyList<RoomFile> rooms, string land, ulong worldSeed, int index, int width, int depth, LayoutRandom random, out int lost)
+        {
             var layout = new FactoryLayout { GeneratorVersion = GeneratorVersion, Land = land, Seed = worldSeed, Index = index, Width = width, Depth = depth };
             var all = rooms.Select(r => Describe(r, layout.Issues)).OrderBy(c => c.Room.Template, StringComparer.Ordinal).ToList();
             var bySource = all.Where(c => c.Room.Source?.Room != null).GroupBy(c => c.Room.Source.Room, StringComparer.Ordinal)
@@ -45,6 +63,7 @@ namespace Remains.RoomFormat
             var grid = new Candidate[width, depth];
             var connectors = new int[width, depth][];
             var budget = new Dictionary<Candidate, int>();
+            var used = new HashSet<Candidate>();
             int currentBand = -1;
             for (int y = 0; y < depth; y++)
             {
@@ -55,7 +74,7 @@ namespace Remains.RoomFormat
                 {
                     var cell = new FactoryCell { X = x, Y = y, MaxLevel = maxLevel, Band = band };
                     Candidate chosen = null;
-                    if (y == 0) chosen = all.FirstOrDefault(c => c.Tip == "beg" + x.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    if (y == 0 && x == 0) chosen = all.FirstOrDefault(c => c.Tip == "beg0");
                     if (chosen != null) { cell.Start = true; budget[chosen]--; }
                     else
                     {
@@ -66,6 +85,7 @@ namespace Remains.RoomFormat
                             if (!c.Random || c.Level > maxLevel || budget[c] <= 0 || c == left || c == up) continue;
                             int weight = budget[c] * budget[c];
                             if (weight == 4 && c.Level == 0 && maxLevel > 1) weight = 2;
+                            if (!used.Contains(c)) weight *= UnseenPriority;
                             pool.Add((c, weight));
                         }
                         if (pool.Count == 0)
@@ -78,6 +98,7 @@ namespace Remains.RoomFormat
                         chosen = Pick(pool, random);
                         budget[chosen]--;
                     }
+                    used.Add(chosen);
                     cell.Template = chosen.Room.Template; cell.Level = chosen.Level;
                     cell.Mirror = !cell.Start && random.Unit() < 0.5;
                     if (chosen.Room.Options.TryGetValue("back", out string back))
@@ -138,7 +159,7 @@ namespace Remains.RoomFormat
                     throw new InvalidOperationException($"Клетка {cell.X},{cell.Y}, {cell.Template}, роль {cell.Role}: нет однозначных постоянных ID исходных точек появления.");
                 cell.RolePoint=points[random.Range(points.Length)].Id;
             }
-            Reachability(layout);
+            lost = Reachability(layout);
             return layout;
         }
 
@@ -174,13 +195,13 @@ namespace Remains.RoomFormat
             return pool[pool.Count - 1].room;
         }
 
-        // Cells not connected to the start row through cut passages are reported, not repaired: the
-        // original did not guarantee it either (vertical travel may also use ladders inside rooms).
-        private static void Reachability(FactoryLayout layout)
+        // Cells not connected to the entry through cut passages: the number of them. Passages only: whether a room can be
+        // crossed inside is the room's own design (vertical travel may also use ladders inside rooms).
+        private static int Reachability(FactoryLayout layout)
         {
             var open = new HashSet<(int, int)>();
             var queue = new Queue<(int x, int y)>();
-            for (int x = 0; x < layout.Width; x++) { open.Add((x, 0)); queue.Enqueue((x, 0)); }
+            open.Add((0, 0)); queue.Enqueue((0, 0));
             var links = new Dictionary<(int, int), List<(int, int)>>();
             void Link((int, int) a, (int, int) b)
             {
@@ -194,7 +215,8 @@ namespace Remains.RoomFormat
                 if (links.TryGetValue(c, out var next)) foreach (var n in next) if (open.Add(n)) queue.Enqueue(n);
             }
             var lost = layout.Cells.Where(c => !open.Contains((c.X, c.Y))).Select(c => $"{c.X},{c.Y}").ToList();
-            if (lost.Count > 0) layout.Issues.Add("Нет прохода от стартового ряда к клеткам: " + string.Join(" ", lost) + ".");
+            if (lost.Count > 0) layout.Issues.Add("Нет прохода от входа к клеткам: " + string.Join(" ", lost) + ".");
+            return lost.Count;
         }
 
         private static ulong Mix(ulong seed, string land, int index)

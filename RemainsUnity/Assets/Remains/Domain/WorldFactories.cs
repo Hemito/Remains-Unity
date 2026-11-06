@@ -87,7 +87,8 @@ namespace Remains.Domain
                 record.contentFingerprint = contentFingerprint;
             }
             var selection = FactoryLayoutReader.Read(record.layout, $"Мир {world.worldId}, завод {record.level}");
-            if (record.level != Level(selection.Index) || selection.Seed != Seed(world) || selection.GeneratorVersion != FactoryLayoutGenerator.GeneratorVersion)
+            if (record.level != Level(selection.Index) || selection.Seed != Seed(world) ||
+                selection.GeneratorVersion < FactoryLayoutGenerator.OldestStoredVersion || selection.GeneratorVersion > FactoryLayoutGenerator.GeneratorVersion)
                 throw new InvalidDataException($"Мир {world.worldId}, завод {record.level}: номер, seed или версия генератора раскладки не совпадает (index={selection.Index}, seed={selection.Seed}, generator={selection.GeneratorVersion}).");
             return selection;
         }
