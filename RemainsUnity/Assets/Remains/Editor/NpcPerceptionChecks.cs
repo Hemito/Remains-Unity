@@ -9,6 +9,7 @@ namespace Remains.Editor
     {
         public static void Run()
         {
+            NpcDarkVisionChecks.Run();
             // Synthetic units and timings test the contract; these are not original-game measurements.
             var settings=new NpcPerceptionSettings {sightDistance=12,closeDistance=1,recognitionSeconds=.3f,
                 memorySeconds=4,hearingDistance=8,eyeHeight=.8f,targetHeight=.8f};

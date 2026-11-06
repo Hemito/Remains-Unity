@@ -56,17 +56,23 @@ namespace Remains.Domain
             hearingSquared=settings.hearingDistance*settings.hearingDistance;recognitionSeconds=settings.recognitionSeconds;
             memorySeconds=settings.memorySeconds;eyeHeight=settings.eyeHeight;targetHeight=settings.targetHeight;
         }
-        public bool CanSee(ActorState observer,ActorState subject,Func<Vector2,Vector2,bool> clearSight)
+        // brightness: how lit a subject stands, 0–1 (NpcDarkVision); null: full sight.
+        public bool CanSee(ActorState observer,ActorState subject,Func<Vector2,Vector2,bool> clearSight,Func<ActorState,float> brightness=null)
         {
             if(!Eligible(observer,subject)) return false;
             var start=observer.BodyPosition+Vector2.up*eyeHeight;
             var end=subject.BodyPosition+Vector2.up*targetHeight;
             var delta=end-start;float distance=delta.sqrMagnitude;
             if(distance>sightSquared || delta.x*observer.facing<0 && distance>closeSquared) return false;
+            if(brightness!=null && distance>closeSquared)
+            {
+                float share=NpcDarkVision.Share(brightness(subject),NpcDarkVision.Carries(subject));
+                if(distance>sightSquared*share*share) return false;
+            }
             return clearSight(start,end);
         }
         public void Step(ActorState observer,NpcPerceptionMemory memory,IReadOnlyList<ActorState> subjects,
-            Func<Vector2,Vector2,bool> clearSight,float seconds)
+            Func<Vector2,Vector2,bool> clearSight,float seconds,Func<ActorState,float> brightness=null)
         {
             if(!float.IsFinite(seconds) || seconds<0) throw new ArgumentOutOfRangeException(nameof(seconds));
             if(seconds==0) return;
@@ -75,7 +81,7 @@ namespace Remains.Domain
             ActorState nearest=null,confirmed=null;float nearestDistance=float.PositiveInfinity;
             foreach(var subject in subjects)
             {
-                if(!CanSee(observer,subject,clearSight)) continue;
+                if(!CanSee(observer,subject,clearSight,brightness)) continue;
                 if(subject.id==observer.target) confirmed=subject;
                 float distance=(subject.Position-observer.Position).sqrMagnitude;
                 if(distance<nearestDistance || distance==nearestDistance && string.CompareOrdinal(subject.id,nearest?.id)<0)

@@ -210,6 +210,7 @@ namespace Remains.Runtime
             var room=RoomLayout.Load(shownLevel);
             movement=CreateMovement(room);
             npcs=new NpcController(Session,Geometry,Combat);
+            npcs.LevelBrightness=(level,position)=>LevelBrightness.Read(ActiveFactoryLighting,level,position);
             spikes=new SpikeController(Session,Geometry,Combat);
             Fires=new FireController(Session,Geometry,Combat);
             fireVisuals=CreateOwnedObject("Огонь").AddComponent<FireVisuals>();fireVisuals.Initialize(Session,Fires,Grenades);

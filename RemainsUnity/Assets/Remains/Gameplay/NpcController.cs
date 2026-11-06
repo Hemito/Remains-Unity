@@ -12,6 +12,7 @@ namespace Remains.Gameplay
         private readonly CoopSession session;
         private readonly SimulationGeometry geometry;
         private readonly NpcSenses senses;
+        public Func<string,Vector2,float?> LevelBrightness {set=>senses.LevelBrightness=value;}
         private readonly Remains.Content.MovementSettings movementSettings;
         private readonly Dictionary<(string level,string type),MovementController> movement=new();
         private readonly NpcCreatureController creatures=new();

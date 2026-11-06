@@ -13,11 +13,15 @@ namespace Remains.Gameplay
         private readonly SimulationGeometry geometry;
         private readonly Dictionary<string,NpcPerception> policies=new(StringComparer.Ordinal);
         private readonly Dictionary<string,float> elapsed=new(StringComparer.Ordinal);
+        private readonly HashSet<string> noLightWarned=new(StringComparer.Ordinal);
+        private readonly Func<ActorState,float> brightness;
+        // How lit a point of a level is on this computer, null without the light of that level.
+        public Func<string,Vector2,float?> LevelBrightness {get;set;}
         private string reconciledWorld,reconciledOwner;
         private bool initialized;
         public NpcSenses(CoopSession session,SimulationGeometry geometry)
         {
-            this.session=session;this.geometry=geometry;
+            this.session=session;this.geometry=geometry;brightness=Brightness;
             session.AttackReceived+=Hear;
             session.Changed+=Reconcile;
             Reconcile();
@@ -65,8 +69,17 @@ namespace Remains.Gameplay
                 throw new InvalidOperationException($"Нет политики восприятия: actor={actor.id}, type={actor.actorType}.");
             string previous=actor.target;
             var room=geometry.Get(actor.level);
-            perception.Step(actor,actor.perception,session.World.actors,(from,to)=>RoomVisibility.Clear(room,from,to),seconds);
+            perception.Step(actor,actor.perception,session.World.actors,(from,to)=>RoomVisibility.Clear(room,from,to),seconds,brightness);
             if(previous!=actor.target) {actor.revision++;session.PublishActor(actor);}
+        }
+        // The owner of an NPC plays near it, so its computer has that light. Without it the NPC sees as in full light.
+        private float Brightness(ActorState subject)
+        {
+            var read=LevelBrightness?.Invoke(subject.level,subject.BodyPosition+Vector2.up*.8f);
+            if(read.HasValue) return read.Value;
+            if(noLightWarned.Add(subject.level))
+                Debug.LogWarning($"Зрение NPC: на этом компьютере нет света уровня {subject.level}, NPC видят как на свету.");
+            return 1;
         }
         public void Alarm(ActorState actor,ActorState attacker)
         {
