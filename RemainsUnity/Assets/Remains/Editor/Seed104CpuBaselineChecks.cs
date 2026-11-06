@@ -66,7 +66,7 @@ namespace Remains.Editor
             {
                 // Generate once. Even fixed world/seed is insufficient for all content GUIDs;
                 // repeat invocations restore the exact two JSON inputs, never regenerate them.
-                var world=new WorldState {seed=104,worldId="64ab04d6f71844dba014ce97fa6f347b",branchId="1b17fa9845504183a40af0e0151fbb7a",
+                var world=new WorldState {seed=104,mechanismVersion=1,worldId="64ab04d6f71844dba014ce97fa6f347b",branchId="1b17fa9845504183a40af0e0151fbb7a",
                     weaponContent=WeaponCatalog.ManifestCopy()};
                 FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
                 try

@@ -76,7 +76,7 @@ namespace Remains.Editor
                 Require(type.hitMaterial is "flesh" or "metal" or "slime",$"{creature.actorType}: материал попадания {type.hitMaterial}");
             }
 
-            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
+            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104,mechanismVersion=1};
             FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {
@@ -667,7 +667,7 @@ namespace Remains.Editor
             var controller=new Remains.Gameplay.NpcCreatureController();
             foreach(string kind in new[]{NpcCreatureBehaviours.Bat,NpcCreatureBehaviours.Bloat,NpcCreatureBehaviours.Slime,NpcCreatureBehaviours.SpriteBot,NpcCreatureBehaviours.SpiderMine,NpcCreatureBehaviours.Roller})
             {
-                var actor=StateJson.Copy(world.actors.First(a=>ActorTypes.Get(a.actorType).behavior==kind));
+                var actor=StateJson.Copy(world.actors.Where(a=>ActorTypes.Get(a.actorType).behavior==kind).OrderBy(a=>world.doors.Exists(d=>Mathf.Abs(d.x-a.x)<6 && Mathf.Abs(d.y-a.y)<4)?1:0).First());
                 var type=ActorTypes.Get(actor.actorType);var hull=Anatomy.Movement(actor);
                 var settings=MovementSettings.Load();settings.walkSpeed=type.naturalAttack?.approachSpeed??settings.walkSpeed;settings.runSpeed=Math.Max(settings.runSpeed,settings.walkSpeed);
                 var ground=new Remains.Gameplay.MovementController(room,settings);

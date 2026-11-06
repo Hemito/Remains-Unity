@@ -73,12 +73,22 @@ namespace Remains.Networking
                     throw new InvalidOperationException($"Завершение платформы {platform.id} отклонено: {result.Reason}");
                 changed|=result.Outcome==MechanismOperationOutcome.Changed;
             }
+            // Doors are few and only areas of a level with a player inside cost anything.
+            foreach(var area in session.ServerWorld.mechanismButtons)
+            {
+                if(!area.IsArea || area.pressed || area.removed) continue;
+                var bounds=new Rect(area.x-area.areaWidth*.5f,area.y,area.areaWidth,area.areaHeight);
+                foreach(var actor in session.ServerWorld.actors)
+                    if(actor.player && actor.connected && actor.level==area.level && bounds.Contains(actor.Position))
+                    {changed|=(serverOperations??throw new InvalidOperationException("Не загружен координатор механизмов.")).OpenArea(area);break;}
+            }
             if(changed) session.CommitWorld();
         }
         public bool RequestActivation(string buttonId)
         {
             var actor=session.LocalActor;var button=session.World?.mechanismButtons.Find(b=>b.id==buttonId);
             if(actor==null || button==null || !NetworkClient.isConnected || Pending) return false;
+            if(button.DrivesDoors) return Send(actor,button,new MechanismRequest {operation="mechanism:"+Guid.NewGuid().ToString("N")});
             var platform=session.World.movingPlatforms.Find(p=>p.id==button.platformId);
             if(platform==null) throw new InvalidOperationException("Нет платформы кнопки "+button.id);
             return Send(actor,button,new MechanismRequest {operation="mechanism:"+Guid.NewGuid().ToString("N"),platformRevision=platform.revision});
@@ -130,6 +140,8 @@ namespace Remains.Networking
                         reason="Ремонт отменён: захваченное состояние или время удержания изменилось.";
                     else result=operations.ApplyRepair(actor,button,new ButtonRepairCandidate(request.operation,actor,button),type.interactionRadius,request.operation);
                 }
+                else if(button.DrivesDoors)
+                    result=operations.TryToggleDoors(actor,button,type.interactionRadius,request.revision,request.operation);
                 else
                 {
                     var platform=world.movingPlatforms.Find(p=>p.id==button.platformId);

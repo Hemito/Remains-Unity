@@ -16,7 +16,7 @@ namespace Remains.Editor
         {
             WeaponCatalog.Load();
             var catalog=MechanismCatalogAsset.Load();
-            Require(catalog.Platforms.Length==1 && catalog.Buttons.Length==1,"Состав каталога механизмов");
+            Require(catalog.Platforms.Length==2 && catalog.Buttons.Length==2,"Состав каталога механизмов");
             var platform=catalog.Platform(FactoryWorkshopMechanismAuthoring.PlatformTypeId);var type=platform.CreateDefinition();
             var button=catalog.Button(FactoryWorkshopMechanismAuthoring.ButtonTypeId);var control=button.CreateDefinition();
             Require(type.width==2.4f && type.height==.78f && type.durationSeconds==6 && type.graphicOffsetX==-1.2f &&

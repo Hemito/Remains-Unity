@@ -79,7 +79,7 @@ namespace Remains.Editor
             InventoryStacks.Validate(aliased,aliases);
 
             // Factory loot.
-            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
+            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104,mechanismVersion=1};
             FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             int working=0,formal=0;
             try

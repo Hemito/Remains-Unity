@@ -98,7 +98,7 @@ namespace Remains.Editor
         }
         private static void Populations(FactoryProfileCatalog catalog)
         {
-            var world=NewGameWorld.Create(104);
+            var world=NewGameWorld.Create(104);world.mechanismVersion=1;
             var factories=FactoryCatalogAsset.Load();
             var main=Count(world,"factory:0");
             // One number of each kind; negative when possible, so the sign goes through every step.

@@ -32,7 +32,7 @@ namespace Remains.Presentation
             if(worldId!=world?.worldId || level!=visible) {Clear();worldId=world?.worldId;level=visible;}
             if(world==null || visible==null) return;
             var selectedPlatforms=world.movingPlatforms.Where(p=>!p.removed && p.level==visible).ToArray();
-            var selectedButtons=world.mechanismButtons.Where(b=>!b.removed && b.level==visible).ToArray();
+            var selectedButtons=world.mechanismButtons.Where(b=>!b.removed && !b.IsArea && b.level==visible).ToArray();
             foreach(string id in platforms.Keys.Where(id=>!selectedPlatforms.Any(p=>p.id==id)).ToArray())
             {Remove(platforms[id]);platforms.Remove(id);}
             foreach(string id in buttons.Keys.Where(id=>!selectedButtons.Any(b=>b.id==id)).ToArray())

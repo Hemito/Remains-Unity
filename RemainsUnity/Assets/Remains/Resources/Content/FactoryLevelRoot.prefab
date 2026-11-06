@@ -48,6 +48,7 @@ GameObject:
   - component: {fileID: 1409078995652682342}
   - component: {fileID: 864531393380093437}
   - component: {fileID: 5073280866610648535}
+  - component: {fileID: 7269329318772999682}
   m_Layer: 0
   m_Name: FactoryLevelRoot
   m_TagString: Untagged
@@ -98,6 +99,7 @@ MonoBehaviour:
     ladders: []
     artwork: []
     spikes: []
+    beds: []
   authoredArtwork: 0
 --- !u!114 &665818839952213938
 MonoBehaviour:
@@ -130,6 +132,35 @@ MonoBehaviour:
   metal: {fileID: 1563556946310455587, guid: eec69e944ea2fd442a91c59d6c3ea51e, type: 3}
   large: {fileID: 8816736731275887374, guid: 9a6dd8fe8e0d41c4c98d95a5b0c4397b, type: 3}
   hatch: {fileID: 3964584112310555958, guid: 9a0811e69d4f90e489d0e1ba0c7f7ef4, type: 3}
+  kinds:
+  - type: door1a
+    prefab: {fileID: 5223936716241979803, guid: 2dace19ac90d7294a8dff22e61f9c23f, type: 3}
+    surface: door:wood
+    horizontal: 0
+  - type: door1b
+    prefab: {fileID: 2231317185877409, guid: 0585dc8c4308e564b860805cca153261, type: 3}
+    surface: floor
+    horizontal: 0
+  - type: septum
+    prefab: {fileID: 3622986773579510459, guid: 7a21b010856719044a56f963e511cfee, type: 3}
+    surface: door:wood
+    horizontal: 0
+  - type: window1
+    prefab: {fileID: 5562320457617709729, guid: b0192e9d9e20c19469760598ed1641dc, type: 3}
+    surface: door:glass
+    horizontal: 0
+  - type: hatch2
+    prefab: {fileID: 8320274674814024575, guid: 52a8760563442b14382a18c99d3300f6, type: 3}
+    surface: floor
+    horizontal: 1
+  - type: grate
+    prefab: {fileID: 4867385810517294970, guid: e3d994f06bacbcb4aa1a8e7c09fff321, type: 3}
+    surface: floor
+    horizontal: 0
+  - type: platform1
+    prefab: {fileID: 4023409376754726130, guid: 90d98e3e3603d554cad17006071b06cb, type: 3}
+    surface: floor
+    horizontal: 1
 --- !u!114 &6484053050679885635
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -203,6 +234,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   catalog: {fileID: 11400000, guid: 98ebec4ee19447f43bdc8d42b719f13c, type: 2}
+--- !u!114 &7269329318772999682
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1374235996491122679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f887a5e48684b042ba3a4daf7b4bdf2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  platformLong: {fileID: 11400000, guid: f6c61651cd6363b4eb274b5e9a7e7d3a, type: 2}
+  platformShort: {fileID: 11400000, guid: 07758615064215d48873e5c441b26d29, type: 2}
+  button: {fileID: 11400000, guid: 3976c0e9d47167b43a53cb3f1c4e6219, type: 2}
+  repairButton: {fileID: 11400000, guid: 1c6709ba8d8853143a9b6a2591797e95, type: 2}
 --- !u!1 &4626430130974191981
 GameObject:
   m_ObjectHideFlags: 0

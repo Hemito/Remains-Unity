@@ -56,7 +56,7 @@ namespace Remains.Editor
 
         private static void CheckFactory()
         {
-            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
+            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104,mechanismVersion=1};
             FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {

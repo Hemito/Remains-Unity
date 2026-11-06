@@ -41,8 +41,9 @@ namespace Remains.Content
             var platforms=layout.movingPlatforms.ToDictionary(p=>p.id,StringComparer.Ordinal);
             foreach(var button in layout.mechanismButtons)
             {
+                MovingPlatformState platform=null;
                 if(button==null || button.level!=layout.level || button.removed || button.pressed ||
-                    button.revision!=0 || !controls.ContainsKey(button.definition) || !platforms.TryGetValue(button.platformId,out var platform))
+                    button.revision!=0 || !controls.ContainsKey(button.definition) || !button.DrivesDoors && !platforms.TryGetValue(button.platformId,out platform))
                     throw new InvalidOperationException("Некорректная начальная кнопка: patch="+layout.patch+", id="+button?.id);
                 button.ValidateLink(platform);
             }
@@ -86,7 +87,7 @@ namespace Remains.Content
             }
             foreach(var initial in layout.mechanismButtons.Where(b=>selected==null || selected.Contains(b.id)))
             {
-                var platform=world.movingPlatforms.Concat(additions).SingleOrDefault(p=>p.id==initial.platformId);
+                var platform=initial.DrivesDoors?null:world.movingPlatforms.Concat(additions).SingleOrDefault(p=>p.id==initial.platformId);
                 initial.ValidateLink(platform);
                 var saved=world.mechanismButtons.SingleOrDefault(b=>b.id==initial.id);
                 if(saved!=null)

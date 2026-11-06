@@ -43,7 +43,7 @@ namespace Remains.Editor
                 Anatomy.Load();WeaponCatalog.Load();
                 var catalog=GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
                 if(catalog==null) throw new InvalidOperationException("Нет каталога завода.");
-                var world=new WorldState {worldId="factory-physics-benchmark",seed=104};
+                var world=new WorldState {worldId="factory-physics-benchmark",seed=104,mechanismVersion=1};
                 FactoryPreparation.Create(world,catalog,0);
                 root=FactoryLevelRoot.Create(world,"factory:0");root.gameObject.SetActive(false);
                 root.InstantiateRooms();root.GetComponent<FactoryPropAdapter>().Install(root);

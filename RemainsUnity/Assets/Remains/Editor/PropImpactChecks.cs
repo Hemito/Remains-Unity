@@ -232,7 +232,7 @@ namespace Remains.Editor
         }
         private static void FullFactoryBudget()
         {
-            var world=new WorldState {worldId="prop-impact-budget-seed104",seed=104};
+            var world=new WorldState {worldId="prop-impact-budget-seed104",seed=104,mechanismVersion=1};
             FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {

@@ -26,7 +26,7 @@ namespace Remains.Editor
             Require(count==1&&amount==19,"исходная формула денег case");
             count=0;FactoryLootRules.Generate("ammo",4,1,50,()=>.5,request=>{count++;return true;},message=>throw new Exception(message));
             Require(count==1,"три независимые попытки ammo .7/.25/.15");
-            var world=new WorldState {worldId="factory-loot-verification-v1",seed=104};
+            var world=new WorldState {worldId="factory-loot-verification-v1",seed=104,mechanismVersion=1};
             var catalog=GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey);
             FactoryPreparation.Create(world,catalog,0);
             FactoryContentSources.Prepare(world,"factory:0");

@@ -9,17 +9,31 @@ namespace Remains.Content
     // All factory doors and hatches. Original locks (explicit or randomized) and unsupported door parameters are
     // ignored for now by the user's decision (2026-10-14: no lock mechanic yet, doors must work); every such door
     // is listed in a warning. They are added by the doors-v3 content step, so saved worlds gain them and keep the
-    // states of doors they already have.
+    // states of doors they already have. The further kinds of the original (user 2026-11-06) come with doors-v4.
+    [Serializable] public sealed class FactoryDoorKind
+    {
+        [InspectorName("Тип исходного объекта")] public string type;
+        [InspectorName("Префаб")] public DoorView prefab;
+        [InspectorName("Поверхность для попаданий")] public string surface;
+        [InspectorName("Лежит вдоль пола: отражается с комнатой")] public bool horizontal;
+    }
     public sealed class FactoryDoorAdapter : MonoBehaviour
     {
         [SerializeField,InspectorName("Деревянная дверь")] private DoorView wood;
         [SerializeField,InspectorName("Металлическая дверь")] private DoorView metal;
         [SerializeField,InspectorName("Большая металлическая дверь")] private DoorView large;
         [SerializeField,InspectorName("Напольный люк")] private DoorView hatch;
+        [SerializeField,InspectorName("Прочие двери и преграды")] private FactoryDoorKind[] kinds=Array.Empty<FactoryDoorKind>();
         private bool installed;
         public int Installed {get;private set;}
         public void Configure(DoorView wooden,DoorView metallic,DoorView big,DoorView floorHatch)
         {wood=wooden;metal=metallic;large=big;hatch=floorHatch;}
+        public void ConfigureKinds(FactoryDoorKind[] value)=>kinds=value;
+        private FactoryDoorKind Kind(string type)
+        {
+            foreach(var kind in kinds) if("remains:obj:"+kind.type==type) return kind;
+            return null;
+        }
         public void Install(FactoryLevelRoot root)
         {
             if(installed || root==null || root.Prepared==null || root.transform!=transform || root.Rooms.childCount!=root.Prepared.Grid.Rooms.Count)
@@ -27,13 +41,19 @@ namespace Remains.Content
             if(wood==null || metal==null || large==null || hatch==null)
                 throw new InvalidOperationException("Адаптер дверей: не заданы сериализованные префабы дверей и люка.");
             var skipped=new Dictionary<string,List<string>>(StringComparer.Ordinal);
+            foreach(var kind in kinds)
+                if(kind==null || string.IsNullOrWhiteSpace(kind.type) || string.IsNullOrWhiteSpace(kind.surface) || kind.prefab==null)
+                    throw new InvalidOperationException("Адаптер дверей: неполное описание вида двери: "+kind?.type);
             var accepted=new List<(FactoryPlacedObject source,DoorView prefab,bool open)>();
+            var waiting=new List<string>();   // Driven by a mechanism that is not connected: closed for good, they would wall rooms off.
             var relaxed=new HashSet<FactoryPlacedObject>();   // accepted only because locks/parameters are ignored (doors-v3)
             foreach(var placement in root.Objects)
             {
                 var obj=placement.Source;
-                var prefab=obj.Type switch {"remains:obj:door1"=>wood,"remains:obj:door2"=>metal,"remains:obj:door3"=>large,"remains:obj:hatch1"=>hatch,_=>null};
+                var kind=Kind(obj.Type);
+                var prefab=kind?.prefab??obj.Type switch {"remains:obj:door1"=>wood,"remains:obj:door2"=>metal,"remains:obj:door3"=>large,"remains:obj:hatch1"=>hatch,_=>null};
                 if(prefab==null) continue;
+                if(kind!=null && obj.Params.ContainsKey("allid") && !FactoryMechanismAdapter.Driven(placement,root.Objects)) {waiting.Add($"{placement.Id} ({obj.Type}, {placement.Room.Template.Template})");continue;}
                 string reason=null;
                 if(!obj.Params.TryGetValue("lock",out var value) || value!="0")
                     reason="Исходный замок (в том числе случайный замок типа) ещё не поддержан";
@@ -68,9 +88,10 @@ namespace Remains.Content
                     var view=Instantiate(entry.prefab,transform,false);created.Add(view.gameObject);
                     view.name="Дверь: "+entry.source.Id;
                     view.transform.localPosition=entry.source.Position;
-                    if(entry.prefab==hatch) view.Artwork.flipX=entry.source.Room.Cell.Mirror;
+                    var kind=Kind(entry.source.Source.Type);
+                    if(entry.prefab==hatch || kind?.horizontal==true) view.Artwork.flipX=entry.source.Room.Cell.Mirror;
                     string localId=$"{entry.source.Room.Cell.X},{entry.source.Room.Cell.Y}:{entry.source.Source.Id}";
-                    view.gameObject.AddComponent<RoomDoorAuthoring>().Configure(localId,entry.open,entry.prefab==wood || entry.prefab==hatch?"door:wood":"floor");
+                    view.gameObject.AddComponent<RoomDoorAuthoring>().Configure(localId,entry.open,kind?.surface??(entry.prefab==wood || entry.prefab==hatch?"door:wood":"floor"));
                 }
                 if(GetComponent<RoomDoorContent>()!=null) throw new InvalidOperationException("Корень завода уже содержит расстановку дверей.");
                 // A new additive patch installs hatches in existing worlds; the installer
@@ -78,9 +99,19 @@ namespace Remains.Content
                 var content=gameObject.AddComponent<RoomDoorContent>();
                 string LocalId(FactoryPlacedObject placed)=>$"{placed.Room.Cell.X},{placed.Room.Cell.Y}:{placed.Source.Id}";
                 // v1: unlocked doors; v2: + unlocked hatches; v3: + doors/hatches whose locks or parameters are ignored.
+                // v4: + the other kinds of the original.
                 var hatches=accepted.Where(entry=>entry.prefab==hatch && !relaxed.Contains(entry.source)).Select(entry=>LocalId(entry.source)).ToArray();
-                var unlocked=accepted.Where(entry=>relaxed.Contains(entry.source)).Select(entry=>LocalId(entry.source)).ToArray();
-                if(unlocked.Length>0)
+                var unlocked=accepted.Where(entry=>relaxed.Contains(entry.source) && Kind(entry.source.Source.Type)==null).Select(entry=>LocalId(entry.source)).ToArray();
+                var further=accepted.Where(entry=>Kind(entry.source.Source.Type)!=null).Select(entry=>LocalId(entry.source)).ToArray();
+                if(further.Length>0)
+                {
+                    content.Configure("base:factory-generated:doors-v4");
+                    content.ConfigureExpansion(new ContentExpansion {previousPatch="base:factory-generated:doors-v3",additions=further,
+                        earlierVersions=new[]{
+                            new ContentExpansionStep {previousPatch="base:factory-generated:doors-v2",additions=unlocked.Concat(further).ToArray()},
+                            new ContentExpansionStep {previousPatch="base:factory-generated:doors-v1",additions=hatches.Concat(unlocked).Concat(further).ToArray()}}});
+                }
+                else if(unlocked.Length>0)
                 {
                     content.Configure("base:factory-generated:doors-v3");
                     content.ConfigureExpansion(new ContentExpansion {previousPatch="base:factory-generated:doors-v2",additions=unlocked,
@@ -102,6 +133,8 @@ namespace Remains.Content
             foreach(var entry in accepted.Concat(duplicates)) root.HideObjectArtwork(entry.source);
             foreach(var pair in skipped)
                 Debug.LogWarning($"Завод {root.Prepared.Physics.id}: {pair.Key}; дверей {pair.Value.Count}. ID: {string.Join("; ",pair.Value)}",this);
+            if(waiting.Count>0)
+                Debug.LogWarning($"Завод {root.Prepared.Physics.id}: преграды с группой механизма не поставлены, пока механизм не подключён; {waiting.Count}. ID: {string.Join("; ",waiting)}",this);
         }
     }
 }

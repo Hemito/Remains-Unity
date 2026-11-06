@@ -51,7 +51,9 @@ namespace Remains.Editor
                 root.AddComponent<FactoryLevelRoot>().Configure(catalog,room,container);
                 DoorView Door(string id)=>AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Remains/Resources/Presentation/Doors/{id}.prefab")?.GetComponent<DoorView>()
                     ??throw new InvalidOperationException("Нет готового префаба двери: "+id);
-                root.AddComponent<FactoryDoorAdapter>().Configure(Door("door1"),Door("door2"),Door("door3"),Door("hatch1"));
+                var doors=root.AddComponent<FactoryDoorAdapter>();doors.Configure(Door("door1"),Door("door2"),Door("door3"),Door("hatch1"));
+                doors.ConfigureKinds(FactoryDoorKindsAuthoring.Kinds());
+                FactoryMechanismAuthoring.Install(root);
                 root.AddComponent<FactoryPropAdapter>().Configure(Props(FirstProps),Props(LaterProps));
                 var view=root.AddComponent<FactoryLevelView>();
                 root.AddComponent<FactoryLightFocus>().Configure(view);

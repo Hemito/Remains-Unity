@@ -20,7 +20,7 @@ namespace Remains.Editor
             Require(removed.SequenceEqual(new[] {"factory:0:0,2:fgGoMNwistCm7gGF"}) && backups==1 && saved.doors.Count==2,$"сохранённый мир: убрана вторая по ID дверь, копия мира один раз; удалены [{string.Join(", ",removed)}], копий {backups}, осталось {saved.doors.Count}");
             Require(DoorDuplicates.Remove(saved,()=>backups++).Count==0 && backups==1,"повторная миграция ничего не меняет");
 
-            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
+            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104,mechanismVersion=1};
             FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {

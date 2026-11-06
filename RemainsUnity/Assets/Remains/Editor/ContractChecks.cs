@@ -25,7 +25,7 @@ namespace Remains.Editor
             PropImpactPlausibilityChecks.Run();PropImpactRecoveryChecks.Run();PropImpactIndexChecks.Run();
             InventoryItemActionChecks.Run();InventoryDescriptionChecks.Run();ItemLandingAudioChecks.Run();
             DoorStateChecks.Run();DoorContentChecks.Run();DoorBarrierChecks.Run();DoorDamageRequestChecks.Run();PhysicalContentChecks.Run();ContainerLootChecks.Run();NpcContentChecks.Run();RoomContentChecks.Run();
-            FactoryLegacyDoorChecks.Run();ActorDeathAudioChecks.Run();HealingItemAudioChecks.Run();
+            FactoryLegacyDoorChecks.Run();FactoryDoorKindsChecks.Run();FactoryMechanismChecks.Run();ActorDeathAudioChecks.Run();HealingItemAudioChecks.Run();
             ContentEntityIdentityChecks.Run();
             PonyAppearance.Prepare();PonyPaletteChecks.Run();
             var music=GameAssets.Load<MusicCatalogAsset>("Content/area-music");

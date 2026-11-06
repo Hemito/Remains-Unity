@@ -30,7 +30,7 @@ namespace Remains.Gameplay
             var points=new List<MechanismInteractionPoint>();
             foreach(var button in world.mechanismButtons)
             {
-                if(button.removed) continue;
+                if(button.removed || button.IsArea) continue;
                 if(!types.TryGetValue(button.definition,out var type))
                     types.Add(button.definition,type=MechanismCatalogAsset.Load().Button(button.definition).CreateDefinition());
                 points.Add(new MechanismInteractionPoint(button,new Rect(button.x+type.graphicOffsetX,button.y+type.graphicOffsetY,

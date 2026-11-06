@@ -48,6 +48,44 @@ namespace Remains.Domain
             platform.segment=segment;platform.revision++;
             Finish(operationId);return new MechanismOperationResult(MechanismOperationOutcome.Changed);
         }
+        // Interact.command "swap", or "open" from an area: each door of the group turns. Closing is refused where a body
+        // stands: that door stays open rather than shutting on it.
+        public MechanismOperationResult TryToggleDoors(ActorState actor,MechanismButtonState button,float accessRadius,long expectedRevision,string operationId)
+        {
+            var duplicate=Transaction(operationId);if(duplicate.HasValue) return duplicate.Value;
+            if(actor==null || !world.actors.Contains(actor)) return Rejected("Персонаж не является текущей записью мира.");
+            if(button==null || !world.mechanismButtons.Contains(button) || !button.DrivesDoors) return Rejected("Кнопка не управляет дверями.");
+            button.Validate(supportedRepairState);
+            string reason=MechanismButtonAccess.Rejection(actor,button,accessRadius);
+            if(reason!=null) return Rejected(reason);
+            if(button.repairState!=MechanismRepairStates.Ready) return Rejected("Кнопка не исправна: требуется завершённый ремонт.");
+            if(button.revision!=expectedRevision) return Rejected("Состояние кнопки уже изменилось. Повторите взаимодействие.");
+            CanIncrement(world.revision,"world="+world.worldId);CanIncrement(button.revision,"button="+button.id);
+            ToggleDoors(button,false);
+            button.pressed=!button.pressed;button.revision++;
+            Finish(operationId);return new MechanismOperationResult(MechanismOperationOutcome.Changed);
+        }
+        // An area fires once: true when it did.
+        public bool OpenArea(MechanismButtonState area)
+        {
+            if(area==null || !area.IsArea || area.pressed || area.removed) return false;
+            CanIncrement(world.revision,"world="+world.worldId);CanIncrement(area.revision,"button="+area.id);
+            ToggleDoors(area,true);
+            area.pressed=true;area.revision++;world.revision++;
+            return true;
+        }
+        private void ToggleDoors(MechanismButtonState button,bool openOnly)
+        {
+            foreach(string id in button.doors)
+            {
+                var door=world.doors.Find(d=>d.id==id);
+                if(door==null) {UnityEngine.Debug.LogWarning($"Кнопка {button.id}: нет двери группы {id}.");continue;}
+                if(door.Destroyed || openOnly && door.open) continue;
+                if(door.open && DoorOccupancy.IsOccupied(world,door)) continue;
+                CanIncrement(door.revision,"door="+door.id);
+                door.open=!door.open;door.revision++;
+            }
+        }
         public MechanismOperationResult ApplyRepair(ActorState actor,MechanismButtonState button,ButtonRepairCandidate candidate,
             float accessRadius,string operationId)
         {

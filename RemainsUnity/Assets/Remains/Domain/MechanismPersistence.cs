@@ -41,6 +41,7 @@ namespace Remains.Domain
             {
                 if(button==null) throw new InvalidOperationException("Пустая запись кнопки мира "+world.worldId);
                 button.Validate(supportedRepairState??MechanismRepairStates.BuiltIn);Unique(button.id);
+                if(button.DrivesDoors) continue;
                 if(!platforms.TryGetValue(button.platformId,out var platform))
                     throw new InvalidOperationException($"Нет платформы связи: button={button.id}, platform={button.platformId}, world={world.worldId}.");
                 button.ValidateLink(platform,supportedRepairState??MechanismRepairStates.BuiltIn);

@@ -33,7 +33,7 @@ namespace Remains.Editor
                 WeaponCatalog.IsExplosive(charge.blastWeapon) && charge.disarmItem=="item:dinamit" && charge.disarmCount==3,"заряд из AllData (damexpl1: здоровье 20, взрыв, три динамита)");
             Require(ActorTypes.Get("pony").activateTrap==HazardRules.SpringsTraps && ActorTypes.Get("tarakan").activateTrap==1,"acttrap: пони 2 по умолчанию, таракан 1 из AllData");
             CheckRules(trap,charge);CheckArtwork(trap,charge);
-            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104};
+            var world=new WorldState {worldId=Guid.NewGuid().ToString("N"),seed=104,mechanismVersion=1};
             FactoryPreparation.Create(world,GameAssets.Load<FactoryCatalogAsset>(FactoryCatalogAsset.ResourceKey),0);
             try
             {

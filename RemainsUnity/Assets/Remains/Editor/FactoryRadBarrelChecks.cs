@@ -26,7 +26,7 @@ namespace Remains.Editor
             Require(definition.mass==100 && definition.radioactivity==3 && definition.movable && definition.hasPhysicalBody &&
                 Mathf.Approximately(definition.width,.8f) && Mathf.Approximately(definition.height,1.14f),"Определение бочки разошлось с AllData/рисунком");
             var catalog=AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath);
-            var world=new WorldState {seed=104,worldId="radbarrel-check"};
+            var world=new WorldState {seed=104,mechanismVersion=1,worldId="radbarrel-check"};
             FactoryPreparation.Create(world,catalog,0);
             var root=FactoryLevelRoot.Create(world,Level);
             try

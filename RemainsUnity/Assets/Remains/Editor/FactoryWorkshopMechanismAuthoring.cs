@@ -120,7 +120,7 @@ namespace Remains.Editor
         {if(!AssetDatabase.IsValidFolder(parent)) throw new InvalidOperationException("Нет каталога авторинга: "+parent);AssetDatabase.CreateFolder(parent,name);}
         private static GameObject Node(GameObject root,string name,Vector2 position)
         {var node=new GameObject(name);node.transform.SetParent(root.transform,false);node.transform.localPosition=position;return node;}
-        private static GameObject Artwork(string key,Texture2D texture,Rect bounds,string name)
+        internal static GameObject Artwork(string key,Texture2D texture,Rect bounds,string name)
         {
             var root=new GameObject(name);
             try

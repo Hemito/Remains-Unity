@@ -27,7 +27,7 @@ namespace Remains.Editor
             try
             {
                 Anatomy.Load();WeaponCatalog.Load();
-                var world=new WorldState{seed=104};
+                var world=new WorldState{seed=104,mechanismVersion=1};
                 FactoryPreparation.Create(world,AssetDatabase.LoadAssetAtPath<FactoryCatalogAsset>(FactoryCatalogAuthoring.AssetPath),0);
                 FactoryContentSources.Prepare(world,"factory:0");
                 var authoring=RoomAuthoring.Load("factory:0",world);

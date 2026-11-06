@@ -49,6 +49,9 @@ namespace Remains.Content
                 if(!root.TryGetComponent<FactoryDoorAdapter>(out var doors))
                     throw new InvalidOperationException("Нет сериализованного адаптера дверей корня: "+level);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: двери")) doors.Install(root);
+                if(!root.TryGetComponent<FactoryMechanismAdapter>(out var mechanisms))
+                    throw new InvalidOperationException("Нет сериализованного адаптера механизмов корня: "+level);
+                using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: механизмы")) mechanisms.Install(root);
                 if(!root.TryGetComponent<FactoryPropAdapter>(out var props))
                     throw new InvalidOperationException("Нет сериализованного адаптера физических объектов корня: "+level);
                 using(Remains.Diagnostics.FrameHitchLog.Section("Источники завода: тела")) props.Install(root);
