@@ -289,7 +289,7 @@ namespace Remains.Presentation
             {
                 if(SelectCharacter?.Invoke(name)!=true) return false;
                 character.text=name;RefreshSelectedWorld();return true;
-            },()=>{Characters=null;mainMenu.SetActionsBusy(false);RefreshSelectedWorld();});
+            },()=>{Characters=null;mainMenu.SetActionsBusy(false);RefreshSelectedWorld();},name=>{if(character.text==name) character.text="";});
         }
 
         public void ToggleMenu()

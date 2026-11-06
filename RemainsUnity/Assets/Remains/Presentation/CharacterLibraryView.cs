@@ -11,6 +11,7 @@ namespace Remains.Presentation
         [InspectorName("Портреты")] public CharacterPortraitView[] Portraits;
         [InspectorName("Имена")] public Text[] Names;
         [InspectorName("Игровое время")] public Text[] Times;
+        [InspectorName("Удалить персонажа")] public Button[] Delete;
         [Header("Действия и состояние")]
         [InspectorName("Создать персонажа")] public Button Create;
         [InspectorName("Назад")] public Button Close;
@@ -20,11 +21,11 @@ namespace Remains.Presentation
         [InspectorName("Номер страницы")] public Text Page;
         public void Validate()
         {
-            if(Cards==null || Cards.Length==0 || Portraits?.Length!=Cards.Length || Names?.Length!=Cards.Length || Times?.Length!=Cards.Length ||
+            if(Cards==null || Cards.Length==0 || Portraits?.Length!=Cards.Length || Names?.Length!=Cards.Length || Times?.Length!=Cards.Length || Delete?.Length!=Cards.Length ||
                 Create==null || Close==null || Previous==null || Next==null || Status==null || Page==null)
                 throw new InvalidOperationException("Список персонажей: отсутствуют ссылки интерфейса.");
             for(int i=0;i<Cards.Length;i++)
-            {if(Cards[i]==null || Portraits[i]==null || Names[i]==null || Times[i]==null) throw new InvalidOperationException("Повреждена карточка персонажа: "+i);Portraits[i].Validate();}
+            {if(Cards[i]==null || Portraits[i]==null || Names[i]==null || Times[i]==null || Delete[i]==null) throw new InvalidOperationException("Повреждена карточка персонажа: "+i);Portraits[i].Validate();}
         }
         public static CharacterLibraryView CreateView(Transform parent)
         {

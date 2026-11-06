@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Remains.Persistence;
 using UnityEngine;
+using UnityEngine.UI;
 namespace Remains.Presentation
 {
     public sealed class CharacterLibraryPanel : MonoBehaviour
@@ -12,6 +13,8 @@ namespace Remains.Presentation
         private BackgroundSaveOperation operation;
         private Func<string,bool> select;
         private Action closed;
+        private Action<string> deleted;
+        private string confirming;
         private List<CharacterLibraryEntry> entries;
         private string selected;
         private int page;
@@ -19,10 +22,10 @@ namespace Remains.Presentation
         public CharacterLibraryView View=>view;
         public CharacterEditorPanel Editor=>editor;
         public bool Ready=>entries!=null && !operation.Busy;
-        public static CharacterLibraryPanel Open(Transform parent,CharacterLibrary library,InventoryArtwork artwork,string selected,Func<string,bool> select,Action closed)
+        public static CharacterLibraryPanel Open(Transform parent,CharacterLibrary library,InventoryArtwork artwork,string selected,Func<string,bool> select,Action closed,Action<string> deleted=null)
         {
             var view=CharacterLibraryView.CreateView(parent);var panel=view.gameObject.AddComponent<CharacterLibraryPanel>();
-            panel.Initialize(view,library,artwork,selected,select,closed);return panel;
+            panel.deleted=deleted;panel.Initialize(view,library,artwork,selected,select,closed);return panel;
         }
         public void Initialize(CharacterLibraryView value,CharacterLibrary saves,InventoryArtwork graphics,string current,Func<string,bool> choose,Action close)
         {
@@ -34,6 +37,7 @@ namespace Remains.Presentation
         {
             entries=null;view.Status.text="Чтение персонажей…";view.Page.text="";
             foreach(var card in view.Cards) card.gameObject.SetActive(false);
+            foreach(var button in view.Delete) button.gameObject.SetActive(false);
             view.Create.interactable=false;view.Previous.interactable=view.Next.interactable=false;
             operation.Run(token=>library.Read(token),result=>
             {entries=result;foreach(var entry in entries) if(entry.error!=null) Debug.LogWarning(entry.error);Render();},error=>
@@ -51,14 +55,30 @@ namespace Remains.Presentation
             for(int row=0;row<capacity;row++)
             {
                 int index=page*capacity+row;var button=view.Cards[row];button.onClick.RemoveAllListeners();button.gameObject.SetActive(index<entries.Count);
+                var remove=view.Delete[row];remove.onClick.RemoveAllListeners();remove.gameObject.SetActive(index<entries.Count);
                 if(index>=entries.Count) continue;
                 var entry=entries[index];view.Names[row].text=entry.name;view.Times[row].text=entry.error==null?DescribeTime(entry.time):"Ошибка профиля · журнал игры";
                 view.Portraits[row].Show(entry.actor,artwork);button.interactable=entry.error==null;
                 OriginalButtonStyle.SetSelected(button,entry.name==selected);
-                button.onClick.AddListener(()=>{if(select(entry.name)) Close();});
+                button.onClick.AddListener(()=>{confirming=null;if(select(entry.name)) Close();});
+                remove.GetComponentInChildren<Text>().text=confirming==entry.name?"Точно?":"Удалить";
+                remove.onClick.AddListener(()=>Delete(entry.name));
             }
             view.Create.interactable=true;view.Status.text=entries.Count==0?"Создайте первого персонажа.":entries.Exists(entry=>entry.error!=null)?"Повреждённые профили недоступны. Подробности — в журнале игры.":"Выберите персонажа для своей игры или подключения к другу.";
             view.Page.text=$"{page+1} / {pages}";view.Previous.interactable=page>0;view.Next.interactable=page+1<pages;
+            if(confirming!=null) view.Status.text=$"Удалить персонажа «{confirming}»? Копия останется в папке DeletedCharacters, миры не изменятся.";
+        }
+        private void Delete(string name)
+        {
+            if(operation.Busy || editor!=null) return;
+            if(confirming!=name) {confirming=name;Render();return;}
+            confirming=null;view.Status.text="Удаление персонажа…";
+            operation.Run(_=>library.Delete(name),_=>
+            {
+                if(selected==name) selected=null;
+                deleted?.Invoke(name);Reload();
+            },error=>
+            {view.Status.text="Не удалось удалить персонажа: "+error.Message;Debug.LogError($"Удаление персонажа {name}: {error}");Reload();});
         }
         private void Create()
         {

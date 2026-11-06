@@ -47,6 +47,22 @@ namespace Remains.Persistence
             }
             return entries.OrderBy(entry=>entry.name,StringComparer.CurrentCultureIgnoreCase).ToList();
         }
+        public string DeletedDirectory=>Path.Combine(Path.GetDirectoryName(root),"DeletedCharacters");
+        // The whole profile moves beside the other save folders, as a deleted world does: nothing is erased and a mistake can
+        // be undone by hand. A world keeps the body of the character it has; the world does not belong to the profile.
+        public string Delete(string name)
+        {
+            if(fixedDirectory!=null) throw new InvalidOperationException("Запуск с отдельным каталогом сохранений: удалять персонажа нельзя.");
+            string directory=ProfilePath(name);
+            if(string.IsNullOrWhiteSpace(name) || !string.Equals(Path.GetDirectoryName(Path.GetFullPath(directory)),root,StringComparison.OrdinalIgnoreCase) ||
+                !File.Exists(Path.Combine(directory,"character.json")))
+                throw new InvalidOperationException("Этого персонажа уже нет в сохранениях.");
+            using var access=SaveAccess.Enter(directory);
+            string target=Path.Combine(DeletedDirectory,Guid.NewGuid().ToString("N"),Path.GetFileName(directory));
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+            Directory.Move(directory,target);
+            return target;
+        }
         // The fully prepared actor is supplied by the main thread; this method only writes files.
         public CharacterLibraryEntry Create(ActorState actor)
         {

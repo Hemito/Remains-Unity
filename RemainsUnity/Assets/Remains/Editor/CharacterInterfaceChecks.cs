@@ -32,6 +32,7 @@ namespace Remains.Editor
             if(list.Count!=2 || list.Find(value=>value.name==actor.character)?.actor?.appearance?.hairStyle!=5 ||
                 list.Find(value=>value.name==actor.character)?.actor?.appearance?.headStyleId!=actor.appearance.headStyleId || list.Find(value=>value.name=="Ошибочный")?.error==null)
                 throw new InvalidOperationException("Список персонажей потерял профиль, внешность или ошибку.");
+            CheckDelete(root);
             var saved=new SaveStore(entry.directory).LoadCharacter();
             if(saved.weaponInventoryVersion!=1 || saved.inventory.Find(item=>item.id==saved.equippedWeaponItem)?.definition!="pistol")
                 throw new InvalidOperationException("Новый персонаж требует миграции или не имеет экипированного оружия.");
@@ -101,6 +102,23 @@ namespace Remains.Editor
             if(portrait.anchoredPosition.y-portrait.rect.height<head.anchoredPosition.y || head.anchoredPosition.y-head.rect.height<hair.anchoredPosition.y)
                 throw new InvalidOperationException("Выбор головы перекрывает портрет или выбор гривы.");
         }
+        // Deleting moves the profile out of the list, keeps its files, frees the name and refuses a path outside the library.
+        private static void CheckDelete(string root)
+        {
+            var library=new CharacterLibrary(root);
+            var actor=new ActorState {id="player:Удаляемый",character="Удаляемый",player=true,appearance=new CharacterAppearance {version=CharacterAppearance.CurrentVersion},level="hub"};
+            PlayerStarterInventory.Give(actor);actor.weaponContent=WeaponCatalog.ManifestCopy();
+            var entry=library.Create(actor);string text=File.ReadAllText(Path.Combine(entry.directory,"character.json"));
+            string moved=library.Delete(actor.character);
+            if(Directory.Exists(entry.directory) || File.ReadAllText(Path.Combine(moved,"character.json"))!=text || !moved.StartsWith(library.DeletedDirectory,StringComparison.Ordinal))
+                throw new InvalidOperationException("Удаление персонажа потеряло файлы или оставило профиль.");
+            if(library.Read().Exists(value=>value.name==actor.character)) throw new InvalidOperationException("Удалённый персонаж остался в списке.");
+            Reject(()=>library.Delete(actor.character),"Повторное удаление");
+            Reject(()=>library.Delete("../"+actor.character),"Удаление вне библиотеки");
+            library.Create(actor);library.Delete(actor.character);
+            if(Directory.GetDirectories(library.DeletedDirectory).Length<2) throw new InvalidOperationException("Второе удаление того же имени заменило копию.");
+            Reject(()=>new CharacterLibrary(root,Path.Combine(root,"один")).Delete("один"),"Удаление в режиме одного каталога");
+        }
         private static void Reject(Action action,string context)
         {
             try {action();} catch(Exception error) when(error is ArgumentException || error is InvalidOperationException || error is IOException) {return;}
@@ -108,6 +126,7 @@ namespace Remains.Editor
         }
         public static void Render()
         {
+            Anatomy.Load();WeaponCatalog.Load();ActorTypes.Load();PonyAppearance.Prepare();
             foreach(var size in new[]{new Vector2Int(1024,768),new Vector2Int(1920,1080),new Vector2Int(2560,1080)}) RenderAt(size.x,size.y);
         }
         private static void RenderAt(int width,int height)

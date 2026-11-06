@@ -58,6 +58,30 @@ namespace Remains.Editor
             }
             finally {PrefabUtility.UnloadPrefabContents(root);}
         }
+        // The delete buttons sit on the cards but are their siblings: a press must not also choose the character.
+        public static void AddDeleteButtonsBatch()
+        {
+            int code=0;
+            const string path="Assets/Remains/Resources/Presentation/CharacterLibrary.prefab";
+            var root=PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var view=root.GetComponent<CharacterLibraryView>();
+                view.Delete=new Button[view.Cards.Length];
+                for(int i=0;i<view.Cards.Length;i++)
+                {
+                    var button=Button(root.transform,"Удалить",new Vector2(24+i%3*320+212,-102-i/3*230-8),new Vector2(88,28));
+                    button.name="Удалить персонажа "+(i+1);button.GetComponentInChildren<Text>().fontSize=14;
+                    view.Delete[i]=button;
+                }
+                view.Validate();PrefabUtility.SaveAsPrefabAsset(root,path,out bool saved);
+                if(!saved) throw new System.IO.IOException("Не записан список персонажей.");
+                Debug.Log("Список персонажей: PASS — кнопки удаления добавлены.");
+            }
+            catch(System.Exception error) {Debug.LogError("Список персонажей: "+error);code=1;}
+            finally {PrefabUtility.UnloadPrefabContents(root);}
+            EditorApplication.Exit(code);
+        }
         public static void RefreshSavedPortraits()
         {
             foreach(string path in new[]{"Assets/Remains/Resources/Presentation/CharacterLibrary.prefab","Assets/Remains/Resources/Presentation/CharacterEditor.prefab"})
@@ -135,6 +159,12 @@ namespace Remains.Editor
                     view.Cards[i]=card;view.Portraits[i]=Portrait(card.transform,new Vector2(10,-8),new Vector2(288,129),true);
                     view.Names[i]=Label(card.transform,"Имя","Имя персонажа",new Vector2(12,-142),new Vector2(284,44),16);view.Names[i].alignment=TextAnchor.MiddleCenter;
                     view.Times[i]=Label(card.transform,"Время игры","Время ещё не учтено",new Vector2(12,-190),new Vector2(284,25),16);view.Times[i].alignment=TextAnchor.MiddleCenter;
+                }
+                view.Delete=new Button[6];
+                for(int i=0;i<6;i++)
+                {
+                    view.Delete[i]=Button(root.transform,"Удалить",new Vector2(24+i%3*320+212,-102-i/3*230-8),new Vector2(88,28));
+                    view.Delete[i].name="Удалить персонажа "+(i+1);view.Delete[i].GetComponentInChildren<Text>().fontSize=14;
                 }
                 view.Create=Button(root.transform,"Создать персонажа",new Vector2(24,-583),new Vector2(240,40));
                 view.Previous=Button(root.transform,"←",new Vector2(350,-583),new Vector2(70,40));
